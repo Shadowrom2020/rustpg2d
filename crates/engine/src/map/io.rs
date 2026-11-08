@@ -55,6 +55,8 @@ struct Meta {
     /// Clear weather isn't written (maps without weather stay as they were).
     #[serde(skip_serializing_if = "crate::map::Weather::is_clear")]
     weather: crate::map::Weather,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    parallax: Vec<crate::map::ParallaxLayer>,
 }
 
 impl Default for Meta {
@@ -70,6 +72,7 @@ impl Default for Meta {
             lighting: Default::default(),
             fog: false,
             weather: Default::default(),
+            parallax: Vec::new(),
         }
     }
 }
@@ -153,6 +156,7 @@ pub fn encode(map: &Map) -> Result<Vec<u8>> {
         lighting: map.lighting,
         fog: map.fog,
         weather: map.weather,
+        parallax: map.parallax.clone(),
     };
     let core = CoreRef {
         name: &map.name,
@@ -197,6 +201,7 @@ pub fn decode(bytes: &[u8]) -> Result<Map> {
                 lighting: Default::default(),
                 fog: false,
                 weather: Default::default(),
+                parallax: Vec::new(),
             }
         }
         2 => {
@@ -219,6 +224,7 @@ pub fn decode(bytes: &[u8]) -> Result<Map> {
                 lighting: meta.lighting,
                 fog: meta.fog,
                 weather: meta.weather,
+                parallax: meta.parallax,
             }
         }
         v => bail!("unsupported map format version {v} (newest supported: {FORMAT_VERSION})"),
@@ -281,8 +287,12 @@ mod tests {
         let mut tilda = EntityInstance::new(uid, EntityKind::Character, "merchant", 3.0, 4.0);
         tilda.portrait = Some(crate::defs::SpriteRef::new("portraits", 2));
         m.entities.push(tilda);
+        // A map without parallax layers writes nothing for them (older versions read it).
+        assert!(!ron::to_string(&Meta::default()).unwrap().contains("parallax"));
+        m.parallax.push(crate::map::ParallaxLayer { sheet: "clouds".into(), factor: [1.0, 1.0], drift: [6.0, 2.0], above: true, alpha: 0.15, scale: 4.0, ..Default::default() });
         let bytes = encode(&m).unwrap();
         let back = decode(&bytes).unwrap();
+        assert_eq!(back.parallax, m.parallax);
         assert_eq!((back.width, back.height), (1024, 1024));
         assert_eq!(back.layers[0].get(1000, 999), m.layers[0].get(1000, 999));
         assert_eq!(back.layers[1].get(1023, 1023), Tile::new(slot, 5));
@@ -356,6 +366,19 @@ mod tests {
         assert!(back.entities[0].container.is_none());
         assert_eq!((back.next_uid, back.background), (5, [1, 2, 3]));
         assert!(back.music.is_empty());
+    }
+
+    #[test]
+    fn parallax_layers_place_their_copies() {
+        let l = crate::map::ParallaxLayer { factor: [0.25, 0.0], offset: [10.0, 0.0], drift: [2.0, 0.0], ..Default::default() };
+        // Factor 0.25: the view moved 400 px, the layer 300 px less (it lags behind), drift 2 px/s.
+        assert_eq!(l.origin([400.0, 50.0], 5.0), [400.0 * 0.75 + 10.0 + 10.0, 50.0]);
+        // Repeating: from the copy left of the view to past its right edge.
+        assert_eq!(crate::map::ParallaxLayer::copies(30.0, 100.0, true, 250.0, 520.0), (230.0, 3));
+        assert_eq!(crate::map::ParallaxLayer::copies(30.0, 100.0, false, 250.0, 520.0), (30.0, 1));
+        // A layer of an old map (only some fields) gets the defaults for the rest.
+        let old: crate::map::ParallaxLayer = ron::from_str(r#"(sheet: "sky")"#).unwrap();
+        assert_eq!((old.alpha, old.scale, old.repeat, old.above), (1.0, 1.0, [true, true], false));
     }
 
     #[test]

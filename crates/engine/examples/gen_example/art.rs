@@ -3812,3 +3812,63 @@ pub fn portraits(out: &Path) {
     }
     c.save(&out.join("sprites/portraits.png"));
 }
+
+// ------------------------------------------------------------------ parallax layers
+
+/// Tileable value noise in 0..1 with a lattice of `cells` per side, octaves added up.
+fn tile_noise(seed: u64, size: u32, cells: u32, octaves: u32) -> Vec<f32> {
+    let mut out = vec![0.0f32; (size * size) as usize];
+    let mut amp_sum = 0.0;
+    for o in 0..octaves {
+        let c = cells << o;
+        let mut rng = Rng(seed + o as u64 * 7919);
+        let lattice: Vec<f32> = (0..c * c).map(|_| rng.f()).collect();
+        let at = |x: u32, y: u32| lattice[((y % c) * c + x % c) as usize];
+        let amp = 0.5f32.powi(o as i32);
+        amp_sum += amp;
+        for y in 0..size {
+            for x in 0..size {
+                let (fx, fy) = (x as f32 * c as f32 / size as f32, y as f32 * c as f32 / size as f32);
+                let (ix, iy) = (fx.floor() as u32, fy.floor() as u32);
+                let s = |t: f32| t * t * (3.0 - 2.0 * t);
+                let (tx, ty) = (s(fx.fract()), s(fy.fract()));
+                let top = at(ix, iy) * (1.0 - tx) + at(ix + 1, iy) * tx;
+                let bottom = at(ix, iy + 1) * (1.0 - tx) + at(ix + 1, iy + 1) * tx;
+                out[(y * size + x) as usize] += amp * (top * (1.0 - ty) + bottom * ty);
+            }
+        }
+    }
+    out.iter_mut().for_each(|v| *v /= amp_sum);
+    out
+}
+
+/// Images of the example's parallax layers (`Map::parallax`), both tileable:
+/// `sprites/cloud_shadows.png` (soft dark blots drifting over the Wilds) and
+/// `sprites/abyss_mist.png` (dark mist far below the mine's chasm).
+pub fn parallax_images(out: &Path) {
+    let n = 256;
+    let noise = tile_noise(4242, n, 4, 3);
+    let mut c = Canvas::new(n, n);
+    for y in 0..n {
+        for x in 0..n {
+            let v = noise[(y * n + x) as usize];
+            // Clouds where the noise is high, with soft edges.
+            let a = ((v - 0.52) / 0.12).clamp(0.0, 1.0);
+            c.img.set_pixel(x, y, Color::new(0.02, 0.04, 0.1, a * a * (3.0 - 2.0 * a)));
+        }
+    }
+    c.save(&out.join("sprites/cloud_shadows.png"));
+    let noise = tile_noise(777, n, 4, 4);
+    let mut c = Canvas::new(n, n);
+    for y in 0..n {
+        for x in 0..n {
+            let v = noise[(y * n + x) as usize];
+            let m = ((v - 0.3) / 0.45).clamp(0.0, 1.0);
+            // Dark depths with pale violet swirls of mist; a few faint specks far below.
+            let speck = (x * 7 + y * 13) % 211 == 0;
+            let l = if speck { 0.9 } else { m * m };
+            c.img.set_pixel(x, y, Color::new(0.05 + 0.55 * l, 0.04 + 0.5 * l, 0.09 + 0.7 * l, 1.0));
+        }
+    }
+    c.save(&out.join("sprites/abyss_mist.png"));
+}

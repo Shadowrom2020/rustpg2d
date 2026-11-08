@@ -1095,6 +1095,16 @@ fn dungeon() -> Tileset {
             solid: true,
             art: EdgeArt { inside: &pit, outside: &dungeon_floor, natural: true, band: 5.0, rim_in: Some(0x2a2832), rim_w: 2, rim_out: Some(0x6a6672) },
         },
+        // A chasm whose depths are see-through: a map's parallax layer behind the tiles (or its
+        // background colour) shows in it.
+        TerrainSpec {
+            name: "Abyss",
+            inside: None,
+            base: 0,
+            joins: &[],
+            solid: true,
+            art: EdgeArt { inside: &|c: &mut Canvas, _| c.rect(0, 0, TS as i32, TS as i32, CLEAR), outside: &dungeon_floor, natural: true, band: 5.0, rim_in: Some(0x2a2832), rim_w: 2, rim_out: Some(0x6a6672) },
+        },
     ];
     let (c, terrains, more) = add_terrains(c, 3, &specs);
     solid.extend(more);

@@ -53,6 +53,18 @@
         frame_h: 32,
     ),
     (
+        id: "cloud_shadows",
+        image: "sprites/cloud_shadows.png",
+        frame_w: 256,
+        frame_h: 256,
+    ),
+    (
+        id: "abyss_mist",
+        image: "sprites/abyss_mist.png",
+        frame_w: 256,
+        frame_h: 256,
+    ),
+    (
         id: "portraits",
         image: "sprites/portraits.png",
         frame_w: 64,

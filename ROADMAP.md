@@ -123,7 +123,7 @@ back, old terrains without `blob` load and paint; Tiled fixture with a mixed and
 Editor script: the Terrains form with the 7×7 grid and preview, `terrainpaint` of an L on the
 village (screenshot: rounded inner corner); game screenshot of the village's road junctions.
 
-### [ ] Parallax layers — `feature/parallax`
+### [x] Parallax layers — `feature/parallax`
 
 **Goal.** Image layers that move at their own speed behind or over a map: a sky or abyss under
 a cliff map, drifting cloud shadows or mist above it.
@@ -140,6 +140,16 @@ a cliff map, drifting cloud shadows or mist above it.
 - Editor: *Map › Properties* gets a *Parallax layers* list (image picker, factor, drift, repeat,
   above, alpha, order); the canvas previews them (view toggle `viewopt parallax`).
 
+**Decided while building.** A layer names a **sprite sheet** (`sheet`, drawn whole) instead of an
+image path: sheets already load with the project, have pickers and travel with renames and the
+library, so nothing new loads with the map. Added `scale` (cloud shadows are a small tileable
+image drawn 4×). The image's origin is the view's top-left × (1 − factor) + offset + drift × time,
+so factor 0 anchors it to the screen's top-left. Behind layers draw over the whole view (also past
+the map's edge, in the editor too). The mine is pitch dark and has no empty cells, so its chasm
+became a see-through *Abyss* terrain (appended to the dungeon tileset; Chasm unchanged) through
+which the mist shows near the torch. Cloud shadows: factor 0.8, alpha 0.3. `status()`
+`parallax=NbehindMabove`; editor `viewopt parallax`.
+
 **Touch points.** `map/mod.rs`, `map/io.rs` (Meta), `render/{parallax (new),mod}.rs`,
 `runtime/mod.rs` (draw order), editor `app.rs` (map properties), `canvas.rs`, `main.rs`
 (`viewopt parallax`), `refactor.rs` / `library.rs` (image refs travel with maps), README.
@@ -147,9 +157,11 @@ a cliff map, drifting cloud shadows or mist above it.
 **Example.** Cloud shadows drifting over the Wilds (above, alpha 0.15) and a dark mist behind
 the mine, seen under empty tiles and beyond the map edge (behind, factor 0.3).
 
-**Verify.** Autoplay screenshots at two player positions show the clouds moving slower than the
-ground; a map without layers draws as before; editor screenshot with the preview; map round trip
-test.
+**Verify (done).** Autoplay: Wilds screenshots with drifting cloud shadows, mine screenshots at two
+player positions (the mist in the chasm shifts against the floor), `parallax=1behind,0above` /
+`0behind,1above`; editor screenshots of the mine with the preview and the map settings' list, and
+with `viewopt parallax off`; map round trip test (and no `parallax` written for maps without
+layers), origin / copies unit test.
 
 ### [ ] Gapless music loops — `feature/gapless-music`
 

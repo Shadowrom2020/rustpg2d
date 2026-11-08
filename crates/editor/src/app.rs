@@ -155,6 +155,8 @@ pub struct ViewOpts {
     pub hour: f32,
     /// Shows the map's weather (particles, darker rain) in the editor.
     pub weather: bool,
+    /// Draws the map's parallax layers (behind the tiles and over the map).
+    pub parallax: bool,
 }
 
 pub struct Cam {
@@ -399,7 +401,7 @@ impl Editor {
             capture: Default::default(),
             place_recent: Vec::new(),
             zone_template: ZoneTemplate::Spawn,
-            view: ViewOpts { grid: true, collision: false, zones: true, dim_layers: false, minimap: true, lighting: false, hour: 22.0, weather: false },
+            view: ViewOpts { grid: true, collision: false, zones: true, dim_layers: false, minimap: true, lighting: false, hour: 22.0, weather: false, parallax: true },
             light_pass: None,
             weather_fx: Default::default(),
             light_cache: (-1.0, String::new(), Vec::new()),
@@ -1499,6 +1501,7 @@ impl Editor {
                     ui.checkbox(&mut self.view.minimap, "Minimap");
                     ui.checkbox(&mut self.view.lighting, "Lighting preview");
                     ui.checkbox(&mut self.view.weather, "Weather preview");
+                    ui.checkbox(&mut self.view.parallax, "Parallax layers");
                 });
                 ui.menu_button("Play", |ui| {
                     if ui.button(ui::t(ph::PLAY, "Play here   F5")).clicked() {
@@ -1583,6 +1586,7 @@ impl Editor {
                     ui::toggle(ui, &mut self.view.minimap, ph::MAP_TRIFOLD, "Minimap", "", "Overview in the corner of the map");
                     ui::toggle(ui, &mut self.view.lighting, ph::LIGHTBULB, "Lighting preview", "", "Shows the map's darkness and its lights as in the game (outdoor maps at the hour chosen next to it)");
                     ui::toggle(ui, &mut self.view.weather, ph::CLOUD_RAIN, "Weather preview", "", "Shows the map's rain, snow or fog as in the game (set it in the map's settings: nothing selected)");
+                    ui::toggle(ui, &mut self.view.parallax, ph::IMAGES, "Parallax layers", "", "Shows the map's parallax layers (sky, mist, cloud shadows) as in the game; set them in the map's settings (nothing selected)");
                     let outdoor = self.doc.as_ref().is_some_and(|d| d.map.lighting.mode == rustpg2d_engine::map::LightMode::Outdoor);
                     if self.view.lighting && outdoor {
                         let mut h = self.view.hour;
@@ -2756,6 +2760,8 @@ impl Editor {
                     ui.weak("Rain also darkens the map and plays a rain sound. The Set weather action and set_weather() change it during the game (kept in save games). Preview: View › Weather preview.");
                 }
                 ui.separator();
+                parallax_ui(ui, &mut map.parallax, &self.project.db, &self.tex);
+                ui.separator();
                 ui.heading("Map screen");
                 ui.checkbox(&mut map.fog, "Fog of war").on_hover_text(
                     "The in-game map (M) only shows what the player has explored: about 6 tiles around everywhere they have been. Off: the whole map is shown right away.",
@@ -3147,4 +3153,87 @@ pub fn speakers_of(map: &Map, db: &rustpg2d_engine::defs::Database) -> Vec<(Stri
         add(n, "used in a dialog here".into());
     }
     out
+}
+
+/// *Parallax layers* of the map settings: image layers moving at their own speed behind the
+/// tiles or over the map (`Map::parallax`).
+fn parallax_ui(ui: &mut egui::Ui, layers: &mut Vec<rustpg2d_engine::map::ParallaxLayer>, db: &rustpg2d_engine::defs::Database, tex: &crate::app::Textures) {
+    use rustpg2d_engine::map::ParallaxLayer;
+    ui.heading("Parallax layers");
+    ui.weak("Images moving at their own speed: behind the tiles (a sky or abyss, seen under empty tiles and past the map's edge) or over the map (cloud shadows, mist). The image is a sprite sheet (Database › Sprite sheets), drawn whole. Preview: View › Parallax layers.");
+    let sheets: Vec<String> = db.sheets.iter().map(|s| s.id.clone()).collect();
+    let (mut remove, mut swap) = (None, None);
+    let n = layers.len();
+    for (k, l) in layers.iter_mut().enumerate() {
+        ui.push_id(("parallax", k), |ui| {
+            egui::Frame::group(ui.style()).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{}.", k + 1));
+                    crate::widgets::suggest(ui, "plx_sheet", &mut l.sheet, &sheets, 130.0);
+                    if let Some(t) = tex.sheets.get(&l.sheet) {
+                        let size = t.size_vec2();
+                        let h = 28.0;
+                        ui.image((t.id(), egui::vec2(h * size.x / size.y.max(1.0), h).min(egui::vec2(80.0, h))));
+                    } else if !l.sheet.is_empty() {
+                        ui.colored_label(egui::Color32::from_rgb(240, 120, 90), "no such sheet");
+                    }
+                    if k > 0 && ui.small_button(crate::ui::ph::ARROW_UP).on_hover_text("Draw earlier (further back)").clicked() {
+                        swap = Some(k - 1);
+                    }
+                    if k + 1 < n && ui.small_button(crate::ui::ph::ARROW_DOWN).on_hover_text("Draw later (further in front)").clicked() {
+                        swap = Some(k);
+                    }
+                    if ui.small_button(crate::ui::ph::TRASH).on_hover_text("Remove this layer").clicked() {
+                        remove = Some(k);
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut l.above, false, "Behind the map");
+                    ui.radio_value(&mut l.above, true, "Over the map");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Follows").on_hover_text("How much the layer moves with the map (x, y): 100 % = with the ground, 0 % = fixed to the screen, in between = far away");
+                    for a in 0..2 {
+                        let mut pct = (l.factor[a] * 100.0).round();
+                        if ui.add(egui::DragValue::new(&mut pct).range(0.0..=200.0).suffix(" %").speed(1.0)).changed() {
+                            l.factor[a] = pct / 100.0;
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Drift").on_hover_text("Constant movement in pixels per second (x, y): drifting clouds");
+                    ui.add(egui::DragValue::new(&mut l.drift[0]).speed(0.5).suffix(" px/s"));
+                    ui.add(egui::DragValue::new(&mut l.drift[1]).speed(0.5).suffix(" px/s"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Offset").on_hover_text("Where the image starts (pixels)");
+                    ui.add(egui::DragValue::new(&mut l.offset[0]).speed(1.0));
+                    ui.add(egui::DragValue::new(&mut l.offset[1]).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Repeat");
+                    ui.checkbox(&mut l.repeat[0], "x");
+                    ui.checkbox(&mut l.repeat[1], "y");
+                    ui.label("Size");
+                    ui.add(egui::DragValue::new(&mut l.scale).range(0.05..=16.0).speed(0.05).suffix("×"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Opacity");
+                    let mut pct = (l.alpha * 100.0).round();
+                    if ui.add(egui::Slider::new(&mut pct, 0.0..=100.0).suffix(" %")).changed() {
+                        l.alpha = pct / 100.0;
+                    }
+                });
+            });
+        });
+    }
+    if let Some(k) = remove {
+        layers.remove(k);
+    }
+    if let Some(k) = swap {
+        layers.swap(k, k + 1);
+    }
+    if ui.button(crate::ui::t(crate::ui::ph::PLUS, "Parallax layer")).clicked() {
+        layers.push(ParallaxLayer { sheet: sheets.first().cloned().unwrap_or_default(), ..Default::default() });
+    }
 }

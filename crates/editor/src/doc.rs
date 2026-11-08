@@ -21,6 +21,7 @@ pub struct Objects {
     pub lighting: rustpg2d_engine::map::MapLighting,
     pub fog: bool,
     pub weather: rustpg2d_engine::map::Weather,
+    pub parallax: Vec<rustpg2d_engine::map::ParallaxLayer>,
 }
 
 impl Objects {
@@ -36,6 +37,7 @@ impl Objects {
             lighting: map.lighting,
             fog: map.fog,
             weather: map.weather,
+            parallax: map.parallax.clone(),
         }
     }
     fn apply(&self, map: &mut Map) {
@@ -49,6 +51,7 @@ impl Objects {
         map.lighting = self.lighting;
         map.fog = self.fog;
         map.weather = self.weather;
+        map.parallax = self.parallax.clone();
     }
 }
 

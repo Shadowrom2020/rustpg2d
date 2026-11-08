@@ -13,6 +13,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   47-tile terrains and *edge* sets into 16-tile ones (*corner* sets are reported).
 - Example: the starter *Dirt path* and *Sand* terrains got blob sets; the village's roads and
   sandy pond are retiled with them.
+- **Parallax layers** (map settings): images moving at their own speed behind the tiles or over
+  the map (`Map.parallax`: sprite sheet, follow factor, drift, offset, repeat, size, opacity),
+  drawn by the game and previewed in the editor (*View › Parallax layers*). Example: cloud
+  shadows over the Wilds, mist far below the mine's chasm, which uses the dungeon tileset's new
+  see-through *Abyss* terrain.
 
 ## 0.7.0 — 2026-11-08
 

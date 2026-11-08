@@ -1,6 +1,6 @@
 //! Standalone release bundles of a project.
 //!
-//! Layout of a bundle folder:
+//! Layout of a bundle folder (Linux; a Windows bundle is `<slug>-windows/` with `<slug>.exe`):
 //! ```text
 //! <slug>/
 //!   <slug>        the game executable (a copy of rustpg2d-game)
@@ -29,6 +29,77 @@ pub const ENGINE_LICENSE: &str = include_str!("../../../LICENSE");
 /// Its file name in exports and game packages.
 pub const ENGINE_LICENSE_FILE: &str = "rustpg2d-LICENSE.txt";
 
+/// The platform an exported game runs on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Platform {
+    /// x86_64 Linux (the `rustpg2d-game` executable).
+    Linux,
+    /// x86_64 Windows (`rustpg2d-game.exe`).
+    Windows,
+}
+
+impl Platform {
+    pub const ALL: [Platform; 2] = [Platform::Linux, Platform::Windows];
+
+    /// The platform this program runs on (Linux for anything that isn't Windows).
+    pub fn host() -> Platform {
+        if cfg!(windows) {
+            Platform::Windows
+        } else {
+            Platform::Linux
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Platform::Linux => "Linux",
+            Platform::Windows => "Windows",
+        }
+    }
+
+    /// File name of R(ust)PG2D's game runner for this platform.
+    pub fn game_runner(self) -> &'static str {
+        match self {
+            Platform::Linux => "rustpg2d-game",
+            Platform::Windows => "rustpg2d-game.exe",
+        }
+    }
+
+    /// The bundle folder of a game (`<slug>`, `<slug>-windows`).
+    pub fn folder(self, slug: &str) -> String {
+        match self {
+            Platform::Linux => slug.to_string(),
+            Platform::Windows => format!("{slug}-windows"),
+        }
+    }
+
+    /// The game executable's file name in the bundle.
+    pub fn exe(self, slug: &str) -> String {
+        match self {
+            Platform::Linux => slug.to_string(),
+            Platform::Windows => format!("{slug}.exe"),
+        }
+    }
+
+    /// The zip of a bundle.
+    pub fn archive(self, slug: &str) -> String {
+        format!("{slug}-{}.zip", self.label().to_lowercase())
+    }
+
+    /// The README of a bundle.
+    fn readme(self, name: &str, slug: &str) -> String {
+        let how = match self {
+            Platform::Linux => format!("Run ./{slug} to play (Linux, x86_64).\nThe game data is in data/; save games are kept in {}.", crate::paths::saves_hint(slug, false)),
+            Platform::Windows => format!(
+                "Double-click {slug}.exe to play (Windows 10 or newer, 64-bit).\nThe game data is in the data folder; save games are kept in {}.\nWindows may warn that the publisher is unknown (the game isn't signed): choose \"More info\", then \"Run anyway\".",
+                crate::paths::saves_hint(slug, true)
+            ),
+        };
+        let line_end = if self == Platform::Windows { "\r\n" } else { "\n" };
+        format!("{name}\n\n{how}\n\nMade with R(ust)PG2D. The game executable is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}.\n").replace('\n', line_end)
+    }
+}
+
 /// A file-name friendly version of a game name ("My Game!" → "my-game").
 pub fn slug(name: &str) -> String {
     let mut s = String::new();
@@ -50,11 +121,10 @@ pub fn bundled_root() -> Option<PathBuf> {
     data.join("project.ron").exists().then_some(data)
 }
 
-/// Where a released game keeps its save games: `$XDG_DATA_HOME/<slug>/saves`
-/// (default `~/.local/share/<slug>/saves`).
+/// Where a released game keeps its save games: `$XDG_DATA_HOME/<slug>/saves` (default
+/// `~/.local/share/<slug>/saves`), on Windows `%APPDATA%\<slug>\saves`.
 pub fn user_saves_dir(game_name: &str) -> Option<PathBuf> {
-    let data = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))?;
-    Some(data.join(slug(game_name)).join("saves"))
+    Some(crate::paths::saves_base()?.join(slug(game_name)).join("saves"))
 }
 
 /// Problems found before exporting.
@@ -129,10 +199,12 @@ pub struct Exported {
     pub warnings: Vec<String>,
 }
 
-/// Writes a bundle of `project` named `name` into `out_dir/<slug>/`, using `game_binary` as the
-/// executable; with `zip`, also `out_dir/<slug>-linux.zip`. An earlier export in the same place
-/// is replaced; any other existing folder of that name is left alone (error).
-pub fn export(project: &Project, name: &str, game_binary: &Path, out_dir: &Path, zip: bool) -> Result<Exported> {
+/// Writes a bundle of `project` named `name` for `platform` into `out_dir/<slug>/` (Windows:
+/// `<slug>-windows/`), using `game_binary` (R(ust)PG2D's game runner for that platform) as the
+/// executable; with `zip`, also `out_dir/<slug>-linux.zip` / `<slug>-windows.zip`. An earlier
+/// export in the same place is replaced; any other existing folder of that name is left alone
+/// (error).
+pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &Path, out_dir: &Path, zip: bool) -> Result<Exported> {
     let (files, check) = check(project);
     if !check.errors.is_empty() {
         bail!("{}", check.errors.join("\n"));
@@ -141,7 +213,10 @@ pub fn export(project: &Project, name: &str, game_binary: &Path, out_dir: &Path,
         bail!("game executable not found: {}", game_binary.display());
     }
     let slug = slug(name);
-    let folder = out_dir.join(&slug);
+    if platform == Platform::Windows && std::fs::read(game_binary).map_or(true, |b| !b.starts_with(b"MZ")) {
+        bail!("{} is not a Windows program", game_binary.display());
+    }
+    let folder = out_dir.join(platform.folder(&slug));
     let project_root = project.root.canonicalize().unwrap_or_else(|_| project.root.clone());
     let folder_abs = std::fs::create_dir_all(out_dir).ok().and_then(|_| out_dir.canonicalize().ok()).map(|d| d.join(&slug));
     if folder_abs.as_ref().is_some_and(|f| project_root.starts_with(f) || f.starts_with(&project_root)) {
@@ -164,25 +239,22 @@ pub fn export(project: &Project, name: &str, game_binary: &Path, out_dir: &Path,
     let mut cfg = project.config.clone();
     cfg.name = name.trim().to_string();
     crate::project::write_ron(&data.join("project.ron"), &cfg)?;
-    let exe = folder.join(&slug);
+    let exe = folder.join(platform.exe(&slug));
     bytes += std::fs::copy(game_binary, &exe).context("copying the game executable")?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755))?;
     }
-    let readme = format!(
-        "{name}\n\nRun ./{slug} to play (Linux, x86_64).\nThe game data is in data/; save games are kept in ~/.local/share/{slug}/saves.\n\nMade with R(ust)PG2D. The game executable is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}.\n"
-    );
-    std::fs::write(folder.join("README.txt"), readme)?;
+    std::fs::write(folder.join("README.txt"), platform.readme(name.trim(), &slug))?;
     std::fs::write(folder.join(ENGINE_LICENSE_FILE), ENGINE_LICENSE)?;
-    let archive = if zip { Some(write_zip(&folder, &slug, out_dir)?) } else { None };
+    let archive = if zip { Some(write_zip(&folder, &slug, &platform.exe(&slug), &out_dir.join(platform.archive(&slug)))?) } else { None };
     Ok(Exported { folder, archive, files: files.len() + 3, bytes, warnings: check.warnings })
 }
 
-/// Zips the bundle folder (keeping the executable's permissions).
-fn write_zip(folder: &Path, slug: &str, out_dir: &Path) -> Result<PathBuf> {
-    let path = out_dir.join(format!("{slug}-linux.zip"));
+/// Zips the bundle folder as `<slug>/…` (keeping the executable's permissions).
+fn write_zip(folder: &Path, slug: &str, exe_name: &str, path: &Path) -> Result<PathBuf> {
+    let path = path.to_path_buf();
     let file = std::fs::File::create(&path).with_context(|| format!("creating {}", path.display()))?;
     let mut zw = zip::ZipWriter::new(file);
     let mut stack = vec![folder.to_path_buf()];
@@ -200,7 +272,7 @@ fn write_zip(folder: &Path, slug: &str, out_dir: &Path) -> Result<PathBuf> {
     entries.sort();
     for p in entries {
         let rel = p.strip_prefix(folder)?.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
-        let exe = rel == slug;
+        let exe = rel == exe_name;
         let opts = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated)
             .unix_permissions(if exe { 0o755 } else { 0o644 })
@@ -249,7 +321,7 @@ mod tests {
         let bin = tmp.join("rustpg2d-game");
         std::fs::write(&bin, b"#!/bin/sh\n").unwrap();
         let out = tmp.join("out");
-        let r = export(&p, "Test Quest", &bin, &out, true).unwrap();
+        let r = export(&p, "Test Quest", Platform::Linux, &bin, &out, true).unwrap();
         let f = out.join("test-quest");
         assert!(f.join("test-quest").is_file());
         assert!(f.join("data/project.ron").is_file());
@@ -268,11 +340,24 @@ mod tests {
         assert_eq!(exe.unix_mode().map(|m| m & 0o777), Some(0o755));
         drop(exe);
         // Exporting again replaces the earlier export; a foreign folder is refused.
-        export(&p, "Test Quest", &bin, &out, false).unwrap();
+        export(&p, "Test Quest", Platform::Linux, &bin, &out, false).unwrap();
         std::fs::create_dir_all(out.join("other")).unwrap();
-        assert!(export(&p, "Other", &bin, &out, false).is_err());
+        assert!(export(&p, "Other", Platform::Linux, &bin, &out, false).is_err());
         // Never into the project itself.
-        assert!(export(&p, "Test Quest", &bin, &root, false).is_err());
+        assert!(export(&p, "Test Quest", Platform::Linux, &bin, &root, false).is_err());
+        // Windows: needs a Windows program; its own folder, exe, zip and README next to Linux's.
+        assert!(export(&p, "Test Quest", Platform::Windows, &bin, &out, false).is_err(), "not an exe");
+        let win = tmp.join("rustpg2d-game.exe");
+        std::fs::write(&win, b"MZ\x90\0fake").unwrap();
+        let r = export(&p, "Test Quest", Platform::Windows, &win, &out, true).unwrap();
+        let w = out.join("test-quest-windows");
+        assert_eq!(r.folder, w);
+        assert!(w.join("test-quest.exe").is_file() && w.join("data/maps/start.map").is_file());
+        let readme = std::fs::read_to_string(w.join("README.txt")).unwrap();
+        assert!(readme.contains("test-quest.exe") && readme.contains("%APPDATA%\\test-quest\\saves") && readme.contains("\r\n"), "{readme}");
+        assert!(f.join("test-quest").is_file(), "the Linux export stays");
+        let mut za = zip::ZipArchive::new(std::fs::File::open(out.join("test-quest-windows.zip")).unwrap()).unwrap();
+        assert!(za.by_name("test-quest/test-quest.exe").is_ok() && za.by_name("test-quest/data/project.ron").is_ok());
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

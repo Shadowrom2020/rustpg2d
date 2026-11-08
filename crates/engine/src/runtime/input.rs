@@ -344,7 +344,9 @@ const STICK_OFF: f32 = 0.35;
 
 #[derive(Default)]
 struct PadState {
-    gilrs: Option<gilrs::Gilrs>,
+    /// Never dropped: on Windows, gilrs joins its event thread when dropped, which panics during
+    /// process exit (thread-local destructors run after the other threads are gone).
+    gilrs: Option<std::mem::ManuallyDrop<gilrs::Gilrs>>,
     started: bool,
     /// Buttons held now / last frame (bits of [`Pad::bit`]).
     down: u32,
@@ -368,7 +370,7 @@ pub fn poll_pad() {
         if !p.started {
             p.started = true;
             p.gilrs = match gilrs::Gilrs::new() {
-                Ok(g) => Some(g),
+                Ok(g) => Some(std::mem::ManuallyDrop::new(g)),
                 Err(e) => {
                     eprintln!("[input] gamepads unavailable: {e}");
                     None

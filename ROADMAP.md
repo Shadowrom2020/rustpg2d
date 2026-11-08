@@ -83,7 +83,7 @@ Theme: R(ust)PG2D and the games made with it run where the players and creators 
 macOS, the web, and in their language. Postponed from 0.6.0 (2026-11-06) so the gameplay
 releases come first; the design notes are unchanged.
 
-### [ ] Windows export — `feature/windows`
+### [x] Windows export — `feature/windows`
 
 **Design.** Gate the `std::os::unix` uses (`editor/files.rs` copy permissions,
 `packaging/lib.rs` symlink and executable bit, `release.rs` chmod); Windows paths for saves and
@@ -94,8 +94,24 @@ the toolkit packages ship it next to the Linux runner, so the Linux editor expor
 (*File → Export game* gains a *Windows* checkbox). Followed by *Editor on Windows* and *macOS
 builds* below.
 
-**Verify.** Export from the editor produces the zip; run the exe under Wine for a `status` run
-if Wine is available, otherwise a CI smoke test on `windows-latest`.
+**Decided while building.** `release::Platform { Linux, Windows }` and `export(.., platform, ..)`;
+a Windows bundle is `<slug>-windows/<slug>.exe` (so both exports sit side by side), its zip
+`<slug>-windows.zip` (top folder `<slug>/`), README with CRLF and the SmartScreen hint. The dialog
+has *Platforms* checkboxes (default: the host); AppImage / Flatpak only with Linux ticked. The
+runner is found next to the editor, else in `target/release` or `target/<triple>/release` (cross
+builds). Saves on Windows roam: `%APPDATA%\<slug>\saves`. `engine/src/paths.rs` (planned for
+*Editor on Windows*) came with this item, since saves and settings needed it. The gilrs context is
+never dropped (`ManuallyDrop`): on Windows its `Drop` joins a thread that is already gone at
+process exit (panic at every quit, seen under Wine). CI: `cargo clippy --target
+x86_64-pc-windows-gnu` for game + editor on every PR (no linker needed); Packages builds the exe
+with `gcc-mingw-w64-x86-64`, `cargo xtask-dist --require-windows` ships it as
+`lib/rustpg2d/rustpg2d-game.exe`. No Windows runtime test in CI (no OpenGL on the runners).
+Editor script: `exportwin OUT [NAME]`, `exportall OUT [NAME]`, `exportdialog windows`.
+
+**Verify (done).** Unit test: Windows bundle, exe check (`MZ`), README, zip next to the Linux one.
+Cross build in a Debian container with MinGW-w64; the editor's `exportall` wrote both bundles; the
+exported `demo-quest.exe` ran under Wine 11 (Mesa software GL): title screen, new game, intro,
+quick save in `%APPDATA%\demo-quest\saves`, clean quit. Windows clippy clean.
 
 ### [ ] Editor on Windows — `feature/editor-windows` (follows *Windows export*)
 

@@ -977,6 +977,20 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                         }
                     });
                 }
+                Cond::Pose { target, pose } => {
+                    suggest(ui, &format!("{id}/t"), target, &refs.targets, 90.0);
+                    ui.label("is");
+                    egui::ComboBox::from_id_salt(format!("{id}/pose")).width(90.0).selected_text(match pose.as_str() {
+                        "sit" => "sitting",
+                        "lie" => "lying (asleep)",
+                        "stand" => "at furniture",
+                        _ => "on its feet",
+                    }).show_ui(ui, |ui| {
+                        for (p, l) in [("sit", "sitting"), ("lie", "lying (asleep)"), ("stand", "at furniture"), ("", "on its feet")] {
+                            ui.selectable_value(pose, p.to_string(), l);
+                        }
+                    });
+                }
                 Cond::PropState { target, state } => {
                     ui.label("prop");
                     suggest(ui, &format!("{id}/t"), target, &refs.targets, 90.0);

@@ -211,11 +211,18 @@ pub struct ScheduleStop {
     /// It goes indoors there: out of sight (and out of reach) until the next stop.
     #[serde(default)]
     pub inside: bool,
+    /// The map of the stop ("" = the character's own map): it walks to the door / portal of
+    /// its map leading there and turns up on that map as a visitor.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub map: String,
+    /// Furniture to use there: a prop's name on the stop's map (sits / lies on it); "" = none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub prop: String,
 }
 
 impl ScheduleStop {
     pub fn new(hour: f32, x: i32, y: i32) -> Self {
-        ScheduleStop { hour, x, y, facing: None, inside: false }
+        ScheduleStop { hour, x, y, facing: None, inside: false, map: String::new(), prop: String::new() }
     }
 
     /// "07:30".

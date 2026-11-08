@@ -143,6 +143,10 @@ struct RtEntity {
     damage: i32,
     invuln: f32,
     flash: f32,
+    /// Using furniture (a schedule stop with a prop).
+    npc_seat: Option<furniture::NpcSeat>,
+    /// A visitor from another map (its schedule brought it here).
+    visitor: Option<Box<schedule::Visitor>>,
     /// A seed growing on a farm plot.
     planted: Option<crate::state::Planted>,
     /// When its prop state last changed (in-game hours; regrowing states).
@@ -260,6 +264,8 @@ pub struct Game {
     leave_hold: f32,
     /// A companion window to open once the running event is over (`Action::OpenCompanion`).
     pending_companion: Option<u32>,
+    /// Scheduled characters that visit other maps (found in all maps once).
+    visitor_defs: Option<Vec<schedule::VisitorDef>>,
     /// Moods of characters' portraits (definition id -> mood) while an event runs.
     moods: std::collections::HashMap<String, String>,
     /// The open "Heal whom?" choice.
@@ -378,6 +384,7 @@ impl Game {
             leaving: None,
             leave_hold: 0.0,
             pending_companion: None,
+            visitor_defs: None,
             moods: Default::default(),
             heal_pick: None,
             chips: Vec::new(),
@@ -502,6 +509,8 @@ impl Game {
             changed_at: None,
             gather: None,
             planted: None,
+            npc_seat: None,
+            visitor: None,
             item_cd: 0.0,
             flash: 0.0,
             knock: Vec2::ZERO,
@@ -550,9 +559,10 @@ impl Game {
         true
     }
 
-    fn build_entities(&self, map: &Map) -> Vec<RtEntity> {
+    fn build_entities(&mut self, map: &Map) -> Vec<RtEntity> {
         let mut out = self.build_map_entities(map);
         out.extend(self.build_companions());
+        out.extend(self.build_visitors(&map.name));
         // Items the player dropped here earlier.
         for p in self.world.dropped.get(&map.name).into_iter().flatten() {
             let mut rt = self.new_rt_entity(EntityKind::Item, &p.item, p.uid, "", vec2(p.x, p.y), Facing::Down, true, 0);
@@ -612,7 +622,7 @@ impl Game {
                 p.restore(ps);
             }
             if !e.schedule.is_empty() {
-                let mut s = schedule::Schedule::new(e.schedule.clone());
+                let mut s = schedule::Schedule::new(e.schedule.clone(), map);
                 s.on = !st.is_some_and(|s| s.schedule_off);
                 rt.schedule = Some(s);
             }
@@ -889,9 +899,12 @@ impl Game {
             if let Some(e) = map.entities.iter().find(|e| e.uid == uid) {
                 add(format!("{}/e:{}", map.name, e.uid), &e.triggers, Some(uid));
             }
-            // A companion's own triggers come along from where it is placed.
+            // A companion's own triggers come along from where it is placed; so do a visitor's.
             if let Some(l) = rt.iter().find(|e| e.uid == uid).and_then(|e| e.companion.as_ref()) {
                 add(format!("{}/e:{}", l.map, l.uid), &l.triggers, Some(uid));
+            }
+            if let Some(v) = rt.iter().find(|e| e.uid == uid).and_then(|e| e.visitor.as_ref()) {
+                add(format!("{}/e:{}", v.map, v.uid), &v.triggers, Some(uid));
             }
         };
         match source {
@@ -975,8 +988,8 @@ impl Game {
 
     fn persist(&mut self, idx: usize) {
         let e = &self.loaded.entities[idx];
-        if e.spawned_by.is_some() || e.companion.is_some() {
-            return; // spawner characters are not saved individually, companions in `companions`
+        if e.spawned_by.is_some() || e.companion.is_some() || e.visitor.is_some() {
+            return; // spawner characters are not saved individually, companions in `companions`, visitors follow their schedule
         }
         if e.uid >= crate::state::DROPPED_UID_BASE {
             // Dropped items live in the world state's list of piles.
@@ -1322,7 +1335,7 @@ impl Game {
     }
 
     fn facing_entity(&self) -> Option<usize> {
-        self.facing_entity_near().or_else(|| {
+        self.facing_entity_near().map(|i| self.user_of(i).unwrap_or(i)).or_else(|| {
             // Nothing right in front: someone across a counter in the facing direction?
             let ts = self.ts();
             let (fx, fy) = self.player.facing.dir();
@@ -1331,6 +1344,12 @@ impl Game {
                 self.across_counter(i) && (d.x * fx + d.y * fy) > ts
             })
         })
+    }
+
+    /// The character using furniture `i` (a bed's sleeper): talking to the furniture talks to it.
+    fn user_of(&self, i: usize) -> Option<usize> {
+        let uid = self.loaded.entities[i].uid;
+        self.loaded.entities.iter().position(|e| e.active && e.npc_seat.as_ref().is_some_and(|s| s.uid == uid))
     }
 
     fn facing_entity_near(&self) -> Option<usize> {
@@ -1398,9 +1417,12 @@ impl Game {
                     if let Some(pt) = &mut ent.patrol {
                         pt.wait = pt.wait.max(1.5);
                     }
-                    let e = &mut ent.body;
-                    e.facing = Facing::from_vec(p.x - e.pos.x, p.y - e.pos.y).unwrap_or(e.facing);
-                    e.moving = false;
+                    // (Someone on furniture keeps its pose.)
+                    if ent.npc_seat.is_none() {
+                        let e = &mut ent.body;
+                        e.facing = Facing::from_vec(p.x - e.pos.x, p.y - e.pos.y).unwrap_or(e.facing);
+                        e.moving = false;
+                    }
                 }
                 EntityKind::Prop => {
                     // Open gates / doors (not containers) can be locked again with their key.
@@ -1420,13 +1442,19 @@ impl Game {
                     }
                 }
             }
-            self.fire(GameEvent::Interact, Source::Entity(uid));
+            let fired = self.fire(GameEvent::Interact, Source::Entity(uid));
             match self.loaded.entities[i].kind {
                 EntityKind::Prop => {
                     self.try_open_container(i);
                     self.try_use_furniture(i);
                 }
                 EntityKind::Character => {
+                    // Asleep, and nothing to say about it (a Pose condition): just a toast.
+                    if !fired && self.npc_pose(i) == "lie" {
+                        let name = self.entity_display_name(uid).unwrap_or_default();
+                        self.ui.toast(format!("{name} is asleep."));
+                        return;
+                    }
                     self.try_open_shop(i, true);
                 }
                 EntityKind::Item => {}
@@ -1862,7 +1890,7 @@ impl Game {
             .iter()
             .enumerate()
             .filter(|(_, e)| e.active)
-            .map(|(i, e)| (e.body.pos.y, Some(i)))
+            .map(|(i, e)| (e.npc_seat.as_ref().map_or(e.body.pos.y, |s| s.prop_feet.y + 0.5), Some(i)))
             .collect();
         order.push((self.player_sort_y(), None));
         order.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -2002,6 +2030,11 @@ impl Game {
                 ok
             }),
             EntityKind::Character if e.companion.as_ref().is_some_and(|l| l.down.is_some()) => self.draw_downed(e),
+            EntityKind::Character if e.npc_seat.is_some() => {
+                let s = e.npc_seat.as_ref().expect("checked");
+                self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
+                true
+            }
             EntityKind::Character => db.character(&e.def).is_some() && {
                 let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
                 self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
@@ -2437,6 +2470,13 @@ impl ActionHost for Game {
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {
         self.scripts.condition(&mut self.world, function, ctx.owner)
+    }
+
+    fn pose(&mut self, target: &str, ctx: &ActionCtx) -> String {
+        if target.eq_ignore_ascii_case("player") {
+            return self.pose_name().to_string();
+        }
+        self.entity_index(target, ctx.owner).map_or(String::new(), |i| self.npc_pose(i).to_string())
     }
 
     fn prop_state(&mut self, target: &str, ctx: &ActionCtx) -> Option<String> {

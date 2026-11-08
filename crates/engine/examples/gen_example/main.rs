@@ -551,19 +551,26 @@ fn village() -> Map {
     v.triggers = vec![trig(TriggerOn::Interact, vec![], vec![Action::RunScript { function: "mira_talk".into() }])];
     let v2 = b.entity(EntityKind::Character, "villager", 34, 14);
     // Tomas has a daily schedule (map inspector: Daily schedule): the shop in the morning, the
-    // duck pond at noon, the big pond in the afternoon, home (inside the elder's house, whose
-    // door is at 20,7) at night. What he says depends on the time (Time of day condition).
+    // duck pond at noon, a rest on the bench by the road (furniture: the prop "bench_west"),
+    // the big pond in the late afternoon, and at night the elder's guest bed - a stop on
+    // another map: he walks to the house door and turns up inside. What he says depends on
+    // the time and on whether he is asleep (Time of day and Pose conditions).
     v2.name = "tomas".into();
     v2.schedule = vec![
         ScheduleStop::new(7.0, 34, 14),
         ScheduleStop { facing: Some(Facing::Down), ..ScheduleStop::new(12.0, 22, 23) },
-        ScheduleStop { facing: Some(Facing::Down), ..ScheduleStop::new(16.0, 9, 23) },
-        ScheduleStop { facing: Some(Facing::Up), inside: true, ..ScheduleStop::new(20.5, 20, 7) },
+        ScheduleStop { prop: "bench_west".into(), ..ScheduleStop::new(15.0, 12, 17) },
+        ScheduleStop { facing: Some(Facing::Down), ..ScheduleStop::new(17.5, 9, 23) },
+        ScheduleStop { map: "house".into(), prop: "guest_bed".into(), ..ScheduleStop::new(20.5, 6, 8) },
     ];
     let daytime = |from: f32, to: f32| cond(Cond::TimeBetween { from, to });
+    let asleep = || cond(Cond::Pose { target: "self".into(), pose: "lie".into() });
+    let sitting = || cond(Cond::Pose { target: "self".into(), pose: "sit".into() });
     v2.triggers = vec![
-        trig(TriggerOn::Interact, vec![daytime(6.0, 18.0)], vec![dialog("Tomas", "Lovely weather today, isn't it, {sir|miss}?")]),
-        trig(TriggerOn::Interact, vec![daytime(18.0, 6.0)], vec![dialog("Tomas", "Getting late, {sir|miss}. I'll be heading home soon - the elder keeps the door open for me.")]),
+        trig(TriggerOn::Interact, vec![asleep()], vec![dialog("Tomas", "Zzz... mmh... five more minutes...")]),
+        trig(TriggerOn::Interact, vec![sitting()], vec![dialog("Tomas", "Ah, {player}. Nothing beats a quiet bench in the afternoon.")]),
+        trig(TriggerOn::Interact, vec![daytime(6.0, 18.0), not(Cond::Pose { target: "self".into(), pose: "sit".into() })], vec![dialog("Tomas", "Lovely weather today, isn't it, {sir|miss}?")]),
+        trig(TriggerOn::Interact, vec![daytime(18.0, 6.0), not(Cond::Pose { target: "self".into(), pose: "lie".into() })], vec![dialog("Tomas", "Getting late, {sir|miss}. I'll be heading home soon - the elder keeps a bed for me.")]),
     ];
     b.entity(EntityKind::Item, "apple", 8, 12);
     b.entity(EntityKind::Item, "apple", 37, 21);
@@ -616,7 +623,8 @@ fn village() -> Map {
         z.loot = Some(vec![LootEntry::new("trout", 75.0, 1, 1), LootEntry::new("old_boot", 25.0, 1, 1)]);
     }
     // Benches by the road to sit on (furniture).
-    b.entity(EntityKind::Prop, "bench", 12, 16);
+    // (The west bench is named: Tomas rests on it in the afternoon.)
+    b.entity(EntityKind::Prop, "bench", 12, 16).name = "bench_west".into();
     b.entity(EntityKind::Prop, "bench", 31, 16);
 
     // North road to the workshop (crafting testing ground): a gap in the border trees and a
@@ -840,7 +848,8 @@ fn house() -> Map {
     b.entity(EntityKind::Prop, "chair_left", 10, 5);
     b.entity(EntityKind::Prop, "chair_up", 9, 6);
     // A sideways bed for a guest by the door.
-    b.entity(EntityKind::Prop, "bed_side", 4, 8);
+    // (Named: Tomas sleeps in it - his schedule's night stop.)
+    b.entity(EntityKind::Prop, "bed_side", 4, 8).name = "guest_bed".into();
     b.m.background = [13, 13, 20];
     b.m.music = "music_village".into();
     autotile_terrain(&mut b.m, |m, x, y| (ground(m, x, y)? == t::RUG).then_some("Rug"), |_, _, _, _| false);

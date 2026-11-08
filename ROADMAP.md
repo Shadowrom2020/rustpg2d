@@ -276,7 +276,7 @@ Pumpkin Stew heals and starts Regen (`effects=["regen:1:14.5"]`); at Cooking 2 s
 made (screenshots of both windows). Editor: the recipe's Station state field; the editor opens a
 project with a 4096 px image. Unit test: the food bonus, old recipes / items.
 
-### [ ] Schedules across maps and with furniture — `feature/schedule-maps`
+### [x] Schedules across maps and with furniture — `feature/schedule-maps`
 
 **Goal.** A scheduled character goes to other maps (home, the shop, the tavern) and uses
 furniture there: sleeps in a bed, sits on a chair, stands at a counter.
@@ -303,6 +303,26 @@ furniture there: sleeps in a bed, sits on a chair, stands at a counter.
   pose }` (appended) for "Zzz…" lines, or a default "{name} is asleep." toast when no trigger
   matches. `status` `schedule=` gains the map and `pose`.
 
+**Decided while building.** No `WorldState.npc_whereabouts`: where a scheduled character is
+follows from its schedule and the hour (other maps aren't simulated), so nothing new is saved.
+Visitors come from an index of every map's scheduled characters with stops elsewhere
+(`Game::visitor_defs`, loaded once); `build_visitors` adds them to a map's entities with uids
+from `VISITOR_UID_BASE` (0x5800_0000), `RtEntity.visitor` carries the home map / uid and the
+placed instance's triggers (`collect`), visitors are never persisted. `Schedule` gains `home`
+and `elsewhere`; a stop's map is `map_of(k)`. Leaving: the character walks to this map's
+`Portal` / `Transition` zone whose target is the stop's map (else its home map's) and goes away
+there; arriving while the player is there: it appears on the zone leading back to the previous
+stop's map. Furniture: `ScheduleStop.prop` names a prop with a `use_spot`; arrival snaps the
+character onto it (`RtEntity.npc_seat`, drawn by `draw_on_furniture`, shared with the player;
+sorted at the prop's feet); blocked within 1.5 tiles of a furniture stop it uses it anyway (a
+bed's box is solid); getting up uses `free_spot`. The player is refused furniture in use
+("Someone is using it."), and E / a click on such furniture talks to its user (`user_of`).
+`Cond::Pose { target, pose }` (appended; "" = on its feet) via `ActionHost::pose`. Stops in the
+editor: two lines per stop (time, map, tile; facing, inside, furniture); tiles of stops on
+other maps are typed; the map view draws only this map's stops. Editor script: `stop K map
+NAME|- | prop NAME|- | tile X Y`. `status()` `schedule=` shows `HH:MM>map`, `(elsewhere)` and
+`:sit` / `:lie`.
+
 **Touch points.** `entity.rs` (`ScheduleStop`), `state.rs`, `runtime/{schedule,patrol,mod,
 furniture,maps}.rs`, `events/mod.rs`, editor `app.rs` / `canvas.rs` (schedule editing: the stop's
 map and prop, a stop on another map shown in a list), README.
@@ -310,9 +330,15 @@ map and prop, a stop on another map shown in a list), README.
 **Example.** Tomas sleeps in the elder's sideways guest bed instead of vanishing at the door;
 Tilda sits behind her counter by day; the bench on the village green in the afternoon.
 
-**Verify.** Autoplay at 20:30 follows Tomas through the door (`status` on the house map shows him
-walking in, then `pose=lie`), save / load at night keeps him in bed, the house at noon shows
-nobody; the player can't take his bed; screenshots of sitting and sleeping NPCs.
+**Verify (done).** Autoplay on a scratch copy with crafted saves: the village at 15:30 →
+`tomas:15:00:sit` on the west bench (screenshot); at 20:29 he walks from the pond to the house
+door (20,7) and is `(elsewhere)` by 20:42; the house at 22:00 → `tomas:20:30>house:lie`
+(screenshot of him in the sideways bed under the quilt), E next to the bed (or a right-click on
+it) → "Zzz… five more minutes…" with his portrait; the house at noon → elsewhere; in the house at
+20:27 he comes in at the door and lies down by 20:30; at 06:57 he gets up and leaves through the
+door; the village at 06:57 → he comes out of the elder's door at 07:00 and walks to his morning
+stop; F5 at 22:00, F9 → asleep again. Editor: the two-line stop rows (screenshot), `stop 1 map
+shop` / `tile`. Unit test: old stops, `map_of`, the RON round trip.
 
 ### [ ] NPC routines: visible activities — `feature/activities` (follows the trades and *Schedules across maps*)
 

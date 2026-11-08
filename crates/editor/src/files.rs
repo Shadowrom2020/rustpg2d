@@ -212,8 +212,11 @@ fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
         } else {
             std::fs::copy(&src, &dst)?;
             // Files in the AppImage / Flatpak are read-only: the copy belongs to the user.
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&dst, std::fs::Permissions::from_mode(0o644))?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&dst, std::fs::Permissions::from_mode(0o644))?;
+            }
         }
     }
     Ok(())

@@ -24,8 +24,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # The macOS game runner (a Mac builds it) for the packages; cheap enough to build even when the
+  # version is already released.
+  macos-game:
+    uses: ./.github/workflows/macos-game.yml
+
   release:
     name: Release
+    needs: macos-game
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7

@@ -14,6 +14,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   inset by 1/64 texel, so fractional scales (browser zoom, high-DPI screens, zoom levels) no
   longer show thin lines of neighbouring tiles along edges. The packages ship
   `rustpg2d-game.wasm`, so the packaged editor exports web games. Editor script: `exportweb`.
+- **Windows export**: *Platforms › Windows*; a Windows export is `<game>-windows/<game>.exe`
+  with its data (and `<game>-windows.zip`), saves in `%APPDATA%\<game>\saves`. The game runs as
+  a window program (no console window); when it can't start (e.g. no OpenGL driver in a virtual
+  machine) a message box says why. The R(ust)PG2D packages ship the Windows game runner
+  (`rustpg2d-game.exe`, cross-compiled with MinGW-w64), so the Linux editor exports Windows
+  games. Editor script: `exportwin`.
+- **macOS export**: *Platforms › macOS*; a macOS export is the application `<Game Name>.app`
+  (data in `Contents/Resources`, Info.plist, the icon chosen under *Icon* or the player
+  character) in `<game>-macos/` (and `<game>-macos.zip`), for macOS 11 or newer on Apple Silicon
+  and Intel; saves in `~/Library/Application Support/<game>/saves`. The export signs the app ad
+  hoc on Linux (sealed like `codesign --sign -`, passes `codesign --verify`); it isn't notarized,
+  so players allow it once (*Privacy & Security › Open Anyway*; the bundle's README explains it).
+  The R(ust)PG2D packages ship the universal game runner (`rustpg2d-game-macos`, built by CI on
+  a Mac). Editor script: `exportmac`; `exportall` exports all four platforms.
+- Exported zips date their files with the export time (they were dated 1980).
 
 ### Gameplay
 - **Languages**: games can offer translations (`lang/<code>.ron`, keyed by the original text);
@@ -33,6 +48,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   `wasm32-unknown-unknown` (Rhai without random seeds and clock there, no gamepads, no zip).
 - CI: clippy for the wasm game on every pull request; the Packages job builds it and checks it
   ships in the AppImage.
+- `engine/src/paths.rs`: per-user folders per platform (XDG on Linux; `%APPDATA%`,
+  `%LOCALAPPDATA%`, `%USERPROFILE%` on Windows; `~/Library/Application Support` and
+  `~/Library/Caches` on macOS) for settings, saves, the library and caches.
+- `engine/src/hash.rs` (SHA-256, SHA-1, Base64; moved from the packaging crate) and
+  `engine/src/macsign.rs` (ad-hoc signing of macOS apps).
+- CI: clippy for the Windows game on every pull request; a *macOS* job (on pull requests into
+  master and in the Release workflow) lints the game, runs the engine's tests on macOS and builds
+  the universal runner; the Packages / Release jobs cross-compile the Windows runner, take the
+  macOS one and check both ship in the AppImage.
+
+### Fixes
+- The game no longer panics when it quits on Windows (gamepad thread joined at exit).
 
 ## 0.8.0 — 2026-11-08
 

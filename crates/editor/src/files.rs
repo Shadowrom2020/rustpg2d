@@ -156,7 +156,7 @@ const RECENT_MAX: usize = 8;
 
 /// `$RUSTPG2D_EDITOR_CONFIG`, else `$XDG_CONFIG_HOME/rustpg2d`, else `~/.config/rustpg2d`
 /// (Windows: `%APPDATA%\rustpg2d`).
-fn config_dir() -> Option<PathBuf> {
+pub(crate) fn config_dir() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os("RUSTPG2D_EDITOR_CONFIG") {
         return Some(PathBuf::from(p));
     }
@@ -164,6 +164,34 @@ fn config_dir() -> Option<PathBuf> {
     let dir = base.join("rustpg2d");
     rustpg2d_engine::legacy::adopt(&dir.join("recent.ron"), &base.join(rustpg2d_engine::legacy::OLD_NAME).join("recent.ron"));
     Some(dir)
+}
+
+/// The editor's own settings (`<config dir>/editor.ron`): the AI agent server's choices.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct EditorSettings {
+    /// Start the agent server when the editor starts.
+    pub mcp_autostart: bool,
+    pub mcp_port: u16,
+}
+
+impl Default for EditorSettings {
+    fn default() -> Self {
+        EditorSettings { mcp_autostart: false, mcp_port: crate::mcp::DEFAULT_PORT }
+    }
+}
+
+pub fn load_settings() -> EditorSettings {
+    config_dir().and_then(|d| std::fs::read_to_string(d.join("editor.ron")).ok()).and_then(|s| ron::from_str(&s).ok()).unwrap_or_default()
+}
+
+pub fn save_settings(s: &EditorSettings) {
+    let Some(dir) = config_dir() else { return };
+    if std::fs::create_dir_all(&dir).is_ok() {
+        if let Ok(text) = ron::ser::to_string_pretty(s, ron::ser::PrettyConfig::default().new_line("\n")) {
+            let _ = std::fs::write(dir.join("editor.ron"), text);
+        }
+    }
 }
 
 /// Recently opened projects that still exist, newest first.

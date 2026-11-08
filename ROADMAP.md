@@ -77,6 +77,48 @@ Instructions for every session (people and coding agents) that implements roadma
     notes live on in the CHANGELOG and the code), `cargo xtask check-version release/X.Y.Z`,
     pull request into master, merge after the four checks, merge the back-merge pull request.
 
+## 0.10.0 — Agents
+
+Theme: AI agents help creators build content and adventures from inside the editor.
+
+### [~] AI agent server (MCP) — `feature/mcp-server`
+
+**Goal.** The running editor serves the Model Context Protocol, so agents (Claude Code, Cursor,
+Claude Desktop, …) read everything, build maps and definitions, write dialogs, quests, scripts
+and translations, and play-test with screenshots — with their edits visible and undoable in the
+editor at once.
+
+**Design.** In-process server over Streamable HTTP on `127.0.0.1:7743/mcp` (`rmcp` 3 on an axum
+listener, its own tokio thread; `crates/editor/src/mcp/`). Every tool call travels to the main
+thread as an `AgentRequest` and runs between frames against the `Editor` (`mcp_drain`, ≤ 40
+calls / 8 ms per frame): map edits through `MapDoc` (strokes, `record_objects` with per-tool
+tags → one undo step each), definitions through `project.db`, then `save_all`, `refresh_refs`
+and the project check's warnings (`mcp_after_write`). Long work finishes on the agent thread
+(`play_test` runs the game with `tokio::process`); screenshots are grabbed after the next drawn
+frame (`mcp_capture_shots`). Coordinates are tiles, JSON is serde's form of the engine types,
+replies are bounded (80x50 grids, 200-row pages, 48 k chars, 6 images). The watcher
+(`watcher.rs`) polls `project.ron`, `defs/`, `maps/`, `scripts/`, `lang/` every second and
+reloads clean documents, a banner asks for dirty ones; the editor's saves re-snapshot.
+Resources serve `Documentation/{mcp,scripting,events,autoplay}.md`; prompts `design_quest`,
+`build_map`. Settings in `<config>/editor.ron`; window under *Assets*; status-bar indicator.
+
+**Decided while building.** `rmcp` 3.9's `#[tool_router]` / `#[tool_handler]` with doc comments
+as descriptions and `Parameters<T>` (schemars) for schemas; stop = drop the listener and
+`shutdown_timeout`, so the port frees at once even with SSE streams open. `write_translation`
+builds the template first so new script texts become keys. `Interact` is a legal zone event.
+
+**Touch points.** `editor/src/mcp/{mod,server,tools,exec,exec_maps,exec_defs,grid,patch,play,
+watcher,ui}.rs`, `editor/src/{main,app,files,maps,database}.rs`, `engine/src/{project,refactor}.rs`,
+`editor/Cargo.toml`, `Documentation/{mcp,events,autoplay}.md`, README, CLAUDE.md.
+
+**Verify.** Unit tests: grids / legends / `paint_grid` round trip, merge patches and entity
+tiles, autoplay rewriting, docs completeness (every tool in `mcp.md`, every autoplay command in
+`autoplay.md`). Live: the editor with `mcp on 7743` driven by a Python MCP client over Streamable
+HTTP — all 51 tools exercised on a scratch copy of the example (reads, every write with
+`get_map` read-back, undo / redo / save, `play_test` with a screenshot, `screenshot_map` /
+`screenshot_editor`, validation errors with suggestions); the watcher reloading touched
+definitions and the open map; the window and status bar in screenshots.
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS

@@ -52,3 +52,20 @@ runs:
         RUSTPG2D_EDITOR_SCRIPT="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/AppRun 2>&1 | tee editor.log
         grep -q "open=false" editor.log
+        # The AI agent server (MCP over Streamable HTTP) answers initialize and lists its tools.
+        RUSTPG2D_EDITOR_SCRIPT="mcp on 7743; wait 90; quit" timeout 150 xvfb-run -a -s "-screen 0 1280x720x24" \
+          squashfs-root/AppRun squashfs-root/usr/share/rustpg2d/example_project > mcp-editor.log 2>&1 &
+        for i in $(seq 1 60); do
+          curl -s -m 2 -D mcp-headers.txt -o mcp-init.txt http://127.0.0.1:7743/mcp -X POST -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' && break
+          sleep 1
+        done
+        grep -q '"serverInfo":{"name":"rustpg2d-editor"' mcp-init.txt
+        sid=$(grep -i '^mcp-session-id:' mcp-headers.txt | tr -d '\r' | cut -d' ' -f2)
+        curl -s -m 5 http://127.0.0.1:7743/mcp -X POST -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+          -H "Mcp-Session-Id: $sid" -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' > /dev/null
+        curl -s -m 5 http://127.0.0.1:7743/mcp -X POST -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+          -H "Mcp-Session-Id: $sid" -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' > mcp-tools.txt
+        grep -q '"name":"get_map"' mcp-tools.txt
+        kill %1 2>/dev/null || true

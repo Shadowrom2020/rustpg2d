@@ -4,7 +4,7 @@
 
 A small 2D engine for top-down RPGs on Linux, written in Rust ([macroquad](https://macroquad.rs) + [egui](https://github.com/emilk/egui)), with a map/content editor.
 
-Current version: **0.8.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed in each release. Planned features: see [ROADMAP.md](ROADMAP.md).
+Current version: **0.9.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed in each release. Planned features: see [ROADMAP.md](ROADMAP.md).
 
 **Download**: every release on the [Releases page](https://github.com/Shadowrom2020/rustpg2d/releases) has the editor (with the game runners and the example project) for Linux, Windows and macOS:
 - **Linux** (x86_64, glibc 2.34 or newer: Debian 12, Ubuntu 22.04, Fedora 35, RHEL 9 and later): the **AppImage** — `chmod +x rustpg2d-X.Y.Z-x86_64.AppImage` and start it — or the **Flatpak** bundle — `flatpak install --user rustpg2d-X.Y.Z.flatpak`, then start *R(ust)PG2D* from the app menu or with `flatpak run io.github.Shadowrom2020.rustpg2d`.

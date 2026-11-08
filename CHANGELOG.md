@@ -3,7 +3,16 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.9.0 — 2026-11-08
+
+Reach: the web, other languages, Windows and macOS — games export for browsers, Windows and
+macOS, can be translated, and the editor runs on Windows and macOS too.
+
+### Gameplay
+- **Languages**: games can offer translations (`lang/<code>.ron`, keyed by the original text);
+  players pick one in *Options › Language*, the default is the system's (or browser's) language.
+  R(ust)PG2D's own texts come translated for German. The example project is fully translated
+  into German (and its script texts use placeholders instead of glued strings).
 
 ### Editor
 - **Web export**: *File › Export game* has *Platforms* Linux / Web. The web version
@@ -38,18 +47,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   the map and the pixel editor in steps per notch; file dialogs on macOS are modal; window icons
   (the emblem; games: the player character). Windows programs have no console window and show a
   message box when they can't start (no OpenGL). Editor script: `browse open|folder|icon`.
-
-### Gameplay
-- **Languages**: games can offer translations (`lang/<code>.ron`, keyed by the original text);
-  players pick one in *Options › Language*, the default is the system's (or browser's) language.
-  R(ust)PG2D's own texts come translated for German. The example project is fully translated
-  into German (and its script texts use placeholders instead of glued strings).
-
-### Editor
 - *Database › Project › Languages*: the game's language, its translations with their progress,
   **Export translation template** / **Update template** (keeps translations, adds new texts,
   reports unused ones) and *Play-test in* (a language for play-tests). Editor script:
   `langtemplate CODE`, `playlang CODE|-`. Exports include the translation files.
+
+### Fixes
+- The game no longer panics when it quits on Windows (gamepad thread joined at exit).
 
 ### Maintenance
 - `engine/src/sys.rs`: the game's file and clock access in one place (native `std::fs`; on the
@@ -75,9 +79,6 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   master and in the Release workflow) lints the game, runs the engine's tests on macOS and builds
   the universal runner; the Packages / Release jobs cross-compile the Windows runner, take the
   macOS one and check both ship in the AppImage.
-
-### Fixes
-- The game no longer panics when it quits on Windows (gamepad thread joined at exit).
 
 ## 0.8.0 — 2026-11-08
 

@@ -2168,6 +2168,7 @@ impl Editor {
         let before = Objects::of(&doc.map);
         // For schedule stops: the project's maps, this map, its furniture (named props with a use spot).
         let maps_list = self.maps.clone();
+        let item_ids: Vec<String> = self.project.db.items.iter().map(|d| d.id.clone()).collect();
         let map_name = doc.map.name.clone();
         let prop_names: Vec<String> = doc.map.entities.iter().filter(|e| e.kind == EntityKind::Prop && !e.name.is_empty() && self.project.db.prop(&e.def).is_some_and(|d| d.use_spot.is_some())).map(|e| e.name.clone()).collect();
         let ts = self.assets.tile_size;
@@ -2437,6 +2438,12 @@ impl Editor {
                     }
 
                     ui.separator();
+                    ui.heading("Activity");
+                    ui.horizontal(|ui| {
+                        crate::widgets::activity_ui(ui, &format!("entact{uid}"), &mut e.activity, &item_ids);
+                    });
+                    ui.weak("What it is seen doing where it stands (facing as placed), when it has no schedule; schedule stops have their own.");
+                    ui.separator();
                     ui.heading("Daily schedule");
                     if e.schedule.is_empty() {
                         ui.weak("No schedule: the character stays around where it is placed.");
@@ -2513,6 +2520,10 @@ impl Editor {
                                 ui.label("on");
                                 let names: Vec<String> = if s.map.is_empty() { props_here.clone() } else { Vec::new() };
                                 crate::widgets::suggest(ui, &format!("stopprop{uid}_{k}"), &mut s.prop, &names, 90.0);
+                               });
+                               ui.horizontal(|ui| {
+                                ui.label("doing");
+                                crate::widgets::activity_ui(ui, &format!("stopact{uid}_{k}"), &mut s.activity, &item_ids);
                                 if ui.add_enabled(n > 1, egui::Button::new(ph::TRASH).small()).on_hover_text("Remove this stop").clicked() {
                                     del = Some(k);
                                 }

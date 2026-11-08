@@ -8,7 +8,7 @@ use rustpg2d_engine::defs::*;
 use rustpg2d_engine::effects::{EffectKind, EffectSpec};
 use rustpg2d_engine::achievements::AchievementDef;
 use rustpg2d_engine::crafting::RecipeDef;
-use rustpg2d_engine::entity::{EntityInstance, EntityKind, Facing, ScheduleStop};
+use rustpg2d_engine::entity::{Activity, ActivityKind, EntityInstance, EntityKind, Facing, ScheduleStop};
 use rustpg2d_engine::events::*;
 use rustpg2d_engine::map::{EdgeLink, LightMode, Map, MapLighting, Respawn, Tile, Zone, ZoneKind};
 use rustpg2d_engine::audio::wav_bytes;
@@ -495,6 +495,8 @@ fn village() -> Map {
 
     let elder = b.entity(EntityKind::Character, "elder", 26, 15);
     elder.name = "elder".into();
+    // He reads by the well all day (an activity; talking interrupts him for a moment).
+    elder.activity = Some(Activity { kind: ActivityKind::Read, tool: String::new() });
     elder.triggers = vec![
         trig(
             TriggerOn::Interact,
@@ -560,7 +562,8 @@ fn village() -> Map {
         ScheduleStop::new(7.0, 34, 14),
         ScheduleStop { facing: Some(Facing::Down), ..ScheduleStop::new(12.0, 22, 23) },
         ScheduleStop { prop: "bench_west".into(), ..ScheduleStop::new(15.0, 12, 17) },
-        ScheduleStop { facing: Some(Facing::Down), ..ScheduleStop::new(17.5, 9, 23) },
+        // Fishing at the big pond (an activity: only the look - line, bobber, the rod in hand).
+        ScheduleStop { facing: Some(Facing::Down), activity: Some(Activity { kind: ActivityKind::Fish, tool: "fishing_rod".into() }), ..ScheduleStop::new(17.5, 9, 24) },
         ScheduleStop { map: "house".into(), prop: "guest_bed".into(), ..ScheduleStop::new(20.5, 6, 8) },
     ];
     let daytime = |from: f32, to: f32| cond(Cond::TimeBetween { from, to });
@@ -1150,6 +1153,17 @@ fn workshop() -> Map {
         open_state: "open".into(),
         ..Default::default()
     });
+    // Workers (activities: only the look): a smith at the anvil, a farmer hoeing the field.
+    let smith = b.entity(EntityKind::Character, "villager", 26, 11);
+    smith.name = "smith".into();
+    smith.facing = Facing::Up;
+    smith.activity = Some(Activity { kind: ActivityKind::Craft, tool: "hammer".into() });
+    smith.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Smith", "Iron, heat and a steady arm, {player}. Bring me ingots and I'll... well, the anvil is yours too.")])];
+    let farmer = b.entity(EntityKind::Character, "villager", 6, 16);
+    farmer.name = "farmer".into();
+    farmer.facing = Facing::Right;
+    farmer.activity = Some(Activity { kind: ActivityKind::Farm, tool: String::new() });
+    farmer.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Farmer", "Plant, wait, harvest. And pray for rain - it makes them grow faster!")])];
     // A bed in the open to let a night pass (regrowing needs in-game time).
     b.entity(EntityKind::Prop, "bed", 20, 17);
     b.m.background = [20, 40, 20];

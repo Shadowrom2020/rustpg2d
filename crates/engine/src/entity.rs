@@ -124,6 +124,9 @@ pub struct EntityInstance {
     /// The placed character's own portrait (None = its definition's).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub portrait: Option<crate::defs::SpriteRef>,
+    /// Characters: what it does all day where it stands (fishing, reading...; only the look).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activity: Option<Activity>,
 }
 
 fn yes() -> bool {
@@ -218,11 +221,65 @@ pub struct ScheduleStop {
     /// Furniture to use there: a prop's name on the stop's map (sits / lies on it); "" = none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub prop: String,
+    /// What it does there (fishing, hammering...: only the look).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activity: Option<Activity>,
+}
+
+/// Something a character is seen doing at its spot (`ScheduleStop::activity`,
+/// `EntityInstance::activity`): it stays there, facing its way, with the tool in hand, and
+/// works in place. Nothing is produced or saved.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Activity {
+    pub kind: ActivityKind,
+    /// Item held while doing it (shown if it has a held sprite); "" = none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub tool: String,
+}
+
+/// What a character is seen doing (`Activity`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ActivityKind {
+    Fish,
+    Farm,
+    Craft,
+    Chop,
+    Mine,
+    Sweep,
+    Read,
+}
+
+impl ActivityKind {
+    pub const ALL: [ActivityKind; 7] = [ActivityKind::Fish, ActivityKind::Farm, ActivityKind::Craft, ActivityKind::Chop, ActivityKind::Mine, ActivityKind::Sweep, ActivityKind::Read];
+
+    pub fn id(self) -> &'static str {
+        match self {
+            ActivityKind::Fish => "fish",
+            ActivityKind::Farm => "farm",
+            ActivityKind::Craft => "craft",
+            ActivityKind::Chop => "chop",
+            ActivityKind::Mine => "mine",
+            ActivityKind::Sweep => "sweep",
+            ActivityKind::Read => "read",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ActivityKind::Fish => "Fishing",
+            ActivityKind::Farm => "Farming (hoeing)",
+            ActivityKind::Craft => "Hammering (crafting)",
+            ActivityKind::Chop => "Chopping wood",
+            ActivityKind::Mine => "Mining",
+            ActivityKind::Sweep => "Sweeping",
+            ActivityKind::Read => "Reading",
+        }
+    }
 }
 
 impl ScheduleStop {
     pub fn new(hour: f32, x: i32, y: i32) -> Self {
-        ScheduleStop { hour, x, y, facing: None, inside: false, map: String::new(), prop: String::new() }
+        ScheduleStop { hour, x, y, facing: None, inside: false, map: String::new(), prop: String::new(), activity: None }
     }
 
     /// "07:30".
@@ -271,6 +328,7 @@ impl EntityInstance {
             patrol: None,
             schedule: Vec::new(),
             portrait: None,
+            activity: None,
             loot: None,
         }
     }

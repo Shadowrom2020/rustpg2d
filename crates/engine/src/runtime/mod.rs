@@ -1,6 +1,7 @@
 //! The game runtime: loads a project and plays it.
 
 mod achievements;
+mod activities;
 mod ai;
 mod charwin;
 mod combat;
@@ -143,6 +144,12 @@ struct RtEntity {
     damage: i32,
     invuln: f32,
     flash: f32,
+    /// What it does all day where it stands (`EntityInstance::activity`), the way it faces
+    /// while doing it, seconds a talk still pauses it, the last work stroke (its sound).
+    activity: Option<crate::entity::Activity>,
+    act_facing: Facing,
+    act_pause: f32,
+    act_cycle: u32,
     /// Using furniture (a schedule stop with a prop).
     npc_seat: Option<furniture::NpcSeat>,
     /// A visitor from another map (its schedule brought it here).
@@ -511,6 +518,10 @@ impl Game {
             planted: None,
             npc_seat: None,
             visitor: None,
+            activity: None,
+            act_facing: facing,
+            act_pause: 0.0,
+            act_cycle: 0,
             item_cd: 0.0,
             flash: 0.0,
             knock: Vec2::ZERO,
@@ -597,6 +608,9 @@ impl Game {
         rt.planted = st.and_then(|s| s.planted.clone());
         rt.light = e.light.clone();
         rt.portrait = e.portrait.clone();
+        rt.activity = e.activity.clone();
+        // (Working all day, it faces the way it is placed, whatever it faced when saved.)
+        rt.act_facing = e.facing;
         if e.kind == EntityKind::Character {
             if let Some(loot) = &e.loot {
                 rt.loot = loot.clone();
@@ -1413,10 +1427,12 @@ impl Game {
                 EntityKind::Character => {
                     let p = self.player.pos;
                     let ent = &mut self.loaded.entities[i];
-                    // A patrolling character stays a moment after being talked to.
+                    // A patrolling character stays a moment after being talked to; one at work
+                    // stops for a moment.
                     if let Some(pt) = &mut ent.patrol {
                         pt.wait = pt.wait.max(1.5);
                     }
+                    ent.act_pause = activities::TALK_PAUSE;
                     // (Someone on furniture keeps its pose.)
                     if ent.npc_seat.is_none() {
                         let e = &mut ent.body;
@@ -1629,7 +1645,12 @@ impl Game {
             if self.companion_step(i, dt) || self.chase(i, dt) {
                 continue;
             }
-            match self.schedule_step(i, dt) {
+            let sched = self.schedule_step(i, dt);
+            // At work (fishing, hammering...): stays where it is.
+            if sched != Some(true) && self.activity_step(i, dt) {
+                continue;
+            }
+            match sched {
                 Some(true) => continue,
                 // At its stop: wander around it (or stand), patrol routes wait.
                 Some(false) => {}
@@ -1683,7 +1704,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} day={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?}",
+            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?}",
             self.dev_status(),
             self.weather_status(),
             self.menu_status(),
@@ -1723,6 +1744,7 @@ impl Game {
             self.gather_status(),
             self.prop_states_status(),
             self.crops_status(),
+            self.activities_status(),
             self.world.day,
             self.heal_pick_status(),
             self.order_menu_status(),
@@ -1920,6 +1942,7 @@ impl Game {
 
         self.draw_combat_world();
         self.draw_gather();
+        self.draw_activities();
         self.draw_fx();
         if !self.on_title() {
             self.draw_mouse_world();
@@ -2034,6 +2057,12 @@ impl Game {
                 let s = e.npc_seat.as_ref().expect("checked");
                 self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
                 true
+            }
+            EntityKind::Character if self.loaded.entities.iter().position(|x| x.uid == e.uid).is_some_and(|i| self.current_activity(i).is_some()) => {
+                let i = self.loaded.entities.iter().position(|x| x.uid == e.uid).expect("checked");
+                let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
+                let col = self.activity_frame(i).unwrap_or(0);
+                self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
             }
             EntityKind::Character => db.character(&e.def).is_some() && {
                 let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };

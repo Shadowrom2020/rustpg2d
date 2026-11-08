@@ -224,6 +224,9 @@ pub fn check_app_id(id: &str) -> Result<(), String> {
 /// Writes the Flatpak bundle to `path`, working in a temporary folder next to it (the host's
 /// flatpak must see it when called from a sandbox).
 pub fn flatpak_bundle(spec: &AppSpec, path: &Path) -> Result<()> {
+    if !cfg!(unix) {
+        bail!("Flatpak bundles can only be made on Linux (they need the flatpak command)");
+    }
     check_app_id(&spec.app_id).map_err(|e| anyhow::anyhow!("Flatpak app id: {e}"))?;
     let name = path.file_name().map_or("app".into(), |n| n.to_string_lossy().into_owned());
     let work = path.parent().unwrap_or(Path::new(".")).join(format!(".{name}-build"));
@@ -246,7 +249,10 @@ fn flatpak_in(work: &Path, spec: &AppSpec, path: &Path) -> Result<()> {
     for (name, target) in &spec.bin {
         let link = files.join("bin").join(name);
         std::fs::create_dir_all(link.parent().unwrap())?;
+        #[cfg(unix)]
         std::os::unix::fs::symlink(format!("../{target}"), link)?;
+        #[cfg(not(unix))]
+        let _ = (target, link);
     }
     let id = &spec.app_id;
     let share = files.join("share");
@@ -464,7 +470,7 @@ fn scan_glibc_names(binary: &[u8]) -> Vec<String> {
 }
 
 fn cache_dir() -> PathBuf {
-    let base = std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache"))).unwrap_or_else(std::env::temp_dir);
+    let base = rustpg2d_engine::paths::cache_base().unwrap_or_else(std::env::temp_dir);
     let dir = base.join("rustpg2d");
     // The downloaded AppImage runtime of a rust2d install (saves a download, works offline).
     rustpg2d_engine::legacy::adopt(&dir, &base.join(rustpg2d_engine::legacy::OLD_NAME));
@@ -475,9 +481,15 @@ fn now() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
 
+/// Marks a file executable (Unix; elsewhere files have no such bit: nothing to do).
 fn set_executable(p: &Path) -> Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o755)).with_context(|| format!("making {} executable", p.display()))
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o755)).with_context(|| format!("making {} executable", p.display()))?;
+    }
+    let _ = p;
+    Ok(())
 }
 
 fn write(p: &Path, bytes: &[u8]) -> Result<()> {

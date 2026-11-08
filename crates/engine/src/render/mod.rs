@@ -113,7 +113,7 @@ fn placeholder(w: u16, h: u16) -> Image {
 
 fn load_image(project: &Project, rel: &str, errors: &mut Vec<String>) -> Image {
     let path = project.path(rel);
-    match std::fs::read(&path)
+    match crate::sys::read(&path)
         .map_err(|e| e.to_string())
         .and_then(|b| Image::from_file_with_format(&b, None).map_err(|e| e.to_string()))
     {
@@ -236,7 +236,7 @@ impl Assets {
             pos.x,
             pos.y,
             tint,
-            DrawTextureParams { source: Some(s.src_rect(frame)), ..Default::default() },
+            DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(s.src_rect(frame).size()), ..Default::default() },
         );
         true
     }
@@ -260,7 +260,7 @@ impl Assets {
     pub fn draw_frame_colored(&self, sheet: &str, frame: u32, feet: Vec2, tint: Color, skin: Option<[u8; 3]>, hair: Option<[u8; 3]>) -> bool {
         let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
         let pos = vec2((feet.x - s.frame_w / 2.0).round(), (feet.y - s.frame_h).round());
-        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(s.src_rect(frame)), ..Default::default() });
+        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(s.src_rect(frame).size()), ..Default::default() });
         true
     }
 
@@ -270,7 +270,7 @@ impl Assets {
     pub fn draw_frame_colored_rotated(&self, sheet: &str, frame: u32, center: Vec2, angle: f32, (skin, hair): (Option<[u8; 3]>, Option<[u8; 3]>), tint: Color) -> bool {
         let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
         let pos = vec2((center.x - s.frame_w / 2.0).round(), (center.y - s.frame_h / 2.0).round());
-        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(s.src_rect(frame)), rotation: angle, ..Default::default() });
+        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(s.src_rect(frame).size()), rotation: angle, ..Default::default() });
         true
     }
 
@@ -280,13 +280,13 @@ impl Assets {
         let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
         let r = s.src_rect(frame);
         let src = Rect::new(r.x + part.x * r.w, r.y + part.y * r.h, part.w * r.w, part.h * r.h);
-        draw_texture_ex(&tex, dest.x, dest.y, WHITE, DrawTextureParams { source: Some(src), dest_size: Some(dest.size()), ..Default::default() });
+        draw_texture_ex(&tex, dest.x, dest.y, WHITE, DrawTextureParams { source: Some(inset(src)), dest_size: Some(dest.size()), ..Default::default() });
         true
     }
 
     pub fn draw_frame_colored_in(&self, sheet: &str, frame: u32, dest: Rect, skin: Option<[u8; 3]>, hair: Option<[u8; 3]>) -> bool {
         let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
-        draw_texture_ex(&tex, dest.x, dest.y, WHITE, DrawTextureParams { source: Some(s.src_rect(frame)), dest_size: Some(dest.size()), ..Default::default() });
+        draw_texture_ex(&tex, dest.x, dest.y, WHITE, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(dest.size()), ..Default::default() });
         true
     }
 
@@ -297,7 +297,7 @@ impl Assets {
         let (w, h) = sprite.cells();
         let src = s.region(sprite.frame + extra_frame, w, h);
         let pos = vec2((feet.x - src.w / 2.0).round(), (feet.y - src.h).round());
-        draw_texture_ex(&s.texture, pos.x, pos.y, tint, DrawTextureParams { source: Some(src), ..Default::default() });
+        draw_texture_ex(&s.texture, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(src)), dest_size: Some(src.size()), ..Default::default() });
         true
     }
 
@@ -317,7 +317,7 @@ impl Assets {
             center.x - s.frame_w / 2.0,
             center.y - s.frame_h / 2.0,
             tint,
-            DrawTextureParams { source: Some(s.src_rect(frame)), rotation: angle, ..Default::default() },
+            DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(s.src_rect(frame).size()), rotation: angle, ..Default::default() },
         );
         true
     }
@@ -331,7 +331,7 @@ impl Assets {
             center.x - size.x / 2.0,
             center.y - size.y / 2.0,
             tint,
-            DrawTextureParams { source: Some(s.src_rect(frame)), dest_size: Some(size), rotation: angle, ..Default::default() },
+            DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(size), rotation: angle, ..Default::default() },
         );
         true
     }
@@ -345,7 +345,7 @@ impl Assets {
         let src = s.region(sprite.frame, w, h);
         let scale = (r.w / src.w).min(r.h / src.h);
         let (dw, dh) = (src.w * scale, src.h * scale);
-        draw_texture_ex(&s.texture, (r.x + (r.w - dw) / 2.0).round(), (r.bottom() - dh).round(), WHITE, DrawTextureParams { source: Some(src), dest_size: Some(vec2(dw, dh)), ..Default::default() });
+        draw_texture_ex(&s.texture, (r.x + (r.w - dw) / 2.0).round(), (r.bottom() - dh).round(), WHITE, DrawTextureParams { source: Some(inset(src)), dest_size: Some(vec2(dw, dh)), ..Default::default() });
         true
     }
 
@@ -357,13 +357,23 @@ impl Assets {
             dest.y,
             tint,
             DrawTextureParams {
-                source: Some(s.src_rect(frame)),
+                source: Some(inset(s.src_rect(frame))),
                 dest_size: Some(vec2(dest.w, dest.h)),
                 ..Default::default()
             },
         );
         true
     }
+}
+
+/// A source rectangle shrunk by a sliver of a texel on every side, for drawing. With nearest
+/// filtering at fractional scales (the web game, zoom levels) a screen pixel can fall exactly on
+/// a frame's or tile's border in its sheet and pick the neighbour's texel: thin lines of other
+/// tiles along edges. 1/64 texel is invisible, but keeps every sample inside the frame. (Callers
+/// keep the drawn size: `dest_size` is the original rectangle's.)
+pub fn inset(r: Rect) -> Rect {
+    const E: f32 = 1.0 / 64.0;
+    Rect::new(r.x + E, r.y + E, (r.w - 2.0 * E).max(0.0), (r.h - 2.0 * E).max(0.0))
 }
 
 /// Number of tiles visible in a view (used to choose between per-tile and overview drawing).
@@ -397,7 +407,7 @@ pub fn draw_layer(map: &Map, layer: &TileLayer, sets: &[Option<&TilesetTex>], ts
                         y as f32 * ts,
                         tint,
                         DrawTextureParams {
-                            source: Some(t.src_rect(idx, ts)),
+                            source: Some(inset(t.src_rect(idx, ts))),
                             dest_size: Some(vec2(ts, ts)),
                             ..Default::default()
                         },
@@ -524,4 +534,18 @@ pub fn wrap_text(text: &str, font_size: u16, max_w: f32) -> Vec<String> {
         lines.push(line);
     }
     lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inset_keeps_samples_inside_the_frame() {
+        let r = inset(Rect::new(32.0, 64.0, 32.0, 48.0));
+        assert!(r.x > 32.0 && r.right() < 64.0 && r.y > 64.0 && r.bottom() < 112.0);
+        // By far less than a texel: nothing visibly shrinks.
+        assert!(r.w > 31.9 && r.h > 47.9);
+        assert_eq!(inset(Rect::new(0.0, 0.0, 0.0, 0.0)).w, 0.0);
+    }
 }

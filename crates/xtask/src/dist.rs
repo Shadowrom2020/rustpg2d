@@ -1,4 +1,9 @@
 //! `cargo xtask-dist`: the R(ust)PG2D toolkit as AppImage and Flatpak (feature `dist`).
+//!
+//! Options: `--out DIR` (default `dist/`), `--bin-dir DIR` (release binaries, default
+//! `target/release`), `--web-wasm FILE` (the game for browsers, shipped next to the editor so it
+//! exports web games; default `target/wasm32-unknown-unknown/release/rustpg2d-game.wasm` if it
+//! exists), `--require-web` (fail without it: CI).
 
 use std::path::PathBuf;
 
@@ -26,6 +31,17 @@ pub fn dist(args: &[String]) -> Result<()> {
             None => println!("{}: no glibc version information", b.display()),
         }
     }
+    let wasm = opt("--web-wasm").or_else(|| Some(root.join("target/wasm32-unknown-unknown/release/rustpg2d-game.wasm")).filter(|p| p.is_file()));
+    match &wasm {
+        Some(w) => {
+            if !std::fs::read(w).with_context(|| format!("{} not found", w.display()))?.starts_with(b"\0asm") {
+                bail!("{} is not a WebAssembly file", w.display());
+            }
+            println!("{}: the web game", w.display());
+        }
+        None if args.iter().any(|a| a == "--require-web") => bail!("the web game is missing: cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game"),
+        None => println!("no web game (target/wasm32-unknown-unknown/release/rustpg2d-game.wasm): the packaged editor won't export web games"),
+    }
     let example = root.join("example_project");
     let project = rustpg2d_engine::project::Project::load(&example).context("loading example_project")?;
     let icon = rustpg2d_packaging::hero_icon(&project).unwrap_or_else(rustpg2d_packaging::emblem).encode()?;
@@ -49,6 +65,10 @@ pub fn dist(args: &[String]) -> Result<()> {
         icon,
         license: "MIT".into(),
     };
+    if let Some(w) = wasm {
+        // Next to the editor, where File > Export game looks for it.
+        spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.wasm".into(), src: Source::Path(w), exec: false });
+    }
     let license = root.join("LICENSE");
     if !license.is_file() {
         bail!("LICENSE is missing: the packages must carry R(ust)PG2D's license");

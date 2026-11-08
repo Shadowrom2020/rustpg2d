@@ -1,5 +1,6 @@
 //! File → Export game: writes a standalone bundle (game executable + project data), and on
-//! request a zip, an AppImage and a Flatpak bundle of it (package.rs).
+//! request a zip, an AppImage and a Flatpak bundle of it (package.rs), and / or the web version
+//! (browsers, itch.io: `release::export_web`).
 
 use std::path::PathBuf;
 
@@ -26,6 +27,10 @@ pub struct ExportDialog {
 /// What an export produces besides the game folder.
 #[derive(Clone, Debug)]
 pub struct ExportOpts {
+    /// The Linux bundle (and its packages).
+    pub linux: bool,
+    /// The web version (WebAssembly + `data.pack` + `index.html`).
+    pub web: bool,
     pub zip: bool,
     pub appimage: bool,
     pub flatpak: bool,
@@ -39,7 +44,7 @@ pub struct ExportOpts {
 
 impl Default for ExportOpts {
     fn default() -> Self {
-        ExportOpts { zip: false, appimage: false, flatpak: false, app_id: String::new(), runtime: package::FLATPAK_RUNTIMES[0].into(), icon: String::new() }
+        ExportOpts { linux: true, web: false, zip: false, appimage: false, flatpak: false, app_id: String::new(), runtime: package::FLATPAK_RUNTIMES[0].into(), icon: String::new() }
     }
 }
 
@@ -73,6 +78,23 @@ pub fn game_binary() -> Option<(PathBuf, bool)> {
     next_to.is_file().then_some((next_to, false))
 }
 
+/// The game runner compiled for the web (`rustpg2d-game.wasm`): next to the editor (packaged
+/// R(ust)PG2D ships it), else in the cargo target folder
+/// (`cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game`).
+pub fn web_binary() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    let next_to = dir.join(release::WEB_WASM);
+    if next_to.is_file() {
+        return Some(next_to);
+    }
+    let in_target = dir.file_name().is_some_and(|n| n == "debug" || n == "release");
+    let built = dir.parent()?.join("wasm32-unknown-unknown/release").join(release::WEB_WASM);
+    (in_target && built.is_file()).then_some(built)
+}
+
+const NO_WEB_RUNNER: &str = "rustpg2d-game.wasm (the web game runner) was not found next to the editor. Packaged R(ust)PG2D includes it; from source: `rustup target add wasm32-unknown-unknown`, then `cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game`.";
+
 impl Editor {
     pub fn open_export(&mut self) {
         let out = self.project.root.canonicalize().ok().and_then(|r| r.parent().map(|p| p.join("releases"))).unwrap_or_else(|| PathBuf::from("releases"));
@@ -88,12 +110,35 @@ impl Editor {
         if self.doc.as_ref().is_some_and(|d| d.is_dirty()) || self.defs_dirty {
             return Err("Unsaved changes could not be saved; nothing was exported.".into());
         }
+        if !opts.linux && !opts.web {
+            return Err("Choose at least one platform (Linux, Web).".into());
+        }
+        let out_dir = std::path::Path::new(out);
+        let mut msg = String::new();
+        let mut warnings = Vec::new();
+        if opts.web {
+            let wasm = web_binary().ok_or(NO_WEB_RUNNER)?;
+            let r = release::export_web(&self.project, name, &wasm, out_dir, opts.zip).map_err(|e| format!("Web: {e:#}"))?;
+            msg += &format!("Web export: {} ({} files, {:.1} MB)", r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0);
+            if let Some(a) = &r.archive {
+                msg += &format!("\nArchive (itch.io): {}", a.display());
+            }
+            warnings = r.warnings;
+        }
+        if !opts.linux {
+            for w in warnings {
+                msg += &format!("\nWarning: {w}");
+            }
+            return Ok(msg);
+        }
         let Some((bin, debug)) = game_binary() else {
             return Err("rustpg2d-game was not found next to the editor. Build it with `cargo build --release -p rustpg2d-game`.".into());
         };
-        let out_dir = std::path::Path::new(out);
         let r = release::export(&self.project, name, &bin, out_dir, opts.zip).map_err(|e| format!("{e:#}"))?;
-        let mut msg = format!("Exported to {} ({} files, {:.1} MB)", r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0);
+        if !msg.is_empty() {
+            msg += "\n";
+        }
+        msg += &format!("Exported to {} ({} files, {:.1} MB)", r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0);
         if let Some(a) = &r.archive {
             msg += &format!("\nArchive: {}", a.display());
         }
@@ -147,11 +192,23 @@ impl Editor {
                     }
                 });
                 ui.end_row();
+                ui.label("Platforms");
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut d.opts.linux, "Linux").on_hover_text("A folder with the game for Linux (x86_64): players run the executable in it");
+                    ui.checkbox(&mut d.opts.web, "Web (browser, itch.io)").on_hover_text(
+                        "The game compiled to WebAssembly with an index.html: it runs in current browsers from any web server, or uploaded to itch.io as an HTML game (the zip). Saves stay in the player's browser.",
+                    );
+                });
+                ui.end_row();
+                if !d.opts.linux {
+                    d.opts.appimage = false;
+                    d.opts.flatpak = false;
+                }
                 ui.label("");
-                ui.checkbox(&mut d.opts.zip, "Also create a .zip to share");
+                ui.checkbox(&mut d.opts.zip, "Also create a .zip to share (one per platform)");
                 ui.end_row();
                 ui.label("Linux packages");
-                ui.vertical(|ui| {
+                ui.add_enabled_ui(d.opts.linux, |ui| ui.vertical(|ui| {
                     ui.checkbox(&mut d.opts.appimage, "AppImage").on_hover_text(
                         "One executable file that runs on most Linux distributions: players download it, make it executable and start it. The AppImage runtime is downloaded once (from github.com/AppImage) and cached.",
                     );
@@ -163,7 +220,7 @@ impl Editor {
                     if !d.flatpak_ok {
                         ui.weak("Flatpak bundles need the flatpak command (install Flatpak with your package manager).");
                     }
-                });
+                }));
                 ui.end_row();
                 if d.opts.flatpak {
                     ui.label("Flatpak app id");
@@ -200,7 +257,16 @@ impl Editor {
                 }
             }
             let out = d.out.trim_end_matches('/');
-            ui.weak(format!("Result: {out}/{slug}/{slug} (run it to play), saves go to ~/.local/share/{slug}/saves"));
+            if d.opts.linux {
+                ui.weak(format!("Linux: {out}/{slug}/{slug} (run it to play), saves go to ~/.local/share/{slug}/saves"));
+            }
+            if d.opts.web {
+                ui.weak(format!("Web: {out}/{slug}-web/index.html (serve the folder, or upload {slug}-web.zip to itch.io); saves stay in the player's browser"));
+                match web_binary() {
+                    Some(p) => ui.weak(format!("Web game runner: {}", p.display())),
+                    None => ui.colored_label(Color32::LIGHT_RED, NO_WEB_RUNNER),
+                };
+            }
             if d.opts.appimage {
                 ui.weak(format!("AppImage: {out}/{slug}-x86_64.AppImage"));
             }
@@ -214,11 +280,11 @@ impl Editor {
                     ui.colored_label(Color32::YELLOW, note);
                 }
             }
-            match game_binary() {
+            if d.opts.linux { match game_binary() {
                 Some((p, false)) => ui.weak(format!("Game executable: {}", p.display())),
                 Some((p, true)) => ui.colored_label(Color32::YELLOW, format!("Only a debug build of the game was found ({}). It works but runs slower; `cargo build --release -p rustpg2d-game` gives a fast one.", p.display())),
                 None => ui.colored_label(Color32::LIGHT_RED, "rustpg2d-game not found next to the editor; build it with `cargo build --release -p rustpg2d-game`."),
-            };
+            }; }
             for e in &check.errors {
                 ui.colored_label(Color32::LIGHT_RED, format!("\u{E4F6} {e}"));
             }
@@ -232,7 +298,7 @@ impl Editor {
                 };
             }
             let app_id_ok = !d.opts.flatpak || package::check_app_id(d.opts.app_id.trim()).is_ok();
-            let ok = check.errors.is_empty() && !d.name.trim().is_empty() && !d.out.trim().is_empty() && game_binary().is_some() && app_id_ok;
+            let ok = check.errors.is_empty() && !d.name.trim().is_empty() && !d.out.trim().is_empty() && (d.opts.linux || d.opts.web) && (!d.opts.linux || game_binary().is_some()) && (!d.opts.web || web_binary().is_some()) && app_id_ok;
             if ui.add_enabled(ok, egui::Button::new("\u{E390} Export")).clicked() {
                 go = true;
             }

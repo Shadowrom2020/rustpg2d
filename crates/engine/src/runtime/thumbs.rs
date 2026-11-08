@@ -29,7 +29,7 @@ impl Game {
         let shot = get_screen_data();
         let img = thumbnail(shot.width as u32, shot.height as u32, &shot.bytes);
         let path = self.project.saves_dir().join(format!("{slot}.png"));
-        if let Err(e) = img.encode().and_then(|png| std::fs::write(&path, png).map_err(Into::into)) {
+        if let Err(e) = img.encode().and_then(|png| crate::sys::write(&path, &png).map_err(Into::into)) {
             eprintln!("[game] thumbnail {}: {e}", path.display());
         }
     }

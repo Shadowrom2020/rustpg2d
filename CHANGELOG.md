@@ -3,6 +3,25 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Editor
+- **Web export**: *File › Export game* has *Platforms* Linux / Web. The web version
+  (`<game>-web/`: `index.html`, the game compiled to WebAssembly, macroquad's loader,
+  `data.pack` with the game's files; `<game>-web.zip` for itch.io) runs in current browsers;
+  saves, settings and achievements are kept in the browser's local storage; right-click works as
+  in the game (no browser context menu). Tiles and sprites are drawn from a source rectangle
+  inset by 1/64 texel, so fractional scales (browser zoom, high-DPI screens, zoom levels) no
+  longer show thin lines of neighbouring tiles along edges. The packages ship
+  `rustpg2d-game.wasm`, so the packaged editor exports web games. Editor script: `exportweb`.
+
+### Maintenance
+- `engine/src/sys.rs`: the game's file and clock access in one place (native `std::fs`; on the
+  web an in-memory file table plus `localStorage`). The engine builds for
+  `wasm32-unknown-unknown` (Rhai without random seeds and clock there, no gamepads, no zip).
+- CI: clippy for the wasm game on every pull request; the Packages job builds it and checks it
+  ships in the AppImage.
+
 ## 0.8.0 — 2026-11-08
 
 ### Gameplay

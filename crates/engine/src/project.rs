@@ -242,20 +242,17 @@ pub struct Project {
 const DEFS: [&str; 12] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements"];
 
 fn read_ron<T: DeserializeOwned + Default>(path: &Path) -> Result<T> {
-    if !path.exists() {
+    if !crate::sys::exists(path) {
         return Ok(T::default());
     }
-    let s = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    let s = crate::sys::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     ron::from_str(&s).with_context(|| format!("parsing {}", path.display()))
 }
 
 pub fn write_ron<T: Serialize>(path: &Path, value: &T) -> Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
     let cfg = ron::ser::PrettyConfig::default().struct_names(false);
     let s = ron::ser::to_string_pretty(value, cfg)?;
-    std::fs::write(path, s).with_context(|| format!("writing {}", path.display()))
+    crate::sys::write(path, s.as_bytes()).with_context(|| format!("writing {}", path.display()))
 }
 
 impl Project {
@@ -263,7 +260,7 @@ impl Project {
         let root = root.to_path_buf();
         let cfg_path = root.join("project.ron");
         let config: ProjectConfig = ron::from_str(
-            &std::fs::read_to_string(&cfg_path).with_context(|| format!("reading {}", cfg_path.display()))?,
+            &crate::sys::read_to_string(&cfg_path).with_context(|| format!("reading {}", cfg_path.display()))?,
         )
         .with_context(|| format!("parsing {}", cfg_path.display()))?;
         let d = |n: &str| root.join("defs").join(format!("{n}.ron"));
@@ -337,12 +334,10 @@ impl Project {
     }
 
     pub fn list_maps(&self) -> Vec<String> {
-        let mut out: Vec<String> = std::fs::read_dir(self.maps_dir())
+        let mut out: Vec<String> = crate::sys::files_in(&self.maps_dir())
             .into_iter()
             .flatten()
-            .flatten()
-            .filter_map(|e| {
-                let p = e.path();
+            .filter_map(|p| {
                 if p.extension()? != "map" {
                     return None;
                 }

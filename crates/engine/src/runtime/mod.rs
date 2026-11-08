@@ -1797,8 +1797,7 @@ impl Game {
         self.sync_world();
         self.world.saved_at = menu::now_secs();
         let dir = self.project.saves_dir();
-        std::fs::create_dir_all(&dir)?;
-        std::fs::write(dir.join(format!("{slot}.ron")), self.world.to_ron()?)?;
+        crate::sys::write(&dir.join(format!("{slot}.ron")), self.world.to_ron()?.as_bytes())?;
         self.request_thumbnail(slot);
         Ok(())
     }
@@ -1823,7 +1822,7 @@ impl Game {
     fn autosave_status(&self) -> &'static str {
         if self.autosave_pending {
             "pending"
-        } else if self.project.saves_dir().join(format!("{AUTOSAVE}.ron")).exists() {
+        } else if crate::sys::exists(&self.project.saves_dir().join(format!("{AUTOSAVE}.ron"))) {
             "saved"
         } else {
             "none"
@@ -1831,7 +1830,7 @@ impl Game {
     }
 
     pub fn load_game(&mut self, slot: &str) -> Result<()> {
-        let s = std::fs::read_to_string(self.project.saves_dir().join(format!("{slot}.ron")))?;
+        let s = crate::sys::read_to_string(&self.project.saves_dir().join(format!("{slot}.ron")))?;
         let world = WorldState::from_ron(&s)?;
         self.slot = Some(slot.to_string());
         self.ui_hidden = false;

@@ -1,7 +1,6 @@
 //! Pause menu (Esc): resume, save to a named slot, load / delete saves, save and quit,
 //! quit to the title screen; options (graphics, sound, text); and the title screen (main menu).
 
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use macroquad::prelude::*;
 
@@ -143,7 +142,7 @@ enum Row {
 }
 
 pub(super) fn now_secs() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
+    crate::sys::unix_now()
 }
 
 /// Slot names become file names: letters, digits, space, '-' and '_'.
@@ -180,20 +179,19 @@ impl Game {
     fn scan_saves(&mut self) {
         let dir = self.project.saves_dir();
         let mut out = Vec::new();
-        for e in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
-            let p = e.path();
+        for p in crate::sys::files_in(&dir).into_iter().flatten() {
             if p.extension().is_none_or(|x| x != "ron") {
                 continue;
             }
             let Some(slot) = p.file_stem().map(|s| s.to_string_lossy().into_owned()) else { continue };
-            let file_time = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
-            let world = std::fs::read_to_string(&p).ok().and_then(|s| crate::state::WorldState::from_ron(&s).ok());
+            let file_time = crate::sys::modified_secs(&p);
+            let world = crate::sys::read_to_string(&p).ok().and_then(|s| crate::state::WorldState::from_ron(&s).ok());
             let (map, saved, play) = match &world {
                 Some(w) => (w.current_map.clone(), if w.saved_at > 0 { w.saved_at } else { file_time }, w.play_time),
                 None => ("(unreadable)".into(), file_time, 0.0),
             };
             // A damaged picture just isn't shown (Texture2D::from_file_with_format would panic).
-            let thumb = std::fs::read(p.with_extension("png"))
+            let thumb = crate::sys::read(&p.with_extension("png"))
                 .ok()
                 .and_then(|b| Image::from_file_with_format(&b, Some(ImageFormat::Png)).ok())
                 .map(|img| Texture2D::from_image(&img));
@@ -237,7 +235,10 @@ impl Game {
                     (Row::OptionsMenu, "Options".into(), String::new()),
                 ];
                 v.extend(achievements_row.clone());
-                v.push((Row::Exit, "Exit".into(), String::new()));
+                // (A web page isn't closed by the game: the tab is.)
+                if !cfg!(target_arch = "wasm32") {
+                    v.push((Row::Exit, "Exit".into(), String::new()));
+                }
                 v
             }
             Page::Main => {
@@ -565,8 +566,8 @@ impl Game {
             },
             (Page::ConfirmOverwrite(s), Row::Yes) => self.do_save(&s),
             (Page::ConfirmDelete(s), Row::Yes) => {
-                let _ = std::fs::remove_file(self.project.saves_dir().join(format!("{s}.ron")));
-                let _ = std::fs::remove_file(self.project.saves_dir().join(format!("{s}.png")));
+                let _ = crate::sys::remove_file(&self.project.saves_dir().join(format!("{s}.ron")));
+                let _ = crate::sys::remove_file(&self.project.saves_dir().join(format!("{s}.png")));
                 self.go(Page::Load);
             }
             (_, Row::No) => self.back(),

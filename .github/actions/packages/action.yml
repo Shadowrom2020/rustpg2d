@@ -1,5 +1,5 @@
 name: Build R(ust)PG2D packages
-description: Release build, AppImage + Flatpak of the R(ust)PG2D toolkit (cargo xtask-dist) and a smoke test of both binaries under Xvfb.
+description: Release build (plus the game for browsers, wasm32), AppImage + Flatpak of the R(ust)PG2D toolkit (cargo xtask-dist) and a smoke test of both binaries under Xvfb.
 runs:
   using: composite
   steps:
@@ -11,9 +11,14 @@ runs:
     - name: Release build
       shell: bash
       run: cargo build --release --locked -p rustpg2d-editor -p rustpg2d-game
+    - name: Web game (exports for browsers)
+      shell: bash
+      run: |
+        rustup target add wasm32-unknown-unknown
+        cargo build --release --locked --target wasm32-unknown-unknown -p rustpg2d-game
     - name: AppImage and Flatpak
       shell: bash
-      run: cargo xtask-dist --out dist
+      run: cargo xtask-dist --out dist --require-web
     - name: Smoke test (game and editor from the AppImage)
       shell: bash
       run: |
@@ -24,6 +29,7 @@ runs:
         RUSTPG2D_AUTOPLAY="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/usr/bin/rustpg2d-game squashfs-root/usr/share/rustpg2d/example_project 2>&1 | tee game.log
         grep -q "menu=title" game.log
+        test "$(head -c 4 squashfs-root/usr/lib/rustpg2d/rustpg2d-game.wasm | od -An -c | tr -d ' ')" = '\0asm'
         RUSTPG2D_EDITOR_SCRIPT="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/AppRun 2>&1 | tee editor.log
         grep -q "open=false" editor.log

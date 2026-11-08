@@ -3,7 +3,9 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.10.0 — 2026-11-08
+
+Agents: AI agents build content and adventures from inside the editor.
 
 ### Editor
 - **AI agent server (MCP)**: *Assets › AI agent server…* serves the Model Context Protocol from

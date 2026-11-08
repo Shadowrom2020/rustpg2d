@@ -1681,8 +1681,9 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
     match (*cx.anim_target, *cx.tile_light_pick) {
         _ if editing_terrain.is_some() => {
             let (p, name) = editing_terrain.clone().unwrap();
+            let blob = d.terrains.get(p.terrain).is_some_and(|t| t.is_blob());
             ui.label(if p.block {
-                format!("Click the top-left tile of a 4×4 block for terrain {name}.")
+                format!("Click the top-left tile of a {} block for terrain {name}.", if blob { "7×7" } else { "4×4" })
             } else if p.slot == crate::terrain::BASE_SLOT {
                 format!("Click the tile that erasing {name} leaves.")
             } else {

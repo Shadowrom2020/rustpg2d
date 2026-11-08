@@ -302,6 +302,9 @@ pub fn rename_in_map(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usiz
         r.fix(RefKind::Tileset, t);
     }
     r.fix(RefKind::Sound, &mut map.music);
+    for l in &mut map.parallax {
+        r.fix(RefKind::Sheet, &mut l.sheet);
+    }
     r.triggers(&mut map.triggers);
     for e in &mut map.entities {
         r.entity(e);

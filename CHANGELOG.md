@@ -3,6 +3,29 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.8.0 — 2026-11-08
+
+### Gameplay
+- **Gapless music loops**: music no longer has a short silence where it loops (a quad-snd mixer
+  quirk). The engine decodes music (Ogg Vorbis via `lewton`, WAV), resamples it to 44.1 kHz and
+  stretches it to whole mixer buffers (under 0.16 % for tracks of a minute; tracks under 30 s are
+  repeated first); long files are prepared in the background at start. The example's two tracks
+  are rendered at whole-buffer lengths and play unchanged.
+
+### Editor
+- **47-tile corner auto-tiling**: terrains can have a *Corners (47 tiles)* set that also looks at
+  the diagonal neighbours (`Terrain.blob`), giving inner corners where a terrain bends. The
+  Terrains form shows the 7×7 blob template with side and corner arms, *Fill from template
+  (7×7)*; empty slots fall back to the 16-tile set. Tiled imports turn *mixed* Wang sets into
+  47-tile terrains and *edge* sets into 16-tile ones (*corner* sets are reported).
+- Example: the starter *Dirt path* and *Sand* terrains got blob sets; the village's roads and
+  sandy pond are retiled with them.
+- **Parallax layers** (map settings): images moving at their own speed behind the tiles or over
+  the map (`Map.parallax`: sprite sheet, follow factor, drift, offset, repeat, size, opacity),
+  drawn by the game and previewed in the editor (*View › Parallax layers*). Example: cloud
+  shadows over the Wilds, mist far below the mine's chasm, which uses the dungeon tileset's new
+  see-through *Abyss* terrain.
+
 ## 0.7.0 — 2026-11-08
 
 ### Gameplay

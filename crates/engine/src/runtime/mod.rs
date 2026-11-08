@@ -1704,7 +1704,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?}",
+            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={}",
             self.dev_status(),
             self.weather_status(),
             self.menu_status(),
@@ -1746,6 +1746,10 @@ impl Game {
             self.crops_status(),
             self.activities_status(),
             self.world.day,
+            {
+                let (a, m) = (&self.assets, &self.loaded.map.parallax);
+                format!("{}behind,{}above", render::parallax::count(a, m, false), render::parallax::count(a, m, true))
+            },
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -1763,7 +1767,8 @@ impl Game {
             self.ui.dialog_open(),
             self.world.inventory.summary(),
             self.world.flags,
-            self.audio.current_music()
+            self.audio.current_music(),
+            self.audio.music_loop_status()
         )
     }
 
@@ -1893,6 +1898,8 @@ impl Game {
         let view = render::camera_view(&cam);
         let sets = self.assets.map_tilesets(m);
 
+        // Parallax layers behind the tiles (seen under empty tiles and past the map's edge).
+        render::parallax::draw(&self.assets, &m.parallax, false, view, get_time() as f32);
         for layer in m.layers.iter().filter(|l| l.visible && !l.above_entities) {
             render::draw_layer(m, layer, &sets, ts, view, WHITE);
         }
@@ -1952,6 +1959,8 @@ impl Game {
         for layer in m.layers.iter().filter(|l| l.visible && l.above_entities) {
             render::draw_layer(m, layer, &sets, ts, view, WHITE);
         }
+        // Parallax layers over the map (cloud shadows, mist), lit like the rest of the scene.
+        render::parallax::draw(&self.assets, &m.parallax, true, view, get_time() as f32);
 
         // Darkness (map, time of day, cut-scene dimming), then the weather's tint on top.
         let dark = self.scene_ambient(render::lighting::ambient(self.loaded.map.lighting, self.world.hour));

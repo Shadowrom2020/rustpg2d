@@ -1316,6 +1316,16 @@ fn wilds() -> Map {
         },
         |_, _, _, _| false,
     );
+    // Cloud shadows drifting over the land, a little slower than the ground (high up).
+    b.m.parallax.push(rustpg2d_engine::map::ParallaxLayer {
+        sheet: "cloud_shadows".into(),
+        factor: [0.8, 0.8],
+        drift: [9.0, 4.0],
+        above: true,
+        alpha: 0.3,
+        scale: 4.0,
+        ..Default::default()
+    });
     b.m
 }
 
@@ -1502,6 +1512,9 @@ fn database() -> Database {
             SheetDef::new("items", "sprites/items.png", 32, 32),
             // Cooked dishes (items.png is near the texture size limit).
             SheetDef::new("food", "sprites/food.png", 32, 32),
+            // Parallax layers (Map › Parallax layers): the Wilds' cloud shadows, the mine's abyss.
+            SheetDef::new("cloud_shadows", "sprites/cloud_shadows.png", 256, 256),
+            SheetDef::new("abyss_mist", "sprites/abyss_mist.png", 256, 256),
             // Drawn dialog portraits (Database > Characters > Portrait): the elder, Tilda.
             SheetDef::new("portraits", "sprites/portraits.png", 64, 64),
             // Spell effects (the Fireball script).
@@ -1960,7 +1973,8 @@ fn mine() -> Map {
     // entrance hall, and a chasm at the cavern's east end.
     let (dterrains, earth_tile, chasm_tile) = {
         let ts = art::extra::dungeon_tileset().0.terrains;
-        let (e, c) = (ts[0].tile_for(15).unwrap(), ts[1].tile_for(15).unwrap());
+        // The chasm is see-through (Abyss): the mist of the parallax layer behind shows in it.
+        let (e, c) = (ts[0].tile_for(15).unwrap(), ts[2].tile_for(15).unwrap());
         (ts, e, c)
     };
     for (x, y) in [(6, 5), (7, 5), (7, 6), (8, 5), (6, 6), (12, 4), (13, 4), (13, 5), (12, 16), (13, 16), (14, 16), (13, 17), (14, 17), (15, 17), (13, 15)] {
@@ -1978,6 +1992,8 @@ fn mine() -> Map {
         |m, x, y| of(m, x, y).and_then(|i| rustpg2d_engine::autotile::terrain_of(&dterrains, i)),
         |m, k, x, y| of(m, x, y).is_some_and(|i| rustpg2d_engine::autotile::counts_as(&dterrains, k, i)),
     );
+    // Far below the chasm: dark mist, moving slower than the floor (depth).
+    b.m.parallax.push(rustpg2d_engine::map::ParallaxLayer { sheet: "abyss_mist".into(), factor: [0.3, 0.3], drift: [3.0, 1.0], ..Default::default() });
     b.m
 }
 
@@ -2336,6 +2352,7 @@ fn main() {
     props(&out);
     items(&out);
     food_icons(&out);
+    parallax_images(&out);
     portraits(&out);
     fireball(&out);
     explosion(&out);

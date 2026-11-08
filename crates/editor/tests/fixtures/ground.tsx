@@ -12,4 +12,17 @@
    <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
+ <wangsets>
+  <wangset name="Paths" type="mixed" tile="0">
+   <wangcolor name="Path" color="#c8a050" tile="0" probability="1"/>
+   <wangtile tileid="0" wangid="1,1,1,1,1,1,1,1"/>
+   <wangtile tileid="1" wangid="1,0,0,0,0,0,0,0"/>
+   <wangtile tileid="2" wangid="1,0,1,0,0,0,0,0"/>
+   <wangtile tileid="3" wangid="0,1,0,0,0,0,0,0"/>
+  </wangset>
+  <wangset name="Grass corners" type="corner" tile="-1">
+   <wangcolor name="Grass" color="#00ff00" tile="-1" probability="1"/>
+   <wangtile tileid="0" wangid="0,1,0,1,0,1,0,1"/>
+  </wangset>
+ </wangsets>
 </tileset>

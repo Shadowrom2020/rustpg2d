@@ -179,6 +179,58 @@ pub struct Map {
     pub fog: bool,
     /// Rain, snow or fog over the map (a save game can override it: `WorldState::weather`).
     pub weather: Weather,
+    /// Image layers moving at their own speed behind or over the map (sky, mist, clouds).
+    pub parallax: Vec<ParallaxLayer>,
+}
+
+/// An image layer of a map that moves at its own speed: behind the tiles (seen under empty
+/// tiles and beyond the map's edge: a sky, an abyss) or over everything (cloud shadows, mist).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ParallaxLayer {
+    /// Sprite sheet id: its whole image is drawn.
+    pub sheet: String,
+    /// How much the layer follows the camera per axis: 1 = moves with the map, 0 = fixed to
+    /// the screen, between = slower than the map (far away).
+    pub factor: [f32; 2],
+    /// Position of the image (world pixels; with factor 0: from the screen's top-left).
+    pub offset: [f32; 2],
+    /// Constant movement, world pixels per second (drifting clouds).
+    pub drift: [f32; 2],
+    /// Repeats the image along x / y.
+    pub repeat: [bool; 2],
+    /// Drawn over the map and its characters (before lighting and weather), else behind the
+    /// tiles.
+    pub above: bool,
+    /// Opacity 0..1.
+    pub alpha: f32,
+    /// Size of the image (1 = one image pixel per world pixel).
+    pub scale: f32,
+}
+
+impl Default for ParallaxLayer {
+    fn default() -> Self {
+        ParallaxLayer { sheet: String::new(), factor: [0.5, 0.5], offset: [0.0; 2], drift: [0.0; 2], repeat: [true, true], above: false, alpha: 1.0, scale: 1.0 }
+    }
+}
+
+impl ParallaxLayer {
+    /// World position of the image's top-left corner for a view whose top-left is `view_min`,
+    /// `time` seconds in.
+    pub fn origin(&self, view_min: [f32; 2], time: f32) -> [f32; 2] {
+        let axis = |k: usize| view_min[k] * (1.0 - self.factor[k]) + self.offset[k] + self.drift[k] * time;
+        [axis(0), axis(1)]
+    }
+
+    /// Where the copies of an image `size` big go along one axis to cover `[from, to)`: first
+    /// position and count (one copy when not repeating).
+    pub fn copies(origin: f32, size: f32, repeat: bool, from: f32, to: f32) -> (f32, usize) {
+        if !repeat || size <= 0.0 {
+            return (origin, 1);
+        }
+        let first = origin + ((from - origin) / size).floor() * size;
+        (first, (((to - first) / size).ceil().max(1.0) as usize).min(256))
+    }
 }
 
 /// How dark a map is when nothing lights it.
@@ -302,6 +354,7 @@ impl Map {
             lighting: MapLighting::default(),
             fog: false,
             weather: Weather::default(),
+            parallax: Vec::new(),
         }
     }
 

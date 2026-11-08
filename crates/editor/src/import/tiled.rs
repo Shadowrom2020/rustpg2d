@@ -3,12 +3,15 @@
 //! Tilesets are repacked into plain 32 px grids (margins and spacing removed, other tile sizes
 //! scaled), tile layers become map layers, a layer named `collision` becomes collision,
 //! rectangles of object layers become trigger zones and points named `spawn:NAME` spawn points.
+//! Wang sets become auto-tiling terrains: *mixed* sets (sides and corners) 47-tile terrains,
+//! *edge* sets 16-tile terrains; *corner* sets don't fit the side-based terrains and are reported.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
+use rustpg2d_engine::autotile::Terrain;
 use rustpg2d_engine::defs::{Database, TileAnim, TilesetDef};
 use rustpg2d_engine::imageio::Rgba;
 use rustpg2d_engine::map::{CollisionOverride, Map, TileLayer, Tile, Zone, ZoneKind};
@@ -32,6 +35,17 @@ pub struct Tileset {
     pub solid: BTreeSet<u32>,
     /// Animated tiles: tile id → (frame tile id, duration ms).
     pub anims: BTreeMap<u32, Vec<(u32, u32)>>,
+    pub wangsets: Vec<WangSet>,
+}
+
+/// A Tiled Wang set: its kind (`corner`, `edge`, `mixed`), colour names (colour 1 = index 0)
+/// and tiles with their 8 Wang colours (top, top-right, right, …, top-left; 0 = none).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct WangSet {
+    pub name: String,
+    pub kind: String,
+    pub colors: Vec<String>,
+    pub tiles: Vec<(u32, [u32; 8])>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -234,7 +248,21 @@ fn tileset_from_xml(el: &El, dir: &Path, firstgid: u32) -> Tileset {
             ts.anims.insert(id, a.kids("frame").map(|f| (f.num("tileid"), f.num("duration"))).collect());
         }
     }
+    for w in el.kid("wangsets").into_iter().flat_map(|w| w.kids("wangset")) {
+        ts.wangsets.push(WangSet {
+            name: w.attr("name").unwrap_or("").to_string(),
+            kind: w.attr("type").unwrap_or("").to_string(),
+            colors: w.kids("wangcolor").map(|c| c.attr("name").unwrap_or("").to_string()).collect(),
+            tiles: w.kids("wangtile").filter_map(|t| Some((t.num("tileid"), wang_id(t.attr("wangid")?.split(',').map(|v| v.trim().parse().unwrap_or(0)))?))).collect(),
+        });
+    }
     ts
+}
+
+/// The 8 colours of a Wang id (`None` for the old hexadecimal format or a wrong length).
+fn wang_id(vals: impl Iterator<Item = u32>) -> Option<[u32; 8]> {
+    let v: Vec<u32> = vals.collect();
+    v.try_into().ok()
 }
 
 fn layers_from_xml(el: &El, out: &mut Vec<Layer>, w: u32, h: u32) -> Result<()> {
@@ -387,6 +415,18 @@ fn tileset_from_json(t: &JMap, dir: &Path, firstgid: u32) -> Tileset {
             ts.anims.insert(id, frames);
         }
     }
+    for w in j_arr(t, "wangsets").iter().filter_map(j_map) {
+        ts.wangsets.push(WangSet {
+            name: j_str(&w, "name"),
+            kind: j_str(&w, "type"),
+            colors: j_arr(&w, "colors").iter().filter_map(j_map).map(|c| j_str(&c, "name")).collect(),
+            tiles: j_arr(&w, "wangtiles")
+                .iter()
+                .filter_map(j_map)
+                .filter_map(|t| Some((j_num(&t, "tileid") as u32, wang_id(j_arr(&t, "wangid").iter().map(|v| v.as_int().unwrap_or(0).max(0) as u32))?)))
+                .collect(),
+        });
+    }
     ts
 }
 
@@ -481,6 +521,10 @@ pub struct Report {
     pub image_layers: usize,
     pub dropped_tilesets: Vec<String>,
     pub uneven_anims: usize,
+    /// Terrains made from Wang sets (`name (47 tiles)`).
+    pub terrains: Vec<String>,
+    /// Wang sets that don't fit (corner sets, or tiles whose corners lack their sides).
+    pub dropped_wang: Vec<String>,
 }
 
 impl Report {
@@ -512,6 +556,12 @@ impl Report {
         if !self.dropped_tilesets.is_empty() {
             notes.push(format!("tilesets of single images not imported: {}", self.dropped_tilesets.join(", ")));
         }
+        if !self.terrains.is_empty() {
+            s += &format!(" Terrains: {}.", self.terrains.join(", "));
+        }
+        if !self.dropped_wang.is_empty() {
+            notes.push(format!("Wang sets not (fully) imported: {}", self.dropped_wang.join("; ")));
+        }
         if self.uneven_anims > 0 {
             notes.push(format!("{} animations with uneven frame times use their average speed", self.uneven_anims));
         }
@@ -535,6 +585,56 @@ fn repack(img: &Rgba, ts: &Tileset) -> Rgba {
                 let (x, y) = (sx + dx * ts.tile_w / TS, sy + dy * ts.tile_h / TS);
                 out.set((c * TS + dx) as i32, (r * TS + dy) as i32, img.get(x as i32, y as i32));
             }
+        }
+    }
+    out
+}
+
+/// Terrains from a tileset's Wang sets, one per colour: *mixed* sets fill the 47-tile set
+/// (a tile whose corner colour lacks one of the two sides next to it doesn't fit and is
+/// skipped), *edge* sets the 16-tile set; *corner* sets are reported.
+pub fn wang_terrains(sets: &[WangSet], rep: &mut Report) -> Vec<Terrain> {
+    use rustpg2d_engine::autotile::{reduce, BLOB_SLOT, BLOB_SLOTS, EAST, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, WEST};
+    // Wang id order: top, top-right, right, bottom-right, bottom, bottom-left, left, top-left.
+    const BITS: [usize; 8] = [NORTH, NORTH_EAST, EAST, SOUTH_EAST, SOUTH, SOUTH_WEST, WEST, NORTH_WEST];
+    let mut out = Vec::new();
+    for w in sets {
+        let (blob, edge) = (w.kind == "mixed", w.kind == "edge");
+        if !blob && !edge {
+            rep.dropped_wang.push(format!("{} ({} set: terrains here follow the sides, not the corners)", w.name, if w.kind.is_empty() { "old" } else { &w.kind }));
+            continue;
+        }
+        let mut misfits = 0;
+        for (c, color) in w.colors.iter().enumerate() {
+            let c = c as u32 + 1;
+            let name = if w.colors.len() == 1 || color.is_empty() { if w.name.is_empty() { color.clone() } else { w.name.clone() } } else { color.clone() };
+            let mut t = Terrain { name, ..Default::default() };
+            if blob {
+                t.blob = vec![None; BLOB_SLOTS];
+            }
+            for (tile, id) in &w.tiles {
+                let mask = id.iter().zip(BITS).filter(|(v, _)| **v == c).fold(0, |m, (_, b)| m | b);
+                // A tile without this colour belongs to other colours (or none).
+                if mask == 0 {
+                    continue;
+                }
+                if blob {
+                    if reduce(mask) != mask {
+                        misfits += 1;
+                        continue;
+                    }
+                    t.blob[BLOB_SLOT[mask] as usize] = Some(*tile);
+                } else {
+                    t.tiles[mask & 15] = Some(*tile);
+                }
+            }
+            if t.tiles_set() > 0 {
+                rep.terrains.push(format!("{} ({} tiles)", t.name, if blob { 47 } else { 16 }));
+                out.push(t);
+            }
+        }
+        if misfits > 0 {
+            rep.dropped_wang.push(format!("{}: {misfits} tiles with a corner but not both of its sides", w.name));
         }
     }
     out
@@ -584,7 +684,8 @@ pub fn convert(p: &Parsed, name: &str, root: &Path, db: &mut Database) -> Result
             let ms = (total as f32 / frames.len().max(1) as f32).max(1.0);
             animations.push(TileAnim { tile: *tile, frames: frames.iter().map(|f| f.0).collect(), fps: 1000.0 / ms });
         }
-        db.tilesets.push(TilesetDef { id: id.clone(), image: rel, solid: ts.solid.iter().copied().collect(), animations, lights: vec![], terrains: vec![] });
+        let terrains = wang_terrains(&ts.wangsets, &mut rep);
+        db.tilesets.push(TilesetDef { id: id.clone(), image: rel, solid: ts.solid.iter().copied().collect(), animations, lights: vec![], terrains });
         if (ts.tile_w, ts.tile_h) != (TS, TS) {
             rep.scaled.push(format!("{id} ({} px)", ts.tile_w));
         }
@@ -701,6 +802,9 @@ mod tests {
         assert_eq!((ground.firstgid, ground.columns, ground.tilecount), (1, 2, 4));
         assert!(ground.solid.contains(&3));
         assert_eq!(ground.anims.get(&1), Some(&vec![(1, 250), (2, 250)]));
+        assert_eq!(ground.wangsets.len(), 2);
+        assert_eq!((ground.wangsets[0].kind.as_str(), ground.wangsets[0].colors.clone()), ("mixed", vec!["Path".to_string()]));
+        assert_eq!(ground.wangsets[0].tiles[2], (2, [1, 0, 1, 0, 0, 0, 0, 0]));
         let deco = &p.tilesets[1];
         assert_eq!((deco.firstgid, deco.spacing, deco.margin, deco.tile_w), (5, 2, 1, 32));
         let names: Vec<&str> = p.layers.iter().map(|l| l.name.as_str()).collect();
@@ -757,8 +861,14 @@ mod tests {
             zones,
             vec![("door".into(), 1, 1, 2, 1, false), ("start".into(), 3, 2, 1, 1, true), ("pond".into(), 3, 0, 2, 2, false)]
         );
+        // The mixed Wang set became a 47-tile terrain; the corner set and the misfit are reported.
+        let t = &g.terrains[0];
+        use rustpg2d_engine::autotile::{BLOB_SLOT, EAST, NORTH};
+        assert_eq!((t.name.as_str(), t.is_blob(), t.tiles_set()), ("Paths", true, 3));
+        assert_eq!((t.inside(), t.blob_tile(BLOB_SLOT[NORTH] as usize), t.blob_tile(BLOB_SLOT[NORTH | EAST] as usize)), (Some(0), Some(1), Some(2)));
+        assert_eq!(rep.dropped_wang.len(), 2, "{:?}", rep.dropped_wang);
         let msg = rep.message(&map);
-        assert!(msg.contains("1 flipped") && msg.contains("ground_2 (16 px)"), "{msg}");
+        assert!(msg.contains("1 flipped") && msg.contains("ground_2 (16 px)") && msg.contains("Paths (47 tiles)"), "{msg}");
         let _ = std::fs::remove_dir_all(root);
     }
 }

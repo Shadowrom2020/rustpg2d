@@ -255,6 +255,18 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         }
         // terrainedit K [block]: Database › Tilesets: edit terrain K of the selected tileset
         "terrainedit" => ed.db.terrain_pick = Some(terrain::TerrainPick { terrain: num(1) as usize, slot: 0, block: arg(2) == "block" }),
+        // terrainblob TILESET NAME on|off: the terrain's Corners (47 tiles) toggle
+        "terrainblob" => {
+            let name = cmd.get(2..cmd.len().saturating_sub(1)).map(|n| n.join(" ")).unwrap_or_default();
+            let found = ed.project.db.tilesets.iter_mut().find(|d| d.id == arg(1)).and_then(|d| d.terrains.iter_mut().find(|t| t.name.eq_ignore_ascii_case(&name)));
+            match found {
+                Some(t) => {
+                    t.set_blob(cmd.last().is_some_and(|l| *l != "off"));
+                    ed.defs_dirty = true;
+                }
+                None => println!("[script] terrainblob: no terrain {name} in {}", arg(1)),
+            }
+        }
         // Events mode: graph scope map|selection · graph functions map|all · graphnode N
         // (select node N, -1 = none) · graphedit N (toggle its editors) · graphtext N K TEXT
         // (text of action K of trigger node N) · graphdump (nodes with summaries)
@@ -933,7 +945,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "grid" => ed.view.grid = on,
                 "collision" => ed.view.collision = on,
                 "weather" => ed.view.weather = on,
-                _ => println!("[script] viewopt: zones|grid|collision on|off"),
+                "parallax" => ed.view.parallax = on,
+                _ => println!("[script] viewopt: zones|grid|collision|weather|parallax on|off"),
             }
         }
         // actionsheet SHEET: the sprite sheet of the last Effect / Fly action of the selected

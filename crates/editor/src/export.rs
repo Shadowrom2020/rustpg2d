@@ -30,6 +30,8 @@ pub struct ExportOpts {
     /// Bundles for these platforms.
     pub linux: bool,
     pub windows: bool,
+    /// Windows: include Mesa's software OpenGL (`mesa/` next to the Windows game runner).
+    pub software_gl: bool,
     pub zip: bool,
     pub appimage: bool,
     pub flatpak: bool,
@@ -60,6 +62,7 @@ impl Default for ExportOpts {
         ExportOpts {
             linux: host == Platform::Linux,
             windows: host == Platform::Windows,
+            software_gl: true,
             zip: false,
             appimage: false,
             flatpak: false,
@@ -114,6 +117,18 @@ pub fn game_binary(platform: Platform) -> Option<(PathBuf, bool)> {
     next_to.is_file().then_some((next_to, debug))
 }
 
+/// Mesa's software OpenGL next to the Windows game runner (`mesa/opengl32.dll`), with its size
+/// in bytes: shipped with Windows exports so they start on PCs without an OpenGL 3 driver.
+pub fn windows_mesa() -> Option<(PathBuf, u64)> {
+    let (runner, _) = game_binary(Platform::Windows)?;
+    let dir = runner.parent()?.join(rustpg2d_engine::gl_fallback::MESA_DIR);
+    if !dir.join("opengl32.dll").is_file() {
+        return None;
+    }
+    let size = std::fs::read_dir(&dir).ok()?.flatten().filter_map(|e| e.metadata().ok()).filter(|m| m.is_file()).map(|m| m.len()).sum();
+    Some((dir, size))
+}
+
 /// How to get a missing game runner (the dialog and the error).
 fn missing_runner(platform: Platform) -> String {
     match platform {
@@ -161,8 +176,9 @@ impl Editor {
         let mut linux_folder = None;
         let mut warnings = Vec::new();
         let mut debug = false;
+        let mesa = windows_mesa().filter(|_| opts.software_gl).map(|m| m.0);
         for (p, (bin, dbg)) in platforms.iter().zip(&bins) {
-            let r = release::export(&self.project, name, *p, bin, out_dir, opts.zip).map_err(|e| format!("{}: {e:#}", p.label()))?;
+            let r = release::export(&self.project, name, *p, bin, out_dir, opts.zip, mesa.as_deref()).map_err(|e| format!("{}: {e:#}", p.label()))?;
             lines.push(format!("{} export: {} ({} files, {:.1} MB)", p.label(), r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0));
             if let Some(a) = &r.archive {
                 lines.push(format!("Archive: {}", a.display()));
@@ -231,6 +247,20 @@ impl Editor {
                     ui.checkbox(&mut d.opts.windows, "Windows").on_hover_text("A folder with NAME.exe for Windows 10 / 11 (64-bit): players double-click it. Not signed, so Windows asks once (More info, Run anyway)");
                 });
                 ui.end_row();
+                if d.opts.windows {
+                    ui.label("");
+                    match windows_mesa() {
+                        Some((_, size)) => {
+                            ui.checkbox(&mut d.opts.software_gl, format!("Windows: software OpenGL fallback (+{:.0} MB)", size as f64 / 1_048_576.0)).on_hover_text(
+                                "Includes Mesa's software OpenGL (the mesa folder), so the game also starts on PCs and virtual machines without a graphics driver (slower there). Without it, such PCs show a message instead.",
+                            );
+                        }
+                        None => {
+                            ui.weak("No software OpenGL fallback (mesa folder) next to the Windows game runner: the game needs a graphics driver with OpenGL 3.2.");
+                        }
+                    }
+                    ui.end_row();
+                }
                 ui.label("");
                 ui.checkbox(&mut d.opts.zip, "Also create a .zip to share (one per platform)");
                 ui.end_row();

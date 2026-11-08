@@ -3,7 +3,7 @@
 //! is `rustpg2d_engine::autotile`.
 
 use egui_macroquad::egui::{self, pos2, vec2, Color32, Rect, Sense, Stroke, StrokeKind, TextureId};
-use rustpg2d_engine::autotile::{self, Terrain, EAST, NORTH, SOUTH, WEST};
+use rustpg2d_engine::autotile::{self, Terrain, BLOB_MASKS, BLOB_SLOTS, EAST, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, WEST};
 use rustpg2d_engine::defs::TilesetDef;
 use rustpg2d_engine::render::TilesetTex;
 
@@ -15,13 +15,15 @@ use crate::ui::{self, ph};
 pub struct TerrainPick {
     /// Index into the tileset's terrains.
     pub terrain: usize,
-    /// 0–15 = the tile for that neighbour mask, 16 = the base tile ("erasing leaves").
+    /// 0–15 = the tile for that neighbour mask (0–46 = blob slot of a 47-tile terrain),
+    /// `BASE_SLOT` = the base tile ("erasing leaves").
     pub slot: usize,
-    /// The next click is the top-left tile of a 4×4 block that fills all 16 slots.
+    /// The next click is the top-left tile of a 4×4 block that fills all 16 slots (7×7 and
+    /// 47 slots for a 47-tile terrain).
     pub block: bool,
 }
 
-pub const BASE_SLOT: usize = 16;
+pub const BASE_SLOT: usize = 99;
 
 /// UV rectangle of a tile in a tileset texture.
 pub fn tile_uv(ts: &TilesetTex, tile_px: f32, i: u32) -> Rect {
@@ -30,7 +32,8 @@ pub fn tile_uv(ts: &TilesetTex, tile_px: f32, i: u32) -> Rect {
     Rect::from_min_max(pos2(c as f32 * tile_px / w, r as f32 * tile_px / h), pos2((c + 1) as f32 * tile_px / w, (r + 1) as f32 * tile_px / h))
 }
 
-/// Small cross in the corner of a slot: arms towards the neighbours that are the same terrain.
+/// Small cross in the corner of a slot: arms towards the neighbours that are the same terrain
+/// (diagonal arms for the corners of a 47-tile terrain).
 fn paint_mask(p: &egui::Painter, r: Rect, mask: usize) {
     let c = r.min + vec2(9.0, 9.0);
     let col = Color32::from_rgb(255, 230, 90);
@@ -41,6 +44,11 @@ fn paint_mask(p: &egui::Painter, r: Rect, mask: usize) {
             p.line_segment([c, c + d], Stroke::new(2.0_f32, col));
         }
     }
+    for (bit, d) in [(NORTH_EAST, vec2(4.0, -4.0)), (SOUTH_EAST, vec2(4.0, 4.0)), (SOUTH_WEST, vec2(-4.0, 4.0)), (NORTH_WEST, vec2(-4.0, -4.0))] {
+        if mask & bit != 0 {
+            p.line_segment([c, c + d], Stroke::new(1.5_f32, Color32::from_rgb(120, 220, 255)));
+        }
+    }
 }
 
 /// The *Terrains* section of the Tilesets form. Clicks into the tile grid below it are
@@ -49,7 +57,8 @@ pub fn terrains_form(ui: &mut egui::Ui, d: &mut TilesetDef, tex: TextureId, ts: 
     ui.heading("Terrains (auto-tiling)");
     ui.weak(
         "A terrain has 16 tiles, one for each combination of neighbours that are the same terrain (north, east, south, west: the yellow arms). \
-         The Terrain tool (A) on the map picks the right one while you paint. Drawn as a 4×4 block in this order, one click fills all 16.",
+         The Terrain tool (A) on the map picks the right one while you paint. Drawn as a 4×4 block in this order, one click fills all 16. \
+         With Corners (47 tiles) it also looks at the diagonal neighbours (blue arms) for inner corners: a 7×7 block in the slots' order.",
     );
     let mut remove = None;
     let uv = |i: u32| tile_uv(ts, tile_px, i);
@@ -68,11 +77,11 @@ pub fn terrains_form(ui: &mut egui::Ui, d: &mut TilesetDef, tex: TextureId, ts: 
                         *j = new.clone();
                     }
                 }
-                let n = d.terrains[k].tiles_set();
-                if n < 16 {
-                    ui.colored_label(Color32::from_rgb(240, 190, 90), format!("{n}/16 tiles"));
+                let (n, of) = (d.terrains[k].tiles_set(), d.terrains[k].slots());
+                if n < of {
+                    ui.colored_label(Color32::from_rgb(240, 190, 90), format!("{n}/{of} tiles"));
                 } else {
-                    ui.weak("16/16 tiles");
+                    ui.weak(format!("{of}/{of} tiles"));
                 }
                 if ui.small_button(ph::TRASH).on_hover_text("Delete this terrain (painted tiles stay)").clicked() {
                     remove = Some(k);
@@ -101,27 +110,41 @@ pub fn terrains_form(ui: &mut egui::Ui, d: &mut TilesetDef, tex: TextureId, ts: 
             }
             let t = &mut d.terrains[k];
             let p = pick.as_mut().unwrap();
+            let mut blob = t.is_blob();
+            if ui
+                .checkbox(&mut blob, "Corners (47 tiles)")
+                .on_hover_text("Also look at the diagonal neighbours: inner corners where the terrain bends. 47 tiles, drawn as a 7×7 block; the 16 tiles stay as the fallback for empty slots")
+                .changed()
+            {
+                t.set_blob(blob);
+                p.slot = 0;
+            }
             ui.horizontal(|ui| {
-                // 4×4 slots in mask order.
+                // 4×4 slots in mask order (7×7 in blob slot order).
                 ui.vertical(|ui| {
-                    let cell = 40.0;
-                    let (rect, resp) = ui.allocate_exact_size(vec2(cell * 4.0, cell * 4.0), Sense::click());
+                    let (side, slots) = if blob { (7, BLOB_SLOTS) } else { (4, 16) };
+                    let cell = if blob { 32.0 } else { 40.0 };
+                    let (rect, resp) = ui.allocate_exact_size(vec2(cell * side as f32, cell * (slots.div_ceil(side)) as f32), Sense::click());
                     let painter = ui.painter_at(rect);
-                    for s in 0..16 {
-                        let r = Rect::from_min_size(rect.min + vec2((s % 4) as f32 * cell, (s / 4) as f32 * cell), vec2(cell, cell)).shrink(1.0);
+                    for s in 0..slots {
+                        let r = Rect::from_min_size(rect.min + vec2((s % side) as f32 * cell, (s / side) as f32 * cell), vec2(cell, cell)).shrink(1.0);
                         painter.rect_filled(r, 0.0, Color32::from_gray(35));
-                        if let Some(i) = t.tiles[s] {
+                        let (tile, mask) = if blob { (t.blob_tile(s), BLOB_MASKS.get(s).map_or(0, |&m| m as usize)) } else { (t.tiles[s], s) };
+                        if let Some(i) = tile {
                             painter.image(tex, r, uv(i), Color32::WHITE);
                         }
-                        paint_mask(&painter, r, s);
+                        paint_mask(&painter, r, mask);
                         if !p.block && p.slot == s {
                             painter.rect_stroke(r, 0.0, Stroke::new(2.0_f32, Color32::from_rgb(90, 200, 255)), StrokeKind::Inside);
                         }
                     }
                     if let Some(pos) = resp.clicked().then(|| resp.interact_pointer_pos()).flatten() {
                         let rel = pos - rect.min;
-                        p.slot = ((rel.y / cell) as usize).min(3) * 4 + ((rel.x / cell) as usize).min(3);
-                        p.block = false;
+                        let s = ((rel.y / cell) as usize) * side + ((rel.x / cell) as usize).min(side - 1);
+                        if s < slots {
+                            p.slot = s;
+                            p.block = false;
+                        }
                     }
                     ui.horizontal(|ui| {
                         let (r, resp) = ui.allocate_exact_size(vec2(36.0, 36.0), Sense::click());
@@ -143,11 +166,20 @@ pub fn terrains_form(ui: &mut egui::Ui, d: &mut TilesetDef, tex: TextureId, ts: 
                     });
                 });
                 ui.vertical(|ui| {
-                    if ui.selectable_label(p.block, ui::t(ph::GRID_NINE, "Fill from a 4×4 block")).on_hover_text("Then click the top-left tile of a 4×4 block drawn in the slots' order").clicked() {
+                    let (label, tip) = if blob {
+                        ("Fill from template (7×7)", "Then click the top-left tile of a 7×7 block drawn in the slots' order (47 tiles; the last two cells are unused)")
+                    } else {
+                        ("Fill from a 4×4 block", "Then click the top-left tile of a 4×4 block drawn in the slots' order")
+                    };
+                    if ui.selectable_label(p.block, ui::t(ph::GRID_NINE, label)).on_hover_text(tip).clicked() {
                         p.block = !p.block;
                     }
                     if ui.button(ui::t(ph::BROOM, "Clear the tiles")).clicked() {
-                        t.tiles = [None; 16];
+                        if blob {
+                            t.blob = vec![None; BLOB_SLOTS];
+                        } else {
+                            t.tiles = [None; 16];
+                        }
                     }
                     ui.weak("Preview:");
                     preview(ui, t, tex, &uv);
@@ -171,7 +203,7 @@ pub fn terrains_form(ui: &mut egui::Ui, d: &mut TilesetDef, tex: TextureId, ts: 
 
 /// A little sample map painted with the terrain (outside the sample = not the terrain).
 fn preview(ui: &mut egui::Ui, t: &Terrain, tex: TextureId, uv: &dyn Fn(u32) -> Rect) {
-    const SHAPE: [&str; 6] = ["........", ".###..#.", ".####.#.", "..#.###.", ".##...#.", "........"];
+    const SHAPE: [&str; 6] = ["........", ".###..#.", ".####.#.", ".####.#.", ".##.###.", "........"];
     let cell = 22.0;
     let (rect, _) = ui.allocate_exact_size(vec2(cell * 8.0, cell * 6.0), Sense::hover());
     let p = ui.painter_at(rect);
@@ -180,7 +212,7 @@ fn preview(ui: &mut egui::Ui, t: &Terrain, tex: TextureId, uv: &dyn Fn(u32) -> R
     for y in 0..6 {
         for x in 0..8 {
             let r = Rect::from_min_size(rect.min + vec2(x as f32 * cell, y as f32 * cell), vec2(cell, cell));
-            let tile = if member(x, y) { t.tile_for(autotile::mask(x, y, member)) } else { t.base };
+            let tile = if member(x, y) { t.tile_for(autotile::mask8(x, y, member)) } else { t.base };
             if let Some(i) = tile {
                 p.image(tex, r, uv(i), Color32::WHITE);
             }
@@ -195,15 +227,25 @@ pub fn grid_click(d: &mut TilesetDef, ts: &TilesetTex, pick: &mut TerrainPick, i
     if pick.block {
         let rows = ts.count.div_ceil(ts.columns);
         let (col, row) = (i % ts.columns, i / ts.columns);
-        if col + 4 > ts.columns || row + 4 > rows {
+        let side = if t.is_blob() { 7 } else { 4 };
+        if col + side > ts.columns || row + side > rows {
             return true;
         }
-        t.fill_from_block(i, ts.columns);
+        if t.is_blob() {
+            t.fill_blob_from_block(i, ts.columns);
+        } else {
+            t.fill_from_block(i, ts.columns);
+        }
         pick.block = false;
     } else if pick.slot == BASE_SLOT {
         t.base = Some(i);
+    } else if t.is_blob() {
+        if let Some(s) = t.blob.get_mut(pick.slot) {
+            *s = Some(i);
+        }
+        pick.slot = (pick.slot + 1).min(BLOB_SLOTS - 1);
     } else {
-        t.tiles[pick.slot] = Some(i);
+        t.tiles[pick.slot.min(15)] = Some(i);
         // On to the next slot, so a whole terrain is set up in 16 clicks.
         pick.slot = (pick.slot + 1).min(15);
     }
@@ -279,15 +321,17 @@ impl Editor {
                 any = true;
                 let on = self.terrain.as_ref().is_some_and(|(id, i)| *id == d.id && *i == k);
                 ui.horizontal(|ui| {
-                    for m in [0, 15] {
+                    for m in [0, 255] {
                         let (r, _) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::hover());
                         if let Some(i) = t.tile_for(m) {
                             ui.painter().image(tex.id(), r, tile_uv(ts, tile_px, i), Color32::WHITE);
                         }
                     }
                     let mut label = format!("{}\n{}", t.name, d.id);
-                    if t.tiles_set() < 16 {
-                        label += &format!(" · {}/16 tiles", t.tiles_set());
+                    if t.tiles_set() < t.slots() {
+                        label += &format!(" · {}/{} tiles", t.tiles_set(), t.slots());
+                    } else if t.is_blob() {
+                        label += " · corners";
                     }
                     if ui.selectable_label(on, label).clicked() {
                         arm = Some((d.id.clone(), k));

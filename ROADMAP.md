@@ -81,7 +81,7 @@ Instructions for every session (people and coding agents) that implements roadma
 
 Theme: maps gain smoother terrain edges and depth, and music loops without a gap.
 
-### [ ] 47-tile corner auto-tiling — `feature/autotile-47`
+### [x] 47-tile corner auto-tiling — `feature/autotile-47`
 
 **Goal.** Terrains with inner corners: the 16-tile sets of 0.4.0 only look at the four sides, so
 a diagonal neighbour leaves a hard corner; 47-tile ("blob") sets look at all eight.
@@ -101,15 +101,27 @@ a diagonal neighbour leaves a hard corner; 47-tile ("blob") sets look at all eig
 - Imports: Tiled's *mixed* Wang sets with 47 tiles map onto it (`import/tiled.rs`, reported
   when it doesn't fit).
 
+**Decided while building.** Slot order is ascending 8-bit mask value (bits N 1, E 2, S 4, W 8,
+NE 16, SE 32, SW 64, NW 128), so slots 0–15 are the masks without corners in the 16-tile order and
+slot 46 is the inside; there is no single published blob order, so the editor draws each slot's
+mask (blue arms for corners) instead of claiming a standard. `tile_for` takes 8-bit masks for
+every terrain (16-tile terrains ignore the corners); `paint` re-tiles a diagonal neighbour only
+when its terrain is a blob terrain, so 16-tile maps change exactly as before. Tiled import read
+no Wang sets before: it now reads them from `.tsx` / `.tsj` / embedded tilesets (comma Wang ids
+only, Tiled ≥ 1.5). Only *Dirt path* and *Sand* got blob art (generator: the inner-corner notch is
+where the two neighbours' bands meet, rounded); editor script `terrainblob TILESET NAME on|off`.
+
 **Touch points.** `autotile.rs`, editor `terrain.rs`, `database.rs`, `import/tiled.rs`,
 gen_example (art and terrain), README.
 
 **Example.** The starter sand path gets a blob set, composed from quarter tiles in the generator
 (inside, edge, outer corner, inner corner), and the village's paths are retiled with it.
 
-**Verify.** Unit tests: the 256 → 47 table (47 distinct, symmetric under rotation), `paint` on an
-L-shape gives the inner corner; editor script `terrainpaint` on an L, screenshot; old terrains
-without `blob` still paint (test).
+**Verify (done).** Unit tests: the 256 → 47 table (47 distinct, closed under rotation), `paint`
+on an L-shape gives the inner corner and re-tiles the diagonal neighbour, half-filled sets fall
+back, old terrains without `blob` load and paint; Tiled fixture with a mixed and a corner Wang set.
+Editor script: the Terrains form with the 7×7 grid and preview, `terrainpaint` of an L on the
+village (screenshot: rounded inner corner); game screenshot of the village's road junctions.
 
 ### [ ] Parallax layers — `feature/parallax`
 

@@ -794,8 +794,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 doc.record_objects(before, "schedule");
             }
         }
-        // stop K hour H | facing up|down|left|right|any | inside on|off: edit stop K of the
-        // selected character's schedule (as the inspector's row)
+        // stop K hour H | facing up|down|left|right|any | inside on|off | map NAME|- | prop NAME|- |
+        // tile X Y: edit stop K of the selected character's schedule (as the inspector's row)
         "stop" => {
             if let (Some(doc), app::Selection::Entity(uid)) = (&mut ed.doc, ed.sel) {
                 let before = doc::Objects::of(&doc.map);
@@ -804,6 +804,9 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                         "hour" => s.hour = num(3).rem_euclid(24.0),
                         "facing" => s.facing = rustpg2d_engine::entity::Facing::ALL.into_iter().find(|f| f.label().eq_ignore_ascii_case(arg(3))),
                         "inside" => s.inside = arg(3) == "on",
+                        "map" => s.map = if arg(3) == "-" { String::new() } else { arg(3).to_string() },
+                        "prop" => s.prop = if arg(3) == "-" { String::new() } else { arg(3).to_string() },
+                        "tile" => (s.x, s.y) = (num(3) as i32, num(4) as i32),
                         _ => println!("[script] stop: unknown field {}", arg(2)),
                     }
                 }
@@ -1011,7 +1014,11 @@ fn schedule_text(ed: &Editor) -> String {
     let stops: Vec<String> = e
         .schedule
         .iter()
-        .map(|s| format!("{}@{},{}{}{}", s.time_text(), s.x, s.y, if s.inside { "[in]" } else { "" }, s.facing.map_or(String::new(), |f| format!("[{}]", f.label()))))
+        .map(|s| {
+            let map = if s.map.is_empty() { String::new() } else { format!(">{}", s.map) };
+            let prop = if s.prop.is_empty() { String::new() } else { format!("[on {}]", s.prop) };
+            format!("{}{map}@{},{}{}{}{prop}", s.time_text(), s.x, s.y, if s.inside { "[in]" } else { "" }, s.facing.map_or(String::new(), |f| format!("[{}]", f.label())))
+        })
         .collect();
     let editing = ed.route_edit == Some(e.uid) && ed.route_kind == app::RouteKind::Schedule;
     format!("[{}]{}", stops.join(" "), if editing { "(editing)" } else { "" })

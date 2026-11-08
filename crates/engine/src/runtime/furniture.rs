@@ -39,6 +39,19 @@ pub(super) struct Seat {
     regen: f32,
 }
 
+/// A character using a piece of furniture (a schedule stop with a prop).
+#[derive(Clone, Debug)]
+pub(super) struct NpcSeat {
+    pub uid: u32,
+    pub pose: Pose,
+    pub pos: Vec2,
+    pub facing: Facing,
+    pub cover: SpriteRef,
+    pub prop_feet: Vec2,
+    /// Where it stood before (it gets up there).
+    pub stand: Vec2,
+}
+
 /// The sleep sequence in progress.
 #[derive(Clone, Debug)]
 pub(super) struct Sleeping {
@@ -77,6 +90,10 @@ impl Game {
             return;
         }
         let (uid, feet) = (e.uid, e.body.pos);
+        if self.furniture_taken(uid) {
+            self.ui.toast("Someone is using it.".into());
+            return;
+        }
         if !spot.conditions.is_empty() && !conditions_met(self, &spot.conditions, &ActionCtx { owner: Some(uid) }) {
             let msg = if spot.refuse_text.is_empty() { "You can't use that now.".to_string() } else { self.world.expand_text(&spot.refuse_text) };
             self.ui.toast(msg);
@@ -274,9 +291,22 @@ impl Game {
     pub(super) fn draw_seated_player(&self, eq: &crate::state::Equipment, tint: Color) -> bool {
         let Some(seat) = &self.seat else { return false };
         let Some(a) = self.player_appearance() else { return false };
+        self.draw_on_furniture(&a, eq, (seat.pose, seat.pos, seat.facing), (&seat.cover, seat.prop_feet), tint);
+        true
+    }
+
+    /// Draws a character using furniture: `pose` with the feet at `pos` facing `facing`, then
+    /// what the furniture draws over its user (`cover` at the prop's feet).
+    pub(super) fn draw_on_furniture(&self, a: &crate::defs::Appearance, eq: &crate::state::Equipment, (pose, pos, facing): (Pose, Vec2, Facing), (cover, prop_feet): (&SpriteRef, Vec2), tint: Color) {
+        struct S {
+            pos: Vec2,
+            facing: Facing,
+        }
+        let seat = S { pos, facing };
+        let a = a.clone();
         let (fw, fh) = self.character_frame_size(&a);
         let k = self.ts() / 32.0;
-        match seat.pose {
+        match pose {
             Pose::Sit => {
                 // Lower, with the legs out of sight below the seat.
                 let part = Rect::new(0.0, 0.0, 1.0, 0.8);
@@ -303,9 +333,56 @@ impl Game {
                 self.draw_character(&a, eq, (seat.facing, 0), seat.pos, tint, false);
             }
         }
-        if !seat.cover.sheet.is_empty() {
-            self.assets.draw_sprite(&seat.cover, 0, seat.prop_feet, WHITE);
+        if !cover.sheet.is_empty() {
+            self.assets.draw_sprite(cover, 0, prop_feet, WHITE);
         }
+    }
+
+    /// Whether a character (or the player) is using prop `uid`.
+    pub(super) fn furniture_taken(&self, uid: u32) -> bool {
+        self.seat.as_ref().is_some_and(|s| s.uid == uid) || self.loaded.entities.iter().any(|e| e.active && e.npc_seat.as_ref().is_some_and(|s| s.uid == uid))
+    }
+
+    /// Character `i` uses the prop named `prop` on this map (its schedule stop): snaps to the
+    /// prop's spot and takes its pose. False if there is no such free furniture.
+    pub(super) fn npc_use_furniture(&mut self, i: usize, prop: &str) -> bool {
+        let Some(p) = self.loaded.entities.iter().position(|e| e.active && e.kind == crate::entity::EntityKind::Prop && e.name == prop) else {
+            eprintln!("[game] schedule: no prop named '{prop}' on {}", self.loaded.map.name);
+            return false;
+        };
+        let (puid, feet) = (self.loaded.entities[p].uid, self.loaded.entities[p].body.pos);
+        let Some(spot) = self.project.db.prop(&self.loaded.entities[p].def).and_then(|d| d.use_spot.clone()) else {
+            eprintln!("[game] schedule: '{prop}' is no furniture (no use spot)");
+            return false;
+        };
+        if self.furniture_taken(puid) {
+            return false;
+        }
+        let pos = feet + Vec2::from(spot.offset);
+        let e = &mut self.loaded.entities[i];
+        e.npc_seat = Some(NpcSeat { uid: puid, pose: spot.pose, pos, facing: spot.facing, cover: spot.cover.clone(), prop_feet: feet, stand: e.body.pos });
+        e.body.pos = pos;
+        e.body.facing = spot.facing;
+        e.body.moving = false;
         true
+    }
+
+    /// Character `i` gets up from its furniture (where it stood before).
+    pub(super) fn npc_stand_up(&mut self, i: usize) {
+        if let Some(s) = self.loaded.entities[i].npc_seat.take() {
+            // (Clear of the furniture, or it couldn't move.)
+            let p = self.free_spot(s.stand);
+            self.loaded.entities[i].body.pos = p;
+        }
+    }
+
+    /// "sit" / "lie" / "stand" of character `i` on furniture, "" on its feet.
+    pub(super) fn npc_pose(&self, i: usize) -> &'static str {
+        match self.loaded.entities[i].npc_seat.as_ref().map(|s| s.pose) {
+            Some(Pose::Sit) => "sit",
+            Some(Pose::Lie) => "lie",
+            Some(Pose::Stand) => "stand",
+            None => "",
+        }
     }
 }

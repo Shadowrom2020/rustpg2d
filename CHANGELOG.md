@@ -29,6 +29,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   "lit" campfire), items can be **food**, and the new skill effect **Food** makes food heal more.
   Example: a campfire in the Workshop (lit with coal, burns 8 hours), five dishes (Grilled
   Trout, Bread, Carrot Soup, Pumpkin Stew, Apple Pie), a pantry chest and the Cooking skill.
+- **Schedules across maps and with furniture**: a schedule stop can be on another map (the
+  character walks out through the door / portal leading there and turns up as a visitor with its
+  look, items and triggers) and can name furniture to sit on or sleep in. The player can't take
+  furniture in use; talking to it talks to its user. New condition **Pose** (sitting / lying /
+  at furniture); a sleeper without a matching line shows "… is asleep.". Example: Tomas rests on
+  the west bench in the afternoon and sleeps in the elder's guest bed at night.
 - Example: **the Workshop**, a new map north of the village (a road through the tree line): a
   crafting testing ground with a supply chest of tools, a herb garden with an alchemy table, a
   quarry with every vein and a smelter, a bed to pass the night, and signs.

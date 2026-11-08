@@ -101,7 +101,8 @@ impl Game {
             .enumerate()
             .filter(|(_, e)| e.active && self.entity_click_rect(e).contains(p))
             .max_by(|a, b| a.1.body.pos.y.total_cmp(&b.1.body.pos.y))
-            .map(|(i, _)| i)
+            // Furniture in use: its user (clicking a bed talks to the sleeper).
+            .map(|(i, _)| self.user_of(i).unwrap_or(i))
     }
 
     pub(super) fn uid_index(&self, uid: u32) -> Option<usize> {

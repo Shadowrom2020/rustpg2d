@@ -2743,7 +2743,6 @@ dependencies = [
  "anyhow",
  "rustpg2d-engine",
  "rustpg2d-packaging",
- "zip",
 ]
 
 [[package]]

@@ -1,6 +1,4 @@
 //! R(ust)PG2D game runner.
-// No console window on Windows (logs go to the terminal it was started from, if any).
-#![cfg_attr(windows, windows_subsystem = "windows")]
 //!
 //! Usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--dev]
 //!
@@ -71,7 +69,6 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
 }
 
 fn window_conf() -> Conf {
-    rustpg2d_engine::icon::attach_parent_console();
     if std::env::args().any(|a| a == "--engine-build") {
         println!("{}", rustpg2d_engine::ENGINE_BUILD);
         std::process::exit(0);
@@ -84,11 +81,8 @@ fn window_conf() -> Conf {
         .map(|c| c.name)
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "R(ust)PG2D".to_owned());
-    // The window icon: the player character, else R(ust)PG2D's emblem.
-    let icon = Project::load(&root).ok().and_then(|p| rustpg2d_engine::icon::hero_icon(&p)).unwrap_or_else(rustpg2d_engine::icon::emblem);
     Conf {
         window_title: title,
-        icon: Some(rustpg2d_engine::icon::window_icon(&icon)),
         window_width: 1280,
         window_height: 720,
         high_dpi: true,

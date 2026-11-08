@@ -90,7 +90,6 @@ crates/engine/src/      library: everything shared by game and editor
   examples/gen_example/ generates example_project/ and the editor's starter.r2dpack; music.rs
                         composes and renders the two music tracks (tiny synth, Ogg Vorbis via vorbis_rs)
   paths.rs              per-user folders per platform (XDG / %APPDATA%, %LOCALAPPDATA%, %USERPROFILE%)
-  icon.rs               hero_icon / emblem (package and window icons), window_icon, attach_parent_console
   legacy.rs             the old name rust2d: adopt() copies a folder / file from the old location
                         (~/.config/rust2d, ~/.local/share/rust2d, ~/.cache/rust2d) on first use
   glibc_compat.rs       math functions newer glibc re-versioned, defined in the engine so the game
@@ -232,11 +231,7 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   `CARGO_TARGET_DIR`, `--user $(id -u)`), never on the host. Run the exes with Wine and a scratch
   `WINEPREFIX`; on this machine Wine's EGL fails on the NVIDIA GPU, so use `env -u WAYLAND_DISPLAY
   __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1`.
-  Paths for the game under Wine: `Z:/…` (shots, project folders). Windows tests: build them in
-  the container with the host's paths mounted 1:1 (`-v $R:$R -w $R`, `CARGO_TARGET_DIR` in the
-  scratchpad, `cargo test --no-run --target x86_64-pc-windows-gnu`), then run each test exe with
-  the host's `wine` from its crate folder (the container's Wine 8 can't start them). Toolkit zip:
-  `cargo xtask-dist --out <scratch> --windows-dir <cross target>/x86_64-pc-windows-gnu/release`.
+  Paths for the game under Wine: `Z:/…` (shots, project folders).
 - Look at screenshots with the Read tool; crop with PIL when details matter. Lighting:
   `RUSTPG2D_LIGHTMAP_DEBUG=1` draws the raw light map instead of multiplying it.
 - Dialog text types out over time: wait ~2.5 s before reading a screenshot, and the first `E`

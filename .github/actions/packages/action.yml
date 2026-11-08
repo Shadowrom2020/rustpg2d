@@ -1,5 +1,5 @@
 name: Build R(ust)PG2D packages
-description: Release build for Linux and Windows (cross-compiled with MinGW-w64), AppImage + Flatpak + Windows zip of the R(ust)PG2D toolkit (cargo xtask-dist) and a smoke test of both Linux binaries under Xvfb.
+description: Release build (plus the Windows game runner, cross-compiled with MinGW-w64), AppImage + Flatpak of the R(ust)PG2D toolkit (cargo xtask-dist) and a smoke test of both binaries under Xvfb.
 runs:
   using: composite
   steps:
@@ -12,10 +12,10 @@ runs:
     - name: Release build
       shell: bash
       run: cargo build --release --locked -p rustpg2d-editor -p rustpg2d-game
-    - name: Windows build (the Windows zip; exports of Windows games)
+    - name: Windows game runner (exports of Windows games)
       shell: bash
-      run: cargo build --release --locked --target x86_64-pc-windows-gnu -p rustpg2d-editor -p rustpg2d-game
-    - name: AppImage, Flatpak and Windows zip
+      run: cargo build --release --locked --target x86_64-pc-windows-gnu -p rustpg2d-game
+    - name: AppImage and Flatpak
       shell: bash
       run: cargo xtask-dist --out dist --require-windows
     - name: Smoke test (game and editor from the AppImage)
@@ -29,7 +29,6 @@ runs:
           squashfs-root/usr/bin/rustpg2d-game squashfs-root/usr/share/rustpg2d/example_project 2>&1 | tee game.log
         grep -q "menu=title" game.log
         test "$(head -c 2 squashfs-root/usr/lib/rustpg2d/rustpg2d-game.exe)" = "MZ"
-        test "$(unzip -l "$GITHUB_WORKSPACE"/dist/rustpg2d-*-windows-x86_64.zip | grep -cE '/(rustpg2d-editor\.exe|rustpg2d-game\.exe|rustpg2d-game|example_project/project\.ron)$')" -eq 4
         RUSTPG2D_EDITOR_SCRIPT="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/AppRun 2>&1 | tee editor.log
         grep -q "open=false" editor.log

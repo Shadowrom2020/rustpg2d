@@ -366,7 +366,7 @@ impl Bundle {
             recipes: self.db.recipes.clone(),
             scripts: self.scripts.clone(),
         };
-        let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
+        let cfg = ron::ser::PrettyConfig::default().struct_names(false);
         let manifest = ron::ser::to_string_pretty(&m, cfg)?;
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);

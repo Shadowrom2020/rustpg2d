@@ -22,8 +22,7 @@ fn main() {
     // FNV-1a over paths and contents.
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for f in &files {
-        // `/` on every platform, so a Windows build fingerprints like a Linux one.
-        let bytes = f.to_string_lossy().replace('\\', "/").into_bytes();
+        let bytes = f.to_string_lossy().into_owned().into_bytes();
         for b in bytes.iter().chain(std::fs::read(f).unwrap_or_default().iter()) {
             h ^= u64::from(*b);
             h = h.wrapping_mul(0x0100_0000_01b3);

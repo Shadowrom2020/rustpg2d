@@ -3,9 +3,8 @@
 # required status checks of the branch rulesets (AGENTS.md):
 #   develop: Branch policy, Build, lint, test
 #   master:  Branch policy, Build, lint, test, Version, Packages
-# Version, Packages and Windows only run for pull requests into master (release / hotfix
-# branches); the toolkit packages can be built from any branch with Actions > Release > Run
-# workflow, and Actions > CI > Run workflow runs these checks (Windows included) on any branch.
+# Version and Packages only run for pull requests into master (release / hotfix branches); the
+# toolkit packages can be built from any branch with Actions > Release > Run workflow.
 name: CI
 
 on:
@@ -13,7 +12,6 @@ on:
     branches: [develop, master]
   push:
     branches: [master]
-  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -99,22 +97,3 @@ jobs:
           name: rustpg2d-packages
           path: dist/
           retention-days: 14
-
-  windows:
-    name: Windows
-    # Native build and tests with MSVC (the packages cross-compile with MinGW-w64 on Linux).
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'master')
-    runs-on: windows-latest
-    env:
-      CARGO_PROFILE_DEV_OPT_LEVEL: "0"
-      CARGO_PROFILE_DEV_DEBUG: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: windows
-      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-      - run: cargo test --workspace --locked --config 'profile.dev.package."*".opt-level=0'

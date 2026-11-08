@@ -446,7 +446,7 @@ fn pine_tier(c: &mut Canvas, cx: f32, y: f32, k: f32, h: f32) {
 
 pub fn terrain(out: &Path) {
     let cols = 8;
-    let mut c = Canvas::new(cols * TS, 25 * TS);
+    let mut c = Canvas::new(cols * TS, (25 + 7 * BLOB_TERRAINS.len() as u32) * TS);
     let mut rng = Rng(7);
     let n = TS as i32;
     let oak = tree_pair(false);
@@ -885,6 +885,19 @@ impl EdgeArt<'_> {
                 }
             }
         }
+        // Inner corners (blob sets): both sides are the terrain but the diagonal isn't, so the
+        // bands of the two neighbours meet in this corner (a notch, rounded towards the middle).
+        use rustpg2d_engine::autotile::{NORTH_EAST, NORTH_WEST, SOUTH_EAST, SOUTH_WEST};
+        let ri = if natural { w * 0.7 } else { 1.5 };
+        for (diag, a, b) in [(NORTH_EAST, 0, 3), (SOUTH_EAST, 1, 3), (SOUTH_WEST, 1, 2), (NORTH_WEST, 0, 2)] {
+            let ((ba, da, wa), (bb, db, wb)) = (sides[a], sides[b]);
+            if open(diag) && !open(ba) && !open(bb) && da < wa && db < wb {
+                let (u, v) = (da - (wa - ri), db - (wb - ri));
+                if u <= 0.0 || v <= 0.0 || u * u + v * v < ri * ri {
+                    return true;
+                }
+            }
+        }
         false
     }
 }
@@ -892,13 +905,30 @@ impl EdgeArt<'_> {
 /// A 4×4 block of a terrain's edge tiles in neighbour-mask order (row by row), its top-left
 /// tile at index `first` of a sheet `cols` tiles wide.
 pub fn edge_block(c: &mut Canvas, first: u32, cols: u32, art: &EdgeArt) {
-    let n = TS as i32;
     for k in 0..16usize {
-        let i = rustpg2d_engine::autotile::Terrain::block_tile(first, cols, k);
+        // The 16-tile set assumes the diagonals are the terrain (no inner corners).
+        edge_tile(c, rustpg2d_engine::autotile::Terrain::block_tile(first, cols, k), cols, art, k | 0xF0, k);
+    }
+}
+
+/// A 7×7 block of a terrain's 47 blob tiles (inner corners too) in slot order
+/// (`autotile::BLOB_MASKS`), its top-left tile at index `first` of a sheet `cols` tiles wide.
+pub fn blob_block(c: &mut Canvas, first: u32, cols: u32, art: &EdgeArt) {
+    use rustpg2d_engine::autotile::{Terrain, BLOB_MASKS};
+    for (s, &m) in BLOB_MASKS.iter().enumerate() {
+        edge_tile(c, Terrain::blob_block_tile(first, cols, s), cols, art, m as usize, 16 + s);
+    }
+}
+
+/// One edge tile at sheet index `i` for an 8-neighbour `mask`; `seed` varies the textures.
+fn edge_tile(c: &mut Canvas, i: u32, cols: u32, art: &EdgeArt, mask: usize, seed: usize) {
+    let n = TS as i32;
+    let k = mask;
+    {
         c.at(i % cols * TS, i / cols * TS);
-        (art.inside)(c, k);
+        (art.inside)(c, seed);
         let mut g = Canvas::new(TS, TS);
-        (art.outside)(&mut g, k);
+        (art.outside)(&mut g, seed);
         let out = |x: i32, y: i32| (0..n).contains(&x) && (0..n).contains(&y) && art.outside_at(k, x, y);
         // Distance (in px, up to the rim width) from an inside pixel to the surroundings.
         let near = |x: i32, y: i32, d: i32| (-d..=d).any(|dy| (-d..=d).any(|dx| (dx != 0 || dy != 0) && dx.abs() + dy.abs() <= d && out(x + dx, y + dy)));
@@ -958,6 +988,13 @@ pub fn terrains() -> Vec<rustpg2d_engine::autotile::Terrain> {
             if let Some(i) = inside {
                 tr.tiles[15] = Some(i);
             }
+            if let Some(j) = BLOB_TERRAINS.iter().position(|n| *n == name) {
+                tr.fill_blob_from_block(blob_start(j), 8);
+                // The inside stays the ordinary tile, like the 16-tile set's.
+                if let Some(i) = inside {
+                    tr.blob[rustpg2d_engine::autotile::BLOB_SLOTS - 1] = Some(i);
+                }
+            }
             tr
         })
         .collect()
@@ -1009,6 +1046,18 @@ fn terrain_edges(c: &mut Canvas) {
     for (b, art) in arts.iter().enumerate() {
         edge_block(c, block_start(5, b as u32), 8, art);
     }
+    for (j, name) in BLOB_TERRAINS.iter().enumerate() {
+        blob_block(c, blob_start(j), 8, &arts[terrain_index(name)]);
+    }
+}
+
+/// Terrains that also have a 47-tile blob set (inner corners), in block order below the 4×4
+/// blocks (rows 25.. of terrain.png, one 7×7 block each).
+const BLOB_TERRAINS: [&str; 2] = ["Dirt path", "Sand"];
+
+/// Where blob block `j` starts.
+fn blob_start(j: usize) -> u32 {
+    (25 + 7 * j as u32) * 8
 }
 
 // ------------------------------------------------------------------ characters

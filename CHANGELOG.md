@@ -3,6 +3,17 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Editor
+- **47-tile corner auto-tiling**: terrains can have a *Corners (47 tiles)* set that also looks at
+  the diagonal neighbours (`Terrain.blob`), giving inner corners where a terrain bends. The
+  Terrains form shows the 7×7 blob template with side and corner arms, *Fill from template
+  (7×7)*; empty slots fall back to the 16-tile set. Tiled imports turn *mixed* Wang sets into
+  47-tile terrains and *edge* sets into 16-tile ones (*corner* sets are reported).
+- Example: the starter *Dirt path* and *Sand* terrains got blob sets; the village's roads and
+  sandy pond are retiled with them.
+
 ## 0.7.0 — 2026-11-08
 
 ### Gameplay

@@ -532,7 +532,7 @@ impl WorldState {
     }
 
     pub fn to_ron(&self) -> anyhow::Result<String> {
-        Ok(ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default())?)
+        Ok(ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default().new_line("\n"))?)
     }
     pub fn from_ron(s: &str) -> anyhow::Result<Self> {
         let mut w: WorldState = ron::from_str(s)?;

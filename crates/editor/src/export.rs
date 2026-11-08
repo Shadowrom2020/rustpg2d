@@ -99,26 +99,34 @@ fn triple(platform: Platform) -> &'static str {
     }
 }
 
-/// R(ust)PG2D's game runner for `platform` to ship (`rustpg2d-game`, `rustpg2d-game.exe`,
-/// `rustpg2d-game-macos`): the one next to the editor (packaged R(ust)PG2D ships all three); inside a cargo target folder a
-/// release build if there is one (also a cross build in `target/<triple>/release`), else the
-/// debug build. Returns (path, is a debug build).
+/// The folders a packaged R(ust)PG2D keeps game runners in: next to the editor, and in a macOS
+/// app also `Contents/Resources` (only Mach-O code may sit next to the editor in `Contents/MacOS`).
+fn runner_dirs(dir: &std::path::Path) -> [PathBuf; 2] {
+    [dir.to_path_buf(), dir.join("..").join("Resources")]
+}
+
+/// R(ust)PG2D's game runner for `platform` to ship (`Platform::game_runner`): the one a packaged
+/// R(ust)PG2D ships next to the editor (all of them); inside a cargo target folder a release
+/// build if there is one (also a cross build in `target/<triple>/release`), else the debug
+/// build. Returns (path, is a debug build).
 pub fn game_binary(platform: Platform) -> Option<(PathBuf, bool)> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
     let name = platform.game_runner();
-    let next_to = dir.join(name);
     let in_target = dir.file_name().is_some_and(|n| n == "debug" || n == "release");
     if !in_target {
-        return next_to.is_file().then_some((next_to, false));
+        return runner_dirs(dir).into_iter().map(|d| d.join(name)).find(|p| p.is_file()).map(|p| (p, false));
     }
     let target = dir.parent()?;
-    for rel in [target.join("release").join(name), target.join(triple(platform)).join("release").join(name)] {
+    // A cross build keeps cargo's name (`rustpg2d-game`, `.exe`).
+    let cargo_name = if platform == Platform::Windows { "rustpg2d-game.exe" } else { "rustpg2d-game" };
+    for rel in [target.join("release").join(name), target.join(triple(platform)).join("release").join(cargo_name)] {
         if rel.is_file() {
             return Some((rel, false));
         }
     }
     let debug = dir.file_name().is_some_and(|n| n == "debug");
+    let next_to = dir.join(name);
     next_to.is_file().then_some((next_to, debug))
 }
 
@@ -128,9 +136,8 @@ pub fn game_binary(platform: Platform) -> Option<(PathBuf, bool)> {
 pub fn web_binary() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
-    let next_to = dir.join(release::WEB_WASM);
-    if next_to.is_file() {
-        return Some(next_to);
+    if let Some(p) = runner_dirs(dir).into_iter().map(|d| d.join(release::WEB_WASM)).find(|p| p.is_file()) {
+        return Some(p);
     }
     let in_target = dir.file_name().is_some_and(|n| n == "debug" || n == "release");
     let built = dir.parent()?.join("wasm32-unknown-unknown/release").join(release::WEB_WASM);
@@ -148,7 +155,9 @@ fn missing_runner(platform: Platform) -> String {
         Platform::MacOS if Platform::host() != Platform::MacOS => {
             "rustpg2d-game-macos (the macOS game runner, a universal binary) was not found next to the editor. Packaged R(ust)PG2D includes it; from source it has to be built on a Mac (see README, Exporting for macOS) and copied to target/release/rustpg2d-game-macos.".into()
         }
-        Platform::Linux if Platform::host() != Platform::Linux => "rustpg2d-game (the Linux game runner) was not found next to the editor; the R(ust)PG2D download for Windows includes it.".into(),
+        Platform::Linux if Platform::host() != Platform::Linux => {
+            "rustpg2d-game-linux (the Linux game runner) was not found next to the editor. The R(ust)PG2D downloads for Windows and macOS include it; from source: build rustpg2d-game on Linux and copy it to target/release/rustpg2d-game-linux.".into()
+        }
         p => format!("{} was not found next to the editor. Build it with `cargo build --release -p rustpg2d-game`.", p.game_runner()),
     }
 }

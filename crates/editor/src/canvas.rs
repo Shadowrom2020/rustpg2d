@@ -64,7 +64,7 @@ pub enum Drag {
 }
 
 fn modifier_ctrl() -> bool {
-    is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl)
+    crate::ui::command_down()
 }
 fn modifier_shift() -> bool {
     is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift)
@@ -237,7 +237,9 @@ impl Editor {
         if !over_ui {
             let wheel = ms.wheel;
             if wheel != 0.0 {
-                let factor = if wheel > 0.0 { 1.15 } else { 1.0 / 1.15 };
+                // One step per wheel notch; trackpads (many small deltas) zoom smoothly.
+                let steps = (wheel / crate::WHEEL_NOTCH).clamp(-3.0, 3.0);
+                let factor = 1.15f32.powf(steps);
                 let new_zoom = (self.cam.zoom * factor).clamp(0.02, 16.0);
                 // Keep the point under the cursor fixed.
                 self.cam.center = world + (self.cam.center - world) * (self.cam.zoom / new_zoom);

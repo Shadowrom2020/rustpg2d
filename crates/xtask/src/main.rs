@@ -1,7 +1,8 @@
 //! Project tasks for development and CI (`cargo xtask <task>`, see `.cargo/config.toml`):
 //!
-//! - `dist [--out DIR] [--bin-dir DIR]` (`cargo xtask-dist`, feature `dist`) — packages the R(ust)PG2D toolkit (editor, game runner and
-//!   the example project) as `rustpg2d-X.Y.Z-x86_64.AppImage` and `rustpg2d-X.Y.Z.flatpak`, plus
+//! - `dist [--out DIR] [--bin-dir DIR] …` (`cargo xtask-dist`, feature `dist`) — the R(ust)PG2D
+//!   downloads (editor, game runners, example project): `rustpg2d-X.Y.Z-x86_64.AppImage`,
+//!   `rustpg2d-X.Y.Z.flatpak`, the Windows zip and the macOS app (see `dist.rs`), plus
 //!   `SHA256SUMS`. Expects `cargo build --release` first (binaries in `target/release`).
 //! - `check-version BRANCH` — a release / hotfix branch (`release/X.Y.Z`, `hotfix/X.Y.Z`) names a
 //!   valid SemVer version above the newest `v*` tag that matches Cargo.toml and the CHANGELOG.

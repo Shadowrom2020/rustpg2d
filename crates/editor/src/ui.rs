@@ -11,19 +11,34 @@ pub fn install_fonts(ctx: &egui::Context) {
     ctx.set_fonts(fonts);
 }
 
-/// "<icon> text".
+/// "<icon> text" (shortcuts in it as on this platform, see [`keys`]).
 pub fn t(icon: &str, text: &str) -> String {
-    format!("{icon} {text}")
+    format!("{icon} {}", keys(text))
+}
+
+/// Shortcut texts for this platform: the editor's texts say "Ctrl+", which is Cmd on macOS.
+pub fn keys(s: &str) -> std::borrow::Cow<'_, str> {
+    if cfg!(target_os = "macos") && s.contains("Ctrl") {
+        std::borrow::Cow::Owned(s.replace("Ctrl+", "Cmd+").replace("Ctrl-", "Cmd-").replace("Ctrl ", "Cmd "))
+    } else {
+        std::borrow::Cow::Borrowed(s)
+    }
+}
+
+/// The command modifier of the editor's own shortcuts is held: Ctrl, on macOS Cmd (or Ctrl).
+pub fn command_down() -> bool {
+    use macroquad::input::{is_key_down, KeyCode};
+    is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl) || (cfg!(target_os = "macos") && (is_key_down(KeyCode::LeftSuper) || is_key_down(KeyCode::RightSuper)))
 }
 
 /// Tooltip of a tool or action: name with shortcut, then how to use it.
 pub fn tip(r: Response, name: &str, key: &str, help: &str) -> Response {
     r.on_hover_ui(|ui| {
         ui.set_max_width(320.0);
-        let title = if key.is_empty() { name.to_string() } else { format!("{name}   {key}") };
+        let title = if key.is_empty() { name.to_string() } else { format!("{name}   {}", keys(key)) };
         ui.label(RichText::new(title).strong());
         if !help.is_empty() {
-            ui.label(help);
+            ui.label(keys(help));
         }
     })
 }

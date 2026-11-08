@@ -3,9 +3,10 @@
 # required status checks of the branch rulesets (AGENTS.md):
 #   develop: Branch policy, Build, lint, test
 #   master:  Branch policy, Build, lint, test, Version, Packages
-# Version, the macOS game runner (macos-game.yml, for the packages) and Packages only run for
-# pull requests into master (release / hotfix branches); the toolkit packages can be built from
-# any branch with Actions > Release > Run workflow.
+# Version, Windows, the macOS build (macos-build.yml, for the packages), Packages and the macOS
+# app (macos-app.yml) only run for pull requests into master (release / hotfix branches) and
+# when started by hand (Actions > CI > Run workflow, any branch: all of them, to try platform
+# or packaging changes before a release).
 name: CI
 
 on:
@@ -13,6 +14,7 @@ on:
     branches: [develop, master]
   push:
     branches: [master]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -66,10 +68,10 @@ jobs:
       # The game also builds for the web (wasm32; no browser needed to check it compiles).
       - run: rustup target add wasm32-unknown-unknown
       - run: cargo clippy --locked --target wasm32-unknown-unknown -p rustpg2d-game -- -D warnings
-      # The game also compiles for Windows (no linking: no cross compiler needed; the editor is
-      # Linux-only).
+      # Game and editor also compile for Windows (no linking: no cross compiler needed; the
+      # Windows job tests them natively).
       - run: rustup target add x86_64-pc-windows-gnu
-      - run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -- -D warnings
+      - run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -p rustpg2d-editor -- -D warnings
 
   version:
     name: Version
@@ -85,15 +87,34 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
         run: cargo xtask check-version "$HEAD_REF"
 
-  macos-game:
+  windows:
+    name: Windows
+    # Native build and tests with MSVC (the downloads cross-compile with MinGW-w64 on Linux).
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'master')
+    runs-on: windows-latest
+    env:
+      CARGO_PROFILE_DEV_OPT_LEVEL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: windows
+      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --workspace --locked --config 'profile.dev.package."*".opt-level=0'
+
+  macos-build:
     name: macOS
-    if: github.event_name == 'pull_request' && github.base_ref == 'master'
-    uses: ./.github/workflows/macos-game.yml
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'master')
+    uses: ./.github/workflows/macos-build.yml
 
   packages:
     name: Packages
-    if: github.event_name == 'pull_request' && github.base_ref == 'master'
-    needs: macos-game
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'master')
+    needs: macos-build
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -106,5 +127,13 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: rustpg2d-packages
-          path: dist/
+          path: |
+            dist/*.AppImage
+            dist/*.flatpak
+            dist/*.zip
           retention-days: 14
+
+  macos-app:
+    name: macOS app
+    needs: packages
+    uses: ./.github/workflows/macos-app.yml

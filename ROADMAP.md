@@ -77,14 +77,15 @@ Instructions for every session (people and coding agents) that implements roadma
     notes live on in the CHANGELOG and the code), `cargo xtask check-version release/X.Y.Z`,
     pull request into master, merge after the four checks, merge the back-merge pull request.
 
-## 0.9.0 — Reach: the web and other languages
+## 0.9.0 — Reach: the web, other languages, Windows and macOS
 
 Theme: games made with R(ust)PG2D reach players without an install (a browser tab, itch.io),
-in their own language, and on Windows and macOS. Windows and macOS had moved to the backlog
-on 2026-11-08 (see *Postponed: the editor on Windows and macOS*); the **exports** came back the
-same day, without a software OpenGL fallback, once a Mac was there to test on. The editor
-stays Linux-only. Order: web export first (it changes how the game loads data, which
-localization then uses), then the Windows and macOS exports (one branch, one pull request).
+in their own language, and on Windows and macOS — and creators get the editor on Windows and
+macOS too. Windows and macOS had moved to the backlog on 2026-11-08 (the first attempt is
+described under *Editor on Windows and macOS* below); they came back the same day, without a
+software OpenGL fallback, once a Mac was there to test on. Order: web export first (it changes
+how the game loads data, which localization then uses), then the Windows and macOS exports (one
+pull request), then the editor on both (one pull request).
 
 ### [x] Web export — `feature/web`
 
@@ -239,7 +240,7 @@ zip) for Windows 10 / 11 (64-bit), exported from the Linux editor.
 dependencies) by the Packages and Release jobs and shipped in the toolkit packages next to the
 Linux runner; `release::Platform` (folder, exe, zip, README per platform);
 `engine/src/paths.rs` for per-user folders (`%APPDATA%` saves and settings); the zip writes
-Unix attributes whatever the host. The rolled-back attempt's findings (*Postponed* below) apply.
+Unix attributes whatever the host. The rolled-back attempt's findings (*Editor on Windows and macOS* below) apply.
 
 **Decided while building.** Revived from the reverted #65 without the software OpenGL fallback
 (Mesa, +23 MB): the game is a GUI-subsystem program (no console window; `AttachConsole` when
@@ -302,6 +303,77 @@ verified: the x86_64 slice running (no Intel Mac, no Rosetta), the Gatekeeper di
 browser download (macOS let the test copies run), the CI job itself (runs on the release pull
 request).
 
+### [x] Editor on Windows and macOS — `feature/editor-desktop`
+
+**Goal.** The whole toolkit on Windows 10 / 11 and macOS 11+ (Apple Silicon and Intel): the
+editor with play-tests, exports for every platform and the asset library; the release ships a
+Windows zip and a macOS app next to the AppImage and Flatpak.
+
+**Design.** Revives *Editor on Windows* (#66, reverted by #68) and adds macOS:
+- Per-user folders through `engine/src/paths.rs` (config, data, cache, home per system);
+  play-tests start the host's `rustpg2d-game` next to the editor; the bundled example is found
+  in the AppImage / Flatpak prefix, next to the exe (Windows zip) or in the app's
+  `Contents/Resources` (macOS).
+- Runner names per host (`Platform::game_runner`): the host's own is `rustpg2d-game`(`.exe`), the
+  others ship as `rustpg2d-game-linux`, `rustpg2d-game.exe`, `rustpg2d-game-macos`; in the
+  macOS app only Mach-O code sits in `Contents/MacOS` (editor, game runner), the foreign
+  runners, the web game and the example in `Contents/Resources`.
+- Windows: GUI subsystem for both binaries, `engine/src/desktop.rs` attaches to a parent console
+  and shows a message box on a panic (an OpenGL text when the GL loader failed: no software
+  fallback); window icons (`engine/src/icon.rs`); LF for RON, `.gitattributes`, `/` paths in the
+  engine fingerprint.
+- macOS: Cmd for the editor's shortcuts (`ui::command_down`; egui maps Cmd itself) and "Cmd+"
+  in its texts (`ui::keys`, applied by `ui::t` and tooltips); file dialogs run modally on the
+  main thread (AppKit refuses other threads); wheel / trackpad: the map zooms by
+  `delta / WHEEL_NOTCH` steps (1 Linux, 120 Windows, 10 macOS; trackpads zoom smoothly), the
+  pixel editor accumulates to whole steps, egui scrolls 2 points per trackpad point; `-psn_…`
+  arguments from Finder are ignored.
+- Downloads (`cargo xtask-dist`): `rustpg2d-X.Y.Z-windows-x86_64.zip` (editor, game, the Linux /
+  macOS / web runners, example, README, license) and `macos/R(ust)PG2D.app` (Info.plist, icns,
+  universal editor + game, foreign runners, example) as a tar. CI: *macOS* builds the universal
+  binaries, *Packages* assembles everything on Linux, *macOS app* signs the app with
+  `codesign --deep --sign -` (the nested game runner needs a real signer; exported games use
+  `macsign.rs`) and zips it with `ditto`; the Release workflow publishes the four downloads; a
+  *Windows* job runs clippy and the tests with MSVC; *Actions › CI › Run workflow* runs all of
+  them on any branch.
+
+**Decided while building.** No Mesa fallback (the user's choice): a driverless VM shows the
+message box. The macOS app is signed on a Mac (CI) rather than by `macsign.rs`, because nested
+code (the game runner) must be sealed with its own signature and requirement. Findings of the
+first Windows attempt that still apply:
+- Cross-compiling with MinGW-w64 (`x86_64-pc-windows-gnu`) from Linux works for game and editor
+  (no C dependencies); a `windows-latest` job (MSVC) passed clippy and tests.
+- gilrs panics at every quit on Windows (its `Drop` joins a thread that is gone at process
+  exit): never drop the `Gilrs` (`ManuallyDrop`).
+- Windows without a GPU driver (VMs) only has OpenGL 1.1: miniquad panics with
+  "WGL_ARB_pixel_format is required". Mesa's llvmpipe (mesa-dist-win) as `mesa\opengl32.dll`,
+  pre-loaded before miniquad loads `opengl32.dll`, fixed it (+23 MB per package).
+- RON's pretty printer writes CRLF on Windows (set `new_line("\n")`); zip entries need
+  `System::Unix` or a Linux game zipped on Windows loses its executable bit; `std::fs::copy`
+  returns 0 under Wine; one mouse-wheel notch is 120 on Windows (1 on Linux); GUI-subsystem
+  binaries still write to a redirected stdout (`--engine-build` works), `AttachConsole` for
+  terminals; the engine fingerprint must hash `/` paths; add `.gitattributes` (LF).
+- Under Wine on this machine: Mesa software GL env (`__EGL_VENDOR_LIBRARY_FILENAMES=…50_mesa.json
+  LIBGL_ALWAYS_SOFTWARE=1`, without `WAYLAND_DISPLAY`).
+
+**Touch points.** `engine/src/{paths,desktop (new),icon (new),release,project,library}.rs`,
+`engine/build.rs`, `editor/src/{main,app,files,export,ui,canvas,pixel,database,new_project}.rs`,
+`game/src/main.rs`, `packaging/src/lib.rs`, `xtask/src/dist.rs`, `.github/{actions/packages,
+workflows/{ci,release,macos-build,macos-app}}.yml`, `.gitattributes`, README, CLAUDE.md, AGENTS.md.
+
+**Verify.** Clippy for Linux, the web, Windows (game + editor); the workspace tests; clippy and
+the engine tests on the Mac. Windows (Wine, MinGW build): the editor opens the example, exports
+all four platforms (the Linux zip keeps its executable bit and runs; the macOS app passes
+`codesign --verify` on the Mac), play-tests; the Windows download unzipped: the welcome screen's
+*Example project*, exports, play-test. macOS (M2, macOS 27.2, 1080p display): the app built
+like CI (xtask on Linux, `codesign` on the Mac) verifies with the nested runner validated; the
+editor from it shows the welcome screen with *Example project*, opens the copied example,
+exports all four platforms (the exported app verifies), play-tests with the nested runner; a
+file dialog opens as a modal panel of the editor (seen in the window list). Linux: the AppImage
+exports all four and play-tests. Not verified: Retina displays (the test Mac has none), trackpad
+and Cmd shortcuts by hand, real Windows hardware, the Gatekeeper / SmartScreen prompts of real
+downloads, the CI jobs themselves (run on the release pull request or by hand).
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
@@ -349,105 +421,6 @@ request).
   halved (tiles per second from two statuses), `press x` doesn't attack, screenshot of the
   half-submerged hero; the forest stream still blocks; in the mine `hold up` on the ladder
   climbs (`climbing=true`), `hold left` doesn't move; an NPC never enters water (`ai=` positions).
-
-### Postponed: the editor on Windows and macOS (2026-11-08)
-
-Taken out of 0.9.0 until hardware to develop and test on is there; the game exports for both
-came back in 0.9.0 (*Windows export*, *macOS export* above). *Windows export* and *Editor
-on Windows* had been built and merged into develop (#65, #66, plus #67: a software OpenGL
-fallback after a driverless Windows VM failed to start) and were **rolled back** (revert of
-318b9d4, 1b2d37a, 9e91848); `git revert` of those reverts brings the code back as a starting
-point. What that attempt found, for whoever picks it up:
-- Cross-compiling with MinGW-w64 (`x86_64-pc-windows-gnu`) from Linux works for game and editor
-  (no C dependencies); a `windows-latest` job (MSVC) passed clippy and tests.
-- gilrs panics at every quit on Windows (its `Drop` joins a thread that is gone at process
-  exit): never drop the `Gilrs` (`ManuallyDrop`).
-- Windows without a GPU driver (VMs) only has OpenGL 1.1: miniquad panics with
-  "WGL_ARB_pixel_format is required". Mesa's llvmpipe (mesa-dist-win) as `mesa\opengl32.dll`,
-  pre-loaded before miniquad loads `opengl32.dll`, fixed it (+23 MB per package).
-- RON's pretty printer writes CRLF on Windows (set `new_line("\n")`); zip entries need
-  `System::Unix` or a Linux game zipped on Windows loses its executable bit; `std::fs::copy`
-  returns 0 under Wine; one mouse-wheel notch is 120 on Windows (1 on Linux); GUI-subsystem
-  binaries still write to a redirected stdout (`--engine-build` works), `AttachConsole` for
-  terminals; the engine fingerprint must hash `/` paths; add `.gitattributes` (LF).
-- Under Wine on this machine: Mesa software GL env (`__EGL_VENDOR_LIBRARY_FILENAMES=…50_mesa.json
-  LIBGL_ALWAYS_SOFTWARE=1`, without `WAYLAND_DISPLAY`).
-
-#### Editor on Windows — `feature/editor-windows`
-
-**Goal.** The editor itself runs on Windows, with play-test, export and the asset library, so
-Windows creators get the whole toolkit; the release ships a Windows zip of editor + game +
-example.
-
-**Design.**
-- Gate the Unix-only calls: `editor/files.rs` `copy_tree` permissions, `packaging/lib.rs`
-  `symlink` (Flatpak) and `set_executable` (AppImage) behind `#[cfg(unix)]` with Windows
-  returning "not available on this platform" errors; the export dialog hides AppImage / Flatpak
-  there. Paths: a `dirs`-style helper in `engine/src/paths.rs` (new, no crate): config
-  `%APPDATA%\rustpg2d`, data `%LOCALAPPDATA%\rustpg2d`, cache `%LOCALAPPDATA%\rustpg2d\cache`, home
-  `%USERPROFILE%`; used by `Settings::dir`, `release::user_saves_dir`, `library::library_dir`,
-  `files::config_dir`, `example_copy`, the file dialog start folder, `new_project.rs`.
-- Executables: `std::env::consts::EXE_SUFFIX` in `play_with`, `export::game_binary`,
-  `library_window.rs`, `release::export` (`<slug>.exe`, `<slug>-windows.zip`, README per
-  platform); `bundled_example` accepts the zip layout (`example_project/` next to the exes).
-  `#![windows_subsystem = "windows"]` on both binaries, so the `--engine-build` probe writes
-  its answer to a temp file instead of stdout (or the editor reads `ENGINE_BUILD` from the
-  game's resources: simplest = a `--engine-build FILE` argument).
-- Input: mouse-wheel units per platform in `editor/main.rs` (Windows reports 120 per notch:
-  scale by 1/120; macOS pixels), `modifiers.command` instead of `ctrl` in `canvas.rs`,
-  `pixel.rs`, `database.rs` (Ctrl stays Ctrl on Windows, Cmd on macOS). Window icon via
-  `Conf::icon` for both binaries (the emblem from `packaging::emblem`).
-- Repo hygiene: `.gitattributes` (`* text=auto eol=lf`) so `include_str!(LICENSE)` and the
-  `ENGINE_BUILD` hash (which hashes path strings; make it use `/` always) are stable; tests that
-  assume ELF (`packaging` `glibc_scan`, `release` `export_bundle` exe name) get `cfg` gates or
-  platform branches.
-- CI: a `windows-latest` job (clippy + test `--locked`; MSVC compiles the `vorbis_rs` C code for
-  gen_example) on PRs into master; the Packages and Release jobs add a Windows build
-  (`cargo build --release` on `windows-latest`, `cargo xtask dist --windows` zips editor, game,
-  example, LICENSE, README) and upload `rustpg2d-<version>-windows-x86_64.zip`.
-- Known gaps noted in the README: no code signing (SmartScreen warning), gamepads through
-  Windows.Gaming.Input (gilrs default), file dialogs native.
-
-**Touch points.** `engine/src/{paths (new),settings,release,library,build.rs}`, `editor/src/
-{files,app,export,library_window,main,canvas,pixel,database}.rs`, `packaging/src/lib.rs`,
-`game/src/main.rs`, `xtask/src/dist.rs`, `.github/workflows/*`, `.gitattributes`, README.
-
-**Verify.** CI green on `windows-latest`; the zip from CI runs on a Windows machine or VM: the
-editor opens the bundled example, play-tests it, exports a Windows game; `cargo test` on
-Windows. From Linux: Wine run of the exes for a `status` smoke test if Wine is installed.
-
-#### Editor on macOS — `feature/macos`
-
-**Goal.** The editor builds and runs on macOS (Apple Silicon and Intel); the release ships a
-`.app` bundle for the editor (game runner and example inside). (Exporting games for macOS
-shipped in 0.9.0: the game runner, `paths.rs`, `bundled_root` and the ad-hoc signing exist.)
-
-**Design.**
-- Paths: `~/Library/Application Support/rustpg2d` (config and data), `~/Library/Caches/rustpg2d`
-  in `paths.rs`. Bundle layout: `R(ust)PG2D.app/Contents/{MacOS/rustpg2d-editor,
-  MacOS/rustpg2d-game, Resources/example_project, Info.plist, R(ust)PG2D.icns}`; `bundled_example`
-  and `bundled_root` look in `../Resources`. Exported games: `<slug>.app` with the data in
-  `Contents/Resources` (`release::bundled_root` checks there first on macOS) zipped as
-  `<slug>-macos.zip`.
-- Input: Cmd for shortcuts (`modifiers.command`), trackpad scrolling (pixel deltas, momentum:
-  the canvas zoom accumulates deltas instead of zooming per event), `rfd` on the main thread
-  (`run_on_main` needs NSApplication; the blocking dialog on a worker thread must become
-  `AsyncFileDialog` polled from the frame loop, which also helps Windows).
-- Rendering: miniquad's macOS backend (Metal or OpenGL per feature); keep OpenGL (default) and
-  note the deprecation; high-DPI already on.
-- CI: a `macos-latest` job (clippy + test) on PRs into master; Packages / Release build universal
-  binaries (`aarch64-apple-darwin` + `x86_64-apple-darwin`, `lipo`), assemble the `.app` with
-  `cargo xtask dist --macos` (plist generated, icon from the emblem via `iconutil` on the
-  runner), zip it; unsigned (Gatekeeper: right-click › Open; documented). Notarization is out of
-  scope.
-- Gamepads: gilrs uses IOKit on macOS; no extra permissions.
-
-**Touch points.** `engine/src/{paths,release}.rs`, `editor/src/{files,app,export,canvas,
-main}.rs`, `xtask/src/dist.rs`, `.github/workflows/*`, README.
-
-**Verify.** CI green on `macos-latest`; the `.app` from CI starts on a Mac (user's or a CI
-smoke test with `RUSTPG2D_AUTOPLAY` under the runner's window server), opens the example and
-exports a game; `cargo test` on macOS.
 
 ## Shipped
 

@@ -86,8 +86,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
 }
 
 fn window_conf() -> Conf {
-    #[cfg(windows)]
-    windows::prepare();
+    rustpg2d_engine::desktop::startup("The game");
     if std::env::args().any(|a| a == "--engine-build") {
         println!("{}", rustpg2d_engine::ENGINE_BUILD);
         std::process::exit(0);
@@ -100,8 +99,11 @@ fn window_conf() -> Conf {
         .map(|c| c.name)
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "R(ust)PG2D".to_owned());
+    // The window icon: the player character, else R(ust)PG2D's emblem.
+    let icon = Project::load(&root).ok().and_then(|p| rustpg2d_engine::icon::hero_icon(&p)).unwrap_or_else(rustpg2d_engine::icon::emblem);
     Conf {
         window_title: title,
+        icon: Some(rustpg2d_engine::icon::window_icon(&icon)),
         window_width: 1280,
         window_height: 720,
         high_dpi: true,
@@ -541,48 +543,5 @@ fn save_shot(path: &str) {
             Ok(png) => say!("[shot] {path} data:image/png;base64,{}", rustpg2d_engine::sys::base64(&png)),
             Err(e) => say!("[shot] {path} failed: {e}"),
         }
-    }
-}
-
-/// Windows: a GUI program (no console window of its own) still writes to the terminal it was
-/// started from, and a PC whose graphics driver has no OpenGL 3 (virtual machines, the basic
-/// display adapter) gets a message instead of a crash.
-#[cfg(windows)]
-mod windows {
-    #[link(name = "kernel32")]
-    extern "system" {
-        fn AttachConsole(process: u32) -> i32;
-        fn GetStdHandle(which: u32) -> isize;
-    }
-    #[link(name = "user32")]
-    extern "system" {
-        fn MessageBoxW(window: isize, text: *const u16, caption: *const u16, kind: u32) -> i32;
-    }
-
-    pub fn prepare() {
-        // SAFETY: plain Win32 calls; the strings are null-terminated and outlive the call.
-        unsafe {
-            let out = GetStdHandle(-11i32 as u32);
-            if out == 0 || out == -1 {
-                AttachConsole(u32::MAX);
-            }
-        }
-        let previous = std::panic::take_hook();
-        std::panic::set_hook(Box::new(move |info| {
-            previous(info);
-            let msg = info.payload().downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| info.payload().downcast_ref::<String>().cloned()).unwrap_or_default();
-            let gl = msg.contains("WGL") || info.location().is_some_and(|l| l.file().ends_with("gl.rs"));
-            let text = if gl {
-                format!("This game needs a graphics driver with OpenGL 3.2 or newer, and this PC (or virtual machine) has none: Windows' own OpenGL 1.1 isn't enough. Installing the graphics card's driver helps.\n\n({msg})")
-            } else {
-                format!("The game stopped because of an error:\n\n{msg}")
-            };
-            let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-            // SAFETY: as above.
-            unsafe {
-                MessageBoxW(0, wide(&text).as_ptr(), wide("R(ust)PG2D").as_ptr(), 0x10);
-            }
-            std::process::exit(1);
-        }));
     }
 }

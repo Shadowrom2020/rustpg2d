@@ -3,6 +3,31 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.10.0 — 2026-11-08
+
+Agents: AI agents build content and adventures from inside the editor.
+
+### Editor
+- **AI agent server (MCP)**: *Assets › AI agent server…* serves the Model Context Protocol from
+  the running editor (Streamable HTTP on 127.0.0.1:7743, loopback only; *Start with the editor*
+  remembered in `editor.ron`). Agents (Claude Code, Cursor, Claude Desktop via `mcp-remote`) get
+  51 tools: project info and settings; maps as text grids with legends, screenshots, tiles,
+  terrain, collision, entities, zones, triggers, map settings, structures, map links, rename;
+  definitions (list, get, template, upsert, delete, the events reference) with validation of ids,
+  files and trigger events; scripts (read, write, check, API); translations; `play_test` (the game
+  with an autoplay script, status lines and screenshots back); the asset library. Edits show in the
+  editor at once, each write is one undo step and saves. Resources `rustpg2d://docs/*`, prompts
+  `design_quest` / `build_map`, a call log in the window, a status-bar indicator. Editor script:
+  `mcp on|off [PORT]`, `mcpwindow`; `status` prints `mcp=`.
+- **Project files are watched**: changes on disk to `project.ron`, `defs/`, `maps/`, `scripts/`
+  and `lang/` (by an agent or another program) reload what has no unsaved edits; otherwise a banner
+  asks *Reload* / *Keep mine* (`watchanswer reload|keep`; `status` prints `watch=`).
+
+### Maintenance
+- New editor dependencies: `rmcp` 3 (the MCP SDK), `tokio`, `axum`, `serde_json`, `schemars`.
+  `Project::reload`, `refactor::refs_of_triggers`. Documentation: `Documentation/mcp.md`,
+  `events.md`, `autoplay.md` (also served to agents); tests keep them complete.
+
 ## 0.9.0 — 2026-11-08
 
 Reach: the web, other languages, Windows and macOS — games export for browsers, Windows and

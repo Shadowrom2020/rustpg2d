@@ -123,6 +123,12 @@ crates/xtask/           `cargo xtask check-version | check-branch | release-note
                         actions/packages (build + smoke test), dependabot, PR / issue templates
 crates/editor/src/      editor binary
   main.rs               loop + RUSTPG2D_EDITOR_SCRIPT command runner
+  mcp/                  the AI agent server (Assets › AI agent server…): server.rs (rmcp Streamable HTTP on
+                        127.0.0.1, tokio thread, resources, prompts), tools.rs (the catalogue: param structs +
+                        `#[tool]`s → Call), exec.rs / exec_maps.rs / exec_defs.rs (execution on the main thread
+                        between frames, `mcp_after_write` saves), grid.rs (maps as text), patch.rs (merge
+                        patches), play.rs (play-tests in the game), watcher.rs (project files changed on disk),
+                        ui.rs (the window); files.rs EditorSettings = <config>/editor.ron
   app.rs                Editor state, menus, inspector, Pending/close-project logic, play-test
   graph.rs (Events mode: the map's triggers / scripts / maps as a graph; build() = nodes + edges),
   import/ (File › Import…: tiled.rs .tmx/.tmj → map + tilesets, lpc.rs walk cycle → character
@@ -234,6 +240,10 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   folder a test run creates; older distros: the AppImage in `debian:bookworm-slim` via docker with
   the X11 socket, `--ipc=host`, `LIBGL_ALWAYS_SOFTWARE=1`, `--appimage-extract-and-run`),
   sounds (`sndplay [ID]` / `sndstop [ID]` = the Sounds form's Play / Stop, default the selected sound; `status` prints `preview=` and `music=`),
+  AI agent server (`mcp on [PORT]` / `mcp off`, `mcpwindow`; `status` prints `mcp=off|127.0.0.1:PORT calls=N` and
+  `watch=clean|changed:<files>`; `watchanswer reload|keep` answers the changed-on-disk banner; drive the server with
+  `crates/editor/examples/mcp_smoke.rs` or a small Streamable-HTTP client — POST JSON-RPC with `Accept: application/json,
+  text/event-stream`, `initialize` returns `Mcp-Session-Id`, `tools/call`; `play_test` opens a game window),
   template chooser (`model def|inst|builder`, `modelpick`, `modeluse`), wizard (`newwizard`, `wiz`,
   `wizcreate`), `scriptsel`, `probe X Y` (egui layer at a point), `status`, `dump`.
 - **Asset Library window:** run `rustpg2d-editor --library` (with `RUSTPG2D_LIBRARY=<scratch>/lib`)

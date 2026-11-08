@@ -4,7 +4,7 @@
 
 A small 2D engine for top-down RPGs on Linux, written in Rust ([macroquad](https://macroquad.rs) + [egui](https://github.com/emilk/egui)), with a map/content editor.
 
-Current version: **0.9.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed in each release. Planned features: see [ROADMAP.md](ROADMAP.md).
+Current version: **0.10.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed in each release. Planned features: see [ROADMAP.md](ROADMAP.md).
 
 **Download**: every release on the [Releases page](https://github.com/Shadowrom2020/rustpg2d/releases) has the editor (with the game runners and the example project) for Linux, Windows and macOS:
 - **Linux** (x86_64, glibc 2.34 or newer: Debian 12, Ubuntu 22.04, Fedora 35, RHEL 9 and later): the **AppImage** — `chmod +x rustpg2d-X.Y.Z-x86_64.AppImage` and start it — or the **Flatpak** bundle — `flatpak install --user rustpg2d-X.Y.Z.flatpak`, then start *R(ust)PG2D* from the app menu or with `flatpak run io.github.Shadowrom2020.rustpg2d`.
@@ -177,6 +177,10 @@ The **ribbon** under the menu holds the tools as icon buttons in groups (*Edit* 
 - **Database**: every definition has a *Rename…* button next to its id. Renaming rewrites all references (maps on disk and the open map, triggers, other definitions, project settings) and saves immediately. **Scripts follow too**: item, map and sound ids passed to script functions (`give_item("coin", 1)`, `teleport("forest", …)`, `play_sound("…")`, …) are rewritten (only those exact arguments — comments and other strings stay as they are); changed files keep a `<file>.rhai.bak` backup and the status bar lists the changed lines.
 - **Tile animation**: in *Database → Tilesets*, add an animation, then click tiles in the image to append frames.
 - **Sounds**: *Database → Sounds* lists sound files with volume and *Play* / *Stop* buttons (Play previews the file once, a new preview stops the previous one; Stop also stops the map music preview of the same sound — in the project and in the Asset Library window); *Browse…* copies a WAV or Ogg Vorbis file (`.ogg`) into `sounds/`. Ogg Vorbis keeps music small; files are mixed at 44.1 kHz, so that rate plays best (others are resampled roughly), and a file in another format (Opus, FLAC, MP3) is reported with its name when the project loads. **Music loops without a gap**: the mixer leaves a short silence where a loop wraps unless the sound is a whole number of its 4096-sample buffers long, so the engine decodes music itself, resamples it to 44.1 kHz and stretches it to whole buffers (at most 93 ms longer: under 0.16 % for a track of a minute or more, inaudible; tracks under 30 s are repeated first). Long files are prepared in the background when the game starts, others the first time they play as music. A track that already is whole buffers at 44.1 kHz (like the example's) plays as it is — export loops with a length of a multiple of 4096 samples to skip the stretch. Built-in game sounds are set in *Database → Project*.
+
+### AI agents (MCP server)
+
+*Assets › AI agent server…* starts a **Model Context Protocol** server inside the running editor (`http://127.0.0.1:7743/mcp`, Streamable HTTP, loopback only; *Start with the editor* remembers it). AI agents — Claude Code (`claude mcp add --transport http rustpg2d http://127.0.0.1:7743/mcp`), Cursor / VS Code (`{"mcpServers": {"rustpg2d": {"url": "http://127.0.0.1:7743/mcp"}}}`), Claude Desktop and other stdio-only clients through `npx mcp-remote <url>` — then read and build the open project: **51 tools** for the project (`project_info`, settings), maps (text grids with legends, screenshots, tiles, auto-tiling terrain, collision, entities, zones, triggers, map settings, structures, links between maps), definitions (list / get / template / upsert / delete with validation, the event system's JSON shapes), scripts (read, write, check, the API), translations, play-tests (`play_test` runs the game with an autoplay script and returns its status lines and screenshots) and the asset library. The agent's edits appear in the editor at once, every write is one undo step (Ctrl+Z) and saves the project. Resources carry the documentation (`rustpg2d://docs/scripting`, `events`, `autoplay`, `mcp`); the prompts `design_quest` and `build_map` give agents a plan. The window lists every call. The editor also **watches the project files** (once a second): what an agent or another program changes on disk is reloaded when the editor has no unsaved edits to it, else a banner asks *Reload* / *Keep mine*. Details: [Documentation/mcp.md](Documentation/mcp.md), [Documentation/events.md](Documentation/events.md), [Documentation/autoplay.md](Documentation/autoplay.md).
 
 ### Releasing a game
 
@@ -392,6 +396,7 @@ RUSTPG2D_MUTE=1 ./target/debug/rustpg2d-game                  # no audio
 RUSTPG2D_EDITOR_SCRIPT="tool brush; brush 2 0 1 1; drag 2 2 20 2; dump 0 10 2; rename item key gate_key; shot /tmp/e.png; quit" ./target/debug/rustpg2d-editor
 # editor clipboard: select a region, copy it, paste it with its top-left corner at a tile
 RUSTPG2D_EDITOR_SCRIPT="open village; region 16 2 10 7; copy; open forest; paste 3 3; status; quit" ./target/debug/rustpg2d-editor
+RUSTPG2D_EDITOR_SCRIPT="mcp on 7743; wait 300; quit" ./target/debug/rustpg2d-editor example_project   # then: cargo run -p rustpg2d-editor --example mcp_smoke -- 7743
 ```
 
 ## Limitations / ideas

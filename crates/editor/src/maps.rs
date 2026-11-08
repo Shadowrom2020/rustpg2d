@@ -58,7 +58,7 @@ pub fn request_transition(r: TransitionReq) {
 }
 
 /// A zone name not used on `map` yet.
-fn unique_zone_name(map: &Map, base: &str) -> String {
+pub(crate) fn unique_zone_name(map: &Map, base: &str) -> String {
     let mut name = base.to_string();
     let mut n = 2;
     while map.zones.iter().any(|z| z.name == name) {
@@ -69,7 +69,7 @@ fn unique_zone_name(map: &Map, base: &str) -> String {
 }
 
 /// Adds a transition zone to `map` leading to `target_map`:`target_zone`. Returns its name.
-fn add_transition(map: &mut Map, rect: (u32, u32, u32, u32), target_map: &str, target_zone: &str) -> String {
+pub(crate) fn add_transition(map: &mut Map, rect: (u32, u32, u32, u32), target_map: &str, target_zone: &str) -> String {
     let name = unique_zone_name(map, &format!("to_{target_map}"));
     let uid = map.alloc_uid();
     map.zones.push(Zone {
@@ -87,7 +87,7 @@ fn add_transition(map: &mut Map, rect: (u32, u32, u32, u32), target_map: &str, t
 }
 
 /// Points the transition zone `zone` on `map` at `target_map`:`target_zone`.
-fn set_target(map: &mut Map, zone: &str, target_map: &str, target_zone: &str) -> bool {
+pub(crate) fn set_target(map: &mut Map, zone: &str, target_map: &str, target_zone: &str) -> bool {
     match map.zones.iter_mut().find(|z| z.name == zone) {
         Some(z) => {
             z.kind = ZoneKind::Transition { target_map: target_map.into(), target_zone: target_zone.into() };

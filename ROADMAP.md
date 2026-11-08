@@ -129,6 +129,10 @@ Instructions for every session (people and coding agents) that implements roadma
 
 See [CHANGELOG.md](CHANGELOG.md) for the details of every release.
 
+### 0.10.0 — Agents (2026-11-08)
+
+- [x] AI agent server (MCP inside the editor: 51 tools, resources, prompts, file watcher) — `feature/mcp-server`
+
 ### 0.9.0 — Reach: the web, other languages, Windows and macOS (2026-11-08)
 
 - [x] Web export (browsers, itch.io) — `feature/web`

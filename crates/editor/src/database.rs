@@ -14,7 +14,7 @@ use crate::app::Editor;
 use crate::files::Purpose;
 use crate::widgets::{self, Refs, Textures};
 
-#[derive(Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Tab {
     #[default]
     Items,

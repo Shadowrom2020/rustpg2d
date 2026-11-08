@@ -297,6 +297,12 @@ impl Project {
         Ok(Project { root, config, db })
     }
 
+    /// Re-reads `project.ron` and the definitions from disk (another program changed them).
+    pub fn reload(&mut self) -> Result<()> {
+        *self = Project::load(&self.root)?;
+        Ok(())
+    }
+
     pub fn save_config(&self) -> Result<()> {
         write_ron(&self.root.join("project.ron"), &self.config)
     }

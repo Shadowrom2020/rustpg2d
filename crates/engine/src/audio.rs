@@ -96,6 +96,32 @@ pub struct Audio {
     ambience: f32,
 }
 
+// The web game: browsers decode sounds asynchronously, so they are loaded (awaited) before the
+// game starts and `Audio::load` takes them from here.
+thread_local! {
+    static PRELOADED: std::cell::RefCell<HashMap<String, Result<Sound, String>>> = std::cell::RefCell::new(HashMap::new());
+    static PRELOADED_RAIN: std::cell::RefCell<Option<Sound>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Loads the project's sounds and the rain loop ahead of [`Audio::load`], waiting for the
+/// decoder (the web game; natively sounds load instantly and this isn't needed). `progress` is
+/// called with (done, total).
+pub async fn preload(project: &Project, mut progress: impl FnMut(usize, usize)) {
+    let total = project.db.sounds.len() + 1;
+    for (k, def) in project.db.sounds.iter().enumerate() {
+        progress(k, total);
+        let res = match crate::sys::read(&project.path(&def.file)).map_err(|e| e.to_string()).and_then(|b| check_format(&b).map(|_| b)) {
+            Ok(bytes) => load_sound_from_bytes(&bytes).await.map_err(|e| e.to_string()),
+            Err(e) => Err(e),
+        };
+        PRELOADED.with(|p| p.borrow_mut().insert(def.id.clone(), res));
+    }
+    progress(total - 1, total);
+    let rain = load_sound_from_bytes(&wav_bytes(&rain_samples(), MIX_RATE)).await.ok();
+    PRELOADED_RAIN.with(|r| *r.borrow_mut() = rain);
+    progress(total, total);
+}
+
 impl Audio {
     /// Loads all sounds of the project. Needs a macroquad window.
     pub fn load(project: &Project) -> Audio {
@@ -103,7 +129,16 @@ impl Audio {
         let mut errors = Vec::new();
         for def in &project.db.sounds {
             let path = project.path(&def.file);
-            let res = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|bytes| {
+            if let Some(pre) = PRELOADED.with(|p| p.borrow_mut().remove(&def.id)) {
+                match pre {
+                    Ok(s) => {
+                        sounds.insert(def.id.clone(), (s, def.volume.clamp(0.0, 1.0)));
+                    }
+                    Err(e) => errors.push(format!("{}: {e}", path.display())),
+                }
+                continue;
+            }
+            let res = crate::sys::read(&path).map_err(|e| e.to_string()).and_then(|bytes| {
                 check_format(&bytes)?;
                 // The decoder panics on some malformed files; don't take the game down.
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| poll_now(load_sound_from_bytes(&bytes))))
@@ -124,6 +159,8 @@ impl Audio {
         let files: HashMap<String, PathBuf> = project.db.sounds.iter().filter(|d| sounds.contains_key(&d.id)).map(|d| (d.id.clone(), project.path(&d.file))).collect();
         let enabled = std::env::var_os("RUSTPG2D_MUTE").is_none();
         let prepared = Prepared::default();
+        // (No threads in the web game, and the browser's audio loops without a gap anyway.)
+        #[cfg(not(target_arch = "wasm32"))]
         if enabled {
             // Long files are likely music: make their loops in the background.
             let long: Vec<(String, PathBuf)> = files.iter().filter(|(_, p)| likely_music(p)).map(|(id, p)| (id.clone(), p.clone())).collect();
@@ -156,11 +193,15 @@ impl Audio {
 
     /// The gapless loop of a sound, made (or taken from the background thread) on first use.
     fn gapless(&mut self, id: &str) -> &Loop {
+        if cfg!(target_arch = "wasm32") {
+            // The browser loops a sound seamlessly (an AudioBufferSourceNode with `loop`).
+            self.loops.entry(id.to_string()).or_insert(Loop::Whole);
+        }
         if !self.loops.contains_key(id) {
             let ready = self.prepared.lock().unwrap().remove(id);
             let wav = match ready {
                 Some(r) => r,
-                None => self.files.get(id).ok_or_else(|| "no file".to_string()).and_then(|p| std::fs::read(p).map_err(|e| e.to_string())).and_then(|b| loop_ready(&b)),
+                None => self.files.get(id).ok_or_else(|| "no file".to_string()).and_then(|p| crate::sys::read(p).map_err(|e| e.to_string())).and_then(|b| loop_ready(&b)),
             };
             let made = match wav {
                 Ok(w) if w.is_empty() => Loop::Whole,
@@ -304,6 +345,9 @@ impl Audio {
             return;
         }
         if self.rain.is_none() {
+            self.rain = PRELOADED_RAIN.with(|r| r.borrow_mut().take());
+        }
+        if self.rain.is_none() {
             let bytes = wav_bytes(&rain_samples(), MIX_RATE);
             self.rain = poll_now(load_sound_from_bytes(&bytes)).and_then(|r| r.ok());
         }
@@ -413,6 +457,7 @@ impl Pcm {
 
 /// Whether a sound file is long enough to be music (prepared in the background at load):
 /// Ogg Vorbis over 64 KiB (several seconds), WAV over 1 MiB (about six seconds of stereo).
+#[cfg(not(target_arch = "wasm32"))]
 fn likely_music(path: &std::path::Path) -> bool {
     let len = std::fs::metadata(path).map_or(0, |m| m.len());
     match path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).as_deref() {

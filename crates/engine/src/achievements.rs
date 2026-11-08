@@ -52,7 +52,7 @@ impl Progress {
     }
 
     fn load_from(path: &std::path::Path) -> Progress {
-        match std::fs::read_to_string(path) {
+        match crate::sys::read_to_string(path) {
             Ok(s) => ron::from_str(&s).unwrap_or_else(|e| {
                 eprintln!("[achievements] {}: {e}; starting empty", path.display());
                 Progress::default()
@@ -71,7 +71,7 @@ impl Progress {
     pub fn reset(&mut self, game_name: &str) {
         self.unlocked.clear();
         if let Some(p) = Self::path(game_name) {
-            let _ = std::fs::remove_file(p);
+            let _ = crate::sys::remove_file(&p);
         }
     }
 

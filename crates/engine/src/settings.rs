@@ -43,6 +43,10 @@ pub const TEXT_SPEEDS: [(f32, &str); 4] = [(0.5, "Slow"), (1.0, "Normal"), (2.0,
 impl Settings {
     /// Folder of a game's settings (by the game's name).
     pub fn dir(game_name: &str) -> Option<PathBuf> {
+        // The web game: kept in the browser's storage (`sys`).
+        if cfg!(target_arch = "wasm32") {
+            return Some(PathBuf::from("settings").join(crate::release::slug(game_name)));
+        }
         if let Some(d) = std::env::var_os("RUSTPG2D_SETTINGS_DIR") {
             return Some(PathBuf::from(d).join(crate::release::slug(game_name)));
         }
@@ -56,7 +60,7 @@ impl Settings {
     /// The saved settings of a game (defaults if there are none or they can't be read).
     pub fn load(game_name: &str) -> Settings {
         let Some(path) = Self::dir(game_name).map(|d| d.join("settings.ron")) else { return Settings::default() };
-        match std::fs::read_to_string(&path) {
+        match crate::sys::read_to_string(&path) {
             Ok(s) => ron::from_str(&s).unwrap_or_else(|e| {
                 eprintln!("[settings] {}: {e}; using defaults", path.display());
                 Settings::default()

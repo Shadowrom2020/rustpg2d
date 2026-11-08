@@ -13,10 +13,15 @@
 //! [`bundled_root`]) and keeps save games in the user's data folder (see [`user_saves_dir`]).
 
 use std::collections::BTreeSet;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::Write;
-use std::path::{Path, PathBuf};
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
+use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+#[cfg(not(target_arch = "wasm32"))]
+use anyhow::bail;
+use anyhow::{Context, Result};
 
 use crate::project::Project;
 
@@ -28,6 +33,24 @@ pub const DATA_DIR: &str = "data";
 pub const ENGINE_LICENSE: &str = include_str!("../../../LICENSE");
 /// Its file name in exports and game packages.
 pub const ENGINE_LICENSE_FILE: &str = "rustpg2d-LICENSE.txt";
+
+/// Start of a web game's `data.pack`.
+const WEB_PACK_MAGIC: &[u8; 8] = b"R2DWEB1\0";
+
+/// A web game's `data.pack`: every file of the game in one download (relative paths and
+/// contents, postcard after a magic header). The files are mostly compressed already (PNG, Ogg,
+/// maps); web servers compress the rest on the way.
+pub fn web_pack(files: &[(String, Vec<u8>)]) -> Result<Vec<u8>> {
+    let mut out = WEB_PACK_MAGIC.to_vec();
+    out.extend(postcard::to_stdvec(files).context("packing the game files")?);
+    Ok(out)
+}
+
+/// The files of a `data.pack` (see [`web_pack`]).
+pub fn read_web_pack(bytes: &[u8]) -> Result<Vec<(String, Vec<u8>)>> {
+    let body = bytes.strip_prefix(WEB_PACK_MAGIC.as_slice()).context("not an R(ust)PG2D data.pack (or from another version)")?;
+    postcard::from_bytes(body).context("reading data.pack")
+}
 
 /// A file-name friendly version of a game name ("My Game!" → "my-game").
 pub fn slug(name: &str) -> String {
@@ -132,6 +155,7 @@ pub struct Exported {
 /// Writes a bundle of `project` named `name` into `out_dir/<slug>/`, using `game_binary` as the
 /// executable; with `zip`, also `out_dir/<slug>-linux.zip`. An earlier export in the same place
 /// is replaced; any other existing folder of that name is left alone (error).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn export(project: &Project, name: &str, game_binary: &Path, out_dir: &Path, zip: bool) -> Result<Exported> {
     let (files, check) = check(project);
     if !check.errors.is_empty() {
@@ -180,7 +204,89 @@ pub fn export(project: &Project, name: &str, game_binary: &Path, out_dir: &Path,
     Ok(Exported { folder, archive, files: files.len() + 3, bytes, warnings: check.warnings })
 }
 
+/// The web game's page, loader and storage plugin (`crates/engine/web/`).
+pub const WEB_INDEX: &str = include_str!("../web/index.html");
+pub const WEB_LOADER: &str = include_str!("../web/mq_js_bundle.js");
+pub const WEB_PLUGIN: &str = include_str!("../web/rustpg2d.js");
+/// The game compiled to WebAssembly, as the page loads it.
+pub const WEB_WASM: &str = "rustpg2d-game.wasm";
+
+/// Writes the web version of `project` named `name` into `out_dir/<slug>-web/`: `index.html`,
+/// macroquad's loader, R(ust)PG2D's plugin, `game_wasm` (R(ust)PG2D's game runner compiled for
+/// `wasm32-unknown-unknown`) and `data.pack` with the game's files; with `zip`, also
+/// `out_dir/<slug>-web.zip` with those files at its root (as itch.io wants HTML games). An
+/// earlier web export in the same place is replaced; any other folder of that name is left alone.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Path, zip: bool) -> Result<Exported> {
+    let (files, check) = check(project);
+    if !check.errors.is_empty() {
+        bail!("{}", check.errors.join("\n"));
+    }
+    let wasm = std::fs::read(game_wasm).with_context(|| format!("the web game runner {}", game_wasm.display()))?;
+    if !wasm.starts_with(b"\0asm") {
+        bail!("{} is not a WebAssembly file", game_wasm.display());
+    }
+    let slug = slug(name);
+    let folder = out_dir.join(format!("{slug}-web"));
+    let project_root = project.root.canonicalize().unwrap_or_else(|_| project.root.clone());
+    let folder_abs = std::fs::create_dir_all(out_dir).ok().and_then(|_| out_dir.canonicalize().ok()).map(|d| d.join(format!("{slug}-web")));
+    if folder_abs.as_ref().is_some_and(|f| project_root.starts_with(f) || f.starts_with(&project_root)) {
+        bail!("choose an output folder outside the project");
+    }
+    if folder.exists() {
+        if !folder.join("data.pack").exists() {
+            bail!("{} already exists and is not an earlier web export; choose another folder or name", folder.display());
+        }
+        std::fs::remove_dir_all(&folder).with_context(|| format!("removing the earlier export {}", folder.display()))?;
+    }
+    std::fs::create_dir_all(&folder)?;
+    let mut packed = Vec::new();
+    for rel in &files {
+        if rel == "project.ron" {
+            continue;
+        }
+        packed.push((rel.clone(), std::fs::read(project.root.join(rel)).with_context(|| format!("reading {rel}"))?));
+    }
+    // The bundled project carries the chosen name (title, storage of settings).
+    let mut cfg = project.config.clone();
+    cfg.name = name.trim().to_string();
+    packed.push(("project.ron".into(), ron::ser::to_string_pretty(&cfg, ron::ser::PrettyConfig::default().struct_names(false))?.into_bytes()));
+    let title = name.trim().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+    let readme = format!(
+        "{name}\n\nThe web version: open index.html through a web server (browsers don't run WebAssembly from file:// pages), e.g. `python3 -m http.server` in this folder and http://localhost:8000, or upload {slug}-web.zip to itch.io as an HTML game.\nSave games and settings stay in the player's browser (local storage of the page's site).\n\nMade with R(ust)PG2D. The game ({WEB_WASM}) is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}; mq_js_bundle.js is macroquad's loader (MIT OR Apache-2.0).\n",
+        name = name.trim()
+    );
+    let out: Vec<(&str, Vec<u8>)> = vec![
+        ("index.html", WEB_INDEX.replace("{title}", &title).into_bytes()),
+        ("mq_js_bundle.js", WEB_LOADER.as_bytes().to_vec()),
+        ("rustpg2d.js", WEB_PLUGIN.as_bytes().to_vec()),
+        (WEB_WASM, wasm),
+        ("data.pack", web_pack(&packed)?),
+        ("README.txt", readme.into_bytes()),
+        (ENGINE_LICENSE_FILE, ENGINE_LICENSE.as_bytes().to_vec()),
+    ];
+    let mut bytes = 0u64;
+    for (n, b) in &out {
+        std::fs::write(folder.join(n), b).with_context(|| format!("writing {n}"))?;
+        bytes += b.len() as u64;
+    }
+    let archive = if zip {
+        let path = out_dir.join(format!("{slug}-web.zip"));
+        let mut zw = zip::ZipWriter::new(std::fs::File::create(&path).with_context(|| format!("creating {}", path.display()))?);
+        for (n, b) in &out {
+            zw.start_file(*n, zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated).unix_permissions(0o644))?;
+            zw.write_all(b)?;
+        }
+        zw.finish()?;
+        Some(path)
+    } else {
+        None
+    };
+    Ok(Exported { folder, archive, files: out.len(), bytes, warnings: check.warnings })
+}
+
 /// Zips the bundle folder (keeping the executable's permissions).
+#[cfg(not(target_arch = "wasm32"))]
 fn write_zip(folder: &Path, slug: &str, out_dir: &Path) -> Result<PathBuf> {
     let path = out_dir.join(format!("{slug}-linux.zip"));
     let file = std::fs::File::create(&path).with_context(|| format!("creating {}", path.display()))?;
@@ -271,6 +377,26 @@ mod tests {
         export(&p, "Test Quest", &bin, &out, false).unwrap();
         std::fs::create_dir_all(out.join("other")).unwrap();
         assert!(export(&p, "Other", &bin, &out, false).is_err());
+        // The web version: one pack with the game's files, the page and the loader.
+        let wasm = tmp.join("rustpg2d-game.wasm");
+        std::fs::write(&wasm, b"\0asm\x01\0\0\0").unwrap();
+        assert!(export_web(&p, "Test Quest", &bin, &out, false).is_err(), "not WebAssembly");
+        let r = export_web(&p, "Test Quest", &wasm, &out, true).unwrap();
+        let w = out.join("test-quest-web");
+        assert_eq!(r.folder, w);
+        let html = std::fs::read_to_string(w.join("index.html")).unwrap();
+        assert!(html.contains("<title>Test Quest</title>") && html.contains("load(\"rustpg2d-game.wasm\")"));
+        assert!(html.contains("oncontextmenu=\"return false\"") && html.contains("\"contextmenu\""), "right-click is game input, not the browser's menu");
+        assert!(w.join("mq_js_bundle.js").is_file() && w.join("rustpg2d.js").is_file() && w.join(WEB_WASM).is_file());
+        let packed = read_web_pack(&std::fs::read(w.join("data.pack")).unwrap()).unwrap();
+        let names: Vec<&str> = packed.iter().map(|(n, _)| n.as_str()).collect();
+        assert!(names.contains(&"maps/start.map") && names.contains(&"sprites/a.png") && names.contains(&"project.ron"));
+        assert!(!names.iter().any(|n| n.starts_with("saves/") || n.contains("unused")), "{names:?}");
+        let cfg: ProjectConfig = ron::from_str(std::str::from_utf8(&packed.iter().find(|(n, _)| n == "project.ron").unwrap().1).unwrap()).unwrap();
+        assert_eq!(cfg.name, "Test Quest");
+        let mut za = zip::ZipArchive::new(std::fs::File::open(out.join("test-quest-web.zip")).unwrap()).unwrap();
+        assert!(za.by_name("index.html").is_ok(), "itch.io wants index.html at the zip's root");
+        assert!(read_web_pack(b"junk").is_err());
         // Never into the project itself.
         assert!(export(&p, "Test Quest", &bin, &root, false).is_err());
         let _ = std::fs::remove_dir_all(&tmp);

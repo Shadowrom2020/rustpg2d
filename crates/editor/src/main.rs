@@ -437,10 +437,14 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         }
         // exportgame OUT_DIR [NAME]  /  exportdialog
         // exportpkg OUT_DIR appimage|flatpak|all [APP_ID]: the folder plus Linux packages
-        "exportgame" | "exportpkg" => {
-            let mut opts = export::ExportOpts { zip: arg(0) == "exportgame", ..Default::default() };
+        // exportgame OUT [NAME] (Linux) · exportweb OUT [NAME] (web) · both with zips
+        "exportgame" | "exportpkg" | "exportweb" => {
+            let mut opts = export::ExportOpts { zip: arg(0) != "exportpkg", ..Default::default() };
+            if arg(0) == "exportweb" {
+                (opts.linux, opts.web) = (false, true);
+            }
             let mut name = ed.project.config.name.clone();
-            if arg(0) == "exportgame" {
+            if arg(0) != "exportpkg" {
                 if !arg(2).is_empty() {
                     name = cmd[2..].join(" ");
                 }
@@ -460,6 +464,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         "exportdialog" => {
             ed.open_export();
             if let Some(d) = &mut ed.export {
+                d.opts.web = cmd.iter().any(|a| a == "web");
                 d.opts.appimage = cmd.iter().any(|a| a == "appimage");
                 d.opts.flatpak = cmd.iter().any(|a| a == "flatpak");
             }

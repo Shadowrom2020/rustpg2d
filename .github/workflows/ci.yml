@@ -62,6 +62,9 @@ jobs:
       # too) and `cargo test` compiles every crate, binaries included.
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - run: cargo test --workspace --locked --config 'profile.dev.package."*".opt-level=0'
+      # The game also builds for the web (wasm32; no browser needed to check it compiles).
+      - run: rustup target add wasm32-unknown-unknown
+      - run: cargo clippy --locked --target wasm32-unknown-unknown -p rustpg2d-game -- -D warnings
 
   version:
     name: Version

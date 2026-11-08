@@ -84,7 +84,7 @@ and in their own language. Windows and macOS moved to the backlog on 2026-11-08 
 *Postponed: Windows and macOS*): they come back when hardware to develop and test on is there.
 Order: web export first (it changes how the game loads data, which localization then uses).
 
-### [ ] Web export — `feature/web`
+### [x] Web export — `feature/web`
 
 **Goal.** *File › Export game* gains *Web*: a folder (and zip) with an `index.html`, the game
 compiled to WebAssembly and the game data, that runs in current browsers (Firefox, Chrome,
@@ -119,6 +119,29 @@ Safari) from any static web server or as an itch.io HTML game. Same game, same s
 - **Size.** Measure the wasm (target < 10 MB uncompressed); data is fetched once per page load
   (no streaming of maps in this item).
 
+**Decided while building.** The layer is `engine/src/sys.rs` (`read`, `write`, `exists`,
+`files_in`, `remove_file`, `modified_secs`, `unix_now`), used by the game's code paths only
+(the editor keeps `std::fs`). Instead of fetching each file with a `files.ron` manifest, the
+export writes **one `data.pack`** (magic + postcard list of path / bytes; `release::web_pack`):
+one request instead of ~90 round trips. No `web-time` / `js_sys`: R(ust)PG2D's own JS plugin
+(`engine/web/rustpg2d.js`, registered with `miniquad_add_plugin`) provides `Date.now`,
+`localStorage` (keys `rustpg2d:<page folder>:<path>`, values base64) and the page's query
+string. Dependencies on wasm: Rhai with `default-features = false, features = ["std",
+"no_time"]` (its default pulls getrandom / web-time, i.e. wasm-bindgen, which macroquad's loader
+can't satisfy), gilrs and zip native-only (`library`, `migrate` and `release::export` are
+`cfg(not(wasm32))`), and `.cargo/config.toml` passes `--allow-undefined` to the wasm linker
+(current Rust no longer does; the loader provides miniquad's / quad-snd's imports). Sounds are
+decoded asynchronously by the browser, so `audio::preload` awaits them before `Game::new`; the
+gapless-loop stretching is skipped on the web (Web Audio loops seamlessly). No *Click to start*
+screen: macroquad's audio JS resumes the audio context on the first click / key press by
+itself. The title screen has no *Exit* on the web. Automated runs: `index.html?autoplay=…`,
+output (and `shot` as a base64 PNG) in the browser console. After the first test: no browser
+context menu on right-click (the page cancels `contextmenu`), and source rectangles of all tile
+and sprite draws are inset by 1/64 texel (`render::inset`): at fractional scales nearest
+sampling could pick the neighbouring tile's texel at an edge (thin green / brown lines; seen in
+the browser at device scale 1.25 even with software GL, gone after the change). Not done: `wasm-opt` (not
+installed here), gamepads (the browser Gamepad API), dev console / hot reload.
+
 **Touch points.** `engine/src/{vfs (new),project,release,settings,achievements,audio}.rs`,
 `map/io.rs`, `render/mod.rs` (`Assets::load`), `runtime/{mod,menu}.rs`, `game/src/main.rs`,
 `editor/src/export.rs`, `packaging` / `xtask/src/dist.rs` (ship the wasm), `.github/actions/
@@ -127,12 +150,15 @@ packages`, README (*Releasing a game › Web*).
 **Example.** The example project exports for the web unchanged; the README links how to try it
 (`python3 -m http.server` in the export folder).
 
-**Verify.** Unit tests: the manifest lists exactly the exported files; vfs native vs. memory
-backends; save → localStorage key round trip (plugin mocked). Export the example for the web,
-serve it locally, open it in a browser on this machine (Firefox / Chromium): title screen, new
-game, walk, a dialog, music after the first click, quick save, reload the page, *Continue*.
-Screenshots of the browser. CI: `cargo build --target wasm32-unknown-unknown -p rustpg2d-game`
-on every PR (catches native-only code early).
+**Verify (done).** Unit tests: `export_web` (page, loader, pack contents without saves / unused
+files, the chosen name, the zip's root), `data.pack` round trip, `sys` native files, base64.
+Editor script `exportweb` (from the dev build and from the AppImage); the export served locally
+and opened in **headless Brave** (SwiftShader WebGL) and **headless Firefox**: title screen;
+new game, the intro's dialogs, autosave and quick save; a second visit with the same browser
+profile: the save list with thumbnails and dates, *Continue* loads the quick save (village,
+position, HUD). No audio decode errors in the console. CI: clippy for wasm32 on every PR,
+Packages builds the wasm and checks the AppImage has it. Not verified: hearing the music in a
+browser, Safari, itch.io itself, a phone.
 
 ### [ ] Localization — `feature/localization`
 

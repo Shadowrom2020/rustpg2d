@@ -1,11 +1,11 @@
-//! File → Export game: writes a standalone bundle (game executable + project data), and on
-//! request a zip, an AppImage and a Flatpak bundle of it (package.rs), and / or the web version
-//! (browsers, itch.io: `release::export_web`).
+//! File → Export game: writes a standalone bundle (game executable + project data) for Linux,
+//! Windows and / or macOS (an application bundle), and on request a zip of each, an AppImage and a Flatpak bundle (package.rs,
+//! Linux only), and / or the web version (browsers, itch.io: `release::export_web`).
 
 use std::path::PathBuf;
 
 use egui_macroquad::egui::{self, Color32};
-use rustpg2d_engine::release;
+use rustpg2d_engine::release::{self, Platform};
 
 use crate::app::Editor;
 use crate::files::Purpose;
@@ -27,8 +27,10 @@ pub struct ExportDialog {
 /// What an export produces besides the game folder.
 #[derive(Clone, Debug)]
 pub struct ExportOpts {
-    /// The Linux bundle (and its packages).
+    /// Bundles for these platforms.
     pub linux: bool,
+    pub windows: bool,
+    pub macos: bool,
     /// The web version (WebAssembly + `data.pack` + `index.html`).
     pub web: bool,
     pub zip: bool,
@@ -38,13 +40,39 @@ pub struct ExportOpts {
     pub app_id: String,
     /// Flatpak runtime branch (`package::FLATPAK_RUNTIMES`).
     pub runtime: String,
-    /// Icon PNG of the packages ("" = the player character).
+    /// Icon PNG of the packages and the macOS app ("" = the player character).
     pub icon: String,
+}
+
+impl ExportOpts {
+    /// The platforms ticked.
+    pub fn platforms(&self) -> Vec<Platform> {
+        Platform::ALL
+            .into_iter()
+            .filter(|p| match p {
+                Platform::Linux => self.linux,
+                Platform::Windows => self.windows,
+                Platform::MacOS => self.macos,
+            })
+            .collect()
+    }
 }
 
 impl Default for ExportOpts {
     fn default() -> Self {
-        ExportOpts { linux: true, web: false, zip: false, appimage: false, flatpak: false, app_id: String::new(), runtime: package::FLATPAK_RUNTIMES[0].into(), icon: String::new() }
+        let host = Platform::host();
+        ExportOpts {
+            linux: host == Platform::Linux,
+            windows: host == Platform::Windows,
+            macos: host == Platform::MacOS,
+            web: false,
+            zip: false,
+            appimage: false,
+            flatpak: false,
+            app_id: String::new(),
+            runtime: package::FLATPAK_RUNTIMES[0].into(),
+            icon: String::new(),
+        }
     }
 }
 
@@ -61,21 +89,37 @@ fn glibc_note(bin: &std::path::Path) -> Option<(String, bool)> {
     Some((text, wide))
 }
 
-/// The rustpg2d-game executable to ship: a release build if there is one, else the one next to
-/// the editor. Returns (path, is a debug build).
-pub fn game_binary() -> Option<(PathBuf, bool)> {
+/// Cargo's target triple of a platform's game runner (cross builds: `target/<triple>/release`).
+fn triple(platform: Platform) -> &'static str {
+    match platform {
+        Platform::Linux => "x86_64-unknown-linux-gnu",
+        Platform::Windows => "x86_64-pc-windows-gnu",
+        // lipo of the aarch64 and x86_64 builds (made on a Mac; CI's macOS job).
+        Platform::MacOS => "universal-apple-darwin",
+    }
+}
+
+/// R(ust)PG2D's game runner for `platform` to ship (`rustpg2d-game`, `rustpg2d-game.exe`,
+/// `rustpg2d-game-macos`): the one next to the editor (packaged R(ust)PG2D ships all three); inside a cargo target folder a
+/// release build if there is one (also a cross build in `target/<triple>/release`), else the
+/// debug build. Returns (path, is a debug build).
+pub fn game_binary(platform: Platform) -> Option<(PathBuf, bool)> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
-    let next_to = dir.join("rustpg2d-game");
-    // Inside a cargo target folder, prefer target/release over target/debug.
-    if dir.file_name().is_some_and(|n| n == "debug") {
-        let rel = dir.parent()?.join("release/rustpg2d-game");
+    let name = platform.game_runner();
+    let next_to = dir.join(name);
+    let in_target = dir.file_name().is_some_and(|n| n == "debug" || n == "release");
+    if !in_target {
+        return next_to.is_file().then_some((next_to, false));
+    }
+    let target = dir.parent()?;
+    for rel in [target.join("release").join(name), target.join(triple(platform)).join("release").join(name)] {
         if rel.is_file() {
             return Some((rel, false));
         }
-        return next_to.is_file().then_some((next_to, true));
     }
-    next_to.is_file().then_some((next_to, false))
+    let debug = dir.file_name().is_some_and(|n| n == "debug");
+    next_to.is_file().then_some((next_to, debug))
 }
 
 /// The game runner compiled for the web (`rustpg2d-game.wasm`): next to the editor (packaged
@@ -95,12 +139,34 @@ pub fn web_binary() -> Option<PathBuf> {
 
 const NO_WEB_RUNNER: &str = "rustpg2d-game.wasm (the web game runner) was not found next to the editor. Packaged R(ust)PG2D includes it; from source: `rustup target add wasm32-unknown-unknown`, then `cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game`.";
 
+/// How to get a missing game runner (the dialog and the error).
+fn missing_runner(platform: Platform) -> String {
+    match platform {
+        Platform::Windows if Platform::host() != Platform::Windows => {
+            "rustpg2d-game.exe (the Windows game runner) was not found next to the editor. Packaged R(ust)PG2D includes it; from source: `cargo build --release --target x86_64-pc-windows-gnu -p rustpg2d-game` (needs the MinGW-w64 cross compiler).".into()
+        }
+        Platform::MacOS if Platform::host() != Platform::MacOS => {
+            "rustpg2d-game-macos (the macOS game runner, a universal binary) was not found next to the editor. Packaged R(ust)PG2D includes it; from source it has to be built on a Mac (see README, Exporting for macOS) and copied to target/release/rustpg2d-game-macos.".into()
+        }
+        Platform::Linux if Platform::host() != Platform::Linux => "rustpg2d-game (the Linux game runner) was not found next to the editor; the R(ust)PG2D download for Windows includes it.".into(),
+        p => format!("{} was not found next to the editor. Build it with `cargo build --release -p rustpg2d-game`.", p.game_runner()),
+    }
+}
+
 impl Editor {
     pub fn open_export(&mut self) {
         let out = self.project.root.canonicalize().ok().and_then(|r| r.parent().map(|p| p.join("releases"))).unwrap_or_else(|| PathBuf::from("releases"));
         let name = self.project.config.name.clone();
         let opts = ExportOpts { zip: true, app_id: package::default_app_id(&release::slug(&name)), ..Default::default() };
-        self.export = Some(ExportDialog { name, out: out.display().to_string(), opts, result: None, flatpak_ok: package::flatpak_available(), app_id_edited: false, glibc: game_binary().and_then(|(p, _)| glibc_note(&p)) });
+        self.export = Some(ExportDialog {
+            name,
+            out: out.display().to_string(),
+            opts,
+            result: None,
+            flatpak_ok: package::flatpak_available(),
+            app_id_edited: false,
+            glibc: game_binary(Platform::Linux).and_then(|(p, _)| glibc_note(&p)),
+        });
     }
 
     /// Saves everything, then exports (the folder, then the packages asked for). Returns a
@@ -110,39 +176,53 @@ impl Editor {
         if self.doc.as_ref().is_some_and(|d| d.is_dirty()) || self.defs_dirty {
             return Err("Unsaved changes could not be saved; nothing was exported.".into());
         }
-        if !opts.linux && !opts.web {
-            return Err("Choose at least one platform (Linux, Web).".into());
+        let platforms = opts.platforms();
+        if platforms.is_empty() && !opts.web {
+            return Err("Choose at least one platform (Linux, Windows, macOS, Web).".into());
+        }
+        let mut bins = Vec::new();
+        for p in &platforms {
+            bins.push(game_binary(*p).ok_or_else(|| missing_runner(*p))?);
         }
         let out_dir = std::path::Path::new(out);
-        let mut msg = String::new();
+        let mut lines = Vec::new();
+        let mut linux_folder = None;
         let mut warnings = Vec::new();
+        let mut debug = false;
+        // The macOS app's icon (the packages read it again below).
+        let mac_icon = match platforms.contains(&Platform::MacOS).then(|| package::icon(&self.project, &opts.icon)) {
+            Some(Err(e)) => {
+                lines.push(format!("macOS app without an icon: {e:#}"));
+                None
+            }
+            Some(Ok(i)) => Some(i),
+            None => None,
+        };
+        for (p, (bin, dbg)) in platforms.iter().zip(&bins) {
+            let icon = if *p == Platform::MacOS { mac_icon.as_deref() } else { None };
+            let r = release::export(&self.project, name, *p, bin, out_dir, opts.zip, icon).map_err(|e| format!("{}: {e:#}", p.label()))?;
+            lines.push(format!("{} export: {} ({} files, {:.1} MB)", p.label(), r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0));
+            if let Some(a) = &r.archive {
+                lines.push(format!("Archive: {}", a.display()));
+            }
+            if *p == Platform::Linux {
+                linux_folder = Some(r.folder.clone());
+            }
+            debug |= dbg;
+            warnings = r.warnings;
+        }
         if opts.web {
             let wasm = web_binary().ok_or(NO_WEB_RUNNER)?;
             let r = release::export_web(&self.project, name, &wasm, out_dir, opts.zip).map_err(|e| format!("Web: {e:#}"))?;
-            msg += &format!("Web export: {} ({} files, {:.1} MB)", r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0);
+            lines.push(format!("Web export: {} ({} files, {:.1} MB)", r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0));
             if let Some(a) = &r.archive {
-                msg += &format!("\nArchive (itch.io): {}", a.display());
+                lines.push(format!("Archive (itch.io): {}", a.display()));
             }
             warnings = r.warnings;
         }
-        if !opts.linux {
-            for w in warnings {
-                msg += &format!("\nWarning: {w}");
-            }
-            return Ok(msg);
-        }
-        let Some((bin, debug)) = game_binary() else {
-            return Err("rustpg2d-game was not found next to the editor. Build it with `cargo build --release -p rustpg2d-game`.".into());
-        };
-        let r = release::export(&self.project, name, &bin, out_dir, opts.zip).map_err(|e| format!("{e:#}"))?;
-        if !msg.is_empty() {
-            msg += "\n";
-        }
-        msg += &format!("Exported to {} ({} files, {:.1} MB)", r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0);
-        if let Some(a) = &r.archive {
-            msg += &format!("\nArchive: {}", a.display());
-        }
-        if opts.appimage || opts.flatpak {
+        let mut msg = lines.join("\n");
+        if let (Some(folder), true) = (&linux_folder, opts.appimage || opts.flatpak) {
+            let r = release::Exported { folder: folder.clone(), archive: None, files: 0, bytes: 0, warnings: vec![] };
             let slug = release::slug(name);
             let size = |p: &std::path::Path| std::fs::metadata(p).map_or(0.0, |m| m.len() as f64 / 1_048_576.0);
             match package::icon(&self.project, &opts.icon) {
@@ -166,7 +246,7 @@ impl Editor {
         if debug {
             msg += "\nNote: this used a debug build of the game. For full speed run `cargo build --release -p rustpg2d-game` and export again.";
         }
-        for w in r.warnings {
+        for w in warnings {
             msg += &format!("\nWarning: {w}");
         }
         Ok(msg)
@@ -195,33 +275,41 @@ impl Editor {
                 ui.label("Platforms");
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut d.opts.linux, "Linux").on_hover_text("A folder with the game for Linux (x86_64): players run the executable in it");
+                    ui.checkbox(&mut d.opts.windows, "Windows").on_hover_text("A folder with NAME.exe for Windows 10 / 11 (64-bit): players double-click it. Not signed, so Windows asks once (More info, Run anyway)");
+                    ui.checkbox(&mut d.opts.macos, "macOS").on_hover_text(
+                        "An application bundle NAME.app for macOS 11 or newer (Apple Silicon and Intel): players drag it to Applications and open it. Not signed by Apple, so macOS refuses the first start until the player allows it (System Settings, Privacy & Security, Open Anyway; the README explains it)",
+                    );
                     ui.checkbox(&mut d.opts.web, "Web (browser, itch.io)").on_hover_text(
                         "The game compiled to WebAssembly with an index.html: it runs in current browsers from any web server, or uploaded to itch.io as an HTML game (the zip). Saves stay in the player's browser.",
                     );
                 });
                 ui.end_row();
-                if !d.opts.linux {
-                    d.opts.appimage = false;
-                    d.opts.flatpak = false;
-                }
                 ui.label("");
                 ui.checkbox(&mut d.opts.zip, "Also create a .zip to share (one per platform)");
                 ui.end_row();
-                ui.label("Linux packages");
-                ui.add_enabled_ui(d.opts.linux, |ui| ui.vertical(|ui| {
-                    ui.checkbox(&mut d.opts.appimage, "AppImage").on_hover_text(
-                        "One executable file that runs on most Linux distributions: players download it, make it executable and start it. The AppImage runtime is downloaded once (from github.com/AppImage) and cached.",
-                    );
-                    ui.add_enabled_ui(d.flatpak_ok, |ui| {
-                        ui.checkbox(&mut d.opts.flatpak, "Flatpak bundle").on_hover_text(
-                            "A sandboxed .flatpak file: players install it with `flatpak install --user GAME.flatpak` (Flatpak downloads the freedesktop runtime from Flathub) and start it from the app menu.",
+                if !d.opts.linux || Platform::host() != Platform::Linux {
+                    d.opts.appimage = false;
+                    d.opts.flatpak = false;
+                }
+            });
+            egui::Grid::new("export_packages").num_columns(2).show(ui, |ui| {
+                if d.opts.linux && Platform::host() == Platform::Linux {
+                    ui.label("Linux packages");
+                    ui.vertical(|ui| {
+                        ui.checkbox(&mut d.opts.appimage, "AppImage").on_hover_text(
+                            "One executable file that runs on most Linux distributions: players download it, make it executable and start it. The AppImage runtime is downloaded once (from github.com/AppImage) and cached.",
                         );
+                        ui.add_enabled_ui(d.flatpak_ok, |ui| {
+                            ui.checkbox(&mut d.opts.flatpak, "Flatpak bundle").on_hover_text(
+                                "A sandboxed .flatpak file: players install it with `flatpak install --user GAME.flatpak` (Flatpak downloads the freedesktop runtime from Flathub) and start it from the app menu.",
+                            );
+                        });
+                        if !d.flatpak_ok {
+                            ui.weak("Flatpak bundles need the flatpak command (install Flatpak with your package manager).");
+                        }
                     });
-                    if !d.flatpak_ok {
-                        ui.weak("Flatpak bundles need the flatpak command (install Flatpak with your package manager).");
-                    }
-                }));
-                ui.end_row();
+                    ui.end_row();
+                }
                 if d.opts.flatpak {
                     ui.label("Flatpak app id");
                     ui.horizontal(|ui| {
@@ -236,7 +324,7 @@ impl Editor {
                     });
                     ui.end_row();
                 }
-                if d.opts.appimage || d.opts.flatpak {
+                if d.opts.appimage || d.opts.flatpak || d.opts.macos {
                     ui.label("Icon");
                     ui.horizontal(|ui| {
                         ui.add(egui::TextEdit::singleline(&mut d.opts.icon).hint_text("the player character").desired_width(200.0));
@@ -256,12 +344,20 @@ impl Editor {
                     ui.colored_label(Color32::LIGHT_RED, format!("App id {e}"));
                 }
             }
-            let out = d.out.trim_end_matches('/');
+            let out = d.out.trim_end_matches(['/', '\\']);
+            let sep = std::path::MAIN_SEPARATOR;
             if d.opts.linux {
-                ui.weak(format!("Linux: {out}/{slug}/{slug} (run it to play), saves go to ~/.local/share/{slug}/saves"));
+                ui.weak(format!("Linux: {out}{sep}{slug}{sep}{slug} (run it to play), saves go to {}", Platform::Linux.saves_hint(&slug)));
+            }
+            if d.opts.windows {
+                ui.weak(format!("Windows: {out}{sep}{}{sep}{slug}.exe, saves go to {}", Platform::Windows.folder(&slug), Platform::Windows.saves_hint(&slug)));
+            }
+            if d.opts.macos {
+                let app = release::app_bundle(&d.name, &slug);
+                ui.weak(format!("macOS: {out}{sep}{}{sep}{app}, saves go to {}", Platform::MacOS.folder(&slug), Platform::MacOS.saves_hint(&slug)));
             }
             if d.opts.web {
-                ui.weak(format!("Web: {out}/{slug}-web/index.html (serve the folder, or upload {slug}-web.zip to itch.io); saves stay in the player's browser"));
+                ui.weak(format!("Web: {out}{sep}{slug}-web{sep}index.html (serve the folder, or upload {slug}-web.zip to itch.io); saves stay in the player's browser"));
                 match web_binary() {
                     Some(p) => ui.weak(format!("Web game runner: {}", p.display())),
                     None => ui.colored_label(Color32::LIGHT_RED, NO_WEB_RUNNER),
@@ -273,18 +369,20 @@ impl Editor {
             if d.opts.flatpak {
                 ui.weak(format!("Flatpak: {out}/{slug}.flatpak (saves in ~/.var/app/{}/data/{slug}/saves)", d.opts.app_id.trim()));
             }
-            if let Some((note, wide)) = &d.glibc {
+            if let (Some((note, wide)), true) = (&d.glibc, d.opts.linux) {
                 if *wide {
                     ui.weak(note);
                 } else {
                     ui.colored_label(Color32::YELLOW, note);
                 }
             }
-            if d.opts.linux { match game_binary() {
-                Some((p, false)) => ui.weak(format!("Game executable: {}", p.display())),
-                Some((p, true)) => ui.colored_label(Color32::YELLOW, format!("Only a debug build of the game was found ({}). It works but runs slower; `cargo build --release -p rustpg2d-game` gives a fast one.", p.display())),
-                None => ui.colored_label(Color32::LIGHT_RED, "rustpg2d-game not found next to the editor; build it with `cargo build --release -p rustpg2d-game`."),
-            }; }
+            for p in d.opts.platforms() {
+                match game_binary(p) {
+                    Some((b, false)) => ui.weak(format!("{} game runner: {}", p.label(), b.display())),
+                    Some((b, true)) => ui.colored_label(Color32::YELLOW, format!("Only a debug build of the game was found ({}). It works but runs slower; `cargo build --release -p rustpg2d-game` gives a fast one.", b.display())),
+                    None => ui.colored_label(Color32::LIGHT_RED, missing_runner(p)),
+                };
+            }
             for e in &check.errors {
                 ui.colored_label(Color32::LIGHT_RED, format!("\u{E4F6} {e}"));
             }
@@ -298,7 +396,7 @@ impl Editor {
                 };
             }
             let app_id_ok = !d.opts.flatpak || package::check_app_id(d.opts.app_id.trim()).is_ok();
-            let ok = check.errors.is_empty() && !d.name.trim().is_empty() && !d.out.trim().is_empty() && (d.opts.linux || d.opts.web) && (!d.opts.linux || game_binary().is_some()) && (!d.opts.web || web_binary().is_some()) && app_id_ok;
+            let ok = check.errors.is_empty() && !d.name.trim().is_empty() && !d.out.trim().is_empty() && (!d.opts.platforms().is_empty() || d.opts.web) && d.opts.platforms().into_iter().all(|p| game_binary(p).is_some()) && (!d.opts.web || web_binary().is_some()) && app_id_ok;
             if ui.add_enabled(ok, egui::Button::new("\u{E390} Export")).clicked() {
                 go = true;
             }

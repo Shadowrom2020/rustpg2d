@@ -3,8 +3,9 @@
 # required status checks of the branch rulesets (AGENTS.md):
 #   develop: Branch policy, Build, lint, test
 #   master:  Branch policy, Build, lint, test, Version, Packages
-# Version and Packages only run for pull requests into master (release / hotfix branches); the
-# toolkit packages can be built from any branch with Actions > Release > Run workflow.
+# Version, the macOS game runner (macos-game.yml, for the packages) and Packages only run for
+# pull requests into master (release / hotfix branches); the toolkit packages can be built from
+# any branch with Actions > Release > Run workflow.
 name: CI
 
 on:
@@ -65,6 +66,10 @@ jobs:
       # The game also builds for the web (wasm32; no browser needed to check it compiles).
       - run: rustup target add wasm32-unknown-unknown
       - run: cargo clippy --locked --target wasm32-unknown-unknown -p rustpg2d-game -- -D warnings
+      # The game also compiles for Windows (no linking: no cross compiler needed; the editor is
+      # Linux-only).
+      - run: rustup target add x86_64-pc-windows-gnu
+      - run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -- -D warnings
 
   version:
     name: Version
@@ -80,9 +85,15 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
         run: cargo xtask check-version "$HEAD_REF"
 
+  macos-game:
+    name: macOS
+    if: github.event_name == 'pull_request' && github.base_ref == 'master'
+    uses: ./.github/workflows/macos-game.yml
+
   packages:
     name: Packages
     if: github.event_name == 'pull_request' && github.base_ref == 'master'
+    needs: macos-game
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7

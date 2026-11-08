@@ -54,7 +54,7 @@ impl Settings {
         if let Some(d) = std::env::var_os("RUSTPG2D_SETTINGS_DIR") {
             return Some(PathBuf::from(d).join(crate::release::slug(game_name)));
         }
-        let base = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
+        let base = crate::paths::config_base()?;
         let slug = crate::release::slug(game_name);
         let dir = base.join("rustpg2d").join(&slug);
         crate::legacy::adopt(&dir, &base.join(crate::legacy::OLD_NAME).join(&slug));

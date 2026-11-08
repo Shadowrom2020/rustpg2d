@@ -175,7 +175,7 @@ The **ribbon** under the menu holds the tools as icon buttons in groups (*Edit* 
 
 ### Releasing a game
 
-*File → Export game (standalone)…* saves the project and writes a bundle that runs without the editor or Rust:
+*File → Export game (standalone)…* saves the project and writes a bundle that runs without the editor or Rust, for **Linux**, **Windows**, **macOS** and / or the **Web** (*Platforms* in the dialog; editor scripts: `exportgame` / `exportwin` / `exportmac` / `exportweb` / `exportall OUT [NAME]`):
 
 ```
 releases/<game-name>/
@@ -183,12 +183,19 @@ releases/<game-name>/
   data/            project.ron, defs/, maps/, scripts/ and only the images / sounds in use
   README.txt
   rustpg2d-LICENSE.txt   the MIT license of the R(ust)PG2D engine (the game executable)
-releases/<game-name>-linux.zip          (optional, to share)
+releases/<game-name>-windows/           (Windows: <game-name>.exe, data\, README.txt, license)
+releases/<game-name>-macos/             (macOS: <Game Name>.app, README.txt, license)
+releases/<game-name>-web/               (browsers: index.html and its files)
+releases/<game-name>-linux.zip          (optional, to share; also -windows, -macos, -web)
 releases/<game-name>-x86_64.AppImage    (optional, Linux package)
 releases/<game-name>.flatpak            (optional, Linux package)
 ```
 
-The executable is a copy of `rustpg2d-game`; started without arguments it runs the `data/` folder next to it, titles the window with the game name and keeps save games in `~/.local/share/<game-name>/saves` (the bundle folder may be read-only). Save games of the project are never shipped. The export checks the project first (start map must exist; missing files and an unset player are reported) and replaces an earlier export in the same place, but never touches other folders. Build the game in release mode first (`cargo build --release -p rustpg2d-game`) — the editor picks `target/release/rustpg2d-game` when it exists and warns when only a debug build is available. The bundle targets the platform it was built on (Linux x86_64 here) and needs the usual system libraries (OpenGL, X11/Wayland, ALSA). The game executable runs on **glibc 2.34 or newer** — Debian 12, Ubuntu 22.04, Fedora 35, RHEL / Rocky / Alma 9 and later — even when R(ust)PG2D is built on a newer rolling-release system (the export dialog shows what the executable needs).
+The executable is a copy of `rustpg2d-game`; started without arguments it runs the `data/` folder next to it, titles the window with the game name and keeps save games in `~/.local/share/<game-name>/saves` (the bundle folder may be read-only). Save games of the project are never shipped. The export checks the project first (start map must exist; missing files and an unset player are reported) and replaces an earlier export in the same place, but never touches other folders. Build the game in release mode first (`cargo build --release -p rustpg2d-game`) — the editor picks `target/release/rustpg2d-game` when it exists and warns when only a debug build is available. The Linux bundle runs on x86_64 and needs the usual system libraries (OpenGL, X11/Wayland, ALSA). The game executable runs on **glibc 2.34 or newer** — Debian 12, Ubuntu 22.04, Fedora 35, RHEL / Rocky / Alma 9 and later — even when R(ust)PG2D is built on a newer rolling-release system (the export dialog shows what the executable needs).
+
+**Windows games** (Windows 10 / 11, 64-bit): players unzip the folder and double-click `<game-name>.exe`; save games go to `%APPDATA%\<game-name>\saves`, settings to `%APPDATA%\rustpg2d\<game-name>`. The executable is a copy of `rustpg2d-game.exe`, which the R(ust)PG2D packages ship next to the Linux game runner, so the Linux editor exports Windows games without any Windows tools. It isn't code-signed: Windows SmartScreen shows "Windows protected your PC" the first time — *More info*, *Run anyway* (the README in the bundle says so). Gamepads work through Windows' own gamepad support. From source, build the Windows runner with `rustup target add x86_64-pc-windows-gnu`, the MinGW-w64 cross compiler (`gcc-mingw-w64-x86-64` on Debian / Ubuntu, `mingw-w64-gcc` on Arch) and `cargo build --release --target x86_64-pc-windows-gnu -p rustpg2d-game`; the editor finds it in `target/x86_64-pc-windows-gnu/release/`. The game needs a graphics driver with OpenGL; in a virtual machine without 3D acceleration it says so in a message box instead of starting.
+
+**macOS games** (macOS 11 or newer, Apple Silicon and Intel): the bundle is an application, `<Game Name>.app` (the game's name; the data is inside it in `Contents/Resources/data`, its icon is the one chosen under *Icon*, else the player character). Players unzip it, drag it into *Applications* and open it; save games go to `~/Library/Application Support/<game-name>/saves`, settings to `~/Library/Application Support/rustpg2d/<game-name>`. The executable is a copy of `rustpg2d-game-macos`, a universal binary of the game runner that the R(ust)PG2D packages ship next to the editor, so the Linux editor exports macOS games without a Mac. The export signs the app ad hoc (as `codesign --sign -` would: the bundle is sealed and passes `codesign --verify`), but it isn't signed with an Apple developer certificate nor notarized, so macOS may refuse the first start of a downloaded copy ("Apple could not verify …"): the player then opens *System Settings › Privacy & Security* and chooses *Open Anyway* (on macOS 14 and older: right-click the app, *Open*), or runs `xattr -dr com.apple.quarantine "/Applications/<Game Name>.app"` in Terminal; the README in the bundle explains it. From source, the runner can only be built on a Mac (with Rust and the Xcode command line tools): `rustup target add aarch64-apple-darwin x86_64-apple-darwin`, `cargo build --release -p rustpg2d-game --target aarch64-apple-darwin`, the same for `x86_64-apple-darwin`, then `lipo -create -output rustpg2d-game-macos target/aarch64-apple-darwin/release/rustpg2d-game target/x86_64-apple-darwin/release/rustpg2d-game`; copy it to `target/release/rustpg2d-game-macos` on the editor's machine. CI's *macOS* job builds it for the packages.
 
 **Linux packages** (ticked in the export dialog, built from the bundle):
 
@@ -356,7 +363,7 @@ crates/xtask    `cargo xtask`: dist, check-version, check-branch, release-notes 
 - `audio.rs`: sound loading/playback on top of macroquad (WAV and Ogg Vorbis; files are validated first so a broken sound can't crash the game, and other formats are reported by name), gapless music loops (decoded with `lewton` / a WAV reader, stretched to whole mixer buffers) and a small WAV encoder used by the example generator for its sound effects (its music is Ogg Vorbis, encoded with `vorbis_rs`).
 - `refactor.rs`: rewrites id references in definitions, config and maps for renames.
 - `migrate.rs`: converts projects saved with another tile size to 32 px (see above).
-- `release.rs`: standalone bundles (project check, copying the files in use, zip) and finding the bundled `data/` folder at game start.
+- `release.rs`: standalone bundles per platform (project check, copying the files in use, the macOS `.app` with Info.plist and icon, zip) and finding the bundled `data/` folder at game start (next to the executable, or in the app's `Contents/Resources`); `macsign.rs` signs macOS apps ad hoc on any platform.
 - `library.rs`: asset bundles (dependency collection, `.r2dpack` packages, enlarging old 16 px packages, conflict-aware merging) and the shared library folder; `imageio.rs`: PNG decode / encode for it and the editor's pixel editor. The editor embeds `crates/editor/assets/starter.r2dpack`, which `gen_example` builds from the example project.
 
 ## Testing

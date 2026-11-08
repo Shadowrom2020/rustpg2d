@@ -79,10 +79,12 @@ Instructions for every session (people and coding agents) that implements roadma
 
 ## 0.9.0 — Reach: the web and other languages
 
-Theme: games made with R(ust)PG2D reach players without an install (a browser tab, itch.io)
-and in their own language. Windows and macOS moved to the backlog on 2026-11-08 (see
-*Postponed: Windows and macOS*): they come back when hardware to develop and test on is there.
-Order: web export first (it changes how the game loads data, which localization then uses).
+Theme: games made with R(ust)PG2D reach players without an install (a browser tab, itch.io),
+in their own language, and on Windows and macOS. Windows and macOS had moved to the backlog
+on 2026-11-08 (see *Postponed: the editor on Windows and macOS*); the **exports** came back the
+same day, without a software OpenGL fallback, once a Mac was there to test on. The editor
+stays Linux-only. Order: web export first (it changes how the game loads data, which
+localization then uses), then the Windows and macOS exports (one branch, one pull request).
 
 ### [x] Web export — `feature/web`
 
@@ -228,9 +230,82 @@ Mira's scripted line with `{player}`; *Options › Language* switches at runtime
 (screenshot), a play-test with `playlang de`. Web: the export in headless Brave with a German
 browser language starts German (title, intro dialog).
 
+### [x] Windows export — `feature/windows-export`
+
+**Goal.** *File › Export game* gains *Windows*: `<game>-windows/<game>.exe` with its data (and a
+zip) for Windows 10 / 11 (64-bit), exported from the Linux editor.
+
+**Design.** The game runner cross-compiled with MinGW-w64 (`x86_64-pc-windows-gnu`; no C
+dependencies) by the Packages and Release jobs and shipped in the toolkit packages next to the
+Linux runner; `release::Platform` (folder, exe, zip, README per platform);
+`engine/src/paths.rs` for per-user folders (`%APPDATA%` saves and settings); the zip writes
+Unix attributes whatever the host. The rolled-back attempt's findings (*Postponed* below) apply.
+
+**Decided while building.** Revived from the reverted #65 without the software OpenGL fallback
+(Mesa, +23 MB): the game is a GUI-subsystem program (no console window; `AttachConsole` when
+started from a terminal), and a panic hook shows a message box instead of a silent exit — an
+OpenGL text when the failure comes from the GL loader (a VM without 3D acceleration), else the
+error. Gamepads: the `Gilrs` is never dropped (`ManuallyDrop`), so quitting doesn't panic.
+
+**Touch points.** `engine/src/{paths,release,settings,library}.rs`, `runtime/input.rs`,
+`game/src/main.rs`, `editor/src/{export,files,main}.rs`, `packaging/src/lib.rs`,
+`xtask/src/dist.rs`, `.github/{actions/packages,workflows/ci}.yml`, README.
+
+**Verify.** Unit test (exe check, folder, zip, CRLF README). The exe cross-built in a
+throwaway container ran under Wine (with Mesa from the host): title, new game, quick save in
+`%APPDATA%\<game>\saves`, clean exit (code 0); without OpenGL it shows the message box.
+Exports from the packaged editor (AppImage with all runners) start under Wine. Not verified on
+real Windows (the user's VM of the earlier attempt had no 3D acceleration: it now gets the
+message box; a VM with 3D acceleration or a real PC is needed to play).
+
+### [x] macOS export — `feature/windows-export`
+
+**Goal.** *File › Export game* gains *macOS*: an application `<Game Name>.app` for macOS 11+ on
+Apple Silicon and Intel, exported from the Linux editor.
+
+**Design.** `Platform::MacOS`: `<game>-macos/<Game Name>.app/Contents/{MacOS/<game>,
+Resources/data, Resources/<game>.icns, Info.plist, PkgInfo}` plus README and license, zipped with
+the executable bit; `release::bundled_root` also looks in `../Resources/data`; saves in
+`~/Library/Application Support/<game>/saves` (`paths.rs`). The runner is a universal binary
+(`lipo` of the aarch64 and x86_64 builds) that only a Mac can build: `.github/workflows/
+macos-game.yml` (called by CI for pull requests into master and by the Release workflow) builds
+it on `macos-latest` (plus clippy and the engine's tests on macOS) and hands it to the Packages
+job as an artifact; `cargo xtask-dist --macos-game FILE --require-macos` ships it next to the
+editor. The icon: the export dialog's *Icon* (or the player character) as `.icns` with 128,
+256 and 512 px PNG entries.
+
+**Decided while building.** The linker signs the arm64 slice of the runner ad hoc, but that
+signature doesn't cover the bundle around it (`spctl`: "code has no resources but signature
+indicates they must be present"), which macOS reports as a damaged app for downloads. So the
+export **signs the app ad hoc itself** (`engine/src/macsign.rs`, no Mac needed): it writes
+`_CodeSignature/CodeResources` (codesign's rules; SHA-1 `files`, SHA-256 `files2`) and gives
+every slice a new code directory (pages, Info.plist, empty requirements, CodeResources;
+`LC_CODE_SIGNATURE` added to the unsigned x86_64 slice). `hash.rs` holds SHA-256 (moved from
+packaging), SHA-1 and Base64. Not notarized: players allow the first start once (*Privacy &
+Security › Open Anyway*), as the bundle's README explains. Zip entries are dated with the export
+time (all exports; they were dated 1980).
+
+**Touch points.** `engine/src/{release,paths,macsign (new),hash (new)}.rs`,
+`editor/src/{export,main}.rs`, `packaging/src/lib.rs`, `xtask/src/dist.rs`,
+`.github/workflows/{macos-game (new),ci,release}.yml`, `.github/actions/packages/action.yml`,
+README.
+
+**Verify.** Unit tests: the bundle layout, Info.plist, icns, README, zip modes, replacing an
+earlier export of a renamed game; the signer on synthetic thin / universal Mach-O files (page
+hashes, special slots, the added load command, re-signing is stable) and the sealed resources.
+On the test Mac (M2, macOS 27.2): the export from the Linux editor and from the packaged editor
+passes `codesign --verify --deep --strict` for both slices; the app starts directly and via
+`open` from a quarantined zip (translocated), plays a new game, quick-saves to
+`~/Library/Application Support/<game>/saves` and *Continue* restores it; clippy and the 155
+engine tests pass on macOS; the Mac's and Linux's runners report the same engine build. Not
+verified: the x86_64 slice running (no Intel Mac, no Rosetta), the Gatekeeper dialog of a real
+browser download (macOS let the test copies run), the CI job itself (runs on the release pull
+request).
+
 ## Backlog (unscheduled ideas)
 
-- Code signing and notarization of the Windows and macOS packages (today: unsigned, documented).
+- Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
+  ad-hoc signed; documented).
 - Gamepad button glyphs in the HUD and hints (Steam Deck); rebinding gamepad buttons.
 - Companions learn spells from scrolls and books given to them and cast heal / bolt spells by
   the rules of *Companion inventory* (`Companion.spells`, a mana pool from the definition).
@@ -275,9 +350,10 @@ browser language starts German (title, intro dialog).
   half-submerged hero; the forest stream still blocks; in the mine `hold up` on the ladder
   climbs (`climbing=true`), `hold left` doesn't move; an NPC never enters water (`ai=` positions).
 
-### Postponed: Windows and macOS (2026-11-08)
+### Postponed: the editor on Windows and macOS (2026-11-08)
 
-Taken out of 0.9.0 until hardware to develop and test on is there. *Windows export* and *Editor
+Taken out of 0.9.0 until hardware to develop and test on is there; the game exports for both
+came back in 0.9.0 (*Windows export*, *macOS export* above). *Windows export* and *Editor
 on Windows* had been built and merged into develop (#65, #66, plus #67: a software OpenGL
 fallback after a driverless Windows VM failed to start) and were **rolled back** (revert of
 318b9d4, 1b2d37a, 9e91848); `git revert` of those reverts brings the code back as a starting
@@ -297,21 +373,7 @@ point. What that attempt found, for whoever picks it up:
 - Under Wine on this machine: Mesa software GL env (`__EGL_VENDOR_LIBRARY_FILENAMES=…50_mesa.json
   LIBGL_ALWAYS_SOFTWARE=1`, without `WAYLAND_DISPLAY`).
 
-#### Windows export — `feature/windows`
-
-**Design.** Gate the `std::os::unix` uses (`editor/files.rs` copy permissions,
-`packaging/lib.rs` symlink and executable bit, `release.rs` chmod); Windows paths for saves and
-settings (`release::user_saves_dir`, `Settings::dir`: `%APPDATA%`); `.exe` handling in
-`export::game_binary` and `release::export` (`<slug>-windows.zip`, README text per platform).
-CI builds `rustpg2d-game.exe` with `x86_64-pc-windows-gnu` in the Packages and Release jobs and
-the toolkit packages ship it next to the Linux runner, so the Linux editor exports Windows games
-(*File → Export game* gains a *Windows* checkbox). Followed by *Editor on Windows* and *macOS
-builds* below.
-
-**Verify.** Export from the editor produces the zip; run the exe under Wine for a `status` run
-if Wine is available, otherwise a CI smoke test on `windows-latest`.
-
-#### Editor on Windows — `feature/editor-windows` (follows *Windows export*)
+#### Editor on Windows — `feature/editor-windows`
 
 **Goal.** The editor itself runs on Windows, with play-test, export and the asset library, so
 Windows creators get the whole toolkit; the release ships a Windows zip of editor + game +
@@ -354,11 +416,11 @@ example.
 editor opens the bundled example, play-tests it, exports a Windows game; `cargo test` on
 Windows. From Linux: Wine run of the exes for a `status` smoke test if Wine is installed.
 
-#### macOS builds — `feature/macos`
+#### Editor on macOS — `feature/macos`
 
-**Goal.** Game and editor build and run on macOS (Apple Silicon and Intel); the release ships a
-`.app` bundle for the editor (game runner and example inside) and games can be exported for
-macOS from any platform's editor.
+**Goal.** The editor builds and runs on macOS (Apple Silicon and Intel); the release ships a
+`.app` bundle for the editor (game runner and example inside). (Exporting games for macOS
+shipped in 0.9.0: the game runner, `paths.rs`, `bundled_root` and the ad-hoc signing exist.)
 
 **Design.**
 - Paths: `~/Library/Application Support/rustpg2d` (config and data), `~/Library/Caches/rustpg2d`

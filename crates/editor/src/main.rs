@@ -437,11 +437,18 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         }
         // exportgame OUT_DIR [NAME]  /  exportdialog
         // exportpkg OUT_DIR appimage|flatpak|all [APP_ID]: the folder plus Linux packages
-        // exportgame OUT [NAME] (Linux) · exportweb OUT [NAME] (web) · both with zips
-        "exportgame" | "exportpkg" | "exportweb" => {
+        // exportgame OUT [NAME] (Linux) · exportwin (Windows) · exportmac (macOS) · exportweb (web)
+        // · exportall (all four); all with zips
+        "exportgame" | "exportpkg" | "exportwin" | "exportmac" | "exportweb" | "exportall" => {
             let mut opts = export::ExportOpts { zip: arg(0) != "exportpkg", ..Default::default() };
-            if arg(0) == "exportweb" {
+            if arg(0) == "exportwin" {
+                (opts.linux, opts.windows) = (false, true);
+            } else if arg(0) == "exportmac" {
+                (opts.linux, opts.macos) = (false, true);
+            } else if arg(0) == "exportweb" {
                 (opts.linux, opts.web) = (false, true);
+            } else if arg(0) == "exportall" {
+                (opts.linux, opts.windows, opts.macos, opts.web) = (true, true, true, true);
             }
             let mut name = ed.project.config.name.clone();
             if arg(0) != "exportpkg" {
@@ -465,13 +472,19 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         },
         // playlang CODE|-: the play-test language
         "playlang" => ed.play_lang = if arg(1) == "-" { String::new() } else { arg(1).to_string() },
-        // exportdialog [appimage] [flatpak]: opens File → Export game with those packages ticked
+        // exportdialog [appimage] [flatpak] [windows] [macos] [web]: opens File → Export game with those packages ticked
         // example: the welcome screen's "Example project" (packaged R(ust)PG2D only)
         "example" => ed.open_example(),
         "exportdialog" => {
             ed.open_export();
             if let Some(d) = &mut ed.export {
                 d.opts.web = cmd.iter().any(|a| a == "web");
+                if cmd.iter().any(|a| a == "windows") {
+                    d.opts.windows = true;
+                }
+                if cmd.iter().any(|a| a == "macos") {
+                    d.opts.macos = true;
+                }
                 d.opts.appimage = cmd.iter().any(|a| a == "appimage");
                 d.opts.flatpak = cmd.iter().any(|a| a == "flatpak");
             }

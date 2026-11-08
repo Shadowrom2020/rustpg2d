@@ -86,7 +86,10 @@ crates/engine/src/      library: everything shared by game and editor
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;
                         parallax.rs = Map.parallax image layers behind / over the map)
   library.rs            asset library + .r2dpack bundles; refactor.rs = id renames / refs_of_*
-  migrate.rs            converts old 16 px projects; release.rs = standalone game export
+  migrate.rs            converts old 16 px projects; release.rs = standalone game export (Platform:
+                        Linux / Windows / MacOS = <Name>.app, data in Contents/Resources; export_web);
+                        macsign.rs = ad-hoc signing of exported macOS apps (CodeResources + code
+                        directories, no Mac needed); hash.rs = SHA-256 / SHA-1 / Base64
   examples/gen_example/ generates example_project/ and the editor's starter.r2dpack; music.rs
                         composes and renders the two music tracks (tiny synth, Ogg Vorbis via vorbis_rs)
   lang.rs               languages: lang/<code>.ron (texts = content, ui = runtime texts; built-in German in
@@ -96,6 +99,8 @@ crates/engine/src/      library: everything shared by game and editor
   sys.rs                the game's file / clock access: native std::fs, web = in-memory files from
                         data.pack + localStorage (web/rustpg2d.js plugin); use it, not std::fs, in game code
   web/                  index.html, mq_js_bundle.js (macroquad's loader, vendored), rustpg2d.js (plugin)
+  paths.rs              per-user folders per platform (XDG / %APPDATA%, %LOCALAPPDATA%, %USERPROFILE% /
+                        ~/Library/Application Support, ~/Library/Caches)
   legacy.rs             the old name rust2d: adopt() copies a folder / file from the old location
                         (~/.config/rust2d, ~/.local/share/rust2d, ~/.cache/rust2d) on first use
   glibc_compat.rs       math functions newer glibc re-versioned, defined in the engine so the game
@@ -109,6 +114,8 @@ crates/xtask/           `cargo xtask check-version | check-branch | release-note
                         seconds) and `cargo xtask-dist` (feature `dist`: toolkit AppImage + Flatpak)
 .github/                workflows/ci.yml (required checks), workflows/release.yml (merge into master =
                         tag + GitHub Release with the toolkit AppImage / Flatpak + back-merge PR),
+                        workflows/macos-game.yml (called by both: the universal macOS game runner,
+                        built on macos-latest, as artifact rustpg2d-game-macos for the packages),
                         actions/packages (build + smoke test), dependabot, PR / issue templates
 crates/editor/src/      editor binary
   main.rs               loop + RUSTPG2D_EDITOR_SCRIPT command runner
@@ -216,7 +223,7 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   character builder (`charnew [ID NAME]`, `charcustom` = selected NPC, `charset body|hair|beard|skin|haircolor|clothing|head|armor|weapon|offhand|carry|id|name VALUE` on the open builder else the selected character, `charrandom`, `chartemplate ID` (project or library character), `charcreate` / `charapply`, `charcancel`, `charreset`, `playable SHEET on|off`; `status` prints `builder=`),
   languages (`langtemplate CODE` = Export translation template, `playlang CODE|-` = play-test language),
   `example` (welcome screen's *Example project*: only in packaged R(ust)PG2D; copies to
-  ~/rustpg2d/example_project — set HOME to a scratch dir in tests), export (`exportgame OUT [NAME]` = folder + zip, `exportweb OUT [NAME]` = the web version + zip, `exportpkg OUT appimage|flatpak|all [APP_ID]`,
+  ~/rustpg2d/example_project — set HOME to a scratch dir in tests), export (`exportgame OUT [NAME]` = folder + zip, `exportwin` / `exportmac` / `exportweb` / `exportall OUT [NAME]` = Windows / macOS / web / all four, `exportpkg OUT appimage|flatpak|all [APP_ID]`,
   `exportdialog [appimage] [flatpak]`; test packages on scratch output: the AppImage runs directly,
   a Flatpak goes into `FLATPAK_USER_DIR=<scratch>` with `flatpak install --user --no-deps --bundle`
   and `flatpak run --user --runtime=org.freedesktop.Sdk//25.08 …`; remove the `~/.var/app/<id>`
@@ -244,6 +251,20 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   `devtools.console.stdout.content=true`). `status` lines and `shot NAME` (`[shot] NAME
   data:image/png;base64,…`) come out in the browser console; decode the base64 into a PNG.
   A second run with the same profile tests what was saved (`localStorage`).
+- **Windows builds:** cross-compile in a throwaway container (`rust:1-bookworm` +
+  `gcc-mingw-w64-x86-64` + `rustup target add x86_64-pc-windows-gnu`; scratch `CARGO_HOME` /
+  `CARGO_TARGET_DIR`, `--user $(id -u)`), never on the host. Run the exes with Wine and a scratch
+  `WINEPREFIX`; on this machine Wine's EGL fails on the NVIDIA GPU, so use `env -u WAYLAND_DISPLAY
+  __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1`.
+  Paths for the game under Wine: `Z:/…` (shots, project folders).
+- **macOS games:** the universal runner can only be built on a Mac (README, *macOS games*); the
+  editor finds it as `target/release/rustpg2d-game-macos`. When the user provides a test Mac
+  over SSH (see memory), sync the tree with `rsync` (without `target`, `.git`,
+  `example_project/saves`), build there, copy the runner back, export with `exportmac`, copy
+  the zip over, unpack with `ditto -xk`, check `codesign --verify --deep --strict` and run
+  `<Name>.app/Contents/MacOS/<slug>` with `RUSTPG2D_AUTOPLAY` (the window shows on the Mac's
+  screen; macOS has no `timeout`: `perl -e 'alarm 60; exec {$ARGV[0]} @ARGV' EXE`, the block
+  form, or a path with spaces is split). Stop apps you `open`ed with `pkill -f`.
 - Look at screenshots with the Read tool; crop with PIL when details matter. Lighting:
   `RUSTPG2D_LIGHTMAP_DEBUG=1` draws the raw light map instead of multiplying it.
 - Dialog text types out over time: wait ~2.5 s before reading a screenshot, and the first `E`

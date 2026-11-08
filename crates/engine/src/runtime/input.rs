@@ -346,9 +346,11 @@ const STICK_OFF: f32 = 0.35;
 
 #[derive(Default)]
 struct PadState {
-    /// (No gilrs in the web game: browsers' gamepads aren't read yet.)
+    /// (No gilrs in the web game: browsers' gamepads aren't read yet.) Never dropped: on Windows,
+    /// gilrs joins its event thread when dropped, which panics during process exit (thread-local
+    /// destructors run after the other threads are gone).
     #[cfg(not(target_arch = "wasm32"))]
-    gilrs: Option<gilrs::Gilrs>,
+    gilrs: Option<std::mem::ManuallyDrop<gilrs::Gilrs>>,
     #[cfg(not(target_arch = "wasm32"))]
     started: bool,
     /// Buttons held now / last frame (bits of [`Pad::bit`]).
@@ -390,7 +392,7 @@ fn read_gamepads(p: &mut PadState, prev: u32) -> (u32, String) {
         if !p.started {
             p.started = true;
             p.gilrs = match gilrs::Gilrs::new() {
-                Ok(g) => Some(g),
+                Ok(g) => Some(std::mem::ManuallyDrop::new(g)),
                 Err(e) => {
                     eprintln!("[input] gamepads unavailable: {e}");
                     None

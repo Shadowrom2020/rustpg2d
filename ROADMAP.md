@@ -113,7 +113,7 @@ Cross build in a Debian container with MinGW-w64; the editor's `exportall` wrote
 exported `demo-quest.exe` ran under Wine 11 (Mesa software GL): title screen, new game, intro,
 quick save in `%APPDATA%\demo-quest\saves`, clean quit. Windows clippy clean.
 
-### [ ] Editor on Windows — `feature/editor-windows` (follows *Windows export*)
+### [x] Editor on Windows — `feature/editor-windows` (follows *Windows export*)
 
 **Goal.** The editor itself runs on Windows, with play-test, export and the asset library, so
 Windows creators get the whole toolkit; the release ships a Windows zip of editor + game +
@@ -148,13 +148,34 @@ example.
 - Known gaps noted in the README: no code signing (SmartScreen warning), gamepads through
   Windows.Gaming.Input (gilrs default), file dialogs native.
 
+**Decided while building.** The Windows build is **cross-compiled on Linux** with MinGW-w64
+(`x86_64-pc-windows-gnu`) in the Packages / Release jobs, so one job makes all downloads; the
+`windows-latest` job (MSVC: clippy + tests) only checks, on PRs into master and *Actions › CI › Run
+workflow*. `xtask-dist --windows-dir` writes `rustpg2d-X.Y.Z-windows-x86_64.zip` (top folder
+`rustpg2d-X.Y.Z/`: both exes, the Linux `rustpg2d-game` for Linux exports, `example_project/`
+without saves, LICENSE.txt, README.txt; CRLF; Unix zip attributes). `bundled_example` checks
+`example_project` next to the exe first. No `--engine-build FILE`: a GUI-subsystem program still
+writes to a redirected stdout, so the probe works as before; `icon::attach_parent_console()` only
+attaches when stdout isn't redirected (logs in a terminal). AppImage / Flatpak are hidden in the
+export dialog unless the host is Linux; `flatpak_bundle` refuses elsewhere, symlinks / the
+executable bit are `cfg(unix)`. Window icons: `engine/src/icon.rs` (`hero_icon` / `emblem` moved
+from packaging, `window_icon` = 16/32/64 px area average). Wheel: one notch is 120 on Windows,
+egui's line scroll speed is divided by it (the game and canvas use only the sign). Modifiers: egui's
+`ctrl` is Ctrl on Windows, so no change (`command` is the macOS item's business). Also found:
+`std::fs::copy` returns 0 under Wine (sizes come from metadata now), RON wrote CRLF on Windows
+(LF everywhere now), and zips made on Windows dropped the Unix mode (`System::Unix` always).
+
 **Touch points.** `engine/src/{paths (new),settings,release,library,build.rs}`, `editor/src/
 {files,app,export,library_window,main,canvas,pixel,database}.rs`, `packaging/src/lib.rs`,
 `game/src/main.rs`, `xtask/src/dist.rs`, `.github/workflows/*`, `.gitattributes`, README.
 
-**Verify.** CI green on `windows-latest`; the zip from CI runs on a Windows machine or VM: the
-editor opens the bundled example, play-tests it, exports a Windows game; `cargo test` on
-Windows. From Linux: Wine run of the exes for a `status` smoke test if Wine is installed.
+**Verify (done, except a real Windows machine).** The workspace's tests cross-compiled and run
+under Wine 11 (all pass after the CRLF / zip / ELF-only fixes); the zip from `cargo xtask-dist`
+unpacked and run under Wine: welcome screen, *Example project* (copied to
+`%USERPROFILE%\rustpg2d\example_project`), map view, F5 play-test (`rustpg2d-game.exe`, `status`
+from the child), *Export* for Windows and Linux (the Linux zip keeps mode 0755), the library in
+`%LOCALAPPDATA%\rustpg2d\library`. CI: `windows-latest` clippy + tests, Packages with the zip.
+Not checked: a real Windows 10 / 11 (SmartScreen, native file dialogs, gamepads, high-DPI).
 
 ### [ ] macOS builds — `feature/macos`
 

@@ -1,5 +1,5 @@
-# A merge into master is a release (AGENTS.md): build the AppImage and Flatpak of the R(ust)PG2D
-# toolkit, tag the merge commit vX.Y.Z (the version in Cargo.toml, checked by CI before the
+# A merge into master is a release (AGENTS.md): build the AppImage, Flatpak and Windows zip of
+# the R(ust)PG2D toolkit, tag the merge commit vX.Y.Z (the version in Cargo.toml, checked by CI before the
 # merge), publish a GitHub Release with the CHANGELOG section and the packages, and open the
 # pull request that merges master back into develop.
 # Run by hand (Actions > Release > Run workflow, any branch) it only builds the packages and
@@ -72,7 +72,7 @@ jobs:
           git push origin "v$V"
           flags=()
           if [ "$PRE" = "true" ]; then flags+=(--prerelease); fi
-          gh release create "v$V" dist/*.AppImage dist/*.flatpak dist/SHA256SUMS \
+          gh release create "v$V" dist/*.AppImage dist/*.flatpak dist/*-windows-x86_64.zip dist/SHA256SUMS \
             --title "R(ust)PG2D $V" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag "${flags[@]}"
       - name: Back-merge pull request (master into develop)
         if: github.event_name == 'push' && steps.v.outputs.exists == 'false'

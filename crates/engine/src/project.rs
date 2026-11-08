@@ -253,7 +253,8 @@ pub fn write_ron<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let cfg = ron::ser::PrettyConfig::default().struct_names(false);
+    // LF on every platform: projects look the same written on Windows (git, diffs).
+    let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
     let s = ron::ser::to_string_pretty(value, cfg)?;
     std::fs::write(path, s).with_context(|| format!("writing {}", path.display()))
 }

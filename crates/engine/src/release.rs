@@ -233,14 +233,17 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     for rel in &files {
         let (src, dst) = (project.root.join(rel), data.join(rel));
         std::fs::create_dir_all(dst.parent().unwrap())?;
-        bytes += std::fs::copy(&src, &dst).with_context(|| format!("copying {rel}"))?;
+        std::fs::copy(&src, &dst).with_context(|| format!("copying {rel}"))?;
+        // (Sizes from the files: `copy`'s return value is 0 under Wine.)
+        bytes += std::fs::metadata(&dst).map_or(0, |m| m.len());
     }
     // The bundled project carries the chosen name (window title, save folder).
     let mut cfg = project.config.clone();
     cfg.name = name.trim().to_string();
     crate::project::write_ron(&data.join("project.ron"), &cfg)?;
     let exe = folder.join(platform.exe(&slug));
-    bytes += std::fs::copy(game_binary, &exe).context("copying the game executable")?;
+    std::fs::copy(game_binary, &exe).context("copying the game executable")?;
+    bytes += std::fs::metadata(&exe).map_or(0, |m| m.len());
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -275,6 +278,8 @@ fn write_zip(folder: &Path, slug: &str, exe_name: &str, path: &Path) -> Result<P
         let exe = rel == exe_name;
         let opts = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated)
+            // Unix attributes also when zipped on Windows: Linux players need the executable bit.
+            .system(zip::System::Unix)
             .unix_permissions(if exe { 0o755 } else { 0o644 })
             .large_file(std::fs::metadata(&p)?.len() >= u32::MAX as u64);
         zw.start_file(format!("{slug}/{rel}"), opts)?;

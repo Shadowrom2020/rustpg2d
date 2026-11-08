@@ -195,6 +195,12 @@ callbacks). `say(SELF, "…")` shows the owner's name as the speaker.
   - `{sir|madam}` — the first word for a male player character, the second for a female one
     (`{his|her}`, `{hero|heroine}`, …);
   - `{name}` — the value of the variable `name`, e.g. `"You have defeated {slimes_defeated} slimes."`.
+- **Translations**: the texts of `say(…)` and `choice(…)` are looked up in the game's language
+  files (`lang/<code>.ron`, *Database › Project › Languages*) like dialogs in triggers, by the
+  exact text before the placeholders are filled in. Write a text as **one string with
+  placeholders**, `say("Mira", "Hi, {player}! You came {visits} times.")`, not glued together
+  (`"Hi, " + player_name() + "!"`): a glued text only exists while the game runs, so the
+  translation template can't list it and no translation matches it.
 
 ## Writing scripts in the editor
 

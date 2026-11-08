@@ -10,6 +10,7 @@ use crate::defs::{Pose, SpriteRef};
 use crate::entity::Facing;
 use crate::events::runner::{conditions_met, ActionCtx};
 use crate::events::{Action, CmpOp, Cond, Condition, GameEvent};
+use super::text::{draw_text, measure_text};
 
 /// Seconds of the sleep sequence: fading out, dark, fading in.
 const FADE_OUT: f32 = 0.8;

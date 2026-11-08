@@ -7,6 +7,7 @@ use macroquad::prelude::*;
 use super::input::{self, Act, Pad};
 use super::{ui::panel, Arrival, Fade, Game, FADE_TIME};
 use crate::settings::{Settings, TEXT_SPEEDS, ZOOMS};
+use super::text::{draw_text, measure_text};
 
 const W: f32 = 520.0;
 const ROW_H: f32 = 40.0;
@@ -55,13 +56,15 @@ enum Opt {
     TextSpeed,
     /// Screen shake and the hurt flash.
     ScreenEffects,
+    /// The game's language (its own and its translations).
+    Language,
     /// Opens the Controls page.
     Controls,
     Reset,
     Back,
 }
 
-const OPTS: [Opt; 12] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::Controls, Opt::Reset, Opt::Back];
+const OPTS: [Opt; 13] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::Language, Opt::Controls, Opt::Reset, Opt::Back];
 
 struct SaveInfo {
     slot: String,
@@ -586,6 +589,7 @@ impl Game {
             Opt::Ambience => "Ambience volume",
             Opt::TextSpeed => "Text speed",
             Opt::ScreenEffects => "Shake & flash",
+            Opt::Language => "Language",
             Opt::Controls => "Controls...",
             Opt::Reset => "Reset to defaults",
             Opt::Back => "Back",
@@ -606,6 +610,7 @@ impl Game {
             Opt::Effects => pct(s.effects_volume),
             Opt::Ambience => pct(s.ambience_volume),
             Opt::TextSpeed => TEXT_SPEEDS.iter().find(|t| t.0 == s.text_speed).map_or("Normal", |t| t.1).to_string(),
+            Opt::Language => self.languages.iter().find(|(c, _)| *c == self.lang_code).map_or_else(|| self.lang_code.clone(), |(_, n)| n.clone()),
             Opt::Controls | Opt::Reset | Opt::Back => String::new(),
         }
     }
@@ -633,8 +638,14 @@ impl Game {
                 let speeds: Vec<f32> = TEXT_SPEEDS.iter().map(|t| t.0).collect();
                 s.text_speed = step(&speeds, s.text_speed);
             }
-            // The keys have their own reset on the Controls page.
-            Opt::Reset => *s = Settings { keys: std::mem::take(&mut s.keys), ..Settings::default() },
+            Opt::Language => {
+                let n = self.languages.len().max(1) as i32;
+                let i = self.languages.iter().position(|(c, _)| *c == self.lang_code).unwrap_or(0) as i32;
+                let j = if wrap { (i + dir).rem_euclid(n) } else { (i + dir).clamp(0, n - 1) };
+                s.language = self.languages.get(j as usize).map(|(c, _)| c.clone());
+            }
+            // The keys and the language have their own ways back.
+            Opt::Reset => *s = Settings { keys: std::mem::take(&mut s.keys), language: s.language.take(), ..Settings::default() },
             Opt::Controls | Opt::Back => return,
         }
         self.apply_settings();
@@ -684,6 +695,11 @@ impl Game {
     /// Applies the options: volumes, fullscreen, keys (zoom, FPS and text speed are read where used).
     pub(super) fn apply_settings(&mut self) {
         input::set_bindings(&self.settings.keys);
+        if let Some(code) = self.settings.language.clone() {
+            if code != self.lang_code {
+                self.set_language(&code);
+            }
+        }
         let s = self.settings.clone();
         self.audio.set_volumes(s.effects(), s.music());
         self.audio.set_ambience_volume(s.ambience());
@@ -938,7 +954,7 @@ impl Game {
         let (p, rects) = self.menu_layout(rows.len());
         if self.menu.title {
             // Big game title above the menu.
-            let name = &self.project.config.name;
+            let name = &crate::lang::tr(&self.project.config.name);
             let size = 64u16;
             let tw = measure_text(name, None, size, 1.0).width;
             let y = (p.y - 60.0).max(80.0);

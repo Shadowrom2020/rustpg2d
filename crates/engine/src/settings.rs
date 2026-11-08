@@ -27,11 +27,15 @@ pub struct Settings {
     /// their default keys.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub keys: std::collections::BTreeMap<String, Vec<String>>,
+    /// The language the player chose (code; None = the system's language if the game has it,
+    /// else the game's own).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, keys: Default::default() }
+        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, keys: Default::default(), language: None }
     }
 }
 

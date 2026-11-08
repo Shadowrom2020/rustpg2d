@@ -237,6 +237,10 @@ pub struct Editor {
     pub audio: Audio,
     /// Inline "rename map" field in the map properties.
     pub map_rename: Option<String>,
+    /// Play-tests start in this language (`--lang`; "" = the player's / system's choice).
+    pub play_lang: String,
+    /// The last translation template export's result (Database › Project › Languages).
+    pub lang_msg: Option<String>,
     pub tex: Textures,
     pub tex_dirty: bool,
     pub doc: Option<MapDoc>,
@@ -376,6 +380,8 @@ impl Editor {
             assets,
             audio,
             map_rename: None,
+            play_lang: String::new(),
+            lang_msg: None,
             tex: Textures::default(),
             tex_dirty: true,
             doc: None,
@@ -860,6 +866,34 @@ impl Editor {
         changed
     }
 
+    /// Writes `lang/<code>.ron` with every content text of the project (saving everything first,
+    /// so the maps' texts are current): existing translations are kept, new texts are added
+    /// empty. Adds the language to the project's translations. Returns a summary.
+    pub fn export_translation(&mut self, code: &str) -> Result<String, String> {
+        let code = code.trim().to_lowercase();
+        if code.len() < 2 || !code.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return Err(format!("\"{code}\" is not a language code (like de, fr or pt-br)"));
+        }
+        if code == self.project.config.language {
+            return Err(format!("{code} is the game's own language"));
+        }
+        if !self.project.config.languages.contains(&code) {
+            self.project.config.languages.push(code.clone());
+            self.defs_dirty = true;
+        }
+        self.save_all();
+        let existing = rustpg2d_engine::lang::load_file(&self.project.root, &code);
+        let (file, unused) = rustpg2d_engine::lang::template(&self.project, &code, existing);
+        let path = self.project.root.join("lang").join(format!("{code}.ron"));
+        rustpg2d_engine::project::write_ron(&path, &file).map_err(|e| format!("{e:#}"))?;
+        let open = file.texts.values().filter(|v| v.is_empty()).count();
+        let mut msg = format!("lang/{code}.ron: {} texts, {open} not translated yet", file.texts.len());
+        if !unused.is_empty() {
+            msg += &format!(", {} no longer used (kept, at the end of the list in your editor: delete them by hand)", unused.len());
+        }
+        Ok(msg)
+    }
+
     pub fn play(&mut self, here: bool) {
         self.play_with(here, None);
     }
@@ -886,6 +920,9 @@ impl Editor {
         }
         if let Some(f) = cutscene {
             cmd.args(["--cutscene", f]);
+        }
+        if !self.play_lang.is_empty() {
+            cmd.args(["--lang", &self.play_lang]);
         }
         if here {
             if let Some(doc) = &self.doc {

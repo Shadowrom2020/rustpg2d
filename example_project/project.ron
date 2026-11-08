@@ -71,4 +71,8 @@
     ),
     dialog_portraits: true,
     companion_down: StaysDown,
+    language: "en",
+    languages: [
+        "de",
+    ],
 )

@@ -8,6 +8,7 @@ use macroquad::prelude::*;
 use super::input::{self, Act};
 use super::Game;
 use crate::state::Order;
+use super::text::{draw_text, measure_text};
 
 /// The open menu.
 #[derive(Clone, Debug)]

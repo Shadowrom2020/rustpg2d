@@ -1,6 +1,6 @@
 //! R(ust)PG2D game runner.
 //!
-//! Usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--dev]
+//! Usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--dev] [--lang CODE]
 //!
 //! Without PROJECT_DIR a released game runs the project in `data/` next to the executable
 //! (saves in `~/.local/share/<game>/saves`); otherwise `example_project` is used.
@@ -40,7 +40,7 @@ fn root_arg() -> Option<PathBuf> {
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
-            "--map" | "--spawn" | "--pos" | "--cutscene" => {
+            "--map" | "--spawn" | "--pos" | "--cutscene" | "--lang" => {
                 args.next();
             }
             s if s.starts_with('-') => {}
@@ -61,6 +61,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
             "--map" => start.map = Some(value()?),
             "--no-title" => no_title = true,
             "--dev" => start.dev = true,
+            "--lang" => start.lang = Some(value()?),
             "--engine-build" => {}
             "--spawn" => start.spawn = Some(value()?),
             "--cutscene" => start.cutscene = Some(value()?),
@@ -70,7 +71,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
                 start.pos = Some(vec2(x.trim().parse()?, y.trim().parse()?));
             }
             "-h" | "--help" => {
-                println!("usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--cutscene FUNCTION] [--dev]");
+                println!("usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--cutscene FUNCTION] [--dev] [--lang CODE]");
                 std::process::exit(0);
             }
             s if s.starts_with('-') => bail!("unknown option {s}"),

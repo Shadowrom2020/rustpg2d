@@ -11,6 +11,7 @@ use super::{ui::panel, Game, RtEntity};
 use crate::entity::EntityKind;
 use crate::map::{Edge, ZoneKind};
 use crate::render;
+use super::text::{draw_text, measure_text};
 
 /// Zoom levels in screen pixels per tile.
 const ZOOMS: [f32; 7] = [4.0, 6.0, 8.0, 12.0, 16.0, 24.0, 32.0];

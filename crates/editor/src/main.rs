@@ -458,6 +458,13 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Err(e) => println!("[export] error: {e}"),
             }
         }
+        // langtemplate CODE: Database › Project › Languages › Export translation template
+        "langtemplate" => match ed.export_translation(arg(1)) {
+            Ok(m) => println!("[lang] {m}"),
+            Err(e) => println!("[lang] error: {e}"),
+        },
+        // playlang CODE|-: the play-test language
+        "playlang" => ed.play_lang = if arg(1) == "-" { String::new() } else { arg(1).to_string() },
         // exportdialog [appimage] [flatpak]: opens File → Export game with those packages ticked
         // example: the welcome screen's "Example project" (packaged R(ust)PG2D only)
         "example" => ed.open_example(),

@@ -2004,6 +2004,9 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     });
     ui.weak("Tile size changes need a restart of the editor.");
     ui.separator();
+    languages_form(ed, ui);
+    let c = &mut ed.project.config;
+    ui.separator();
     ui.heading("Skills & magic");
     {
         let s = &mut c.skills;
@@ -2887,4 +2890,75 @@ fn spell_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SpellDef, cx: 
     ui.heading("Icon");
     widgets::sprite_field(ui, "spell_icon", &mut d.icon, cx.tex, cx.assets, cx.db, false);
     ui.weak("Spells are learned from items with 'Teaches spell' (Database › Items) or the 'Learn spell' action; the player casts them from the Magic screen (K) or the quick bar (1-8).");
+}
+
+/// *Languages* of the Project form: the game's own language, its translations (`lang/<code>.ron`,
+/// see `rustpg2d_engine::lang`), template export and the play-test language.
+fn languages_form(ed: &mut Editor, ui: &mut egui::Ui) {
+    use rustpg2d_engine::lang;
+    ui.heading("Languages");
+    ui.weak("The game is written in one language; translations are files lang/CODE.ron in the project (original text -> translation). Export a template, fill in the translations (any text editor), and players choose the language in Options. R(ust)PG2D's own texts (menus, windows) come translated for German.");
+    let mut export = None;
+    let mut remove = None;
+    egui::Grid::new("langs").num_columns(2).show(ui, |ui| {
+        ui.label("Written in");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut ed.project.config.language).desired_width(50.0)).on_hover_text("Language code of the texts in the project (en, de, fr, ...)");
+            ui.weak(lang::language_name(&ed.project.config.language));
+        });
+        ui.end_row();
+        for (k, code) in ed.project.config.languages.clone().iter().enumerate() {
+            ui.label(if k == 0 { "Translations" } else { "" });
+            ui.horizontal(|ui| {
+                let file = lang::load_file(&ed.project.root, code);
+                let (n, open) = file.as_ref().map_or((0, 0), |f| (f.texts.len(), f.texts.values().filter(|v| v.is_empty()).count()));
+                let name = file.as_ref().map(|f| f.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| lang::language_name(code));
+                ui.label(format!("{code}  {name}"));
+                if file.is_some() {
+                    ui.weak(format!("{} of {n} translated", n - open));
+                } else {
+                    ui.colored_label(egui::Color32::from_rgb(240, 190, 90), "no lang file yet");
+                }
+                if ui.small_button(ui::t(ph::EXPORT, "Update template")).on_hover_text(format!("Writes lang/{code}.ron with every text of the game: translations already there stay, new texts are added empty")).clicked() {
+                    export = Some(code.clone());
+                }
+                if ui.small_button(ph::TRASH).on_hover_text("No longer offer this language (the file stays)").clicked() {
+                    remove = Some(k);
+                }
+            });
+            ui.end_row();
+        }
+        ui.label("Add");
+        ui.horizontal(|ui| {
+            let id = egui::Id::new("new_lang_code");
+            let mut code: String = ui.data_mut(|d| d.get_temp(id).unwrap_or_default());
+            ui.add(egui::TextEdit::singleline(&mut code).desired_width(50.0).hint_text("de"));
+            if ui.button(ui::t(ph::EXPORT, "Export translation template")).on_hover_text("Adds the language and writes lang/CODE.ron with every text of the game to translate").clicked() && !code.trim().is_empty() {
+                export = Some(code.clone());
+                code.clear();
+            }
+            ui.data_mut(|d| d.insert_temp(id, code));
+        });
+        ui.end_row();
+        ui.label("Play-test in");
+        let mut options = vec![(String::new(), "the player's choice".to_string())];
+        options.extend(lang::offered(&ed.project.root, &ed.project.config).into_iter().map(|(c, n)| (c.clone(), format!("{c} {n}"))));
+        let current = options.iter().find(|(c, _)| *c == ed.play_lang).map_or_else(|| ed.play_lang.clone(), |(_, n)| n.clone());
+        egui::ComboBox::from_id_salt("play_lang").selected_text(current).show_ui(ui, |ui| {
+            for (c, n) in options {
+                ui.selectable_value(&mut ed.play_lang, c, n);
+            }
+        });
+        ui.end_row();
+    });
+    if let Some(m) = &ed.lang_msg {
+        ui.weak(m);
+    }
+    if let Some(k) = remove {
+        ed.project.config.languages.remove(k);
+    }
+    if let Some(code) = export {
+        let r = ed.export_translation(&code);
+        ed.lang_msg = Some(r.unwrap_or_else(|e| format!("Not exported: {e}")));
+    }
 }

@@ -153,6 +153,7 @@ pub mod web {
         fn rustpg2d_storage_dump() -> usize;
         fn rustpg2d_storage_take(dest: *mut u8);
         fn rustpg2d_query_dump() -> usize;
+        fn rustpg2d_language_dump() -> usize;
         fn rustpg2d_query_take(dest: *mut u8);
     }
 
@@ -206,6 +207,18 @@ pub mod web {
                 }
             }
         });
+    }
+
+    /// The browser's language (`navigator.language`, e.g. "de-DE").
+    pub fn browser_language() -> String {
+        // SAFETY: as in `mount`.
+        let raw = unsafe {
+            let len = rustpg2d_language_dump();
+            let mut buf = vec![0u8; len];
+            rustpg2d_query_take(buf.as_mut_ptr());
+            buf
+        };
+        String::from_utf8_lossy(&raw).into_owned()
     }
 
     /// The page's query string without `?`, URL-decoded (`?autoplay=…` drives automated runs).

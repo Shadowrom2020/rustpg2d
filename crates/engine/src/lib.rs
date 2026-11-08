@@ -13,6 +13,7 @@ pub mod fog;
 pub mod glibc_compat;
 pub mod imageio;
 pub mod inventory;
+pub mod lang;
 pub mod legacy;
 // Asset library, old-project migration and game export: editor features (zip), not in the web game.
 #[cfg(not(target_arch = "wasm32"))]

@@ -9,7 +9,7 @@ use super::input::{self, Act};
 use super::{ui::panel, Game, Source};
 use crate::events::runner::ActionHost;
 use crate::defs::EquipSlot;
-use crate::entity::Facing;
+
 use crate::events::GameEvent;
 
 /// Misses allowed before a lock holds.
@@ -491,14 +491,7 @@ impl Game {
     /// Where the fishing line leaves the rod (world pixels): about the tip of a rod held in the
     /// right hand of the idle frame (32 x 48 character layout, scaled to the tile size).
     fn rod_tip(&self) -> Vec2 {
-        let k = self.ts() / 32.0;
-        let off = match self.player.facing {
-            Facing::Down => vec2(-13.0, 0.0),
-            Facing::Up => vec2(14.0, -42.0),
-            Facing::Right => vec2(13.0, -36.0),
-            Facing::Left => vec2(-13.0, -36.0),
-        };
-        self.player.pos + off * k
+        super::activities::rod_tip(self.player.pos, self.player.facing, self.ts() / 32.0)
     }
 }
 

@@ -35,6 +35,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   furniture in use; talking to it talks to its user. New condition **Pose** (sitting / lying /
   at furniture); a sleeper without a matching line shows "… is asleep.". Example: Tomas rests on
   the west bench in the afternoon and sleeps in the elder's guest bed at night.
+- **Activities**: characters can be seen fishing, hoeing, hammering, chopping, mining, sweeping
+  or reading at a schedule stop or all day where they are placed, with a tool in the hand and
+  small effects (line and bobber, soil, sparks, chips, dust, a book); talking interrupts them for
+  a moment. Example: Tomas fishes at the big pond in the evening, the elder reads by the well,
+  and a smith and a farmer work in the Workshop.
 - Example: **the Workshop**, a new map north of the village (a road through the tree line): a
   crafting testing ground with a supply chest of tools, a herb garden with an alchemy table, a
   quarry with every vein and a smelter, a bed to pass the night, and signs.

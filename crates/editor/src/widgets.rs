@@ -24,6 +24,29 @@ pub struct Textures {
 /// An egui image of RGBA pixels, shrunk by a whole factor (nearest neighbour) when a side is
 /// larger than the GPU allows (egui panics on such textures). Callers compute UVs from the
 /// original image size, so a shrunk texture still maps right, just less sharp.
+/// An activity (fishing, hammering...) chooser with its tool: "Nothing" = none.
+pub fn activity_ui(ui: &mut Ui, id: &str, act: &mut Option<rustpg2d_engine::entity::Activity>, items: &[String]) {
+    use rustpg2d_engine::entity::{Activity, ActivityKind};
+    let shown = act.as_ref().map_or("nothing", |a| a.kind.label());
+    egui::ComboBox::from_id_salt((id, "kind")).width(96.0).selected_text(shown).show_ui(ui, |ui| {
+        if ui.selectable_label(act.is_none(), "nothing").clicked() {
+            *act = None;
+        }
+        for k in ActivityKind::ALL {
+            if ui.selectable_label(act.as_ref().is_some_and(|a| a.kind == k), k.label()).clicked() {
+                let tool = act.as_ref().map(|a| a.tool.clone()).unwrap_or_default();
+                *act = Some(Activity { kind: k, tool });
+            }
+        }
+    })
+    .response
+    .on_hover_text("Seen doing it there: it stays put facing its way and works in place (fishing line, sparks, soil...). Only the look: nothing is produced.");
+    if let Some(a) = act {
+        // The item in its hand (shown if it has a held sprite), e.g. fishing_rod; empty = none.
+        suggest(ui, &format!("{id}/tool"), &mut a.tool, items, 76.0);
+    }
+}
+
 pub fn color_image(ctx: &egui::Context, w: usize, h: usize, px: &[u8]) -> egui::ColorImage {
     let max = ctx.input(|i| i.max_texture_side).max(256);
     let k = w.max(h).div_ceil(max).max(1);

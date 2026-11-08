@@ -340,7 +340,7 @@ door; the village at 06:57 → he comes out of the elder's door at 07:00 and wal
 stop; F5 at 22:00, F9 → asleep again. Editor: the two-line stop rows (screenshot), `stop 1 map
 shop` / `tile`. Unit test: old stops, `map_of`, the RON round trip.
 
-### [ ] NPC routines: visible activities — `feature/activities` (follows the trades and *Schedules across maps*)
+### [x] NPC routines: visible activities — `feature/activities` (follows the trades and *Schedules across maps*)
 
 **Goal.** Characters are seen fishing, hoeing, hammering, chopping, sweeping or reading, without
 producing anything.
@@ -359,15 +359,31 @@ producing anything.
   *Custom* a creator's sheet. Sounds within a few tiles at the effects volume.
 - *Behaviour*: talking pauses it (faces the player, then back to work); nothing is saved.
 
+**Decided while building.** `Activity { kind, tool }` without its own facing (the stop's
+facing, or how the character is placed: `RtEntity.act_facing`); no *Custom* kind (a creator's
+own sheet) yet. `runtime/activities.rs`: `current_activity` (a reached stop's activity when the
+schedule is on, else the placed character's; not on furniture, while away or for companions),
+`activity_step` keeps it still in `update_entities` (also during the talk pause, so a wandering
+villager doesn't walk off), `activity_equipment` puts the tool in the weapon hand,
+`activity_frame` cycles the walk frames per stroke, `draw_activities` draws the effects after the
+entities (facing up, the anvil's sparks land beyond the head). Talking sets `act_pause` (5 s).
+The anvil / axe / pickaxe stroke plays the hit sound within 4 tiles. `status()`:
+`activities=["name:kind@x,y"]`. Example: the elder reads all day, Tomas fishes 17:30-20:30 at
+(9,24), the Workshop's smith (anvil) and farmer (field) are new villagers placed there.
+
 **Touch points.** `entity.rs`, `map/io.rs` (Meta), new `runtime/activities.rs`,
 `runtime/{schedule,minigame,paperdoll}.rs`, editor `app.rs` / `widgets.rs`, gen_example, README.
 
 **Example.** Tomas fishes at the pond in the afternoon, the blacksmith hammers at the anvil,
 a farmer hoes the garden plots, the elder reads by the well.
 
-**Verify.** `settime 16` → Tomas with `activity=fish` in `schedule=` and the rod in hand, bobber
-on the water (screenshot); talking turns him and he goes back; the editor rows show and change
-the activity (screenshot).
+**Verify (done).** Autoplay on a scratch copy: the village at 18:00 → `activities=["elder:read@26,15",
+"tomas:fish@9,24"]`, a screenshot of Tomas with the rod, the line and the bobber on the pond and
+one of the elder with an open book; right-click / E on Tomas → he leaves the list while talking
+and is back after the pause; the Workshop → `smith:craft@26,11`, `farmer:farm@6,16` with
+screenshots of the sparks on the anvil and the farmer's walk cycle by his plot. Editor: the
+*Activity* section and the stops' *doing* choice (screenshot). Unit test: activities in RON, the
+rod tip.
 
 ## 0.8.0 — Scenery and sound
 

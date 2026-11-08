@@ -36,6 +36,15 @@ struct Renamer<'a> {
 
 impl Renamer<'_> {
     /// A placed entity (on a map or inside a structure).
+    fn crop(&mut self, c: &mut Option<crate::defs::Crop>) {
+        if let Some(c) = c {
+            for s in &mut c.stages {
+                self.fix(RefKind::Sheet, &mut s.sprite.sheet);
+            }
+            self.loot(&mut c.harvest);
+        }
+    }
+
     fn portraits(&mut self, p: &mut SpriteRef, moods: &mut std::collections::BTreeMap<String, SpriteRef>) {
         self.fix(RefKind::Sheet, &mut p.sheet);
         for s in moods.values_mut() {
@@ -116,6 +125,9 @@ impl Renamer<'_> {
             self.fix(RefKind::Item, &mut s.item);
         }
         self.fix(RefKind::Skill, &mut d.skill);
+        for q in &mut d.quality {
+            self.fix(RefKind::Item, &mut q.result);
+        }
     }
 
     fn structure(&mut self, d: &mut crate::defs::StructureDef) {
@@ -230,6 +242,7 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
         }
         r.triggers(&mut d.on_use);
         r.weapon(&mut d.weapon);
+        r.crop(&mut d.crop);
     }
     for d in &mut db.props {
         r.fix(RefKind::Sheet, &mut d.sprite.sheet);
@@ -240,6 +253,9 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
         r.container(&mut d.container);
         r.lock(&mut d.lock);
         r.use_spot(&mut d.use_spot);
+        if let Some(g) = &mut d.gather {
+            r.loot(&mut g.loot);
+        }
     }
     for d in &mut db.characters {
         r.triggers(&mut d.triggers);
@@ -330,6 +346,7 @@ pub fn refs_of_item(d: &crate::defs::ItemDef) -> Vec<(RefKind, String)> {
     r.triggers(&mut d.on_use);
     r.weapon(&mut d.weapon);
     r.fix(RefKind::Spell, &mut d.teaches);
+    r.crop(&mut d.crop);
     r.found.unwrap_or_default()
 }
 
@@ -366,6 +383,9 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
     r.container(&mut d.container);
     r.lock(&mut d.lock);
     r.use_spot(&mut d.use_spot);
+    if let Some(g) = &mut d.gather {
+        r.loot(&mut g.loot);
+    }
     r.found.unwrap_or_default()
 }
 
@@ -498,6 +518,8 @@ mod tests {
         held: String::new(),
         tool: String::new(),
         use_on: Default::default(),
+        crop: None,
+        food: false,
         });
         let mut cfg = ProjectConfig {
             name: "p".into(),

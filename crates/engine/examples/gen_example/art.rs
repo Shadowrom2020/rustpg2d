@@ -1796,6 +1796,8 @@ pub fn clothing_item(id: &str, name: &str, description: &str, icon_sheet: &str, 
         held: String::new(),
         tool: String::new(),
         use_on: Default::default(),
+        crop: None,
+        food: false,
     }
 }
 
@@ -2076,6 +2078,255 @@ pub mod p {
     /// Chairs facing left / right (side views).
     pub const CHAIR_LEFT: u32 = 86;
     pub const CHAIR_RIGHT: u32 = 87;
+    /// Ore veins (row 11): rocks with copper, iron or silver ore, a gem vein, and the
+    /// broken rock a vein leaves when it is mined out.
+    pub const VEIN_COPPER: u32 = 88;
+    pub const VEIN_IRON: u32 = 89;
+    pub const VEIN_SILVER: u32 = 90;
+    pub const VEIN_GEM: u32 = 91;
+    pub const VEIN_EMPTY: u32 = 92;
+    /// Coal for the smelter (row 11), and plants picked by hand (row 11-12): a herb bush and a
+    /// mushroom patch, each also picked bare.
+    pub const VEIN_COAL: u32 = 93;
+    pub const HERB_BUSH: u32 = 94;
+    pub const HERB_BUSH_PICKED: u32 = 95;
+    pub const MUSHROOMS: u32 = 96;
+    pub const MUSHROOMS_PICKED: u32 = 97;
+    /// A smelter (crafting station: ore and coal into ingots), 1x2.
+    pub const SMELTER: u32 = 98;
+    /// An anvil on a tree-stump block (crafting station: ingots into weapons, armor, tools).
+    pub const ANVIL: u32 = 99;
+    /// Farming: a tilled soil plot (row 12) and three crops in three stages each - a sprout,
+    /// growing, ripe (wheat on row 12, carrots and pumpkins on row 14).
+    pub const SOIL: u32 = 100;
+    pub const WHEAT: u32 = 101;
+    pub const CARROT: u32 = 112;
+    pub const PUMPKIN: u32 = 115;
+    /// A cooking fire (row 14): burnt out, and lit.
+    pub const CAMPFIRE: u32 = 118;
+    pub const CAMPFIRE_LIT: u32 = 119;
+}
+
+/// The campfire: a ring of stones around logs, cold and burning.
+fn campfire(c: &mut Canvas) {
+    let n = TS as i32;
+    for (cell_id, lit) in [(p::CAMPFIRE, false), (p::CAMPFIRE_LIT, true)] {
+        let (x, y) = cell(cell_id);
+        c.at(x, y);
+        for k in 0..9 {
+            let a = k as f32 / 9.0 * std::f32::consts::TAU;
+            c.shade_disc(16.0 + a.cos() * 11.0, 24.0 + a.sin() * 5.0, 2.6, STONE);
+        }
+        c.stroke(9.0, 26.0, 23.0, 21.0, 1.8, hex(if lit { WOOD[1] } else { 0x2a2420 }));
+        c.stroke(9.0, 21.0, 23.0, 26.0, 1.8, hex(if lit { WOOD[2] } else { 0x3a322c }));
+        if lit {
+            for (k, col) in FIRE.iter().enumerate() {
+                let r = 6.5 - k as f32 * 1.2;
+                c.ellipse(16.0, 21.0 - k as f32 * 2.2, r * 0.8, r + 1.0, hex(*col));
+            }
+            c.px(13, 9, hex(FIRE[2]));
+            c.px(19, 7, hex(FIRE[3]));
+        } else {
+            c.rect(14, 22, 4, 2, hex(0x606060));
+        }
+        c.auto_outline(n, n, OUTLINE);
+    }
+}
+
+/// The soil plot and the crop stages (drawn over the plot, standing in its furrows).
+fn farming(c: &mut Canvas) {
+    let n = TS as i32;
+    let soil = [0x3a2414, 0x553620, 0x6e4a2c, 0x8a6240];
+    let (x, y) = cell(p::SOIL);
+    c.at(x, y);
+    c.shade_box(2, 14, 28, 16, soil);
+    for fy in [17, 22, 27] {
+        c.hline(3, fy, 26, hex(soil[0]));
+        c.hline(3, fy - 1, 26, hex(soil[3]));
+    }
+    c.auto_outline(n, n, OUTLINE);
+    let green = LEAF;
+    for stage in 0..3u32 {
+        // Wheat: sprouts, green stalks, golden ears.
+        let (x, y) = cell(p::WHEAT + stage);
+        c.at(x, y);
+        for (k, sx) in [6, 11, 16, 21, 26].into_iter().enumerate() {
+            let h = [4, 11, 16][stage as usize] + (k % 2) as i32;
+            let col = if stage == 2 { hex(0xc8a040) } else { hex(green[2]) };
+            c.vline(sx, 27 - h, h, col);
+            if stage == 2 {
+                c.shade_box(sx - 1, 27 - h - 4, 3, 5, [0x8a6a20, 0xc8a040, 0xe8c860, 0xfff0a0]);
+            } else if stage == 1 {
+                c.line(sx, 27 - h / 2, sx + 2, 27 - h / 2 - 3, hex(green[1]));
+            }
+        }
+        // Carrots: leaf tufts that grow, orange shoulders when ripe.
+        let (x, y) = cell(p::CARROT + stage);
+        c.at(x, y);
+        for sx in [8, 16, 24] {
+            let r = [2.0, 3.5, 4.5][stage as usize];
+            c.shade_disc(sx as f32, 24.0 - r, r, green);
+            c.shade_disc(sx as f32 - r * 0.6, 25.0 - r * 0.5, r * 0.6, green);
+            if stage == 2 {
+                c.shade_box(sx - 2, 24, 5, 3, [0x8a3a0a, 0xd86a1a, 0xf08a30, 0xffb870]);
+            }
+        }
+        // Pumpkins: a sprout, a vine with a small green fruit, a big orange one.
+        let (x, y) = cell(p::PUMPKIN + stage);
+        c.at(x, y);
+        match stage {
+            0 => {
+                c.vline(16, 21, 6, hex(green[2]));
+                c.shade_disc(14.0, 21.0, 2.5, green);
+                c.shade_disc(18.5, 20.0, 2.5, green);
+            }
+            1 => {
+                c.stroke(4.0, 25.0, 28.0, 23.0, 1.0, hex(green[1]));
+                for lx in [7.0, 15.0, 24.0] {
+                    c.shade_disc(lx, 21.0, 3.5, green);
+                }
+                c.shade_ellipse(17.0, 25.0, 4.0, 3.0, [0x2e5a24, 0x4a8a34, 0x6aaa4a, 0x9ad070]);
+            }
+            _ => {
+                c.stroke(3.0, 26.0, 29.0, 24.0, 1.0, hex(green[1]));
+                c.shade_disc(6.0, 21.0, 3.5, green);
+                c.shade_disc(27.0, 20.0, 3.5, green);
+                c.shade_ellipse(16.0, 22.0, 9.0, 7.0, [0x8a3a06, 0xd8661a, 0xf08a2a, 0xffbc6a]);
+                for rx in [12, 16, 20] {
+                    c.vline(rx, 16, 12, hex(0xb85010));
+                }
+                c.shade_box(15, 13, 3, 3, WOOD);
+            }
+        }
+    }
+    for k in 0..3 {
+        for id in [p::WHEAT, p::CARROT, p::PUMPKIN] {
+            let (x, y) = cell(id + k);
+            c.at(x, y);
+            c.auto_outline(n, n, OUTLINE);
+        }
+    }
+}
+
+/// The coal vein, the herb bush and the mushroom patch (full and picked), the smelter.
+fn gathering_props(c: &mut Canvas) {
+    let n = TS as i32;
+    // Coal: a rock with black glossy lumps.
+    let (x, y) = cell(p::VEIN_COAL);
+    c.at(x, y);
+    c.shade_ellipse(16.0, 19.0, 13.0, 11.0, STONE);
+    c.shade_ellipse(9.0, 24.0, 6.0, 5.0, STONE);
+    c.shade_ellipse(24.0, 24.0, 6.0, 5.0, STONE);
+    for (fx, fy, r) in [(11.0, 15.0, 3.0), (18.0, 19.0, 3.4), (21.0, 13.0, 2.4), (13.0, 23.0, 2.2)] {
+        c.shade_disc(fx, fy, r, [0x0c0c10, 0x1c1c24, 0x30303c, 0x6a6a7a]);
+    }
+    c.auto_outline(n, n, OUTLINE);
+    c.shadow(16.0, 30.0, 13.0, 1.5);
+    // Herb bush: leafy, with pale sprigs when full; bare twigs when picked.
+    for (cell_id, full) in [(p::HERB_BUSH, true), (p::HERB_BUSH_PICKED, false)] {
+        let (x, y) = cell(cell_id);
+        c.at(x, y);
+        if full {
+            for (bx, by, r) in [(10.0, 20.0, 7.0), (22.0, 20.0, 7.0), (16.0, 15.0, 8.0), (16.0, 23.0, 7.0)] {
+                c.shade_disc(bx, by, r, LEAF);
+            }
+            for (sx, sy) in [(9, 14), (15, 10), (22, 13), (19, 20), (12, 22)] {
+                c.rect(sx, sy, 2, 3, hex(0xb8e08a));
+                c.px(sx, sy - 1, hex(0xe8f8c8));
+            }
+        } else {
+            for (x0, y0, x1, y1) in [(16, 29, 16, 18), (16, 22, 10, 16), (16, 22, 22, 15), (16, 25, 21, 21)] {
+                c.line(x0, y0, x1, y1, hex(WOOD[1]));
+            }
+            c.shade_disc(10.0, 16.0, 2.0, LEAF);
+            c.shade_disc(22.0, 15.0, 2.0, LEAF);
+        }
+        c.auto_outline(n, n, OUTLINE);
+        c.shadow(16.0, 29.5, 10.0, 1.5);
+    }
+    // Mushroom patch: three red caps in moss; picked: the moss and stubs.
+    for (cell_id, full) in [(p::MUSHROOMS, true), (p::MUSHROOMS_PICKED, false)] {
+        let (x, y) = cell(cell_id);
+        c.at(x, y);
+        c.shade_ellipse(16.0, 26.0, 12.0, 4.0, [0x1d3a18, 0x2e5a24, 0x447a34, 0x6a9a50]);
+        for (mx, my, s) in [(10.0, 22.0, 1.0), (19.0, 20.0, 1.3), (24.0, 24.0, 0.8)] {
+            c.shade_box((mx - 1.0) as i32, (my + 1.0) as i32, 3, (5.0 * s) as i32, [0xbcaaa4, 0xd7ccc8, 0xefebe9, 0xffffff]);
+            if full {
+                c.shade_ellipse(mx + 0.5, my, 5.0 * s, 3.5 * s, [0x7a1010, 0xb71c1c, 0xe53935, 0xff8a80]);
+                c.px(mx as i32 - 1, (my - 1.0) as i32, hex(0xffffff));
+                c.px(mx as i32 + 2, my as i32, hex(0xffffff));
+            }
+        }
+        c.auto_outline(n, n, OUTLINE);
+    }
+    // Smelter (1x2): a stone furnace with a glowing mouth and a chimney.
+    let (x, y) = cell(p::SMELTER);
+    c.at(x, y);
+    c.shade_box(12, 2, 8, 22, STONE); // chimney
+    c.rect(11, 1, 10, 3, hex(STONE[0]));
+    c.shade_box(4, 22, 24, 40, STONE); // body
+    c.rrect(4, 20, 24, 6, 2, hex(STONE[2]));
+    for (bx, by) in [(6, 30), (18, 30), (10, 40), (22, 44), (6, 52), (16, 54)] {
+        c.hline(bx, by, 6, hex(STONE[0]));
+    }
+    // The fire in its mouth.
+    c.rrect(9, 40, 14, 14, 4, hex(0x1a0c06));
+    for (k, col) in FIRE.iter().enumerate().skip(1) {
+        let r = 6.0 - k as f32 * 1.1;
+        c.ellipse(16.0, 50.0 - k as f32, r + 1.0, r, hex(*col));
+    }
+    c.auto_outline(n, 2 * n, OUTLINE);
+    c.shadow(16.0, 62.5, 13.0, 1.5);
+    // Anvil: an iron horn-and-face block on a wooden stump.
+    let (x, y) = cell(p::ANVIL);
+    c.at(x, y);
+    c.shade_box(9, 20, 14, 10, WOOD); // stump
+    c.hline(9, 20, 14, hex(WOOD[3]));
+    c.shade_box(12, 15, 8, 5, IRON); // waist
+    c.shade_box(5, 9, 22, 6, [0x24242c, 0x3c3c48, 0x5c5c6a, 0x8a8a98]); // face
+    c.hline(5, 9, 22, hex(0xb0b0bc));
+    c.stroke(5.0, 11.0, 1.5, 12.5, 2.2, hex(0x3c3c48)); // horn
+    c.auto_outline(n, n, OUTLINE);
+    c.shadow(16.0, 30.0, 11.0, 1.5);
+}
+
+/// Ore veins: a rock with ore flecks in the vein's color, and the mined-out rubble.
+fn veins(c: &mut Canvas) {
+    let n = TS as i32;
+    let ores: [(u32, [u32; 4]); 4] = [
+        (p::VEIN_COPPER, [0x7a3e1a, 0xb8642c, 0xe0904a, 0xffc890]),
+        (p::VEIN_IRON, [0x4a3a36, 0x7a6058, 0xa88a7e, 0xd8c4b8]),
+        (p::VEIN_SILVER, [0x6c7480, 0xa8b2be, 0xd8e0ea, 0xffffff]),
+        (p::VEIN_GEM, [0x6a0e2a, 0xb01e48, 0xe8406e, 0xffa0c0]),
+    ];
+    for (cell_id, ore) in ores {
+        let (x, y) = cell(cell_id);
+        c.at(x, y);
+        c.shade_ellipse(16.0, 19.0, 13.0, 11.0, STONE);
+        c.shade_ellipse(9.0, 24.0, 6.0, 5.0, STONE);
+        c.shade_ellipse(24.0, 24.0, 6.0, 5.0, STONE);
+        // Ore: flecks and a few bright nuggets along a crack.
+        c.line(7, 15, 24, 25, hex(STONE[0]));
+        for (fx, fy, r) in [(10.0, 15.0, 2.2), (15.0, 19.0, 2.6), (20.0, 22.0, 2.0), (21.0, 13.0, 1.8), (12.0, 23.0, 1.6)] {
+            if cell_id == p::VEIN_GEM {
+                // Faceted crystals.
+                c.shade_box(fx as i32 - 1, fy as i32 - 2, 3, 4, ore);
+                c.px(fx as i32, fy as i32 - 2, hex(ore[3]));
+            } else {
+                c.shade_disc(fx, fy, r, ore);
+            }
+        }
+        c.auto_outline(n, n, OUTLINE);
+        c.shadow(16.0, 30.0, 13.0, 1.5);
+    }
+    // Mined out: low broken rubble.
+    let (x, y) = cell(p::VEIN_EMPTY);
+    c.at(x, y);
+    for (rx, ry, r) in [(10.0, 25.0, 5.0), (19.0, 26.0, 6.0), (25.0, 24.0, 3.5), (14.0, 21.0, 3.0)] {
+        c.shade_disc(rx, ry, r, STONE);
+    }
+    c.auto_outline(n, n, OUTLINE);
+    c.shadow(16.0, 30.5, 12.0, 1.5);
 }
 
 /// Chair, bench, bed and the bed's blanket (furniture the player can use).
@@ -2434,7 +2685,7 @@ fn big_props(c: &mut Canvas) {
 pub fn props(out: &Path) {
     // 11 rows: rows 7-8 (the grand shrine), 9 (the alchemy table, furniture) and 10 (the bed's
     // foot) were added later, below the older cells.
-    let mut c = Canvas::new(TS * 8, TS * 11);
+    let mut c = Canvas::new(TS * 8, TS * 15);
     let n = TS as i32;
     for i in 0..8u32 {
         let (x, y) = cell(i);
@@ -2597,6 +2848,10 @@ pub fn props(out: &Path) {
     c.auto_outline(n, n, OUTLINE);
     c.shadow(16.0, 30.5, 13.0, 1.5);
     furniture(&mut c);
+    veins(&mut c);
+    gathering_props(&mut c);
+    farming(&mut c);
+    campfire(&mut c);
     big_props(&mut c);
     c.save(&out.join("sprites/props.png"));
 }
@@ -2653,8 +2908,35 @@ pub mod it {
     pub const BOOT: u32 = 39;
     /// A rolled linen bandage (heals the player or a companion).
     pub const BANDAGE: u32 = 40;
-    /// Number of icons in the strip.
-    pub const COUNT: u32 = 41;
+    /// Mining: the pickaxe (a tool) and what veins give.
+    pub const PICKAXE: u32 = 41;
+    pub const COPPER_ORE: u32 = 42;
+    pub const IRON_ORE: u32 = 43;
+    pub const SILVER_ORE: u32 = 44;
+    pub const GEM: u32 = 45;
+    /// Crafting tools and smelting: mortar and pestle (alchemy), smith's tongs (smelter), a
+    /// lump of coal and three ingots.
+    pub const MORTAR: u32 = 46;
+    pub const TONGS: u32 = 47;
+    pub const COAL: u32 = 48;
+    pub const COPPER_INGOT: u32 = 49;
+    pub const IRON_INGOT: u32 = 50;
+    pub const SILVER_INGOT: u32 = 51;
+    /// Blacksmithing: the smith's hammer, an iron sword and a fine one (a better result of the
+    /// same recipe at a higher Smithing level).
+    pub const HAMMER: u32 = 52;
+    pub const IRON_SWORD: u32 = 53;
+    pub const FINE_SWORD: u32 = 54;
+    /// Farming: seed pouches and what they grow.
+    pub const WHEAT_SEEDS: u32 = 55;
+    pub const CARROT_SEEDS: u32 = 56;
+    pub const PUMPKIN_SEEDS: u32 = 57;
+    pub const WHEAT: u32 = 58;
+    pub const CARROT: u32 = 59;
+    pub const PUMPKIN: u32 = 60;
+    /// Number of icons in the strip (it can't grow much wider: textures are at most 2048 px,
+    /// new icons go on their own sheets such as `food`).
+    pub const COUNT: u32 = 61;
 }
 
 /// An arrow pointing right along row `y`, from `x0`, `len` pixels long.
@@ -3003,6 +3285,132 @@ pub fn items(out: &Path) {
                 c.px(22, 17, hex(0x6fa8dc)); // a drip
                 c.px(22, 18, hex(0x6fa8dc));
             }
+            it::PICKAXE => {
+                // A double-ended iron head on a wooden haft.
+                c.stroke(9.0, 28.0, 22.0, 8.0, 1.8, hex(WOOD[1]));
+                c.stroke(9.5, 27.5, 21.5, 8.5, 0.8, hex(WOOD[3]));
+                c.stroke(8.0, 10.0, 22.0, 6.0, 2.2, hex(IRON[1]));
+                c.stroke(22.0, 6.0, 28.0, 13.0, 2.0, hex(IRON[1]));
+                c.stroke(8.0, 10.0, 4.0, 17.0, 1.8, hex(IRON[1]));
+                c.stroke(9.0, 9.0, 21.0, 6.0, 0.8, hex(IRON[3]));
+            }
+            it::COPPER_ORE | it::IRON_ORE | it::SILVER_ORE => {
+                let ore = match i {
+                    it::COPPER_ORE => [0x7a3e1a, 0xb8642c, 0xe0904a, 0xffc890],
+                    it::IRON_ORE => [0x4a3a36, 0x7a6058, 0xa88a7e, 0xd8c4b8],
+                    _ => [0x6c7480, 0xa8b2be, 0xd8e0ea, 0xffffff],
+                };
+                c.shade_ellipse(15.0, 18.0, 10.0, 8.0, STONE);
+                c.shade_ellipse(20.0, 14.0, 6.0, 5.0, STONE);
+                for (fx, fy, r) in [(12.0, 17.0, 2.6), (18.0, 13.0, 2.2), (19.0, 20.0, 2.0), (10.0, 21.0, 1.6)] {
+                    c.shade_disc(fx, fy, r, ore);
+                }
+            }
+            it::WHEAT_SEEDS | it::CARROT_SEEDS | it::PUMPKIN_SEEDS => {
+                // A tied paper pouch with a picture of its crop.
+                let mark = match i {
+                    it::WHEAT_SEEDS => 0xe8c860,
+                    it::CARROT_SEEDS => 0xf08a30,
+                    _ => 0xd8661a,
+                };
+                c.shade_box(8, 10, 16, 18, [0x8a7a5a, 0xc8b48a, 0xe2d2aa, 0xf6ecd0]);
+                c.shade_box(10, 6, 12, 5, [0x8a7a5a, 0xc8b48a, 0xe2d2aa, 0xf6ecd0]);
+                c.hline(9, 10, 14, hex(0x6a4a2a));
+                c.disc(16.0, 19.0, 4.0, hex(mark));
+                c.vline(16, 13, 3, hex(LEAF[2]));
+            }
+            it::WHEAT => {
+                // A sheaf of golden stalks, tied in the middle.
+                for k in -2..=2 {
+                    c.stroke(16.0 + k as f32 * 1.2, 28.0, 16.0 + k as f32 * 3.0, 9.0, 0.7, hex(0xc8a040));
+                    c.shade_box(15 + k * 3, 4, 3, 6, [0x8a6a20, 0xc8a040, 0xe8c860, 0xfff0a0]);
+                }
+                c.hline(12, 20, 9, hex(0x8a4a20));
+            }
+            it::CARROT => {
+                c.stroke(10.0, 26.0, 21.0, 11.0, 3.2, hex(0xd86a1a));
+                c.stroke(10.5, 25.0, 20.0, 12.0, 1.2, hex(0xffb870));
+                c.shade_disc(23.0, 8.0, 3.0, LEAF);
+                c.shade_disc(20.0, 6.5, 2.5, LEAF);
+                c.shade_disc(25.5, 10.5, 2.5, LEAF);
+            }
+            it::PUMPKIN => {
+                c.shade_ellipse(16.0, 19.0, 12.0, 9.0, [0x8a3a06, 0xd8661a, 0xf08a2a, 0xffbc6a]);
+                for rx in [10, 16, 22] {
+                    c.vline(rx, 12, 15, hex(0xb85010));
+                }
+                c.shade_box(15, 7, 3, 4, WOOD);
+                c.shade_disc(20.0, 8.0, 2.5, LEAF);
+            }
+            it::HAMMER => {
+                // A heavy iron head on a short haft.
+                c.stroke(8.0, 28.0, 19.0, 12.0, 1.8, hex(WOOD[1]));
+                c.stroke(8.5, 27.5, 18.5, 12.5, 0.7, hex(WOOD[3]));
+                c.shade_box(13, 4, 14, 9, IRON);
+                c.hline(13, 4, 14, hex(IRON[3]));
+                c.rect(24, 5, 3, 7, hex(IRON[2]));
+            }
+            it::IRON_SWORD | it::FINE_SWORD => {
+                // A longer blade than the short sword; the fine one gleams with a gold guard and
+                // a blue gem in the pommel.
+                let fine = i == it::FINE_SWORD;
+                let blade = if fine { [0x5f6b73, 0xb8c8d4, 0xe2ecf4, 0xffffff] } else { [0x4a4a52, 0x7c8088, 0xa8acb4, 0xd8dce0] };
+                for k in 0..20 {
+                    c.rect(6 + k, 24 - k, 3, 3, hex(blade[1]));
+                    c.px(7 + k, 24 - k, hex(blade[3]));
+                }
+                c.rect(26, 2, 3, 3, hex(blade[2]));
+                let guard = if fine { GOLD[2] } else { IRON[2] };
+                c.stroke(2.0, 19.0, 12.0, 29.0, 1.6, hex(guard));
+                c.stroke(2.0, 29.0, 5.0, 26.0, 1.8, hex(WOOD[1]));
+                c.disc(1.8, 30.2, 2.0, hex(if fine { 0x4fc3f7 } else { IRON[3] }));
+            }
+            it::MORTAR => {
+                // A stone bowl with a wooden pestle leaning in it.
+                c.stroke(14.0, 18.0, 24.0, 5.0, 2.0, hex(WOOD[2]));
+                c.disc(24.0, 5.0, 2.4, hex(WOOD[3]));
+                c.shade_ellipse(16.0, 22.0, 11.0, 7.0, STONE);
+                c.rect(5, 15, 23, 6, CLEAR);
+                c.shade_ellipse(16.0, 18.0, 11.0, 3.0, [0x2a2a30, 0x45454e, 0x5a5a64, 0x6c6c76]);
+                c.shade_box(10, 27, 12, 2, STONE);
+                c.ellipse(16.0, 18.0, 6.0, 1.5, hex(0x7cc56f));
+            }
+            it::TONGS => {
+                // Two long iron arms joined by a rivet.
+                c.stroke(6.0, 28.0, 20.0, 9.0, 1.4, hex(IRON[2]));
+                c.stroke(10.0, 28.0, 18.0, 8.0, 1.4, hex(IRON[3]));
+                c.stroke(20.0, 9.0, 25.0, 4.0, 1.6, hex(IRON[2]));
+                c.stroke(18.0, 8.0, 21.0, 3.0, 1.6, hex(IRON[3]));
+                c.disc(17.0, 13.0, 1.8, hex(GOLD[2]));
+            }
+            it::COAL => {
+                c.shade_ellipse(15.0, 19.0, 9.0, 7.0, [0x0c0c10, 0x1c1c24, 0x30303c, 0x6a6a7a]);
+                c.shade_ellipse(20.0, 14.0, 5.0, 4.0, [0x0c0c10, 0x1c1c24, 0x30303c, 0x6a6a7a]);
+                c.px(12, 15, hex(0x9a9aaa));
+                c.px(19, 11, hex(0x9a9aaa));
+            }
+            it::COPPER_INGOT | it::IRON_INGOT | it::SILVER_INGOT => {
+                let metal = match i {
+                    it::COPPER_INGOT => [0x6a2e10, 0xa85a28, 0xd8864a, 0xffc28a],
+                    it::IRON_INGOT => [0x3a3a44, 0x60606c, 0x8a8a96, 0xc0c0cc],
+                    _ => [0x7c8490, 0xb4bcc8, 0xdde3ec, 0xffffff],
+                };
+                // A trapezoid bar seen from the side, with a bright top face.
+                c.shade_box(6, 16, 20, 9, metal);
+                c.shade_box(9, 11, 14, 5, metal);
+                c.hline(9, 11, 14, hex(metal[3]));
+                c.hline(6, 16, 20, hex(metal[2]));
+            }
+            it::GEM => {
+                // A cut red gem.
+                let red = [0x6a0e2a, 0xb01e48, 0xe8406e, 0xffa0c0];
+                c.shade_box(9, 10, 14, 6, red);
+                c.shade_box(11, 16, 10, 4, red);
+                c.shade_box(13, 20, 6, 3, red);
+                c.shade_box(15, 23, 2, 2, red);
+                c.hline(9, 10, 14, hex(red[3]));
+                c.px(12, 12, hex(0xffffff));
+            }
             it::BANDAGE => {
                 // A roll of linen with its loose end trailing off, marked with a red cross.
                 let linen = [0x9e9a90, 0xcfcac0, 0xece8de, 0xffffff];
@@ -3044,6 +3452,67 @@ pub fn items(out: &Path) {
         c.auto_outline(n, n, OUTLINE);
     }
     c.save(&out.join("sprites/items.png"));
+}
+
+/// Frames of `sprites/food.png`: cooked dishes (32 x 32 each).
+pub mod food {
+    pub const GRILLED_TROUT: u32 = 0;
+    pub const BREAD: u32 = 1;
+    pub const CARROT_SOUP: u32 = 2;
+    pub const STEW: u32 = 3;
+    pub const PIE: u32 = 4;
+    pub const COUNT: u32 = 5;
+}
+
+/// The cooked dishes' icons (their own sheet: `items.png` is near the texture size limit).
+pub fn food_icons(out: &Path) {
+    let mut c = Canvas::new(TS * food::COUNT, TS);
+    let n = TS as i32;
+    for i in 0..food::COUNT {
+        c.at(i * TS, 0);
+        match i {
+            food::GRILLED_TROUT => {
+                // A browned fish with grill stripes on a stick.
+                c.stroke(2.0, 28.0, 28.0, 5.0, 1.0, hex(WOOD[2]));
+                c.shade_ellipse(15.0, 16.0, 10.0, 5.0, [0x5a3014, 0x8a5024, 0xb8783a, 0xe0a868]);
+                c.shade_box(23, 12, 4, 8, [0x5a3014, 0x8a5024, 0xb8783a, 0xe0a868]);
+                for gx in [9, 13, 17] {
+                    c.line(gx, 12, gx + 3, 20, hex(0x3a1c0a));
+                }
+                c.px(9, 15, hex(0x111111));
+            }
+            food::BREAD => {
+                c.shade_ellipse(16.0, 19.0, 12.0, 7.0, [0x7a4a18, 0xb87a34, 0xd8a056, 0xf0c888]);
+                for sx in [10, 15, 20] {
+                    c.line(sx, 15, sx + 3, 20, hex(0xf0d8a0));
+                }
+            }
+            food::CARROT_SOUP | food::STEW => {
+                // A wooden bowl with soup and bits in it.
+                let soup = if i == food::CARROT_SOUP { [0xa04a10, 0xd8701e, 0xf0923a, 0xffc078] } else { [0x5a2e14, 0x8a4a22, 0xb06a34, 0xd8945a] };
+                c.shade_ellipse(16.0, 21.0, 12.0, 7.0, WOOD);
+                c.rect(3, 13, 26, 8, CLEAR);
+                c.shade_ellipse(16.0, 17.0, 12.0, 4.0, soup);
+                for (bx, by, col) in [(11, 16, 0xf08a30), (17, 18, 0x7cc56f), (21, 16, 0xffd8a0)] {
+                    c.rect(bx, by, 2, 2, hex(col));
+                }
+                c.shade_box(10, 27, 12, 2, WOOD);
+                c.px(14, 9, hex(0xe0e0e0));
+                c.px(18, 8, hex(0xe0e0e0));
+            }
+            food::PIE => {
+                c.shade_ellipse(16.0, 20.0, 13.0, 7.0, [0x7a4a18, 0xb87a34, 0xd8a056, 0xf0c888]);
+                c.shade_ellipse(16.0, 18.0, 11.0, 4.5, [0x6a1010, 0xa02020, 0xc84040, 0xe87070]);
+                for k in 0..4 {
+                    c.hline(7, 16 + k * 2, 18, hex(0xe8c080));
+                    c.vline(9 + k * 4, 14, 8, hex(0xe8c080));
+                }
+            }
+            _ => {}
+        }
+        c.auto_outline(n, n, OUTLINE);
+    }
+    c.save(&out.join("sprites/food.png"));
 }
 
 // ------------------------------------------------------------------ spell effects

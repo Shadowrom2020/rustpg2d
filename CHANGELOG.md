@@ -3,6 +3,51 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.7.0 — 2026-11-08
+
+### Gameplay
+- **Gathering and mining**: props can be gathered with a tool (E or a melee swing; hits with a
+  progress bar, then their loot and a "used up" state) and **regrow** after some in-game hours,
+  also while the player is elsewhere. A new skill effect **Gathering** needs fewer hits per level.
+  The clock counts **days** (`WorldState.day`). Recipes can need **tools** (not used up).
+- Example: ore veins (copper, iron, silver, gems, coal) in the old mine, a Pickaxe and Smith's
+  Tongs in a crate at its entrance, the Mining skill; a **smelter** by the mine entrance (ore and
+  coal into copper / iron / silver ingots, tongs needed, silver at Mining 2). Alchemy needs a
+  **Mortar and Pestle** (Tilda) and a new **Alchemy** skill for Antidotes (1) and Swiftness
+  Potions (2, was Arcana 1); herb bushes and mushroom patches by the forest path are picked by
+  hand and grow back by the next morning. Ore, ingots and rubies sell at Tilda's.
+- **Blacksmithing**: recipes can make **better results** at higher levels of their skill
+  (`RecipeDef.quality`; the crafting window shows the next step), and equipped items can be
+  ingredients (upgrades). Example: an **anvil** in the Workshop with a Smith's Hammer and the
+  tongs: Iron Sword (a Fine Iron Sword from Smithing 2), Iron Helmet, Chainmail, arrows,
+  pickaxe and a Short Sword upgrade; the **Smithing** skill; Tilda sells the hammer.
+- **Farming**: props can be **farm plots** and items **seeds** (a crop with growth stages and a
+  harvest). E plants, tells the time left or harvests; crops grow over in-game hours, also
+  while the player is away, half again as fast in rain (`EntityState.planted`). Example: wheat,
+  carrot and pumpkin seeds at Tilda's and a field with a sack of seeds in the Workshop.
+- **Cooking**: recipes can need their station prop in a state (`RecipeDef.station_state`, e.g. a
+  "lit" campfire), items can be **food**, and the new skill effect **Food** makes food heal more.
+  Example: a campfire in the Workshop (lit with coal, burns 8 hours), five dishes (Grilled
+  Trout, Bread, Carrot Soup, Pumpkin Stew, Apple Pie), a pantry chest and the Cooking skill.
+- **Schedules across maps and with furniture**: a schedule stop can be on another map (the
+  character walks out through the door / portal leading there and turns up as a visitor with its
+  look, items and triggers) and can name furniture to sit on or sleep in. The player can't take
+  furniture in use; talking to it talks to its user. New condition **Pose** (sitting / lying /
+  at furniture); a sleeper without a matching line shows "… is asleep.". Example: Tomas rests on
+  the west bench in the afternoon and sleeps in the elder's guest bed at night.
+- **Activities**: characters can be seen fishing, hoeing, hammering, chopping, mining, sweeping
+  or reading at a schedule stop or all day where they are placed, with a tool in the hand and
+  small effects (line and bobber, soil, sparks, chips, dust, a book); talking interrupts them for
+  a moment. Example: Tomas fishes at the big pond in the evening, the elder reads by the well,
+  and a smith and a farmer work in the Workshop.
+- Example: **the Workshop**, a new map north of the village (a road through the tree line): a
+  crafting testing ground with a supply chest of tools, a herb garden with an alchemy table, a
+  quarry with every vein and a smelter, a bed to pass the night, and signs.
+
+### Fixes
+- The editor no longer crashes on images wider or taller than the graphics card allows (2048 px
+  in egui): they are shown at a reduced size instead.
+
 ## 0.6.0 — 2026-11-06
 
 ### Gameplay

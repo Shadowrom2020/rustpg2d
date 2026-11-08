@@ -8,7 +8,7 @@ use rustpg2d_engine::defs::*;
 use rustpg2d_engine::effects::{EffectKind, EffectSpec};
 use rustpg2d_engine::achievements::AchievementDef;
 use rustpg2d_engine::crafting::RecipeDef;
-use rustpg2d_engine::entity::{EntityInstance, EntityKind, Facing, ScheduleStop};
+use rustpg2d_engine::entity::{Activity, ActivityKind, EntityInstance, EntityKind, Facing, ScheduleStop};
 use rustpg2d_engine::events::*;
 use rustpg2d_engine::map::{EdgeLink, LightMode, Map, MapLighting, Respawn, Tile, Zone, ZoneKind};
 use rustpg2d_engine::audio::wav_bytes;
@@ -207,6 +207,24 @@ fn light(mut d: ItemDef, l: LightSpec) -> ItemDef {
     d
 }
 
+/// Food: the Cooking skill's bonus applies to its healing.
+fn dish(d: ItemDef) -> ItemDef {
+    ItemDef { food: true, ..d }
+}
+
+/// The *Regen* effect of a dish: 1 HP per second for `seconds`.
+fn regen(seconds: f32) -> Action {
+    Action::ApplyEffect { target: "player".into(), effect: rustpg2d_engine::effects::EffectSpec::new(rustpg2d_engine::effects::EffectKind::Regen, 1.0, seconds) }
+}
+
+/// A seed item: its crop grows through three stages (frames `stage0`, +1, +2 of the props
+/// sheet; `hours` for the first two) and is harvested for `harvest`.
+fn seed(d: ItemDef, stage0: u32, hours: [f32; 2], harvest: Vec<LootEntry>) -> ItemDef {
+    use rustpg2d_engine::defs::{Crop, CropStage};
+    let st = |k: u32, h: f32| CropStage { sprite: SpriteRef::new("props", stage0 + k), hours: h };
+    ItemDef { max_stack: 20, crop: Some(Crop { stages: vec![st(0, hours[0]), st(1, hours[1]), st(2, 0.0)], harvest }), ..d }
+}
+
 /// A healing item the player can also use on a companion (they choose whom to heal).
 fn for_allies(d: ItemDef) -> ItemDef {
     ItemDef { use_on: rustpg2d_engine::defs::UseTarget::Choose, ..d }
@@ -230,6 +248,10 @@ fn skills() -> Vec<SkillDef> {
         SkillDef::new("haggling", "Haggling", "Merchants give you better prices: 5% per level when buying and selling.", icon(it::COIN), 4, E::Haggle { percent: 5.0 }),
         SkillDef::new("arcana", "Arcana", "Understanding of magic. Each level adds 10 mana, and harder spells need it to be learned.", icon(it::STAR), 5, E::Mana { points: 10 }),
         SkillDef::new("spellcraft", "Spellcraft", "Focus and precision: every level adds 15% to the damage of Spark and Fire Burst.", icon(it::SPELL_SPARK), 4, E::SpellDamage { percent: 15.0 }),
+        SkillDef::new("alchemy", "Alchemy", "The craft of brewing: Antidotes need level 1, Swiftness Potions level 2 (at an alchemy table, with a mortar and pestle).", icon(it::MORTAR), 2, E::None),
+        SkillDef::new("smithing", "Smithing", "Working iron at the anvil: Iron Helmets at level 1, Chainmail at level 2, and from level 2 your swords come out fine.", icon(it::HAMMER), 3, E::None),
+        SkillDef::new("cooking", "Cooking", "Good food, well made: Carrot Soup and Pumpkin Stew at level 1, Apple Pie at level 2, and all food heals 25% more per level.", icon(food::STEW), 2, E::FoodBonus { percent: 25.0 }),
+        SkillDef::new("mining", "Mining", "Strong arms and a sharp eye for the seam: every level takes 20% fewer pickaxe hits to break off ore.", icon(it::PICKAXE), 3, E::Gather { tool: "pickaxe".into(), percent: 20.0 }),
         SkillDef::new("scavenging", "Scavenging", "An eye for what others leave behind: defeated slimes drop an extra coin per level (a scripted skill: see scavenging() in main.rhai).", icon(it::APPLE), 3, E::Script { function: "scavenging".into() }),
     ]
 }
@@ -256,15 +278,52 @@ fn achievements() -> Vec<AchievementDef> {
     ]
 }
 
-/// The example's crafting recipes, all brewed at the alchemy table ("alchemy" station).
+/// The example's crafting recipes: brews at the alchemy table ("alchemy" station, a mortar and
+/// pestle needed) and ingots at the smelter by the mine ("smelter", smith's tongs needed).
 fn recipes() -> Vec<RecipeDef> {
     let i = ItemStack::new;
+    // `tools`: tool kinds (an item's Tool kind) the player must have; they aren't used up.
+    let brew = |id: &str, result: &str, ingredients: Vec<ItemStack>| RecipeDef { tools: vec!["mortar".into()], ..RecipeDef::new(id, result, 1, ingredients, "alchemy") };
+    let forge = |id: &str, result: &str, count: u32, ingredients: Vec<ItemStack>, level: u32, quality: Vec<(u32, &str)>| RecipeDef {
+        tools: vec!["hammer".into(), "tongs".into()],
+        skill: "smithing".into(),
+        level,
+        quality: quality.into_iter().map(|(level, r)| rustpg2d_engine::crafting::QualityStep { level, result: r.into() }).collect(),
+        ..RecipeDef::new(id, result, count, ingredients, "anvil")
+    };
+    let cook = |id: &str, result: &str, ingredients: Vec<ItemStack>, level: u32| RecipeDef {
+        station_state: "lit".into(),
+        skill: if level > 0 { "cooking".into() } else { String::new() },
+        level,
+        ..RecipeDef::new(id, result, 1, ingredients, "cooking")
+    };
+    let smelt = |id: &str, result: &str, ore: &str| RecipeDef { tools: vec!["tongs".into()], ..RecipeDef::new(id, result, 1, vec![i(ore, 2), i("coal", 1)], "smelter") };
     vec![
-        RecipeDef::new("brew_potion", "potion", 1, vec![i("herb", 2)], "alchemy"),
-        RecipeDef::new("brew_antidote", "antidote", 1, vec![i("herb", 1), i("mushroom", 1)], "alchemy"),
-        RecipeDef::new("brew_mana", "mana_potion", 1, vec![i("mushroom", 2), i("apple", 1)], "alchemy"),
-        // Harder brews need some knowledge of magic.
-        RecipeDef { skill: "arcana".into(), level: 1, ..RecipeDef::new("brew_swiftness", "swiftness", 1, vec![i("herb", 2), i("mushroom", 2)], "alchemy") },
+        brew("brew_potion", "potion", vec![i("herb", 2)]),
+        // Harder brews need the Alchemy skill.
+        RecipeDef { skill: "alchemy".into(), level: 1, ..brew("brew_antidote", "antidote", vec![i("herb", 1), i("mushroom", 1)]) },
+        brew("brew_mana", "mana_potion", vec![i("mushroom", 2), i("apple", 1)]),
+        RecipeDef { skill: "alchemy".into(), level: 2, ..brew("brew_swiftness", "swiftness", vec![i("herb", 2), i("mushroom", 2)]) },
+        smelt("smelt_copper", "copper_ingot", "copper_ore"),
+        smelt("smelt_iron", "iron_ingot", "iron_ore"),
+        // Silver needs a skilled miner's eye for the melt.
+        RecipeDef { skill: "mining".into(), level: 2, ..smelt("smelt_silver", "silver_ingot", "silver_ore") },
+        // The anvil (hammer and tongs): Smithing unlocks recipes, and from Smithing 2 on the
+        // iron sword comes out fine (a better result: `quality`). The upgrade takes the short
+        // sword itself, also while it is equipped.
+        forge("forge_iron_sword", "iron_sword", 1, vec![i("iron_ingot", 2)], 0, vec![(2, "fine_iron_sword")]),
+        forge("forge_helmet", "iron_helmet", 1, vec![i("iron_ingot", 2)], 1, vec![]),
+        forge("forge_chainmail", "chainmail", 1, vec![i("iron_ingot", 4)], 2, vec![]),
+        forge("forge_arrows", "arrows", 10, vec![i("iron_ingot", 1)], 0, vec![]),
+        forge("forge_pickaxe", "pickaxe", 1, vec![i("iron_ingot", 1), i("copper_ingot", 1)], 0, vec![]),
+        // Cooking at a lit campfire ("cooking" station, station_state "lit"); Cooking unlocks the
+        // harder dishes.
+        cook("grill_trout", "grilled_trout", vec![i("trout", 1)], 0),
+        cook("bake_bread", "bread", vec![i("wheat", 2)], 0),
+        cook("carrot_soup", "carrot_soup", vec![i("carrot", 2), i("mushroom", 1)], 1),
+        cook("pumpkin_stew", "pumpkin_stew", vec![i("pumpkin", 1), i("carrot", 1), i("wheat", 1)], 1),
+        cook("apple_pie", "apple_pie", vec![i("apple", 2), i("wheat", 2)], 2),
+        forge("upgrade_sword", "iron_sword", 1, vec![i("sword", 1), i("iron_ingot", 1)], 0, vec![(2, "fine_iron_sword")]),
     ]
 }
 
@@ -436,6 +495,8 @@ fn village() -> Map {
 
     let elder = b.entity(EntityKind::Character, "elder", 26, 15);
     elder.name = "elder".into();
+    // He reads by the well all day (an activity; talking interrupts him for a moment).
+    elder.activity = Some(Activity { kind: ActivityKind::Read, tool: String::new() });
     elder.triggers = vec![
         trig(
             TriggerOn::Interact,
@@ -492,19 +553,27 @@ fn village() -> Map {
     v.triggers = vec![trig(TriggerOn::Interact, vec![], vec![Action::RunScript { function: "mira_talk".into() }])];
     let v2 = b.entity(EntityKind::Character, "villager", 34, 14);
     // Tomas has a daily schedule (map inspector: Daily schedule): the shop in the morning, the
-    // duck pond at noon, the big pond in the afternoon, home (inside the elder's house, whose
-    // door is at 20,7) at night. What he says depends on the time (Time of day condition).
+    // duck pond at noon, a rest on the bench by the road (furniture: the prop "bench_west"),
+    // the big pond in the late afternoon, and at night the elder's guest bed - a stop on
+    // another map: he walks to the house door and turns up inside. What he says depends on
+    // the time and on whether he is asleep (Time of day and Pose conditions).
     v2.name = "tomas".into();
     v2.schedule = vec![
         ScheduleStop::new(7.0, 34, 14),
         ScheduleStop { facing: Some(Facing::Down), ..ScheduleStop::new(12.0, 22, 23) },
-        ScheduleStop { facing: Some(Facing::Down), ..ScheduleStop::new(16.0, 9, 23) },
-        ScheduleStop { facing: Some(Facing::Up), inside: true, ..ScheduleStop::new(20.5, 20, 7) },
+        ScheduleStop { prop: "bench_west".into(), ..ScheduleStop::new(15.0, 12, 17) },
+        // Fishing at the big pond (an activity: only the look - line, bobber, the rod in hand).
+        ScheduleStop { facing: Some(Facing::Down), activity: Some(Activity { kind: ActivityKind::Fish, tool: "fishing_rod".into() }), ..ScheduleStop::new(17.5, 9, 24) },
+        ScheduleStop { map: "house".into(), prop: "guest_bed".into(), ..ScheduleStop::new(20.5, 6, 8) },
     ];
     let daytime = |from: f32, to: f32| cond(Cond::TimeBetween { from, to });
+    let asleep = || cond(Cond::Pose { target: "self".into(), pose: "lie".into() });
+    let sitting = || cond(Cond::Pose { target: "self".into(), pose: "sit".into() });
     v2.triggers = vec![
-        trig(TriggerOn::Interact, vec![daytime(6.0, 18.0)], vec![dialog("Tomas", "Lovely weather today, isn't it, {sir|miss}?")]),
-        trig(TriggerOn::Interact, vec![daytime(18.0, 6.0)], vec![dialog("Tomas", "Getting late, {sir|miss}. I'll be heading home soon - the elder keeps the door open for me.")]),
+        trig(TriggerOn::Interact, vec![asleep()], vec![dialog("Tomas", "Zzz... mmh... five more minutes...")]),
+        trig(TriggerOn::Interact, vec![sitting()], vec![dialog("Tomas", "Ah, {player}. Nothing beats a quiet bench in the afternoon.")]),
+        trig(TriggerOn::Interact, vec![daytime(6.0, 18.0), not(Cond::Pose { target: "self".into(), pose: "sit".into() })], vec![dialog("Tomas", "Lovely weather today, isn't it, {sir|miss}?")]),
+        trig(TriggerOn::Interact, vec![daytime(18.0, 6.0), not(Cond::Pose { target: "self".into(), pose: "lie".into() })], vec![dialog("Tomas", "Getting late, {sir|miss}. I'll be heading home soon - the elder keeps a bed for me.")]),
     ];
     b.entity(EntityKind::Item, "apple", 8, 12);
     b.entity(EntityKind::Item, "apple", 37, 21);
@@ -557,8 +626,22 @@ fn village() -> Map {
         z.loot = Some(vec![LootEntry::new("trout", 75.0, 1, 1), LootEntry::new("old_boot", 25.0, 1, 1)]);
     }
     // Benches by the road to sit on (furniture).
-    b.entity(EntityKind::Prop, "bench", 12, 16);
+    // (The west bench is named: Tomas rests on it in the afternoon.)
+    b.entity(EntityKind::Prop, "bench", 12, 16).name = "bench_west".into();
     b.entity(EntityKind::Prop, "bench", 31, 16);
+
+    // North road to the workshop (crafting testing ground): a gap in the border trees and a
+    // path from the main road up to the north edge.
+    for y in 0..17 {
+        for x in 27..29 {
+            b.m.layers[1].set(x as u32, y as u32, Tile::EMPTY);
+            b.m.layers[2].set(x as u32, y as u32, Tile::EMPTY);
+            b.set(0, x, y, t::PATH);
+        }
+    }
+    let ws_sign = b.entity(EntityKind::Prop, "sign", 29, 15);
+    ws_sign.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Sign", "North: the Workshop - a testing ground for crafting, gathering and mining.")])];
+    b.m.edges.north = Some(EdgeLink { target_map: "workshop".into(), offset: -11, depth: 1 });
 
     b.m.edges.east = Some(EdgeLink { target_map: "forest".into(), offset: 6, depth: 1 });
     b.m.triggers = vec![
@@ -638,6 +721,14 @@ fn shop() -> Map {
             ShopEntry::new("wooden_shield", 1, 0),
             ShopEntry::new("scroll_heal", 2, 0),
             ShopEntry::new("bandage", 6, 0),
+            // Crafting tools: the alchemy table's mortar, the smelter's tongs, a pickaxe.
+            ShopEntry::new("mortar", 2, 0),
+            ShopEntry::new("tongs", 1, 0),
+            ShopEntry::new("hammer", 1, 0),
+            ShopEntry { unlimited: true, ..ShopEntry::new("wheat_seeds", 0, 3) },
+            ShopEntry { unlimited: true, ..ShopEntry::new("carrot_seeds", 0, 4) },
+            ShopEntry { unlimited: true, ..ShopEntry::new("pumpkin_seeds", 0, 6) },
+            ShopEntry::new("pickaxe", 1, 30),
             ShopEntry::new("antidote", 5, 0),
             ShopEntry::new("elixir_strength", 2, 0),
             ShopEntry::new("swiftness", 2, 0),
@@ -760,7 +851,8 @@ fn house() -> Map {
     b.entity(EntityKind::Prop, "chair_left", 10, 5);
     b.entity(EntityKind::Prop, "chair_up", 9, 6);
     // A sideways bed for a guest by the door.
-    b.entity(EntityKind::Prop, "bed_side", 4, 8);
+    // (Named: Tomas sleeps in it - his schedule's night stop.)
+    b.entity(EntityKind::Prop, "bed_side", 4, 8).name = "guest_bed".into();
     b.m.background = [13, 13, 20];
     b.m.music = "music_village".into();
     autotile_terrain(&mut b.m, |m, x, y| (ground(m, x, y)? == t::RUG).then_some("Rug"), |_, _, _, _| false);
@@ -951,6 +1043,18 @@ fn forest() -> Map {
             b.entity(EntityKind::Item, if k % 2 == 0 { "herb" } else { "mushroom" }, x, y);
         }
     }
+    // Herb bushes and mushroom patches beside the path: picked by hand, back by the next morning.
+    for (k, x) in [8, 14, 21, 28, 34].into_iter().enumerate() {
+        let spot = (16..32).find(|&y| b.get(0, x, y) == Some(t::PATH)).and_then(|py| {
+            [(0, -1), (0, 1), (0, -2), (0, 2), (1, -1), (-1, -1), (1, 1), (-1, 1), (0, -3), (0, 3)].into_iter().map(|(dx, dy)| (x + dx, py + dy)).find(|&(x, y)| b.free(x, y) && b.get(0, x, y) != Some(t::PATH))
+        });
+        if let Some((x, y)) = spot {
+            b.entity(EntityKind::Prop, if k % 2 == 0 { "herb_bush" } else { "mushroom_patch" }, x, y);
+        }
+    }
+    // The smelter beside the mine entrance (lit: it glows at night).
+    let (sx, sy) = (51..=56).flat_map(|x| [(x, 8), (x, 9)]).find(|&(x, y)| x != 53 && b.free(x, y) && b.free(x, y - 1)).unwrap_or((55, 9));
+    b.entity(EntityKind::Prop, "smelter", sx, sy);
     autotile_terrain(
         &mut b.m,
         |m, x, y| match ground(m, x, y)? {
@@ -965,6 +1069,114 @@ fn forest() -> Map {
             "Stream" | "Forest path" | "Dirt path" | "Forest floor" => ground(m, x, y) == Some(t::BRIDGE) || (terrain.ends_with("path") && tile_at(m, 1, x, y) == Some(t::CAVE)),
             _ => false,
         },
+    );
+    b.m
+}
+
+/// The workshop north of the village: a testing ground with everything for crafting in one
+/// place. The herb garden (west: herb bushes, mushroom patches, the alchemy table), the quarry
+/// (east: every kind of ore vein, coal, the smelter), a supply chest with the tools, a bed to
+/// let the night pass (picked plants and mined veins grow back) and signs explaining it all.
+fn workshop() -> Map {
+    let (w, h) = (34, 24);
+    let mut b = B::new("workshop", w, h);
+    let mut rng = Rng(7);
+    b.fill(0, 0, 0, w as i32, h as i32, t::GRASS);
+    for _ in 0..60 {
+        let (x, y) = (rng.range(w) as i32, rng.range(h) as i32);
+        b.set(0, x, y, if rng.chance(0.5) { t::FLOWERS } else { t::TALL_GRASS });
+    }
+    // Paths: up from the village (south edge, x 16-17) and across the middle.
+    b.fill(0, 16, 12, 2, 12, t::PATH);
+    b.fill(0, 3, 12, 28, 2, t::PATH);
+    // The herb garden (west), fenced, open to the path.
+    b.fill(1, 2, 2, 12, 1, t::FENCE);
+    b.fill(1, 2, 2, 1, 9, t::FENCE);
+    b.fill(1, 13, 2, 1, 9, t::FENCE);
+    // The quarry (east): flagstones.
+    b.fill(0, 20, 2, 12, 9, t::STONE_FLOOR);
+    // Border trees, open to the south where the path comes up.
+    for x in 0..w as i32 {
+        b.tree(x, 1);
+        if !(16..=17).contains(&x) {
+            b.tree(x, h as i32 - 1);
+        }
+    }
+    for y in 2..h as i32 - 1 {
+        b.tree(0, y);
+        b.tree(w as i32 - 1, y);
+    }
+    b.spawn("south", 16, 21);
+    b.m.edges.south = Some(EdgeLink { target_map: "village".into(), offset: 11, depth: 1 });
+    let sign = |b: &mut B, x: i32, y: i32, text: &str| {
+        let s = b.entity(EntityKind::Prop, "sign", x, y);
+        s.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Sign", text)])];
+    };
+    sign(&mut b, 18, 20, "THE WORKSHOP. West: herb garden and alchemy table. East: quarry and smelter. The chest holds the tools; sleep in the bed to let plants and veins grow back.");
+    // Supply chest: every crafting tool and a few ingredients.
+    let chest = b.entity(EntityKind::Prop, "chest", 15, 16);
+    chest.container = Some(ContainerSpec {
+        size: 8,
+        items: vec![ItemStack::new("pickaxe", 1), ItemStack::new("tongs", 1), ItemStack::new("hammer", 1), ItemStack::new("mortar", 1), ItemStack::new("apple", 4), ItemStack::new("coal", 3)],
+        open_state: "open".into(),
+        ..Default::default()
+    });
+    // Herb garden: bushes and patches picked by hand (back half a day later), the alchemy table.
+    sign(&mut b, 5, 11, "HERB GARDEN. Pick herbs and mushrooms by hand (E). Brew at the table with a mortar and pestle; Antidotes need Alchemy 1, Swiftness Potions Alchemy 2.");
+    for (k, (x, y)) in [(4, 4), (7, 4), (10, 4), (4, 7), (7, 7), (10, 7)].into_iter().enumerate() {
+        b.entity(EntityKind::Prop, if k < 3 { "herb_bush" } else { "mushroom_patch" }, x, y);
+    }
+    b.entity(EntityKind::Prop, "alchemy_table", 9, 10);
+    // Quarry: every vein (pickaxe, 3 hits, back three days later) and the smelter.
+    sign(&mut b, 29, 11, "QUARRY. Mine the veins with a pickaxe (E or attack). Smelt two ore and a coal into an ingot at the smelter, with smith's tongs; silver needs Mining 2.");
+    for (def, x, y) in [("vein_copper", 22, 4), ("vein_copper", 25, 4), ("vein_iron", 28, 4), ("vein_iron", 22, 7), ("vein_silver", 25, 7), ("vein_gem", 28, 7), ("vein_coal", 30, 5), ("vein_coal", 30, 8)] {
+        b.entity(EntityKind::Prop, def, x, y);
+    }
+    b.entity(EntityKind::Prop, "smelter", 23, 10);
+    sign(&mut b, 31, 15, "FORGE. Forge ingots at the anvil with a smith's hammer and tongs: swords, helmets, chainmail, arrows, pickaxes. Smithing unlocks more, and from Smithing 2 swords come out fine.");
+    b.entity(EntityKind::Prop, "anvil", 26, 10);
+    // The field (south-west): six soil plots and seeds in a sack beside them.
+    sign(&mut b, 3, 15, "FIELD. Plant seeds on the soil plots (E plants the first seed you carry). Wheat is ripe after a day, carrots after a day and a half, pumpkins after two; rain makes them grow faster. E on a ripe crop harvests it.");
+    for (x, y) in [(5, 16), (7, 16), (9, 16), (5, 18), (7, 18), (9, 18)] {
+        b.entity(EntityKind::Prop, "soil_plot", x, y);
+    }
+    let sack = b.entity(EntityKind::Prop, "chest", 11, 17);
+    sack.container = Some(ContainerSpec { size: 4, items: vec![ItemStack::new("wheat_seeds", 4), ItemStack::new("carrot_seeds", 4), ItemStack::new("pumpkin_seeds", 2)], open_state: "open".into(), ..Default::default() });
+    // The kitchen: a campfire between the garden and the quarry, a pantry chest with
+    // ingredients to try every dish.
+    sign(&mut b, 15, 9, "KITCHEN. Use coal on the campfire to light it (it burns for 8 hours), then E to cook. Cooking unlocks soup, stew and pie and makes all food heal more.");
+    b.entity(EntityKind::Prop, "campfire", 17, 7);
+    let pantry = b.entity(EntityKind::Prop, "chest", 18, 9);
+    pantry.container = Some(ContainerSpec {
+        size: 8,
+        items: vec![ItemStack::new("trout", 2), ItemStack::new("wheat", 6), ItemStack::new("carrot", 4), ItemStack::new("mushroom", 2), ItemStack::new("pumpkin", 1), ItemStack::new("apple", 2), ItemStack::new("coal", 2)],
+        open_state: "open".into(),
+        ..Default::default()
+    });
+    // Workers (activities: only the look): a smith at the anvil, a farmer hoeing the field.
+    let smith = b.entity(EntityKind::Character, "villager", 26, 11);
+    smith.name = "smith".into();
+    smith.facing = Facing::Up;
+    smith.activity = Some(Activity { kind: ActivityKind::Craft, tool: "hammer".into() });
+    smith.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Smith", "Iron, heat and a steady arm, {player}. Bring me ingots and I'll... well, the anvil is yours too.")])];
+    let farmer = b.entity(EntityKind::Character, "villager", 6, 16);
+    farmer.name = "farmer".into();
+    farmer.facing = Facing::Right;
+    farmer.activity = Some(Activity { kind: ActivityKind::Farm, tool: String::new() });
+    farmer.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Farmer", "Plant, wait, harvest. And pray for rain - it makes them grow faster!")])];
+    // A bed in the open to let a night pass (regrowing needs in-game time).
+    b.entity(EntityKind::Prop, "bed", 20, 17);
+    b.m.background = [20, 40, 20];
+    b.m.music = "music_village".into();
+    b.m.lighting = MapLighting { mode: LightMode::Outdoor, darkness: 0.7 };
+    autotile_terrain(
+        &mut b.m,
+        |m, x, y| match ground(m, x, y)? {
+            t::PATH => Some("Dirt path"),
+            t::STONE_FLOOR => Some("Flagstones"),
+            _ => None,
+        },
+        |_, _, _, _| false,
     );
     b.m
 }
@@ -1124,8 +1336,17 @@ fn database() -> Database {
         states: vec![],
         light: None,
         use_spot: None,
+        gather: None,
+        regrow: None,
+        plot: false,
     };
     let state = |name: &str, sprite: SpriteRef, solid: bool| PropState { name: name.into(), sprite, solid, light: None };
+    let vein = |id: &str, name: &str, frame: u32, loot: Vec<LootEntry>| PropDef {
+        states: vec![state("mined out", sprite("props", p::VEIN_EMPTY), false)],
+        gather: Some(rustpg2d_engine::defs::Gather { tool: "pickaxe".into(), hits: 3, loot, then_state: "mined out".into() }),
+        regrow: Some(rustpg2d_engine::defs::Regrow { from: "mined out".into(), to: "default".into(), hours: 72.0 }),
+        ..prop(id, name, frame, true, [24.0, 10.0])
+    };
     // `body` = the body sheet of monsters; people get their layered look in `layered_characters`.
     let ch = |id: &str, name: &str, body: &str, speed: f32, behavior: Behavior| CharacterDef {
         id: id.into(),
@@ -1169,6 +1390,8 @@ fn database() -> Database {
         held: String::new(),
         tool: String::new(),
         use_on: Default::default(),
+        crop: None,
+        food: false,
     };
     let stack = |mut i: ItemDef, n: u32| {
         i.max_stack = n;
@@ -1277,6 +1500,8 @@ fn database() -> Database {
             SheetDef { kind: SheetKind::Armor, ..SheetDef::new("ov_chain", "sprites/ov_chain.png", 32, 48) },
             SheetDef::new("props", "sprites/props.png", 32, 32),
             SheetDef::new("items", "sprites/items.png", 32, 32),
+            // Cooked dishes (items.png is near the texture size limit).
+            SheetDef::new("food", "sprites/food.png", 32, 32),
             // Drawn dialog portraits (Database > Characters > Portrait): the elder, Tilda.
             SheetDef::new("portraits", "sprites/portraits.png", 64, 64),
             // Spell effects (the Fireball script).
@@ -1297,7 +1522,7 @@ fn database() -> Database {
                 use_trig(vec![Action::Heal { amount: 6 }, Action::SetVar { name: "potions_drunk".into(), op: VarOp::Add, value: 1 }]),
             )), 10),
             item("coin", "Coin", "Shiny gold coins.", it::COIN, false, use_trig(vec![Action::RunScript { function: "count_coins".into() }])),
-            stack(item("apple", "Apple", "Crunchy and sweet. Restores 1 heart.", it::APPLE, true, use_trig(vec![Action::Heal { amount: 2 }])), 20),
+            stack(dish(item("apple", "Apple", "Crunchy and sweet. Restores 1 heart.", it::APPLE, true, use_trig(vec![Action::Heal { amount: 2 }]))), 20),
             weapon(
                 stack(item("bow", "Hunting Bow", "Fast shots, uses arrows. Use it from the inventory to equip (or press Q).", it::BOW, false, vec![]), 1),
                 Weapon::ranged(1, 0.45, Ranged { projectile: sprite("items", it::ARROW_SHOT), speed: 240.0 * R, range: 8.0, ammo: "arrows".into() }),
@@ -1312,6 +1537,9 @@ fn database() -> Database {
             stack(item("bolts", "Bolts", "Ammunition for the crossbow.", it::BOLTS, false, vec![]), 30),
             // Melee weapons: balanced sword, long narrow spear, slow heavy axe.
             stack(weapon(item("sword", "Short Sword", "A reliable blade.", it::SWORD, false, vec![]), Weapon { reach: 1.1, arc: 65.0, ..Weapon::melee(2, 0.35) }), 1),
+            // Forged at the anvil (Blacksmithing): the fine one at Smithing 2.
+            stack(weapon(item("iron_sword", "Iron Sword", "A long iron blade from the anvil.", it::IRON_SWORD, false, vec![]), Weapon { reach: 1.2, arc: 65.0, ..Weapon::melee(3, 0.35) }), 1),
+            stack(weapon(item("fine_iron_sword", "Fine Iron Sword", "A masterly forged blade: lighter, sharper, gleaming.", it::FINE_SWORD, false, vec![]), Weapon { reach: 1.2, arc: 70.0, ..Weapon::melee(4, 0.3) }), 1),
             stack(weapon(item("spear", "Spear", "Hits from two tiles away, but only straight ahead.", it::SPEAR, false, vec![]), Weapon { reach: 1.9, arc: 22.0, knockback: 0.7, ..Weapon::melee(2, 0.55) }), 1),
             stack(weapon(item("axe", "Battle Axe", "Slow, wide swings that send enemies flying.", it::AXE, false, vec![]), Weapon { reach: 1.0, arc: 85.0, knockback: 1.8, ..Weapon::melee(4, 0.85) }), 1),
             // Armor: helmets and body armor.
@@ -1342,7 +1570,38 @@ fn database() -> Database {
             // Fishing (village pond: a fishing spot zone). The rod is needed to fish there.
             // A tool (Tool slot, tool kind "fishing rod"): in the hand while fishing.
             stack(ItemDef { tool: "fishing rod".into(), ..item("fishing_rod", "Fishing Rod", "A tool: stand at the pond's edge and press E to cast.", it::ROD, false, vec![]) }, 1),
-            stack(item("trout", "Trout", "A fresh trout. Eating it restores a heart.", it::TROUT, true, use_trig(vec![Action::Heal { amount: 2 }])), 10),
+            stack(dish(item("trout", "Trout", "A fresh trout. Eating it restores a heart (grilled: two).", it::TROUT, true, use_trig(vec![Action::Heal { amount: 2 }]))), 10),
+            // Mining (veins in the old mine): the pickaxe (a tool, Tool slot) and what veins give.
+            stack(ItemDef { tool: "pickaxe".into(), ..item("pickaxe", "Pickaxe", "A miner's tool: press E or swing at an ore vein while you carry it.", it::PICKAXE, false, vec![]) }, 1),
+            stack(item("copper_ore", "Copper Ore", "A lump of copper ore. Merchants pay a little for it.", it::COPPER_ORE, false, vec![]), 30),
+            stack(item("iron_ore", "Iron Ore", "Heavy iron ore, wanted by smiths.", it::IRON_ORE, false, vec![]), 30),
+            stack(item("silver_ore", "Silver Ore", "Glittering silver ore. Worth a good price.", it::SILVER_ORE, false, vec![]), 30),
+            // Crafting tools (Tool slot or just carried; recipes name their tool kind) and smelting.
+            stack(ItemDef { tool: "mortar".into(), ..item("mortar", "Mortar and Pestle", "An alchemist's tool: needed to brew at an alchemy table.", it::MORTAR, false, vec![]) }, 1),
+            stack(ItemDef { tool: "tongs".into(), ..item("tongs", "Smith's Tongs", "Needed to work a smelter (and, one day, an anvil).", it::TONGS, false, vec![]) }, 1),
+            stack(ItemDef { tool: "hammer".into(), ..item("hammer", "Smith's Hammer", "Needed (with the tongs) to forge at an anvil.", it::HAMMER, false, vec![]) }, 1),
+            // Farming: seeds grow on a soil plot (E plants the first seed you carry), crops over
+            // in-game hours (faster in rain); E on a ripe crop harvests it.
+            seed(item("wheat_seeds", "Wheat Seeds", "Plant them on a soil plot: wheat is ripe after a day.", it::WHEAT_SEEDS, false, vec![]), p::WHEAT, [8.0, 16.0], vec![LootEntry::new("wheat", 100.0, 2, 3), LootEntry::new("wheat_seeds", 50.0, 1, 1)]),
+            seed(item("carrot_seeds", "Carrot Seeds", "Plant them on a soil plot: carrots are ripe after a day and a half.", it::CARROT_SEEDS, false, vec![]), p::CARROT, [12.0, 24.0], vec![LootEntry::new("carrot", 100.0, 2, 4), LootEntry::new("carrot_seeds", 40.0, 1, 1)]),
+            seed(item("pumpkin_seeds", "Pumpkin Seeds", "Plant them on a soil plot: a pumpkin takes two days.", it::PUMPKIN_SEEDS, false, vec![]), p::PUMPKIN, [18.0, 30.0], vec![LootEntry::new("pumpkin", 100.0, 1, 1), LootEntry::new("pumpkin_seeds", 60.0, 1, 2)]),
+            stack(item("wheat", "Wheat", "Golden wheat. Millers and bakers buy it.", it::WHEAT, false, vec![]), 30),
+            stack(dish(item("carrot", "Carrot", "Fresh and crunchy. Restores 1 heart.", it::CARROT, true, use_trig(vec![Action::Heal { amount: 2 }]))), 20),
+            stack(item("pumpkin", "Pumpkin", "A big orange pumpkin. Tilda pays well for it.", it::PUMPKIN, false, vec![]), 5),
+            // Cooking (at a lit campfire): food heals more with the Cooking skill.
+            dish(item("grilled_trout", "Grilled Trout", "Crispy skin, tender inside. Restores 2 hearts.", food::GRILLED_TROUT, true, use_trig(vec![Action::Heal { amount: 4 }]))),
+            dish(item("bread", "Bread", "A warm loaf. Restores 1.5 hearts.", food::BREAD, true, use_trig(vec![Action::Heal { amount: 3 }]))),
+            dish(item("carrot_soup", "Carrot Soup", "Restores 2 hearts and keeps healing a little for a while.", food::CARROT_SOUP, true, use_trig(vec![Action::Heal { amount: 4 }, regen(8.0)]))),
+            dish(item("pumpkin_stew", "Pumpkin Stew", "Hearty: restores 3 hearts, then heals on for a while.", food::STEW, true, use_trig(vec![Action::Heal { amount: 6 }, regen(15.0)]))),
+            dish(item("apple_pie", "Apple Pie", "Restores 2 hearts, and you hit 25% harder for a minute.", food::PIE, true, use_trig(vec![
+                Action::Heal { amount: 4 },
+                Action::ApplyEffect { target: "player".into(), effect: rustpg2d_engine::effects::EffectSpec::new(rustpg2d_engine::effects::EffectKind::Strength, 25.0, 60.0) },
+            ]))),
+            stack(item("coal", "Coal", "Fuel for the smelter. Mined from coal veins.", it::COAL, false, vec![]), 30),
+            stack(item("copper_ingot", "Copper Ingot", "Smelted copper.", it::COPPER_INGOT, false, vec![]), 20),
+            stack(item("iron_ingot", "Iron Ingot", "Smelted iron, the smith's daily bread.", it::IRON_INGOT, false, vec![]), 20),
+            stack(item("silver_ingot", "Silver Ingot", "Smelted silver. Fetches a fine price.", it::SILVER_INGOT, false, vec![]), 20),
+            stack(item("ruby", "Ruby", "A deep red gem from the heart of the mine.", it::GEM, false, vec![]), 10),
             stack(item("old_boot", "Old Boot", "Soggy. Nobody wants it - except perhaps a merchant who buys anything.", it::BOOT, false, vec![]), 5),
             // Crafting ingredients (Database › Recipes: brewed at the alchemy table in Tilda's shop).
             stack(item("herb", "Healing Herb", "A fragrant herb. Brewed into potions at an alchemy table.", it::HERB, false, vec![]), 20),
@@ -1421,6 +1680,56 @@ fn database() -> Database {
                 use_spot: Some(UseSpot { pose: Pose::Lie, offset: [19.0, -16.0], facing: Facing::Left, sleep_until: 7.0, cover: SpriteRef::block("props", p::BLANKET_SIDE, 2, 1), ..Default::default() }),
                 ..prop("bed_side", "Bed (sideways)", p::BED_SIDE, true, [30.0, 12.0])
             },
+            // Ore veins: gathered with a pickaxe (E or a swing, 3 hits; fewer with Mining), then
+            // "mined out" until they regrow three in-game days later.
+            vein("vein_copper", "Copper Vein", p::VEIN_COPPER, vec![LootEntry::new("copper_ore", 100.0, 1, 3)]),
+            vein("vein_iron", "Iron Vein", p::VEIN_IRON, vec![LootEntry::new("iron_ore", 100.0, 1, 2), LootEntry::new("copper_ore", 30.0, 1, 1)]),
+            vein("vein_silver", "Silver Vein", p::VEIN_SILVER, vec![LootEntry::new("silver_ore", 100.0, 1, 2)]),
+            vein("vein_gem", "Gem Vein", p::VEIN_GEM, vec![LootEntry::new("ruby", 60.0, 1, 1), LootEntry::new("silver_ore", 40.0, 1, 1)]),
+            vein("vein_coal", "Coal Vein", p::VEIN_COAL, vec![LootEntry::new("coal", 100.0, 1, 3)]),
+            // Plants picked by hand (no tool, one hit), back half a day later (by the next morning).
+            PropDef {
+                states: vec![state("picked", sprite("props", p::HERB_BUSH_PICKED), false)],
+                gather: Some(rustpg2d_engine::defs::Gather { tool: String::new(), hits: 1, loot: vec![LootEntry::new("herb", 100.0, 1, 2)], then_state: "picked".into() }),
+                regrow: Some(rustpg2d_engine::defs::Regrow { from: "picked".into(), to: "default".into(), hours: 12.0 }),
+                ..prop("herb_bush", "Herb Bush", p::HERB_BUSH, false, [20.0, 8.0])
+            },
+            PropDef {
+                states: vec![state("picked", sprite("props", p::MUSHROOMS_PICKED), false)],
+                gather: Some(rustpg2d_engine::defs::Gather { tool: String::new(), hits: 1, loot: vec![LootEntry::new("mushroom", 100.0, 1, 2)], then_state: "picked".into() }),
+                regrow: Some(rustpg2d_engine::defs::Regrow { from: "picked".into(), to: "default".into(), hours: 12.0 }),
+                ..prop("mushroom_patch", "Mushroom Patch", p::MUSHROOMS, false, [20.0, 8.0])
+            },
+            // A cooking fire: E opens the "cooking" recipes; they need it lit (use coal on it).
+            // It burns out eight in-game hours later.
+            PropDef {
+                default_state: "out".into(),
+                states: vec![PropState { light: Some(LightSpec { intensity: 0.9, ..LightSpec::new(3.0, [255, 160, 80], true) }), ..state("lit", sprite("props", p::CAMPFIRE_LIT), true) }],
+                regrow: Some(rustpg2d_engine::defs::Regrow { from: "lit".into(), to: "out".into(), hours: 8.0 }),
+                triggers: vec![
+                    trig(TriggerOn::Interact, vec![], vec![Action::OpenCrafting { station: "cooking".into(), title: "Campfire".into() }]),
+                    trig(
+                        TriggerOn::UseItem { item: "coal".into() },
+                        vec![],
+                        vec![Action::TakeItem { item: "coal".into(), count: 1 }, Action::SetState { target: "self".into(), state: "lit".into() }, dialog("", "The coal catches and the fire crackles to life.")],
+                    ),
+                ],
+                ..prop("campfire", "Campfire", p::CAMPFIRE, true, [24.0, 10.0])
+            },
+            // A farm plot: seeds are planted on it.
+            PropDef { plot: true, ..prop("soil_plot", "Soil Plot", p::SOIL, false, [26.0, 12.0]) },
+            // The anvil: ingots into weapons, armor and tools (with the hammer and the tongs).
+            PropDef {
+                triggers: vec![trig(TriggerOn::Interact, vec![], vec![Action::OpenCrafting { station: "anvil".into(), title: "Anvil".into() }])],
+                ..prop("anvil", "Anvil", p::ANVIL, true, [24.0, 10.0])
+            },
+            // The smelter by the mine: ore and coal into ingots (with smith's tongs).
+            PropDef {
+                sprite: SpriteRef::block("props", p::SMELTER, 1, 2),
+                light: Some(LightSpec { intensity: 0.8, ..LightSpec::new(2.5, [255, 150, 70], true) }),
+                triggers: vec![trig(TriggerOn::Interact, vec![], vec![Action::OpenCrafting { station: "smelter".into(), title: "Smelter".into() }])],
+                ..prop("smelter", "Smelter", p::SMELTER, true, [26.0, 12.0])
+            },
             // A crafting station: its definition's Interact trigger opens the "alchemy" recipes.
             PropDef {
                 triggers: vec![trig(TriggerOn::Interact, vec![], vec![Action::OpenCrafting { station: "alchemy".into(), title: "Alchemy Table".into() }])],
@@ -1495,10 +1804,42 @@ fn database() -> Database {
         achievements: achievements(),
     };
     layered_characters(&mut db);
+    // Cooked dishes: icons on the food sheet, stacks of ten.
+    for (id, f) in [("grilled_trout", food::GRILLED_TROUT), ("bread", food::BREAD), ("carrot_soup", food::CARROT_SOUP), ("pumpkin_stew", food::STEW), ("apple_pie", food::PIE)] {
+        if let Some(d) = db.items.iter_mut().find(|d| d.id == id) {
+            d.icon = SpriteRef::new("food", f);
+            d.max_stack = 10;
+        }
+    }
     // Trade values (merchants use them unless their stock sets a price).
     for (id, v) in [
         ("potion", 15),
         ("bandage", 4),
+        ("pickaxe", 25),
+        ("copper_ore", 3),
+        ("iron_ore", 5),
+        ("silver_ore", 12),
+        ("ruby", 40),
+        ("mortar", 15),
+        ("tongs", 20),
+        ("hammer", 20),
+        ("wheat_seeds", 1),
+        ("carrot_seeds", 2),
+        ("pumpkin_seeds", 3),
+        ("wheat", 3),
+        ("carrot", 4),
+        ("pumpkin", 12),
+        ("grilled_trout", 8),
+        ("bread", 6),
+        ("carrot_soup", 10),
+        ("pumpkin_stew", 18),
+        ("apple_pie", 16),
+        ("iron_sword", 45),
+        ("fine_iron_sword", 80),
+        ("coal", 2),
+        ("copper_ingot", 10),
+        ("iron_ingot", 16),
+        ("silver_ingot", 36),
         ("apple", 3),
         ("bow", 40),
         ("crossbow", 70),
@@ -1604,6 +1945,13 @@ fn mine() -> Map {
     chest.lock = Some(LockSpec { pick_difficulty: 2, locked_text: "An old lock with no keyhole worth the name. A skilled lockpick might manage.".into(), ..Default::default() });
     // Opening it unlocks the hidden achievement "Hidden Hoard" (Database › Achievements).
     chest.triggers = vec![trig(TriggerOn::Unlock, vec![], vec![Action::UnlockAchievement { id: "hidden_hoard".into() }])];
+    // Mining: ore veins in the cavern and the dark treasure room; a miner's crate in the
+    // entrance hall holds the pickaxe.
+    for (def, x, y) in [("vein_copper", 4, 4), ("vein_copper", 16, 3), ("vein_iron", 10, 7), ("vein_iron", 22, 4), ("vein_silver", 7, 15), ("vein_gem", 3, 11), ("vein_coal", 12, 17), ("vein_coal", 21, 7)] {
+        b.entity(EntityKind::Prop, def, x, y);
+    }
+    let crate_ = b.entity(EntityKind::Prop, "chest", 16, 14);
+    crate_.container = Some(ContainerSpec { size: 4, items: vec![ItemStack::new("pickaxe", 1), ItemStack::new("tongs", 1), ItemStack::new("torch", 1)], open_state: "open".into(), ..Default::default() });
     b.m.background = [0, 0, 0];
     b.m.lighting = MapLighting { mode: LightMode::Dark, darkness: 1.0 };
     // Explored regions: the map screen reveals it as the player walks around.
@@ -1912,7 +2260,7 @@ fn layered_characters(db: &mut Database) {
     }
     db.sheets.push(SheetDef::new("outfit_icons", "sprites/outfit_icons.png", 32, 32));
     // What weapons, shields and lights look like in a hand.
-    for (item, held) in [("sword", "held_sword"), ("spear", "held_spear"), ("axe", "held_axe"), ("bow", "held_bow"), ("crossbow", "held_crossbow"), ("wooden_shield", "held_shield"), ("lantern", "held_lantern"), ("torch", "held_torch"), ("fishing_rod", "held_rod")] {
+    for (item, held) in [("sword", "held_sword"), ("iron_sword", "held_sword"), ("fine_iron_sword", "held_sword"), ("spear", "held_spear"), ("axe", "held_axe"), ("bow", "held_bow"), ("crossbow", "held_crossbow"), ("wooden_shield", "held_shield"), ("lantern", "held_lantern"), ("torch", "held_torch"), ("fishing_rod", "held_rod")] {
         db.items.iter_mut().find(|d| d.id == item).expect(item).held = held.into();
     }
     // The goblins' own bow: what they shoot with, dropped when they are defeated.
@@ -1987,6 +2335,7 @@ fn main() {
     slime(&out);
     props(&out);
     items(&out);
+    food_icons(&out);
     portraits(&out);
     fireball(&out);
     explosion(&out);
@@ -2051,7 +2400,7 @@ fn main() {
     };
     project.save_config().unwrap();
     project.save_defs().unwrap();
-    for map in [village(), house(), shop(), forest(), wilds(), mine()] {
+    for map in [village(), house(), shop(), forest(), wilds(), mine(), workshop()] {
         project.save_map(&map).unwrap();
         println!("map {:<8} {}x{}", map.name, map.width, map.height);
     }

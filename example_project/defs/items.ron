@@ -118,6 +118,7 @@
         armor: None,
         max_stack: 20,
         value: 3,
+        food: true,
     ),
     (
         id: "bow",
@@ -264,6 +265,54 @@
         armor: None,
         max_stack: 1,
         value: 30,
+        held: "held_sword",
+    ),
+    (
+        id: "iron_sword",
+        name: "Iron Sword",
+        description: "A long iron blade from the anvil.",
+        icon: (
+            sheet: "items",
+            frame: 53,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: Some((
+            damage: 3,
+            cooldown: 0.35,
+            ranged: None,
+            reach: 1.2,
+            arc: 65.0,
+            knockback: 1.0,
+            two_handed: false,
+        )),
+        armor: None,
+        max_stack: 1,
+        value: 45,
+        held: "held_sword",
+    ),
+    (
+        id: "fine_iron_sword",
+        name: "Fine Iron Sword",
+        description: "A masterly forged blade: lighter, sharper, gleaming.",
+        icon: (
+            sheet: "items",
+            frame: 54,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: Some((
+            damage: 4,
+            cooldown: 0.3,
+            ranged: None,
+            reach: 1.2,
+            arc: 70.0,
+            knockback: 1.0,
+            two_handed: false,
+        )),
+        armor: None,
+        max_stack: 1,
+        value: 80,
         held: "held_sword",
     ),
     (
@@ -671,7 +720,7 @@
     (
         id: "trout",
         name: "Trout",
-        description: "A fresh trout. Eating it restores a heart.",
+        description: "A fresh trout. Eating it restores a heart (grilled: two).",
         icon: (
             sheet: "items",
             frame: 38,
@@ -695,6 +744,581 @@
         armor: None,
         max_stack: 10,
         value: 0,
+        food: true,
+    ),
+    (
+        id: "pickaxe",
+        name: "Pickaxe",
+        description: "A miner\'s tool: press E or swing at an ore vein while you carry it.",
+        icon: (
+            sheet: "items",
+            frame: 41,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 1,
+        value: 25,
+        tool: "pickaxe",
+    ),
+    (
+        id: "copper_ore",
+        name: "Copper Ore",
+        description: "A lump of copper ore. Merchants pay a little for it.",
+        icon: (
+            sheet: "items",
+            frame: 42,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 30,
+        value: 3,
+    ),
+    (
+        id: "iron_ore",
+        name: "Iron Ore",
+        description: "Heavy iron ore, wanted by smiths.",
+        icon: (
+            sheet: "items",
+            frame: 43,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 30,
+        value: 5,
+    ),
+    (
+        id: "silver_ore",
+        name: "Silver Ore",
+        description: "Glittering silver ore. Worth a good price.",
+        icon: (
+            sheet: "items",
+            frame: 44,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 30,
+        value: 12,
+    ),
+    (
+        id: "mortar",
+        name: "Mortar and Pestle",
+        description: "An alchemist\'s tool: needed to brew at an alchemy table.",
+        icon: (
+            sheet: "items",
+            frame: 46,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 1,
+        value: 15,
+        tool: "mortar",
+    ),
+    (
+        id: "tongs",
+        name: "Smith\'s Tongs",
+        description: "Needed to work a smelter (and, one day, an anvil).",
+        icon: (
+            sheet: "items",
+            frame: 47,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 1,
+        value: 20,
+        tool: "tongs",
+    ),
+    (
+        id: "hammer",
+        name: "Smith\'s Hammer",
+        description: "Needed (with the tongs) to forge at an anvil.",
+        icon: (
+            sheet: "items",
+            frame: 52,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 1,
+        value: 20,
+        tool: "hammer",
+    ),
+    (
+        id: "wheat_seeds",
+        name: "Wheat Seeds",
+        description: "Plant them on a soil plot: wheat is ripe after a day.",
+        icon: (
+            sheet: "items",
+            frame: 55,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 20,
+        value: 1,
+        crop: Some((
+            stages: [
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 101,
+                    ),
+                    hours: 8.0,
+                ),
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 102,
+                    ),
+                    hours: 16.0,
+                ),
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 103,
+                    ),
+                    hours: 0.0,
+                ),
+            ],
+            harvest: [
+                (
+                    item: "wheat",
+                    chance: 100.0,
+                    min: 2,
+                    max: 3,
+                ),
+                (
+                    item: "wheat_seeds",
+                    chance: 50.0,
+                    min: 1,
+                    max: 1,
+                ),
+            ],
+        )),
+    ),
+    (
+        id: "carrot_seeds",
+        name: "Carrot Seeds",
+        description: "Plant them on a soil plot: carrots are ripe after a day and a half.",
+        icon: (
+            sheet: "items",
+            frame: 56,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 20,
+        value: 2,
+        crop: Some((
+            stages: [
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 112,
+                    ),
+                    hours: 12.0,
+                ),
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 113,
+                    ),
+                    hours: 24.0,
+                ),
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 114,
+                    ),
+                    hours: 0.0,
+                ),
+            ],
+            harvest: [
+                (
+                    item: "carrot",
+                    chance: 100.0,
+                    min: 2,
+                    max: 4,
+                ),
+                (
+                    item: "carrot_seeds",
+                    chance: 40.0,
+                    min: 1,
+                    max: 1,
+                ),
+            ],
+        )),
+    ),
+    (
+        id: "pumpkin_seeds",
+        name: "Pumpkin Seeds",
+        description: "Plant them on a soil plot: a pumpkin takes two days.",
+        icon: (
+            sheet: "items",
+            frame: 57,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 20,
+        value: 3,
+        crop: Some((
+            stages: [
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 115,
+                    ),
+                    hours: 18.0,
+                ),
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 116,
+                    ),
+                    hours: 30.0,
+                ),
+                (
+                    sprite: (
+                        sheet: "props",
+                        frame: 117,
+                    ),
+                    hours: 0.0,
+                ),
+            ],
+            harvest: [
+                (
+                    item: "pumpkin",
+                    chance: 100.0,
+                    min: 1,
+                    max: 1,
+                ),
+                (
+                    item: "pumpkin_seeds",
+                    chance: 60.0,
+                    min: 1,
+                    max: 2,
+                ),
+            ],
+        )),
+    ),
+    (
+        id: "wheat",
+        name: "Wheat",
+        description: "Golden wheat. Millers and bakers buy it.",
+        icon: (
+            sheet: "items",
+            frame: 58,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 30,
+        value: 3,
+    ),
+    (
+        id: "carrot",
+        name: "Carrot",
+        description: "Fresh and crunchy. Restores 1 heart.",
+        icon: (
+            sheet: "items",
+            frame: 59,
+        ),
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    Heal(
+                        amount: 2,
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        weapon: None,
+        armor: None,
+        max_stack: 20,
+        value: 4,
+        food: true,
+    ),
+    (
+        id: "pumpkin",
+        name: "Pumpkin",
+        description: "A big orange pumpkin. Tilda pays well for it.",
+        icon: (
+            sheet: "items",
+            frame: 60,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 5,
+        value: 12,
+    ),
+    (
+        id: "grilled_trout",
+        name: "Grilled Trout",
+        description: "Crispy skin, tender inside. Restores 2 hearts.",
+        icon: (
+            sheet: "food",
+            frame: 0,
+        ),
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    Heal(
+                        amount: 4,
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 8,
+        food: true,
+    ),
+    (
+        id: "bread",
+        name: "Bread",
+        description: "A warm loaf. Restores 1.5 hearts.",
+        icon: (
+            sheet: "food",
+            frame: 1,
+        ),
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    Heal(
+                        amount: 3,
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 6,
+        food: true,
+    ),
+    (
+        id: "carrot_soup",
+        name: "Carrot Soup",
+        description: "Restores 2 hearts and keeps healing a little for a while.",
+        icon: (
+            sheet: "food",
+            frame: 2,
+        ),
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    Heal(
+                        amount: 4,
+                    ),
+                    ApplyEffect(
+                        target: "player",
+                        effect: (
+                            kind: Regen,
+                            strength: 1.0,
+                            seconds: 8.0,
+                        ),
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 10,
+        food: true,
+    ),
+    (
+        id: "pumpkin_stew",
+        name: "Pumpkin Stew",
+        description: "Hearty: restores 3 hearts, then heals on for a while.",
+        icon: (
+            sheet: "food",
+            frame: 3,
+        ),
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    Heal(
+                        amount: 6,
+                    ),
+                    ApplyEffect(
+                        target: "player",
+                        effect: (
+                            kind: Regen,
+                            strength: 1.0,
+                            seconds: 15.0,
+                        ),
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 18,
+        food: true,
+    ),
+    (
+        id: "apple_pie",
+        name: "Apple Pie",
+        description: "Restores 2 hearts, and you hit 25% harder for a minute.",
+        icon: (
+            sheet: "food",
+            frame: 4,
+        ),
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    Heal(
+                        amount: 4,
+                    ),
+                    ApplyEffect(
+                        target: "player",
+                        effect: (
+                            kind: Strength,
+                            strength: 25.0,
+                            seconds: 60.0,
+                        ),
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 16,
+        food: true,
+    ),
+    (
+        id: "coal",
+        name: "Coal",
+        description: "Fuel for the smelter. Mined from coal veins.",
+        icon: (
+            sheet: "items",
+            frame: 48,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 30,
+        value: 2,
+    ),
+    (
+        id: "copper_ingot",
+        name: "Copper Ingot",
+        description: "Smelted copper.",
+        icon: (
+            sheet: "items",
+            frame: 49,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 20,
+        value: 10,
+    ),
+    (
+        id: "iron_ingot",
+        name: "Iron Ingot",
+        description: "Smelted iron, the smith\'s daily bread.",
+        icon: (
+            sheet: "items",
+            frame: 50,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 20,
+        value: 16,
+    ),
+    (
+        id: "silver_ingot",
+        name: "Silver Ingot",
+        description: "Smelted silver. Fetches a fine price.",
+        icon: (
+            sheet: "items",
+            frame: 51,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 20,
+        value: 36,
+    ),
+    (
+        id: "ruby",
+        name: "Ruby",
+        description: "A deep red gem from the heart of the mine.",
+        icon: (
+            sheet: "items",
+            frame: 45,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 40,
     ),
     (
         id: "old_boot",

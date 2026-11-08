@@ -268,6 +268,8 @@ pub enum Cond {
     HasEffect { kind: crate::effects::EffectKind },
     /// How many characters of a definition the player has defeated, compared with a number.
     Defeated { character: String, op: CmpOp, count: i64 },
+    /// How a character (or "player") rests on furniture: "sit", "lie", "stand"; "" = on its feet.
+    Pose { target: TargetName, pose: String },
 }
 
 /// Whether `hour` lies in `from..to` (hours 0..24; `from > to` wraps around midnight).
@@ -297,6 +299,7 @@ impl Cond {
             Cond::Level { .. } => "Player level",
             Cond::HasEffect { .. } => "Player has effect",
             Cond::Defeated { .. } => "Defeated count",
+            Cond::Pose { .. } => "Pose (sitting, asleep)",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -315,6 +318,7 @@ impl Cond {
             Cond::Level { op: CmpOp::Ge, value: 2 },
             Cond::HasEffect { kind: crate::effects::EffectKind::Poison },
             Cond::Defeated { character: String::new(), op: CmpOp::Ge, count: 10 },
+            Cond::Pose { target: "self".into(), pose: "lie".into() },
         ]
     }
 }
@@ -348,6 +352,8 @@ impl Condition {
             Cond::Level { op, value } => op.apply(world.player_level() as i64, *value),
             Cond::HasEffect { kind } => world.effects.iter().any(|e| e.kind == *kind),
             Cond::Defeated { character, op, count } => op.apply(world.defeated(character) as i64, *count),
+            // Needs the running game (see `conditions_met`).
+            Cond::Pose { .. } => false,
         };
         v != self.negate
     }

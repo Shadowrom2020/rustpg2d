@@ -86,6 +86,24 @@ pub struct EntityState {
     /// A character with a schedule stopped following it (Schedule action / script).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub schedule_off: bool,
+    /// When its prop state last changed (`WorldState::total_hours`; regrowing states).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub changed_at: Option<f64>,
+    /// What grows on a farm plot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub planted: Option<Planted>,
+}
+
+/// A seed planted on a farm plot (`EntityState::planted`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Planted {
+    /// The seed item (its `crop`).
+    pub seed: String,
+    /// When it was planted (`WorldState::total_hours`).
+    pub at: f64,
+    /// Extra growing hours from rain.
+    #[serde(default)]
+    pub bonus: f64,
 }
 
 /// Progress of a patrolling character (saved, so a loaded game continues the route).
@@ -136,6 +154,9 @@ pub struct WorldState {
     /// Time of day in hours (0..24), advanced while playing.
     #[serde(default = "crate::project::default_start_hour")]
     pub hour: f32,
+    /// Days passed since the game began (the clock wrapping past midnight, sleeping).
+    #[serde(default)]
+    pub day: u32,
     /// map -> spawner zone uid -> characters defeated for good (`Respawn::Never`).
     #[serde(default)]
     pub spawner_kills: BTreeMap<String, BTreeMap<u32, u32>>,
@@ -335,6 +356,18 @@ impl Sex {
 }
 
 impl WorldState {
+    /// In-game hours since the game began (days and the hour of the day).
+    pub fn total_hours(&self) -> f64 {
+        self.day as f64 * 24.0 + self.hour as f64
+    }
+
+    /// Moves the clock forward by `hours`, counting the days that pass.
+    pub fn advance_hours(&mut self, hours: f32) {
+        let t = self.total_hours() + hours.max(0.0) as f64;
+        self.day = (t / 24.0).floor() as u32;
+        self.hour = (t - self.day as f64 * 24.0) as f32;
+    }
+
     /// The placed character `uid` of `map` follows the player.
     pub fn is_companion(&self, map: &str, uid: u32) -> bool {
         self.companions.iter().any(|c| c.uid == uid && c.map == map)
@@ -607,7 +640,7 @@ mod tests {
         w.set_entity_state(
             "village",
             7,
-            EntityState { active: false, frame: 1, x: 1.0, y: 2.0, facing: Facing::Up, count: None, unlocked: true, state: Some("open".into()), patrol: None, schedule_off: false },
+            EntityState { active: false, frame: 1, x: 1.0, y: 2.0, facing: Facing::Up, count: None, unlocked: true, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: Some(30.0), planted: None },
         );
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert!(back.flag("a"));
@@ -660,5 +693,31 @@ mod tests {
         assert_eq!(back.count("fishing_rod"), 1, "tools count as owned");
         assert!(!ron::to_string(&old).unwrap().contains("tool"), "no tool, nothing written");
         assert_eq!(EquipSlot::parse("tool"), Some(EquipSlot::Tool));
+    }
+}
+
+#[cfg(test)]
+mod day_tests {
+    use super::*;
+
+    #[test]
+    fn days_pass_with_the_clock() {
+        // Saves from before days: day 0, entity states without a change time.
+        let mut w = WorldState { hour: 22.5, ..Default::default() };
+        w.day = 7;
+        let ron = w.to_ron().unwrap().replace("    day: 7,\n", "");
+        assert!(!ron.contains("day:"), "{ron}");
+        let old = WorldState::from_ron(&ron).unwrap();
+        assert_eq!((old.day, old.hour), (0, 22.5));
+        let st: EntityState = ron::from_str("(active: true, frame: 0, x: 1.0, y: 2.0, facing: Down)").unwrap();
+        assert_eq!(st.changed_at, None);
+        let mut w = old;
+        w.advance_hours(3.0);
+        assert_eq!((w.day, w.hour), (1, 1.5));
+        w.advance_hours(72.0);
+        assert_eq!((w.day, w.hour), (4, 1.5));
+        assert_eq!(w.total_hours(), 97.5);
+        let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
+        assert_eq!(back.day, 4);
     }
 }

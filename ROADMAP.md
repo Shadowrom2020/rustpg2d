@@ -77,191 +77,6 @@ Instructions for every session (people and coding agents) that implements roadma
     notes live on in the CHANGELOG and the code), `cargo xtask check-version release/X.Y.Z`,
     pull request into master, merge after the four checks, merge the back-merge pull request.
 
-## 0.7.0 — Trades and town life
-
-Theme: the player gathers, smiths, farms and cooks, and the townsfolk visibly live their days
-across maps, using furniture and working at their trades. Suggested order: the gathering
-groundwork with mining → blacksmithing; farming → cooking; then the townsfolk items, which show
-the trades in their routines.
-
-### [ ] Mining and gathering — `feature/mining`
-
-**Goal.** Ore veins the player breaks with a pickaxe, plus the groundwork the other trades use:
-tools in recipes, gathering props and prop states that change over in-game days.
-
-**Design.**
-- *Tools* (partly there: `ItemDef.tool` names a tool kind and the Tool slot holds one):
-  `RecipeDef.tools: Vec<String>` (tool kinds needed, not used up: equipped in the Tool slot or
-  in the inventory); the crafting window lists a missing tool like a missing ingredient
-  (`Missing::Tool`).
-- *Days*: `WorldState.day: u32` (serde default 0), advanced when the hour wraps (also by
-  sleeping, `pass_time`); `total_hours() = day * 24 + hour`. Autoplay `settime +H` advances
-  across days.
-- *Timed prop states*: `PropDef.regrow: Option<Regrow { from, to, hours }>`;
-  `EntityState.changed_at: Option<f64>` (total hours, serde default) is set on every state change,
-  and the state is moved on when the map is entered or the time passes it on the current map,
-  so it also works while the player is elsewhere.
-- *Gathering nodes*: `PropDef.gather: Option<Gather { tool, hits, loot, then_state, skill }>`:
-  with the tool equipped (or in the bag), attacking or E on the prop counts a hit (a progress
-  bar over the prop, chips as an effect); after `hits` the loot table rolls (`roll_loot`), the
-  prop switches to `then_state` ("depleted"). `SkillEffect::Gather { tool, percent }` (appended)
-  lowers the hits.
-- *Mining*: copper, iron and silver veins (gem veins rarely) need a *pickaxe* (tool kind
-  "pickaxe", also a weak weapon); depleted veins regrow after 3 in-game days.
-
-**Touch points.** `crafting.rs`, `runtime/crafting_ui.rs`, `state.rs` (`day`, `changed_at`),
-`defs.rs` (`Regrow`, `Gather`), `skills.rs`, `runtime/{mod,lights,furniture,combat}.rs`, new
-`runtime/gather.rs`, editor `database.rs` (prop form), game `main.rs` (`settime +H`), README.
-
-**Example.** Veins in the old mine's dark corridors, a pickaxe in the mine's entrance chest, a
-*Mining* skill; ore sells at Tilda's.
-
-**Verify.** Autoplay with a pickaxe: hit a vein three times → `inv` has iron ore, the prop state
-is `depleted`; `settime +72`, re-enter → full again; without a pickaxe a toast names it; a
-recipe with a tool shows it missing. Unit tests: old saves without `day`, `regrow` arithmetic.
-
-### [ ] Blacksmithing — `feature/blacksmithing` (follows *Mining*)
-
-**Goal.** A forge smelts ore into ingots and an anvil forges them into weapons, armor and tools.
-
-**Design.**
-- Two crafting stations (props with `Open crafting`): the *forge* (ore + coal → ingot) and the
-  *anvil* (ingots, leather, wood → weapons, armor, arrowheads, tools; recipes need a *hammer*
-  via `RecipeDef.tools`).
-- A *Smithing* skill unlocks better recipes (recipe `skill` / `level`). Quality: optional
-  `RecipeDef.quality: Vec<(level, item)>` makes a better item id at higher skill (a *Fine Iron
-  Sword* is its own definition, so items stay plain).
-- Optional upgrade recipes: an equipped item as an ingredient (sword + 2 iron ingots → fine
-  sword), using the existing ingredient check.
-- The forge's "lit" state is a light source (`LightSpec` on the state) and needs coal to light.
-
-**Touch points.** `crafting.rs` (`quality`), `runtime/crafting_ui.rs`, gen_example (smithy map
-part, forge / anvil / ingot / coal art, recipes), README.
-
-**Example.** A smithy next to Tilda's shop with a blacksmith NPC (by day at the anvil, see *NPC
-routines*), forge and anvil, recipes for an iron sword, helmet, chainmail, arrows and the
-pickaxe itself.
-
-**Verify.** Autoplay: smelt iron ore, forge a sword (`inv`), the Smithing level gives the fine
-sword; the forge's light at night (screenshot); without a hammer the anvil recipe shows it
-missing.
-
-### [ ] Farming — `feature/farming` (follows *Mining*: days, timed states)
-
-**Goal.** The player plants seeds in soil plots, crops grow over in-game days and are harvested.
-
-**Design.**
-- Crops: `CropDef { id, name, seed, stages: Vec<(SpriteRef, hours)>, harvest: loot }` in a new
-  `defs/crops.ron` (`project.rs` `DEFS`, `release.rs`, `library.rs`), so one plot prop grows
-  any crop; Database tab *Crops*.
-- Plots: `PropDef.plot: bool` (serde default); using a seed item on a plot (the existing "use
-  item on the prop in front" path) plants it; `EntityState.planted: Option<(crop, total_hours)>`
-  (serde default) is saved; the plot draws the crop's stage sprite on top of itself. Rain on
-  the map counts as watering (growth × 1.5 while it rains on the plot's map); a *watering can*
-  tool does the same for a day. Ripe plots are harvested with E (a *hoe* optional: more yield),
-  and return to empty.
-- Growth is computed from total hours, so it continues while the player is away.
-
-**Touch points.** new `crops.rs` (def), `project.rs`, `release.rs`, `library.rs`, `refactor.rs`,
-`state.rs`, `runtime/{mod,gather}.rs`, editor `database.rs` (Crops tab, prop *Plot*), gen_example
-(plots, seeds, crop stages), README.
-
-**Example.** The fenced garden behind Tilda's shop becomes six plots; wheat, carrot and pumpkin
-seeds at Tilda's; crops sell to her and feed *Cooking*.
-
-**Verify.** Autoplay: plant carrots, `settime +48`, re-enter → `status` shows the plot ripe,
-harvest → `inv`; a rainy map grows faster; save / load keeps the growth; screenshots of the
-stages.
-
-### [ ] Cooking — `feature/cooking` (follows *Farming*)
-
-**Goal.** Raw food becomes cooked food that heals more and gives timed buffs.
-
-**Design.**
-- A cooking fire or stove is a crafting station; `RecipeDef.station_state: String` (serde
-  default "") requires the station prop's state ("lit").
-- Raw food (meat from animals' loot, fish from fishing, mushrooms, apples, crops) → cooked food
-  whose *on use* heals and applies the existing effects (*Regen*, *Strength*, *Haste*).
-- A *Cooking* skill unlocks recipes; `SkillEffect::FoodBonus { percent }` (appended) raises
-  healing from items tagged `ItemDef.food: bool`.
-- No hunger system (left out on purpose; a game can script one).
-
-**Touch points.** `crafting.rs`, `runtime/crafting_ui.rs`, `skills.rs`, `runtime/combat.rs`
-(heal bonus), `defs.rs` (`food`), gen_example, README.
-
-**Example.** A campfire in the Wilds and the elder's stove; four recipes (roast fish, stew,
-carrot soup, apple pie); raw meat from the Wilds' animals.
-
-**Verify.** Autoplay: cook a stew at the lit campfire, eat it → `effects=` shows Regen; an unlit
-fire refuses the recipe; the Cooking bonus raises the healed HP (two statuses).
-
-### [ ] Schedules across maps and with furniture — `feature/schedule-maps`
-
-**Goal.** A scheduled character goes to other maps (home, the shop, the tavern) and uses
-furniture there: sleeps in a bed, sits on a chair, stands at a counter.
-
-**Design.**
-- *Stops on other maps*: `ScheduleStop.map: String` (serde default, "" = its own map). The
-  character walks to the portal / transition zone of its map that leads there (the nearest
-  `ZoneKind::Portal` / `Transition` with that `target_map`) and leaves; on its home map it is
-  `away` (as *inside* stops today). Where everyone is lives in the save game:
-  `WorldState.npc_whereabouts: BTreeMap<String /* home map */, BTreeMap<u32, String /* map */>>`
-  (serde default).
-- *Visitors*: building a map's entities adds the characters whose current stop is on it (their
-  instance comes from the home map through the map cache), with a runtime uid range of their own
-  like `DROPPED_UID_BASE`; their triggers, look and items come along, state changes are saved
-  under the home map's uid. Arriving while the player is there: they appear at the portal's
-  arrival spawn and walk to the stop; leaving: they walk to the next portal and disappear. Maps
-  the player isn't on aren't simulated (placed at the stop of the hour on entering, as today).
-- *Furniture* (the player's `UseSpot` exists since 0.5.0): `ScheduleStop.prop: String` (an
-  entity name on the stop's map; the tile is the spot in front of it). Arrived, the character
-  snaps to the spot and takes the pose, drawn like the seated / lying player (`furniture.rs`
-  `draw_seated_player` generalised to any character, with the prop's cover). A used prop is
-  skipped by others and refused to the player ("Someone is using it").
-- *Interaction*: talking to a sleeping character runs its triggers, with `Cond::Pose { target,
-  pose }` (appended) for "Zzz…" lines, or a default "{name} is asleep." toast when no trigger
-  matches. `status` `schedule=` gains the map and `pose`.
-
-**Touch points.** `entity.rs` (`ScheduleStop`), `state.rs`, `runtime/{schedule,patrol,mod,
-furniture,maps}.rs`, `events/mod.rs`, editor `app.rs` / `canvas.rs` (schedule editing: the stop's
-map and prop, a stop on another map shown in a list), README.
-
-**Example.** Tomas sleeps in the elder's sideways guest bed instead of vanishing at the door;
-Tilda sits behind her counter by day; the bench on the village green in the afternoon.
-
-**Verify.** Autoplay at 20:30 follows Tomas through the door (`status` on the house map shows him
-walking in, then `pose=lie`), save / load at night keeps him in bed, the house at noon shows
-nobody; the player can't take his bed; screenshots of sitting and sleeping NPCs.
-
-### [ ] NPC routines: visible activities — `feature/activities` (follows the trades and *Schedules across maps*)
-
-**Goal.** Characters are seen fishing, hoeing, hammering, chopping, sweeping or reading, without
-producing anything.
-
-**Design.**
-- *Data*: `Activity { kind: ActivityKind, tool: String /* item id */, facing: Option<Facing> }`,
-  `ActivityKind { Fish, Farm, Craft, Chop, Mine, Sweep, Read, Custom { sheet } }`; on a schedule
-  stop (`ScheduleStop.activity`, serde default) and on a placed character doing it all day (in
-  the map's RON `Meta`). Editor: an *Activity* combo (+ tool, facing) in the Daily schedule rows
-  and the placed-character inspector.
-- *Looks*: the character stands at its spot facing the activity with the tool in hand
-  (`player_equipment_drawn` generalised to any character); a work cycle (the walk frames slowly
-  in place) and per-activity effects drawn as pure functions of time like the fish shadows:
-  *Fish* line and bobber (`rod_tip`) with now and then a splash; *Farm* soil specks; *Craft*
-  sparks and the anvil sound nearby; *Chop* / *Mine* chips; *Sweep* dust; *Read* a book;
-  *Custom* a creator's sheet. Sounds within a few tiles at the effects volume.
-- *Behaviour*: talking pauses it (faces the player, then back to work); nothing is saved.
-
-**Touch points.** `entity.rs`, `map/io.rs` (Meta), new `runtime/activities.rs`,
-`runtime/{schedule,minigame,paperdoll}.rs`, editor `app.rs` / `widgets.rs`, gen_example, README.
-
-**Example.** Tomas fishes at the pond in the afternoon, the blacksmith hammers at the anvil,
-a farmer hoes the garden plots, the elder reads by the well.
-
-**Verify.** `settime 16` → Tomas with `activity=fish` in `schedule=` and the rod in hand, bobber
-on the water (screenshot); talking turns him and he goes back; the editor rows show and change
-the activity (screenshot).
-
 ## 0.8.0 — Scenery and sound
 
 Theme: maps gain smoother terrain edges and depth, and music loops without a gap.
@@ -511,6 +326,15 @@ Options row *Language*; the editor exports a translation template. Large but mec
 ## Shipped
 
 See [CHANGELOG.md](CHANGELOG.md) for the details of every release.
+
+### 0.7.0 — Trades and town life (2026-11-08)
+
+- [x] Mining and gathering (tools in recipes, days, regrowing props; the Workshop map) — `feature/mining`
+- [x] Blacksmithing — `feature/blacksmithing`
+- [x] Farming — `feature/farming`
+- [x] Cooking — `feature/cooking`
+- [x] Schedules across maps and with furniture — `feature/schedule-maps`
+- [x] NPC routines: visible activities — `feature/activities`
 
 ### 0.6.0 — The party (2026-11-06)
 

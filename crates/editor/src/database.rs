@@ -316,6 +316,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         held: String::new(),
         tool: String::new(),
         use_on: Default::default(),
+        crop: None,
+        food: false,
                     },
                     |d| &mut d.id,
                 ),
@@ -337,6 +339,9 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                         states: vec![],
                         light: None,
                         use_spot: None,
+                        gather: None,
+                        regrow: None,
+                        plot: false,
                     },
                     |d| &mut d.id,
                 ),
@@ -739,6 +744,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     ui.label("Description");
     text_box(ui, &mut d.description, 2, "");
     ui.checkbox(&mut d.consumable, "Consumed when used (if a trigger ran)");
+    ui.checkbox(&mut d.food, "Food").on_hover_text("Its 'On use' healing is raised by the player's skills with the Food effect (Cooking).");
     ui.horizontal(|ui| {
         ui.label("Stack size");
         ui.add(egui::DragValue::new(&mut d.max_stack).range(1..=9999)).on_hover_text("How many fit into one inventory slot");
@@ -755,6 +761,8 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         });
         ui.weak("(healing items, whose 'On use' heals: with companions around the player chooses whom to heal)");
     });
+    ui.separator();
+    crop_ui(ui, d, cx);
     ui.separator();
     ui.heading("Equipment");
     ui.weak("Equipment goes into a character-sheet slot when used from the inventory (weapons also with Q) instead of running 'On use' triggers.");
@@ -934,6 +942,109 @@ fn portrait_ui(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     });
 }
 
+/// A seed's crop: its growth stages and the harvest.
+fn crop_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
+    use rustpg2d_engine::defs::{Crop, CropStage};
+    ui.heading("Seed");
+    let mut on = d.crop.is_some();
+    if ui.checkbox(&mut on, "A seed: grows a crop on a farm plot").changed() {
+        d.crop = on.then(|| Crop { stages: vec![CropStage { sprite: SpriteRef::default(), hours: 12.0 }, CropStage { sprite: SpriteRef::default(), hours: 0.0 }], harvest: Vec::new() });
+    }
+    let Some(c) = &mut d.crop else { return };
+    ui.weak(format!("Stages one after another (in-game hours each); the last one is the ripe crop. Ripe after {:.0} hours ({:.1} days), faster in rain.", c.grow_hours(), c.grow_hours() / 24.0));
+    let n = c.stages.len();
+    let mut remove = None;
+    for (k, s) in c.stages.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(if k + 1 == n { "Ripe".to_string() } else { format!("Stage {}", k + 1) });
+            if k + 1 < n {
+                ui.add(egui::DragValue::new(&mut s.hours).range(0.1..=10_000.0).speed(0.5).suffix(" h"));
+            }
+            if n > 1 && ui.small_button("x").clicked() {
+                remove = Some(k);
+            }
+        });
+        widgets::sprite_field(ui, &format!("crop_stage{k}"), &mut s.sprite, cx.tex, cx.assets, cx.db, true);
+    }
+    if let Some(k) = remove {
+        c.stages.remove(k);
+    }
+    if ui.small_button("+ Stage").on_hover_text("Adds a growing stage before the ripe one").clicked() {
+        let at = c.stages.len().saturating_sub(1);
+        let sprite = c.stages.get(at.saturating_sub(1)).map(|s| s.sprite.clone()).unwrap_or_default();
+        c.stages.insert(at, CropStage { sprite, hours: 12.0 });
+    }
+    ui.label("Harvest");
+    widgets::loot_ui(ui, "crop_harvest", &mut c.harvest, cx.refs, cx.tex, cx.assets, cx.db);
+}
+
+/// Gathering (hits with a tool give items) and regrowing (a state changes back after a while).
+fn gather_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
+    use rustpg2d_engine::defs::{Gather, Regrow};
+    let states = d.state_names();
+    ui.heading("Gathering");
+    let mut on = d.gather.is_some();
+    if ui.checkbox(&mut on, "Gathered with a tool (ore veins, trees, bushes)").changed() {
+        d.gather = on.then(|| Gather { tool: "pickaxe".into(), hits: 3, loot: Vec::new(), then_state: states.get(1).cloned().unwrap_or_default() });
+    }
+    if let Some(g) = &mut d.gather {
+        ui.weak("E or a melee swing at it is a hit while the player has the tool (equipped, held or carried); after the hits the loot rolls and it switches to the 'used up' state (where it can't be gathered).");
+        egui::Grid::new("prop_gather").num_columns(2).show(ui, |ui| {
+            ui.label("Tool kind");
+            let kinds: Vec<String> = cx.db.items.iter().map(|i| i.tool.clone()).filter(|t| !t.is_empty()).collect();
+            ui.horizontal(|ui| {
+                widgets::suggest(ui, "gather_tool", &mut g.tool, &kinds, 140.0);
+                ui.weak("(empty = bare hands)");
+            });
+            ui.end_row();
+            ui.label("Hits");
+            ui.add(egui::DragValue::new(&mut g.hits).range(1..=50)).on_hover_text("Fewer with a skill whose effect is Gathering for this tool");
+            ui.end_row();
+            ui.label("Used up state");
+            egui::ComboBox::from_id_salt("gather_then").selected_text(if g.then_state.is_empty() { "(stays)" } else { g.then_state.as_str() }).show_ui(ui, |ui| {
+                ui.selectable_value(&mut g.then_state, String::new(), "(stays: gathered again at once)");
+                for s in &states {
+                    ui.selectable_value(&mut g.then_state, s.clone(), s);
+                }
+            });
+            ui.end_row();
+        });
+        ui.label("Gives");
+        widgets::loot_ui(ui, "gather_loot", &mut g.loot, cx.refs, cx.tex, cx.assets, cx.db);
+    }
+    ui.heading("Farm plot");
+    ui.checkbox(&mut d.plot, "Seeds are planted here (soil, a planter)").on_hover_text("E on it plants the first seed the player carries (an item with a Crop), shows how long the crop still needs, or harvests it when ripe. Crops grow over in-game hours, faster in rain.");
+    ui.heading("Regrows");
+    let mut on = d.regrow.is_some();
+    if ui.checkbox(&mut on, "A state changes back after some in-game time").changed() {
+        d.regrow = on.then(|| Regrow { from: d.gather.as_ref().map(|g| g.then_state.clone()).filter(|s| !s.is_empty()).or_else(|| states.get(1).cloned()).unwrap_or_default(), to: states[0].clone(), hours: 72.0 });
+    }
+    if let Some(r) = &mut d.regrow {
+        egui::Grid::new("prop_regrow").num_columns(2).show(ui, |ui| {
+            ui.label("From state");
+            egui::ComboBox::from_id_salt("regrow_from").selected_text(r.from.as_str()).show_ui(ui, |ui| {
+                for s in &states {
+                    ui.selectable_value(&mut r.from, s.clone(), s);
+                }
+            });
+            ui.end_row();
+            ui.label("Into state");
+            egui::ComboBox::from_id_salt("regrow_to").selected_text(r.to.as_str()).show_ui(ui, |ui| {
+                for s in &states {
+                    ui.selectable_value(&mut r.to, s.clone(), s);
+                }
+            });
+            ui.end_row();
+            ui.label("After");
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(&mut r.hours).range(0.1..=10_000.0).speed(1.0).suffix(" h"));
+                ui.weak(format!("in-game hours ({:.1} days); also while the player is elsewhere", r.hours / 24.0));
+            });
+            ui.end_row();
+        });
+    }
+}
+
 fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.heading("Prop");
     rename_row(ui, RefKind::Prop, &d.id, cx.rename);
@@ -951,6 +1062,8 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
             widgets::light_ui(ui, "prop_light", slot, &format!("'{name}' gives light"));
         });
     }
+    ui.separator();
+    gather_ui(ui, d, cx);
     ui.separator();
     let states = d.state_names();
     ui.heading("Container");
@@ -2510,7 +2623,7 @@ fn skill_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SkillDef, cx: 
     }
     egui::Grid::new("skill_effect").num_columns(2).show(ui, |ui| match &mut d.effect {
         SkillEffect::None | SkillEffect::Lockpick => {}
-        SkillEffect::MeleeDamage { percent } | SkillEffect::RangedDamage { percent } | SkillEffect::SpellDamage { percent } | SkillEffect::Speed { percent } | SkillEffect::Haggle { percent } => {
+        SkillEffect::MeleeDamage { percent } | SkillEffect::RangedDamage { percent } | SkillEffect::SpellDamage { percent } | SkillEffect::Speed { percent } | SkillEffect::Haggle { percent } | SkillEffect::FoodBonus { percent } => {
             ui.label("Per level");
             ui.add(egui::DragValue::new(percent).range(0.0..=100.0).speed(0.5).suffix(" %"));
             ui.end_row();
@@ -2533,6 +2646,15 @@ fn skill_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SkillDef, cx: 
         SkillEffect::Script { function } => {
             ui.label("Function");
             widgets::suggest(ui, "skill_fn", function, &cx.refs.functions, 160.0);
+            ui.end_row();
+        }
+        SkillEffect::Gather { tool, percent } => {
+            ui.label("Tool kind");
+            let kinds: Vec<String> = cx.db.items.iter().map(|i| i.tool.clone()).filter(|t| !t.is_empty()).collect();
+            widgets::suggest(ui, "skill_tool", tool, &kinds, 140.0);
+            ui.end_row();
+            ui.label("Per level");
+            ui.add(egui::DragValue::new(percent).range(0.0..=80.0).speed(0.5).suffix(" % fewer hits"));
             ui.end_row();
         }
     });
@@ -2611,6 +2733,63 @@ fn recipe_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::crafting::RecipeDef, 
                 ui.add(egui::DragValue::new(&mut d.level).range(0..=99));
             } else {
                 ui.weak("(none)");
+            }
+        });
+        ui.end_row();
+        ui.label("Tools");
+        ui.vertical(|ui| {
+            let kinds: Vec<String> = {
+                let mut v: Vec<String> = cx.db.items.iter().map(|i| i.tool.clone()).filter(|t| !t.is_empty()).collect();
+                v.sort();
+                v.dedup();
+                v
+            };
+            let mut remove = None;
+            for (k, t) in d.tools.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    widgets::suggest(ui, &format!("recipe_tool{k}"), t, &kinds, 120.0);
+                    if ui.small_button("x").clicked() {
+                        remove = Some(k);
+                    }
+                });
+            }
+            if let Some(k) = remove {
+                d.tools.remove(k);
+            }
+            if ui.small_button("+ Tool").on_hover_text("A tool kind (an item's 'Tool kind', e.g. hammer) the player must have: not used up").clicked() {
+                d.tools.push(kinds.first().cloned().unwrap_or_else(|| "hammer".into()));
+            }
+        });
+        ui.end_row();
+        ui.label("Station state");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.station_state).desired_width(100.0).hint_text("e.g. lit"));
+            ui.weak("(the station's prop must be in this state, e.g. a cooking fire \"lit\"; empty = any)");
+        });
+        ui.end_row();
+        ui.label("Better results");
+        ui.vertical(|ui| {
+            if d.skill.is_empty() {
+                ui.weak("(choose a required skill first: higher levels of it can make better items)");
+            }
+            let mut remove = None;
+            for (k, q) in d.quality.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.label("from level");
+                    ui.add(egui::DragValue::new(&mut q.level).range(1..=99));
+                    ui.label("makes");
+                    widgets::suggest(ui, &format!("recipe_quality{k}"), &mut q.result, &cx.refs.items, 130.0);
+                    if ui.small_button("x").clicked() {
+                        remove = Some(k);
+                    }
+                });
+            }
+            if let Some(k) = remove {
+                d.quality.remove(k);
+            }
+            if ui.add_enabled(!d.skill.is_empty(), egui::Button::new("+ Better result").small()).on_hover_text("From a higher level of the required skill on, the recipe makes another item (e.g. a Fine Iron Sword)").clicked() {
+                let level = d.quality.iter().map(|q| q.level).max().unwrap_or(d.level) + 1;
+                d.quality.push(rustpg2d_engine::crafting::QualityStep { level, result: d.result.clone() });
             }
         });
         ui.end_row();

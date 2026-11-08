@@ -932,9 +932,10 @@ impl Editor {
         // Daily schedule of the selected character: stops in time order joined in a loop (the
         // day starts over); their times are drawn on screen below.
         if let Some(stops) = match self.sel {
-            Selection::Entity(uid) => map.entity(uid).map(|e| &e.schedule).filter(|s| !s.is_empty()),
+            Selection::Entity(uid) => map.entity(uid).map(|e| e.schedule.iter().filter(|s| s.map.is_empty() || s.map == map.name).cloned().collect::<Vec<_>>()).filter(|s| !s.is_empty()),
             _ => None,
         } {
+            let stops = &stops;
             let editing = self.route_edit.is_some() && self.route_kind == crate::app::RouteKind::Schedule;
             let col = Color::new(1.0, 0.72, 0.25, if editing { 1.0 } else { 0.7 });
             let c = |s: &rustpg2d_engine::entity::ScheduleStop| vec2((s.x as f32 + 0.5) * ts, (s.y as f32 + 0.5) * ts);
@@ -1108,7 +1109,7 @@ impl Editor {
         // Schedule stops of the selected character: their times (drawn on screen, readable
         // at any zoom; "in" = goes inside there).
         if let Selection::Entity(uid) = self.sel {
-            for s in map.entity(uid).map_or(&[][..], |e| &e.schedule[..]) {
+            for s in map.entity(uid).map_or(&[][..], |e| &e.schedule[..]).iter().filter(|s| s.map.is_empty() || s.map == map.name) {
                 let q = cam.world_to_screen(vec2((s.x as f32 + 0.5) * ts, (s.y as f32 + 0.5) * ts));
                 let t = if s.inside { format!("{} in", s.time_text()) } else { s.time_text() };
                 let w = measure_text(&t, None, 16, 1.0).width;

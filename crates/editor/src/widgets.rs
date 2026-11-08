@@ -21,10 +21,55 @@ pub struct Textures {
     colored: std::cell::RefCell<HashMap<rustpg2d_engine::render::ColorKey, TextureHandle>>,
 }
 
+/// An egui image of RGBA pixels, shrunk by a whole factor (nearest neighbour) when a side is
+/// larger than the GPU allows (egui panics on such textures). Callers compute UVs from the
+/// original image size, so a shrunk texture still maps right, just less sharp.
+/// An activity (fishing, hammering...) chooser with its tool: "Nothing" = none.
+pub fn activity_ui(ui: &mut Ui, id: &str, act: &mut Option<rustpg2d_engine::entity::Activity>, items: &[String]) {
+    use rustpg2d_engine::entity::{Activity, ActivityKind};
+    let shown = act.as_ref().map_or("nothing", |a| a.kind.label());
+    egui::ComboBox::from_id_salt((id, "kind")).width(96.0).selected_text(shown).show_ui(ui, |ui| {
+        if ui.selectable_label(act.is_none(), "nothing").clicked() {
+            *act = None;
+        }
+        for k in ActivityKind::ALL {
+            if ui.selectable_label(act.as_ref().is_some_and(|a| a.kind == k), k.label()).clicked() {
+                let tool = act.as_ref().map(|a| a.tool.clone()).unwrap_or_default();
+                *act = Some(Activity { kind: k, tool });
+            }
+        }
+    })
+    .response
+    .on_hover_text("Seen doing it there: it stays put facing its way and works in place (fishing line, sparks, soil...). Only the look: nothing is produced.");
+    if let Some(a) = act {
+        // The item in its hand (shown if it has a held sprite), e.g. fishing_rod; empty = none.
+        suggest(ui, &format!("{id}/tool"), &mut a.tool, items, 76.0);
+    }
+}
+
+pub fn color_image(ctx: &egui::Context, w: usize, h: usize, px: &[u8]) -> egui::ColorImage {
+    let max = ctx.input(|i| i.max_texture_side).max(256);
+    let k = w.max(h).div_ceil(max).max(1);
+    if k == 1 {
+        return egui::ColorImage::from_rgba_unmultiplied([w, h], px);
+    }
+    let (nw, nh) = (w.div_ceil(k), h.div_ceil(k));
+    let mut out = vec![0u8; nw * nh * 4];
+    for y in 0..nh {
+        for x in 0..nw {
+            let (sx, sy) = ((x * k).min(w - 1), (y * k).min(h - 1));
+            let (s, d) = ((sy * w + sx) * 4, (y * nw + x) * 4);
+            out[d..d + 4].copy_from_slice(&px[s..s + 4]);
+        }
+    }
+    eprintln!("[editor] an image of {w}x{h} pixels is larger than the graphics card allows; shown at 1/{k} size");
+    egui::ColorImage::from_rgba_unmultiplied([nw, nh], &out)
+}
+
 impl Textures {
     pub fn build(ctx: &egui::Context, assets: &Assets) -> Self {
         let load = |name: &str, img: &macroquad::texture::Image| {
-            let ci = egui::ColorImage::from_rgba_unmultiplied([img.width as usize, img.height as usize], &img.bytes);
+            let ci = color_image(ctx, img.width as usize, img.height as usize, &img.bytes);
             ctx.load_texture(name, ci, egui::TextureOptions::NEAREST)
         };
         Textures {
@@ -55,7 +100,7 @@ impl Textures {
         let t = cache.entry((sheet.to_string(), skin, hair)).or_insert_with(|| {
             let mut px = img.bytes.clone();
             rustpg2d_engine::render::recolor::recolor(&mut px, skin, hair);
-            let ci = egui::ColorImage::from_rgba_unmultiplied([img.width as usize, img.height as usize], &px);
+            let ci = color_image(ctx, img.width as usize, img.height as usize, &px);
             ctx.load_texture(format!("shc:{sheet}:{skin:?}:{hair:?}"), ci, egui::TextureOptions::NEAREST)
         });
         Some(t.id())
@@ -952,6 +997,20 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     egui::ComboBox::from_id_salt(format!("{id}/sex")).selected_text(sex.label()).show_ui(ui, |ui| {
                         for s in rustpg2d_engine::state::Sex::ALL {
                             ui.selectable_value(sex, s, s.label());
+                        }
+                    });
+                }
+                Cond::Pose { target, pose } => {
+                    suggest(ui, &format!("{id}/t"), target, &refs.targets, 90.0);
+                    ui.label("is");
+                    egui::ComboBox::from_id_salt(format!("{id}/pose")).width(90.0).selected_text(match pose.as_str() {
+                        "sit" => "sitting",
+                        "lie" => "lying (asleep)",
+                        "stand" => "at furniture",
+                        _ => "on its feet",
+                    }).show_ui(ui, |ui| {
+                        for (p, l) in [("sit", "sitting"), ("lie", "lying (asleep)"), ("stand", "at furniture"), ("", "on its feet")] {
+                            ui.selectable_value(pose, p.to_string(), l);
                         }
                     });
                 }

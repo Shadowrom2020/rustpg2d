@@ -33,6 +33,10 @@ pub trait ActionHost {
     fn prop_state(&mut self, _target: &str, _ctx: &ActionCtx) -> Option<String> {
         None
     }
+    /// "sit" / "lie" / "stand" of a character (or "player") on furniture, "" otherwise.
+    fn pose(&mut self, _target: &str, _ctx: &ActionCtx) -> String {
+        String::new()
+    }
     /// Called after `GiveItem`: `count` were added, `lost` didn't fit (for messages and sounds).
     fn item_given(&mut self, _item: &str, _count: u32, _lost: u32) {}
 }
@@ -148,6 +152,7 @@ pub fn conditions_met(host: &mut dyn ActionHost, conds: &[Condition], ctx: &Acti
     conds.iter().all(|c| match &c.cond {
         Cond::Script { function } => host.script_condition(function, ctx) != c.negate,
         Cond::PropState { target, state } => (host.prop_state(target, ctx).as_deref() == Some(state.as_str())) != c.negate,
+        Cond::Pose { target, pose } => (host.pose(target, ctx) == *pose) != c.negate,
         _ => c.eval(host.world(), &mut |_| false),
     })
 }

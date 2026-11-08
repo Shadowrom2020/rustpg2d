@@ -2166,6 +2166,11 @@ impl Editor {
         // Speakers follow the map while it is edited (new characters, renamed entities, ...).
         self.refs.speakers = speakers_of(&doc.map, &self.project.db);
         let before = Objects::of(&doc.map);
+        // For schedule stops: the project's maps, this map, its furniture (named props with a use spot).
+        let maps_list = self.maps.clone();
+        let item_ids: Vec<String> = self.project.db.items.iter().map(|d| d.id.clone()).collect();
+        let map_name = doc.map.name.clone();
+        let prop_names: Vec<String> = doc.map.entities.iter().filter(|e| e.kind == EntityKind::Prop && !e.name.is_empty() && self.project.db.prop(&e.def).is_some_and(|d| d.use_spot.is_some())).map(|e| e.name.clone()).collect();
         let ts = self.assets.tile_size;
         let refs = &self.refs;
         let mut delete = false;
@@ -2433,6 +2438,12 @@ impl Editor {
                     }
 
                     ui.separator();
+                    ui.heading("Activity");
+                    ui.horizontal(|ui| {
+                        crate::widgets::activity_ui(ui, &format!("entact{uid}"), &mut e.activity, &item_ids);
+                    });
+                    ui.weak("What it is seen doing where it stands (facing as placed), when it has no schedule; schedule stops have their own.");
+                    ui.separator();
                     ui.heading("Daily schedule");
                     if e.schedule.is_empty() {
                         ui.weak("No schedule: the character stays around where it is placed.");
@@ -2454,8 +2465,13 @@ impl Editor {
                         });
                         let mut del = None;
                         let n = e.schedule.len();
-                        egui::Grid::new(("schedule", uid)).num_columns(5).spacing([6.0, 3.0]).show(ui, |ui| {
+                        let all_maps = maps_list.clone();
+                        let this_map = map_name.clone();
+                        let props_here = prop_names.clone();
+                        ui.vertical(|ui| {
                             for (k, s) in e.schedule.iter_mut().enumerate() {
+                              ui.group(|ui| {
+                               ui.horizontal(|ui| {
                                 // The hour as a time: dragged in quarter hours, typed as 7.5 or 7:30.
                                 ui.add(
                                     egui::DragValue::new(&mut s.hour)
@@ -2471,7 +2487,26 @@ impl Editor {
                                 if ui.ctx().input(|i| !i.pointer.any_down()) {
                                     s.hour = (s.hour * 4.0).round() / 4.0;
                                 }
-                                ui.monospace(format!("tile {},{}", s.x, s.y));
+                                // The stop's map: this one (tiles clicked on the map) or another (tiles typed).
+                                let shown = if s.map.is_empty() { "this map".to_string() } else { s.map.clone() };
+                                egui::ComboBox::from_id_salt(("stopmap", uid, k)).width(90.0).selected_text(shown).show_ui(ui, |ui| {
+                                    ui.selectable_value(&mut s.map, String::new(), "this map");
+                                    for m in all_maps.iter().filter(|m| **m != this_map) {
+                                        ui.selectable_value(&mut s.map, m.clone(), m);
+                                    }
+                                })
+                                .response
+                                .on_hover_text("Another map: the character walks to this map's door / portal leading there and turns up on that map (its look, items and talks come along)");
+                                if s.map.is_empty() {
+                                    ui.monospace(format!("tile {},{}", s.x, s.y));
+                                } else {
+                                    ui.horizontal(|ui| {
+                                        ui.add(egui::DragValue::new(&mut s.x).range(0..=1023).prefix("x "));
+                                        ui.add(egui::DragValue::new(&mut s.y).range(0..=1023).prefix("y "));
+                                    });
+                                }
+                               });
+                               ui.horizontal(|ui| {
                                 let face = s.facing.map_or("Any", |f| f.label());
                                 egui::ComboBox::from_id_salt(("stopface", uid, k)).width(70.0).selected_text(face).show_ui(ui, |ui| {
                                     ui.selectable_value(&mut s.facing, None, "Any");
@@ -2482,10 +2517,18 @@ impl Editor {
                                 .response
                                 .on_hover_text("The direction it faces once there");
                                 ui.checkbox(&mut s.inside, "inside").on_hover_text("It goes indoors here (e.g. at a door): out of sight until the next stop");
+                                ui.label("on");
+                                let names: Vec<String> = if s.map.is_empty() { props_here.clone() } else { Vec::new() };
+                                crate::widgets::suggest(ui, &format!("stopprop{uid}_{k}"), &mut s.prop, &names, 90.0);
+                               });
+                               ui.horizontal(|ui| {
+                                ui.label("doing");
+                                crate::widgets::activity_ui(ui, &format!("stopact{uid}_{k}"), &mut s.activity, &item_ids);
                                 if ui.add_enabled(n > 1, egui::Button::new(ph::TRASH).small()).on_hover_text("Remove this stop").clicked() {
                                     del = Some(k);
                                 }
-                                ui.end_row();
+                               });
+                              });
                             }
                         });
                         if let Some(k) = del {
@@ -2497,7 +2540,7 @@ impl Editor {
                                 self.route_edit = None;
                             }
                         }
-                        ui.weak("At each time the character walks to its stop and stays there (wandering around it if its behaviour is Wander). Entering the map puts it at the stop of the hour. Use the Time of day condition for lines it says at night. The Schedule action (scripts: stop_schedule / follow_schedule) stops and resumes it. A schedule replaces the patrol route.");
+                        ui.weak("At each time the character walks to its stop and stays there (wandering around it if its behaviour is Wander). A stop can be on another map (it leaves through the door / portal leading there) and can name furniture (a prop's name with a use spot: a bed, a chair) it then sleeps or sits on. Entering a map puts it at the stop of the hour. Use the Time of day and Pose conditions for what it says at night or asleep. The Schedule action (scripts: stop_schedule / follow_schedule) stops and resumes it. A schedule replaces the patrol route.");
                     }
                 }
                 if e.kind == EntityKind::Prop {

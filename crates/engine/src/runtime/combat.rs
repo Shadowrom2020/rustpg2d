@@ -251,6 +251,18 @@ impl Game {
             })
             .collect();
         let from = self.player.pos;
+        // No enemy in the swing: a gathering prop in it takes a hit (veins, trees).
+        if targets.is_empty() {
+            let prop = (0..self.loaded.entities.len()).filter(|&i| self.loaded.entities[i].kind == crate::entity::EntityKind::Prop && self.loaded.entities[i].active).find(|&i| {
+                let e = &self.loaded.entities[i];
+                let to = (e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0)) - center;
+                let radius = e.body.hitbox.x.max(e.body.hitbox.y) / 2.0 + 2.0;
+                self.project.db.prop(&e.def).is_some_and(|d| d.gather.is_some()) && (to.length() < ts * 0.5 || (to.length() - radius <= reach && to.angle_between(dir).abs() <= arc))
+            });
+            if let Some(i) = prop {
+                self.gather_hit(i);
+            }
+        }
         for i in targets {
             if let Some(fx) = &weapon.effect {
                 crate::effects::apply(&mut self.loaded.entities[i].effects, fx);

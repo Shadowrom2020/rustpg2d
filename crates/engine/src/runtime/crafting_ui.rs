@@ -27,6 +27,9 @@ pub(super) struct CraftingUi {
     open: Option<(String, String)>,
     /// Station to open once the current event sequence has finished.
     pub pending: Option<(String, String)>,
+    /// The station's prop (the trigger's owner; `RecipeDef::station_state` looks at it).
+    prop: Option<u32>,
+    pending_prop: Option<u32>,
     sel: usize,
     scroll: usize,
     last_click: Option<(usize, f64)>,
@@ -78,9 +81,21 @@ impl Game {
     }
 
     /// Queues the crafting window of `station` (opens once the current events have finished).
-    pub(super) fn open_crafting(&mut self, station: &str, title: &str) {
+    pub(super) fn open_crafting(&mut self, station: &str, title: &str, owner: Option<u32>) {
         let title = if title.is_empty() { "Crafting".to_string() } else { title.to_string() };
         self.crafting.pending = Some((station.to_string(), title));
+        self.crafting.pending_prop = owner;
+    }
+
+    /// What is missing to make recipe `r` here: the station's state, then skill, tools, items.
+    fn recipe_missing(&self, r: &RecipeDef) -> Option<Missing> {
+        if !r.station_state.is_empty() {
+            let state = self.crafting.prop.and_then(|uid| self.loaded.entities.iter().find(|e| e.uid == uid)).and_then(|e| self.project.db.prop(&e.def).map(|d| d.state_name(e.state).to_string()));
+            if state.as_deref() != Some(r.station_state.as_str()) {
+                return Some(Missing::StationState(r.station_state.clone()));
+            }
+        }
+        r.missing(&self.world, &self.project.db.tool_kinds())
     }
 
     fn crafting_recipes(&self) -> Vec<RecipeDef> {
@@ -103,6 +118,8 @@ impl Game {
                 let name = self.project.db.skill(skill).map_or(skill.clone(), |d| d.name.clone());
                 format!("Needs {name} {need}")
             }
+            Missing::Tools(kinds) => format!("Needs a {}", kinds.join(" and a ")),
+            Missing::StationState(state) => format!("Needs it {state}"),
         }
     }
 
@@ -111,7 +128,7 @@ impl Game {
         let Some(r) = self.crafting_recipes().into_iter().nth(k) else { return 0 };
         let mut made = 0;
         while made < n {
-            if let Some(m) = r.missing(&self.world) {
+            if let Some(m) = self.recipe_missing(&r) {
                 if made == 0 {
                     let text = self.missing_text(&m);
                     self.crafting_msg(text, false);
@@ -124,14 +141,15 @@ impl Game {
                 }
                 break;
             }
-            if r.craft(&mut self.world).is_err() {
+            if r.craft(&mut self.world, &self.project.db.tool_kinds()).is_err() {
                 break;
             }
             made += 1;
         }
         if made > 0 {
             self.audio.play(&self.project.config.sfx.pickup);
-            let name = self.item_name(&r.result).to_string();
+            // (The quality the skill reached when it was made.)
+            let name = self.item_name(r.result_for(&self.world)).to_string();
             let total = made * r.count.max(1);
             self.crafting_msg(if total > 1 { format!("Made {total} {name}") } else { format!("Made {name}") }, true);
         }
@@ -153,7 +171,7 @@ impl Game {
     /// The open crafting window (for automated play-throughs): "station [ids] sel=K msg=…".
     pub(super) fn crafting_status(&self) -> Option<String> {
         let (station, _) = self.crafting.open.as_ref()?;
-        let ids: Vec<String> = self.crafting_recipes().iter().map(|r| if r.missing(&self.world).is_none() { r.id.clone() } else { format!("{}(missing)", r.id) }).collect();
+        let ids: Vec<String> = self.crafting_recipes().iter().map(|r| if self.recipe_missing(r).is_none() { r.id.clone() } else { format!("{}(missing)", r.id) }).collect();
         let msg = self.crafting.msg.as_ref().map_or("", |m| m.0.as_str());
         Some(format!("{station} [{}] sel={} msg={msg:?}", ids.join(" "), self.crafting.sel))
     }
@@ -172,6 +190,7 @@ impl Game {
         if let Some(open) = self.crafting.pending.take() {
             self.inv.close();
             self.crafting.open = Some(open);
+            self.crafting.prop = self.crafting.pending_prop.take();
             self.crafting.sel = 0;
             self.crafting.scroll = 0;
             self.crafting.msg = None;
@@ -242,7 +261,7 @@ impl Game {
             let k = self.crafting.scroll + vis;
             let rr = row_rect(list, vis);
             let selected = self.crafting.sel == k;
-            let missing = r.missing(&self.world);
+            let missing = self.recipe_missing(r);
             let bg = if selected {
                 Color::new(0.85, 0.7, 0.3, 0.22)
             } else if rr.contains(m) {
@@ -255,10 +274,20 @@ impl Game {
                 draw_rectangle_lines(rr.x, rr.y, rr.w, rr.h, 2.0, GOLD);
             }
             let dim = if missing.is_some() { Color::new(1.0, 1.0, 1.0, 0.45) } else { WHITE };
-            if let Some(d) = db.item(&r.result) {
+            // What the player's skill makes of it (quality steps).
+            let result = r.result_for(&self.world);
+            if let Some(d) = db.item(result) {
                 self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(rr.x + 6.0, rr.y + 9.0, 36.0, 36.0), dim);
             }
-            let name = if r.count > 1 { format!("{} x{}", self.item_name(&r.result), r.count) } else { self.item_name(&r.result).to_string() };
+            let name = if r.count > 1 { format!("{} x{}", self.item_name(result), r.count) } else { self.item_name(result).to_string() };
+            // The next quality step, as a hint after the name.
+            let have = self.world.skill_level(&r.skill);
+            if let Some(q) = r.quality.iter().filter(|q| q.level > have && !r.skill.is_empty()).min_by_key(|q| q.level) {
+                let skill = db.skill(&r.skill).map_or(r.skill.clone(), |d| d.name.clone());
+                let hint = format!("{skill} {}: {}", q.level, self.item_name(&q.result));
+                let nw = measure_text(&name, None, 21, 1.0).width;
+                draw_text(&hint, rr.x + 58.0 + nw, rr.y + 20.0, 16.0, Color::new(0.75, 0.75, 0.6, 1.0));
+            }
             draw_text(&name, rr.x + 50.0, rr.y + 21.0, 21.0, if missing.is_some() { LIGHTGRAY } else { WHITE });
             // Ingredients: small icons with have / need, red where short.
             let mut x = rr.x + 50.0;
@@ -272,7 +301,18 @@ impl Game {
                 draw_text(&t, x + 22.0, rr.y + 44.0, 17.0, c);
                 x += 30.0 + measure_text(&t, None, 17, 1.0).width;
             }
-            if let Some(Missing::Skill(..)) = &missing {
+            // Tools: an icon of such a tool and its kind, red if the player has none.
+            let kinds = db.tool_kinds();
+            for kind in r.tools.iter().filter(|t| !t.trim().is_empty()) {
+                let have = crate::crafting::has_tool(&self.world, &kinds, kind);
+                if let Some(d) = db.items.iter().find(|d| d.tool.eq_ignore_ascii_case(kind)) {
+                    self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(x, rr.y + 28.0, 20.0, 20.0), WHITE);
+                }
+                let c = if have { Color::new(0.7, 0.95, 0.7, 1.0) } else { Color::new(1.0, 0.55, 0.5, 1.0) };
+                draw_text(kind, x + 22.0, rr.y + 44.0, 17.0, c);
+                x += 30.0 + measure_text(kind, None, 17, 1.0).width;
+            }
+            if let Some(Missing::Skill(..) | Missing::StationState(..)) = &missing {
                 draw_text(self.missing_text(missing.as_ref().unwrap()), x + 6.0, rr.y + 44.0, 17.0, Color::new(1.0, 0.55, 0.5, 1.0));
             }
             // Make button.
@@ -304,7 +344,7 @@ impl Game {
         // Footer: the selected result's description, the last message, help.
         let f = l.foot;
         draw_rectangle(f.x, f.y, f.w, f.h, Color::new(0.0, 0.0, 0.0, 0.25));
-        if let Some(d) = recipes.get(self.crafting.sel).and_then(|r| db.item(&r.result)) {
+        if let Some(d) = recipes.get(self.crafting.sel).and_then(|r| db.item(r.result_for(&self.world))) {
             draw_text(&d.name, f.x + 10.0, f.y + 22.0, 21.0, GOLD);
             for (k, line) in wrap_text(&d.description, 17, f.w - 20.0).iter().take(1).enumerate() {
                 draw_text(line, f.x + 10.0, f.y + 42.0 + k as f32 * 17.0, 17.0, LIGHTGRAY);

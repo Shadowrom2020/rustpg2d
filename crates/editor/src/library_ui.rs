@@ -126,7 +126,7 @@ impl LibState {
         let images = store.db.tilesets.iter().map(|t| (format!("ts:{}", t.id), &t.image)).chain(store.db.sheets.iter().map(|s| (format!("sh:{}", s.id), &s.image)));
         for (key, rel) in images {
             let Ok(img) = std::fs::read(store.root.join(rel)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
-            let ci = egui::ColorImage::from_rgba_unmultiplied([img.w as usize, img.h as usize], &img.px);
+            let ci = crate::widgets::color_image(ctx, img.w as usize, img.h as usize, &img.px);
             let handle = ctx.load_texture(format!("lib:{key}"), ci, egui::TextureOptions::NEAREST);
             self.tex.insert(key.clone(), Tex { handle, w: img.w as f32, h: img.h as f32 });
             if key.starts_with("sh:") {
@@ -161,7 +161,7 @@ impl LibState {
                 cache.entry((l.sheet.clone(), l.skin, l.hair)).or_insert_with(|| {
                     let mut px = img.px.clone();
                     rustpg2d_engine::render::recolor::recolor(&mut px, l.skin, l.hair);
-                    let ci = egui::ColorImage::from_rgba_unmultiplied([img.w as usize, img.h as usize], &px);
+                    let ci = crate::widgets::color_image(ui.ctx(), img.w as usize, img.h as usize, &px);
                     let handle = ui.ctx().load_texture(format!("libc:{key}:{:?}:{:?}", l.skin, l.hair), ci, egui::TextureOptions::NEAREST);
                     Tex { handle, w: img.w as f32, h: img.h as f32 }
                 })

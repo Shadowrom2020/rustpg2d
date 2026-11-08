@@ -384,7 +384,7 @@ mod tests {
                 SheetDef { id: "own".into(), image: "sprites/own.png".into(), frame_w: 16, frame_h: 16, kind: Default::default(), female: false, playable: false, tags: vec![] },
             ],
             tilesets: vec![crate::defs::TilesetDef { id: "big".into(), image: "tilesets/big.png".into(), solid: vec![3, 7], animations: vec![], lights: vec![], terrains: vec![] }],
-            props: vec![PropDef { id: "p".into(), name: "P".into(), sprite: SpriteRef::new("own", 0), solid: true, hitbox: [12.0, 6.0], triggers: vec![], container: None, lock: None, default_state: "default".into(), states: vec![], light: None, use_spot: None }],
+            props: vec![PropDef { id: "p".into(), name: "P".into(), sprite: SpriteRef::new("own", 0), solid: true, hitbox: [12.0, 6.0], triggers: vec![], container: None, lock: None, default_state: "default".into(), states: vec![], light: None, use_spot: None, gather: None, regrow: None, plot: false }],
             ..Default::default()
         };
         let p = Project { root: root.clone(), config: ProjectConfig { tile_size: 16, scale: 3.0, ..ProjectConfig::new("Old") }, db };

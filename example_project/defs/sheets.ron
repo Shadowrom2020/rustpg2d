@@ -47,6 +47,12 @@
         frame_h: 32,
     ),
     (
+        id: "food",
+        image: "sprites/food.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
+    (
         id: "portraits",
         image: "sprites/portraits.png",
         frame_w: 64,

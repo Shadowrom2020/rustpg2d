@@ -136,6 +136,9 @@ async fn main() {
             if let Some(h) = a.hour.take() {
                 game.set_hour(h);
             }
+            if let Some(h) = a.advance.take() {
+                game.advance_time(h);
+            }
             for line in std::mem::take(&mut a.console) {
                 game.console_command(&line);
             }
@@ -181,6 +184,8 @@ struct Autoplay {
     close: bool,
     /// `settime H`: applied by the main loop.
     hour: Option<f32>,
+    /// `settime +H`: hours to move the clock on.
+    advance: Option<f32>,
     skill_cmds: Vec<(String, String)>,
     /// `console LINE`: applied by the main loop.
     console: Vec<String>,
@@ -195,7 +200,7 @@ impl Autoplay {
             .map(|c| c.split_whitespace().map(str::to_string).collect::<Vec<_>>())
             .filter(|c| !c.is_empty())
             .collect();
-        Autoplay { cmds, timer: 0.0, held: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), close: false, hour: None, skill_cmds: Vec::new(), console: Vec::new(), until: None }
+        Autoplay { cmds, timer: 0.0, held: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), until: None }
     }
 
     /// Advances the script; returns false to quit.
@@ -413,7 +418,11 @@ impl Autoplay {
                 }
                 "spawners" => println!("[autoplay] spawners: {}", game.spawner_status()),
                 // settime H: jump to a time of day (hours)
-                "settime" => self.hour = arg(1).parse().ok(),
+                // settime H: the hour · settime +H: H hours later (days pass, props regrow)
+                "settime" => match arg(1).strip_prefix('+') {
+                    Some(h) => self.advance = h.parse().ok(),
+                    None => self.hour = arg(1).parse().ok(),
+                },
                 // skillpoint ID: spend a skill point · cast ID: cast a spell · learn ID: learn a spell
                 // call FN: runs a script function (its queued actions too)
                 "skillpoint" | "cast" | "learn" | "call" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),

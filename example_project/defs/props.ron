@@ -340,6 +340,457 @@
         )),
     ),
     (
+        id: "vein_copper",
+        name: "Copper Vein",
+        sprite: (
+            sheet: "props",
+            frame: 88,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [
+            (
+                name: "mined out",
+                sprite: (
+                    sheet: "props",
+                    frame: 92,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (48.0, 20.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "pickaxe",
+            hits: 3,
+            loot: [
+                (
+                    item: "copper_ore",
+                    chance: 100.0,
+                    min: 1,
+                    max: 3,
+                ),
+            ],
+            then_state: "mined out",
+        )),
+        regrow: Some((
+            from: "mined out",
+            to: "default",
+            hours: 72.0,
+        )),
+    ),
+    (
+        id: "vein_iron",
+        name: "Iron Vein",
+        sprite: (
+            sheet: "props",
+            frame: 89,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [
+            (
+                name: "mined out",
+                sprite: (
+                    sheet: "props",
+                    frame: 92,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (48.0, 20.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "pickaxe",
+            hits: 3,
+            loot: [
+                (
+                    item: "iron_ore",
+                    chance: 100.0,
+                    min: 1,
+                    max: 2,
+                ),
+                (
+                    item: "copper_ore",
+                    chance: 30.0,
+                    min: 1,
+                    max: 1,
+                ),
+            ],
+            then_state: "mined out",
+        )),
+        regrow: Some((
+            from: "mined out",
+            to: "default",
+            hours: 72.0,
+        )),
+    ),
+    (
+        id: "vein_silver",
+        name: "Silver Vein",
+        sprite: (
+            sheet: "props",
+            frame: 90,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [
+            (
+                name: "mined out",
+                sprite: (
+                    sheet: "props",
+                    frame: 92,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (48.0, 20.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "pickaxe",
+            hits: 3,
+            loot: [
+                (
+                    item: "silver_ore",
+                    chance: 100.0,
+                    min: 1,
+                    max: 2,
+                ),
+            ],
+            then_state: "mined out",
+        )),
+        regrow: Some((
+            from: "mined out",
+            to: "default",
+            hours: 72.0,
+        )),
+    ),
+    (
+        id: "vein_gem",
+        name: "Gem Vein",
+        sprite: (
+            sheet: "props",
+            frame: 91,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [
+            (
+                name: "mined out",
+                sprite: (
+                    sheet: "props",
+                    frame: 92,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (48.0, 20.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "pickaxe",
+            hits: 3,
+            loot: [
+                (
+                    item: "ruby",
+                    chance: 60.0,
+                    min: 1,
+                    max: 1,
+                ),
+                (
+                    item: "silver_ore",
+                    chance: 40.0,
+                    min: 1,
+                    max: 1,
+                ),
+            ],
+            then_state: "mined out",
+        )),
+        regrow: Some((
+            from: "mined out",
+            to: "default",
+            hours: 72.0,
+        )),
+    ),
+    (
+        id: "vein_coal",
+        name: "Coal Vein",
+        sprite: (
+            sheet: "props",
+            frame: 93,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [
+            (
+                name: "mined out",
+                sprite: (
+                    sheet: "props",
+                    frame: 92,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (48.0, 20.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "pickaxe",
+            hits: 3,
+            loot: [
+                (
+                    item: "coal",
+                    chance: 100.0,
+                    min: 1,
+                    max: 3,
+                ),
+            ],
+            then_state: "mined out",
+        )),
+        regrow: Some((
+            from: "mined out",
+            to: "default",
+            hours: 72.0,
+        )),
+    ),
+    (
+        id: "herb_bush",
+        name: "Herb Bush",
+        sprite: (
+            sheet: "props",
+            frame: 94,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [
+            (
+                name: "picked",
+                sprite: (
+                    sheet: "props",
+                    frame: 95,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (40.0, 16.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "",
+            hits: 1,
+            loot: [
+                (
+                    item: "herb",
+                    chance: 100.0,
+                    min: 1,
+                    max: 2,
+                ),
+            ],
+            then_state: "picked",
+        )),
+        regrow: Some((
+            from: "picked",
+            to: "default",
+            hours: 12.0,
+        )),
+    ),
+    (
+        id: "mushroom_patch",
+        name: "Mushroom Patch",
+        sprite: (
+            sheet: "props",
+            frame: 96,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [
+            (
+                name: "picked",
+                sprite: (
+                    sheet: "props",
+                    frame: 97,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (40.0, 16.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "",
+            hits: 1,
+            loot: [
+                (
+                    item: "mushroom",
+                    chance: 100.0,
+                    min: 1,
+                    max: 2,
+                ),
+            ],
+            then_state: "picked",
+        )),
+        regrow: Some((
+            from: "picked",
+            to: "default",
+            hours: 12.0,
+        )),
+    ),
+    (
+        id: "campfire",
+        name: "Campfire",
+        sprite: (
+            sheet: "props",
+            frame: 118,
+        ),
+        solid: true,
+        default_state: "out",
+        states: [
+            (
+                name: "lit",
+                sprite: (
+                    sheet: "props",
+                    frame: 119,
+                ),
+                solid: true,
+                light: Some((
+                    radius: 3.0,
+                    color: (255, 160, 80),
+                    intensity: 0.9,
+                    flicker: true,
+                )),
+            ),
+        ],
+        hitbox: (48.0, 20.0),
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    OpenCrafting(
+                        station: "cooking",
+                        title: "Campfire",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "coal",
+                ),
+                conditions: [],
+                actions: [
+                    TakeItem(
+                        item: "coal",
+                        count: 1,
+                    ),
+                    SetState(
+                        target: "self",
+                        state: "lit",
+                    ),
+                    Dialog(
+                        speaker: "",
+                        text: "The coal catches and the fire crackles to life.",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        container: None,
+        lock: None,
+        regrow: Some((
+            from: "lit",
+            to: "out",
+            hours: 8.0,
+        )),
+    ),
+    (
+        id: "soil_plot",
+        name: "Soil Plot",
+        sprite: (
+            sheet: "props",
+            frame: 100,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [],
+        hitbox: (52.0, 24.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        plot: true,
+    ),
+    (
+        id: "anvil",
+        name: "Anvil",
+        sprite: (
+            sheet: "props",
+            frame: 99,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (48.0, 20.0),
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    OpenCrafting(
+                        station: "anvil",
+                        title: "Anvil",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "smelter",
+        name: "Smelter",
+        sprite: (
+            sheet: "props",
+            frame: 98,
+            h: 2,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (52.0, 24.0),
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    OpenCrafting(
+                        station: "smelter",
+                        title: "Smelter",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        container: None,
+        lock: None,
+        light: Some((
+            radius: 2.5,
+            color: (255, 150, 70),
+            intensity: 0.8,
+            flicker: true,
+        )),
+    ),
+    (
         id: "alchemy_table",
         name: "Alchemy Table",
         sprite: (

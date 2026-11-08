@@ -877,6 +877,8 @@ mod tests {
         held: String::new(),
         tool: String::new(),
         use_on: Default::default(),
+        crop: None,
+        food: false,
         };
         let mut bow = item("bow");
         bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "arrows".into() }));
@@ -1018,6 +1020,9 @@ mod tests {
             states: vec![],
             light: None,
             use_spot: None,
+            gather: None,
+            regrow: None,
+            plot: false,
         });
         let mut b = Bundle::collect(&db, &root, 16, "x", &all_assets(&db)).unwrap();
         b.rescale(32).unwrap();

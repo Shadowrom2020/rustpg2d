@@ -89,6 +89,55 @@
         ),
     ),
     (
+        id: "alchemy",
+        name: "Alchemy",
+        description: "The craft of brewing: Antidotes need level 1, Swiftness Potions level 2 (at an alchemy table, with a mortar and pestle).",
+        icon: (
+            sheet: "items",
+            frame: 46,
+        ),
+        max_level: 2,
+        effect: r#None,
+    ),
+    (
+        id: "smithing",
+        name: "Smithing",
+        description: "Working iron at the anvil: Iron Helmets at level 1, Chainmail at level 2, and from level 2 your swords come out fine.",
+        icon: (
+            sheet: "items",
+            frame: 52,
+        ),
+        max_level: 3,
+        effect: r#None,
+    ),
+    (
+        id: "cooking",
+        name: "Cooking",
+        description: "Good food, well made: Carrot Soup and Pumpkin Stew at level 1, Apple Pie at level 2, and all food heals 25% more per level.",
+        icon: (
+            sheet: "items",
+            frame: 3,
+        ),
+        max_level: 2,
+        effect: FoodBonus(
+            percent: 25.0,
+        ),
+    ),
+    (
+        id: "mining",
+        name: "Mining",
+        description: "Strong arms and a sharp eye for the seam: every level takes 20% fewer pickaxe hits to break off ore.",
+        icon: (
+            sheet: "items",
+            frame: 41,
+        ),
+        max_level: 3,
+        effect: Gather(
+            tool: "pickaxe",
+            percent: 20.0,
+        ),
+    ),
+    (
         id: "scavenging",
         name: "Scavenging",
         description: "An eye for what others leave behind: defeated slimes drop an extra coin per level (a scripted skill: see scavenging() in main.rhai).",

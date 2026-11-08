@@ -58,7 +58,7 @@ impl Game {
     }
 
     /// Sum of `f(effect, level)` over the skills the player has at level > 0.
-    fn skill_sum(&self, f: impl Fn(&SkillEffect, u32) -> f32) -> f32 {
+    pub(super) fn skill_sum(&self, f: impl Fn(&SkillEffect, u32) -> f32) -> f32 {
         if !self.skills_on() {
             return 0.0;
         }

@@ -112,7 +112,7 @@ impl PixelDoc {
         }
     }
     fn texture(&mut self, ctx: &egui::Context) -> TextureHandle {
-        let ci = egui::ColorImage::from_rgba_unmultiplied([self.img.w as usize, self.img.h as usize], &self.img.px);
+        let ci = crate::widgets::color_image(ctx, self.img.w as usize, self.img.h as usize, &self.img.px);
         match &mut self.tex {
             Some(t) if !self.tex_dirty => t.clone(),
             Some(t) => {

@@ -1,6 +1,7 @@
 //! The game runtime: loads a project and plays it.
 
 mod achievements;
+mod activities;
 mod ai;
 mod charwin;
 mod combat;
@@ -10,7 +11,9 @@ mod cutscene;
 mod dev;
 mod effects;
 mod equipment;
+mod farm;
 mod furniture;
+mod gather;
 mod healing;
 mod fx;
 mod inventory_ui;
@@ -141,6 +144,22 @@ struct RtEntity {
     damage: i32,
     invuln: f32,
     flash: f32,
+    /// What it does all day where it stands (`EntityInstance::activity`), the way it faces
+    /// while doing it, seconds a talk still pauses it, the last work stroke (its sound).
+    activity: Option<crate::entity::Activity>,
+    act_facing: Facing,
+    act_pause: f32,
+    act_cycle: u32,
+    /// Using furniture (a schedule stop with a prop).
+    npc_seat: Option<furniture::NpcSeat>,
+    /// A visitor from another map (its schedule brought it here).
+    visitor: Option<Box<schedule::Visitor>>,
+    /// A seed growing on a farm plot.
+    planted: Option<crate::state::Planted>,
+    /// When its prop state last changed (in-game hours; regrowing states).
+    changed_at: Option<f64>,
+    /// Hits a gathering prop has taken (and seconds since the last one).
+    gather: Option<(u32, f32)>,
     /// The placed character's own portrait (`EntityInstance::portrait`).
     portrait: Option<crate::defs::SpriteRef>,
     /// HP the last hit took (a character drinks a potion before the next one would fell it).
@@ -252,10 +271,16 @@ pub struct Game {
     leave_hold: f32,
     /// A companion window to open once the running event is over (`Action::OpenCompanion`).
     pending_companion: Option<u32>,
+    /// Scheduled characters that visit other maps (found in all maps once).
+    visitor_defs: Option<Vec<schedule::VisitorDef>>,
     /// Moods of characters' portraits (definition id -> mood) while an event runs.
     moods: std::collections::HashMap<String, String>,
     /// The open "Heal whom?" choice.
     heal_pick: Option<healing::HealPick>,
+    /// Chips flying off gathered props.
+    chips: Vec<gather::Chip>,
+    /// Seconds to the next check of regrowing props.
+    regrow_timer: f32,
     /// The open companion orders menu (G).
     order_menu: Option<orders::OrderMenu>,
     /// The open companion window (its gear and bag).
@@ -366,8 +391,11 @@ impl Game {
             leaving: None,
             leave_hold: 0.0,
             pending_companion: None,
+            visitor_defs: None,
             moods: Default::default(),
             heal_pick: None,
+            chips: Vec::new(),
+            regrow_timer: 0.0,
             order_menu: None,
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),
@@ -397,7 +425,7 @@ impl Game {
             (None, None) if start.map.is_some() => Arrival::Spawn(String::new()),
             _ => Arrival::Spawn(game.project.config.start_spawn.clone()),
         };
-        game.scripts.set_recipes(game.project.db.recipes.clone());
+        game.scripts.set_recipes(game.project.db.recipes.clone(), game.project.db.tool_kinds());
         game.load_achievements();
         game.settings = crate::settings::Settings::load(&game.project.config.name);
         game.apply_settings();
@@ -485,6 +513,15 @@ impl Game {
             invuln: 0.0,
             last_hit: 0,
             portrait: None,
+            changed_at: None,
+            gather: None,
+            planted: None,
+            npc_seat: None,
+            visitor: None,
+            activity: None,
+            act_facing: facing,
+            act_pause: 0.0,
+            act_cycle: 0,
             item_cd: 0.0,
             flash: 0.0,
             knock: Vec2::ZERO,
@@ -523,17 +560,20 @@ impl Game {
             return false;
         };
         let solid = d.state_look(idx).1;
+        let now = self.world.total_hours();
         let e = &mut self.loaded.entities[i];
         e.state = idx;
         e.frame = 0;
         e.solid = solid;
+        e.changed_at = Some(now);
         self.persist(i);
         true
     }
 
-    fn build_entities(&self, map: &Map) -> Vec<RtEntity> {
+    fn build_entities(&mut self, map: &Map) -> Vec<RtEntity> {
         let mut out = self.build_map_entities(map);
         out.extend(self.build_companions());
+        out.extend(self.build_visitors(&map.name));
         // Items the player dropped here earlier.
         for p in self.world.dropped.get(&map.name).into_iter().flatten() {
             let mut rt = self.new_rt_entity(EntityKind::Item, &p.item, p.uid, "", vec2(p.x, p.y), Facing::Down, true, 0);
@@ -564,8 +604,13 @@ impl Game {
             st.map_or(e.frame, |s| s.frame),
         );
         rt.count = count;
+        rt.changed_at = st.and_then(|s| s.changed_at);
+        rt.planted = st.and_then(|s| s.planted.clone());
         rt.light = e.light.clone();
         rt.portrait = e.portrait.clone();
+        rt.activity = e.activity.clone();
+        // (Working all day, it faces the way it is placed, whatever it faced when saved.)
+        rt.act_facing = e.facing;
         if e.kind == EntityKind::Character {
             if let Some(loot) = &e.loot {
                 rt.loot = loot.clone();
@@ -591,7 +636,7 @@ impl Game {
                 p.restore(ps);
             }
             if !e.schedule.is_empty() {
-                let mut s = schedule::Schedule::new(e.schedule.clone());
+                let mut s = schedule::Schedule::new(e.schedule.clone(), map);
                 s.on = !st.is_some_and(|s| s.schedule_off);
                 rt.schedule = Some(s);
             }
@@ -673,6 +718,8 @@ impl Game {
         self.timed_lights.clear();
         self.order = None;
         self.setup_spawners();
+        // Veins and crops that regrew while the player was away.
+        self.update_regrow();
         let music = self.loaded.map.music.clone();
         if !music.is_empty() {
             self.audio.play_music(&music);
@@ -866,9 +913,12 @@ impl Game {
             if let Some(e) = map.entities.iter().find(|e| e.uid == uid) {
                 add(format!("{}/e:{}", map.name, e.uid), &e.triggers, Some(uid));
             }
-            // A companion's own triggers come along from where it is placed.
+            // A companion's own triggers come along from where it is placed; so do a visitor's.
             if let Some(l) = rt.iter().find(|e| e.uid == uid).and_then(|e| e.companion.as_ref()) {
                 add(format!("{}/e:{}", l.map, l.uid), &l.triggers, Some(uid));
+            }
+            if let Some(v) = rt.iter().find(|e| e.uid == uid).and_then(|e| e.visitor.as_ref()) {
+                add(format!("{}/e:{}", v.map, v.uid), &v.triggers, Some(uid));
             }
         };
         match source {
@@ -952,8 +1002,8 @@ impl Game {
 
     fn persist(&mut self, idx: usize) {
         let e = &self.loaded.entities[idx];
-        if e.spawned_by.is_some() || e.companion.is_some() {
-            return; // spawner characters are not saved individually, companions in `companions`
+        if e.spawned_by.is_some() || e.companion.is_some() || e.visitor.is_some() {
+            return; // spawner characters are not saved individually, companions in `companions`, visitors follow their schedule
         }
         if e.uid >= crate::state::DROPPED_UID_BASE {
             // Dropped items live in the world state's list of piles.
@@ -974,6 +1024,8 @@ impl Game {
             state,
             patrol: e.patrol.as_ref().map(|p| p.state()),
             schedule_off: e.schedule.as_ref().is_some_and(|s| !s.on),
+            changed_at: e.changed_at,
+            planted: e.planted.clone(),
         };
         let map = self.loaded.map.name.clone();
         let uid = e.uid;
@@ -1039,7 +1091,9 @@ impl Game {
         self.world.play_time += dt as f64;
         self.update_achievements(dt);
         if !self.on_title() && self.project.config.day_minutes > 0.0 {
-            self.world.hour = (self.world.hour + dt * 24.0 / (self.project.config.day_minutes * 60.0)).rem_euclid(24.0);
+            let hours = dt * 24.0 / (self.project.config.day_minutes * 60.0);
+            self.world.advance_hours(hours);
+            self.water_crops(hours);
         }
         if input::act_pressed(Act::Debug) {
             self.debug = !self.debug;
@@ -1156,6 +1210,9 @@ impl Game {
         if !frozen || self.cutscene_active() {
             self.update_fx(dt);
             self.update_weather(dt);
+        }
+        if !frozen {
+            self.update_gather(dt);
         }
         if let Some(m) = &mut self.click_marker {
             m.1 += dt;
@@ -1292,7 +1349,7 @@ impl Game {
     }
 
     fn facing_entity(&self) -> Option<usize> {
-        self.facing_entity_near().or_else(|| {
+        self.facing_entity_near().map(|i| self.user_of(i).unwrap_or(i)).or_else(|| {
             // Nothing right in front: someone across a counter in the facing direction?
             let ts = self.ts();
             let (fx, fy) = self.player.facing.dir();
@@ -1301,6 +1358,12 @@ impl Game {
                 self.across_counter(i) && (d.x * fx + d.y * fy) > ts
             })
         })
+    }
+
+    /// The character using furniture `i` (a bed's sleeper): talking to the furniture talks to it.
+    fn user_of(&self, i: usize) -> Option<usize> {
+        let uid = self.loaded.entities[i].uid;
+        self.loaded.entities.iter().position(|e| e.active && e.npc_seat.as_ref().is_some_and(|s| s.uid == uid))
     }
 
     fn facing_entity_near(&self) -> Option<usize> {
@@ -1364,13 +1427,18 @@ impl Game {
                 EntityKind::Character => {
                     let p = self.player.pos;
                     let ent = &mut self.loaded.entities[i];
-                    // A patrolling character stays a moment after being talked to.
+                    // A patrolling character stays a moment after being talked to; one at work
+                    // stops for a moment.
                     if let Some(pt) = &mut ent.patrol {
                         pt.wait = pt.wait.max(1.5);
                     }
-                    let e = &mut ent.body;
-                    e.facing = Facing::from_vec(p.x - e.pos.x, p.y - e.pos.y).unwrap_or(e.facing);
-                    e.moving = false;
+                    ent.act_pause = activities::TALK_PAUSE;
+                    // (Someone on furniture keeps its pose.)
+                    if ent.npc_seat.is_none() {
+                        let e = &mut ent.body;
+                        e.facing = Facing::from_vec(p.x - e.pos.x, p.y - e.pos.y).unwrap_or(e.facing);
+                        e.moving = false;
+                    }
                 }
                 EntityKind::Prop => {
                     // Open gates / doors (not containers) can be locked again with their key.
@@ -1384,15 +1452,25 @@ impl Game {
                     if !self.loaded.entities[i].active {
                         return; // e.g. a gate that disappeared on unlocking
                     }
+                    // Ore veins, trees...: E is a gathering hit; farm plots plant / harvest.
+                    if self.gather_hit(i) || self.try_farm(i) {
+                        return;
+                    }
                 }
             }
-            self.fire(GameEvent::Interact, Source::Entity(uid));
+            let fired = self.fire(GameEvent::Interact, Source::Entity(uid));
             match self.loaded.entities[i].kind {
                 EntityKind::Prop => {
                     self.try_open_container(i);
                     self.try_use_furniture(i);
                 }
                 EntityKind::Character => {
+                    // Asleep, and nothing to say about it (a Pose condition): just a toast.
+                    if !fired && self.npc_pose(i) == "lie" {
+                        let name = self.entity_display_name(uid).unwrap_or_default();
+                        self.ui.toast(format!("{name} is asleep."));
+                        return;
+                    }
                     self.try_open_shop(i, true);
                 }
                 EntityKind::Item => {}
@@ -1475,11 +1553,33 @@ impl Game {
                 return;
             }
         }
+        // Seeds are planted on the farm plot in front.
+        if self.plant_on_facing(item) {
+            return;
+        }
         // A healing item asks whom to heal while companions are around.
         if self.start_heal_pick(healing::HealSource::Item(item.to_string())) {
             return;
         }
         self.use_item_now(item);
+    }
+
+    /// Runs an item's own *on use* triggers; food heals more with the player's Food skills.
+    fn fire_item_use(&mut self, item: &str) -> bool {
+        let bonus = if self.project.db.item(item).is_some_and(|d| d.food) {
+            self.skill_sum(|e, l| match e {
+                crate::skills::SkillEffect::FoodBonus { percent } => percent * l as f32,
+                _ => 0.0,
+            })
+        } else {
+            0.0
+        };
+        let actions = self.collect(&GameEvent::UseItem { item: item.to_string() }, &Source::Item(item.to_string()));
+        let any = !actions.is_empty();
+        for (a, ctx) in actions {
+            self.runner.push(&[food_bonus(a, bonus)], &ctx);
+        }
+        any
     }
 
     /// Uses an item on the player / the prop in front (its *UseItem* triggers).
@@ -1490,7 +1590,7 @@ impl Game {
             fired = self.fire(ev.clone(), Source::Entity(self.loaded.entities[i].uid));
         }
         if !fired {
-            fired = self.fire(ev, Source::Item(item.to_string()));
+            fired = self.fire_item_use(item);
         }
         if !fired {
             self.ui.toast("Nothing happens.".into());
@@ -1545,7 +1645,12 @@ impl Game {
             if self.companion_step(i, dt) || self.chase(i, dt) {
                 continue;
             }
-            match self.schedule_step(i, dt) {
+            let sched = self.schedule_step(i, dt);
+            // At work (fishing, hammering...): stays where it is.
+            if sched != Some(true) && self.activity_step(i, dt) {
+                continue;
+            }
+            match sched {
                 Some(true) => continue,
                 // At its stop: wander around it (or stand), patrol routes wait.
                 Some(false) => {}
@@ -1599,7 +1704,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?}",
+            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?}",
             self.dev_status(),
             self.weather_status(),
             self.menu_status(),
@@ -1636,6 +1741,11 @@ impl Game {
             self.achievements_status(),
             self.minigame_status(),
             self.pose_status(),
+            self.gather_status(),
+            self.prop_states_status(),
+            self.crops_status(),
+            self.activities_status(),
+            self.world.day,
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -1802,7 +1912,7 @@ impl Game {
             .iter()
             .enumerate()
             .filter(|(_, e)| e.active)
-            .map(|(i, e)| (e.body.pos.y, Some(i)))
+            .map(|(i, e)| (e.npc_seat.as_ref().map_or(e.body.pos.y, |s| s.prop_feet.y + 0.5), Some(i)))
             .collect();
         order.push((self.player_sort_y(), None));
         order.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -1831,6 +1941,8 @@ impl Game {
         }
 
         self.draw_combat_world();
+        self.draw_gather();
+        self.draw_activities();
         self.draw_fx();
         if !self.on_title() {
             self.draw_mouse_world();
@@ -1931,8 +2043,27 @@ impl Game {
         let db = &self.project.db;
         let tint = if e.flash > 0.0 { Color::new(1.0, 0.35, 0.35, 1.0) } else { Self::effect_tint(&e.effects).unwrap_or(WHITE) };
         let drawn = match e.kind {
-            EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE)),
+            EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
+                let ok = self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE);
+                if e.planted.is_some() {
+                    if let Some(i) = self.loaded.entities.iter().position(|x| x.uid == e.uid) {
+                        self.draw_crop(i);
+                    }
+                }
+                ok
+            }),
             EntityKind::Character if e.companion.as_ref().is_some_and(|l| l.down.is_some()) => self.draw_downed(e),
+            EntityKind::Character if e.npc_seat.is_some() => {
+                let s = e.npc_seat.as_ref().expect("checked");
+                self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
+                true
+            }
+            EntityKind::Character if self.loaded.entities.iter().position(|x| x.uid == e.uid).is_some_and(|i| self.current_activity(i).is_some()) => {
+                let i = self.loaded.entities.iter().position(|x| x.uid == e.uid).expect("checked");
+                let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
+                let col = self.activity_frame(i).unwrap_or(0);
+                self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
+            }
             EntityKind::Character => db.character(&e.def).is_some() && {
                 let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
                 self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
@@ -1978,6 +2109,22 @@ impl Game {
         }
         let r = self.player.rect();
         draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.0, GREEN);
+    }
+}
+
+/// Healing of food raised by `percent` (the Food skill), also inside *If* actions.
+fn food_bonus(a: Action, percent: f32) -> Action {
+    if percent <= 0.0 {
+        return a;
+    }
+    match a {
+        Action::Heal { amount } if amount > 0 => Action::Heal { amount: (amount as f32 * (1.0 + percent / 100.0)).round() as i32 },
+        Action::If { conditions, then, otherwise } => Action::If {
+            conditions,
+            then: then.into_iter().map(|a| food_bonus(a, percent)).collect(),
+            otherwise: otherwise.into_iter().map(|a| food_bonus(a, percent)).collect(),
+        },
+        a => a,
     }
 }
 
@@ -2289,7 +2436,7 @@ impl ActionHost for Game {
                 Step::Continue
             }
             Action::OpenCrafting { station, title } => {
-                self.open_crafting(station, title);
+                self.open_crafting(station, title, ctx.owner);
                 Step::Continue
             }
             Action::OpenShop { target } => {
@@ -2354,6 +2501,13 @@ impl ActionHost for Game {
         self.scripts.condition(&mut self.world, function, ctx.owner)
     }
 
+    fn pose(&mut self, target: &str, ctx: &ActionCtx) -> String {
+        if target.eq_ignore_ascii_case("player") {
+            return self.pose_name().to_string();
+        }
+        self.entity_index(target, ctx.owner).map_or(String::new(), |i| self.npc_pose(i).to_string())
+    }
+
     fn prop_state(&mut self, target: &str, ctx: &ActionCtx) -> Option<String> {
         let i = self.entity_index(target, ctx.owner)?;
         let e = &self.loaded.entities[i];
@@ -2369,5 +2523,24 @@ impl ActionHost for Game {
         if lost > 0 {
             self.ui.toast(format!("Inventory full: {name} x{lost} lost"));
         }
+    }
+}
+
+#[cfg(test)]
+mod food_tests {
+    use super::*;
+
+    #[test]
+    fn food_heals_more_with_the_skill() {
+        assert_eq!(food_bonus(Action::Heal { amount: 4 }, 50.0), Action::Heal { amount: 6 });
+        assert_eq!(food_bonus(Action::Heal { amount: 4 }, 0.0), Action::Heal { amount: 4 });
+        assert_eq!(food_bonus(Action::Heal { amount: -2 }, 50.0), Action::Heal { amount: -2 }, "damage stays");
+        let Action::If { then, .. } = food_bonus(Action::If { conditions: vec![], then: vec![Action::Heal { amount: 2 }], otherwise: vec![] }, 100.0) else { panic!() };
+        assert_eq!(then, vec![Action::Heal { amount: 4 }]);
+        // Recipes and items from before cooking.
+        let r: crate::crafting::RecipeDef = ron::from_str("(id: \"a\", result: \"b\")").unwrap();
+        assert_eq!(r.station_state, "");
+        let it: crate::defs::ItemDef = ron::from_str(r#"(id: "apple", name: "Apple", icon: (sheet: "items", frame: 3))"#).unwrap();
+        assert!(!it.food);
     }
 }

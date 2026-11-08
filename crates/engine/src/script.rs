@@ -22,6 +22,8 @@ struct Ctx {
     owner: Option<u32>,
     /// Characters on the current map that can be hurt: (uid, name, HP).
     characters: Vec<(u32, String, i32)>,
+    /// Tool items' kinds (`can_craft` with tools).
+    tool_kinds: crate::crafting::ToolKinds,
     /// The project's crafting recipes (`can_craft`).
     recipes: Vec<crate::crafting::RecipeDef>,
     /// Ids of the player's unlocked achievements (`achievement_unlocked`).
@@ -81,8 +83,10 @@ impl ScriptHost {
     }
 
     /// The project's crafting recipes, for `can_craft(id)`.
-    pub fn set_recipes(&mut self, recipes: Vec<crate::crafting::RecipeDef>) {
-        self.ctx.borrow_mut().recipes = recipes;
+    pub fn set_recipes(&mut self, recipes: Vec<crate::crafting::RecipeDef>, tool_kinds: crate::crafting::ToolKinds) {
+        let mut c = self.ctx.borrow_mut();
+        c.recipes = recipes;
+        c.tool_kinds = tool_kinds;
     }
 
     pub fn set_player(&mut self, info: PlayerInfo) {
@@ -462,7 +466,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("lockpick", with!(ctx, |c, difficulty: i64, var: &str| c.actions.push(Action::Lockpick { difficulty: difficulty.max(0) as u32, var: var.into() })));
     engine.register_fn("unlock_achievement", with!(ctx, |c, id: &str| c.actions.push(Action::UnlockAchievement { id: id.into() })));
     engine.register_fn("achievement_unlocked", with!(ctx, |c, id: &str| c.achievements.contains(id)));
-    engine.register_fn("can_craft", with!(ctx, |c, id: &str| c.recipes.iter().find(|r| r.id == id).is_some_and(|r| r.missing(&c.world).is_none())));
+    engine.register_fn("can_craft", with!(ctx, |c, id: &str| c.recipes.iter().find(|r| r.id == id).is_some_and(|r| r.missing(&c.world, &c.tool_kinds).is_none())));
     engine.register_fn("open_crafting", with!(ctx, |c, station: &str| c.actions.push(Action::OpenCrafting { station: station.into(), title: String::new() })));
     engine.register_fn("open_crafting", with!(ctx, |c, station: &str, title: &str| c.actions.push(Action::OpenCrafting { station: station.into(), title: title.into() })));
     engine.register_fn("follow", with!(ctx, |c, t: &str| c.actions.push(Action::Companion { target: t.into(), join: true })));
@@ -905,7 +909,7 @@ mod tests {
     #[test]
     fn crafting_api() {
         let mut host = ScriptHost::new();
-        host.set_recipes(vec![crate::crafting::RecipeDef::new("brew", "potion", 1, vec![crate::inventory::ItemStack::new("herb", 2)], "alchemy")]);
+        host.set_recipes(vec![crate::crafting::RecipeDef::new("brew", "potion", 1, vec![crate::inventory::ItemStack::new("herb", 2)], "alchemy")], Default::default());
         host.load_source(r#"fn table() { if can_craft("brew") { open_crafting("alchemy", "Alchemy table"); } else { open_crafting("alchemy"); } }"#).unwrap();
         let mut w = WorldState::default();
         assert_eq!(host.call(&mut w, "table", None), vec![Action::OpenCrafting { station: "alchemy".into(), title: String::new() }]);

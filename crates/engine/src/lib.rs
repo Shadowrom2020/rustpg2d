@@ -9,7 +9,6 @@ pub mod effects;
 pub mod entity;
 pub mod events;
 pub mod fog;
-pub mod gl_fallback;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;
 pub mod icon;

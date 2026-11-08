@@ -20,12 +20,6 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Windows' wheel units.
 
 ### Fixes
-- **Windows without a graphics driver** (virtual machines): R(ust)PG2D and exported games
-  panicked with "WGL_ARB_pixel_format is required". The Windows zip now has a `mesa` folder with
-  Mesa's software OpenGL (mesa-dist-win 26.2.4, checksum-pinned); when the system's OpenGL fails,
-  the program starts itself again with it (`RUSTPG2D_SOFTWARE_GL=1` from the start), and shows a
-  message box when the folder is missing. Windows exports include it (export dialog option, on
-  by default); the AppImage / Flatpak carry it next to the Windows game runner.
 - The game no longer panics when it quits on Windows (gamepad thread joined at exit).
 - Zips of exported games always store Unix permissions (the Linux executable stays executable
   when zipped on Windows); RON files are written with LF line endings on every platform.

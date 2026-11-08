@@ -84,8 +84,6 @@ fn window_conf() -> Conf {
         .map(|c| c.name)
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "R(ust)PG2D".to_owned());
-    // Windows without an OpenGL 3 driver: Mesa's software OpenGL next to the exe.
-    rustpg2d_engine::gl_fallback::prepare(&title);
     // The window icon: the player character, else R(ust)PG2D's emblem.
     let icon = Project::load(&root).ok().and_then(|p| rustpg2d_engine::icon::hero_icon(&p)).unwrap_or_else(rustpg2d_engine::icon::emblem);
     Conf {

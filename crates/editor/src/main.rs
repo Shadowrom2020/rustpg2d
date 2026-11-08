@@ -48,7 +48,6 @@ fn library_arg() -> Option<std::path::PathBuf> {
 
 fn window_conf() -> Conf {
     rustpg2d_engine::icon::attach_parent_console();
-    rustpg2d_engine::gl_fallback::prepare("R(ust)PG2D");
     let library = library_arg().is_some();
     Conf {
         icon: Some(rustpg2d_engine::icon::window_icon(&rustpg2d_engine::icon::emblem())),

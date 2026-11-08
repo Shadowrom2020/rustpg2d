@@ -4,9 +4,7 @@
 //! Options: `--out DIR` (default `dist/`), `--bin-dir DIR` (the Linux release binaries, default
 //! `target/release`), `--windows-dir DIR` (the Windows release binaries `rustpg2d-editor.exe` and
 //! `rustpg2d-game.exe`, cross-compiled with MinGW-w64; default `target/x86_64-pc-windows-gnu/
-//! release`), `--mesa-dir DIR` (Mesa's software OpenGL for Windows without an OpenGL 3 driver:
-//! `opengl32.dll` + `libgallium_wgl.dll` of mesa-dist-win, default `target/mesa`; shipped as
-//! `mesa/` next to the Windows executables), `--require-windows` (fail without them: CI). The Windows game runner also ships in
+//! release`), `--require-windows` (fail without them: CI). The Windows game runner also ships in
 //! the Linux packages and the Linux one in the Windows zip, so either editor exports games for
 //! both.
 
@@ -53,15 +51,6 @@ pub fn dist(args: &[String]) -> Result<()> {
         println!("no Windows build in {}: no Windows zip, and the packaged editor won't export Windows games", win_dir.display());
     }
     let windows_game = windows.then(|| win_game.clone());
-    let mesa_dir = opt("--mesa-dir").unwrap_or_else(|| root.join("target/mesa"));
-    let mesa: Vec<(String, PathBuf)> = MESA_FILES.iter().map(|f| (f.to_string(), mesa_dir.join(f))).filter(|(_, p)| p.is_file()).collect();
-    if mesa.len() != MESA_FILES.len() {
-        if args.iter().any(|a| a == "--require-windows") {
-            bail!("Mesa's software OpenGL is missing in {} ({})", mesa_dir.display(), MESA_FILES.join(", "));
-        }
-        println!("no software OpenGL in {}: Windows without a graphics driver can't start R(ust)PG2D", mesa_dir.display());
-    }
-    let mesa = if mesa.len() == MESA_FILES.len() { mesa } else { Vec::new() };
     let example = root.join("example_project");
     let project = rustpg2d_engine::project::Project::load(&example).context("loading example_project")?;
     let icon = rustpg2d_packaging::hero_icon(&project).unwrap_or_else(rustpg2d_packaging::emblem).encode()?;
@@ -88,13 +77,6 @@ pub fn dist(args: &[String]) -> Result<()> {
     if let Some(w) = windows_game {
         // Next to the editor, where File > Export game looks for it.
         spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.exe".into(), src: Source::Path(w), exec: false });
-        // Windows exports carry it from here (File > Export game).
-        for (name, path) in &mesa {
-            spec.files.push(Entry { dest: format!("lib/rustpg2d/mesa/{name}"), src: Source::Path(path.clone()), exec: false });
-        }
-        if !mesa.is_empty() {
-            spec.files.push(Entry { dest: "lib/rustpg2d/mesa/README.txt".into(), src: Source::Bytes(MESA_README.replace('\n', "\r\n").into_bytes()), exec: false });
-        }
     }
     let license = root.join("LICENSE");
     if !license.is_file() {
@@ -122,7 +104,7 @@ pub fn dist(args: &[String]) -> Result<()> {
     let mut made = vec![appimage, flatpak];
     if windows {
         let zip = out.join(format!("rustpg2d-{version}-windows-x86_64.zip"));
-        windows_zip(&zip, &version, &win_editor, &win_game, &game_linux, &example, &mesa)?;
+        windows_zip(&zip, &version, &win_editor, &win_game, &game_linux, &example)?;
         println!("{}", zip.display());
         made.push(zip);
     }
@@ -137,7 +119,7 @@ pub fn dist(args: &[String]) -> Result<()> {
 
 /// The R(ust)PG2D download for Windows: `rustpg2d-<version>/` with both executables, the Linux
 /// game runner (Linux exports), the example project (without save games), license and README.
-fn windows_zip(path: &std::path::Path, version: &str, editor: &std::path::Path, game: &std::path::Path, linux_game: &std::path::Path, example: &std::path::Path, mesa: &[(String, PathBuf)]) -> Result<()> {
+fn windows_zip(path: &std::path::Path, version: &str, editor: &std::path::Path, game: &std::path::Path, linux_game: &std::path::Path, example: &std::path::Path) -> Result<()> {
     use std::io::Write;
     let top = format!("rustpg2d-{version}");
     let mut zw = zip::ZipWriter::new(std::fs::File::create(path).with_context(|| format!("creating {}", path.display()))?);
@@ -152,12 +134,6 @@ fn windows_zip(path: &std::path::Path, version: &str, editor: &std::path::Path, 
     add("rustpg2d-game", &std::fs::read(linux_game)?, 0o755)?;
     add("LICENSE.txt", read(&root().join("LICENSE"))?.replace('\n', "\r\n").as_bytes(), 0o644)?;
     add("README.txt", WINDOWS_README.replace("{version}", version).replace('\n', "\r\n").as_bytes(), 0o644)?;
-    for (name, p) in mesa {
-        add(&format!("mesa/{name}"), &std::fs::read(p)?, 0o644)?;
-    }
-    if !mesa.is_empty() {
-        add("mesa/README.txt", MESA_README.replace('\n', "\r\n").as_bytes(), 0o644)?;
-    }
     let mut stack = vec![example.to_path_buf()];
     let mut files = Vec::new();
     while let Some(dir) = stack.pop() {
@@ -189,9 +165,6 @@ F5 in the editor play-tests the open map with rustpg2d-game.exe.
 R(ust)PG2D isn't code-signed: the first start shows \"Windows protected your PC\". Choose
 \"More info\", then \"Run anyway\".
 
-No graphics driver (virtual machines, \"Microsoft Basic Display Adapter\")? The mesa folder holds
-a software OpenGL that R(ust)PG2D switches to by itself (slower); keep it next to the .exe files.
-
 Your files:
 - the example project you open is copied to %USERPROFILE%\\rustpg2d\\example_project
 - the asset library: %LOCALAPPDATA%\\rustpg2d\\library
@@ -202,37 +175,4 @@ Linux game runner in this folder). AppImage and Flatpak packages are made by R(u
 
 Documentation and source: https://github.com/Shadowrom2020/rustpg2d
 R(ust)PG2D is MIT licensed: see LICENSE.txt.
-";
-
-/// Files of Mesa's software OpenGL (mesa-dist-win, x64) that R(ust)PG2D ships.
-const MESA_FILES: [&str; 2] = ["opengl32.dll", "libgallium_wgl.dll"];
-
-const MESA_README: &str = "Software OpenGL for Windows without a graphics driver
-
-R(ust)PG2D (and games made with it) start with these files when Windows has no OpenGL 3.2
-driver, e.g. in a virtual machine. They are Mesa's llvmpipe renderer as built by
-mesa-dist-win (https://github.com/pal1000/mesa-dist-win, version 26.2.4, x64 release-msvc).
-Delete this folder if every PC the program runs on has a graphics driver.
-
-Mesa: https://mesa3d.org, source https://gitlab.freedesktop.org/mesa/mesa
-Mesa's main license (most of its code; see docs/license.rst in its source for the others):
-
-Copyright (C) 1999-2007 Brian Paul   All Rights Reserved.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software
-and associated documentation files (the \"Software\"), to deal in the Software without
-restriction, including without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or
-substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-llvmpipe contains LLVM (https://llvm.org), Apache License 2.0 with LLVM Exceptions.
 ";

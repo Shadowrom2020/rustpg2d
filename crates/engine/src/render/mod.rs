@@ -8,6 +8,7 @@ pub mod character;
 pub mod fish;
 pub mod lighting;
 pub mod recolor;
+pub mod parallax;
 pub mod weather;
 
 use std::cell::RefCell;

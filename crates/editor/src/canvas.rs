@@ -783,6 +783,9 @@ impl Editor {
         let (mw, mh) = (map.width as f32 * ts, map.height as f32 * ts);
         let bg = map.background;
         draw_rectangle(0.0, 0.0, mw, mh, Color::from_rgba(bg[0], bg[1], bg[2], 255));
+        if self.view.parallax {
+            render::parallax::draw(&self.assets, &map.parallax, false, view, get_time() as f32);
+        }
 
         let overview = render::visible_tiles(view, ts) > OVERVIEW_THRESHOLD;
         if overview {
@@ -840,6 +843,9 @@ impl Editor {
                 }
                 render::draw_layer(map, l, &sets, ts, view, t);
             }
+        }
+        if self.view.parallax {
+            render::parallax::draw(&self.assets, &map.parallax, true, view, get_time() as f32);
         }
 
         if let Some((ambient, lights)) = lighting {

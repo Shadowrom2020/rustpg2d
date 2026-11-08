@@ -53,6 +53,16 @@ pub struct ProjectConfig {
     /// shoulders of the player's model).
     #[serde(default, skip_serializing_if = "crate::defs::SpriteRef::is_empty")]
     pub player_portrait: crate::defs::SpriteRef,
+    /// The language the game is written in (code, e.g. "en"): the texts in the project.
+    #[serde(default = "default_language")]
+    pub language: String,
+    /// Translations players can choose (codes; each has `lang/<code>.ron`, see `lang`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub languages: Vec<String>,
+}
+
+fn default_language() -> String {
+    "en".into()
 }
 
 /// What happens to a companion knocked down to 0 HP (`ProjectConfig::companion_down`).
@@ -183,6 +193,8 @@ impl ProjectConfig {
             dialog_portraits: true,
             companion_down: Default::default(),
             player_portrait: Default::default(),
+            language: default_language(),
+            languages: Vec::new(),
         }
     }
 }

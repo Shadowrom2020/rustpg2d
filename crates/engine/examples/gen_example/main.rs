@@ -18,6 +18,7 @@ use rustpg2d_engine::quest::{QuestCheck, QuestDef, QuestOp};
 use rustpg2d_engine::skills::{SkillDef, SpellDef};
 
 mod art;
+mod lang_de;
 mod music;
 mod structures;
 use art::*;
@@ -2037,7 +2038,8 @@ fn mira_talk() {
     add_var("mira_talks", 1);
     let n = get_var("mira_talks");
     if n == 1 {
-        say("Mira", "Hi! I'm Mira. " + player_name() + ", right? Have you met Elder Rowan by the well?");
+        // Placeholders instead of "..." + player_name() + "...": the whole text can be translated.
+        say("Mira", "Hi! I'm Mira. {player}, right? Have you met Elder Rowan by the well?");
     } else if flag("shrine_lit") {
         // Scripts can check the player's sex too (or use "{hero|heroine}" in the text).
         if is_female() {
@@ -2046,7 +2048,7 @@ fn mira_talk() {
             say("Mira", "You lit the shrine? When I grow up I want to be a hero like you!");
         }
     } else if n < 4 {
-        say("Mira", "Talked to me " + n + " times now. You must be bored!");
+        say("Mira", "Talked to me {mira_talks} times now. You must be bored!");
     } else {
         say("Mira", "Want to see me walk?");
         choice("Watch Mira walk?", ["Sure", "No thanks"], "mira_walk");
@@ -2412,6 +2414,8 @@ fn main() {
         dialog_portraits: true,
         companion_down: Default::default(),
         player_portrait: Default::default(),
+            language: "en".into(),
+            languages: vec!["de".into()],
         },
         db: database(),
     };
@@ -2423,6 +2427,20 @@ fn main() {
     }
     std::fs::create_dir_all(project.scripts_dir()).unwrap();
     std::fs::write(project.scripts_dir().join("main.rhai"), SCRIPT).unwrap();
+    // The German translation: every content text, filled from lang_de.rs (the rest stays empty =
+    // shown in English).
+    let (mut de, _) = rustpg2d_engine::lang::template(&project, "de", None);
+    let mut missing = 0;
+    for (k, v) in de.texts.iter_mut() {
+        match lang_de::GERMAN.iter().find(|(en, _)| en == k) {
+            Some((_, g)) => *v = g.to_string(),
+            None => missing += 1,
+        }
+    }
+    let unused: Vec<&str> = lang_de::GERMAN.iter().map(|(en, _)| *en).filter(|en| !de.texts.contains_key(*en)).collect();
+    assert!(unused.is_empty(), "lang_de.rs has texts the example doesn't use: {unused:?}");
+    rustpg2d_engine::project::write_ron(&project.root.join("lang/de.ron"), &de).unwrap();
+    println!("lang/de.ron: {} texts, {} without German", de.texts.len(), missing);
     println!("example project written to {}", out.display());
     write_starter_pack(&project);
 }

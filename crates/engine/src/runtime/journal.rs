@@ -10,6 +10,7 @@ use super::input::{self, Act};
 use super::{ui::panel, Game};
 use crate::quest::{QuestChange, QuestOp, QuestStatus};
 use crate::render::wrap_text;
+use super::text::{draw_text, measure_text};
 
 const W: f32 = 820.0;
 const H: f32 = 500.0;

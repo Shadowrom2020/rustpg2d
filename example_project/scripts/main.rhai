@@ -38,7 +38,8 @@ fn mira_talk() {
     add_var("mira_talks", 1);
     let n = get_var("mira_talks");
     if n == 1 {
-        say("Mira", "Hi! I'm Mira. " + player_name() + ", right? Have you met Elder Rowan by the well?");
+        // Placeholders instead of "..." + player_name() + "...": the whole text can be translated.
+        say("Mira", "Hi! I'm Mira. {player}, right? Have you met Elder Rowan by the well?");
     } else if flag("shrine_lit") {
         // Scripts can check the player's sex too (or use "{hero|heroine}" in the text).
         if is_female() {
@@ -47,7 +48,7 @@ fn mira_talk() {
             say("Mira", "You lit the shrine? When I grow up I want to be a hero like you!");
         }
     } else if n < 4 {
-        say("Mira", "Talked to me " + n + " times now. You must be bored!");
+        say("Mira", "Talked to me {mira_talks} times now. You must be bored!");
     } else {
         say("Mira", "Want to see me walk?");
         choice("Watch Mira walk?", ["Sure", "No thanks"], "mira_walk");

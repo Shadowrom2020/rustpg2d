@@ -121,6 +121,15 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     for m in &maps {
         files.insert(format!("maps/{m}.map"));
     }
+    // The translations the game offers.
+    for code in &cfg.languages {
+        let rel = format!("lang/{code}.ron");
+        if root.join(&rel).exists() {
+            files.insert(rel);
+        } else {
+            c.warnings.push(format!("The project offers the language '{code}' but has no {rel}; only R(ust)PG2D's own texts will be translated."));
+        }
+    }
     if let Ok(rd) = std::fs::read_dir(project.scripts_dir()) {
         for e in rd.flatten() {
             if e.path().extension().is_some_and(|x| x == "rhai") {
@@ -352,6 +361,10 @@ mod tests {
         map.zones.push(Zone { uid: 1, name: "start".into(), x: 1, y: 1, w: 1, h: 1, kind: ZoneKind::Spawn, triggers: vec![], loot: None });
         p.save_map(&map).unwrap();
         p.config.player = "nobody".into();
+        // A translation travels with the game.
+        p.config.languages = vec!["de".into(), "fr".into()];
+        std::fs::create_dir_all(root.join("lang")).unwrap();
+        std::fs::write(root.join("lang/de.ron"), "(name: \"Deutsch\")").unwrap();
         let bin = tmp.join("rustpg2d-game");
         std::fs::write(&bin, b"#!/bin/sh\n").unwrap();
         let out = tmp.join("out");
@@ -361,6 +374,8 @@ mod tests {
         assert!(f.join("data/project.ron").is_file());
         assert!(f.join("data/maps/start.map").is_file());
         assert!(f.join("data/sprites/a.png").is_file());
+        assert!(f.join("data/lang/de.ron").is_file(), "translations are exported");
+        assert!(r.warnings.iter().any(|w| w.contains("'fr'")), "a language without its file is reported");
         let lic = std::fs::read_to_string(f.join(ENGINE_LICENSE_FILE)).unwrap();
         assert!(lic.starts_with("MIT License") && lic.contains("Jürgen Herrmann"), "the engine's license ships with the game");
         assert!(!f.join("data/sprites/unused.png").exists(), "only used files");
@@ -390,7 +405,7 @@ mod tests {
         assert!(w.join("mq_js_bundle.js").is_file() && w.join("rustpg2d.js").is_file() && w.join(WEB_WASM).is_file());
         let packed = read_web_pack(&std::fs::read(w.join("data.pack")).unwrap()).unwrap();
         let names: Vec<&str> = packed.iter().map(|(n, _)| n.as_str()).collect();
-        assert!(names.contains(&"maps/start.map") && names.contains(&"sprites/a.png") && names.contains(&"project.ron"));
+        assert!(names.contains(&"maps/start.map") && names.contains(&"sprites/a.png") && names.contains(&"project.ron") && names.contains(&"lang/de.ron"));
         assert!(!names.iter().any(|n| n.starts_with("saves/") || n.contains("unused")), "{names:?}");
         let cfg: ProjectConfig = ron::from_str(std::str::from_utf8(&packed.iter().find(|(n, _)| n == "project.ron").unwrap().1).unwrap()).unwrap();
         assert_eq!(cfg.name, "Test Quest");

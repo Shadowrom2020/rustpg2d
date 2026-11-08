@@ -540,6 +540,8 @@ mod tests {
         dialog_portraits: true,
         companion_down: Default::default(),
         player_portrait: Default::default(),
+        language: "en".into(),
+        languages: vec![],
         };
         cfg.sfx.pickup = "blip".into();
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "items", "icons"), 1);

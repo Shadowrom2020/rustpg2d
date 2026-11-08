@@ -160,7 +160,7 @@ position, HUD). No audio decode errors in the console. CI: clippy for wasm32 on 
 Packages builds the wasm and checks the AppImage has it. Not verified: hearing the music in a
 browser, Safari, itch.io itself, a phone.
 
-### [ ] Localization — `feature/localization`
+### [x] Localization — `feature/localization`
 
 **Goal.** A game can be played in several languages: creators write it in one language, export
 a translation template, have it translated, and players pick the language in *Options*. The
@@ -191,6 +191,24 @@ runtime's own texts (menus, HUD, windows) are translated too (English and German
   language); the play-test can start in a language (`--lang de`).
 - Save games store no texts, so they work across languages.
 
+**Decided while building.** **No new font**: macroquad's default font (ProggyClean) has all of
+Latin-1 (ä ö ü ß é ç ñ …), so German and the other Western European languages draw as they are;
+other scripts are out of scope. **Runtime texts are translated when drawn**, not at ~480 call
+sites: the runtime imports `draw_text` / `measure_text` from `runtime/text.rs`, which look the
+whole finished string up (`lang::tr_ui`); `ui` keys with `{}` match texts with values (`"Lv {}"`,
+reordering with `{0}`), keys need ≥ 2 letters of their own, results are cached. Dialog lines,
+speakers and choices (content, already translated) use macroquad's `draw_text` directly, so a
+`ui` template can't touch them. **Content** is translated at `WorldState::expand_text` (before the
+placeholders) and by translating the database's names / descriptions when the language is set
+(`lang::translate_db`, the game keeps the original). The current language is global
+(`lang::set`). `ProjectConfig.language` (default `en`) + `languages`; `Settings.language`;
+`--lang`; Options row *Language* (always shown; cycles the offered languages); `status()` `lang=`.
+The editor's section lives in *Database › Project › Languages* (no File menu entry); the template
+is `lang::template` (keeps translations, reports unused keys, doesn't delete them). Exports carry
+`lang/<code>.ron` (`release::check` warns about an offered language without a file). Glued
+script strings can't be translated: the example now uses placeholders, `scripting.md` says so.
+The example is translated completely (314 texts, `gen_example/lang_de.rs`), not just the village.
+
 **Touch points.** `engine/src/{lang (new),state,project,settings}.rs`, `runtime/{ui_text (new),
 menu,ui,inventory_ui,shop_ui,journal,…}.rs`, a font file under `crates/engine/assets/`,
 `editor/src/{database,app,main}.rs`, `script.rs` (nothing new expected: texts pass through
@@ -200,11 +218,15 @@ README, `Documentation/scripting.md` (how script texts are translated).
 **Example.** The example project offers English and German; the village and the first quest are
 translated completely.
 
-**Verify.** Unit tests: lookup with fallback, template export keeps existing translations and
-lists unused ones, `expand_text` placeholders inside translated text. Autoplay with `--lang de`
-(or the Options row): the title menu, a dialog of the elder, the inventory and a quest in the
-journal are German (status prints `lang=de`, screenshots); switching back to English at runtime.
-Editor script: export the template, check its entries.
+**Verify (done).** Unit tests: content lookup with fallback (empty = missing), `ui` templates with
+values and reordering, keys without own words ignored, the built-in German parses with matching
+placeholders, the template on the example (texts of every source, kept translations, unused
+keys, the German file complete), exports carry the language files. Autoplay with `--lang de`:
+title, character creator, the intro dialog, inventory, journal, pause menu (screenshots, `lang=de`),
+Mira's scripted line with `{player}`; *Options › Language* switches at runtime and is saved;
+`LANG=de_DE` starts German. Editor: `langtemplate fr` (312 texts), the Languages section
+(screenshot), a play-test with `playlang de`. Web: the export in headless Brave with a German
+browser language starts German (title, intro dialog).
 
 ## Backlog (unscheduled ideas)
 

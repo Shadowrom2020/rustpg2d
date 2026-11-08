@@ -7,6 +7,7 @@ use macroquad::prelude::*;
 
 use super::Game;
 use crate::effects::{self, ActiveEffect, EffectKind, EffectSpec};
+use super::text::{draw_text, measure_text};
 
 impl Game {
     /// Starts an effect on `target`: "player", "self" (the trigger's owner) or a character's name.

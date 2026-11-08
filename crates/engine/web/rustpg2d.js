@@ -52,6 +52,10 @@
                 return pending.length;
             };
             env.rustpg2d_query_take = take;
+            env.rustpg2d_language_dump = () => {
+                pending = encoder.encode(navigator.language || "");
+                return pending.length;
+            };
         },
     });
 })();

@@ -12,6 +12,7 @@ use super::{ui::panel, Game};
 use crate::defs::EquipSlot;
 use crate::inventory::{Inventory, ItemStack};
 use crate::render::wrap_text;
+use super::text::{draw_text, measure_text};
 
 const SLOT: f32 = 48.0;
 const GAP: f32 = 6.0;

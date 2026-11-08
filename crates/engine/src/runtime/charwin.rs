@@ -7,6 +7,7 @@ use macroquad::prelude::*;
 use super::inventory_ui::Side;
 use super::input::{self, Act};
 use super::{ui::panel, Game};
+use super::text::{draw_text, measure_text};
 
 /// Height of the tab strip above the content.
 const TAB_H: f32 = 34.0;

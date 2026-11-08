@@ -10,6 +10,7 @@ use super::input::{self, Act};
 use super::{ui::panel, Game};
 use crate::defs::{ShopEntry, ShopSpec};
 use crate::render::wrap_text;
+use super::text::{draw_text, measure_text};
 
 const ROW: f32 = 44.0;
 const ROWS: usize = 8;

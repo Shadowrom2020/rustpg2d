@@ -7,6 +7,7 @@ use macroquad::prelude::*;
 
 use super::Game;
 use crate::events::runner::{conditions_met, ActionCtx};
+use super::text::{draw_text};
 
 /// Seconds between two checks of the conditions.
 const CHECK_EVERY: f32 = 0.5;

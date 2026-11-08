@@ -5,6 +5,7 @@ use macroquad::prelude::*;
 use super::input;
 use crate::render::wrap_text;
 use crate::state::WorldState;
+use super::text::{draw_text, measure_text};
 
 struct Dialog {
     /// Room for the speaker's portrait at the left (the game draws it into `portrait_rect`).
@@ -165,14 +166,15 @@ impl Ui {
             let w = w - inset;
             let mut ty = y + 34.0;
             if !d.speaker.is_empty() {
-                draw_text(&d.speaker, x + 20.0, ty, 28.0, GOLD);
+                // (Dialog content is translated already: macroquad's draw_text, no UI lookup.)
+                macroquad::text::draw_text(&d.speaker, x + 20.0, ty, 28.0, GOLD);
                 ty += 32.0;
             }
             let mut budget = d.revealed as usize;
             for line in &lines {
                 let shown: String = line.chars().take(budget).collect();
                 budget = budget.saturating_sub(line.chars().count() + 1);
-                draw_text(&shown, x + 20.0, ty, FONT as f32, WHITE);
+                macroquad::text::draw_text(&shown, x + 20.0, ty, FONT as f32, WHITE);
                 ty += 30.0;
             }
             let done = d.revealed as usize >= d.text.chars().count();
@@ -181,7 +183,7 @@ impl Ui {
                     self.choice_rects.push(Rect::new(x + 20.0, ty - 22.0, w - 40.0, 30.0));
                     let c = if i == *sel { GOLD } else { LIGHTGRAY };
                     let marker = if i == *sel { ">" } else { " " };
-                    draw_text(format!("{marker} {o}"), x + 36.0, ty, FONT as f32, c);
+                    macroquad::text::draw_text(format!("{marker} {o}"), x + 36.0, ty, FONT as f32, c);
                     ty += 30.0;
                 }
             } else if done && (get_time() * 2.0) as i64 % 2 == 0 {

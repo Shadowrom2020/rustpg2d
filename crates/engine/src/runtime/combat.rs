@@ -7,6 +7,7 @@ use crate::defs::{CharacterDef, Ranged, SpriteRef};
 use crate::entity::Facing;
 use crate::events::GameEvent;
 use crate::state::WorldState;
+use super::text::{draw_text, measure_text};
 
 const SWING_TIME: f32 = 0.18;
 /// Enemy invulnerability after a hit.

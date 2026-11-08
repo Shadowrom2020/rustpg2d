@@ -15,6 +15,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   longer show thin lines of neighbouring tiles along edges. The packages ship
   `rustpg2d-game.wasm`, so the packaged editor exports web games. Editor script: `exportweb`.
 
+### Gameplay
+- **Languages**: games can offer translations (`lang/<code>.ron`, keyed by the original text);
+  players pick one in *Options › Language*, the default is the system's (or browser's) language.
+  R(ust)PG2D's own texts come translated for German. The example project is fully translated
+  into German (and its script texts use placeholders instead of glued strings).
+
+### Editor
+- *Database › Project › Languages*: the game's language, its translations with their progress,
+  **Export translation template** / **Update template** (keeps translations, adds new texts,
+  reports unused ones) and *Play-test in* (a language for play-tests). Editor script:
+  `langtemplate CODE`, `playlang CODE|-`. Exports include the translation files.
+
 ### Maintenance
 - `engine/src/sys.rs`: the game's file and clock access in one place (native `std::fs`; on the
   web an in-memory file table plus `localStorage`). The engine builds for

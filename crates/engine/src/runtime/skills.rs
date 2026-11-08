@@ -11,6 +11,7 @@ use super::Game;
 use crate::defs::LightSpec;
 use crate::render::wrap_text;
 use crate::skills::{SkillEffect, SpellEffect, SPELL_PREFIX};
+use super::text::{draw_text};
 
 const LIST_W: f32 = 300.0;
 const PAD: f32 = 16.0;

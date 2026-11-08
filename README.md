@@ -30,6 +30,7 @@ Current version: **0.8.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed
 - **Inventory & containers**: slot-based inventory (size set per project, stack size per item) with a grid window (drag to rearrange, double-click to use/equip). Chests, barrels etc. are lootable containers: a window shows the container next to your inventory and you choose what to take (or store things in it). Size, starting contents, lock conditions and an "opened" sprite frame are set in the editor; contents are saved.
 - **Mouse controls**: left-click a tile to walk there (A* pathfinding), left-click an enemy to attack it, right-click an NPC/item/prop to walk over and interact; dialogs, choices and the inventory are clickable.
 - **Enemy spawners**: invisible zones placed in the editor that keep a group of characters alive, with a respawn mode per spawner: never (defeated enemies stay dead, saved), every time the map is entered, or after N seconds.
+- **Languages**: games can be translated — a translation template with every text of the game (*Database › Project › Languages*), `lang/<code>.ron` files with the translations, *Options › Language* for players (the system's / browser's language by default). R(ust)PG2D's own texts (menus, windows, messages) come translated for German; the example project is fully playable in German.
 - **Audio**: sound effects and per-map looping music (WAV or Ogg Vorbis) that loops **without a gap**, built-in sounds for pickups, attacks, hits, dialogs and doors.
 - **Animated tiles**: per-tileset frame animations (e.g. water), shown in the game and the editor.
 - **Safe renaming**: renaming an item, prop, character, tileset, sprite sheet, sound or map updates every reference in the project.
@@ -197,6 +198,25 @@ The executable is a copy of `rustpg2d-game`; started without arguments it runs t
 Both get a desktop entry and an **icon**: the player character, drawn large, or a PNG picked in the dialog.
 
 **Web** (*Platforms › Web* in the export dialog; editor script `exportweb OUT [NAME]`): the game for browsers, written to `releases/<game-name>-web/` — `index.html`, `rustpg2d-game.wasm` (the game runner compiled to WebAssembly), `mq_js_bundle.js` (macroquad's loader), `rustpg2d.js` (R(ust)PG2D's browser storage), `data.pack` (all of the game's files in one download) — and, with *.zip*, `<game-name>-web.zip` with those files at its root: upload it to **itch.io** as an HTML game (*Kind of project: HTML*, *This file will be played in the browser*). Browsers don't run WebAssembly from `file://` pages, so to try it locally serve the folder, e.g. `python3 -m http.server` in it and open http://localhost:8000. It runs in current Firefox, Chrome / Chromium / Brave / Edge and Safari with WebGL: a loading screen, then the title screen. Save games, settings and achievements stay in the player's browser (`localStorage` of the page's site, separately per game folder); clearing the site data deletes them. Sound starts with the first click or key press (browsers block it before), loops seamlessly, right-click is game input (no browser context menu over the page), and the title screen has no *Exit* (close the tab). Gamepads, the developer console and script hot reload aren't available in the web game yet. The download is about 12 MB (the game runner ~9 MB, less when the server compresses it). The R(ust)PG2D packages ship `rustpg2d-game.wasm` next to the editor; from source: `rustup target add wasm32-unknown-unknown` and `cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game` (the editor finds it in `target/wasm32-unknown-unknown/release/`).
+
+### Languages
+
+A game is written in one language (*Database › Project › Languages › Written in*, a code like `en`) and can offer translations. **Export translation template** with a language code (`de`, `fr`, `pt-br`, …) writes `lang/<code>.ron` into the project: every text players see — names and descriptions of items, props, characters, quests (and their stages), skills, spells and achievements, the game's name, the dialog and choice texts of all triggers (definitions, maps, map objects, zones) and the texts scripts pass to `say` / `choice` — each with an empty translation:
+
+```
+(
+    name: "Deutsch",
+    texts: {
+        "Apple": "Apfel",
+        "Welcome to Emberbrook, {player}.": "Willkommen in Glutbach, {player}.",
+        "Halt, traveller!": "",
+    },
+)
+```
+
+Fill in the translations with any text editor; placeholders (`{player}`, `{sir|madam}` — here the German pair —, `{variable}`) stay in. An empty or missing translation shows the original text. **Update template** after changing the game keeps every translation already made, adds new texts and reports the ones no longer used (they stay in the file until deleted by hand); the list shows how many texts each language has translated. *Play-test in* starts play-tests in a chosen language (`rustpg2d-game --lang de`).
+
+Players choose the language in *Options › Language* (saved with their settings); by default the game starts in the system's language (`LANG`; in the web version the browser's) when it offers it, else in its own. R(ust)PG2D's own texts — menus, windows, the HUD, messages — come translated for **German**; a project's `lang/<code>.ron` can add or replace them in a `ui: { "English text": "translation" }` section (`{}` stands for a value: `"Lv {}": "St. {}"`). The game font covers Latin-1 (ä, ö, ü, ß, é, ñ, …), not other scripts. Exports carry the translation files. The example project offers German for all its 314 texts.
 
 ### Asset library, packages and the pixel editor
 

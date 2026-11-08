@@ -86,12 +86,15 @@ impl Platform {
         }
     }
 
-    /// File name of R(ust)PG2D's game runner for this platform.
+    /// File name of R(ust)PG2D's game runner for this platform next to the editor: the host's own
+    /// is `rustpg2d-game` (`.exe` on Windows; the editor's play-tests run it), the others are
+    /// shipped as `rustpg2d-game-linux`, `rustpg2d-game.exe`, `rustpg2d-game-macos` (universal).
     pub fn game_runner(self) -> &'static str {
-        match self {
-            Platform::Linux => "rustpg2d-game",
-            Platform::Windows => "rustpg2d-game.exe",
-            Platform::MacOS => "rustpg2d-game-macos",
+        match (self, self == Platform::host()) {
+            (Platform::Windows, _) => "rustpg2d-game.exe",
+            (_, true) => "rustpg2d-game",
+            (Platform::Linux, false) => "rustpg2d-game-linux",
+            (Platform::MacOS, false) => "rustpg2d-game-macos",
         }
     }
 
@@ -392,7 +395,9 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     for rel in &files {
         let (src, dst) = (project.root.join(rel), data.join(rel));
         std::fs::create_dir_all(dst.parent().unwrap())?;
-        bytes += std::fs::copy(&src, &dst).with_context(|| format!("copying {rel}"))?;
+        std::fs::copy(&src, &dst).with_context(|| format!("copying {rel}"))?;
+        // (Sizes from the files: `copy`'s return value is 0 under Wine.)
+        bytes += std::fs::metadata(&dst).map_or(0, |m| m.len());
     }
     // The bundled project carries the chosen name (window title, save folder).
     let mut cfg = project.config.clone();
@@ -401,7 +406,9 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     let exe_rel = platform.exe(name, &slug);
     let exe = folder.join(&exe_rel);
     std::fs::create_dir_all(exe.parent().unwrap())?;
-    bytes += std::fs::copy(game_binary, &exe).context("copying the game executable")?;
+    std::fs::copy(game_binary, &exe).context("copying the game executable")?;
+    // From the file: `std::fs::copy` returns 0 under Wine.
+    bytes += std::fs::metadata(&exe).map_or(0, |m| m.len());
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -511,7 +518,7 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
 /// Zips the bundle folder as `<slug>/…` (keeping the executable's permissions).
 /// Now (UTC) as a zip timestamp; without one every entry would be dated 1980.
 #[cfg(not(target_arch = "wasm32"))]
-fn zip_time() -> zip::DateTime {
+pub fn zip_time() -> zip::DateTime {
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs()) as i64;
     let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
     // Days since 1970 to a civil date (Howard Hinnant's algorithm).
@@ -574,6 +581,21 @@ mod tests {
         assert_eq!(slug("My Game!"), "my-game");
         assert_eq!(slug("  Ünïcode -- Quest 2 "), "n-code-quest-2");
         assert_eq!(slug("!!!"), "game");
+    }
+
+    #[test]
+    fn runner_names_depend_on_the_host() {
+        // The host's runner is the play-test runner `rustpg2d-game`; the others carry their platform.
+        let host = Platform::host();
+        for p in Platform::ALL {
+            let name = p.game_runner();
+            match p {
+                Platform::Windows => assert_eq!(name, "rustpg2d-game.exe"),
+                _ if p == host => assert_eq!(name, "rustpg2d-game"),
+                Platform::Linux => assert_eq!(name, "rustpg2d-game-linux"),
+                Platform::MacOS => assert_eq!(name, "rustpg2d-game-macos"),
+            }
+        }
     }
 
     #[test]

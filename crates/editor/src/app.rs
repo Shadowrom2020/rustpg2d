@@ -906,9 +906,10 @@ impl Editor {
 
     fn play_with(&mut self, here: bool, cutscene: Option<&str>) {
         self.save_all();
-        let exe = std::env::current_exe().ok().map(|p| p.with_file_name("rustpg2d-game"));
+        let runner = rustpg2d_engine::release::Platform::host().game_runner();
+        let exe = std::env::current_exe().ok().map(|p| p.with_file_name(runner));
         let Some(exe) = exe.filter(|p| p.exists()) else {
-            self.set_status("rustpg2d-game not found next to the editor; run `cargo build -p rustpg2d-game`");
+            self.set_status(format!("{runner} not found next to the editor; run `cargo build -p rustpg2d-game`"));
             return;
         };
         let mut cmd = std::process::Command::new(exe);
@@ -985,7 +986,7 @@ impl Editor {
             files::Purpose::NewProjectParent => self.new_project.as_ref().map(|w| PathBuf::from(w.parent.trim())).filter(|p| p.is_dir()),
             files::Purpose::OpenProject | files::Purpose::NewProject => match self.project.root.parent() {
                 Some(p) if self.project_open => Some(p.to_path_buf()),
-                _ => std::env::var_os("HOME").map(PathBuf::from),
+                _ => rustpg2d_engine::paths::home(),
             },
             _ => Some(self.project.root.clone()),
         };
@@ -1675,7 +1676,7 @@ impl Editor {
                 if self.mode == Mode::Map && self.project_open && !self.library_mode {
                     ui.separator();
                     ui.label(egui::RichText::new(format!("{} {}", self.tool.icon(), self.tool.name())).strong());
-                    ui.weak(self.tool.help());
+                    ui.weak(ui::keys(self.tool.help()));
                 }
                 if self.file_dialog.is_some() {
                     ui.separator();

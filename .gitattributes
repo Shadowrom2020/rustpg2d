@@ -1,0 +1,9 @@
+# Text files keep LF line endings on every platform: the engine embeds some of them
+# (include_str!: LICENSE, scripts) and fingerprints its sources (crates/engine/build.rs), and
+# Windows checkouts must give the same results.
+* text=auto eol=lf
+*.png binary
+*.ogg binary
+*.wav binary
+*.map binary
+*.r2dpack binary

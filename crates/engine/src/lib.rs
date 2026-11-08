@@ -5,6 +5,7 @@ pub mod audio;
 pub mod autotile;
 pub mod crafting;
 pub mod defs;
+pub mod desktop;
 pub mod effects;
 pub mod entity;
 pub mod events;
@@ -12,6 +13,7 @@ pub mod fog;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;
 pub mod hash;
+pub mod icon;
 pub mod imageio;
 pub mod inventory;
 pub mod lang;

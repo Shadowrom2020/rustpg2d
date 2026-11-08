@@ -29,6 +29,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   The R(ust)PG2D packages ship the universal game runner (`rustpg2d-game-macos`, built by CI on
   a Mac). Editor script: `exportmac`; `exportall` exports all four platforms.
 - Exported zips date their files with the export time (they were dated 1980).
+- **The editor on Windows and macOS**: R(ust)PG2D now also runs on Windows 10 / 11 (a zip:
+  `rustpg2d-editor.exe`, the game runners, the example) and macOS 11+ on Apple Silicon and Intel
+  (`R(ust)PG2D.app`, signed ad hoc, not notarized). Every editor exports games for Linux,
+  Windows, macOS and the web (the other platforms' game runners ship next to it). Per-user
+  folders follow each system (`%APPDATA%` / `%LOCALAPPDATA%`, `~/Library/Application Support`);
+  shortcuts use Cmd on macOS (and the editor writes them so); mouse wheels and trackpads zoom
+  the map and the pixel editor in steps per notch; file dialogs on macOS are modal; window icons
+  (the emblem; games: the player character). Windows programs have no console window and show a
+  message box when they can't start (no OpenGL). Editor script: `browse open|folder|icon`.
 
 ### Gameplay
 - **Languages**: games can offer translations (`lang/<code>.ron`, keyed by the original text);
@@ -53,6 +62,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   `~/Library/Caches` on macOS) for settings, saves, the library and caches.
 - `engine/src/hash.rs` (SHA-256, SHA-1, Base64; moved from the packaging crate) and
   `engine/src/macsign.rs` (ad-hoc signing of macOS apps).
+- `engine/src/icon.rs` (window icons; `hero_icon` / `emblem` moved from the packaging crate) and
+  `engine/src/desktop.rs` (Windows start-up: console, error message box). RON files and the
+  recent-projects list are written with LF on every platform; `.gitattributes` keeps LF; the
+  engine fingerprint hashes `/` paths.
+- Downloads: `cargo xtask-dist` also writes `rustpg2d-X.Y.Z-windows-x86_64.zip` and the macOS
+  app; CI: a *Windows* job (clippy + tests with MSVC), *macOS* builds the universal editor and
+  game, *macOS app* signs (`codesign`) and zips the app the Packages job assembled; the Release
+  workflow publishes all four downloads (jobs: version, macOS build, packages, macOS app,
+  publish). *Actions › CI › Run workflow* runs all platform jobs on any branch.
 - CI: clippy for the Windows game on every pull request; a *macOS* job (on pull requests into
   master and in the Release workflow) lints the game, runs the engine's tests on macOS and builds
   the universal runner; the Packages / Release jobs cross-compile the Windows runner, take the

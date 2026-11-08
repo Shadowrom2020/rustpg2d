@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Instructions for Claude Code sessions on **R(ust)PG2D**, a 2D top-down RPG engine with an editor
-(Rust, macroquad + egui, Linux). The shared rules for everyone — branching concept, checks
+(Rust, macroquad + egui; Linux, Windows and macOS). The shared rules for everyone — branching concept, checks
 before merging, commit messages — are in AGENTS.md and apply in full:
 
 @AGENTS.md
@@ -99,6 +99,8 @@ crates/engine/src/      library: everything shared by game and editor
   sys.rs                the game's file / clock access: native std::fs, web = in-memory files from
                         data.pack + localStorage (web/rustpg2d.js plugin); use it, not std::fs, in game code
   web/                  index.html, mq_js_bundle.js (macroquad's loader, vendored), rustpg2d.js (plugin)
+  desktop.rs            Windows start-up of game and editor (attach console, panic message box);
+                        icon.rs = window icons, hero_icon / emblem (also the packages' icons)
   paths.rs              per-user folders per platform (XDG / %APPDATA%, %LOCALAPPDATA%, %USERPROFILE% /
                         ~/Library/Application Support, ~/Library/Caches)
   legacy.rs             the old name rust2d: adopt() copies a folder / file from the old location
@@ -109,13 +111,15 @@ crates/engine/src/      library: everything shared by game and editor
 crates/game/src/main.rs game binary: CLI args, window, RUSTPG2D_AUTOPLAY script runner
 crates/packaging/       AppImage (pinned type2 runtime + squashfs via backhand) and Flatpak bundles
                         (flatpak CLI, or `flatpak-spawn --host` inside a sandbox) from an AppSpec;
-                        hero_icon, glibc_needed (ELF version needs)
+                        glibc_needed (ELF version needs); re-exports the engine's icon.rs
 crates/xtask/           `cargo xtask check-version | check-branch | release-notes` (no engine, builds in
-                        seconds) and `cargo xtask-dist` (feature `dist`: toolkit AppImage + Flatpak)
+                        seconds) and `cargo xtask-dist` (feature `dist`: toolkit AppImage + Flatpak, Windows
+                        zip, macOS app folder + tar to sign on a Mac)
 .github/                workflows/ci.yml (required checks), workflows/release.yml (merge into master =
                         tag + GitHub Release with the toolkit AppImage / Flatpak + back-merge PR),
-                        workflows/macos-game.yml (called by both: the universal macOS game runner,
-                        built on macos-latest, as artifact rustpg2d-game-macos for the packages),
+                        workflows/macos-build.yml (universal macOS editor + game, artifact
+                        rustpg2d-macos-build), workflows/macos-app.yml (codesign + zip of the app
+                        the Packages job assembled), both called by ci.yml and release.yml,
                         actions/packages (build + smoke test), dependabot, PR / issue templates
 crates/editor/src/      editor binary
   main.rs               loop + RUSTPG2D_EDITOR_SCRIPT command runner
@@ -257,14 +261,22 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   `WINEPREFIX`; on this machine Wine's EGL fails on the NVIDIA GPU, so use `env -u WAYLAND_DISPLAY
   __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1`.
   Paths for the game under Wine: `Z:/…` (shots, project folders).
-- **macOS games:** the universal runner can only be built on a Mac (README, *macOS games*); the
-  editor finds it as `target/release/rustpg2d-game-macos`. When the user provides a test Mac
+- **macOS:** the universal runner and editor can only be built on a Mac (README, *macOS games*);
+  the Linux editor finds the runner as `target/release/rustpg2d-game-macos`, `cargo xtask-dist`
+  the pair in `target/macos/` (then sign `dist/macos/R(ust)PG2D.app` on the Mac with
+  `codesign --force --deep --sign -`, as CI does). When the user provides a test Mac
   over SSH (see memory), sync the tree with `rsync` (without `target`, `.git`,
   `example_project/saves`), build there, copy the runner back, export with `exportmac`, copy
   the zip over, unpack with `ditto -xk`, check `codesign --verify --deep --strict` and run
   `<Name>.app/Contents/MacOS/<slug>` with `RUSTPG2D_AUTOPLAY` (the window shows on the Mac's
   screen; macOS has no `timeout`: `perl -e 'alarm 60; exec {$ARGV[0]} @ARGV' EXE`, the block
-  form, or a path with spaces is split). Stop apps you `open`ed with `pkill -f`.
+  form, or a path with spaces is split). Stop apps you `open`ed with `pkill -f`. The editor runs
+  there the same way (`RUSTPG2D_EDITOR_SCRIPT`, scratch `HOME` / config / library); a file
+  dialog (`browse open`) is modal on macOS: the script waits, check it with a CGWindowList
+  Swift snippet and kill the editor. The test Mac's display is 1080p (no Retina).
+- **Windows editor:** like the game (cross-build `-p rustpg2d-editor -p rustpg2d-game`, Wine);
+  put `rustpg2d-game-linux`, `rustpg2d-game-macos` and the wasm next to the exes for exports.
+  Wine ignores `USERPROFILE` (the example copy lands in the scratch prefix's user folder).
 - Look at screenshots with the Read tool; crop with PIL when details matter. Lighting:
   `RUSTPG2D_LIGHTMAP_DEBUG=1` draws the raw light map instead of multiplying it.
 - Dialog text types out over time: wait ~2.5 s before reading a screenshot, and the first `E`

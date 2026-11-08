@@ -46,7 +46,7 @@ Note: this repository's main branch is called `master` (not `main`).
    `[workspace.package] version` in `Cargo.toml`, has a `## X.Y.Z — date` section in
    CHANGELOG.md and no `## Unreleased` is left; a hotfix may only raise PATCH.
 5. **Merging into master releases automatically** (`.github/workflows/release.yml`): it builds
-   the R(ust)PG2D AppImage and Flatpak, tags the merge commit `vX.Y.Z`, publishes a GitHub Release
+   the R(ust)PG2D AppImage, Flatpak, Windows zip and macOS app, tags the merge commit `vX.Y.Z`, publishes a GitHub Release
    (notes = the CHANGELOG section, with the packages and SHA256SUMS) and opens the pull request
    that merges `master` back into `develop`. Merge that one too.
 6. Push and open pull requests only when asked to; merge only when asked to.
@@ -110,12 +110,15 @@ again: the pull request already tested the merge. Its jobs are the required chec
 | *Branch policy* | `cargo xtask check-branch HEAD BASE` (seconds: xtask without the engine) | every PR (required: develop, master) |
 | *Build, lint, test* | `cargo clippy --all-targets --all-features -D warnings`, `cargo test` (workspace, `--locked`, unoptimized: fast to compile) | every PR (required: develop, master) |
 | *Version* | `cargo xtask check-version BRANCH` | PRs into master (required there) |
-| *Packages* | release build, `cargo xtask-dist` (AppImage + Flatpak), smoke test of game and editor under Xvfb, packages as artifact | PRs into master (required there) |
+| *Packages* | release builds (Linux, web, Windows via MinGW-w64, the macOS build from *macOS*), `cargo xtask-dist` (AppImage, Flatpak, Windows zip, unsigned macOS app), smoke test of game and editor under Xvfb, downloads as artifact | PRs into master (required there) |
+| *Windows* | clippy and tests on `windows-latest` (MSVC) | PRs into master, manual runs |
+| *macOS* | clippy for editor and game, the engine's tests, universal editor + game (`lipo`) on `macos-latest` (`macos-build.yml`) | PRs into master, manual runs |
+| *macOS app* | signs the app ad hoc (`codesign --deep`), verifies, zips it (`macos-app.yml`) | PRs into master, manual runs |
 
-A pull request into `develop` therefore costs one compile-and-test job; the package build happens
-when a release or hotfix branch asks to enter `master`. To try packaging changes earlier, run
-*Actions › Release › Run workflow* on the branch: run by hand it only builds the packages (an
-artifact), it never tags or publishes.
+A pull request into `develop` therefore costs one compile-and-test job; the platform and package
+builds happen when a release or hotfix branch asks to enter `master`. To try them earlier, run
+*Actions › CI › Run workflow* on the branch (all platform jobs), or *Actions › Release › Run
+workflow* (only builds the downloads as artifacts; it never tags or publishes).
 
 Dependabot opens monthly grouped updates (cargo, GitHub Actions) against `develop`; macroquad,
 egui-macroquad, egui and egui-phosphor are pinned and updated by hand.

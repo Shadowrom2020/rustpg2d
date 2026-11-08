@@ -262,7 +262,8 @@ fn read_ron<T: DeserializeOwned + Default>(path: &Path) -> Result<T> {
 }
 
 pub fn write_ron<T: Serialize>(path: &Path, value: &T) -> Result<()> {
-    let cfg = ron::ser::PrettyConfig::default().struct_names(false);
+    // LF on every platform: projects look the same written on Windows (git, diffs).
+    let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
     let s = ron::ser::to_string_pretty(value, cfg)?;
     crate::sys::write(path, s.as_bytes()).with_context(|| format!("writing {}", path.display()))
 }

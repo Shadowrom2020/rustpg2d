@@ -31,7 +31,7 @@ pub enum Purpose {
     Import(crate::import::ImportKind),
 }
 
-/// A file dialog running on a background thread, so the editor keeps drawing.
+/// A file dialog: on a background thread so the editor keeps drawing (macOS: modal on the main thread).
 pub struct PendingDialog {
     pub purpose: Purpose,
     rx: Receiver<Option<PathBuf>>,
@@ -41,7 +41,16 @@ impl PendingDialog {
     pub fn open(purpose: Purpose, start_dir: Option<PathBuf>) -> Self {
         let (tx, rx) = channel();
         let p = purpose.clone();
-        std::thread::spawn(move || {
+        // macOS only shows dialogs from the main thread (AppKit): there the dialog is modal and
+        // the editor waits for it; elsewhere it runs on a thread so the editor keeps drawing.
+        let run = move |f: Box<dyn FnOnce() + Send>| {
+            if cfg!(target_os = "macos") {
+                f()
+            } else {
+                std::thread::spawn(f);
+            }
+        };
+        run(Box::new(move || {
             let mut d = rfd::FileDialog::new();
             if let Some(dir) = start_dir {
                 d = d.set_directory(dir);
@@ -64,7 +73,7 @@ impl PendingDialog {
                 Purpose::ExportPackage { .. } => d.set_title("Export asset package").add_filter("R(ust)PG2D asset package", &["r2dpack"]).set_file_name("assets.r2dpack").save_file(),
             };
             let _ = tx.send(result);
-        });
+        }));
         PendingDialog { purpose, rx }
     }
 
@@ -145,12 +154,13 @@ pub fn create_project(dir: &Path) -> Result<()> {
 
 const RECENT_MAX: usize = 8;
 
-/// `$RUSTPG2D_EDITOR_CONFIG`, else `$XDG_CONFIG_HOME/rustpg2d`, else `~/.config/rustpg2d`.
+/// `$RUSTPG2D_EDITOR_CONFIG`, else `$XDG_CONFIG_HOME/rustpg2d`, else `~/.config/rustpg2d`
+/// (Windows: `%APPDATA%\rustpg2d`).
 fn config_dir() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os("RUSTPG2D_EDITOR_CONFIG") {
         return Some(PathBuf::from(p));
     }
-    let base = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
+    let base = rustpg2d_engine::paths::config_base()?;
     let dir = base.join("rustpg2d");
     rustpg2d_engine::legacy::adopt(&dir.join("recent.ron"), &base.join(rustpg2d_engine::legacy::OLD_NAME).join("recent.ron"));
     Some(dir)
@@ -172,26 +182,31 @@ pub fn remember_recent(root: &Path) {
     list.insert(0, root);
     list.truncate(RECENT_MAX);
     if std::fs::create_dir_all(&dir).is_ok() {
-        if let Ok(s) = ron::ser::to_string_pretty(&list, ron::ser::PrettyConfig::default()) {
+        if let Ok(s) = ron::ser::to_string_pretty(&list, ron::ser::PrettyConfig::default().new_line("\n")) {
             let _ = std::fs::write(dir.join("recent.ron"), s);
         }
     }
 }
 
-/// The example project shipped with a packaged R(ust)PG2D (AppImage / Flatpak:
-/// `<prefix>/share/rustpg2d/example_project`, the editor being `<prefix>/lib/rustpg2d/rustpg2d-editor`).
+/// The example project shipped with a packaged R(ust)PG2D: AppImage / Flatpak
+/// `<prefix>/share/rustpg2d/example_project` (the editor being
+/// `<prefix>/lib/rustpg2d/rustpg2d-editor`), the Windows zip `example_project` next to the editor,
+/// the macOS app `Contents/Resources/example_project`.
 pub fn bundled_example() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
-    let p = exe.parent()?.parent()?.parent()?.join("share/rustpg2d/example_project");
-    p.join("project.ron").is_file().then_some(p)
+    let dir = exe.parent()?;
+    let packaged = dir.parent().and_then(|p| p.parent()).map(|p| p.join("share").join("rustpg2d").join("example_project"));
+    let mac_app = dir.join("..").join("Resources").join("example_project");
+    [Some(dir.join("example_project")), packaged, Some(mac_app)].into_iter().flatten().find(|p| p.join("project.ron").is_file())
 }
 
-/// A writable copy of the bundled example in `~/rustpg2d/example_project` (made on first use;
-/// an existing copy - maybe edited - is opened as it is).
+/// A writable copy of the bundled example in `~/rustpg2d/example_project` (Windows:
+/// `%USERPROFILE%\rustpg2d\example_project`; made on first use; an existing copy - maybe
+/// edited - is opened as it is).
 pub fn example_copy() -> Result<PathBuf> {
     let src = bundled_example().context("this R(ust)PG2D has no bundled example project")?;
-    let home = std::env::var_os("HOME").map(PathBuf::from).context("HOME is not set")?;
-    let dst = home.join("rustpg2d/example_project");
+    let home = rustpg2d_engine::paths::home().context("no home folder (HOME / USERPROFILE is not set)")?;
+    let dst = home.join("rustpg2d").join("example_project");
     // A copy made before the rename (rust2d) is opened where it is: it may hold the user's edits.
     let old = home.join(rustpg2d_engine::legacy::OLD_NAME).join("example_project");
     if !dst.join("project.ron").exists() && old.join("project.ron").exists() {

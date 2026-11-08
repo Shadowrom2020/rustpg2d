@@ -229,6 +229,8 @@ pub struct PixelState {
     pub colors: [[u8; 4]; 2],
     zoom: f32,
     pan: egui::Vec2,
+    /// Wheel / trackpad scrolling not yet turned into a zoom step (in notches).
+    wheel: f32,
     /// Active stroke: (button, start pixel, last pixel).
     stroke: Option<Stroke3>,
     pub sel_frame: u32,
@@ -248,6 +250,7 @@ impl Default for PixelState {
             tool: PxTool::Select,
             colors: [[0x1a, 0x16, 0x22, 255], [0, 0, 0, 0]],
             zoom: 8.0,
+            wheel: 0.0,
             pan: egui::Vec2::ZERO,
             stroke: None,
             sel_frame: 0,
@@ -492,8 +495,8 @@ impl Editor {
         // egui-miniquad turns Ctrl+C / X / V into text clipboard events (V only when the system
         // clipboard holds text), so these come from macroquad's keyboard state.
         {
-            use macroquad::input::{is_key_down, is_key_pressed, KeyCode};
-            if is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl) {
+            use macroquad::input::{is_key_pressed, KeyCode};
+            if crate::ui::command_down() {
                 for (k, action) in [(KeyCode::C, "copy"), (KeyCode::X, "cut"), (KeyCode::V, "paste")] {
                     if is_key_pressed(k) {
                         self.frame_clipboard(action);
@@ -807,7 +810,9 @@ impl Editor {
             (q.x.floor() as i32, q.y.floor() as i32)
         });
         if resp.hovered() {
-            let scroll = ui.input(|i| i.raw_scroll_delta.y);
+            // Whole zoom steps: a wheel notch is one, trackpad deltas add up to one.
+            self.px.wheel += ui.input(|i| i.raw_scroll_delta.y) / crate::EGUI_NOTCH;
+            let scroll = if self.px.wheel.abs() >= 1.0 { std::mem::take(&mut self.px.wheel) } else { 0.0 };
             if scroll != 0.0 {
                 let new = (zoom * if scroll > 0.0 { 1.25 } else { 0.8 }).clamp(1.0, 32.0).round();
                 if let Some(p) = resp.hover_pos() {

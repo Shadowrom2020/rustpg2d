@@ -1,0 +1,44 @@
+# The macOS download: signs the app that the Packages / Release job assembled on Linux
+# (artifact rustpg2d-macos-app-unsigned, a tar that keeps the file modes) with an ad-hoc
+# signature (`codesign --deep`: the editor and the game runner next to it), verifies it, runs
+# the game runner from it once and zips it as rustpg2d-X.Y.Z-macos.zip (artifact
+# rustpg2d-macos-app). Not notarized: users allow the first start (README). Called by ci.yml and
+# release.yml.
+name: macOS app
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-app:
+    name: macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: rustpg2d-macos-app-unsigned
+          path: unsigned
+      - name: Sign, verify, zip
+        run: |
+          v=$(sed -n '/^\[workspace.package\]/,/^\[/p' Cargo.toml | grep -m1 '^version' | cut -d'"' -f2)
+          mkdir -p app out
+          tar -xf "unsigned/macos-app.tar" -C app
+          codesign --force --deep --sign - "app/R(ust)PG2D.app"
+          codesign --verify --deep --strict --verbose=2 "app/R(ust)PG2D.app"
+          ditto -c -k --keepParent "app/R(ust)PG2D.app" "out/rustpg2d-$v-macos.zip"
+          ls -la out
+      - name: Smoke test (the game runner from the app; informative)
+        run: |
+          export RUSTPG2D_MUTE=1 RUSTPG2D_SETTINGS_DIR="$RUNNER_TEMP/settings"
+          ( RUSTPG2D_AUTOPLAY="wait 2; status; quit" perl -e 'alarm 120; exec {$ARGV[0]} @ARGV' \
+              "app/R(ust)PG2D.app/Contents/MacOS/rustpg2d-game" "app/R(ust)PG2D.app/Contents/Resources/example_project" 2>&1 | tee game.log ) || true
+          grep -q "menu=title" game.log || echo "::warning::the game runner didn't reach its title screen on this runner (no GPU / window server?)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rustpg2d-macos-app
+          path: out/
+          retention-days: 14

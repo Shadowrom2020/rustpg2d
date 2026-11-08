@@ -2428,7 +2428,7 @@ fn scripts_ui(ed: &mut Editor, ui: &mut egui::Ui) {
             st.script_dirty = st.script_text != st.script_saved;
         }
         goto = res.goto;
-        if ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
+        if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S)) {
             save = true;
         }
     });

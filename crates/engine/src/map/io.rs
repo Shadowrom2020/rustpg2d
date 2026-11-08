@@ -248,7 +248,7 @@ pub fn save(map: &Map, path: &Path) -> Result<()> {
 }
 
 pub fn load(path: &Path) -> Result<Map> {
-    let bytes = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+    let bytes = crate::sys::read(path).with_context(|| format!("reading {}", path.display()))?;
     decode(&bytes).with_context(|| format!("loading map {}", path.display()))
 }
 

@@ -11,6 +11,7 @@ use crate::events::runner::ActionHost;
 use crate::defs::EquipSlot;
 
 use crate::events::GameEvent;
+use super::text::{draw_text, measure_text};
 
 /// Misses allowed before a lock holds.
 const MAX_MISSES: u32 = 3;

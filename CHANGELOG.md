@@ -3,6 +3,83 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.9.0 — 2026-11-08
+
+Reach: the web, other languages, Windows and macOS — games export for browsers, Windows and
+macOS, can be translated, and the editor runs on Windows and macOS too.
+
+### Gameplay
+- **Languages**: games can offer translations (`lang/<code>.ron`, keyed by the original text);
+  players pick one in *Options › Language*, the default is the system's (or browser's) language.
+  R(ust)PG2D's own texts come translated for German. The example project is fully translated
+  into German (and its script texts use placeholders instead of glued strings).
+
+### Editor
+- **Web export**: *File › Export game* has *Platforms* Linux / Web. The web version
+  (`<game>-web/`: `index.html`, the game compiled to WebAssembly, macroquad's loader,
+  `data.pack` with the game's files; `<game>-web.zip` for itch.io) runs in current browsers;
+  saves, settings and achievements are kept in the browser's local storage; right-click works as
+  in the game (no browser context menu). Tiles and sprites are drawn from a source rectangle
+  inset by 1/64 texel, so fractional scales (browser zoom, high-DPI screens, zoom levels) no
+  longer show thin lines of neighbouring tiles along edges. The packages ship
+  `rustpg2d-game.wasm`, so the packaged editor exports web games. Editor script: `exportweb`.
+- **Windows export**: *Platforms › Windows*; a Windows export is `<game>-windows/<game>.exe`
+  with its data (and `<game>-windows.zip`), saves in `%APPDATA%\<game>\saves`. The game runs as
+  a window program (no console window); when it can't start (e.g. no OpenGL driver in a virtual
+  machine) a message box says why. The R(ust)PG2D packages ship the Windows game runner
+  (`rustpg2d-game.exe`, cross-compiled with MinGW-w64), so the Linux editor exports Windows
+  games. Editor script: `exportwin`.
+- **macOS export**: *Platforms › macOS*; a macOS export is the application `<Game Name>.app`
+  (data in `Contents/Resources`, Info.plist, the icon chosen under *Icon* or the player
+  character) in `<game>-macos/` (and `<game>-macos.zip`), for macOS 11 or newer on Apple Silicon
+  and Intel; saves in `~/Library/Application Support/<game>/saves`. The export signs the app ad
+  hoc on Linux (sealed like `codesign --sign -`, passes `codesign --verify`); it isn't notarized,
+  so players allow it once (*Privacy & Security › Open Anyway*; the bundle's README explains it).
+  The R(ust)PG2D packages ship the universal game runner (`rustpg2d-game-macos`, built by CI on
+  a Mac). Editor script: `exportmac`; `exportall` exports all four platforms.
+- Exported zips date their files with the export time (they were dated 1980).
+- **The editor on Windows and macOS**: R(ust)PG2D now also runs on Windows 10 / 11 (a zip:
+  `rustpg2d-editor.exe`, the game runners, the example) and macOS 11+ on Apple Silicon and Intel
+  (`R(ust)PG2D.app`, signed ad hoc, not notarized). Every editor exports games for Linux,
+  Windows, macOS and the web (the other platforms' game runners ship next to it). Per-user
+  folders follow each system (`%APPDATA%` / `%LOCALAPPDATA%`, `~/Library/Application Support`);
+  shortcuts use Cmd on macOS (and the editor writes them so); mouse wheels and trackpads zoom
+  the map and the pixel editor in steps per notch; file dialogs on macOS are modal; window icons
+  (the emblem; games: the player character). Windows programs have no console window and show a
+  message box when they can't start (no OpenGL). Editor script: `browse open|folder|icon`.
+- *Database › Project › Languages*: the game's language, its translations with their progress,
+  **Export translation template** / **Update template** (keeps translations, adds new texts,
+  reports unused ones) and *Play-test in* (a language for play-tests). Editor script:
+  `langtemplate CODE`, `playlang CODE|-`. Exports include the translation files.
+
+### Fixes
+- The game no longer panics when it quits on Windows (gamepad thread joined at exit).
+
+### Maintenance
+- `engine/src/sys.rs`: the game's file and clock access in one place (native `std::fs`; on the
+  web an in-memory file table plus `localStorage`). The engine builds for
+  `wasm32-unknown-unknown` (Rhai without random seeds and clock there, no gamepads, no zip).
+- CI: clippy for the wasm game on every pull request; the Packages job builds it and checks it
+  ships in the AppImage.
+- `engine/src/paths.rs`: per-user folders per platform (XDG on Linux; `%APPDATA%`,
+  `%LOCALAPPDATA%`, `%USERPROFILE%` on Windows; `~/Library/Application Support` and
+  `~/Library/Caches` on macOS) for settings, saves, the library and caches.
+- `engine/src/hash.rs` (SHA-256, SHA-1, Base64; moved from the packaging crate) and
+  `engine/src/macsign.rs` (ad-hoc signing of macOS apps).
+- `engine/src/icon.rs` (window icons; `hero_icon` / `emblem` moved from the packaging crate) and
+  `engine/src/desktop.rs` (Windows start-up: console, error message box). RON files and the
+  recent-projects list are written with LF on every platform; `.gitattributes` keeps LF; the
+  engine fingerprint hashes `/` paths.
+- Downloads: `cargo xtask-dist` also writes `rustpg2d-X.Y.Z-windows-x86_64.zip` and the macOS
+  app; CI: a *Windows* job (clippy + tests with MSVC), *macOS* builds the universal editor and
+  game, *macOS app* signs (`codesign`) and zips the app the Packages job assembled; the Release
+  workflow publishes all four downloads (jobs: version, macOS build, packages, macOS app,
+  publish). *Actions › CI › Run workflow* runs all platform jobs on any branch.
+- CI: clippy for the Windows game on every pull request; a *macOS* job (on pull requests into
+  master and in the Release workflow) lints the game, runs the engine's tests on macOS and builds
+  the universal runner; the Packages / Release jobs cross-compile the Windows runner, take the
+  macOS one and check both ship in the AppImage.
+
 ## 0.8.0 — 2026-11-08
 
 ### Gameplay

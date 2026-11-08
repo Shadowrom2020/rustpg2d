@@ -2,6 +2,8 @@
 //!
 //! Usage: rustpg2d-editor [PROJECT_DIR]   (without a folder the welcome screen shows)
 //!        rustpg2d-editor --library [DIR]  (the Asset Library window; default: the shared library)
+// No console window on Windows (logs go to the terminal it was started from, if any).
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod app;
 mod builder;
@@ -45,8 +47,10 @@ fn library_arg() -> Option<std::path::PathBuf> {
 }
 
 fn window_conf() -> Conf {
+    rustpg2d_engine::desktop::startup("The R(ust)PG2D editor");
     let library = library_arg().is_some();
     Conf {
+        icon: Some(rustpg2d_engine::icon::window_icon(&rustpg2d_engine::icon::emblem())),
         window_title: if library { "R(ust)PG2D – Asset Library" } else { "R(ust)PG2D editor" }.to_owned(),
         window_width: if library { 1300 } else { 1600 },
         window_height: 900,
@@ -61,11 +65,27 @@ fn window_conf() -> Conf {
 const EMQ_WHEEL_DIVISOR: f32 = 90.0;
 /// Scroll distance of one mouse-wheel notch in egui panels (about three lines of text).
 const WHEEL_POINTS_PER_NOTCH: f32 = 50.0;
+/// What macroquad reports for one wheel notch: 1 on Linux, Windows' `WHEEL_DELTA` (120) there,
+/// about 10 on macOS (miniquad multiplies line deltas by 10; trackpads report points, many small
+/// events). The map and pixel editor zoom by `delta / WHEEL_NOTCH` steps.
+pub const WHEEL_NOTCH: f32 = if cfg!(windows) {
+    120.0
+} else if cfg!(target_os = "macos") {
+    10.0
+} else {
+    1.0
+};
+/// egui scroll distance per unit macroquad reports: a notch scrolls `WHEEL_POINTS_PER_NOTCH`; on
+/// macOS a trackpad's point deltas scroll 2 points each (a wheel notch, ~10, then 20).
+const WHEEL_POINTS_PER_UNIT: f32 = if cfg!(target_os = "macos") { 2.0 } else { WHEEL_POINTS_PER_NOTCH / WHEEL_NOTCH };
+/// One wheel notch in egui's `raw_scroll_delta` (points).
+pub const EGUI_NOTCH: f32 = WHEEL_POINTS_PER_UNIT * WHEEL_NOTCH;
 
 #[macroquad::main(window_conf)]
 async fn main() {
     // With a folder argument that project opens directly; otherwise the welcome screen shows.
-    let mut ed = match (library_arg(), std::env::args().nth(1)) {
+    // (macOS passes `-psn_…` to apps started from Finder on some versions: not a project.)
+    let mut ed = match (library_arg(), std::env::args().nth(1).filter(|a| !a.starts_with("-psn_"))) {
         (Some(dir), _) => Editor::library_window(dir.clone()).unwrap_or_else(|e| {
             let mut ed = Editor::empty();
             ed.set_status(format!("Cannot open the asset library at {}: {e:#}", dir.display()));
@@ -80,7 +100,7 @@ async fn main() {
     };
     prevent_quit();
     egui_macroquad::cfg(|ctx| {
-        ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_NOTCH * EMQ_WHEEL_DIVISOR);
+        ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_UNIT * EMQ_WHEEL_DIVISOR);
         ui::install_fonts(ctx);
     });
     // Debug aid: RUSTPG2D_EDITOR_SCRIPT="tool entity; select entity 3; wait 0.5; shot a.png; quit"
@@ -437,10 +457,21 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         }
         // exportgame OUT_DIR [NAME]  /  exportdialog
         // exportpkg OUT_DIR appimage|flatpak|all [APP_ID]: the folder plus Linux packages
-        "exportgame" | "exportpkg" => {
-            let mut opts = export::ExportOpts { zip: arg(0) == "exportgame", ..Default::default() };
+        // exportgame OUT [NAME] (Linux) · exportwin (Windows) · exportmac (macOS) · exportweb (web)
+        // · exportall (all four); all with zips
+        "exportgame" | "exportpkg" | "exportwin" | "exportmac" | "exportweb" | "exportall" => {
+            let mut opts = export::ExportOpts { zip: arg(0) != "exportpkg", ..Default::default() };
+            if arg(0) == "exportwin" {
+                (opts.linux, opts.windows) = (false, true);
+            } else if arg(0) == "exportmac" {
+                (opts.linux, opts.macos) = (false, true);
+            } else if arg(0) == "exportweb" {
+                (opts.linux, opts.web) = (false, true);
+            } else if arg(0) == "exportall" {
+                (opts.linux, opts.windows, opts.macos, opts.web) = (true, true, true, true);
+            }
             let mut name = ed.project.config.name.clone();
-            if arg(0) == "exportgame" {
+            if arg(0) != "exportpkg" {
                 if !arg(2).is_empty() {
                     name = cmd[2..].join(" ");
                 }
@@ -454,12 +485,34 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Err(e) => println!("[export] error: {e}"),
             }
         }
-        // exportdialog [appimage] [flatpak]: opens File → Export game with those packages ticked
+        // langtemplate CODE: Database › Project › Languages › Export translation template
+        "langtemplate" => match ed.export_translation(arg(1)) {
+            Ok(m) => println!("[lang] {m}"),
+            Err(e) => println!("[lang] error: {e}"),
+        },
+        // playlang CODE|-: the play-test language
+        "playlang" => ed.play_lang = if arg(1) == "-" { String::new() } else { arg(1).to_string() },
+        // exportdialog [appimage] [flatpak] [windows] [macos] [web]: opens File → Export game with those packages ticked
         // example: the welcome screen's "Example project" (packaged R(ust)PG2D only)
         "example" => ed.open_example(),
+        // browse open|folder|icon: opens that file dialog like its button (a person answers it)
+        "browse" => {
+            ed.browse_request = Some(match arg(1) {
+                "folder" => files::Purpose::ExportGameFolder,
+                "icon" => files::Purpose::ExportIcon,
+                _ => files::Purpose::OpenProject,
+            })
+        }
         "exportdialog" => {
             ed.open_export();
             if let Some(d) = &mut ed.export {
+                d.opts.web = cmd.iter().any(|a| a == "web");
+                if cmd.iter().any(|a| a == "windows") {
+                    d.opts.windows = true;
+                }
+                if cmd.iter().any(|a| a == "macos") {
+                    d.opts.macos = true;
+                }
                 d.opts.appimage = cmd.iter().any(|a| a == "appimage");
                 d.opts.flatpak = cmd.iter().any(|a| a == "flatpak");
             }

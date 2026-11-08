@@ -77,119 +77,10 @@ Instructions for every session (people and coding agents) that implements roadma
     notes live on in the CHANGELOG and the code), `cargo xtask check-version release/X.Y.Z`,
     pull request into master, merge after the four checks, merge the back-merge pull request.
 
-## 0.9.0 — Everywhere (platforms and reach)
-
-Theme: R(ust)PG2D and the games made with it run where the players and creators are: Windows,
-macOS, the web, and in their language. Postponed from 0.6.0 (2026-11-06) so the gameplay
-releases come first; the design notes are unchanged.
-
-### [ ] Windows export — `feature/windows`
-
-**Design.** Gate the `std::os::unix` uses (`editor/files.rs` copy permissions,
-`packaging/lib.rs` symlink and executable bit, `release.rs` chmod); Windows paths for saves and
-settings (`release::user_saves_dir`, `Settings::dir`: `%APPDATA%`); `.exe` handling in
-`export::game_binary` and `release::export` (`<slug>-windows.zip`, README text per platform).
-CI builds `rustpg2d-game.exe` with `x86_64-pc-windows-gnu` in the Packages and Release jobs and
-the toolkit packages ship it next to the Linux runner, so the Linux editor exports Windows games
-(*File → Export game* gains a *Windows* checkbox). Followed by *Editor on Windows* and *macOS
-builds* below.
-
-**Verify.** Export from the editor produces the zip; run the exe under Wine for a `status` run
-if Wine is available, otherwise a CI smoke test on `windows-latest`.
-
-### [ ] Editor on Windows — `feature/editor-windows` (follows *Windows export*)
-
-**Goal.** The editor itself runs on Windows, with play-test, export and the asset library, so
-Windows creators get the whole toolkit; the release ships a Windows zip of editor + game +
-example.
-
-**Design.**
-- Gate the Unix-only calls: `editor/files.rs` `copy_tree` permissions, `packaging/lib.rs`
-  `symlink` (Flatpak) and `set_executable` (AppImage) behind `#[cfg(unix)]` with Windows
-  returning "not available on this platform" errors; the export dialog hides AppImage / Flatpak
-  there. Paths: a `dirs`-style helper in `engine/src/paths.rs` (new, no crate): config
-  `%APPDATA%\rustpg2d`, data `%LOCALAPPDATA%\rustpg2d`, cache `%LOCALAPPDATA%\rustpg2d\cache`, home
-  `%USERPROFILE%`; used by `Settings::dir`, `release::user_saves_dir`, `library::library_dir`,
-  `files::config_dir`, `example_copy`, the file dialog start folder, `new_project.rs`.
-- Executables: `std::env::consts::EXE_SUFFIX` in `play_with`, `export::game_binary`,
-  `library_window.rs`, `release::export` (`<slug>.exe`, `<slug>-windows.zip`, README per
-  platform); `bundled_example` accepts the zip layout (`example_project/` next to the exes).
-  `#![windows_subsystem = "windows"]` on both binaries, so the `--engine-build` probe writes
-  its answer to a temp file instead of stdout (or the editor reads `ENGINE_BUILD` from the
-  game's resources: simplest = a `--engine-build FILE` argument).
-- Input: mouse-wheel units per platform in `editor/main.rs` (Windows reports 120 per notch:
-  scale by 1/120; macOS pixels), `modifiers.command` instead of `ctrl` in `canvas.rs`,
-  `pixel.rs`, `database.rs` (Ctrl stays Ctrl on Windows, Cmd on macOS). Window icon via
-  `Conf::icon` for both binaries (the emblem from `packaging::emblem`).
-- Repo hygiene: `.gitattributes` (`* text=auto eol=lf`) so `include_str!(LICENSE)` and the
-  `ENGINE_BUILD` hash (which hashes path strings; make it use `/` always) are stable; tests that
-  assume ELF (`packaging` `glibc_scan`, `release` `export_bundle` exe name) get `cfg` gates or
-  platform branches.
-- CI: a `windows-latest` job (clippy + test `--locked`; MSVC compiles the `vorbis_rs` C code for
-  gen_example) on PRs into master; the Packages and Release jobs add a Windows build
-  (`cargo build --release` on `windows-latest`, `cargo xtask dist --windows` zips editor, game,
-  example, LICENSE, README) and upload `rustpg2d-<version>-windows-x86_64.zip`.
-- Known gaps noted in the README: no code signing (SmartScreen warning), gamepads through
-  Windows.Gaming.Input (gilrs default), file dialogs native.
-
-**Touch points.** `engine/src/{paths (new),settings,release,library,build.rs}`, `editor/src/
-{files,app,export,library_window,main,canvas,pixel,database}.rs`, `packaging/src/lib.rs`,
-`game/src/main.rs`, `xtask/src/dist.rs`, `.github/workflows/*`, `.gitattributes`, README.
-
-**Verify.** CI green on `windows-latest`; the zip from CI runs on a Windows machine or VM: the
-editor opens the bundled example, play-tests it, exports a Windows game; `cargo test` on
-Windows. From Linux: Wine run of the exes for a `status` smoke test if Wine is installed.
-
-### [ ] macOS builds — `feature/macos`
-
-**Goal.** Game and editor build and run on macOS (Apple Silicon and Intel); the release ships a
-`.app` bundle for the editor (game runner and example inside) and games can be exported for
-macOS from any platform's editor.
-
-**Design.**
-- Paths: `~/Library/Application Support/rustpg2d` (config and data), `~/Library/Caches/rustpg2d`
-  in `paths.rs`. Bundle layout: `R(ust)PG2D.app/Contents/{MacOS/rustpg2d-editor,
-  MacOS/rustpg2d-game, Resources/example_project, Info.plist, R(ust)PG2D.icns}`; `bundled_example`
-  and `bundled_root` look in `../Resources`. Exported games: `<slug>.app` with the data in
-  `Contents/Resources` (`release::bundled_root` checks there first on macOS) zipped as
-  `<slug>-macos.zip`.
-- Input: Cmd for shortcuts (`modifiers.command`), trackpad scrolling (pixel deltas, momentum:
-  the canvas zoom accumulates deltas instead of zooming per event), `rfd` on the main thread
-  (`run_on_main` needs NSApplication; the blocking dialog on a worker thread must become
-  `AsyncFileDialog` polled from the frame loop, which also helps Windows).
-- Rendering: miniquad's macOS backend (Metal or OpenGL per feature); keep OpenGL (default) and
-  note the deprecation; high-DPI already on.
-- CI: a `macos-latest` job (clippy + test) on PRs into master; Packages / Release build universal
-  binaries (`aarch64-apple-darwin` + `x86_64-apple-darwin`, `lipo`), assemble the `.app` with
-  `cargo xtask dist --macos` (plist generated, icon from the emblem via `iconutil` on the
-  runner), zip it; unsigned (Gatekeeper: right-click › Open; documented). Notarization is out of
-  scope.
-- Gamepads: gilrs uses IOKit on macOS; no extra permissions.
-
-**Touch points.** `engine/src/{paths,release}.rs`, `editor/src/{files,app,export,canvas,
-main}.rs`, `xtask/src/dist.rs`, `.github/workflows/*`, README.
-
-**Verify.** CI green on `macos-latest`; the `.app` from CI starts on a Mac (user's or a CI
-smoke test with `RUSTPG2D_AUTOPLAY` under the runner's window server), opens the example and
-exports a game; `cargo test` on macOS.
-
-### [ ] Web export — `feature/web`
-
-**Design.** Game only (`wasm32-unknown-unknown`): async asset loading (`audio.rs` `poll_now`
-assumes instant loading), saves and settings in `localStorage`, no `std::env` / `current_exe`,
-`SystemTime::now` → `web-time`, the exported game as an asset tree plus a generated
-`index.html` for itch.io. Plan in detail only after Windows ships.
-
-### [ ] Localization — `feature/localization`
-
-**Design.** Content texts (dialogs, choices, item / prop / quest / skill names and descriptions)
-through `lang/<code>.ron` lookups keyed by the original string with `expand_text` as the
-chokepoint; the ~170 hard-coded UI strings in the runtime move to one table behind `t("…")`;
-Options row *Language*; the editor exports a translation template. Large but mechanical.
-
 ## Backlog (unscheduled ideas)
 
-- Code signing and notarization of the Windows and macOS packages (today: unsigned, documented).
+- Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
+  ad-hoc signed; documented).
 - Gamepad button glyphs in the HUD and hints (Steam Deck); rebinding gamepad buttons.
 - Companions learn spells from scrolls and books given to them and cast heal / bolt spells by
   the rules of *Companion inventory* (`Companion.spells`, a mana pool from the definition).
@@ -237,6 +128,14 @@ Options row *Language*; the editor exports a translation template. Large but mec
 ## Shipped
 
 See [CHANGELOG.md](CHANGELOG.md) for the details of every release.
+
+### 0.9.0 — Reach: the web, other languages, Windows and macOS (2026-11-08)
+
+- [x] Web export (browsers, itch.io) — `feature/web`
+- [x] Localization (translation templates, built-in German, *Options › Language*) — `feature/localization`
+- [x] Windows export — `feature/windows-export`
+- [x] macOS export (ad-hoc signed `.app`) — `feature/windows-export`
+- [x] Editor on Windows and macOS (Windows zip, macOS app) — `feature/editor-desktop`
 
 ### 0.8.0 — Scenery and sound (2026-11-08)
 

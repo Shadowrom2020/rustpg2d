@@ -24,10 +24,7 @@ use std::process::Command;
 use anyhow::{bail, Context, Result};
 use backhand::compression::Compressor;
 use backhand::{FilesystemCompressor, FilesystemWriter, NodeHeader};
-use rustpg2d_engine::entity::Facing;
-use rustpg2d_engine::imageio::Rgba;
-use rustpg2d_engine::project::Project;
-use rustpg2d_engine::render::{character, recolor};
+use rustpg2d_engine::hash::{hex, sha256};
 
 /// The AppImage runtime (type 2, static: needs no libfuse on the player's machine, only
 /// `fusermount`; without FUSE, `--appimage-extract-and-run` works).
@@ -40,7 +37,7 @@ pub const FLATPAK_RUNTIMES: [&str; 2] = ["25.08", "26.08"];
 const FLATHUB_REPO: &str = "https://dl.flathub.org/repo/flathub.flatpakrepo";
 
 /// Size of generated icons.
-pub const ICON: u32 = 256;
+pub use rustpg2d_engine::icon::{emblem, hero_icon, ICON};
 
 /// Where a file's bytes come from.
 pub enum Source {
@@ -224,6 +221,9 @@ pub fn check_app_id(id: &str) -> Result<(), String> {
 /// Writes the Flatpak bundle to `path`, working in a temporary folder next to it (the host's
 /// flatpak must see it when called from a sandbox).
 pub fn flatpak_bundle(spec: &AppSpec, path: &Path) -> Result<()> {
+    if !cfg!(unix) {
+        bail!("Flatpak bundles can only be made on Linux (they need the flatpak command)");
+    }
     check_app_id(&spec.app_id).map_err(|e| anyhow::anyhow!("Flatpak app id: {e}"))?;
     let name = path.file_name().map_or("app".into(), |n| n.to_string_lossy().into_owned());
     let work = path.parent().unwrap_or(Path::new(".")).join(format!(".{name}-build"));
@@ -246,7 +246,10 @@ fn flatpak_in(work: &Path, spec: &AppSpec, path: &Path) -> Result<()> {
     for (name, target) in &spec.bin {
         let link = files.join("bin").join(name);
         std::fs::create_dir_all(link.parent().unwrap())?;
+        #[cfg(unix)]
         std::os::unix::fs::symlink(format!("../{target}"), link)?;
+        #[cfg(not(unix))]
+        let _ = (target, link);
     }
     let id = &spec.app_id;
     let share = files.join("share");
@@ -308,96 +311,6 @@ fn desktop_entry(spec: &AppSpec, exec: &str, icon: &str) -> String {
 
 fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
-}
-
-/// The player character facing the viewer (layers composed like in the game), enlarged with
-/// sharp pixels onto a 256 x 256 transparent square.
-pub fn hero_icon(project: &Project) -> Option<Rgba> {
-    let db = &project.db;
-    let d = db.character(&project.config.player)?;
-    let mut canvas: Option<Rgba> = None;
-    for l in character::layers(db, &d.appearance, &d.equipment, Facing::Down, 0, false) {
-        let Some(sheet) = db.sheet(&l.sheet) else { continue };
-        let Ok(img) = std::fs::read(project.path(&sheet.image)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
-        let (fw, fh) = (sheet.frame_w.max(1), sheet.frame_h.max(1));
-        let cols = (img.w / fw).max(1);
-        let (fx, fy) = ((l.frame % cols * fw) as i32, (l.frame / cols * fh) as i32);
-        let mut frame = Rgba::new(fw, fh);
-        for y in 0..fh as i32 {
-            for x in 0..fw as i32 {
-                frame.set(x, y, img.get(fx + x, fy + y));
-            }
-        }
-        recolor::recolor(&mut frame.px, l.skin, l.hair);
-        let c = canvas.get_or_insert_with(|| Rgba::new(fw, fh));
-        // Layers of another frame size stand on the same ground, centered.
-        let (ox, oy) = ((c.w as i32 - fw as i32) / 2, c.h as i32 - fh as i32);
-        for y in 0..fh as i32 {
-            for x in 0..fw as i32 {
-                over(c, ox + x, oy + y, frame.get(x, y));
-            }
-        }
-    }
-    let c = canvas?;
-    // Trim to the drawn pixels.
-    let opaque: Vec<(i32, i32)> = (0..c.h as i32).flat_map(|y| (0..c.w as i32).map(move |x| (x, y))).filter(|&(x, y)| c.get(x, y)[3] > 0).collect();
-    let (x0, x1) = (opaque.iter().map(|p| p.0).min()?, opaque.iter().map(|p| p.0).max()?);
-    let (y0, y1) = (opaque.iter().map(|p| p.1).min()?, opaque.iter().map(|p| p.1).max()?);
-    let (w, h) = ((x1 - x0 + 1) as u32, (y1 - y0 + 1) as u32);
-    let scale = ((ICON - 16) / w.max(h)).max(1);
-    let mut out = Rgba::new(ICON, ICON);
-    let (ox, oy) = ((ICON - w * scale) as i32 / 2, (ICON - h * scale) as i32 / 2);
-    for y in 0..(h * scale) as i32 {
-        for x in 0..(w * scale) as i32 {
-            out.set(ox + x, oy + y, c.get(x0 + x / scale as i32, y0 + y / scale as i32));
-        }
-    }
-    Some(out)
-}
-
-/// Fallback icon (no player character): a sword on a dark shield.
-pub fn emblem() -> Rgba {
-    let mut img = Rgba::new(ICON, ICON);
-    let c = ICON as f32 / 2.0;
-    for y in 0..ICON as i32 {
-        for x in 0..ICON as i32 {
-            let (dx, dy) = ((x as f32 - c) / c, (y as f32 - c) / c);
-            // A shield: flat top, round bottom.
-            let inside = dx.abs() < 0.8 && dy > -0.85 && (dy < 0.1 || dx * dx + (dy - 0.1) * (dy - 0.1) * 1.6 < 0.64);
-            let edge = dx.abs() < 0.86 && dy > -0.92 && (dy < 0.1 || dx * dx + (dy - 0.1) * (dy - 0.1) * 1.6 < 0.74);
-            if inside {
-                img.set(x, y, [0x1b, 0x2a, 0x55, 255]);
-            } else if edge {
-                img.set(x, y, [0xe8, 0xc0, 0x5a, 255]);
-            }
-        }
-    }
-    let rect = |img: &mut Rgba, x: i32, y: i32, w: i32, h: i32, col: [u8; 4]| {
-        for yy in y..y + h {
-            for xx in x..x + w {
-                img.set(xx, yy, col);
-            }
-        }
-    };
-    rect(&mut img, 120, 52, 16, 120, [0xd8, 0xdc, 0xe8, 255]); // blade
-    rect(&mut img, 126, 52, 4, 120, [0xff, 0xff, 0xff, 255]);
-    rect(&mut img, 92, 168, 72, 12, [0xe8, 0xc0, 0x5a, 255]); // guard
-    rect(&mut img, 122, 180, 12, 28, [0x7a, 0x54, 0x10, 255]); // grip
-    rect(&mut img, 116, 206, 24, 12, [0xe8, 0xc0, 0x5a, 255]); // pommel
-    img
-}
-
-/// Alpha-composites `c` over the pixel at x, y.
-fn over(img: &mut Rgba, x: i32, y: i32, c: [u8; 4]) {
-    if c[3] == 0 {
-        return;
-    }
-    let d = img.get(x, y);
-    let a = c[3] as f32 / 255.0;
-    let da = d[3] as f32 / 255.0 * (1.0 - a);
-    let oa = a + da;
-    let mix = |s: u8, t: u8| ((s as f32 * a + t as f32 * da) / oa).round() as u8;
-    img.set(x, y, [mix(c[0], d[0]), mix(c[1], d[1]), mix(c[2], d[2]), (oa * 255.0).round() as u8]);
 }
 
 /// The highest glibc version a Linux executable needs, e.g. (2, 34): the non-weak `GLIBC_2.x`
@@ -464,7 +377,7 @@ fn scan_glibc_names(binary: &[u8]) -> Vec<String> {
 }
 
 fn cache_dir() -> PathBuf {
-    let base = std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache"))).unwrap_or_else(std::env::temp_dir);
+    let base = rustpg2d_engine::paths::cache_base().unwrap_or_else(std::env::temp_dir);
     let dir = base.join("rustpg2d");
     // The downloaded AppImage runtime of a rust2d install (saves a download, works offline).
     rustpg2d_engine::legacy::adopt(&dir, &base.join(rustpg2d_engine::legacy::OLD_NAME));
@@ -475,9 +388,15 @@ fn now() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
 
+/// Marks a file executable (Unix; elsewhere files have no such bit: nothing to do).
 fn set_executable(p: &Path) -> Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o755)).with_context(|| format!("making {} executable", p.display()))
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o755)).with_context(|| format!("making {} executable", p.display()))?;
+    }
+    let _ = p;
+    Ok(())
 }
 
 fn write(p: &Path, bytes: &[u8]) -> Result<()> {
@@ -516,68 +435,13 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex(&sha256(bytes))
 }
 
-fn hex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
-
-/// SHA-256 (FIPS 180-4), to check the downloaded AppImage runtime.
-fn sha256(data: &[u8]) -> [u8; 32] {
-    const K: [u32; 64] = [
-        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
-        0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-        0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-        0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-    ];
-    let mut h: [u32; 8] = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
-    let mut msg = data.to_vec();
-    msg.push(0x80);
-    while msg.len() % 64 != 56 {
-        msg.push(0);
-    }
-    msg.extend_from_slice(&(data.len() as u64 * 8).to_be_bytes());
-    for block in msg.as_chunks::<64>().0 {
-        let mut w = [0u32; 64];
-        for t in 0..16 {
-            w[t] = u32::from_be_bytes(block[t * 4..t * 4 + 4].try_into().unwrap());
-        }
-        for t in 16..64 {
-            let s0 = w[t - 15].rotate_right(7) ^ w[t - 15].rotate_right(18) ^ (w[t - 15] >> 3);
-            let s1 = w[t - 2].rotate_right(17) ^ w[t - 2].rotate_right(19) ^ (w[t - 2] >> 10);
-            w[t] = w[t - 16].wrapping_add(s0).wrapping_add(w[t - 7]).wrapping_add(s1);
-        }
-        let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut hh] = h;
-        for t in 0..64 {
-            let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
-            let ch = (e & f) ^ (!e & g);
-            let t1 = hh.wrapping_add(s1).wrapping_add(ch).wrapping_add(K[t]).wrapping_add(w[t]);
-            let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
-            let maj = (a & b) ^ (a & c) ^ (b & c);
-            let t2 = s0.wrapping_add(maj);
-            (hh, g, f, e, d, c, b, a) = (g, f, e, d.wrapping_add(t1), c, b, a, t1.wrapping_add(t2));
-        }
-        for (x, v) in h.iter_mut().zip([a, b, c, d, e, f, g, hh]) {
-            *x = x.wrapping_add(v);
-        }
-    }
-    let mut out = [0u8; 32];
-    for (k, v) in h.iter().enumerate() {
-        out[k * 4..k * 4 + 4].copy_from_slice(&v.to_be_bytes());
-    }
-    out
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn sha256_vectors() {
-        assert_eq!(hex(&sha256(b"")), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-        assert_eq!(hex(&sha256(b"abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
-        let long = b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
-        assert_eq!(hex(&sha256(long)), "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1");
+        assert_eq!(sha256_hex(b"abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     }
 
     #[test]
@@ -590,6 +454,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")] // reads the test binary itself as an ELF file
     fn glibc_scan() {
         assert_eq!(glibc_needed(b"\0GLIBC_2.2.5\0GLIBC_2.34\0GLIBC_2.17\0"), Some((2, 34)));
         assert_eq!(glibc_needed(b"no versions here"), None);
@@ -622,6 +487,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)] // AppImages are made on Linux (paths, permissions)
     fn appimage_contents() {
         use backhand::{FilesystemReader, InnerNode};
         let tmp = std::env::temp_dir().join(format!("rustpg2d_appimage_test_{}", std::process::id()));

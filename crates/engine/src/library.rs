@@ -366,7 +366,7 @@ impl Bundle {
             recipes: self.db.recipes.clone(),
             scripts: self.scripts.clone(),
         };
-        let cfg = ron::ser::PrettyConfig::default().struct_names(false);
+        let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
         let manifest = ron::ser::to_string_pretty(&m, cfg)?;
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
@@ -768,15 +768,13 @@ fn files_of(db: &Database) -> BTreeSet<String> {
 }
 
 /// Folder of the shared asset library: `$RUSTPG2D_LIBRARY`, else
-/// `$XDG_DATA_HOME/rustpg2d/library`, else `~/.local/share/rustpg2d/library`.
+/// `$XDG_DATA_HOME/rustpg2d/library`, else `~/.local/share/rustpg2d/library` (Windows:
+/// `%LOCALAPPDATA%\rustpg2d\library`).
 pub fn library_dir() -> PathBuf {
     if let Some(p) = std::env::var_os("RUSTPG2D_LIBRARY") {
         return PathBuf::from(p);
     }
-    let data = std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
-        .unwrap_or_else(|| PathBuf::from("."));
+    let data = crate::paths::data_base().unwrap_or_else(|| PathBuf::from("."));
     let dir = data.join("rustpg2d/library");
     crate::legacy::adopt(&dir, &data.join(crate::legacy::OLD_NAME).join("library"));
     dir

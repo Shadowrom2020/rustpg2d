@@ -12,6 +12,7 @@ use super::input::{self, Act, Pad};
 use super::{ui::panel, Game};
 use crate::defs::Appearance;
 use crate::state::Sex;
+use super::text::{draw_text, measure_text};
 
 const W: f32 = 760.0;
 const H: f32 = 560.0;

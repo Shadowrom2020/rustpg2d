@@ -53,6 +53,16 @@ pub struct ProjectConfig {
     /// shoulders of the player's model).
     #[serde(default, skip_serializing_if = "crate::defs::SpriteRef::is_empty")]
     pub player_portrait: crate::defs::SpriteRef,
+    /// The language the game is written in (code, e.g. "en"): the texts in the project.
+    #[serde(default = "default_language")]
+    pub language: String,
+    /// Translations players can choose (codes; each has `lang/<code>.ron`, see `lang`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub languages: Vec<String>,
+}
+
+fn default_language() -> String {
+    "en".into()
 }
 
 /// What happens to a companion knocked down to 0 HP (`ProjectConfig::companion_down`).
@@ -183,6 +193,8 @@ impl ProjectConfig {
             dialog_portraits: true,
             companion_down: Default::default(),
             player_portrait: Default::default(),
+            language: default_language(),
+            languages: Vec::new(),
         }
     }
 }
@@ -242,20 +254,18 @@ pub struct Project {
 const DEFS: [&str; 12] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements"];
 
 fn read_ron<T: DeserializeOwned + Default>(path: &Path) -> Result<T> {
-    if !path.exists() {
+    if !crate::sys::exists(path) {
         return Ok(T::default());
     }
-    let s = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    let s = crate::sys::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     ron::from_str(&s).with_context(|| format!("parsing {}", path.display()))
 }
 
 pub fn write_ron<T: Serialize>(path: &Path, value: &T) -> Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let cfg = ron::ser::PrettyConfig::default().struct_names(false);
+    // LF on every platform: projects look the same written on Windows (git, diffs).
+    let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
     let s = ron::ser::to_string_pretty(value, cfg)?;
-    std::fs::write(path, s).with_context(|| format!("writing {}", path.display()))
+    crate::sys::write(path, s.as_bytes()).with_context(|| format!("writing {}", path.display()))
 }
 
 impl Project {
@@ -263,7 +273,7 @@ impl Project {
         let root = root.to_path_buf();
         let cfg_path = root.join("project.ron");
         let config: ProjectConfig = ron::from_str(
-            &std::fs::read_to_string(&cfg_path).with_context(|| format!("reading {}", cfg_path.display()))?,
+            &crate::sys::read_to_string(&cfg_path).with_context(|| format!("reading {}", cfg_path.display()))?,
         )
         .with_context(|| format!("parsing {}", cfg_path.display()))?;
         let d = |n: &str| root.join("defs").join(format!("{n}.ron"));
@@ -337,12 +347,10 @@ impl Project {
     }
 
     pub fn list_maps(&self) -> Vec<String> {
-        let mut out: Vec<String> = std::fs::read_dir(self.maps_dir())
+        let mut out: Vec<String> = crate::sys::files_in(&self.maps_dir())
             .into_iter()
             .flatten()
-            .flatten()
-            .filter_map(|e| {
-                let p = e.path();
+            .filter_map(|p| {
                 if p.extension()? != "map" {
                     return None;
                 }

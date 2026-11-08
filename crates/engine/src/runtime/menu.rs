@@ -1,13 +1,13 @@
 //! Pause menu (Esc): resume, save to a named slot, load / delete saves, save and quit,
 //! quit to the title screen; options (graphics, sound, text); and the title screen (main menu).
 
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use macroquad::prelude::*;
 
 use super::input::{self, Act, Pad};
 use super::{ui::panel, Arrival, Fade, Game, FADE_TIME};
 use crate::settings::{Settings, TEXT_SPEEDS, ZOOMS};
+use super::text::{draw_text, measure_text};
 
 const W: f32 = 520.0;
 const ROW_H: f32 = 40.0;
@@ -56,13 +56,15 @@ enum Opt {
     TextSpeed,
     /// Screen shake and the hurt flash.
     ScreenEffects,
+    /// The game's language (its own and its translations).
+    Language,
     /// Opens the Controls page.
     Controls,
     Reset,
     Back,
 }
 
-const OPTS: [Opt; 12] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::Controls, Opt::Reset, Opt::Back];
+const OPTS: [Opt; 13] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::Language, Opt::Controls, Opt::Reset, Opt::Back];
 
 struct SaveInfo {
     slot: String,
@@ -143,7 +145,7 @@ enum Row {
 }
 
 pub(super) fn now_secs() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
+    crate::sys::unix_now()
 }
 
 /// Slot names become file names: letters, digits, space, '-' and '_'.
@@ -180,20 +182,19 @@ impl Game {
     fn scan_saves(&mut self) {
         let dir = self.project.saves_dir();
         let mut out = Vec::new();
-        for e in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
-            let p = e.path();
+        for p in crate::sys::files_in(&dir).into_iter().flatten() {
             if p.extension().is_none_or(|x| x != "ron") {
                 continue;
             }
             let Some(slot) = p.file_stem().map(|s| s.to_string_lossy().into_owned()) else { continue };
-            let file_time = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
-            let world = std::fs::read_to_string(&p).ok().and_then(|s| crate::state::WorldState::from_ron(&s).ok());
+            let file_time = crate::sys::modified_secs(&p);
+            let world = crate::sys::read_to_string(&p).ok().and_then(|s| crate::state::WorldState::from_ron(&s).ok());
             let (map, saved, play) = match &world {
                 Some(w) => (w.current_map.clone(), if w.saved_at > 0 { w.saved_at } else { file_time }, w.play_time),
                 None => ("(unreadable)".into(), file_time, 0.0),
             };
             // A damaged picture just isn't shown (Texture2D::from_file_with_format would panic).
-            let thumb = std::fs::read(p.with_extension("png"))
+            let thumb = crate::sys::read(&p.with_extension("png"))
                 .ok()
                 .and_then(|b| Image::from_file_with_format(&b, Some(ImageFormat::Png)).ok())
                 .map(|img| Texture2D::from_image(&img));
@@ -237,7 +238,10 @@ impl Game {
                     (Row::OptionsMenu, "Options".into(), String::new()),
                 ];
                 v.extend(achievements_row.clone());
-                v.push((Row::Exit, "Exit".into(), String::new()));
+                // (A web page isn't closed by the game: the tab is.)
+                if !cfg!(target_arch = "wasm32") {
+                    v.push((Row::Exit, "Exit".into(), String::new()));
+                }
                 v
             }
             Page::Main => {
@@ -565,8 +569,8 @@ impl Game {
             },
             (Page::ConfirmOverwrite(s), Row::Yes) => self.do_save(&s),
             (Page::ConfirmDelete(s), Row::Yes) => {
-                let _ = std::fs::remove_file(self.project.saves_dir().join(format!("{s}.ron")));
-                let _ = std::fs::remove_file(self.project.saves_dir().join(format!("{s}.png")));
+                let _ = crate::sys::remove_file(&self.project.saves_dir().join(format!("{s}.ron")));
+                let _ = crate::sys::remove_file(&self.project.saves_dir().join(format!("{s}.png")));
                 self.go(Page::Load);
             }
             (_, Row::No) => self.back(),
@@ -585,6 +589,7 @@ impl Game {
             Opt::Ambience => "Ambience volume",
             Opt::TextSpeed => "Text speed",
             Opt::ScreenEffects => "Shake & flash",
+            Opt::Language => "Language",
             Opt::Controls => "Controls...",
             Opt::Reset => "Reset to defaults",
             Opt::Back => "Back",
@@ -605,6 +610,7 @@ impl Game {
             Opt::Effects => pct(s.effects_volume),
             Opt::Ambience => pct(s.ambience_volume),
             Opt::TextSpeed => TEXT_SPEEDS.iter().find(|t| t.0 == s.text_speed).map_or("Normal", |t| t.1).to_string(),
+            Opt::Language => self.languages.iter().find(|(c, _)| *c == self.lang_code).map_or_else(|| self.lang_code.clone(), |(_, n)| n.clone()),
             Opt::Controls | Opt::Reset | Opt::Back => String::new(),
         }
     }
@@ -632,8 +638,14 @@ impl Game {
                 let speeds: Vec<f32> = TEXT_SPEEDS.iter().map(|t| t.0).collect();
                 s.text_speed = step(&speeds, s.text_speed);
             }
-            // The keys have their own reset on the Controls page.
-            Opt::Reset => *s = Settings { keys: std::mem::take(&mut s.keys), ..Settings::default() },
+            Opt::Language => {
+                let n = self.languages.len().max(1) as i32;
+                let i = self.languages.iter().position(|(c, _)| *c == self.lang_code).unwrap_or(0) as i32;
+                let j = if wrap { (i + dir).rem_euclid(n) } else { (i + dir).clamp(0, n - 1) };
+                s.language = self.languages.get(j as usize).map(|(c, _)| c.clone());
+            }
+            // The keys and the language have their own ways back.
+            Opt::Reset => *s = Settings { keys: std::mem::take(&mut s.keys), language: s.language.take(), ..Settings::default() },
             Opt::Controls | Opt::Back => return,
         }
         self.apply_settings();
@@ -683,6 +695,11 @@ impl Game {
     /// Applies the options: volumes, fullscreen, keys (zoom, FPS and text speed are read where used).
     pub(super) fn apply_settings(&mut self) {
         input::set_bindings(&self.settings.keys);
+        if let Some(code) = self.settings.language.clone() {
+            if code != self.lang_code {
+                self.set_language(&code);
+            }
+        }
         let s = self.settings.clone();
         self.audio.set_volumes(s.effects(), s.music());
         self.audio.set_ambience_volume(s.ambience());
@@ -937,7 +954,7 @@ impl Game {
         let (p, rects) = self.menu_layout(rows.len());
         if self.menu.title {
             // Big game title above the menu.
-            let name = &self.project.config.name;
+            let name = &crate::lang::tr(&self.project.config.name);
             let size = 64u16;
             let tw = measure_text(name, None, size, 1.0).width;
             let y = (p.y - 60.0).max(80.0);

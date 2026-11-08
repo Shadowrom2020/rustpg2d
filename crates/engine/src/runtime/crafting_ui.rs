@@ -11,6 +11,7 @@ use super::input::{self, Act};
 use super::{ui::panel, Game};
 use crate::crafting::{Missing, RecipeDef};
 use crate::render::wrap_text;
+use super::text::{draw_text, measure_text};
 
 const ROW: f32 = 58.0;
 const ROWS: usize = 7;

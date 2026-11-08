@@ -3,3 +3,9 @@
 # without the engine (seconds); `cargo xtask-dist` packages the toolkit (AppImage + Flatpak).
 xtask = "run --quiet --package xtask --"
 xtask-dist = "run --quiet --package xtask --features dist -- dist"
+
+# The web game: macroquad's JS loader (mq_js_bundle.js) provides the functions miniquad /
+# quad-snd declare in `extern` blocks; current Rust no longer leaves undefined symbols to the
+# loader by default for this target.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--allow-undefined"]

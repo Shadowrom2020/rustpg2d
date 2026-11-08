@@ -403,7 +403,11 @@ impl WorldState {
     /// `{player}` = the player's name, `{his|her}` = the first word for a male player, the
     /// second for a female one, `{name}` = the value of variable `name`. Anything else in
     /// braces is kept as it is.
+    /// The text in the current language (`lang::tr`, looked up before the placeholders are
+    /// filled in) with `{player}`, `{sir|madam}` and `{var}` filled in.
     pub fn expand_text(&self, text: &str) -> String {
+        let translated = crate::lang::tr(text);
+        let text = translated.as_str();
         let mut out = String::with_capacity(text.len());
         let mut rest = text;
         while let Some(i) = rest.find('{') {
@@ -528,7 +532,7 @@ impl WorldState {
     }
 
     pub fn to_ron(&self) -> anyhow::Result<String> {
-        Ok(ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default())?)
+        Ok(ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default().new_line("\n"))?)
     }
     pub fn from_ron(s: &str) -> anyhow::Result<Self> {
         let mut w: WorldState = ron::from_str(s)?;

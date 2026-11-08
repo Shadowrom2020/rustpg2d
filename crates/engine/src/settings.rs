@@ -27,11 +27,15 @@ pub struct Settings {
     /// their default keys.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub keys: std::collections::BTreeMap<String, Vec<String>>,
+    /// The language the player chose (code; None = the system's language if the game has it,
+    /// else the game's own).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, keys: Default::default() }
+        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, keys: Default::default(), language: None }
     }
 }
 
@@ -43,10 +47,14 @@ pub const TEXT_SPEEDS: [(f32, &str); 4] = [(0.5, "Slow"), (1.0, "Normal"), (2.0,
 impl Settings {
     /// Folder of a game's settings (by the game's name).
     pub fn dir(game_name: &str) -> Option<PathBuf> {
+        // The web game: kept in the browser's storage (`sys`).
+        if cfg!(target_arch = "wasm32") {
+            return Some(PathBuf::from("settings").join(crate::release::slug(game_name)));
+        }
         if let Some(d) = std::env::var_os("RUSTPG2D_SETTINGS_DIR") {
             return Some(PathBuf::from(d).join(crate::release::slug(game_name)));
         }
-        let base = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
+        let base = crate::paths::config_base()?;
         let slug = crate::release::slug(game_name);
         let dir = base.join("rustpg2d").join(&slug);
         crate::legacy::adopt(&dir, &base.join(crate::legacy::OLD_NAME).join(&slug));
@@ -56,7 +64,7 @@ impl Settings {
     /// The saved settings of a game (defaults if there are none or they can't be read).
     pub fn load(game_name: &str) -> Settings {
         let Some(path) = Self::dir(game_name).map(|d| d.join("settings.ron")) else { return Settings::default() };
-        match std::fs::read_to_string(&path) {
+        match crate::sys::read_to_string(&path) {
             Ok(s) => ron::from_str(&s).unwrap_or_else(|e| {
                 eprintln!("[settings] {}: {e}; using defaults", path.display());
                 Settings::default()

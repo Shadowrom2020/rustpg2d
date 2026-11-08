@@ -4,9 +4,14 @@
 
 A small 2D engine for top-down RPGs on Linux, written in Rust ([macroquad](https://macroquad.rs) + [egui](https://github.com/emilk/egui)), with a map/content editor.
 
-Current version: **0.8.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed in each release. Planned features: see [ROADMAP.md](ROADMAP.md).
+Current version: **0.9.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed in each release. Planned features: see [ROADMAP.md](ROADMAP.md).
 
-**Download**: every release on the [Releases page](https://github.com/Shadowrom2020/rustpg2d/releases) has the editor (with the game runner and the example project) as an **AppImage** — `chmod +x rustpg2d-X.Y.Z-x86_64.AppImage` and start it — and as a **Flatpak** bundle — `flatpak install --user rustpg2d-X.Y.Z.flatpak`, then start *R(ust)PG2D* from the app menu or with `flatpak run io.github.Shadowrom2020.rustpg2d`. Both run on Linux x86_64 with glibc 2.34 or newer (Debian 12, Ubuntu 22.04, Fedora 35, RHEL 9 and later); the welcome screen's **Example project** copies the bundled example to `~/rustpg2d/example_project` and opens it. Contributing: branches, versions and releases are described in [AGENTS.md](AGENTS.md).
+**Download**: every release on the [Releases page](https://github.com/Shadowrom2020/rustpg2d/releases) has the editor (with the game runners and the example project) for Linux, Windows and macOS:
+- **Linux** (x86_64, glibc 2.34 or newer: Debian 12, Ubuntu 22.04, Fedora 35, RHEL 9 and later): the **AppImage** — `chmod +x rustpg2d-X.Y.Z-x86_64.AppImage` and start it — or the **Flatpak** bundle — `flatpak install --user rustpg2d-X.Y.Z.flatpak`, then start *R(ust)PG2D* from the app menu or with `flatpak run io.github.Shadowrom2020.rustpg2d`.
+- **Windows** (10 / 11, 64-bit): unzip `rustpg2d-X.Y.Z-windows-x86_64.zip` and start `rustpg2d-editor.exe`. It isn't code-signed: SmartScreen's "Windows protected your PC" needs *More info*, *Run anyway* once. Settings and recent projects live in `%APPDATA%\rustpg2d`, the asset library in `%LOCALAPPDATA%\rustpg2d\library`.
+- **macOS** (11 or newer, Apple Silicon and Intel): unzip `rustpg2d-X.Y.Z-macos.zip`, drag *R(ust)PG2D* into *Applications* and open it. It is signed ad hoc but not notarized: the first start needs *System Settings › Privacy & Security › Open Anyway* (or `xattr -dr com.apple.quarantine "/Applications/R(ust)PG2D.app"`). Shortcuts written *Ctrl+…* are *Cmd+…* there (the editor shows them so). Settings, recent projects and the asset library live in `~/Library/Application Support/rustpg2d`.
+
+All of them need a graphics driver with OpenGL 3 (a virtual machine needs 3D acceleration), and every editor exports games for all four platforms. The welcome screen's **Example project** copies the bundled example to `~/rustpg2d/example_project` (Windows: `%USERPROFILE%\rustpg2d\example_project`) and opens it. Contributing: branches, versions and releases are described in [AGENTS.md](AGENTS.md).
 
 - **Tile maps** up to 1024×1024 tiles, any number of layers (overhead layers draw above characters), stored chunked and sparse.
 - **Editor** for maps (brush/stamp, rectangle, flood fill, erase, eyedropper, collision painting, undo/redo), entities, zones and transitions, plus a database editor for items, props, characters, tilesets, sprite sheets, project settings and scripts.
@@ -30,13 +35,14 @@ Current version: **0.8.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed
 - **Inventory & containers**: slot-based inventory (size set per project, stack size per item) with a grid window (drag to rearrange, double-click to use/equip). Chests, barrels etc. are lootable containers: a window shows the container next to your inventory and you choose what to take (or store things in it). Size, starting contents, lock conditions and an "opened" sprite frame are set in the editor; contents are saved.
 - **Mouse controls**: left-click a tile to walk there (A* pathfinding), left-click an enemy to attack it, right-click an NPC/item/prop to walk over and interact; dialogs, choices and the inventory are clickable.
 - **Enemy spawners**: invisible zones placed in the editor that keep a group of characters alive, with a respawn mode per spawner: never (defeated enemies stay dead, saved), every time the map is entered, or after N seconds.
+- **Languages**: games can be translated — a translation template with every text of the game (*Database › Project › Languages*), `lang/<code>.ron` files with the translations, *Options › Language* for players (the system's / browser's language by default). R(ust)PG2D's own texts (menus, windows, messages) come translated for German; the example project is fully playable in German.
 - **Audio**: sound effects and per-map looping music (WAV or Ogg Vorbis) that loops **without a gap**, built-in sounds for pickups, attacks, hits, dialogs and doors.
 - **Animated tiles**: per-tileset frame animations (e.g. water), shown in the game and the editor.
 - **Safe renaming**: renaming an item, prop, character, tileset, sprite sheet, sound or map updates every reference in the project.
 
 ## Quick start
 
-Building needs a Rust toolchain and the ALSA and udev headers (Debian / Ubuntu: `sudo apt install libasound2-dev libudev-dev`; Fedora: `alsa-lib-devel systemd-devel`).
+Building needs a Rust toolchain; on Linux also the ALSA and udev headers (Debian / Ubuntu: `sudo apt install libasound2-dev libudev-dev`; Fedora: `alsa-lib-devel systemd-devel`). On Windows the MSVC toolchain (Visual Studio Build Tools) builds everything; on macOS the Xcode command line tools (`xcode-select --install`). The editor's export uses the game runner of the machine it runs on and looks for the others next to itself or in `target/` (see *Releasing a game*); `cargo xtask-dist` packages the downloads (AGENTS.md).
 
 ```sh
 cargo run -p rustpg2d-engine --example gen_example   # (re)generate example_project/
@@ -174,7 +180,7 @@ The **ribbon** under the menu holds the tools as icon buttons in groups (*Edit* 
 
 ### Releasing a game
 
-*File → Export game (standalone)…* saves the project and writes a bundle that runs without the editor or Rust:
+*File → Export game (standalone)…* saves the project and writes a bundle that runs without the editor or Rust, for **Linux**, **Windows**, **macOS** and / or the **Web** (*Platforms* in the dialog; editor scripts: `exportgame` / `exportwin` / `exportmac` / `exportweb` / `exportall OUT [NAME]`):
 
 ```
 releases/<game-name>/
@@ -182,12 +188,19 @@ releases/<game-name>/
   data/            project.ron, defs/, maps/, scripts/ and only the images / sounds in use
   README.txt
   rustpg2d-LICENSE.txt   the MIT license of the R(ust)PG2D engine (the game executable)
-releases/<game-name>-linux.zip          (optional, to share)
+releases/<game-name>-windows/           (Windows: <game-name>.exe, data\, README.txt, license)
+releases/<game-name>-macos/             (macOS: <Game Name>.app, README.txt, license)
+releases/<game-name>-web/               (browsers: index.html and its files)
+releases/<game-name>-linux.zip          (optional, to share; also -windows, -macos, -web)
 releases/<game-name>-x86_64.AppImage    (optional, Linux package)
 releases/<game-name>.flatpak            (optional, Linux package)
 ```
 
-The executable is a copy of `rustpg2d-game`; started without arguments it runs the `data/` folder next to it, titles the window with the game name and keeps save games in `~/.local/share/<game-name>/saves` (the bundle folder may be read-only). Save games of the project are never shipped. The export checks the project first (start map must exist; missing files and an unset player are reported) and replaces an earlier export in the same place, but never touches other folders. Build the game in release mode first (`cargo build --release -p rustpg2d-game`) — the editor picks `target/release/rustpg2d-game` when it exists and warns when only a debug build is available. The bundle targets the platform it was built on (Linux x86_64 here) and needs the usual system libraries (OpenGL, X11/Wayland, ALSA). The game executable runs on **glibc 2.34 or newer** — Debian 12, Ubuntu 22.04, Fedora 35, RHEL / Rocky / Alma 9 and later — even when R(ust)PG2D is built on a newer rolling-release system (the export dialog shows what the executable needs).
+The executable is a copy of `rustpg2d-game`; started without arguments it runs the `data/` folder next to it, titles the window with the game name and keeps save games in `~/.local/share/<game-name>/saves` (the bundle folder may be read-only). Save games of the project are never shipped. The export checks the project first (start map must exist; missing files and an unset player are reported) and replaces an earlier export in the same place, but never touches other folders. Build the game in release mode first (`cargo build --release -p rustpg2d-game`) — the editor picks `target/release/rustpg2d-game` when it exists and warns when only a debug build is available. The Linux bundle runs on x86_64 and needs the usual system libraries (OpenGL, X11/Wayland, ALSA). The game executable runs on **glibc 2.34 or newer** — Debian 12, Ubuntu 22.04, Fedora 35, RHEL / Rocky / Alma 9 and later — even when R(ust)PG2D is built on a newer rolling-release system (the export dialog shows what the executable needs).
+
+**Windows games** (Windows 10 / 11, 64-bit): players unzip the folder and double-click `<game-name>.exe`; save games go to `%APPDATA%\<game-name>\saves`, settings to `%APPDATA%\rustpg2d\<game-name>`. The executable is a copy of `rustpg2d-game.exe`, which every R(ust)PG2D download ships next to the editor, so the Linux and macOS editors export Windows games without any Windows tools. It isn't code-signed: Windows SmartScreen shows "Windows protected your PC" the first time — *More info*, *Run anyway* (the README in the bundle says so). Gamepads work through Windows' own gamepad support. From source, build the Windows runner with `rustup target add x86_64-pc-windows-gnu`, the MinGW-w64 cross compiler (`gcc-mingw-w64-x86-64` on Debian / Ubuntu, `mingw-w64-gcc` on Arch) and `cargo build --release --target x86_64-pc-windows-gnu -p rustpg2d-game`; the editor finds it in `target/x86_64-pc-windows-gnu/release/`. The game needs a graphics driver with OpenGL; in a virtual machine without 3D acceleration it says so in a message box instead of starting.
+
+**macOS games** (macOS 11 or newer, Apple Silicon and Intel): the bundle is an application, `<Game Name>.app` (the game's name; the data is inside it in `Contents/Resources/data`, its icon is the one chosen under *Icon*, else the player character). Players unzip it, drag it into *Applications* and open it; save games go to `~/Library/Application Support/<game-name>/saves`, settings to `~/Library/Application Support/rustpg2d/<game-name>`. The executable is a copy of the universal game runner (`rustpg2d-game-macos` next to the Linux and Windows editors; the macOS editor uses its own), so every editor exports macOS games without a Mac. The export signs the app ad hoc (as `codesign --sign -` would: the bundle is sealed and passes `codesign --verify`), but it isn't signed with an Apple developer certificate nor notarized, so macOS may refuse the first start of a downloaded copy ("Apple could not verify …"): the player then opens *System Settings › Privacy & Security* and chooses *Open Anyway* (on macOS 14 and older: right-click the app, *Open*), or runs `xattr -dr com.apple.quarantine "/Applications/<Game Name>.app"` in Terminal; the README in the bundle explains it. From source, the runner can only be built on a Mac (with Rust and the Xcode command line tools): `rustup target add aarch64-apple-darwin x86_64-apple-darwin`, `cargo build --release -p rustpg2d-game --target aarch64-apple-darwin`, the same for `x86_64-apple-darwin`, then `lipo -create -output rustpg2d-game-macos target/aarch64-apple-darwin/release/rustpg2d-game target/x86_64-apple-darwin/release/rustpg2d-game`; copy it to `target/release/rustpg2d-game-macos` on the editor's machine. CI's *macOS* job builds it for the packages. Likewise the Windows and macOS editors look for the Linux runner as `rustpg2d-game-linux` (`target/release/` in a source build).
 
 **Linux packages** (ticked in the export dialog, built from the bundle):
 
@@ -195,6 +208,27 @@ The executable is a copy of `rustpg2d-game`; started without arguments it runs t
 - **Flatpak bundle** — a sandboxed single file: players install it with `flatpak install --user <game>.flatpak` (Flatpak fetches the freedesktop runtime from Flathub) and start it from the app menu or with `flatpak run <app id>`; saves go to `~/.var/app/<app id>/data/<game>/saves`. Needs the `flatpak` command on the creator's machine (not the runtime). Set the **app id** (default `org.rustpg2d.<game>`; games exported before the rename used `org.rust2d.<game>` — keep that id for their updates, or players' saves stay with the old app) and the **runtime** (freedesktop 25.08 or 26.08) in the dialog. The game gets a window (X11; XWayland on Wayland desktops), sound and device access (the GPU and gamepads) — nothing else.
 
 Both get a desktop entry and an **icon**: the player character, drawn large, or a PNG picked in the dialog.
+
+**Web** (*Platforms › Web* in the export dialog; editor script `exportweb OUT [NAME]`): the game for browsers, written to `releases/<game-name>-web/` — `index.html`, `rustpg2d-game.wasm` (the game runner compiled to WebAssembly), `mq_js_bundle.js` (macroquad's loader), `rustpg2d.js` (R(ust)PG2D's browser storage), `data.pack` (all of the game's files in one download) — and, with *.zip*, `<game-name>-web.zip` with those files at its root: upload it to **itch.io** as an HTML game (*Kind of project: HTML*, *This file will be played in the browser*). Browsers don't run WebAssembly from `file://` pages, so to try it locally serve the folder, e.g. `python3 -m http.server` in it and open http://localhost:8000. It runs in current Firefox, Chrome / Chromium / Brave / Edge and Safari with WebGL: a loading screen, then the title screen. Save games, settings and achievements stay in the player's browser (`localStorage` of the page's site, separately per game folder); clearing the site data deletes them. Sound starts with the first click or key press (browsers block it before), loops seamlessly, right-click is game input (no browser context menu over the page), and the title screen has no *Exit* (close the tab). Gamepads, the developer console and script hot reload aren't available in the web game yet. The download is about 12 MB (the game runner ~9 MB, less when the server compresses it). The R(ust)PG2D packages ship `rustpg2d-game.wasm` next to the editor; from source: `rustup target add wasm32-unknown-unknown` and `cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game` (the editor finds it in `target/wasm32-unknown-unknown/release/`).
+
+### Languages
+
+A game is written in one language (*Database › Project › Languages › Written in*, a code like `en`) and can offer translations. **Export translation template** with a language code (`de`, `fr`, `pt-br`, …) writes `lang/<code>.ron` into the project: every text players see — names and descriptions of items, props, characters, quests (and their stages), skills, spells and achievements, the game's name, the dialog and choice texts of all triggers (definitions, maps, map objects, zones) and the texts scripts pass to `say` / `choice` — each with an empty translation:
+
+```
+(
+    name: "Deutsch",
+    texts: {
+        "Apple": "Apfel",
+        "Welcome to Emberbrook, {player}.": "Willkommen in Glutbach, {player}.",
+        "Halt, traveller!": "",
+    },
+)
+```
+
+Fill in the translations with any text editor; placeholders (`{player}`, `{sir|madam}` — here the German pair —, `{variable}`) stay in. An empty or missing translation shows the original text. **Update template** after changing the game keeps every translation already made, adds new texts and reports the ones no longer used (they stay in the file until deleted by hand); the list shows how many texts each language has translated. *Play-test in* starts play-tests in a chosen language (`rustpg2d-game --lang de`).
+
+Players choose the language in *Options › Language* (saved with their settings); by default the game starts in the system's language (`LANG`; in the web version the browser's) when it offers it, else in its own. R(ust)PG2D's own texts — menus, windows, the HUD, messages — come translated for **German**; a project's `lang/<code>.ron` can add or replace them in a `ui: { "English text": "translation" }` section (`{}` stands for a value: `"Lv {}": "St. {}"`). The game font covers Latin-1 (ä, ö, ü, ß, é, ñ, …), not other scripts. Exports carry the translation files. The example project offers German for all its 314 texts.
 
 ### Asset library, packages and the pixel editor
 
@@ -334,7 +368,7 @@ crates/xtask    `cargo xtask`: dist, check-version, check-branch, release-notes 
 - `audio.rs`: sound loading/playback on top of macroquad (WAV and Ogg Vorbis; files are validated first so a broken sound can't crash the game, and other formats are reported by name), gapless music loops (decoded with `lewton` / a WAV reader, stretched to whole mixer buffers) and a small WAV encoder used by the example generator for its sound effects (its music is Ogg Vorbis, encoded with `vorbis_rs`).
 - `refactor.rs`: rewrites id references in definitions, config and maps for renames.
 - `migrate.rs`: converts projects saved with another tile size to 32 px (see above).
-- `release.rs`: standalone bundles (project check, copying the files in use, zip) and finding the bundled `data/` folder at game start.
+- `release.rs`: standalone bundles per platform (project check, copying the files in use, the macOS `.app` with Info.plist and icon, zip) and finding the bundled `data/` folder at game start (next to the executable, or in the app's `Contents/Resources`); `macsign.rs` signs macOS apps ad hoc on any platform.
 - `library.rs`: asset bundles (dependency collection, `.r2dpack` packages, enlarging old 16 px packages, conflict-aware merging) and the shared library folder; `imageio.rs`: PNG decode / encode for it and the editor's pixel editor. The editor embeds `crates/editor/assets/starter.r2dpack`, which `gen_example` builds from the example project.
 
 ## Testing
@@ -363,7 +397,8 @@ RUSTPG2D_EDITOR_SCRIPT="open village; region 16 2 10 7; copy; open forest; paste
 ## Limitations / ideas
 
 - Enemies placed directly on a map stay dead once defeated; use a spawner zone for respawning enemies.
-- Native file dialogs need a running xdg-desktop-portal (standard on GNOME/KDE desktops); paths can always be typed by hand.
+- Native file dialogs need a running xdg-desktop-portal on Linux (standard on GNOME/KDE desktops); paths can always be typed by hand. On macOS a file dialog is modal: the editor waits until it closes.
+- Windows and macOS builds aren't signed with a publisher certificate (Windows SmartScreen and macOS Gatekeeper ask once).
 
 ## License
 

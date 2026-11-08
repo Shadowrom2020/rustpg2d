@@ -30,6 +30,7 @@ mod paperdoll;
 mod npc_items;
 mod npc_use;
 mod shop_ui;
+mod text;
 mod crafting_ui;
 mod locks;
 mod menu;
@@ -64,6 +65,7 @@ use combat::{PlayerCombat, Projectile};
 use mouse::Order;
 use spawner::SpawnerRt;
 use ui::Ui;
+use text::{draw_text};
 
 /// Callback collecting `(once-key, triggers, owner)` while gathering event handlers.
 type TriggerSink<'a> = dyn FnMut(String, &[Trigger], Option<u32>) + 'a;
@@ -97,6 +99,8 @@ pub struct StartOptions {
     /// Developer play-test (`--dev`, started by the editor): script hot reload and the F4
     /// console.
     pub dev: bool,
+    /// Start in this language (`--lang CODE`), whatever the player's settings say.
+    pub lang: Option<String>,
 }
 
 /// A moving thing: the player or a runtime entity.
@@ -228,6 +232,11 @@ enum Source {
 
 pub struct Game {
     pub project: Project,
+    /// The database as written (`project.db` is it translated into the current language).
+    db_original: crate::defs::Database,
+    /// The languages the game offers (code, name) and the current one.
+    languages: Vec<(String, String)>,
+    lang_code: String,
     pub assets: Assets,
     pub audio: Audio,
     combat: PlayerCombat,
@@ -354,7 +363,11 @@ impl Game {
             anim: 0.0,
             move_target: None,
         };
+        let languages = crate::lang::offered(&project.root, &project.config);
         let mut game = Game {
+            db_original: project.db.clone(),
+            lang_code: project.config.language.clone(),
+            languages,
             light_pass: None,
             weather_fx: Default::default(),
             skills: Default::default(),
@@ -428,6 +441,12 @@ impl Game {
         game.scripts.set_recipes(game.project.db.recipes.clone(), game.project.db.tool_kinds());
         game.load_achievements();
         game.settings = crate::settings::Settings::load(&game.project.config.name);
+        // The language: --lang, else the player's choice, else the system's if the game has it.
+        let offered = |c: &str| game.languages.iter().any(|(o, _)| o == c);
+        let lang = start.lang.clone().filter(|c| offered(c)).or_else(|| game.settings.language.clone().filter(|c| offered(c))).or_else(|| crate::lang::system_language().filter(|c| offered(c)));
+        if let Some(code) = lang {
+            game.set_language(&code);
+        }
         game.apply_settings();
         game.world.player_hp = Some(game.combat.max_hp);
         game.world.hour = game.project.config.start_hour;
@@ -974,6 +993,24 @@ impl Game {
     }
 
     /// Display name of an entity on this map: its definition's name (character, prop, item).
+    /// Switches the game's language: content (the database's names and descriptions, dialog
+    /// texts through `expand_text`) and the runtime's own texts. The game's own language undoes
+    /// any translation.
+    pub fn set_language(&mut self, code: &str) {
+        if code == self.project.config.language {
+            crate::lang::set(None);
+        } else {
+            crate::lang::set(Some(crate::lang::Translations::new(code, crate::lang::load_file(&self.project.root, code))));
+        }
+        self.lang_code = code.to_string();
+        self.project.db = crate::lang::translate_db(&self.db_original);
+    }
+
+    /// `status()`: the current language's code.
+    pub fn lang_status(&self) -> &str {
+        &self.lang_code
+    }
+
     fn entity_display_name(&self, uid: u32) -> Option<String> {
         let e = self.loaded.entities.iter().find(|e| e.uid == uid)?;
         let db = &self.project.db;
@@ -1704,7 +1741,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={}",
+            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={}",
             self.dev_status(),
             self.weather_status(),
             self.menu_status(),
@@ -1750,6 +1787,7 @@ impl Game {
                 let (a, m) = (&self.assets, &self.loaded.map.parallax);
                 format!("{}behind,{}above", render::parallax::count(a, m, false), render::parallax::count(a, m, true))
             },
+            self.lang_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -1797,8 +1835,7 @@ impl Game {
         self.sync_world();
         self.world.saved_at = menu::now_secs();
         let dir = self.project.saves_dir();
-        std::fs::create_dir_all(&dir)?;
-        std::fs::write(dir.join(format!("{slot}.ron")), self.world.to_ron()?)?;
+        crate::sys::write(&dir.join(format!("{slot}.ron")), self.world.to_ron()?.as_bytes())?;
         self.request_thumbnail(slot);
         Ok(())
     }
@@ -1823,7 +1860,7 @@ impl Game {
     fn autosave_status(&self) -> &'static str {
         if self.autosave_pending {
             "pending"
-        } else if self.project.saves_dir().join(format!("{AUTOSAVE}.ron")).exists() {
+        } else if crate::sys::exists(&self.project.saves_dir().join(format!("{AUTOSAVE}.ron"))) {
             "saved"
         } else {
             "none"
@@ -1831,7 +1868,7 @@ impl Game {
     }
 
     pub fn load_game(&mut self, slot: &str) -> Result<()> {
-        let s = std::fs::read_to_string(self.project.saves_dir().join(format!("{slot}.ron")))?;
+        let s = crate::sys::read_to_string(&self.project.saves_dir().join(format!("{slot}.ron")))?;
         let world = WorldState::from_ron(&s)?;
         self.slot = Some(slot.to_string());
         self.ui_hidden = false;

@@ -7,6 +7,7 @@ use crate::defs::{EquipSlot, LightSpec};
 use crate::entity::EntityKind;
 use crate::map::LightMode;
 use crate::render::lighting::Light;
+use super::text::{draw_text, measure_text};
 
 impl Game {
     /// Light of a placed entity: its own, else its definition's (props: of the current state).

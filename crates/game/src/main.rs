@@ -1,6 +1,8 @@
 //! R(ust)PG2D game runner.
+// No console window on Windows (output goes to the terminal it was started from, if any).
+#![cfg_attr(windows, windows_subsystem = "windows")]
 //!
-//! Usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--dev]
+//! Usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--dev] [--lang CODE]
 //!
 //! Without PROJECT_DIR a released game runs the project in `data/` next to the executable
 //! (saves in `~/.local/share/<game>/saves`); otherwise `example_project` is used.
@@ -13,8 +15,22 @@ use rustpg2d_engine::project::{Project, ProjectConfig};
 use rustpg2d_engine::release;
 use rustpg2d_engine::runtime::{Game, StartOptions};
 
-/// Project folder and whether it is the bundle next to the executable.
+/// Output of automated runs and errors: the terminal, or the browser console in the web game.
+macro_rules! say {
+    ($($t:tt)*) => {{
+        #[cfg(not(target_arch = "wasm32"))]
+        println!($($t)*);
+        #[cfg(target_arch = "wasm32")]
+        macroquad::logging::info!($($t)*);
+    }};
+}
+
+/// Project folder and whether it is the bundle next to the executable (the web game: the
+/// files of `data.pack`, mounted as `data/`).
 fn default_root() -> (PathBuf, bool) {
+    if cfg!(target_arch = "wasm32") {
+        return (PathBuf::from("data"), true);
+    }
     match release::bundled_root() {
         Some(r) => (r, true),
         None => (PathBuf::from("example_project"), false),
@@ -26,7 +42,7 @@ fn root_arg() -> Option<PathBuf> {
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
-            "--map" | "--spawn" | "--pos" | "--cutscene" => {
+            "--map" | "--spawn" | "--pos" | "--cutscene" | "--lang" => {
                 args.next();
             }
             s if s.starts_with('-') => {}
@@ -47,6 +63,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
             "--map" => start.map = Some(value()?),
             "--no-title" => no_title = true,
             "--dev" => start.dev = true,
+            "--lang" => start.lang = Some(value()?),
             "--engine-build" => {}
             "--spawn" => start.spawn = Some(value()?),
             "--cutscene" => start.cutscene = Some(value()?),
@@ -56,7 +73,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
                 start.pos = Some(vec2(x.trim().parse()?, y.trim().parse()?));
             }
             "-h" | "--help" => {
-                println!("usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--cutscene FUNCTION] [--dev]");
+                println!("usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--cutscene FUNCTION] [--dev] [--lang CODE]");
                 std::process::exit(0);
             }
             s if s.starts_with('-') => bail!("unknown option {s}"),
@@ -69,6 +86,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
 }
 
 fn window_conf() -> Conf {
+    rustpg2d_engine::desktop::startup("The game");
     if std::env::args().any(|a| a == "--engine-build") {
         println!("{}", rustpg2d_engine::ENGINE_BUILD);
         std::process::exit(0);
@@ -81,8 +99,11 @@ fn window_conf() -> Conf {
         .map(|c| c.name)
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "R(ust)PG2D".to_owned());
+    // The window icon: the player character, else R(ust)PG2D's emblem.
+    let icon = Project::load(&root).ok().and_then(|p| rustpg2d_engine::icon::hero_icon(&p)).unwrap_or_else(rustpg2d_engine::icon::emblem);
     Conf {
         window_title: title,
+        icon: Some(rustpg2d_engine::icon::window_icon(&icon)),
         window_width: 1280,
         window_height: 720,
         high_dpi: true,
@@ -90,16 +111,70 @@ fn window_conf() -> Conf {
     }
 }
 
+/// The web game: fetches `data.pack` (every file of the game, written by the web export) and
+/// mounts it as `data/`, showing a loading screen meanwhile.
+#[cfg(target_arch = "wasm32")]
+async fn web_mount() -> Result<()> {
+    loading_screen("Loading...", None);
+    next_frame().await;
+    let pack = load_file("data.pack").await.map_err(|e| anyhow::anyhow!("data.pack: {e}"))?;
+    let files: Vec<(String, Vec<u8>)> = rustpg2d_engine::release::read_web_pack(&pack)?;
+    rustpg2d_engine::sys::web::mount(files.into_iter().map(|(k, v)| (format!("data/{k}"), v)).collect());
+    Ok(())
+}
+
+/// A plain loading screen (the web game, before the game itself runs).
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn loading_screen(text: &str, progress: Option<f32>) {
+    clear_background(Color::from_rgba(12, 12, 18, 255));
+    let w = measure_text(text, None, 28, 1.0).width;
+    draw_text(text, (screen_width() - w) / 2.0, screen_height() / 2.0 - 10.0, 28.0, LIGHTGRAY);
+    if let Some(p) = progress {
+        let (bw, x, y) = (300.0, (screen_width() - 300.0) / 2.0, screen_height() / 2.0 + 10.0);
+        draw_rectangle_lines(x, y, bw, 10.0, 2.0, GRAY);
+        draw_rectangle(x + 2.0, y + 2.0, (bw - 4.0) * p.clamp(0.0, 1.0), 6.0, LIGHTGRAY);
+    }
+}
+
+/// The web game can't start: the reason on the canvas (and in the browser console).
+#[cfg(target_arch = "wasm32")]
+async fn web_failed(e: anyhow::Error) {
+    macroquad::logging::error!("{e:#}");
+    loop {
+        loading_screen(&format!("The game could not start: {e}"), None);
+        next_frame().await;
+    }
+}
+
 #[macroquad::main(window_conf)]
 async fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        std::panic::set_hook(Box::new(|info| {
+            macroquad::logging::error!("{info}");
+        }));
+        if let Err(e) = web_mount().await {
+            return web_failed(e).await;
+        }
+    }
+    let project = parse_args().and_then(|(root, start)| Ok((Project::load(&root).with_context(|| format!("loading project {}", root.display()))?, start)));
+    // The web game: sounds decode asynchronously in the browser; load them before the game.
+    #[cfg(target_arch = "wasm32")]
+    if let Ok((p, _)) = &project {
+        let mut shown = 0.0;
+        rustpg2d_engine::audio::preload(p, |done, total| {
+            shown = done as f32 / total.max(1) as f32;
+            loading_screen("Loading sounds...", Some(shown));
+        })
+        .await;
+    }
     let result = (|| -> Result<Game> {
-        let (root, mut start) = parse_args()?;
+        let (project, mut start) = project?;
         // A released game (the bundle next to the executable) never gets the developer console.
         if start.dev && root_arg().is_none() && default_root().1 {
             eprintln!("[game] --dev is only for play-tests from the editor");
             start.dev = false;
         }
-        let project = Project::load(&root).with_context(|| format!("loading project {}", root.display()))?;
         // A released game may live in a read-only folder: keep saves in the user's data folder.
         if root_arg().is_none() && default_root().1 {
             if let Some(dir) = release::user_saves_dir(&project.config.name) {
@@ -111,14 +186,24 @@ async fn main() {
     let mut game = match result {
         Ok(g) => g,
         Err(e) => {
-            eprintln!("error: {e:#}");
-            std::process::exit(1);
+            #[cfg(target_arch = "wasm32")]
+            return web_failed(e).await;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                eprintln!("error: {e:#}");
+                std::process::exit(1);
+            }
         }
     };
     // Debug aids:
     //   RUSTPG2D_SHOT=out.png        screenshot after ~1s, then exit
     //   RUSTPG2D_AUTOPLAY="hold right 2; press e; wait 1; shot a.png; status; quit"
-    let mut auto = match (std::env::var("RUSTPG2D_AUTOPLAY"), std::env::var("RUSTPG2D_SHOT")) {
+    //   the web game: index.html?autoplay=wait 2; status (output in the browser console)
+    #[cfg(target_arch = "wasm32")]
+    let web_script = rustpg2d_engine::sys::web::query().strip_prefix("autoplay=").map(str::to_string).ok_or(std::env::VarError::NotPresent);
+    #[cfg(not(target_arch = "wasm32"))]
+    let web_script: Result<String, std::env::VarError> = Err(std::env::VarError::NotPresent);
+    let mut auto = match (std::env::var("RUSTPG2D_AUTOPLAY").or(web_script), std::env::var("RUSTPG2D_SHOT")) {
         (Ok(script), _) => Some(Autoplay::parse(&script)),
         (_, Ok(path)) => Some(Autoplay::parse(&format!("wait 1; shot {path}; quit"))),
         _ => None,
@@ -163,7 +248,7 @@ async fn main() {
             break;
         }
         if let Some(path) = auto.as_mut().and_then(|a| a.shot.take()) {
-            get_screen_data().export_png(&path);
+            save_shot(&path);
         }
         next_frame().await;
     }
@@ -229,7 +314,7 @@ impl Autoplay {
             }
             *left -= get_frame_time();
             if *left <= 0.0 {
-                println!("[autoplay] minigame: '{probe}' never came");
+                say!("[autoplay] minigame: '{probe}' never came");
                 self.until = None;
             }
             inject(&[], &[]);
@@ -267,7 +352,7 @@ impl Autoplay {
                 "pad" | "padhold" => {
                     let buttons: Vec<Pad> = arg(1).split('+').filter_map(Pad::from_name).collect();
                     if buttons.is_empty() {
-                        println!("[autoplay] pad: unknown button '{}'", arg(1));
+                        say!("[autoplay] pad: unknown button '{}'", arg(1));
                         continue;
                     }
                     if arg(0) == "pad" {
@@ -302,7 +387,7 @@ impl Autoplay {
                 // wintab character|skills|spells: click a tab of the open character window
                 "wintab" => {
                     let Some(p) = game.window_tab_pos(arg(1)) else {
-                        println!("[autoplay] wintab: no such tab (or the window is closed)");
+                        say!("[autoplay] wintab: no such tab (or the window is closed)");
                         continue;
                     };
                     click(&mut self.mouse_frames, p, MouseButton::Left);
@@ -311,7 +396,7 @@ impl Autoplay {
                 // opt ROW prev|next|row: click the "<" / ">" arrows (or the label) of an Options row
                 "opt" => {
                     let Some(p) = game.option_click_pos(secs(1) as usize, arg(2)) else {
-                        println!("[autoplay] opt: Options page not open");
+                        say!("[autoplay] opt: Options page not open");
                         continue;
                     };
                     click(&mut self.mouse_frames, p, MouseButton::Left);
@@ -329,7 +414,7 @@ impl Autoplay {
                 // shop buy|sell ROW [shift]: click the trade button of a row in the open shop
                 "shop" => {
                     let Some(p) = game.shop_button_pos(arg(1), secs(2) as usize) else {
-                        println!("[autoplay] shop: no {} row {}", arg(1), arg(2));
+                        say!("[autoplay] shop: no {} row {}", arg(1), arg(2));
                         continue;
                     };
                     click(&mut self.mouse_frames, p, MouseButton::Left);
@@ -349,7 +434,7 @@ impl Autoplay {
                 // craft K: click the Make button of recipe row K in the crafting window
                 "craft" => {
                     let Some(p) = game.crafting_button_pos(secs(1) as usize) else {
-                        println!("[autoplay] craft: no recipe row {}", arg(1));
+                        say!("[autoplay] craft: no recipe row {}", arg(1));
                         continue;
                     };
                     click(&mut self.mouse_frames, p, MouseButton::Left);
@@ -358,7 +443,7 @@ impl Autoplay {
                 // mapbtn close|zoomin|zoomout|center: click a button of the open map screen
                 "mapbtn" => {
                     let Some(p) = game.world_map_button_pos(arg(1)) else {
-                        println!("[autoplay] mapbtn: map screen not open");
+                        say!("[autoplay] mapbtn: map screen not open");
                         continue;
                     };
                     click(&mut self.mouse_frames, p, MouseButton::Left);
@@ -409,14 +494,14 @@ impl Autoplay {
                     self.shot = Some(arg(1).to_string());
                     return true;
                 }
-                "status" => println!("[autoplay] {} order={}", game.status(), game.order_debug()),
+                "status" => say!("[autoplay] {} order={}", game.status(), game.order_debug()),
                 // console LINE: runs a developer console line (needs --dev), like typing it after F4
                 "console" => {
                     self.console.push(cmd[1..].join(" "));
                     // Runs before the next command (e.g. a status right after it).
                     return true;
                 }
-                "spawners" => println!("[autoplay] spawners: {}", game.spawner_status()),
+                "spawners" => say!("[autoplay] spawners: {}", game.spawner_status()),
                 // settime H: jump to a time of day (hours)
                 // settime H: the hour · settime +H: H hours later (days pass, props regrow)
                 "settime" => match arg(1).strip_prefix('+') {
@@ -432,9 +517,31 @@ impl Autoplay {
                     self.close = true;
                     return true;
                 }
-                other => eprintln!("[autoplay] unknown command '{other}'"),
+                other => say!("[autoplay] unknown command '{other}'"),
             }
         }
         true
+    }
+}
+
+/// `shot PATH`: the screen as a PNG file; in the web game logged to the browser console as
+/// `[shot] PATH data:image/png;base64,…` (automated runs read it from there).
+fn save_shot(path: &str) {
+    #[cfg(not(target_arch = "wasm32"))]
+    get_screen_data().export_png(path);
+    #[cfg(target_arch = "wasm32")]
+    {
+        let shot = get_screen_data();
+        let (w, h) = (shot.width as u32, shot.height as u32);
+        let mut img = rustpg2d_engine::imageio::Rgba::new(w, h);
+        // (Screen data comes bottom row first.)
+        for y in 0..h {
+            let src = ((h - 1 - y) * w * 4) as usize;
+            img.px[(y * w * 4) as usize..((y + 1) * w * 4) as usize].copy_from_slice(&shot.bytes[src..src + (w * 4) as usize]);
+        }
+        match img.encode() {
+            Ok(png) => say!("[shot] {path} data:image/png;base64,{}", rustpg2d_engine::sys::base64(&png)),
+            Err(e) => say!("[shot] {path} failed: {e}"),
+        }
     }
 }

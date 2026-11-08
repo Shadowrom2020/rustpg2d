@@ -339,12 +339,19 @@ impl Pad {
 }
 
 /// Stick deflection that counts as a direction (and the lower one that keeps it held).
+#[cfg(not(target_arch = "wasm32"))]
 const STICK_ON: f32 = 0.5;
+#[cfg(not(target_arch = "wasm32"))]
 const STICK_OFF: f32 = 0.35;
 
 #[derive(Default)]
 struct PadState {
-    gilrs: Option<gilrs::Gilrs>,
+    /// (No gilrs in the web game: browsers' gamepads aren't read yet.) Never dropped: on Windows,
+    /// gilrs joins its event thread when dropped, which panics during process exit (thread-local
+    /// destructors run after the other threads are gone).
+    #[cfg(not(target_arch = "wasm32"))]
+    gilrs: Option<std::mem::ManuallyDrop<gilrs::Gilrs>>,
+    #[cfg(not(target_arch = "wasm32"))]
     started: bool,
     /// Buttons held now / last frame (bits of [`Pad::bit`]).
     down: u32,
@@ -362,20 +369,36 @@ thread_local! {
 /// Reads the gamepads; call once per frame before the game looks at input. Without gamepad
 /// support (no udev, no permission) it quietly does nothing.
 pub fn poll_pad() {
-    use gilrs::{Axis, Button};
     PAD.with(|p| {
         let mut p = p.borrow_mut();
+        let prev = p.down;
+        let (down, name) = read_gamepads(&mut p, prev);
+        p.prev = prev;
+        p.down = down;
+        p.name = name;
+    });
+}
+
+/// The buttons held on connected gamepads (with the left stick as a d-pad) and the first one's name.
+#[cfg(target_arch = "wasm32")]
+fn read_gamepads(_: &mut PadState, _: u32) -> (u32, String) {
+    (0, String::new())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_gamepads(p: &mut PadState, prev: u32) -> (u32, String) {
+    use gilrs::{Axis, Button};
+    {
         if !p.started {
             p.started = true;
             p.gilrs = match gilrs::Gilrs::new() {
-                Ok(g) => Some(g),
+                Ok(g) => Some(std::mem::ManuallyDrop::new(g)),
                 Err(e) => {
                     eprintln!("[input] gamepads unavailable: {e}");
                     None
                 }
             };
         }
-        let prev = p.down;
         let mut down = 0;
         let mut name = String::new();
         if let Some(g) = &mut p.gilrs {
@@ -417,10 +440,8 @@ pub fn poll_pad() {
                 }
             }
         }
-        p.prev = prev;
-        p.down = down;
-        p.name = name;
-    });
+        (down, name)
+    }
 }
 
 /// Sets gamepad buttons held and pressed (this frame) in addition to a real gamepad.

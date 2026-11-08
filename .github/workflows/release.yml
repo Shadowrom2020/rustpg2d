@@ -1,9 +1,11 @@
-# A merge into master is a release (AGENTS.md): build the AppImage and Flatpak of the R(ust)PG2D
-# toolkit, tag the merge commit vX.Y.Z (the version in Cargo.toml, checked by CI before the
-# merge), publish a GitHub Release with the CHANGELOG section and the packages, and open the
-# pull request that merges master back into develop.
-# Run by hand (Actions > Release > Run workflow, any branch) it only builds the packages and
-# uploads them as an artifact - to try packaging changes before a release; tags and releases are
+# A merge into master is a release (AGENTS.md): build the R(ust)PG2D downloads (AppImage, Flatpak,
+# Windows zip, macOS app), tag the merge commit vX.Y.Z (the version in Cargo.toml, checked by CI
+# before the merge), publish a GitHub Release with the CHANGELOG section and the downloads, and
+# open the pull request that merges master back into develop.
+#   macos-build (a Mac: universal editor + game) -> packages (Linux: everything else, the
+#   unsigned macOS app) -> macos-app (a Mac: signs and zips the app) -> publish
+# Run by hand (Actions > Release > Run workflow, any branch) it only builds the downloads and
+# uploads them as artifacts - to try packaging changes before a release; tags and releases are
 # made only by a push to master.
 name: Release
 
@@ -24,9 +26,15 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
-    name: Release
+  version:
+    name: Version
     runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      exists: ${{ steps.v.outputs.exists }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+      # Build the downloads: a new version, or a manual run.
+      build: ${{ steps.v.outputs.exists == 'false' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,42 +51,70 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
           case "$v" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;; esac
+
+  macos-build:
+    needs: version
+    if: needs.version.outputs.build == 'true'
+    uses: ./.github/workflows/macos-build.yml
+
+  packages:
+    name: Packages
+    needs: [version, macos-build]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-        if: steps.v.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
       - uses: Swatinem/rust-cache@v2
-        if: steps.v.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
         with:
           shared-key: release
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev
-        if: steps.v.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
       - uses: ./.github/actions/packages
-        if: steps.v.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
-      - name: Packages of a manual run
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
           name: rustpg2d-packages
-          path: dist/
+          path: |
+            dist/*.AppImage
+            dist/*.flatpak
+            dist/*.zip
           retention-days: 7
+
+  macos-app:
+    needs: packages
+    uses: ./.github/workflows/macos-app.yml
+
+  publish:
+    name: Publish
+    needs: [version, packages, macos-app]
+    if: github.event_name == 'push' && needs.version.outputs.exists == 'false'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: "{rustpg2d-packages,rustpg2d-macos-app}"
+          merge-multiple: true
+          path: dist
       - name: Tag and GitHub Release
-        if: github.event_name == 'push' && steps.v.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-          V: ${{ steps.v.outputs.version }}
-          PRE: ${{ steps.v.outputs.prerelease }}
+          V: ${{ needs.version.outputs.version }}
+          PRE: ${{ needs.version.outputs.prerelease }}
         run: |
+          (cd dist && sha256sum -- *.AppImage *.flatpak *.zip > SHA256SUMS && cat SHA256SUMS)
           cargo xtask release-notes "$V" > "$RUNNER_TEMP/notes.md"
           git tag "v$V" "$GITHUB_SHA"
           git push origin "v$V"
           flags=()
           if [ "$PRE" = "true" ]; then flags+=(--prerelease); fi
-          gh release create "v$V" dist/*.AppImage dist/*.flatpak dist/SHA256SUMS \
+          gh release create "v$V" dist/*.AppImage dist/*.flatpak dist/*-windows-x86_64.zip dist/*-macos.zip dist/SHA256SUMS \
             --title "R(ust)PG2D $V" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag "${flags[@]}"
       - name: Back-merge pull request (master into develop)
-        if: github.event_name == 'push' && steps.v.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-          V: ${{ steps.v.outputs.version }}
+          V: ${{ needs.version.outputs.version }}
         run: |
           git fetch -q origin develop
           if [ "$(git rev-list --count origin/develop..HEAD)" -eq 0 ]; then

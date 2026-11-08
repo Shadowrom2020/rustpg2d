@@ -401,6 +401,14 @@ pub fn refs_of_structure(d: &crate::defs::StructureDef) -> Vec<(RefKind, String)
     r.found.unwrap_or_default()
 }
 
+/// Every id a trigger list refers to (items, maps, sounds, characters, spells, …).
+pub fn refs_of_triggers(ts: &[Trigger]) -> Vec<(RefKind, String)> {
+    let mut ts = ts.to_vec();
+    let mut r = collector();
+    r.triggers(&mut ts);
+    r.found.unwrap_or_default()
+}
+
 pub fn refs_of_character(d: &crate::defs::CharacterDef) -> Vec<(RefKind, String)> {
     let mut d = d.clone();
     let mut r = collector();

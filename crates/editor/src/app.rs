@@ -144,6 +144,7 @@ pub enum ZoneTemplate {
     Transition,
 }
 
+#[derive(Clone, Copy)]
 pub struct ViewOpts {
     pub grid: bool,
     pub collision: bool,
@@ -320,6 +321,9 @@ pub struct Editor {
     pub file_dialog: Option<files::PendingDialog>,
     /// A form asked for a file dialog this frame.
     pub browse_request: Option<files::Purpose>,
+    /// The AI agent server (Assets › AI agent server…) and the project file watcher.
+    pub mcp: crate::mcp::McpState,
+    pub watch: crate::mcp::watcher::Watch,
 }
 
 impl Editor {
@@ -443,6 +447,8 @@ impl Editor {
             palette_drag: None,
             file_dialog: None,
             browse_request: None,
+            mcp: Default::default(),
+            watch: Default::default(),
             project,
         }
     }
@@ -451,8 +457,10 @@ impl Editor {
     pub fn close_project(&mut self) {
         self.audio.stop_music();
         let rect = self.canvas_rect;
+        let mcp = std::mem::take(&mut self.mcp);
         *self = Editor::empty();
         self.canvas_rect = rect;
+        self.mcp = mcp;
     }
 
     pub fn ts(&self) -> f32 {
@@ -485,7 +493,7 @@ impl Editor {
         }
     }
 
-    fn load_doc(&mut self, map: Map) {
+    pub(crate) fn load_doc(&mut self, map: Map) {
         let ts = self.ts();
         self.cam.center = macroquad::math::vec2(map.width as f32 * ts / 2.0, map.height as f32 * ts / 2.0);
         self.layer = self.layer.min(map.layers.len().saturating_sub(1));
@@ -718,13 +726,21 @@ impl Editor {
     }
 
     pub fn rename_id(&mut self, kind: RefKind, old: &str, new: &str) {
+        match self.try_rename_id(kind, old, new) {
+            Ok(msg) => self.set_status(msg),
+            Err(e) => self.set_status(e),
+        }
+    }
+
+    /// Renames `old` to `new` everywhere (its definition or map file, project settings, every
+    /// map, scripts) and says what changed.
+    pub fn try_rename_id(&mut self, kind: RefKind, old: &str, new: &str) -> Result<String, String> {
         let new = new.trim();
         if new == old || new.is_empty() {
-            return;
+            return Err("the new id is empty or the same as the old one".into());
         }
         if !valid_name(new) {
-            self.set_status("Ids may only contain letters, digits, '_' and '-'");
-            return;
+            return Err("Ids may only contain letters, digits, '_' and '-'".into());
         }
         let db = &mut self.project.db;
         let taken = match kind {
@@ -741,8 +757,7 @@ impl Editor {
             RefKind::Recipe => db.recipes.iter().any(|d| d.id == new),
         };
         if taken {
-            self.set_status(format!("'{new}' is already used"));
-            return;
+            return Err(format!("'{new}' is already used"));
         }
         // The thing itself.
         macro_rules! rename_def {
@@ -765,8 +780,7 @@ impl Editor {
             RefKind::Recipe => rename_def!(db.recipes),
             RefKind::Map => {
                 if let Err(e) = self.project.rename_map_file(old, new) {
-                    self.set_status(format!("Rename failed: {e:#}"));
-                    return;
+                    return Err(format!("Rename failed: {e:#}"));
                 }
                 for m in &mut self.maps {
                     if m == old {
@@ -825,7 +839,7 @@ impl Editor {
         if !errors.is_empty() {
             msg = format!("{msg}; errors: {}", errors.join("; "));
         }
-        self.set_status(msg);
+        Ok(msg)
     }
 
     /// Applies a rename to the project's scripts (backups as `<file>.rhai.bak`). Returns
@@ -969,6 +983,7 @@ impl Editor {
             Ok(mut e) => {
                 self.audio.stop_music();
                 e.canvas_rect = self.canvas_rect;
+                e.mcp = std::mem::take(&mut self.mcp);
                 *self = e;
                 self.fit_view();
                 self.set_status(format!("Opened project {}", root.display()));
@@ -1275,7 +1290,10 @@ impl Editor {
             }
         } else {
             self.menu_bar(ctx);
+            self.watch_project();
+            self.watch_banner(ctx);
         }
+        self.mcp_window(ctx);
         if !self.project_open {
             self.status_bar(ctx);
             self.welcome(ctx);
@@ -1521,6 +1539,10 @@ impl Editor {
                         self.open_library_window();
                         ui.close_menu();
                     }
+                    if ui.button(ui::t(ph::ROBOT, "AI agent server…")).on_hover_text("Lets AI agents (Claude Code, Cursor, …) read and build this project live through the Model Context Protocol").clicked() {
+                        self.mcp.window_open = true;
+                        ui.close_menu();
+                    }
                     ui.separator();
                     if ui.button(ui::t(ph::FLOPPY_DISK, "Save definitions")).clicked() {
                         self.save_defs();
@@ -1673,6 +1695,12 @@ impl Editor {
                 }
                 ui.separator();
                 ui.monospace(format!("{} fps", macroquad::time::get_fps()));
+                if let Some(r) = &self.mcp.running {
+                    ui.separator();
+                    if ui.label(format!("{} {}", ph::ROBOT, r.addr.port())).on_hover_text(format!("AI agent server listening on http://{}/mcp ({} calls). Assets > AI agent server...", r.addr, self.mcp.calls)).clicked() {
+                        self.mcp.window_open = true;
+                    }
+                }
                 if self.mode == Mode::Map && self.project_open && !self.library_mode {
                     ui.separator();
                     ui.label(egui::RichText::new(format!("{} {}", self.tool.icon(), self.tool.name())).strong());
@@ -3095,7 +3123,7 @@ pub fn default_spawner(refs: &Refs) -> ZoneKind {
     ZoneKind::Spawner { character, count: 3, respawn: Respawn::OnEnter }
 }
 
-fn valid_name(s: &str) -> bool {
+pub(crate) fn valid_name(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 

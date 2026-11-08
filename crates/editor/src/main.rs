@@ -19,6 +19,7 @@ mod import;
 mod library_ui;
 mod library_window;
 mod maps;
+mod mcp;
 mod models;
 mod new_project;
 mod pixel;
@@ -99,6 +100,10 @@ async fn main() {
         (None, None) => Editor::empty(),
     };
     prevent_quit();
+    let settings = files::load_settings();
+    ed.mcp.port = settings.mcp_port;
+    ed.mcp.autostart = settings.mcp_autostart;
+    ed.mcp_autostart();
     egui_macroquad::cfg(|ctx| {
         ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_UNIT * EMQ_WHEEL_DIVISOR);
         ui::install_fonts(ctx);
@@ -121,6 +126,8 @@ async fn main() {
                 run_script_cmd(&mut ed, &cmd, &mut wait, &mut shot, &mut mouse_frames);
             }
         }
+        // AI agents' tool calls (Assets > AI agent server...), like script commands.
+        ed.mcp_drain();
         canvas::inject_mouse(mouse_frames.pop_front().or(HOVER.with(|h| h.get())));
         egui_macroquad::ui(|ctx| ed.ui(ctx));
         ed.update_canvas();
@@ -129,7 +136,9 @@ async fn main() {
         if let Some(p) = shot.take() {
             get_screen_data().export_png(&p);
         }
+        ed.mcp_capture_shots();
         if ed.quit {
+            ed.mcp.stop();
             break;
         }
         next_frame().await;
@@ -528,8 +537,22 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 ed.settle_pending(p, c);
             }
         }
+        // mcp on [PORT] | off: the AI agent server; mcpwindow opens its window
+        "mcp" => match arg(1) {
+            "on" => {
+                let port = if arg(2).is_empty() { ed.mcp.port } else { num(2) as u16 };
+                if let Err(e) = ed.mcp.start(port) {
+                    println!("[mcp] error: {e}");
+                }
+            }
+            "off" => ed.mcp.stop(),
+            _ => println!("[mcp] usage: mcp on [PORT] | off"),
+        },
+        "mcpwindow" => ed.mcp.window_open = true,
+        // watchanswer reload|keep: answers the "changed on disk" banner
+        "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -549,6 +572,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.pasting,
             ed.graph.counts.0,
             ed.graph.counts.1,
+            ed.mcp.status(),
+            ed.watch.status(),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),

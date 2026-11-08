@@ -18,3 +18,15 @@ flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 rhai.workspace = true
 # AppImage / Flatpak exports (package.rs).
 rustpg2d-packaging.workspace = true
+# AI agent server (Assets › AI agent server…, mcp/): the Model Context Protocol over Streamable HTTP
+# on 127.0.0.1, served by a tokio thread; tool parameters and project data as JSON.
+rmcp = { version = "3", features = ["transport-streamable-http-server"] }
+tokio = { version = "1", features = ["rt", "net", "sync", "time", "macros", "process", "io-util"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+serde.workspace = true
+serde_json = "1"
+schemars = "1"
+
+[dev-dependencies]
+# examples/mcp_smoke.rs: an MCP client driving the editor's agent server.
+rmcp = { version = "3", features = ["client", "transport-streamable-http-client-reqwest"] }

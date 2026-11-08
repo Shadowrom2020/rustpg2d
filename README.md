@@ -174,7 +174,7 @@ The **ribbon** under the menu holds the tools as icon buttons in groups (*Edit* 
 
 ### Releasing a game
 
-*File → Export game (standalone)…* saves the project and writes a bundle that runs without the editor or Rust, for **Linux** and / or **Windows** (*Platforms* in the dialog):
+*File → Export game (standalone)…* saves the project and writes a bundle that runs without the editor or Rust:
 
 ```
 releases/<game-name>/
@@ -182,16 +182,12 @@ releases/<game-name>/
   data/            project.ron, defs/, maps/, scripts/ and only the images / sounds in use
   README.txt
   rustpg2d-LICENSE.txt   the MIT license of the R(ust)PG2D engine (the game executable)
-releases/<game-name>-windows/           (Windows: <game-name>.exe, data\, README.txt, license)
 releases/<game-name>-linux.zip          (optional, to share)
-releases/<game-name>-windows.zip        (optional, to share)
 releases/<game-name>-x86_64.AppImage    (optional, Linux package)
 releases/<game-name>.flatpak            (optional, Linux package)
 ```
 
 The executable is a copy of `rustpg2d-game`; started without arguments it runs the `data/` folder next to it, titles the window with the game name and keeps save games in `~/.local/share/<game-name>/saves` (the bundle folder may be read-only). Save games of the project are never shipped. The export checks the project first (start map must exist; missing files and an unset player are reported) and replaces an earlier export in the same place, but never touches other folders. Build the game in release mode first (`cargo build --release -p rustpg2d-game`) — the editor picks `target/release/rustpg2d-game` when it exists and warns when only a debug build is available. The bundle targets the platform it was built on (Linux x86_64 here) and needs the usual system libraries (OpenGL, X11/Wayland, ALSA). The game executable runs on **glibc 2.34 or newer** — Debian 12, Ubuntu 22.04, Fedora 35, RHEL / Rocky / Alma 9 and later — even when R(ust)PG2D is built on a newer rolling-release system (the export dialog shows what the executable needs).
-
-**Windows games** (Windows 10 / 11, 64-bit): players unzip the folder and double-click `<game-name>.exe`; save games go to `%APPDATA%\<game-name>\saves`, settings to `%APPDATA%\rustpg2d\<game-name>`. The executable is a copy of `rustpg2d-game.exe`, which the R(ust)PG2D packages ship next to the Linux game runner, so the Linux editor exports Windows games without any Windows tools. It isn't code-signed: Windows SmartScreen shows "Windows protected your PC" the first time — *More info*, *Run anyway* (the README in the bundle says so). Gamepads work through Windows' own gamepad support. From source, build the Windows runner with `rustup target add x86_64-pc-windows-gnu`, the MinGW-w64 cross compiler (`gcc-mingw-w64-x86-64` on Debian / Ubuntu, `mingw-w64-gcc` on Arch) and `cargo build --release --target x86_64-pc-windows-gnu -p rustpg2d-game`; the editor finds it in `target/x86_64-pc-windows-gnu/release/`.
 
 **Linux packages** (ticked in the export dialog, built from the bundle):
 

@@ -89,7 +89,6 @@ crates/engine/src/      library: everything shared by game and editor
   migrate.rs            converts old 16 px projects; release.rs = standalone game export
   examples/gen_example/ generates example_project/ and the editor's starter.r2dpack; music.rs
                         composes and renders the two music tracks (tiny synth, Ogg Vorbis via vorbis_rs)
-  paths.rs              per-user folders per platform (XDG / %APPDATA%, %LOCALAPPDATA%, %USERPROFILE%)
   legacy.rs             the old name rust2d: adopt() copies a folder / file from the old location
                         (~/.config/rust2d, ~/.local/share/rust2d, ~/.cache/rust2d) on first use
   glibc_compat.rs       math functions newer glibc re-versioned, defined in the engine so the game
@@ -207,7 +206,7 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   `stpaint X Y`), `hover X Y` (tool previews), terrains (`tool terrain`, `terrain NAME`, `terrainpaint X Y [erase]` = a Terrain-tool click / Shift+click, `terrainedit K [block]` = edit terrain K in Database › Tilesets, `terrainblob TILESET NAME on|off` = its Corners (47 tiles) toggle), `mapweather none|rain|snow|fog [PERCENT]` (the open map's weather), schedules (`scheduleedit on|off` = edit the selected character's daily schedule on the map, `click` adds stops; `stop K hour H|facing up|any|inside on|off|map NAME|-|prop NAME|-|tile X Y`; `status` prints `schedule=`), `viewopt weather on|off` (weather preview), `dbscroll Y` (scroll the Database form, a big Y = the end), `view CX CY ZOOM` / `viewopt zones|grid|collision|weather|parallax on|off` (camera and view toggles for screenshots), imports (`import tiled|lpc|aseprite FILE [ID] [KIND]` print the report, `importdialog`; `actionsheet SHEET` sets the selected entity's last Effect / Fly sheet; `tab KIND ID` also selects by id), Events graph (`mode events`, `graph scope map|selection`, `graph functions map|all`, `graphnode N` select, `graphedit N` toggle a trigger's editors, `graphtext N K TEXT` = edit action K's text in node N, `graphview N` zoom to a node, `graphdump` nodes + edges; `status` prints `graph=nodes,edges`; node indices are those of the last frame), `play [start]` (F5 / F6 play-test; the game inherits the environment, so set `RUSTPG2D_AUTOPLAY` to drive it), clipboard (`region X Y W H` selects tiles, `copy` / `cut` the region or selected entity, `paste X Y` = top-left corner, `paste` arms it for `hover` / `click`, `unpaste`; `status` prints `sel=`, `clipboard=`, `pasting=`), `lighting on|off [HOUR]` (lighting preview), `mapfog on|off` (map's fog of war), `addaction LABEL` (append an action template to the selected entity's trigger), `entequip ITEM` / `entskin RRGGBB` (selected NPC's own equipment / look), pixel editor (`px…`),
   character builder (`charnew [ID NAME]`, `charcustom` = selected NPC, `charset body|hair|beard|skin|haircolor|clothing|head|armor|weapon|offhand|carry|id|name VALUE` on the open builder else the selected character, `charrandom`, `chartemplate ID` (project or library character), `charcreate` / `charapply`, `charcancel`, `charreset`, `playable SHEET on|off`; `status` prints `builder=`),
   `example` (welcome screen's *Example project*: only in packaged R(ust)PG2D; copies to
-  ~/rustpg2d/example_project — set HOME to a scratch dir in tests), export (`exportgame OUT [NAME]` = folder + zip for the host platform, `exportwin` / `exportall OUT [NAME]` = Windows / both, `exportpkg OUT appimage|flatpak|all [APP_ID]`,
+  ~/rustpg2d/example_project — set HOME to a scratch dir in tests), export (`exportgame OUT [NAME]` = folder + zip, `exportpkg OUT appimage|flatpak|all [APP_ID]`,
   `exportdialog [appimage] [flatpak]`; test packages on scratch output: the AppImage runs directly,
   a Flatpak goes into `FLATPAK_USER_DIR=<scratch>` with `flatpak install --user --no-deps --bundle`
   and `flatpak run --user --runtime=org.freedesktop.Sdk//25.08 …`; remove the `~/.var/app/<id>`
@@ -226,12 +225,6 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   repository. Add `ekey NAME [ctrl]` (egui key events) the same way for keyboard tests; after
   a Ctrl combination send a Ctrl key-up, or egui keeps ignoring typed text. There is no xdotool / Xvfb on this machine, and XTest on XWayland may prompt the
   user, so don't use it.
-- **Windows builds:** cross-compile in a throwaway container (`rust:1-bookworm` +
-  `gcc-mingw-w64-x86-64` + `rustup target add x86_64-pc-windows-gnu`; scratch `CARGO_HOME` /
-  `CARGO_TARGET_DIR`, `--user $(id -u)`), never on the host. Run the exes with Wine and a scratch
-  `WINEPREFIX`; on this machine Wine's EGL fails on the NVIDIA GPU, so use `env -u WAYLAND_DISPLAY
-  __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1`.
-  Paths for the game under Wine: `Z:/…` (shots, project folders).
 - Look at screenshots with the Read tool; crop with PIL when details matter. Lighting:
   `RUSTPG2D_LIGHTMAP_DEBUG=1` draws the raw light map instead of multiplying it.
 - Dialog text types out over time: wait ~2.5 s before reading a screenshot, and the first `E`

@@ -18,7 +18,6 @@ pub mod library;
 pub mod map;
 pub mod migrate;
 pub mod path;
-pub mod paths;
 pub mod progression;
 pub mod project;
 pub mod quest;

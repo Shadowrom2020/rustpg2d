@@ -3,23 +3,6 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
-
-### Editor
-- **Windows export**: *File › Export game* has *Platforms* Linux / Windows; a Windows export is
-  `<game>-windows/<game>.exe` with its data (and `<game>-windows.zip`), saves in
-  `%APPDATA%\<game>\saves`. The R(ust)PG2D packages ship the Windows game runner
-  (`rustpg2d-game.exe`, cross-compiled with MinGW-w64), so the Linux editor exports Windows games.
-
-### Fixes
-- The game no longer panics when it quits on Windows (gamepad thread joined at exit).
-
-### Maintenance
-- `engine/src/paths.rs`: per-user folders per platform (XDG on Linux; `%APPDATA%`,
-  `%LOCALAPPDATA%`, `%USERPROFILE%` on Windows) for settings, saves, the library and caches.
-- CI: Clippy for the Windows target on every pull request; the Packages / Release jobs
-  cross-compile the Windows game runner and check it ships in the AppImage.
-
 ## 0.8.0 — 2026-11-08
 
 ### Gameplay

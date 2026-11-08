@@ -1,9 +1,4 @@
 //! `cargo xtask-dist`: the R(ust)PG2D toolkit as AppImage and Flatpak (feature `dist`).
-//!
-//! Options: `--out DIR` (default `dist/`), `--bin-dir DIR` (the Linux release binaries, default
-//! `target/release`), `--windows-game EXE` (the Windows game runner shipped next to the Linux one
-//! so the editor exports Windows games; default `target/x86_64-pc-windows-gnu/release/
-//! rustpg2d-game.exe` if it exists), `--require-windows` (fail without it: CI).
 
 use std::path::PathBuf;
 
@@ -31,20 +26,6 @@ pub fn dist(args: &[String]) -> Result<()> {
             None => println!("{}: no glibc version information", b.display()),
         }
     }
-    let windows_game = opt("--windows-game").or_else(|| Some(root.join("target/x86_64-pc-windows-gnu/release/rustpg2d-game.exe")).filter(|p| p.is_file()));
-    match &windows_game {
-        Some(w) => {
-            let bytes = std::fs::read(w).with_context(|| format!("{} not found", w.display()))?;
-            if !bytes.starts_with(b"MZ") {
-                bail!("{} is not a Windows program", w.display());
-            }
-            println!("{}: the Windows game runner", w.display());
-        }
-        None if args.iter().any(|a| a == "--require-windows") => {
-            bail!("the Windows game runner is missing: cargo build --release --target x86_64-pc-windows-gnu -p rustpg2d-game")
-        }
-        None => println!("no Windows game runner (target/x86_64-pc-windows-gnu/release/rustpg2d-game.exe): the packaged editor won't export Windows games"),
-    }
     let example = root.join("example_project");
     let project = rustpg2d_engine::project::Project::load(&example).context("loading example_project")?;
     let icon = rustpg2d_packaging::hero_icon(&project).unwrap_or_else(rustpg2d_packaging::emblem).encode()?;
@@ -68,10 +49,6 @@ pub fn dist(args: &[String]) -> Result<()> {
         icon,
         license: "MIT".into(),
     };
-    if let Some(w) = windows_game {
-        // Next to the editor, where File > Export game looks for it.
-        spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.exe".into(), src: Source::Path(w), exec: false });
-    }
     let license = root.join("LICENSE");
     if !license.is_file() {
         bail!("LICENSE is missing: the packages must carry R(ust)PG2D's license");

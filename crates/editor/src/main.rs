@@ -2,6 +2,8 @@
 //!
 //! Usage: rustpg2d-editor [PROJECT_DIR]   (without a folder the welcome screen shows)
 //!        rustpg2d-editor --library [DIR]  (the Asset Library window; default: the shared library)
+// No console window on Windows (logs go to the terminal it was started from, if any).
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod app;
 mod builder;
@@ -45,8 +47,10 @@ fn library_arg() -> Option<std::path::PathBuf> {
 }
 
 fn window_conf() -> Conf {
+    rustpg2d_engine::icon::attach_parent_console();
     let library = library_arg().is_some();
     Conf {
+        icon: Some(rustpg2d_engine::icon::window_icon(&rustpg2d_engine::icon::emblem())),
         window_title: if library { "R(ust)PG2D – Asset Library" } else { "R(ust)PG2D editor" }.to_owned(),
         window_width: if library { 1300 } else { 1600 },
         window_height: 900,
@@ -61,6 +65,8 @@ fn window_conf() -> Conf {
 const EMQ_WHEEL_DIVISOR: f32 = 90.0;
 /// Scroll distance of one mouse-wheel notch in egui panels (about three lines of text).
 const WHEEL_POINTS_PER_NOTCH: f32 = 50.0;
+/// What macroquad reports for one wheel notch: 1 on Linux, Windows' `WHEEL_DELTA` (120) there.
+const WHEEL_NOTCH: f32 = if cfg!(windows) { 120.0 } else { 1.0 };
 
 #[macroquad::main(window_conf)]
 async fn main() {
@@ -80,7 +86,7 @@ async fn main() {
     };
     prevent_quit();
     egui_macroquad::cfg(|ctx| {
-        ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_NOTCH * EMQ_WHEEL_DIVISOR);
+        ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_NOTCH * EMQ_WHEEL_DIVISOR / WHEEL_NOTCH);
         ui::install_fonts(ctx);
     });
     // Debug aid: RUSTPG2D_EDITOR_SCRIPT="tool entity; select entity 3; wait 0.5; shot a.png; quit"

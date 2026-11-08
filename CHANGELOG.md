@@ -5,6 +5,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Gameplay
+- **Gapless music loops**: music no longer has a short silence where it loops (a quad-snd mixer
+  quirk). The engine decodes music (Ogg Vorbis via `lewton`, WAV), resamples it to 44.1 kHz and
+  stretches it to whole mixer buffers (under 0.16 % for tracks of a minute; tracks under 30 s are
+  repeated first); long files are prepared in the background at start. The example's two tracks
+  are rendered at whole-buffer lengths and play unchanged.
+
 ### Editor
 - **47-tile corner auto-tiling**: terrains can have a *Corners (47 tiles)* set that also looks at
   the diagonal neighbours (`Terrain.blob`), giving inner corners where a terrain bends. The

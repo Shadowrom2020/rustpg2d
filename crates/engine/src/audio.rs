@@ -2,10 +2,19 @@
 //! and mixed at 44.1 kHz stereo - other rates are resampled roughly, so 44.1 kHz plays best.
 //! A file is checked before it reaches the decoder, and a file in another format is reported
 //! by name (Opus, FLAC, MP3) so the creator knows what to convert.
+//!
+//! **Gapless music.** quad-snd (0.2.8) leaves a short silence where a looped sound wraps unless
+//! its length is a whole number of mixer buffers (see `rain_samples`). Music is therefore decoded
+//! here (`loop_ready`): resampled to 44.1 kHz and stretched to whole buffers (tracks under 30 s
+//! are repeated first, so the stretch stays below 0.32 %, about 5 cents), then handed to
+//! macroquad as a WAV. Long sound files are prepared in a background thread when the project
+//! loads; any other sound is prepared the first time it is played as music.
 
 use std::collections::HashMap;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::pin;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 
 use macroquad::audio::{load_sound_from_bytes, play_sound, set_sound_volume, stop_sound, PlaySoundParams, Sound};
@@ -51,8 +60,27 @@ fn check_format(bytes: &[u8]) -> Result<(), String> {
     Err("not a WAV or Ogg Vorbis file".into())
 }
 
+/// Gapless loops prepared in the background: sound id → WAV bytes (empty: the sound already is
+/// one), or why it failed.
+type Prepared = Arc<Mutex<HashMap<String, Result<Vec<u8>, String>>>>;
+
+/// How a sound loops as music.
+enum Loop {
+    /// Its length is whole mixer buffers already: it loops cleanly as it is.
+    Whole,
+    /// Its gapless version (resampled, stretched).
+    Stretched(Sound),
+    /// No gapless loop could be made: plays as it is.
+    Plain,
+}
+
 pub struct Audio {
     sounds: HashMap<String, (Sound, f32)>,
+    /// Sound files by id (music is decoded again for its gapless loop).
+    files: HashMap<String, PathBuf>,
+    /// Gapless loops of sounds played as music, made on first use.
+    loops: HashMap<String, Loop>,
+    prepared: Prepared,
     music: Option<String>,
     /// The sound last started by [`Audio::play_preview`] (the editor's Play button).
     preview: Option<String>,
@@ -93,7 +121,80 @@ impl Audio {
         for e in &errors {
             eprintln!("[audio] {e}");
         }
-        Audio { sounds, music: None, preview: None, errors, enabled: std::env::var_os("RUSTPG2D_MUTE").is_none(), effects: 1.0, music_vol: 1.0, rain: None, rain_vol: 0.0, ambience: 1.0 }
+        let files: HashMap<String, PathBuf> = project.db.sounds.iter().filter(|d| sounds.contains_key(&d.id)).map(|d| (d.id.clone(), project.path(&d.file))).collect();
+        let enabled = std::env::var_os("RUSTPG2D_MUTE").is_none();
+        let prepared = Prepared::default();
+        if enabled {
+            // Long files are likely music: make their loops in the background.
+            let long: Vec<(String, PathBuf)> = files.iter().filter(|(_, p)| likely_music(p)).map(|(id, p)| (id.clone(), p.clone())).collect();
+            if !long.is_empty() {
+                let out = prepared.clone();
+                std::thread::spawn(move || {
+                    for (id, path) in long {
+                        let res = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| loop_ready(&b));
+                        out.lock().unwrap().insert(id, res);
+                    }
+                });
+            }
+        }
+        Audio {
+            sounds,
+            files,
+            loops: HashMap::new(),
+            prepared,
+            music: None,
+            preview: None,
+            errors,
+            enabled,
+            effects: 1.0,
+            music_vol: 1.0,
+            rain: None,
+            rain_vol: 0.0,
+            ambience: 1.0,
+        }
+    }
+
+    /// The gapless loop of a sound, made (or taken from the background thread) on first use.
+    fn gapless(&mut self, id: &str) -> &Loop {
+        if !self.loops.contains_key(id) {
+            let ready = self.prepared.lock().unwrap().remove(id);
+            let wav = match ready {
+                Some(r) => r,
+                None => self.files.get(id).ok_or_else(|| "no file".to_string()).and_then(|p| std::fs::read(p).map_err(|e| e.to_string())).and_then(|b| loop_ready(&b)),
+            };
+            let made = match wav {
+                Ok(w) if w.is_empty() => Loop::Whole,
+                Ok(w) => poll_now(load_sound_from_bytes(&w)).and_then(|r| r.ok()).map_or(Loop::Plain, Loop::Stretched),
+                Err(e) => {
+                    eprintln!("[audio] {id}: no gapless loop ({e}); it loops as it is");
+                    Loop::Plain
+                }
+            };
+            self.loops.insert(id.to_string(), made);
+        }
+        &self.loops[id]
+    }
+
+    /// The sound playing as music: its gapless loop if one was made.
+    fn music_sound(&self) -> Option<(&Sound, f32)> {
+        let id = self.music.as_ref()?;
+        let (orig, vol) = self.sounds.get(id)?;
+        let s = match self.loops.get(id) {
+            Some(Loop::Stretched(s)) => s,
+            _ => orig,
+        };
+        Some((s, *vol))
+    }
+
+    /// `status()`: how the music loops: `whole` (its length already is whole mixer buffers),
+    /// `stretched` (a gapless loop was made), `plain` (it couldn't be: it may have a gap), `-`.
+    pub fn music_loop_status(&self) -> &'static str {
+        match self.music.as_ref().and_then(|id| self.loops.get(id)) {
+            None => "-",
+            Some(Loop::Whole) => "whole",
+            Some(Loop::Stretched(_)) => "stretched",
+            Some(Loop::Plain) => "plain",
+        }
     }
 
     pub fn has(&self, id: &str) -> bool {
@@ -132,7 +233,7 @@ impl Audio {
             stop_sound(s);
         }
         if self.music.as_deref() == Some(id) {
-            self.music = None;
+            self.stop_music();
         }
         if self.preview.as_deref() == Some(id) {
             self.preview = None;
@@ -148,8 +249,8 @@ impl Audio {
     pub fn set_volumes(&mut self, effects: f32, music: f32) {
         self.effects = effects.clamp(0.0, 1.0);
         self.music_vol = music.clamp(0.0, 1.0);
-        if let Some((s, vol)) = self.music.as_ref().and_then(|id| self.sounds.get(id)) {
-            set_sound_volume(s, *vol * self.music_vol);
+        if let Some((s, vol)) = self.music_sound() {
+            set_sound_volume(s, vol * self.music_vol);
         }
     }
 
@@ -162,18 +263,19 @@ impl Audio {
         if id.is_empty() || !self.enabled {
             return;
         }
-        if let Some((s, vol)) = self.sounds.get(id) {
-            play_sound(s, PlaySoundParams { looped: true, volume: *vol * self.music_vol });
-            self.music = Some(id.to_string());
+        let Some(&(_, vol)) = self.sounds.get(id) else { return };
+        self.gapless(id);
+        self.music = Some(id.to_string());
+        if let Some((s, _)) = self.music_sound() {
+            play_sound(s, PlaySoundParams { looped: true, volume: vol * self.music_vol });
         }
     }
 
     pub fn stop_music(&mut self) {
-        if let Some(id) = self.music.take() {
-            if let Some((s, _)) = self.sounds.get(&id) {
-                stop_sound(s);
-            }
+        if let Some((s, _)) = self.music_sound() {
+            stop_sound(s);
         }
+        self.music = None;
     }
 
     pub fn current_music(&self) -> Option<&str> {
@@ -270,6 +372,11 @@ pub fn rain_samples() -> Vec<f32> {
 
 /// Encodes mono 16-bit PCM samples (-1..1) as a WAV file.
 pub fn wav_bytes(samples: &[f32], sample_rate: u32) -> Vec<u8> {
+    wav_bytes_channels(samples, sample_rate, 1)
+}
+
+/// Encodes interleaved 16-bit PCM samples (-1..1) with `channels` channels as a WAV file.
+pub fn wav_bytes_channels(samples: &[f32], sample_rate: u32, channels: u16) -> Vec<u8> {
     let data_len = samples.len() as u32 * 2;
     let mut out = Vec::with_capacity(44 + data_len as usize);
     out.extend_from_slice(b"RIFF");
@@ -277,10 +384,10 @@ pub fn wav_bytes(samples: &[f32], sample_rate: u32) -> Vec<u8> {
     out.extend_from_slice(b"WAVEfmt ");
     out.extend_from_slice(&16u32.to_le_bytes());
     out.extend_from_slice(&1u16.to_le_bytes()); // PCM
-    out.extend_from_slice(&1u16.to_le_bytes()); // mono
+    out.extend_from_slice(&channels.to_le_bytes());
     out.extend_from_slice(&sample_rate.to_le_bytes());
-    out.extend_from_slice(&(sample_rate * 2).to_le_bytes());
-    out.extend_from_slice(&2u16.to_le_bytes());
+    out.extend_from_slice(&(sample_rate * 2 * channels as u32).to_le_bytes());
+    out.extend_from_slice(&(2 * channels).to_le_bytes());
     out.extend_from_slice(&16u16.to_le_bytes());
     out.extend_from_slice(b"data");
     out.extend_from_slice(&data_len.to_le_bytes());
@@ -288,6 +395,144 @@ pub fn wav_bytes(samples: &[f32], sample_rate: u32) -> Vec<u8> {
         out.extend_from_slice(&((s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16).to_le_bytes());
     }
     out
+}
+
+/// Decoded audio: interleaved samples (-1..1).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Pcm {
+    pub rate: u32,
+    pub channels: u16,
+    pub samples: Vec<f32>,
+}
+
+impl Pcm {
+    pub fn frames(&self) -> usize {
+        self.samples.len() / self.channels.max(1) as usize
+    }
+}
+
+/// Whether a sound file is long enough to be music (prepared in the background at load):
+/// Ogg Vorbis over 64 KiB (several seconds), WAV over 1 MiB (about six seconds of stereo).
+fn likely_music(path: &std::path::Path) -> bool {
+    let len = std::fs::metadata(path).map_or(0, |m| m.len());
+    match path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).as_deref() {
+        Some("ogg") => len > 64 * 1024,
+        Some("wav") => len > 1024 * 1024,
+        _ => false,
+    }
+}
+
+/// Decodes WAV (8 / 16 / 24 / 32-bit PCM, 32-bit float) or Ogg Vorbis.
+pub fn decode(bytes: &[u8]) -> Result<Pcm, String> {
+    check_format(bytes)?;
+    if &bytes[..4] == b"OggS" {
+        let mut r = lewton::inside_ogg::OggStreamReader::new(std::io::Cursor::new(bytes)).map_err(|e| e.to_string())?;
+        let (rate, channels) = (r.ident_hdr.audio_sample_rate, r.ident_hdr.audio_channels as u16);
+        let mut samples = Vec::new();
+        while let Some(p) = r.read_dec_packet_itl().map_err(|e| e.to_string())? {
+            samples.extend(p.iter().map(|&v| v as f32 / 32768.0));
+        }
+        return Ok(Pcm { rate, channels, samples });
+    }
+    // WAV: walk the chunks for "fmt " and "data".
+    let (mut fmt, mut data) = (None, None);
+    let mut at = 12;
+    while at + 8 <= bytes.len() {
+        let id = &bytes[at..at + 4];
+        let len = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().unwrap()) as usize;
+        let body = &bytes[at + 8..(at + 8 + len).min(bytes.len())];
+        match id {
+            b"fmt " => fmt = Some(body),
+            b"data" => data = Some(body),
+            _ => {}
+        }
+        at += 8 + len + len % 2;
+    }
+    let (fmt, data) = (fmt.ok_or("WAV without a fmt chunk")?, data.ok_or("WAV without a data chunk")?);
+    if fmt.len() < 16 {
+        return Err("bad WAV fmt chunk".into());
+    }
+    let u16_at = |i: usize| u16::from_le_bytes([fmt[i], fmt[i + 1]]);
+    let mut format = u16_at(0);
+    if format == 0xFFFE && fmt.len() >= 26 {
+        format = u16_at(24); // WAVE_FORMAT_EXTENSIBLE: the sub-format's first two bytes
+    }
+    let (channels, rate, bits) = (u16_at(2).max(1), u32::from_le_bytes(fmt[4..8].try_into().unwrap()), u16_at(14));
+    let samples: Vec<f32> = match (format, bits) {
+        (1, 8) => data.iter().map(|&b| (b as f32 - 128.0) / 128.0).collect(),
+        (1, 16) => data.as_chunks::<2>().0.iter().map(|c| i16::from_le_bytes(*c) as f32 / 32768.0).collect(),
+        (1, 24) => data.as_chunks::<3>().0.iter().map(|c| (i32::from_le_bytes([0, c[0], c[1], c[2]]) >> 8) as f32 / 8_388_608.0).collect(),
+        (1, 32) => data.as_chunks::<4>().0.iter().map(|c| i32::from_le_bytes(*c) as f32 / 2_147_483_648.0).collect(),
+        (3, 32) => data.as_chunks::<4>().0.iter().map(|c| f32::from_le_bytes(*c)).collect(),
+        _ => return Err(format!("WAV format {format} with {bits} bits isn't supported")),
+    };
+    Ok(Pcm { rate, channels, samples })
+}
+
+/// Rate, channels and length in frames read from the headers without decoding: a WAV's data
+/// size, an Ogg Vorbis stream's last granule position.
+fn header_frames(bytes: &[u8]) -> Option<(u32, u16, u64)> {
+    if bytes.len() < 64 {
+        return None;
+    }
+    if &bytes[..4] == b"OggS" {
+        let id = bytes.windows(7).position(|w| w == b"\x01vorbis")?;
+        let h = bytes.get(id + 7..id + 16)?;
+        let (channels, rate) = (h[4] as u16, u32::from_le_bytes(h[5..9].try_into().ok()?));
+        // The last page: the final granule position is the stream's length in frames.
+        let last = bytes.windows(4).rposition(|w| w == b"OggS")?;
+        let granule = u64::from_le_bytes(bytes.get(last + 6..last + 14)?.try_into().ok()?);
+        return Some((rate, channels, granule));
+    }
+    let pcm = decode(bytes).ok()?;
+    Some((pcm.rate, pcm.channels, pcm.frames() as u64))
+}
+
+/// Tracks shorter than this are repeated before stretching (a smaller pitch change).
+const MIN_LOOP_SECS: f32 = 30.0;
+
+/// A loop that quad-snd plays without a gap: at the mixer's rate, a whole number of mixer
+/// buffers long (at most two channels). Short loops are repeated to at least `MIN_LOOP_SECS`
+/// first. The stretch is a linear resampling that wraps around, so the loop point stays seamless.
+pub fn gapless_loop(pcm: &Pcm) -> Pcm {
+    let ch = pcm.channels.clamp(1, 2) as usize;
+    let src_ch = pcm.channels.max(1) as usize;
+    let n = pcm.frames();
+    if n == 0 || pcm.rate == 0 {
+        return Pcm { rate: MIX_RATE, channels: ch as u16, samples: Vec::new() };
+    }
+    let secs = n as f64 / pcm.rate as f64;
+    let repeats = if secs < MIN_LOOP_SECS as f64 { (MIN_LOOP_SECS as f64 / secs).ceil() as usize } else { 1 };
+    let total = n * repeats;
+    let target = ((total as f64 * MIX_RATE as f64 / pcm.rate as f64 / MIX_BUFFER_FRAMES as f64).ceil() as usize).max(1) * MIX_BUFFER_FRAMES;
+    let at = |frame: usize, c: usize| pcm.samples[(frame % n) * src_ch + c];
+    let mut samples = Vec::with_capacity(target * ch);
+    let step = total as f64 / target as f64;
+    for i in 0..target {
+        let pos = i as f64 * step;
+        let (j, f) = (pos.floor() as usize, (pos - pos.floor()) as f32);
+        for c in 0..ch {
+            samples.push(at(j, c) * (1.0 - f) + at(j + 1, c) * f);
+        }
+    }
+    Pcm { rate: MIX_RATE, channels: ch as u16, samples }
+}
+
+/// A sound file's gapless loop as WAV bytes, or empty bytes when the file already is one (a WAV
+/// or Ogg at the mixer's rate, whole buffers long, at least `MIN_LOOP_SECS`).
+pub fn loop_ready(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    if header_frames(bytes).is_some_and(|(rate, channels, frames)| rate == MIX_RATE && (1..=2).contains(&channels) && frames > 0 && frames % MIX_BUFFER_FRAMES as u64 == 0) {
+        return Ok(Vec::new());
+    }
+    let pcm = decode(bytes)?;
+    if pcm.rate == MIX_RATE && pcm.channels <= 2 && pcm.frames() % MIX_BUFFER_FRAMES == 0 && pcm.frames() > 0 {
+        return Ok(Vec::new());
+    }
+    let l = gapless_loop(&pcm);
+    if l.samples.is_empty() {
+        return Err("no audio".into());
+    }
+    Ok(wav_bytes_channels(&l.samples, l.rate, l.channels))
 }
 
 #[cfg(test)]
@@ -357,6 +602,77 @@ mod tests {
         let step = |a: f32, b: f32| (a - b).abs();
         let typical = s.windows(2).map(|w| step(w[0], w[1])).sum::<f32>() / s.len() as f32;
         assert!(step(s[s.len() - 1], s[0]) < typical * 6.0, "seam {} vs typical {typical}", step(s[s.len() - 1], s[0]));
+    }
+
+    /// A stereo test tone: `secs` long at `rate`, left and right different.
+    fn tone(rate: u32, secs: f32) -> Pcm {
+        let n = (rate as f32 * secs) as usize;
+        let samples = (0..n).flat_map(|i| {
+            let t = i as f32 / rate as f32;
+            [(t * 440.0 * std::f32::consts::TAU).sin() * 0.5, (t * 220.0 * std::f32::consts::TAU).sin() * 0.25]
+        });
+        Pcm { rate, channels: 2, samples: samples.collect() }
+    }
+
+    #[test]
+    fn music_loops_fill_whole_buffers() {
+        // 61.3 s at 44.1 kHz: stretched by less than one buffer.
+        let long = tone(MIX_RATE, 61.3);
+        let l = gapless_loop(&long);
+        assert_eq!((l.rate, l.channels, l.frames() % MIX_BUFFER_FRAMES), (MIX_RATE, 2, 0));
+        let stretch = l.frames() as f32 / long.frames() as f32;
+        assert!((1.0..1.0016).contains(&stretch), "stretch {stretch}");
+        // 22.05 kHz, 7 s: resampled and repeated to at least 30 s (5 times).
+        let short = tone(22_050, 7.0);
+        let l = gapless_loop(&short);
+        assert_eq!(l.frames() % MIX_BUFFER_FRAMES, 0);
+        let secs = l.frames() as f32 / MIX_RATE as f32;
+        assert!((35.0..35.1).contains(&secs), "{secs} s");
+        // Mono stays mono; already whole buffers at 44.1 kHz needs nothing.
+        let mono = Pcm { rate: MIX_RATE, channels: 1, samples: vec![0.1; MIX_BUFFER_FRAMES * 800] };
+        assert!(loop_ready(&wav_bytes(&mono.samples, MIX_RATE)).unwrap().is_empty());
+        let odd = wav_bytes(&mono.samples[..MIX_BUFFER_FRAMES * 800 - 77], MIX_RATE);
+        let wav = loop_ready(&odd).unwrap();
+        let back = decode(&wav).unwrap();
+        assert_eq!((back.channels, back.frames()), (1, MIX_BUFFER_FRAMES * 800));
+    }
+
+    #[test]
+    fn music_loops_play_gapless_through_quad_snds_mixer() {
+        // A 41.7 s track (not whole buffers): the mixer leaves a gap; its gapless loop has none.
+        let pcm = tone(MIX_RATE, 41.7);
+        let mixed = quad_snd_mix(&pcm.samples, pcm.frames() / MIX_BUFFER_FRAMES + 2);
+        let silent = mixed.chunks(2).skip(pcm.frames()).take(MIX_BUFFER_FRAMES).filter(|f| f[0] == 0.0 && f[1] == 0.0).count();
+        // (It ends 3962 frames into a buffer: the buffer's last 134 frames stay silent.)
+        assert!(silent >= 134, "the gap: {silent} silent frames");
+        let l = gapless_loop(&pcm);
+        let bufs = l.frames() / MIX_BUFFER_FRAMES;
+        let mixed = quad_snd_mix(&l.samples, 2 * bufs + 3);
+        let ideal: Vec<f32> = l.samples.iter().cycle().take(mixed.len()).copied().collect();
+        assert_eq!(mixed, ideal, "the loop repeats exactly");
+        // The seam is as smooth as the rest: the step from the last frame to the first.
+        let steps: Vec<f32> = l.samples.chunks(2).map(|f| f[0]).collect::<Vec<_>>().windows(2).map(|w| (w[1] - w[0]).abs()).collect();
+        let max = steps.iter().cloned().fold(0.0f32, f32::max);
+        assert!((l.samples[0] - l.samples[l.samples.len() - 2]).abs() <= max * 1.01);
+    }
+
+    #[test]
+    fn decodes_wav_formats_and_ogg() {
+        let mono = wav_bytes(&[0.0, 0.5, -0.5], 22_050);
+        let p = decode(&mono).unwrap();
+        assert_eq!((p.rate, p.channels, p.samples.len()), (22_050, 1, 3));
+        assert!((p.samples[1] - 0.5).abs() < 1e-3);
+        let st = wav_bytes_channels(&[0.25, -0.25, 0.5, -0.5], 48_000, 2);
+        assert_eq!(decode(&st).unwrap().frames(), 2);
+        assert!(decode(b"RIFF\0\0\0\0WAVEnope").is_err());
+        // The example's music (Ogg Vorbis) decodes and is already whole buffers long.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example_project/sounds/music_village.ogg");
+        if let Ok(b) = std::fs::read(root) {
+            let p = decode(&b).unwrap();
+            assert_eq!((p.rate, p.channels, p.frames() % MIX_BUFFER_FRAMES), (MIX_RATE, 2, 0));
+            assert!(loop_ready(&b).unwrap().is_empty());
+            assert_eq!(header_frames(&b), Some((MIX_RATE, 2, p.frames() as u64)), "the Ogg header tells the length");
+        }
     }
 
     #[test]

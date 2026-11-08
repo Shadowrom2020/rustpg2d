@@ -18,6 +18,8 @@ libm = "0.2"
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 # Gamepads (macroquad reads only keyboard and mouse); needs libudev on Linux.
 gilrs = "0.11"
+# Decodes music (Ogg Vorbis) to make its loops gapless (audio.rs); macroquad already uses it.
+lewton = "0.9"
 
 [dev-dependencies]
 # The example generator encodes its music as Ogg Vorbis.

@@ -3,42 +3,6 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
-
-### Editor
-- **Windows export**: *File › Export game* has *Platforms* Linux / Windows; a Windows export is
-  `<game>-windows/<game>.exe` with its data (and `<game>-windows.zip`), saves in
-  `%APPDATA%\<game>\saves`. The R(ust)PG2D packages ship the Windows game runner
-  (`rustpg2d-game.exe`, cross-compiled with MinGW-w64), so the Linux editor exports Windows games.
-
-- **R(ust)PG2D on Windows**: the editor, play-tests, the asset library and exports run on
-  Windows 10 / 11; releases add `rustpg2d-X.Y.Z-windows-x86_64.zip` (editor, game runner, Linux
-  game runner for Linux exports, example project). Folders: `%APPDATA%\rustpg2d` (settings, recent
-  list), `%LOCALAPPDATA%\rustpg2d\library`, `%USERPROFILE%\rustpg2d\example_project`. No console
-  windows (output goes to the terminal they were started from); window icons (the player
-  character for games, the emblem for the editor, on Linux too); mouse-wheel scrolling scaled for
-  Windows' wheel units.
-
-### Fixes
-- **Windows without a graphics driver** (virtual machines): R(ust)PG2D and exported games
-  panicked with "WGL_ARB_pixel_format is required". The Windows zip now has a `mesa` folder with
-  Mesa's software OpenGL (mesa-dist-win 26.2.4, checksum-pinned); when the system's OpenGL fails,
-  the program starts itself again with it (`RUSTPG2D_SOFTWARE_GL=1` from the start), and shows a
-  message box when the folder is missing. Windows exports include it (export dialog option, on
-  by default); the AppImage / Flatpak carry it next to the Windows game runner.
-- The game no longer panics when it quits on Windows (gamepad thread joined at exit).
-- Zips of exported games always store Unix permissions (the Linux executable stays executable
-  when zipped on Windows); RON files are written with LF line endings on every platform.
-
-### Maintenance
-- `engine/src/paths.rs`: per-user folders per platform (XDG on Linux; `%APPDATA%`,
-  `%LOCALAPPDATA%`, `%USERPROFILE%` on Windows) for settings, saves, the library and caches.
-- CI: Clippy for the Windows target on every pull request; a native `windows-latest` job (clippy +
-  tests, MSVC) on pull requests into master; the Packages / Release jobs cross-compile the Windows
-  build with MinGW-w64, ship the Windows game runner in the AppImage / Flatpak and publish the
-  Windows zip. `.gitattributes` keeps LF line endings; the engine fingerprint uses `/` paths.
-- `engine/src/icon.rs`: the hero icon and emblem moved here from the packaging crate (window icons).
-
 ## 0.8.0 — 2026-11-08
 
 ### Gameplay

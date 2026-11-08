@@ -7,11 +7,9 @@ publish = false
 
 [features]
 # `dist` (packaging the toolkit) needs the engine; the checks CI runs on every pull request don't.
-dist = ["dep:rustpg2d-engine", "dep:rustpg2d-packaging", "dep:zip"]
+dist = ["dep:rustpg2d-engine", "dep:rustpg2d-packaging"]
 
 [dependencies]
 anyhow.workspace = true
 rustpg2d-engine = { workspace = true, optional = true }
 rustpg2d-packaging = { workspace = true, optional = true }
-# The Windows download (a zip of the editor, the game runners and the example).
-zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"], optional = true }

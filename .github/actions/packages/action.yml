@@ -1,5 +1,5 @@
 name: Build R(ust)PG2D packages
-description: Release build for Linux and Windows (cross-compiled with MinGW-w64), AppImage + Flatpak + Windows zip of the R(ust)PG2D toolkit (cargo xtask-dist) and a smoke test of both Linux binaries under Xvfb.
+description: Release build, AppImage + Flatpak of the R(ust)PG2D toolkit (cargo xtask-dist) and a smoke test of both binaries under Xvfb.
 runs:
   using: composite
   steps:
@@ -7,28 +7,13 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y -qq --no-install-recommends flatpak xvfb xauth libgl1-mesa-dri libglx-mesa0 libxi6 libxcursor1 libxkbcommon-x11-0 gcc-mingw-w64-x86-64 p7zip-full
-        rustup target add x86_64-pc-windows-gnu
+        sudo apt-get install -y -qq --no-install-recommends flatpak xvfb xauth libgl1-mesa-dri libglx-mesa0 libxi6 libxcursor1 libxkbcommon-x11-0
     - name: Release build
       shell: bash
       run: cargo build --release --locked -p rustpg2d-editor -p rustpg2d-game
-    - name: Windows build (the Windows zip; exports of Windows games)
+    - name: AppImage and Flatpak
       shell: bash
-      run: cargo build --release --locked --target x86_64-pc-windows-gnu -p rustpg2d-editor -p rustpg2d-game
-    - name: Mesa's software OpenGL (Windows without a graphics driver; pinned, checksum verified)
-      shell: bash
-      env:
-        # Also named in crates/xtask/src/dist.rs (MESA_README).
-        MESA_VERSION: "26.2.4"
-        MESA_SHA256: 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695
-      run: |
-        curl -sSfL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/mesa.7z" "https://github.com/pal1000/mesa-dist-win/releases/download/$MESA_VERSION/mesa3d-$MESA_VERSION-release-msvc.7z"
-        echo "$MESA_SHA256  $RUNNER_TEMP/mesa.7z" | sha256sum -c -
-        7z e -y -otarget/mesa "$RUNNER_TEMP/mesa.7z" x64/opengl32.dll x64/libgallium_wgl.dll > /dev/null
-        ls -l target/mesa
-    - name: AppImage, Flatpak and Windows zip
-      shell: bash
-      run: cargo xtask-dist --out dist --require-windows
+      run: cargo xtask-dist --out dist
     - name: Smoke test (game and editor from the AppImage)
       shell: bash
       run: |
@@ -39,9 +24,6 @@ runs:
         RUSTPG2D_AUTOPLAY="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/usr/bin/rustpg2d-game squashfs-root/usr/share/rustpg2d/example_project 2>&1 | tee game.log
         grep -q "menu=title" game.log
-        test "$(head -c 2 squashfs-root/usr/lib/rustpg2d/rustpg2d-game.exe)" = "MZ"
-        test "$(unzip -l "$GITHUB_WORKSPACE"/dist/rustpg2d-*-windows-x86_64.zip | grep -cE '/(rustpg2d-editor\.exe|rustpg2d-game\.exe|rustpg2d-game|example_project/project\.ron|mesa/opengl32\.dll)$')" -eq 5
-        test -f squashfs-root/usr/lib/rustpg2d/mesa/libgallium_wgl.dll
         RUSTPG2D_EDITOR_SCRIPT="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/AppRun 2>&1 | tee editor.log
         grep -q "open=false" editor.log

@@ -110,7 +110,7 @@ impl Editor {
     pub fn open_new_project_wizard(&mut self) {
         let parent = match self.project.root.parent() {
             Some(p) if self.project_open => p.to_path_buf(),
-            _ => rustpg2d_engine::paths::home().unwrap_or_default(),
+            _ => std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default(),
         };
         self.new_project = Some(NewProjectWizard::new(parent));
     }

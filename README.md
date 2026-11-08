@@ -8,8 +8,6 @@ Current version: **0.8.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed
 
 **Download**: every release on the [Releases page](https://github.com/Shadowrom2020/rustpg2d/releases) has the editor (with the game runner and the example project) as an **AppImage** — `chmod +x rustpg2d-X.Y.Z-x86_64.AppImage` and start it — and as a **Flatpak** bundle — `flatpak install --user rustpg2d-X.Y.Z.flatpak`, then start *R(ust)PG2D* from the app menu or with `flatpak run io.github.Shadowrom2020.rustpg2d`. Both run on Linux x86_64 with glibc 2.34 or newer (Debian 12, Ubuntu 22.04, Fedora 35, RHEL 9 and later); the welcome screen's **Example project** copies the bundled example to `~/rustpg2d/example_project` and opens it. Contributing: branches, versions and releases are described in [AGENTS.md](AGENTS.md).
 
-**Windows** (10 / 11, 64-bit): `rustpg2d-X.Y.Z-windows-x86_64.zip` — unzip it anywhere and start `rustpg2d-editor.exe`. It has the editor, the game runner, the example project (*Example project* on the welcome screen copies it to `%USERPROFILE%\rustpg2d\example_project`) and the Linux game runner, so Windows creators export games for Windows and Linux (AppImage / Flatpak packages are made on Linux only). R(ust)PG2D isn't code-signed: the first start shows *Windows protected your PC* — *More info*, *Run anyway*. **No graphics driver** (virtual machines, the *Microsoft Basic Display Adapter*, some servers): Windows' built-in OpenGL 1.1 can't run R(ust)PG2D, so the zip has a `mesa` folder with Mesa's software OpenGL (llvmpipe, from [mesa-dist-win](https://github.com/pal1000/mesa-dist-win)); when the system's OpenGL fails, the editor and the game start again with it by themselves (slower, but it works). Set `RUSTPG2D_SOFTWARE_GL=1` to use it from the start. Without the folder a message says what's missing. On Windows the asset library is in `%LOCALAPPDATA%\rustpg2d\library`, settings and the recent list in `%APPDATA%\rustpg2d`; gamepads work through Windows' gamepad support, file dialogs are Windows' own.
-
 - **Tile maps** up to 1024×1024 tiles, any number of layers (overhead layers draw above characters), stored chunked and sparse.
 - **Editor** for maps (brush/stamp, rectangle, flood fill, erase, eyedropper, collision painting, undo/redo), entities, zones and transitions, plus a database editor for items, props, characters, tilesets, sprite sheets, project settings and scripts.
 - **Map transitions**: portal zones (teleport to a named spawn on any map) and edge links (walk off the north/south/east/west edge into a neighbouring map, keeping your position along the edge).
@@ -38,7 +36,7 @@ Current version: **0.8.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed
 
 ## Quick start
 
-Building needs a Rust toolchain and the ALSA and udev headers (Debian / Ubuntu: `sudo apt install libasound2-dev libudev-dev`; Fedora: `alsa-lib-devel systemd-devel`). On **Windows** the Rust toolchain (MSVC) is enough: `cargo build --release` gives `rustpg2d-editor.exe` and `rustpg2d-game.exe` (regenerating the example also needs the C compiler of the Visual Studio Build Tools, for the Ogg Vorbis encoder). For Windows builds from Linux see *Releasing a game*.
+Building needs a Rust toolchain and the ALSA and udev headers (Debian / Ubuntu: `sudo apt install libasound2-dev libudev-dev`; Fedora: `alsa-lib-devel systemd-devel`).
 
 ```sh
 cargo run -p rustpg2d-engine --example gen_example   # (re)generate example_project/
@@ -176,7 +174,7 @@ The **ribbon** under the menu holds the tools as icon buttons in groups (*Edit* 
 
 ### Releasing a game
 
-*File → Export game (standalone)…* saves the project and writes a bundle that runs without the editor or Rust, for **Linux** and / or **Windows** (*Platforms* in the dialog):
+*File → Export game (standalone)…* saves the project and writes a bundle that runs without the editor or Rust:
 
 ```
 releases/<game-name>/
@@ -184,16 +182,12 @@ releases/<game-name>/
   data/            project.ron, defs/, maps/, scripts/ and only the images / sounds in use
   README.txt
   rustpg2d-LICENSE.txt   the MIT license of the R(ust)PG2D engine (the game executable)
-releases/<game-name>-windows/           (Windows: <game-name>.exe, data\, README.txt, license)
 releases/<game-name>-linux.zip          (optional, to share)
-releases/<game-name>-windows.zip        (optional, to share)
 releases/<game-name>-x86_64.AppImage    (optional, Linux package)
 releases/<game-name>.flatpak            (optional, Linux package)
 ```
 
-The executable is a copy of `rustpg2d-game`; started without arguments it runs the `data/` folder next to it, titles the window with the game name and keeps save games in `~/.local/share/<game-name>/saves` (the bundle folder may be read-only). Save games of the project are never shipped. The export checks the project first (start map must exist; missing files and an unset player are reported) and replaces an earlier export in the same place, but never touches other folders. Build the game in release mode first (`cargo build --release -p rustpg2d-game`) — the editor picks `target/release/rustpg2d-game` when it exists and warns when only a debug build is available. A Linux bundle (x86_64) needs the usual system libraries (OpenGL, X11/Wayland, ALSA). The game executable runs on **glibc 2.34 or newer** — Debian 12, Ubuntu 22.04, Fedora 35, RHEL / Rocky / Alma 9 and later — even when R(ust)PG2D is built on a newer rolling-release system (the export dialog shows what the executable needs).
-
-**Windows games** (Windows 10 / 11, 64-bit): players unzip the folder and double-click `<game-name>.exe`; save games go to `%APPDATA%\<game-name>\saves`, settings to `%APPDATA%\rustpg2d\<game-name>`. The executable is a copy of `rustpg2d-game.exe`, which the R(ust)PG2D packages ship next to the Linux game runner, so the Linux editor exports Windows games without any Windows tools. The export dialog's *Windows: software OpenGL fallback* (on by default, about +60 MB unpacked / +23 MB zipped) puts the `mesa` folder into the game too, so it also starts on PCs and virtual machines without a graphics driver. It isn't code-signed: Windows SmartScreen shows "Windows protected your PC" the first time — *More info*, *Run anyway* (the README in the bundle says so). Gamepads work through Windows' own gamepad support. From source, build the Windows runner with `rustup target add x86_64-pc-windows-gnu`, the MinGW-w64 cross compiler (`gcc-mingw-w64-x86-64` on Debian / Ubuntu, `mingw-w64-gcc` on Arch) and `cargo build --release --target x86_64-pc-windows-gnu -p rustpg2d-game`; the editor finds it in `target/x86_64-pc-windows-gnu/release/`.
+The executable is a copy of `rustpg2d-game`; started without arguments it runs the `data/` folder next to it, titles the window with the game name and keeps save games in `~/.local/share/<game-name>/saves` (the bundle folder may be read-only). Save games of the project are never shipped. The export checks the project first (start map must exist; missing files and an unset player are reported) and replaces an earlier export in the same place, but never touches other folders. Build the game in release mode first (`cargo build --release -p rustpg2d-game`) — the editor picks `target/release/rustpg2d-game` when it exists and warns when only a debug build is available. The bundle targets the platform it was built on (Linux x86_64 here) and needs the usual system libraries (OpenGL, X11/Wayland, ALSA). The game executable runs on **glibc 2.34 or newer** — Debian 12, Ubuntu 22.04, Fedora 35, RHEL / Rocky / Alma 9 and later — even when R(ust)PG2D is built on a newer rolling-release system (the export dialog shows what the executable needs).
 
 **Linux packages** (ticked in the export dialog, built from the bundle):
 
@@ -369,8 +363,7 @@ RUSTPG2D_EDITOR_SCRIPT="open village; region 16 2 10 7; copy; open forest; paste
 ## Limitations / ideas
 
 - Enemies placed directly on a map stay dead once defeated; use a spawner zone for respawning enemies.
-- Native file dialogs need a running xdg-desktop-portal on Linux (standard on GNOME/KDE desktops); paths can always be typed by hand.
-- The Windows downloads and exported Windows games aren't code-signed (SmartScreen asks once). macOS isn't supported yet.
+- Native file dialogs need a running xdg-desktop-portal (standard on GNOME/KDE desktops); paths can always be typed by hand.
 
 ## License
 

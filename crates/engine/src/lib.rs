@@ -9,10 +9,8 @@ pub mod effects;
 pub mod entity;
 pub mod events;
 pub mod fog;
-pub mod gl_fallback;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;
-pub mod icon;
 pub mod imageio;
 pub mod inventory;
 pub mod legacy;
@@ -20,7 +18,6 @@ pub mod library;
 pub mod map;
 pub mod migrate;
 pub mod path;
-pub mod paths;
 pub mod progression;
 pub mod project;
 pub mod quest;

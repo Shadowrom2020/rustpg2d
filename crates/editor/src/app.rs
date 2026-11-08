@@ -872,10 +872,9 @@ impl Editor {
 
     fn play_with(&mut self, here: bool, cutscene: Option<&str>) {
         self.save_all();
-        let runner = rustpg2d_engine::release::Platform::host().game_runner();
-        let exe = std::env::current_exe().ok().map(|p| p.with_file_name(runner));
+        let exe = std::env::current_exe().ok().map(|p| p.with_file_name("rustpg2d-game"));
         let Some(exe) = exe.filter(|p| p.exists()) else {
-            self.set_status(format!("{runner} not found next to the editor; run `cargo build -p rustpg2d-game`"));
+            self.set_status("rustpg2d-game not found next to the editor; run `cargo build -p rustpg2d-game`");
             return;
         };
         let mut cmd = std::process::Command::new(exe);
@@ -949,7 +948,7 @@ impl Editor {
             files::Purpose::NewProjectParent => self.new_project.as_ref().map(|w| PathBuf::from(w.parent.trim())).filter(|p| p.is_dir()),
             files::Purpose::OpenProject | files::Purpose::NewProject => match self.project.root.parent() {
                 Some(p) if self.project_open => Some(p.to_path_buf()),
-                _ => rustpg2d_engine::paths::home(),
+                _ => std::env::var_os("HOME").map(PathBuf::from),
             },
             _ => Some(self.project.root.clone()),
         };

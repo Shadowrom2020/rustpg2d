@@ -2,8 +2,6 @@
 //!
 //! Usage: rustpg2d-editor [PROJECT_DIR]   (without a folder the welcome screen shows)
 //!        rustpg2d-editor --library [DIR]  (the Asset Library window; default: the shared library)
-// No console window on Windows (logs go to the terminal it was started from, if any).
-#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod app;
 mod builder;
@@ -47,11 +45,8 @@ fn library_arg() -> Option<std::path::PathBuf> {
 }
 
 fn window_conf() -> Conf {
-    rustpg2d_engine::icon::attach_parent_console();
-    rustpg2d_engine::gl_fallback::prepare("R(ust)PG2D");
     let library = library_arg().is_some();
     Conf {
-        icon: Some(rustpg2d_engine::icon::window_icon(&rustpg2d_engine::icon::emblem())),
         window_title: if library { "R(ust)PG2D – Asset Library" } else { "R(ust)PG2D editor" }.to_owned(),
         window_width: if library { 1300 } else { 1600 },
         window_height: 900,
@@ -66,8 +61,6 @@ fn window_conf() -> Conf {
 const EMQ_WHEEL_DIVISOR: f32 = 90.0;
 /// Scroll distance of one mouse-wheel notch in egui panels (about three lines of text).
 const WHEEL_POINTS_PER_NOTCH: f32 = 50.0;
-/// What macroquad reports for one wheel notch: 1 on Linux, Windows' `WHEEL_DELTA` (120) there.
-const WHEEL_NOTCH: f32 = if cfg!(windows) { 120.0 } else { 1.0 };
 
 #[macroquad::main(window_conf)]
 async fn main() {
@@ -87,7 +80,7 @@ async fn main() {
     };
     prevent_quit();
     egui_macroquad::cfg(|ctx| {
-        ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_NOTCH * EMQ_WHEEL_DIVISOR / WHEEL_NOTCH);
+        ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_NOTCH * EMQ_WHEEL_DIVISOR);
         ui::install_fonts(ctx);
     });
     // Debug aid: RUSTPG2D_EDITOR_SCRIPT="tool entity; select entity 3; wait 0.5; shot a.png; quit"
@@ -444,17 +437,10 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         }
         // exportgame OUT_DIR [NAME]  /  exportdialog
         // exportpkg OUT_DIR appimage|flatpak|all [APP_ID]: the folder plus Linux packages
-        // exportgame OUT [NAME] (host platform) · exportwin OUT [NAME] (Windows) · exportall OUT
-        // [NAME] (Linux and Windows); all with zips
-        "exportgame" | "exportpkg" | "exportwin" | "exportall" => {
-            let mut opts = export::ExportOpts { zip: arg(0) != "exportpkg", ..Default::default() };
-            if arg(0) == "exportwin" {
-                (opts.linux, opts.windows) = (false, true);
-            } else if arg(0) == "exportall" {
-                (opts.linux, opts.windows) = (true, true);
-            }
+        "exportgame" | "exportpkg" => {
+            let mut opts = export::ExportOpts { zip: arg(0) == "exportgame", ..Default::default() };
             let mut name = ed.project.config.name.clone();
-            if arg(0) != "exportpkg" {
+            if arg(0) == "exportgame" {
                 if !arg(2).is_empty() {
                     name = cmd[2..].join(" ");
                 }
@@ -474,9 +460,6 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         "exportdialog" => {
             ed.open_export();
             if let Some(d) = &mut ed.export {
-                if cmd.iter().any(|a| a == "windows") {
-                    d.opts.windows = true;
-                }
                 d.opts.appimage = cmd.iter().any(|a| a == "appimage");
                 d.opts.flatpak = cmd.iter().any(|a| a == "flatpak");
             }

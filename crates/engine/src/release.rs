@@ -203,8 +203,9 @@ pub struct Exported {
 /// `<slug>-windows/`), using `game_binary` (R(ust)PG2D's game runner for that platform) as the
 /// executable; with `zip`, also `out_dir/<slug>-linux.zip` / `<slug>-windows.zip`. An earlier
 /// export in the same place is replaced; any other existing folder of that name is left alone
-/// (error).
-pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &Path, out_dir: &Path, zip: bool) -> Result<Exported> {
+/// (error). `mesa` (Windows): a folder with Mesa's software OpenGL copied into the bundle as
+/// `mesa/`, so the game also starts on PCs without an OpenGL 3 driver (`gl_fallback`).
+pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &Path, out_dir: &Path, zip: bool, mesa: Option<&Path>) -> Result<Exported> {
     let (files, check) = check(project);
     if !check.errors.is_empty() {
         bail!("{}", check.errors.join("\n"));
@@ -230,6 +231,7 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     }
     let data = folder.join(DATA_DIR);
     let mut bytes = 0u64;
+    let mut extra = 0usize;
     for rel in &files {
         let (src, dst) = (project.root.join(rel), data.join(rel));
         std::fs::create_dir_all(dst.parent().unwrap())?;
@@ -249,10 +251,21 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755))?;
     }
+    if let (Platform::Windows, Some(dir)) = (platform, mesa) {
+        let dst = folder.join(crate::gl_fallback::MESA_DIR);
+        std::fs::create_dir_all(&dst)?;
+        for e in std::fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))?.flatten() {
+            if e.path().is_file() {
+                std::fs::copy(e.path(), dst.join(e.file_name())).with_context(|| format!("copying {}", e.path().display()))?;
+                bytes += std::fs::metadata(dst.join(e.file_name())).map_or(0, |m| m.len());
+                extra += 1;
+            }
+        }
+    }
     std::fs::write(folder.join("README.txt"), platform.readme(name.trim(), &slug))?;
     std::fs::write(folder.join(ENGINE_LICENSE_FILE), ENGINE_LICENSE)?;
     let archive = if zip { Some(write_zip(&folder, &slug, &platform.exe(&slug), &out_dir.join(platform.archive(&slug)))?) } else { None };
-    Ok(Exported { folder, archive, files: files.len() + 3, bytes, warnings: check.warnings })
+    Ok(Exported { folder, archive, files: files.len() + 3 + extra, bytes, warnings: check.warnings })
 }
 
 /// Zips the bundle folder as `<slug>/…` (keeping the executable's permissions).
@@ -326,7 +339,7 @@ mod tests {
         let bin = tmp.join("rustpg2d-game");
         std::fs::write(&bin, b"#!/bin/sh\n").unwrap();
         let out = tmp.join("out");
-        let r = export(&p, "Test Quest", Platform::Linux, &bin, &out, true).unwrap();
+        let r = export(&p, "Test Quest", Platform::Linux, &bin, &out, true, None).unwrap();
         let f = out.join("test-quest");
         assert!(f.join("test-quest").is_file());
         assert!(f.join("data/project.ron").is_file());
@@ -345,19 +358,23 @@ mod tests {
         assert_eq!(exe.unix_mode().map(|m| m & 0o777), Some(0o755));
         drop(exe);
         // Exporting again replaces the earlier export; a foreign folder is refused.
-        export(&p, "Test Quest", Platform::Linux, &bin, &out, false).unwrap();
+        export(&p, "Test Quest", Platform::Linux, &bin, &out, false, None).unwrap();
         std::fs::create_dir_all(out.join("other")).unwrap();
-        assert!(export(&p, "Other", Platform::Linux, &bin, &out, false).is_err());
+        assert!(export(&p, "Other", Platform::Linux, &bin, &out, false, None).is_err());
         // Never into the project itself.
-        assert!(export(&p, "Test Quest", Platform::Linux, &bin, &root, false).is_err());
+        assert!(export(&p, "Test Quest", Platform::Linux, &bin, &root, false, None).is_err());
         // Windows: needs a Windows program; its own folder, exe, zip and README next to Linux's.
-        assert!(export(&p, "Test Quest", Platform::Windows, &bin, &out, false).is_err(), "not an exe");
+        assert!(export(&p, "Test Quest", Platform::Windows, &bin, &out, false, None).is_err(), "not an exe");
         let win = tmp.join("rustpg2d-game.exe");
         std::fs::write(&win, b"MZ\x90\0fake").unwrap();
-        let r = export(&p, "Test Quest", Platform::Windows, &win, &out, true).unwrap();
+        let mesa = tmp.join("mesa");
+        std::fs::create_dir_all(&mesa).unwrap();
+        std::fs::write(mesa.join("opengl32.dll"), b"MZ dll").unwrap();
+        let r = export(&p, "Test Quest", Platform::Windows, &win, &out, true, Some(&mesa)).unwrap();
         let w = out.join("test-quest-windows");
         assert_eq!(r.folder, w);
         assert!(w.join("test-quest.exe").is_file() && w.join("data/maps/start.map").is_file());
+        assert!(w.join("mesa/opengl32.dll").is_file(), "the software OpenGL fallback");
         let readme = std::fs::read_to_string(w.join("README.txt")).unwrap();
         assert!(readme.contains("test-quest.exe") && readme.contains("%APPDATA%\\test-quest\\saves") && readme.contains("\r\n"), "{readme}");
         assert!(f.join("test-quest").is_file(), "the Linux export stays");

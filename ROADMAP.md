@@ -164,6 +164,9 @@ egui's line scroll speed is divided by it (the game and canvas use only the sign
 `ctrl` is Ctrl on Windows, so no change (`command` is the macOS item's business). Also found:
 `std::fs::copy` returns 0 under Wine (sizes come from metadata now), RON wrote CRLF on Windows
 (LF everywhere now), and zips made on Windows dropped the Unix mode (`System::Unix` always).
+After the merge, a fresh Windows VM (no GPU driver, OpenGL 1.1 only) failed to start: the zip,
+the packages and Windows exports now carry Mesa's software OpenGL (`engine/src/gl_fallback.rs`,
+`bugfix/windows-software-gl`).
 
 **Touch points.** `engine/src/{paths (new),settings,release,library,build.rs}`, `editor/src/
 {files,app,export,library_window,main,canvas,pixel,database}.rs`, `packaging/src/lib.rs`,

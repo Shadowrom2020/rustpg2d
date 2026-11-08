@@ -77,130 +77,6 @@ Instructions for every session (people and coding agents) that implements roadma
     notes live on in the CHANGELOG and the code), `cargo xtask check-version release/X.Y.Z`,
     pull request into master, merge after the four checks, merge the back-merge pull request.
 
-## 0.8.0 — Scenery and sound
-
-Theme: maps gain smoother terrain edges and depth, and music loops without a gap.
-
-### [x] 47-tile corner auto-tiling — `feature/autotile-47`
-
-**Goal.** Terrains with inner corners: the 16-tile sets of 0.4.0 only look at the four sides, so
-a diagonal neighbour leaves a hard corner; 47-tile ("blob") sets look at all eight.
-
-**Design.**
-- `Terrain.blob: Vec<Option<u32>>` (serde default empty = 16-tile mode as today; 47 entries
-  otherwise; a `Vec` because serde has no 47-element arrays). The mask uses eight neighbours,
-  a diagonal counting only when both cardinals next to it are set, which leaves 47 distinct
-  masks; a table maps the 256 raw masks to the 47 slots. `tile_for` falls back to the 16-tile
-  set, then the inside, so a half-filled blob set still paints.
-- `autotile::paint` / `retile` use the 8-neighbour mask for blob terrains (the cells to update
-  stay the 3 × 3 around the change). `joins` and `base` work unchanged.
-- Editor (*Database › Tilesets › Terrains*): a *Corners (47 tiles)* toggle; the slot grid becomes
-  the common 7 × 7 blob template with a mask drawing in each empty slot; *Fill from template*
-  assigns 47 slots from a block of the tileset in that standard order (how most blob tilesets
-  are published).
-- Imports: Tiled's *mixed* Wang sets with 47 tiles map onto it (`import/tiled.rs`, reported
-  when it doesn't fit).
-
-**Decided while building.** Slot order is ascending 8-bit mask value (bits N 1, E 2, S 4, W 8,
-NE 16, SE 32, SW 64, NW 128), so slots 0–15 are the masks without corners in the 16-tile order and
-slot 46 is the inside; there is no single published blob order, so the editor draws each slot's
-mask (blue arms for corners) instead of claiming a standard. `tile_for` takes 8-bit masks for
-every terrain (16-tile terrains ignore the corners); `paint` re-tiles a diagonal neighbour only
-when its terrain is a blob terrain, so 16-tile maps change exactly as before. Tiled import read
-no Wang sets before: it now reads them from `.tsx` / `.tsj` / embedded tilesets (comma Wang ids
-only, Tiled ≥ 1.5). Only *Dirt path* and *Sand* got blob art (generator: the inner-corner notch is
-where the two neighbours' bands meet, rounded); editor script `terrainblob TILESET NAME on|off`.
-
-**Touch points.** `autotile.rs`, editor `terrain.rs`, `database.rs`, `import/tiled.rs`,
-gen_example (art and terrain), README.
-
-**Example.** The starter sand path gets a blob set, composed from quarter tiles in the generator
-(inside, edge, outer corner, inner corner), and the village's paths are retiled with it.
-
-**Verify (done).** Unit tests: the 256 → 47 table (47 distinct, closed under rotation), `paint`
-on an L-shape gives the inner corner and re-tiles the diagonal neighbour, half-filled sets fall
-back, old terrains without `blob` load and paint; Tiled fixture with a mixed and a corner Wang set.
-Editor script: the Terrains form with the 7×7 grid and preview, `terrainpaint` of an L on the
-village (screenshot: rounded inner corner); game screenshot of the village's road junctions.
-
-### [x] Parallax layers — `feature/parallax`
-
-**Goal.** Image layers that move at their own speed behind or over a map: a sky or abyss under
-a cliff map, drifting cloud shadows or mist above it.
-
-**Design.**
-- `Map.parallax: Vec<ParallaxLayer { image: String /* project path */, factor: [f32; 2] /*
-  0 = fixed to the screen, 1 = moves with the map */, offset: [f32; 2], drift: [f32; 2] /* px per
-  second */, repeat: [bool; 2], above: bool, alpha: f32 }>` in the map's RON `Meta` (serde
-  default empty).
-- Drawing: `render/parallax.rs` (shared with the editor like `render/weather.rs`): layers with
-  `above == false` after `clear_background` and before the tile layers, the others after the
-  entities and before lighting / weather; source rect from the camera position × factor + drift ×
-  time, tiled when repeating. Textures load with the map (`Assets`).
-- Editor: *Map › Properties* gets a *Parallax layers* list (image picker, factor, drift, repeat,
-  above, alpha, order); the canvas previews them (view toggle `viewopt parallax`).
-
-**Decided while building.** A layer names a **sprite sheet** (`sheet`, drawn whole) instead of an
-image path: sheets already load with the project, have pickers and travel with renames and the
-library, so nothing new loads with the map. Added `scale` (cloud shadows are a small tileable
-image drawn 4×). The image's origin is the view's top-left × (1 − factor) + offset + drift × time,
-so factor 0 anchors it to the screen's top-left. Behind layers draw over the whole view (also past
-the map's edge, in the editor too). The mine is pitch dark and has no empty cells, so its chasm
-became a see-through *Abyss* terrain (appended to the dungeon tileset; Chasm unchanged) through
-which the mist shows near the torch. Cloud shadows: factor 0.8, alpha 0.3. `status()`
-`parallax=NbehindMabove`; editor `viewopt parallax`.
-
-**Touch points.** `map/mod.rs`, `map/io.rs` (Meta), `render/{parallax (new),mod}.rs`,
-`runtime/mod.rs` (draw order), editor `app.rs` (map properties), `canvas.rs`, `main.rs`
-(`viewopt parallax`), `refactor.rs` / `library.rs` (image refs travel with maps), README.
-
-**Example.** Cloud shadows drifting over the Wilds (above, alpha 0.15) and a dark mist behind
-the mine, seen under empty tiles and beyond the map edge (behind, factor 0.3).
-
-**Verify (done).** Autoplay: Wilds screenshots with drifting cloud shadows, mine screenshots at two
-player positions (the mist in the chasm shifts against the floor), `parallax=1behind,0above` /
-`0behind,1above`; editor screenshots of the mine with the preview and the map settings' list, and
-with `viewopt parallax off`; map round trip test (and no `parallax` written for maps without
-layers), origin / copies unit test.
-
-### [x] Gapless music loops — `feature/gapless-music`
-
-**Goal.** Music loops without the short silence at the loop point.
-
-**Design.**
-- Cause (found with the rain): quad-snd 0.2.8's mixer, after rewinding a looped sound inside a
-  mix buffer, writes the rest of the buffer from index 0 again, so a loop not ending on a
-  buffer boundary gets an overlap and a silent tail. The rain avoids it with a length of whole
-  `MIX_BUFFER_FRAMES` (4096) at 44.1 kHz.
-- Fix for music: sounds played with `play_music` are decoded by the engine (Ogg Vorbis with
-  `lewton`, already compiled for audrey, as a direct dependency; WAV with a small reader),
-  resampled to 44.1 kHz, and stretched to the next whole number of mix buffers (≤ 93 ms more:
-  a pitch change below 0.1 % for tracks over a minute; tracks under 20 s are padded with a
-  crossfade of their start instead), then handed to macroquad as WAV (`wav_bytes`). Done at load
-  for sounds used as music by maps or *Play music* actions, lazily (once) for others.
-- Should macroquad ship a fixed quad-snd, the workaround is skipped (keep the replay test of
-  the mixer, `rain_loop_survives_quad_snds_mixer`, for music lengths).
-
-**Decided while building.** No crossfade padding for short tracks: a track under 30 s is
-repeated until it lasts 30 s, then stretched like the others (≤ 0.32 %, about 5 cents). Which
-sounds are music isn't known without scanning every map, so files that are probably music (Ogg
-over 64 KiB, WAV over 1 MiB) are prepared in a background thread at load, and any sound is
-prepared synchronously the first time `play_music` gets it (`Audio::gapless`). A file that already
-is whole buffers at 44.1 kHz (≤ 2 channels) is played as it is. Resampling is linear and wraps
-around the loop point. `status()` `music_loop=whole|stretched|plain|-`. The example tracks get a
-tempo a hair slower (`music.rs` `whole_buffers`) so they are whole buffers long.
-
-**Touch points.** `audio.rs`, `engine/Cargo.toml` (`lewton`), README (audio notes).
-
-**Example.** The two example tracks loop cleanly (they are generated: also render them at whole
-buffer lengths in `gen_example/music.rs`).
-
-**Verify (done).** Unit tests: stretched lengths are whole buffers (61.3 s at 44.1 kHz, 7 s at
-22.05 kHz repeated to 35 s, mono WAV), the quad-snd mixer replay has a gap for a 41.7 s track and
-none for its gapless loop, WAV / Ogg decoding, the example's Ogg tracks are whole buffers. Game run
-with master volume 0 (real playback path): `music_loop=whole` for the example tracks,
-`stretched` for a 35.3 s 22.05 kHz test WAV. Listening check: left to the user (unmuted run).
-
 ## 0.9.0 — Everywhere (platforms and reach)
 
 Theme: R(ust)PG2D and the games made with it run where the players and creators are: Windows,
@@ -361,6 +237,12 @@ Options row *Language*; the editor exports a translation template. Large but mec
 ## Shipped
 
 See [CHANGELOG.md](CHANGELOG.md) for the details of every release.
+
+### 0.8.0 — Scenery and sound (2026-11-08)
+
+- [x] 47-tile corner auto-tiling (inner corners; Tiled Wang sets) — `feature/autotile-47`
+- [x] Parallax layers (sky / abyss behind, cloud shadows over the map) — `feature/parallax`
+- [x] Gapless music loops — `feature/gapless-music`
 
 ### 0.7.0 — Trades and town life (2026-11-08)
 

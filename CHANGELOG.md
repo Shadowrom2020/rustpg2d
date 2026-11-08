@@ -3,7 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.8.0 — 2026-11-08
 
 ### Gameplay
 - **Gapless music loops**: music no longer has a short silence where it loops (a quad-snd mixer

@@ -163,7 +163,7 @@ player positions (the mist in the chasm shifts against the floor), `parallax=1be
 with `viewopt parallax off`; map round trip test (and no `parallax` written for maps without
 layers), origin / copies unit test.
 
-### [ ] Gapless music loops — `feature/gapless-music`
+### [x] Gapless music loops — `feature/gapless-music`
 
 **Goal.** Music loops without the short silence at the loop point.
 
@@ -181,14 +181,25 @@ layers), origin / copies unit test.
 - Should macroquad ship a fixed quad-snd, the workaround is skipped (keep the replay test of
   the mixer, `rain_loop_survives_quad_snds_mixer`, for music lengths).
 
+**Decided while building.** No crossfade padding for short tracks: a track under 30 s is
+repeated until it lasts 30 s, then stretched like the others (≤ 0.32 %, about 5 cents). Which
+sounds are music isn't known without scanning every map, so files that are probably music (Ogg
+over 64 KiB, WAV over 1 MiB) are prepared in a background thread at load, and any sound is
+prepared synchronously the first time `play_music` gets it (`Audio::gapless`). A file that already
+is whole buffers at 44.1 kHz (≤ 2 channels) is played as it is. Resampling is linear and wraps
+around the loop point. `status()` `music_loop=whole|stretched|plain|-`. The example tracks get a
+tempo a hair slower (`music.rs` `whole_buffers`) so they are whole buffers long.
+
 **Touch points.** `audio.rs`, `engine/Cargo.toml` (`lewton`), README (audio notes).
 
 **Example.** The two example tracks loop cleanly (they are generated: also render them at whole
 buffer lengths in `gen_example/music.rs`).
 
-**Verify.** Unit tests: decoded and stretched lengths are whole buffers; the mixer replay finds
-no gap for a music-length sound. Listening check by the user (unmuted run); underrun grep as for
-the rain.
+**Verify (done).** Unit tests: stretched lengths are whole buffers (61.3 s at 44.1 kHz, 7 s at
+22.05 kHz repeated to 35 s, mono WAV), the quad-snd mixer replay has a gap for a 41.7 s track and
+none for its gapless loop, WAV / Ogg decoding, the example's Ogg tracks are whole buffers. Game run
+with master volume 0 (real playback path): `music_loop=whole` for the example tracks,
+`stretched` for a 35.3 s 22.05 kHz test WAV. Listening check: left to the user (unmuted run).
 
 ## 0.9.0 — Everywhere (platforms and reach)
 

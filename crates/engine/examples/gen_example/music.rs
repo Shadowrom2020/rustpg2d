@@ -230,6 +230,16 @@ fn bell(f: f32, secs: f32) -> Vec<f32> {
 
 // ------------------------------------------------------------------ mixing
 
+/// Frames macroquad's mixer fills per pass (`audio::MIX_BUFFER_FRAMES`).
+const MIX_BUFFER: usize = rustpg2d_engine::audio::MIX_BUFFER_FRAMES;
+
+/// The beat length nearest `beat` (rounded up) that makes `beats` beats a whole number of mixer
+/// buffers: the engine then plays the loop as it is, without stretching it.
+fn whole_buffers(beat: f32, beats: usize) -> f32 {
+    let frames = (beat as f64 * beats as f64 * SR as f64 / MIX_BUFFER as f64).ceil() * MIX_BUFFER as f64;
+    (frames / SR as f64 / beats as f64) as f32
+}
+
 /// A stereo mix of a loop: the loop plus a tail that is folded onto its start at the end.
 struct Mix {
     len: usize,
@@ -242,7 +252,8 @@ struct Mix {
 
 impl Mix {
     fn new(loop_secs: f32, tail_secs: f32) -> Mix {
-        let len = (loop_secs * SRF).round() as usize;
+        // Whole mixer buffers (`whole_buffers` makes the loop that long up to rounding).
+        let len = ((loop_secs * SRF / MIX_BUFFER as f32).round() as usize).max(1) * MIX_BUFFER;
         let total = len + (tail_secs * SRF) as usize;
         Mix { len, l: vec![0.0; total], r: vec![0.0; total], send: vec![0.0; total], rng: Rng(0x5eed) }
     }
@@ -322,14 +333,15 @@ fn reverb(input: &[f32], decay: f32, shift: usize) -> Vec<f32> {
 /// *Market Day*: a lilting 6/8 dance in D Mixolydian - lute, recorder, tabor and shaker.
 /// Intro (lute) - A - A - B (harmony in thirds, strums) - A.
 fn village() -> (Vec<f32>, Vec<f32>) {
-    const BEAT: f32 = 0.2; // an eighth: dotted quarter = 100
     const SCALE: [i32; 7] = [2, 4, 6, 7, 9, 11, 0]; // D Mixolydian
     let a_chords = ["D", "D", "G", "D", "D", "C", "G", "D"];
     let b_chords = ["Bm", "G", "D", "Am", "Bm", "G", "C", "D"];
     let chords: Vec<&str> = [&["D", "D"][..], &a_chords, &a_chords, &b_chords, &a_chords].concat();
     let bars = chords.len();
-    let mut m = Mix::new(bars as f32 * 6.0 * BEAT, 3.0);
-    let bar_at = |bar: usize| bar as f32 * 6.0 * BEAT;
+    // An eighth: dotted quarter = 100 (a hair slower, so the loop fills whole mixer buffers).
+    let unit = whole_buffers(0.2, bars * 6);
+    let mut m = Mix::new(bars as f32 * 6.0 * unit, 3.0);
+    let bar_at = |bar: usize| bar as f32 * 6.0 * unit;
 
     // Lute: a rolling pattern, every eighth, with the first and fourth beats stressed.
     let pattern = |t: i32| [0, 7, 12, 12 + t, 19, 12 + t];
@@ -337,7 +349,7 @@ fn village() -> (Vec<f32>, Vec<f32>) {
     for (bar, c) in chords.iter().enumerate() {
         let (r, t) = chord(c, 43);
         for (k, iv) in pattern(t).iter().enumerate() {
-            let at = bar_at(bar) + k as f32 * BEAT + m.loose(4.0);
+            let at = bar_at(bar) + k as f32 * unit + m.loose(4.0);
             let s = pluck(&mut m.rng, hz(r + iv), 0.8, 0.994, 2);
             m.add(at, &s, 0.42 * stress[k], -0.35, 0.3);
         }
@@ -348,7 +360,7 @@ fn village() -> (Vec<f32>, Vec<f32>) {
         for beat in [0.0, 3.0] {
             for (k, iv) in [12, 12 + t, 19, 24].iter().enumerate() {
                 let s = pluck(&mut m.rng, hz(r + iv), 1.0, 0.997, 1);
-                m.add(bar_at(bar) + beat * BEAT + k as f32 * 0.014, &s, 0.2, 0.4, 0.45);
+                m.add(bar_at(bar) + beat * unit + k as f32 * 0.014, &s, 0.2, 0.4, 0.45);
             }
         }
     }
@@ -360,7 +372,7 @@ fn village() -> (Vec<f32>, Vec<f32>) {
     let mut beats = 0.0;
     for (n, len) in notes(&tune) {
         if let Some(n) = n {
-            let secs = len * BEAT - 0.03;
+            let secs = len * unit - 0.03;
             let s = recorder(&mut m.rng, hz(n), secs);
             m.add(at, &s, 0.26, 0.15, 0.5);
             // The B part gets a second recorder a third below.
@@ -369,7 +381,7 @@ fn village() -> (Vec<f32>, Vec<f32>) {
                 m.add(at + 0.01, &s, 0.15, -0.1, 0.5);
             }
         }
-        at += len * BEAT;
+        at += len * unit;
         beats += len;
     }
     assert_eq!(beats, (bars - 2) as f32 * 6.0, "the tune must fill the bars after the intro");
@@ -377,12 +389,12 @@ fn village() -> (Vec<f32>, Vec<f32>) {
     for bar in 10..bars {
         for (beat, vol) in [(0.0, 0.4), (3.0, 0.24)] {
             let s = tabor(&mut m.rng);
-            m.add(bar_at(bar) + beat * BEAT, &s, vol, 0.0, 0.15);
+            m.add(bar_at(bar) + beat * unit, &s, vol, 0.0, 0.15);
         }
         if bar >= 18 {
             for beat in [2.0, 5.0] {
                 let s = shaker(&mut m.rng);
-                m.add(bar_at(bar) + beat * BEAT, &s, 0.12, 0.5, 0.2);
+                m.add(bar_at(bar) + beat * unit, &s, 0.12, 0.5, 0.2);
             }
         }
     }
@@ -392,14 +404,15 @@ fn village() -> (Vec<f32>, Vec<f32>) {
 /// *Whisperwood*: slow and airy in A minor - a bowed drone and bass, a rolling harp, a far
 /// recorder and bells. Intro - A - B - outro.
 fn forest() -> (Vec<f32>, Vec<f32>) {
-    const BEAT: f32 = 60.0 / 70.0; // a quarter at 70
     let a_chords = ["Am", "Am", "F", "G", "Am", "Em", "F", "Am"];
     let b_chords = ["Dm", "Am", "F", "G", "Dm", "Em", "F", "G"];
     let chords: Vec<&str> = [&["Am", "Am"][..], &a_chords, &b_chords, &["Am", "Am"]].concat();
     let bars = chords.len();
-    let loop_secs = bars as f32 * 4.0 * BEAT;
+    // A quarter at 70 (a hair slower, so the loop fills whole mixer buffers).
+    let unit = whole_buffers(60.0 / 70.0, bars * 4);
+    let loop_secs = bars as f32 * 4.0 * unit;
     let mut m = Mix::new(loop_secs, 4.0);
-    let bar_at = |bar: usize| bar as f32 * 4.0 * BEAT;
+    let bar_at = |bar: usize| bar as f32 * 4.0 * unit;
 
     // The drone (A, all the way round: faded in at the start and out in the tail, so the fold
     // crossfades it) and a bowed bass on the chord roots.
@@ -409,7 +422,7 @@ fn forest() -> (Vec<f32>, Vec<f32>) {
     m.add(0.0, &drone, 0.04, 0.2, 0.3);
     for (bar, c) in chords.iter().enumerate() {
         let (r, _) = chord(c, 38);
-        let s = bowed(hz(r), 4.0 * BEAT + 0.3, 0.35, 0.4);
+        let s = bowed(hz(r), 4.0 * unit + 0.3, 0.35, 0.4);
         m.add(bar_at(bar) - 0.1, &s, 0.11, 0.0, 0.35);
     }
     // Harp: rolling eighths.
@@ -417,7 +430,7 @@ fn forest() -> (Vec<f32>, Vec<f32>) {
     for (bar, c) in chords.iter().enumerate() {
         let (r, t) = chord(c, 52);
         for (k, iv) in [0, 7, 12, 12 + t, 19, 12 + t, 12, 7].iter().enumerate() {
-            let at = bar_at(bar) + k as f32 * BEAT / 2.0 + m.loose(6.0);
+            let at = bar_at(bar) + k as f32 * unit / 2.0 + m.loose(6.0);
             let s = pluck(&mut m.rng, hz(r + iv), 1.6, 0.998, 1);
             m.add(at, &s, 0.36 * stress[k], -0.3 + 0.08 * k as f32, 0.45);
         }
@@ -430,10 +443,10 @@ fn forest() -> (Vec<f32>, Vec<f32>) {
     let mut beats = 0.0;
     for (n, len) in notes(&tune) {
         if let Some(n) = n {
-            let s = recorder(&mut m.rng, hz(n), len * BEAT - 0.06);
+            let s = recorder(&mut m.rng, hz(n), len * unit - 0.06);
             m.add(at, &s, 0.17, 0.25, 0.6);
         }
-        at += len * BEAT;
+        at += len * unit;
         beats += len;
     }
     assert_eq!(beats, 16.0 * 4.0, "the tune must fill the A and B parts");
@@ -441,7 +454,7 @@ fn forest() -> (Vec<f32>, Vec<f32>) {
     for bar in (10..18).step_by(2).chain([18, 19]) {
         let (r, _) = chord(chords[bar], 52);
         let s = bell(hz(r + 24), 4.0);
-        m.add(bar_at(bar) + if bar == 19 { 2.0 * BEAT } else { 0.0 }, &s, 0.13, if bar % 4 == 2 { 0.5 } else { -0.5 }, 0.7);
+        m.add(bar_at(bar) + if bar == 19 { 2.0 * unit } else { 0.0 }, &s, 0.13, if bar % 4 == 2 { 0.5 } else { -0.5 }, 0.7);
     }
     m.finish(0.5, 0.84)
 }

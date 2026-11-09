@@ -58,6 +58,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- Path searches hash tile coordinates with one multiply instead of SipHash, pre-size their
+  tables, tell "no route" from "out of budget" (a second search with fewer obstacles only runs
+  when the first really tried everything), and line-of-sight checks walk the tiles a line crosses
+  instead of stepping pixel by pixel.
 - An occupancy grid (which tiles solid props and characters stand on), rebuilt once per frame,
   serves path planning and the broad phase of collision; before, every path search built a set
   of all entities' tiles and every movement step compared against every entity.

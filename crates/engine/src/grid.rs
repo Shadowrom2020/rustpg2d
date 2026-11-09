@@ -36,6 +36,44 @@ pub fn tile_rect(t: TilePos, ts: f32) -> Rect {
     Rect::new(t.0 as f32 * ts, t.1 as f32 * ts, ts, ts)
 }
 
+/// The tiles a straight line from `a` to `b` passes through after the one it starts in, the
+/// tile of `b` last (a grid walk: every tile the line touches, corners included, without
+/// stepping pixel by pixel). Nothing when both are in one tile.
+pub fn line_tiles(a: Vec2, b: Vec2, ts: f32) -> impl Iterator<Item = TilePos> {
+    let tile = |p: Vec2| ((p.x / ts).floor() as i32, (p.y / ts).floor() as i32);
+    let (start, end) = (tile(a), tile(b));
+    let d = b - a;
+    let step = (if d.x > 0.0 { 1 } else { -1 }, if d.y > 0.0 { 1 } else { -1 });
+    // How far along the line (0..1) the next tile boundary on each axis is, and the distance
+    // between boundaries.
+    let boundary = |t: i32, dir: i32| if dir > 0 { (t + 1) as f32 * ts } else { t as f32 * ts };
+    let mut tx = if d.x != 0.0 { (boundary(start.0, step.0) - a.x) / d.x } else { f32::INFINITY };
+    let mut ty = if d.y != 0.0 { (boundary(start.1, step.1) - a.y) / d.y } else { f32::INFINITY };
+    let (dx, dy) = (if d.x != 0.0 { ts / d.x.abs() } else { f32::INFINITY }, if d.y != 0.0 { ts / d.y.abs() } else { f32::INFINITY });
+    let mut t = start;
+    let mut left = 4096; // (never endless, whatever the floats do)
+    std::iter::from_fn(move || {
+        if t == end || left == 0 {
+            return None;
+        }
+        left -= 1;
+        if tx < ty {
+            tx += dx;
+            t.0 += step.0;
+        } else if ty < tx {
+            ty += dy;
+            t.1 += step.1;
+        } else {
+            // Exactly through a corner: on to the diagonal tile.
+            tx += dx;
+            ty += dy;
+            t.0 += step.0;
+            t.1 += step.1;
+        }
+        Some(t)
+    })
+}
+
 /// The tiles a rectangle covers. Its far edges are exclusive: a box ending exactly on a tile
 /// line doesn't touch the next tile (how collision has always counted them).
 pub fn tiles_of_rect(r: Rect, ts: f32) -> impl Iterator<Item = TilePos> {
@@ -75,6 +113,24 @@ mod tests {
         // The centre of tile x snaps a 2-wide prop onto tiles x and x + 1.
         let p = snap_feet(feet_spot((4, 2), ts) - vec2(0.0, ts / 2.0), 2, ts);
         assert_eq!(p, vec2(160.0, 95.0));
+    }
+
+    #[test]
+    fn line_walk() {
+        let ts = 32.0;
+        // Straight right through three tiles; the start tile isn't listed, the end tile is last.
+        let t: Vec<TilePos> = line_tiles(vec2(10.0, 10.0), vec2(100.0, 10.0), ts).collect();
+        assert_eq!(t, [(1, 0), (2, 0), (3, 0)]);
+        // A steep line that crosses x = 32 (at y = 22) before y = 32 passes through (1, 0).
+        let t: Vec<TilePos> = line_tiles(vec2(28.0, 4.0), vec2(36.0, 40.0), ts).collect();
+        assert_eq!(t, [(1, 0), (1, 1)]);
+        // Exactly through a corner: the diagonal tile.
+        let t: Vec<TilePos> = line_tiles(vec2(16.0, 16.0), vec2(48.0, 48.0), ts).collect();
+        assert_eq!(t, [(1, 1)]);
+        // Same tile: nothing. Backwards works too.
+        assert_eq!(line_tiles(vec2(1.0, 1.0), vec2(20.0, 20.0), ts).count(), 0);
+        let t: Vec<TilePos> = line_tiles(vec2(100.0, 10.0), vec2(10.0, 10.0), ts).collect();
+        assert_eq!(t, [(2, 0), (1, 0), (0, 0)]);
     }
 
     #[test]

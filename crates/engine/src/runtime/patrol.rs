@@ -7,7 +7,7 @@ use macroquad::prelude::*;
 use super::occupancy::{Occupancy, OCC_CHAR, OCC_PROP};
 use super::{Game, Mover};
 use crate::entity::{Facing, PatrolRoute};
-use crate::path::{find_path, TilePos};
+use crate::path::{find_path, find_path_ex, Search, TilePos};
 use crate::state::PatrolState;
 
 /// A* budget per waypoint (routes are short; this keeps big maps cheap).
@@ -165,11 +165,16 @@ impl Game {
             let mine: Vec<TilePos> = Occupancy::covered(self.loaded.entities[i].body.rect(), self.ts()).collect();
             let people = |x: i32, y: i32| w.avoid && occ.has(x, y, OCC_CHAR) && !mine.contains(&(x, y));
             let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (occ.has(x, y, OCC_PROP) || people(x, y)));
-            let planned = find_path(here, goal, |t| t == goal, blocked, MAX_NODES).or_else(|| {
-                // Hemmed in by people: plan as if they weren't there (they move on).
-                let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && occ.has(x, y, OCC_PROP));
-                find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
-            });
+            let planned = match find_path_ex(here, goal, |t| t == goal, blocked, MAX_NODES) {
+                Search::Found(p) => Some(p),
+                // Hemmed in by people: plan as if they weren't there (they move on). Out of
+                // budget: the goal is far or walled in, another search would run out too.
+                Search::NoRoute if w.avoid => {
+                    let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && occ.has(x, y, OCC_PROP));
+                    find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
+                }
+                Search::NoRoute | Search::OutOfBudget => None,
+            };
             match planned {
                 Some(path) if path.is_empty() && at_goal => {
                     self.loaded.entities[i].body.moving = false;

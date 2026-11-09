@@ -3,8 +3,41 @@
 use std::cell::Cell;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
+use std::hash::{BuildHasherDefault, Hasher};
 
 pub type TilePos = (i32, i32);
+
+/// A hash for tile coordinates (two `i32`s): one multiply instead of SipHash, which dominated
+/// the search time of long routes.
+#[derive(Default)]
+struct TileHash(u64);
+
+impl Hasher for TileHash {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        for b in bytes {
+            self.0 = (self.0 ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3);
+        }
+    }
+    fn write_i32(&mut self, i: i32) {
+        self.0 = (self.0.rotate_left(32) ^ u64::from(i as u32)).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    }
+}
+
+type TileMap<V> = HashMap<TilePos, V, BuildHasherDefault<TileHash>>;
+
+/// What a search came to ([`find_path_ex`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Search {
+    Found(Vec<TilePos>),
+    /// Every reachable tile was tried: there is no way. (Trying again with fewer obstacles can help.)
+    NoRoute,
+    /// The node budget ran out first: the goal may be reachable but far, or walled in on a big
+    /// map. (Trying again with the same budget would run out too.)
+    OutOfBudget,
+}
 
 thread_local! {
     // Searches since the last `take_stats` and the nodes they expanded (performance checks: the
@@ -39,13 +72,28 @@ pub fn find_path(
     blocked: impl Fn(i32, i32) -> bool,
     max_nodes: usize,
 ) -> Option<Vec<TilePos>> {
+    match find_path_ex(start, target, is_goal, blocked, max_nodes) {
+        Search::Found(p) => Some(p),
+        Search::NoRoute | Search::OutOfBudget => None,
+    }
+}
+
+/// [`find_path`] that says *why* no path was found: whether another search with fewer
+/// obstacles is worth it ([`Search::NoRoute`]) or would run out of budget again.
+pub fn find_path_ex(
+    start: TilePos,
+    target: TilePos,
+    is_goal: impl Fn(TilePos) -> bool,
+    blocked: impl Fn(i32, i32) -> bool,
+    max_nodes: usize,
+) -> Search {
     CALLS.with(|c| c.set(c.get() + 1));
     if is_goal(start) {
-        return Some(Vec::new());
+        return Search::Found(Vec::new());
     }
-    let mut open = BinaryHeap::new();
-    let mut came_from: HashMap<TilePos, TilePos> = HashMap::new();
-    let mut cost: HashMap<TilePos, u32> = HashMap::new();
+    let mut open = BinaryHeap::with_capacity(64);
+    let mut came_from: TileMap<TilePos> = TileMap::with_capacity_and_hasher(256, Default::default());
+    let mut cost: TileMap<u32> = TileMap::with_capacity_and_hasher(256, Default::default());
     cost.insert(start, 0);
     open.push(Reverse((heuristic(start, target), 0u32, start)));
     let mut expanded = 0;
@@ -64,12 +112,12 @@ pub fn find_path(
                 p = prev;
             }
             path.reverse();
-            return Some(path);
+            return Search::Found(path);
         }
         expanded += 1;
         NODES.with(|n| n.set(n.get() + 1));
         if expanded > max_nodes {
-            return None;
+            return Search::OutOfBudget;
         }
         for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
             let next = (cur.0 + dx, cur.1 + dy);
@@ -88,7 +136,7 @@ pub fn find_path(
             }
         }
     }
-    None
+    Search::NoRoute
 }
 
 #[cfg(test)]
@@ -99,6 +147,19 @@ mod tests {
         move |x, y| {
             y < 0 || x < 0 || y as usize >= rows.len() || x as usize >= rows[0].len() || rows[y as usize].as_bytes()[x as usize] == b'#'
         }
+    }
+
+    /// No route and no budget are told apart: a second search with fewer obstacles only makes
+    /// sense when the first really tried everything.
+    #[test]
+    fn no_route_or_out_of_budget() {
+        let rows = ["....", ".###", ".#X#", ".###"]; // X is walled in
+        let blocked = grid(&rows);
+        assert_eq!(find_path_ex((0, 0), (2, 2), |t| t == (2, 2), &blocked, 1000), Search::NoRoute);
+        let open = grid(&["...........", "...........", "..........."]);
+        assert_eq!(find_path_ex((0, 0), (10, 2), |t| t == (10, 2), &open, 2), Search::OutOfBudget);
+        assert!(matches!(find_path_ex((0, 0), (10, 2), |t| t == (10, 2), &open, 1000), Search::Found(p) if p.len() == 10));
+        assert_eq!(find_path_ex((0, 0), (0, 0), |t| t == (0, 0), &open, 1), Search::Found(vec![]));
     }
 
     #[test]

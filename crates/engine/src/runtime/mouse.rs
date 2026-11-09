@@ -7,7 +7,7 @@ use macroquad::prelude::*;
 use super::{input, Game, RtEntity, Source};
 use crate::entity::{EntityKind, Facing};
 use crate::events::GameEvent;
-use crate::path::{find_path, TilePos};
+use crate::path::{find_path, find_path_ex, Search, TilePos};
 
 /// Upper bound on A* expansions per plan (keeps clicks cheap on 1024x1024 maps).
 const MAX_NODES: usize = 40_000;
@@ -127,14 +127,9 @@ impl Game {
     /// (the tiles of the shooter and the target themselves don't count).
     pub(super) fn line_clear(&self, a: Vec2, b: Vec2) -> bool {
         let ts = self.ts();
-        let tile = |p: Vec2| ((p.x / ts).floor() as i32, (p.y / ts).floor() as i32);
-        let (ta, tb) = (tile(a), tile(b));
-        // 1 px steps so lines that only clip a tile corner are caught too.
-        let steps = (b - a).length().ceil().max(1.0) as i32;
-        (0..=steps).all(|k| {
-            let t = tile(a.lerp(b, k as f32 / steps as f32));
-            t == ta || t == tb || !self.tile_solid(t.0, t.1)
-        })
+        let tb = ((b.x / ts).floor() as i32, (b.y / ts).floor() as i32);
+        // Every tile the line crosses between its ends (a grid walk, not pixel steps).
+        crate::grid::line_tiles(a, b, ts).all(|t| t == tb || !self.tile_solid(t.0, t.1))
     }
 
     /// Plans a path for a goal (tiles occupied by solid entities are avoided).
@@ -163,7 +158,12 @@ impl Game {
                 let t = self.entity_tile(&self.loaded.entities[i]);
                 // Prefer standing straight next to the target (facing it); diagonal as a fallback.
                 let beside = |p: TilePos| (p.0 - t.0).abs() + (p.1 - t.1).abs() == 1;
-                let path = find_path(start, t, beside, blocked, MAX_NODES).or_else(|| find_path(start, t, |p| near(p, t) && p != t, blocked, MAX_NODES));
+                let (path, tried_all) = match find_path_ex(start, t, beside, blocked, MAX_NODES) {
+                    Search::Found(p) => (Some(p), true),
+                    // Beside it is taken: diagonal then. Out of budget: another search won't help.
+                    Search::NoRoute => (find_path(start, t, |p| near(p, t) && p != t, blocked, MAX_NODES), true),
+                    Search::OutOfBudget => (None, false),
+                };
                 // Characters behind a counter: stand in front of it (two tiles away, a solid
                 // tile or prop in between, e.g. a market stall) and talk across — unless walking
                 // round to them is shorter.
@@ -172,7 +172,7 @@ impl Game {
                     let mid = (p.0 + dx / 2, p.1 + dy / 2);
                     ((dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0)) && (self.tile_solid(mid.0, mid.1) || self.prop_blocks(mid.0, mid.1))
                 };
-                let talk = matches!(goal, Goal::Interact(_)) && self.loaded.entities[i].kind == EntityKind::Character;
+                let talk = tried_all && matches!(goal, Goal::Interact(_)) && self.loaded.entities[i].kind == EntityKind::Character;
                 let across = if talk { find_path(start, t, counter, blocked, MAX_NODES) } else { None };
                 match (path, across) {
                     (Some(p), Some(c)) => Some(if c.len() <= p.len() { c } else { p }),

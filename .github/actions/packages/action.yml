@@ -1,5 +1,5 @@
-name: Build R(ust)PG2D packages
-description: Release builds for Linux, the web (wasm32) and Windows (cross-compiled with MinGW-w64), plus the macOS build from the macos-build job's artifact; the AppImage, Flatpak and Windows zip of the R(ust)PG2D toolkit and the unsigned macOS app (cargo xtask-dist, artifact rustpg2d-macos-app-unsigned for the macos-app job); a smoke test of the Linux binaries under Xvfb and of the downloads' contents.
+name: Assemble R(ust)PG2D packages
+description: Assembles the downloads from the release builds of builds.yml (Linux, web, Windows, macOS per architecture; no compiling here, so no Rust toolchain) - universal macOS binaries with llvm-lipo, then the AppImage, Flatpak and Windows zip of the R(ust)PG2D toolkit and the unsigned macOS app (xtask dist, artifact rustpg2d-macos-app-unsigned for the macos-app job); a smoke test of the Linux binaries under Xvfb and of the downloads' contents.
 runs:
   using: composite
   steps:
@@ -7,27 +7,51 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y -qq --no-install-recommends flatpak xvfb xauth libgl1-mesa-dri libglx-mesa0 libxi6 libxcursor1 libxkbcommon-x11-0 gcc-mingw-w64-x86-64
-        rustup target add x86_64-pc-windows-gnu
-    - name: Release build
-      shell: bash
-      run: cargo build --release --locked -p rustpg2d-editor -p rustpg2d-game
-    - name: Web game (exports for browsers)
-      shell: bash
-      run: |
-        rustup target add wasm32-unknown-unknown
-        cargo build --release --locked --target wasm32-unknown-unknown -p rustpg2d-game
-    - name: Windows build (the Windows zip; exports of Windows games)
-      shell: bash
-      run: cargo build --release --locked --target x86_64-pc-windows-gnu -p rustpg2d-editor -p rustpg2d-game
-    - name: macOS build (the macOS app; exports of macOS games; built by the macos-build job)
+        sudo apt-get install -y -qq --no-install-recommends libasound2 libudev1 flatpak xvfb xauth libgl1-mesa-dri libglx-mesa0 libxi6 libxcursor1 libxkbcommon-x11-0
+    - name: Linux build and the packaging tool
       uses: actions/download-artifact@v8
       with:
-        name: rustpg2d-macos-build
-        path: target/macos
+        name: rustpg2d-linux-build
+        path: target/release
+    - name: Web build
+      uses: actions/download-artifact@v8
+      with:
+        name: rustpg2d-web-build
+        path: target/wasm32-unknown-unknown/release
+    - name: Windows build
+      uses: actions/download-artifact@v8
+      with:
+        name: rustpg2d-windows-build
+        path: target/x86_64-pc-windows-gnu/release
+    - name: macOS build (Apple Silicon)
+      uses: actions/download-artifact@v8
+      with:
+        name: rustpg2d-macos-aarch64-apple-darwin
+        path: target/macos-aarch64
+    - name: macOS build (Intel)
+      uses: actions/download-artifact@v8
+      with:
+        name: rustpg2d-macos-x86_64-apple-darwin
+        path: target/macos-x86_64
+    - name: Universal macOS binaries
+      shell: bash
+      run: |
+        # Artifacts don't keep file modes.
+        chmod +x target/release/rustpg2d-editor target/release/rustpg2d-game target/release/xtask
+        lipo=$(command -v llvm-lipo llvm-lipo-15 llvm-lipo-14 /usr/lib/llvm-*/bin/llvm-lipo 2>/dev/null | head -1 || true)
+        if [ -z "$lipo" ]; then
+          sudo apt-get install -y -qq --no-install-recommends llvm
+          lipo=$(command -v llvm-lipo)
+        fi
+        mkdir -p target/macos
+        for b in rustpg2d-editor rustpg2d-game; do
+          "$lipo" -create -output "target/macos/$b" "target/macos-aarch64/$b" "target/macos-x86_64/$b"
+          chmod +x "target/macos/$b"
+          "$lipo" -info "target/macos/$b"
+        done
     - name: AppImage, Flatpak, Windows zip, macOS app
       shell: bash
-      run: cargo xtask-dist --out dist --require-web --require-windows --require-macos --macos-dir target/macos
+      run: target/release/xtask dist --out dist --require-web --require-windows --require-macos --macos-dir target/macos
     - name: The unsigned macOS app for the macos-app job
       uses: actions/upload-artifact@v7
       with:

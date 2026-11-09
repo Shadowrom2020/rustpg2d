@@ -8,10 +8,21 @@ before merging, commit messages — are in AGENTS.md and apply in full:
 
 ## Working with the user
 
+- **Content first.** Every request (features, fixes, editor workflows) is solved with the
+  engine's own tools: event triggers, conditions and actions, Rhai scripts, definitions (items,
+  props with states, characters, skills / spells with a *Script* effect, recipes, quests,
+  achievements, shops, loot), zones, structures, terrains, art and sounds. The result goes into
+  the starter asset library, and into the example project when it should be seen in play (see
+  *Content route* below). **Before changing Rust code (`crates/`), stop and ask the user**: say
+  what the content route can't do and propose the smallest generic engine addition (a script
+  function, an action / condition, a definition field) on which the feature is then built as
+  content. This holds for fixes too: a broken quest is content; an engine bug is a proposal.
+  Library or example data that is plainly wrong is fixed as content without asking.
 - The user asks for features in one or two sentences and expects them **working in the
   running binaries**, not just compiling. Verify every feature end to end (scripted runs +
   screenshots, see *Verification*) and report what was tested; say plainly what wasn't.
-- Pick sensible defaults instead of asking, and mention them in the summary. Ask only when a
+- Pick sensible defaults instead of asking (Rust changes excepted, see *Content first*), and
+  mention them in the summary. Ask only when a
   decision really is the user's (e.g. which of two incompatible behaviours they want).
 - **Branches:** follow AGENTS.md. Before any change: `git branch --show-current` and
   `git status`. Work on `feature/<name>` or `bugfix/<name>` created from an up-to-date
@@ -191,7 +202,31 @@ example_project/        the example game, plain project files (edit them through
 - egui closures: take what you need out of `self` first (or use thread_local request hooks as
   in `maps.rs`, `models.rs`, `widgets::request_chooser`) to avoid borrow conflicts.
 
-### Where a new feature usually has to touch
+### Content route (the default for every feature)
+
+1. **Look up what exists**: the script API (`engine/src/script_api.rs`,
+   `Documentation/scripting.md`), the event system (`events/mod.rs`: `TriggerOn`, `Cond`,
+   `Action::templates()`; `Documentation/events.md`), the definition forms, the agent server's
+   tools (`Documentation/mcp.md`).
+2. **Build it** on a scratch copy of the example project, then in `example_project/` through the
+   editor or its AI agent server (`write_script` + `check_script`, `upsert_def`, `write_asset`,
+   `capture_structure`, map and trigger tools). Hang script functions on assets (an item's, prop's
+   or character's definition triggers, a skill / spell *Script* effect): the library carries the
+   functions an asset needs (`library.rs`, `Bundle::collect_with_scripts` into
+   `scripts/library.rhai`), so a feature travels as assets. Story-specific logic of the example
+   (quest steps, dialogs) goes on placed entities, zones and map triggers instead, so the
+   definitions stay reusable.
+3. **Put it into the starter library** with `library_send {assets, replace: true}`: feature
+   assets keep their scripted triggers and functions. `drop_script_triggers: true` is only for
+   example assets whose definition triggers run the example's story scripts (see *Example
+   content*). Keep `lang/de.ron` complete.
+4. **Verify** with autoplay and screenshots like any feature (*Verification*).
+5. **Document**: README (the feature, saying it is library content), CHANGELOG *Unreleased*.
+
+When the user approved an engine change, the addition is generic and small, and the feature
+itself is still built as content on top of it. The checklist below is for that case.
+
+### Where a new feature usually has to touch (approved engine changes)
 
 - **New `Action` / `Cond` variant:** `events/mod.rs` (variant at the end, `label()`,
   `templates()`), execution in `runtime/mod.rs` (`execute`) or `Condition::eval` /
@@ -213,7 +248,8 @@ example_project/        the example game, plain project files (edit them through
 - **Player-facing text:** run it through `WorldState::expand_text` (`{player}`,
   `{sir|madam}`, `{var}`) like dialogs, choices and quest texts.
 - **Example content:** `example_project/` and `crates/editor/assets/starter_library/` are plain
-  files (the generator that once wrote them was removed in 0.11.0). Edit them with the editor
+  files (the generator that once wrote them was removed in 0.11.0), and the place where new
+  features are built (*Content route*). Edit them with the editor
   and its AI agent server (`Documentation/mcp.md`): start
   `RUSTPG2D_LIBRARY=crates/editor/assets/starter_library target/debug/rustpg2d-editor example_project`
   with `RUSTPG2D_EDITOR_SCRIPT="mcp on PORT; wait 3600; quit"` (plus scratch `RUSTPG2D_SETTINGS_DIR` /
@@ -222,7 +258,8 @@ example_project/        the example game, plain project files (edit them through
   draw or render them (e.g. a Python / PIL script in the scratchpad), then `write_asset` +
   `upsert_def`; new structures: build them on a map, `capture_structure`. Every example asset
   must also be in the starter library, identical (test `starter_library_has_every_example_asset`):
-  send new or changed ones with `library_send {assets, replace: true, drop_script_triggers: true}`.
+  send new or changed ones with `library_send {assets, replace: true}`, adding
+  `drop_script_triggers: true` for assets whose definition triggers run the example's story scripts.
   Library-only assets: open the starter folder itself as a project (`rustpg2d-editor
   crates/editor/assets/starter_library`). Keep `lang/de.ron` complete and without leftovers
   (`translation_template de`, `write_translation`; tests in `lang.rs`). Existing entities keep

@@ -39,6 +39,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   `village.map.bak`) before it could save without those entries.
 - The editor logs when it cannot save its settings, the recent-projects list or a new script
   (these failures were silent), and the game logs why a save game is listed as unreadable.
+- **Enemies walk home the way everyone walks**: a chaser returning to its post plans round
+  solid props and waiting people like patrols do (it used to walk into them and give up after
+  four seconds, making that spot its new home). A character's home moves when it arrives
+  somewhere, not with every step.
+- **Lock texts can be translated**: the texts of locks and containers ("It's the elder's
+  chest…") are collected into translation templates and shown in the chosen language; the
+  example's German file has them.
 - The mouse walk's "stuck" check is a tenth of a step at any frame rate (it was 0.2 px per frame,
   which stopped slow or climbing walks on fast displays). Nothing is persisted while no map is
   loaded (the fade after loading a game).
@@ -58,6 +65,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- `Action::walk` / `walk_mut` visit nested `If` actions for the nine places that spelt the
+  recursion out (translations, renames, the library's script roots, healing, NPC item use,
+  the editor's flag / variable / speaker collectors, prop state renames).
 - **Release builds** use thin LTO, one codegen unit and stripped symbols (smaller, faster
   binaries for the downloads and exported games). The Rust version is pinned
   (`rust-toolchain.toml`, `rust-version`, the CI workflows) and bumped on purpose.

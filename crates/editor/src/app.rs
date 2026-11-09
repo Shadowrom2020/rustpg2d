@@ -3168,19 +3168,13 @@ pub fn collect_names(ts: &[rustpg2d_engine::events::Trigger], flags: &mut Vec<St
         }
     }
     fn actions(a: &[Action], flags: &mut Vec<String>, vars: &mut Vec<String>) {
-        for a in a {
-            match a {
-                Action::SetFlag { name, .. } => flags.push(name.clone()),
-                Action::SetVar { name, .. } => vars.push(name.clone()),
-                Action::Choice { var, .. } => vars.push(var.clone()),
-                Action::If { conditions, then, otherwise } => {
-                    conds(conditions, flags, vars);
-                    actions(then, flags, vars);
-                    actions(otherwise, flags, vars);
-                }
-                _ => {}
-            }
-        }
+        rustpg2d_engine::events::walk_actions(a, &mut |a| match a {
+            Action::SetFlag { name, .. } => flags.push(name.clone()),
+            Action::SetVar { name, .. } => vars.push(name.clone()),
+            Action::Choice { var, .. } => vars.push(var.clone()),
+            Action::If { conditions, .. } => conds(conditions, flags, vars),
+            _ => {}
+        });
     }
     for t in ts {
         conds(&t.conditions, flags, vars);
@@ -3261,16 +3255,10 @@ pub fn speakers_of(map: &Map, db: &rustpg2d_engine::defs::Database) -> Vec<(Stri
         }
     }
     fn used(acts: &[Action], out: &mut Vec<String>) {
-        for a in acts {
-            match a {
-                Action::Dialog { speaker, .. } | Action::Choice { speaker, .. } => out.push(speaker.clone()),
-                Action::If { then, otherwise, .. } => {
-                    used(then, out);
-                    used(otherwise, out);
-                }
-                _ => {}
-            }
-        }
+        rustpg2d_engine::events::walk_actions(acts, &mut |a| match a {
+            Action::Dialog { speaker, .. } | Action::Choice { speaker, .. } => out.push(speaker.clone()),
+            _ => {}
+        });
     }
     let mut names = Vec::new();
     let mut trig = |ts: &[Trigger]| ts.iter().for_each(|t| used(&t.actions, &mut names));

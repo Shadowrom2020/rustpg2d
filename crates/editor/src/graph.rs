@@ -292,6 +292,7 @@ impl Facts {
                 for c in conditions {
                     self.cond(key, c, r);
                 }
+                // (Nested actions, with the same row: `walk` would lose the row.)
                 for a in then.iter().chain(otherwise) {
                     self.action(key, row, a);
                 }

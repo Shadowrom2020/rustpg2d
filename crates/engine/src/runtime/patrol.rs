@@ -44,6 +44,19 @@ pub(super) struct Walker {
     replanned: bool,
 }
 
+impl Walker {
+    /// A step that got nowhere: true once it has been blocked for [`SKIP_AFTER`] seconds.
+    pub fn blocked(&mut self, dt: f32) -> bool {
+        self.stuck += dt;
+        self.stuck > SKIP_AFTER
+    }
+
+    /// A step that got somewhere.
+    pub fn moved(&mut self) {
+        self.stuck = 0.0;
+    }
+}
+
 /// What a step of [`Game::walk_to_tile`] came to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Walk {
@@ -127,7 +140,8 @@ impl Game {
         match walked {
             Walk::Walking => {}
             Walk::Arrived => {
-                // Pause, then head for the next waypoint.
+                // Pause, then head for the next waypoint; this is home now (wandering, leashes).
+                e.home = e.body.pos;
                 p.wait = p.route.pause.max(0.0);
                 p.advance();
             }
@@ -202,7 +216,6 @@ impl Game {
         e.body.pos = new_pos;
         e.body.moving = new_pos != pos;
         e.body.animate(dt);
-        e.home = new_pos;
         if new_pos.distance(target) < 1.0 {
             w.path.remove(0);
             w.stuck = 0.0;

@@ -257,8 +257,9 @@ pub fn system_language() -> Option<String> {
 }
 
 /// The database with names and descriptions in the current language (the game keeps the
-/// original to switch back): items, props (and their states' names), characters, quests and
-/// their stages' texts, skills, spells, recipes, achievements.
+/// original to switch back): items, props, characters, quests and their stages' texts, skills,
+/// spells, achievements. Texts inside triggers, locks and containers are translated where they
+/// are shown (`WorldState::expand_text`, `tr`).
 pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
     let mut d = db.clone();
     if current().is_none() {
@@ -316,25 +317,19 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         }
     };
     fn actions(list: &[Action], add: &mut dyn FnMut(&str)) {
-        for a in list {
-            match a {
-                Action::Dialog { speaker, text } => {
-                    add(speaker);
-                    add(text);
-                }
-                Action::Choice { speaker, text, options, .. } => {
-                    add(speaker);
-                    add(text);
-                    options.iter().for_each(|o| add(o));
-                }
-                Action::OpenCrafting { title, .. } => add(title),
-                Action::If { then, otherwise, .. } => {
-                    actions(then, add);
-                    actions(otherwise, add);
-                }
-                _ => {}
+        crate::events::walk_actions(list, &mut |a| match a {
+            Action::Dialog { speaker, text } => {
+                add(speaker);
+                add(text);
             }
-        }
+            Action::Choice { speaker, text, options, .. } => {
+                add(speaker);
+                add(text);
+                options.iter().for_each(|o| add(o));
+            }
+            Action::OpenCrafting { title, .. } => add(title),
+            _ => {}
+        });
     }
     let triggers = |list: &[Trigger], add: &mut dyn FnMut(&str)| {
         for t in list {
@@ -349,8 +344,18 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         add(&i.description);
         triggers(&i.on_use, &mut add);
     }
+    let lock_texts = |lock: Option<&crate::defs::LockSpec>, container: Option<&crate::defs::ContainerSpec>, add: &mut dyn FnMut(&str)| {
+        if let Some(l) = lock {
+            add(&l.locked_text);
+            add(&l.unlock_text);
+        }
+        if let Some(c) = container {
+            add(&c.locked_text);
+        }
+    };
     for p in &db.props {
         add(&p.name);
+        lock_texts(p.lock.as_ref(), p.container.as_ref(), &mut add);
         triggers(&p.triggers, &mut add);
     }
     for c in &db.characters {
@@ -378,6 +383,7 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         let Ok(m) = project.load_map(&name) else { continue };
         triggers(&m.triggers, &mut add);
         for e in &m.entities {
+            lock_texts(e.lock.as_ref(), e.container.as_ref(), &mut add);
             triggers(&e.triggers, &mut add);
         }
         for z in &m.zones {

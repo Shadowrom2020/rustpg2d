@@ -1332,17 +1332,11 @@ fn all_names_except(d: &PropDef, i: usize) -> Vec<String> {
 pub fn rename_state_in_triggers(ts: &mut [rustpg2d_engine::events::Trigger], old: &str, new: &str) {
     use rustpg2d_engine::events::{Action, Cond};
     fn actions(acts: &mut [Action], old: &str, new: &str) {
-        for a in acts {
-            match a {
-                Action::SetState { target, state } if (target == "self" || target.is_empty()) && state == old => *state = new.to_string(),
-                Action::If { conditions, then, otherwise } => {
-                    conds(conditions, old, new);
-                    actions(then, old, new);
-                    actions(otherwise, old, new);
-                }
-                _ => {}
-            }
-        }
+        rustpg2d_engine::events::walk_actions_mut(acts, &mut |a| match a {
+            Action::SetState { target, state } if (target == "self" || target.is_empty()) && state == old => *state = new.to_string(),
+            Action::If { conditions, .. } => conds(conditions, old, new),
+            _ => {}
+        });
     }
     fn conds(cs: &mut [rustpg2d_engine::events::Condition], old: &str, new: &str) {
         for c in cs {

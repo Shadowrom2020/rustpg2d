@@ -598,6 +598,27 @@ impl Default for FxSprite {
 }
 
 impl Action {
+    /// Visits this action and, through `If`, every nested action (depth first, this one first),
+    /// so nobody has to spell the recursion out.
+    pub fn walk<'a>(&'a self, f: &mut dyn FnMut(&'a Action)) {
+        f(self);
+        if let Action::If { then, otherwise, .. } = self {
+            for a in then.iter().chain(otherwise) {
+                a.walk(f);
+            }
+        }
+    }
+
+    /// [`Action::walk`] with mutable access.
+    pub fn walk_mut(&mut self, f: &mut dyn FnMut(&mut Action)) {
+        f(self);
+        if let Action::If { then, otherwise, .. } = self {
+            for a in then.iter_mut().chain(otherwise.iter_mut()) {
+                a.walk_mut(f);
+            }
+        }
+    }
+
     pub fn label(&self) -> &'static str {
         match self {
             Action::Dialog { .. } => "Dialog",
@@ -774,6 +795,20 @@ pub fn useless_triggers(project: &crate::project::Project) -> Vec<String> {
         }
     }
     out
+}
+
+/// Every action of `actions`, nested ones (inside `If`) included.
+pub fn walk_actions<'a>(actions: &'a [Action], f: &mut dyn FnMut(&'a Action)) {
+    for a in actions {
+        a.walk(f);
+    }
+}
+
+/// [`walk_actions`] with mutable access.
+pub fn walk_actions_mut(actions: &mut [Action], f: &mut dyn FnMut(&mut Action)) {
+    for a in actions {
+        a.walk_mut(f);
+    }
 }
 
 #[cfg(test)]

@@ -27,18 +27,12 @@ struct Uses {
 }
 
 fn scan(actions: &[Action], u: &mut Uses) {
-    for a in actions {
-        match a {
-            Action::Heal { amount } if *amount > 0 => u.heals += amount,
-            Action::CureEffect { target, kind } if target == "player" => u.cures.push(*kind),
-            Action::ApplyEffect { target, effect } if target == "player" && is_buff(effect.kind) => u.buffs.push(effect.kind),
-            Action::If { then, otherwise, .. } => {
-                scan(then, u);
-                scan(otherwise, u);
-            }
-            _ => {}
-        }
-    }
+    crate::events::walk_actions(actions, &mut |a| match a {
+        Action::Heal { amount } if *amount > 0 => u.heals += amount,
+        Action::CureEffect { target, kind } if target == "player" => u.cures.push(*kind),
+        Action::ApplyEffect { target, effect } if target == "player" && is_buff(effect.kind) => u.buffs.push(effect.kind),
+        _ => {}
+    });
 }
 
 /// An item's action without what is meant for the player to read (dialogs, choices).

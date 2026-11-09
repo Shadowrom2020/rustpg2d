@@ -263,7 +263,7 @@ impl Game {
         };
         let ctx = crate::events::runner::ActionCtx { owner: Some(uid) };
         if !crate::events::runner::conditions_met(self, &spec.conditions, &ctx) {
-            let msg = if spec.locked_text.is_empty() { "It's locked.".to_string() } else { spec.locked_text.clone() };
+            let msg = if spec.locked_text.is_empty() { "It's locked.".to_string() } else { crate::lang::tr(&spec.locked_text) };
             self.ui.toast(msg);
             return;
         }

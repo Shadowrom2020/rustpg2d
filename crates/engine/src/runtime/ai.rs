@@ -6,17 +6,13 @@
 
 use macroquad::prelude::*;
 
+use super::patrol::Walk;
 use super::{Game, Mover};
 use crate::defs::Behavior;
 use crate::entity::Facing;
-use crate::path::{find_path, TilePos};
 
 /// Seconds a character keeps hunting after it lost sight of the player.
 const AGGRO_MEMORY: f32 = 4.0;
-/// A character walking home gives up after being stuck this long (and stays where it is).
-const HOME_STUCK_GIVE_UP: f32 = 4.0;
-/// A* search limit for the way home.
-const MAX_NODES: usize = 4000;
 
 /// What a chasing character is doing.
 #[derive(Clone, Debug, Default)]
@@ -29,11 +25,8 @@ pub(super) struct Ai {
     pub returning: bool,
     /// Running away (badly hurt).
     pub fleeing: bool,
-    /// The way home, tile by tile.
-    path: Vec<TilePos>,
-    stuck: f32,
-    /// It planned the way home again once while blocked (not every frame).
-    replanned: bool,
+    /// The way home (`walk_home`), shared with patrols and schedules.
+    walker: super::patrol::Walker,
 }
 
 impl Ai {
@@ -185,8 +178,8 @@ impl Game {
         e.body.animate(dt);
     }
 
-    /// Walks character `i` home along an A* path; returns false once it is there (or can't get
-    /// there).
+    /// Walks character `i` home the way patrols walk (round props and, when blocked, people);
+    /// returns false once it is there, or once it gave up (this is home now).
     fn walk_home(&mut self, i: usize, dt: f32) -> bool {
         let e = &self.loaded.entities[i];
         let (pos, home) = (e.body.pos, e.home);
@@ -194,49 +187,39 @@ impl Game {
             self.loaded.entities[i].body.moving = false;
             return false;
         }
-        if e.ai.path.is_empty() {
-            let (here, goal) = (self.tile_of(pos), self.tile_of(home));
-            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y);
-            let path = find_path(here, goal, |t| t == goal, blocked, MAX_NODES);
+        let goal = self.tile_of(home);
+        let mut walker = std::mem::take(&mut self.loaded.entities[i].ai.walker);
+        let walked = if self.tile_of(pos) == goal {
+            // On the home tile: the last step goes straight to the spot.
+            let e = &self.loaded.entities[i];
+            let step = (home - pos).clamp_length_max(e.body.speed * dt);
+            let (body, uid) = (e.body.clone(), e.uid);
+            let new_pos = self.try_move(&body, step, Mover::Npc(uid), false);
             let e = &mut self.loaded.entities[i];
-            match path {
-                Some(p) if !p.is_empty() => e.ai.path = p,
-                // Same tile, or no way: the last step goes straight to the spot.
-                _ => e.ai.path = vec![goal],
-            }
-        }
-        let e = &self.loaded.entities[i];
-        let next = *e.ai.path.first().unwrap();
-        let spot = if e.ai.path.len() == 1 { home } else { self.tile_spot(next) };
-        let step = (spot - pos).clamp_length_max(e.body.speed * dt);
-        let (body, uid) = (e.body.clone(), e.uid);
-        let new_pos = self.try_move(&body, step, Mover::Npc(uid), false);
-        let e = &mut self.loaded.entities[i];
-        e.body.facing = Facing::from_vec(step.x, step.y).unwrap_or(e.body.facing);
-        e.body.moving = new_pos != pos;
-        e.body.pos = new_pos;
-        e.body.animate(dt);
-        if new_pos.distance(spot) < 1.0 {
-            e.ai.path.remove(0);
-            e.ai.stuck = 0.0;
-            e.ai.replanned = false;
-        } else if new_pos.distance(pos) < 0.01 {
-            e.ai.stuck += dt;
-            if e.ai.stuck > HOME_STUCK_GIVE_UP {
-                // Can't get home: this is home now.
-                e.home = new_pos;
-                return false;
-            }
-            if e.ai.stuck > 1.0 && !e.ai.replanned {
-                // Blocked: plan the way once more, then give up (above).
-                e.ai.path.clear();
-                e.ai.replanned = true;
+            e.body.facing = Facing::from_vec(step.x, step.y).unwrap_or(e.body.facing);
+            e.body.moving = new_pos != pos;
+            e.body.pos = new_pos;
+            e.body.animate(dt);
+            if new_pos.distance(pos) < 0.01 {
+                if walker.blocked(dt) { Walk::GaveUp } else { Walk::Walking }
+            } else {
+                walker.moved();
+                Walk::Walking
             }
         } else {
-            e.ai.stuck = 0.0;
-            e.ai.replanned = false;
+            self.walk_to_tile(i, goal, &mut walker, 0.0, dt)
+        };
+        self.loaded.entities[i].ai.walker = walker;
+        match walked {
+            Walk::Walking | Walk::Arrived => true,
+            Walk::Unreachable | Walk::GaveUp => {
+                // Can't get home: this is home now.
+                let e = &mut self.loaded.entities[i];
+                e.home = e.body.pos;
+                e.body.moving = false;
+                false
+            }
         }
-        true
     }
 
     /// A character's HP dropped from `before` (it is still alive): fires its *HP below %*

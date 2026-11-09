@@ -326,6 +326,17 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
 
 ## Pitfalls seen before
 
+- Collision and planning read the per-frame occupancy grid (`runtime/occupancy.rs`, rebuilt at
+  the start of `update` and when a map is entered): code that pushes an entity or sets
+  `body.pos` directly by more than a tile (spawns, teleports, standing up) calls `occupy(i)`;
+  steps through `try_move` need nothing.
+- Pixel ↔ tile maths goes through `grid.rs` (`feet_tile`, `feet_spot`, `snap_feet`,
+  `tiles_of_rect`, `line_tiles`); don't write `/ ts` with a home-made offset.
+- In the script API table (`engine/src/script_api.rs`) `Arg::Line` marks a line players read
+  (collected for translation, shown translated); `Arg::Text` is any other string (zone, order,
+  mood names). Picking the wrong one puts zone names into translation templates or hides dialogs
+  from them.
+
 - egui refuses textures wider or taller than 2048 px (the editor shrinks them with
   `widgets::color_image`): keep generated sheets under that, e.g. `items.png` is full at 61
   icons; new icons go on their own sheet (`food.png`).

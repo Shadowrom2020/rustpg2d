@@ -89,7 +89,7 @@ copies drift apart. The recap of the architecture lives in `Documentation/archit
 pull request (`feature/quality-and-reliability`) with one commit per stage, so the history stays
 bisectable; the version number (PATCH or MINOR) is decided when the release is cut.
 
-- [~] Quality and reliability pass — `feature/quality-and-reliability`
+- [x] Quality and reliability pass — `feature/quality-and-reliability`
 
   **Goal.** Fewer wasted frames, no data lost or refused because of one bad entry, a game that
   runs in CI, and one implementation of each rule.
@@ -109,6 +109,17 @@ bisectable; the version number (PATCH or MINOR) is decided when the release is c
   `walk_to_tile`, `Action::walk` / `Project::for_each_trigger`, the script API table in the
   engine, shared UI widgets (`ScrollList`, slot grids), small utilities (base64, `hour_text`,
   path safety, RON writer) in one place each.
+
+  **Decided while building.** Done in twenty staged commits on the one branch. Left out, with
+  the reasons: a shared `ScrollList` for the shop / crafting windows and a shared slot grid + drag
+  state for the inventory / companion windows (only the item details footer is shared; the two
+  update loops stay separate until a third window needs them), the `mcp_tools!` macro for the 54
+  tools' boilerplate (mechanical, no behaviour at stake), merging the two Rhai lexers (the
+  highlighter's keeps positions the reference finder doesn't need), and `Project::for_each_trigger`
+  (the six project-wide trigger walks differ in what they carry; `Action::walk` removed the
+  nested-`If` recursion they shared). The runtime smoke job is advisory until it has been green
+  on a few pull requests. `walk_home` now shares `walk_to_tile`, so a character's `home` moves
+  only when it arrives somewhere, not with every step.
 
   **Touch points.** `runtime/` (mod, patrol, ai, companions, mouse, lights, combat, npc_use),
   `path.rs`, `defs.rs`, `refactor.rs`, `project.rs`, `sys.rs`, `map/io.rs`, `events/mod.rs`,

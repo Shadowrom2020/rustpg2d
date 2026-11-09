@@ -198,13 +198,28 @@ means per format:
 Known properties of the current implementation (see the CHANGELOG for what each release changed):
 
 - Tiles are drawn one quad each, every frame; there is no mesh cache. Large views at high zoom-out
-  cost proportionally more.
+  cost proportionally more. Entities outside the view (with a margin for tall sprites) are
+  skipped.
 - Text uses macroquad's default font: Latin-1 glyphs only, measured per draw.
-- Definition lookups (`db.item(id)` and friends) are linear scans of the lists.
-- Pathfinding runs on the tile grid with a node budget per call; blocked walkers re-plan after a
-  second and give up after four.
+- The hot definition lookups (`db.item(id)`, `prop`, `character`, `sheet`, `tileset`) go through
+  an id index that verifies its hits and falls back to a scan, so an index left stale by an
+  in-place edit is slower, never wrong; `Database::reindex` refreshes it.
+- Pathfinding (`path.rs`) runs on the tile grid with a node budget per search and tells "no
+  route" from "out of budget"; walkers (`patrol.rs::walk_to_tile`, shared by patrols, schedules,
+  companions and chasers walking home) re-plan once per blockage and give up after four seconds.
+  Planning and the broad phase of collision read the per-frame occupancy grid
+  (`runtime/occupancy.rs`); code that moves an entity by more than a tile within a frame calls
+  `occupy(i)`.
+- Pixel ↔ tile conversions follow `grid.rs` (feet one pixel above the tile's bottom edge; props an
+  even number of tiles wide stand on a tile edge).
+- `status` prints frame timing (`fps=`, `frame_ms=`, `update_ms=`, `draw_ms=`) and the number of
+  path searches (`astar=`) since the previous `status`; `RUSTPG2D_PERF=1` logs them every second.
+- Files are written whole or not at all (`sys::write`: temporary file + rename). A definition
+  entry or a map object that can't be read is left out with a log line, and the editor backs the
+  file up before it could save without it.
 - The recolored-character cache is never evicted (bounded by the sheets × colours actually used).
 - The editor's egui UI has no automated click tests; editor script commands call the same
-  functions instead.
+  functions instead. The game and the editor do run in CI (`scripts/ci/smoke.sh`).
 - A game binary older than the engine cannot read new map data; the editor compares
-  `rustpg2d-game --engine-build` with its own fingerprint.
+  `rustpg2d-game --engine-build` with its own fingerprint (the engine sources plus the versions
+  of the crates that define the file formats).

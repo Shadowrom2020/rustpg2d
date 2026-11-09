@@ -65,42 +65,6 @@ impl IdKind {
     }
 }
 
-/// Script API functions with id arguments: (function, argument index, kind).
-pub const API_IDS: &[(&str, usize, IdKind)] = &[
-    ("give_item", 0, IdKind::Item),
-    ("take_item", 0, IdKind::Item),
-    ("has_item", 0, IdKind::Item),
-    ("item_count", 0, IdKind::Item),
-    ("teleport", 0, IdKind::Map),
-    ("set_map_weather", 0, IdKind::Map),
-    ("teleport", 1, IdKind::Spawn),
-    ("disable_spawners", 0, IdKind::Map),
-    ("enable_spawners", 0, IdKind::Map),
-    ("play_sound", 0, IdKind::Sound),
-    ("play_music", 0, IdKind::Sound),
-    ("start_quest", 0, IdKind::Quest),
-    ("advance_quest", 0, IdKind::Quest),
-    ("set_quest_stage", 0, IdKind::Quest),
-    ("complete_quest", 0, IdKind::Quest),
-    ("fail_quest", 0, IdKind::Quest),
-    ("quest_stage", 0, IdKind::Quest),
-    ("quest_active", 0, IdKind::Quest),
-    ("quest_done", 0, IdKind::Quest),
-    ("set_state", 1, IdKind::State),
-    ("skill", 0, IdKind::Skill),
-    ("set_skill", 0, IdKind::Skill),
-    ("knows_spell", 0, IdKind::Spell),
-    ("learn_spell", 0, IdKind::Spell),
-    ("fly", 0, IdKind::Sheet),
-    ("equip", 1, IdKind::Item),
-    ("give_item_to", 1, IdKind::Item),
-    ("take_item_from", 1, IdKind::Item),
-    ("effect", 0, IdKind::Sheet),
-    ("defeated_count", 0, IdKind::Character),
-    ("can_craft", 0, IdKind::Recipe),
-    ("unlock_achievement", 0, IdKind::Achievement),
-    ("achievement_unlocked", 0, IdKind::Achievement),
-];
 
 /// A string literal argument of a function call.
 #[derive(Clone, Debug, PartialEq)]
@@ -296,7 +260,7 @@ pub fn list_args(src: &str) -> Vec<ListArg> {
 pub fn id_refs(src: &str) -> Vec<(StrArg, IdKind)> {
     string_args(src)
         .into_iter()
-        .filter_map(|a| API_IDS.iter().find(|(f, n, _)| *f == a.func && *n == a.arg).map(|(_, _, k)| (a, *k)))
+        .filter_map(|a| crate::script_api::api_ids().iter().find(|(f, n, _)| *f == a.func && *n == a.arg).map(|(_, _, k)| (a, *k)))
         .collect()
 }
 

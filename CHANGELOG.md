@@ -65,6 +65,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- The script API table (`engine/src/script_api.rs`: every function, its parameters' kinds and
+  descriptions) is the one source for the editor's completion, the agent server's API resource,
+  renames and the script check (id arguments are derived from it; the separate list is gone),
+  translation templates (`Line` arguments: dialogs, questions, titles) and the editor's flag /
+  variable collectors (which now also see `lockpick`'s variable).
 - `Action::walk` / `walk_mut` visit nested `If` actions for the nine places that spelt the
   recursion out (translations, renames, the library's script roots, healing, NPC item use,
   the editor's flag / variable / speaker collectors, prop state renames).

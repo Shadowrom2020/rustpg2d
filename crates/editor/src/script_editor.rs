@@ -8,193 +8,7 @@ use std::collections::HashMap;
 use egui_macroquad::egui::{self, text::LayoutJob, Color32, FontId, Key, Modifiers, Stroke, TextFormat};
 use rustpg2d_engine::defs::Database;
 
-/// What a function argument expects (drives completion inside string arguments).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Arg {
-    Item,
-    Map,
-    /// Spawn point on the map named by the first argument.
-    Spawn,
-    Sound,
-    Quest,
-    State,
-    Skill,
-    Spell,
-    /// A sprite sheet id.
-    Sheet,
-    /// An options map: #{ key: value, ... }.
-    Opts,
-    /// "self", "player" or an entity name.
-    Target,
-    Flag,
-    Var,
-    /// A script function name.
-    Func,
-    /// "up" / "down" / "left" / "right".
-    Dir,
-    /// A status effect: "poison", "haste", ...
-    Effect,
-    /// A character definition id.
-    Character,
-    /// "rain", "snow", "fog", "none", "default".
-    Weather,
-    /// Event name for emit().
-    Event,
-    /// A crafting recipe id.
-    Recipe,
-    Achievement,
-    /// A crafting station (named by recipes).
-    Station,
-    Text,
-    Num,
-    Bool,
-    List,
-}
-
-pub struct ApiFn {
-    pub name: &'static str,
-    pub params: &'static [(&'static str, Arg)],
-    pub doc: &'static str,
-}
-
-macro_rules! api {
-    ($($name:literal ( $($p:ident : $k:ident),* ) $doc:literal;)*) => {
-        &[$(ApiFn { name: $name, params: &[$((stringify!($p), Arg::$k)),*], doc: $doc }),*]
-    };
-}
-
-/// The engine's script API (see `rustpg2d_engine::script`). Overloads are listed separately.
-pub const API: &[ApiFn] = api! {
-    "flag"(name: Flag) "Whether a flag is set";
-    "set_flag"(name: Flag, value: Bool) "Sets or clears a flag (immediately)";
-    "get_var"(name: Var) "Value of a variable (0 if unset)";
-    "set_var"(name: Var, value: Num) "Sets a variable (immediately)";
-    "queue_set_var"(name: Var, value: Num) "Sets a variable after the actions queued before it (e.g. after a dialog) (queued)";
-    "add_var"(name: Var, amount: Num) "Adds to a variable (immediately)";
-    "item_count"(item: Item) "How many of an item the player has";
-    "has_item"(item: Item) "Whether the player has the item";
-    "give_item"(item: Item, count: Num) "Gives items to the player; returns how many didn't fit";
-    "take_item"(item: Item, count: Num) "Takes items from the player; returns how many were taken";
-    "current_map"() "Name of the current map";
-    "player_hp"() "The player's hit points";
-    "player_name"() "The player's name";
-    "player_sex"() "\"male\" or \"female\"";
-    "is_female"() "Whether the player character is female";
-    "is_male"() "Whether the player character is male";
-    "hour"() "Time of day in hours (0..24, e.g. 13.5 = half past one in the afternoon)";
-    "is_night"() "Whether it is night (dark outdoors)";
-    "set_hour"(hour: Num) "Sets the time of day, e.g. set_hour(22) (queued)";
-    "skill"(skill: Skill) "The player's level in a skill (0 = none)";
-    "skill_points"() "Unspent skill points";
-    "set_skill"(skill: Skill, level: Num) "Sets a skill's level without spending points (queued)";
-    "give_skill_points"(amount: Num) "Gives skill points (negative takes them) (queued)";
-    "knows_spell"(spell: Spell) "Whether the player has learned the spell";
-    "learn_spell"(spell: Spell) "Teaches a spell (queued)";
-    "mana"() "The player's current mana";
-    "add_mana"(amount: Num) "Adds mana (negative drains) (queued)";
-    "xp"() "All the experience points the player has gained (experience and levels)";
-    "level"() "The player's level (1 = the first)";
-    "apply_effect"(target: Target, effect: Effect, strength: Num, seconds: Num) "Starts a status effect on \"player\" or a character: \"poison\", \"burn\" (HP per second), \"regen\" (HP per second), \"slow\", \"haste\", \"strength\", \"weakness\" (percent), \"shield\" (defense), \"stun\" (queued)";
-    "cure"(target: Target, effect: Effect) "Ends a status effect, e.g. cure(\"player\", \"poison\") (queued)";
-    "cure"(target: Target) "Ends all status effects (queued)";
-    "defeated_count"(character: Character) "How many characters of this definition the player has defeated (the bestiary's count), e.g. defeated_count(\"slime\")";
-    "shake"(seconds: Num) "Shakes the screen like a hit for a while: earthquakes, explosions (queued)";
-    "shake"(seconds: Num, strength: Num) "Shakes the screen; strength 1 = like a hit, 2 = twice as hard (queued)";
-    "set_weather"(kind: Weather) "Weather of the current map: \"rain\", \"snow\", \"fog\", \"none\" or \"default\" (the map's own); kept in the save game (queued)";
-    "set_weather"(kind: Weather, intensity: Num) "Weather of the current map with a strength from 0 to 1, e.g. set_weather(\"rain\", 0.8) (queued)";
-    "set_map_weather"(map: Map, kind: Weather, intensity: Num) "Weather of another map, e.g. set_map_weather(\"forest\", \"fog\", 0.5) (queued)";
-    "weather"() "The current map's weather: \"none\", \"rain\", \"snow\" or \"fog\"";
-    "weather_intensity"() "The current weather's strength (0 to 1)";
-    "hp_of"(target: Target) "A character's HP right now: \"player\", \"self\" (also SELF), or a name on this map; -1 if there is no such character";
-    "has_effect"(effect: Effect) "Whether the player has a status effect, e.g. has_effect(\"poison\")";
-    "give_xp"(amount: Num) "Gives experience; enough of it raises the level (negative takes it away, the level never drops) (queued)";
-    "damage_around"(damage: Num, radius: Num) "Damages every character within radius tiles of the player (queued)";
-    "player_light"(radius: Num, seconds: Num) "Lights the player's surroundings for a while (queued)";
-    "player_light"(radius: Num, seconds: Num, options: Opts) "Like player_light(); options #{ color: [r, g, b], flicker: true } (queued)";
-    "light_at"(x: Num, y: Num, radius: Num, seconds: Num) "A light at tile x, y for a while, fading out at the end (queued)";
-    "light_at"(x: Num, y: Num, radius: Num, seconds: Num, options: Opts) "Like light_at(); options #{ color: [r, g, b], flicker: true } (queued)";
-    "heal_area"(x: Num, y: Num, radius: Num, amount: Num) "Heals the player and friendly characters within radius tiles of tile x, y (queued)";
-    "equip"(target: Target, item: Item) "Puts an item into its slot on a character (clothing, armor, weapon, left hand); what it wore there is carried instead. The player takes it from the inventory (queued)";
-    "unequip"(target: Target, slot: Text) "Takes off what a character wears in \"clothing\", \"head\", \"body\", \"weapon\", \"offhand\" or \"tool\" (into its carried items) (queued)";
-    "give_item_to"(target: Target, item: Item, count: Num) "Adds items to what a character carries (dropped when it is defeated) (queued)";
-    "take_item_from"(target: Target, item: Item, count: Num) "Takes items from what a character carries (queued)";
-    "hide_ui"() "Hides the HUD (status frame, clock, quick bar, buttons), e.g. for a cut-scene; dialogs still show. The player shows it again with H (queued)";
-    "show_ui"() "Shows the HUD again after hide_ui() or H (queued)";
-    "player_x"() "The player's x position in tiles (fractional; the feet)";
-    "player_y"() "The player's y position in tiles (fractional; the feet)";
-    "player_max_hp"() "The player's maximum hit points";
-    "player_facing"() "Where the player looks: \"up\", \"down\", \"left\" or \"right\"";
-    "aim"(function: Func) "Magic targeting: the player's next click calls function(x, y) with the target in tiles; in a spell's script the spell is paid then (queued)";
-    "fly"(sheet: Sheet, x: Num, y: Num, function: Func) "An animated sprite flies from the player to tile x, y, then calls function(x, y) (queued)";
-    "fly"(sheet: Sheet, x: Num, y: Num, function: Func, options: Opts) "Like fly(); options #{ speed: tiles/s, frames: [first, last] or tag: \"animation\", fps, scale, light: radius, color: [r, g, b] } (queued)";
-    "effect"(sheet: Sheet, x: Num, y: Num) "Plays a sprite sheet's frames once, centered on tile x, y (explosions) (queued)";
-    "effect"(sheet: Sheet, x: Num, y: Num, options: Opts) "Like effect(); options #{ frames: [first, last] or tag: \"animation\", fps, scale, light: radius, color: [r, g, b], shake: seconds } (queued)";
-    "damage_area"(x: Num, y: Num, radius: Num, damage: Num) "Damages every character within radius tiles of tile x, y (spell damage skills apply) (queued)";
-    "text"(text: Text) "Fills in {player}, {sir|madam} and {variable} placeholders";
-    "random"(n: Num) "Random integer from 0 to n-1";
-    "say"(text: Text) "Shows a dialog (queued)";
-    "say"(speaker: Text, text: Text) "Shows a dialog with a speaker name (queued)";
-    "say"(entity: Num, text: Text) "Shows a dialog with an entity's name as speaker, e.g. say(SELF, \"...\") (queued)";
-    "say"(speaker: Text, text: Text, options: Opts) "A dialog line with options: #{ mood: \"worried\" } shows the speaker's portrait for that mood for this line (queued)";
-    "choice"(text: Text, options: List, var: Var) "Asks a question; the chosen index goes into the variable (queued)";
-    "teleport"(map: Map, spawn: Spawn) "Moves the player to a spawn point on a map (queued)";
-    "set_active"(target: Target, active: Bool) "Shows / hides an entity (queued)";
-    "set_state"(target: Target, state: State) "Switches a prop to one of its states (queued)";
-    "set_frame"(target: Target, frame: Num) "Old: sets a prop's frame offset (queued)";
-    "move_by"(target: Target, dx: Num, dy: Num) "Moves a character by tiles (queued)";
-    "face"(target: Target, direction: Dir) "Turns a character (queued)";
-    "wait"(seconds: Num) "Waits before the next queued action";
-    "emit"(event: Event) "Fires a custom event (queued)";
-    "then_call"(function: Func) "Calls another script function after the queued actions";
-    "cutscene"(function: Func) "Plays a script function as a cut-scene: HUD hidden, black bars, everyone else waits until its actions are done (queued)";
-    "walk_to"(target: Target, x: Num, y: Num) "Walks a character (or the player) onto tile x, y (queued, blocks until it arrives)";
-    "approach"(target: Target, other: Target) "Walks a character up to another one, a tile before it; then both face each other (queued, blocks)";
-    "place"(target: Target, x: Num, y: Num) "Puts a character (or the player) on tile x, y at once (queued)";
-    "dim"(amount: Num, seconds: Num) "Darkens the scene to amount (0 = normal, 1 = deep night) over seconds, so lights show by day; a cut-scene's end brightens it again (queued)";
-    "disable_spawners"(map: Map) "Switches off every enemy spawner of a map (\"\" = this one); their characters here vanish. Saved (queued)";
-    "disable_spawners"(map: Map, zone: Text) "Switches off one spawner zone of a map by name (queued)";
-    "enable_spawners"(map: Map) "Switches a map's spawners on again (queued)";
-    "defeat_enemies"() "Defeats every hostile character on the current map at once: loot drops, their Defeated triggers run (queued)";
-    "autosave"() "Saves to the Autosave slot once the running event (dialogs, cut-scene) has finished (queued)";
-    "enable_spawners"(map: Map, zone: Text) "Switches one spawner zone switched off by name on again (queued)";
-    "heal"(amount: Num) "Heals the player (queued)";
-    "order"(target: Target, order: Text) "Tells a companion (or \"all\") what to do: \"attack\", \"defend\" (only what attacks you), \"passive\" (no fighting), \"stay\" (wait here), \"follow\" (queued)";
-    "order_of"(name: Text) "How a companion fights: \"attack\", \"defend\" or \"passive\" (\"\" = no companion of that name)";
-    "mood"(target: Target, mood: Text) "A character's portrait shows that mood (its definition's mood portrait) until changed or the event ends; \"\" = its usual one (queued)";
-    "open_companion"(target: Target) "Opens a companion's window (its gear and bag next to the player's inventory) once the event is over (queued)";
-    "is_staying"(name: Text) "Whether a companion was told to wait where it is";
-    "heal_npc"(target: Target, amount: Num) "Heals a character by name (a companion, \"player\"); a negative amount hurts it (queued)";
-    "play_sound"(sound: Sound) "Plays a sound (queued)";
-    "play_music"(sound: Sound) "Plays music (queued)";
-    "set_locked"(target: Target, locked: Bool) "Locks / unlocks a prop (queued)";
-    "open_shop"(target: Target) "Opens a merchant's trade window (queued)";
-    "patrol"(target: Target) "Starts a character's own patrol route (queued)";
-    "patrol"(target: Target, points: List) "Patrols [[x, y], ...] tile waypoints (queued)";
-    "stop_patrol"(target: Target) "Stops a character's patrol (queued)";
-    "sleep"(hours: Num) "The player sleeps that many hours: the night passes, HP and mana are restored (queued, blocks)";
-    "is_sitting"() "Whether the player sits on a chair or bench";
-    "is_sleeping"() "Whether the player lies in a bed or the night is passing";
-    "lockpick"(difficulty: Num, var: Var) "Plays the lockpicking game; 1 (picked) or 0 goes into the variable (queued, blocks)";
-    "unlock_achievement"(id: Achievement) "Unlocks an achievement for the player (queued; kept across save games)";
-    "achievement_unlocked"(id: Achievement) "Whether the player has unlocked an achievement";
-    "open_crafting"(station: Station) "Opens the crafting window with the station's recipes (queued)";
-    "open_crafting"(station: Station, title: Text) "Opens the crafting window with a title, e.g. \"Alchemy table\" (queued)";
-    "can_craft"(recipe: Recipe) "Whether the player has the ingredients (and skill) for a recipe";
-    "follow"(target: Target) "The character joins the player as a companion (queued, saved)";
-    "stop_following"(target: Target) "The companion leaves: stays on its own map, else goes back home (queued)";
-    "is_companion"(name: Text) "Whether the character with that name follows the player";
-    "companion_count"() "How many companions follow the player";
-    "stop_schedule"(target: Target) "The character stops following its daily schedule and stays where it is (queued, saved)";
-    "follow_schedule"(target: Target) "The character follows its daily schedule again (queued)";
-    "start_quest"(quest: Quest) "Starts a quest (queued)";
-    "advance_quest"(quest: Quest) "Moves a quest to its next stage (queued)";
-    "set_quest_stage"(quest: Quest, stage: Num) "Sets a quest's stage (queued)";
-    "complete_quest"(quest: Quest) "Completes a quest (queued)";
-    "fail_quest"(quest: Quest) "Fails a quest (queued)";
-    "quest_stage"(quest: Quest) "Current stage of a quest (-1 = not started)";
-    "quest_active"(quest: Quest) "Whether a quest is active";
-    "quest_done"(quest: Quest) "Whether a quest is completed";
-};
+pub use rustpg2d_engine::script_api::{ApiFn, Arg, API};
 
 const KEYWORDS: &[&str] = &[
     "fn", "let", "const", "if", "else", "while", "loop", "for", "in", "return", "break", "continue", "switch", "do", "until", "true", "false",
@@ -454,16 +268,9 @@ pub struct Known<'a> {
     pub signatures: &'a [(String, Vec<String>)],
 }
 
-impl Arg {
-    /// Ids of the project (or fixed words): offered as soon as the argument starts.
-    fn is_id(self) -> bool {
-        !matches!(self, Arg::Text | Arg::Num | Arg::Bool | Arg::List | Arg::Opts)
-    }
-}
-
-/// The kind of the argument a call expects at `arg`.
+/// The kind of the argument a call expects at `arg` (its first overload that has one).
 pub fn arg_kind(name: &str, arg: usize) -> Option<Arg> {
-    API.iter().filter(|f| f.name == name).find_map(|f| f.params.get(arg).map(|p| p.1))
+    rustpg2d_engine::script_api::arg_kinds(name, arg).next()
 }
 
 fn rank(mut v: Vec<Cand>, partial: &str) -> Vec<Cand> {
@@ -911,7 +718,7 @@ mod tests {
         assert!(matches!(p, Place::Str { .. }) && c.is_none());
         assert_eq!(analyze("say(\"hi\"); // give_item(\"").0, Place::Comment);
         assert_eq!(arg_kind("teleport", 1), Some(Arg::Spawn));
-        assert_eq!(arg_kind("say", 1), Some(Arg::Text));
+        assert_eq!(arg_kind("say", 1), Some(Arg::Line));
     }
 
     #[test]
@@ -956,22 +763,6 @@ mod tests {
         assert!(get("guard").contains(&"guard_talk".to_string()));
     }
 
-    /// Every function the engine registers for scripts is in the completion table.
-    #[test]
-    fn api_table_is_complete() {
-        let src = include_str!("../../engine/src/script.rs");
-        let registered: std::collections::BTreeSet<&str> = src.split("register_fn(\"").skip(1).filter_map(|s| s.split('"').next()).collect();
-        assert!(registered.len() > 60, "{registered:?}");
-        let missing: Vec<&&str> = registered.iter().filter(|n| !API.iter().any(|f| f.name == **n)).collect();
-        assert!(missing.is_empty(), "not in the completion table: {missing:?}");
-        // ... and the table has nothing the engine doesn't know.
-        let unknown: Vec<&str> = API.iter().map(|f| f.name).filter(|n| !registered.contains(n)).collect();
-        assert!(unknown.is_empty(), "not registered in the engine: {unknown:?}");
-        // ... and Documentation/scripting.md describes every one.
-        let doc = include_str!("../../../Documentation/scripting.md");
-        let undocumented: Vec<&&str> = registered.iter().filter(|n| !doc.contains(&format!("`{n}("))).collect();
-        assert!(undocumented.is_empty(), "missing in Documentation/scripting.md: {undocumented:?}");
-    }
 
     #[test]
     fn highlights_and_finds_functions() {

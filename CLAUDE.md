@@ -196,10 +196,12 @@ example_project/        the example game, plain project files (edit them through
   `templates()`), execution in `runtime/mod.rs` (`execute`) or `Condition::eval` /
   `runner::conditions_met`, editor fields in `widgets.rs` (action fields / `conditions_ui`),
   `refactor.rs` if it references ids, and a Rhai function in `script.rs` if useful.
-- **New script function with an id argument** (item, map, sound, quest, …): add it to
-  `script_refs::API_IDS` so renames and the script check cover it, and to the `API` table in
-  `editor/src/script_editor.rs` (parameters, argument kinds, description) for completion. Note `go` and a few
-  other words are reserved in Rhai.
+- **New script function:** register it in `script.rs` and add it to the `API` table in
+  `engine/src/script_api.rs` (parameters with their `Arg` kinds, description) — that one table
+  drives the editor's completion, the agent server's API resource, renames and the script check
+  (id arguments), translation templates (text arguments) and the flag / variable collectors; a
+  test fails until `Documentation/scripting.md` describes it too. Note `go` and a few other words
+  are reserved in Rhai.
 - **New definition fields:** `TilesetDef`, `SheetDef`, `ItemDef`, `PropDef` and `CharacterDef`
   implement `Default` by hand (= the serde defaults; the test `defaults_match_the_file_format`
   pins it) and `fresh(id)` (the editor's "+ New" value): add the field to both, and literals

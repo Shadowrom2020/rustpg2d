@@ -393,8 +393,8 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for f in crate::sys::files_in(&project.scripts_dir()).unwrap_or_default() {
         let Ok(src) = crate::sys::read_to_string(&f) else { continue };
         for a in crate::script_refs::string_args(&src) {
-            // say(text) / say(speaker, text) / choice(text, [options], var): not choice's variable.
-            if a.func == "say" || (a.func == "choice" && a.arg == 0) {
+            // say(text) / say(speaker, text) / choice(text, [options], var): the text arguments.
+            if crate::script_api::is_text_arg(&a.func, a.arg) {
                 add(&a.value);
             }
         }

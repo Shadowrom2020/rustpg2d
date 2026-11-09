@@ -2369,10 +2369,12 @@ fn scripts_ui(ed: &mut Editor, ui: &mut egui::Ui) {
         functions.extend(crate::script_editor::defined_functions(text));
         signatures.extend(crate::script_editor::defined_signatures(text));
         for a in rustpg2d_engine::script_refs::string_args(text) {
-            match (a.func.as_str(), a.arg) {
-                ("flag" | "set_flag", 0) => flags.push(a.value),
-                ("get_var" | "set_var" | "add_var" | "queue_set_var", 0) | ("choice", 2) => vars.push(a.value),
-                _ => {}
+            // Flag and variable arguments of any API function (the table says which).
+            let kinds: Vec<rustpg2d_engine::script_api::Arg> = rustpg2d_engine::script_api::arg_kinds(&a.func, a.arg).collect();
+            if kinds.contains(&rustpg2d_engine::script_api::Arg::Flag) {
+                flags.push(a.value);
+            } else if kinds.contains(&rustpg2d_engine::script_api::Arg::Var) {
+                vars.push(a.value);
             }
         }
     }

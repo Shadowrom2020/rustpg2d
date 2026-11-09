@@ -67,6 +67,8 @@ pub struct DbState {
     pub art_focus: Option<(String, u32)>,
     /// Tilesets tab: clicks on the tile grid toggle light tiles.
     pub tile_light_pick: bool,
+    /// Tilesets tab: clicks on the tile grid toggle ladder tiles.
+    pub tile_ladder_pick: bool,
     /// Editor script `dbscroll Y`: scroll the definition form there once.
     pub form_scroll: Option<f32>,
     /// Tilesets tab: the terrain whose tiles clicks into the grid assign.
@@ -98,6 +100,7 @@ struct Cx<'a> {
     art: &'a mut Option<ArtAction>,
     st_edit: &'a mut crate::structures::StructEdit,
     tile_light_pick: &'a mut bool,
+    tile_ladder_pick: &'a mut bool,
     terrain_pick: &'a mut Option<crate::terrain::TerrainPick>,
 }
 
@@ -358,7 +361,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     &mut db.tilesets,
                     sel,
                     |d| d.id.clone(),
-                    |ids| TilesetDef { id: unique("tileset", ids), image: "tilesets/new.png".into(), solid: vec![], animations: vec![], lights: vec![], terrains: vec![] },
+                    |ids| TilesetDef { id: unique("tileset", ids), image: "tilesets/new.png".into(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] },
                     |d| &mut d.id,
                 ),
                 Tab::Sheets => list_ui(
@@ -475,6 +478,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     art: &mut art,
                     st_edit: &mut ed.db.st_edit,
                     tile_light_pick: &mut ed.db.tile_light_pick,
+                    tile_ladder_pick: &mut ed.db.tile_ladder_pick,
                     terrain_pick: &mut ed.db.terrain_pick,
                 };
                 let i = ed.db.sel;
@@ -1662,9 +1666,25 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
     }
     if ui.selectable_label(*cx.tile_light_pick, ui::t(ui::ph::LIGHTBULB, "Pick light tiles in the grid")).on_hover_text("While on, clicking a tile below adds or removes its light").clicked() {
         *cx.tile_light_pick = !*cx.tile_light_pick;
+        *cx.tile_ladder_pick = false;
         *cx.anim_target = None;
         *cx.terrain_pick = None;
     }
+    ui.horizontal(|ui| {
+        if ui
+            .selectable_label(*cx.tile_ladder_pick, ui::t(ui::ph::LADDER_SIMPLE, "Pick ladder tiles in the grid"))
+            .on_hover_text("While on, clicking a tile below marks it as a ladder or not. The player climbs ladders: only up and down, slower, seen from behind (a ladder top can lead somewhere with a portal). Characters keep off them.")
+            .clicked()
+        {
+            *cx.tile_ladder_pick = !*cx.tile_ladder_pick;
+            *cx.tile_light_pick = false;
+            *cx.anim_target = None;
+            *cx.terrain_pick = None;
+        }
+        if !d.ladder.is_empty() {
+            ui.weak(format!("{} ladder tile(s)", d.ladder.len()));
+        }
+    });
 
     // ---- terrains
     ui.separator();
@@ -1673,12 +1693,14 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
     if cx.terrain_pick.is_some() && before.is_none() {
         *cx.anim_target = None;
         *cx.tile_light_pick = false;
+        *cx.tile_ladder_pick = false;
     }
 
     // ---- tile grid
     ui.separator();
     let editing_terrain = cx.terrain_pick.and_then(|p| d.terrains.get(p.terrain).map(|t| (p, t.name.clone())));
     match (*cx.anim_target, *cx.tile_light_pick) {
+        _ if *cx.tile_ladder_pick && editing_terrain.is_none() && cx.anim_target.is_none() => ui.label("Click tiles to mark or unmark ladders (green rungs = ladder)."),
         _ if editing_terrain.is_some() => {
             let (p, name) = editing_terrain.clone().unwrap();
             let blob = d.terrains.get(p.terrain).is_some_and(|t| t.is_blob());
@@ -1718,6 +1740,9 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
             if editing_terrain.as_ref().is_some_and(|(p, _)| d.terrains[p.terrain].contains(i) || d.terrains[p.terrain].base == Some(i)) {
                 p.rect_stroke(r.shrink(2.0), 0.0, Stroke::new(2.0_f32, Color32::from_rgb(90, 220, 255)), StrokeKind::Inside);
             }
+            if d.ladder.contains(&i) {
+                p.text(r.left_bottom() + vec2(2.0, -2.0), egui::Align2::LEFT_BOTTOM, ui::ph::LADDER_SIMPLE, egui::FontId::proportional(16.0), Color32::from_rgb(120, 230, 120));
+            }
             if d.lights.iter().any(|l| l.tile == i) {
                 p.text(r.right_top() + vec2(-3.0, 2.0), egui::Align2::RIGHT_TOP, ui::ph::LIGHTBULB, egui::FontId::proportional(16.0), Color32::YELLOW);
             }
@@ -1736,6 +1761,15 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
                             }
                             a.frames.push(i);
                         }
+                        None if *cx.tile_ladder_pick => match d.ladder.iter().position(|&l| l == i) {
+                            Some(k) => {
+                                d.ladder.remove(k);
+                            }
+                            None => {
+                                d.ladder.push(i);
+                                d.ladder.sort();
+                            }
+                        },
                         None if *cx.tile_light_pick => match d.lights.iter().position(|l| l.tile == i) {
                             Some(k) => {
                                 d.lights.remove(k);

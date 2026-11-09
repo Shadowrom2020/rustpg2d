@@ -70,6 +70,8 @@ use text::{draw_text};
 /// Callback collecting `(once-key, triggers, owner)` while gathering event handlers.
 type TriggerSink<'a> = dyn FnMut(String, &[Trigger], Option<u32>) + 'a;
 
+/// Speed factor on ladders.
+const CLIMB_SPEED: f32 = 0.6;
 /// Seconds the player walks into a friendly character before it steps aside ([`Game::push_past`]).
 const STEP_ASIDE_AFTER: f32 = 0.4;
 /// How many recently left maps are kept in memory.
@@ -210,6 +212,8 @@ struct RtEntity {
 struct Loaded {
     map: Map,
     solid: Vec<bool>,
+    /// Cells with a ladder tile (the player climbs them, characters keep off).
+    ladder: Vec<bool>,
     entities: Vec<RtEntity>,
     /// Lights of light-giving tiles (computed when the map is entered).
     tile_lights: Vec<render::lighting::Light>,
@@ -387,7 +391,7 @@ impl Game {
             thumb_request: None,
             after_thumb: None,
             fullscreen: None,
-            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], entities: vec![], tile_lights: vec![] },
+            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], entities: vec![], tile_lights: vec![] },
             project,
             assets,
             audio,
@@ -697,9 +701,10 @@ impl Game {
         self.persist_patrols();
         let ts = self.ts();
         let solid = self.assets.compute_solid(&map);
+        let ladder = self.assets.compute_ladder(&map);
         let entities = self.build_entities(&map);
         let tile_lights = render::lighting::tile_lights(&map, &self.project.db, ts);
-        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, entities, tile_lights });
+        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, entities, tile_lights });
         self.restore_unlocked();
         // Scheduled characters are where their day has taken them.
         for i in 0..self.loaded.entities.len() {
@@ -820,6 +825,23 @@ impl Game {
         self.loaded.solid[(ty as u32 * m.width + tx as u32) as usize]
     }
 
+    /// A ladder tile at (tx, ty).
+    fn tile_ladder(&self, tx: i32, ty: i32) -> bool {
+        let m = &self.loaded.map;
+        m.in_bounds(tx, ty) && self.loaded.ladder.get((ty as u32 * m.width + tx as u32) as usize).copied().unwrap_or(false)
+    }
+
+    /// Tiles characters don't walk onto: solid ones and ladders (only the player climbs).
+    fn tile_blocks_npc(&self, tx: i32, ty: i32) -> bool {
+        self.tile_solid(tx, ty) || self.tile_ladder(tx, ty)
+    }
+
+    /// The player stands on a ladder (feet on a ladder tile).
+    pub(super) fn climbing(&self) -> bool {
+        let t = self.player_tile();
+        self.seat.is_none() && self.tile_ladder(t.0, t.1)
+    }
+
     /// Tiles taken by active solid entities that pass `keep` (any real overlap of the hitbox
     /// blocks a tile: small hitboxes sit at the bottom of their tile). For path finding.
     fn solid_entity_tiles(&self, keep: impl Fn(&RtEntity) -> bool) -> std::collections::HashSet<crate::path::TilePos> {
@@ -850,9 +872,11 @@ impl Game {
         let y0 = (r.y / ts).floor() as i32;
         let x1 = ((r.x + r.w - 0.001) / ts).floor() as i32;
         let y1 = ((r.y + r.h - 0.001) / ts).floor() as i32;
+        // Characters (movers that ignore themselves) keep off ladders; the player climbs them.
+        let npc = ignore.is_some();
         for ty in y0..=y1 {
             for tx in x0..=x1 {
-                if self.tile_solid(tx, ty) {
+                if self.tile_solid(tx, ty) || (npc && self.tile_ladder(tx, ty)) {
                     return true;
                 }
             }
@@ -1398,10 +1422,23 @@ impl Game {
                 return; // the order triggered a transition
             }
         }
+        // On a ladder: only up and down, slower, facing the ladder; drawn towards its middle.
+        let climbing = self.climbing();
+        if climbing {
+            dir = vec2(0.0, if dir.y.abs() > 0.01 { dir.y.signum() } else { 0.0 });
+            run = CLIMB_SPEED;
+            self.player.facing = Facing::Up;
+            let mid = (self.player_tile().0 as f32 + 0.5) * ts;
+            let dx = mid - self.player.pos.x;
+            if dx.abs() > 0.5 && dir != Vec2::ZERO {
+                let step = dx.signum() * dx.abs().min(self.player.speed * dt);
+                self.player.pos = self.try_move(&self.player, vec2(step, 0.0), None, false);
+            }
+        }
         if dir != Vec2::ZERO {
             dir = dir.normalize();
             if let Some(f) = Facing::from_vec(dir.x, dir.y) {
-                self.player.facing = f;
+                self.player.facing = if climbing { Facing::Up } else { f };
             }
             let delta = dir * self.player.speed * self.speed_factor() * run * dt;
             let before = self.player.pos;
@@ -1867,7 +1904,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
+            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
             self.dev_status(),
             self.weather_status(),
             self.menu_status(),
@@ -1904,6 +1941,7 @@ impl Game {
             self.achievements_status(),
             self.minigame_status(),
             self.pose_status(),
+            self.climbing(),
             self.gather_status(),
             self.prop_states_status(),
             self.crops_status(),

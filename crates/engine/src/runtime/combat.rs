@@ -193,7 +193,8 @@ impl Game {
     /// Attacks with the equipped weapon (or bare hands). `aim` (world point) sets the
     /// direction; otherwise the player's facing is used.
     pub(super) fn attack_at(&mut self, aim: Option<Vec2>) {
-        if !self.combat.enabled() || self.combat.cooldown > 0.0 || self.player_stunned() {
+        // Both hands on the rungs.
+        if !self.combat.enabled() || self.combat.cooldown > 0.0 || self.player_stunned() || self.climbing() {
             return;
         }
         let weapon = self.attack_weapon();

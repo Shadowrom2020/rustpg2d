@@ -28,6 +28,8 @@ pub struct TilesetTex {
     /// Average color of each tile (for the overview).
     pub colors: Vec<Color>,
     pub solid: Vec<bool>,
+    /// Ladder tiles (climbed by the player).
+    pub ladder: Vec<bool>,
     /// Per tile index: animation (if any).
     anim_of: Vec<Option<usize>>,
     pub anims: Vec<TileAnim>,
@@ -60,6 +62,10 @@ impl TilesetTex {
     }
     pub fn is_solid(&self, index: u32) -> bool {
         self.solid.get(index as usize).copied().unwrap_or(false)
+    }
+
+    pub fn is_ladder(&self, index: u32) -> bool {
+        self.ladder.get(index as usize).copied().unwrap_or(false)
     }
 }
 
@@ -176,6 +182,7 @@ impl Assets {
                 count,
                 colors: Vec::with_capacity(count as usize),
                 solid: vec![false; count as usize],
+                ladder: vec![false; count as usize],
                 anim_of: Vec::new(),
                 anims: Vec::new(),
                 image,
@@ -187,6 +194,11 @@ impl Assets {
             }
             for &s in &def.solid {
                 if let Some(v) = t.solid.get_mut(s as usize) {
+                    *v = true;
+                }
+            }
+            for &s in &def.ladder {
+                if let Some(v) = t.ladder.get_mut(s as usize) {
                     *v = true;
                 }
             }
@@ -225,6 +237,20 @@ impl Assets {
     pub fn compute_solid(&self, map: &Map) -> Vec<bool> {
         let sets = self.map_tilesets(map);
         map.compute_solid(|slot, i| sets.get(slot).copied().flatten().is_some_and(|t| t.is_solid(i)))
+    }
+
+    /// Ladder grid of a map: cells with a ladder tile on a layer below the characters.
+    pub fn compute_ladder(&self, map: &Map) -> Vec<bool> {
+        let sets = self.map_tilesets(map);
+        let mut out = vec![false; (map.width * map.height) as usize];
+        for y in 0..map.height {
+            for x in 0..map.width {
+                out[(y * map.width + x) as usize] = map.layers.iter().any(|l| {
+                    !l.above_entities && l.get(x, y).parts().is_some_and(|(slot, i)| sets.get(slot).copied().flatten().is_some_and(|t| t.is_ladder(i)))
+                });
+            }
+        }
+        out
     }
 
     /// Draws a sheet frame with its bottom-center at `feet`.

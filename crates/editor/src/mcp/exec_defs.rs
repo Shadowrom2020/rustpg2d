@@ -257,8 +257,8 @@ fn template(kind: DefKind, id: &str, db: &Database) -> (Value, &'static str) {
     let icon = SpriteRef::default();
     match kind {
         DefKind::Tilesets => (
-            val(&TilesetDef { id: id.into(), image: "tilesets/<file>.png".into(), solid: vec![], animations: vec![], lights: vec![], terrains: vec![] }),
-            "image: PNG path under the project (32 px tiles, any columns); solid: tile indices that block; animations: [{tile, frames, fps}]; lights: [{tile, light: {radius, color, intensity, flicker}}]; terrains: auto-tiling sets (easier made in the editor).",
+            val(&TilesetDef { id: id.into(), image: "tilesets/<file>.png".into(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] }),
+            "image: PNG path under the project (32 px tiles, any columns); solid: tile indices that block; ladder: tile indices the player climbs (characters keep off); animations: [{tile, frames, fps}]; lights: [{tile, light: {radius, color, intensity, flicker}}]; terrains: auto-tiling sets (easier made in the editor).",
         ),
         DefKind::Sheets => (
             val(&SheetDef::new(id, "sprites/<file>.png", 32, 32)),

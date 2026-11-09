@@ -676,10 +676,7 @@ impl Editor {
             spawns.insert(m.clone(), refs.spawns);
             transitions.insert(m.clone(), refs.transitions);
         }
-        let db = &self.project.db;
-        for ts in db.items.iter().map(|d| &d.on_use).chain(db.props.iter().map(|d| &d.triggers)).chain(db.characters.iter().map(|d| &d.triggers)) {
-            collect_names(ts, &mut all_flags, &mut all_vars);
-        }
+        rustpg2d_engine::events::walk_db_triggers(&self.project.db, &mut |_, ts| collect_names(ts, &mut all_flags, &mut all_vars));
         for v in [&mut all_names, &mut all_flags, &mut all_vars] {
             v.retain(|s| !s.is_empty());
             v.sort();
@@ -3222,19 +3219,13 @@ fn collect_flags(map: &Map, out: &mut Vec<String>) {
 
 /// Flags and variables used by a map's triggers (map, entities, zones).
 fn collect_map_names(map: &Map, flags: &mut Vec<String>, vars: &mut Vec<String>) {
-    collect_names(&map.triggers, flags, vars);
-    for e in &map.entities {
-        collect_names(&e.triggers, flags, vars);
-    }
-    for z in &map.zones {
-        collect_names(&z.triggers, flags, vars);
-    }
+    rustpg2d_engine::events::walk_map_triggers(&map.name, map, &mut |_, ts| collect_names(ts, flags, vars));
 }
 
 /// Dialog speakers to offer for a map: placeholders, the characters on it (definition
 /// names and named instances) and speakers its dialogs already use.
 pub fn speakers_of(map: &Map, db: &rustpg2d_engine::defs::Database) -> Vec<(String, String)> {
-    use rustpg2d_engine::events::{Action, Trigger};
+    use rustpg2d_engine::events::Action;
     let mut out: Vec<(String, String)> = vec![("{self}".into(), "name of the trigger's owner".into()), ("{player}".into(), "the player's name".into())];
     let mut add = |v: String, hint: String| {
         if !v.trim().is_empty() && !out.iter().any(|(o, _)| *o == v) {
@@ -3258,10 +3249,7 @@ pub fn speakers_of(map: &Map, db: &rustpg2d_engine::defs::Database) -> Vec<(Stri
         });
     }
     let mut names = Vec::new();
-    let mut trig = |ts: &[Trigger]| ts.iter().for_each(|t| used(&t.actions, &mut names));
-    trig(&map.triggers);
-    map.entities.iter().for_each(|e| trig(&e.triggers));
-    map.zones.iter().for_each(|z| trig(&z.triggers));
+    rustpg2d_engine::events::walk_map_triggers(&map.name, map, &mut |_, ts| ts.iter().for_each(|t| used(&t.actions, &mut names)));
     names.sort();
     for n in names {
         add(n, "used in a dialog here".into());

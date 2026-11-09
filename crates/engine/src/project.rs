@@ -377,6 +377,17 @@ impl Project {
         Ok(())
     }
 
+    /// Every trigger list of the project: the definitions' ([`crate::events::walk_db_triggers`]),
+    /// then every map's read from disk ([`crate::events::walk_map_triggers`]; a map that doesn't
+    /// load is skipped). Translations, the project check and the editor's name collectors use it.
+    pub fn for_each_trigger(&self, f: &mut dyn for<'a> FnMut(crate::events::TriggerSite<'a>, &'a [crate::events::Trigger])) {
+        crate::events::walk_db_triggers(&self.db, f);
+        for name in self.list_maps() {
+            let Ok(map) = self.load_map(&name) else { continue };
+            crate::events::walk_map_triggers(&name, &map, f);
+        }
+    }
+
     /// The project's `scripts/*.rhai`, in name order.
     pub fn script_files(&self) -> Vec<PathBuf> {
         script_files_in(&self.scripts_dir())

@@ -760,40 +760,84 @@ impl Action {
     }
 }
 
+/// Where a list of triggers lives: the walks over a whole project ([`walk_db_triggers`],
+/// [`walk_map_triggers`], `Project::for_each_trigger`) hand it along with the triggers.
+#[derive(Clone, Copy)]
+pub enum TriggerSite<'a> {
+    /// An item definition's *on use* triggers.
+    Item(&'a crate::defs::ItemDef),
+    Prop(&'a crate::defs::PropDef),
+    Character(&'a crate::defs::CharacterDef),
+    /// A map's own triggers.
+    Map(&'a str),
+    Zone { map: &'a str, zone: &'a crate::map::Zone },
+    /// A placed entity's own triggers (its definition's are separate).
+    Entity { map: &'a str, entity: &'a crate::entity::EntityInstance },
+}
+
+impl TriggerSite<'_> {
+    /// The owner kind that decides which events reach these triggers.
+    pub fn owner(&self) -> TriggerOwner {
+        match self {
+            TriggerSite::Item(_) => TriggerOwner::ItemUse,
+            TriggerSite::Prop(_) => TriggerOwner::Prop,
+            TriggerSite::Character(_) => TriggerOwner::Character,
+            TriggerSite::Map(_) => TriggerOwner::Map,
+            TriggerSite::Zone { .. } => TriggerOwner::Zone,
+            TriggerSite::Entity { entity, .. } => match entity.kind {
+                crate::entity::EntityKind::Character => TriggerOwner::Character,
+                crate::entity::EntityKind::Prop => TriggerOwner::Prop,
+                crate::entity::EntityKind::Item => TriggerOwner::Pickup,
+            },
+        }
+    }
+
+    /// Where it is, for messages: "item sword", "map village, zone gate".
+    pub fn label(&self) -> String {
+        match self {
+            TriggerSite::Item(d) => format!("item {}", d.id),
+            TriggerSite::Prop(d) => format!("prop {}", d.id),
+            TriggerSite::Character(d) => format!("character {}", d.id),
+            TriggerSite::Map(m) => format!("map {m}"),
+            TriggerSite::Zone { map, zone } => format!("map {map}, zone {}", zone.name),
+            TriggerSite::Entity { map, entity } => format!("map {map}, {}", entity.label()),
+        }
+    }
+}
+
+/// Every trigger list of the definitions: items' *on use*, props', characters'.
+pub fn walk_db_triggers<'a>(db: &'a crate::defs::Database, f: &mut dyn FnMut(TriggerSite<'a>, &'a [Trigger])) {
+    for d in &db.items {
+        f(TriggerSite::Item(d), &d.on_use);
+    }
+    for d in &db.props {
+        f(TriggerSite::Prop(d), &d.triggers);
+    }
+    for d in &db.characters {
+        f(TriggerSite::Character(d), &d.triggers);
+    }
+}
+
+/// Every trigger list on a map: the map's own, its zones', its placed entities'.
+pub fn walk_map_triggers<'a>(name: &'a str, map: &'a crate::map::Map, f: &mut dyn FnMut(TriggerSite<'a>, &'a [Trigger])) {
+    f(TriggerSite::Map(name), &map.triggers);
+    for zone in &map.zones {
+        f(TriggerSite::Zone { map: name, zone }, &zone.triggers);
+    }
+    for entity in &map.entities {
+        f(TriggerSite::Entity { map: name, entity }, &entity.triggers);
+    }
+}
+
 /// Triggers in a project whose event never reaches them: "where: On <event>".
 pub fn useless_triggers(project: &crate::project::Project) -> Vec<String> {
-    use crate::entity::EntityKind;
     let mut out = Vec::new();
     let mut check = |owner: TriggerOwner, ts: &[Trigger], place: String| {
         for t in ts.iter().filter(|t| !owner.allows(&t.on)) {
             out.push(format!("{place}: On {}", t.on.label()));
         }
     };
-    let db = &project.db;
-    for d in &db.items {
-        check(TriggerOwner::ItemUse, &d.on_use, format!("item {}", d.id));
-    }
-    for d in &db.props {
-        check(TriggerOwner::Prop, &d.triggers, format!("prop {}", d.id));
-    }
-    for d in &db.characters {
-        check(TriggerOwner::Character, &d.triggers, format!("character {}", d.id));
-    }
-    for name in project.list_maps() {
-        let Ok(map) = project.load_map(&name) else { continue };
-        check(TriggerOwner::Map, &map.triggers, format!("map {name}"));
-        for z in &map.zones {
-            check(TriggerOwner::Zone, &z.triggers, format!("map {name}, zone {}", z.name));
-        }
-        for e in &map.entities {
-            let owner = match e.kind {
-                EntityKind::Character => TriggerOwner::Character,
-                EntityKind::Prop => TriggerOwner::Prop,
-                EntityKind::Item => TriggerOwner::Pickup,
-            };
-            check(owner, &e.triggers, format!("map {name}, {}", e.label()));
-        }
-    }
+    project.for_each_trigger(&mut |site, ts| check(site.owner(), ts, site.label()));
     out
 }
 
@@ -826,6 +870,37 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn trigger_walk_visits_every_site() {
+        use crate::entity::{EntityInstance, EntityKind};
+        use crate::map::{Map, Zone, ZoneKind};
+        let mut map = Map::new("m", 4, 4);
+        map.triggers.push(Trigger::new(TriggerOn::MapEnter));
+        map.zones.push(Zone { uid: 1, name: "gate".into(), x: 0, y: 0, w: 1, h: 1, kind: ZoneKind::Trigger, triggers: vec![Trigger::new(TriggerOn::Enter)], loot: None });
+        let mut npc = EntityInstance::new(2, EntityKind::Character, "guard", 63.0, 63.0);
+        npc.triggers.push(Trigger::new(TriggerOn::Interact));
+        map.entities.push(npc);
+        let mut coin = EntityInstance::new(3, EntityKind::Item, "coin", 95.0, 95.0);
+        coin.triggers.push(Trigger::new(TriggerOn::Interact));
+        map.entities.push(coin);
+        let mut seen = Vec::new();
+        walk_map_triggers("m", &map, &mut |site, ts| seen.push((site.label(), site.owner(), ts.len())));
+        assert_eq!(seen.len(), 4, "the map, its zone and both entities");
+        assert_eq!(seen[0], ("map m".to_string(), TriggerOwner::Map, 1));
+        assert_eq!(seen[1], ("map m, zone gate".to_string(), TriggerOwner::Zone, 1));
+        assert_eq!(seen[2].1, TriggerOwner::Character);
+        assert_eq!(seen[3].1, TriggerOwner::Pickup);
+        assert!(seen[2].0.starts_with("map m, "), "{}", seen[2].0);
+        // The definitions: one site per item, prop and character.
+        let mut db = crate::defs::Database::default();
+        db.items.push(crate::defs::ItemDef::fresh("potion"));
+        db.props.push(crate::defs::PropDef::fresh("chest"));
+        db.characters.push(crate::defs::CharacterDef::fresh("guard"));
+        let mut owners = Vec::new();
+        walk_db_triggers(&db, &mut |site, _| owners.push(site.owner()));
+        assert_eq!(owners, [TriggerOwner::ItemUse, TriggerOwner::Prop, TriggerOwner::Character]);
+    }
 
     #[test]
     fn trigger_owners() {

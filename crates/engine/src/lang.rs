@@ -342,7 +342,6 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for i in &db.items {
         add(&i.name);
         add(&i.description);
-        triggers(&i.on_use, &mut add);
     }
     let lock_texts = |lock: Option<&crate::defs::LockSpec>, container: Option<&crate::defs::ContainerSpec>, add: &mut dyn FnMut(&str)| {
         if let Some(l) = lock {
@@ -355,12 +354,9 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     };
     for p in &db.props {
         add(&p.name);
-        lock_texts(p.lock.as_ref(), p.container.as_ref(), &mut add);
-        triggers(&p.triggers, &mut add);
     }
     for c in &db.characters {
         add(&c.name);
-        triggers(&c.triggers, &mut add);
     }
     for q in &db.quests {
         add(&q.title);
@@ -379,17 +375,16 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         add(&a.name);
         add(&a.description);
     }
-    for name in project.list_maps() {
-        let Ok(m) = project.load_map(&name) else { continue };
-        triggers(&m.triggers, &mut add);
-        for e in &m.entities {
-            lock_texts(e.lock.as_ref(), e.container.as_ref(), &mut add);
-            triggers(&e.triggers, &mut add);
+    // Every trigger of the definitions and the maps, and the lock / container texts of props and
+    // placed entities.
+    project.for_each_trigger(&mut |site, ts| {
+        match site {
+            crate::events::TriggerSite::Prop(p) => lock_texts(p.lock.as_ref(), p.container.as_ref(), &mut add),
+            crate::events::TriggerSite::Entity { entity, .. } => lock_texts(entity.lock.as_ref(), entity.container.as_ref(), &mut add),
+            _ => {}
         }
-        for z in &m.zones {
-            triggers(&z.triggers, &mut add);
-        }
-    }
+        triggers(ts, &mut add);
+    });
     for f in crate::sys::files_in(&project.scripts_dir()).unwrap_or_default() {
         let Ok(src) = crate::sys::read_to_string(&f) else { continue };
         for a in crate::script_refs::string_args(&src) {

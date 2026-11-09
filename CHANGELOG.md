@@ -67,6 +67,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- One walk over a project's triggers (`Project::for_each_trigger`, `TriggerSite`): the project
+  check, the translation template and the editor's flag / variable / speaker collectors use it
+  instead of six hand-written loops over definitions, maps, zones and entities.
 - One Rhai lexer (`script_refs::lex`, every byte covered) serves the editor's highlighter, the
   reference finder, the function lists and completion; the four function finders are one. An
   unterminated string now ends with its line everywhere (the reference finder used to read on to

@@ -81,6 +81,58 @@ Instructions for every session (people and coding agents) that implements roadma
     `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
     checks, merge the back-merge pull request.
 
+## 0.12.0 — Quality and reliability
+
+A pass over the implementation instead of new content: the runtime's hot paths, everything that
+could lose or refuse data, automated checks of the running game, and the duplicated code that lets
+copies drift apart. The recap of the architecture lives in `Documentation/architecture.md`. One
+pull request (`feature/quality-and-reliability`) with one commit per stage, so the history stays
+bisectable; the version number (PATCH or MINOR) is decided when the release is cut.
+
+- [x] Quality and reliability pass — `feature/quality-and-reliability`
+
+  **Goal.** Fewer wasted frames, no data lost or refused because of one bad entry, a game that
+  runs in CI, and one implementation of each rule.
+
+  **Design.** Twenty-five stages in four groups. *Small fixes and measurement:* walkers re-plan once
+  per blockage and companions pause between failed searches; save/load edge cases (quick-load
+  during a fade, `resuming`, once-keys of runtime uids, f32 phase seeds); a `Perf` sampler
+  (`fps=`, `frame_ms=`, `astar=` in `status`). *Reliability:* atomic `sys::write` (tmp + rename),
+  map geometry and lz4 size validation, tolerant defs / map-object loading with a `.bak` and a
+  banner in the editor, MCP `catch_unwind` + reply timeout, a Windows start-up error box, the
+  release profile and a pinned toolchain. *Tests and CI:* old-format fixtures (0.9 defs and maps,
+  a frozen v1 map, crafted 0.10 saves) under `crates/engine/tests/fixtures`, a *Runtime smoke* job
+  with Xvfb and autoplay plus `mcp_smoke`. *Performance and reuse:* `Default` + `fresh()` for the
+  definition types, one kind enum (`RefKind`) with a `Def` trait and `with_def_kind!`, `grid.rs`
+  for pixel ↔ tile conversions, a verified id index in `Database`, a per-frame occupancy grid for
+  planning and collision, faster A*, fewer per-frame allocations in drawing, `walk_home` on
+  `walk_to_tile`, `Action::walk` / `Project::for_each_trigger`, the script API table in the
+  engine, shared UI widgets (`ScrollList`, slot grids), small utilities (base64, `hour_text`,
+  path safety, RON writer) in one place each.
+
+  **Decided while building.** Done in twenty-five staged commits on the one branch: the twenty
+  planned stages, then the five pieces first set aside (a shared `ScrollList` for the shop,
+  crafting and menu lists; one slot grid and drag state for the inventory and companion windows,
+  which gave the companion window its stack counts back; the `mcp_tools!` macro that declares the
+  54 agent tools once; one Rhai lexer, `script_refs::lex`, under the highlighter, the reference
+  finder and the function lists; and `Project::for_each_trigger` with `TriggerSite` for the
+  project check, the translation template and the editor's name collectors). The runtime smoke
+  job is advisory until it has been green on a few pull requests. `walk_home` now shares
+  `walk_to_tile`, so a character's `home` moves only when it arrives somewhere, not with every
+  step. Verified end to end besides the per-stage checks: a chaser lured past its leash walks home
+  (`ai=` goes hunting → returning → gone), and the Windows game shows its start-up error box
+  (cross-built in a container, run under Wine).
+
+  **Touch points.** `runtime/` (mod, patrol, ai, companions, mouse, lights, combat, npc_use),
+  `path.rs`, `defs.rs`, `refactor.rs`, `project.rs`, `sys.rs`, `map/io.rs`, `events/mod.rs`,
+  `script_refs.rs`; editor `mcp/`, `app.rs`, `database.rs`, `wizard.rs`, `main.rs`; `ci.yml`;
+  `Documentation/architecture.md`, README, CLAUDE.md, CHANGELOG.
+
+  **Verify.** Per stage: build, clippy, tests and the scripted check named in the plan (autoplay
+  `status` fields, screenshots, `mcp_smoke`); before / after `fps=` and `astar=` for the village
+  at noon and at night, a villager blocked in a doorway and a companion below a watchtower; the
+  user's saves, the fixtures and a copy of the user's library keep loading.
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS

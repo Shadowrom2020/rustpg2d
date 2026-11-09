@@ -2,7 +2,7 @@
 
 use macroquad::prelude::*;
 
-use super::{input, Arrival, Game, Source};
+use super::{input, Arrival, Game, Mover, Source};
 use crate::defs::{CharacterDef, Ranged, SpriteRef};
 use crate::entity::Facing;
 use crate::events::GameEvent;
@@ -146,13 +146,14 @@ impl Game {
     }
 
     pub(super) fn update_combat(&mut self, dt: f32, frozen: bool, key_consumed: bool) {
+        // (Timers stop at 0 instead of counting down forever.)
         let c = &mut self.combat;
-        c.cooldown -= dt;
-        c.swing -= dt;
-        c.invuln -= dt;
+        c.cooldown = (c.cooldown - dt).max(0.0);
+        c.swing = (c.swing - dt).max(0.0);
+        c.invuln = (c.invuln - dt).max(0.0);
         for e in &mut self.loaded.entities {
-            e.invuln -= dt;
-            e.flash -= dt;
+            e.invuln = (e.invuln - dt).max(0.0);
+            e.flash = (e.flash - dt).max(0.0);
         }
         for fx in &mut self.effects {
             fx.1 += dt;
@@ -340,6 +341,7 @@ impl Game {
     /// Moves projectiles in small steps; they stop at walls and hit the first target.
     pub(super) fn update_projectiles(&mut self, dt: f32) {
         let ts = self.ts();
+        let companions = self.companion_targets();
         let mut i = 0;
         while i < self.projectiles.len() {
             let p = &self.projectiles[i];
@@ -378,7 +380,7 @@ impl Game {
                     }
                 } else {
                     // Companions are hit like the player.
-                    let companion = self.companion_targets().into_iter().map(|(c, _)| c).find(|&c| {
+                    let companion = companions.iter().map(|(c, _)| *c).find(|&c| {
                         let r = self.loaded.entities[c].body.rect();
                         self.loaded.entities[c].invuln <= 0.0 && Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8).overlaps(&hit_box)
                     });
@@ -564,7 +566,7 @@ impl Game {
         }
         let u = self.u();
         let step = decay(&mut self.combat.knock, dt, u);
-        self.player.pos = self.try_move(&self.player, step, None, false);
+        self.player.pos = self.try_move(&self.player, step, Mover::Player, false);
         self.player.moving = false;
         true
     }
@@ -577,7 +579,7 @@ impl Game {
         }
         let step = decay(&mut e.knock, dt, u);
         let (body, uid) = (e.body.clone(), e.uid);
-        let p = self.try_move(&body, step, Some(uid), false);
+        let p = self.try_move(&body, step, Mover::Npc(uid), false);
         let e = &mut self.loaded.entities[i];
         e.body.pos = p;
         e.body.moving = false;

@@ -1,0 +1,12 @@
+// A save with only the fields that have no default (the oldest layout): everything else must
+// come from the defaults.
+(
+    flags: [],
+    vars: {},
+    inventory: (slots: []),
+    entities: {},
+    fired: [],
+    current_map: "village",
+    player_pos: (100.0, 200.0),
+    player_facing: Down,
+)

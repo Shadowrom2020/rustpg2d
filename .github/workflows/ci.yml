@@ -6,7 +6,9 @@
 # Version, Windows, the macOS build (macos-build.yml, for the packages), Packages and the macOS
 # app (macos-app.yml) only run for pull requests into master (release / hotfix branches) and
 # when started by hand (Actions > CI > Run workflow, any branch: all of them, to try platform
-# or packaging changes before a release).
+# or packaging changes before a release). Runtime smoke (scripts/ci/smoke.sh: the game and the
+# editor running under Xvfb) runs for every pull request; it is advisory until it has proven
+# itself stable.
 name: CI
 
 on:
@@ -32,7 +34,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
       # xtask without the dist feature has no engine dependency: compiles in seconds.
       - name: Branch may merge into its target
         if: github.event_name == 'pull_request'
@@ -54,8 +58,9 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: "0"
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
@@ -73,6 +78,30 @@ jobs:
       - run: rustup target add x86_64-pc-windows-gnu
       - run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -p rustpg2d-editor -- -D warnings
 
+  smoke:
+    name: Runtime smoke
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: smoke
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev xvfb xauth libgl1-mesa-dri libglx-mesa0 libxi6 libxcursor1 libxkbcommon-x11-0
+      # The repository's dev profile (optimized dependencies): what developers and the editor's
+      # play-test run; opt-level 0 renders too slowly under llvmpipe for timed autoplay steps.
+      - run: cargo build --locked -p rustpg2d-game -p rustpg2d-editor
+      - run: cargo build --locked -p rustpg2d-editor --example mcp_smoke
+      - run: scripts/ci/smoke.sh
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: smoke-logs
+          path: ${{ runner.temp }}/rustpg2d-smoke/*.log
+          retention-days: 7
+
   version:
     name: Version
     if: github.event_name == 'pull_request' && github.base_ref == 'master'
@@ -81,7 +110,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
       - name: Release / hotfix version (SemVer, above the last tag, Cargo.toml, CHANGELOG)
         env:
           HEAD_REF: ${{ github.head_ref }}
@@ -97,8 +128,9 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: "0"
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
@@ -118,7 +150,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: release

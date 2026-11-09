@@ -42,7 +42,7 @@ begins on the chosen map and spawn, with the map's *Map enter* triggers and cut-
 
 ## The `status` line
 
-`[autoplay] dev=on|off … menu=title|pause|…|- autosave=none|pending|saved cutscene=NAME|- ui_hidden=… window=closed|… npcs=[…] worldmap={…} skills={points=N skills={..} spells={..} mana=N/M …} xp=N level=N effects=[…] ai=[…] bestiary=[…] dialog_log=N pad=… attacking=… time=HH:MM light=… weather=kind:intensity … companions=[…] player="Name|Sex|body" creator=… quests=[id:stage …] achievements=[…] minigame=… climbing=true|false props=[def:state@x,y] crops=[…] lang=CODE map=NAME tile=(X,Y) hp=Some(N) vars={…} inv={item: count …} flags={…} music=… dialog=true|false busy=true|false enemies=N sounds=[…]`
+`[autoplay] dev=on|off fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes … menu=title|pause|…|- autosave=none|pending|saved cutscene=NAME|- ui_hidden=… window=closed|… npcs=[…] worldmap={…} skills={points=N skills={..} spells={..} mana=N/M …} xp=N level=N effects=[…] ai=[…] bestiary=[…] dialog_log=N pad=… attacking=… time=HH:MM light=… weather=kind:intensity … companions=[…] player="Name|Sex|body" creator=… quests=[id:stage …] achievements=[…] minigame=… climbing=true|false props=[def:state@x,y] crops=[…] lang=CODE map=NAME tile=(X,Y) hp=Some(N) vars={…} inv={item: count …} flags={…} music=… dialog=true|false busy=true|false enemies=N sounds=[…]`
 
 The useful fields for checking content: `map` and `tile` (where the player is), `dialog` (a
 dialog is open), `cutscene`, `quests` (quest id → stage), `inv`, `flags`, `vars`, `hp`,
@@ -51,6 +51,11 @@ dialog is open), `cutscene`, `quests` (quest id → stage), `inv`, `flags`, `var
 name:stop-time[>map](walking|inside|elsewhere)[:sit|:lie]@x,y), `sounds` (the last six sound
 effects started, also when the game is muted: a bell or an animal's call), `climbing` (the
 player is on a ladder tile).
+
+For performance checks: `fps`, `frame_ms` (average / worst frame), `update_ms` and `draw_ms`
+(average time of the two halves of a frame) and `astar` (path searches and the nodes they
+expanded), all since the previous `status`, so `wait 10; status` measures ten seconds. With
+`RUSTPG2D_PERF=1` the game also logs the same as a `[perf] … entities=N` line every second.
 
 ## Tips for play-tests
 

@@ -301,7 +301,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     }
     let mut files: BTreeSet<String> = BTreeSet::new();
     files.insert("project.ron".into());
-    for d in ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "skills", "spells", "recipes", "achievements"] {
+    for d in crate::project::DEFS.iter().filter(|d| **d != "structures") {
         let rel = format!("defs/{d}.ron");
         if root.join(&rel).exists() {
             files.insert(rel);
@@ -319,19 +319,15 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
             c.warnings.push(format!("The project offers the language '{code}' but has no {rel}; only R(ust)PG2D's own texts will be translated."));
         }
     }
-    if let Ok(rd) = std::fs::read_dir(project.scripts_dir()) {
-        for e in rd.flatten() {
-            if e.path().extension().is_some_and(|x| x == "rhai") {
-                files.insert(format!("scripts/{}", e.file_name().to_string_lossy()));
-            }
-        }
+    for f in project.script_files() {
+        files.insert(format!("scripts/{}", f.file_name().unwrap_or_default().to_string_lossy()));
     }
     let db = &project.db;
     let assets = db.tilesets.iter().map(|d| (&d.image, "tileset", &d.id)).chain(db.sheets.iter().map(|d| (&d.image, "sprite sheet", &d.id))).chain(db.sounds.iter().map(|d| (&d.file, "sound", &d.id)));
     for (rel, kind, id) in assets {
         if rel.is_empty() || !root.join(rel).exists() {
             c.warnings.push(format!("The {kind} '{id}' has no file ({rel}); it will be missing in the game."));
-        } else if rel.starts_with('/') || rel.split('/').any(|p| p == "..") {
+        } else if !crate::project::safe_rel(rel) {
             c.errors.push(format!("The {kind} '{id}' uses a file outside the project ({rel}); import it into the project first."));
         } else {
             files.insert(rel.clone());
@@ -480,7 +476,7 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
     // The bundled project carries the chosen name (title, storage of settings).
     let mut cfg = project.config.clone();
     cfg.name = name.trim().to_string();
-    packed.push(("project.ron".into(), ron::ser::to_string_pretty(&cfg, ron::ser::PrettyConfig::default().struct_names(false))?.into_bytes()));
+    packed.push(("project.ron".into(), crate::project::ron_text(&cfg)?.into_bytes()));
     let title = name.trim().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
     let readme = format!(
         "{name}\n\nThe web version: open index.html through a web server (browsers don't run WebAssembly from file:// pages), e.g. `python3 -m http.server` in this folder and http://localhost:8000, or upload {slug}-web.zip to itch.io as an HTML game.\nSave games and settings stay in the player's browser (local storage of the page's site).\n\nMade with R(ust)PG2D. The game ({WEB_WASM}) is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}; mq_js_bundle.js is macroquad's loader (MIT OR Apache-2.0).\n",
@@ -608,7 +604,7 @@ mod tests {
         std::fs::create_dir_all(root.join("saves")).unwrap();
         std::fs::write(root.join("saves/quick.ron"), b"()").unwrap();
         std::fs::write(root.join("sprites/unused.png"), b"x").unwrap();
-        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, kind: Default::default(), female: false, playable: false, tags: vec![] }], ..Default::default() };
+        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, ..Default::default() }], ..Default::default() };
         let mut p = Project { root: root.clone(), config: ProjectConfig::new("Test"), db };
         p.save_config().unwrap();
         p.save_defs().unwrap();

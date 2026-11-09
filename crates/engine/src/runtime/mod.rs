@@ -28,6 +28,7 @@ mod schedule;
 mod progression;
 mod paperdoll;
 mod npc_items;
+mod occupancy;
 mod npc_use;
 mod shop_ui;
 mod text;
@@ -46,7 +47,7 @@ mod worldmap;
 
 use std::collections::{HashSet, VecDeque};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use macroquad::prelude::*;
 
 use crate::audio::Audio;
@@ -76,6 +77,27 @@ const CLIMB_SPEED: f32 = 0.6;
 const STEP_ASIDE_AFTER: f32 = 0.4;
 /// How many recently left maps are kept in memory.
 const MAP_CACHE: usize = 4;
+
+/// Who moves: the player climbs ladders; a character keeps off them and doesn't block itself.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Mover {
+    Player,
+    Npc(u32),
+}
+
+impl Mover {
+    /// The uid of the moving character (its own body doesn't block it).
+    fn ignore(self) -> Option<u32> {
+        match self {
+            Mover::Player => None,
+            Mover::Npc(uid) => Some(uid),
+        }
+    }
+
+    fn is_npc(self) -> bool {
+        matches!(self, Mover::Npc(_))
+    }
+}
 const FADE_TIME: f32 = 0.25;
 /// Save slot of the autosaves (after map changes and the `Autosave` action).
 pub(super) const AUTOSAVE: &str = "autosave";
@@ -121,6 +143,12 @@ struct Body {
 }
 
 impl Body {
+    /// Advances the walk animation. Wrapped at a whole number of animation cycles (8 frames a
+    /// second, up to 8 frames a cycle), so the timer keeps its precision in long sessions.
+    fn animate(&mut self, dt: f32) {
+        self.anim = (self.anim + dt) % 60.0;
+    }
+
     fn rect_at(&self, p: Vec2) -> Rect {
         Rect::new(p.x - self.hitbox.x / 2.0, p.y - self.hitbox.y, self.hitbox.x, self.hitbox.y)
     }
@@ -217,12 +245,56 @@ struct Loaded {
     entities: Vec<RtEntity>,
     /// Lights of light-giving tiles (computed when the map is entered).
     tile_lights: Vec<render::lighting::Light>,
+    /// The tiles solid entities stand on, rebuilt every frame ([`Game::rebuild_occupancy`]).
+    occupancy: occupancy::Occupancy,
 }
 
 enum Fade {
     None,
     Out { t: f32, map: String, arrival: Arrival },
     In { t: f32 },
+}
+
+/// Frame timing since the last `status` (automated runs; `RUSTPG2D_PERF=1` logs it every second).
+#[derive(Default)]
+struct Perf {
+    frames: u32,
+    /// Real seconds (not the capped `dt`).
+    secs: f32,
+    worst: f32,
+    update: f32,
+    draw: f32,
+    /// Seconds since the last `[perf]` line.
+    log_secs: f32,
+    log: bool,
+}
+
+impl Perf {
+    fn sample(&mut self, real: f32, update: f32, draw: f32) {
+        self.frames += 1;
+        self.secs += real;
+        self.worst = self.worst.max(real);
+        self.update += update;
+        self.draw += draw;
+        self.log_secs += real;
+    }
+
+    /// `fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes` since the last
+    /// report, which starts the next window.
+    fn report(&mut self) -> String {
+        let n = self.frames.max(1) as f32;
+        let (calls, nodes) = crate::path::take_stats();
+        let s = format!(
+            "fps={:.0} frame_ms={:.1}/{:.1} update_ms={:.1} draw_ms={:.1} astar={calls}/{nodes}",
+            n / self.secs.max(1e-6),
+            self.secs * 1000.0 / n,
+            self.worst * 1000.0,
+            self.update * 1000.0 / n,
+            self.draw * 1000.0 / n
+        );
+        *self = Perf { log: self.log, ..Perf::default() };
+        s
+    }
 }
 
 /// Which owner's triggers an event is delivered to.
@@ -298,6 +370,11 @@ pub struct Game {
     chips: Vec<gather::Chip>,
     /// Seconds to the next check of regrowing props.
     regrow_timer: f32,
+    /// Frame timing for `status` (a cell: `status` takes `&self`).
+    perf: std::cell::RefCell<Perf>,
+    /// Placed entities of other maps read from disk for companions (`placed_instance`), once
+    /// per game: map files don't change while it runs.
+    placed_cache: std::cell::RefCell<std::collections::HashMap<(String, u32), Option<crate::entity::EntityInstance>>>,
     /// The open companion orders menu (G).
     order_menu: Option<orders::OrderMenu>,
     /// The open companion window (its gear and bag).
@@ -391,7 +468,7 @@ impl Game {
             thumb_request: None,
             after_thumb: None,
             fullscreen: None,
-            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], entities: vec![], tile_lights: vec![] },
+            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], entities: vec![], tile_lights: vec![], occupancy: Default::default() },
             project,
             assets,
             audio,
@@ -422,6 +499,8 @@ impl Game {
             heal_pick: None,
             chips: Vec::new(),
             regrow_timer: 0.0,
+            perf: std::cell::RefCell::new(Perf { log: std::env::var("RUSTPG2D_PERF").is_ok_and(|v| v != "0"), ..Perf::default() }),
+            placed_cache: Default::default(),
             order_menu: None,
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),
@@ -704,12 +783,15 @@ impl Game {
         let ladder = self.assets.compute_ladder(&map);
         let entities = self.build_entities(&map);
         let tile_lights = render::lighting::tile_lights(&map, &self.project.db, ts);
-        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, entities, tile_lights });
+        let occupancy = occupancy::Occupancy::new(map.width, map.height);
+        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, entities, tile_lights, occupancy });
+        self.rebuild_occupancy();
         self.restore_unlocked();
         // Scheduled characters are where their day has taken them.
         for i in 0..self.loaded.entities.len() {
             self.place_on_schedule(i);
         }
+        self.rebuild_occupancy();
         if !old.map.name.is_empty() && old.map.name != self.loaded.map.name {
             self.cache.push_front(old.map);
             self.cache.truncate(MAP_CACHE);
@@ -739,7 +821,7 @@ impl Game {
             },
         };
         // Never inside something solid (a gate post at a map edge, a prop placed on a spawn).
-        self.player.pos = self.free_spot(pos);
+        self.player.pos = self.free_spot(&self.player, pos, Mover::Player);
         self.place_companions();
         self.player.move_target = None;
         self.world.current_map = self.loaded.map.name.clone();
@@ -811,6 +893,8 @@ impl Game {
             Err(e) => {
                 eprintln!("[game] cannot load map '{map_name}': {e:#}");
                 self.ui.toast(format!("Missing map: {map_name}"));
+                // (Otherwise the next real map change would skip its Map enter triggers too.)
+                self.resuming = false;
             }
         }
     }
@@ -822,7 +906,7 @@ impl Game {
         if !m.in_bounds(tx, ty) {
             return true;
         }
-        self.loaded.solid[(ty as u32 * m.width + tx as u32) as usize]
+        self.loaded.solid.get((ty as u32 * m.width + tx as u32) as usize).copied().unwrap_or(false)
     }
 
     /// A ladder tile at (tx, ty).
@@ -842,38 +926,46 @@ impl Game {
         self.seat.is_none() && self.tile_ladder(t.0, t.1)
     }
 
-    /// Tiles taken by active solid entities that pass `keep` (any real overlap of the hitbox
-    /// blocks a tile: small hitboxes sit at the bottom of their tile). For path finding.
-    fn solid_entity_tiles(&self, keep: impl Fn(&RtEntity) -> bool) -> std::collections::HashSet<crate::path::TilePos> {
+    /// Marks the tiles every active solid entity stands on (once per frame, and when a map is
+    /// entered): planning and collision read [`Loaded::occupancy`] instead of scanning entities.
+    fn rebuild_occupancy(&mut self) {
         let ts = self.ts();
-        let mut occupied = std::collections::HashSet::new();
-        for e in self.loaded.entities.iter().filter(|e| e.active && e.solid && keep(e)) {
-            let r = e.body.rect();
-            for ty in (r.y / ts).floor() as i32..=((r.y + r.h) / ts).floor() as i32 {
-                for tx in (r.x / ts).floor() as i32..=((r.x + r.w) / ts).floor() as i32 {
-                    let inner = Rect::new(tx as f32 * ts + 2.0, ty as f32 * ts + 2.0, ts - 4.0, ts - 4.0);
-                    if r.overlaps(&inner) {
-                        occupied.insert((tx, ty));
-                    }
-                }
-            }
+        let Loaded { entities, occupancy, .. } = &mut self.loaded;
+        occupancy.clear();
+        for e in entities.iter().filter(|e| e.active && e.solid) {
+            occupancy.add(e.kind, e.body.rect(), ts);
         }
-        occupied
     }
 
-    fn rect_blocked(&self, r: Rect, ignore: Option<u32>, check_player: bool) -> bool {
-        self.rect_blocked_by(r, ignore, check_player, None)
+    /// Marks entity `i` after it appeared or was moved by more than a tile within a frame
+    /// (spawned, dropped, teleported, placed, got up), so collision sees it before the next
+    /// rebuild. Steps through `try_move` don't need it.
+    pub(super) fn occupy(&mut self, i: usize) {
+        let ts = self.ts();
+        let Loaded { entities, occupancy, .. } = &mut self.loaded;
+        if let Some(e) = entities.get(i).filter(|e| e.active && e.solid) {
+            occupancy.add(e.kind, e.body.rect(), ts);
+        }
+    }
+
+    /// A solid prop stands on the tile (routes go round it).
+    pub(super) fn prop_blocks(&self, x: i32, y: i32) -> bool {
+        self.loaded.occupancy.has(x, y, occupancy::OCC_PROP)
+    }
+
+    fn rect_blocked(&self, r: Rect, mover: Mover, check_player: bool) -> bool {
+        self.rect_blocked_by(r, mover, check_player, None)
     }
 
     /// `rect_blocked`, except by entities overlapping `from` (where the mover stands now).
-    fn rect_blocked_by(&self, r: Rect, ignore: Option<u32>, check_player: bool, from: Option<Rect>) -> bool {
+    fn rect_blocked_by(&self, r: Rect, mover: Mover, check_player: bool, from: Option<Rect>) -> bool {
         let ts = self.ts();
+        let (npc, ignore) = (mover.is_npc(), mover.ignore());
         let x0 = (r.x / ts).floor() as i32;
         let y0 = (r.y / ts).floor() as i32;
         let x1 = ((r.x + r.w - 0.001) / ts).floor() as i32;
         let y1 = ((r.y + r.h - 0.001) / ts).floor() as i32;
-        // Characters (movers that ignore themselves) keep off ladders; the player climbs them.
-        let npc = ignore.is_some();
+        // Characters keep off ladders; the player climbs them.
         for ty in y0..=y1 {
             for tx in x0..=x1 {
                 if self.tile_solid(tx, ty) || (npc && self.tile_ladder(tx, ty)) {
@@ -884,17 +976,22 @@ impl Game {
         if check_player && self.player.rect().overlaps(&r) {
             return true;
         }
+        // Broad phase: no solid entity near any tile of `r` means none can overlap it.
+        if !self.loaded.occupancy.any_in(r, ts, occupancy::OCC_NEAR) {
+            return false;
+        }
         self.loaded
             .entities
             .iter()
             .any(|e| e.active && e.solid && Some(e.uid) != ignore && e.body.rect().overlaps(&r) && !from.is_some_and(|f| e.kind == EntityKind::Character && e.body.rect().overlaps(&f)))
     }
 
-    /// Where the player can stand near `pos`: `pos` itself if the player's hitbox is free there,
-    /// else the nearest spot whole tiles away (searching rings around it) that is free.
-    fn free_spot(&self, pos: Vec2) -> Vec2 {
+    /// Where `mover` (hitbox `body`) can stand near `pos`: `pos` itself if the hitbox is free
+    /// there, else the nearest spot whole tiles away (searching rings around it) that is free.
+    /// Characters are kept off ladders (a character put on one couldn't move again).
+    fn free_spot(&self, body: &Body, pos: Vec2, mover: Mover) -> Vec2 {
         let ts = self.ts();
-        let fits = |p: Vec2| !self.rect_blocked(self.player.rect_at(p), None, false);
+        let fits = |p: Vec2| !self.rect_blocked(body.rect_at(p), mover, false);
         if fits(pos) {
             return pos;
         }
@@ -906,7 +1003,9 @@ impl Game {
                 .collect();
             ring.sort_by(|a, b| a.distance_squared(pos).total_cmp(&b.distance_squared(pos)));
             if let Some(p) = ring.into_iter().find(|p| fits(*p)) {
-                eprintln!("[game] arrival at {:.0},{:.0} on {} is blocked; moved to {:.0},{:.0}", pos.x, pos.y, self.loaded.map.name, p.x, p.y);
+                if mover == Mover::Player {
+                    eprintln!("[game] arrival at {:.0},{:.0} on {} is blocked; moved to {:.0},{:.0}", pos.x, pos.y, self.loaded.map.name, p.x, p.y);
+                }
                 return p;
             }
         }
@@ -959,15 +1058,15 @@ impl Game {
         [(side.0 * first, side.1 * first), (-side.0 * first, -side.1 * first), fwd]
             .into_iter()
             .map(|(dx, dy)| self.tile_spot((t.0 + dx, t.1 + dy)))
-            .find(|p| !self.rect_blocked(e.body.rect_at(*p), Some(e.uid), true))
+            .find(|p| !self.rect_blocked(e.body.rect_at(*p), Mover::Npc(e.uid), true))
     }
 
     /// Moves along each axis separately so actors slide along walls.
-    fn try_move(&self, body: &Body, delta: Vec2, ignore: Option<u32>, check_player: bool) -> Vec2 {
+    fn try_move(&self, body: &Body, delta: Vec2, mover: Mover, check_player: bool) -> Vec2 {
         // Characters it already overlaps don't block it (several leaving one door at once
         // start on the same spot: they can walk apart).
         let now = body.rect();
-        let blocked = |r: Rect| self.rect_blocked_by(r, ignore, check_player, Some(now));
+        let blocked = |r: Rect| self.rect_blocked_by(r, mover, check_player, Some(now));
         let mut p = body.pos;
         let nx = p + vec2(delta.x, 0.0);
         if delta.x != 0.0 && !blocked(body.rect_at(nx)) {
@@ -1017,7 +1116,19 @@ impl Game {
         let rt = &self.loaded.entities;
         let add_entity = |uid: u32, add: &mut TriggerSink| {
             if let Some(e) = rt.iter().find(|e| e.uid == uid) {
-                add(format!("{}/def:{}", map.name, e.uid), db.def_triggers(e.kind, &e.def), Some(uid));
+                // The once-key names something that lasts (saves keep it): companions and visitors
+                // by where they are placed, spawned characters by their spawner and definition
+                // (every spawn has a new runtime uid), placed entities by their uid.
+                let key = if let Some(l) = &e.companion {
+                    format!("{}/def:{}", l.map, l.uid)
+                } else if let Some(v) = &e.visitor {
+                    format!("{}/def:{}", v.map, v.uid)
+                } else if let Some(z) = e.spawned_by {
+                    format!("{}/spawn:{}/def:{}", map.name, z, e.def)
+                } else {
+                    format!("{}/def:{}", map.name, e.uid)
+                };
+                add(key, db.def_triggers(e.kind, &e.def), Some(uid));
             }
             if let Some(e) = map.entities.iter().find(|e| e.uid == uid) {
                 add(format!("{}/e:{}", map.name, e.uid), &e.triggers, Some(uid));
@@ -1129,16 +1240,22 @@ impl Game {
             return text.to_string();
         }
         let mut out = text.replace("{self}", &owner.and_then(|u| self.entity_display_name(u)).unwrap_or_default());
-        while let Some(i) = out.find("{uid:") {
+        let mut from = 0;
+        while let Some(k) = out[from..].find("{uid:") {
+            let i = from + k;
             let Some(j) = out[i..].find('}') else { break };
             let uid = out[i + 5..i + j].parse::<u32>().ok();
             let name = uid.and_then(|u| self.entity_display_name(u)).unwrap_or_default();
             out.replace_range(i..i + j + 1, &name);
+            from = i + name.len(); // (a name itself may contain "{uid:")
         }
         out
     }
 
     fn persist(&mut self, idx: usize) {
+        if self.loaded.map.name.is_empty() {
+            return; // between maps (the fade-out of a loaded game): nothing to save it under
+        }
         let e = &self.loaded.entities[idx];
         if e.spawned_by.is_some() || e.companion.is_some() || e.visitor.is_some() {
             return; // spawner characters are not saved individually, companions in `companions`, visitors follow their schedule
@@ -1175,15 +1292,29 @@ impl Game {
     /// Runs one frame: update and draw.
     pub fn frame(&mut self) {
         input::poll_pad();
-        let dt = get_frame_time().min(0.05);
+        let real = get_frame_time();
+        let dt = real.min(0.05);
+        let t0 = get_time();
         self.update(dt);
+        let t1 = get_time();
         self.draw();
+        let t2 = get_time();
+        self.perf_sample(real, (t1 - t0) as f32, (t2 - t1) as f32);
+    }
+
+    fn perf_sample(&self, real: f32, update: f32, draw: f32) {
+        let mut p = self.perf.borrow_mut();
+        p.sample(real, update, draw);
+        if p.log && p.log_secs >= 1.0 {
+            let line = p.report();
+            eprintln!("[perf] {line} entities={}", self.loaded.entities.iter().filter(|e| e.active).count());
+        }
     }
 
     pub fn update(&mut self, dt: f32) {
+        self.rebuild_occupancy();
         self.update_juice(dt);
         self.after_thumbnail();
-        self.sync_script_player();
         // Esc opens the pause menu (unless a window or dialog uses Esc); it pauses everything.
         // (While a bolt spell is being aimed, Esc cancels the spell instead.)
         let can_open = !self.inventory_open() && !self.ui.dialog_open() && self.game_over.is_none() && matches!(self.fade, Fade::None) && !self.aiming() && !self.world_map_open();
@@ -1378,7 +1509,7 @@ impl Game {
             self.player.facing = Facing::from_vec(target.x - pos.x, target.y - pos.y).unwrap_or(self.player.facing);
             self.player.pos = pos;
             self.player.moving = !done;
-            self.player.anim += dt;
+            self.player.animate(dt);
             if done {
                 self.player.move_target = None;
             }
@@ -1432,7 +1563,7 @@ impl Game {
             let dx = mid - self.player.pos.x;
             if dx.abs() > 0.5 && dir != Vec2::ZERO {
                 let step = dx.signum() * dx.abs().min(self.player.speed * dt);
-                self.player.pos = self.try_move(&self.player, vec2(step, 0.0), None, false);
+                self.player.pos = self.try_move(&self.player, vec2(step, 0.0), Mover::Player, false);
             }
         }
         if dir != Vec2::ZERO {
@@ -1442,18 +1573,18 @@ impl Game {
             }
             let delta = dir * self.player.speed * self.speed_factor() * run * dt;
             let before = self.player.pos;
-            self.player.pos = self.try_move(&self.player, delta, None, false);
+            self.player.pos = self.try_move(&self.player, delta, Mover::Player, false);
             self.push_past(dir, before, delta.length(), dt);
             self.player.moving = true;
-            self.player.anim += dt * run;
+            self.player.animate(dt * run);
         } else {
             self.player.moving = false;
         }
 
         // Map edges.
         let m = &self.loaded.map;
-        if let Some(edge) = m.edges.crossing(self.player.pos, dir, m.width, m.height, ts) {
-            let link = m.edges.get(edge).unwrap().clone();
+        if let Some(link) = m.edges.crossing(self.player.pos, dir, m.width, m.height, ts).and_then(|edge| m.edges.get(edge).cloned().map(|l| (edge, l))) {
+            let (edge, link) = link;
             let target = link.target_map.clone();
             self.transition(&target, Arrival::Edge { edge, pos: self.player.pos, link });
             return;
@@ -1494,14 +1625,12 @@ impl Game {
         if e.kind != EntityKind::Character || !e.active || e.hostile {
             return false;
         }
-        let ts = self.ts();
-        let tile = |p: Vec2| ((p.x / ts).floor() as i32, ((p.y - 1.0) / ts).floor() as i32);
-        let ((px, py), (ex, ey)) = (tile(self.player.pos), tile(e.body.pos));
+        let ((px, py), (ex, ey)) = (self.tile_of(self.player.pos), self.tile_of(e.body.pos));
         let (dx, dy) = (ex - px, ey - py);
         let straight = (dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0);
         let (mx, my) = (px + dx / 2, py + dy / 2);
         // The counter: a solid tile, or a solid prop (a market stall's counter).
-        straight && (self.tile_solid(mx, my) || self.solid_entity_tiles(|p| p.kind == EntityKind::Prop).contains(&(mx, my)))
+        straight && (self.tile_solid(mx, my) || self.prop_blocks(mx, my))
     }
 
     /// The friendly character standing right behind prop `c` (seen from the player) — on the far
@@ -1818,7 +1947,7 @@ impl Game {
                     .unwrap_or(e.body.facing);
                 e.body.pos = pos;
                 e.body.moving = !done;
-                e.body.anim += dt;
+                e.body.animate(dt);
                 if done {
                     e.body.move_target = None;
                     e.home = pos;
@@ -1883,7 +2012,7 @@ impl Game {
             let (home, body, uid) = (e.home, e.body.clone(), e.uid);
             let next = body.pos + delta;
             let within = next.distance(home) <= radius * ts || next.distance(home) < body.pos.distance(home);
-            let new_pos = if within { self.try_move(&body, delta, Some(uid), true) } else { body.pos };
+            let new_pos = if within { self.try_move(&body, delta, Mover::Npc(uid), true) } else { body.pos };
             let e = &mut self.loaded.entities[i];
             if new_pos == e.body.pos {
                 e.wander_dir = Vec2::ZERO; // bumped into something
@@ -1891,7 +2020,7 @@ impl Game {
             e.body.facing = Facing::from_vec(delta.x, delta.y).unwrap_or(e.body.facing);
             e.body.pos = new_pos;
             e.body.moving = new_pos != body.pos;
-            e.body.anim += dt;
+            e.body.animate(dt);
         }
     }
 
@@ -1904,8 +2033,9 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
             self.dev_status(),
+            self.perf.borrow_mut().report(),
             self.weather_status(),
             self.menu_status(),
             self.autosave_status(),
@@ -2035,6 +2165,8 @@ impl Game {
     pub fn load_game(&mut self, slot: &str) -> Result<()> {
         let s = crate::sys::read_to_string(&self.project.saves_dir().join(format!("{slot}.ron")))?;
         let world = WorldState::from_ron(&s)?;
+        // The save's map first: if it can't be read, the running game stays as it is.
+        let fresh = self.project.load_map(&world.current_map).with_context(|| format!("loading the save's map '{}'", world.current_map))?;
         self.slot = Some(slot.to_string());
         self.ui_hidden = false;
         self.reset_cutscene();
@@ -2055,9 +2187,13 @@ impl Game {
         }
         // Rebuild the map from scratch so entity states from the save apply.
         self.cache.clear();
+        self.cache.push_back(fresh);
         self.loaded.map.name.clear();
         self.resuming = true;
-        self.transition(&map, Arrival::Pos(pos));
+        // Loading wins over a fade-out or a "leave them behind?" question already running.
+        self.leaving = None;
+        self.leave_hold = 0.0;
+        self.fade = Fade::Out { t: 0.0, map, arrival: Arrival::Pos(pos) };
         self.ui.toast("Game loaded".into());
         Ok(())
     }
@@ -2146,7 +2282,13 @@ impl Game {
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
                     }
                 }
-                Some(i) => self.draw_entity(&self.loaded.entities[i], t),
+                Some(i) => {
+                    // Off screen (a generous margin for tall sprites): nothing to draw.
+                    let p = self.loaded.entities[i].body.pos;
+                    if Rect::new(p.x - 4.0 * ts, p.y - 8.0 * ts, 8.0 * ts, 9.0 * ts).overlaps(&view) {
+                        self.draw_entity(i, t);
+                    }
+                }
             }
         }
 
@@ -2250,39 +2392,41 @@ impl Game {
         }
     }
 
-    fn draw_entity(&self, e: &RtEntity, t: f32) {
+    /// Draws entity `i` (its index of this frame).
+    fn draw_entity(&self, i: usize, t: f32) {
         let ts = self.ts();
         let db = &self.project.db;
+        let e = &self.loaded.entities[i];
         let tint = if e.flash > 0.0 { Color::new(1.0, 0.35, 0.35, 1.0) } else { Self::effect_tint(&e.effects).unwrap_or(WHITE) };
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
                 let ok = self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE);
                 if e.planted.is_some() {
-                    if let Some(i) = self.loaded.entities.iter().position(|x| x.uid == e.uid) {
-                        self.draw_crop(i);
-                    }
+                    self.draw_crop(i);
                 }
                 ok
             }),
             EntityKind::Character if e.companion.as_ref().is_some_and(|l| l.down.is_some()) => self.draw_downed(e),
-            EntityKind::Character if e.npc_seat.is_some() => {
-                let s = e.npc_seat.as_ref().expect("checked");
-                self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
-                true
-            }
-            EntityKind::Character if self.loaded.entities.iter().position(|x| x.uid == e.uid).is_some_and(|i| self.current_activity(i).is_some()) => {
-                let i = self.loaded.entities.iter().position(|x| x.uid == e.uid).expect("checked");
-                let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
-                let col = self.activity_frame(i).unwrap_or(0);
-                self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
-            }
-            EntityKind::Character => db.character(&e.def).is_some() && {
-                let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
-                self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
+            EntityKind::Character => match (&e.npc_seat, self.current_activity(i)) {
+                (Some(s), _) => {
+                    self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
+                    true
+                }
+                (None, Some(_)) => {
+                    let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
+                    let col = self.activity_frame(i).unwrap_or(0);
+                    self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
+                }
+                (None, None) => {
+                    db.character(&e.def).is_some() && {
+                        let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
+                        self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
+                    }
+                }
             },
             EntityKind::Item => db.item(&e.def).is_some_and(|d| {
                 let u = self.u();
-                let bob = ((t * 3.0 + e.uid as f32).sin() * 1.5 * u).round();
+                let bob = ((t * 3.0 + (e.uid % 1024) as f32).sin() * 1.5 * u).round();
                 self.assets.draw_sprite(&d.icon, 0, e.body.pos - vec2(0.0, bob + 2.0 * u), WHITE)
             }),
         };
@@ -2445,7 +2589,7 @@ impl ActionHost for Game {
             Action::Patrol { target, active, points } => {
                 match self.entity_index(target, ctx.owner) {
                     Some(i) if self.loaded.entities[i].kind == EntityKind::Character => self.set_patrol(i, *active, points),
-                    _ => eprintln!("Patrol: '{target}' is not a character on this map"),
+                    _ => eprintln!("[events] Patrol: '{target}' is not a character on this map"),
                 }
                 Step::Continue
             }
@@ -2457,14 +2601,14 @@ impl ActionHost for Game {
                 match self.entity_index(target, ctx.owner) {
                     Some(i) if *join => self.recruit(i),
                     Some(i) => self.dismiss(i, false),
-                    None => eprintln!("Companion: '{target}' is not a character on this map"),
+                    None => eprintln!("[events] Companion: '{target}' is not a character on this map"),
                 }
                 Step::Continue
             }
             Action::Schedule { target, active } => {
                 match self.entity_index(target, ctx.owner) {
                     Some(i) if self.loaded.entities[i].schedule.is_some() => self.set_schedule(i, *active),
-                    _ => eprintln!("Schedule: '{target}' is not a character with a schedule on this map"),
+                    _ => eprintln!("[events] Schedule: '{target}' is not a character with a schedule on this map"),
                 }
                 Step::Continue
             }
@@ -2654,7 +2798,7 @@ impl ActionHost for Game {
             Action::OpenShop { target } => {
                 match self.entity_index(target, ctx.owner) {
                     Some(i) if self.try_open_shop(i, false) => {}
-                    _ => eprintln!("Open shop: '{target}' is not a merchant on this map"),
+                    _ => eprintln!("[events] Open shop: '{target}' is not a merchant on this map"),
                 }
                 Step::Continue
             }
@@ -2687,6 +2831,7 @@ impl ActionHost for Game {
                 Step::Insert(self.collect(&GameEvent::Custom { name: name.clone() }, &Source::Broadcast))
             }
             Action::RunScript { function } => {
+                self.sync_script_player();
                 let actions = self.scripts.call(&mut self.world, function, ctx.owner);
                 Step::Insert(actions.into_iter().map(|a| (a, ctx.clone())).collect())
             }
@@ -2710,6 +2855,7 @@ impl ActionHost for Game {
     }
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {
+        self.sync_script_player();
         self.scripts.condition(&mut self.world, function, ctx.owner)
     }
 

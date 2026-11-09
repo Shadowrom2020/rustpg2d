@@ -3,6 +3,150 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Fixes
+- **Characters stop searching every frame.** A character blocked on its way planned a new path
+  every frame from the first second until it gave up; a companion who found no way to the player
+  (up a watchtower ladder, behind a shut door) searched again every frame too. Now one new plan
+  per blockage, and companions wait a second between searches. "Can't reach patrol point" is
+  logged once per waypoint, not every round.
+- **Characters are placed by their own rules.** Companions catching up and characters getting up
+  from furniture were put on free spots with the player's hitbox and rules, which could park them
+  on a ladder tile where they could never move again.
+- The log lines of the *Patrol*, *Companion*, *Schedule* and *Open shop* actions and the game's
+  start-up error carry the usual `[events]` / `[game]` prefix.
+- **Loading a game always lands in the save.** Quick-loading while a map change was fading out
+  (or while the game asked about knocked-down companions) carried the loaded world into the old
+  destination and dropped its *Map enter* triggers. The save's map is read first (a missing or
+  broken map leaves the running game alone), and the load replaces the fade.
+- A map that fails to load no longer leaves the game "resuming", which made the next map change
+  skip its *Map enter* triggers and its autosave.
+- Once-only triggers of companions, visitors and spawned characters are remembered by what lasts
+  (the placed entity, or the spawner and the definition) instead of a runtime uid that differed
+  every time: companions' once-triggers don't repeat, and saves stop collecting dead keys.
+- Animations seeded by an entity's uid (working villagers, bobbing dropped items) no longer freeze
+  for visitors and dropped items; walk and combat timers stop growing without bound.
+- **Files are written whole or not at all.** Save games, settings, definitions, `project.ron`
+  and the asset library are written to a temporary file next to the target and renamed over it
+  (maps already were), so a crash or a full disk never leaves a truncated file behind.
+- **Corrupt map files are refused instead of crashing the game**: the tile layers' chunk grids,
+  the map size and the compressed size prefix are checked when a map is read.
+- **One unreadable entry no longer blocks a whole project.** A definition entry or a map object
+  that can't be read (a hand-edit typo, a newer version's variant) is left out with a log line
+  (`[defs]`, `[map]`) and everything else loads; before, the game refused the project or the
+  map. The editor shows what was left out in a banner and backs the file up (`items.ron.bak`,
+  `village.map.bak`) before it could save without those entries.
+- The editor logs when it cannot save its settings, the recent-projects list or a new script
+  (these failures were silent), and the game logs why a save game is listed as unreadable.
+- **Enemies walk home the way everyone walks**: a chaser returning to its post plans round
+  solid props and waiting people like patrols do (it used to walk into them and give up after
+  four seconds, making that spot its new home). A character's home moves when it arrives
+  somewhere, not with every step.
+- The companion window's item details show the stack count and the item's numbers (damage,
+  defense, tool) like the inventory's do.
+- **Lock texts can be translated**: the texts of locks and containers ("It's the elder's
+  chest…") are collected into translation templates and shown in the chosen language; the
+  example's German file has them.
+- The mouse walk's "stuck" check is a tenth of a step at any frame rate (it was 0.2 px per frame,
+  which stopped slow or climbing walks on fast displays). Nothing is persisted while no map is
+  loaded (the fade after loading a game).
+
+### Editor
+- **AI agent server**: a tool that panics answers with an error and the editor keeps running
+  (before, it took the editor down); a call the editor doesn't answer within 120 s
+  (`RUSTPG2D_MCP_TIMEOUT` seconds) returns an error instead of hanging the agent; `play_test`
+  removes its scratch folder however the run ends; files changed on disk are reloaded once each.
+  The dropdown suggestions (`refresh_refs`) re-read only the map files that changed.
+- The library report names the assets it added (up to eight): *2 added (smoke, smoke_square)*.
+- **AI agent server**: `place_entity` puts a prop an even number of tiles wide on a tile edge like
+  the editor does (it covered half a tile on each side before); the reply says which tiles it
+  stands on.
+- The editor script's `rename` knows every kind (`structure`, `skill`, `spell`, `recipe`, `quest`,
+  `achievement` too; an unknown word is an error instead of renaming a map), and the agent
+  server's kind words accept `npc` and `sprite_sheet` everywhere.
+
+### Maintenance
+- One walk over a project's triggers (`Project::for_each_trigger`, `TriggerSite`): the project
+  check, the translation template and the editor's flag / variable / speaker collectors use it
+  instead of six hand-written loops over definitions, maps, zones and entities.
+- One Rhai lexer (`script_refs::lex`, every byte covered) serves the editor's highlighter, the
+  reference finder, the function lists and completion; the four function finders are one. An
+  unterminated string now ends with its line everywhere (the reference finder used to read on to
+  the end of the file).
+- The agent server's 54 tools are declared once (`mcp_tools!` in `tools.rs`: description,
+  annotations, name, parameters, what the editor runs); the `Call` enum, its names and the
+  dispatch are generated from it instead of kept in step by hand in four places.
+- The inventory and companion windows share their slot grid, drag state (press, drag, drop,
+  double click) and layout constants.
+- The trade window's two lists, the crafting window and the menus share one `ScrollList`
+  (selection, scrolling, double clicks) instead of three copies of the same arithmetic.
+- The map file's object record (`map::MapObjects`) is also the editor's undo snapshot (one
+  field list instead of three), and the inventory and companion windows share one item details
+  footer.
+- One implementation each of base64 (`hash.rs`; the fog of war, the web storage and the Tiled
+  import had their own), the clock text (`entity::hour_text`; the game's clock and the editor
+  rounded differently), the project-relative path check (`library::safe_rel`; the export now also
+  refuses backslashes), the RON writer (`project::ron_text`; exported web projects were written
+  with the platform's line endings), the `scripts/*.rhai` listing (`Project::script_files`, eight
+  copies) and the `name_2`, `name_3` id generator (`refactor::unique_id`).
+- The script API table (`engine/src/script_api.rs`: every function, its parameters' kinds and
+  descriptions) is the one source for the editor's completion, the agent server's API resource,
+  renames and the script check (id arguments are derived from it; the separate list is gone),
+  translation templates (`Line` arguments: dialogs, questions, titles) and the editor's flag /
+  variable collectors (which now also see `lockpick`'s variable).
+- `Action::walk` / `walk_mut` visit nested `If` actions for the nine places that spelt the
+  recursion out (translations, renames, the library's script roots, healing, NPC item use,
+  the editor's flag / variable / speaker collectors, prop state renames).
+- **Release builds** use thin LTO, one codegen unit and stripped symbols (smaller, faster
+  binaries for the downloads and exported games). The Rust version is pinned
+  (`rust-toolchain.toml`, `rust-version`, the CI workflows) and bumped on purpose.
+- The game shows a start-up error (a project that doesn't load) in a message box on Windows
+  instead of exiting silently, and reads the project once instead of twice; the engine
+  fingerprint the editor compares with the game runner also covers the versions of the crates
+  that define the file formats; the WAV reader can't overflow on 32-bit targets.
+- Drawing and the frame: entities off screen aren't drawn, an entity's index is passed along
+  instead of searched for twice per character, a character's activity is looked up once, the
+  script host's view of the player is refreshed only before a script runs, key bindings are read
+  without copying, translations are borrowed when there is none, NPCs look at their items every
+  quarter second instead of every frame, projectiles collect their companion targets once per
+  update, and companions' home maps are read from disk once per game.
+- Path searches hash tile coordinates with one multiply instead of SipHash, pre-size their
+  tables, tell "no route" from "out of budget" (a second search with fewer obstacles only runs
+  when the first really tried everything), and line-of-sight checks walk the tiles a line crosses
+  instead of stepping pixel by pixel.
+- An occupancy grid (which tiles solid props and characters stand on), rebuilt once per frame,
+  serves path planning and the broad phase of collision; before, every path search built a set
+  of all entities' tiles and every movement step compared against every entity.
+- The definitions the game looks up per entity per frame (items, props, characters, sheets,
+  tilesets) are found through an id index instead of a scan of the list; a stale index falls
+  back to the scan, so an edit in place can never return the wrong definition.
+- `grid.rs`: one place for pixel ↔ tile conversions (`feet_tile`, `feet_spot`, `snap_feet`,
+  `tiles_of_rect`); the game and the editor used five different offsets. Characters' rest spots
+  moved one pixel (the editor's convention wins).
+- One kind enum (`RefKind`, now with quests and achievements) with `name` / `file` / `label` /
+  `parse`, a `Def` trait for the twelve definition lists and `with_def_kind!`: the library, the
+  agent server, the editor's rename and the library window share one `Database` API (`has`,
+  `ids_of`, `rename`, `copy_from`, …) instead of fifteen hand-written per-kind matches.
+- The definition types implement `Default` (the file format's defaults, pinned by a test) and
+  `fresh(id)` (the editor's new entry): a new field is added in one place instead of in every
+  struct literal (26 of them, which had already drifted apart: the agent server's `def_template`
+  gave other defaults than the editor's *+ New*).
+- **Runtime smoke test** (`scripts/ci/smoke.sh`, CI job *Runtime smoke* on every pull request):
+  the game and the editor run on a copy of the example project under Xvfb; checks the title
+  screen, a map with the player, the clock, loading an old save, quick-saving, a map change with
+  its autosave, the editor opening a map and the agent server's smoke client (`mcp_smoke`).
+- **Compatibility fixtures**: `crates/engine/tests/fixtures/` holds the 0.9.0 example's
+  definitions, maps of 0.9.0 and 0.10.0, a frozen format-version-1 map and save games;
+  `tests/compat.rs` loads them, so a change that breaks old files fails the tests. Save games
+  carry a `version` from now on (older saves have none; nothing changes for them).
+- **Frame timing in `status`**: `fps=`, `frame_ms=avg/worst`, `update_ms=`, `draw_ms=` and
+  `astar=searches/nodes` since the previous `status`; `RUSTPG2D_PERF=1` logs a `[perf]` line every
+  second. For performance checks in scripted runs.
+- `Documentation/architecture.md`: how the engine, the game runner and the editor fit together
+  (technology, data model, the runtime's frame, the editor and its agent server, file formats and
+  their compatibility rules, verification tooling, caveats). Linked from README and CLAUDE.md.
+
 ## 0.11.0 — 2026-11-09
 
 A living village: every terrain a 47-tile set, many more assets, the village rebuilt as

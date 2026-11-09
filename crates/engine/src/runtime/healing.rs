@@ -56,11 +56,13 @@ impl Game {
     /// Whether an item heals when used (a *Heal player* among its *on use* actions).
     fn heals(&self, item: &str) -> bool {
         fn any_heal(actions: &[Action]) -> bool {
-            actions.iter().any(|a| match a {
-                Action::Heal { amount } => *amount > 0,
-                Action::If { then, otherwise, .. } => any_heal(then) || any_heal(otherwise),
-                _ => false,
-            })
+            let mut found = false;
+            crate::events::walk_actions(actions, &mut |a| {
+                if let Action::Heal { amount } = a {
+                    found |= *amount > 0;
+                }
+            });
+            found
         }
         let ev = GameEvent::UseItem { item: item.to_string() };
         self.project.db.item(item).is_some_and(|d| d.on_use.iter().any(|t| t.on.matches(&ev) && any_heal(&t.actions)))

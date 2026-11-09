@@ -256,6 +256,29 @@ fn check_branch(head: &str, base: &str) -> Result<String> {
 mod tests {
     use super::*;
 
+    /// The Rust version is pinned in three places; they must agree (AGENTS.md, *Continuous
+    /// integration*).
+    #[test]
+    fn toolchain_pins_agree() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let toml = std::fs::read_to_string(root.join("rust-toolchain.toml")).unwrap();
+        let channel = toml.lines().find_map(|l| l.trim().strip_prefix("channel = ")).unwrap().trim_matches('"').to_string();
+        assert!(channel.split('.').count() == 3, "rust-toolchain.toml pins a full version, not {channel}");
+        let cargo = std::fs::read_to_string(root.join("Cargo.toml")).unwrap();
+        let rust_version = cargo.lines().find_map(|l| l.trim().strip_prefix("rust-version = ")).unwrap().trim_matches('"').to_string();
+        assert!(channel.starts_with(&format!("{rust_version}.")), "Cargo.toml rust-version {rust_version} vs toolchain {channel}");
+        let mut seen = 0;
+        for f in std::fs::read_dir(root.join(".github/workflows")).unwrap().flatten() {
+            let text = std::fs::read_to_string(f.path()).unwrap();
+            for line in text.lines().filter(|l| l.trim().starts_with("toolchain: ")) {
+                assert_eq!(line.trim().trim_start_matches("toolchain: "), channel, "{}: {line}", f.path().display());
+                seen += 1;
+            }
+            assert!(!text.contains("rust-toolchain@stable"), "{}: use @master with the pinned toolchain", f.path().display());
+        }
+        assert!(seen >= 3, "the workflows pin the toolchain");
+    }
+
     fn v(s: &str) -> Version {
         Version::parse(s).unwrap()
     }

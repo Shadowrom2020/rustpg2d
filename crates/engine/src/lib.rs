@@ -12,6 +12,7 @@ pub mod events;
 pub mod fog;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;
+pub mod grid;
 pub mod hash;
 pub mod icon;
 pub mod imageio;
@@ -35,6 +36,7 @@ pub mod release;
 pub mod render;
 pub mod runtime;
 pub mod script;
+pub mod script_api;
 pub mod script_refs;
 pub mod settings;
 pub mod skills;

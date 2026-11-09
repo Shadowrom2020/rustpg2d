@@ -23,6 +23,132 @@ pub enum RefKind {
     Spell,
     /// Crafting recipe (`crafting::RecipeDef`).
     Recipe,
+    Quest,
+    Achievement,
+}
+
+impl RefKind {
+    /// Every kind: the twelve definition lists in `defs/` file order ([`crate::project::DEFS`]),
+    /// then `Map`.
+    pub const ALL: [RefKind; 13] = [
+        RefKind::Tileset,
+        RefKind::Sheet,
+        RefKind::Item,
+        RefKind::Prop,
+        RefKind::Character,
+        RefKind::Sound,
+        RefKind::Quest,
+        RefKind::Structure,
+        RefKind::Skill,
+        RefKind::Spell,
+        RefKind::Recipe,
+        RefKind::Achievement,
+        RefKind::Map,
+    ];
+    /// The definition kinds in `defs/` file order.
+    pub const DEFS: [RefKind; 12] = [
+        RefKind::Tileset,
+        RefKind::Sheet,
+        RefKind::Item,
+        RefKind::Prop,
+        RefKind::Character,
+        RefKind::Sound,
+        RefKind::Quest,
+        RefKind::Structure,
+        RefKind::Skill,
+        RefKind::Spell,
+        RefKind::Recipe,
+        RefKind::Achievement,
+    ];
+
+    /// The kind's word in messages and commands: "tileset", "sheet", …, "map".
+    pub fn name(self) -> &'static str {
+        match self {
+            RefKind::Tileset => "tileset",
+            RefKind::Sheet => "sheet",
+            RefKind::Item => "item",
+            RefKind::Prop => "prop",
+            RefKind::Character => "character",
+            RefKind::Sound => "sound",
+            RefKind::Map => "map",
+            RefKind::Structure => "structure",
+            RefKind::Skill => "skill",
+            RefKind::Spell => "spell",
+            RefKind::Recipe => "recipe",
+            RefKind::Quest => "quest",
+            RefKind::Achievement => "achievement",
+        }
+    }
+
+    /// The `defs/<file>.ron` of a definition kind (`None` for maps).
+    pub fn file(self) -> Option<&'static str> {
+        Some(match self {
+            RefKind::Tileset => "tilesets",
+            RefKind::Sheet => "sheets",
+            RefKind::Item => "items",
+            RefKind::Prop => "props",
+            RefKind::Character => "characters",
+            RefKind::Sound => "sounds",
+            RefKind::Quest => "quests",
+            RefKind::Structure => "structures",
+            RefKind::Skill => "skills",
+            RefKind::Spell => "spells",
+            RefKind::Recipe => "recipes",
+            RefKind::Achievement => "achievements",
+            RefKind::Map => return None,
+        })
+    }
+
+    /// The kind as shown to users: "Sprite sheet", "Prop", …
+    pub fn label(self) -> &'static str {
+        match self {
+            RefKind::Tileset => "Tileset",
+            RefKind::Sheet => "Sprite sheet",
+            RefKind::Sound => "Sound",
+            RefKind::Item => "Item",
+            RefKind::Prop => "Prop",
+            RefKind::Character => "Character",
+            RefKind::Map => "Map",
+            RefKind::Structure => "Structure",
+            RefKind::Skill => "Skill",
+            RefKind::Spell => "Spell",
+            RefKind::Recipe => "Recipe",
+            RefKind::Quest => "Quest",
+            RefKind::Achievement => "Achievement",
+        }
+    }
+
+    /// "item", "Items", "sprite_sheet", "npc", "maps", … to the kind; `None` for other words.
+    pub fn parse(s: &str) -> Option<RefKind> {
+        let k = s.trim().to_lowercase();
+        Some(match k.trim_end_matches('s') {
+            "tileset" => RefKind::Tileset,
+            "sheet" | "spritesheet" | "sprite_sheet" | "sprite sheet" => RefKind::Sheet,
+            "item" => RefKind::Item,
+            "prop" => RefKind::Prop,
+            "character" | "npc" => RefKind::Character,
+            "sound" => RefKind::Sound,
+            "map" => RefKind::Map,
+            "structure" => RefKind::Structure,
+            "skill" => RefKind::Skill,
+            "spell" => RefKind::Spell,
+            "recipe" => RefKind::Recipe,
+            "quest" => RefKind::Quest,
+            "achievement" => RefKind::Achievement,
+            _ => return None,
+        })
+    }
+
+    /// A definition list (everything but `Map`).
+    pub fn is_def(self) -> bool {
+        self != RefKind::Map
+    }
+}
+
+/// `base`, or `base_2`, `base_3`, …: the first id `taken` says is free (new maps, zones,
+/// imported sheets, library copies).
+pub fn unique_id(base: &str, taken: impl Fn(&str) -> bool) -> String {
+    std::iter::once(base.to_string()).chain((2..).map(|n| format!("{base}_{n}"))).find(|c| !taken(c)).unwrap_or_else(|| base.to_string())
 }
 
 struct Renamer<'a> {
@@ -210,21 +336,15 @@ impl Renamer<'_> {
     }
 
     fn actions(&mut self, acts: &mut [Action]) {
-        for a in acts {
-            match a {
-                Action::GiveItem { item, .. } | Action::TakeItem { item, .. } => self.fix(RefKind::Item, item),
-                Action::Equip { item, .. } | Action::GiveItemTo { item, .. } | Action::TakeItemFrom { item, .. } => self.fix(RefKind::Item, item),
-                Action::Teleport { map, .. } | Action::SetSpawners { map, .. } | Action::SetWeather { map, .. } => self.fix(RefKind::Map, map),
-                Action::PlaySound { sound } | Action::PlayMusic { sound } => self.fix(RefKind::Sound, sound),
-                Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
-                Action::If { conditions, then, otherwise } => {
-                    self.conditions(conditions);
-                    self.actions(then);
-                    self.actions(otherwise);
-                }
-                _ => {}
-            }
-        }
+        crate::events::walk_actions_mut(acts, &mut |a| match a {
+            Action::GiveItem { item, .. } | Action::TakeItem { item, .. } => self.fix(RefKind::Item, item),
+            Action::Equip { item, .. } | Action::GiveItemTo { item, .. } | Action::TakeItemFrom { item, .. } => self.fix(RefKind::Item, item),
+            Action::Teleport { map, .. } | Action::SetSpawners { map, .. } | Action::SetWeather { map, .. } => self.fix(RefKind::Map, map),
+            Action::PlaySound { sound } | Action::PlayMusic { sound } => self.fix(RefKind::Sound, sound),
+            Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
+            Action::If { conditions, .. } => self.conditions(conditions),
+            _ => {}
+        });
     }
 }
 
@@ -426,6 +546,21 @@ pub fn refs_of_character(d: &crate::defs::CharacterDef) -> Vec<(RefKind, String)
 mod tests {
     use super::*;
     use crate::defs::ItemDef;
+
+    /// The kinds' files are the defs files in order (`parse_defs` / `save_defs` rely on it).
+    #[test]
+    fn kinds_match_the_defs_files() {
+        assert_eq!(RefKind::DEFS.map(|k| k.file().unwrap()), crate::project::DEFS);
+        assert!(RefKind::ALL.iter().filter(|k| k.is_def()).eq(RefKind::DEFS.iter()));
+        assert_eq!(RefKind::parse("Items"), Some(RefKind::Item));
+        assert_eq!(RefKind::parse("npc"), Some(RefKind::Character));
+        assert_eq!(RefKind::parse(" sprite sheets "), Some(RefKind::Sheet));
+        assert_eq!(RefKind::parse("maps"), Some(RefKind::Map));
+        assert_eq!(RefKind::parse("dragon"), None);
+        for k in RefKind::ALL {
+            assert_eq!(RefKind::parse(k.name()), Some(k), "{k:?} round-trips");
+        }
+    }
     use crate::entity::EntityInstance;
     use crate::map::{EdgeLink, Zone};
 
@@ -513,25 +648,7 @@ mod tests {
         assert_eq!(m.edges.west.as_ref().unwrap().target_map, "town");
 
         let mut db = Database::default();
-        db.items.push(ItemDef {
-            id: "coin".into(),
-            name: "Coin".into(),
-            description: String::new(),
-            icon: SpriteRef::new("items", 0),
-            consumable: false,
-            on_use: vec![],
-            weapon: None,
-            armor: None,
-            max_stack: 99,
-            value: 0,
-        light: None,
-        teaches: String::new(),
-        held: String::new(),
-        tool: String::new(),
-        use_on: Default::default(),
-        crop: None,
-        food: false,
-        });
+        db.items.push(ItemDef { id: "coin".into(), name: "Coin".into(), icon: SpriteRef::new("items", 0), ..Default::default() });
         let mut cfg = ProjectConfig {
             name: "p".into(),
             tile_size: 32,

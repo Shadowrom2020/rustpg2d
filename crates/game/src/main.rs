@@ -85,6 +85,14 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
     Ok((root, start))
 }
 
+/// The project `window_conf` loaded for the window icon, taken over by `main` when it is the
+/// same folder. (The web game's files are mounted only in `main`: there it stays empty.)
+static PRELOADED: std::sync::Mutex<Option<(PathBuf, Project)>> = std::sync::Mutex::new(None);
+
+fn preloaded(root: &std::path::Path) -> Option<Project> {
+    PRELOADED.lock().unwrap_or_else(|e| e.into_inner()).take().filter(|(r, _)| r == root).map(|(_, p)| p)
+}
+
 fn window_conf() -> Conf {
     rustpg2d_engine::desktop::startup("The game");
     if std::env::args().any(|a| a == "--engine-build") {
@@ -99,8 +107,13 @@ fn window_conf() -> Conf {
         .map(|c| c.name)
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "R(ust)PG2D".to_owned());
-    // The window icon: the player character, else R(ust)PG2D's emblem.
-    let icon = Project::load(&root).ok().and_then(|p| rustpg2d_engine::icon::hero_icon(&p)).unwrap_or_else(rustpg2d_engine::icon::emblem);
+    // The window icon: the player character, else R(ust)PG2D's emblem. The project read here
+    // is handed to `main` (it used to be loaded twice).
+    let project = Project::load(&root).ok();
+    let icon = project.as_ref().and_then(rustpg2d_engine::icon::hero_icon).unwrap_or_else(rustpg2d_engine::icon::emblem);
+    if let Some(p) = project {
+        *PRELOADED.lock().unwrap_or_else(|e| e.into_inner()) = Some((root.clone(), p));
+    }
     Conf {
         window_title: title,
         icon: Some(rustpg2d_engine::icon::window_icon(&icon)),
@@ -157,7 +170,13 @@ async fn main() {
             return web_failed(e).await;
         }
     }
-    let project = parse_args().and_then(|(root, start)| Ok((Project::load(&root).with_context(|| format!("loading project {}", root.display()))?, start)));
+    let project = parse_args().and_then(|(root, start)| {
+        let p = match preloaded(&root) {
+            Some(p) => p,
+            None => Project::load(&root).with_context(|| format!("loading project {}", root.display()))?,
+        };
+        Ok((p, start))
+    });
     // The web game: sounds decode asynchronously in the browser; load them before the game.
     #[cfg(target_arch = "wasm32")]
     if let Ok((p, _)) = &project {
@@ -189,10 +208,7 @@ async fn main() {
             #[cfg(target_arch = "wasm32")]
             return web_failed(e).await;
             #[cfg(not(target_arch = "wasm32"))]
-            {
-                eprintln!("error: {e:#}");
-                std::process::exit(1);
-            }
+            rustpg2d_engine::desktop::fatal("The game", &format!("{e:#}"))
         }
     };
     // Debug aids:

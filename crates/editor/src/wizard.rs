@@ -168,14 +168,9 @@ impl Editor {
             }
             std::fs::write(&path, bytes)?;
             if w.kind == WKind::Tileset {
-                self.project.db.tilesets.push(TilesetDef { id: id.clone(), image: rel.clone(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] });
+                self.project.db.tilesets.push(TilesetDef::new(&id, &rel));
             } else {
-                let mut sheet_id = id.clone();
-                let mut n = 2;
-                while self.project.db.sheet(&sheet_id).is_some() {
-                    sheet_id = format!("{id}_{n}");
-                    n += 1;
-                }
+                let sheet_id = rustpg2d_engine::refactor::unique_id(&id, |c| self.project.db.sheet(c).is_some());
                 self.project.db.sheets.push(SheetDef::new(&sheet_id, &rel, frame.0, frame.1));
                 sprite = if w.kind == WKind::Prop && w.source == Source::Blank { SpriteRef::block(&sheet_id, 0, w.cells.0, w.cells.1) } else { SpriteRef::new(&sheet_id, 0) };
             }
@@ -183,42 +178,8 @@ impl Editor {
         }
         let db = &mut self.project.db;
         match w.kind {
-            WKind::Prop => db.props.push(PropDef {
-                id: id.clone(),
-                name,
-                hitbox: [(ts * sprite.cells().0) as f32 - 2.0 * u, 8.0 * u],
-                sprite,
-                solid: true,
-                triggers: vec![],
-                container: None,
-                lock: None,
-                default_state: default_state_name(),
-                states: vec![],
-                light: None,
-                use_spot: None,
-                gather: None,
-                regrow: None,
-                plot: false,
-            }),
-            WKind::Item => db.items.push(ItemDef {
-                id: id.clone(),
-                name,
-                description: String::new(),
-                icon: sprite,
-                consumable: false,
-                on_use: vec![],
-                weapon: None,
-                armor: None,
-                max_stack: 99,
-                value: 0,
-        light: None,
-        teaches: String::new(),
-        held: String::new(),
-        tool: String::new(),
-        use_on: Default::default(),
-        crop: None,
-        food: false,
-            }),
+            WKind::Prop => db.props.push(PropDef { name, hitbox: [(ts * sprite.cells().0) as f32 - 2.0 * u, 8.0 * u], sprite, ..PropDef::fresh(&id) }),
+            WKind::Item => db.items.push(ItemDef { name, icon: sprite, ..ItemDef::fresh(&id) }),
             WKind::Tileset | WKind::Sheet | WKind::Structure => {}
         }
         self.defs_dirty = true;

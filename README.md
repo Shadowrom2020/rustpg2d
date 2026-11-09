@@ -42,7 +42,7 @@ All of them need a graphics driver with OpenGL 3 (a virtual machine needs 3D acc
 
 ## Quick start
 
-Building needs a Rust toolchain; on Linux also the ALSA and udev headers (Debian / Ubuntu: `sudo apt install libasound2-dev libudev-dev`; Fedora: `alsa-lib-devel systemd-devel`). On Windows the MSVC toolchain (Visual Studio Build Tools) builds everything; on macOS the Xcode command line tools (`xcode-select --install`). The editor's export uses the game runner of the machine it runs on and looks for the others next to itself or in `target/` (see *Releasing a game*); `cargo xtask-dist` packages the downloads (AGENTS.md).
+Building needs Rust (`rust-toolchain.toml` names the version; rustup installs it on first use); on Linux also the ALSA and udev headers (Debian / Ubuntu: `sudo apt install libasound2-dev libudev-dev`; Fedora: `alsa-lib-devel systemd-devel`). On Windows the MSVC toolchain (Visual Studio Build Tools) builds everything; on macOS the Xcode command line tools (`xcode-select --install`). The editor's export uses the game runner of the machine it runs on and looks for the others next to itself or in `target/` (see *Releasing a game*); `cargo xtask-dist` packages the downloads (AGENTS.md).
 
 ```sh
 cargo build --workspace                            # builds game + editor
@@ -177,6 +177,11 @@ The **ribbon** under the menu holds the tools as icon buttons in groups (*Edit* 
 - **Database**: every definition has a *Rename…* button next to its id. Renaming rewrites all references (maps on disk and the open map, triggers, other definitions, project settings) and saves immediately. **Scripts follow too**: item, map and sound ids passed to script functions (`give_item("coin", 1)`, `teleport("forest", …)`, `play_sound("…")`, …) are rewritten (only those exact arguments — comments and other strings stay as they are); changed files keep a `<file>.rhai.bak` backup and the status bar lists the changed lines.
 - **Tile animation**: in *Database → Tilesets*, add an animation, then click tiles in the image to append frames.
 - **Sounds**: *Database → Sounds* lists sound files with volume and *Play* / *Stop* buttons (Play previews the file once, a new preview stops the previous one; Stop also stops the map music preview of the same sound — in the project and in the Asset Library window); *Browse…* copies a WAV or Ogg Vorbis file (`.ogg`) into `sounds/`. Ogg Vorbis keeps music small; files are mixed at 44.1 kHz, so that rate plays best (others are resampled roughly), and a file in another format (Opus, FLAC, MP3) is reported with its name when the project loads. **Music loops without a gap**: the mixer leaves a short silence where a loop wraps unless the sound is a whole number of its 4096-sample buffers long, so the engine decodes music itself, resamples it to 44.1 kHz and stretches it to whole buffers (at most 93 ms longer: under 0.16 % for a track of a minute or more, inaudible; tracks under 30 s are repeated first). Long files are prepared in the background when the game starts, others the first time they play as music. A track that already is whole buffers at 44.1 kHz (like the example's) plays as it is — export loops with a length of a multiple of 4096 samples to skip the stretch. Built-in game sounds are set in *Database → Project*.
+
+**Files the editor can only read in part.** A definition entry or a map object that can't be read
+(a typo from a hand edit, a value from a newer version) is left out: a banner at the top says which
+and the file is backed up next to itself (`items.ron.bak`, `village.map.bak`) before the editor could
+save it without that entry. The game logs the same (`[defs]`, `[map]`) and runs with the rest.
 
 ### AI agents (MCP server)
 
@@ -357,6 +362,10 @@ fn shrine_touch() {
 
 ## Architecture
 
+The full picture (technology, data model, the runtime's frame, the editor and its agent server,
+file formats and their compatibility rules, verification tooling, caveats) is in
+[Documentation/architecture.md](Documentation/architecture.md). In short:
+
 ```
 crates/engine   library: map model + IO, defs, events, scripting, rendering, runtime
 crates/game     player binary (rustpg2d-game)
@@ -393,6 +402,8 @@ For automated visual checks, both binaries accept a debug script through an envi
 RUSTPG2D_AUTOPLAY="press enter; wait 3; press e; hold right 2; click 30 16; clickenemy; status; spawners; shot /tmp/a.png; quit" ./target/debug/rustpg2d-game
 RUSTPG2D_SHOT=/tmp/a.png ./target/debug/rustpg2d-game        # screenshot after 1s, then exit
 RUSTPG2D_MUTE=1 ./target/debug/rustpg2d-game                  # no audio
+# `status` starts with fps= frame_ms=avg/worst update_ms= draw_ms= astar=searches/nodes (since the previous
+# status); RUSTPG2D_PERF=1 logs the same as a [perf] line every second
 
 # editor: tools and mouse clicks/drags in tile coordinates
 RUSTPG2D_EDITOR_SCRIPT="tool brush; brush 2 0 1 1; drag 2 2 20 2; dump 0 10 2; rename item key gate_key; shot /tmp/e.png; quit" ./target/debug/rustpg2d-editor

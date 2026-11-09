@@ -11,7 +11,7 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use super::{EdgeLinks, Map, TileLayer, Zone, ZoneKind};
+use super::{EdgeLinks, Map, TileLayer, Zone, ZoneKind, MAX_MAP_SIZE};
 use crate::entity::EntityInstance;
 use crate::events::Trigger;
 
@@ -40,23 +40,60 @@ struct Core {
     meta: String,
 }
 
-#[derive(Serialize, Deserialize)]
+/// Everything on a map that isn't tile data: the RON part of a map file, and (as
+/// `map::MapObjects`) the editor's undo snapshot of it. A new map property is added here, in
+/// [`Meta::of`] and [`Meta::apply`], and nowhere else.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-struct Meta {
-    entities: Vec<EntityInstance>,
-    zones: Vec<Zone>,
-    edges: EdgeLinks,
-    triggers: Vec<Trigger>,
-    next_uid: u32,
-    background: [u8; 3],
-    music: String,
-    lighting: crate::map::MapLighting,
-    fog: bool,
+pub struct Meta {
+    pub entities: Vec<EntityInstance>,
+    pub zones: Vec<Zone>,
+    pub edges: EdgeLinks,
+    pub triggers: Vec<Trigger>,
+    pub next_uid: u32,
+    pub background: [u8; 3],
+    pub music: String,
+    pub lighting: crate::map::MapLighting,
+    pub fog: bool,
     /// Clear weather isn't written (maps without weather stay as they were).
     #[serde(skip_serializing_if = "crate::map::Weather::is_clear")]
-    weather: crate::map::Weather,
+    pub weather: crate::map::Weather,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    parallax: Vec<crate::map::ParallaxLayer>,
+    pub parallax: Vec<crate::map::ParallaxLayer>,
+}
+
+impl Meta {
+    /// A copy of the map's objects and settings.
+    pub fn of(map: &Map) -> Meta {
+        Meta {
+            entities: map.entities.clone(),
+            zones: map.zones.clone(),
+            edges: map.edges.clone(),
+            triggers: map.triggers.clone(),
+            next_uid: map.next_uid,
+            background: map.background,
+            music: map.music.clone(),
+            lighting: map.lighting,
+            fog: map.fog,
+            weather: map.weather,
+            parallax: map.parallax.clone(),
+        }
+    }
+
+    /// Puts these objects and settings onto `map` (its tiles stay).
+    pub fn apply(&self, map: &mut Map) {
+        map.entities = self.entities.clone();
+        map.zones = self.zones.clone();
+        map.edges = self.edges.clone();
+        map.triggers = self.triggers.clone();
+        map.next_uid = self.next_uid;
+        map.background = self.background;
+        map.music = self.music.clone();
+        map.lighting = self.lighting;
+        map.fog = self.fog;
+        map.weather = self.weather;
+        map.parallax = self.parallax.clone();
+    }
 }
 
 impl Default for Meta {
@@ -75,6 +112,62 @@ impl Default for Meta {
             parallax: Vec::new(),
         }
     }
+}
+
+/// `Meta` with its objects kept as text: read when `Meta` itself fails, so one entity, zone or
+/// trigger that can't be read (a hand edit, a newer version's variant) costs only itself.
+#[derive(Deserialize)]
+#[serde(default)]
+struct MetaLenient {
+    entities: Vec<Box<ron::value::RawValue>>,
+    zones: Vec<Box<ron::value::RawValue>>,
+    edges: EdgeLinks,
+    triggers: Vec<Box<ron::value::RawValue>>,
+    next_uid: u32,
+    background: [u8; 3],
+    music: String,
+    lighting: crate::map::MapLighting,
+    fog: bool,
+    weather: crate::map::Weather,
+    parallax: Vec<crate::map::ParallaxLayer>,
+}
+
+impl Default for MetaLenient {
+    fn default() -> Self {
+        let d = Meta::default();
+        MetaLenient { entities: vec![], zones: vec![], edges: d.edges, triggers: vec![], next_uid: d.next_uid, background: d.background, music: d.music, lighting: d.lighting, fog: d.fog, weather: d.weather, parallax: d.parallax }
+    }
+}
+
+/// The map's objects: all of them, or (when one can't be read) all the others, each left-out
+/// one reported through `warn`.
+fn parse_meta(text: &str, warn: &mut dyn FnMut(String)) -> Result<Meta> {
+    let whole = match ron::from_str::<Meta>(text) {
+        Ok(m) => return Ok(m),
+        Err(e) => e,
+    };
+    let l: MetaLenient = ron::from_str(text).with_context(|| format!("parsing map objects: {whole}"))?;
+    let mut m = Meta { entities: vec![], zones: vec![], edges: l.edges, triggers: vec![], next_uid: l.next_uid, background: l.background, music: l.music, lighting: l.lighting, fog: l.fog, weather: l.weather, parallax: l.parallax };
+    use crate::project::field_hint;
+    for (i, raw) in l.entities.iter().enumerate() {
+        match raw.into_rust::<EntityInstance>() {
+            Ok(e) => m.entities.push(e),
+            Err(e) => warn(format!("entity {} ({}, {}) can't be read and is left out: {e}", i + 1, field_hint(raw.get_ron(), "uid"), field_hint(raw.get_ron(), "def"))),
+        }
+    }
+    for (i, raw) in l.zones.iter().enumerate() {
+        match raw.into_rust::<Zone>() {
+            Ok(z) => m.zones.push(z),
+            Err(e) => warn(format!("zone {} ({}) can't be read and is left out: {e}", i + 1, field_hint(raw.get_ron(), "name"))),
+        }
+    }
+    for (i, raw) in l.triggers.iter().enumerate() {
+        match raw.into_rust::<Trigger>() {
+            Ok(t) => m.triggers.push(t),
+            Err(e) => warn(format!("map trigger {} can't be read and is left out: {e}", i + 1)),
+        }
+    }
+    Ok(m)
 }
 
 /// Entity layout of format version 1 (frozen: postcard isn't self-describing).
@@ -145,19 +238,7 @@ struct MapV1 {
 pub fn encode(map: &Map) -> Result<Vec<u8>> {
     let mut map = map.clone();
     map.compact();
-    let meta = Meta {
-        entities: map.entities.clone(),
-        zones: map.zones.clone(),
-        edges: map.edges.clone(),
-        triggers: map.triggers.clone(),
-        next_uid: map.next_uid,
-        background: map.background,
-        music: map.music.clone(),
-        lighting: map.lighting,
-        fog: map.fog,
-        weather: map.weather,
-        parallax: map.parallax.clone(),
-    };
+    let meta = Meta::of(&map);
     let core = CoreRef {
         name: &map.name,
         width: map.width,
@@ -175,11 +256,26 @@ pub fn encode(map: &Map) -> Result<Vec<u8>> {
     Ok(out)
 }
 
+/// The most tile data a map file may claim to hold (a 1024 x 1024 map with ten full layers is
+/// about 40 MiB): a corrupt size prefix can't make the game allocate gigabytes.
+const MAX_RAW: u32 = 256 << 20;
+
+/// Reads a map file's bytes. Objects that can't be read are left out and logged (`[map]`);
+/// [`decode_with`] hands them to the caller.
 pub fn decode(bytes: &[u8]) -> Result<Map> {
-    if bytes.len() < 10 || &bytes[..6] != MAGIC {
+    decode_with(bytes, &mut |w| eprintln!("[map] {w}"))
+}
+
+/// [`decode`], reporting every object that was left out through `warn`.
+pub fn decode_with(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<Map> {
+    if bytes.len() < 14 || &bytes[..6] != MAGIC {
         bail!("not an R(ust)PG2D map file");
     }
     let version = u32::from_le_bytes(bytes[6..10].try_into().unwrap());
+    let claimed = u32::from_le_bytes(bytes[10..14].try_into().unwrap());
+    if claimed > MAX_RAW {
+        bail!("corrupt map: {claimed} bytes of tile data claimed");
+    }
     let raw = lz4_flex::decompress_size_prepended(&bytes[10..]).context("decompressing map")?;
     let map = match version {
         1 => {
@@ -206,7 +302,7 @@ pub fn decode(bytes: &[u8]) -> Result<Map> {
         }
         2 => {
             let c: Core = postcard::from_bytes(&raw).context("deserializing map")?;
-            let meta: Meta = ron::from_str(&c.meta).context("parsing map objects")?;
+            let meta = parse_meta(&c.meta, warn)?;
             Map {
                 name: c.name,
                 width: c.width,
@@ -229,22 +325,32 @@ pub fn decode(bytes: &[u8]) -> Result<Map> {
         }
         v => bail!("unsupported map format version {v} (newest supported: {FORMAT_VERSION})"),
     };
-    if map.collision.len() != (map.width * map.height) as usize {
+    if map.width == 0 || map.height == 0 || map.width > MAX_MAP_SIZE || map.height > MAX_MAP_SIZE {
+        bail!("corrupt map: {} x {} tiles", map.width, map.height);
+    }
+    if map.collision.len() != map.width as usize * map.height as usize {
         bail!("corrupt map: collision grid size mismatch");
+    }
+    // Layers index their chunk grid without bounds checks: refuse one that doesn't fit.
+    for layer in &map.layers {
+        if let Err(e) = layer.validate(map.width, map.height) {
+            bail!("corrupt map: {e}");
+        }
     }
     Ok(map)
 }
 
 pub fn save(map: &Map, path: &Path) -> Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
     let bytes = encode(map)?;
-    // Write atomically so a crash never leaves a half-written map.
-    let tmp = path.with_extension("map.tmp");
-    std::fs::write(&tmp, bytes).with_context(|| format!("writing {}", tmp.display()))?;
-    std::fs::rename(&tmp, path)?;
-    Ok(())
+    // (`sys::write` is atomic: a crash never leaves a half-written map.)
+    crate::sys::write(path, &bytes).with_context(|| format!("writing {}", path.display()))
+}
+
+/// [`load`] with the objects that were left out reported through `warn` (the editor shows them
+/// and backs the file up before it saves without them).
+pub fn load_with(path: &Path, warn: &mut dyn FnMut(String)) -> Result<Map> {
+    let bytes = crate::sys::read(path).with_context(|| format!("reading {}", path.display()))?;
+    decode_with(&bytes, warn).with_context(|| format!("loading map {}", path.display()))
 }
 
 pub fn load(path: &Path) -> Result<Map> {
@@ -256,7 +362,58 @@ pub fn load(path: &Path) -> Result<Map> {
 mod tests {
     use super::*;
     use crate::entity::EntityKind;
-    use crate::map::{CollisionOverride, Tile};
+    use crate::map::{Chunk, CollisionOverride, Tile};
+
+    /// One map object that can't be read (a newer version's variant, a hand edit) is left out
+    /// with a warning; the rest of the map loads.
+    #[test]
+    fn unreadable_objects_are_left_out() {
+        let mut m = Map::new("m", 8, 8);
+        let uid = m.alloc_uid();
+        m.entities.push(EntityInstance::new(uid, EntityKind::Prop, "chest", 1.0, 2.0));
+        let uid = m.alloc_uid();
+        m.entities.push(EntityInstance::new(uid, EntityKind::Character, "guard", 3.0, 4.0));
+        let core: Core = postcard::from_bytes(&lz4_flex::decompress_size_prepended(&encode(&m).unwrap()[10..]).unwrap()).unwrap();
+        let broken = core.meta.replace("kind:Character", "kind:Dragon");
+        assert_ne!(broken, core.meta);
+        let mut warnings = Vec::new();
+        let meta = parse_meta(&broken, &mut |w| warnings.push(w)).unwrap();
+        assert_eq!(meta.entities.iter().map(|e| e.def.as_str()).collect::<Vec<_>>(), ["chest"]);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].starts_with("entity 2 (uid 2, def \"guard\") can't be read"), "{}", warnings[0]);
+        assert_eq!(meta.next_uid, m.next_uid);
+        // Healthy objects parse in one go.
+        parse_meta(&core.meta, &mut |_| panic!("healthy")).unwrap();
+    }
+
+    /// Corrupt files are refused with an error, never a panic (the game loads untrusted data).
+    #[test]
+    fn corrupt_maps_are_refused() {
+        let mut m = Map::new("m", 40, 40);
+        let slot = m.tileset_slot("terrain");
+        m.layers[0].set(3, 3, Tile::new(slot, 9));
+        let good = encode(&m).unwrap();
+        assert!(decode(&good).is_ok());
+        // Truncated anywhere: an error.
+        for cut in [0, 5, 9, 12, 14, 20, good.len() / 2, good.len() - 1] {
+            assert!(decode(&good[..cut]).is_err(), "cut at {cut}");
+        }
+        // A size prefix claiming gigabytes.
+        let mut huge = good.clone();
+        huge[10..14].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(decode(&huge).unwrap_err().to_string().contains("claimed"));
+        // A layer whose chunk grid doesn't match the map.
+        let mut bad = m.clone();
+        bad.layers[0].chunks.pop();
+        assert!(decode(&encode(&bad).unwrap()).unwrap_err().to_string().contains("chunks"));
+        let mut bad = m.clone();
+        bad.layers[1].chunks[0] = Some(Box::new(Chunk { tiles: vec![Tile::new(slot, 1); 3] })); // (empty chunks are dropped when encoding)
+        assert!(decode(&encode(&bad).unwrap()).unwrap_err().to_string().contains("tiles"));
+        // A size the format can't hold.
+        let mut bad = m.clone();
+        bad.width = 0;
+        assert!(decode(&encode(&bad).unwrap()).is_err());
+    }
 
     #[test]
     fn roundtrip_max_size_map() {
@@ -360,6 +517,14 @@ mod tests {
         let mut bytes = MAGIC.to_vec();
         bytes.extend_from_slice(&1u32.to_le_bytes());
         bytes.extend_from_slice(&lz4_flex::compress_prepend_size(&postcard::to_stdvec(&v1).unwrap()));
+        // The committed copy freezes the postcard layout of TileLayer / Chunk (v2 stores them the
+        // same way): `RUSTPG2D_WRITE_FIXTURES=1 cargo test -p rustpg2d-engine reads_version_1`
+        // rewrites it after a deliberate format change.
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/maps/v1-synthetic.map");
+        if std::env::var("RUSTPG2D_WRITE_FIXTURES").is_ok() {
+            std::fs::write(&fixture, &bytes).unwrap();
+        }
+        assert_eq!(std::fs::read(&fixture).unwrap(), bytes, "tests/fixtures/maps/v1-synthetic.map differs: the map file layout changed");
         let back = decode(&bytes).unwrap();
         assert_eq!(back.layers[0].get(3, 3), Tile::new(0, 9));
         assert_eq!((back.entities[0].def.as_str(), back.entities[0].count), ("key", 2));

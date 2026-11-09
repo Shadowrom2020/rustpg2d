@@ -1,0 +1,6 @@
+# The Rust version everyone builds with (rustup installs it on first use). CI uses it too, so
+# a new stable release can't break a pull request with new lints overnight; bump it on purpose,
+# together with `rust-version` in Cargo.toml.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]

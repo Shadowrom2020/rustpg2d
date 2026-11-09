@@ -66,7 +66,7 @@ impl Game {
         e.body.moving = false;
         let period = stroke(a.kind);
         if period > 0.0 {
-            let cycle = ((get_time() as f32 + e.uid as f32 * 0.37) / period) as u32;
+            let cycle = ((get_time() as f32 + (e.uid % 1024) as f32 * 0.37) / period) as u32;
             let near = e.body.pos.distance(self.player.pos) < ts * 4.0;
             if cycle != e.act_cycle {
                 e.act_cycle = cycle;
@@ -96,7 +96,7 @@ impl Game {
             return Some(0);
         }
         let e = &self.loaded.entities[i];
-        let u = ((get_time() as f32 + e.uid as f32 * 0.37) / period).fract();
+        let u = ((get_time() as f32 + (e.uid % 1024) as f32 * 0.37) / period).fract();
         Some(if u < 0.25 { 1 } else if u < 0.5 { 2 } else { 0 })
     }
 
@@ -108,7 +108,7 @@ impl Game {
             let Some((a, facing)) = self.current_activity(i) else { continue };
             let e = &self.loaded.entities[i];
             let dir = Vec2::from(facing.dir());
-            let seed = e.uid as f32 * 0.37;
+            let seed = (e.uid % 1024) as f32 * 0.37;
             // Where the strokes land: in front, or (facing up, the body in the way) beyond the head.
             let front = if facing == Facing::Up && a.kind == ActivityKind::Craft { e.body.pos - vec2(0.0, 50.0 * k) } else { e.body.pos + dir * ts * 0.75 - vec2(0.0, 4.0 * k) };
             match a.kind {

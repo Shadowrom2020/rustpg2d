@@ -5,7 +5,7 @@
 
 use macroquad::prelude::*;
 
-use super::{Game, Source};
+use super::{Game, Mover, Source};
 use crate::defs::{Pose, SpriteRef};
 use crate::entity::Facing;
 use crate::events::runner::{conditions_met, ActionCtx};
@@ -365,6 +365,7 @@ impl Game {
         e.body.pos = pos;
         e.body.facing = spot.facing;
         e.body.moving = false;
+        self.occupy(i);
         true
     }
 
@@ -372,8 +373,10 @@ impl Game {
     pub(super) fn npc_stand_up(&mut self, i: usize) {
         if let Some(s) = self.loaded.entities[i].npc_seat.take() {
             // (Clear of the furniture, or it couldn't move.)
-            let p = self.free_spot(s.stand);
+            let (body, uid) = (self.loaded.entities[i].body.clone(), self.loaded.entities[i].uid);
+            let p = self.free_spot(&body, s.stand, Mover::Npc(uid));
             self.loaded.entities[i].body.pos = p;
+            self.occupy(i);
         }
     }
 

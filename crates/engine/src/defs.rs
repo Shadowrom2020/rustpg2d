@@ -80,7 +80,24 @@ pub struct TileLight {
     pub light: LightSpec,
 }
 
+/// The serde defaults (what an entry with only `id` and `image` loads as). The editor's "+ New"
+/// value is [`TilesetDef::fresh`].
+impl Default for TilesetDef {
+    fn default() -> Self {
+        TilesetDef { id: String::new(), image: String::new(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] }
+    }
+}
+
 impl TilesetDef {
+    pub fn new(id: &str, image: &str) -> Self {
+        TilesetDef { id: id.into(), image: image.into(), ..Default::default() }
+    }
+
+    /// A new tileset as the editor creates it.
+    pub fn fresh(id: &str) -> Self {
+        Self::new(id, "tilesets/new.png")
+    }
+
     pub fn light_of(&self, tile: u32) -> Option<&LightSpec> {
         self.lights.iter().find(|l| l.tile == tile).map(|l| &l.light)
     }
@@ -162,9 +179,22 @@ pub struct SheetTag {
     pub fps: f32,
 }
 
+/// The serde defaults for the optional fields; `frame_w` / `frame_h` (required in files) are one
+/// tile. The editor's "+ New" value is [`SheetDef::fresh`].
+impl Default for SheetDef {
+    fn default() -> Self {
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, kind: SheetKind::Sprite, female: false, playable: false, tags: Vec::new() }
+    }
+}
+
 impl SheetDef {
     pub fn new(id: &str, image: &str, frame_w: u32, frame_h: u32) -> Self {
-        SheetDef { id: id.into(), image: image.into(), frame_w, frame_h, kind: SheetKind::Sprite, female: false, playable: false, tags: Vec::new() }
+        SheetDef { id: id.into(), image: image.into(), frame_w, frame_h, ..Default::default() }
+    }
+
+    /// A new sheet as the editor creates it (one-tile frames).
+    pub fn fresh(id: &str) -> Self {
+        Self::new(id, "sprites/new.png", crate::project::TILE_SIZE, crate::project::TILE_SIZE)
     }
     /// "hair_short" -> "Short", "body_goblin_female" -> "Goblin female": the id without the kind's
     /// prefix, for pickers.
@@ -478,6 +508,39 @@ pub struct ItemDef {
     pub food: bool,
 }
 
+/// The serde defaults (what an entry with only `id`, `name` and `icon` loads as). The editor's
+/// "+ New" value is [`ItemDef::fresh`].
+impl Default for ItemDef {
+    fn default() -> Self {
+        ItemDef {
+            id: String::new(),
+            name: String::new(),
+            description: String::new(),
+            icon: SpriteRef::default(),
+            consumable: false,
+            on_use: vec![],
+            weapon: None,
+            armor: None,
+            max_stack: default_max_stack(),
+            value: 0,
+            light: None,
+            teaches: String::new(),
+            held: String::new(),
+            tool: String::new(),
+            use_on: UseTarget::default(),
+            crop: None,
+            food: false,
+        }
+    }
+}
+
+impl ItemDef {
+    /// A new item as the editor creates it.
+    pub fn fresh(id: &str) -> Self {
+        ItemDef { id: id.into(), name: "New item".into(), ..Default::default() }
+    }
+}
+
 /// What grows from a seed (`ItemDef::crop`): its stages one after another, the last one is the
 /// ripe crop, harvested with E for `harvest` (the plot is then empty again).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -696,6 +759,37 @@ pub struct PropDef {
     /// A farm plot: seeds (items with a crop) are planted on it and grow over in-game time.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub plot: bool,
+}
+
+/// The serde defaults (what an entry with only `id`, `name` and `sprite` loads as: not solid,
+/// a 24 x 16 px hitbox). The editor's "+ New" value is [`PropDef::fresh`].
+impl Default for PropDef {
+    fn default() -> Self {
+        PropDef {
+            id: String::new(),
+            name: String::new(),
+            sprite: SpriteRef::default(),
+            solid: false,
+            default_state: default_state_name(),
+            states: vec![],
+            hitbox: default_box(),
+            triggers: vec![],
+            container: None,
+            lock: None,
+            light: None,
+            use_spot: None,
+            gather: None,
+            regrow: None,
+            plot: false,
+        }
+    }
+}
+
+impl PropDef {
+    /// A new prop as the editor creates it: solid, a 28 x 16 px hitbox.
+    pub fn fresh(id: &str) -> Self {
+        PropDef { id: id.into(), name: "New prop".into(), solid: true, hitbox: [28.0, 16.0], ..Default::default() }
+    }
 }
 
 /// A prop the player gathers from (`PropDef::gather`): `hits` hits with a tool of kind `tool`
@@ -987,6 +1081,46 @@ pub struct CharacterDef {
     pub moods: std::collections::BTreeMap<String, SpriteRef>,
 }
 
+/// The serde defaults (what an entry with only `id` and `name` loads as). The editor's "+ New"
+/// value is [`CharacterDef::fresh`]; the character builder fills in a body and clothes.
+impl Default for CharacterDef {
+    fn default() -> Self {
+        CharacterDef {
+            id: String::new(),
+            name: String::new(),
+            sheet: String::new(),
+            speed: default_speed(),
+            hitbox: default_box(),
+            behavior: default_behavior(),
+            max_hp: 0,
+            damage: 0,
+            hostile: false,
+            weapon: None,
+            defense: 0,
+            xp: 0,
+            touch_effect: None,
+            description: String::new(),
+            triggers: vec![],
+            shop: None,
+            loot: vec![],
+            light: None,
+            appearance: Appearance::default(),
+            equipment: crate::state::Equipment::default(),
+            inventory: vec![],
+            gear_locked: false,
+            portrait: SpriteRef::default(),
+            moods: Default::default(),
+        }
+    }
+}
+
+impl CharacterDef {
+    /// A new character as the editor creates it (before the builder picks its look).
+    pub fn fresh(id: &str) -> Self {
+        CharacterDef { id: id.into(), name: "New character".into(), ..Default::default() }
+    }
+}
+
 /// One line of a loot table: `item` drops with `chance` percent, `min..=max` of them.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LootEntry {
@@ -1134,6 +1268,9 @@ pub struct Database {
     pub recipes: Vec<crate::crafting::RecipeDef>,
     /// Achievements (the game's; unlocks are the player's, see `achievements::Progress`).
     pub achievements: Vec<crate::achievements::AchievementDef>,
+    /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
+    #[doc(hidden)]
+    pub index: DefIndex,
 }
 
 /// A multi-tile asset ("structure"): tiles on several map layers, collision overrides and
@@ -1165,12 +1302,60 @@ pub struct StructureDef {
     pub entities: Vec<crate::entity::EntityInstance>,
 }
 
+/// Id → position caches of the lists the game looks up per entity per frame (items, props,
+/// characters, sheets, tilesets). A hit is verified (`list[i].id == id`) and a miss or a stale
+/// entry falls back to the linear search, so a list edited in place (the editor's forms, the
+/// agent server) only makes lookups slower until [`Database::reindex`] runs, never wrong.
+#[derive(Clone, Default)]
+pub struct DefIndex {
+    tilesets: std::collections::HashMap<String, usize>,
+    sheets: std::collections::HashMap<String, usize>,
+    items: std::collections::HashMap<String, usize>,
+    props: std::collections::HashMap<String, usize>,
+    characters: std::collections::HashMap<String, usize>,
+}
+
+/// A cache is not content: two databases with the same definitions are equal.
+impl PartialEq for DefIndex {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for DefIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DefIndex({} ids)", self.tilesets.len() + self.sheets.len() + self.items.len() + self.props.len() + self.characters.len())
+    }
+}
+
 impl Database {
+    /// Rebuilds the id caches after the lists changed (loading, translating, the editor's forms,
+    /// the agent server). Lookups stay correct without it; this keeps them fast.
+    pub fn reindex(&mut self) {
+        fn build<T: Def>(list: &[T]) -> std::collections::HashMap<String, usize> {
+            let mut m = std::collections::HashMap::with_capacity(list.len());
+            for (i, d) in list.iter().enumerate() {
+                m.entry(d.id().to_string()).or_insert(i); // the first of a duplicated id, like `find`
+            }
+            m
+        }
+        self.index = DefIndex { tilesets: build(&self.tilesets), sheets: build(&self.sheets), items: build(&self.items), props: build(&self.props), characters: build(&self.characters) };
+    }
+
+    fn lookup<'a, T: Def>(list: &'a [T], index: &std::collections::HashMap<String, usize>, id: &str) -> Option<&'a T> {
+        if let Some(d) = index.get(id).and_then(|&i| list.get(i)) {
+            if d.id() == id {
+                return Some(d);
+            }
+        }
+        list.iter().find(|d| d.id() == id)
+    }
+
     pub fn tileset(&self, id: &str) -> Option<&TilesetDef> {
-        self.tilesets.iter().find(|d| d.id == id)
+        Self::lookup(&self.tilesets, &self.index.tilesets, id)
     }
     pub fn sheet(&self, id: &str) -> Option<&SheetDef> {
-        self.sheets.iter().find(|d| d.id == id)
+        Self::lookup(&self.sheets, &self.index.sheets, id)
     }
     /// Item id -> tool kind of every tool item (`ItemDef::tool`).
     pub fn tool_kinds(&self) -> crate::crafting::ToolKinds {
@@ -1178,13 +1363,13 @@ impl Database {
     }
 
     pub fn item(&self, id: &str) -> Option<&ItemDef> {
-        self.items.iter().find(|d| d.id == id)
+        Self::lookup(&self.items, &self.index.items, id)
     }
     pub fn prop(&self, id: &str) -> Option<&PropDef> {
-        self.props.iter().find(|d| d.id == id)
+        Self::lookup(&self.props, &self.index.props, id)
     }
     pub fn character(&self, id: &str) -> Option<&CharacterDef> {
-        self.characters.iter().find(|d| d.id == id)
+        Self::lookup(&self.characters, &self.index.characters, id)
     }
     pub fn quest(&self, id: &str) -> Option<&crate::quest::QuestDef> {
         self.quests.iter().find(|d| d.id == id)
@@ -1324,6 +1509,219 @@ fn is_zero_u32(n: &u32) -> bool {
     *n == 0
 }
 
+/// What every definition list shares: an id and its list in the [`Database`]. [`with_def_kind!`]
+/// picks the type of a [`RefKind`](crate::refactor::RefKind) at run time, so one generic function
+/// serves all twelve lists (the library, the agent server, renames).
+pub trait Def: Clone + PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned + 'static {
+    const KIND: crate::refactor::RefKind;
+    fn id(&self) -> &str;
+    fn id_mut(&mut self) -> &mut String;
+    fn list(db: &Database) -> &Vec<Self>;
+    fn list_mut(db: &mut Database) -> &mut Vec<Self>;
+    /// Other definitions this one refers to (library dependencies); none by default.
+    fn refs(&self) -> Vec<(crate::refactor::RefKind, String)> {
+        Vec::new()
+    }
+}
+
+macro_rules! impl_def {
+    ($t:ty, $kind:expr, $field:ident $(, refs = $refs:expr)?) => {
+        impl Def for $t {
+            const KIND: crate::refactor::RefKind = $kind;
+            fn id(&self) -> &str {
+                &self.id
+            }
+            fn id_mut(&mut self) -> &mut String {
+                &mut self.id
+            }
+            fn list(db: &Database) -> &Vec<Self> {
+                &db.$field
+            }
+            fn list_mut(db: &mut Database) -> &mut Vec<Self> {
+                &mut db.$field
+            }
+            $(fn refs(&self) -> Vec<(crate::refactor::RefKind, String)> {
+                $refs(self)
+            })?
+        }
+    };
+}
+
+impl_def!(TilesetDef, crate::refactor::RefKind::Tileset, tilesets);
+impl_def!(SheetDef, crate::refactor::RefKind::Sheet, sheets);
+impl_def!(ItemDef, crate::refactor::RefKind::Item, items, refs = crate::refactor::refs_of_item);
+impl_def!(PropDef, crate::refactor::RefKind::Prop, props, refs = crate::refactor::refs_of_prop);
+impl_def!(CharacterDef, crate::refactor::RefKind::Character, characters, refs = crate::refactor::refs_of_character);
+impl_def!(SoundDef, crate::refactor::RefKind::Sound, sounds);
+impl_def!(crate::quest::QuestDef, crate::refactor::RefKind::Quest, quests);
+impl_def!(StructureDef, crate::refactor::RefKind::Structure, structures, refs = crate::refactor::refs_of_structure);
+impl_def!(crate::skills::SkillDef, crate::refactor::RefKind::Skill, skills, refs = crate::refactor::refs_of_skill);
+impl_def!(crate::skills::SpellDef, crate::refactor::RefKind::Spell, spells, refs = crate::refactor::refs_of_spell);
+impl_def!(crate::crafting::RecipeDef, crate::refactor::RefKind::Recipe, recipes, refs = crate::refactor::refs_of_recipe);
+impl_def!(crate::achievements::AchievementDef, crate::refactor::RefKind::Achievement, achievements);
+
+/// Runs `$body` with `$T` bound to the definition type of `$kind` (a
+/// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
+///
+/// ```ignore
+/// let n = with_def_kind!(kind, |T| T::list(&db).len(), else => 0);
+/// ```
+#[macro_export]
+macro_rules! with_def_kind {
+    ($kind:expr, |$T:ident| $body:expr, else => $else:expr) => {
+        match $kind {
+            $crate::refactor::RefKind::Tileset => {
+                type $T = $crate::defs::TilesetDef;
+                $body
+            }
+            $crate::refactor::RefKind::Sheet => {
+                type $T = $crate::defs::SheetDef;
+                $body
+            }
+            $crate::refactor::RefKind::Item => {
+                type $T = $crate::defs::ItemDef;
+                $body
+            }
+            $crate::refactor::RefKind::Prop => {
+                type $T = $crate::defs::PropDef;
+                $body
+            }
+            $crate::refactor::RefKind::Character => {
+                type $T = $crate::defs::CharacterDef;
+                $body
+            }
+            $crate::refactor::RefKind::Sound => {
+                type $T = $crate::defs::SoundDef;
+                $body
+            }
+            $crate::refactor::RefKind::Quest => {
+                type $T = $crate::quest::QuestDef;
+                $body
+            }
+            $crate::refactor::RefKind::Structure => {
+                type $T = $crate::defs::StructureDef;
+                $body
+            }
+            $crate::refactor::RefKind::Skill => {
+                type $T = $crate::skills::SkillDef;
+                $body
+            }
+            $crate::refactor::RefKind::Spell => {
+                type $T = $crate::skills::SpellDef;
+                $body
+            }
+            $crate::refactor::RefKind::Recipe => {
+                type $T = $crate::crafting::RecipeDef;
+                $body
+            }
+            $crate::refactor::RefKind::Achievement => {
+                type $T = $crate::achievements::AchievementDef;
+                $body
+            }
+            $crate::refactor::RefKind::Map => $else,
+        }
+    };
+}
+
+/// The lists by kind: generic over a [`Def`] type, or by a [`RefKind`](crate::refactor::RefKind)
+/// known at run time.
+impl Database {
+    pub fn get<T: Def>(&self, id: &str) -> Option<&T> {
+        T::list(self).iter().find(|d| d.id() == id)
+    }
+
+    pub fn get_mut<T: Def>(&mut self, id: &str) -> Option<&mut T> {
+        T::list_mut(self).iter_mut().find(|d| d.id() == id)
+    }
+
+    pub fn position<T: Def>(&self, id: &str) -> Option<usize> {
+        T::list(self).iter().position(|d| d.id() == id)
+    }
+
+    /// Puts `def` in: over the one with its id, or at the end. True when it replaced one.
+    pub fn upsert<T: Def>(&mut self, def: T) -> bool {
+        let list = T::list_mut(self);
+        let replaced = match list.iter().position(|d| d.id() == def.id()) {
+            Some(i) => {
+                list[i] = def;
+                true
+            }
+            None => {
+                list.push(def);
+                false
+            }
+        };
+        self.reindex();
+        replaced
+    }
+
+    /// Removes the definition `id`; true when there was one.
+    pub fn remove<T: Def>(&mut self, id: &str) -> bool {
+        let list = T::list_mut(self);
+        let n = list.len();
+        list.retain(|d| d.id() != id);
+        let removed = list.len() != n;
+        self.reindex();
+        removed
+    }
+
+    pub fn has(&self, kind: crate::refactor::RefKind, id: &str) -> bool {
+        crate::with_def_kind!(kind, |T| self.get::<T>(id).is_some(), else => false)
+    }
+
+    pub fn ids_of(&self, kind: crate::refactor::RefKind) -> Vec<String> {
+        crate::with_def_kind!(kind, |T| T::list(self).iter().map(|d| d.id().to_string()).collect(), else => Vec::new())
+    }
+
+    pub fn index_of(&self, kind: crate::refactor::RefKind, id: &str) -> Option<usize> {
+        crate::with_def_kind!(kind, |T| self.position::<T>(id), else => None)
+    }
+
+    /// Renames the definition `old` (only it: [`crate::refactor::rename_in_db`] rewrites the
+    /// references). True when there was one.
+    pub fn rename(&mut self, kind: crate::refactor::RefKind, old: &str, new: &str) -> bool {
+        let renamed = crate::with_def_kind!(
+            kind,
+            |T| match self.get_mut::<T>(old) {
+                Some(d) => {
+                    *d.id_mut() = new.to_string();
+                    true
+                }
+                None => false,
+            },
+            else => false
+        );
+        self.reindex();
+        renamed
+    }
+
+    /// Do `self` and `other` define `id` the same way (both missing counts as the same)?
+    pub fn same(&self, other: &Database, kind: crate::refactor::RefKind, id: &str) -> bool {
+        crate::with_def_kind!(kind, |T| self.get::<T>(id) == other.get::<T>(id), else => true)
+    }
+
+    /// Copies `from`'s definition of `id` in (over the one with the same id, or at the end).
+    /// True when `from` has it.
+    pub fn copy_from(&mut self, from: &Database, kind: crate::refactor::RefKind, id: &str) -> bool {
+        crate::with_def_kind!(
+            kind,
+            |T| match from.get::<T>(id) {
+                Some(d) => {
+                    self.upsert(d.clone());
+                    true
+                }
+                None => false,
+            },
+            else => false
+        )
+    }
+
+    /// The definitions `id` refers to directly (none for kinds without references, or an unknown id).
+    pub fn refs_of(&self, kind: crate::refactor::RefKind, id: &str) -> Vec<(crate::refactor::RefKind, String)> {
+        crate::with_def_kind!(kind, |T| self.get::<T>(id).map(|d| d.refs()).unwrap_or_default(), else => Vec::new())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1352,29 +1750,87 @@ mod tests {
         assert_eq!((e.min, e.max), (1, 1));
     }
 
+    /// The id caches speed lookups up and can never return the wrong definition: lists edited
+    /// in place without `reindex` still resolve correctly (through the linear fallback).
+    #[test]
+    fn index_is_never_wrong() {
+        let mut db = Database::default();
+        for id in ["a", "b", "c"] {
+            db.items.push(ItemDef::fresh(id));
+        }
+        db.reindex();
+        assert_eq!(db.item("b").map(|d| d.id.as_str()), Some("b"));
+        // Edited in place: swapped, renamed, one removed, one added.
+        db.items.swap(0, 2);
+        db.items[1].id = "bee".into();
+        db.items.remove(0);
+        db.items.push(ItemDef::fresh("d"));
+        assert_eq!(db.items.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["bee", "a", "d"]);
+        assert!(db.item("c").is_none() && db.item("b").is_none());
+        assert_eq!(db.item("bee").map(|d| d.id.as_str()), Some("bee"));
+        assert_eq!(db.item("d").map(|d| d.id.as_str()), Some("d"));
+        db.reindex();
+        assert_eq!(db.item("a").map(|d| d.id.as_str()), Some("a"));
+        // Equality ignores the cache.
+        let mut other = db.clone();
+        other.index = DefIndex::default();
+        assert_eq!(db, other);
+    }
+
+    /// One generic path to every definition list, by type or by kind.
+    #[test]
+    fn database_by_kind() {
+        use crate::refactor::RefKind;
+        let mut db = Database::default();
+        db.items.push(ItemDef::fresh("sword"));
+        db.props.push(PropDef::fresh("chest"));
+        assert!(db.has(RefKind::Item, "sword") && !db.has(RefKind::Item, "chest") && !db.has(RefKind::Map, "village"));
+        assert_eq!(db.ids_of(RefKind::Prop), ["chest"]);
+        assert_eq!(db.index_of(RefKind::Item, "sword"), Some(0));
+        assert_eq!(db.get::<ItemDef>("sword").map(|d| d.name.as_str()), Some("New item"));
+        assert!(db.rename(RefKind::Item, "sword", "blade") && !db.rename(RefKind::Item, "sword", "x"));
+        assert_eq!(db.ids_of(RefKind::Item), ["blade"]);
+        let mut other = Database::default();
+        assert!(!other.same(&db, RefKind::Item, "blade") && other.same(&db, RefKind::Item, "nothing"));
+        assert!(other.copy_from(&db, RefKind::Prop, "chest") && !other.copy_from(&db, RefKind::Prop, "nothing"));
+        assert!(other.same(&db, RefKind::Prop, "chest"));
+        assert!(other.upsert(PropDef { name: "Box".into(), ..PropDef::fresh("chest") }));
+        assert_eq!(other.props.len(), 1);
+        assert!(other.remove::<PropDef>("chest") && other.props.is_empty());
+        assert_eq!(<ItemDef as Def>::KIND, RefKind::Item);
+        assert!(RefKind::DEFS.iter().all(|k| db.ids_of(*k).len() <= 1));
+    }
+
+    /// `Default` is what a file entry with only the required fields loads as (so tests and the
+    /// editor can write `..Default::default()`), and `fresh` is the editor's "+ New" value.
+    #[test]
+    fn defaults_match_the_file_format() {
+        let t: TilesetDef = ron::from_str(r#"(id: "t", image: "tilesets/t.png")"#).unwrap();
+        assert_eq!(t, TilesetDef::new("t", "tilesets/t.png"));
+        let s: SheetDef = ron::from_str(r#"(id: "s", image: "sprites/s.png", frame_w: 32, frame_h: 32)"#).unwrap();
+        assert_eq!(s, SheetDef::new("s", "sprites/s.png", 32, 32));
+        assert_eq!(s, SheetDef { id: "s".into(), image: "sprites/s.png".into(), ..Default::default() });
+        let i: ItemDef = ron::from_str(r#"(id: "i", name: "I", icon: (sheet: "s", frame: 1))"#).unwrap();
+        assert_eq!(i, ItemDef { id: "i".into(), name: "I".into(), icon: SpriteRef::new("s", 1), ..Default::default() });
+        assert_eq!(i.max_stack, crate::inventory::DEFAULT_STACK);
+        let p: PropDef = ron::from_str(r#"(id: "p", name: "P", sprite: (sheet: "s", frame: 2))"#).unwrap();
+        assert_eq!(p, PropDef { id: "p".into(), name: "P".into(), sprite: SpriteRef::new("s", 2), ..Default::default() });
+        assert!(!p.solid && p.hitbox == [24.0, 16.0] && p.default_state == "default");
+        let c: CharacterDef = ron::from_str(r#"(id: "c", name: "C")"#).unwrap();
+        assert_eq!(c, CharacterDef { id: "c".into(), name: "C".into(), ..Default::default() });
+        assert!(c.speed == 120.0 && c.behavior == Behavior::Static && c.hitbox == [24.0, 16.0]);
+        // The editor's new definitions.
+        let p = PropDef::fresh("x");
+        assert!(p.solid && p.hitbox == [28.0, 16.0] && p.name == "New prop" && p.id == "x");
+        assert_eq!((ItemDef::fresh("x").name.as_str(), CharacterDef::fresh("x").name.as_str()), ("New item", "New character"));
+        assert_eq!((TilesetDef::fresh("x").image.as_str(), SheetDef::fresh("x").image.as_str()), ("tilesets/new.png", "sprites/new.png"));
+    }
+
     #[test]
     fn shop_prices() {
         let mut db = Database::default();
         for (id, value) in [("apple", 3), ("rock", 0), ("coin", 1)] {
-            db.items.push(ItemDef {
-                id: id.into(),
-                name: id.into(),
-                description: String::new(),
-                icon: SpriteRef::default(),
-                consumable: false,
-                on_use: vec![],
-                weapon: None,
-                armor: None,
-                max_stack: 99,
-                value,
-        light: None,
-        teaches: String::new(),
-        held: String::new(),
-        tool: String::new(),
-        use_on: Default::default(),
-        crop: None,
-        food: false,
-            });
+            db.items.push(ItemDef { id: id.into(), name: id.into(), value, ..Default::default() });
         }
         let spec = ShopSpec { items: vec![ShopEntry::new("apple", 2, 10)], ..Default::default() };
         // Own price wins over the item's value; unlisted items use their value.

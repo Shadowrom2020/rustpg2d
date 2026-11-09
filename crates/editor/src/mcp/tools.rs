@@ -16,7 +16,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::exec::Call;
+use super::exec::{Reply, ShotSpec};
 use super::server::Handler;
 
 /// The parameters abbreviated for the call log.
@@ -484,379 +484,239 @@ pub struct CaptureStructureParams {
 
 type R = Result<CallToolResult, ErrorData>;
 
-#[tool_router(vis = "pub(crate)")]
-impl Handler {
+/// The tool catalogue, once: each tool's description (its doc comment) and annotations, its
+/// name, its [`Call`] variant with the parameter type, the expression the editor's main thread
+/// runs for it (`ed` is the [`Editor`](crate::app::Editor), `p` the parameters) and, where the
+/// generic one won't do, the summary for the call log. This generates the `#[tool]` methods of
+/// [`Handler`], the [`Call`] enum, [`Call::name`] and `Editor::mcp_exec`, so a new tool is one
+/// entry here plus its `mcp_*` function.
+macro_rules! mcp_tools {
+    (@summary $p:ident) => {
+        summary(&$p)
+    };
+    (@summary $p:ident, $s:expr) => {
+        $s
+    };
+    (
+        plain ( $ed:ident ) { $( $(#[$pa:meta])* $pname:ident : $pvar:ident => $pexec:expr ; )* }
+        with_params { $( $(#[$wa:meta])* $wname:ident : $wvar:ident ( $pb:ident : $wparams:ty ) => $wexec:expr $(, summary = $wsum:expr)? ; )* }
+    ) => {
+        /// A tool call (the parameter structs are those above), executed on the main thread.
+        pub enum Call {
+            $( $pvar, )*
+            $( $wvar($wparams), )*
+        }
+
+        impl Call {
+            /// The tool's name (the call log).
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $( Call::$pvar => stringify!($pname), )*
+                    $( Call::$wvar(_) => stringify!($wname), )*
+                }
+            }
+        }
+
+        #[tool_router(vis = "pub(crate)")]
+        impl Handler {
+            $(
+                $(#[$pa])*
+                async fn $pname(&self) -> R {
+                    self.run(Call::$pvar, String::new()).await
+                }
+            )*
+            $(
+                $(#[$wa])*
+                async fn $wname(&self, Parameters($pb): Parameters<$wparams>) -> R {
+                    let s = mcp_tools!(@summary $pb $(, $wsum)?);
+                    self.run(Call::$wvar($pb), s).await
+                }
+            )*
+        }
+
+        impl crate::app::Editor {
+            /// Runs a tool call on the main thread (between frames, from `mcp_drain`).
+            pub fn mcp_exec(&mut self, call: Call) -> Result<Reply, String> {
+                let $ed = self;
+                match call {
+                    $( Call::$pvar => $pexec, )*
+                    $( Call::$wvar($pb) => $wexec, )*
+                }
+            }
+        }
+    };
+}
+
+mcp_tools! {
+plain(ed) {
     /// The open project at a glance: name, start map, player, languages, every map with its size
     /// and spawns, definition counts, scripts, the editor's state and the project check. Start here.
     #[tool(annotations(read_only_hint = true))]
-    async fn project_info(&self) -> R {
-        self.run(Call::ProjectInfo, String::new()).await
-    }
-
+    project_info: ProjectInfo => ed.mcp_project_info();
     /// The editor's state: open map and selection, unsaved changes, undo / redo, open script, last status message.
     #[tool(annotations(read_only_hint = true))]
-    async fn editor_state(&self) -> R {
-        self.run(Call::EditorState, String::new()).await
-    }
-
+    editor_state: EditorState => ed.mcp_editor_state();
     /// Saves the open map, the definitions and pixel art (write tools already save; use after undo / redo).
     #[tool(annotations(idempotent_hint = true))]
-    async fn save(&self) -> R {
-        self.run(Call::Save, String::new()).await
-    }
-
-    /// Undoes the last edit(s) of the open map (yours or the person's). The map is then unsaved: call save.
-    #[tool]
-    async fn undo(&self, Parameters(p): Parameters<UndoParams>) -> R {
-        self.run(Call::Undo(p), String::new()).await
-    }
-
-    /// Redoes undone edit(s) of the open map.
-    #[tool]
-    async fn redo(&self, Parameters(p): Parameters<UndoParams>) -> R {
-        self.run(Call::Redo(p), String::new()).await
-    }
-
-    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, skills, progression, dialog_portraits, …
-    #[tool(annotations(idempotent_hint = true))]
-    async fn set_project_config(&self, Parameters(p): Parameters<PatchParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::SetProjectConfig(p), s).await
-    }
-
+    save: Save => ed.mcp_save();
     /// Every map: size, tilesets, entity and zone counts, spawn zones and transitions to other maps.
     #[tool(annotations(read_only_hint = true))]
-    async fn list_maps(&self) -> R {
-        self.run(Call::ListMaps, String::new()).await
-    }
-
-    /// A map region as text: one grid per layer with a legend (glyph = tileset#index, terrain name, solid), the collision grid, and the entities and zones there with their uids. At most 80x50 tiles per call.
-    #[tool(annotations(read_only_hint = true))]
-    async fn get_map(&self, Parameters(p): Parameters<GetMapParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::GetMap(p), s).await
-    }
-
-    /// One entity or zone as JSON (the shape update_entity / update_zone patch).
-    #[tool(annotations(read_only_hint = true))]
-    async fn get_object(&self, Parameters(p): Parameters<ObjectParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::GetObject(p), s).await
-    }
-
-    /// A tileset's tiles: columns and count (index = row * columns + column), solid tiles, animations, light tiles and its terrains (for paint_terrain). view_image shows it.
-    #[tool(annotations(read_only_hint = true))]
-    async fn tileset_legend(&self, Parameters(p): Parameters<TilesetParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::TilesetLegend(p), s).await
-    }
-
-    /// The image of a tileset or sprite sheet (PNG), with cell borders and indices drawn in by default.
-    #[tool(annotations(read_only_hint = true))]
-    async fn view_image(&self, Parameters(p): Parameters<ViewImageParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::ViewImage(p), s).await
-    }
-
-    /// A rendered picture (PNG) of a map region as the editor draws it, optionally with grid, collision overlay and zones.
-    #[tool(annotations(read_only_hint = true))]
-    async fn screenshot_map(&self, Parameters(p): Parameters<ScreenshotParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::ScreenshotMap(p), s).await
-    }
-
+    list_maps: ListMaps => ed.mcp_list_maps();
     /// A picture (PNG) of the whole editor window as the person sees it.
     #[tool(annotations(read_only_hint = true))]
-    async fn screenshot_editor(&self) -> R {
-        self.run(Call::ScreenshotEditor, String::new()).await
-    }
-
-    /// Creates a map (layers Ground, Detail, Overhead), saves it and opens it in the editor.
-    #[tool]
-    async fn create_map(&self, Parameters(p): Parameters<CreateMapParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::CreateMap(p), s).await
-    }
-
-    /// Sets single tiles of a layer ([x, y, index] cells; index -1 erases). One undo step.
-    #[tool]
-    async fn set_tiles(&self, Parameters(p): Parameters<SetTilesParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::SetTiles(p), s).await
-    }
-
-    /// Paints a block of tiles from text rows with a glyph legend (the format get_map prints); '.' leaves a cell unchanged.
-    #[tool]
-    async fn paint_grid(&self, Parameters(p): Parameters<PaintGridParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::PaintGrid(p), s).await
-    }
-
-    /// Fills a rectangle of a layer with one tile (index -1 erases).
-    #[tool]
-    async fn fill_rect(&self, Parameters(p): Parameters<FillRectParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::FillRect(p), s).await
-    }
-
-    /// Paints a terrain (auto-tiling: edges and corners pick themselves) over cells and / or a rect; erase removes it.
-    #[tool]
-    async fn paint_terrain(&self, Parameters(p): Parameters<PaintTerrainParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::PaintTerrain(p), s).await
-    }
-
-    /// Overrides collision for cells / a rect: "solid", "walkable" or back to "auto" (from the tiles).
-    #[tool]
-    async fn set_collision(&self, Parameters(p): Parameters<SetCollisionParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::SetCollision(p), s).await
-    }
-
-    /// Clears a rectangle: all layers' tiles, collision overrides and the entities standing there.
-    #[tool(annotations(destructive_hint = true))]
-    async fn clear_region(&self, Parameters(p): Parameters<RectParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::ClearRegion(p), s).await
-    }
-
-    /// Resizes a map (the top-left area is kept).
-    #[tool]
-    async fn resize_map(&self, Parameters(p): Parameters<ResizeParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::ResizeMap(p), s).await
-    }
-
-    /// Places a prop, character or item pickup on a tile; returns its uid and JSON.
-    #[tool]
-    async fn place_entity(&self, Parameters(p): Parameters<PlaceEntityParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::PlaceEntity(p), s).await
-    }
-
-    /// Changes a placed entity with a merge patch (name, tile_x / tile_y, facing, state, triggers, container, lock, shop, schedule, patrol, equipment, …).
-    #[tool(annotations(idempotent_hint = true))]
-    async fn update_entity(&self, Parameters(p): Parameters<UpdateParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::UpdateEntity(p), s).await
-    }
-
-    /// Removes a placed entity.
-    #[tool(annotations(destructive_hint = true))]
-    async fn remove_entity(&self, Parameters(p): Parameters<ObjectParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::RemoveEntity(p), s).await
-    }
-
-    /// Adds a zone (spawn point, portal, trigger area, spawner, transition, fishing spot) with optional triggers; returns its uid.
-    #[tool]
-    async fn add_zone(&self, Parameters(p): Parameters<AddZoneParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::AddZone(p), s).await
-    }
-
-    /// Changes a zone with a merge patch (name, x, y, w, h, kind, triggers, loot).
-    #[tool(annotations(idempotent_hint = true))]
-    async fn update_zone(&self, Parameters(p): Parameters<UpdateParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::UpdateZone(p), s).await
-    }
-
-    /// Removes a zone.
-    #[tool(annotations(destructive_hint = true))]
-    async fn remove_zone(&self, Parameters(p): Parameters<ObjectParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::RemoveZone(p), s).await
-    }
-
-    /// Connects two maps with a pair of transition zones (walking into one arrives at the other, keeping the position along it).
-    #[tool]
-    async fn link_maps(&self, Parameters(p): Parameters<LinkMapsParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::LinkMaps(p), s).await
-    }
-
-    /// Replaces the triggers of a map, a placed entity, a zone or a definition (dialogs, choices, quests, scripts…; events_reference has the shapes).
-    #[tool(annotations(idempotent_hint = true))]
-    async fn set_triggers(&self, Parameters(p): Parameters<TriggersParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::SetTriggers(p), s).await
-    }
-
-    /// Appends one trigger to a map, entity, zone or definition.
-    #[tool]
-    async fn add_trigger(&self, Parameters(p): Parameters<AddTriggerParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::AddTrigger(p), s).await
-    }
-
-    /// Changes a map's settings with a merge patch: background colour, music, lighting, fog of war, weather, parallax layers, edge links.
-    #[tool(annotations(idempotent_hint = true))]
-    async fn set_map_settings(&self, Parameters(p): Parameters<MapSettingsParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::SetMapSettings(p), s).await
-    }
-
-    /// Stamps a structure (a ready-made multi-tile piece: house, well, …) onto a map at a top-left tile.
-    #[tool]
-    async fn place_structure(&self, Parameters(p): Parameters<PlaceStructureParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::PlaceStructure(p), s).await
-    }
-
-    /// Makes a new structure from a map region: its tiles (all layers), collision and entities, ready for place_structure.
-    #[tool]
-    async fn capture_structure(&self, Parameters(p): Parameters<CaptureStructureParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::CaptureStructure(p), s).await
-    }
-
-    /// Renames a definition or map and every reference to it (maps, definitions, scripts).
-    #[tool]
-    async fn rename(&self, Parameters(p): Parameters<RenameParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::Rename(p), s).await
-    }
-
-    /// Lists the definitions of one kind: id, name and key facts, one per line (paged).
-    #[tool(annotations(read_only_hint = true))]
-    async fn list_defs(&self, Parameters(p): Parameters<ListDefsParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::ListDefs(p), s).await
-    }
-
-    /// One definition as JSON (the shape upsert_def takes).
-    #[tool(annotations(read_only_hint = true))]
-    async fn get_def(&self, Parameters(p): Parameters<DefParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::GetDef(p), s).await
-    }
-
-    /// A complete, valid definition of a kind to fill in and pass to upsert_def, with notes on its fields.
-    #[tool(annotations(read_only_hint = true))]
-    async fn def_template(&self, Parameters(p): Parameters<DefTemplateParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::DefTemplate(p), s).await
-    }
-
-    /// Creates or replaces a definition (or merges fields into it); checks the ids and files it refers to, then saves.
-    #[tool(annotations(idempotent_hint = true))]
-    async fn upsert_def(&self, Parameters(p): Parameters<UpsertDefParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::UpsertDef(p), s).await
-    }
-
-    /// Deletes a definition unless something still uses it (then it lists the users; `force` deletes anyway). Files are kept.
-    #[tool(annotations(destructive_hint = true))]
-    async fn delete_def(&self, Parameters(p): Parameters<DeleteDefParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::DeleteDef(p), s).await
-    }
-
-    /// The event system's JSON shapes: trigger events per owner, every condition and every action with example values.
-    #[tool(annotations(read_only_hint = true))]
-    async fn events_reference(&self, Parameters(p): Parameters<EventsRefParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::EventsReference(p), s).await
-    }
-
+    screenshot_editor: ScreenshotEditor => Ok(Reply::Shot(ShotSpec { rect: None, zoom: None, grid: None, collision: None, zones: None, text: "The editor window.".into() }));
     /// The project's script files with the functions each defines.
     #[tool(annotations(read_only_hint = true))]
-    async fn list_scripts(&self) -> R {
-        self.run(Call::ListScripts, String::new()).await
-    }
-
+    list_scripts: ListScripts => ed.mcp_list_scripts();
+}
+with_params {
+    /// Undoes the last edit(s) of the open map (yours or the person's). The map is then unsaved: call save.
+    #[tool]
+    undo: Undo(p: UndoParams) => ed.mcp_undo(p, false), summary = String::new();
+    /// Redoes undone edit(s) of the open map.
+    #[tool]
+    redo: Redo(p: UndoParams) => ed.mcp_undo(p, true), summary = String::new();
+    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, skills, progression, dialog_portraits, …
+    #[tool(annotations(idempotent_hint = true))]
+    set_project_config: SetProjectConfig(p: PatchParams) => ed.mcp_set_project_config(p);
+    /// A map region as text: one grid per layer with a legend (glyph = tileset#index, terrain name, solid), the collision grid, and the entities and zones there with their uids. At most 80x50 tiles per call.
+    #[tool(annotations(read_only_hint = true))]
+    get_map: GetMap(p: GetMapParams) => ed.mcp_get_map(p);
+    /// One entity or zone as JSON (the shape update_entity / update_zone patch).
+    #[tool(annotations(read_only_hint = true))]
+    get_object: GetObject(p: ObjectParams) => ed.mcp_get_object(p);
+    /// A tileset's tiles: columns and count (index = row * columns + column), solid tiles, animations, light tiles and its terrains (for paint_terrain). view_image shows it.
+    #[tool(annotations(read_only_hint = true))]
+    tileset_legend: TilesetLegend(p: TilesetParams) => ed.mcp_tileset_legend(p);
+    /// The image of a tileset or sprite sheet (PNG), with cell borders and indices drawn in by default.
+    #[tool(annotations(read_only_hint = true))]
+    view_image: ViewImage(p: ViewImageParams) => ed.mcp_view_image(p);
+    /// A rendered picture (PNG) of a map region as the editor draws it, optionally with grid, collision overlay and zones.
+    #[tool(annotations(read_only_hint = true))]
+    screenshot_map: ScreenshotMap(p: ScreenshotParams) => ed.mcp_screenshot_map(p).map(Reply::Shot);
+    /// Creates a map (layers Ground, Detail, Overhead), saves it and opens it in the editor.
+    #[tool]
+    create_map: CreateMap(p: CreateMapParams) => ed.mcp_create_map(p);
+    /// Sets single tiles of a layer ([x, y, index] cells; index -1 erases). One undo step.
+    #[tool]
+    set_tiles: SetTiles(p: SetTilesParams) => ed.mcp_set_tiles(p);
+    /// Paints a block of tiles from text rows with a glyph legend (the format get_map prints); '.' leaves a cell unchanged.
+    #[tool]
+    paint_grid: PaintGrid(p: PaintGridParams) => ed.mcp_paint_grid(p);
+    /// Fills a rectangle of a layer with one tile (index -1 erases).
+    #[tool]
+    fill_rect: FillRect(p: FillRectParams) => ed.mcp_fill_rect(p);
+    /// Paints a terrain (auto-tiling: edges and corners pick themselves) over cells and / or a rect; erase removes it.
+    #[tool]
+    paint_terrain: PaintTerrain(p: PaintTerrainParams) => ed.mcp_paint_terrain(p);
+    /// Overrides collision for cells / a rect: "solid", "walkable" or back to "auto" (from the tiles).
+    #[tool]
+    set_collision: SetCollision(p: SetCollisionParams) => ed.mcp_set_collision(p);
+    /// Clears a rectangle: all layers' tiles, collision overrides and the entities standing there.
+    #[tool(annotations(destructive_hint = true))]
+    clear_region: ClearRegion(p: RectParams) => ed.mcp_clear_region(p);
+    /// Resizes a map (the top-left area is kept).
+    #[tool]
+    resize_map: ResizeMap(p: ResizeParams) => ed.mcp_resize_map(p);
+    /// Places a prop, character or item pickup on a tile; returns its uid and JSON.
+    #[tool]
+    place_entity: PlaceEntity(p: PlaceEntityParams) => ed.mcp_place_entity(p);
+    /// Changes a placed entity with a merge patch (name, tile_x / tile_y, facing, state, triggers, container, lock, shop, schedule, patrol, equipment, …).
+    #[tool(annotations(idempotent_hint = true))]
+    update_entity: UpdateEntity(p: UpdateParams) => ed.mcp_update_entity(p);
+    /// Removes a placed entity.
+    #[tool(annotations(destructive_hint = true))]
+    remove_entity: RemoveEntity(p: ObjectParams) => ed.mcp_remove_entity(p);
+    /// Adds a zone (spawn point, portal, trigger area, spawner, transition, fishing spot) with optional triggers; returns its uid.
+    #[tool]
+    add_zone: AddZone(p: AddZoneParams) => ed.mcp_add_zone(p);
+    /// Changes a zone with a merge patch (name, x, y, w, h, kind, triggers, loot).
+    #[tool(annotations(idempotent_hint = true))]
+    update_zone: UpdateZone(p: UpdateParams) => ed.mcp_update_zone(p);
+    /// Removes a zone.
+    #[tool(annotations(destructive_hint = true))]
+    remove_zone: RemoveZone(p: ObjectParams) => ed.mcp_remove_zone(p);
+    /// Connects two maps with a pair of transition zones (walking into one arrives at the other, keeping the position along it).
+    #[tool]
+    link_maps: LinkMaps(p: LinkMapsParams) => ed.mcp_link_maps(p);
+    /// Replaces the triggers of a map, a placed entity, a zone or a definition (dialogs, choices, quests, scripts…; events_reference has the shapes).
+    #[tool(annotations(idempotent_hint = true))]
+    set_triggers: SetTriggers(p: TriggersParams) => ed.mcp_set_triggers(p);
+    /// Appends one trigger to a map, entity, zone or definition.
+    #[tool]
+    add_trigger: AddTrigger(p: AddTriggerParams) => ed.mcp_add_trigger(p);
+    /// Changes a map's settings with a merge patch: background colour, music, lighting, fog of war, weather, parallax layers, edge links.
+    #[tool(annotations(idempotent_hint = true))]
+    set_map_settings: SetMapSettings(p: MapSettingsParams) => ed.mcp_set_map_settings(p);
+    /// Stamps a structure (a ready-made multi-tile piece: house, well, …) onto a map at a top-left tile.
+    #[tool]
+    place_structure: PlaceStructure(p: PlaceStructureParams) => ed.mcp_place_structure(p);
+    /// Makes a new structure from a map region: its tiles (all layers), collision and entities, ready for place_structure.
+    #[tool]
+    capture_structure: CaptureStructure(p: CaptureStructureParams) => ed.mcp_capture_structure(p);
+    /// Renames a definition or map and every reference to it (maps, definitions, scripts).
+    #[tool]
+    rename: Rename(p: RenameParams) => ed.mcp_rename(p);
+    /// Lists the definitions of one kind: id, name and key facts, one per line (paged).
+    #[tool(annotations(read_only_hint = true))]
+    list_defs: ListDefs(p: ListDefsParams) => ed.mcp_list_defs(p);
+    /// One definition as JSON (the shape upsert_def takes).
+    #[tool(annotations(read_only_hint = true))]
+    get_def: GetDef(p: DefParams) => ed.mcp_get_def(p);
+    /// A complete, valid definition of a kind to fill in and pass to upsert_def, with notes on its fields.
+    #[tool(annotations(read_only_hint = true))]
+    def_template: DefTemplate(p: DefTemplateParams) => ed.mcp_def_template(p);
+    /// Creates or replaces a definition (or merges fields into it); checks the ids and files it refers to, then saves.
+    #[tool(annotations(idempotent_hint = true))]
+    upsert_def: UpsertDef(p: UpsertDefParams) => ed.mcp_upsert_def(p);
+    /// Deletes a definition unless something still uses it (then it lists the users; `force` deletes anyway). Files are kept.
+    #[tool(annotations(destructive_hint = true))]
+    delete_def: DeleteDef(p: DeleteDefParams) => ed.mcp_delete_def(p);
+    /// The event system's JSON shapes: trigger events per owner, every condition and every action with example values.
+    #[tool(annotations(read_only_hint = true))]
+    events_reference: EventsReference(p: EventsRefParams) => ed.mcp_events_reference(p);
     /// A script file's text (or a line range).
     #[tool(annotations(read_only_hint = true))]
-    async fn read_script(&self, Parameters(p): Parameters<ReadScriptParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::ReadScript(p), s).await
-    }
-
+    read_script: ReadScript(p: ReadScriptParams) => ed.mcp_read_script(p);
     /// Writes a whole script file (Rhai), then checks it: compile errors and unknown ids are reported.
     #[tool(annotations(destructive_hint = true))]
-    async fn write_script(&self, Parameters(p): Parameters<WriteScriptParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::WriteScript(p), s).await
-    }
-
+    write_script: WriteScript(p: WriteScriptParams) => ed.mcp_write_script(p);
     /// Checks the scripts: compile errors, unknown item / map / quest / … ids, duplicate functions.
     #[tool(annotations(read_only_hint = true))]
-    async fn check_script(&self, Parameters(p): Parameters<CheckScriptParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::CheckScript(p), s).await
-    }
-
+    check_script: CheckScript(p: CheckScriptParams) => ed.mcp_check_script(p);
     /// The scripting API: every engine function with its parameters and a description, plus the project's own functions.
     #[tool(annotations(read_only_hint = true))]
-    async fn scripting_api(&self, Parameters(p): Parameters<FilterParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::ScriptingApi(p), s).await
-    }
-
+    scripting_api: ScriptingApi(p: FilterParams) => ed.mcp_scripting_api(p);
     /// Adds a language to the project and writes lang/<code>.ron with every text to translate (existing translations are kept).
     #[tool]
-    async fn translation_template(&self, Parameters(p): Parameters<LangParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::TranslationTemplate(p), s).await
-    }
-
+    translation_template: TranslationTemplate(p: LangParams) => ed.mcp_translation_template(p);
     /// The texts of a translation file (original → translation), optionally only the untranslated ones.
     #[tool(annotations(read_only_hint = true))]
-    async fn read_translation(&self, Parameters(p): Parameters<ReadTranslationParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::ReadTranslation(p), s).await
-    }
-
+    read_translation: ReadTranslation(p: ReadTranslationParams) => ed.mcp_read_translation(p);
     /// Writes translations into lang/<code>.ron (merged; the language is added to the project if new).
     #[tool(annotations(idempotent_hint = true))]
-    async fn write_translation(&self, Parameters(p): Parameters<WriteTranslationParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::WriteTranslation(p), s).await
-    }
-
+    write_translation: WriteTranslation(p: WriteTranslationParams) => ed.mcp_write_translation(p);
     /// Saves everything and runs the game with an autoplay script (keys, clicks, `status`, `shot NAME` screenshots); returns the game's output lines and the screenshots. The game opens a window on the person's screen.
     #[tool]
-    async fn play_test(&self, Parameters(p): Parameters<PlayParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::PlayTest(p), s).await
-    }
-
+    play_test: PlayTest(p: PlayParams) => super::play::plan(ed, p).map(|pl| Reply::PlayPlan(Box::new(pl)));
     /// Assets in the shared library (ready-made tiles, props, characters, items, sounds, structures…) with what each needs.
     #[tool(annotations(read_only_hint = true))]
-    async fn library_list(&self, Parameters(p): Parameters<LibraryListParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::LibraryList(p), s).await
-    }
-
+    library_list: LibraryList(p: LibraryListParams) => ed.mcp_library_list(p);
     /// One library asset as JSON with its dependencies.
     #[tool(annotations(read_only_hint = true))]
-    async fn library_info(&self, Parameters(p): Parameters<DefParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::LibraryInfo(p), s).await
-    }
-
+    library_info: LibraryInfo(p: DefParams) => ed.mcp_library_info(p);
     /// Copies library assets (and everything they need: sheets, sounds, script functions) into the project.
     #[tool]
-    async fn library_add(&self, Parameters(p): Parameters<LibraryAddParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::LibraryAdd(p), s).await
-    }
-
+    library_add: LibraryAdd(p: LibraryAddParams) => ed.mcp_library_add(p);
     /// Sends project assets (and everything they need) to the shared asset library; with replace, the library's versions of the same ids are updated.
     #[tool]
-    async fn library_send(&self, Parameters(p): Parameters<LibrarySendParams>) -> R {
-        let s = summary(&p);
-        self.run(Call::LibrarySend(p), s).await
-    }
-
+    library_send: LibrarySend(p: LibrarySendParams) => ed.mcp_library_send(p);
     /// Writes an image (PNG) or sound (WAV / Ogg Vorbis) file into the project (sprites/, tilesets/, sounds/) and reloads the art; then point a definition at it with upsert_def.
     #[tool]
-    async fn write_asset(&self, Parameters(p): Parameters<WriteAssetParams>) -> R {
-        let s = format!("{} ({})", p.path, if p.base64.is_some() { "base64" } else { "copy" });
-        self.run(Call::WriteAsset(p), s).await
-    }
+    write_asset: WriteAsset(p: WriteAssetParams) => ed.mcp_write_asset(p), summary = format!("{} ({})", p.path, if p.base64.is_some() { "base64" } else { "copy" });
 }
+}
+
 
 // ---------------------------------------------------------------- prompts
 

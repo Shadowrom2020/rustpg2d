@@ -4,9 +4,10 @@
 
 use macroquad::prelude::*;
 
-use super::Game;
-use crate::entity::{EntityKind, Facing, PatrolRoute};
-use crate::path::{find_path, TilePos};
+use super::occupancy::{Occupancy, OCC_CHAR, OCC_PROP};
+use super::{Game, Mover};
+use crate::entity::{Facing, PatrolRoute};
+use crate::path::{find_path, find_path_ex, Search, TilePos};
 use crate::state::PatrolState;
 
 /// A* budget per waypoint (routes are short; this keeps big maps cheap).
@@ -26,6 +27,8 @@ pub(super) struct Patrol {
     pub back: bool,
     pub wait: f32,
     walker: Walker,
+    /// The waypoint an "unreachable" warning was logged for (once, not every round).
+    warned: Option<usize>,
 }
 
 /// A character on its way to a tile: the remaining path and how long it has been blocked.
@@ -37,6 +40,21 @@ pub(super) struct Walker {
     /// It was blocked on its way: plan around the tiles other characters stand on (two
     /// characters waiting for each other in a doorway find another way).
     avoid: bool,
+    /// It already planned again while blocked here: once per blockage, then it gives up.
+    replanned: bool,
+}
+
+impl Walker {
+    /// A step that got nowhere: true once it has been blocked for [`SKIP_AFTER`] seconds.
+    pub fn blocked(&mut self, dt: f32) -> bool {
+        self.stuck += dt;
+        self.stuck > SKIP_AFTER
+    }
+
+    /// A step that got somewhere.
+    pub fn moved(&mut self) {
+        self.stuck = 0.0;
+    }
 }
 
 /// What a step of [`Game::walk_to_tile`] came to.
@@ -84,15 +102,14 @@ impl Patrol {
 }
 
 impl Game {
-    /// Feet position a character aims for on a tile.
+    /// Feet position a character aims for on a tile ([`crate::grid::feet_spot`]).
     pub(super) fn tile_spot(&self, t: TilePos) -> Vec2 {
-        let ts = self.ts();
-        vec2((t.0 as f32 + 0.5) * ts, (t.1 as f32 + 1.0) * ts - 2.0)
+        crate::grid::feet_spot(t, self.ts())
     }
 
+    /// The tile under feet at `p` ([`crate::grid::feet_tile`]).
     pub(super) fn tile_of(&self, p: Vec2) -> TilePos {
-        let ts = self.ts();
-        ((p.x / ts).floor() as i32, ((p.y - 1.0) / ts).floor() as i32)
+        crate::grid::feet_tile(p, self.ts())
     }
 
     /// Moves a patrolling character. Returns false if it doesn't patrol (other behaviours apply).
@@ -123,12 +140,16 @@ impl Game {
         match walked {
             Walk::Walking => {}
             Walk::Arrived => {
-                // Pause, then head for the next waypoint.
+                // Pause, then head for the next waypoint; this is home now (wandering, leashes).
+                e.home = e.body.pos;
                 p.wait = p.route.pause.max(0.0);
                 p.advance();
             }
             Walk::Unreachable => {
-                eprintln!("[game] {} can't reach patrol point {goal:?}; skipping it", e.def);
+                if p.warned != Some(p.index) {
+                    eprintln!("[game] {} can't reach patrol point {goal:?}; skipping it", e.def);
+                    p.warned = Some(p.index);
+                }
                 p.wait = 1.0;
                 p.advance();
             }
@@ -145,18 +166,29 @@ impl Game {
         let here = self.tile_of(pos);
         // Plan the way to the goal when needed.
         if w.path.is_empty() {
-            // Around solid tiles and props (statues, wells, closed gates); characters move, so
-            // they are waited for instead.
-            let props = self.solid_entity_tiles(|e| e.kind == EntityKind::Prop);
-            let me = self.loaded.entities[i].uid;
-            let people = if w.avoid { self.solid_entity_tiles(|e| e.kind == EntityKind::Character && e.uid != me) } else { Default::default() };
-            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (props.contains(&(x, y)) || people.contains(&(x, y))));
-            let planned = find_path(here, goal, |t| t == goal, blocked, MAX_NODES).or_else(|| {
-                // Hemmed in by people: plan as if they weren't there (they move on).
-                let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && props.contains(&(x, y)));
-                find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
-            });
             let at_goal = pos.distance(self.tile_spot(goal)) < 2.0;
+            if here == goal && at_goal {
+                // Already there (a companion at its spot every frame): nothing to plan.
+                self.loaded.entities[i].body.moving = false;
+                *w = Walker::default();
+                return Walk::Arrived;
+            }
+            // Around solid tiles and props (statues, wells, closed gates); characters move, so
+            // they are waited for instead (`avoid`: planned round too, except the walker itself).
+            let occ = &self.loaded.occupancy;
+            let mine: Vec<TilePos> = Occupancy::covered(self.loaded.entities[i].body.rect(), self.ts()).collect();
+            let people = |x: i32, y: i32| w.avoid && occ.has(x, y, OCC_CHAR) && !mine.contains(&(x, y));
+            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (occ.has(x, y, OCC_PROP) || people(x, y)));
+            let planned = match find_path_ex(here, goal, |t| t == goal, blocked, MAX_NODES) {
+                Search::Found(p) => Some(p),
+                // Hemmed in by people: plan as if they weren't there (they move on). Out of
+                // budget: the goal is far or walled in, another search would run out too.
+                Search::NoRoute if w.avoid => {
+                    let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && occ.has(x, y, OCC_PROP));
+                    find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
+                }
+                Search::NoRoute | Search::OutOfBudget => None,
+            };
             match planned {
                 Some(path) if path.is_empty() && at_goal => {
                     self.loaded.entities[i].body.moving = false;
@@ -178,28 +210,30 @@ impl Game {
         let to = target - pos;
         let step = to.clamp_length_max(speed * dt);
         let (body, uid) = (e.body.clone(), e.uid);
-        let new_pos = if step.length() > 0.0 { self.try_move(&body, step, Some(uid), true) } else { pos };
+        let new_pos = if step.length() > 0.0 { self.try_move(&body, step, Mover::Npc(uid), true) } else { pos };
         let e = &mut self.loaded.entities[i];
         e.body.facing = Facing::from_vec(step.x, step.y).unwrap_or(e.body.facing);
         e.body.pos = new_pos;
         e.body.moving = new_pos != pos;
-        e.body.anim += dt;
-        e.home = new_pos;
+        e.body.animate(dt);
         if new_pos.distance(target) < 1.0 {
             w.path.remove(0);
             w.stuck = 0.0;
+            w.replanned = false;
         } else if new_pos.distance(pos) < 0.01 {
-            // Blocked (by the player, another character, a corner): wait, re-plan, give up.
+            // Blocked (by the player, another character, a corner): wait, re-plan once, give up.
             w.stuck += dt;
             if w.stuck > SKIP_AFTER {
                 *w = Walker { avoid: true, ..Walker::default() };
                 return Walk::GaveUp;
-            } else if w.stuck > REPLAN_AFTER && w.path.len() > 1 {
+            } else if w.stuck > REPLAN_AFTER && w.path.len() > 1 && !w.replanned {
                 w.path.clear();
                 w.avoid = true;
+                w.replanned = true;
             }
         } else {
             w.stuck = 0.0;
+            w.replanned = false;
         }
         Walk::Walking
     }

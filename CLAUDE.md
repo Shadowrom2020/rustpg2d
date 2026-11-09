@@ -38,6 +38,10 @@ before merging, commit messages — are in AGENTS.md and apply in full:
 
 ## Workspace map
 
+`Documentation/architecture.md` explains how these pieces work together (the runtime's frame,
+the data model, formats and compatibility rules, caveats); keep it current when the architecture
+changes. The modules:
+
 ```
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: tilesets, sheets, items, props (+states, container, lock),
@@ -123,7 +127,7 @@ crates/editor/src/      editor binary
   main.rs               loop + RUSTPG2D_EDITOR_SCRIPT command runner
   mcp/                  the AI agent server (Assets › AI agent server…): server.rs (rmcp Streamable HTTP on
                         127.0.0.1, tokio thread, resources, prompts), tools.rs (the catalogue: param structs +
-                        `#[tool]`s → Call), exec.rs / exec_maps.rs / exec_defs.rs (execution on the main thread
+                        one `mcp_tools!` block = description, name, `Call` variant and what the editor runs), exec.rs / exec_maps.rs / exec_defs.rs (execution on the main thread
                         between frames, `mcp_after_write` saves), grid.rs (maps as text), patch.rs (merge
                         patches), play.rs (play-tests in the game), watcher.rs (project files changed on disk),
                         ui.rs (the window); files.rs EditorSettings = <config>/editor.ron
@@ -167,8 +171,13 @@ example_project/        the example game, plain project files (edit them through
   - New variants of `Action`, `TriggerOn`, `Cond`, `ZoneKind`, `OnUnlock` are **appended**
     at the end (map files store variant indices).
   - New fields get `#[serde(default)]` (or `default = "fn"`). New map object fields go in the
-    RON `Meta` in `map/io.rs`; never edit the frozen `EntityV1` there.
+    RON `Meta` in `map/io.rs`; never edit the frozen `EntityV1` there. `TileLayer` and `Chunk`
+    (`map/mod.rs`) are stored with postcard (by position, no defaults) and are frozen too: a new
+    layer property goes into `Meta`, or the format version is bumped with a reader for the old one.
   - Save games are `WorldState` RON: every new field needs a serde default.
+  - `crates/engine/tests/fixtures/` holds files of earlier versions (0.9.0 defs, old maps, a v1
+    map, saves); `cargo test -p rustpg2d-engine --test compat` must keep loading them. When a format
+    changes, add the previous release's file as a fixture (its README says how); never edit one.
 - Tiles are always 32 px; sizes in code are in pixels at that size (`Game::u()` = ts/16 scales
   effects). Rhai reserves `var`, hence `get_var` / `set_var`.
 - Game UI (macroquad's default font, ProggyClean) has Latin-1 only (ä, ö, ü, ß, é, · work): no `∞`, `▲`, `✔`, `–`, `“` in `draw_text`.
@@ -187,13 +196,17 @@ example_project/        the example game, plain project files (edit them through
   `templates()`), execution in `runtime/mod.rs` (`execute`) or `Condition::eval` /
   `runner::conditions_met`, editor fields in `widgets.rs` (action fields / `conditions_ui`),
   `refactor.rs` if it references ids, and a Rhai function in `script.rs` if useful.
-- **New script function with an id argument** (item, map, sound, quest, …): add it to
-  `script_refs::API_IDS` so renames and the script check cover it, and to the `API` table in
-  `editor/src/script_editor.rs` (parameters, argument kinds, description) for completion. Note `go` and a few
-  other words are reserved in Rhai.
-- **New definition fields:** update every struct literal (`editor/database.rs`, `editor/wizard.rs`, tests in
-  `library.rs` / `refactor.rs`), the editor form in `database.rs`, renames in `refactor.rs`,
-  and dependencies in `refs_of_*` so library export carries what it needs.
+- **New script function:** register it in `script.rs` and add it to the `API` table in
+  `engine/src/script_api.rs` (parameters with their `Arg` kinds, description) — that one table
+  drives the editor's completion, the agent server's API resource, renames and the script check
+  (id arguments), translation templates (text arguments) and the flag / variable collectors; a
+  test fails until `Documentation/scripting.md` describes it too. Note `go` and a few other words
+  are reserved in Rhai.
+- **New definition fields:** `TilesetDef`, `SheetDef`, `ItemDef`, `PropDef` and `CharacterDef`
+  implement `Default` by hand (= the serde defaults; the test `defaults_match_the_file_format`
+  pins it) and `fresh(id)` (the editor's "+ New" value): add the field to both, and literals
+  elsewhere use `..Default::default()`. Then the editor form in `database.rs`, renames in
+  `refactor.rs`, and dependencies in `refs_of_*` so library export carries what it needs.
 - **New defs file:** `project.rs` (`DEFS`, load, save), `release.rs` (exported files),
   `library.rs` (`Database` literals).
 - **Player-facing text:** run it through `WorldState::expand_text` (`{player}`,
@@ -230,11 +243,16 @@ Use the session scratchpad for everything temporary: copy `example_project` (min
 there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<scratch>/settings` (the game's Options menu saves there), and for the editor
 `RUSTPG2D_EDITOR_CONFIG=<scratch>/cfg RUSTPG2D_LIBRARY=<scratch>/lib`.
 
+- **Smoke run:** `scripts/ci/smoke.sh` (after `cargo build -p rustpg2d-game -p rustpg2d-editor`
+  and `cargo build -p rustpg2d-editor --example mcp_smoke`) runs the game and the editor on a scratch
+  copy of the example project and checks `status` fields; CI runs it under Xvfb on every pull
+  request (*Runtime smoke*). `WORK=<dir>` keeps its logs, `PORT=` picks the agent server's port.
 - **Game:** `RUSTPG2D_AUTOPLAY="wait 1; press e; hold right 0.5; rclick 6 3; type Name; shop buy 0; close; status; shot /path/a.png; quit" target/debug/rustpg2d-game <project> [--no-title] [--map M --spawn S | --pos X,Y]` (`--pos` is in pixels: tile × 32 + 16).
   Commands: `wait`, `press` (`press shift+g` holds Shift), `hold`, `pad BUTTON[+BUTTON]` / `padhold BUTTON SECS` (gamepad: `a b x y lb rb lt rt select start ls rs up down left right`; `status` prints `pad=`, `attacking=` (attack cooldown running) and `shake=` (seconds left, `off` when disabled); `weather=` kind:intensity(map|set), particles, rain sound volume); `schedule=` name:stop-time[>map](walking|inside|elsewhere|stopped)[:sit|:lie]@x,y per scheduled character; `pose=` sit|lie|stand#uid while on furniture; `climbing=` on a ladder tile; `gather=` def:hits/needed, `crops=` seed:stage/stages|ripe@x,y, `activities=` name:kind@x,y (characters at work now), `parallax=` NbehindMabove (layers drawn), `lang=` the current language code (start with `--lang CODE`), `music_loop=` whole|stretched|plain|- (gapless music), `sounds=` the last six sound effects started (also when muted), `props=` def:state@x,y (props not in their first state), `day=`; `aim=heal:<name>` while choosing whom to heal (`-` otherwise); `achievements=` unlocked ids (menu page `achievements`); `companions=` name:hp/max[:down][:defend|:passive][:stay][:fighting]@x,y, `orders=` who:choice while the orders menu (G) is open, `compwin=` name[bag] while a companion window is open (`slot` / `slotdrag` then take `gear`, `bag`, `player`), `click`/`rclick X Y` (tiles), `clickenemy`, `talkto NAME` (right-click a named character where it stands), `slot`,
   `slotdrag` (`slotdrag player 1 out` drags a stack out of the window), `shop buy|sell N`, `type`, `close` (window close button), `settime H` / `settime +H` (H hours later: days pass, props regrow), `skillpoint|learn|cast|call ID` (call runs a script function), `console LINE` (a developer console line; the game needs `--dev`, which editor play-tests pass: hot reload + F4 console; `status` starts with `dev=off` or `dev=on console=open|closed reloads=N reload_error=B`), `opt ROW prev|next|row` (Options page arrows), `hud window|map` (the character window button / map), `wintab character|skills|spells` (click a tab of the open character window; keys `c`, `i`, `k`, `l`, `tab` too), `press h` (hide / show the HUD; status prints `ui_hidden=`; `menu=` the open menu page, e.g. `defeated` after a death, and `autosave=` none / pending / saved; `cutscene=` the playing cut-scene; start with `--cutscene FN` to preview one without the map's Map enter triggers), `minigame hit|miss|bite` (press E when the lockpick marker is in / far from the sweet spot, or when a fish bites; `status` prints `minigame=`), `craft K` (Make button of recipe row K in the open crafting window; `status` prints `crafting=`), `mapbtn close|zoomin|zoomout|center`, `drag X1 Y1 X2 Y2` / `wheel DY` (screen pixels), `status`,
   `spawners`, `shot`, `quit`. `status` prints player, creator, quests, shop, map, tile, hp,
-  vars, inventory, flags. Load a crafted save with `press f9` from `<project>/saves/quick.ron`
+  vars, inventory, flags; it starts with `dev=…` and `fps= frame_ms=avg/worst update_ms= draw_ms=
+  astar=searches/nodes` (since the previous `status`; `RUSTPG2D_PERF=1` logs a `[perf]` line per second). Load a crafted save with `press f9` from `<project>/saves/quick.ron`
   (a minimal `WorldState` RON) to start in a specific situation; loading never fires *Map enter*
   triggers, so a crafted save starts quietly.
 - **Editor:** `RUSTPG2D_EDITOR_SCRIPT="wait 1; open village; select named tilda; mode db; tab quests 1; shot /path/b.png; quit" target/debug/rustpg2d-editor <project>`.
@@ -307,6 +325,17 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   only completes the text, the second closes it.
 
 ## Pitfalls seen before
+
+- Collision and planning read the per-frame occupancy grid (`runtime/occupancy.rs`, rebuilt at
+  the start of `update` and when a map is entered): code that pushes an entity or sets
+  `body.pos` directly by more than a tile (spawns, teleports, standing up) calls `occupy(i)`;
+  steps through `try_move` need nothing.
+- Pixel ↔ tile maths goes through `grid.rs` (`feet_tile`, `feet_spot`, `snap_feet`,
+  `tiles_of_rect`, `line_tiles`); don't write `/ ts` with a home-made offset.
+- In the script API table (`engine/src/script_api.rs`) `Arg::Line` marks a line players read
+  (collected for translation, shown translated); `Arg::Text` is any other string (zone, order,
+  mood names). Picking the wrong one puts zone names into translation templates or hides dialogs
+  from them.
 
 - egui refuses textures wider or taller than 2048 px (the editor shrinks them with
   `widgets::color_image`): keep generated sheets under that, e.g. `items.png` is full at 61

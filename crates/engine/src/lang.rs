@@ -211,8 +211,11 @@ pub fn tr(text: &str) -> String {
 }
 
 /// A runtime text (menus, HUD, messages) in the current language.
-pub fn tr_ui(text: &str) -> String {
-    CURRENT.with(|c| c.borrow().as_ref().and_then(|t| t.ui(text))).unwrap_or_else(|| text.to_string())
+pub fn tr_ui(text: &str) -> std::borrow::Cow<'_, str> {
+    match CURRENT.with(|c| c.borrow().as_ref().and_then(|t| t.ui(text))) {
+        Some(t) => std::borrow::Cow::Owned(t),
+        None => std::borrow::Cow::Borrowed(text), // (English, or no translation: nothing copied)
+    }
 }
 
 /// Reads `lang/<code>.ron` of a project (None if it has none or it can't be read).
@@ -254,8 +257,9 @@ pub fn system_language() -> Option<String> {
 }
 
 /// The database with names and descriptions in the current language (the game keeps the
-/// original to switch back): items, props (and their states' names), characters, quests and
-/// their stages' texts, skills, spells, recipes, achievements.
+/// original to switch back): items, props, characters, quests and their stages' texts, skills,
+/// spells, achievements. Texts inside triggers, locks and containers are translated where they
+/// are shown (`WorldState::expand_text`, `tr`).
 pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
     let mut d = db.clone();
     if current().is_none() {
@@ -295,6 +299,7 @@ pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
         t(&mut a.name);
         t(&mut a.description);
     }
+    d.reindex();
     d
 }
 
@@ -312,25 +317,19 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         }
     };
     fn actions(list: &[Action], add: &mut dyn FnMut(&str)) {
-        for a in list {
-            match a {
-                Action::Dialog { speaker, text } => {
-                    add(speaker);
-                    add(text);
-                }
-                Action::Choice { speaker, text, options, .. } => {
-                    add(speaker);
-                    add(text);
-                    options.iter().for_each(|o| add(o));
-                }
-                Action::OpenCrafting { title, .. } => add(title),
-                Action::If { then, otherwise, .. } => {
-                    actions(then, add);
-                    actions(otherwise, add);
-                }
-                _ => {}
+        crate::events::walk_actions(list, &mut |a| match a {
+            Action::Dialog { speaker, text } => {
+                add(speaker);
+                add(text);
             }
-        }
+            Action::Choice { speaker, text, options, .. } => {
+                add(speaker);
+                add(text);
+                options.iter().for_each(|o| add(o));
+            }
+            Action::OpenCrafting { title, .. } => add(title),
+            _ => {}
+        });
     }
     let triggers = |list: &[Trigger], add: &mut dyn FnMut(&str)| {
         for t in list {
@@ -343,15 +342,21 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for i in &db.items {
         add(&i.name);
         add(&i.description);
-        triggers(&i.on_use, &mut add);
     }
+    let lock_texts = |lock: Option<&crate::defs::LockSpec>, container: Option<&crate::defs::ContainerSpec>, add: &mut dyn FnMut(&str)| {
+        if let Some(l) = lock {
+            add(&l.locked_text);
+            add(&l.unlock_text);
+        }
+        if let Some(c) = container {
+            add(&c.locked_text);
+        }
+    };
     for p in &db.props {
         add(&p.name);
-        triggers(&p.triggers, &mut add);
     }
     for c in &db.characters {
         add(&c.name);
-        triggers(&c.triggers, &mut add);
     }
     for q in &db.quests {
         add(&q.title);
@@ -370,21 +375,21 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         add(&a.name);
         add(&a.description);
     }
-    for name in project.list_maps() {
-        let Ok(m) = project.load_map(&name) else { continue };
-        triggers(&m.triggers, &mut add);
-        for e in &m.entities {
-            triggers(&e.triggers, &mut add);
+    // Every trigger of the definitions and the maps, and the lock / container texts of props and
+    // placed entities.
+    project.for_each_trigger(&mut |site, ts| {
+        match site {
+            crate::events::TriggerSite::Prop(p) => lock_texts(p.lock.as_ref(), p.container.as_ref(), &mut add),
+            crate::events::TriggerSite::Entity { entity, .. } => lock_texts(entity.lock.as_ref(), entity.container.as_ref(), &mut add),
+            _ => {}
         }
-        for z in &m.zones {
-            triggers(&z.triggers, &mut add);
-        }
-    }
+        triggers(ts, &mut add);
+    });
     for f in crate::sys::files_in(&project.scripts_dir()).unwrap_or_default() {
         let Ok(src) = crate::sys::read_to_string(&f) else { continue };
         for a in crate::script_refs::string_args(&src) {
-            // say(text) / say(speaker, text) / choice(text, [options], var): not choice's variable.
-            if a.func == "say" || (a.func == "choice" && a.arg == 0) {
+            // say(text) / say(speaker, text) / choice(text, [options], var): the text arguments.
+            if crate::script_api::is_text_arg(&a.func, a.arg) {
                 add(&a.value);
             }
         }

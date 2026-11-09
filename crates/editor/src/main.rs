@@ -552,7 +552,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -574,22 +574,14 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.graph.counts.1,
             ed.mcp.status(),
             ed.watch.status(),
+            ed.notices.len(),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),
-        "rename" => {
-            use rustpg2d_engine::refactor::RefKind;
-            let kind = match arg(1) {
-                "tileset" => RefKind::Tileset,
-                "sheet" => RefKind::Sheet,
-                "item" => RefKind::Item,
-                "prop" => RefKind::Prop,
-                "character" => RefKind::Character,
-                "sound" => RefKind::Sound,
-                _ => RefKind::Map,
-            };
-            ed.rename_id(kind, arg(2), arg(3));
-        }
+        "rename" => match rustpg2d_engine::refactor::RefKind::parse(arg(1)) {
+            Some(kind) => ed.rename_id(kind, arg(2), arg(3)),
+            None => eprintln!("[script] rename: unknown kind {:?} (tileset, sheet, item, prop, character, sound, map, structure, skill, spell, recipe, quest, achievement)", arg(1)),
+        },
         "newmap" => {
             ed.new_map = Some(app::NewMapDialog { name: arg(1).into(), width: num(2) as u32, height: num(3) as u32, fill: true });
         }

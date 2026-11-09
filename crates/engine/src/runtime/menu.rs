@@ -188,7 +188,13 @@ impl Game {
             }
             let Some(slot) = p.file_stem().map(|s| s.to_string_lossy().into_owned()) else { continue };
             let file_time = crate::sys::modified_secs(&p);
-            let world = crate::sys::read_to_string(&p).ok().and_then(|s| crate::state::WorldState::from_ron(&s).ok());
+            let world = match crate::sys::read_to_string(&p).map_err(|e| e.to_string()).and_then(|s| crate::state::WorldState::from_ron(&s).map_err(|e| format!("{e:#}"))) {
+                Ok(w) => Some(w),
+                Err(e) => {
+                    eprintln!("[game] save {} is unreadable: {e}", p.display());
+                    None
+                }
+            };
             let (map, saved, play) = match &world {
                 Some(w) => (w.current_map.clone(), if w.saved_at > 0 { w.saved_at } else { file_time }, w.play_time),
                 None => ("(unreadable)".into(), file_time, 0.0),

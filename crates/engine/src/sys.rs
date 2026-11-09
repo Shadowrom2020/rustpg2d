@@ -73,7 +73,21 @@ mod imp {
         if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
             std::fs::create_dir_all(dir)?;
         }
-        std::fs::write(path, data)
+        // Whole file or nothing: written beside the file, then renamed over it, so a crash (or a
+        // full disk) leaves at most a `<name>.tmp`, never a truncated save, map or defs file.
+        let tmp = tmp_path(path);
+        std::fs::write(&tmp, data)?;
+        std::fs::rename(&tmp, path).inspect_err(|_| {
+            let _ = std::fs::remove_file(&tmp);
+        })
+    }
+
+    /// `<file>.tmp` next to the file: the real extension stays inside the name, so listings of
+    /// `*.ron` / `*.map` (the editor's file watcher, exports) never pick it up.
+    fn tmp_path(path: &Path) -> PathBuf {
+        let mut name = path.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+        name.push(".tmp");
+        path.with_file_name(name)
     }
 
     pub fn exists(path: &Path) -> bool {
@@ -286,6 +300,9 @@ mod tests {
         write(&f, b"()").unwrap();
         assert!(exists(&f) && exists(&dir.join("saves")));
         assert_eq!(read_to_string(&f).unwrap(), "()");
+        // Written whole or not at all: the temporary file is gone, overwriting keeps one file.
+        write(&f, b"(x: 1)").unwrap();
+        assert_eq!(read_to_string(&f).unwrap(), "(x: 1)");
         assert_eq!(files_in(&dir.join("saves")).unwrap(), vec![f.clone()]);
         assert!(files_in(&dir).unwrap().is_empty(), "files only, not folders");
         remove_file(&f).unwrap();

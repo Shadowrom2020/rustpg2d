@@ -27,6 +27,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   every time: companions' once-triggers don't repeat, and saves stop collecting dead keys.
 - Animations seeded by an entity's uid (working villagers, bobbing dropped items) no longer freeze
   for visitors and dropped items; walk and combat timers stop growing without bound.
+- **Files are written whole or not at all.** Save games, settings, definitions, `project.ron`
+  and the asset library are written to a temporary file next to the target and renamed over it
+  (maps already were), so a crash or a full disk never leaves a truncated file behind.
+- **Corrupt map files are refused instead of crashing the game**: the tile layers' chunk grids,
+  the map size and the compressed size prefix are checked when a map is read.
+- The editor logs when it cannot save its settings, the recent-projects list or a new script
+  (these failures were silent), and the game logs why a save game is listed as unreadable.
 - The mouse walk's "stuck" check is a tenth of a step at any frame rate (it was 0.2 px per frame,
   which stopped slow or climbing walks on fast displays). Nothing is persisted while no map is
   loaded (the fade after loading a game).

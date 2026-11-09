@@ -171,7 +171,9 @@ example_project/        the example game, plain project files (edit them through
   - New variants of `Action`, `TriggerOn`, `Cond`, `ZoneKind`, `OnUnlock` are **appended**
     at the end (map files store variant indices).
   - New fields get `#[serde(default)]` (or `default = "fn"`). New map object fields go in the
-    RON `Meta` in `map/io.rs`; never edit the frozen `EntityV1` there.
+    RON `Meta` in `map/io.rs`; never edit the frozen `EntityV1` there. `TileLayer` and `Chunk`
+    (`map/mod.rs`) are stored with postcard (by position, no defaults) and are frozen too: a new
+    layer property goes into `Meta`, or the format version is bumped with a reader for the old one.
   - Save games are `WorldState` RON: every new field needs a serde default.
 - Tiles are always 32 px; sizes in code are in pixels at that size (`Game::u()` = ts/16 scales
   effects). Rhai reserves `var`, hence `get_var` / `set_var`.

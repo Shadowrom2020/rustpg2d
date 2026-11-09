@@ -2367,9 +2367,10 @@ fn scripts_ui(ed: &mut Editor, ui: &mut egui::Ui) {
         });
     });
     if let Some(p) = create {
-        let _ = std::fs::create_dir_all(&dir);
         if !p.exists() {
-            let _ = std::fs::write(&p, "// New script\n\nfn my_function() {\n    say(\"Hello!\");\n}\n");
+            if let Err(e) = rustpg2d_engine::sys::write(&p, b"// New script\n\nfn my_function() {\n    say(\"Hello!\");\n}\n") {
+                eprintln!("[editor] cannot create {}: {e}", p.display());
+            }
         }
         ed.refresh_refs();
         open = Some((p, None));

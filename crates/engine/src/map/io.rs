@@ -11,7 +11,7 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use super::{EdgeLinks, Map, TileLayer, Zone, ZoneKind};
+use super::{EdgeLinks, Map, TileLayer, Zone, ZoneKind, MAX_MAP_SIZE};
 use crate::entity::EntityInstance;
 use crate::events::Trigger;
 
@@ -175,11 +175,19 @@ pub fn encode(map: &Map) -> Result<Vec<u8>> {
     Ok(out)
 }
 
+/// The most tile data a map file may claim to hold (a 1024 x 1024 map with ten full layers is
+/// about 40 MiB): a corrupt size prefix can't make the game allocate gigabytes.
+const MAX_RAW: u32 = 256 << 20;
+
 pub fn decode(bytes: &[u8]) -> Result<Map> {
-    if bytes.len() < 10 || &bytes[..6] != MAGIC {
+    if bytes.len() < 14 || &bytes[..6] != MAGIC {
         bail!("not an R(ust)PG2D map file");
     }
     let version = u32::from_le_bytes(bytes[6..10].try_into().unwrap());
+    let claimed = u32::from_le_bytes(bytes[10..14].try_into().unwrap());
+    if claimed > MAX_RAW {
+        bail!("corrupt map: {claimed} bytes of tile data claimed");
+    }
     let raw = lz4_flex::decompress_size_prepended(&bytes[10..]).context("decompressing map")?;
     let map = match version {
         1 => {
@@ -229,22 +237,25 @@ pub fn decode(bytes: &[u8]) -> Result<Map> {
         }
         v => bail!("unsupported map format version {v} (newest supported: {FORMAT_VERSION})"),
     };
-    if map.collision.len() != (map.width * map.height) as usize {
+    if map.width == 0 || map.height == 0 || map.width > MAX_MAP_SIZE || map.height > MAX_MAP_SIZE {
+        bail!("corrupt map: {} x {} tiles", map.width, map.height);
+    }
+    if map.collision.len() != map.width as usize * map.height as usize {
         bail!("corrupt map: collision grid size mismatch");
+    }
+    // Layers index their chunk grid without bounds checks: refuse one that doesn't fit.
+    for layer in &map.layers {
+        if let Err(e) = layer.validate(map.width, map.height) {
+            bail!("corrupt map: {e}");
+        }
     }
     Ok(map)
 }
 
 pub fn save(map: &Map, path: &Path) -> Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
     let bytes = encode(map)?;
-    // Write atomically so a crash never leaves a half-written map.
-    let tmp = path.with_extension("map.tmp");
-    std::fs::write(&tmp, bytes).with_context(|| format!("writing {}", tmp.display()))?;
-    std::fs::rename(&tmp, path)?;
-    Ok(())
+    // (`sys::write` is atomic: a crash never leaves a half-written map.)
+    crate::sys::write(path, &bytes).with_context(|| format!("writing {}", path.display()))
 }
 
 pub fn load(path: &Path) -> Result<Map> {
@@ -256,7 +267,36 @@ pub fn load(path: &Path) -> Result<Map> {
 mod tests {
     use super::*;
     use crate::entity::EntityKind;
-    use crate::map::{CollisionOverride, Tile};
+    use crate::map::{Chunk, CollisionOverride, Tile};
+
+    /// Corrupt files are refused with an error, never a panic (the game loads untrusted data).
+    #[test]
+    fn corrupt_maps_are_refused() {
+        let mut m = Map::new("m", 40, 40);
+        let slot = m.tileset_slot("terrain");
+        m.layers[0].set(3, 3, Tile::new(slot, 9));
+        let good = encode(&m).unwrap();
+        assert!(decode(&good).is_ok());
+        // Truncated anywhere: an error.
+        for cut in [0, 5, 9, 12, 14, 20, good.len() / 2, good.len() - 1] {
+            assert!(decode(&good[..cut]).is_err(), "cut at {cut}");
+        }
+        // A size prefix claiming gigabytes.
+        let mut huge = good.clone();
+        huge[10..14].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(decode(&huge).unwrap_err().to_string().contains("claimed"));
+        // A layer whose chunk grid doesn't match the map.
+        let mut bad = m.clone();
+        bad.layers[0].chunks.pop();
+        assert!(decode(&encode(&bad).unwrap()).unwrap_err().to_string().contains("chunks"));
+        let mut bad = m.clone();
+        bad.layers[1].chunks[0] = Some(Box::new(Chunk { tiles: vec![Tile::new(slot, 1); 3] })); // (empty chunks are dropped when encoding)
+        assert!(decode(&encode(&bad).unwrap()).unwrap_err().to_string().contains("tiles"));
+        // A size the format can't hold.
+        let mut bad = m.clone();
+        bad.width = 0;
+        assert!(decode(&encode(&bad).unwrap()).is_err());
+    }
 
     #[test]
     fn roundtrip_max_size_map() {

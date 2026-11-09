@@ -131,6 +131,7 @@ impl Game {
     /// A fresh world (the start map is entered by the caller).
     pub(super) fn reset_world(&mut self) {
         self.world = WorldState { player_hp: Some(self.combat.max_hp), hour: self.project.config.start_hour, ..Default::default() };
+        self.clock_seen = None;
         self.slot = None;
         self.order = None;
         self.game_over = None;
@@ -192,7 +193,8 @@ impl Game {
     /// Attacks with the equipped weapon (or bare hands). `aim` (world point) sets the
     /// direction; otherwise the player's facing is used.
     pub(super) fn attack_at(&mut self, aim: Option<Vec2>) {
-        if !self.combat.enabled() || self.combat.cooldown > 0.0 || self.player_stunned() {
+        // Both hands on the rungs.
+        if !self.combat.enabled() || self.combat.cooldown > 0.0 || self.player_stunned() || self.climbing() {
             return;
         }
         let weapon = self.attack_weapon();

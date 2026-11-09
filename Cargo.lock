@@ -60,16 +60,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
-name = "aotuv_lancer_vorbis_sys"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bc4fd1a61860d2f1198b60bedd30910eaffa978f1ee6214dfb24ac70d589225"
-dependencies = [
- "cc",
- "ogg_next_sys",
-]
-
-[[package]]
 name = "async-trait"
 version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1850,15 +1840,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ogg_next_sys"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed2d7a48e247c2bb07e633aefb65a38648ea58c7eedd4e4408a5861721ab049b"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2319,7 +2300,7 @@ dependencies = [
 
 [[package]]
 name = "rustpg2d-editor"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -2342,7 +2323,7 @@ dependencies = [
 
 [[package]]
 name = "rustpg2d-engine"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "gilrs",
@@ -2355,13 +2336,12 @@ dependencies = [
  "rhai",
  "ron",
  "serde",
- "vorbis_rs",
  "zip",
 ]
 
 [[package]]
 name = "rustpg2d-game"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "macroquad",
@@ -2371,7 +2351,7 @@ dependencies = [
 
 [[package]]
 name = "rustpg2d-packaging"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "backhand",
@@ -2766,12 +2746,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tinyvec"
-version = "1.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
-
-[[package]]
 name = "tokio"
 version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3024,19 +2998,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "vorbis_rs"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49c5da94d280f7a27e8c937e9b73df2da3e23a2583f48471fd8fb4c72f9c1933"
-dependencies = [
- "aotuv_lancer_vorbis_sys",
- "errno",
- "ogg_next_sys",
- "thiserror",
- "tinyvec",
-]
 
 [[package]]
 name = "walkdir"
@@ -3519,7 +3480,7 @@ checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
 
 [[package]]
 name = "xtask"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "rustpg2d-engine",

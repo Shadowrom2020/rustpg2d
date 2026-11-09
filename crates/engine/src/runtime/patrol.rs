@@ -34,6 +34,9 @@ pub(super) struct Walker {
     /// Remaining tiles to the goal (next first).
     pub path: Vec<TilePos>,
     stuck: f32,
+    /// It was blocked on its way: plan around the tiles other characters stand on (two
+    /// characters waiting for each other in a doorway find another way).
+    avoid: bool,
 }
 
 /// What a step of [`Game::walk_to_tile`] came to.
@@ -145,8 +148,14 @@ impl Game {
             // Around solid tiles and props (statues, wells, closed gates); characters move, so
             // they are waited for instead.
             let props = self.solid_entity_tiles(|e| e.kind == EntityKind::Prop);
-            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_solid(x, y) || ((x, y) != goal && props.contains(&(x, y)));
-            let planned = find_path(here, goal, |t| t == goal, blocked, MAX_NODES);
+            let me = self.loaded.entities[i].uid;
+            let people = if w.avoid { self.solid_entity_tiles(|e| e.kind == EntityKind::Character && e.uid != me) } else { Default::default() };
+            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (props.contains(&(x, y)) || people.contains(&(x, y))));
+            let planned = find_path(here, goal, |t| t == goal, blocked, MAX_NODES).or_else(|| {
+                // Hemmed in by people: plan as if they weren't there (they move on).
+                let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && props.contains(&(x, y)));
+                find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
+            });
             let at_goal = pos.distance(self.tile_spot(goal)) < 2.0;
             match planned {
                 Some(path) if path.is_empty() && at_goal => {
@@ -183,10 +192,11 @@ impl Game {
             // Blocked (by the player, another character, a corner): wait, re-plan, give up.
             w.stuck += dt;
             if w.stuck > SKIP_AFTER {
-                *w = Walker::default();
+                *w = Walker { avoid: true, ..Walker::default() };
                 return Walk::GaveUp;
             } else if w.stuck > REPLAN_AFTER && w.path.len() > 1 {
                 w.path.clear();
+                w.avoid = true;
             }
         } else {
             w.stuck = 0.0;

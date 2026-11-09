@@ -361,4 +361,66 @@
             ),
         ],
     ),
+    (
+        id: "grind_flour",
+        result: "flour",
+        count: 1,
+        ingredients: [
+            (
+                item: "wheat",
+                count: 2,
+            ),
+        ],
+        station: "mill",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "bake_festival_bread",
+        result: "festival_bread",
+        count: 1,
+        ingredients: [
+            (
+                item: "flour",
+                count: 2,
+            ),
+            (
+                item: "egg",
+                count: 1,
+            ),
+            (
+                item: "honey",
+                count: 1,
+            ),
+        ],
+        station: "cooking",
+        skill: "",
+        level: 0,
+        station_state: "lit",
+    ),
+    (
+        id: "brew_remedy",
+        result: "remedy",
+        count: 1,
+        ingredients: [
+            (
+                item: "moonpetal",
+                count: 1,
+            ),
+            (
+                item: "feverleaf",
+                count: 1,
+            ),
+            (
+                item: "bitterroot",
+                count: 1,
+            ),
+        ],
+        station: "alchemy",
+        skill: "",
+        level: 0,
+        tools: [
+            "mortar",
+        ],
+    ),
 ]

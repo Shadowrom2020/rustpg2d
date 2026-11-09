@@ -323,8 +323,8 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `move_by(target, dx, dy)` | Walks a character by whole tiles. *(queued, blocks until it arrives)* |
 | `face(target, direction)` | Turns a character: `"up"`, `"down"`, `"left"`, `"right"`. *(queued)* |
 | `patrol(target)` | Starts the character's own patrol route (set in the editor). *(queued)* |
-| `patrol(target, points)` | Patrols the given waypoints `[[x, y], [x, y], …]` (whole tiles). *(queued)* |
-| `stop_patrol(target)` | Stops a patrol. *(queued)* |
+| `patrol(target, points)` | Patrols the given waypoints `[[x, y], [x, y], …]` (whole tiles); one point = walk there and stay. *(queued)* |
+| `stop_patrol(target)` | Stops a patrol: the character stands where it is. *(queued)* |
 | `stop_schedule(target)` | The character stops following its daily schedule (set in the editor) and stays where it is. Saved. *(queued)* |
 | `sleep(hours)` | The player sleeps (camping, an inn keeper's "Rest"): the screen fades, the clock moves on, HP and mana are restored, timed effects end, then *Woke up* triggers run. Refused with enemies nearby. *(queued, blocks)* |
 | `is_sitting()` / `is_sleeping()` | Whether the player sits on furniture / lies in a bed (or the night is passing). |
@@ -770,10 +770,10 @@ cutscene* → `intro_cutscene`):
 
 ```rust
 fn intro_cutscene() {
-    place("player", 0, 18);         // at the west edge of the village
+    place("player", 0, 30);         // at the west edge of the village
     face("player", "right");
     wait(0.8);
-    walk_to("player", 5, 18);       // into town along the road
+    walk_to("player", 5, 30);       // into town along the road
     wait(0.4);
     approach("guard", "player");    // the guard comes over
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");

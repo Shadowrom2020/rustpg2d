@@ -62,7 +62,7 @@ impl Game {
         }
     }
 
-    fn player_tile(&self) -> TilePos {
+    pub(super) fn player_tile(&self) -> TilePos {
         let ts = self.ts();
         ((self.player.pos.x / ts).floor() as i32, ((self.player.pos.y - 0.5) / ts).floor() as i32)
     }
@@ -164,13 +164,20 @@ impl Game {
                 let beside = |p: TilePos| (p.0 - t.0).abs() + (p.1 - t.1).abs() == 1;
                 let path = find_path(start, t, beside, blocked, MAX_NODES).or_else(|| find_path(start, t, |p| near(p, t) && p != t, blocked, MAX_NODES));
                 // Characters behind a counter: stand in front of it (two tiles away, a solid
-                // tile in between) and talk across.
+                // tile or prop in between, e.g. a market stall) and talk across — unless walking
+                // round to them is shorter.
+                let props = self.solid_entity_tiles(|p| p.kind == EntityKind::Prop);
                 let counter = |p: TilePos| {
                     let (dx, dy) = (t.0 - p.0, t.1 - p.1);
-                    ((dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0)) && self.tile_solid(p.0 + dx / 2, p.1 + dy / 2)
+                    let mid = (p.0 + dx / 2, p.1 + dy / 2);
+                    ((dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0)) && (self.tile_solid(mid.0, mid.1) || props.contains(&mid))
                 };
                 let talk = matches!(goal, Goal::Interact(_)) && self.loaded.entities[i].kind == EntityKind::Character;
-                path.or_else(|| talk.then(|| find_path(start, t, counter, blocked, MAX_NODES)).flatten())
+                let across = if talk { find_path(start, t, counter, blocked, MAX_NODES) } else { None };
+                match (path, across) {
+                    (Some(p), Some(c)) => Some(if c.len() <= p.len() { c } else { p }),
+                    (p, c) => p.or(c),
+                }
             }
         };
         path.map(VecDeque::from)
@@ -249,6 +256,9 @@ impl Game {
                 if self.in_reach(i) {
                     let p = self.loaded.entities[i].body.pos;
                     self.face_towards(p);
+                    // A counter that does nothing itself (a market stall): talk to whoever
+                    // stands behind it.
+                    let i = if self.inert_prop(i) { self.behind_counter(i).unwrap_or(i) } else { i };
                     self.interact_entity(i);
                     return None;
                 }

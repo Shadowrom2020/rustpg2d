@@ -143,14 +143,15 @@ fn slime_defeated() {
 }
 
 // The town guard patrols the road (see his patrol route in the map inspector). Once the
-// shrine is lit he stops: stop_patrol(target) / patrol(target) / patrol(target, [[x, y], ...]).
+// shrine is lit he rests by the barracks: patrol(target, [[x, y], ...]) gives a route (one
+// point: walk there and stay), patrol(target) resumes the own route, stop_patrol(target) stops.
 // The intro of a new game, a cut-scene (village Map enter trigger, once): the player walks
 // into town from the west, the guard comes over and sends them to the elder.
 fn intro_cutscene() {
-    place("player", 0, 18);
+    place("player", 0, 30);
     face("player", "right");
     wait(0.8);
-    walk_to("player", 5, 18);
+    walk_to("player", 5, 30);
     wait(0.4);
     approach("guard", "player");
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");
@@ -158,6 +159,19 @@ fn intro_cutscene() {
     say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the slimes grow bolder every day.");
     say("Guard", "Please, talk to Elder Rowan at once - he is waiting by the well in the middle of town.");
     wait(0.3);
+}
+
+// Oswin the town crier calls out the news: a different piece every time he is asked.
+fn crier_talk() {
+    add_var("crier_news", 1);
+    let n = get_var("crier_news") % 3;
+    if n == 1 {
+        say("Oswin", "Hear ye, hear ye! The harvest festival draws near - Bram the baker promises a loaf the size of a cartwheel!");
+    } else if n == 2 {
+        say("Oswin", "Hear ye! Strange lights in Whisperwood! The elder asks all good folk to keep the east gate locked after dark!");
+    } else {
+        say("Oswin", "Hear ye! Old Halvar the miner was last seen at the old mine, long ago. Brom the smith remembers him well, they say.");
+    }
 }
 
 // Once the player took on the elder's quest, the guard offers to come along: follow(target)
@@ -173,7 +187,7 @@ fn guard_talk() {
         then_call("guard_orders");
     } else if flag("shrine_lit") {
         say("Guard", "The lights are gone - I can finally take a rest. Thank you, {player}!");
-        stop_patrol("guard");
+        guard_rest();
     } else if flag("quest_accepted") {
         say("Guard", "Whisperwood, is it? You shouldn't go alone - the slimes grow bolder every day.");
         choice("Take the guard along?", ["Come with me", "I'll manage"], "guard_join");
@@ -207,7 +221,17 @@ fn guard_orders() {
     } else if cmd == 3 {
         say("Guard", "Back to the road, then. Good luck, {player}!");
         stop_following("guard");
+        if flag("shrine_lit") {
+            guard_rest();
+        } else {
+            patrol("guard");
+        }
     }
+}
+
+// Off duty: by the barracks door, beside it so the door stays free.
+fn guard_rest() {
+    patrol("guard", [[72, 27]]);
 }
 
 fn guard_answer() {
@@ -240,4 +264,14 @@ fn fireball_hit(x, y) {
     damage_area(x, y, 2, 5);
     // Embers glow on for a few seconds.
     light_at(x, y, 2, 4, #{ color: [255, 120, 50], flicker: true });
+}
+
+// The Lost Cat (Mira's quest): Bram, Old Finn and Jorun each saw something; two clues lead to
+// the mill. Their "clue" triggers call this.
+fn cat_clue() {
+    add_var("cat_clues", 1);
+    if get_var("cat_clues") >= 2 && quest_stage("lost_cat") == 0 {
+        set_quest_stage("lost_cat", 1);
+        say("Two clues point the same way: Biscuit must be hiding in the old mill, across the river.");
+    }
 }

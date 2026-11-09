@@ -3,6 +3,148 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.11.0 — 2026-11-09
+
+A living village: every terrain a 47-tile set, many more assets, the village rebuilt as
+Emberbrook with interiors and a daily life, four more quests, ladders and climbable
+watchtowers. The example project and the editor's starter library are now plain files, edited
+with the editor and its AI agent server (three new tools).
+
+### Gameplay
+- **Ladders**: tiles marked as ladders in *Database → Tilesets* (*Pick ladder tiles in the
+  grid*) are climbed by the player — only up and down, slower, seen from behind, no attacks
+  (`status` prints `climbing=`). Characters keep off them. Old tilesets load unchanged.
+- **Time reached** (`TriggerOn::Hour`): a map trigger that runs when the in-game clock reaches a
+  time of day while the player is on the map — every day, also when time jumps past it by
+  sleeping or *Set time* (not when it is set back). The editor's trigger form takes the time as
+  hh:mm. The village uses it for the dawn fog, the morning cluck and the noon bell.
+
+### Editor
+- **AI agent server: three new tools.** `write_asset` writes an image (PNG) or sound (WAV, Ogg
+  Vorbis) into the project's `sprites/`, `tilesets/` or `sounds/` — from Base64 or by copying a
+  file — after checking that it decodes, and reloads the art. `capture_structure` makes a new
+  structure from a map region (tiles, collision, entities). `library_send` sends project assets
+  with everything they need to the asset library; with `replace` it updates the library's
+  versions of the same ids (definitions, files, script functions) instead of adding copies, and
+  `drop_script_triggers` leaves triggers that run the game's own scripts behind.
+
+### Fixes
+- **Characters can't shut the player in any more.** Walking into a friendly character for a
+  moment makes it step aside — to a free tile beside it, or ahead out of a narrow passage. In the
+  example, the guard dismissed in the graveyard's gate and then told the shrine was lit froze
+  there for good (`stop_patrol` on the spot), boxing the player in; loading such a save, walk
+  into him and he makes way.
+- A merchant behind a counter **prop** (a market stall) can be talked to across it, like across
+  a solid counter tile, from in front of any part of the counter (not only straight across from
+  the merchant); a prop in front that does nothing on E gives way to them. Right-clicking such a
+  counter talks to the merchant too, and right-clicking the merchant walks to the counter in
+  front instead of round the back of the stall.
+- Characters that start on the same spot (several villagers leaving one door at the same time)
+  could block each other for good: a character may now always move away from characters it
+  already overlaps, and a character blocked on its way plans around the people in it.
+
+### Maintenance
+- Starter library updates: an image of the same size that only adds art in empty cells counts
+  as an upgrade too (before, only larger images did), and an upgraded tileset's new tiles bring
+  their solid / ladder / light / animation flags; existing libraries get the tower tiles the next
+  time the editor opens them (`STARTER_RULES` 7).
+- Autoplay `talkto NAME`: right-clicks a named character wherever it stands (characters that
+  wander).
+- `status()` prints `sounds=`: the last six sound effects started (also while muted), for
+  automated play-tests.
+- **The example project and the starter library are plain files.** The generator that wrote
+  them from code (`crates/engine/examples/gen_example/`) is gone: `example_project/` is edited
+  like any project (with the editor and its AI agent server), and the editor's starter asset
+  library is the library folder `crates/editor/assets/starter_library/`, embedded by the
+  editor's `build.rs` instead of a generated `starter.r2dpack`. Its content is unchanged. The
+  library stamp is now a hash of those files, so existing libraries check the starter set once
+  more after updating (nothing is added). Tests take over the generator's checks: the German
+  translation has no leftovers, the starter library is complete and consistent, and it holds
+  every asset of the example project. The `vorbis_rs` dev-dependency went with the generator.
+
+### Example project
+- **Climbable watchtowers**: the two towers at the east gate are built from tiles now (new tiles
+  in `terrain.png`'s fifth row) with a ladder up to a lookout deck under the roof; the
+  barracks has its east wall back (the old tower prop stood over it). The starter library
+  gains the structure *Lookout Tower*.
+- The guard sent back to his post (*Go back to your post*) walks his road again instead of
+  staying where he was dismissed, and once the shrine is lit he goes off duty and stands
+  by the barracks door (`guard_rest()`) instead of stopping wherever he stands.
+- **Furniture**: the beds are drawn in the same three-quarter view as the rest of the art (an
+  upright headboard with posts, a quilted blanket, a footboard with legs and a shadow; the
+  sideways bed too), the tavern's tables have chairs whose backrests show over guests sitting
+  with their back to you, and Brother Ansel sleeps in his own chamber beside the chapel's nave
+  instead of a bed by the pews. The starter library has the new beds.
+- **Four village quests**: *The Lost Cat* (Mira; clues from Bram, Old Finn and the miller lead
+  to Biscuit in the mill), *Bread for the Festival* (Bram; flour from the raided cart on the
+  forest road and its two outlaws, the Festival Loaf baked at his oven), *The Herbalist's
+  Remedy* (Ida; feverleaf by the forest path, bitterroot on the pond bank and a moonpetal at
+  night, brewed at Wren's table, cures Pip) and *Rumours at the Tavern* (Greta's rumour for a
+  round; Brom's old friend Halvar; his locket by the bones in the old mine). Each has its
+  achievement (Cat Person, Festival Baker, Village Healer, Old Debts); rewards in coins, items
+  and skill points. Script function `cat_clue()`. German for every text.
+- **Emberbrook**, the village, rebuilt (80 × 60): a river with two bridges, a cobbled market square
+  (well, statue, notice board, produce / fish / bread stalls), the Copper Kettle tavern, bakery,
+  smithy, apothecary with herb beds, chapel with bell tower and graveyard, the elder's house,
+  Tilda's shop, Mira's home, the crier's home, the barracks, the fisher's hut with dock, boat and
+  pond, an orchard, and west of the river the windmill and mill, fields, farmhouse, chicken coop
+  and animal pen; a town wall with watchtowers and braziers at the east gate. **Seven interiors**
+  (`tavern`, `bakery`, `smithy`, `apothecary`, `chapel`, `home_mira`, `mill`) with their stations
+  (kitchen hearth, bread oven, forge, anvil, alchemy table, millstone), beds and furniture; the
+  tavern has its own music and inn beds for paying guests (5 coins at the bar; one night).
+  About twenty villagers with **daily routines** across the village and the interiors (stalls,
+  work with tools in hand, an evening at the tavern, their own beds at night), children, a dog,
+  chickens, sheep and a cow; dialog lines by time of day and pose. Dawn mist, the hens at six and
+  the noon bell come from *Time reached* triggers. The forest gained feverleaf by the path.
+- **The Workshop map is gone**: its stations and supplies moved into the village (smithy and
+  apothecary chests, the herb beds, the fields and the seed barrel, the tavern's pantry, beds in
+  every house). The village's north edge went with it; the east edge to the forest moved with the
+  street (y 29-31).
+- Save games made in the village before 0.11.0 don't fit the new village (its entities are new);
+  saves made on other maps load as before.
+- **Every terrain is a 47-tile set**: the terrain tileset's sheet is 16 tiles wide (512 × 1760 px)
+  with one 7×7 blob block per terrain, so all fourteen terrains (Dirt path, Pond, Sand, Shore,
+  Forest floor, Snowfield, Forest path, Stream, Flagstones, Rug and the new **Cobblestone,
+  Farmland, Meadow and Carpet**) get inner corners; the 16-tile blocks are gone (the 16 slots are
+  filled from the blob set as the fallback for *Corners* off). The library's desert, mountains,
+  city and dungeon tilesets got the same treatment (Oasis, Hardpan, Snowfield, Mountain path,
+  Frozen lake, Canal, Plaza, Earth, Chasm, Abyss). New single tiles for the village: cobbles,
+  tilled soil, flower bed, carpet, light stone floor, north–south fence and fence post, gate
+  pillar, hedge, dock planks and dock end, bridge railings, slate and thatched roofs with eaves,
+  chimneys on red and slate roofs, stone house walls with a lit window, a door and a stained-glass
+  chapel window, a counter, a grave mound, a cross-beamed timber wall, a dark window, straw.
+  The unused `tilesets/desert.png` was removed from the example project.
+- **Village assets** (in the example project's definitions and the starter library): about 60
+  new props on `sprites/village.png` — market stalls (produce, fish, bread; the seller stands
+  behind the counter), windmill, watchtower, bell tower, apple trees and beehives (picked by
+  hand, back a day later), a bread oven, kitchen hearth, fireplace, forge and brazier (lit, with
+  light; coal relights them), a millstone (grinds wheat into flour), shelves, racks, kegs, tavern
+  tables, stools (one picture, four facings) and pews to sit on, altar, candle stands, a bell rope
+  and the bell tower ring the new bell, farm and yard things, hanging shop signs (the tavern's
+  glows), feverleaf, bitterroot and the moonpetal that can only be picked at night. The props of
+  the old library sheet `props2.png` (street lamp, crate, pot, signpost, tombstone, lever,
+  haystack, bones, treasure, wall torch, crystals, sack, cactus, palm, market stall, fountain,
+  tent, cart) moved into the example. Villagers with outfits and drawn portraits: baker,
+  innkeeper, herbalist, priest, miller, fisher, town crier, blacksmith, farmer (male and female;
+  the merchants among them sell their goods), villager and town guard (female); children
+  (`child_boy`, `child_girl`) and animals (`chicken`, `dog`, `cat`, `cat_ginger`, `sheep`, `cow`)
+  as their own body sheets, with a sound and a line when talked to. Goods on `items2.png`:
+  flour, egg, cheese, milk, honey, moonpetal, feverleaf, bitterroot, herbal remedy, silver locket,
+  festival loaf, ale, broom and hoe (held in the hand like the smith's hammer and the pickaxe now
+  are). Recipes `grind_flour`, `bake_festival_bread`, `brew_remedy`. Sounds `bell`, `cluck`,
+  `bark`, `meow`, `baa`, `moo`; a third music track, *The Copper Kettle* (`music_tavern`).
+  16 structures: tavern, bakery, stone smithy, chapel, thatched farmhouse, windmill and mill
+  house, market row, animal pen, graveyard, orchard, fishing dock, town gate, and furnished
+  tavern, smithy, bakery and chapel rooms. Eight more portraits. German for all new texts.
+- **Asset library**: the starter rules are at version 6, so existing libraries are checked again
+  for new assets; the reorganized terrain sheet is not an extension of the old one, so a library
+  created before 0.11.0 keeps its old terrain art and 16-tile terrains until it is rebuilt from
+  the starter set (back it up, delete `~/.local/share/rustpg2d/library`, open the editor).
+  The library's male merchant, wizard, nomad and bandit outfits use the sheets
+  `outfit_<id>_m` / `outfit_<id>_m_f`: their female cut had the same id as the female version's
+  outfit. The farmer, blacksmith and the female villager and town guard come from the example
+  project now (with their own outfits).
+
 ## 0.10.0 — 2026-11-08
 
 Agents: AI agents build content and adventures from inside the editor.

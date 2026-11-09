@@ -442,6 +442,44 @@ pub struct LibraryAddParams {
     pub assets: Vec<AssetId>,
 }
 
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct LibrarySendParams {
+    /// Project assets to send to the asset library (with everything they need).
+    pub assets: Vec<AssetId>,
+    /// Replace the library's version of assets it already has (same id: definition, files, script functions) instead of adding the project's version under a new id. Default false.
+    pub replace: Option<bool>,
+    /// Leave the triggers of items, props and characters that run the project's script functions behind (story scripts stay with the game); skills' and spells' functions still travel. Default false.
+    pub drop_script_triggers: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct WriteAssetParams {
+    /// Project-relative path of the file: under sprites/, tilesets/ or sounds/, ending in .png, .wav or .ogg. An existing file is replaced.
+    pub path: String,
+    /// The file's contents in Base64 …
+    pub base64: Option<String>,
+    /// … or the absolute path of a file on this computer to copy.
+    pub source: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct CaptureStructureParams {
+    /// Map to capture from (default: the open map).
+    pub map: Option<String>,
+    /// Top-left tile and size of the region.
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
+    /// Id of the new structure.
+    pub id: String,
+    pub name: Option<String>,
+    /// Category in the editor's Structures palette (e.g. "Buildings").
+    pub category: Option<String>,
+    /// Include the ground layer (default true; false for things that sit on any ground, e.g. a market stall).
+    pub ground: Option<bool>,
+}
+
 // ---------------------------------------------------------------- the tools
 
 type R = Result<CallToolResult, ErrorData>;
@@ -666,6 +704,13 @@ impl Handler {
         self.run(Call::PlaceStructure(p), s).await
     }
 
+    /// Makes a new structure from a map region: its tiles (all layers), collision and entities, ready for place_structure.
+    #[tool]
+    async fn capture_structure(&self, Parameters(p): Parameters<CaptureStructureParams>) -> R {
+        let s = summary(&p);
+        self.run(Call::CaptureStructure(p), s).await
+    }
+
     /// Renames a definition or map and every reference to it (maps, definitions, scripts).
     #[tool]
     async fn rename(&self, Parameters(p): Parameters<RenameParams>) -> R {
@@ -796,6 +841,20 @@ impl Handler {
     async fn library_add(&self, Parameters(p): Parameters<LibraryAddParams>) -> R {
         let s = summary(&p);
         self.run(Call::LibraryAdd(p), s).await
+    }
+
+    /// Sends project assets (and everything they need) to the shared asset library; with replace, the library's versions of the same ids are updated.
+    #[tool]
+    async fn library_send(&self, Parameters(p): Parameters<LibrarySendParams>) -> R {
+        let s = summary(&p);
+        self.run(Call::LibrarySend(p), s).await
+    }
+
+    /// Writes an image (PNG) or sound (WAV / Ogg Vorbis) file into the project (sprites/, tilesets/, sounds/) and reloads the art; then point a definition at it with upsert_def.
+    #[tool]
+    async fn write_asset(&self, Parameters(p): Parameters<WriteAssetParams>) -> R {
+        let s = format!("{} ({})", p.path, if p.base64.is_some() { "base64" } else { "copy" });
+        self.run(Call::WriteAsset(p), s).await
     }
 }
 

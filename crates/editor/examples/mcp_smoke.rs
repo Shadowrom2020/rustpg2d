@@ -1,9 +1,10 @@
 //! Smoke test of the editor's AI agent server: an MCP client over Streamable HTTP that lists the
-//! tools, reads and edits the example project and takes screenshots. Start the editor on a copy of
-//! `example_project` with its server on, then run this:
+//! tools, reads and edits the example project, writes art, captures a structure, sends assets to
+//! the library and takes screenshots. Start the editor on a copy of `example_project` (and a
+//! scratch library: `library_send` writes to it) with its server on, then run this:
 //!
 //! ```sh
-//! RUSTPG2D_EDITOR_SCRIPT="mcp on 7743; wait 300; quit" target/debug/rustpg2d-editor <copy of example_project> &
+//! RUSTPG2D_LIBRARY=<scratch>/lib RUSTPG2D_EDITOR_SCRIPT="mcp on 7743; wait 300; quit" target/debug/rustpg2d-editor <copy of example_project> &
 //! cargo run -p rustpg2d-editor --example mcp_smoke -- 7743
 //! ```
 //!
@@ -69,6 +70,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     gp.arguments = json!({"theme": "a lost cat"}).as_object().cloned();
     let prompt = client.get_prompt(gp).await?;
     check("prompt design_quest", prompt.messages.len() == 1, format!("{} messages", prompt.messages.len()));
+    let mut px = rustpg2d_engine::imageio::Rgba::new(64, 32);
+    px.px.chunks_mut(4).for_each(|c| c.copy_from_slice(&[200, 40, 40, 255]));
+    let png = rustpg2d_engine::hash::base64(&px.encode()?);
+    let r = call("write_asset", json!({"path": "sprites/smoke.png", "base64": png})).await?;
+    check("write_asset", text(&r).starts_with("Wrote sprites/smoke.png (64x32 px image)"), text(&r));
+    let r = call("write_asset", json!({"path": "../smoke.png", "base64": png})).await?;
+    check("write_asset outside the art folders is refused", r.is_error.unwrap_or(false), text(&r));
+    let r = call("upsert_def", json!({"kind": "sheets", "def": {"id": "smoke", "image": "sprites/smoke.png", "frame_w": 32, "frame_h": 32}})).await?;
+    check("upsert_def sheet for the new art", !r.is_error.unwrap_or(false), text(&r));
+    let r = call("capture_structure", json!({"map": "village", "x": 32, "y": 19, "w": 5, "h": 5, "id": "smoke_square", "category": "Smoke"})).await?;
+    check("capture_structure", text(&r).starts_with("New structure \"smoke_square\" (5x5 tiles"), text(&r));
+    let r = call("library_send", json!({"assets": [{"kind": "sheet", "id": "smoke"}, {"kind": "structure", "id": "smoke_square"}], "replace": true, "drop_script_triggers": true})).await?;
+    check("library_send", text(&r).starts_with("Library (") && text(&r).contains("smoke"), text(&r));
+    let r = call("library_info", json!({"kind": "sheet", "id": "smoke"})).await?;
+    check("library_info of the sent sheet", text(&r).contains("sprites/smoke.png"), text(&r));
     let r = call("play_test", json!({"map": "village", "script": "wait 1; status; shot a", "timeout_secs": 30})).await?;
     check("play_test", text(&r).contains("[autoplay]") && images(&r) == 1, text(&r));
     client.cancel().await?;

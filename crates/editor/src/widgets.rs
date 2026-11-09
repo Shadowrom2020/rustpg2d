@@ -824,6 +824,7 @@ pub fn triggers_ui(ui: &mut Ui, salt: &str, triggers: &mut Vec<Trigger>, refs: &
                 TriggerOn::UseItem { item } if !item.is_empty() => format!(" [{item}]"),
                 TriggerOn::Custom { name } => format!(" [{name}]"),
                 TriggerOn::HpBelow { percent } => format!(" [{percent} %]"),
+                TriggerOn::Hour { hour } => format!(" [{}]", hour_text(*hour)),
                 _ => String::new(),
             },
             t.conditions.len(),
@@ -849,6 +850,11 @@ pub fn triggers_ui(ui: &mut Ui, salt: &str, triggers: &mut Vec<Trigger>, refs: &
                     }
                     TriggerOn::Custom { name } => {
                         ui.add(egui::TextEdit::singleline(name).hint_text("event name").desired_width(110.0));
+                    }
+                    TriggerOn::Hour { hour } => {
+                        ui.add(egui::DragValue::new(hour).range(0.0..=23.99).speed(0.05).custom_formatter(|v, _| hour_text(v as f32)).custom_parser(parse_hour)).on_hover_text(
+                            "Runs when the in-game clock reaches this time while the player is on the map — also when time jumps past it (sleeping, Set time). Every day; tick \"once\" for a single time.",
+                        );
                     }
                     TriggerOn::HpBelow { percent } => {
                         ui.add(egui::DragValue::new(percent).range(1..=99).suffix(" %")).on_hover_text(
@@ -2006,4 +2012,19 @@ pub fn optional_effect_ui(ui: &mut egui::Ui, id: &str, label: &str, hint: &str, 
             effect_spec_ui(ui, id, spec);
         }
     });
+}
+
+/// "hh:mm" of an hour of the day (12.5 = "12:30").
+pub fn hour_text(hour: f32) -> String {
+    let h = hour.rem_euclid(24.0);
+    let m = ((h.fract() * 60.0).round() as u32).min(59);
+    format!("{:02}:{:02}", h as u32, m)
+}
+
+/// Reads "hh:mm" (or a plain number of hours) back.
+fn parse_hour(s: &str) -> Option<f64> {
+    match s.trim().split_once(':') {
+        Some((h, m)) => Some(h.trim().parse::<f64>().ok()? + m.trim().parse::<f64>().ok()? / 60.0),
+        None => s.trim().parse().ok(),
+    }
 }

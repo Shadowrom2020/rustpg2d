@@ -112,6 +112,13 @@ pub struct MergeReport {
     /// Existing images replaced by a larger version that only adds frames / tiles (starter
     /// updates): (kind, id).
     pub upgraded: Vec<AssetRef>,
+    /// Assets whose existing version was replaced ([`Bundle::replace_into`]).
+    pub replaced: Vec<AssetRef>,
+    /// New assets left out because they need newer art than the target has (a structure
+    /// whose tileset the target has with other tiles).
+    pub skipped: Vec<AssetRef>,
+    /// Script functions whose existing code was replaced ([`Bundle::replace_into`]).
+    pub scripts_replaced: Vec<String>,
 }
 
 impl MergeReport {
@@ -128,10 +135,67 @@ impl MergeReport {
             let list: Vec<&str> = self.upgraded.iter().map(|a| a.1.as_str()).collect();
             s += &format!(", images extended: {}", list.join(", "));
         }
+        if !self.skipped.is_empty() {
+            let list: Vec<&str> = self.skipped.iter().map(|a| a.1.as_str()).collect();
+            s += &format!(", left out (they need newer tileset art; rebuild the library to get them): {}", list.join(", "));
+        }
+        if !self.replaced.is_empty() {
+            let list: Vec<&str> = self.replaced.iter().map(|a| a.1.as_str()).collect();
+            s += &format!(", replaced: {}", list.join(", "));
+        }
+        if !self.scripts_replaced.is_empty() {
+            s += &format!(", script functions replaced: {}", self.scripts_replaced.join(", "));
+        }
         if !self.scripts_kept.is_empty() {
             s += &format!(", kept the existing (different) script functions {}", self.scripts_kept.join(", "));
         }
         s
+    }
+}
+
+/// Do `a` and `b` have the same definition of `asset` (both missing counts as the same)?
+pub fn same_def(a: &Database, b: &Database, asset: &AssetRef) -> bool {
+    let id = asset.1.as_str();
+    match asset.0 {
+        RefKind::Tileset => a.tileset(id) == b.tileset(id),
+        RefKind::Sheet => a.sheet(id) == b.sheet(id),
+        RefKind::Sound => a.sounds.iter().find(|d| d.id == id) == b.sounds.iter().find(|d| d.id == id),
+        RefKind::Item => a.item(id) == b.item(id),
+        RefKind::Prop => a.prop(id) == b.prop(id),
+        RefKind::Character => a.character(id) == b.character(id),
+        RefKind::Structure => a.structure(id) == b.structure(id),
+        RefKind::Skill => a.skill(id) == b.skill(id),
+        RefKind::Spell => a.spell(id) == b.spell(id),
+        RefKind::Recipe => a.recipe(id) == b.recipe(id),
+        RefKind::Map => true,
+    }
+}
+
+/// Puts `from`'s definition of `asset` into `to`: replaces the one with the same id in place,
+/// or appends it.
+fn put_def(to: &mut Database, from: &Database, asset: &AssetRef) {
+    macro_rules! put {
+        ($list:ident) => {
+            if let Some(d) = from.$list.iter().find(|d| d.id == asset.1) {
+                match to.$list.iter().position(|o| o.id == asset.1) {
+                    Some(i) => to.$list[i] = d.clone(),
+                    None => to.$list.push(d.clone()),
+                }
+            }
+        };
+    }
+    match asset.0 {
+        RefKind::Tileset => put!(tilesets),
+        RefKind::Sheet => put!(sheets),
+        RefKind::Sound => put!(sounds),
+        RefKind::Item => put!(items),
+        RefKind::Prop => put!(props),
+        RefKind::Character => put!(characters),
+        RefKind::Structure => put!(structures),
+        RefKind::Skill => put!(skills),
+        RefKind::Spell => put!(spells),
+        RefKind::Recipe => put!(recipes),
+        RefKind::Map => {}
     }
 }
 
@@ -328,19 +392,49 @@ impl Bundle {
     /// Collects `wanted` from a store whose scripts are already curated (the library), with
     /// every script function the collected assets need.
     pub fn collect_with_needed_scripts(db: &Database, root: &Path, tile_size: u32, name: &str, wanted: &[AssetRef]) -> Result<Bundle> {
+        Self::collect_for_library(db, root, tile_size, name, wanted, false)
+    }
+
+    /// Like [`collect_with_needed_scripts`](Self::collect_with_needed_scripts); with
+    /// `drop_script_triggers`, the triggers of items, props and characters that run script
+    /// functions are left out first (a game's story scripts stay with the game, as in the
+    /// editor's starter library), so only the functions of skills, spells and the remaining
+    /// triggers travel.
+    pub fn collect_for_library(db: &Database, root: &Path, tile_size: u32, name: &str, wanted: &[AssetRef], drop_script_triggers: bool) -> Result<Bundle> {
         let fns = read_scripts(root);
-        let mut b = Self::collect(db, root, tile_size, name, wanted)?;
+        let collect = |fns: &[ScriptFn]| -> Result<Bundle> {
+            let mut b = Self::collect_with_scripts(db, root, tile_size, name, wanted, fns)?;
+            if drop_script_triggers {
+                b.drop_script_triggers();
+            }
+            Ok(b)
+        };
+        let mut b = collect(&[])?;
         // Functions bring assets, whose own scripts may need more functions: repeat until stable.
         loop {
             let roots: Vec<String> = all_assets(&b.db).iter().flat_map(|a| script_roots(&b.db, a)).collect();
             let needed = crate::script_refs::needed_functions(&fns, &roots);
             let chosen: Vec<ScriptFn> = fns.iter().filter(|f| needed.contains(&f.name)).cloned().collect();
-            let next = Self::collect_with_scripts(db, root, tile_size, name, wanted, &chosen)?;
+            let next = collect(&chosen)?;
             let done = all_assets(&next.db).len() == all_assets(&b.db).len() && next.scripts.len() == b.scripts.len();
             b = next;
             if done {
                 return Ok(b);
             }
+        }
+    }
+
+    /// Removes the triggers of items (on use), props and characters that run a script function.
+    pub fn drop_script_triggers(&mut self) {
+        let scripted = |t: &crate::events::Trigger| t.actions.iter().any(|a| matches!(a, crate::events::Action::RunScript { .. }));
+        for d in &mut self.db.items {
+            d.on_use.retain(|t| !scripted(t));
+        }
+        for d in &mut self.db.props {
+            d.triggers.retain(|t| !scripted(t));
+        }
+        for d in &mut self.db.characters {
+            d.triggers.retain(|t| !scripted(t));
         }
     }
 
@@ -411,6 +505,73 @@ impl Bundle {
             }
         }
         Ok(b)
+    }
+
+    /// Reads the files of a library folder (`project.ron`, `defs/*.ron`, `scripts/*.rhai` and
+    /// the art / sounds the definitions name), e.g. the starter library embedded in the editor.
+    /// Paths are relative to the folder with `/`; quests and achievements are left out, as in
+    /// packages.
+    pub fn from_files(files: &[(&str, &[u8])]) -> Result<Bundle> {
+        let text = |rel: &str| -> Result<Option<String>> {
+            files.iter().find(|(p, _)| *p == rel).map(|(_, b)| String::from_utf8(b.to_vec()).with_context(|| format!("{rel} is not UTF-8"))).transpose()
+        };
+        let config: ProjectConfig = ron::from_str(&text("project.ron")?.context("the library has no project.ron")?).context("parsing project.ron")?;
+        let mut db = crate::project::parse_defs(|n| text(&format!("defs/{n}.ron")))?;
+        db.quests.clear();
+        db.achievements.clear();
+        let wanted = files_of(&db);
+        let mut out = BTreeMap::new();
+        for (rel, bytes) in files {
+            if wanted.contains(*rel) {
+                if !safe_rel(rel) {
+                    bail!("unsafe path in the library: {rel}");
+                }
+                out.insert(rel.to_string(), bytes.to_vec());
+            }
+        }
+        if let Some(rel) = wanted.iter().find(|r| !r.is_empty() && !out.contains_key(*r)) {
+            bail!("the library is missing {rel}");
+        }
+        let mut scripts = BTreeMap::new();
+        let mut rhai: Vec<&(&str, &[u8])> = files.iter().filter(|(p, _)| p.starts_with("scripts/") && p.ends_with(".rhai")).collect();
+        rhai.sort_by_key(|(p, _)| *p);
+        for (rel, _) in rhai {
+            for f in crate::script_refs::functions(&text(rel)?.unwrap_or_default()) {
+                scripts.entry(f.name).or_insert(f.text);
+            }
+        }
+        Ok(Bundle { name: config.name, tile_size: config.tile_size, db, files: out, scripts })
+    }
+
+    /// The bundle as the files of a library folder (the reverse of [`from_files`](Self::from_files)).
+    pub fn to_files(&self) -> Result<Vec<(String, Vec<u8>)>> {
+        let mut config = ProjectConfig::new(&self.name);
+        config.tile_size = self.tile_size;
+        let mut out = vec![("project.ron".to_string(), crate::project::ron_text(&config)?.into_bytes())];
+        let db = &self.db;
+        let defs: [(&str, String); 10] = [
+            ("tilesets", crate::project::ron_text(&db.tilesets)?),
+            ("sheets", crate::project::ron_text(&db.sheets)?),
+            ("items", crate::project::ron_text(&db.items)?),
+            ("props", crate::project::ron_text(&db.props)?),
+            ("characters", crate::project::ron_text(&db.characters)?),
+            ("sounds", crate::project::ron_text(&db.sounds)?),
+            ("structures", crate::project::ron_text(&db.structures)?),
+            ("skills", crate::project::ron_text(&db.skills)?),
+            ("spells", crate::project::ron_text(&db.spells)?),
+            ("recipes", crate::project::ron_text(&db.recipes)?),
+        ];
+        out.extend(defs.into_iter().map(|(n, t)| (format!("defs/{n}.ron"), t.into_bytes())));
+        if !self.scripts.is_empty() {
+            let mut src = LIBRARY_SCRIPT_HEADER.to_string();
+            for text in self.scripts.values() {
+                src += &format!("\n{}\n", text.trim_end());
+            }
+            out.push((format!("scripts/{LIBRARY_SCRIPT}"), src.into_bytes()));
+        }
+        out.extend(self.files.iter().map(|(p, b)| (p.clone(), b.clone())));
+        out.sort();
+        Ok(out)
     }
 
     /// Rescales the art and pixel-based values (frame sizes, hitboxes, speeds) for a project
@@ -487,20 +648,7 @@ impl Bundle {
 
     /// Is the bundle's version of `a` identical to the one in `db`?
     fn same_as(&self, db: &Database, a: &AssetRef) -> bool {
-        let id = a.1.as_str();
-        match a.0 {
-            RefKind::Tileset => db.tileset(id) == self.db.tileset(id),
-            RefKind::Sheet => db.sheet(id) == self.db.sheet(id),
-            RefKind::Sound => db.sounds.iter().find(|d| d.id == id) == self.db.sounds.iter().find(|d| d.id == id),
-            RefKind::Item => db.item(id) == self.db.item(id),
-            RefKind::Prop => db.prop(id) == self.db.prop(id),
-            RefKind::Character => db.character(id) == self.db.character(id),
-            RefKind::Structure => db.structure(id) == self.db.structure(id),
-            RefKind::Skill => db.skill(id) == self.db.skill(id),
-            RefKind::Spell => db.spell(id) == self.db.spell(id),
-            RefKind::Recipe => db.recipe(id) == self.db.recipe(id),
-            RefKind::Map => true,
-        }
+        same_def(db, &self.db, a)
     }
 
     /// Adds only the assets whose ids `db` doesn't have yet (existing assets, possibly edited
@@ -515,14 +663,33 @@ impl Bundle {
             ((o.frame_w, o.frame_h) == (n.frame_w, n.frame_h)).then(|| ((RefKind::Sheet, n.id.clone()), o.image.clone(), n.image.clone()))
         });
         let pairs: Vec<_> = pairs.chain(self.db.tilesets.iter().filter_map(|n| Some(((RefKind::Tileset, n.id.clone()), db.tileset(&n.id)?.image.clone(), n.image.clone())))).collect();
+        // Tiles of upgraded tilesets that were empty before (their flags come along).
+        let mut fresh: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
         for (a, old_rel, new_rel) in pairs {
             let (Some(new_bytes), true) = (self.files.get(&new_rel), safe_rel(&old_rel)) else { continue };
             let path = root.join(&old_rel);
             let Ok(old_bytes) = std::fs::read(&path) else { continue };
             if extends(&old_bytes, new_bytes) {
+                if a.0 == RefKind::Tileset {
+                    fresh.insert(a.1.clone(), new_tiles(&old_bytes, new_bytes, TILE_SIZE));
+                }
                 std::fs::write(&path, new_bytes).with_context(|| format!("writing {old_rel}"))?;
                 upgraded.push(a);
             }
+        }
+        // The new tiles of an upgraded tileset bring their flags (solid, ladder, light,
+        // animation); flags of the tiles that were there stay as the library has them.
+        for n in &self.db.tilesets {
+            let (Some(tiles), Some(o)) = (fresh.get(&n.id), db.tilesets.iter_mut().find(|o| o.id == n.id)) else { continue };
+            for (new, old) in [(&n.solid, &mut o.solid), (&n.ladder, &mut o.ladder)] {
+                let add: Vec<u32> = new.iter().copied().filter(|t| tiles.contains(t) && !old.contains(t)).collect();
+                old.extend(add);
+                old.sort();
+            }
+            let anims: Vec<_> = n.animations.iter().filter(|a| tiles.contains(&a.tile) && !o.animations.iter().any(|x| x.tile == a.tile)).cloned().collect();
+            o.animations.extend(anims);
+            let lights: Vec<_> = n.lights.iter().filter(|l| tiles.contains(&l.tile) && !o.lights.iter().any(|x| x.tile == l.tile)).cloned().collect();
+            o.lights.extend(lights);
         }
         // Body sheets the newer set marks playable get the flag when they are otherwise the
         // same (the flag was added later; an edited sheet stays as it is).
@@ -561,6 +728,31 @@ impl Bundle {
                 upgraded.push(key);
             }
         }
+        // New structures place tiles by index: they need the tilesets as the set has them. A
+        // tileset the target has with other art (not upgraded above) would get wrong tiles.
+        let other_art: BTreeSet<String> = self
+            .db
+            .tilesets
+            .iter()
+            .filter(|n| !upgraded.contains(&(RefKind::Tileset, n.id.clone())))
+            .filter_map(|n| {
+                let o = db.tileset(&n.id)?;
+                let mine = safe_rel(&o.image).then(|| std::fs::read(root.join(&o.image)).ok()).flatten();
+                let same = match (mine.as_deref().map(Rgba::decode), self.files.get(&n.image).map(|b| Rgba::decode(b))) {
+                    (Some(Ok(a)), Some(Ok(b))) => a == b,
+                    _ => true,
+                };
+                (!same).then(|| n.id.clone())
+            })
+            .collect();
+        let mut skipped = Vec::new();
+        self.db.structures.retain(|d| {
+            let ok = exists(db, &(RefKind::Structure, d.id.clone())) || !d.tilesets.iter().any(|t| other_art.contains(t));
+            if !ok {
+                skipped.push((RefKind::Structure, d.id.clone()));
+            }
+            ok
+        });
         let new = |k: RefKind, id: &str| !exists(db, &(k, id.to_string()));
         self.db.tilesets.retain(|d| new(RefKind::Tileset, &d.id));
         self.db.sheets.retain(|d| new(RefKind::Sheet, &d.id));
@@ -576,6 +768,73 @@ impl Bundle {
         self.files.retain(|rel, _| used.contains(rel));
         let mut report = self.merge_into(db, root)?;
         report.upgraded = upgraded;
+        report.skipped = skipped;
+        Ok(report)
+    }
+
+    /// Adds the bundle to a store at `root`, replacing the store's version of every asset it
+    /// has (definition in place, files at the bundle's paths, script functions of the same name
+    /// in `scripts/library.rhai`): how updated assets go back to the library they belong to,
+    /// e.g. the example project's into the editor's starter library. Files are written right
+    /// away; the caller saves the definitions.
+    pub fn replace_into(self, db: &mut Database, root: &Path) -> Result<MergeReport> {
+        let mut report = MergeReport::default();
+        for (rel, bytes) in &self.files {
+            if !safe_rel(rel) {
+                bail!("unsafe path: {rel}");
+            }
+            let p = root.join(rel);
+            if std::fs::read(&p).ok().as_deref() != Some(bytes.as_slice()) {
+                if let Some(dir) = p.parent() {
+                    std::fs::create_dir_all(dir)?;
+                }
+                std::fs::write(&p, bytes).with_context(|| format!("writing {rel}"))?;
+                report.files.push(rel.clone());
+            }
+        }
+        let file_of = |a: &AssetRef| match a.0 {
+            RefKind::Tileset => self.db.tileset(&a.1).map(|d| d.image.clone()),
+            RefKind::Sheet => self.db.sheet(&a.1).map(|d| d.image.clone()),
+            RefKind::Sound => self.db.sounds.iter().find(|d| d.id == a.1).map(|d| d.file.clone()),
+            _ => None,
+        };
+        for a in all_assets(&self.db) {
+            if !exists(db, &a) {
+                report.added.push(a.clone());
+            } else if same_def(db, &self.db, &a) && !file_of(&a).is_some_and(|f| report.files.contains(&f)) {
+                report.existing.push(a);
+                continue;
+            } else {
+                report.replaced.push(a.clone());
+            }
+            put_def(db, &self.db, &a);
+        }
+        if !self.scripts.is_empty() {
+            let path = root.join("scripts").join(LIBRARY_SCRIPT);
+            let old = std::fs::read_to_string(&path).ok();
+            let mut src = old.clone().unwrap_or_else(|| LIBRARY_SCRIPT_HEADER.to_string());
+            let here = crate::script_refs::functions(&src);
+            let elsewhere: BTreeSet<String> = read_scripts(root).into_iter().map(|f| f.name).filter(|n| !here.iter().any(|h| h.name == *n)).collect();
+            for (name, text) in &self.scripts {
+                match here.iter().find(|f| f.name == *name) {
+                    Some(f) if f.text.trim() == text.trim() => {}
+                    Some(f) => {
+                        src = src.replacen(f.text.trim_end(), text.trim_end(), 1);
+                        report.scripts_replaced.push(name.clone());
+                    }
+                    // Defined in another script file of the store: that one stays.
+                    None if elsewhere.contains(name) => report.scripts_kept.push(name.clone()),
+                    None => {
+                        src += &format!("\n{}\n", text.trim_end());
+                        report.scripts_added.push(name.clone());
+                    }
+                }
+            }
+            if old.as_deref() != Some(src.as_str()) {
+                std::fs::create_dir_all(path.parent().unwrap())?;
+                std::fs::write(&path, src).with_context(|| format!("writing {}", path.display()))?;
+            }
+        }
         Ok(report)
     }
 
@@ -754,13 +1013,44 @@ fn prune_library_script(project: &Project) -> Result<()> {
 /// Is `new` a larger version of image `old` that keeps all of `old`'s pixels in place?
 fn extends(old: &[u8], new: &[u8]) -> bool {
     let (Ok(o), Ok(n)) = (Rgba::decode(old), Rgba::decode(new)) else { return false };
-    if n.w < o.w || n.h < o.h || (n.w, n.h) == (o.w, o.h) {
+    if n.w < o.w || n.h < o.h || old == new {
         return false;
     }
-    (0..o.h as usize).all(|y| {
-        let (a, b) = (y * o.w as usize * 4, y * n.w as usize * 4);
-        o.px[a..a + o.w as usize * 4] == n.px[b..b + o.w as usize * 4]
-    })
+    // Every pixel the old image has is still there; new art only where it was empty
+    // (more frames or tiles, or art in cells that were blank).
+    let mut changed = (n.w, n.h) != (o.w, o.h);
+    for y in 0..o.h as usize {
+        for x in 0..o.w as usize {
+            let (a, b) = ((y * o.w as usize + x) * 4, (y * n.w as usize + x) * 4);
+            let (op, np) = (&o.px[a..a + 4], &n.px[b..b + 4]);
+            if op[3] == 0 {
+                changed |= np[3] != 0;
+            } else if op != np {
+                return false;
+            }
+        }
+    }
+    changed
+}
+
+/// Tile indices (in the new image's columns) whose cells were empty or missing in `old` and
+/// have art in `new`.
+fn new_tiles(old: &[u8], new: &[u8], ts: u32) -> BTreeSet<u32> {
+    let (Ok(o), Ok(n)) = (Rgba::decode(old), Rgba::decode(new)) else { return BTreeSet::new() };
+    let blank = |img: &Rgba, c: u32, r: u32| {
+        (r * ts..((r + 1) * ts).min(img.h)).all(|y| (c * ts..((c + 1) * ts).min(img.w)).all(|x| img.px[((y * img.w + x) * 4 + 3) as usize] == 0))
+    };
+    let cols = n.w / ts.max(1);
+    let mut out = BTreeSet::new();
+    for r in 0..n.h / ts.max(1) {
+        for c in 0..cols {
+            let was_empty = (c + 1) * ts > o.w || (r + 1) * ts > o.h || blank(&o, c, r);
+            if was_empty && !blank(&n, c, r) {
+                out.insert(r * cols + c);
+            }
+        }
+    }
+    out
 }
 
 fn files_of(db: &Database) -> BTreeSet<String> {
@@ -780,14 +1070,20 @@ pub fn library_dir() -> PathBuf {
     dir
 }
 
-/// Opens the library at `dir`, creating it (filled with `starter`, a `.r2dpack`) if needed.
-pub fn open_library(dir: &Path, starter: Option<&[u8]>) -> Result<Project> {
+/// The files of a library folder embedded in a program: paths relative to the folder (`/`
+/// separators) and contents. The editor embeds its starter library this way
+/// (`crates/editor/assets/starter_library`).
+pub type LibraryFiles<'a> = [(&'a str, &'a [u8])];
+
+/// Opens the library at `dir`, creating it (filled with the `starter` library's assets) if
+/// needed. A changed starter set (a newer editor) adds the assets the library doesn't have yet.
+pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Project> {
     let stamp_file = dir.join(STARTER_STAMP);
     // The stamp includes how starter sets are applied, so libraries get a changed rule once.
-    let stamp = starter.map(|b| format!("{STARTER_RULES}:{:016x}", fnv1a(b)));
+    let stamp = starter.map(|f| format!("{STARTER_RULES}:{:016x}", files_hash(f)));
     if !dir.join("project.ron").exists() {
         std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
-        let bundle = starter.map(Bundle::from_pack).transpose().context("reading the starter assets")?;
+        let bundle = starter.map(Bundle::from_files).transpose().context("reading the starter assets")?;
         let mut lib = Project { root: dir.to_path_buf(), config: ProjectConfig::new("Asset library"), db: Database::default() };
         if let Some(mut b) = bundle {
             b.rescale(TILE_SIZE)?;
@@ -803,9 +1099,9 @@ pub fn open_library(dir: &Path, starter: Option<&[u8]>) -> Result<Project> {
     crate::migrate::upgrade(dir, None)?;
     let mut lib = Project::load(dir)?;
     // A newer starter set (new editor version): add the assets the library doesn't have yet.
-    if let (Some(bytes), Some(s)) = (starter, &stamp) {
+    if let (Some(files), Some(s)) = (starter, &stamp) {
         if std::fs::read_to_string(&stamp_file).ok().as_deref() != Some(s.as_str()) {
-            let mut b = Bundle::from_pack(bytes).context("reading the starter assets")?;
+            let mut b = Bundle::from_files(files).context("reading the starter assets")?;
             b.rescale(TILE_SIZE)?;
             let report = b.add_missing(&mut lib.db, dir)?;
             if !report.added.is_empty() || !report.upgraded.is_empty() {
@@ -820,12 +1116,24 @@ pub fn open_library(dir: &Path, starter: Option<&[u8]>) -> Result<Project> {
 /// File in the library recording which starter set was last applied.
 const STARTER_STAMP: &str = "starter.stamp";
 /// Version of the rules for applying starter sets (2: images that only grew are upgraded;
-/// 4: bodies get the playable flag; 5: tilesets get their auto-tiling terrains).
-const STARTER_RULES: u32 = 5;
+/// 4: bodies get the playable flag; 5: tilesets get their auto-tiling terrains; 6: the terrain
+/// sheet is 16 columns wide with a 47-tile set per terrain — not an extension of the old
+/// sheet, so existing libraries keep their art until they are rebuilt; 7: an image of the
+/// same size that only fills empty cells is an upgrade too, and the new tiles bring their
+/// solid / ladder / light / animation flags).
+const STARTER_RULES: u32 = 7;
 
-/// 64-bit FNV-1a hash (a cheap fingerprint of the starter pack).
-fn fnv1a(bytes: &[u8]) -> u64 {
-    bytes.iter().fold(0xcbf29ce484222325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x100000001b3))
+/// 64-bit FNV-1a hash of every path and content (a cheap fingerprint of the starter set that
+/// only changes when the files do).
+fn files_hash(files: &LibraryFiles) -> u64 {
+    let mut sorted: Vec<&(&str, &[u8])> = files.iter().collect();
+    sorted.sort_by_key(|(p, _)| *p);
+    let step = |h: u64, b: &u8| (h ^ *b as u64).wrapping_mul(0x100000001b3);
+    sorted.iter().fold(0xcbf29ce484222325u64, |h, (p, b)| {
+        let h = p.as_bytes().iter().chain(&[0u8]).fold(h, step);
+        let h = (b.len() as u64).to_le_bytes().iter().fold(h, step);
+        b.iter().fold(h, step)
+    })
 }
 
 /// Adds a bundle to the library (rescaled to the library's tile size) and saves it.
@@ -846,6 +1154,10 @@ mod tests {
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         p
+    }
+
+    fn borrowed(files: &[(String, Vec<u8>)]) -> Vec<(&str, &[u8])> {
+        files.iter().map(|(p, b)| (p.as_str(), b.as_slice())).collect()
     }
 
     fn png(w: u32, h: u32, c: [u8; 4]) -> Vec<u8> {
@@ -886,6 +1198,40 @@ mod tests {
             ..Default::default()
         };
         (root, db)
+    }
+
+    #[test]
+    fn replace_updates_existing_assets_in_place() {
+        let (root, db) = source("replace");
+        std::fs::create_dir_all(root.join("scripts")).unwrap();
+        std::fs::write(root.join("scripts/main.rhai"), "fn arrows_used() { say(\"new\"); }\nfn story() { say(\"tale\"); }\n").unwrap();
+        let dst = tmp("replace_dst");
+        let _ = std::fs::remove_dir_all(&dst);
+        let mut lib = Database::default();
+        Bundle::collect(&db, &root, 32, "", &all_assets(&db)).unwrap().merge_into(&mut lib, &dst).unwrap();
+        std::fs::create_dir_all(dst.join("scripts")).unwrap();
+        std::fs::write(dst.join("scripts/library.rhai"), format!("{LIBRARY_SCRIPT_HEADER}\nfn arrows_used() {{ say(\"old\"); }}\n")).unwrap();
+        // The project changed the arrows, their picture and script; the bow is new to the store.
+        let mut db2 = db.clone();
+        db2.items[0].name = "Better arrows".into();
+        db2.items[0].on_use = vec![crate::events::Trigger { actions: vec![crate::events::Action::RunScript { function: "arrows_used".into() }], ..crate::events::Trigger::new(crate::events::TriggerOn::Interact) }];
+        db2.items[1].on_use = vec![crate::events::Trigger { actions: vec![crate::events::Action::RunScript { function: "story".into() }], ..crate::events::Trigger::new(crate::events::TriggerOn::Interact) }];
+        lib.items.retain(|d| d.id != "bow");
+        std::fs::write(root.join("sprites/items.png"), png(32, 16, [0, 0, 255, 255])).unwrap();
+        let b = Bundle::collect_for_library(&db2, &root, 32, "", &all_assets(&db2), false).unwrap();
+        assert_eq!(b.scripts.keys().collect::<Vec<_>>(), ["arrows_used", "story"]);
+        let report = b.replace_into(&mut lib, &dst).unwrap();
+        assert_eq!(lib.items.iter().map(|d| d.name.as_str()).collect::<Vec<_>>(), ["Better arrows", "bow"], "replaced in place, new one appended");
+        assert_eq!(report.added, vec![(RefKind::Item, "bow".to_string())]);
+        assert!(report.replaced.contains(&(RefKind::Sheet, "items".to_string())), "its picture changed");
+        assert_eq!(std::fs::read(dst.join("sprites/items.png")).unwrap(), std::fs::read(root.join("sprites/items.png")).unwrap());
+        let src = std::fs::read_to_string(dst.join("scripts/library.rhai")).unwrap();
+        assert!(src.contains("say(\"new\")") && !src.contains("say(\"old\")") && src.contains("fn story()"), "{src}");
+        assert_eq!(report.scripts_replaced, ["arrows_used"]);
+        // Story triggers can stay behind.
+        let b = Bundle::collect_for_library(&db2, &root, 32, "", &all_assets(&db2), true).unwrap();
+        assert!(b.db.items.iter().all(|d| d.on_use.is_empty()) && b.scripts.is_empty());
+        let _ = (std::fs::remove_dir_all(root), std::fs::remove_dir_all(dst));
     }
 
     #[test]
@@ -1043,7 +1389,7 @@ mod tests {
         }
         let mut pond = crate::autotile::Terrain { name: "Pond".into(), base: Some(0), ..Default::default() };
         pond.fill_from_block(0, 4);
-        let ts = |solid: Vec<u32>, terrains| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, animations: vec![], lights: vec![], terrains };
+        let ts = |solid: Vec<u32>, terrains| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder: vec![], animations: vec![], lights: vec![], terrains };
         let mut newer = Database { tilesets: vec![ts(vec![3, 5, 99], vec![pond.clone()])], ..Default::default() };
         newer.tilesets[0].animations = vec![TileAnim { tile: 15, frames: vec![15, 16], fps: 2.0 }, TileAnim { tile: 40, frames: vec![40, 41], fps: 2.0 }];
         let pack = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap();
@@ -1063,12 +1409,76 @@ mod tests {
     }
 
     #[test]
+    fn filled_cells_upgrade_with_their_flags() {
+        // 64x64 tileset: tile 0 drawn; the newer one also draws tile 3 (a ladder) and tile 1 (solid).
+        let img = |tiles: &[u32], c: u8| {
+            let mut im = Rgba::new(64, 64);
+            for &t in tiles {
+                let (tx, ty) = ((t % 2) * 32, (t / 2) * 32);
+                for y in ty..ty + 32 {
+                    for x in tx..tx + 32 {
+                        let k = ((y * 64 + x) * 4) as usize;
+                        im.px[k..k + 4].copy_from_slice(&[c, 100, 50, 255]);
+                    }
+                }
+            }
+            im.encode().unwrap()
+        };
+        let (old, newer) = (img(&[0], 10), img(&[0, 1, 3], 10));
+        assert!(extends(&old, &newer), "art only where it was empty");
+        assert!(!extends(&old, &img(&[0, 1], 99)), "the existing tile changed");
+        assert!(!extends(&old, &old), "nothing new");
+        assert_eq!(new_tiles(&old, &newer, 32), BTreeSet::from([1, 3]));
+        let src = tmp("fill_src");
+        let dst = tmp("fill_dst");
+        for (d, png) in [(&src, &newer), (&dst, &old)] {
+            let _ = std::fs::remove_dir_all(d);
+            std::fs::create_dir_all(d.join("tilesets")).unwrap();
+            std::fs::write(d.join("tilesets/t.png"), png).unwrap();
+        }
+        let ts = |solid: Vec<u32>, ladder: Vec<u32>| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder, animations: vec![], lights: vec![], terrains: vec![] };
+        let newer_db = Database { tilesets: vec![ts(vec![0, 1], vec![3])], ..Default::default() };
+        let pack = Bundle::collect(&newer_db, &src, 32, "starter", &all_assets(&newer_db)).unwrap();
+        // The library's own tile 0 is walkable: that stays.
+        let mut db = Database { tilesets: vec![ts(vec![], vec![])], ..Default::default() };
+        let report = pack.add_missing(&mut db, &dst).unwrap();
+        assert_eq!(std::fs::read(dst.join("tilesets/t.png")).unwrap(), newer);
+        assert_eq!((db.tilesets[0].solid.clone(), db.tilesets[0].ladder.clone()), (vec![1], vec![3]));
+        assert_eq!(report.upgraded, vec![(RefKind::Tileset, "t".to_string())]);
+        let _ = (std::fs::remove_dir_all(src), std::fs::remove_dir_all(dst));
+    }
+
+    #[test]
+    fn structures_wait_for_their_tileset_art() {
+        let src = tmp("st_src");
+        let dst = tmp("st_dst");
+        for (d, c) in [(&src, [10, 200, 10, 255]), (&dst, [1, 2, 3, 255])] {
+            let _ = std::fs::remove_dir_all(d);
+            std::fs::create_dir_all(d.join("tilesets")).unwrap();
+            std::fs::write(d.join("tilesets/t.png"), png(64, 64, c)).unwrap();
+        }
+        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] };
+        let st = StructureDef { id: "tower".into(), name: "Tower".into(), w: 1, h: 1, tilesets: vec!["t".into()], layers: vec![vec![1]], collision: vec![0], ..Default::default() };
+        let newer = Database { tilesets: vec![ts.clone()], structures: vec![st], ..Default::default() };
+        // The library's tileset has other art (not an extension): the structure would get wrong tiles.
+        let mut db = Database { tilesets: vec![ts.clone()], ..Default::default() };
+        let report = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap().add_missing(&mut db, &dst).unwrap();
+        assert!(db.structures.is_empty());
+        assert_eq!(report.skipped, vec![(RefKind::Structure, "tower".to_string())]);
+        // Same art: it comes along.
+        std::fs::write(dst.join("tilesets/t.png"), png(64, 64, [10, 200, 10, 255])).unwrap();
+        Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap().add_missing(&mut db, &dst).unwrap();
+        assert_eq!(db.structures.len(), 1);
+        let _ = (std::fs::remove_dir_all(src), std::fs::remove_dir_all(dst));
+    }
+
+    #[test]
     fn library_and_removal() {
         let (root, db) = source("lib");
-        let pack = Bundle::collect(&db, &root, 16, "starter", &all_assets(&db)).unwrap().to_pack().unwrap();
+        let pack = Bundle::collect(&db, &root, 16, "starter", &all_assets(&db)).unwrap().to_files().unwrap();
         let dir = tmp("lib");
         let _ = std::fs::remove_dir_all(&dir);
-        let mut lib = open_library(&dir, Some(&pack)).unwrap();
+        let mut lib = open_library(&dir, Some(&borrowed(&pack))).unwrap();
         // The 16px pack was enlarged to the fixed 32px tiles.
         assert_eq!(lib.config.tile_size, 32);
         assert_eq!(lib.db.sheet("items").unwrap().frame_w, 32);
@@ -1080,16 +1490,16 @@ mod tests {
         db2.items[0].name = "Changed arrows".into();
         db2.sheets.push(SheetDef { id: "extra".into(), image: "sprites/extra.png".into(), frame_w: 16, frame_h: 16, kind: Default::default(), female: false, playable: false, tags: vec![] });
         std::fs::write(root.join("sprites/extra.png"), png(16, 16, [1, 2, 3, 255])).unwrap();
-        let pack2 = Bundle::collect(&db2, &root, 16, "starter", &all_assets(&db2)).unwrap().to_pack().unwrap();
-        let lib = open_library(&dir, Some(&pack2)).unwrap();
+        let pack2 = Bundle::collect(&db2, &root, 16, "starter", &all_assets(&db2)).unwrap().to_files().unwrap();
+        let lib = open_library(&dir, Some(&borrowed(&pack2))).unwrap();
         assert!(lib.db.sheet("extra").is_some(), "new sheet added");
         // A newer set marking a body playable flags the library's (otherwise unchanged) copy.
         let mut db3 = db2.clone();
         for s in &mut db3.sheets {
             s.playable = s.id == "extra";
         }
-        let pack3 = Bundle::collect(&db3, &root, 16, "starter", &all_assets(&db3)).unwrap().to_pack().unwrap();
-        let lib = open_library(&dir, Some(&pack3)).unwrap();
+        let pack3 = Bundle::collect(&db3, &root, 16, "starter", &all_assets(&db3)).unwrap().to_files().unwrap();
+        let lib = open_library(&dir, Some(&borrowed(&pack3))).unwrap();
         assert!(lib.db.sheet("extra").unwrap().playable, "playable flag added");
         assert!(!lib.db.sheet("items").unwrap().playable);
         // A newer set whose "items" image only grew (frames added on the right) upgrades it;
@@ -1105,8 +1515,8 @@ mod tests {
         std::fs::write(src3.join("sprites/items.png"), wider.encode().unwrap()).unwrap();
         let mut db3 = Database { sheets: lib.db.sheets.iter().filter(|s| s.id == "items").cloned().collect(), items: lib.db.items.clone(), ..Default::default() };
         db3.items.push(ItemDef { id: "gem".into(), icon: SpriteRef::new("items", 3), ..db3.items[0].clone() });
-        let pack3 = Bundle::collect(&db3, &src3, 32, "starter", &all_assets(&db3)).unwrap().to_pack().unwrap();
-        let lib3 = open_library(&dir, Some(&pack3)).unwrap();
+        let pack3 = Bundle::collect(&db3, &src3, 32, "starter", &all_assets(&db3)).unwrap().to_files().unwrap();
+        let lib3 = open_library(&dir, Some(&borrowed(&pack3))).unwrap();
         assert_eq!(Rgba::decode(&std::fs::read(dir.join("sprites/items.png")).unwrap()).unwrap().w, old.w * 2, "extended image upgraded");
         assert!(lib3.db.item("gem").is_some());
         assert!(extends(&old.encode().unwrap(), &wider.encode().unwrap()));

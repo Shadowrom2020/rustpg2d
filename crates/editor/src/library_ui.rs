@@ -18,8 +18,11 @@ use crate::app::Editor;
 use crate::files::Purpose;
 use crate::ui::{self, ph};
 
-/// Assets the library starts with (built from the example project by `gen_example`).
-pub const STARTER: &[u8] = include_bytes!("../assets/starter.r2dpack");
+include!(concat!(env!("OUT_DIR"), "/starter_files.rs"));
+
+/// Assets the library starts with: the files of `crates/editor/assets/starter_library` (the
+/// example project's assets plus library-only extras), embedded by `build.rs`.
+pub const STARTER: &rustpg2d_engine::library::LibraryFiles<'static> = STARTER_FILES;
 
 struct Tex {
     handle: TextureHandle,
@@ -351,6 +354,28 @@ impl Editor {
         self.after_scripts_merged();
         self.reload_assets();
         Ok(format!("Added to the project: {}. Save the definitions to keep them.", report.summary()))
+    }
+
+    /// Sends project assets (with their dependencies and the script functions they need) to the
+    /// asset library without asking: the AI agent server's `library_send`. `replace` overwrites
+    /// the library's version of assets it already has (updating a library from the project its
+    /// assets come from, e.g. the starter library from the example project) instead of adding
+    /// them under new ids; `drop_script_triggers` leaves triggers that run the project's
+    /// script functions behind.
+    pub fn project_to_library(&mut self, assets: &[AssetRef], replace: bool, drop_script_triggers: bool) -> Result<String> {
+        let b = Bundle::collect_for_library(&self.project.db, &self.project.root, rustpg2d_engine::project::TILE_SIZE, &self.project.config.name, assets, drop_script_triggers)?;
+        self.lib.ensure_loaded();
+        let lib = self.lib.lib.as_mut().with_context(|| self.lib.error.clone().unwrap_or_else(|| "library not available".into()))?;
+        let report = if replace {
+            let root = lib.root.clone();
+            let r = b.replace_into(&mut lib.db, &root)?;
+            lib.save_defs()?;
+            r
+        } else {
+            library::add_to_library(lib, b)?
+        };
+        self.lib.tex_dirty = true;
+        Ok(format!("Library ({}): {}", lib.root.display(), report.summary()))
     }
 
     /// Copies project assets (with their dependencies) into the library or a package. When
@@ -854,5 +879,65 @@ impl Editor {
         if ui.button(ui::t(ph::DOWNLOAD_SIMPLE, "Add from library…")).on_hover_text(format!("Choose {what} from the shared asset library to copy into this project")).clicked() {
             self.open_add_dialog(kind);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn starter() -> Bundle {
+        Bundle::from_files(STARTER).unwrap()
+    }
+
+    /// The starter library loads, has every id once per kind, and everything its assets refer
+    /// to (other assets, files, script functions) is in it.
+    #[test]
+    fn starter_library_is_consistent() {
+        let b = starter();
+        let assets = library::all_assets(&b.db);
+        let mut seen = BTreeSet::new();
+        for a in &assets {
+            assert!(seen.insert(a.clone()), "the starter library has the {} {} twice", kind_label(a.0), a.1);
+        }
+        for a in &assets {
+            for d in library::deps(&b.db, a) {
+                assert!(library::exists(&b.db, &d), "{} {} needs the {} {}, which the starter library lacks", kind_label(a.0), a.1, kind_label(d.0), d.1);
+            }
+            for f in library::script_roots(&b.db, a) {
+                assert!(b.scripts.contains_key(&f), "{} {} runs {f}(), which scripts/library.rhai lacks", kind_label(a.0), a.1);
+            }
+        }
+        for a in library::script_asset_refs(b.scripts.values().map(String::as_str)) {
+            assert!(library::exists(&b.db, &a), "a starter script uses the {} {}, which the library lacks", kind_label(a.0), a.1);
+        }
+        assert!(b.db.tilesets.len() >= 5 && b.db.sheets.len() > 100, "{} tilesets, {} sheets", b.db.tilesets.len(), b.db.sheets.len());
+    }
+
+    /// Everything the example project has (but its quests, achievements and story scripts) is in
+    /// the starter library, identical: send changed example assets with the AI agent server's
+    /// `library_send` (replace, drop_script_triggers) and `RUSTPG2D_LIBRARY` set to
+    /// `crates/editor/assets/starter_library`.
+    #[test]
+    fn starter_library_has_every_example_asset() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example_project");
+        let example = Project::load(&root).unwrap();
+        let mut ex = Bundle::collect(&example.db, &root, rustpg2d_engine::project::TILE_SIZE, "", &library::all_assets(&example.db)).unwrap();
+        ex.drop_script_triggers();
+        let st = starter();
+        let mut wrong = Vec::new();
+        for a in library::all_assets(&ex.db) {
+            if !library::exists(&st.db, &a) {
+                wrong.push(format!("{} {} is missing", kind_label(a.0), a.1));
+            } else if !library::same_def(&ex.db, &st.db, &a) {
+                wrong.push(format!("{} {} differs", kind_label(a.0), a.1));
+            }
+        }
+        for (rel, bytes) in &ex.files {
+            if st.files.get(rel) != Some(bytes) {
+                wrong.push(format!("file {rel} differs or is missing"));
+            }
+        }
+        assert!(wrong.is_empty(), "the starter library is out of date with the example project:\n{}", wrong.join("\n"));
     }
 }

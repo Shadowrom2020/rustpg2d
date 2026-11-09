@@ -100,6 +100,29 @@ pub fn base64(data: &[u8]) -> String {
     out
 }
 
+/// Decodes standard Base64 (padding optional, whitespace ignored); `None` on other characters.
+pub fn base64_decode(text: &str) -> Option<Vec<u8>> {
+    let val = |c: u8| match c {
+        b'A'..=b'Z' => Some(c - b'A'),
+        b'a'..=b'z' => Some(c - b'a' + 26),
+        b'0'..=b'9' => Some(c - b'0' + 52),
+        b'+' => Some(62),
+        b'/' => Some(63),
+        _ => None,
+    };
+    let digits: Vec<u8> = text.bytes().filter(|c| !c.is_ascii_whitespace()).collect();
+    let digits = digits.strip_suffix(b"==").or_else(|| digits.strip_suffix(b"=")).unwrap_or(&digits);
+    if digits.len() % 4 == 1 {
+        return None;
+    }
+    let mut out = Vec::with_capacity(digits.len() * 3 / 4);
+    for chunk in digits.chunks(4) {
+        let n = chunk.iter().enumerate().try_fold(0u32, |n, (i, c)| Some(n | (val(*c)? as u32) << (18 - 6 * i)))?;
+        out.extend_from_slice(&n.to_be_bytes()[1..chunk.len()]);
+    }
+    Some(out)
+}
+
 /// Lowercase hex.
 pub fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
@@ -123,5 +146,10 @@ mod tests {
         assert_eq!(base64(b"fo"), "Zm8=");
         assert_eq!(base64(b"foo"), "Zm9v");
         assert_eq!(base64(b"foobar"), "Zm9vYmFy");
+        for data in [&b""[..], b"f", b"fo", b"foo", b"foob", b"fooba", b"foobar", &[0, 255, 128, 7, 1]] {
+            assert_eq!(base64_decode(&base64(data)).as_deref(), Some(data));
+        }
+        assert_eq!(base64_decode("Zm9v\nYmE").as_deref(), Some(&b"fooba"[..]), "whitespace, no padding");
+        assert_eq!(base64_decode("Zm9v!"), None);
     }
 }

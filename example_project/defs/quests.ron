@@ -4,7 +4,7 @@
         title: "The Strange Lights",
         description: "Strange lights have been seen in Whisperwood, east of Emberbrook. Elder Rowan asked me to investigate the old shrine there.",
         stages: [
-            "Take the gate key from the chest in Elder Rowan\'s house, north of the well.",
+            "Take the gate key from the chest in Elder Rowan\'s house, east of the market square.",
             "Open the east gate and find the old shrine deep in Whisperwood.",
             "Return to Elder Rowan.",
         ],
@@ -19,5 +19,46 @@
             "Return to Tilda\'s shop for the reward.",
         ],
         xp: 40,
+    ),
+    (
+        id: "lost_cat",
+        title: "The Lost Cat",
+        description: "Mira\'s ginger cat Biscuit has been missing for two days. She asked me to find him.",
+        stages: [
+            "Ask around Emberbrook about Mira\'s cat Biscuit ({cat_clues}/2 clues).",
+            "Search the old mill across the river.",
+            "Bring Mira the good news.",
+        ],
+        xp: 30,
+    ),
+    (
+        id: "festival_bread",
+        title: "Bread for the Festival",
+        description: "Outlaws raided the miller\'s flour cart on the forest road. Without flour, Bram the baker can\'t bake the loaf for the harvest festival.",
+        stages: [
+            "Recover three sacks of flour from the raided cart on the forest road, beyond the east gate.",
+            "Bake a Festival Loaf at Bram\'s oven (two flour, an egg, a jar of honey) and bring it to Bram.",
+        ],
+        xp: 60,
+    ),
+    (
+        id: "herbal_remedy",
+        title: "The Herbalist\'s Remedy",
+        description: "Ida\'s little son Pip is ill with a fever. Wren the herbalist can brew a remedy if someone gathers the herbs for it.",
+        stages: [
+            "Gather feverleaf (by the forest path), bitterroot (on the pond bank) and a moonpetal (it opens only at night, in the graveyard), and bring them to Wren.",
+            "Brew the Herbal Remedy at Wren\'s alchemy table and bring it to Pip.",
+        ],
+        xp: 70,
+    ),
+    (
+        id: "tavern_rumours",
+        title: "Rumours at the Tavern",
+        description: "Greta told me about Halvar, a miner who went into the old mine forty years ago and never came back.",
+        stages: [
+            "Ask Brom the smith about Halvar.",
+            "Find Halvar\'s silver locket in the old mine and bring it to Brom.",
+        ],
+        xp: 90,
     ),
 ]

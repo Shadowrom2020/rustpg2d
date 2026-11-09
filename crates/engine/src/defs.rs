@@ -15,6 +15,10 @@ pub struct TilesetDef {
     /// Indices of tiles that block movement.
     #[serde(default)]
     pub solid: Vec<u32>,
+    /// Ladder tiles: the player climbs them (only up and down, slower, seen from behind);
+    /// characters keep off them. Not solid by themselves.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ladder: Vec<u32>,
     /// Animated tiles: wherever `tile` is placed, it cycles through `frames`.
     #[serde(default)]
     pub animations: Vec<TileAnim>,
@@ -1484,6 +1488,17 @@ mod tests {
 #[cfg(test)]
 mod furniture_tests {
     use super::*;
+
+    #[test]
+    fn ladder_tiles_in_ron() {
+        // Tilesets from before ladders load without them; empty lists aren't written.
+        let t: TilesetDef = ron::from_str(r#"(id: "t", image: "tilesets/t.png", solid: [1])"#).unwrap();
+        assert!(t.ladder.is_empty());
+        assert!(!ron::to_string(&t).unwrap().contains("ladder"));
+        let t = TilesetDef { ladder: vec![4, 9], ..t };
+        let back: TilesetDef = ron::from_str(&ron::to_string(&t).unwrap()).unwrap();
+        assert_eq!(back.ladder, vec![4, 9]);
+    }
 
     #[test]
     fn use_spots_in_ron() {

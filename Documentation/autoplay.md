@@ -31,6 +31,7 @@ own `[game]` / `[events]` messages, and `error:` lines.
 | `skillpoint ID` / `learn ID` / `cast ID` / `call FN` | Spend a skill point, learn / cast a spell, call a script function. |
 | `spawners` | Prints the spawner zones' state. |
 | `close` | The open window's close button. |
+| `talkto NAME` | Right-clicks the character named NAME where it stands now: the player walks there and talks (characters that wander). |
 | `status` | Prints one `[autoplay]` line with the game state (below). |
 | `shot NAME` | A PNG screenshot (play_test returns it as an image). |
 | `quit` | Ends the run (play_test appends it). |
@@ -41,12 +42,15 @@ begins on the chosen map and spawn, with the map's *Map enter* triggers and cut-
 
 ## The `status` line
 
-`[autoplay] dev=on|off … menu=title|pause|…|- autosave=none|pending|saved cutscene=NAME|- ui_hidden=… window=closed|… npcs=[…] worldmap={…} skills={points=N skills={..} spells={..} mana=N/M …} xp=N level=N effects=[…] ai=[…] bestiary=[…] dialog_log=N pad=… attacking=… time=HH:MM light=… weather=kind:intensity … companions=[…] player="Name|Sex|body" creator=… quests=[id:stage …] achievements=[…] minigame=… props=[def:state@x,y] crops=[…] lang=CODE map=NAME tile=(X,Y) hp=Some(N) vars={…} inv={item: count …} flags={…} music=… dialog=true|false busy=true|false enemies=N`
+`[autoplay] dev=on|off … menu=title|pause|…|- autosave=none|pending|saved cutscene=NAME|- ui_hidden=… window=closed|… npcs=[…] worldmap={…} skills={points=N skills={..} spells={..} mana=N/M …} xp=N level=N effects=[…] ai=[…] bestiary=[…] dialog_log=N pad=… attacking=… time=HH:MM light=… weather=kind:intensity … companions=[…] player="Name|Sex|body" creator=… quests=[id:stage …] achievements=[…] minigame=… climbing=true|false props=[def:state@x,y] crops=[…] lang=CODE map=NAME tile=(X,Y) hp=Some(N) vars={…} inv={item: count …} flags={…} music=… dialog=true|false busy=true|false enemies=N sounds=[…]`
 
 The useful fields for checking content: `map` and `tile` (where the player is), `dialog` (a
 dialog is open), `cutscene`, `quests` (quest id → stage), `inv`, `flags`, `vars`, `hp`,
 `props` (props not in their first state), `npcs` (characters on the map and their gear),
-`enemies`, `menu` (`defeated` after a death), `autosave`.
+`enemies`, `menu` (`defeated` after a death), `autosave`, `schedule` (scheduled characters:
+name:stop-time[>map](walking|inside|elsewhere)[:sit|:lie]@x,y), `sounds` (the last six sound
+effects started, also when the game is muted: a bell or an animal's call), `climbing` (the
+player is on a ladder tile).
 
 ## Tips for play-tests
 

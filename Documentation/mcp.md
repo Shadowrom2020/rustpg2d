@@ -92,6 +92,7 @@ server when you don't use it; don't forward the port.
 | `set_triggers {map, owner, triggers}` / `add_trigger {map, owner, trigger}` | `owner`: `{"map": true}`, `{"entity": UID}`, `{"zone": UID}` or `{"def": {"kind": "item"\|"prop"\|"character", "id": …}}`. Events must suit the owner (`events_reference`); ids in actions and conditions must exist; functions not defined yet are warnings. |
 | `set_map_settings {map, patch}` | `background`, `music`, `lighting {mode: Bright\|Outdoor\|Dark, darkness}`, `fog`, `weather {kind: None\|Rain\|Snow\|Fog, intensity}`, `parallax`, `edges {north\|south\|east\|west: {target_map, offset, depth} \| null}`. |
 | `place_structure {map, structure, x, y}` | Stamps a structure (tiles, collision, entities). |
+| `capture_structure {map, x, y, w, h, id, name, category, ground}` | A new structure from a map region: its tiles (all layers; `ground: false` leaves the ground layer out), collision overrides and entities. |
 | `rename {kind, old, new}` | A definition or map and every reference to it, scripts included. |
 
 ### Definitions
@@ -102,6 +103,7 @@ server when you don't use it; don't forward the port.
 | `def_template {kind, id}` | A complete new definition to fill in, with notes on the fields. |
 | `upsert_def {kind, def, merge}` | Create or replace (or merge fields into) a definition; checks referenced ids, image / sound files and the definition's own triggers; tilesets, sheets and sounds reload the editor's textures. |
 | `delete_def {kind, id, force}` | Refuses while definitions, maps or scripts use it unless `force`; files are kept. |
+| `write_asset {path, base64 \| source}` | Writes an image (`.png`) or sound (`.wav`, `.ogg`) under `sprites/`, `tilesets/` or `sounds/` — from Base64 or by copying a file on this computer — after checking that it decodes, and reloads the art. Replacing a file updates every definition that uses it; a new file needs a definition (`upsert_def`). |
 | `events_reference {what}` | Allowed events per owner, every condition and action as JSON with example values. |
 
 ### Scripts
@@ -134,6 +136,7 @@ screenshots as images. The game opens a real window on the person's screen for t
 | `library_list {kind, filter, offset}` | Ready-made assets (tilesets, sheets, items, props, characters, sounds, structures, skills, spells, recipes) with what each needs and whether it is in the project. |
 | `library_info {kind, id}` | One asset as JSON with its dependencies. |
 | `library_add {assets: [{kind, id}]}` | Copies assets with everything they need (sheets, sounds, script functions) into the project. |
+| `library_send {assets: [{kind, id}], replace, drop_script_triggers}` | Sends project assets with everything they need to the library. An id the library has already gets a numbered copy, or with `replace` its definition, files and script functions are updated. `drop_script_triggers` leaves the triggers of items, props and characters that run the project's script functions behind (story scripts stay with the game). The library is `$RUSTPG2D_LIBRARY` or the user's own one. |
 
 ## Resources and prompts
 

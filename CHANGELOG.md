@@ -3,7 +3,13 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.12.0 — 2026-11-09
+
+A quality and reliability release: characters no longer search for paths every frame, files are
+written whole or not at all, one bad entry no longer stops a project or map from loading, the
+Windows game explains why it can't start, and CI now runs the game and the editor. Much shared
+code was merged into one place each (`Documentation/architecture.md` describes the result).
+Projects, maps and save games of earlier versions load unchanged.
 
 ### Fixes
 - **Characters stop searching every frame.** A character blocked on its way planned a new path

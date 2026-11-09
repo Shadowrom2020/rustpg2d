@@ -38,19 +38,7 @@ pub type AssetRef = (RefKind, String);
 pub const KINDS: [RefKind; 10] = [RefKind::Tileset, RefKind::Sheet, RefKind::Sound, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe];
 
 pub fn kind_label(k: RefKind) -> &'static str {
-    match k {
-        RefKind::Tileset => "Tileset",
-        RefKind::Sheet => "Sprite sheet",
-        RefKind::Sound => "Sound",
-        RefKind::Item => "Item",
-        RefKind::Prop => "Prop",
-        RefKind::Character => "Character",
-        RefKind::Map => "Map",
-        RefKind::Structure => "Structure",
-        RefKind::Skill => "Skill",
-        RefKind::Spell => "Spell",
-        RefKind::Recipe => "Recipe",
-    }
+    k.label()
 }
 
 #[derive(Serialize, Deserialize)]
@@ -161,96 +149,28 @@ impl MergeReport {
 
 /// Do `a` and `b` have the same definition of `asset` (both missing counts as the same)?
 pub fn same_def(a: &Database, b: &Database, asset: &AssetRef) -> bool {
-    let id = asset.1.as_str();
-    match asset.0 {
-        RefKind::Tileset => a.tileset(id) == b.tileset(id),
-        RefKind::Sheet => a.sheet(id) == b.sheet(id),
-        RefKind::Sound => a.sounds.iter().find(|d| d.id == id) == b.sounds.iter().find(|d| d.id == id),
-        RefKind::Item => a.item(id) == b.item(id),
-        RefKind::Prop => a.prop(id) == b.prop(id),
-        RefKind::Character => a.character(id) == b.character(id),
-        RefKind::Structure => a.structure(id) == b.structure(id),
-        RefKind::Skill => a.skill(id) == b.skill(id),
-        RefKind::Spell => a.spell(id) == b.spell(id),
-        RefKind::Recipe => a.recipe(id) == b.recipe(id),
-        RefKind::Map => true,
-    }
+    a.same(b, asset.0, &asset.1)
 }
 
 /// Puts `from`'s definition of `asset` into `to`: replaces the one with the same id in place,
 /// or appends it.
 fn put_def(to: &mut Database, from: &Database, asset: &AssetRef) {
-    macro_rules! put {
-        ($list:ident) => {
-            if let Some(d) = from.$list.iter().find(|d| d.id == asset.1) {
-                match to.$list.iter().position(|o| o.id == asset.1) {
-                    Some(i) => to.$list[i] = d.clone(),
-                    None => to.$list.push(d.clone()),
-                }
-            }
-        };
-    }
-    match asset.0 {
-        RefKind::Tileset => put!(tilesets),
-        RefKind::Sheet => put!(sheets),
-        RefKind::Sound => put!(sounds),
-        RefKind::Item => put!(items),
-        RefKind::Prop => put!(props),
-        RefKind::Character => put!(characters),
-        RefKind::Structure => put!(structures),
-        RefKind::Skill => put!(skills),
-        RefKind::Spell => put!(spells),
-        RefKind::Recipe => put!(recipes),
-        RefKind::Map => {}
-    }
+    to.copy_from(from, asset.0, &asset.1);
 }
 
 pub fn exists(db: &Database, a: &AssetRef) -> bool {
-    let id = a.1.as_str();
-    match a.0 {
-        RefKind::Tileset => db.tileset(id).is_some(),
-        RefKind::Sheet => db.sheet(id).is_some(),
-        RefKind::Sound => db.sounds.iter().any(|d| d.id == id),
-        RefKind::Item => db.item(id).is_some(),
-        RefKind::Prop => db.prop(id).is_some(),
-        RefKind::Character => db.character(id).is_some(),
-        RefKind::Structure => db.structure(id).is_some(),
-        RefKind::Skill => db.skill(id).is_some(),
-        RefKind::Spell => db.spell(id).is_some(),
-        RefKind::Recipe => db.recipe(id).is_some(),
-        RefKind::Map => false,
-    }
+    db.has(a.0, &a.1)
 }
 
 /// Assets `a` refers to directly (only kinds that live in a bundle).
 pub fn deps(db: &Database, a: &AssetRef) -> Vec<AssetRef> {
-    let refs = match a.0 {
-        RefKind::Item => db.item(&a.1).map(refactor::refs_of_item),
-        RefKind::Prop => db.prop(&a.1).map(refactor::refs_of_prop),
-        RefKind::Character => db.character(&a.1).map(refactor::refs_of_character),
-        RefKind::Structure => db.structure(&a.1).map(refactor::refs_of_structure),
-        RefKind::Skill => db.skill(&a.1).map(refactor::refs_of_skill),
-        RefKind::Spell => db.spell(&a.1).map(refactor::refs_of_spell),
-        RefKind::Recipe => db.recipe(&a.1).map(refactor::refs_of_recipe),
-        _ => None,
-    };
-    refs.unwrap_or_default().into_iter().filter(|r| r.0 != RefKind::Map).collect()
+    db.refs_of(a.0, &a.1).into_iter().filter(|r| r.0 != RefKind::Map).collect()
 }
 
 /// All assets in a database, in dependency order.
 pub fn all_assets(db: &Database) -> Vec<AssetRef> {
-    let mut out = Vec::new();
-    out.extend(db.tilesets.iter().map(|d| (RefKind::Tileset, d.id.clone())));
-    out.extend(db.sheets.iter().map(|d| (RefKind::Sheet, d.id.clone())));
-    out.extend(db.sounds.iter().map(|d| (RefKind::Sound, d.id.clone())));
-    out.extend(db.items.iter().map(|d| (RefKind::Item, d.id.clone())));
-    out.extend(db.props.iter().map(|d| (RefKind::Prop, d.id.clone())));
-    out.extend(db.characters.iter().map(|d| (RefKind::Character, d.id.clone())));
-    out.extend(db.structures.iter().map(|d| (RefKind::Structure, d.id.clone())));
-    out.extend(db.skills.iter().map(|d| (RefKind::Skill, d.id.clone())));
-    out.extend(db.spells.iter().map(|d| (RefKind::Spell, d.id.clone())));
-    out.extend(db.recipes.iter().map(|d| (RefKind::Recipe, d.id.clone())));
-    out
+    // (`KINDS` is the dependency order.)
+    KINDS.iter().flat_map(|k| db.ids_of(*k).into_iter().map(move |id| (*k, id))).collect()
 }
 
 /// File (in `scripts/`) that receives script functions merged from bundles.
@@ -626,24 +546,7 @@ impl Bundle {
 
     /// Renames an asset inside the bundle (its definition and every reference to it).
     fn rename(&mut self, kind: RefKind, old: &str, new: &str) {
-        let set = |id: &mut String| {
-            if id == old {
-                *id = new.to_string();
-            }
-        };
-        match kind {
-            RefKind::Tileset => self.db.tilesets.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Sheet => self.db.sheets.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Sound => self.db.sounds.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Item => self.db.items.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Prop => self.db.props.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Character => self.db.characters.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Structure => self.db.structures.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Skill => self.db.skills.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Spell => self.db.spells.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Recipe => self.db.recipes.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Map => {}
-        }
+        self.db.rename(kind, old, new);
         let mut cfg = ProjectConfig::new("");
         refactor::rename_in_db(&mut self.db, &mut cfg, kind, old, new);
         // Ids passed to API calls in the bundle's script functions follow too.
@@ -920,20 +823,7 @@ impl Bundle {
                 report.existing.push(a);
                 continue;
             }
-            let id = a.1.as_str();
-            match a.0 {
-                RefKind::Tileset => db.tilesets.extend(self.db.tileset(id).cloned()),
-                RefKind::Sheet => db.sheets.extend(self.db.sheet(id).cloned()),
-                RefKind::Sound => db.sounds.extend(self.db.sounds.iter().find(|d| d.id == id).cloned()),
-                RefKind::Item => db.items.extend(self.db.item(id).cloned()),
-                RefKind::Prop => db.props.extend(self.db.prop(id).cloned()),
-                RefKind::Character => db.characters.extend(self.db.character(id).cloned()),
-                RefKind::Structure => db.structures.extend(self.db.structure(id).cloned()),
-                RefKind::Skill => db.skills.extend(self.db.skill(id).cloned()),
-                RefKind::Spell => db.spells.extend(self.db.spell(id).cloned()),
-                RefKind::Recipe => db.recipes.extend(self.db.recipe(id).cloned()),
-                RefKind::Map => {}
-            }
+            db.copy_from(&self.db, a.0, &a.1);
             report.added.push(a);
         }
 

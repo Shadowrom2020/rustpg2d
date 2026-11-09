@@ -8,13 +8,13 @@ use std::path::PathBuf;
 use rustpg2d_engine::achievements::AchievementDef;
 use rustpg2d_engine::crafting::RecipeDef;
 use rustpg2d_engine::defs::*;
+use rustpg2d_engine::defs::Def;
 use rustpg2d_engine::entity::EntityKind;
 use rustpg2d_engine::events::{Action, Cond, Trigger, TriggerOn, TriggerOwner};
 use rustpg2d_engine::library::{self, AssetRef};
 use rustpg2d_engine::quest::QuestDef;
 use rustpg2d_engine::refactor::RefKind;
 use rustpg2d_engine::skills::{SkillDef, SkillEffect, SpellDef, SpellEffect};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -24,94 +24,24 @@ use super::exec::{page, suggestions, text, Reply};
 use super::exec_maps::parse_ref_kind;
 use super::tools::*;
 
-/// The twelve definition lists of a project.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum DefKind {
-    Tilesets,
-    Sheets,
-    Items,
-    Props,
-    Characters,
-    Sounds,
-    Quests,
-    Structures,
-    Skills,
-    Spells,
-    Recipes,
-    Achievements,
+/// A definition kind from the agent's word ("items", "Item", "npc", …); maps are no definitions.
+fn parse_def_kind(s: &str) -> Result<RefKind, String> {
+    RefKind::parse(s).filter(|k| k.is_def()).ok_or_else(|| format!("kind \"{s}\" must be one of {}", RefKind::DEFS.iter().map(|k| k.file().unwrap_or("?")).collect::<Vec<_>>().join(", ")))
 }
 
-impl DefKind {
-    pub const ALL: [DefKind; 12] = [DefKind::Tilesets, DefKind::Sheets, DefKind::Items, DefKind::Props, DefKind::Characters, DefKind::Sounds, DefKind::Quests, DefKind::Structures, DefKind::Skills, DefKind::Spells, DefKind::Recipes, DefKind::Achievements];
-
-    pub fn parse(s: &str) -> Result<DefKind, String> {
-        let k = s.to_lowercase();
-        let k = k.trim().trim_end_matches('s');
-        Ok(match k {
-            "tileset" => DefKind::Tilesets,
-            "sheet" | "spritesheet" | "sprite_sheet" => DefKind::Sheets,
-            "item" => DefKind::Items,
-            "prop" => DefKind::Props,
-            "character" | "npc" => DefKind::Characters,
-            "sound" => DefKind::Sounds,
-            "quest" => DefKind::Quests,
-            "structure" => DefKind::Structures,
-            "skill" => DefKind::Skills,
-            "spell" => DefKind::Spells,
-            "recipe" => DefKind::Recipes,
-            "achievement" => DefKind::Achievements,
-            _ => return Err(format!("kind \"{s}\" must be one of {}", DefKind::ALL.iter().map(|k| k.name()).collect::<Vec<_>>().join(", "))),
-        })
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            DefKind::Tilesets => "tilesets",
-            DefKind::Sheets => "sheets",
-            DefKind::Items => "items",
-            DefKind::Props => "props",
-            DefKind::Characters => "characters",
-            DefKind::Sounds => "sounds",
-            DefKind::Quests => "quests",
-            DefKind::Structures => "structures",
-            DefKind::Skills => "skills",
-            DefKind::Spells => "spells",
-            DefKind::Recipes => "recipes",
-            DefKind::Achievements => "achievements",
-        }
-    }
-
-    /// The reference kind used by the library and the renamer (quests and achievements have none).
-    pub fn ref_kind(self) -> Option<RefKind> {
-        Some(match self {
-            DefKind::Tilesets => RefKind::Tileset,
-            DefKind::Sheets => RefKind::Sheet,
-            DefKind::Items => RefKind::Item,
-            DefKind::Props => RefKind::Prop,
-            DefKind::Characters => RefKind::Character,
-            DefKind::Sounds => RefKind::Sound,
-            DefKind::Structures => RefKind::Structure,
-            DefKind::Skills => RefKind::Skill,
-            DefKind::Spells => RefKind::Spell,
-            DefKind::Recipes => RefKind::Recipe,
-            DefKind::Quests | DefKind::Achievements => return None,
-        })
-    }
+/// "items", "sprite sheets", … (the defs file's name).
+fn plural(kind: RefKind) -> &'static str {
+    kind.file().unwrap_or("maps")
 }
 
-/// What the generic list operations need of a definition.
-pub(crate) trait DefItem: Serialize + DeserializeOwned + Clone {
-    fn id(&self) -> &str;
-    /// One line of key facts for `list_defs`.
+/// One line of key facts about a definition, for `list_defs`.
+pub(crate) trait DefFacts: Def {
     fn facts(&self) -> String;
 }
 
-macro_rules! def_item {
+macro_rules! def_facts {
     ($t:ty, |$d:ident| $facts:expr) => {
-        impl DefItem for $t {
-            fn id(&self) -> &str {
-                &self.id
-            }
+        impl DefFacts for $t {
             fn facts(&self) -> String {
                 let $d = self;
                 $facts
@@ -120,9 +50,9 @@ macro_rules! def_item {
     };
 }
 
-def_item!(TilesetDef, |d| format!("image {}; {} solid tiles; terrains [{}]; {} animations", d.image, d.solid.len(), d.terrains.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", "), d.animations.len()));
-def_item!(SheetDef, |d| format!("image {}; {}x{} px frames; {:?}{}{}", d.image, d.frame_w, d.frame_h, d.kind, if d.female { "; female cut" } else { "" }, if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) }));
-def_item!(ItemDef, |d| {
+def_facts!(TilesetDef, |d| format!("image {}; {} solid tiles; terrains [{}]; {} animations", d.image, d.solid.len(), d.terrains.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", "), d.animations.len()));
+def_facts!(SheetDef, |d| format!("image {}; {}x{} px frames; {:?}{}{}", d.image, d.frame_w, d.frame_h, d.kind, if d.female { "; female cut" } else { "" }, if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) }));
+def_facts!(ItemDef, |d| {
     let mut f = vec![format!("\"{}\"", d.name)];
     if let Some(w) = &d.weapon {
         f.push(format!("weapon dmg {}{}", w.damage, if w.ranged.is_some() { " ranged" } else { "" }));
@@ -145,7 +75,7 @@ def_item!(ItemDef, |d| {
     f.push(format!("value {}, stack {}", d.value, d.max_stack));
     f.join("; ")
 });
-def_item!(PropDef, |d| {
+def_facts!(PropDef, |d| {
     let mut f = vec![format!("\"{}\"", d.name)];
     f.push(if d.solid { "solid".into() } else { "walkable".into() });
     if !d.states.is_empty() {
@@ -171,7 +101,7 @@ def_item!(PropDef, |d| {
     }
     f.join("; ")
 });
-def_item!(CharacterDef, |d| format!(
+def_facts!(CharacterDef, |d| format!(
     "\"{}\"; hp {}; {:?}{}{}{}{}",
     d.name,
     d.max_hp,
@@ -181,49 +111,36 @@ def_item!(CharacterDef, |d| format!(
     if d.triggers.is_empty() { String::new() } else { format!("; {} triggers", d.triggers.len()) },
     if d.description.is_empty() { String::new() } else { format!("; {}", d.description) }
 ));
-def_item!(SoundDef, |d| format!("file {}; volume {}", d.file, d.volume));
-def_item!(QuestDef, |d| format!("\"{}\"; {} stages [{}]; xp {}", d.title, d.stages.len(), d.stages.join(" | "), d.xp));
-def_item!(StructureDef, |d| format!("\"{}\"; {}x{} tiles; category {}; {} entities", d.name, d.w, d.h, d.category, d.entities.len()));
-def_item!(SkillDef, |d| format!("\"{}\"; max level {}; {:?}", d.name, d.max_level, d.effect));
-def_item!(SpellDef, |d| format!("\"{}\"; mana {}; cooldown {}; needs {} level {}; {:?}", d.name, d.mana, d.cooldown, d.skill, d.level, d.effect));
-def_item!(RecipeDef, |d| format!("makes {} x{} from [{}]{}{}", d.result, d.count, d.ingredients.iter().map(|i| format!("{} x{}", i.item, i.count)).collect::<Vec<_>>().join(", "), if d.station.is_empty() { String::new() } else { format!(" at {}", d.station) }, if d.skill.is_empty() { String::new() } else { format!("; {} level {}", d.skill, d.level) }));
-def_item!(AchievementDef, |d| format!("\"{}\"; {}{} conditions", d.name, if d.hidden { "hidden; " } else { "" }, d.conditions.len()));
+def_facts!(SoundDef, |d| format!("file {}; volume {}", d.file, d.volume));
+def_facts!(QuestDef, |d| format!("\"{}\"; {} stages [{}]; xp {}", d.title, d.stages.len(), d.stages.join(" | "), d.xp));
+def_facts!(StructureDef, |d| format!("\"{}\"; {}x{} tiles; category {}; {} entities", d.name, d.w, d.h, d.category, d.entities.len()));
+def_facts!(SkillDef, |d| format!("\"{}\"; max level {}; {:?}", d.name, d.max_level, d.effect));
+def_facts!(SpellDef, |d| format!("\"{}\"; mana {}; cooldown {}; needs {} level {}; {:?}", d.name, d.mana, d.cooldown, d.skill, d.level, d.effect));
+def_facts!(RecipeDef, |d| format!("makes {} x{} from [{}]{}{}", d.result, d.count, d.ingredients.iter().map(|i| format!("{} x{}", i.item, i.count)).collect::<Vec<_>>().join(", "), if d.station.is_empty() { String::new() } else { format!(" at {}", d.station) }, if d.skill.is_empty() { String::new() } else { format!("; {} level {}", d.skill, d.level) }));
+def_facts!(AchievementDef, |d| format!("\"{}\"; {}{} conditions", d.name, if d.hidden { "hidden; " } else { "" }, d.conditions.len()));
 
-/// Calls a generic function on the list of `kind`.
-macro_rules! dispatch {
+/// Calls a generic function on the definition list of `kind` (a kind from `parse_def_kind`).
+macro_rules! on_defs {
     ($db:expr, $kind:expr, $f:ident ( $($arg:expr),* )) => {
-        match $kind {
-            DefKind::Tilesets => $f(&mut $db.tilesets $(, $arg)*),
-            DefKind::Sheets => $f(&mut $db.sheets $(, $arg)*),
-            DefKind::Items => $f(&mut $db.items $(, $arg)*),
-            DefKind::Props => $f(&mut $db.props $(, $arg)*),
-            DefKind::Characters => $f(&mut $db.characters $(, $arg)*),
-            DefKind::Sounds => $f(&mut $db.sounds $(, $arg)*),
-            DefKind::Quests => $f(&mut $db.quests $(, $arg)*),
-            DefKind::Structures => $f(&mut $db.structures $(, $arg)*),
-            DefKind::Skills => $f(&mut $db.skills $(, $arg)*),
-            DefKind::Spells => $f(&mut $db.spells $(, $arg)*),
-            DefKind::Recipes => $f(&mut $db.recipes $(, $arg)*),
-            DefKind::Achievements => $f(&mut $db.achievements $(, $arg)*),
-        }
+        rustpg2d_engine::with_def_kind!($kind, |T| $f(T::list_mut($db) $(, $arg)*), else => unreachable!("parse_def_kind returns definition kinds only"))
     };
 }
 
-fn ids<T: DefItem>(list: &mut [T]) -> Vec<String> {
+fn ids<T: DefFacts>(list: &mut [T]) -> Vec<String> {
     list.iter().map(|d| d.id().to_string()).collect()
 }
 
-fn lines<T: DefItem>(list: &mut [T], filter: &str) -> Vec<String> {
+fn lines<T: DefFacts>(list: &mut [T], filter: &str) -> Vec<String> {
     let f = filter.to_lowercase();
     list.iter().filter(|d| f.is_empty() || d.id().to_lowercase().contains(&f) || d.facts().to_lowercase().contains(&f)).map(|d| format!("{}: {}", d.id(), d.facts())).collect()
 }
 
-fn get<T: DefItem>(list: &mut [T], id: &str) -> Option<Value> {
+fn get<T: DefFacts>(list: &mut [T], id: &str) -> Option<Value> {
     list.iter().find(|d| d.id() == id).and_then(|d| serde_json::to_value(d).ok())
 }
 
 /// Inserts or replaces `def` (merging into the existing one if `merge`); returns (id, replaced).
-fn upsert<T: DefItem>(list: &mut Vec<T>, def: Value, merge: bool) -> Result<(String, bool), String> {
+fn upsert<T: DefFacts>(list: &mut Vec<T>, def: Value, merge: bool) -> Result<(String, bool), String> {
     let id = def.get("id").and_then(|v| v.as_str()).map(str::to_string).ok_or("the definition needs an \"id\" string")?;
     if !crate::app::valid_name(&id) {
         return Err("ids use letters, digits, '_' and '-'".into());
@@ -246,40 +163,41 @@ fn upsert<T: DefItem>(list: &mut Vec<T>, def: Value, merge: bool) -> Result<(Str
     Ok((id, pos.is_some()))
 }
 
-fn remove<T: DefItem>(list: &mut Vec<T>, id: &str) -> bool {
+fn remove<T: DefFacts>(list: &mut Vec<T>, id: &str) -> bool {
     let before = list.len();
     list.retain(|d| d.id() != id);
     list.len() != before
 }
 
 /// A fresh definition of `kind` with sensible values (the editor's "+ New" defaults).
-fn template(kind: DefKind, id: &str, db: &Database) -> (Value, &'static str) {
+fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
     let icon = SpriteRef::default();
     match kind {
-        DefKind::Tilesets => (
+        RefKind::Tileset => (
             val(&TilesetDef::new(id, "tilesets/<file>.png")),
             "image: PNG path under the project (32 px tiles, any columns); solid: tile indices that block; ladder: tile indices the player climbs (characters keep off); animations: [{tile, frames, fps}]; lights: [{tile, light: {radius, color, intensity, flicker}}]; terrains: auto-tiling sets (easier made in the editor).",
         ),
-        DefKind::Sheets => (
+        RefKind::Sheet => (
             val(&SheetDef::new(id, "sprites/<file>.png", 32, 32)),
             "kind: Sprite (props, effects) | Body | Hair | Beard | Outfit | Armor | Held (layered characters: 4 rows down/left/right/up, 4 frames); frame_w/frame_h in px; tags: named frame ranges [{name, first, last, fps}].",
         ),
-        DefKind::Items => (
+        RefKind::Item => (
             val(&ItemDef::fresh(id)),
             "icon: {sheet, frame} of a sprite sheet; weapon: {damage, cooldown, ranged: null | {projectile, speed, range, ammo}, reach, arc, knockback, two_handed, effect}; armor: {slot: Head|Body|Hands|Feet|OffHand|Ring, defense, speed, overlay (sheet), overlay_f}; consumable + on_use triggers (ItemUse owner: UseItem event) = potions; food; teaches: a skill or spell id; tool: Pickaxe|Axe|Hoe|Rod… name used by props' gather; held: a Held sheet drawn in the hand; value in coins; crop: {stages: [{sprite, hours}], harvest: loot}.",
         ),
-        DefKind::Props => (
+        RefKind::Prop => (
             val(&PropDef::fresh(id)),
             "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot.",
         ),
-        DefKind::Characters => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {body (a Body sheet), skin, hair (sheet), hair_color, beard}; equipment / inventory: the items it wears and carries; behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies; shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
-        DefKind::Sounds => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0 }), "file: WAV or Ogg Vorbis under the project; volume 0..1. Used by PlaySound / PlayMusic, map music and the project's built-in sounds."),
-        DefKind::Quests => (val(&QuestDef { id: id.into(), title: "New quest".into(), description: String::new(), stages: vec!["Find out more".into(), "Done".into()], xp: 0 }), "stages: the journal lines in order (stage 0 is the first after Start); xp on completion. Triggers drive it: Action Quest{quest, op: Start|Advance|SetStage|Complete|Fail, stage}, Cond Quest{quest, check: NotStarted|Active|Completed|Failed|AtStage|StageAtLeast, stage}."),
-        DefKind::Structures => (val(&StructureDef { id: id.into(), name: "New structure".into(), category: String::new(), w: 2, h: 2, tilesets: vec![], layers: vec![vec![0; 4], vec![0; 4], vec![0; 4]], collision: vec![0; 4], entities: vec![] }), "layers: one Vec per map layer of w*h tile values (0 = empty; tile = slot << 16 | index with slot into `tilesets`); collision: w*h bytes (0 auto, 1 solid, 2 walkable); entities with positions relative to the top-left. Easier: build it on a map and capture it in the editor (Structures tool)."),
-        DefKind::Skills => (val(&SkillDef { id: id.into(), name: "New skill".into(), description: String::new(), icon: icon.clone(), max_level: 5, effect: SkillEffect::None }), "effect: None | MeleeDamage | RangedDamage | SpellDamage | Defense | Speed | Lockpick | Haggle | Mana | ManaRegen | {Script:{function}} | {Gather:{tool, percent}} | FoodBonus; max_level; players spend skill points (K screen)."),
-        DefKind::Spells => (val(&SpellDef::new(id, "New spell", "", icon.clone(), 5, 1.0, SpellEffect::Heal { amount: 5 })), "effect: {Heal:{amount}} | {Bolt:{damage, projectile (sheet), speed, range}} | {Blast:{..}} | {Light:{..}} | {Script:{function}}; mana cost; cooldown s; skill + level required to learn (empty skill = none). Items with teaches = this id teach it."),
-        DefKind::Recipes => (val(&RecipeDef::new(id, "<item id>", 1, vec![], "")), "result + count from ingredients [{item, count}]; station: a prop id the player must use (empty = anywhere, craftable from the inventory), station_state: the state it must be in (a lit fire); skill + level required; tools: item ids that must be in the inventory; quality: [{level, result}] better results at higher skill."),
-        DefKind::Achievements => (val(&AchievementDef { id: id.into(), name: "New achievement".into(), description: String::new(), icon, hidden: false, conditions: vec![] }), "conditions: checked while playing (same shapes as trigger conditions: Quest, Flag, Var, Defeated, Level, HasItem, …); hidden: shown as ??? until unlocked; also unlocked by the UnlockAchievement action / unlock_achievement()."),
+        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {body (a Body sheet), skin, hair (sheet), hair_color, beard}; equipment / inventory: the items it wears and carries; behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies; shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
+        RefKind::Sound => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0 }), "file: WAV or Ogg Vorbis under the project; volume 0..1. Used by PlaySound / PlayMusic, map music and the project's built-in sounds."),
+        RefKind::Quest => (val(&QuestDef { id: id.into(), title: "New quest".into(), description: String::new(), stages: vec!["Find out more".into(), "Done".into()], xp: 0 }), "stages: the journal lines in order (stage 0 is the first after Start); xp on completion. Triggers drive it: Action Quest{quest, op: Start|Advance|SetStage|Complete|Fail, stage}, Cond Quest{quest, check: NotStarted|Active|Completed|Failed|AtStage|StageAtLeast, stage}."),
+        RefKind::Structure => (val(&StructureDef { id: id.into(), name: "New structure".into(), category: String::new(), w: 2, h: 2, tilesets: vec![], layers: vec![vec![0; 4], vec![0; 4], vec![0; 4]], collision: vec![0; 4], entities: vec![] }), "layers: one Vec per map layer of w*h tile values (0 = empty; tile = slot << 16 | index with slot into `tilesets`); collision: w*h bytes (0 auto, 1 solid, 2 walkable); entities with positions relative to the top-left. Easier: build it on a map and capture it in the editor (Structures tool)."),
+        RefKind::Skill => (val(&SkillDef { id: id.into(), name: "New skill".into(), description: String::new(), icon: icon.clone(), max_level: 5, effect: SkillEffect::None }), "effect: None | MeleeDamage | RangedDamage | SpellDamage | Defense | Speed | Lockpick | Haggle | Mana | ManaRegen | {Script:{function}} | {Gather:{tool, percent}} | FoodBonus; max_level; players spend skill points (K screen)."),
+        RefKind::Spell => (val(&SpellDef::new(id, "New spell", "", icon.clone(), 5, 1.0, SpellEffect::Heal { amount: 5 })), "effect: {Heal:{amount}} | {Bolt:{damage, projectile (sheet), speed, range}} | {Blast:{..}} | {Light:{..}} | {Script:{function}}; mana cost; cooldown s; skill + level required to learn (empty skill = none). Items with teaches = this id teach it."),
+        RefKind::Recipe => (val(&RecipeDef::new(id, "<item id>", 1, vec![], "")), "result + count from ingredients [{item, count}]; station: a prop id the player must use (empty = anywhere, craftable from the inventory), station_state: the state it must be in (a lit fire); skill + level required; tools: item ids that must be in the inventory; quality: [{level, result}] better results at higher skill."),
+        RefKind::Achievement => (val(&AchievementDef { id: id.into(), name: "New achievement".into(), description: String::new(), icon, hidden: false, conditions: vec![] }), "conditions: checked while playing (same shapes as trigger conditions: Quest, Flag, Var, Defeated, Level, HasItem, …); hidden: shown as ??? until unlocked; also unlocked by the UnlockAchievement action / unlock_achievement()."),
+        RefKind::Map => (Value::Null, "maps are not definitions"),
     }
 }
 
@@ -292,26 +210,26 @@ fn json_str(v: &Value) -> String {
 }
 
 impl Editor {
-    fn def_ids(&mut self, kind: DefKind) -> Vec<String> {
+    fn def_ids(&mut self, kind: RefKind) -> Vec<String> {
         let db = &mut self.project.db;
-        dispatch!(db, kind, ids())
+        on_defs!(db, kind, ids())
     }
 
     pub(crate) fn mcp_list_defs(&mut self, p: ListDefsParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
-        let kind = DefKind::parse(&p.kind)?;
+        let kind = parse_def_kind(&p.kind)?;
         let filter = p.filter.clone().unwrap_or_default();
         let db = &mut self.project.db;
-        let rows = dispatch!(db, kind, lines(&filter));
+        let rows = on_defs!(db, kind, lines(&filter));
         let total = rows.len();
-        text(format!("{} {}{}:\n{}", total, kind.name(), if filter.is_empty() { String::new() } else { format!(" matching \"{filter}\"") }, page(rows, p.offset.unwrap_or(0))))
+        text(format!("{} {}{}:\n{}", total, plural(kind), if filter.is_empty() { String::new() } else { format!(" matching \"{filter}\"") }, page(rows, p.offset.unwrap_or(0))))
     }
 
     pub(crate) fn mcp_get_def(&mut self, p: DefParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
-        let kind = DefKind::parse(&p.kind)?;
+        let kind = parse_def_kind(&p.kind)?;
         let db = &mut self.project.db;
-        match dispatch!(db, kind, get(&p.id)) {
+        match on_defs!(db, kind, get(&p.id)) {
             Some(v) => text(json_str(&v)),
             None => Err(format!("no {} \"{}\".{}", kind.name(), p.id, suggestions(&p.id, self.def_ids(kind).iter().map(String::as_str)))),
         }
@@ -319,16 +237,17 @@ impl Editor {
 
     pub(crate) fn mcp_def_template(&mut self, p: DefTemplateParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
-        let kind = DefKind::parse(&p.kind)?;
-        let id = p.id.unwrap_or_else(|| format!("new_{}", kind.name().trim_end_matches('s')));
+        let kind = parse_def_kind(&p.kind)?;
+        let id = p.id.unwrap_or_else(|| format!("new_{}", kind.name()));
         let (v, notes) = template(kind, &id, &self.project.db);
-        text(format!("{} template (upsert_def takes this shape; fields you leave out keep these defaults only where the engine has defaults, so send the whole object):\n{}\n\nFields: {notes}", kind.name().trim_end_matches('s'), json_str(&v)))
+        text(format!("{} template (upsert_def takes this shape; fields you leave out keep these defaults only where the engine has defaults, so send the whole object):\n{}\n\nFields: {notes}", kind.name(), json_str(&v)))
     }
 
     /// Ids a definition refers to that don't exist, and files it needs that are missing.
-    fn validate_def(&self, db: &Database, kind: DefKind, id: &str) -> Result<Vec<String>, String> {
+    fn validate_def(&self, db: &Database, kind: RefKind, id: &str) -> Result<Vec<String>, String> {
         let mut warnings = Vec::new();
-        if let Some(rk) = kind.ref_kind() {
+        if library::KINDS.contains(&kind) {
+            let rk = kind;
             for dep in library::deps(db, &(rk, id.to_string())) {
                 if !library::exists(db, &dep) {
                     return Err(format!("it refers to {} \"{}\", which doesn't exist.{}", library::kind_label(dep.0), dep.1, suggestions(&dep.1, self.mcp_ids_of(dep.0).iter().map(String::as_str))));
@@ -336,9 +255,9 @@ impl Editor {
             }
         }
         let file = match kind {
-            DefKind::Tilesets => db.tileset(id).map(|d| d.image.clone()),
-            DefKind::Sheets => db.sheet(id).map(|d| d.image.clone()),
-            DefKind::Sounds => db.sound(id).map(|d| d.file.clone()),
+            RefKind::Tileset => db.tileset(id).map(|d| d.image.clone()),
+            RefKind::Sheet => db.sheet(id).map(|d| d.image.clone()),
+            RefKind::Sound => db.sound(id).map(|d| d.file.clone()),
             _ => None,
         };
         if let Some(f) = file {
@@ -347,20 +266,20 @@ impl Editor {
             }
         }
         let (owner, triggers): (TriggerOwner, Vec<Trigger>) = match kind {
-            DefKind::Items => (TriggerOwner::ItemUse, db.item(id).map(|d| d.on_use.clone()).unwrap_or_default()),
-            DefKind::Props => (TriggerOwner::Prop, db.prop(id).map(|d| d.triggers.clone()).unwrap_or_default()),
-            DefKind::Characters => (TriggerOwner::Character, db.character(id).map(|d| d.triggers.clone()).unwrap_or_default()),
-            DefKind::Achievements => (TriggerOwner::Map, db.achievement(id).map(|d| vec![Trigger { on: TriggerOn::MapEnter, conditions: d.conditions.clone(), actions: vec![], once: false }]).unwrap_or_default()),
+            RefKind::Item => (TriggerOwner::ItemUse, db.item(id).map(|d| d.on_use.clone()).unwrap_or_default()),
+            RefKind::Prop => (TriggerOwner::Prop, db.prop(id).map(|d| d.triggers.clone()).unwrap_or_default()),
+            RefKind::Character => (TriggerOwner::Character, db.character(id).map(|d| d.triggers.clone()).unwrap_or_default()),
+            RefKind::Achievement => (TriggerOwner::Map, db.achievement(id).map(|d| vec![Trigger { on: TriggerOn::MapEnter, conditions: d.conditions.clone(), actions: vec![], once: false }]).unwrap_or_default()),
             _ => (TriggerOwner::Map, vec![]),
         };
         warnings.extend(self.mcp_check_triggers(owner, &triggers)?);
         match kind {
-            DefKind::Quests => {
+            RefKind::Quest => {
                 if db.quest(id).is_some_and(|q| q.stages.is_empty()) {
                     warnings.push("the quest has no stages: the journal shows nothing while it is active".into());
                 }
             }
-            DefKind::Recipes => {
+            RefKind::Recipe => {
                 if let Some(r) = db.recipe(id) {
                     if db.item(&r.result).is_none() {
                         return Err(format!("result \"{}\" is not an item", r.result));
@@ -370,7 +289,7 @@ impl Editor {
                     }
                 }
             }
-            DefKind::Spells => {
+            RefKind::Spell => {
                 if let Some(s) = db.spell(id) {
                     if !s.skill.is_empty() && db.skill(&s.skill).is_none() {
                         return Err(format!("skill \"{}\" doesn't exist", s.skill));
@@ -384,16 +303,17 @@ impl Editor {
 
     pub(crate) fn mcp_upsert_def(&mut self, p: UpsertDefParams) -> Result<Reply, String> {
         self.mcp_writable()?;
-        let kind = DefKind::parse(&p.kind)?;
-        let mut db = self.project.db.clone();
-        let (id, replaced) = dispatch!(db, kind, upsert(p.def, p.merge.unwrap_or(false)))?;
-        let warnings = self.validate_def(&db, kind, &id)?;
-        self.project.db = db;
+        let kind = parse_def_kind(&p.kind)?;
+        let mut copy = self.project.db.clone();
+        let db = &mut copy;
+        let (id, replaced) = on_defs!(db, kind, upsert(p.def, p.merge.unwrap_or(false)))?;
+        let warnings = self.validate_def(db, kind, &id)?;
+        self.project.db = copy;
         self.defs_dirty = true;
-        if matches!(kind, DefKind::Tilesets | DefKind::Sheets | DefKind::Sounds) {
+        if matches!(kind, RefKind::Tileset | RefKind::Sheet | RefKind::Sound) {
             self.reload_assets();
         }
-        let mut msg = format!("{} {} \"{id}\".", if replaced { "Replaced" } else { "Created" }, kind.name().trim_end_matches('s'));
+        let mut msg = format!("{} {} \"{id}\".", if replaced { "Replaced" } else { "Created" }, kind.name());
         for w in warnings {
             msg += &format!("\nWarning: {w}");
         }
@@ -401,9 +321,10 @@ impl Editor {
     }
 
     /// Everything that still uses a definition: other definitions, maps, scripts.
-    fn users_of(&self, kind: DefKind, id: &str) -> Vec<String> {
+    fn users_of(&self, kind: RefKind, id: &str) -> Vec<String> {
         let mut users = Vec::new();
-        if let Some(rk) = kind.ref_kind() {
+        if library::KINDS.contains(&kind) {
+            let rk = kind;
             for (k, dep) in library::dependents(&self.project.db, &(rk, id.to_string())) {
                 users.push(format!("{} {dep}", library::kind_label(k)));
             }
@@ -412,19 +333,19 @@ impl Editor {
             let Ok(map) = self.mcp_load_map(m) else { continue };
             let mut n = 0;
             match kind {
-                DefKind::Items | DefKind::Props | DefKind::Characters => {
+                RefKind::Item | RefKind::Prop | RefKind::Character => {
                     let ek = match kind {
-                        DefKind::Items => EntityKind::Item,
-                        DefKind::Props => EntityKind::Prop,
+                        RefKind::Item => EntityKind::Item,
+                        RefKind::Prop => EntityKind::Prop,
                         _ => EntityKind::Character,
                     };
                     n += map.entities.iter().filter(|e| e.kind == ek && e.def == id).count();
-                    if kind == DefKind::Characters {
+                    if kind == RefKind::Character {
                         n += map.zones.iter().filter(|z| matches!(&z.kind, rustpg2d_engine::map::ZoneKind::Spawner { character, .. } if character == id)).count();
                     }
                 }
-                DefKind::Tilesets => n += map.tilesets.iter().filter(|t| *t == id).count(),
-                DefKind::Sounds => n += (map.music == id) as usize,
+                RefKind::Tileset => n += map.tilesets.iter().filter(|t| *t == id).count(),
+                RefKind::Sound => n += (map.music == id) as usize,
                 _ => {}
             }
             // Triggers naming the id (quests, items given, sounds played, ...).
@@ -436,15 +357,15 @@ impl Editor {
             }
         }
         let id_kind = match kind {
-            DefKind::Items => Some(rustpg2d_engine::script_refs::IdKind::Item),
-            DefKind::Sounds => Some(rustpg2d_engine::script_refs::IdKind::Sound),
-            DefKind::Quests => Some(rustpg2d_engine::script_refs::IdKind::Quest),
-            DefKind::Skills => Some(rustpg2d_engine::script_refs::IdKind::Skill),
-            DefKind::Spells => Some(rustpg2d_engine::script_refs::IdKind::Spell),
-            DefKind::Sheets => Some(rustpg2d_engine::script_refs::IdKind::Sheet),
-            DefKind::Characters => Some(rustpg2d_engine::script_refs::IdKind::Character),
-            DefKind::Recipes => Some(rustpg2d_engine::script_refs::IdKind::Recipe),
-            DefKind::Achievements => Some(rustpg2d_engine::script_refs::IdKind::Achievement),
+            RefKind::Item => Some(rustpg2d_engine::script_refs::IdKind::Item),
+            RefKind::Sound => Some(rustpg2d_engine::script_refs::IdKind::Sound),
+            RefKind::Quest => Some(rustpg2d_engine::script_refs::IdKind::Quest),
+            RefKind::Skill => Some(rustpg2d_engine::script_refs::IdKind::Skill),
+            RefKind::Spell => Some(rustpg2d_engine::script_refs::IdKind::Spell),
+            RefKind::Sheet => Some(rustpg2d_engine::script_refs::IdKind::Sheet),
+            RefKind::Character => Some(rustpg2d_engine::script_refs::IdKind::Character),
+            RefKind::Recipe => Some(rustpg2d_engine::script_refs::IdKind::Recipe),
+            RefKind::Achievement => Some(rustpg2d_engine::script_refs::IdKind::Achievement),
             _ => None,
         };
         if let Some(ik) = id_kind {
@@ -456,7 +377,7 @@ impl Editor {
                 }
             }
         }
-        if kind == DefKind::Characters && self.project.config.player == id {
+        if kind == RefKind::Character && self.project.config.player == id {
             users.push("the project's player character".into());
         }
         users
@@ -464,21 +385,21 @@ impl Editor {
 
     pub(crate) fn mcp_delete_def(&mut self, p: DeleteDefParams) -> Result<Reply, String> {
         self.mcp_writable()?;
-        let kind = DefKind::parse(&p.kind)?;
+        let kind = parse_def_kind(&p.kind)?;
         if !self.def_ids(kind).contains(&p.id) {
             return Err(format!("no {} \"{}\".{}", kind.name(), p.id, suggestions(&p.id, self.def_ids(kind).iter().map(String::as_str))));
         }
         let users = self.users_of(kind, &p.id);
         if !users.is_empty() && !p.force.unwrap_or(false) {
-            return Err(format!("{} \"{}\" is still used by: {}. Change those first, or delete with force: true.", kind.name().trim_end_matches('s'), p.id, users.join("; ")));
+            return Err(format!("{} \"{}\" is still used by: {}. Change those first, or delete with force: true.", kind.name(), p.id, users.join("; ")));
         }
         let db = &mut self.project.db;
-        dispatch!(db, kind, remove(&p.id));
+        on_defs!(db, kind, remove(&p.id));
         self.defs_dirty = true;
-        if matches!(kind, DefKind::Tilesets | DefKind::Sheets | DefKind::Sounds) {
+        if matches!(kind, RefKind::Tileset | RefKind::Sheet | RefKind::Sound) {
             self.reload_assets();
         }
-        self.mcp_after_write(format!("Deleted {} \"{}\"{}. Its image / sound files were kept.", kind.name().trim_end_matches('s'), p.id, if users.is_empty() { String::new() } else { format!(" although it was used by: {}", users.join("; ")) }))
+        self.mcp_after_write(format!("Deleted {} \"{}\"{}. Its image / sound files were kept.", kind.name(), p.id, if users.is_empty() { String::new() } else { format!(" although it was used by: {}", users.join("; ")) }))
     }
 
     pub(crate) fn mcp_events_reference(&mut self, p: EventsRefParams) -> Result<Reply, String> {
@@ -752,9 +673,10 @@ impl Editor {
             let ids: Vec<String> = library::all_assets(&lib.db).into_iter().filter(|x| x.0 == rk).map(|x| x.1).collect();
             return Err(format!("the library has no {} \"{}\".{}", library::kind_label(rk), p.id, suggestions(&p.id, ids.iter().map(String::as_str))));
         }
-        let kind = DefKind::parse(&p.kind)?;
-        let mut db = lib.db.clone();
-        let v = dispatch!(db, kind, get(&p.id)).unwrap_or(Value::Null);
+        let kind = parse_def_kind(&p.kind)?;
+        let mut copy = lib.db.clone();
+        let db = &mut copy;
+        let v = on_defs!(db, kind, get(&p.id)).unwrap_or(Value::Null);
         let deps: Vec<String> = library::deps(&lib.db, &a).iter().map(|d| format!("{} {}", library::kind_label(d.0), d.1)).collect();
         text(format!("library {} \"{}\" needs [{}]; in the project: {}\n{}", library::kind_label(rk), p.id, deps.join(", "), library::exists(&self.project.db, &a), json_str(&v)))
     }

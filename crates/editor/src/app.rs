@@ -800,53 +800,23 @@ impl Editor {
         if !valid_name(new) {
             return Err("Ids may only contain letters, digits, '_' and '-'".into());
         }
-        let db = &mut self.project.db;
-        let taken = match kind {
-            RefKind::Tileset => db.tilesets.iter().any(|d| d.id == new),
-            RefKind::Sheet => db.sheets.iter().any(|d| d.id == new),
-            RefKind::Item => db.items.iter().any(|d| d.id == new),
-            RefKind::Prop => db.props.iter().any(|d| d.id == new),
-            RefKind::Character => db.characters.iter().any(|d| d.id == new),
-            RefKind::Sound => db.sounds.iter().any(|d| d.id == new),
-            RefKind::Map => self.maps.iter().any(|m| m == new),
-            RefKind::Structure => db.structures.iter().any(|d| d.id == new),
-            RefKind::Skill => db.skills.iter().any(|d| d.id == new),
-            RefKind::Spell => db.spells.iter().any(|d| d.id == new),
-            RefKind::Recipe => db.recipes.iter().any(|d| d.id == new),
-        };
+        let taken = if kind == RefKind::Map { self.maps.iter().any(|m| m == new) } else { self.project.db.has(kind, new) };
         if taken {
             return Err(format!("'{new}' is already used"));
         }
         // The thing itself.
-        macro_rules! rename_def {
-            ($list:expr) => {
-                if let Some(d) = $list.iter_mut().find(|d| d.id == old) {
-                    d.id = new.to_string();
-                }
-            };
-        }
-        match kind {
-            RefKind::Tileset => rename_def!(db.tilesets),
-            RefKind::Sheet => rename_def!(db.sheets),
-            RefKind::Item => rename_def!(db.items),
-            RefKind::Prop => rename_def!(db.props),
-            RefKind::Character => rename_def!(db.characters),
-            RefKind::Sound => rename_def!(db.sounds),
-            RefKind::Structure => rename_def!(db.structures),
-            RefKind::Skill => rename_def!(db.skills),
-            RefKind::Spell => rename_def!(db.spells),
-            RefKind::Recipe => rename_def!(db.recipes),
-            RefKind::Map => {
-                if let Err(e) = self.project.rename_map_file(old, new) {
-                    return Err(format!("Rename failed: {e:#}"));
-                }
-                for m in &mut self.maps {
-                    if m == old {
-                        *m = new.to_string();
-                    }
-                }
-                self.maps.sort();
+        if kind == RefKind::Map {
+            if let Err(e) = self.project.rename_map_file(old, new) {
+                return Err(format!("Rename failed: {e:#}"));
             }
+            for m in &mut self.maps {
+                if m == old {
+                    *m = new.to_string();
+                }
+            }
+            self.maps.sort();
+        } else {
+            self.project.db.rename(kind, old, new);
         }
         let mut refs = refactor::rename_in_db(&mut self.project.db, &mut self.project.config, kind, old, new);
 

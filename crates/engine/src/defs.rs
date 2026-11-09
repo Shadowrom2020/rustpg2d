@@ -1458,6 +1458,213 @@ fn is_zero_u32(n: &u32) -> bool {
     *n == 0
 }
 
+/// What every definition list shares: an id and its list in the [`Database`]. [`with_def_kind!`]
+/// picks the type of a [`RefKind`](crate::refactor::RefKind) at run time, so one generic function
+/// serves all twelve lists (the library, the agent server, renames).
+pub trait Def: Clone + PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned + 'static {
+    const KIND: crate::refactor::RefKind;
+    fn id(&self) -> &str;
+    fn id_mut(&mut self) -> &mut String;
+    fn list(db: &Database) -> &Vec<Self>;
+    fn list_mut(db: &mut Database) -> &mut Vec<Self>;
+    /// Other definitions this one refers to (library dependencies); none by default.
+    fn refs(&self) -> Vec<(crate::refactor::RefKind, String)> {
+        Vec::new()
+    }
+}
+
+macro_rules! impl_def {
+    ($t:ty, $kind:expr, $field:ident $(, refs = $refs:expr)?) => {
+        impl Def for $t {
+            const KIND: crate::refactor::RefKind = $kind;
+            fn id(&self) -> &str {
+                &self.id
+            }
+            fn id_mut(&mut self) -> &mut String {
+                &mut self.id
+            }
+            fn list(db: &Database) -> &Vec<Self> {
+                &db.$field
+            }
+            fn list_mut(db: &mut Database) -> &mut Vec<Self> {
+                &mut db.$field
+            }
+            $(fn refs(&self) -> Vec<(crate::refactor::RefKind, String)> {
+                $refs(self)
+            })?
+        }
+    };
+}
+
+impl_def!(TilesetDef, crate::refactor::RefKind::Tileset, tilesets);
+impl_def!(SheetDef, crate::refactor::RefKind::Sheet, sheets);
+impl_def!(ItemDef, crate::refactor::RefKind::Item, items, refs = crate::refactor::refs_of_item);
+impl_def!(PropDef, crate::refactor::RefKind::Prop, props, refs = crate::refactor::refs_of_prop);
+impl_def!(CharacterDef, crate::refactor::RefKind::Character, characters, refs = crate::refactor::refs_of_character);
+impl_def!(SoundDef, crate::refactor::RefKind::Sound, sounds);
+impl_def!(crate::quest::QuestDef, crate::refactor::RefKind::Quest, quests);
+impl_def!(StructureDef, crate::refactor::RefKind::Structure, structures, refs = crate::refactor::refs_of_structure);
+impl_def!(crate::skills::SkillDef, crate::refactor::RefKind::Skill, skills, refs = crate::refactor::refs_of_skill);
+impl_def!(crate::skills::SpellDef, crate::refactor::RefKind::Spell, spells, refs = crate::refactor::refs_of_spell);
+impl_def!(crate::crafting::RecipeDef, crate::refactor::RefKind::Recipe, recipes, refs = crate::refactor::refs_of_recipe);
+impl_def!(crate::achievements::AchievementDef, crate::refactor::RefKind::Achievement, achievements);
+
+/// Runs `$body` with `$T` bound to the definition type of `$kind` (a
+/// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
+///
+/// ```ignore
+/// let n = with_def_kind!(kind, |T| T::list(&db).len(), else => 0);
+/// ```
+#[macro_export]
+macro_rules! with_def_kind {
+    ($kind:expr, |$T:ident| $body:expr, else => $else:expr) => {
+        match $kind {
+            $crate::refactor::RefKind::Tileset => {
+                type $T = $crate::defs::TilesetDef;
+                $body
+            }
+            $crate::refactor::RefKind::Sheet => {
+                type $T = $crate::defs::SheetDef;
+                $body
+            }
+            $crate::refactor::RefKind::Item => {
+                type $T = $crate::defs::ItemDef;
+                $body
+            }
+            $crate::refactor::RefKind::Prop => {
+                type $T = $crate::defs::PropDef;
+                $body
+            }
+            $crate::refactor::RefKind::Character => {
+                type $T = $crate::defs::CharacterDef;
+                $body
+            }
+            $crate::refactor::RefKind::Sound => {
+                type $T = $crate::defs::SoundDef;
+                $body
+            }
+            $crate::refactor::RefKind::Quest => {
+                type $T = $crate::quest::QuestDef;
+                $body
+            }
+            $crate::refactor::RefKind::Structure => {
+                type $T = $crate::defs::StructureDef;
+                $body
+            }
+            $crate::refactor::RefKind::Skill => {
+                type $T = $crate::skills::SkillDef;
+                $body
+            }
+            $crate::refactor::RefKind::Spell => {
+                type $T = $crate::skills::SpellDef;
+                $body
+            }
+            $crate::refactor::RefKind::Recipe => {
+                type $T = $crate::crafting::RecipeDef;
+                $body
+            }
+            $crate::refactor::RefKind::Achievement => {
+                type $T = $crate::achievements::AchievementDef;
+                $body
+            }
+            $crate::refactor::RefKind::Map => $else,
+        }
+    };
+}
+
+/// The lists by kind: generic over a [`Def`] type, or by a [`RefKind`](crate::refactor::RefKind)
+/// known at run time.
+impl Database {
+    pub fn get<T: Def>(&self, id: &str) -> Option<&T> {
+        T::list(self).iter().find(|d| d.id() == id)
+    }
+
+    pub fn get_mut<T: Def>(&mut self, id: &str) -> Option<&mut T> {
+        T::list_mut(self).iter_mut().find(|d| d.id() == id)
+    }
+
+    pub fn position<T: Def>(&self, id: &str) -> Option<usize> {
+        T::list(self).iter().position(|d| d.id() == id)
+    }
+
+    /// Puts `def` in: over the one with its id, or at the end. True when it replaced one.
+    pub fn upsert<T: Def>(&mut self, def: T) -> bool {
+        let list = T::list_mut(self);
+        match list.iter().position(|d| d.id() == def.id()) {
+            Some(i) => {
+                list[i] = def;
+                true
+            }
+            None => {
+                list.push(def);
+                false
+            }
+        }
+    }
+
+    /// Removes the definition `id`; true when there was one.
+    pub fn remove<T: Def>(&mut self, id: &str) -> bool {
+        let list = T::list_mut(self);
+        let n = list.len();
+        list.retain(|d| d.id() != id);
+        list.len() != n
+    }
+
+    pub fn has(&self, kind: crate::refactor::RefKind, id: &str) -> bool {
+        crate::with_def_kind!(kind, |T| self.get::<T>(id).is_some(), else => false)
+    }
+
+    pub fn ids_of(&self, kind: crate::refactor::RefKind) -> Vec<String> {
+        crate::with_def_kind!(kind, |T| T::list(self).iter().map(|d| d.id().to_string()).collect(), else => Vec::new())
+    }
+
+    pub fn index_of(&self, kind: crate::refactor::RefKind, id: &str) -> Option<usize> {
+        crate::with_def_kind!(kind, |T| self.position::<T>(id), else => None)
+    }
+
+    /// Renames the definition `old` (only it: [`crate::refactor::rename_in_db`] rewrites the
+    /// references). True when there was one.
+    pub fn rename(&mut self, kind: crate::refactor::RefKind, old: &str, new: &str) -> bool {
+        crate::with_def_kind!(
+            kind,
+            |T| match self.get_mut::<T>(old) {
+                Some(d) => {
+                    *d.id_mut() = new.to_string();
+                    true
+                }
+                None => false,
+            },
+            else => false
+        )
+    }
+
+    /// Do `self` and `other` define `id` the same way (both missing counts as the same)?
+    pub fn same(&self, other: &Database, kind: crate::refactor::RefKind, id: &str) -> bool {
+        crate::with_def_kind!(kind, |T| self.get::<T>(id) == other.get::<T>(id), else => true)
+    }
+
+    /// Copies `from`'s definition of `id` in (over the one with the same id, or at the end).
+    /// True when `from` has it.
+    pub fn copy_from(&mut self, from: &Database, kind: crate::refactor::RefKind, id: &str) -> bool {
+        crate::with_def_kind!(
+            kind,
+            |T| match from.get::<T>(id) {
+                Some(d) => {
+                    self.upsert(d.clone());
+                    true
+                }
+                None => false,
+            },
+            else => false
+        )
+    }
+
+    /// The definitions `id` refers to directly (none for kinds without references, or an unknown id).
+    pub fn refs_of(&self, kind: crate::refactor::RefKind, id: &str) -> Vec<(crate::refactor::RefKind, String)> {
+        crate::with_def_kind!(kind, |T| self.get::<T>(id).map(|d| d.refs()).unwrap_or_default(), else => Vec::new())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1484,6 +1691,30 @@ mod tests {
         // Old data without min / max: one item.
         let e: LootEntry = ron::from_str("(item: \"apple\", chance: 25.0)").unwrap();
         assert_eq!((e.min, e.max), (1, 1));
+    }
+
+    /// One generic path to every definition list, by type or by kind.
+    #[test]
+    fn database_by_kind() {
+        use crate::refactor::RefKind;
+        let mut db = Database::default();
+        db.items.push(ItemDef::fresh("sword"));
+        db.props.push(PropDef::fresh("chest"));
+        assert!(db.has(RefKind::Item, "sword") && !db.has(RefKind::Item, "chest") && !db.has(RefKind::Map, "village"));
+        assert_eq!(db.ids_of(RefKind::Prop), ["chest"]);
+        assert_eq!(db.index_of(RefKind::Item, "sword"), Some(0));
+        assert_eq!(db.get::<ItemDef>("sword").map(|d| d.name.as_str()), Some("New item"));
+        assert!(db.rename(RefKind::Item, "sword", "blade") && !db.rename(RefKind::Item, "sword", "x"));
+        assert_eq!(db.ids_of(RefKind::Item), ["blade"]);
+        let mut other = Database::default();
+        assert!(!other.same(&db, RefKind::Item, "blade") && other.same(&db, RefKind::Item, "nothing"));
+        assert!(other.copy_from(&db, RefKind::Prop, "chest") && !other.copy_from(&db, RefKind::Prop, "nothing"));
+        assert!(other.same(&db, RefKind::Prop, "chest"));
+        assert!(other.upsert(PropDef { name: "Box".into(), ..PropDef::fresh("chest") }));
+        assert_eq!(other.props.len(), 1);
+        assert!(other.remove::<PropDef>("chest") && other.props.is_empty());
+        assert_eq!(<ItemDef as Def>::KIND, RefKind::Item);
+        assert!(RefKind::DEFS.iter().all(|k| db.ids_of(*k).len() <= 1));
     }
 
     /// `Default` is what a file entry with only the required fields loads as (so tests and the

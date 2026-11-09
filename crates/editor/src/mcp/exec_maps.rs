@@ -48,20 +48,7 @@ pub(crate) fn parse_facing(s: &str) -> Result<Facing, String> {
 }
 
 pub(crate) fn parse_ref_kind(s: &str) -> Result<RefKind, String> {
-    Ok(match s.to_lowercase().trim_end_matches('s') {
-        "tileset" => RefKind::Tileset,
-        "sheet" => RefKind::Sheet,
-        "item" => RefKind::Item,
-        "prop" => RefKind::Prop,
-        "character" => RefKind::Character,
-        "sound" => RefKind::Sound,
-        "map" => RefKind::Map,
-        "structure" => RefKind::Structure,
-        "skill" => RefKind::Skill,
-        "spell" => RefKind::Spell,
-        "recipe" => RefKind::Recipe,
-        _ => return Err(format!("kind \"{s}\" must be one of tileset, sheet, item, prop, character, sound, map, structure, skill, spell, recipe")),
-    })
+    RefKind::parse(s).ok_or_else(|| format!("kind \"{s}\" must be one of {}", RefKind::ALL.iter().map(|k| k.name()).collect::<Vec<_>>().join(", ")))
 }
 
 /// A zone's parsed kind, triggers, loot and the warnings found.
@@ -655,19 +642,10 @@ impl Editor {
     }
 
     pub(crate) fn mcp_ids_of(&self, kind: RefKind) -> Vec<String> {
-        let db = &self.project.db;
-        match kind {
-            RefKind::Tileset => db.tilesets.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Sheet => db.sheets.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Item => db.items.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Prop => db.props.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Character => db.characters.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Sound => db.sounds.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Map => self.maps.clone(),
-            RefKind::Structure => db.structures.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Skill => db.skills.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Spell => db.spells.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Recipe => db.recipes.iter().map(|d| d.id.clone()).collect(),
+        if kind == RefKind::Map {
+            self.maps.clone()
+        } else {
+            self.project.db.ids_of(kind)
         }
     }
 

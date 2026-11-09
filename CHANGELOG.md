@@ -50,8 +50,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   removes its scratch folder however the run ends; files changed on disk are reloaded once each.
   The dropdown suggestions (`refresh_refs`) re-read only the map files that changed.
 - The library report names the assets it added (up to eight): *2 added (smoke, smoke_square)*.
+- The editor script's `rename` knows every kind (`structure`, `skill`, `spell`, `recipe`, `quest`,
+  `achievement` too; an unknown word is an error instead of renaming a map), and the agent
+  server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- One kind enum (`RefKind`, now with quests and achievements) with `name` / `file` / `label` /
+  `parse`, a `Def` trait for the twelve definition lists and `with_def_kind!`: the library, the
+  agent server, the editor's rename and the library window share one `Database` API (`has`,
+  `ids_of`, `rename`, `copy_from`, …) instead of fifteen hand-written per-kind matches.
 - The definition types implement `Default` (the file format's defaults, pinned by a test) and
   `fresh(id)` (the editor's new entry): a new field is added in one place instead of in every
   struct literal (26 of them, which had already drifted apart: the agent server's `def_template`

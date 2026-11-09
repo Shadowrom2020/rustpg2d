@@ -33,6 +33,27 @@ pub enum Tab {
     Achievements,
 }
 
+impl Tab {
+    /// The tab that edits definitions of `kind` (`None` for maps).
+    pub fn of(kind: RefKind) -> Option<Tab> {
+        Some(match kind {
+            RefKind::Item => Tab::Items,
+            RefKind::Prop => Tab::Props,
+            RefKind::Character => Tab::Characters,
+            RefKind::Tileset => Tab::Tilesets,
+            RefKind::Sheet => Tab::Sheets,
+            RefKind::Sound => Tab::Sounds,
+            RefKind::Quest => Tab::Quests,
+            RefKind::Structure => Tab::Structures,
+            RefKind::Skill => Tab::Skills,
+            RefKind::Spell => Tab::Spells,
+            RefKind::Recipe => Tab::Recipes,
+            RefKind::Achievement => Tab::Achievements,
+            RefKind::Map => return None,
+        })
+    }
+}
+
 /// Inline "rename id" editor state; at most one rename is open at a time.
 #[derive(Default)]
 pub struct RenameUi {

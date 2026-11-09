@@ -301,7 +301,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     }
     let mut files: BTreeSet<String> = BTreeSet::new();
     files.insert("project.ron".into());
-    for d in ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "skills", "spells", "recipes", "achievements"] {
+    for d in crate::project::DEFS.iter().filter(|d| **d != "structures") {
         let rel = format!("defs/{d}.ron");
         if root.join(&rel).exists() {
             files.insert(rel);

@@ -93,6 +93,8 @@ pub fn kind_icon(k: rustpg2d_engine::refactor::RefKind) -> &'static str {
         RefKind::Skill => ph::STAR,
         RefKind::Spell => ph::MAGIC_WAND,
         RefKind::Recipe => ph::HAMMER,
+        RefKind::Quest => ph::SCROLL,
+        RefKind::Achievement => ph::TROPHY,
         RefKind::Map => ph::MAP_TRIFOLD,
     }
 }

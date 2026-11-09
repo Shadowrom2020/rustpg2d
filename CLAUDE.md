@@ -118,11 +118,12 @@ crates/xtask/           `cargo xtask check-version | check-branch | release-note
                         seconds) and `cargo xtask-dist` (feature `dist`: toolkit AppImage + Flatpak, Windows
                         zip, macOS app folder + tar to sign on a Mac)
 .github/                workflows/ci.yml (required checks), workflows/release.yml (merge into master =
-                        tag + GitHub Release with the toolkit AppImage / Flatpak + back-merge PR),
-                        workflows/macos-build.yml (universal macOS editor + game, artifact
-                        rustpg2d-macos-build), workflows/macos-app.yml (codesign + zip of the app
-                        the Packages job assembled), both called by ci.yml and release.yml,
-                        actions/packages (build + smoke test), dependabot, PR / issue templates
+                        tag + GitHub Release with the packages of the merged PR's CI run + back-merge PR),
+                        workflows/builds.yml (release builds of every platform in parallel: macOS per
+                        architecture, Linux + xtask, web, Windows), workflows/macos-app.yml (codesign +
+                        zip of the app the Packages job assembled), both called by ci.yml and release.yml,
+                        actions/packages (assembly: llvm-lipo, xtask dist, smoke test; no compiling),
+                        dependabot, PR / issue templates
 crates/editor/src/      editor binary
   main.rs               loop + RUSTPG2D_EDITOR_SCRIPT command runner
   mcp/                  the AI agent server (Assets › AI agent server…): server.rs (rmcp Streamable HTTP on

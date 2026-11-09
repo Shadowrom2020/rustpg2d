@@ -3,6 +3,17 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Maintenance
+- **Faster releases.** The release builds run at the same time (macOS per architecture, Linux,
+  web, Windows) instead of one after the other, and the *Packages* check only assembles them: a
+  pull request into master takes about 15 minutes instead of 27. Merging it no longer builds
+  everything again: the Release workflow publishes the packages that pull request's CI run built
+  (the same tree), so the release and the back-merge pull request follow in about a minute
+  instead of 30. Pushes to master and the back-merge only report the checks their trees already
+  passed.
+
 ## 0.12.0 — 2026-11-09
 
 A quality and reliability release: characters no longer search for paths every frame, files are

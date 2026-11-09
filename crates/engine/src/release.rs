@@ -327,7 +327,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     for (rel, kind, id) in assets {
         if rel.is_empty() || !root.join(rel).exists() {
             c.warnings.push(format!("The {kind} '{id}' has no file ({rel}); it will be missing in the game."));
-        } else if !crate::library::safe_rel(rel) {
+        } else if !crate::project::safe_rel(rel) {
             c.errors.push(format!("The {kind} '{id}' uses a file outside the project ({rel}); import it into the project first."));
         } else {
             files.insert(rel.clone());

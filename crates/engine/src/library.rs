@@ -252,11 +252,9 @@ fn with_suffix(path: &str, n: u32) -> String {
     }
 }
 
-/// Paths inside a package must stay inside the project.
-/// A project-relative file path that stays inside the project: no leading `/`, no `\\`, no `.` or `..` parts.
-pub fn safe_rel(p: &str) -> bool {
-    !p.is_empty() && !p.starts_with('/') && !p.contains('\\') && p.split('/').all(|c| !c.is_empty() && c != "." && c != "..")
-}
+/// Paths inside a package must stay inside the project (the rule lives in `project.rs`, which the
+/// web game compiles too).
+pub use crate::project::safe_rel;
 
 impl Bundle {
     /// Collects `wanted` plus everything they depend on from a project-like store.

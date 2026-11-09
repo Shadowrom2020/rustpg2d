@@ -322,6 +322,11 @@ pub fn script_files_in(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
+/// A project-relative file path that stays inside the project: no leading `/`, no `\\`, no `.` or `..` parts.
+pub fn safe_rel(p: &str) -> bool {
+    !p.is_empty() && !p.starts_with('/') && !p.contains('\\') && p.split('/').all(|c| !c.is_empty() && c != "." && c != "..")
+}
+
 /// `value` as the RON text project files are written with (pretty, LF line endings).
 pub fn ron_text<T: Serialize>(value: &T) -> Result<String> {
     let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");

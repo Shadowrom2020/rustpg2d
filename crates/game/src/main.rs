@@ -86,11 +86,9 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
 }
 
 /// The project `window_conf` loaded for the window icon, taken over by `main` when it is the
-/// same folder.
-#[cfg(not(target_arch = "wasm32"))]
+/// same folder. (The web game's files are mounted only in `main`: there it stays empty.)
 static PRELOADED: std::sync::Mutex<Option<(PathBuf, Project)>> = std::sync::Mutex::new(None);
 
-#[cfg(not(target_arch = "wasm32"))]
 fn preloaded(root: &std::path::Path) -> Option<Project> {
     PRELOADED.lock().unwrap_or_else(|e| e.into_inner()).take().filter(|(r, _)| r == root).map(|(_, p)| p)
 }

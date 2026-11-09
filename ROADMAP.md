@@ -5,7 +5,8 @@ code hook points already worked out so that a session can start an item without 
 codebase. What is shipped is in [CHANGELOG.md](CHANGELOG.md); the rules for branches, versions
 and releases are in [AGENTS.md](AGENTS.md); coding and verification rules in [CLAUDE.md](CLAUDE.md).
 
-Status marks: `[ ]` open · `[~] feature/<branch>` in progress · `[x] X.Y.Z` shipped.
+Status marks: `[ ]` open · `[~] feature/<branch>` in progress · `[x]` done, waiting for the release.
+Shipped versions are not listed here: CHANGELOG.md is their record.
 
 ## How to work from this roadmap
 
@@ -36,8 +37,8 @@ Instructions for every session (people and coding agents) that implements roadma
    new entities at the end of a map function so uids stay stable, then regenerate.
 6. **Commit, push and open pull requests only when the user asks.** When all items of a
    version are `[x]` (or the user decides to ship early), cut `release/X.Y.Z` as described in
-   AGENTS.md, fill in the version in the marks, and move the version's section to *Shipped*
-   at the end of this file (one line per item).
+   AGENTS.md and remove the version's section from this file (its design notes live on in the
+   CHANGELOG and the code).
 7. **Changing the roadmap** is fine: reorder, move items between versions, split or merge
    them, add new ideas to *Backlog*. Keep every item's block in the same shape. Don't delete
    design notes of open items; replace them.
@@ -73,9 +74,210 @@ Instructions for every session (people and coding agents) that implements roadma
     (`static.rust-lang.org`) is the runner's network: `gh run rerun <id> --failed`.
 15. **Cutting a release.** `release/X.Y.Z` from develop: version in `Cargo.toml` (the build
     updates `Cargo.lock`), `## Unreleased` → `## X.Y.Z — date`, README *Current version*,
-    the version's roadmap section replaced by one line per item under *Shipped* (its design
-    notes live on in the CHANGELOG and the code), `cargo xtask check-version release/X.Y.Z`,
-    pull request into master, merge after the four checks, merge the back-merge pull request.
+    the version's roadmap section removed from this file (the CHANGELOG is its record),
+    `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
+    checks, merge the back-merge pull request.
+
+## 0.11.0 — A living village
+
+The example becomes a game worth playing and the asset library grows with it: every terrain of
+every starter tileset is a 47-tile set (inner corners everywhere), the library gains the props,
+characters, animals, items, sounds, music and structures a fantasy village needs, the village is
+rebuilt as **Emberbrook** (80 × 60: a river with bridges, a cobbled market square, tavern, bakery,
+smithy, apothecary, chapel and graveyard, mill and farm, fisher's dock and pond, an east gate) with
+enterable interiors, a daily life (every villager on a schedule, animals, children, a town crier,
+lamps and lit windows at night, dawn fog, the noon bell) and four more quests. The Workshop test
+map goes away; its stations and content move into the village. Four pull requests, in this order
+(each builds on the one before): `feature/tilesets-47`, `feature/village-assets`,
+`feature/village`, `feature/village-quests`. Everything added to the example is also in the
+starter library (`STARTER_RULES` 5 → 6; existing user libraries have to be regenerated to get the
+new terrain art, see README). Save games made in the old village don't fit the new one (entity
+uids change); the other maps only gain entities at the end.
+
+- [~] Every terrain a 47-tile set — `feature/tilesets-47`
+
+  **Goal.** All starter tilesets (`terrain`, and the library's desert, mountains, city, dungeon)
+  carry full 47-tile blob sets for every terrain, so painted paths, water, cobbles and floors get
+  inner corners everywhere; the 16-tile blocks disappear. New single tiles and four new terrains
+  (Cobblestone, Farmland, Meadow, Carpet) give the village its materials.
+
+  **Design.**
+  - `terrain.png` becomes **16 columns (512 px)**: rows 0–3 the single tiles 0..63 (indices 0–34 keep
+    their numbers; new 35..62: `COBBLE, TILLED, FLOWER_BED, CARPET, TILED_FLOOR, FENCE_V, FENCE_POST,
+    GATE_PILLAR, HEDGE, DOCK, DOCK_EDGE, BRIDGE_RAIL_N, BRIDGE_RAIL_S, ROOF_SLATE(+_EDGE),
+    ROOF_THATCH(+_EDGE), CHIMNEY, CHIMNEY_SLATE, STONE_HOUSE, STONE_WINDOW, STONE_DOOR, CHAPEL_WINDOW,
+    COUNTER, GRAVE_MOUND, TIMBER_WALL_X, WINDOW_DARK, STRAW_FLOOR`), rows 4–5 reserved, then one 7 × 7
+    blob block per terrain, two per 7-row band from row 6 (`blob_start(k) = (6 + 7*(k/2))*16 +
+    (k%2)*7`): 14 terrains → 512 × 1760 px (under egui's 2048 px limit).
+  - `TERRAINS` (`gen_example/art.rs`): 0 Dirt path · 1 Pond (solid; also the river) · 2 Sand ·
+    3 Shore (animated, solid) · 4 Forest floor · 5 Snowfield · 6 Forest path · 7 Stream (animated,
+    solid) · 8 Flagstones · 9 Rug · 10 Cobblestone (on grass, joins Dirt path / Flagstones) ·
+    11 Farmland (tilled soil on grass) · 12 Meadow (flowers on grass) · 13 Carpet (on wood floor).
+    `terrains()` fills each `Terrain.blob` with `fill_blob_from_block(blob_start(k), 16)`, sets
+    `blob[46]` to the ordinary inside tile where there is one, and derives the 16-tile fallback
+    `tiles[k] = blob[BLOB_SLOT[k | 0xF0]]`, `tiles[15] = inside` (used when *Corners* is off).
+    `terrain_anims()` keeps the water cycle and animates the Shore / Stream inside tiles;
+    `terrain_solid()` = `SOLID` + all 47 tiles of Pond, Shore and Stream. Remove `block_start`,
+    `BLOB_TERRAINS`, `edge_block`; `EdgeArt` entries for the four new terrains.
+  - The library extras (`art/extra.rs::add_terrains`) lay one blob block per 7-row band below the
+    base rows of desert / mountains / city / dungeon (base rows unchanged, so `structures.rs`
+    indices stay); `main.rs::mine()` uses `Terrain::inside()` instead of `tile_for(15)`.
+  - `B::building(x, y, w, Roof::{Red, Slate, Thatch}, Wall::{Timber, TimberX, Stone}) -> door`
+    (chimney at `x+w-2`, a lit window tile, walkable door) prepares the village build.
+  - `library.rs`: `STARTER_RULES = 6` (the 16-column sheet is not an extension of the old one, so
+    `add_missing` keeps the old art; the user regenerates the library). Delete the stale
+    `example_project/tilesets/desert.png`.
+
+  **Touch points.** `crates/engine/examples/gen_example/art.rs` (`mod t`, `TERRAINS`, `terrains`,
+  `terrain_anims`, `terrain_solid`, `terrain_edges`, `blob_block`), `art/extra.rs`
+  (`add_terrains`, tileset sizes), `main.rs` (`B`, `mine`), `library.rs` (`STARTER_RULES`),
+  README (terrains, library note), CHANGELOG.
+
+  **Example.** Every example map is regenerated with the new sets (no visible change but the
+  inner corners); `example_project/tilesets/terrain.png` 512 × 1760.
+
+  **Verify.** Regenerate; editor screenshots of every map before / after; `tool terrain; terrain
+  Cobblestone; terrainpaint 5 5; terrainpaint 6 5; terrainpaint 6 6; shot` shows an inner corner;
+  `terrainedit 10` shows the filled template; `terrainblob terrain "Dirt path" off` then painting
+  gives the 16-tile fallback; `rustpg2d-editor --library` thumbnails of the tilesets;
+  `cargo run -p rustpg2d-editor --example mcp_smoke` still passes.
+
+- [ ] Village assets: props, characters, animals, items, sounds, music, structures — `feature/village-assets`
+
+  **Goal.** The props, people, animals, goods and structures of a fantasy village, in the example
+  project's definitions and the starter library, with German texts.
+
+  **Design.**
+  - Sheets: `sprites/village.png` (new, `art/village.rs`), `props2.png` moved from the library
+    extras into the example (minus the duplicates campfire / anvil / bench; `write_starter_pack`
+    filters extras' props by id and asserts unique ids per kind), `sprites/items2.png` (new icons:
+    `items.png` is full), `portraits.png` grows to 11 (baker, innkeeper, herbalist, priest, miller,
+    blacksmith, fisher), animal bodies `chicken`, `dog`, `cat`, `cat_ginger`, `sheep`, `cow` (32 × 32
+    frames, `art/animals.rs`, not playable), children `child_boy` / `child_girl` (pre-drawn 32 × 48
+    like skeleton / ghost), held sheets `held_broom`, `held_hoe`, `held_hammer`, `held_pickaxe`,
+    7 new + 5 promoted outfits (`outfits()` → 20).
+  - Props (ids): `market_counter_produce|fish|bread`, `awning_red|green|blue`, `flour_sacks`, `keg`,
+    `keg_rack`, `tavern_table`, `stool` (+ `_up|_left|_right` use-spot variants), `bread_shelf`,
+    `dough_table`, `herb_rack`, `potion_shelf`, `bellows`, `oven` (cooking station "Bread Oven",
+    lit / out), `hearth` (cooking station "Kitchen Hearth"), `grindstone`, `tool_rack`, `forge`
+    (smelter station "Forge"), `fireplace`, `weapon_rack`, `cauldron`, `chicken_coop`, `apple_tree`
+    (gather apples, regrows daily), `trough`, `hay_bale`, `beehive` (honey), `boat`, `broken_cart`,
+    `scarecrow`, `notice_board`, `fish_rack`, `fish_barrel`, `laundry`, `watchtower`, `bell_tower`,
+    `altar`, `candle_stand`, `bell_rope` (rings `bell`), `grave_cross`, `pew` (sit), `brazier`,
+    `flower_pot`, `flower_box`, `woodpile`, `millstone`, `cat_basket`, `sign_tavern|bakery|smithy|
+    apothecary`, `moonpetal` (opens 20–5 h only: `If TimeBetween`), `feverleaf_bush`,
+    `bitterroot_plant`, `windmill`.
+  - Characters (own ids; shops on the definition): `baker`, `innkeeper`, `herbalist`, `priest`,
+    `miller`, `fisher`, `town_crier`, `child_boy`, `child_girl`; promoted from the extras with
+    their looks: `farmer`, `farmer_f`, `blacksmith`, `villager_f`, `guard_f`; animals `chicken`,
+    `dog`, `cat`, `cat_ginger`, `sheep`, `cow` (`max_hp 0`, Wander, a sound + one line on E).
+  - Items: `flour`, `egg`, `cheese`, `milk`, `honey`, `moonpetal`, `feverleaf`, `bitterroot`,
+    `remedy`, `locket`, `festival_bread`, `ale`, `broom` (tool), `hoe` (tool). Recipes
+    `bake_festival_bread` (cooking, lit station; flour 2 + egg + honey), `brew_remedy` (alchemy,
+    mortar; moonpetal + feverleaf + bitterroot). Sounds `bell`, `cluck`, `bark`, `meow`, `baa`,
+    `moo`; music `music_tavern` ("The Copper Kettle", `music.rs`). Structures: `tavern_front`,
+    `bakery_front`, `smithy_stone`, `chapel`, `farmhouse_thatch`, `mill`, `market_row`,
+    `animal_pen`, `graveyard`, `dock`, `orchard`, `gate_towers`, `room_tavern`, `room_smithy`,
+    `room_bakery`, `room_chapel`.
+
+  **Touch points.** `gen_example/art.rs` (+ new `art/village.rs`, `art/animals.rs`), `art/extra.rs`
+  (remove the promoted assets), `main.rs` (`database()`, `write_starter_pack`), `structures.rs`,
+  `music.rs`, `lang_de.rs` (every new text), `render/character.rs` (`Held` variants if the held
+  sheets need them), README (asset list), CHANGELOG.
+
+  **Example.** Definitions only (the maps use them in the next item); the library window shows
+  every new asset with a thumbnail.
+
+  **Verify.** `rustpg2d-editor --library` with `libfilter prop|character|structure` + `shot`;
+  a scratch map with `stplace` of every structure; `chartemplate baker` etc. in the builder;
+  `sndplay bell`; a test map with `music_tavern`; autoplay equipping broom / hoe shows the held
+  sprites; the starter pack rebuilt without duplicate ids; the lang test passes.
+
+- [ ] Emberbrook: the village, its interiors and daily life — `feature/village`
+
+  **Goal.** The village map rebuilt as a realistic fantasy village with enterable key buildings,
+  villagers who live by the clock, animals, children, a town crier and a day / night atmosphere;
+  the Workshop map removed and its content integrated.
+
+  **Design.**
+  - 80 × 60 map. River down x ≈ 18 with two bridges (main street y 29–31, lower lane y 46–47);
+    cobbled market square x 26–42 y 15–28 (well, notice board, statue, lamps, benches, three market
+    stalls: produce, fish, flour); tavern, bakery north of the square, smithy with a flagstone yard
+    north-east, elder's house, Tilda's shop, crier's home and barracks facades east; apothecary with
+    a herb garden, chapel with bell tower, fenced graveyard (moonpetals), Mira's home, fisher's hut
+    with dock, boat and pond (fishing spot) south; orchard with apple trees and a beehive; west of
+    the river the windmill, mill house, farmland (12 plots, scarecrow, seed sack), farmhouse,
+    chicken coop and a fenced pen (sheep, cow). Stone wall and gate towers east; the east edge
+    leads to the forest (`offset` −6 / +6), no north edge. Spawn `start` at the square.
+  - Interiors via a shared `interior(name, w, h, floor, wall)` helper: `tavern` (16 × 12, counter,
+    kegs, fireplace, hearth, pantry chest, tables and stools, two inn beds usable after paying
+    Greta 5 coins = flag `inn_room_paid`, cleared by the map's Sleep trigger), `bakery` (oven,
+    counter, shelves, a cat), `smithy` (forge, anvil, grindstone, racks, supply chest), `apothecary`
+    (alchemy table, cauldron, racks, chest), `chapel` (altar, candles, pews, bell rope), `home_mira`
+    (three beds, cat basket), `mill` (millstone, sacks; Biscuit the cat, inactive until the quest).
+    Each interior has a portal back to `<name>_door` in the village; every scheduled NPC has a named
+    bed.
+  - Villagers with schedules (`ScheduleStop`, activities with tools): Elder Rowan, Mira, Pip (sick
+    in bed; a healthy twin inactive), Ida, Tomas, the guard (patrol), watchwoman Dagny (night
+    rounds), Greta (innkeeper), Bram (baker), Brom (blacksmith), Wren (herbalist), Brother Ansel
+    (priest), Jorun (miller), Hal and Beth (farmers), Old Finn (fisher), crier Oswin (`crier_talk()`
+    rumours), children Lotte and Finnick, Rufus the dog, chickens, sheep, a cow, a cat. Dialog
+    lines gated by `TimeBetween` / `Pose`; shops open after the dialog; notice board = an `If`
+    chain over the quest states.
+  - Atmosphere: lit windows, street lamps, the glowing tavern sign, braziers at the gate; **new
+    `TriggerOn::Hour { hour }`** (appended variant, Map owner; `GameEvent::Hour` fires when the
+    clock crosses the hour, also after `set_hour` / sleep) drives dawn fog (5:30 on, 8:30 off), the
+    morning cluck and the noon bell. Fallback if the trigger is cut: MapEnter / Sleep + `TimeBetween`.
+  - Workshop removal: `workshop()` and `example_project/maps/workshop.map` go; stations and content
+    move (supply chest → smithy / apothecary chests, herb garden → apothecary, smelter → the smithy
+    forge, anvil → smithy, plots + seeds → farmland, campfire + pantry → tavern hearth / bakery oven,
+    beds → inn and homes, smith / farmer → Brom, Hal, Beth). Forest: feverleaf bushes and the raided
+    flour cart with two inactive outlaws (quest hook); mine: bones + the `locket` pickup; house: the
+    bed named `elder_bed` (append only).
+
+  **Touch points.** `gen_example/main.rs` (`village`, new `interior`, the map list, `forest`,
+  `mine`, `house`, `database()` schedules), `events/mod.rs` + `runner.rs` + `runtime/mod.rs`
+  (`TriggerOn::Hour`), `editor/src/widgets.rs` + `graph.rs` (the new trigger), `lang_de.rs`,
+  `Documentation/events.md`, README (village tour, Workshop paragraphs rewritten, saves note),
+  CHANGELOG.
+
+  **Example.** The village itself; `intro_cutscene` keeps its texts (the player arrives on the
+  west road, the guard approaches).
+
+  **Verify.** Autoplay `--map village --spawn start`: day / night screenshots; `settime 5.6` →
+  `weather=fog`, `settime 8.6` → clear, `settime 11.95; wait 4` → the bell; `settime 7/12/15/18/21/2`
+  → `schedule=` rows of every villager at the right stop / map and `activities=` (craft, farm, fish,
+  sweep); enter every interior and come back; talk to every NPC and animal; pay Greta and sleep in
+  an inn bed; buy at every shop; the new-game intro; the forest edge both ways; `mcp_smoke` passes;
+  the Hour trigger in the editor's event picker and `events_reference`.
+
+- [ ] Four village quests — `feature/village-quests`
+
+  **Goal.** Quests that use the new village: *The Lost Cat* (Mira; clues from Bram, Finn, Jorun →
+  Biscuit in the mill → Mira), *Bread for the Festival* (Bram; flour from the raided cart in the
+  forest → bake a Festival Loaf at the oven → Bram), *The Herbalist's Remedy* (Ida; feverleaf,
+  bitterroot and a night-only moonpetal → brew at Wren's table → cure Pip), *Rumours at the Tavern*
+  (Greta; buy a round → Brom's story → Halvar's locket in the mine → Brom). `strange_lights` and
+  `pest_control` stay.
+
+  **Design.** Quest ids `lost_cat` (30 xp), `festival_bread` (60), `herbal_remedy` (70),
+  `tavern_rumours` (90), each with three stages and `{var}` progress texts where useful (`cat_clues`);
+  triggers on the NPCs ordered NotStarted → stages → Completed; script functions `cat_clue()` and
+  `crier_talk()`; achievements `cat_person`, `festival_baker`, `village_healer`, `old_debts`
+  (`Quest Completed` conditions, icons from the item sheets). `shrine_touch`, `mira_talk`,
+  `slime_defeated`, `intro_cutscene` stay as `Documentation/scripting.md` quotes them. German for
+  every new text. README: six quests, village tour, interiors, schedules, the Hour trigger,
+  terrains, three music tracks; CHANGELOG complete; then `release/0.11.0`.
+
+  **Touch points.** `gen_example/main.rs` (`database()` quests / achievements, NPC triggers,
+  `SCRIPT`), `lang_de.rs`, README, CHANGELOG, this file.
+
+  **Example.** The four quests, playable start to end.
+
+  **Verify.** One autoplay per quest from start to `quests=` completed (`status` at every stage,
+  `achievements=` grows; the moonpetal refuses by day and gives at `settime 21`; the oven needs
+  `lit`); `--lang de` screenshots; `langtemplate de` reports nothing missing;
+  `cargo xtask check-version release/0.11.0`.
 
 ## Backlog (unscheduled ideas)
 
@@ -124,79 +326,3 @@ Instructions for every session (people and coding agents) that implements roadma
   halved (tiles per second from two statuses), `press x` doesn't attack, screenshot of the
   half-submerged hero; the forest stream still blocks; in the mine `hold up` on the ladder
   climbs (`climbing=true`), `hold left` doesn't move; an NPC never enters water (`ai=` positions).
-
-## Shipped
-
-See [CHANGELOG.md](CHANGELOG.md) for the details of every release.
-
-### 0.10.0 — Agents (2026-11-08)
-
-- [x] AI agent server (MCP inside the editor: 51 tools, resources, prompts, file watcher) — `feature/mcp-server`
-
-### 0.9.0 — Reach: the web, other languages, Windows and macOS (2026-11-08)
-
-- [x] Web export (browsers, itch.io) — `feature/web`
-- [x] Localization (translation templates, built-in German, *Options › Language*) — `feature/localization`
-- [x] Windows export — `feature/windows-export`
-- [x] macOS export (ad-hoc signed `.app`) — `feature/windows-export`
-- [x] Editor on Windows and macOS (Windows zip, macOS app) — `feature/editor-desktop`
-
-### 0.8.0 — Scenery and sound (2026-11-08)
-
-- [x] 47-tile corner auto-tiling (inner corners; Tiled Wang sets) — `feature/autotile-47`
-- [x] Parallax layers (sky / abyss behind, cloud shadows over the map) — `feature/parallax`
-- [x] Gapless music loops — `feature/gapless-music`
-
-### 0.7.0 — Trades and town life (2026-11-08)
-
-- [x] Mining and gathering (tools in recipes, days, regrowing props; the Workshop map) — `feature/mining`
-- [x] Blacksmithing — `feature/blacksmithing`
-- [x] Farming — `feature/farming`
-- [x] Cooking — `feature/cooking`
-- [x] Schedules across maps and with furniture — `feature/schedule-maps`
-- [x] NPC routines: visible activities — `feature/activities`
-
-### 0.6.0 — The party (2026-11-06)
-
-- [x] Healing companions — `feature/heal-companions`
-- [x] Knocked-down companions — `feature/downed-companions`
-- [x] Commands for companions — `feature/companion-orders`
-- [x] Companion inventory (characters use the items they carry) — `feature/companion-inventory`
-- [x] Portrait images — `feature/portrait-images`
-
-### 0.5.0 — Living world and adventure (2026-11-06)
-
-- [x] Weather — `feature/weather`
-- [x] NPC schedules — `feature/schedules`
-- [x] Companions — `feature/companions`
-- [x] Crafting — `feature/crafting`
-- [x] Achievements — `feature/achievements`
-- [x] Minigames: lockpicking and fishing (with the Tool slot) — `feature/minigames`
-- [x] The player uses furniture — `feature/furniture`
-- [x] Dialog portraits — `feature/portraits`
-- [x] Renamed from rust2d to R(ust)PG2D (`rustpg2d`) — `feature/rename-rustpg2d`
-
-### 0.4.0 — The workbench (2026-11-06)
-
-- [x] Region copy, cut and paste — `feature/region-clipboard`
-- [x] Script hot reload and in-game console — `feature/live-scripts`
-- [x] Auto-tiling terrains (all starter tilesets, all example maps) — `feature/autotile`
-- [x] Event / dialog graph editor — `feature/event-graph`
-- [x] Imports: Tiled, LPC, Aseprite — `feature/imports`
-
-### 0.3.0 — Heroes, foes and feel (2026-11-06)
-
-- [x] Experience and levels — `feature/progression`
-- [x] Status effects — `feature/status-effects`
-- [x] Enemy AI — `feature/enemy-ai`
-- [x] Bestiary — `feature/bestiary`
-- [x] Dialog log — `feature/dialog-log`
-- [x] Input actions and gamepad — `feature/gamepad`
-- [x] Key rebinding — `feature/rebinding`
-- [x] Screen shake and damage flash — `feature/juice`
-- [x] Save thumbnails — `feature/save-thumbnails`
-
-### 0.0.1 to 0.2.0
-
-Editor, combat, quests, shops, skills and magic, lighting, cut-scenes, packaging, GitHub
-workflow (before this roadmap existed).

@@ -1975,7 +1975,7 @@ fn mine() -> Map {
     let (dterrains, earth_tile, chasm_tile) = {
         let ts = art::extra::dungeon_tileset().0.terrains;
         // The chasm is see-through (Abyss): the mist of the parallax layer behind shows in it.
-        let (e, c) = (ts[0].tile_for(15).unwrap(), ts[2].tile_for(15).unwrap());
+        let (e, c) = (ts[0].inside().unwrap(), ts[2].inside().unwrap());
         (ts, e, c)
     };
     for (x, y) in [(6, 5), (7, 5), (7, 6), (8, 5), (6, 6), (12, 4), (13, 4), (13, 5), (12, 16), (13, 16), (14, 16), (13, 17), (14, 17), (15, 17), (13, 15)] {

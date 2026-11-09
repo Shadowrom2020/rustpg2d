@@ -3,6 +3,29 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+A living village: every terrain a 47-tile set, many more assets, the village rebuilt as
+Emberbrook with interiors and a daily life, four more quests.
+
+### Example project
+- **Every terrain is a 47-tile set**: the terrain tileset's sheet is 16 tiles wide (512 × 1760 px)
+  with one 7×7 blob block per terrain, so all fourteen terrains (Dirt path, Pond, Sand, Shore,
+  Forest floor, Snowfield, Forest path, Stream, Flagstones, Rug and the new **Cobblestone,
+  Farmland, Meadow and Carpet**) get inner corners; the 16-tile blocks are gone (the 16 slots are
+  filled from the blob set as the fallback for *Corners* off). The library's desert, mountains,
+  city and dungeon tilesets got the same treatment (Oasis, Hardpan, Snowfield, Mountain path,
+  Frozen lake, Canal, Plaza, Earth, Chasm, Abyss). New single tiles for the village: cobbles,
+  tilled soil, flower bed, carpet, light stone floor, north–south fence and fence post, gate
+  pillar, hedge, dock planks and dock end, bridge railings, slate and thatched roofs with eaves,
+  chimneys on red and slate roofs, stone house walls with a lit window, a door and a stained-glass
+  chapel window, a counter, a grave mound, a cross-beamed timber wall, a dark window, straw.
+  The unused `tilesets/desert.png` was removed from the example project.
+- **Asset library**: the starter rules are at version 6, so existing libraries are checked again
+  for new assets; the reorganized terrain sheet is not an extension of the old one, so a library
+  created before 0.11.0 keeps its old terrain art and 16-tile terrains until it is rebuilt from
+  the starter set (back it up, delete `~/.local/share/rustpg2d/library`, open the editor).
+
 ## 0.10.0 — 2026-11-08
 
 Agents: AI agents build content and adventures from inside the editor.

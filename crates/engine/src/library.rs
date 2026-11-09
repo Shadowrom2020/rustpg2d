@@ -820,8 +820,10 @@ pub fn open_library(dir: &Path, starter: Option<&[u8]>) -> Result<Project> {
 /// File in the library recording which starter set was last applied.
 const STARTER_STAMP: &str = "starter.stamp";
 /// Version of the rules for applying starter sets (2: images that only grew are upgraded;
-/// 4: bodies get the playable flag; 5: tilesets get their auto-tiling terrains).
-const STARTER_RULES: u32 = 5;
+/// 4: bodies get the playable flag; 5: tilesets get their auto-tiling terrains; 6: the terrain
+/// sheet is 16 columns wide with a 47-tile set per terrain — not an extension of the old
+/// sheet, so existing libraries keep their art until they are rebuilt).
+const STARTER_RULES: u32 = 6;
 
 /// 64-bit FNV-1a hash (a cheap fingerprint of the starter pack).
 fn fnv1a(bytes: &[u8]) -> u64 {

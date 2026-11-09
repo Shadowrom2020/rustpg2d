@@ -183,13 +183,12 @@ struct TerrainSpec<'a> {
     art: EdgeArt<'a>,
 }
 
-/// Appends the terrains' 4×4 edge blocks below a sheet of `rows` rows (two blocks per band of
-/// four rows; the existing tiles keep their pixels and indices) and returns the grown sheet,
-/// the terrains and their solid tiles.
+/// Appends the terrains' 7×7 blob blocks (47 tiles, inner corners) below a sheet of `rows`
+/// rows (one block per band of seven rows; the existing tiles keep their pixels and indices)
+/// and returns the grown sheet, the terrains and their solid tiles.
 fn add_terrains(c: Canvas, rows: u32, specs: &[TerrainSpec]) -> (Canvas, Vec<rustpg2d_engine::autotile::Terrain>, Vec<u32>) {
-    use rustpg2d_engine::autotile::Terrain;
-    let bands = (specs.len() as u32).div_ceil(2);
-    let mut big = Canvas::new(8 * TS, (rows + bands * 4) * TS);
+    use rustpg2d_engine::autotile::{Terrain, BLOB_SLOTS};
+    let mut big = Canvas::new(8 * TS, (rows + specs.len() as u32 * 7) * TS);
     for y in 0..c.img.height as u32 {
         for x in 0..c.img.width as u32 {
             big.img.set_pixel(x, y, c.img.get_pixel(x, y));
@@ -198,15 +197,16 @@ fn add_terrains(c: Canvas, rows: u32, specs: &[TerrainSpec]) -> (Canvas, Vec<rus
     let mut terrains = Vec::new();
     let mut solid = Vec::new();
     for (b, spec) in specs.iter().enumerate() {
-        let first = block_start(rows, b as u32);
-        edge_block(&mut big, first, 8, &spec.art);
+        let first = (rows + 7 * b as u32) * 8;
+        blob_block(&mut big, first, 8, &spec.art);
         let mut t = Terrain { name: spec.name.into(), base: Some(spec.base), joins: spec.joins.iter().map(|j| j.to_string()).collect(), ..Default::default() };
-        t.fill_from_block(first, 8);
+        t.fill_blob_from_block(first, 8);
         if let Some(i) = spec.inside {
-            t.tiles[15] = Some(i);
+            t.blob[BLOB_SLOTS - 1] = Some(i);
         }
+        blob_fallback(&mut t);
         if spec.solid {
-            solid.extend((0..16).map(|k| Terrain::block_tile(first, 8, k)));
+            solid.extend((0..BLOB_SLOTS).map(|k| Terrain::blob_block_tile(first, 8, k)));
         }
         terrains.push(t);
     }

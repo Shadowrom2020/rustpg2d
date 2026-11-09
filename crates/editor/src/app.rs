@@ -278,6 +278,9 @@ pub struct Editor {
     pub zone_template: ZoneTemplate,
     pub view: ViewOpts,
     pub status: (String, f64),
+    /// What a load left out (unreadable definition entries or map objects), shown in a banner
+    /// until dismissed.
+    pub notices: Vec<String>,
     pub new_map: Option<NewMapDialog>,
     pub resize: Option<(u32, u32)>,
     pub pending: Option<Pending>,
@@ -339,8 +342,9 @@ impl Editor {
             let lib = rustpg2d_engine::library::open_library(&rustpg2d_engine::library::library_dir(), Some(crate::library_ui::STARTER)).ok();
             converted = rustpg2d_engine::migrate::upgrade(&root, lib.as_ref())?;
         }
-        let project = Project::load(&root)?;
+        let (project, warnings) = Project::load_with_warnings(&root)?;
         let mut ed = Self::with_project(project, true);
+        ed.note_defs_warnings(warnings);
         let first = if ed.maps.contains(&ed.project.config.start_map) {
             Some(ed.project.config.start_map.clone())
         } else {
@@ -419,6 +423,7 @@ impl Editor {
             weather_fx: Default::default(),
             light_cache: (-1.0, String::new(), Vec::new()),
             status: (String::new(), 0.0),
+            notices: Vec::new(),
             new_map: None,
             resize: None,
             pending: None,
@@ -471,6 +476,56 @@ impl Editor {
         self.assets.tile_size
     }
 
+    /// Notes what loading `file` left out (its objects or entries that can't be read), after
+    /// backing the file up: saving it again would drop them for good.
+    pub fn note_load_warnings(&mut self, file: &std::path::Path, warnings: &[String]) {
+        if warnings.is_empty() {
+            return;
+        }
+        let rel = file.strip_prefix(&self.project.root).unwrap_or(file).display().to_string();
+        // (Definition warnings already start with their file.)
+        let details: Vec<&str> = warnings.iter().map(|w| w.strip_prefix(rel.as_str()).map_or(w.as_str(), str::trim_start)).collect();
+        for d in &details {
+            eprintln!("[editor] {rel}: {d}");
+        }
+        let backup = files::back_up_once(file).map(|b| format!(" (backup: {})", b.file_name().unwrap_or_default().to_string_lossy())).unwrap_or_default();
+        let n = warnings.len();
+        self.notices.push(format!("{rel}: {n} entr{} can't be read and will be lost when the file is saved again{backup}. {}", if n == 1 { "y" } else { "ies" }, details.join(" ")));
+    }
+
+    /// [`Self::note_load_warnings`] for the definitions: each warning starts with its file
+    /// (`defs/items.ron entry 7 …`).
+    pub fn note_defs_warnings(&mut self, warnings: Vec<String>) {
+        let mut by_file: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+        for w in warnings {
+            let file = w.split_whitespace().next().unwrap_or("defs").to_string();
+            by_file.entry(file).or_default().push(w);
+        }
+        for (file, ws) in by_file {
+            let path = self.project.root.join(&file);
+            self.note_load_warnings(&path, &ws);
+        }
+    }
+
+    /// The banner listing what a load left out (`notices`), with a Dismiss button.
+    pub fn notice_banner(&mut self, ctx: &egui::Context) {
+        if self.notices.is_empty() {
+            return;
+        }
+        let mut dismiss = false;
+        egui::TopBottomPanel::top("notice_banner").frame(egui::Frame::default().fill(Color32::from_rgb(70, 60, 20)).inner_margin(6.0)).show(ctx, |ui| {
+            for n in &self.notices {
+                ui.colored_label(Color32::YELLOW, n);
+            }
+            if ui.button("Dismiss").clicked() {
+                dismiss = true;
+            }
+        });
+        if dismiss {
+            self.notices.clear();
+        }
+    }
+
     pub fn set_status(&mut self, s: impl Into<String>) {
         let s = s.into();
         println!("[editor] {s}");
@@ -484,8 +539,10 @@ impl Editor {
         if let Some(d) = &self.doc {
             self.map_cams.insert(d.map.name.clone(), (self.cam.center, self.cam.zoom));
         }
-        match self.project.load_map(name) {
+        let mut warnings = Vec::new();
+        match rustpg2d_engine::map::io::load_with(&self.project.map_path(name), &mut |w| warnings.push(w)) {
             Ok(map) => {
+                self.note_load_warnings(&self.project.map_path(name), &warnings);
                 self.load_doc(map);
                 if let Some(&(center, zoom)) = self.map_cams.get(name) {
                     self.cam.center = center;
@@ -1293,6 +1350,7 @@ impl Editor {
             self.menu_bar(ctx);
             self.watch_project();
             self.watch_banner(ctx);
+            self.notice_banner(ctx);
         }
         self.mcp_window(ctx);
         if !self.project_open {

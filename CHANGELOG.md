@@ -32,6 +32,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   (maps already were), so a crash or a full disk never leaves a truncated file behind.
 - **Corrupt map files are refused instead of crashing the game**: the tile layers' chunk grids,
   the map size and the compressed size prefix are checked when a map is read.
+- **One unreadable entry no longer blocks a whole project.** A definition entry or a map object
+  that can't be read (a hand-edit typo, a newer version's variant) is left out with a log line
+  (`[defs]`, `[map]`) and everything else loads; before, the game refused the project or the
+  map. The editor shows what was left out in a banner and backs the file up (`items.ron.bak`,
+  `village.map.bak`) before it could save without those entries.
 - The editor logs when it cannot save its settings, the recent-projects list or a new script
   (these failures were silent), and the game logs why a save game is listed as unreadable.
 - The mouse walk's "stuck" check is a tenth of a step at any frame rate (it was 0.2 px per frame,

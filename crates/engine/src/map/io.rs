@@ -77,6 +77,62 @@ impl Default for Meta {
     }
 }
 
+/// `Meta` with its objects kept as text: read when `Meta` itself fails, so one entity, zone or
+/// trigger that can't be read (a hand edit, a newer version's variant) costs only itself.
+#[derive(Deserialize)]
+#[serde(default)]
+struct MetaLenient {
+    entities: Vec<Box<ron::value::RawValue>>,
+    zones: Vec<Box<ron::value::RawValue>>,
+    edges: EdgeLinks,
+    triggers: Vec<Box<ron::value::RawValue>>,
+    next_uid: u32,
+    background: [u8; 3],
+    music: String,
+    lighting: crate::map::MapLighting,
+    fog: bool,
+    weather: crate::map::Weather,
+    parallax: Vec<crate::map::ParallaxLayer>,
+}
+
+impl Default for MetaLenient {
+    fn default() -> Self {
+        let d = Meta::default();
+        MetaLenient { entities: vec![], zones: vec![], edges: d.edges, triggers: vec![], next_uid: d.next_uid, background: d.background, music: d.music, lighting: d.lighting, fog: d.fog, weather: d.weather, parallax: d.parallax }
+    }
+}
+
+/// The map's objects: all of them, or (when one can't be read) all the others, each left-out
+/// one reported through `warn`.
+fn parse_meta(text: &str, warn: &mut dyn FnMut(String)) -> Result<Meta> {
+    let whole = match ron::from_str::<Meta>(text) {
+        Ok(m) => return Ok(m),
+        Err(e) => e,
+    };
+    let l: MetaLenient = ron::from_str(text).with_context(|| format!("parsing map objects: {whole}"))?;
+    let mut m = Meta { entities: vec![], zones: vec![], edges: l.edges, triggers: vec![], next_uid: l.next_uid, background: l.background, music: l.music, lighting: l.lighting, fog: l.fog, weather: l.weather, parallax: l.parallax };
+    use crate::project::field_hint;
+    for (i, raw) in l.entities.iter().enumerate() {
+        match raw.into_rust::<EntityInstance>() {
+            Ok(e) => m.entities.push(e),
+            Err(e) => warn(format!("entity {} ({}, {}) can't be read and is left out: {e}", i + 1, field_hint(raw.get_ron(), "uid"), field_hint(raw.get_ron(), "def"))),
+        }
+    }
+    for (i, raw) in l.zones.iter().enumerate() {
+        match raw.into_rust::<Zone>() {
+            Ok(z) => m.zones.push(z),
+            Err(e) => warn(format!("zone {} ({}) can't be read and is left out: {e}", i + 1, field_hint(raw.get_ron(), "name"))),
+        }
+    }
+    for (i, raw) in l.triggers.iter().enumerate() {
+        match raw.into_rust::<Trigger>() {
+            Ok(t) => m.triggers.push(t),
+            Err(e) => warn(format!("map trigger {} can't be read and is left out: {e}", i + 1)),
+        }
+    }
+    Ok(m)
+}
+
 /// Entity layout of format version 1 (frozen: postcard isn't self-describing).
 #[derive(Serialize, Deserialize)]
 struct EntityV1 {
@@ -179,7 +235,14 @@ pub fn encode(map: &Map) -> Result<Vec<u8>> {
 /// about 40 MiB): a corrupt size prefix can't make the game allocate gigabytes.
 const MAX_RAW: u32 = 256 << 20;
 
+/// Reads a map file's bytes. Objects that can't be read are left out and logged (`[map]`);
+/// [`decode_with`] hands them to the caller.
 pub fn decode(bytes: &[u8]) -> Result<Map> {
+    decode_with(bytes, &mut |w| eprintln!("[map] {w}"))
+}
+
+/// [`decode`], reporting every object that was left out through `warn`.
+pub fn decode_with(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<Map> {
     if bytes.len() < 14 || &bytes[..6] != MAGIC {
         bail!("not an R(ust)PG2D map file");
     }
@@ -214,7 +277,7 @@ pub fn decode(bytes: &[u8]) -> Result<Map> {
         }
         2 => {
             let c: Core = postcard::from_bytes(&raw).context("deserializing map")?;
-            let meta: Meta = ron::from_str(&c.meta).context("parsing map objects")?;
+            let meta = parse_meta(&c.meta, warn)?;
             Map {
                 name: c.name,
                 width: c.width,
@@ -258,6 +321,13 @@ pub fn save(map: &Map, path: &Path) -> Result<()> {
     crate::sys::write(path, &bytes).with_context(|| format!("writing {}", path.display()))
 }
 
+/// [`load`] with the objects that were left out reported through `warn` (the editor shows them
+/// and backs the file up before it saves without them).
+pub fn load_with(path: &Path, warn: &mut dyn FnMut(String)) -> Result<Map> {
+    let bytes = crate::sys::read(path).with_context(|| format!("reading {}", path.display()))?;
+    decode_with(&bytes, warn).with_context(|| format!("loading map {}", path.display()))
+}
+
 pub fn load(path: &Path) -> Result<Map> {
     let bytes = crate::sys::read(path).with_context(|| format!("reading {}", path.display()))?;
     decode(&bytes).with_context(|| format!("loading map {}", path.display()))
@@ -268,6 +338,28 @@ mod tests {
     use super::*;
     use crate::entity::EntityKind;
     use crate::map::{Chunk, CollisionOverride, Tile};
+
+    /// One map object that can't be read (a newer version's variant, a hand edit) is left out
+    /// with a warning; the rest of the map loads.
+    #[test]
+    fn unreadable_objects_are_left_out() {
+        let mut m = Map::new("m", 8, 8);
+        let uid = m.alloc_uid();
+        m.entities.push(EntityInstance::new(uid, EntityKind::Prop, "chest", 1.0, 2.0));
+        let uid = m.alloc_uid();
+        m.entities.push(EntityInstance::new(uid, EntityKind::Character, "guard", 3.0, 4.0));
+        let core: Core = postcard::from_bytes(&lz4_flex::decompress_size_prepended(&encode(&m).unwrap()[10..]).unwrap()).unwrap();
+        let broken = core.meta.replace("kind:Character", "kind:Dragon");
+        assert_ne!(broken, core.meta);
+        let mut warnings = Vec::new();
+        let meta = parse_meta(&broken, &mut |w| warnings.push(w)).unwrap();
+        assert_eq!(meta.entities.iter().map(|e| e.def.as_str()).collect::<Vec<_>>(), ["chest"]);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].starts_with("entity 2 (uid 2, def \"guard\") can't be read"), "{}", warnings[0]);
+        assert_eq!(meta.next_uid, m.next_uid);
+        // Healthy objects parse in one go.
+        parse_meta(&core.meta, &mut |_| panic!("healthy")).unwrap();
+    }
 
     /// Corrupt files are refused with an error, never a panic (the game loads untrusted data).
     #[test]

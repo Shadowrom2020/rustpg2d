@@ -552,7 +552,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -574,6 +574,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.graph.counts.1,
             ed.mcp.status(),
             ed.watch.status(),
+            ed.notices.len(),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),

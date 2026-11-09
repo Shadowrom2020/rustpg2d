@@ -253,31 +253,60 @@ pub struct Project {
 
 pub const DEFS: [&str; 12] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements"];
 
-fn parse_ron<T: DeserializeOwned + Default>(text: Option<String>, name: &str) -> Result<T> {
-    match text {
-        None => Ok(T::default()),
-        Some(s) => ron::from_str(&s).with_context(|| format!("parsing defs/{name}.ron")),
+/// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
+/// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
+/// only the entries that don't parse are left out, each reported through `warn` (a hand-edit
+/// typo, an enum variant of a newer version). The list syntax itself must be intact.
+fn parse_list<T: DeserializeOwned>(text: Option<String>, name: &str, warn: &mut dyn FnMut(String)) -> Result<Vec<T>> {
+    let Some(s) = text else { return Ok(Vec::new()) };
+    let whole = match ron::from_str::<Vec<T>>(&s) {
+        Ok(v) => return Ok(v),
+        Err(e) => e,
+    };
+    let raws: Vec<Box<ron::value::RawValue>> = ron::from_str(&s).with_context(|| format!("parsing defs/{name}.ron: {whole}"))?;
+    let mut out = Vec::with_capacity(raws.len());
+    for (i, raw) in raws.iter().enumerate() {
+        match raw.into_rust::<T>() {
+            Ok(d) => out.push(d),
+            Err(e) => warn(format!("defs/{name}.ron entry {} ({}) can't be read and is left out: {e}", i + 1, field_hint(raw.get_ron(), "id"))),
+        }
     }
+    Ok(out)
+}
+
+/// `field: value` of an entry's RON text (`id "sword"`, `uid 7`), for messages about entries
+/// that can't be read.
+pub fn field_hint(raw: &str, field: &str) -> String {
+    let Some(i) = raw.find(&format!("{field}:")) else { return format!("no {field}") };
+    let value = raw[i + field.len() + 1..].trim_start();
+    let end = value.find([',', ')', '\n']).unwrap_or(value.len());
+    format!("{field} {}", value[..end].trim())
 }
 
 /// The definitions from the texts of `defs/*.ron`: `read("items")` returns the text of
 /// `defs/items.ron`, `None` when the file is missing (an empty list). Used for project folders
-/// and for folders embedded in a program (the editor's starter library).
+/// and for folders embedded in a program (the editor's starter library). Entries that can't be
+/// read are left out and logged (`[defs]`); [`parse_defs_with`] hands them to the caller.
 pub fn parse_defs(read: impl Fn(&str) -> Result<Option<String>>) -> Result<Database> {
+    parse_defs_with(read, &mut |w| eprintln!("[defs] {w}"))
+}
+
+/// [`parse_defs`], reporting every entry that was left out through `warn`.
+pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut dyn FnMut(String)) -> Result<Database> {
     let r = |i: usize| read(DEFS[i]);
     let mut db = Database {
-        tilesets: parse_ron(r(0)?, DEFS[0])?,
-        sheets: parse_ron(r(1)?, DEFS[1])?,
-        items: parse_ron(r(2)?, DEFS[2])?,
-        props: parse_ron(r(3)?, DEFS[3])?,
-        characters: parse_ron(r(4)?, DEFS[4])?,
-        sounds: parse_ron(r(5)?, DEFS[5])?,
-        quests: parse_ron(r(6)?, DEFS[6])?,
-        structures: parse_ron(r(7)?, DEFS[7])?,
-        skills: parse_ron(r(8)?, DEFS[8])?,
-        spells: parse_ron(r(9)?, DEFS[9])?,
-        recipes: parse_ron(r(10)?, DEFS[10])?,
-        achievements: parse_ron(r(11)?, DEFS[11])?,
+        tilesets: parse_list(r(0)?, DEFS[0], warn)?,
+        sheets: parse_list(r(1)?, DEFS[1], warn)?,
+        items: parse_list(r(2)?, DEFS[2], warn)?,
+        props: parse_list(r(3)?, DEFS[3], warn)?,
+        characters: parse_list(r(4)?, DEFS[4], warn)?,
+        sounds: parse_list(r(5)?, DEFS[5], warn)?,
+        quests: parse_list(r(6)?, DEFS[6], warn)?,
+        structures: parse_list(r(7)?, DEFS[7], warn)?,
+        skills: parse_list(r(8)?, DEFS[8], warn)?,
+        spells: parse_list(r(9)?, DEFS[9], warn)?,
+        recipes: parse_list(r(10)?, DEFS[10], warn)?,
+        achievements: parse_list(r(11)?, DEFS[11], warn)?,
     };
     db.upgrade_prop_states();
     db.upgrade_characters();
@@ -297,7 +326,20 @@ pub fn write_ron<T: Serialize>(path: &Path, value: &T) -> Result<()> {
 }
 
 impl Project {
+    /// Reads a project folder. Definition entries that can't be read are left out and logged
+    /// (`[defs]`); [`Project::load_with_warnings`] hands them to the caller instead.
     pub fn load(root: &Path) -> Result<Project> {
+        let (p, warnings) = Project::load_with_warnings(root)?;
+        for w in warnings {
+            eprintln!("[defs] {w}");
+        }
+        Ok(p)
+    }
+
+    /// [`Project::load`] with the entries that were left out: `defs/<file>.ron entry N (id "x")
+    /// can't be read and is left out: <why>` (the editor shows them and backs the file up before
+    /// it saves without them).
+    pub fn load_with_warnings(root: &Path) -> Result<(Project, Vec<String>)> {
         let root = root.to_path_buf();
         let cfg_path = root.join("project.ron");
         let config: ProjectConfig = ron::from_str(
@@ -305,15 +347,19 @@ impl Project {
         )
         .with_context(|| format!("parsing {}", cfg_path.display()))?;
         let defs = root.join("defs");
-        let db = parse_defs(|n| {
-            let path = defs.join(format!("{n}.ron"));
-            if !crate::sys::exists(&path) {
-                return Ok(None);
-            }
-            crate::sys::read_to_string(&path).map(Some).with_context(|| format!("reading {}", path.display()))
-        })
+        let mut warnings = Vec::new();
+        let db = parse_defs_with(
+            |n| {
+                let path = defs.join(format!("{n}.ron"));
+                if !crate::sys::exists(&path) {
+                    return Ok(None);
+                }
+                crate::sys::read_to_string(&path).map(Some).with_context(|| format!("reading {}", path.display()))
+            },
+            &mut |w| warnings.push(w),
+        )
         .with_context(|| format!("in {}", root.display()))?;
-        Ok(Project { root, config, db })
+        Ok((Project { root, config, db }, warnings))
     }
 
     /// Re-reads `project.ron` and the definitions from disk (another program changed them).
@@ -407,5 +453,33 @@ impl Project {
         }
         std::fs::rename(from, to)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// One entry that can't be read (an unknown enum variant, a typo) is left out with a
+    /// warning; the rest of the file loads. A broken list is still an error.
+    #[test]
+    fn unreadable_entries_are_left_out() {
+        let text = r#"[
+            (id: "a", name: "A", icon: (sheet: "s", frame: 0)),
+            (id: "b", name: "B", icon: (sheet: "s", frame: 1), use_on: NoSuchVariant),
+            (id: "c", name: "C", icon: (sheet: "s", frame: 2)),
+        ]"#;
+        let mut warnings = Vec::new();
+        let items: Vec<crate::defs::ItemDef> = parse_list(Some(text.into()), "items", &mut |w| warnings.push(w)).unwrap();
+        assert_eq!(items.iter().map(|i| i.id.as_str()).collect::<Vec<_>>(), ["a", "c"]);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].starts_with("defs/items.ron entry 2 (id \"b\") can't be read"), "{}", warnings[0]);
+        let whole = parse_list::<crate::defs::ItemDef>(Some("[(id: \"a\"".into()), "items", &mut |_| panic!("no entry warning for a broken list"));
+        assert!(whole.is_err());
+        assert_eq!(field_hint("(uid: 7, def: \"x\")", "uid"), "uid 7");
+        assert_eq!(field_hint("(uid: 7)", "def"), "no def");
+        // A whole healthy file parses in one go (nothing reported).
+        let ok: Vec<crate::defs::ItemDef> = parse_list(Some(r#"[(id: "a", name: "A", icon: (sheet: "s", frame: 0))]"#.into()), "items", &mut |_| panic!("healthy")).unwrap();
+        assert_eq!(ok.len(), 1);
     }
 }

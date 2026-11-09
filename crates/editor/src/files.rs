@@ -197,6 +197,24 @@ pub fn save_settings(s: &EditorSettings) {
     }
 }
 
+/// Copies `path` to `<name>.bak` beside it, once (an existing backup is kept): before the editor
+/// saves a file it could only read in part. The backup's path, or `None` when copying failed.
+pub fn back_up_once(path: &Path) -> Option<PathBuf> {
+    let mut name = path.file_name()?.to_os_string();
+    name.push(".bak");
+    let bak = path.with_file_name(name);
+    if bak.exists() {
+        return Some(bak);
+    }
+    match std::fs::copy(path, &bak) {
+        Ok(_) => Some(bak),
+        Err(e) => {
+            eprintln!("[editor] cannot back up {}: {e}", path.display());
+            None
+        }
+    }
+}
+
 /// Recently opened projects that still exist, newest first.
 pub fn recent_projects() -> Vec<PathBuf> {
     let Some(file) = config_dir().map(|d| d.join("recent.ron")) else { return Vec::new() };

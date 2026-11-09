@@ -190,7 +190,7 @@ async fn main() {
             return web_failed(e).await;
             #[cfg(not(target_arch = "wasm32"))]
             {
-                eprintln!("error: {e:#}");
+                eprintln!("[game] error: {e:#}");
                 std::process::exit(1);
             }
         }

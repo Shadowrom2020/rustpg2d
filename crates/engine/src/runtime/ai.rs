@@ -6,7 +6,7 @@
 
 use macroquad::prelude::*;
 
-use super::Game;
+use super::{Game, Mover};
 use crate::defs::Behavior;
 use crate::entity::Facing;
 use crate::path::{find_path, TilePos};
@@ -32,6 +32,8 @@ pub(super) struct Ai {
     /// The way home, tile by tile.
     path: Vec<TilePos>,
     stuck: f32,
+    /// It planned the way home again once while blocked (not every frame).
+    replanned: bool,
 }
 
 impl Ai {
@@ -159,14 +161,14 @@ impl Game {
         let e = &self.loaded.entities[i];
         let (body, uid) = (e.body.clone(), e.uid);
         let full = body.speed * dt;
-        let mut new_pos = self.try_move(&body, dir * full, Some(uid), false);
+        let mut new_pos = self.try_move(&body, dir * full, Mover::Npc(uid), false);
         let mut moved_dir = dir;
         if new_pos.distance(body.pos) < full * 0.5 {
             // Progress = how far a step gets along `dir` (sliding the wrong way scores below 0).
             let mut best = (new_pos - body.pos).dot(dir);
             for angle in [45.0f32, -45.0, 90.0, -90.0] {
                 let d = Vec2::from_angle(angle.to_radians()).rotate(dir);
-                let p = self.try_move(&body, d * full, Some(uid), false);
+                let p = self.try_move(&body, d * full, Mover::Npc(uid), false);
                 let progress = (p - body.pos).dot(dir);
                 if progress > best + 0.001 {
                     best = progress;
@@ -208,7 +210,7 @@ impl Game {
         let spot = if e.ai.path.len() == 1 { home } else { self.tile_spot(next) };
         let step = (spot - pos).clamp_length_max(e.body.speed * dt);
         let (body, uid) = (e.body.clone(), e.uid);
-        let new_pos = self.try_move(&body, step, Some(uid), false);
+        let new_pos = self.try_move(&body, step, Mover::Npc(uid), false);
         let e = &mut self.loaded.entities[i];
         e.body.facing = Facing::from_vec(step.x, step.y).unwrap_or(e.body.facing);
         e.body.moving = new_pos != pos;
@@ -217,6 +219,7 @@ impl Game {
         if new_pos.distance(spot) < 1.0 {
             e.ai.path.remove(0);
             e.ai.stuck = 0.0;
+            e.ai.replanned = false;
         } else if new_pos.distance(pos) < 0.01 {
             e.ai.stuck += dt;
             if e.ai.stuck > HOME_STUCK_GIVE_UP {
@@ -224,11 +227,14 @@ impl Game {
                 e.home = new_pos;
                 return false;
             }
-            if e.ai.stuck > 1.0 {
+            if e.ai.stuck > 1.0 && !e.ai.replanned {
+                // Blocked: plan the way once more, then give up (above).
                 e.ai.path.clear();
+                e.ai.replanned = true;
             }
         } else {
             e.ai.stuck = 0.0;
+            e.ai.replanned = false;
         }
         true
     }

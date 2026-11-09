@@ -4,7 +4,7 @@
 
 use macroquad::prelude::*;
 
-use super::Game;
+use super::{Game, Mover};
 use crate::entity::{EntityKind, Facing, PatrolRoute};
 use crate::path::{find_path, TilePos};
 use crate::state::PatrolState;
@@ -26,6 +26,8 @@ pub(super) struct Patrol {
     pub back: bool,
     pub wait: f32,
     walker: Walker,
+    /// The waypoint an "unreachable" warning was logged for (once, not every round).
+    warned: Option<usize>,
 }
 
 /// A character on its way to a tile: the remaining path and how long it has been blocked.
@@ -37,6 +39,8 @@ pub(super) struct Walker {
     /// It was blocked on its way: plan around the tiles other characters stand on (two
     /// characters waiting for each other in a doorway find another way).
     avoid: bool,
+    /// It already planned again while blocked here: once per blockage, then it gives up.
+    replanned: bool,
 }
 
 /// What a step of [`Game::walk_to_tile`] came to.
@@ -128,7 +132,10 @@ impl Game {
                 p.advance();
             }
             Walk::Unreachable => {
-                eprintln!("[game] {} can't reach patrol point {goal:?}; skipping it", e.def);
+                if p.warned != Some(p.index) {
+                    eprintln!("[game] {} can't reach patrol point {goal:?}; skipping it", e.def);
+                    p.warned = Some(p.index);
+                }
                 p.wait = 1.0;
                 p.advance();
             }
@@ -145,6 +152,13 @@ impl Game {
         let here = self.tile_of(pos);
         // Plan the way to the goal when needed.
         if w.path.is_empty() {
+            let at_goal = pos.distance(self.tile_spot(goal)) < 2.0;
+            if here == goal && at_goal {
+                // Already there (a companion at its spot every frame): nothing to plan.
+                self.loaded.entities[i].body.moving = false;
+                *w = Walker::default();
+                return Walk::Arrived;
+            }
             // Around solid tiles and props (statues, wells, closed gates); characters move, so
             // they are waited for instead.
             let props = self.solid_entity_tiles(|e| e.kind == EntityKind::Prop);
@@ -156,7 +170,6 @@ impl Game {
                 let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && props.contains(&(x, y)));
                 find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
             });
-            let at_goal = pos.distance(self.tile_spot(goal)) < 2.0;
             match planned {
                 Some(path) if path.is_empty() && at_goal => {
                     self.loaded.entities[i].body.moving = false;
@@ -178,7 +191,7 @@ impl Game {
         let to = target - pos;
         let step = to.clamp_length_max(speed * dt);
         let (body, uid) = (e.body.clone(), e.uid);
-        let new_pos = if step.length() > 0.0 { self.try_move(&body, step, Some(uid), true) } else { pos };
+        let new_pos = if step.length() > 0.0 { self.try_move(&body, step, Mover::Npc(uid), true) } else { pos };
         let e = &mut self.loaded.entities[i];
         e.body.facing = Facing::from_vec(step.x, step.y).unwrap_or(e.body.facing);
         e.body.pos = new_pos;
@@ -188,18 +201,21 @@ impl Game {
         if new_pos.distance(target) < 1.0 {
             w.path.remove(0);
             w.stuck = 0.0;
+            w.replanned = false;
         } else if new_pos.distance(pos) < 0.01 {
-            // Blocked (by the player, another character, a corner): wait, re-plan, give up.
+            // Blocked (by the player, another character, a corner): wait, re-plan once, give up.
             w.stuck += dt;
             if w.stuck > SKIP_AFTER {
                 *w = Walker { avoid: true, ..Walker::default() };
                 return Walk::GaveUp;
-            } else if w.stuck > REPLAN_AFTER && w.path.len() > 1 {
+            } else if w.stuck > REPLAN_AFTER && w.path.len() > 1 && !w.replanned {
                 w.path.clear();
                 w.avoid = true;
+                w.replanned = true;
             }
         } else {
             w.stuck = 0.0;
+            w.replanned = false;
         }
         Walk::Walking
     }

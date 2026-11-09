@@ -5,6 +5,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Fixes
+- **Characters stop searching every frame.** A character blocked on its way planned a new path
+  every frame from the first second until it gave up; a companion who found no way to the player
+  (up a watchtower ladder, behind a shut door) searched again every frame too. Now one new plan
+  per blockage, and companions wait a second between searches. "Can't reach patrol point" is
+  logged once per waypoint, not every round.
+- **Characters are placed by their own rules.** Companions catching up and characters getting up
+  from furniture were put on free spots with the player's hitbox and rules, which could park them
+  on a ladder tile where they could never move again.
+- The log lines of the *Patrol*, *Companion*, *Schedule* and *Open shop* actions and the game's
+  start-up error carry the usual `[events]` / `[game]` prefix.
+
 ### Maintenance
 - `Documentation/architecture.md`: how the engine, the game runner and the editor fit together
   (technology, data model, the runtime's frame, the editor and its agent server, file formats and

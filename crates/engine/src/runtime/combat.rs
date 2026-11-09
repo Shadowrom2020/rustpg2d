@@ -2,7 +2,7 @@
 
 use macroquad::prelude::*;
 
-use super::{input, Arrival, Game, Source};
+use super::{input, Arrival, Game, Mover, Source};
 use crate::defs::{CharacterDef, Ranged, SpriteRef};
 use crate::entity::Facing;
 use crate::events::GameEvent;
@@ -564,7 +564,7 @@ impl Game {
         }
         let u = self.u();
         let step = decay(&mut self.combat.knock, dt, u);
-        self.player.pos = self.try_move(&self.player, step, None, false);
+        self.player.pos = self.try_move(&self.player, step, Mover::Player, false);
         self.player.moving = false;
         true
     }
@@ -577,7 +577,7 @@ impl Game {
         }
         let step = decay(&mut e.knock, dt, u);
         let (body, uid) = (e.body.clone(), e.uid);
-        let p = self.try_move(&body, step, Some(uid), false);
+        let p = self.try_move(&body, step, Mover::Npc(uid), false);
         let e = &mut self.loaded.entities[i];
         e.body.pos = p;
         e.body.moving = false;

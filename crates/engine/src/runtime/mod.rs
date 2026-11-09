@@ -76,6 +76,27 @@ const CLIMB_SPEED: f32 = 0.6;
 const STEP_ASIDE_AFTER: f32 = 0.4;
 /// How many recently left maps are kept in memory.
 const MAP_CACHE: usize = 4;
+
+/// Who moves: the player climbs ladders; a character keeps off them and doesn't block itself.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Mover {
+    Player,
+    Npc(u32),
+}
+
+impl Mover {
+    /// The uid of the moving character (its own body doesn't block it).
+    fn ignore(self) -> Option<u32> {
+        match self {
+            Mover::Player => None,
+            Mover::Npc(uid) => Some(uid),
+        }
+    }
+
+    fn is_npc(self) -> bool {
+        matches!(self, Mover::Npc(_))
+    }
+}
 const FADE_TIME: f32 = 0.25;
 /// Save slot of the autosaves (after map changes and the `Autosave` action).
 pub(super) const AUTOSAVE: &str = "autosave";
@@ -739,7 +760,7 @@ impl Game {
             },
         };
         // Never inside something solid (a gate post at a map edge, a prop placed on a spawn).
-        self.player.pos = self.free_spot(pos);
+        self.player.pos = self.free_spot(&self.player, pos, Mover::Player);
         self.place_companions();
         self.player.move_target = None;
         self.world.current_map = self.loaded.map.name.clone();
@@ -861,19 +882,19 @@ impl Game {
         occupied
     }
 
-    fn rect_blocked(&self, r: Rect, ignore: Option<u32>, check_player: bool) -> bool {
-        self.rect_blocked_by(r, ignore, check_player, None)
+    fn rect_blocked(&self, r: Rect, mover: Mover, check_player: bool) -> bool {
+        self.rect_blocked_by(r, mover, check_player, None)
     }
 
     /// `rect_blocked`, except by entities overlapping `from` (where the mover stands now).
-    fn rect_blocked_by(&self, r: Rect, ignore: Option<u32>, check_player: bool, from: Option<Rect>) -> bool {
+    fn rect_blocked_by(&self, r: Rect, mover: Mover, check_player: bool, from: Option<Rect>) -> bool {
         let ts = self.ts();
+        let (npc, ignore) = (mover.is_npc(), mover.ignore());
         let x0 = (r.x / ts).floor() as i32;
         let y0 = (r.y / ts).floor() as i32;
         let x1 = ((r.x + r.w - 0.001) / ts).floor() as i32;
         let y1 = ((r.y + r.h - 0.001) / ts).floor() as i32;
-        // Characters (movers that ignore themselves) keep off ladders; the player climbs them.
-        let npc = ignore.is_some();
+        // Characters keep off ladders; the player climbs them.
         for ty in y0..=y1 {
             for tx in x0..=x1 {
                 if self.tile_solid(tx, ty) || (npc && self.tile_ladder(tx, ty)) {
@@ -890,11 +911,12 @@ impl Game {
             .any(|e| e.active && e.solid && Some(e.uid) != ignore && e.body.rect().overlaps(&r) && !from.is_some_and(|f| e.kind == EntityKind::Character && e.body.rect().overlaps(&f)))
     }
 
-    /// Where the player can stand near `pos`: `pos` itself if the player's hitbox is free there,
-    /// else the nearest spot whole tiles away (searching rings around it) that is free.
-    fn free_spot(&self, pos: Vec2) -> Vec2 {
+    /// Where `mover` (hitbox `body`) can stand near `pos`: `pos` itself if the hitbox is free
+    /// there, else the nearest spot whole tiles away (searching rings around it) that is free.
+    /// Characters are kept off ladders (a character put on one couldn't move again).
+    fn free_spot(&self, body: &Body, pos: Vec2, mover: Mover) -> Vec2 {
         let ts = self.ts();
-        let fits = |p: Vec2| !self.rect_blocked(self.player.rect_at(p), None, false);
+        let fits = |p: Vec2| !self.rect_blocked(body.rect_at(p), mover, false);
         if fits(pos) {
             return pos;
         }
@@ -906,7 +928,9 @@ impl Game {
                 .collect();
             ring.sort_by(|a, b| a.distance_squared(pos).total_cmp(&b.distance_squared(pos)));
             if let Some(p) = ring.into_iter().find(|p| fits(*p)) {
-                eprintln!("[game] arrival at {:.0},{:.0} on {} is blocked; moved to {:.0},{:.0}", pos.x, pos.y, self.loaded.map.name, p.x, p.y);
+                if mover == Mover::Player {
+                    eprintln!("[game] arrival at {:.0},{:.0} on {} is blocked; moved to {:.0},{:.0}", pos.x, pos.y, self.loaded.map.name, p.x, p.y);
+                }
                 return p;
             }
         }
@@ -959,15 +983,15 @@ impl Game {
         [(side.0 * first, side.1 * first), (-side.0 * first, -side.1 * first), fwd]
             .into_iter()
             .map(|(dx, dy)| self.tile_spot((t.0 + dx, t.1 + dy)))
-            .find(|p| !self.rect_blocked(e.body.rect_at(*p), Some(e.uid), true))
+            .find(|p| !self.rect_blocked(e.body.rect_at(*p), Mover::Npc(e.uid), true))
     }
 
     /// Moves along each axis separately so actors slide along walls.
-    fn try_move(&self, body: &Body, delta: Vec2, ignore: Option<u32>, check_player: bool) -> Vec2 {
+    fn try_move(&self, body: &Body, delta: Vec2, mover: Mover, check_player: bool) -> Vec2 {
         // Characters it already overlaps don't block it (several leaving one door at once
         // start on the same spot: they can walk apart).
         let now = body.rect();
-        let blocked = |r: Rect| self.rect_blocked_by(r, ignore, check_player, Some(now));
+        let blocked = |r: Rect| self.rect_blocked_by(r, mover, check_player, Some(now));
         let mut p = body.pos;
         let nx = p + vec2(delta.x, 0.0);
         if delta.x != 0.0 && !blocked(body.rect_at(nx)) {
@@ -1432,7 +1456,7 @@ impl Game {
             let dx = mid - self.player.pos.x;
             if dx.abs() > 0.5 && dir != Vec2::ZERO {
                 let step = dx.signum() * dx.abs().min(self.player.speed * dt);
-                self.player.pos = self.try_move(&self.player, vec2(step, 0.0), None, false);
+                self.player.pos = self.try_move(&self.player, vec2(step, 0.0), Mover::Player, false);
             }
         }
         if dir != Vec2::ZERO {
@@ -1442,7 +1466,7 @@ impl Game {
             }
             let delta = dir * self.player.speed * self.speed_factor() * run * dt;
             let before = self.player.pos;
-            self.player.pos = self.try_move(&self.player, delta, None, false);
+            self.player.pos = self.try_move(&self.player, delta, Mover::Player, false);
             self.push_past(dir, before, delta.length(), dt);
             self.player.moving = true;
             self.player.anim += dt * run;
@@ -1883,7 +1907,7 @@ impl Game {
             let (home, body, uid) = (e.home, e.body.clone(), e.uid);
             let next = body.pos + delta;
             let within = next.distance(home) <= radius * ts || next.distance(home) < body.pos.distance(home);
-            let new_pos = if within { self.try_move(&body, delta, Some(uid), true) } else { body.pos };
+            let new_pos = if within { self.try_move(&body, delta, Mover::Npc(uid), true) } else { body.pos };
             let e = &mut self.loaded.entities[i];
             if new_pos == e.body.pos {
                 e.wander_dir = Vec2::ZERO; // bumped into something
@@ -2445,7 +2469,7 @@ impl ActionHost for Game {
             Action::Patrol { target, active, points } => {
                 match self.entity_index(target, ctx.owner) {
                     Some(i) if self.loaded.entities[i].kind == EntityKind::Character => self.set_patrol(i, *active, points),
-                    _ => eprintln!("Patrol: '{target}' is not a character on this map"),
+                    _ => eprintln!("[events] Patrol: '{target}' is not a character on this map"),
                 }
                 Step::Continue
             }
@@ -2457,14 +2481,14 @@ impl ActionHost for Game {
                 match self.entity_index(target, ctx.owner) {
                     Some(i) if *join => self.recruit(i),
                     Some(i) => self.dismiss(i, false),
-                    None => eprintln!("Companion: '{target}' is not a character on this map"),
+                    None => eprintln!("[events] Companion: '{target}' is not a character on this map"),
                 }
                 Step::Continue
             }
             Action::Schedule { target, active } => {
                 match self.entity_index(target, ctx.owner) {
                     Some(i) if self.loaded.entities[i].schedule.is_some() => self.set_schedule(i, *active),
-                    _ => eprintln!("Schedule: '{target}' is not a character with a schedule on this map"),
+                    _ => eprintln!("[events] Schedule: '{target}' is not a character with a schedule on this map"),
                 }
                 Step::Continue
             }
@@ -2654,7 +2678,7 @@ impl ActionHost for Game {
             Action::OpenShop { target } => {
                 match self.entity_index(target, ctx.owner) {
                     Some(i) if self.try_open_shop(i, false) => {}
-                    _ => eprintln!("Open shop: '{target}' is not a merchant on this map"),
+                    _ => eprintln!("[events] Open shop: '{target}' is not a merchant on this map"),
                 }
                 Step::Continue
             }

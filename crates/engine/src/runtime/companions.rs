@@ -8,7 +8,7 @@
 use macroquad::prelude::*;
 
 use super::patrol::{Walk, Walker};
-use super::{Game, RtEntity};
+use super::{Game, Mover, RtEntity};
 use crate::entity::{EntityKind, Facing};
 use crate::events::Trigger;
 use crate::path::TilePos;
@@ -21,6 +21,9 @@ pub(super) const COMPANION_UID_BASE: u32 = 0x5000_0000;
 const CATCH_UP: f32 = 14.0;
 /// It stops following closer than this (tiles).
 const NEAR: f32 = 1.6;
+/// Seconds a companion waits before searching a way again after finding none (the player up a
+/// ladder, behind a shut door): one search a second instead of one per frame.
+const RETRY_AFTER: f32 = 1.0;
 /// Hostile characters this close (tiles) to the companion and the player are fought.
 const ENGAGE: f32 = 5.0;
 /// Seconds per HP regained while no enemy hunts.
@@ -40,6 +43,8 @@ pub(super) struct Link {
     pub triggers: Vec<Trigger>,
     walker: Walker,
     goal: Option<TilePos>,
+    /// Seconds before it plans a way again after finding none.
+    retry: f32,
     regen: f32,
     /// Knocked down: seconds it has been lying there.
     pub down: Option<f32>,
@@ -113,7 +118,8 @@ impl Game {
     fn place_companion(&mut self, i: usize) {
         let k = self.companion_rank(i);
         let goal = self.companion_goal(k);
-        let spot = self.free_spot(self.tile_spot(goal));
+        let (body, uid) = (self.loaded.entities[i].body.clone(), self.loaded.entities[i].uid);
+        let spot = self.free_spot(&body, self.tile_spot(goal), Mover::Npc(uid));
         let facing = self.player.facing;
         let e = &mut self.loaded.entities[i];
         e.body.pos = spot;
@@ -175,6 +181,15 @@ impl Game {
         if self.companion_back_off(i, dt) {
             return true;
         }
+        // It found no way a moment ago: wait before searching again.
+        {
+            let e = &mut self.loaded.entities[i];
+            if let Some(l) = e.companion.as_mut().filter(|l| l.retry > 0.0) {
+                l.retry -= dt;
+                e.body.moving = false;
+                return true;
+            }
+        }
         // Told to stay: back to its post, then wait there.
         if let Some(post) = post {
             if pos.distance(post) > 0.4 * ts {
@@ -190,6 +205,9 @@ impl Game {
                     l.walker = walker;
                     if walked != Walk::Walking {
                         l.goal = None;
+                        if matches!(walked, Walk::Unreachable | Walk::GaveUp) {
+                            l.retry = RETRY_AFTER;
+                        }
                     }
                 }
             } else {
@@ -223,7 +241,10 @@ impl Game {
         if let Some(l) = self.loaded.entities[i].companion.as_mut() {
             l.walker = walker;
             if walked != Walk::Walking {
-                l.goal = None; // there, or no way: plan again next frame
+                l.goal = None; // there: plan again next frame; no way: after a pause
+                if matches!(walked, Walk::Unreachable | Walk::GaveUp) {
+                    l.retry = RETRY_AFTER;
+                }
             }
         }
         true
@@ -640,7 +661,7 @@ fn make_companion(rt: &mut RtEntity, map: &str, triggers: Vec<Trigger>, k: usize
     rt.body.move_target = None;
     // The player walks through companions (they never block a corridor).
     rt.solid = false;
-    rt.companion = Some(Box::new(Link { map: map.to_string(), uid: home_uid, triggers, walker: Walker::default(), goal: None, regen: 0.0, down: None, order: Default::default(), post: None, fighting: false, out_of_ammo: false }));
+    rt.companion = Some(Box::new(Link { map: map.to_string(), uid: home_uid, triggers, walker: Walker::default(), goal: None, retry: 0.0, regen: 0.0, down: None, order: Default::default(), post: None, fighting: false, out_of_ammo: false }));
 }
 
 fn is_hurtable_companion(e: &RtEntity) -> bool {

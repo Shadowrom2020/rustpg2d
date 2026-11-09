@@ -1,0 +1,90 @@
+[
+    (
+        id: "heal",
+        name: "Heal",
+        description: "Mends your wounds: restores 3 hearts.",
+        icon: (
+            sheet: "items",
+            frame: 25,
+        ),
+        mana: 10,
+        cooldown: 2.0,
+        skill: "",
+        level: 0,
+        effect: Heal(
+            amount: 6,
+        ),
+    ),
+    (
+        id: "light",
+        name: "Light",
+        description: "A glow around you for a minute - handy in the old mine.",
+        icon: (
+            sheet: "items",
+            frame: 27,
+        ),
+        mana: 6,
+        cooldown: 1.0,
+        skill: "",
+        level: 0,
+        effect: Light(
+            radius: 5.0,
+            seconds: 60.0,
+        ),
+    ),
+    (
+        id: "spark",
+        name: "Spark",
+        description: "Hurls a bolt of lightning in the direction you face.",
+        icon: (
+            sheet: "items",
+            frame: 26,
+        ),
+        mana: 5,
+        cooldown: 0.6,
+        skill: "arcana",
+        level: 1,
+        effect: Bolt(
+            damage: 3,
+            projectile: (
+                sheet: "items",
+                frame: 29,
+            ),
+            speed: 640.0,
+            range: 7.0,
+        ),
+    ),
+    (
+        id: "fire_burst",
+        name: "Fire Burst",
+        description: "Flames burst out around you, hitting everything nearby.",
+        icon: (
+            sheet: "items",
+            frame: 28,
+        ),
+        mana: 15,
+        cooldown: 4.0,
+        skill: "arcana",
+        level: 2,
+        effect: Blast(
+            damage: 4,
+            radius: 2.0,
+        ),
+    ),
+    (
+        id: "fireball",
+        name: "Fireball",
+        description: "Click a target: a ball of fire flies there and explodes, burning everything within 2 tiles.",
+        icon: (
+            sheet: "fireball",
+            frame: 0,
+        ),
+        mana: 12,
+        cooldown: 1.5,
+        skill: "arcana",
+        level: 3,
+        effect: Script(
+            function: "cast_fireball",
+        ),
+    ),
+]

@@ -1051,6 +1051,28 @@ impl Editor {
         ))
     }
 
+    pub(crate) fn mcp_capture_structure(&mut self, p: CaptureStructureParams) -> Result<Reply, String> {
+        self.mcp_target_map(&p.map)?;
+        let id = p.id.trim().to_string();
+        if id.is_empty() {
+            return Err("the structure needs an id".into());
+        }
+        if self.project.db.structure(&id).is_some() {
+            return Err(format!("a structure \"{id}\" exists already (delete_def it first, or pick another id)"));
+        }
+        let Some(doc) = &self.doc else { return Err("no map is open".into()) };
+        if p.w == 0 || p.h == 0 || p.x + p.w > doc.map.width || p.y + p.h > doc.map.height {
+            return Err(format!("the region {},{} {}x{} is not inside the map ({}x{})", p.x, p.y, p.w, p.h, doc.map.width, doc.map.height));
+        }
+        let name = p.name.as_deref().map(str::trim).filter(|n| !n.is_empty()).unwrap_or(&id).to_string();
+        let mut d = rustpg2d_engine::defs::StructureDef::capture(&doc.map, &id, &name, (p.x, p.y, p.w, p.h), p.ground.unwrap_or(true));
+        d.category = p.category.clone().unwrap_or_default().trim().to_string();
+        let msg = format!("New structure \"{id}\" ({}x{} tiles, {} entities) from \"{}\".", d.w, d.h, d.entities.len(), doc.map.name);
+        self.project.db.structures.push(d);
+        self.defs_dirty = true;
+        self.mcp_after_write(msg)
+    }
+
     pub(crate) fn mcp_rename(&mut self, p: RenameParams) -> Result<Reply, String> {
         self.mcp_writable()?;
         let kind = parse_ref_kind(&p.kind)?;

@@ -138,8 +138,10 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace
 ```
 
-- If `crates/engine/examples/gen_example` changed, regenerate the example project and the
-  editor's starter asset pack with `cargo run --example gen_example` and commit the results.
+- `example_project/` and the editor's starter asset library (`crates/editor/assets/starter_library/`)
+  are plain files, edited with the editor (or through its AI agent server). An asset the example
+  gains or changes goes to the starter library too (*Send to library*, or `library_send` with
+  `replace`); the tests check that both agree and that the German translation is complete.
   Never delete or commit `example_project/saves/` (it is ignored; it may hold the user's saves).
 - Build the game in release mode (`cargo build --release --workspace`) before testing
   *File → Export game* or `cargo xtask-dist`.

@@ -14,6 +14,15 @@ Emberbrook with interiors and a daily life, four more quests.
   sleeping or *Set time* (not when it is set back). The editor's trigger form takes the time as
   hh:mm. The village uses it for the dawn fog, the morning cluck and the noon bell.
 
+### Editor
+- **AI agent server: three new tools.** `write_asset` writes an image (PNG) or sound (WAV, Ogg
+  Vorbis) into the project's `sprites/`, `tilesets/` or `sounds/` — from Base64 or by copying a
+  file — after checking that it decodes, and reloads the art. `capture_structure` makes a new
+  structure from a map region (tiles, collision, entities). `library_send` sends project assets
+  with everything they need to the asset library; with `replace` it updates the library's
+  versions of the same ids (definitions, files, script functions) instead of adding copies, and
+  `drop_script_triggers` leaves triggers that run the game's own scripts behind.
+
 ### Fixes
 - A merchant behind a counter **prop** (a market stall) can be talked to across it, like across
   a solid counter tile; a prop in front that does nothing on E gives way to them.
@@ -26,6 +35,15 @@ Emberbrook with interiors and a daily life, four more quests.
   wander).
 - `status()` prints `sounds=`: the last six sound effects started (also while muted), for
   automated play-tests.
+- **The example project and the starter library are plain files.** The generator that wrote
+  them from code (`crates/engine/examples/gen_example/`) is gone: `example_project/` is edited
+  like any project (with the editor and its AI agent server), and the editor's starter asset
+  library is the library folder `crates/editor/assets/starter_library/`, embedded by the
+  editor's `build.rs` instead of a generated `starter.r2dpack`. Its content is unchanged. The
+  library stamp is now a hash of those files, so existing libraries check the starter set once
+  more after updating (nothing is added). Tests take over the generator's checks: the German
+  translation has no leftovers, the starter library is complete and consistent, and it holds
+  every asset of the example project. The `vorbis_rs` dev-dependency went with the generator.
 
 ### Example project
 - **Four village quests**: *The Lost Cat* (Mira; clues from Bram, Old Finn and the miller lead

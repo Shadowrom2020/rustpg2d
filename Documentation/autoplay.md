@@ -31,6 +31,7 @@ own `[game]` / `[events]` messages, and `error:` lines.
 | `skillpoint ID` / `learn ID` / `cast ID` / `call FN` | Spend a skill point, learn / cast a spell, call a script function. |
 | `spawners` | Prints the spawner zones' state. |
 | `close` | The open window's close button. |
+| `talkto NAME` | Right-clicks the character named NAME where it stands now: the player walks there and talks (characters that wander). |
 | `status` | Prints one `[autoplay]` line with the game state (below). |
 | `shot NAME` | A PNG screenshot (play_test returns it as an image). |
 | `quit` | Ends the run (play_test appends it). |

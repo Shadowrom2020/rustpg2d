@@ -15,15 +15,27 @@ Emberbrook with interiors and a daily life, four more quests.
   hh:mm. The village uses it for the dawn fog, the morning cluck and the noon bell.
 
 ### Fixes
+- A merchant behind a counter **prop** (a market stall) can be talked to across it, like across
+  a solid counter tile; a prop in front that does nothing on E gives way to them.
 - Characters that start on the same spot (several villagers leaving one door at the same time)
   could block each other for good: a character may now always move away from characters it
   already overlaps, and a character blocked on its way plans around the people in it.
 
 ### Maintenance
+- Autoplay `talkto NAME`: right-clicks a named character wherever it stands (characters that
+  wander).
 - `status()` prints `sounds=`: the last six sound effects started (also while muted), for
   automated play-tests.
 
 ### Example project
+- **Four village quests**: *The Lost Cat* (Mira; clues from Bram, Old Finn and the miller lead
+  to Biscuit in the mill), *Bread for the Festival* (Bram; flour from the raided cart on the
+  forest road and its two outlaws, the Festival Loaf baked at his oven), *The Herbalist's
+  Remedy* (Ida; feverleaf by the forest path, bitterroot on the pond bank and a moonpetal at
+  night, brewed at Wren's table, cures Pip) and *Rumours at the Tavern* (Greta's rumour for a
+  round; Brom's old friend Halvar; his locket by the bones in the old mine). Each has its
+  achievement (Cat Person, Festival Baker, Village Healer, Old Debts); rewards in coins, items
+  and skill points. Script function `cat_clue()`. German for every text.
 - **Emberbrook**, the village, rebuilt (80 × 60): a river with two bridges, a cobbled market square
   (well, statue, notice board, produce / fish / bread stalls), the Copper Kettle tavern, bakery,
   smithy, apothecary with herb beds, chapel with bell tower and graveyard, the elder's house,

@@ -599,19 +599,17 @@ pub fn village() -> Map {
     ];
     oswin.triggers = vec![trig(TriggerOn::Interact, vec![], vec![Action::RunScript { function: "crier_talk".into() }])];
     // Ida, Mira's mother: sweeps the yard, sells at the stall, the well, home.
-    let ida = b.entity(EntityKind::Character, "villager_f", 57, 41);
+    let ida = b.entity(EntityKind::Character, "villager_f", 59, 42);
     ida.name = "ida".into();
     ida.schedule = vec![
-        working(stop(7.0, 57, 42), ActivityKind::Sweep, "broom", Facing::Down),
+        working(stop(7.0, 59, 42), ActivityKind::Sweep, "broom", Facing::Down),
         facing(stop(12.0, 29, 20), Facing::Down),
         visit(15.0, "home_mira", 5, 5, ""),
         stop(17.0, 35, 22),
         visit(20.0, "home_mira", 8, 4, "ida_bed"),
     ];
-    ida.triggers = vec![
-        line(vec![posed("lie")], "Ida", "Zzz..."),
-        line(vec![], "Ida", "My little Pip is ill with a fever. If only Wren had the right herbs..."),
-    ];
+    // (Her lines come with the herbalist's quest: village_quests.rs.)
+    ida.triggers = vec![line(vec![posed("lie")], "Ida", "Zzz...")];
     // Children playing around the square and in the orchard.
     for (name, def, x, y, ox) in [("lotte", "child_girl", 32, 23, 62), ("finnick", "child_boy", 37, 23, 68)] {
         let c = b.entity(EntityKind::Character, def, x, y);

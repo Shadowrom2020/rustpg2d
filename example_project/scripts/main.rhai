@@ -254,3 +254,13 @@ fn fireball_hit(x, y) {
     // Embers glow on for a few seconds.
     light_at(x, y, 2, 4, #{ color: [255, 120, 50], flicker: true });
 }
+
+// The Lost Cat (Mira's quest): Bram, Old Finn and Jorun each saw something; two clues lead to
+// the mill. Their "clue" triggers call this.
+fn cat_clue() {
+    add_var("cat_clues", 1);
+    if get_var("cat_clues") >= 2 && quest_stage("lost_cat") == 0 {
+        set_quest_stage("lost_cat", 1);
+        say("Two clues point the same way: Biscuit must be hiding in the old mill, across the river.");
+    }
+}

@@ -197,6 +197,12 @@ impl Game {
             .map(|e| ((e.body.pos.x / ts).floor(), ((e.body.pos.y - 4.0) / ts).floor()))
     }
 
+    /// Tile of the active entity named `name` (for automated play-throughs: `talkto`).
+    pub fn named_entity_tile(&self, name: &str) -> Option<(f32, f32)> {
+        let ts = self.ts();
+        self.loaded.entities.iter().find(|e| e.active && e.name == name).map(|e| ((e.body.pos.x / ts).floor(), ((e.body.pos.y - 4.0) / ts).floor()))
+    }
+
     /// Spawner summary, e.g. `slime_den 3/4 (+1 pending)`.
     pub fn spawner_status(&self) -> String {
         self.spawners

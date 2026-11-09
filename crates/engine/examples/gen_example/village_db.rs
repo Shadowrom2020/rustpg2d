@@ -292,7 +292,8 @@ pub fn characters() -> Vec<CharacterDef> {
         CharacterDef { portrait: face(portrait::BAKER), shop: shop(&[("bread", 0), ("apple_pie", 3), ("flour", 6)], 50), ..ch("baker", "Baker", 35.0, still.clone()) },
         CharacterDef {
             portrait: face(portrait::INNKEEPER),
-            shop: shop(&[("ale", 0), ("bread", 4), ("cheese", 4), ("pumpkin_stew", 3), ("grilled_trout", 3), ("apple_pie", 2)], 50),
+            // Greta asks first (food or a room): her shop opens from that dialog.
+            shop: shop(&[("ale", 0), ("bread", 4), ("cheese", 4), ("pumpkin_stew", 3), ("grilled_trout", 3), ("apple_pie", 2)], 50).map(|s| ShopSpec { open_on_talk: false, ..s }),
             ..ch("innkeeper", "Innkeeper", 35.0, still.clone())
         },
         CharacterDef {

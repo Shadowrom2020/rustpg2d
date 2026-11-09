@@ -33,7 +33,7 @@ Owners accept only some events (`set_triggers` refuses the others):
 
 | Owner | Events |
 |---|---|
-| map | `"MapEnter"`, `{"Custom":{"name":""}}`, `"Sleep"` |
+| map | `"MapEnter"`, `{"Custom":{"name":""}}`, `"Sleep"`, `{"Hour":{"hour":12.0}}` |
 | zone | `"Enter"`, `"Interact"`, `"Leave"`, `{"Custom":{"name":""}}` |
 | character (entity or def) | `"Interact"`, `{"UseItem":{"item":""}}`, `{"Custom":{"name":""}}`, `"Defeat"`, `{"HpBelow":{"percent":50}}` |
 | prop (entity or def) | `"Interact"`, `{"UseItem":{"item":""}}`, `{"Custom":{"name":""}}`, `"Unlock"`, `"Lock"`, `"Sleep"` |
@@ -47,6 +47,9 @@ Owners accept only some events (`set_triggers` refuses the others):
   script's `emit(name)` with that name. `Defeat`: the character's hp reached 0. `HpBelow
   {percent}`: the character fell below that share of its hp. `Unlock` / `Lock`: the prop's lock
   changed. `Sleep`: the player woke up (in a bed, or the map's `Sleep` after sleeping anywhere on it).
+  `Hour {hour}`: the clock reached that time of day (`12.0` = noon, `5.5` = 5:30) while the player
+  is on the map, every day; also when time jumps forward past it (sleeping, `SetTime`), not when
+  it is set back.
 
 ## Conditions
 

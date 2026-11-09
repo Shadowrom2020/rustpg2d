@@ -967,6 +967,7 @@ fn on_detail(on: &TriggerOn) -> String {
         TriggerOn::Custom { name } => format!(" \"{name}\""),
         TriggerOn::UseItem { item } if !item.is_empty() => format!(" [{item}]"),
         TriggerOn::HpBelow { percent } => format!(" [{percent} %]"),
+        TriggerOn::Hour { hour } => format!(" [{}]", crate::widgets::hour_text(*hour)),
         _ => String::new(),
     }
 }

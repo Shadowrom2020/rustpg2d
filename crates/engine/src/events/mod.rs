@@ -36,6 +36,9 @@ pub enum GameEvent {
     HpBelow { from: f32, to: f32 },
     /// The player woke up after sleeping (in a bed, or the Sleep action).
     Sleep,
+    /// The clock moved forward from `from` to `to` (hours of the day; `to` < `from` when it
+    /// passed midnight).
+    Hour { from: f32, to: f32 },
 }
 
 /// Which events a trigger reacts to.
@@ -58,6 +61,9 @@ pub enum TriggerOn {
     HpBelow { percent: u32 },
     /// The player woke up after sleeping (map triggers; a bed's own triggers when slept in).
     Sleep,
+    /// The clock reached `hour` (0-24, e.g. 12.0 = noon, 5.5 = half past five) while the player
+    /// is on the map: also when time jumps forward past it (sleeping, Set time). Map triggers.
+    Hour { hour: f32 },
 }
 
 /// Where a trigger lives. The game only sends some events to each kind of owner (see
@@ -85,7 +91,7 @@ impl TriggerOwner {
         match (self, on) {
             // emit() / "Emit event" reach the map, its zones and its entities.
             (O::Map | O::Zone | O::Character | O::Prop | O::Pickup, T::Custom { .. }) => true,
-            (O::Map, T::MapEnter | T::Sleep) => true,
+            (O::Map, T::MapEnter | T::Sleep | T::Hour { .. }) => true,
             (O::Zone, T::Enter | T::Leave | T::Interact) => true,
             (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. }) => true,
             (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep) => true,
@@ -153,6 +159,15 @@ impl TriggerOn {
                 let p = *percent as f32 / 100.0;
                 *from >= p && *to < p
             }
+            // The hour lies in the stretch the clock just moved through (`from` excluded).
+            (TriggerOn::Hour { hour }, GameEvent::Hour { from, to }) => {
+                let h = hour.rem_euclid(24.0);
+                if from <= to {
+                    *from < h && h <= *to
+                } else {
+                    h > *from || h <= *to
+                }
+            }
             _ => false,
         }
     }
@@ -170,6 +185,7 @@ impl TriggerOn {
             TriggerOn::Lock => "Locked again",
             TriggerOn::HpBelow { .. } => "HP below %",
             TriggerOn::Sleep => "Woke up",
+            TriggerOn::Hour { .. } => "Time reached",
         }
     }
 
@@ -186,6 +202,7 @@ impl TriggerOn {
             TriggerOn::Lock,
             TriggerOn::HpBelow { percent: 50 },
             TriggerOn::Sleep,
+            TriggerOn::Hour { hour: 12.0 },
         ]
     }
 }
@@ -783,7 +800,7 @@ mod tests {
         assert!(TriggerOwner::Prop.allows(&TriggerOn::Unlock) && !TriggerOwner::Character.allows(&TriggerOn::Unlock));
         assert!(TriggerOwner::Character.allows(&TriggerOn::Defeat) && !TriggerOwner::Prop.allows(&TriggerOn::Defeat));
         assert!(!TriggerOwner::ItemUse.allows(&TriggerOn::Custom { name: "x".into() }));
-        assert_eq!(TriggerOwner::Map.templates().iter().map(|t| t.label()).collect::<Vec<_>>(), vec!["Map enter", "Custom event", "Woke up"]);
+        assert_eq!(TriggerOwner::Map.templates().iter().map(|t| t.label()).collect::<Vec<_>>(), vec!["Map enter", "Custom event", "Woke up", "Time reached"]);
         assert_eq!(TriggerOwner::Map.replacement(&TriggerOn::Enter), TriggerOn::MapEnter);
         assert_eq!(TriggerOwner::Zone.replacement(&TriggerOn::MapEnter), TriggerOn::Enter);
     }
@@ -816,6 +833,22 @@ mod tests {
         assert!(!t.matches(&GameEvent::HpBelow { from: 0.9, to: 0.6 }), "not there yet");
         assert!(TriggerOwner::Character.allows(&t));
         assert!(!TriggerOwner::Prop.allows(&t));
+    }
+
+    #[test]
+    fn hour_fires_when_the_clock_passes_it() {
+        let noon = TriggerOn::Hour { hour: 12.0 };
+        assert!(noon.matches(&GameEvent::Hour { from: 11.95, to: 12.01 }));
+        assert!(noon.matches(&GameEvent::Hour { from: 11.5, to: 12.0 }), "reaching it exactly");
+        assert!(!noon.matches(&GameEvent::Hour { from: 12.0, to: 12.2 }), "already past");
+        assert!(!noon.matches(&GameEvent::Hour { from: 9.0, to: 11.9 }));
+        // Over midnight (sleeping from 22:00 to 7:00).
+        let dawn = TriggerOn::Hour { hour: 5.5 };
+        assert!(dawn.matches(&GameEvent::Hour { from: 22.0, to: 7.0 }));
+        assert!(!noon.matches(&GameEvent::Hour { from: 22.0, to: 7.0 }));
+        assert!(TriggerOn::Hour { hour: 23.5 }.matches(&GameEvent::Hour { from: 22.0, to: 7.0 }));
+        assert!(TriggerOwner::Map.allows(&noon));
+        assert!(!TriggerOwner::Zone.allows(&noon) && !TriggerOwner::Character.allows(&noon));
     }
 
     #[test]

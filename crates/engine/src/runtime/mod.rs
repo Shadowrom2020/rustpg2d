@@ -314,6 +314,9 @@ pub struct Game {
     resuming: bool,
     /// An autosave is due (after a map change, or `Autosave`): written once no event runs.
     autosave_pending: bool,
+    /// The time (day * 24 + hour) the map's *Time reached* triggers last looked at (None after
+    /// loading or starting a game: nothing fires for the time before).
+    clock_seen: Option<f64>,
     /// The player's options (Options menu), saved per game in the user's config folder.
     pub settings: crate::settings::Settings,
     /// Fullscreen state last applied (None = not yet).
@@ -373,6 +376,7 @@ impl Game {
             skills: Default::default(),
             resuming: false,
             autosave_pending: false,
+            clock_seen: None,
             settings: crate::settings::Settings::default(),
             juice: Default::default(),
             dev: dev::Dev::new(start.dev, &project.scripts_dir()),
@@ -831,6 +835,11 @@ impl Game {
     }
 
     fn rect_blocked(&self, r: Rect, ignore: Option<u32>, check_player: bool) -> bool {
+        self.rect_blocked_by(r, ignore, check_player, None)
+    }
+
+    /// `rect_blocked`, except by entities overlapping `from` (where the mover stands now).
+    fn rect_blocked_by(&self, r: Rect, ignore: Option<u32>, check_player: bool, from: Option<Rect>) -> bool {
         let ts = self.ts();
         let x0 = (r.x / ts).floor() as i32;
         let y0 = (r.y / ts).floor() as i32;
@@ -849,7 +858,7 @@ impl Game {
         self.loaded
             .entities
             .iter()
-            .any(|e| e.active && e.solid && Some(e.uid) != ignore && e.body.rect().overlaps(&r))
+            .any(|e| e.active && e.solid && Some(e.uid) != ignore && e.body.rect().overlaps(&r) && !from.is_some_and(|f| e.kind == EntityKind::Character && e.body.rect().overlaps(&f)))
     }
 
     /// Where the player can stand near `pos`: `pos` itself if the player's hitbox is free there,
@@ -878,13 +887,17 @@ impl Game {
 
     /// Moves along each axis separately so actors slide along walls.
     fn try_move(&self, body: &Body, delta: Vec2, ignore: Option<u32>, check_player: bool) -> Vec2 {
+        // Characters it already overlaps don't block it (several leaving one door at once
+        // start on the same spot: they can walk apart).
+        let now = body.rect();
+        let blocked = |r: Rect| self.rect_blocked_by(r, ignore, check_player, Some(now));
         let mut p = body.pos;
         let nx = p + vec2(delta.x, 0.0);
-        if delta.x != 0.0 && !self.rect_blocked(body.rect_at(nx), ignore, check_player) {
+        if delta.x != 0.0 && !blocked(body.rect_at(nx)) {
             p = nx;
         }
         let ny = p + vec2(0.0, delta.y);
-        if delta.y != 0.0 && !self.rect_blocked(body.rect_at(ny), ignore, check_player) {
+        if delta.y != 0.0 && !blocked(body.rect_at(ny)) {
             p = ny;
         }
         p
@@ -981,6 +994,17 @@ impl Game {
             out.extend(trigger.actions.into_iter().map(|a| (a, ctx.clone())));
         }
         out
+    }
+
+    /// Fires the map's *Time reached* triggers whose hour the clock passed since the last
+    /// frame (by running, sleeping or Set time); a jump back in time fires nothing.
+    fn check_clock(&mut self) {
+        let now = self.world.day as f64 * 24.0 + self.world.hour as f64;
+        let Some(prev) = self.clock_seen.replace(now) else { return };
+        if now <= prev || now - prev >= 24.0 || !self.loaded.map.triggers.iter().any(|t| matches!(t.on, crate::events::TriggerOn::Hour { .. })) {
+            return;
+        }
+        self.fire(GameEvent::Hour { from: prev.rem_euclid(24.0) as f32, to: self.world.hour }, Source::Map);
     }
 
     fn fire(&mut self, ev: GameEvent, source: Source) -> bool {
@@ -1132,6 +1156,7 @@ impl Game {
             self.world.advance_hours(hours);
             self.water_crops(hours);
         }
+        self.check_clock();
         if input::act_pressed(Act::Debug) {
             self.debug = !self.debug;
         }
@@ -1741,7 +1766,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={}",
+            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
             self.dev_status(),
             self.weather_status(),
             self.menu_status(),
@@ -1806,7 +1831,8 @@ impl Game {
             self.world.inventory.summary(),
             self.world.flags,
             self.audio.current_music(),
-            self.audio.music_loop_status()
+            self.audio.music_loop_status(),
+            self.audio.recent()
         )
     }
 
@@ -1883,6 +1909,7 @@ impl Game {
         self.inv = Default::default();
         self.game_over = None;
         self.autosave_pending = false;
+        self.clock_seen = None;
         self.combat.reset();
         if self.world.player_hp.is_none_or(|hp| hp <= 0) {
             self.world.player_hp = Some(self.player_max_hp());

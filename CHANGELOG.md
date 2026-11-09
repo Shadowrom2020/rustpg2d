@@ -38,6 +38,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   which stopped slow or climbing walks on fast displays). Nothing is persisted while no map is
   loaded (the fade after loading a game).
 
+### Editor
+- **AI agent server**: a tool that panics answers with an error and the editor keeps running
+  (before, it took the editor down); a call the editor doesn't answer within 120 s
+  (`RUSTPG2D_MCP_TIMEOUT` seconds) returns an error instead of hanging the agent; `play_test`
+  removes its scratch folder however the run ends; files changed on disk are reloaded once each.
+  The dropdown suggestions (`refresh_refs`) re-read only the map files that changed.
+- The library report names the assets it added (up to eight): *2 added (smoke, smoke_square)*.
+
 ### Maintenance
 - **Frame timing in `status`**: `fps=`, `frame_ms=avg/worst`, `update_ms=`, `draw_ms=` and
   `astar=searches/nodes` since the previous `status`; `RUSTPG2D_PERF=1` logs a `[perf]` line every

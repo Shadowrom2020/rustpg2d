@@ -301,6 +301,9 @@ pub struct Editor {
     pub lib_changed: bool,
     pub db: DbState,
     pub refs: Refs,
+    /// What `refresh_refs` read from each map file, by map name: maps whose file didn't change
+    /// aren't decoded again (it runs after every save and every agent write).
+    map_refs: HashMap<String, MapRefs>,
     pub pointer_over_ui: bool,
     pub keyboard_busy: bool,
     /// Scroll the palette / map entity list to the armed definition / selection once.
@@ -433,6 +436,7 @@ impl Editor {
             builder: None,
             export: None,
             refs: Refs::default(),
+            map_refs: HashMap::new(),
             pointer_over_ui: false,
             keyboard_busy: false,
             palette_scroll_to_armed: false,
@@ -592,31 +596,28 @@ impl Editor {
         let mut all_flags: Vec<String> = Vec::new();
         let mut all_vars: Vec<String> = Vec::new();
         for m in &self.maps {
-            let loaded;
-            let map = match &self.doc {
-                Some(d) if &d.map.name == m => &d.map,
-                _ => match self.project.load_map(m) {
-                    Ok(x) => {
-                        loaded = x;
-                        &loaded
+            let refs = match &self.doc {
+                Some(d) if &d.map.name == m => MapRefs::of(&d.map, (0, 0)),
+                _ => {
+                    let stamp = file_stamp(&self.project.map_path(m));
+                    match self.map_refs.get(m) {
+                        Some(r) if r.stamp == stamp && stamp != (0, 0) => r.clone(),
+                        _ => match self.project.load_map(m) {
+                            Ok(x) => {
+                                let r = MapRefs::of(&x, stamp);
+                                self.map_refs.insert(m.clone(), r.clone());
+                                r
+                            }
+                            Err(_) => continue,
+                        },
                     }
-                    Err(_) => continue,
-                },
+                }
             };
-            all_names.extend(map.entities.iter().filter(|e| !e.name.is_empty()).map(|e| e.name.clone()));
-            collect_map_names(map, &mut all_flags, &mut all_vars);
-            let zones = map.zones.clone();
-            spawns.insert(m.clone(), zones.iter().filter(|z| z.kind == ZoneKind::Spawn).map(|z| z.name.clone()).collect());
-            transitions.insert(
-                m.clone(),
-                zones
-                    .iter()
-                    .filter_map(|z| match &z.kind {
-                        ZoneKind::Transition { target_map, target_zone } => Some((z.name.clone(), target_map.clone(), target_zone.clone())),
-                        _ => None,
-                    })
-                    .collect(),
-            );
+            all_names.extend(refs.names);
+            all_flags.extend(refs.flags);
+            all_vars.extend(refs.vars);
+            spawns.insert(m.clone(), refs.spawns);
+            transitions.insert(m.clone(), refs.transitions);
         }
         let db = &self.project.db;
         for ts in db.items.iter().map(|d| &d.on_use).chain(db.props.iter().map(|d| &d.triggers)).chain(db.characters.iter().map(|d| &d.triggers)) {
@@ -3159,6 +3160,42 @@ pub fn collect_names(ts: &[rustpg2d_engine::events::Trigger], flags: &mut Vec<St
         conds(&t.conditions, flags, vars);
         actions(&t.actions, flags, vars);
     }
+}
+
+/// What the dropdowns need from one map (`Editor::refresh_refs`), with the file's stamp.
+#[derive(Clone, Default)]
+struct MapRefs {
+    stamp: (u64, u64),
+    names: Vec<String>,
+    flags: Vec<String>,
+    vars: Vec<String>,
+    spawns: Vec<String>,
+    transitions: Vec<(String, String, String)>,
+}
+
+impl MapRefs {
+    fn of(map: &Map, stamp: (u64, u64)) -> Self {
+        let mut r = MapRefs { stamp, ..Default::default() };
+        r.names.extend(map.entities.iter().filter(|e| !e.name.is_empty()).map(|e| e.name.clone()));
+        collect_map_names(map, &mut r.flags, &mut r.vars);
+        r.spawns = map.zones.iter().filter(|z| z.kind == ZoneKind::Spawn).map(|z| z.name.clone()).collect();
+        r.transitions = map
+            .zones
+            .iter()
+            .filter_map(|z| match &z.kind {
+                ZoneKind::Transition { target_map, target_zone } => Some((z.name.clone(), target_map.clone(), target_zone.clone())),
+                _ => None,
+            })
+            .collect();
+        r
+    }
+}
+
+/// (modification time, size) of a file; (0, 0) when it can't be read.
+fn file_stamp(path: &std::path::Path) -> (u64, u64) {
+    std::fs::metadata(path)
+        .map(|m| (m.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs()), m.len()))
+        .unwrap_or((0, 0))
 }
 
 fn collect_flags(map: &Map, out: &mut Vec<String>) {

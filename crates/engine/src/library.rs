@@ -123,7 +123,13 @@ pub struct MergeReport {
 
 impl MergeReport {
     pub fn summary(&self) -> String {
-        let mut s = format!("{} added, {} already present", self.added.len(), self.existing.len());
+        let mut s = format!("{} added", self.added.len());
+        if !self.added.is_empty() && self.added.len() <= 8 {
+            // (Few: name them, so a report of one send says what arrived.)
+            let list: Vec<&str> = self.added.iter().map(|a| a.1.as_str()).collect();
+            s += &format!(" ({})", list.join(", "));
+        }
+        s += &format!(", {} already present", self.existing.len());
         if !self.renamed.is_empty() {
             let list: Vec<String> = self.renamed.iter().map(|(_, a, b)| format!("{a} → {b}")).collect();
             s += &format!(", renamed (id taken): {}", list.join(", "));

@@ -454,9 +454,14 @@ impl Editor {
         Ok(n)
     }
 
+    /// The open map's document (after `mcp_target_map`): an error, not a panic, without one.
+    pub(crate) fn mcp_doc(&self) -> Result<&crate::doc::MapDoc, String> {
+        self.doc.as_ref().ok_or_else(|| "no map is open in the editor: give `map`".to_string())
+    }
+
     pub(crate) fn mcp_set_tiles(&mut self, p: SetTilesParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let map = self.doc.as_ref().unwrap().map.clone();
+        let map = self.mcp_doc()?.map.clone();
         let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
         let mut cells = Vec::new();
         for c in &p.cells {
@@ -476,7 +481,7 @@ impl Editor {
 
     pub(crate) fn mcp_paint_grid(&mut self, p: PaintGridParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let map = self.doc.as_ref().unwrap().map.clone();
+        let map = self.mcp_doc()?.map.clone();
         let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
         let parsed = grid::parse_grid(&p.rows, &p.legend)?;
         let mut cells = Vec::new();
@@ -497,7 +502,7 @@ impl Editor {
 
     pub(crate) fn mcp_fill_rect(&mut self, p: FillRectParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let map = self.doc.as_ref().unwrap().map.clone();
+        let map = self.mcp_doc()?.map.clone();
         let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
         let tile = match p.index {
             i if i < 0 => Tile::EMPTY,
@@ -713,7 +718,7 @@ impl Editor {
     pub(crate) fn mcp_update_entity(&mut self, p: UpdateParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
         let ts = self.ts();
-        let doc = self.doc.as_ref().unwrap();
+        let doc = self.mcp_doc()?;
         let Some(old) = doc.map.entities.iter().find(|e| e.uid == p.uid).cloned() else { return Err(format!("no entity with uid {} on \"{}\"", p.uid, doc.map.name)) };
         let mut new = patch::patch_entity(&old, &p.patch, ts)?;
         let ids = self.project.db.ids(new.kind);
@@ -822,7 +827,7 @@ impl Editor {
 
     pub(crate) fn mcp_update_zone(&mut self, p: UpdateParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let doc = self.doc.as_ref().unwrap();
+        let doc = self.mcp_doc()?;
         let Some(old) = doc.map.zones.iter().find(|z| z.uid == p.uid).cloned() else { return Err(format!("no zone with uid {} on \"{}\"", p.uid, doc.map.name)) };
         let new = patch::patch_zone(&old, &p.patch)?;
         let (_, _, _, warnings) = self.zone_parts(&serde_json::to_value(&new.kind).unwrap_or(Value::Null), &Some(serde_json::to_value(&new.triggers).unwrap_or(Value::Null)), &new.loot.as_ref().map(|l| serde_json::to_value(l).unwrap_or(Value::Null)))?;
@@ -859,7 +864,7 @@ impl Editor {
 
     pub(crate) fn mcp_link_maps(&mut self, p: LinkMapsParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let this = self.doc.as_ref().unwrap().map.name.clone();
+        let this = self.mcp_doc()?.map.name.clone();
         if p.to_map == this {
             return Err("link_maps connects two different maps".into());
         }
@@ -999,7 +1004,7 @@ impl Editor {
 
     pub(crate) fn mcp_set_map_settings(&mut self, p: MapSettingsParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let doc = self.doc.as_ref().unwrap();
+        let doc = self.mcp_doc()?;
         let m = &doc.map;
         let cur = MapSettings { background: m.background, music: m.music.clone(), lighting: m.lighting, fog: m.fog, weather: m.weather, parallax: m.parallax.clone(), edges: m.edges.clone() };
         let new: MapSettings = patch::apply(&cur, &p.patch)?;

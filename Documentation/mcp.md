@@ -164,4 +164,9 @@ saves never trigger this. Editor script: `watchanswer reload|keep`; `status` pri
   the game was built from another checkout: rebuild it.
 - *Flatpak*: the editor's sandbox has network access, so the port is reachable from the host;
   the game for play-tests runs inside the sandbox like F5 does.
+- *the editor did not answer within 120 s*: the editor's main thread was busy or blocked (a
+  modal dialog, a long reload). The call is not cancelled; it may still run later. The limit is
+  `RUSTPG2D_MCP_TIMEOUT` seconds in the editor's environment.
+- *internal error in TOOL … panicked*: a bug in the tool (please report it with the call). The
+  editor keeps running; the call's undo step is closed, so read the map or definition again.
 - Nothing works: is a project open? `project_info` says so.

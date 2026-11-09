@@ -5,7 +5,7 @@
 
 use std::future::IntoFuture;
 use std::sync::mpsc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::model::*;
@@ -42,13 +42,25 @@ impl Handler {
         self.tx
             .send(AgentRequest { call, summary, reply: reply_tx, started: Instant::now() })
             .map_err(|_| ErrorData::internal_error("the editor stopped the agent server", None))?;
-        match reply_rx.await {
-            Err(_) => Err(ErrorData::internal_error("the editor dropped the request (server stopped or project closed)", None)),
-            Ok(Err(msg)) => Ok(CallToolResult::error(vec![ContentBlock::text(msg)])),
-            Ok(Ok(Reply::PlayPlan(plan))) => Ok(to_result(super::play::run(*plan).await)),
-            Ok(Ok(reply)) => Ok(to_result(reply)),
+        let timeout = reply_timeout();
+        match tokio::time::timeout(timeout, reply_rx).await {
+            Err(_) => Ok(CallToolResult::error(vec![ContentBlock::text(format!(
+                "the editor did not answer within {} s (a dialog may be open, or it is busy); the call may still run later",
+                timeout.as_secs()
+            ))])),
+            Ok(Err(_)) => Err(ErrorData::internal_error("the editor dropped the request (server stopped or project closed)", None)),
+            Ok(Ok(Err(msg))) => Ok(CallToolResult::error(vec![ContentBlock::text(msg)])),
+            Ok(Ok(Ok(Reply::PlayPlan(plan)))) => Ok(to_result(super::play::run(*plan).await)),
+            Ok(Ok(Ok(reply))) => Ok(to_result(reply)),
         }
     }
+}
+
+/// How long a call may wait for the editor's main thread before the agent gets an error
+/// (`RUSTPG2D_MCP_TIMEOUT` seconds overrides the 120 s): a modal dialog or a long reload would
+/// otherwise stall the agent for good. The call itself isn't cancelled.
+fn reply_timeout() -> Duration {
+    std::env::var("RUSTPG2D_MCP_TIMEOUT").ok().and_then(|s| s.parse::<u64>().ok()).map_or(Duration::from_secs(120), Duration::from_secs)
 }
 
 /// A reply as MCP content: text first, then any PNG screenshots.

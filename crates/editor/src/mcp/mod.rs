@@ -167,7 +167,20 @@ impl Editor {
             };
             n += 1;
             let tool = req.call.name();
-            match self.mcp_exec(req.call) {
+            // A tool that panics (a bug, or data it didn't expect) answers with an error; the
+            // editor keeps running with its project as it was before the call's undo step.
+            let result = match rustpg2d_engine::desktop::catch_panic(|| self.mcp_exec(req.call)) {
+                Ok(r) => r,
+                Err(msg) => {
+                    eprintln!("[mcp] {tool} panicked: {msg}");
+                    self.mcp.last_error = Some(format!("{tool} panicked: {msg}"));
+                    if let Some(d) = &mut self.doc {
+                        d.end_stroke();
+                    }
+                    Err(format!("internal error in {tool}: {msg} (the editor kept running; read the map or definition again before going on)"))
+                }
+            };
+            match result {
                 Ok(exec::Reply::Shot(spec)) => {
                     let restore = self.mcp_prepare_shot(&spec);
                     self.mcp.shots.push(ShotRequest { frames_left: 2, spec, restore, reply: req.reply, started: req.started, summary: req.summary });

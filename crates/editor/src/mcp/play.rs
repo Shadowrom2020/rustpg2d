@@ -124,6 +124,15 @@ pub fn plan(ed: &mut Editor, p: PlayParams) -> Result<PlayPlan, String> {
 pub async fn run(plan: PlayPlan) -> Reply {
     use tokio::io::AsyncBufReadExt;
     let PlayPlan { cmd, dir, shots, timeout, mut warnings } = plan;
+    // The scratch folder goes however the run ends (a client that disconnects drops this future
+    // half-way through).
+    struct Scratch(std::path::PathBuf);
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _scratch = Scratch(dir);
     let program = cmd.get_program().to_owned();
     // A game built from another engine version may not read this editor's data.
     if let Ok(out) = tokio::process::Command::new(&program).arg("--engine-build").output().await {
@@ -184,7 +193,6 @@ pub async fn run(plan: PlayPlan) -> Reply {
             Err(_) => text += &format!("\nscreenshot {} was not taken (the script didn't reach its `shot`)", i + 1),
         }
     }
-    let _ = std::fs::remove_dir_all(&dir);
     Reply::TextImages(text, images)
 }
 

@@ -8,6 +8,20 @@
 //!
 //! Elsewhere [`startup`] does nothing.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Set while [`catch_panic`] runs: the Windows panic hook then only logs (no message box, no exit).
+static CATCHING: AtomicBool = AtomicBool::new(false);
+
+/// Runs `f` and turns a panic into its message (the editor's agent server answers a tool's
+/// panic with an error and keeps running). The default hook still prints the panic.
+pub fn catch_panic<R>(f: impl FnOnce() -> R) -> Result<R, String> {
+    CATCHING.store(true, Ordering::Relaxed);
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    CATCHING.store(false, Ordering::Relaxed);
+    r.map_err(|p| p.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| p.downcast_ref::<String>().cloned()).unwrap_or_else(|| "unknown panic".into()))
+}
+
 /// Call first thing in `window_conf`; `app` names the program in the message box.
 pub fn startup(app: &'static str) {
     #[cfg(windows)]
@@ -42,6 +56,9 @@ mod windows {
         let previous = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |info| {
             previous(info);
+            if super::CATCHING.load(super::Ordering::Relaxed) {
+                return; // caught by catch_panic: the program goes on
+            }
             let msg = info.payload().downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| info.payload().downcast_ref::<String>().cloned()).unwrap_or_default();
             let gl = msg.contains("WGL") || info.location().is_some_and(|l| l.file().ends_with("gl.rs"));
             let text = if gl {

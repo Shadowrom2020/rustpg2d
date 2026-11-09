@@ -65,6 +65,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- One implementation each of base64 (`hash.rs`; the fog of war, the web storage and the Tiled
+  import had their own), the clock text (`entity::hour_text`; the game's clock and the editor
+  rounded differently), the project-relative path check (`library::safe_rel`; the export now also
+  refuses backslashes), the RON writer (`project::ron_text`; exported web projects were written
+  with the platform's line endings), the `scripts/*.rhai` listing (`Project::script_files`, eight
+  copies) and the `name_2`, `name_3` id generator (`refactor::unique_id`).
 - The script API table (`engine/src/script_api.rs`: every function, its parameters' kinds and
   descriptions) is the one source for the editor's completion, the agent server's API resource,
   renames and the script check (id arguments are derived from it; the separate list is gone),

@@ -52,11 +52,8 @@ pub(super) struct Dev {
 }
 
 fn snapshot(dir: &Path) -> Vec<Stamp> {
-    let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
-    let mut v: Vec<Stamp> = rd
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|e| e == "rhai"))
+    let mut v: Vec<Stamp> = crate::project::script_files_in(dir)
+        .into_iter()
         .map(|p| {
             let m = std::fs::metadata(&p).ok();
             let stamp = (m.as_ref().and_then(|m| m.modified().ok()), m.map_or(0, |m| m.len()));

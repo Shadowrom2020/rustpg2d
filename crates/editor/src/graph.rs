@@ -626,9 +626,7 @@ impl Editor {
         }
         let now = macroquad::time::get_time();
         if now - self.graph.fns_at > 1.0 {
-            let dir = self.project.scripts_dir();
-            let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).map(|rd| rd.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rhai")).collect()).unwrap_or_default();
-            files.sort();
+            let files: Vec<PathBuf> = self.project.script_files();
             // The script editor's unsaved text counts.
             let texts: Vec<(PathBuf, String)> = files
                 .into_iter()

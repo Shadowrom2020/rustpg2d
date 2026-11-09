@@ -315,6 +315,13 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
     Ok(db)
 }
 
+/// The `*.rhai` files of a folder, in name order (the order scripts are loaded in).
+pub fn script_files_in(dir: &Path) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = crate::sys::files_in(dir).unwrap_or_default().into_iter().filter(|p| p.extension().is_some_and(|e| e == "rhai")).collect();
+    files.sort();
+    files
+}
+
 /// `value` as the RON text project files are written with (pretty, LF line endings).
 pub fn ron_text<T: Serialize>(value: &T) -> Result<String> {
     let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
@@ -368,6 +375,11 @@ impl Project {
     pub fn reload(&mut self) -> Result<()> {
         *self = Project::load(&self.root)?;
         Ok(())
+    }
+
+    /// The project's `scripts/*.rhai`, in name order.
+    pub fn script_files(&self) -> Vec<PathBuf> {
+        script_files_in(&self.scripts_dir())
     }
 
     pub fn save_config(&self) -> Result<()> {

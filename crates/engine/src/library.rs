@@ -225,10 +225,7 @@ pub fn script_roots(db: &Database, a: &AssetRef) -> Vec<String> {
 
 /// The functions of every `*.rhai` file in `<root>/scripts` (files in name order).
 pub fn read_scripts(root: &Path) -> Vec<ScriptFn> {
-    let Ok(rd) = std::fs::read_dir(root.join("scripts")) else { return Vec::new() };
-    let mut files: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rhai")).collect();
-    files.sort();
-    files.iter().filter_map(|f| std::fs::read_to_string(f).ok()).flat_map(|src| crate::script_refs::functions(&src)).collect()
+    crate::project::script_files_in(&root.join("scripts")).iter().filter_map(|f| std::fs::read_to_string(f).ok()).flat_map(|src| crate::script_refs::functions(&src)).collect()
 }
 
 /// Assets that script functions refer to by id (sprite sheets, sounds, items, skills, spells).
@@ -256,7 +253,8 @@ fn with_suffix(path: &str, n: u32) -> String {
 }
 
 /// Paths inside a package must stay inside the project.
-fn safe_rel(p: &str) -> bool {
+/// A project-relative file path that stays inside the project: no leading `/`, no `\\`, no `.` or `..` parts.
+pub fn safe_rel(p: &str) -> bool {
     !p.is_empty() && !p.starts_with('/') && !p.contains('\\') && p.split('/').all(|c| !c.is_empty() && c != "." && c != "..")
 }
 
@@ -381,8 +379,7 @@ impl Bundle {
             recipes: self.db.recipes.clone(),
             scripts: self.scripts.clone(),
         };
-        let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
-        let manifest = ron::ser::to_string_pretty(&m, cfg)?;
+        let manifest = crate::project::ron_text(&m)?;
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
         zw.start_file("manifest.ron", opts)?;

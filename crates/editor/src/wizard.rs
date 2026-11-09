@@ -170,12 +170,7 @@ impl Editor {
             if w.kind == WKind::Tileset {
                 self.project.db.tilesets.push(TilesetDef::new(&id, &rel));
             } else {
-                let mut sheet_id = id.clone();
-                let mut n = 2;
-                while self.project.db.sheet(&sheet_id).is_some() {
-                    sheet_id = format!("{id}_{n}");
-                    n += 1;
-                }
+                let sheet_id = rustpg2d_engine::refactor::unique_id(&id, |c| self.project.db.sheet(c).is_some());
                 self.project.db.sheets.push(SheetDef::new(&sheet_id, &rel, frame.0, frame.1));
                 sprite = if w.kind == WKind::Prop && w.source == Source::Blank { SpriteRef::block(&sheet_id, 0, w.cells.0, w.cells.1) } else { SpriteRef::new(&sheet_id, 0) };
             }

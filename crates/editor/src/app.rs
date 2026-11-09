@@ -874,10 +874,7 @@ impl Editor {
     /// "file:line,line" for every changed file. The open script editor follows.
     fn rename_in_scripts(&mut self, kind: RefKind, old: &str, new: &str, errors: &mut Vec<String>) -> Vec<String> {
         let mut changed = Vec::new();
-        let Ok(rd) = std::fs::read_dir(self.project.scripts_dir()) else { return changed };
-        let mut files: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rhai")).collect();
-        files.sort();
-        for f in files {
+        for f in self.project.script_files() {
             // The open file's editor text may have unsaved edits: rename in it as well.
             let open = self.db.script_file.as_ref() == Some(&f);
             let Ok(disk) = std::fs::read_to_string(&f) else { continue };
@@ -1677,7 +1674,7 @@ impl Editor {
                     let outdoor = self.doc.as_ref().is_some_and(|d| d.map.lighting.mode == rustpg2d_engine::map::LightMode::Outdoor);
                     if self.view.lighting && outdoor {
                         let mut h = self.view.hour;
-                        let label = format!("{:02}:{:02}", h as u32, (h.fract() * 60.0) as u32);
+                        let label = rustpg2d_engine::entity::hour_text(h);
                         if ui.add(egui::Slider::new(&mut h, 0.0..=23.99).show_value(false)).on_hover_text(format!("Preview time of day: {label}")).changed() {
                             self.view.hour = h;
                         }

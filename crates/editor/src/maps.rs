@@ -59,13 +59,7 @@ pub fn request_transition(r: TransitionReq) {
 
 /// A zone name not used on `map` yet.
 pub(crate) fn unique_zone_name(map: &Map, base: &str) -> String {
-    let mut name = base.to_string();
-    let mut n = 2;
-    while map.zones.iter().any(|z| z.name == name) {
-        name = format!("{base}_{n}");
-        n += 1;
-    }
-    name
+    rustpg2d_engine::refactor::unique_id(base, |c| map.zones.iter().any(|z| z.name == c))
 }
 
 /// Adds a transition zone to `map` leading to `target_map`:`target_zone`. Returns its name.

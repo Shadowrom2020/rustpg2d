@@ -92,34 +92,9 @@ const FLIP_FLAGS: u32 = 0xF000_0000;
 
 // ------------------------------------------------------------------ tile data
 
-/// Standard base64 (whitespace ignored).
+/// Standard base64 (whitespace ignored): the engine's decoder.
 pub fn base64(text: &str) -> Result<Vec<u8>> {
-    let val = |c: u8| -> Option<u32> {
-        Some(match c {
-            b'A'..=b'Z' => c - b'A',
-            b'a'..=b'z' => c - b'a' + 26,
-            b'0'..=b'9' => c - b'0' + 52,
-            b'+' => 62,
-            b'/' => 63,
-            _ => return None,
-        } as u32)
-    };
-    let clean: Vec<u8> = text.bytes().filter(|c| !c.is_ascii_whitespace() && *c != b'=').collect();
-    let mut out = Vec::with_capacity(clean.len() * 3 / 4);
-    for chunk in clean.chunks(4) {
-        let mut n = 0u32;
-        for (i, &c) in chunk.iter().enumerate() {
-            n |= val(c).context("invalid base64 data")? << (18 - 6 * i);
-        }
-        out.push((n >> 16) as u8);
-        if chunk.len() > 2 {
-            out.push((n >> 8) as u8);
-        }
-        if chunk.len() > 3 {
-            out.push(n as u8);
-        }
-    }
-    Ok(out)
+    rustpg2d_engine::hash::base64_decode(text).context("invalid base64 data")
 }
 
 /// A layer's tile ids from its encoded data.

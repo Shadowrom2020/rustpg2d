@@ -145,6 +145,12 @@ impl RefKind {
     }
 }
 
+/// `base`, or `base_2`, `base_3`, …: the first id `taken` says is free (new maps, zones,
+/// imported sheets, library copies).
+pub fn unique_id(base: &str, taken: impl Fn(&str) -> bool) -> String {
+    std::iter::once(base.to_string()).chain((2..).map(|n| format!("{base}_{n}"))).find(|c| !taken(c)).unwrap_or_else(|| base.to_string())
+}
+
 struct Renamer<'a> {
     kind: RefKind,
     old: &'a str,

@@ -187,7 +187,7 @@ pub fn load_settings() -> EditorSettings {
 
 pub fn save_settings(s: &EditorSettings) {
     let Some(dir) = config_dir() else { return };
-    match ron::ser::to_string_pretty(s, ron::ser::PrettyConfig::default().new_line("\n")) {
+    match rustpg2d_engine::project::ron_text(s) {
         Ok(text) => {
             if let Err(e) = rustpg2d_engine::sys::write(&dir.join("editor.ron"), text.as_bytes()) {
                 eprintln!("[editor] cannot save the editor settings: {e}");
@@ -230,7 +230,7 @@ pub fn remember_recent(root: &Path) {
     list.retain(|p| *p != root);
     list.insert(0, root);
     list.truncate(RECENT_MAX);
-    if let Ok(s) = ron::ser::to_string_pretty(&list, ron::ser::PrettyConfig::default().new_line("\n")) {
+    if let Ok(s) = rustpg2d_engine::project::ron_text(&list) {
         if let Err(e) = rustpg2d_engine::sys::write(&dir.join("recent.ron"), s.as_bytes()) {
             eprintln!("[editor] cannot save the recent projects list: {e}");
         }

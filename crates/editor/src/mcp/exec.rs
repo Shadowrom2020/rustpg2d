@@ -514,8 +514,6 @@ impl Editor {
 
     /// `scripts/*.rhai`, sorted.
     pub(crate) fn mcp_script_files(&self) -> Vec<std::path::PathBuf> {
-        let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(self.project.scripts_dir()).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rhai")).collect();
-        files.sort();
-        files
+        self.project.script_files()
     }
 }

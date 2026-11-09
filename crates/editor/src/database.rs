@@ -2257,14 +2257,7 @@ impl Editor {
 
 fn scripts_ui(ed: &mut Editor, ui: &mut egui::Ui) {
     let dir = ed.project.scripts_dir();
-    let mut files: Vec<_> = std::fs::read_dir(&dir)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|e| e == "rhai"))
-        .collect();
-    files.sort();
+    let files: Vec<std::path::PathBuf> = ed.project.script_files();
     // Always show a script: the first one when none (or a deleted one) is open.
     if ed.db.script_file.as_ref().is_none_or(|f| !files.contains(f)) {
         if let Some(f) = files.first().cloned() {

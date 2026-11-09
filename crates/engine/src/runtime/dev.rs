@@ -223,6 +223,7 @@ impl Game {
             "call" if !arg(1).is_empty() => {
                 if self.scripts.has_function(arg(1)) {
                     self.sync_script_player();
+                    self.sync_script_player();
                     queued = self.scripts.call(&mut self.world, arg(1), None);
                 } else {
                     self.dev.print(format!("no script function {}", arg(1)));
@@ -273,6 +274,7 @@ impl Game {
                 self.dev.print(format!("xp {}", self.world.xp));
             }
             _ => {
+                self.sync_script_player();
                 self.sync_script_player();
                 let (r, actions) = self.scripts.eval(&mut self.world, line);
                 match r {

@@ -58,6 +58,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- Drawing and the frame: entities off screen aren't drawn, an entity's index is passed along
+  instead of searched for twice per character, a character's activity is looked up once, the
+  script host's view of the player is refreshed only before a script runs, key bindings are read
+  without copying, translations are borrowed when there is none, NPCs look at their items every
+  quarter second instead of every frame, projectiles collect their companion targets once per
+  update, and companions' home maps are read from disk once per game.
 - Path searches hash tile coordinates with one multiply instead of SipHash, pre-size their
   tables, tell "no route" from "out of budget" (a second search with fewer obstacles only runs
   when the first really tried everything), and line-of-sight checks walk the tiles a line crosses

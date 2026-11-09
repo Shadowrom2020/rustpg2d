@@ -300,6 +300,7 @@ impl Game {
         }
         // A script that starts aiming (aim()) pays when the target is chosen.
         if let SpellEffect::Script { function } = &d.effect {
+            self.sync_script_player();
             let actions = self.scripts.call(&mut self.world, function, None);
             if actions.iter().any(|a| matches!(a, crate::events::Action::Aim { .. })) {
                 self.skills.casting = Some(id.to_string());

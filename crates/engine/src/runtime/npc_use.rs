@@ -89,8 +89,11 @@ impl Game {
                 || (!bad.is_empty() && u.cures.iter().any(|c| c.is_none_or(|k| bad.contains(&k))))
                 || (danger && !u.buffs.is_empty() && u.buffs.iter().any(|b| !have.contains(b)))
         });
-        if let Some(item) = pick {
-            self.npc_use(i, &item);
+        match pick {
+            Some(item) => self.npc_use(i, &item),
+            // Nothing needed: look again in a quarter second, not every frame (the look scans
+            // the inventory and, for friendly characters, every enemy).
+            None => self.loaded.entities[i].item_cd = 0.25,
         }
     }
 

@@ -110,6 +110,8 @@ impl Game {
     }
 
     /// Tells the script engine where the player is (player_x() / player_y() / ...).
+    /// Gives the script host what scripts read about the player and the characters; called right
+    /// before a script runs (not every frame: it clones every character's name).
     pub(super) fn sync_script_player(&mut self) {
         let ts = self.ts();
         let info = crate::script::PlayerInfo { x: self.player.pos.x / ts, y: self.player.pos.y / ts, max_hp: self.player_max_hp(), facing: self.player.facing, weather: self.weather(), pose: self.pose_name().into(), sleeping: self.sleeping() };

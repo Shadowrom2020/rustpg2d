@@ -372,6 +372,9 @@ pub struct Game {
     regrow_timer: f32,
     /// Frame timing for `status` (a cell: `status` takes `&self`).
     perf: std::cell::RefCell<Perf>,
+    /// Placed entities of other maps read from disk for companions (`placed_instance`), once
+    /// per game: map files don't change while it runs.
+    placed_cache: std::cell::RefCell<std::collections::HashMap<(String, u32), Option<crate::entity::EntityInstance>>>,
     /// The open companion orders menu (G).
     order_menu: Option<orders::OrderMenu>,
     /// The open companion window (its gear and bag).
@@ -497,6 +500,7 @@ impl Game {
             chips: Vec::new(),
             regrow_timer: 0.0,
             perf: std::cell::RefCell::new(Perf { log: std::env::var("RUSTPG2D_PERF").is_ok_and(|v| v != "0"), ..Perf::default() }),
+            placed_cache: Default::default(),
             order_menu: None,
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),
@@ -1311,7 +1315,6 @@ impl Game {
         self.rebuild_occupancy();
         self.update_juice(dt);
         self.after_thumbnail();
-        self.sync_script_player();
         // Esc opens the pause menu (unless a window or dialog uses Esc); it pauses everything.
         // (While a bolt spell is being aimed, Esc cancels the spell instead.)
         let can_open = !self.inventory_open() && !self.ui.dialog_open() && self.game_over.is_none() && matches!(self.fade, Fade::None) && !self.aiming() && !self.world_map_open();
@@ -2279,7 +2282,13 @@ impl Game {
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
                     }
                 }
-                Some(i) => self.draw_entity(&self.loaded.entities[i], t),
+                Some(i) => {
+                    // Off screen (a generous margin for tall sprites): nothing to draw.
+                    let p = self.loaded.entities[i].body.pos;
+                    if Rect::new(p.x - 4.0 * ts, p.y - 8.0 * ts, 8.0 * ts, 9.0 * ts).overlaps(&view) {
+                        self.draw_entity(i, t);
+                    }
+                }
             }
         }
 
@@ -2383,35 +2392,37 @@ impl Game {
         }
     }
 
-    fn draw_entity(&self, e: &RtEntity, t: f32) {
+    /// Draws entity `i` (its index of this frame).
+    fn draw_entity(&self, i: usize, t: f32) {
         let ts = self.ts();
         let db = &self.project.db;
+        let e = &self.loaded.entities[i];
         let tint = if e.flash > 0.0 { Color::new(1.0, 0.35, 0.35, 1.0) } else { Self::effect_tint(&e.effects).unwrap_or(WHITE) };
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
                 let ok = self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE);
                 if e.planted.is_some() {
-                    if let Some(i) = self.loaded.entities.iter().position(|x| x.uid == e.uid) {
-                        self.draw_crop(i);
-                    }
+                    self.draw_crop(i);
                 }
                 ok
             }),
             EntityKind::Character if e.companion.as_ref().is_some_and(|l| l.down.is_some()) => self.draw_downed(e),
-            EntityKind::Character if e.npc_seat.is_some() => {
-                let s = e.npc_seat.as_ref().expect("checked");
-                self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
-                true
-            }
-            EntityKind::Character if self.loaded.entities.iter().position(|x| x.uid == e.uid).is_some_and(|i| self.current_activity(i).is_some()) => {
-                let i = self.loaded.entities.iter().position(|x| x.uid == e.uid).expect("checked");
-                let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
-                let col = self.activity_frame(i).unwrap_or(0);
-                self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
-            }
-            EntityKind::Character => db.character(&e.def).is_some() && {
-                let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
-                self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
+            EntityKind::Character => match (&e.npc_seat, self.current_activity(i)) {
+                (Some(s), _) => {
+                    self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
+                    true
+                }
+                (None, Some(_)) => {
+                    let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
+                    let col = self.activity_frame(i).unwrap_or(0);
+                    self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
+                }
+                (None, None) => {
+                    db.character(&e.def).is_some() && {
+                        let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
+                        self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
+                    }
+                }
             },
             EntityKind::Item => db.item(&e.def).is_some_and(|d| {
                 let u = self.u();
@@ -2820,6 +2831,7 @@ impl ActionHost for Game {
                 Step::Insert(self.collect(&GameEvent::Custom { name: name.clone() }, &Source::Broadcast))
             }
             Action::RunScript { function } => {
+                self.sync_script_player();
                 let actions = self.scripts.call(&mut self.world, function, ctx.owner);
                 Step::Insert(actions.into_iter().map(|a| (a, ctx.clone())).collect())
             }
@@ -2843,6 +2855,7 @@ impl ActionHost for Game {
     }
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {
+        self.sync_script_player();
         self.scripts.condition(&mut self.world, function, ctx.owner)
     }
 

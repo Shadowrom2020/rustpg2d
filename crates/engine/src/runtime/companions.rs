@@ -68,7 +68,8 @@ impl Game {
         if let Some(m) = self.cache.iter().find(|m| m.name == map) {
             return find(m);
         }
-        self.project.load_map(map).ok().as_ref().and_then(find)
+        // From disk once per game (every map change used to read the file again).
+        self.placed_cache.borrow_mut().entry((map.to_string(), uid)).or_insert_with(|| self.project.load_map(map).ok().as_ref().and_then(find)).clone()
     }
 
     /// Runtime entities of the companions (entering a map; placed around the player later).

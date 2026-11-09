@@ -341,6 +341,7 @@ impl Game {
     /// Moves projectiles in small steps; they stop at walls and hit the first target.
     pub(super) fn update_projectiles(&mut self, dt: f32) {
         let ts = self.ts();
+        let companions = self.companion_targets();
         let mut i = 0;
         while i < self.projectiles.len() {
             let p = &self.projectiles[i];
@@ -379,7 +380,7 @@ impl Game {
                     }
                 } else {
                     // Companions are hit like the player.
-                    let companion = self.companion_targets().into_iter().map(|(c, _)| c).find(|&c| {
+                    let companion = companions.iter().map(|(c, _)| *c).find(|&c| {
                         let r = self.loaded.entities[c].body.rect();
                         self.loaded.entities[c].invuln <= 0.0 && Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8).overlaps(&hit_box)
                     });

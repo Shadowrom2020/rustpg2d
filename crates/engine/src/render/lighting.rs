@@ -179,7 +179,8 @@ impl LightPass {
         }
         set_default_camera();
         let full = DrawTextureParams { dest_size: Some(vec2(screen_width(), screen_height())), ..Default::default() };
-        if std::env::var("RUSTPG2D_LIGHTMAP_DEBUG").is_ok() {
+        static DEBUG: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *DEBUG.get_or_init(|| std::env::var("RUSTPG2D_LIGHTMAP_DEBUG").is_ok()) {
             draw_texture_ex(&rt.texture, 0.0, 0.0, WHITE, full);
             return;
         }

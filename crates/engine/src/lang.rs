@@ -211,8 +211,11 @@ pub fn tr(text: &str) -> String {
 }
 
 /// A runtime text (menus, HUD, messages) in the current language.
-pub fn tr_ui(text: &str) -> String {
-    CURRENT.with(|c| c.borrow().as_ref().and_then(|t| t.ui(text))).unwrap_or_else(|| text.to_string())
+pub fn tr_ui(text: &str) -> std::borrow::Cow<'_, str> {
+    match CURRENT.with(|c| c.borrow().as_ref().and_then(|t| t.ui(text))) {
+        Some(t) => std::borrow::Cow::Owned(t),
+        None => std::borrow::Cow::Borrowed(text), // (English, or no translation: nothing copied)
+    }
 }
 
 /// Reads `lang/<code>.ron` of a project (None if it has none or it can't be read).

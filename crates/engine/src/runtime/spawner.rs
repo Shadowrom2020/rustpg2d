@@ -111,7 +111,7 @@ impl Game {
         for _ in 0..40 {
             let tx = x + rand::gen_range(0, w.max(1));
             let ty = y + rand::gen_range(0, h.max(1));
-            if self.tile_solid(tx as i32, ty as i32) {
+            if self.tile_blocks_npc(tx as i32, ty as i32) {
                 continue;
             }
             let pos = vec2((tx as f32 + 0.5) * ts, (ty as f32 + 1.0) * ts - 1.0);

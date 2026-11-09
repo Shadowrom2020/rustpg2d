@@ -145,7 +145,7 @@ impl Game {
             (here.0 + side.0 * n, here.1 + side.1 * n),
             (here.0 - side.0 * n, here.1 - side.1 * n),
         ];
-        tries.into_iter().find(|t| !self.tile_solid(t.0, t.1)).unwrap_or(here)
+        tries.into_iter().find(|t| !self.tile_blocks_npc(t.0, t.1)).unwrap_or(here)
     }
 
     /// Moves / fights for companion `i`. Returns false if `i` is no companion.

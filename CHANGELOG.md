@@ -9,6 +9,9 @@ A living village: every terrain a 47-tile set, many more assets, the village reb
 Emberbrook with interiors and a daily life, four more quests.
 
 ### Gameplay
+- **Ladders**: tiles marked as ladders in *Database → Tilesets* (*Pick ladder tiles in the
+  grid*) are climbed by the player — only up and down, slower, seen from behind, no attacks
+  (`status` prints `climbing=`). Characters keep off them. Old tilesets load unchanged.
 - **Time reached** (`TriggerOn::Hour`): a map trigger that runs when the in-game clock reaches a
   time of day while the player is on the map — every day, also when time jumps past it by
   sleeping or *Set time* (not when it is set back). The editor's trigger form takes the time as
@@ -39,6 +42,10 @@ Emberbrook with interiors and a daily life, four more quests.
   already overlaps, and a character blocked on its way plans around the people in it.
 
 ### Maintenance
+- Starter library updates: an image of the same size that only adds art in empty cells counts
+  as an upgrade too (before, only larger images did), and an upgraded tileset's new tiles bring
+  their solid / ladder / light / animation flags; existing libraries get the tower tiles the next
+  time the editor opens them (`STARTER_RULES` 7).
 - Autoplay `talkto NAME`: right-clicks a named character wherever it stands (characters that
   wander).
 - `status()` prints `sounds=`: the last six sound effects started (also while muted), for
@@ -54,6 +61,10 @@ Emberbrook with interiors and a daily life, four more quests.
   every asset of the example project. The `vorbis_rs` dev-dependency went with the generator.
 
 ### Example project
+- **Climbable watchtowers**: the two towers at the east gate are built from tiles now (new tiles
+  in `terrain.png`'s fifth row) with a ladder up to a lookout deck under the roof; the
+  barracks has its east wall back (the old tower prop stood over it). The starter library
+  gains the structure *Lookout Tower*.
 - The guard sent back to his post (*Go back to your post*) walks his road again instead of
   staying where he was dismissed, and once the shrine is lit he goes off duty and stands
   by the barracks door (`guard_rest()`) instead of stopping wherever he stands.

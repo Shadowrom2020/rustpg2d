@@ -93,7 +93,7 @@ lamps and lit windows at night, dawn fog, the noon bell) and four more quests. T
 map goes away; its stations and content move into the village. Four pull requests, in this order
 (each builds on the one before): `feature/tilesets-47`, `feature/village-assets`,
 `feature/village`, `feature/village-quests`; then `feature/example-as-files` retires the
-generator that built all of it. Everything added to the example is also in the
+generator that built all of it, and `feature/ladders` makes the gate's watchtowers climbable. Everything added to the example is also in the
 starter library (`STARTER_RULES` 5 → 6; existing user libraries have to be regenerated to get the
 new terrain art, see README). Save games made in the old village don't fit the new one (entity
 uids change); the other maps only gain entities at the end.
@@ -347,6 +347,48 @@ uids change); the other maps only gain entities at the end.
   `--library`; the new-project wizard copies its starter assets; `mcp_smoke` passes with the new
   tools against a scratch copy and a scratch library.
 
+- [x] Ladders: climbable lookout towers — `feature/ladders`
+
+  **Goal.** Ladder tiles the player climbs (only up and down, slower, seen from behind), used
+  for the village's two watchtowers at the east gate: climb up to the lookout deck under the
+  roof. The north tower no longer overlaps the barracks. (Swimming, planned together with
+  ladders before, was dropped.)
+
+  **Design.**
+  - `TilesetDef.ladder: Vec<u32>` (`#[serde(default)]`, not written when empty), like `solid`;
+    `TilesetTex.ladder`, `Assets::compute_ladder` → `Loaded.ladder` (layers below the
+    characters). A ladder tile isn't solid; the player's feet on one = climbing: horizontal
+    input is ignored, speed × 0.6 (`CLIMB_SPEED`), facing up, drawn towards the ladder's middle,
+    no attacks. `status()` `climbing=`.
+  - Characters keep off ladders: `rect_blocked_by` blocks them for movers that ignore
+    themselves (NPCs), and their path finding, spawning and companions' spots use
+    `tile_blocks_npc`.
+  - Editor: *Database → Tilesets* gets *Pick ladder tiles in the grid* (green ladder icon on
+    ladder tiles); the AI agent server's `tileset_legend` lists them, `def_template` notes them.
+  - The tower is 2 × 5 tiles of `terrain.png` row 4 (64–79): roof (Overhead) over a solid tile;
+    the lookout (back posts and rail, solid; front corner posts on Overhead); the deck
+    (walkable, front rail on Overhead so it covers the legs of whoever stands there); legs with
+    the ladder in the left column (ladder tiles 76, 78) and braces on the right (solid). A new
+    structure `lookout_tower` places it.
+  - Starter updates (`STARTER_RULES` 6 → 7): an image of the same size that only adds art in
+    empty cells is an upgrade too (`extends`), and an upgraded tileset's new tiles bring their
+    solid / ladder / light / animation flags (`new_tiles`), so existing libraries get the tower.
+
+  **Touch points.** `engine/src/{defs,library}.rs`, `render/mod.rs`, `runtime/{mod,combat,
+  patrol,ai,companions,spawner,mouse}.rs`, `editor/src/{database,mcp/exec_maps,mcp/exec_defs}.rs`,
+  `example_project/` (terrain.png, tilesets.ron, structures.ron, village map), the starter
+  library, README, CHANGELOG, CLAUDE.md, `Documentation/autoplay.md`.
+
+  **Example.** The barracks gets its east wall column back; tile towers at x 74–75, rows 23–27
+  and 33–37 replace the two `watchtower` props; a woodpile and a blocked cell guard the south
+  deck's open side.
+
+  **Verify.** Autoplay from a save at the ladder foot: `hold up` → `climbing=true`, `hold left`
+  doesn't move, `press x` doesn't attack, on up to the deck (`climbing=false`), along it, the
+  braces block going down on the right, back down the ladder to the road; the same on the south
+  tower; screenshots of climbing and standing on the deck. Engine tests: ladder RON, filled-cell
+  upgrades with their flags.
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
@@ -356,41 +398,3 @@ uids change); the other maps only gain entities at the end.
   the rules of *Companion inventory* (`Companion.spells`, a mana pool from the definition).
 - Activities that produce something: the fishing NPC sells fresh trout at a market stall the
   next morning (a trigger at the end of an *NPC routines* activity).
-- **Swimming and ladders** (moved out of 0.5.0 and 0.8.0; design notes kept, branch
-  `feature/swim-climb`): water the player can swim across and ladder tiles to climb.
-  **Goal.** Water the player can swim across (slowly, no attacks) and ladder tiles the player
-  climbs (vertical only, slower, climbing pose), so maps gain height and water as terrain
-  instead of walls.
-
-  **Design.**
-  - `TilesetDef.water: Vec<u32>` and `TilesetDef.ladder: Vec<u32>` (`#[serde(default)]`, like
-    `solid`); the Tilesets form's grid gets two more pick modes (today: solid, animation, light).
-    `Loaded` gets `water` / `ladder` grids next to `solid` (`Assets::compute_solid` pattern). A
-    water tile marked swimmable is **not** solid for the player only: `rect_blocked(.., swimmer:
-    bool)`; NPCs, pathfinding, projectiles and sight keep treating it as today (solid if listed in
-    `solid`). Creators mark a tile either solid (a wall of water) or water (swimmable).
-  - Swimming: when the player's feet are on water: speed × 0.5, no running, no attacking (toast
-    once), no interacting with props, no fishing, no sitting; the paperdoll is drawn with the
-    lower 40 % of the frame clipped (`draw_frame_part_in`, as the seated pose clips) and a 2 px
-    bob, a blue tint; a splash `effect` on entering; `status()` `swimming=true`. Leaving water
-    restores everything. Companions swim along (same rule for them).
-  - Ladders: on a ladder tile only Up / Down move (× 0.6 speed), the player faces Up (climbing
-    pose = the Up row with the walk cycle), interact is allowed (so a ladder top can be a portal
-    zone, which is how "climbing down into the mine" works). `status()` `climbing=true`.
-  - Save games don't change (position is enough). Old projects: no water / ladder tiles → nothing
-    changes.
-
-  **Touch points.** `defs.rs`, `render/mod.rs` (`TilesetTex` flags), `runtime/{mod,paperdoll,
-  companions,minigame,furniture}.rs`, `editor/src/database.rs` (tileset grid modes) and
-  `canvas.rs` (overlay colours), the example project and starter tilesets (mark the village
-  pond and the Wilds' lakes swimmable, keep the forest stream solid; a ladder tile in the dungeon tileset and a ladder in
-  the mine leading to a lower shaft via portals), README.
-
-  **Example.** The village pond becomes swimmable (its fishing spot covers the water: fishing is
-  from the shore, not while swimming); the mine gets a ladder down to a small lower shaft with the
-  pick-only chest moved there.
-
-  **Verify.** Autoplay: walk into the pond, `status` `swimming=true` and the tile is water, speed
-  halved (tiles per second from two statuses), `press x` doesn't attack, screenshot of the
-  half-submerged hero; the forest stream still blocks; in the mine `hold up` on the ladder
-  climbs (`climbing=true`), `hold left` doesn't move; an NPC never enters water (`ai=` positions).

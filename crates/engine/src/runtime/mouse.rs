@@ -62,7 +62,7 @@ impl Game {
         }
     }
 
-    fn player_tile(&self) -> TilePos {
+    pub(super) fn player_tile(&self) -> TilePos {
         let ts = self.ts();
         ((self.player.pos.x / ts).floor() as i32, ((self.player.pos.y - 0.5) / ts).floor() as i32)
     }

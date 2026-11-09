@@ -150,10 +150,10 @@ impl Game {
             let props = self.solid_entity_tiles(|e| e.kind == EntityKind::Prop);
             let me = self.loaded.entities[i].uid;
             let people = if w.avoid { self.solid_entity_tiles(|e| e.kind == EntityKind::Character && e.uid != me) } else { Default::default() };
-            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_solid(x, y) || ((x, y) != goal && (x, y) != here && (props.contains(&(x, y)) || people.contains(&(x, y))));
+            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (props.contains(&(x, y)) || people.contains(&(x, y))));
             let planned = find_path(here, goal, |t| t == goal, blocked, MAX_NODES).or_else(|| {
                 // Hemmed in by people: plan as if they weren't there (they move on).
-                let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_solid(x, y) || ((x, y) != goal && props.contains(&(x, y)));
+                let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && props.contains(&(x, y)));
                 find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
             });
             let at_goal = pos.distance(self.tile_spot(goal)) < 2.0;

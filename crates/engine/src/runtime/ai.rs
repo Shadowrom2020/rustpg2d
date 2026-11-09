@@ -194,7 +194,7 @@ impl Game {
         }
         if e.ai.path.is_empty() {
             let (here, goal) = (self.tile_of(pos), self.tile_of(home));
-            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_solid(x, y);
+            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y);
             let path = find_path(here, goal, |t| t == goal, blocked, MAX_NODES);
             let e = &mut self.loaded.entities[i];
             match path {

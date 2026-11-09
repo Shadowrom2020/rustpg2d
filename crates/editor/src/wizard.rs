@@ -168,7 +168,7 @@ impl Editor {
             }
             std::fs::write(&path, bytes)?;
             if w.kind == WKind::Tileset {
-                self.project.db.tilesets.push(TilesetDef { id: id.clone(), image: rel.clone(), solid: vec![], animations: vec![], lights: vec![], terrains: vec![] });
+                self.project.db.tilesets.push(TilesetDef { id: id.clone(), image: rel.clone(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] });
             } else {
                 let mut sheet_id = id.clone();
                 let mut n = 2;

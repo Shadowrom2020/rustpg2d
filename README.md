@@ -42,7 +42,7 @@ All of them need a graphics driver with OpenGL 3 (a virtual machine needs 3D acc
 
 ## Quick start
 
-Building needs a Rust toolchain; on Linux also the ALSA and udev headers (Debian / Ubuntu: `sudo apt install libasound2-dev libudev-dev`; Fedora: `alsa-lib-devel systemd-devel`). On Windows the MSVC toolchain (Visual Studio Build Tools) builds everything; on macOS the Xcode command line tools (`xcode-select --install`). The editor's export uses the game runner of the machine it runs on and looks for the others next to itself or in `target/` (see *Releasing a game*); `cargo xtask-dist` packages the downloads (AGENTS.md).
+Building needs Rust (`rust-toolchain.toml` names the version; rustup installs it on first use); on Linux also the ALSA and udev headers (Debian / Ubuntu: `sudo apt install libasound2-dev libudev-dev`; Fedora: `alsa-lib-devel systemd-devel`). On Windows the MSVC toolchain (Visual Studio Build Tools) builds everything; on macOS the Xcode command line tools (`xcode-select --install`). The editor's export uses the game runner of the machine it runs on and looks for the others next to itself or in `target/` (see *Releasing a game*); `cargo xtask-dist` packages the downloads (AGENTS.md).
 
 ```sh
 cargo build --workspace                            # builds game + editor

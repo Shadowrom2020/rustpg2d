@@ -58,6 +58,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- **Release builds** use thin LTO, one codegen unit and stripped symbols (smaller, faster
+  binaries for the downloads and exported games). The Rust version is pinned
+  (`rust-toolchain.toml`, `rust-version`, the CI workflows) and bumped on purpose.
+- The game shows a start-up error (a project that doesn't load) in a message box on Windows
+  instead of exiting silently, and reads the project once instead of twice; the engine
+  fingerprint the editor compares with the game runner also covers the versions of the crates
+  that define the file formats; the WAV reader can't overflow on 32-bit targets.
 - Drawing and the frame: entities off screen aren't drawn, an entity's index is passed along
   instead of searched for twice per character, a character's activity is looked up once, the
   script host's view of the player is refreshed only before a script runs, key bindings are read

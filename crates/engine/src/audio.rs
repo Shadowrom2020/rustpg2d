@@ -500,13 +500,16 @@ pub fn decode(bytes: &[u8]) -> Result<Pcm, String> {
     while at + 8 <= bytes.len() {
         let id = &bytes[at..at + 4];
         let len = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().unwrap()) as usize;
-        let body = &bytes[at + 8..(at + 8 + len).min(bytes.len())];
+        // (Checked: a corrupt length must not overflow on 32-bit targets like the web.)
+        let Some(end) = at.checked_add(8).and_then(|s| s.checked_add(len)) else { break };
+        let body = &bytes[at + 8..end.min(bytes.len())];
         match id {
             b"fmt " => fmt = Some(body),
             b"data" => data = Some(body),
             _ => {}
         }
-        at += 8 + len + len % 2;
+        let Some(next) = end.checked_add(len % 2) else { break };
+        at = next;
     }
     let (fmt, data) = (fmt.ok_or("WAV without a fmt chunk")?, data.ok_or("WAV without a data chunk")?);
     if fmt.len() < 16 {

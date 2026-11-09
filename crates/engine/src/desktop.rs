@@ -30,6 +30,15 @@ pub fn startup(app: &'static str) {
     let _ = app;
 }
 
+/// Reports an error the program can't start with (a project that doesn't load) and exits: on the
+/// terminal, and on Windows in a message box too (the GUI program has no console a player sees).
+pub fn fatal(app: &str, msg: &str) -> ! {
+    eprintln!("[{}] error: {msg}", app.to_lowercase().split_whitespace().last().unwrap_or("game"));
+    #[cfg(windows)]
+    windows::message_box(&format!("{app} can't start:\n\n{msg}"));
+    std::process::exit(1)
+}
+
 #[cfg(windows)]
 mod windows {
     #[link(name = "kernel32")]
@@ -66,12 +75,17 @@ mod windows {
             } else {
                 format!("{app} stopped because of an error:\n\n{msg}")
             };
-            let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-            // SAFETY: null-terminated UTF-16 strings that outlive the call.
-            unsafe {
-                MessageBoxW(0, wide(&text).as_ptr(), wide("R(ust)PG2D").as_ptr(), MB_ICONERROR);
-            }
+            message_box(&text);
             std::process::exit(1);
         }));
+    }
+
+    /// An error box titled R(ust)PG2D.
+    pub fn message_box(text: &str) {
+        let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+        // SAFETY: null-terminated UTF-16 strings that outlive the call.
+        unsafe {
+            MessageBoxW(0, wide(text).as_ptr(), wide("R(ust)PG2D").as_ptr(), MB_ICONERROR);
+        }
     }
 }

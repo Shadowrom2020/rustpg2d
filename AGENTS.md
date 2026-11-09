@@ -102,7 +102,10 @@ gh pr create --base master --fill            # then merge it and the back-merge 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every pull request into `develop` / `master` and on pushes to
-`master` (Ubuntu 22.04, so the binaries need only glibc ≤ 2.35). Pushes to `develop` don't run it
+`master` (Ubuntu 22.04, so the binaries need only glibc ≤ 2.35). Every job uses the Rust version
+pinned in `rust-toolchain.toml` (also `rust-version` in `Cargo.toml` and the `toolchain:` inputs
+of the workflows; an xtask test keeps them equal), so a new stable release never breaks a pull
+request by surprise: bump the three together in a `chore/` branch. Pushes to `develop` don't run it
 again: the pull request already tested the merge. Its jobs are the required checks:
 
 | Check | What it does | Runs for |

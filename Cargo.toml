@@ -6,6 +6,8 @@ members = ["crates/engine", "crates/game", "crates/editor", "crates/packaging", 
 version = "0.11.0"
 edition = "2021"
 license = "MIT"
+# The toolchain CI and rust-toolchain.toml use; the code relies on APIs of this version.
+rust-version = "1.99"
 
 [workspace.dependencies]
 rustpg2d-engine = { path = "crates/engine" }
@@ -25,3 +27,10 @@ opt-level = 2
 
 [profile.dev]
 opt-level = 1
+
+# Release binaries (the downloads, exported games): whole-program optimization across crates and
+# no symbol table. Not `panic = "abort"`: audio.rs catches a panic of the sound device.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

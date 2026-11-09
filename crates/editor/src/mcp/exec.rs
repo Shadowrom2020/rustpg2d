@@ -65,6 +65,9 @@ pub enum Call {
     LibraryList(LibraryListParams),
     LibraryInfo(DefParams),
     LibraryAdd(LibraryAddParams),
+    LibrarySend(LibrarySendParams),
+    WriteAsset(WriteAssetParams),
+    CaptureStructure(CaptureStructureParams),
 }
 
 /// What a screenshot should show (resolved after the next frame, `exec_maps.rs`).
@@ -148,6 +151,9 @@ impl Call {
             Call::LibraryList(_) => "library_list",
             Call::LibraryInfo(_) => "library_info",
             Call::LibraryAdd(_) => "library_add",
+            Call::LibrarySend(_) => "library_send",
+            Call::WriteAsset(_) => "write_asset",
+            Call::CaptureStructure(_) => "capture_structure",
         }
     }
 }
@@ -253,6 +259,9 @@ impl Editor {
             Call::LibraryList(p) => self.mcp_library_list(p),
             Call::LibraryInfo(p) => self.mcp_library_info(p),
             Call::LibraryAdd(p) => self.mcp_library_add(p),
+            Call::LibrarySend(p) => self.mcp_library_send(p),
+            Call::WriteAsset(p) => self.mcp_write_asset(p),
+            Call::CaptureStructure(p) => self.mcp_capture_structure(p),
         }
     }
 

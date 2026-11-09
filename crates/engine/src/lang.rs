@@ -457,7 +457,7 @@ mod tests {
     #[test]
     fn template_collects_every_kind_of_text() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example_project");
-        let Ok(project) = crate::project::Project::load(&root) else { return };
+        let project = crate::project::Project::load(&root).unwrap();
         let texts = content_texts(&project);
         // Database (item, quest stage), a map's dialog, a script's say(), the game's name.
         for t in ["Apple", "Return to Elder Rowan.", "Halt, traveller! ... {player}? Thank the stars, you came!", "Ta-da!", "R(ust)PG2D example"] {
@@ -474,6 +474,17 @@ mod tests {
         // The example's German file covers everything.
         let de = load_file(&root, "de").unwrap();
         assert!(texts.iter().all(|t| de.texts.get(t).is_some_and(|v| !v.is_empty())));
+    }
+
+    /// The example's German file has no leftovers: every text it translates is still in the game
+    /// (edit the translation along with the content, e.g. with the AI agent server's
+    /// `write_translation`).
+    #[test]
+    fn example_translation_has_no_unused_entries() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example_project");
+        let project = crate::project::Project::load(&root).unwrap();
+        let (_, unused) = template(&project, "de", Some(load_file(&root, "de").unwrap()));
+        assert!(unused.is_empty(), "example_project/lang/de.ron translates texts the example no longer has: {unused:?}");
     }
 
     #[test]

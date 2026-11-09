@@ -251,20 +251,48 @@ pub struct Project {
     pub db: Database,
 }
 
-const DEFS: [&str; 12] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements"];
+pub const DEFS: [&str; 12] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements"];
 
-fn read_ron<T: DeserializeOwned + Default>(path: &Path) -> Result<T> {
-    if !crate::sys::exists(path) {
-        return Ok(T::default());
+fn parse_ron<T: DeserializeOwned + Default>(text: Option<String>, name: &str) -> Result<T> {
+    match text {
+        None => Ok(T::default()),
+        Some(s) => ron::from_str(&s).with_context(|| format!("parsing defs/{name}.ron")),
     }
-    let s = crate::sys::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    ron::from_str(&s).with_context(|| format!("parsing {}", path.display()))
+}
+
+/// The definitions from the texts of `defs/*.ron`: `read("items")` returns the text of
+/// `defs/items.ron`, `None` when the file is missing (an empty list). Used for project folders
+/// and for folders embedded in a program (the editor's starter library).
+pub fn parse_defs(read: impl Fn(&str) -> Result<Option<String>>) -> Result<Database> {
+    let r = |i: usize| read(DEFS[i]);
+    let mut db = Database {
+        tilesets: parse_ron(r(0)?, DEFS[0])?,
+        sheets: parse_ron(r(1)?, DEFS[1])?,
+        items: parse_ron(r(2)?, DEFS[2])?,
+        props: parse_ron(r(3)?, DEFS[3])?,
+        characters: parse_ron(r(4)?, DEFS[4])?,
+        sounds: parse_ron(r(5)?, DEFS[5])?,
+        quests: parse_ron(r(6)?, DEFS[6])?,
+        structures: parse_ron(r(7)?, DEFS[7])?,
+        skills: parse_ron(r(8)?, DEFS[8])?,
+        spells: parse_ron(r(9)?, DEFS[9])?,
+        recipes: parse_ron(r(10)?, DEFS[10])?,
+        achievements: parse_ron(r(11)?, DEFS[11])?,
+    };
+    db.upgrade_prop_states();
+    db.upgrade_characters();
+    Ok(db)
+}
+
+/// `value` as the RON text project files are written with (pretty, LF line endings).
+pub fn ron_text<T: Serialize>(value: &T) -> Result<String> {
+    let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
+    Ok(ron::ser::to_string_pretty(value, cfg)?)
 }
 
 pub fn write_ron<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     // LF on every platform: projects look the same written on Windows (git, diffs).
-    let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
-    let s = ron::ser::to_string_pretty(value, cfg)?;
+    let s = ron_text(value)?;
     crate::sys::write(path, s.as_bytes()).with_context(|| format!("writing {}", path.display()))
 }
 
@@ -276,24 +304,15 @@ impl Project {
             &crate::sys::read_to_string(&cfg_path).with_context(|| format!("reading {}", cfg_path.display()))?,
         )
         .with_context(|| format!("parsing {}", cfg_path.display()))?;
-        let d = |n: &str| root.join("defs").join(format!("{n}.ron"));
-        let db = Database {
-            tilesets: read_ron(&d(DEFS[0]))?,
-            sheets: read_ron(&d(DEFS[1]))?,
-            items: read_ron(&d(DEFS[2]))?,
-            props: read_ron(&d(DEFS[3]))?,
-            characters: read_ron(&d(DEFS[4]))?,
-            sounds: read_ron(&d(DEFS[5]))?,
-            quests: read_ron(&d(DEFS[6]))?,
-            structures: read_ron(&d(DEFS[7]))?,
-            skills: read_ron(&d(DEFS[8]))?,
-            spells: read_ron(&d(DEFS[9]))?,
-            recipes: read_ron(&d(DEFS[10]))?,
-            achievements: read_ron(&d(DEFS[11]))?,
-        };
-        let mut db = db;
-        db.upgrade_prop_states();
-        db.upgrade_characters();
+        let defs = root.join("defs");
+        let db = parse_defs(|n| {
+            let path = defs.join(format!("{n}.ron"));
+            if !crate::sys::exists(&path) {
+                return Ok(None);
+            }
+            crate::sys::read_to_string(&path).map(Some).with_context(|| format!("reading {}", path.display()))
+        })
+        .with_context(|| format!("in {}", root.display()))?;
         Ok(Project { root, config, db })
     }
 

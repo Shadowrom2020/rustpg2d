@@ -812,4 +812,68 @@ impl Editor {
         let msg = self.library_to_project(&assets).map_err(|e| format!("{e:#}"))?;
         self.mcp_after_write(msg.replace(" Save the definitions to keep them.", ""))
     }
+
+    pub(crate) fn mcp_library_send(&mut self, p: LibrarySendParams) -> Result<Reply, String> {
+        self.mcp_writable()?;
+        let mut assets = Vec::new();
+        for a in &p.assets {
+            let rk = parse_ref_kind(&a.kind)?;
+            let r: AssetRef = (rk, a.id.clone());
+            if !library::exists(&self.project.db, &r) {
+                return Err(format!("the project has no {} \"{}\".{}", library::kind_label(rk), a.id, suggestions(&a.id, self.mcp_ids_of(rk).iter().map(String::as_str))));
+            }
+            assets.push(r);
+        }
+        if assets.is_empty() {
+            return Err("give at least one asset".into());
+        }
+        // Unsaved definitions would be sent as they are in memory, files from disk: save first.
+        self.save_all();
+        let msg = self.project_to_library(&assets, p.replace.unwrap_or(false), p.drop_script_triggers.unwrap_or(false)).map_err(|e| format!("{e:#}"))?;
+        text(msg)
+    }
+
+    pub(crate) fn mcp_write_asset(&mut self, p: WriteAssetParams) -> Result<Reply, String> {
+        self.mcp_writable()?;
+        let rel = p.path.trim().replace('\\', "/");
+        let lower = rel.to_lowercase();
+        let image = lower.ends_with(".png");
+        let folder_ok = ["sprites/", "tilesets/", "sounds/"].iter().any(|f| rel.starts_with(f));
+        if !folder_ok || rel.split('/').any(|c| c.is_empty() || c == "." || c == "..") || !(image || lower.ends_with(".wav") || lower.ends_with(".ogg")) {
+            return Err(format!("\"{rel}\": give a path under sprites/, tilesets/ or sounds/ ending in .png, .wav or .ogg"));
+        }
+        let bytes = match (&p.base64, &p.source) {
+            (Some(b), None) => rustpg2d_engine::hash::base64_decode(b).ok_or("base64 is not valid Base64")?,
+            (None, Some(src)) => std::fs::read(src).map_err(|e| format!("reading {src}: {e}"))?,
+            _ => return Err("give either base64 or source".into()),
+        };
+        let what = if image {
+            let img = rustpg2d_engine::imageio::Rgba::decode(&bytes).map_err(|e| format!("not a PNG image: {e:#}"))?;
+            format!("{}x{} px image", img.w, img.h)
+        } else {
+            let pcm = rustpg2d_engine::audio::decode(&bytes).map_err(|e| format!("not a WAV / Ogg Vorbis sound: {e}"))?;
+            format!("sound, {:.1} s", pcm.samples.len() as f32 / (pcm.rate.max(1) as f32 * pcm.channels.max(1) as f32))
+        };
+        let path = self.project.root.join(&rel);
+        let existed = path.exists();
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
+        }
+        std::fs::write(&path, &bytes).map_err(|e| format!("writing {}: {e}", path.display()))?;
+        self.reload_assets();
+        let db = &self.project.db;
+        let users: Vec<String> = db
+            .tilesets
+            .iter()
+            .filter(|d| d.image == rel)
+            .map(|d| format!("tileset {}", d.id))
+            .chain(db.sheets.iter().filter(|d| d.image == rel).map(|d| format!("sheet {}", d.id)))
+            .chain(db.sounds.iter().filter(|d| d.file == rel).map(|d| format!("sound {}", d.id)))
+            .collect();
+        text(format!(
+            "{} {rel} ({what}). {}",
+            if existed { "Replaced" } else { "Wrote" },
+            if users.is_empty() { "No definition uses it yet: add one with upsert_def (tilesets / sheets / sounds).".to_string() } else { format!("Used by {}; the art was reloaded.", users.join(", ")) }
+        ))
+    }
 }

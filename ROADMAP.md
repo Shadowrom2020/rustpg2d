@@ -33,8 +33,9 @@ Instructions for every session (people and coding agents) that implements roadma
    the example project), has tests where the engine logic allows, is documented
    (`README.md`, `Documentation/scripting.md` for every script function, the editor's `API`
    table, CHANGELOG *Unreleased*), and `cargo build / clippy -D warnings / test --workspace`
-   pass. The example project (`crates/engine/examples/gen_example/`) shows the feature: add
-   new entities at the end of a map function so uids stay stable, then regenerate.
+   pass. The example project (`example_project/`, edited with the editor or its AI agent
+   server) shows the feature: add new entities instead of recreating existing ones, so uids
+   stay stable.
 6. **Commit, push and open pull requests only when the user asks.** When all items of a
    version are `[x]` (or the user decides to ship early), cut `release/X.Y.Z` as described in
    AGENTS.md and remove the version's section from this file (its design notes live on in the
@@ -59,10 +60,12 @@ Instructions for every session (people and coding agents) that implements roadma
     check that the release game still needs glibc ≤ 2.34 (`objdump -T target/release/
     rustpg2d-game | grep GLIBC_`), the Debian 12 container (`ldd`), and the Flatpak permissions
     (`--device`, `--socket`) in `editor/src/package.rs` and `xtask/src/dist.rs`.
-11. **Example content.** Regenerate with `cargo run -p rustpg2d-engine --example gen_example`
-    and commit `example_project/` and `crates/editor/assets/starter.r2dpack` together; new
-    entities go at the end of a map function; an example id overrides the starter library's
-    (give new example characters their own ids); never touch `example_project/saves/`.
+11. **Example content.** `example_project/` and the starter library
+    (`crates/editor/assets/starter_library/`) are plain files: edit them with the editor or its AI
+    agent server (CLAUDE.md, *Example content*), send new or changed example assets to the
+    starter library (`library_send` with `replace` and `drop_script_triggers`, the library set to
+    that folder) and commit both together; existing entities keep their uids; give new example
+    characters their own ids; never touch `example_project/saves/`.
 12. **Branches that touch the same files.** Start the second item's branch from the first one
     (as *Save thumbnails* did from *Screen shake*, both in `menu.rs`), open the pull requests
     in that order, and say so in the pull request text. One pull request per item.
@@ -89,7 +92,8 @@ enterable interiors, a daily life (every villager on a schedule, animals, childr
 lamps and lit windows at night, dawn fog, the noon bell) and four more quests. The Workshop test
 map goes away; its stations and content move into the village. Four pull requests, in this order
 (each builds on the one before): `feature/tilesets-47`, `feature/village-assets`,
-`feature/village`, `feature/village-quests`. Everything added to the example is also in the
+`feature/village`, `feature/village-quests`; then `feature/example-as-files` retires the
+generator that built all of it. Everything added to the example is also in the
 starter library (`STARTER_RULES` 5 → 6; existing user libraries have to be regenerated to get the
 new terrain art, see README). Save games made in the old village don't fit the new one (entity
 uids change); the other maps only gain entities at the end.
@@ -310,6 +314,39 @@ uids change); the other maps only gain entities at the end.
   `lit`); `--lang de` screenshots; `langtemplate de` reports nothing missing;
   `cargo xtask check-version release/0.11.0`.
 
+- [x] The example and the starter library as files — `feature/example-as-files`
+
+  **Goal.** No more generator: `example_project/` and the editor's starter asset library are
+  plain, committed files, changed through the editor and its AI agent server, which makes every
+  content change a small diff instead of Rust code plus two regenerated outputs.
+
+  **Design.**
+  - The starter library becomes a library folder, `crates/editor/assets/starter_library/`
+    (unpacked once from the last `starter.r2dpack`; identical assets, files and script
+    functions). `crates/editor/build.rs` embeds its files (`library_ui::STARTER`);
+    `Bundle::from_files` reads them (`project::parse_defs` shared with `Project::load`) and
+    `open_library` takes them, stamped with a hash of the files (stable across zip / ron versions;
+    `STARTER_RULES` stays 6, the new stamp reruns `add_missing` once and adds nothing).
+  - `crates/engine/examples/gen_example/` and the `vorbis_rs` dev-dependency are removed.
+  - Checks the generator made become tests: `lang.rs` `example_translation_has_no_unused_entries`;
+    the editor's `starter_library_is_consistent` (ids once per kind, dependencies, script
+    functions) and `starter_library_has_every_example_asset` (every example asset in the library,
+    identical, triggers running story scripts left out).
+  - Three AI agent server tools for what only the generator could do: `write_asset` (PNG / WAV /
+    Ogg into the project, decoded first, art reloaded), `capture_structure` (a map region becomes
+    a structure) and `library_send` (project assets to the library; `replace` updates existing ids
+    in place — `Bundle::replace_into` — and `drop_script_triggers` leaves story triggers behind).
+
+  **Touch points.** `engine/src/{library,project,lang,hash}.rs`, `editor/build.rs`,
+  `editor/src/library_ui.rs`, `editor/src/mcp/{tools,exec,exec_defs,exec_maps}.rs`,
+  `editor/examples/mcp_smoke.rs`, `Documentation/mcp.md`, README, CLAUDE.md, AGENTS.md, the PR
+  template, CHANGELOG, this file.
+
+  **Verify.** The new pack-free starter equals the old pack (all kinds, 147 files, 4 functions);
+  a fresh library, an old one (gains the new ids) and an up-to-date one (unchanged) open in
+  `--library`; the new-project wizard copies its starter assets; `mcp_smoke` passes with the new
+  tools against a scratch copy and a scratch library.
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
@@ -345,8 +382,8 @@ uids change); the other maps only gain entities at the end.
 
   **Touch points.** `defs.rs`, `render/mod.rs` (`TilesetTex` flags), `runtime/{mod,paperdoll,
   companions,minigame,furniture}.rs`, `editor/src/database.rs` (tileset grid modes) and
-  `canvas.rs` (overlay colours), gen_example (mark the village pond and the Wilds' lakes
-  swimmable, keep the forest stream solid; a ladder tile in the dungeon tileset and a ladder in
+  `canvas.rs` (overlay colours), the example project and starter tilesets (mark the village
+  pond and the Wilds' lakes swimmable, keep the forest stream solid; a ladder tile in the dungeon tileset and a ladder in
   the mine leading to a lower shaft via portals), README.
 
   **Example.** The village pond becomes swimmable (its fishing spot covers the water: fishing is

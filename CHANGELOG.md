@@ -58,6 +58,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- The definitions the game looks up per entity per frame (items, props, characters, sheets,
+  tilesets) are found through an id index instead of a scan of the list; a stale index falls
+  back to the scan, so an edit in place can never return the wrong definition.
 - `grid.rs`: one place for pixel ↔ tile conversions (`feet_tile`, `feet_spot`, `snap_feet`,
   `tiles_of_rect`); the game and the editor used five different offsets. Characters' rest spots
   moved one pixel (the editor's convention wins).

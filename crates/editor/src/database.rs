@@ -588,6 +588,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
     }
     if list_changed || before.0 != ed.project.db || before.1 != ed.project.config {
         ed.defs_dirty = true;
+        ed.project.db.reindex();
         if before.0.quests != ed.project.db.quests {
             ed.refs.quests = ed.project.db.quests.iter().map(|q| q.id.clone()).collect();
             ed.refs.quest_stages = ed.project.db.quests.iter().map(|q| (q.id.clone(), q.stages.clone())).collect();

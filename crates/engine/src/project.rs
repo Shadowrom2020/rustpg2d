@@ -307,9 +307,11 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         spells: parse_list(r(9)?, DEFS[9], warn)?,
         recipes: parse_list(r(10)?, DEFS[10], warn)?,
         achievements: parse_list(r(11)?, DEFS[11], warn)?,
+        ..Default::default()
     };
     db.upgrade_prop_states();
     db.upgrade_characters();
+    db.reindex();
     Ok(db)
 }
 

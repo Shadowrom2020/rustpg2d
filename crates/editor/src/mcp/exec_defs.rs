@@ -309,6 +309,7 @@ impl Editor {
         let (id, replaced) = on_defs!(db, kind, upsert(p.def, p.merge.unwrap_or(false)))?;
         let warnings = self.validate_def(db, kind, &id)?;
         self.project.db = copy;
+        self.project.db.reindex();
         self.defs_dirty = true;
         if matches!(kind, RefKind::Tileset | RefKind::Sheet | RefKind::Sound) {
             self.reload_assets();
@@ -395,6 +396,7 @@ impl Editor {
         }
         let db = &mut self.project.db;
         on_defs!(db, kind, remove(&p.id));
+        self.project.db.reindex();
         self.defs_dirty = true;
         if matches!(kind, RefKind::Tileset | RefKind::Sheet | RefKind::Sound) {
             self.reload_assets();

@@ -295,6 +295,7 @@ pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
         t(&mut a.name);
         t(&mut a.description);
     }
+    d.reindex();
     d
 }
 

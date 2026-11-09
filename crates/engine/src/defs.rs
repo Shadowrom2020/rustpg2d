@@ -1268,6 +1268,9 @@ pub struct Database {
     pub recipes: Vec<crate::crafting::RecipeDef>,
     /// Achievements (the game's; unlocks are the player's, see `achievements::Progress`).
     pub achievements: Vec<crate::achievements::AchievementDef>,
+    /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
+    #[doc(hidden)]
+    pub index: DefIndex,
 }
 
 /// A multi-tile asset ("structure"): tiles on several map layers, collision overrides and
@@ -1299,12 +1302,60 @@ pub struct StructureDef {
     pub entities: Vec<crate::entity::EntityInstance>,
 }
 
+/// Id → position caches of the lists the game looks up per entity per frame (items, props,
+/// characters, sheets, tilesets). A hit is verified (`list[i].id == id`) and a miss or a stale
+/// entry falls back to the linear search, so a list edited in place (the editor's forms, the
+/// agent server) only makes lookups slower until [`Database::reindex`] runs, never wrong.
+#[derive(Clone, Default)]
+pub struct DefIndex {
+    tilesets: std::collections::HashMap<String, usize>,
+    sheets: std::collections::HashMap<String, usize>,
+    items: std::collections::HashMap<String, usize>,
+    props: std::collections::HashMap<String, usize>,
+    characters: std::collections::HashMap<String, usize>,
+}
+
+/// A cache is not content: two databases with the same definitions are equal.
+impl PartialEq for DefIndex {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for DefIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DefIndex({} ids)", self.tilesets.len() + self.sheets.len() + self.items.len() + self.props.len() + self.characters.len())
+    }
+}
+
 impl Database {
+    /// Rebuilds the id caches after the lists changed (loading, translating, the editor's forms,
+    /// the agent server). Lookups stay correct without it; this keeps them fast.
+    pub fn reindex(&mut self) {
+        fn build<T: Def>(list: &[T]) -> std::collections::HashMap<String, usize> {
+            let mut m = std::collections::HashMap::with_capacity(list.len());
+            for (i, d) in list.iter().enumerate() {
+                m.entry(d.id().to_string()).or_insert(i); // the first of a duplicated id, like `find`
+            }
+            m
+        }
+        self.index = DefIndex { tilesets: build(&self.tilesets), sheets: build(&self.sheets), items: build(&self.items), props: build(&self.props), characters: build(&self.characters) };
+    }
+
+    fn lookup<'a, T: Def>(list: &'a [T], index: &std::collections::HashMap<String, usize>, id: &str) -> Option<&'a T> {
+        if let Some(d) = index.get(id).and_then(|&i| list.get(i)) {
+            if d.id() == id {
+                return Some(d);
+            }
+        }
+        list.iter().find(|d| d.id() == id)
+    }
+
     pub fn tileset(&self, id: &str) -> Option<&TilesetDef> {
-        self.tilesets.iter().find(|d| d.id == id)
+        Self::lookup(&self.tilesets, &self.index.tilesets, id)
     }
     pub fn sheet(&self, id: &str) -> Option<&SheetDef> {
-        self.sheets.iter().find(|d| d.id == id)
+        Self::lookup(&self.sheets, &self.index.sheets, id)
     }
     /// Item id -> tool kind of every tool item (`ItemDef::tool`).
     pub fn tool_kinds(&self) -> crate::crafting::ToolKinds {
@@ -1312,13 +1363,13 @@ impl Database {
     }
 
     pub fn item(&self, id: &str) -> Option<&ItemDef> {
-        self.items.iter().find(|d| d.id == id)
+        Self::lookup(&self.items, &self.index.items, id)
     }
     pub fn prop(&self, id: &str) -> Option<&PropDef> {
-        self.props.iter().find(|d| d.id == id)
+        Self::lookup(&self.props, &self.index.props, id)
     }
     pub fn character(&self, id: &str) -> Option<&CharacterDef> {
-        self.characters.iter().find(|d| d.id == id)
+        Self::lookup(&self.characters, &self.index.characters, id)
     }
     pub fn quest(&self, id: &str) -> Option<&crate::quest::QuestDef> {
         self.quests.iter().find(|d| d.id == id)
@@ -1590,7 +1641,7 @@ impl Database {
     /// Puts `def` in: over the one with its id, or at the end. True when it replaced one.
     pub fn upsert<T: Def>(&mut self, def: T) -> bool {
         let list = T::list_mut(self);
-        match list.iter().position(|d| d.id() == def.id()) {
+        let replaced = match list.iter().position(|d| d.id() == def.id()) {
             Some(i) => {
                 list[i] = def;
                 true
@@ -1599,7 +1650,9 @@ impl Database {
                 list.push(def);
                 false
             }
-        }
+        };
+        self.reindex();
+        replaced
     }
 
     /// Removes the definition `id`; true when there was one.
@@ -1607,7 +1660,9 @@ impl Database {
         let list = T::list_mut(self);
         let n = list.len();
         list.retain(|d| d.id() != id);
-        list.len() != n
+        let removed = list.len() != n;
+        self.reindex();
+        removed
     }
 
     pub fn has(&self, kind: crate::refactor::RefKind, id: &str) -> bool {
@@ -1625,7 +1680,7 @@ impl Database {
     /// Renames the definition `old` (only it: [`crate::refactor::rename_in_db`] rewrites the
     /// references). True when there was one.
     pub fn rename(&mut self, kind: crate::refactor::RefKind, old: &str, new: &str) -> bool {
-        crate::with_def_kind!(
+        let renamed = crate::with_def_kind!(
             kind,
             |T| match self.get_mut::<T>(old) {
                 Some(d) => {
@@ -1635,7 +1690,9 @@ impl Database {
                 None => false,
             },
             else => false
-        )
+        );
+        self.reindex();
+        renamed
     }
 
     /// Do `self` and `other` define `id` the same way (both missing counts as the same)?
@@ -1691,6 +1748,33 @@ mod tests {
         // Old data without min / max: one item.
         let e: LootEntry = ron::from_str("(item: \"apple\", chance: 25.0)").unwrap();
         assert_eq!((e.min, e.max), (1, 1));
+    }
+
+    /// The id caches speed lookups up and can never return the wrong definition: lists edited
+    /// in place without `reindex` still resolve correctly (through the linear fallback).
+    #[test]
+    fn index_is_never_wrong() {
+        let mut db = Database::default();
+        for id in ["a", "b", "c"] {
+            db.items.push(ItemDef::fresh(id));
+        }
+        db.reindex();
+        assert_eq!(db.item("b").map(|d| d.id.as_str()), Some("b"));
+        // Edited in place: swapped, renamed, one removed, one added.
+        db.items.swap(0, 2);
+        db.items[1].id = "bee".into();
+        db.items.remove(0);
+        db.items.push(ItemDef::fresh("d"));
+        assert_eq!(db.items.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["bee", "a", "d"]);
+        assert!(db.item("c").is_none() && db.item("b").is_none());
+        assert_eq!(db.item("bee").map(|d| d.id.as_str()), Some("bee"));
+        assert_eq!(db.item("d").map(|d| d.id.as_str()), Some("d"));
+        db.reindex();
+        assert_eq!(db.item("a").map(|d| d.id.as_str()), Some("a"));
+        // Equality ignores the cache.
+        let mut other = db.clone();
+        other.index = DefIndex::default();
+        assert_eq!(db, other);
     }
 
     /// One generic path to every definition list, by type or by kind.

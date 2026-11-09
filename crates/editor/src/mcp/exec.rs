@@ -12,63 +12,7 @@ use crate::app::{Editor, Mode, Selection};
 
 use super::tools::*;
 
-/// A tool call (the parameter structs are those of `tools.rs`).
-pub enum Call {
-    ProjectInfo,
-    EditorState,
-    Save,
-    Undo(UndoParams),
-    Redo(UndoParams),
-    SetProjectConfig(PatchParams),
-    ListMaps,
-    GetMap(GetMapParams),
-    GetObject(ObjectParams),
-    TilesetLegend(TilesetParams),
-    ViewImage(ViewImageParams),
-    ScreenshotMap(ScreenshotParams),
-    ScreenshotEditor,
-    CreateMap(CreateMapParams),
-    SetTiles(SetTilesParams),
-    PaintGrid(PaintGridParams),
-    FillRect(FillRectParams),
-    PaintTerrain(PaintTerrainParams),
-    SetCollision(SetCollisionParams),
-    ClearRegion(RectParams),
-    ResizeMap(ResizeParams),
-    PlaceEntity(PlaceEntityParams),
-    UpdateEntity(UpdateParams),
-    RemoveEntity(ObjectParams),
-    AddZone(AddZoneParams),
-    UpdateZone(UpdateParams),
-    RemoveZone(ObjectParams),
-    LinkMaps(LinkMapsParams),
-    SetTriggers(TriggersParams),
-    AddTrigger(AddTriggerParams),
-    SetMapSettings(MapSettingsParams),
-    PlaceStructure(PlaceStructureParams),
-    Rename(RenameParams),
-    ListDefs(ListDefsParams),
-    GetDef(DefParams),
-    DefTemplate(DefTemplateParams),
-    UpsertDef(UpsertDefParams),
-    DeleteDef(DeleteDefParams),
-    EventsReference(EventsRefParams),
-    ListScripts,
-    ReadScript(ReadScriptParams),
-    WriteScript(WriteScriptParams),
-    CheckScript(CheckScriptParams),
-    ScriptingApi(FilterParams),
-    TranslationTemplate(LangParams),
-    ReadTranslation(ReadTranslationParams),
-    WriteTranslation(WriteTranslationParams),
-    PlayTest(PlayParams),
-    LibraryList(LibraryListParams),
-    LibraryInfo(DefParams),
-    LibraryAdd(LibraryAddParams),
-    LibrarySend(LibrarySendParams),
-    WriteAsset(WriteAssetParams),
-    CaptureStructure(CaptureStructureParams),
-}
+pub use super::tools::Call;
 
 /// What a screenshot should show (resolved after the next frame, `exec_maps.rs`).
 pub struct ShotSpec {
@@ -97,66 +41,6 @@ pub const MAX_TEXT: usize = 48_000;
 /// Rows per page of listings.
 pub const PAGE: usize = 200;
 
-impl Call {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Call::ProjectInfo => "project_info",
-            Call::EditorState => "editor_state",
-            Call::Save => "save",
-            Call::Undo(_) => "undo",
-            Call::Redo(_) => "redo",
-            Call::SetProjectConfig(_) => "set_project_config",
-            Call::ListMaps => "list_maps",
-            Call::GetMap(_) => "get_map",
-            Call::GetObject(_) => "get_object",
-            Call::TilesetLegend(_) => "tileset_legend",
-            Call::ViewImage(_) => "view_image",
-            Call::ScreenshotMap(_) => "screenshot_map",
-            Call::ScreenshotEditor => "screenshot_editor",
-            Call::CreateMap(_) => "create_map",
-            Call::SetTiles(_) => "set_tiles",
-            Call::PaintGrid(_) => "paint_grid",
-            Call::FillRect(_) => "fill_rect",
-            Call::PaintTerrain(_) => "paint_terrain",
-            Call::SetCollision(_) => "set_collision",
-            Call::ClearRegion(_) => "clear_region",
-            Call::ResizeMap(_) => "resize_map",
-            Call::PlaceEntity(_) => "place_entity",
-            Call::UpdateEntity(_) => "update_entity",
-            Call::RemoveEntity(_) => "remove_entity",
-            Call::AddZone(_) => "add_zone",
-            Call::UpdateZone(_) => "update_zone",
-            Call::RemoveZone(_) => "remove_zone",
-            Call::LinkMaps(_) => "link_maps",
-            Call::SetTriggers(_) => "set_triggers",
-            Call::AddTrigger(_) => "add_trigger",
-            Call::SetMapSettings(_) => "set_map_settings",
-            Call::PlaceStructure(_) => "place_structure",
-            Call::Rename(_) => "rename",
-            Call::ListDefs(_) => "list_defs",
-            Call::GetDef(_) => "get_def",
-            Call::DefTemplate(_) => "def_template",
-            Call::UpsertDef(_) => "upsert_def",
-            Call::DeleteDef(_) => "delete_def",
-            Call::EventsReference(_) => "events_reference",
-            Call::ListScripts => "list_scripts",
-            Call::ReadScript(_) => "read_script",
-            Call::WriteScript(_) => "write_script",
-            Call::CheckScript(_) => "check_script",
-            Call::ScriptingApi(_) => "scripting_api",
-            Call::TranslationTemplate(_) => "translation_template",
-            Call::ReadTranslation(_) => "read_translation",
-            Call::WriteTranslation(_) => "write_translation",
-            Call::PlayTest(_) => "play_test",
-            Call::LibraryList(_) => "library_list",
-            Call::LibraryInfo(_) => "library_info",
-            Call::LibraryAdd(_) => "library_add",
-            Call::LibrarySend(_) => "library_send",
-            Call::WriteAsset(_) => "write_asset",
-            Call::CaptureStructure(_) => "capture_structure",
-        }
-    }
-}
 
 /// A text reply, cut to [`MAX_TEXT`].
 pub(crate) fn text(s: impl Into<String>) -> Result<Reply, String> {
@@ -206,64 +90,6 @@ pub(crate) fn page(lines: Vec<String>, offset: usize) -> String {
 }
 
 impl Editor {
-    pub fn mcp_exec(&mut self, call: Call) -> Result<Reply, String> {
-        match call {
-            Call::ProjectInfo => self.mcp_project_info(),
-            Call::EditorState => self.mcp_editor_state(),
-            Call::Save => self.mcp_save(),
-            Call::Undo(p) => self.mcp_undo(p, false),
-            Call::Redo(p) => self.mcp_undo(p, true),
-            Call::SetProjectConfig(p) => self.mcp_set_project_config(p),
-            Call::ListMaps => self.mcp_list_maps(),
-            Call::GetMap(p) => self.mcp_get_map(p),
-            Call::GetObject(p) => self.mcp_get_object(p),
-            Call::TilesetLegend(p) => self.mcp_tileset_legend(p),
-            Call::ViewImage(p) => self.mcp_view_image(p),
-            Call::ScreenshotMap(p) => self.mcp_screenshot_map(p).map(Reply::Shot),
-            Call::ScreenshotEditor => Ok(Reply::Shot(ShotSpec { rect: None, zoom: None, grid: None, collision: None, zones: None, text: "The editor window.".into() })),
-            Call::CreateMap(p) => self.mcp_create_map(p),
-            Call::SetTiles(p) => self.mcp_set_tiles(p),
-            Call::PaintGrid(p) => self.mcp_paint_grid(p),
-            Call::FillRect(p) => self.mcp_fill_rect(p),
-            Call::PaintTerrain(p) => self.mcp_paint_terrain(p),
-            Call::SetCollision(p) => self.mcp_set_collision(p),
-            Call::ClearRegion(p) => self.mcp_clear_region(p),
-            Call::ResizeMap(p) => self.mcp_resize_map(p),
-            Call::PlaceEntity(p) => self.mcp_place_entity(p),
-            Call::UpdateEntity(p) => self.mcp_update_entity(p),
-            Call::RemoveEntity(p) => self.mcp_remove_entity(p),
-            Call::AddZone(p) => self.mcp_add_zone(p),
-            Call::UpdateZone(p) => self.mcp_update_zone(p),
-            Call::RemoveZone(p) => self.mcp_remove_zone(p),
-            Call::LinkMaps(p) => self.mcp_link_maps(p),
-            Call::SetTriggers(p) => self.mcp_set_triggers(p),
-            Call::AddTrigger(p) => self.mcp_add_trigger(p),
-            Call::SetMapSettings(p) => self.mcp_set_map_settings(p),
-            Call::PlaceStructure(p) => self.mcp_place_structure(p),
-            Call::Rename(p) => self.mcp_rename(p),
-            Call::ListDefs(p) => self.mcp_list_defs(p),
-            Call::GetDef(p) => self.mcp_get_def(p),
-            Call::DefTemplate(p) => self.mcp_def_template(p),
-            Call::UpsertDef(p) => self.mcp_upsert_def(p),
-            Call::DeleteDef(p) => self.mcp_delete_def(p),
-            Call::EventsReference(p) => self.mcp_events_reference(p),
-            Call::ListScripts => self.mcp_list_scripts(),
-            Call::ReadScript(p) => self.mcp_read_script(p),
-            Call::WriteScript(p) => self.mcp_write_script(p),
-            Call::CheckScript(p) => self.mcp_check_script(p),
-            Call::ScriptingApi(p) => self.mcp_scripting_api(p),
-            Call::TranslationTemplate(p) => self.mcp_translation_template(p),
-            Call::ReadTranslation(p) => self.mcp_read_translation(p),
-            Call::WriteTranslation(p) => self.mcp_write_translation(p),
-            Call::PlayTest(p) => super::play::plan(self, p).map(|pl| Reply::PlayPlan(Box::new(pl))),
-            Call::LibraryList(p) => self.mcp_library_list(p),
-            Call::LibraryInfo(p) => self.mcp_library_info(p),
-            Call::LibraryAdd(p) => self.mcp_library_add(p),
-            Call::LibrarySend(p) => self.mcp_library_send(p),
-            Call::WriteAsset(p) => self.mcp_write_asset(p),
-            Call::CaptureStructure(p) => self.mcp_capture_structure(p),
-        }
-    }
 
     /// Reading needs an open project (not the library window).
     pub(crate) fn mcp_need_project(&self) -> Result<(), String> {
@@ -308,7 +134,7 @@ impl Editor {
         text(out)
     }
 
-    fn mcp_project_info(&mut self) -> Result<Reply, String> {
+    pub(crate) fn mcp_project_info(&mut self) -> Result<Reply, String> {
         if !self.project_open {
             return text("No project is open in the editor (its welcome screen shows). Ask the person to open one; nothing else works until then.");
         }
@@ -380,7 +206,7 @@ impl Editor {
     }
 
     /// One line about the editor's own state.
-    fn mcp_state_line(&self) -> String {
+    pub(crate) fn mcp_state_line(&self) -> String {
         let map = match &self.doc {
             Some(d) => format!("map \"{}\" open ({})", d.map.name, if d.is_dirty() { "unsaved edits" } else { "saved" }),
             None => "no map open".to_string(),
@@ -401,7 +227,7 @@ impl Editor {
         )
     }
 
-    fn mcp_editor_state(&mut self) -> Result<Reply, String> {
+    pub(crate) fn mcp_editor_state(&mut self) -> Result<Reply, String> {
         if !self.project_open {
             return text("No project is open (welcome screen).");
         }
@@ -426,7 +252,7 @@ impl Editor {
         text(s)
     }
 
-    fn mcp_save(&mut self) -> Result<Reply, String> {
+    pub(crate) fn mcp_save(&mut self) -> Result<Reply, String> {
         self.mcp_writable()?;
         let before = (self.doc.as_ref().is_some_and(|d| d.is_dirty()), self.defs_dirty, self.px.is_dirty());
         self.save_all();
@@ -449,7 +275,7 @@ impl Editor {
         ))
     }
 
-    fn mcp_undo(&mut self, p: UndoParams, redo: bool) -> Result<Reply, String> {
+    pub(crate) fn mcp_undo(&mut self, p: UndoParams, redo: bool) -> Result<Reply, String> {
         self.mcp_writable()?;
         let steps = p.steps.unwrap_or(1).clamp(1, 50);
         let assets = &self.assets;
@@ -478,7 +304,7 @@ impl Editor {
         ))
     }
 
-    fn mcp_set_project_config(&mut self, p: PatchParams) -> Result<Reply, String> {
+    pub(crate) fn mcp_set_project_config(&mut self, p: PatchParams) -> Result<Reply, String> {
         self.mcp_writable()?;
         let cfg = &self.project.config;
         let new: rustpg2d_engine::project::ProjectConfig = super::patch::apply(cfg, &p.patch)?;

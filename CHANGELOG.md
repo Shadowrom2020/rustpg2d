@@ -67,6 +67,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- The agent server's 54 tools are declared once (`mcp_tools!` in `tools.rs`: description,
+  annotations, name, parameters, what the editor runs); the `Call` enum, its names and the
+  dispatch are generated from it instead of kept in step by hand in four places.
 - The inventory and companion windows share their slot grid, drag state (press, drag, drop,
   double click) and layout constants.
 - The trade window's two lists, the crafting window and the menus share one `ScrollList`

@@ -357,7 +357,7 @@ impl Editor {
         self.mcp.shots = keep;
     }
 
-    fn mcp_take_shot(&self, s: &ShotRequest) -> Result<Reply, String> {
+    pub(crate) fn mcp_take_shot(&self, s: &ShotRequest) -> Result<Reply, String> {
         let img = macroquad::prelude::get_screen_data();
         let (w, h) = (img.width as u32, img.height as u32);
         let scale = macroquad::window::screen_dpi_scale();

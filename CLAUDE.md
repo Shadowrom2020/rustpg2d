@@ -38,6 +38,10 @@ before merging, commit messages — are in AGENTS.md and apply in full:
 
 ## Workspace map
 
+`Documentation/architecture.md` explains how these pieces work together (the runtime's frame,
+the data model, formats and compatibility rules, caveats); keep it current when the architecture
+changes. The modules:
+
 ```
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: tilesets, sheets, items, props (+states, container, lock),

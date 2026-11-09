@@ -357,6 +357,10 @@ fn shrine_touch() {
 
 ## Architecture
 
+The full picture (technology, data model, the runtime's frame, the editor and its agent server,
+file formats and their compatibility rules, verification tooling, caveats) is in
+[Documentation/architecture.md](Documentation/architecture.md). In short:
+
 ```
 crates/engine   library: map model + IO, defs, events, scripting, rendering, runtime
 crates/game     player binary (rustpg2d-game)

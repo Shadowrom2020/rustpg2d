@@ -3,6 +3,13 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Maintenance
+- `Documentation/architecture.md`: how the engine, the game runner and the editor fit together
+  (technology, data model, the runtime's frame, the editor and its agent server, file formats and
+  their compatibility rules, verification tooling, caveats). Linked from README and CLAUDE.md.
+
 ## 0.11.0 — 2026-11-09
 
 A living village: every terrain a 47-tile set, many more assets, the village rebuilt as

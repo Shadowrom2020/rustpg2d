@@ -630,7 +630,7 @@
                 ),
             ],
             sell_rate: 50,
-            open_on_talk: true,
+            open_on_talk: false,
         )),
         appearance: (
             body: "body_female",

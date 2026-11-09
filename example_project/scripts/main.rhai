@@ -147,10 +147,10 @@ fn slime_defeated() {
 // The intro of a new game, a cut-scene (village Map enter trigger, once): the player walks
 // into town from the west, the guard comes over and sends them to the elder.
 fn intro_cutscene() {
-    place("player", 0, 18);
+    place("player", 0, 30);
     face("player", "right");
     wait(0.8);
-    walk_to("player", 5, 18);
+    walk_to("player", 5, 30);
     wait(0.4);
     approach("guard", "player");
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");
@@ -158,6 +158,19 @@ fn intro_cutscene() {
     say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the slimes grow bolder every day.");
     say("Guard", "Please, talk to Elder Rowan at once - he is waiting by the well in the middle of town.");
     wait(0.3);
+}
+
+// Oswin the town crier calls out the news: a different piece every time he is asked.
+fn crier_talk() {
+    add_var("crier_news", 1);
+    let n = get_var("crier_news") % 3;
+    if n == 1 {
+        say("Oswin", "Hear ye, hear ye! The harvest festival draws near - Bram the baker promises a loaf the size of a cartwheel!");
+    } else if n == 2 {
+        say("Oswin", "Hear ye! Strange lights in Whisperwood! The elder asks all good folk to keep the east gate locked after dark!");
+    } else {
+        say("Oswin", "Hear ye! Old Halvar the miner was last seen at the old mine, long ago. Brom the smith remembers him well, they say.");
+    }
 }
 
 // Once the player took on the elder's quest, the guard offers to come along: follow(target)

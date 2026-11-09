@@ -22,6 +22,7 @@ mod lang_de;
 mod music;
 mod structures;
 mod village_db;
+mod village_map;
 use art::*;
 
 // ------------------------------------------------------------------ sounds
@@ -173,20 +174,6 @@ impl B {
     }
     fn free(&self, x: i32, y: i32) -> bool {
         self.get(1, x, y).is_none() && self.get(1, x, y + 1).is_none()
-    }
-    /// House with roof; returns the door tile.
-    fn house(&mut self, x: i32, y: i32, w: i32) -> (i32, i32) {
-        self.fill(1, x, y, w, 3, t::ROOF);
-        self.fill(1, x, y + 2, w, 1, t::ROOF_EDGE);
-        self.fill(1, x, y + 3, w, 2, t::HOUSE_WALL);
-        self.set(1, x + 1, y + 3, t::WINDOW);
-        self.set(1, x + w - 2, y + 3, t::WINDOW);
-        let door = (x + w / 2, y + 4);
-        self.set(1, door.0, door.1, t::DOOR);
-        self.set(1, door.0, door.1 - 1, t::HOUSE_WALL);
-        // The door tile is walkable so the player can step into the portal.
-        self.m.set_collision(door.0 as u32, door.1 as u32, rustpg2d_engine::map::CollisionOverride::Walkable);
-        door
     }
     fn zone(&mut self, name: &str, x: u32, y: u32, w: u32, h: u32, kind: ZoneKind) -> u32 {
         let uid = self.m.alloc_uid();
@@ -427,283 +414,6 @@ fn autotile_terrain(m: &mut Map, class: impl Fn(&Map, i32, i32) -> Option<&'stat
     );
 }
 
-fn village() -> Map {
-    let (w, h) = (48, 36);
-    let mut b = B::new("village", w, h);
-    let mut rng = Rng(42);
-    b.fill(0, 0, 0, w as i32, h as i32, t::GRASS);
-    for _ in 0..160 {
-        let (x, y) = (rng.range(w) as i32, rng.range(h) as i32);
-        b.set(0, x, y, if rng.chance(0.5) { t::FLOWERS } else { t::TALL_GRASS });
-    }
-    // Main road from the west edge (where travellers arrive) to the east edge (y = 18), and
-    // the north-south street.
-    b.fill(0, 0, 17, w as i32, 3, t::PATH);
-    b.fill(0, 21, 8, 3, 12, t::PATH);
-    // Pond with sand rim and bridge-less shore.
-    b.fill(0, 5, 24, 11, 7, t::SAND);
-    b.fill(0, 6, 25, 9, 5, t::WATER);
-    // Houses.
-    let door = b.house(17, 3, 7);
-    b.fill(0, door.0, door.1 + 1, 1, 4, t::PATH);
-    // Second house: Tilda's shop.
-    let door2 = b.house(30, 6, 6);
-    b.fill(0, door2.0, door2.1 + 1, 1, 6, t::PATH);
-    // Fences around a garden.
-    b.fill(1, 30, 24, 10, 1, t::FENCE);
-    // Gap in the top fence for a double gate (placed after the random trees below).
-    b.m.layers[1].set(34, 24, Tile::EMPTY);
-    b.m.layers[1].set(35, 24, Tile::EMPTY);
-    b.fill(1, 30, 31, 10, 1, t::FENCE);
-    b.fill(1, 30, 24, 1, 8, t::FENCE);
-    b.fill(1, 39, 24, 1, 5, t::FENCE);
-    for y in 26..30 {
-        for x in (32..38).step_by(2) {
-            b.set(1, x, y, t::BUSH);
-        }
-    }
-    // Tree border, leaving the road open to the west and the east.
-    for x in 0..w as i32 {
-        b.tree(x, 1);
-        b.tree(x, h as i32 - 1);
-    }
-    for y in 2..h as i32 - 1 {
-        if !(16..=20).contains(&y) {
-            b.tree(0, y);
-            b.tree(w as i32 - 1, y);
-        }
-    }
-    for _ in 0..40 {
-        let (x, y) = (rng.range(w - 4) as i32 + 2, rng.range(h - 6) as i32 + 3);
-        let on_grass = matches!(b.get(0, x, y), Some(t::GRASS | t::FLOWERS | t::TALL_GRASS));
-        if on_grass && b.free(x, y) && b.free(x, y - 1) && !(15..=21).contains(&y) {
-            b.tree(x, y);
-        }
-    }
-    b.set(1, 12, 10, t::ROCK);
-    b.set(1, 27, 12, t::ROCK);
-    // Multi-tile props: garden double gate (2x2), big oaks (3x4), a statue (1x2).
-    b.big("double_gate", 35, 24, 2, 2);
-    b.big("big_oak", 6, 9, 3, 4);
-    b.big("big_oak", 41, 14, 3, 4);
-    b.big("big_pine", 9, 31, 2, 4);
-    b.big("statue", 15, 13, 1, 2);
-
-    b.spawn("start", 22, 14);
-    b.spawn("house_door", door.0 as u32, door.1 as u32 + 1);
-    b.portal(door.0 as u32, door.1 as u32, "house", "entrance");
-
-    // Gate blocking the road east, opened with the key.
-    // East exit: the gap in the border trees (rows 16-20) is closed by a wall with a
-    // vertical double gate across the three road tiles (rows 17-19).
-    let gate = b.big("vgate", 46, 19, 1, 4);
-    gate.name = "east_gate".into();
-    // The lock (Gate Key, kept, gate opens, relockable) comes from the gate definition;
-    // these triggers only react to it being opened / locked again.
-    gate.triggers = vec![
-        trig(
-            TriggerOn::Unlock,
-            vec![],
-            vec![Action::SetFlag { name: "gate_open".into(), value: true }, dialog("", "The gate creaks open. The forest lies beyond.")],
-        ),
-        // Quest "The Strange Lights": the gate is open, now find the shrine.
-        trig(TriggerOn::Unlock, vec![quest_is("strange_lights", QuestCheck::AtStage, 0)], vec![quest("strange_lights", QuestOp::SetStage, 1)]),
-        trig(TriggerOn::Lock, vec![], vec![Action::SetFlag { name: "gate_open".into(), value: false }]),
-    ];
-    for y in [14, 15, 16, 20, 21, 22] {
-        b.set(1, 46, y, t::STONE_WALL);
-        b.m.layers[2].set(46, (y - 1) as u32, Tile::EMPTY); // no tree crown floating over the wall
-    }
-    let sign = b.entity(EntityKind::Prop, "sign", 19, 16);
-    sign.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Sign", "Emberbrook. East: Whisperwood. Please keep the gate locked!")])];
-    b.entity(EntityKind::Prop, "well", 25, 13);
-    let barrel = b.entity(EntityKind::Prop, "barrel", 16, 7);
-    barrel.container = Some(ContainerSpec { size: 4, items: vec![ItemStack::new("apple", 3), ItemStack::new("arrows", 10), ItemStack::new("leather_cap", 1)], ..Default::default() });
-    let barrel = b.entity(EntityKind::Prop, "barrel", 24, 7);
-    barrel.container = Some(ContainerSpec { size: 4, items: vec![ItemStack::new("apple", 2), ItemStack::new("bronze_key", 1)], ..Default::default() });
-
-    let elder = b.entity(EntityKind::Character, "elder", 26, 15);
-    elder.name = "elder".into();
-    // He reads by the well all day (an activity; talking interrupts him for a moment).
-    elder.activity = Some(Activity { kind: ActivityKind::Read, tool: String::new() });
-    elder.triggers = vec![
-        trig(
-            TriggerOn::Interact,
-            vec![not(flag("quest_accepted"))],
-            vec![
-                dialog("Elder Rowan", "Ah, a traveller! Welcome to Emberbrook, {player}."),
-                // Set mood: his "worried" portrait until the mood is cleared (or the talk ends).
-                Action::Mood { target: "self".into(), mood: "worried".into() },
-                dialog("Elder Rowan", "Strange lights have been seen in Whisperwood, east of here."),
-                Action::Choice {
-                    speaker: "Elder Rowan".into(),
-                    text: "Would you investigate the old shrine for us?".into(),
-                    options: vec!["Of course!".into(), "Not right now.".into()],
-                    var: "elder_answer".into(),
-                },
-                Action::If {
-                    conditions: vec![cond(Cond::Var { name: "elder_answer".into(), op: CmpOp::Eq, value: 0 })],
-                    then: vec![
-                        Action::SetFlag { name: "quest_accepted".into(), value: true },
-                        quest("strange_lights", QuestOp::Start, 0),
-                        Action::Mood { target: "self".into(), mood: String::new() },
-                        dialog("Elder Rowan", "Wonderful! The gate key is in the chest in my house, just north of here."),
-                    ],
-                    otherwise: vec![dialog("Elder Rowan", "I understand. Come back if you change your mind.")],
-                },
-            ],
-        ),
-        trig(
-            TriggerOn::Interact,
-            vec![cond(flag("quest_accepted")), not(flag("shrine_lit"))],
-            vec![dialog("Elder Rowan", "The shrine lies deep in Whisperwood. Take the key from my chest and open the east gate.")],
-        ),
-        trig(
-            TriggerOn::Interact,
-            vec![cond(flag("shrine_lit"))],
-            vec![
-                dialog("Elder Rowan", "The lights have calmed! You have my thanks, brave {lad|lass}."),
-                Action::If {
-                    conditions: vec![not(flag("rewarded"))],
-                    then: vec![
-                        Action::SetFlag { name: "rewarded".into(), value: true },
-                        quest("strange_lights", QuestOp::Complete, 0),
-                        Action::GiveItem { item: "coin".into(), count: 25 },
-                        dialog("", "Received 25 coins!"),
-                        Action::GiveSkillPoints { amount: 2 },
-                    ],
-                    otherwise: vec![],
-                },
-            ],
-        ),
-    ];
-    let v = b.entity(EntityKind::Character, "villager", 12, 19);
-    v.name = "mira".into();
-    v.triggers = vec![trig(TriggerOn::Interact, vec![], vec![Action::RunScript { function: "mira_talk".into() }])];
-    let v2 = b.entity(EntityKind::Character, "villager", 34, 14);
-    // Tomas has a daily schedule (map inspector: Daily schedule): the shop in the morning, the
-    // duck pond at noon, a rest on the bench by the road (furniture: the prop "bench_west"),
-    // the big pond in the late afternoon, and at night the elder's guest bed - a stop on
-    // another map: he walks to the house door and turns up inside. What he says depends on
-    // the time and on whether he is asleep (Time of day and Pose conditions).
-    v2.name = "tomas".into();
-    v2.schedule = vec![
-        ScheduleStop::new(7.0, 34, 14),
-        ScheduleStop { facing: Some(Facing::Down), ..ScheduleStop::new(12.0, 22, 23) },
-        ScheduleStop { prop: "bench_west".into(), ..ScheduleStop::new(15.0, 12, 17) },
-        // Fishing at the big pond (an activity: only the look - line, bobber, the rod in hand).
-        ScheduleStop { facing: Some(Facing::Down), activity: Some(Activity { kind: ActivityKind::Fish, tool: "fishing_rod".into() }), ..ScheduleStop::new(17.5, 9, 24) },
-        ScheduleStop { map: "house".into(), prop: "guest_bed".into(), ..ScheduleStop::new(20.5, 6, 8) },
-    ];
-    let daytime = |from: f32, to: f32| cond(Cond::TimeBetween { from, to });
-    let asleep = || cond(Cond::Pose { target: "self".into(), pose: "lie".into() });
-    let sitting = || cond(Cond::Pose { target: "self".into(), pose: "sit".into() });
-    v2.triggers = vec![
-        trig(TriggerOn::Interact, vec![asleep()], vec![dialog("Tomas", "Zzz... mmh... five more minutes...")]),
-        trig(TriggerOn::Interact, vec![sitting()], vec![dialog("Tomas", "Ah, {player}. Nothing beats a quiet bench in the afternoon.")]),
-        trig(TriggerOn::Interact, vec![daytime(6.0, 18.0), not(Cond::Pose { target: "self".into(), pose: "sit".into() })], vec![dialog("Tomas", "Lovely weather today, isn't it, {sir|miss}?")]),
-        trig(TriggerOn::Interact, vec![daytime(18.0, 6.0), not(Cond::Pose { target: "self".into(), pose: "lie".into() })], vec![dialog("Tomas", "Getting late, {sir|miss}. I'll be heading home soon - the elder keeps a bed for me.")]),
-    ];
-    b.entity(EntityKind::Item, "apple", 8, 12);
-    b.entity(EntityKind::Item, "apple", 37, 21);
-
-
-    // Tilda's shop: door portal + a sign in front (added last so older uids stay the same).
-    b.spawn("shop_door", door2.0 as u32, door2.1 as u32 + 1);
-    b.portal(door2.0 as u32, door2.1 as u32, "shop", "entrance");
-    for (x, y) in [(door2.0 - 1, door2.1 + 1), (door2.0 - 1, door2.1 + 2)] {
-        b.m.layers[1].set(x as u32, y as u32, Tile::EMPTY);
-        b.m.layers[2].set(x as u32, y as u32, Tile::EMPTY);
-    }
-    let shop_sign = b.entity(EntityKind::Prop, "sign", door2.0 - 1, door2.1 + 1);
-    shop_sign.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Sign", "TILDA'S WARES - Potions, arrows, armor. Fair prices, we buy too!")])];
-
-    // A town guard patrolling the main road (back and forth, pausing at each point).
-    let guard = b.entity(EntityKind::Character, "guard", 8, 18);
-    guard.name = "guard".into();
-    // The guard carries a lantern: at night it lights the road as he walks.
-    guard.light = Some(LightSpec::new(4.5, [255, 220, 170], false));
-    guard.patrol = Some(rustpg2d_engine::entity::PatrolRoute {
-        points: vec![(8, 18), (20, 18), (30, 18), (38, 18)],
-        mode: rustpg2d_engine::entity::PatrolMode::PingPong,
-        pause: 1.5,
-        speed: 0.0,
-    });
-    guard.triggers = vec![trig(TriggerOn::Interact, vec![], vec![Action::RunScript { function: "guard_talk".into() }])];
-
-    // A duck pond on the green with a footpath from the road (auto-tiled below).
-    // (Trees there go: trunks on the detail layer, crowns one row higher on the overhead one.)
-    for y in 23..30u32 {
-        for x in 18..27u32 {
-            b.m.layers[1].set(x, y + 1, Tile::EMPTY);
-            b.m.layers[2].set(x, y, Tile::EMPTY);
-        }
-    }
-    b.fill(0, 22, 20, 1, 5, t::PATH);
-    for (y, row) in ["...###..", "..#####.", ".######.", "..###..."].iter().enumerate() {
-        for (x, c) in row.bytes().enumerate() {
-            if c == b'#' {
-                b.set(0, 18 + x as i32, 25 + y as i32, t::WATER);
-            }
-        }
-    }
-
-    // The big pond is a fishing spot (the zone covers its water; fish from the shore with the
-    // Fishing Rod from Tilda): mostly trout, now and then an old boot (chances are weights).
-    let spot = b.zone("pond_fishing", 6, 25, 9, 5, ZoneKind::FishingSpot { rod: "fishing_rod".into() });
-    if let Some(z) = b.m.zones.iter_mut().find(|z| z.uid == spot) {
-        z.loot = Some(vec![LootEntry::new("trout", 75.0, 1, 1), LootEntry::new("old_boot", 25.0, 1, 1)]);
-    }
-    // Benches by the road to sit on (furniture).
-    // (The west bench is named: Tomas rests on it in the afternoon.)
-    b.entity(EntityKind::Prop, "bench", 12, 16).name = "bench_west".into();
-    b.entity(EntityKind::Prop, "bench", 31, 16);
-
-    // North road to the workshop (crafting testing ground): a gap in the border trees and a
-    // path from the main road up to the north edge.
-    for y in 0..17 {
-        for x in 27..29 {
-            b.m.layers[1].set(x as u32, y as u32, Tile::EMPTY);
-            b.m.layers[2].set(x as u32, y as u32, Tile::EMPTY);
-            b.set(0, x, y, t::PATH);
-        }
-    }
-    let ws_sign = b.entity(EntityKind::Prop, "sign", 29, 15);
-    ws_sign.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Sign", "North: the Workshop - a testing ground for crafting, gathering and mining.")])];
-    b.m.edges.north = Some(EdgeLink { target_map: "workshop".into(), offset: -11, depth: 1 });
-
-    b.m.edges.east = Some(EdgeLink { target_map: "forest".into(), offset: 6, depth: 1 });
-    b.m.triggers = vec![
-        // A new game's intro: a cut-scene (the script's intro_cutscene()), then the welcome.
-        Trigger { once: true, ..trig(TriggerOn::MapEnter, vec![], vec![Action::Cutscene { function: "intro_cutscene".into() }]) },
-        Trigger {
-        on: TriggerOn::MapEnter,
-        conditions: vec![],
-        actions: vec![dialog(
-            "",
-            "Welcome to the R(ust)PG2D demo! Move: arrows/WASD or left-click. Interact: E/Space or right-click. Attack: X or left-click an enemy. Switch weapon: Q. Character & inventory: C or I, skills: K, spells: L. Quest journal: J. Map: M. Save/Load: F5/F9. Debug: F3.",
-        )],
-        once: true,
-    }];
-    b.m.background = [20, 40, 20];
-    b.m.music = "music_village".into();
-    b.m.lighting = MapLighting { mode: LightMode::Outdoor, darkness: 0.7 };
-    // Auto-tiling (Database › Tilesets › Terrains): soft edges for the roads, the sandy pond
-    // and the duck pond. Paths run up to the doors.
-    autotile_terrain(
-        &mut b.m,
-        |m, x, y| match ground(m, x, y)? {
-            t::PATH => Some("Dirt path"),
-            t::SAND => Some("Sand"),
-            t::WATER if (18..26).contains(&x) && (25..29).contains(&y) => Some("Pond"),
-            t::WATER => Some("Shore"),
-            _ => None,
-        },
-        |m, terrain, x, y| terrain == "Dirt path" && tile_at(m, 1, x, y) == Some(t::DOOR),
-    );
-    b.m
-}
-
 fn shop() -> Map {
     let (w, h) = (12, 10);
     let mut b = B::new("shop", w, h);
@@ -872,7 +582,8 @@ fn house() -> Map {
     let arrows = b.entity(EntityKind::Item, "arrows", 2, 8);
     arrows.count = 20;
     // The elder's bed: sleep until morning (Database › Props › Bed › Furniture).
-    b.entity(EntityKind::Prop, "bed", 2, 3);
+    // (Named: Elder Rowan sleeps in it - his schedule's night stop.)
+    b.entity(EntityKind::Prop, "bed", 2, 3).name = "elder_bed".into();
     // The elder's table with a chair on each side (chairs face every way).
     b.set(1, 8, 5, t::TABLE);
     b.entity(EntityKind::Prop, "chair", 8, 4);
@@ -1010,7 +721,7 @@ fn forest() -> Map {
         vec![],
         vec![Action::Wait { seconds: 0.4 }, dialog("", "A warm light spreads through the forest. The slime den and the goblin camp fall silent.")],
     )];
-    b.m.edges.west = Some(EdgeLink { target_map: "village".into(), offset: -6, depth: 1 });
+    b.m.edges.west = Some(EdgeLink { target_map: "village".into(), offset: 6, depth: 1 });
     b.m.background = [10, 25, 10];
     b.m.music = "music_forest".into();
     b.m.lighting = MapLighting { mode: LightMode::Outdoor, darkness: 0.8 };
@@ -1084,6 +795,17 @@ fn forest() -> Map {
     // The smelter beside the mine entrance (lit: it glows at night).
     let (sx, sy) = (51..=56).flat_map(|x| [(x, 8), (x, 9)]).find(|&(x, y)| x != 53 && b.free(x, y) && b.free(x, y - 1)).unwrap_or((55, 9));
     b.entity(EntityKind::Prop, "smelter", sx, sy);
+    // Feverleaf by the forest path (0.11.0; the herbalist's remedy needs it): the first free
+    // forest-floor tiles beside the path's start.
+    for x0 in [9, 21] {
+        let spot = (x0..x0 + 8).flat_map(|x| (14..32).map(move |y| (x, y))).find(|&(x, y)| {
+            ground(&b.m, x, y) != Some(t::PATH) && ground(&b.m, x, y) != Some(t::WATER) && ground(&b.m, x, y + 1) == Some(t::PATH)
+        });
+        if let Some((x, y)) = spot {
+            // (Clears a tree standing there.)
+            b.big("feverleaf_bush", x, y, 1, 1);
+        }
+    }
     autotile_terrain(
         &mut b.m,
         |m, x, y| match ground(m, x, y)? {
@@ -1098,114 +820,6 @@ fn forest() -> Map {
             "Stream" | "Forest path" | "Dirt path" | "Forest floor" => ground(m, x, y) == Some(t::BRIDGE) || (terrain.ends_with("path") && tile_at(m, 1, x, y) == Some(t::CAVE)),
             _ => false,
         },
-    );
-    b.m
-}
-
-/// The workshop north of the village: a testing ground with everything for crafting in one
-/// place. The herb garden (west: herb bushes, mushroom patches, the alchemy table), the quarry
-/// (east: every kind of ore vein, coal, the smelter), a supply chest with the tools, a bed to
-/// let the night pass (picked plants and mined veins grow back) and signs explaining it all.
-fn workshop() -> Map {
-    let (w, h) = (34, 24);
-    let mut b = B::new("workshop", w, h);
-    let mut rng = Rng(7);
-    b.fill(0, 0, 0, w as i32, h as i32, t::GRASS);
-    for _ in 0..60 {
-        let (x, y) = (rng.range(w) as i32, rng.range(h) as i32);
-        b.set(0, x, y, if rng.chance(0.5) { t::FLOWERS } else { t::TALL_GRASS });
-    }
-    // Paths: up from the village (south edge, x 16-17) and across the middle.
-    b.fill(0, 16, 12, 2, 12, t::PATH);
-    b.fill(0, 3, 12, 28, 2, t::PATH);
-    // The herb garden (west), fenced, open to the path.
-    b.fill(1, 2, 2, 12, 1, t::FENCE);
-    b.fill(1, 2, 2, 1, 9, t::FENCE);
-    b.fill(1, 13, 2, 1, 9, t::FENCE);
-    // The quarry (east): flagstones.
-    b.fill(0, 20, 2, 12, 9, t::STONE_FLOOR);
-    // Border trees, open to the south where the path comes up.
-    for x in 0..w as i32 {
-        b.tree(x, 1);
-        if !(16..=17).contains(&x) {
-            b.tree(x, h as i32 - 1);
-        }
-    }
-    for y in 2..h as i32 - 1 {
-        b.tree(0, y);
-        b.tree(w as i32 - 1, y);
-    }
-    b.spawn("south", 16, 21);
-    b.m.edges.south = Some(EdgeLink { target_map: "village".into(), offset: 11, depth: 1 });
-    let sign = |b: &mut B, x: i32, y: i32, text: &str| {
-        let s = b.entity(EntityKind::Prop, "sign", x, y);
-        s.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Sign", text)])];
-    };
-    sign(&mut b, 18, 20, "THE WORKSHOP. West: herb garden and alchemy table. East: quarry and smelter. The chest holds the tools; sleep in the bed to let plants and veins grow back.");
-    // Supply chest: every crafting tool and a few ingredients.
-    let chest = b.entity(EntityKind::Prop, "chest", 15, 16);
-    chest.container = Some(ContainerSpec {
-        size: 8,
-        items: vec![ItemStack::new("pickaxe", 1), ItemStack::new("tongs", 1), ItemStack::new("hammer", 1), ItemStack::new("mortar", 1), ItemStack::new("apple", 4), ItemStack::new("coal", 3)],
-        open_state: "open".into(),
-        ..Default::default()
-    });
-    // Herb garden: bushes and patches picked by hand (back half a day later), the alchemy table.
-    sign(&mut b, 5, 11, "HERB GARDEN. Pick herbs and mushrooms by hand (E). Brew at the table with a mortar and pestle; Antidotes need Alchemy 1, Swiftness Potions Alchemy 2.");
-    for (k, (x, y)) in [(4, 4), (7, 4), (10, 4), (4, 7), (7, 7), (10, 7)].into_iter().enumerate() {
-        b.entity(EntityKind::Prop, if k < 3 { "herb_bush" } else { "mushroom_patch" }, x, y);
-    }
-    b.entity(EntityKind::Prop, "alchemy_table", 9, 10);
-    // Quarry: every vein (pickaxe, 3 hits, back three days later) and the smelter.
-    sign(&mut b, 29, 11, "QUARRY. Mine the veins with a pickaxe (E or attack). Smelt two ore and a coal into an ingot at the smelter, with smith's tongs; silver needs Mining 2.");
-    for (def, x, y) in [("vein_copper", 22, 4), ("vein_copper", 25, 4), ("vein_iron", 28, 4), ("vein_iron", 22, 7), ("vein_silver", 25, 7), ("vein_gem", 28, 7), ("vein_coal", 30, 5), ("vein_coal", 30, 8)] {
-        b.entity(EntityKind::Prop, def, x, y);
-    }
-    b.entity(EntityKind::Prop, "smelter", 23, 10);
-    sign(&mut b, 31, 15, "FORGE. Forge ingots at the anvil with a smith's hammer and tongs: swords, helmets, chainmail, arrows, pickaxes. Smithing unlocks more, and from Smithing 2 swords come out fine.");
-    b.entity(EntityKind::Prop, "anvil", 26, 10);
-    // The field (south-west): six soil plots and seeds in a sack beside them.
-    sign(&mut b, 3, 15, "FIELD. Plant seeds on the soil plots (E plants the first seed you carry). Wheat is ripe after a day, carrots after a day and a half, pumpkins after two; rain makes them grow faster. E on a ripe crop harvests it.");
-    for (x, y) in [(5, 16), (7, 16), (9, 16), (5, 18), (7, 18), (9, 18)] {
-        b.entity(EntityKind::Prop, "soil_plot", x, y);
-    }
-    let sack = b.entity(EntityKind::Prop, "chest", 11, 17);
-    sack.container = Some(ContainerSpec { size: 4, items: vec![ItemStack::new("wheat_seeds", 4), ItemStack::new("carrot_seeds", 4), ItemStack::new("pumpkin_seeds", 2)], open_state: "open".into(), ..Default::default() });
-    // The kitchen: a campfire between the garden and the quarry, a pantry chest with
-    // ingredients to try every dish.
-    sign(&mut b, 15, 9, "KITCHEN. Use coal on the campfire to light it (it burns for 8 hours), then E to cook. Cooking unlocks soup, stew and pie and makes all food heal more.");
-    b.entity(EntityKind::Prop, "campfire", 17, 7);
-    let pantry = b.entity(EntityKind::Prop, "chest", 18, 9);
-    pantry.container = Some(ContainerSpec {
-        size: 8,
-        items: vec![ItemStack::new("trout", 2), ItemStack::new("wheat", 6), ItemStack::new("carrot", 4), ItemStack::new("mushroom", 2), ItemStack::new("pumpkin", 1), ItemStack::new("apple", 2), ItemStack::new("coal", 2)],
-        open_state: "open".into(),
-        ..Default::default()
-    });
-    // Workers (activities: only the look): a smith at the anvil, a farmer hoeing the field.
-    let smith = b.entity(EntityKind::Character, "villager", 26, 11);
-    smith.name = "smith".into();
-    smith.facing = Facing::Up;
-    smith.activity = Some(Activity { kind: ActivityKind::Craft, tool: "hammer".into() });
-    smith.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Smith", "Iron, heat and a steady arm, {player}. Bring me ingots and I'll... well, the anvil is yours too.")])];
-    let farmer = b.entity(EntityKind::Character, "villager", 6, 16);
-    farmer.name = "farmer".into();
-    farmer.facing = Facing::Right;
-    farmer.activity = Some(Activity { kind: ActivityKind::Farm, tool: String::new() });
-    farmer.triggers = vec![trig(TriggerOn::Interact, vec![], vec![dialog("Farmer", "Plant, wait, harvest. And pray for rain - it makes them grow faster!")])];
-    // A bed in the open to let a night pass (regrowing needs in-game time).
-    b.entity(EntityKind::Prop, "bed", 20, 17);
-    b.m.background = [20, 40, 20];
-    b.m.music = "music_village".into();
-    b.m.lighting = MapLighting { mode: LightMode::Outdoor, darkness: 0.7 };
-    autotile_terrain(
-        &mut b.m,
-        |m, x, y| match ground(m, x, y)? {
-            t::PATH => Some("Dirt path"),
-            t::STONE_FLOOR => Some("Flagstones"),
-            _ => None,
-        },
-        |_, _, _, _| false,
     );
     b.m
 }
@@ -1512,7 +1126,7 @@ fn database() -> Database {
                 title: "The Strange Lights".into(),
                 description: "Strange lights have been seen in Whisperwood, east of Emberbrook. Elder Rowan asked me to investigate the old shrine there.".into(),
                 stages: vec![
-                    "Take the gate key from the chest in Elder Rowan's house, north of the well.".into(),
+                    "Take the gate key from the chest in Elder Rowan's house, east of the market square.".into(),
                     "Open the east gate and find the old shrine deep in Whisperwood.".into(),
                     "Return to Elder Rowan.".into(),
                 ],
@@ -1852,6 +1466,15 @@ fn database() -> Database {
     db.recipes.extend(village_db::recipes());
     db.sheets.extend(village_db::sheets());
     db.characters.extend(village_db::characters());
+    // The inn's beds: only for paying guests (Greta rents them at the bar).
+    let mut inn = db.prop("bed").cloned().expect("bed");
+    inn.id = "inn_bed".into();
+    inn.name = "Inn Bed".into();
+    if let Some(u) = &mut inn.use_spot {
+        u.conditions = vec![cond(flag("inn_room_paid"))];
+        u.refuse_text = "This bed is for paying guests. Greta rents rooms at the bar.".into();
+    }
+    db.props.push(inn);
     layered_characters(&mut db);
     // Cooked dishes: icons on the food sheet, stacks of ten.
     for (id, f) in [("grilled_trout", food::GRILLED_TROUT), ("bread", food::BREAD), ("carrot_soup", food::CARROT_SOUP), ("pumpkin_stew", food::STEW), ("apple_pie", food::PIE)] {
@@ -2182,10 +1805,10 @@ fn slime_defeated() {
 // The intro of a new game, a cut-scene (village Map enter trigger, once): the player walks
 // into town from the west, the guard comes over and sends them to the elder.
 fn intro_cutscene() {
-    place("player", 0, 18);
+    place("player", 0, 30);
     face("player", "right");
     wait(0.8);
-    walk_to("player", 5, 18);
+    walk_to("player", 5, 30);
     wait(0.4);
     approach("guard", "player");
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");
@@ -2193,6 +1816,19 @@ fn intro_cutscene() {
     say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the slimes grow bolder every day.");
     say("Guard", "Please, talk to Elder Rowan at once - he is waiting by the well in the middle of town.");
     wait(0.3);
+}
+
+// Oswin the town crier calls out the news: a different piece every time he is asked.
+fn crier_talk() {
+    add_var("crier_news", 1);
+    let n = get_var("crier_news") % 3;
+    if n == 1 {
+        say("Oswin", "Hear ye, hear ye! The harvest festival draws near - Bram the baker promises a loaf the size of a cartwheel!");
+    } else if n == 2 {
+        say("Oswin", "Hear ye! Strange lights in Whisperwood! The elder asks all good folk to keep the east gate locked after dark!");
+    } else {
+        say("Oswin", "Hear ye! Old Halvar the miner was last seen at the old mine, long ago. Brom the smith remembers him well, they say.");
+    }
 }
 
 // Once the player took on the elder's quest, the guard offers to come along: follow(target)
@@ -2494,7 +2130,21 @@ fn main() {
     };
     project.save_config().unwrap();
     project.save_defs().unwrap();
-    for map in [village(), house(), shop(), forest(), wilds(), mine(), workshop()] {
+    for map in [
+        village_map::village(),
+        house(),
+        shop(),
+        forest(),
+        wilds(),
+        mine(),
+        village_map::tavern(),
+        village_map::bakery(),
+        village_map::smithy(),
+        village_map::apothecary(),
+        village_map::chapel(),
+        village_map::home_mira(),
+        village_map::mill(),
+    ] {
         project.save_map(&map).unwrap();
         println!("map {:<8} {}x{}", map.name, map.width, map.height);
     }

@@ -131,6 +131,7 @@ impl Game {
     /// A fresh world (the start map is entered by the caller).
     pub(super) fn reset_world(&mut self) {
         self.world = WorldState { player_hp: Some(self.combat.max_hp), hour: self.project.config.start_hour, ..Default::default() };
+        self.clock_seen = None;
         self.slot = None;
         self.order = None;
         self.game_over = None;

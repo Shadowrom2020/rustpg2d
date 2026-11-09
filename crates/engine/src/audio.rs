@@ -94,6 +94,8 @@ pub struct Audio {
     rain_vol: f32,
     /// Player option (0..1): environmental sounds (rain), master applied.
     ambience: f32,
+    /// The last sound effects started (also while muted): `status()` for automated tests.
+    recent: std::cell::RefCell<std::collections::VecDeque<String>>,
 }
 
 // The web game: browsers decode sounds asynchronously, so they are loaded (awaited) before the
@@ -188,6 +190,7 @@ impl Audio {
             rain: None,
             rain_vol: 0.0,
             ambience: 1.0,
+            recent: Default::default(),
         }
     }
 
@@ -244,12 +247,24 @@ impl Audio {
 
     /// Plays a sound effect once (unknown or empty ids are ignored).
     pub fn play(&self, id: &str) {
+        if !id.is_empty() {
+            let mut r = self.recent.borrow_mut();
+            if r.len() >= 6 {
+                r.pop_front();
+            }
+            r.push_back(id.to_string());
+        }
         if !self.enabled {
             return;
         }
         if let Some((s, vol)) = self.sounds.get(id) {
             play_sound(s, PlaySoundParams { looped: false, volume: *vol * self.effects });
         }
+    }
+
+    /// The last sound effects started, oldest first (`status()` prints them as `sounds=`).
+    pub fn recent(&self) -> Vec<String> {
+        self.recent.borrow().iter().cloned().collect()
     }
 
     /// Plays a sound once as a preview (the editor): the previous preview stops first.

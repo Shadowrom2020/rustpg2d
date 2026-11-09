@@ -770,10 +770,10 @@ cutscene* → `intro_cutscene`):
 
 ```rust
 fn intro_cutscene() {
-    place("player", 0, 18);         // at the west edge of the village
+    place("player", 0, 30);         // at the west edge of the village
     face("player", "right");
     wait(0.8);
-    walk_to("player", 5, 18);       // into town along the road
+    walk_to("player", 5, 30);       // into town along the road
     wait(0.4);
     approach("guard", "player");    // the guard comes over
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");

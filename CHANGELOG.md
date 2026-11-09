@@ -8,7 +8,41 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 A living village: every terrain a 47-tile set, many more assets, the village rebuilt as
 Emberbrook with interiors and a daily life, four more quests.
 
+### Gameplay
+- **Time reached** (`TriggerOn::Hour`): a map trigger that runs when the in-game clock reaches a
+  time of day while the player is on the map — every day, also when time jumps past it by
+  sleeping or *Set time* (not when it is set back). The editor's trigger form takes the time as
+  hh:mm. The village uses it for the dawn fog, the morning cluck and the noon bell.
+
+### Fixes
+- Characters that start on the same spot (several villagers leaving one door at the same time)
+  could block each other for good: a character may now always move away from characters it
+  already overlaps, and a character blocked on its way plans around the people in it.
+
+### Maintenance
+- `status()` prints `sounds=`: the last six sound effects started (also while muted), for
+  automated play-tests.
+
 ### Example project
+- **Emberbrook**, the village, rebuilt (80 × 60): a river with two bridges, a cobbled market square
+  (well, statue, notice board, produce / fish / bread stalls), the Copper Kettle tavern, bakery,
+  smithy, apothecary with herb beds, chapel with bell tower and graveyard, the elder's house,
+  Tilda's shop, Mira's home, the crier's home, the barracks, the fisher's hut with dock, boat and
+  pond, an orchard, and west of the river the windmill and mill, fields, farmhouse, chicken coop
+  and animal pen; a town wall with watchtowers and braziers at the east gate. **Seven interiors**
+  (`tavern`, `bakery`, `smithy`, `apothecary`, `chapel`, `home_mira`, `mill`) with their stations
+  (kitchen hearth, bread oven, forge, anvil, alchemy table, millstone), beds and furniture; the
+  tavern has its own music and inn beds for paying guests (5 coins at the bar; one night).
+  About twenty villagers with **daily routines** across the village and the interiors (stalls,
+  work with tools in hand, an evening at the tavern, their own beds at night), children, a dog,
+  chickens, sheep and a cow; dialog lines by time of day and pose. Dawn mist, the hens at six and
+  the noon bell come from *Time reached* triggers. The forest gained feverleaf by the path.
+- **The Workshop map is gone**: its stations and supplies moved into the village (smithy and
+  apothecary chests, the herb beds, the fields and the seed barrel, the tavern's pantry, beds in
+  every house). The village's north edge went with it; the east edge to the forest moved with the
+  street (y 29-31).
+- Save games made in the village before 0.11.0 don't fit the new village (its entities are new);
+  saves made on other maps load as before.
 - **Every terrain is a 47-tile set**: the terrain tileset's sheet is 16 tiles wide (512 × 1760 px)
   with one 7×7 blob block per terrain, so all fourteen terrains (Dirt path, Pond, Sand, Shore,
   Forest floor, Snowfield, Forest path, Stream, Flagstones, Rug and the new **Cobblestone,

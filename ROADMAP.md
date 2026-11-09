@@ -203,7 +203,7 @@ uids change); the other maps only gain entities at the end.
   `sndplay bell`; a test map with `music_tavern`; autoplay equipping broom / hoe shows the held
   sprites; the starter pack rebuilt without duplicate ids; the lang test passes.
 
-- [ ] Emberbrook: the village, its interiors and daily life — `feature/village`
+- [x] Emberbrook: the village, its interiors and daily life — `feature/village`
 
   **Goal.** The village map rebuilt as a realistic fantasy village with enterable key buildings,
   villagers who live by the clock, animals, children, a town crier and a day / night atmosphere;
@@ -244,6 +244,17 @@ uids change); the other maps only gain entities at the end.
     beds → inn and homes, smith / farmer → Brom, Hal, Beth). Forest: feverleaf bushes and the raided
     flour cart with two inactive outlaws (quest hook); mine: bones + the `locket` pickup; house: the
     bed named `elder_bed` (append only).
+
+  **Decided while building.** The village lives in a new `gen_example/village_map.rs`
+  (`village()` and the seven interiors; buildings are placed from `structures::building_def` /
+  `chapel_def`). Market stalls are the 3x3 stall props. Villagers live on the village map and
+  visit the interiors (the tavern's Greta and Mira's sick brother live in theirs); facade
+  houses (farmhouse, crier's home, barracks, fisher's hut) are `inside` stops. The bell is one
+  sound (no `Wait`: actions would hold the player); the dawn mist is also set on Map enter by
+  the hour (an interior visit can't miss the 8:30 change). The raided cart in the forest and the
+  locket in the mine move to the quests item, which uses them. Engine fixes found here: walkers
+  that start overlapping can separate, a blocked walker re-plans around people; `status()`
+  prints `sounds=`.
 
   **Touch points.** `gen_example/main.rs` (`village`, new `interior`, the map list, `forest`,
   `mine`, `house`, `database()` schedules), `events/mod.rs` + `runner.rs` + `runtime/mod.rs`

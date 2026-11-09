@@ -2701,4 +2701,40 @@
             hours: 24.0,
         )),
     ),
+    (
+        id: "inn_bed",
+        name: "Inn Bed",
+        sprite: (
+            sheet: "props",
+            frame: 76,
+            h: 2,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (28.0, 56.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        use_spot: Some((
+            pose: Lie,
+            offset: (0.0, -17.0),
+            facing: Up,
+            sleep_until: 7.0,
+            cover: (
+                sheet: "props",
+                frame: 77,
+                h: 2,
+            ),
+            conditions: [
+                (
+                    cond: Flag(
+                        name: "inn_room_paid",
+                    ),
+                    negate: false,
+                ),
+            ],
+            refuse_text: "This bed is for paying guests. Greta rents rooms at the bar.",
+        )),
+    ),
 ]

@@ -150,6 +150,28 @@ fn building(w: i32, walls: i32, roof: Roof, wall: Wall) -> P {
     p
 }
 
+/// The chapel: 9 wide, four rows of stone wall with stained-glass windows, a slate roof.
+fn chapel_building() -> P {
+    let mut p = building(9, 4, Roof::Slate, Wall::Stone);
+    for x in [1, 3, 5, 7] {
+        p.set(1, TR, x, 3, t::STONE_HOUSE);
+        p.set(1, TR, x, 4, t::CHAPEL_WINDOW);
+    }
+    p.set(1, TR, 7, 3, t::STONE_WINDOW);
+    p
+}
+
+/// A building as a structure (to place on a map): see `building`; its door is at
+/// (`w / 2`, `2 + walls`).
+pub fn building_def(w: i32, walls: i32, roof: Roof, wall: Wall) -> StructureDef {
+    building(w, walls, roof, wall).done("building", "Building", "Buildings", false)
+}
+
+/// The chapel as a structure (door at (4, 6)).
+pub fn chapel_def() -> StructureDef {
+    chapel_building().done("chapel_building", "Chapel", "Buildings", false)
+}
+
 /// A fenced enclosure `w` x `h` with posts at the corners and a gap of `gap` tiles in the
 /// middle of the bottom side.
 fn fenced(p: &mut P, w: i32, h: i32, gap: i32) {
@@ -183,13 +205,7 @@ fn village_structures(out: &mut Vec<StructureDef>) {
     p.prop("sign_smithy", 2, 4, 1);
     p.prop("woodpile", 6, 5, 2);
     out.push(p.done("smithy_stone", "Stone smithy (sign, woodpile)", "Buildings", true));
-    let mut p = building(9, 4, Roof::Slate, Wall::Stone);
-    for x in [1, 3, 5, 7] {
-        p.set(1, TR, x, 3, t::STONE_HOUSE);
-        p.set(1, TR, x, 4, t::CHAPEL_WINDOW);
-    }
-    p.set(1, TR, 7, 3, t::STONE_WINDOW);
-    let mut p = with_front(p, t::STONE_FLOOR);
+    let mut p = with_front(chapel_building(), t::STONE_FLOOR);
     p.prop("candle_stand", 2, 8, 1);
     p.prop("candle_stand", 6, 8, 1);
     out.push(p.done("chapel", "Chapel (stained glass)", "Buildings", true));

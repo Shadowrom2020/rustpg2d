@@ -117,6 +117,11 @@ entities and the player Y-sorted, combat / gathering / activity / FX / mouse ove
 entities, parallax above, the light pass when it is dark or the weather tints, weather, the save
 thumbnail, the debug overlay, the fade, HUD, windows, dialog, menus, console.
 
+The windows share their building blocks in `runtime/ui.rs`: `ScrollList` (selection, scrolling,
+double-click; the trade, crafting and menu lists), `slot_grid` with `DragState` (the item slots of
+the inventory and companion windows, one drag-and-drop state machine), `draw_item_detail` (the
+item footer), dialogs and toasts. A new window composes these instead of copying a loop.
+
 ### Maps, events, scripts
 
 Map changes: `transition(map, arrival)` starts a fade; `finish_transition` → `take_map` (cache or
@@ -158,7 +163,11 @@ up to 40 calls or 8 ms per frame), so a tool sees the editor's state like a user
 write is one undo step and saves the project. Screenshots are taken two frames later. A file
 watcher polls the project once a second (mtime and size) and reloads what changed on disk when the
 editor has no unsaved edits to it. `play_test` runs the sibling `rustpg2d-game` binary with an
-autoplay script and returns its status lines and screenshots.
+autoplay script and returns its status lines and screenshots. The 54 tools are declared once in
+`tools.rs` (`mcp_tools!`: description, annotations, parameters and the editor function each one
+runs); the `Call` enum, the tool names and the main-thread dispatch are generated from that block.
+Scripts are read by one lexer (`script_refs::lex` in the engine): the editor's highlighter, the
+reference finder, the function lists and completion all work on its tokens.
 
 ## 5. Formats and compatibility rules
 
@@ -177,9 +186,11 @@ means per format:
   an older game minus what it does not know.
 - **Libraries**: existing libraries only gain new ids from a changed starter set (images that are
   pure extensions are replaced); bump `STARTER_RULES` when the way starter sets are applied changes.
-- **Script API**: functions are never removed or change meaning within a major version; new ones
-  go into `script.rs`, the editor's `API` table, `script_refs::API_IDS` (when an argument is an
-  id) and `Documentation/scripting.md` (tests check the last two).
+- **Script API**: functions are never removed or change meaning within a major version; a new one
+  is registered in `script.rs` and described once in the `API` table of `script_api.rs` (parameter
+  kinds: `Arg::Id` for ids, `Arg::Line` for a line players read, `Arg::Text` for other words),
+  which drives the editor's completion, renames, the script check, translation templates and the
+  flag / variable collectors; `Documentation/scripting.md` must describe it too (a test checks).
 
 ## 6. Verification tooling
 

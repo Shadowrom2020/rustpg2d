@@ -127,7 +127,7 @@ crates/editor/src/      editor binary
   main.rs               loop + RUSTPG2D_EDITOR_SCRIPT command runner
   mcp/                  the AI agent server (Assets › AI agent server…): server.rs (rmcp Streamable HTTP on
                         127.0.0.1, tokio thread, resources, prompts), tools.rs (the catalogue: param structs +
-                        `#[tool]`s → Call), exec.rs / exec_maps.rs / exec_defs.rs (execution on the main thread
+                        one `mcp_tools!` block = description, name, `Call` variant and what the editor runs), exec.rs / exec_maps.rs / exec_defs.rs (execution on the main thread
                         between frames, `mcp_after_write` saves), grid.rs (maps as text), patch.rs (merge
                         patches), play.rs (play-tests in the game), watcher.rs (project files changed on disk),
                         ui.rs (the window); files.rs EditorSettings = <config>/editor.ron

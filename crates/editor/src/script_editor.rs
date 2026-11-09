@@ -17,107 +17,22 @@ const KEYWORDS: &[&str] = &[
 
 // ------------------------------------------------------------------ lexer
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Tk {
-    Comment,
-    /// A string; `closed` = its closing quote was found.
-    Str { closed: bool },
-    Num,
-    Ident,
-    Punct,
-    Space,
-}
+/// The engine's lexer: tokens covering every byte (comments and whitespace included).
+use rustpg2d_engine::script_refs::Lexeme as Tk;
 
-/// Splits source into contiguous tokens covering every byte.
+/// Splits source into contiguous tokens covering every byte: (kind, start, end).
 fn lex(src: &str) -> Vec<(Tk, usize, usize)> {
-    let b = src.as_bytes();
-    let mut out = Vec::new();
-    let mut i = 0;
-    while i < b.len() {
-        let start = i;
-        let c = b[i];
-        let kind = if c == b'/' && b.get(i + 1) == Some(&b'/') {
-            while i < b.len() && b[i] != b'\n' {
-                i += 1;
-            }
-            Tk::Comment
-        } else if c == b'/' && b.get(i + 1) == Some(&b'*') {
-            let mut depth = 0;
-            while i < b.len() {
-                if b[i] == b'/' && b.get(i + 1) == Some(&b'*') {
-                    depth += 1;
-                    i += 2;
-                } else if b[i] == b'*' && b.get(i + 1) == Some(&b'/') {
-                    depth -= 1;
-                    i += 2;
-                    if depth == 0 {
-                        break;
-                    }
-                } else {
-                    i += 1;
-                }
-            }
-            Tk::Comment
-        } else if c == b'"' || c == b'`' || c == b'\'' {
-            i += 1;
-            let mut closed = false;
-            while i < b.len() {
-                if b[i] == b'\\' {
-                    i += 2;
-                } else if b[i] == c {
-                    i += 1;
-                    closed = true;
-                    break;
-                } else if b[i] == b'\n' && c != b'`' {
-                    break; // unterminated: the rest of the line
-                } else {
-                    i += 1;
-                }
-            }
-            i = i.min(b.len());
-            Tk::Str { closed }
-        } else if c.is_ascii_digit() {
-            while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'.' || b[i] == b'_') {
-                i += 1;
-            }
-            Tk::Num
-        } else if c.is_ascii_alphabetic() || c == b'_' {
-            while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_') {
-                i += 1;
-            }
-            Tk::Ident
-        } else if c.is_ascii_whitespace() {
-            while i < b.len() && b[i].is_ascii_whitespace() {
-                i += 1;
-            }
-            Tk::Space
-        } else {
-            i += src[i..].chars().next().map_or(1, |ch| ch.len_utf8());
-            Tk::Punct
-        };
-        out.push((kind, start, i));
-    }
-    out
+    rustpg2d_engine::script_refs::lex(src).into_iter().map(|t| (t.kind, t.start, t.end)).collect()
 }
 
-/// Names of `fn` definitions in a source.
+/// Names of `fn` definitions in a source (the engine's finder).
 pub fn defined_functions(src: &str) -> Vec<String> {
-    let toks: Vec<_> = lex(src).into_iter().filter(|t| t.0 != Tk::Space && t.0 != Tk::Comment).collect();
-    toks.windows(2).filter(|w| w[0].0 == Tk::Ident && &src[w[0].1..w[0].2] == "fn" && w[1].0 == Tk::Ident).map(|w| src[w[1].1..w[1].2].to_string()).collect()
+    rustpg2d_engine::script_refs::functions(src).into_iter().map(|f| f.name).collect()
 }
 
 /// Functions defined in a source with their parameter names: `fn name(a, b)`.
 pub fn defined_signatures(src: &str) -> Vec<(String, Vec<String>)> {
-    let toks: Vec<_> = lex(src).into_iter().filter(|t| t.0 != Tk::Space && t.0 != Tk::Comment).collect();
-    let text = |k: usize| &src[toks[k].1..toks[k].2];
-    let mut out = Vec::new();
-    for k in 0..toks.len().saturating_sub(2) {
-        if toks[k].0 == Tk::Ident && text(k) == "fn" && toks[k + 1].0 == Tk::Ident && text(k + 2) == "(" {
-            let params = toks[k + 3..].iter().take_while(|t| &src[t.1..t.2] != ")").filter(|t| t.0 == Tk::Ident).map(|t| src[t.1..t.2].to_string()).collect();
-            out.push((text(k + 1).to_string(), params));
-        }
-    }
-    out
+    rustpg2d_engine::script_refs::functions(src).into_iter().map(|f| (f.name, f.params)).collect()
 }
 
 /// `let` / `const` names in a source.

@@ -2209,19 +2209,7 @@ fn {name}() {{
 
 /// `fn name(` definitions in a script, with the character index where each starts.
 pub(crate) fn script_functions(text: &str) -> Vec<(String, usize)> {
-    let mut out = Vec::new();
-    let mut chars = 0;
-    for line in text.split_inclusive('\n') {
-        let t = line.trim_start();
-        if let Some(rest) = t.strip_prefix("fn ").or_else(|| t.strip_prefix("private fn ")) {
-            let name: String = rest.trim_start().chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-            if !name.is_empty() {
-                out.push((name, chars + (line.chars().count() - t.chars().count())));
-            }
-        }
-        chars += line.chars().count();
-    }
-    out
+    rustpg2d_engine::script_refs::functions(text).into_iter().map(|f| (f.name, text[..f.at].chars().count())).collect()
 }
 
 impl Editor {

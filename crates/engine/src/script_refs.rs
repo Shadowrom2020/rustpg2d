@@ -88,19 +88,41 @@ enum Tok {
     Other,
 }
 
-/// Splits Rhai source into the tokens the scanner cares about (with byte offsets).
-fn tokenize(src: &str) -> Vec<(Tok, usize)> {
+/// A token of Rhai source. [`lex`] covers every byte (comments and whitespace included), so the
+/// editor's highlighter and the reference finders share one lexer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Lexeme {
+    Comment,
+    /// A string (`"…"`, `'…'` or `` `…` ``); `closed` = its closing quote was found. An
+    /// unterminated `"` / `'` string ends with its line, a backtick string with the file.
+    Str { closed: bool },
+    Num,
+    Ident,
+    Punct,
+    Space,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Token {
+    pub kind: Lexeme,
+    pub start: usize,
+    pub end: usize,
+}
+
+/// Splits source into contiguous tokens covering every byte.
+pub fn lex(src: &str) -> Vec<Token> {
     let b = src.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;
     while i < b.len() {
+        let start = i;
         let c = b[i];
-        if c == b'/' && b.get(i + 1) == Some(&b'/') {
+        let kind = if c == b'/' && b.get(i + 1) == Some(&b'/') {
             while i < b.len() && b[i] != b'\n' {
                 i += 1;
             }
+            Lexeme::Comment
         } else if c == b'/' && b.get(i + 1) == Some(&b'*') {
-            // Block comments nest in Rhai.
             let mut depth = 0;
             while i < b.len() {
                 if b[i] == b'/' && b.get(i + 1) == Some(&b'*') {
@@ -116,54 +138,91 @@ fn tokenize(src: &str) -> Vec<(Tok, usize)> {
                     i += 1;
                 }
             }
-        } else if c == b'"' {
-            let start = i;
-            let mut value = String::new();
+            Lexeme::Comment
+        } else if c == b'"' || c == b'`' || c == b'\'' {
             i += 1;
-            while i < b.len() && b[i] != b'"' {
-                if b[i] == b'\\' && i + 1 < b.len() {
-                    let e = b[i + 1];
-                    value.push(match e {
-                        b'n' => '\n',
-                        b't' => '\t',
-                        _ => e as char,
-                    });
+            let mut closed = false;
+            while i < b.len() {
+                if b[i] == b'\\' {
                     i += 2;
+                } else if b[i] == c {
+                    i += 1;
+                    closed = true;
+                    break;
+                } else if b[i] == b'\n' && c != b'`' {
+                    break; // unterminated: the rest of the line
                 } else {
-                    let ch = src[i..].chars().next().unwrap();
-                    value.push(ch);
-                    i += ch.len_utf8();
+                    i += 1;
                 }
             }
-            i += 1;
-            out.push((Tok::Str(value, start, i.min(b.len())), start));
-        } else if c == b'`' || c == b'\'' {
-            // Interpolated strings and characters: skipped, not ids.
-            let q = c;
-            let start = i;
-            i += 1;
-            while i < b.len() && b[i] != q {
-                i += if b[i] == b'\\' { 2 } else { 1 };
+            i = i.min(b.len());
+            Lexeme::Str { closed }
+        } else if c.is_ascii_digit() {
+            while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'.' || b[i] == b'_') {
+                i += 1;
             }
-            i += 1;
-            out.push((Tok::Other, start));
+            Lexeme::Num
         } else if c.is_ascii_alphabetic() || c == b'_' {
-            let start = i;
             while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_') {
                 i += 1;
             }
-            out.push((Tok::Ident(src[start..i].to_string()), start));
+            Lexeme::Ident
         } else if c.is_ascii_whitespace() {
-            i += 1;
-        } else if matches!(c, b'(' | b')' | b',' | b'[' | b']' | b'{' | b'}') {
-            out.push((Tok::Punct(c as char), i));
-            i += 1;
+            while i < b.len() && b[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            Lexeme::Space
         } else {
-            out.push((Tok::Other, i));
             i += src[i..].chars().next().map_or(1, |ch| ch.len_utf8());
+            Lexeme::Punct
+        };
+        out.push(Token { kind, start, end: i });
+    }
+    out
+}
+
+/// The value of a `"…"` string token: its text without the quotes, `\n`, `\t` and `\x` (any
+/// other escaped character) resolved.
+pub fn string_value(src: &str, t: &Token) -> String {
+    let inner = &src[t.start + 1..t.end];
+    let inner = inner.strip_suffix('"').unwrap_or(inner);
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some(e) => out.push(e),
+                None => {}
+            }
+        } else {
+            out.push(c);
         }
     }
     out
+}
+
+/// The tokens the scanner cares about (with byte offsets): identifiers, `"…"` strings with
+/// their value, the brackets and commas; comments and whitespace left out.
+fn tokenize(src: &str) -> Vec<(Tok, usize)> {
+    lex(src)
+        .into_iter()
+        .filter_map(|t| {
+            let text = &src[t.start..t.end];
+            Some(match t.kind {
+                Lexeme::Comment | Lexeme::Space => return None,
+                Lexeme::Str { .. } if text.starts_with('"') => (Tok::Str(string_value(src, &t), t.start, t.end), t.start),
+                // Interpolated strings, characters and numbers: not ids.
+                Lexeme::Str { .. } | Lexeme::Num => (Tok::Other, t.start),
+                Lexeme::Ident => (Tok::Ident(text.to_string()), t.start),
+                Lexeme::Punct => match text.chars().next() {
+                    Some(c @ ('(' | ')' | ',' | '[' | ']' | '{' | '}')) => (Tok::Punct(c), t.start),
+                    _ => (Tok::Other, t.start),
+                },
+            })
+        })
+        .collect()
 }
 
 /// The calls in a token stream: function name, its arguments (tokens at nesting depth 1,
@@ -297,6 +356,8 @@ pub struct ScriptFn {
     pub params: Vec<String>,
     /// The whole definition, with the `//` comment lines right above it.
     pub text: String,
+    /// Byte offset of the `fn` keyword in the source.
+    pub at: usize,
 }
 
 /// The top-level functions of a script source, in order.
@@ -351,7 +412,7 @@ pub fn functions(src: &str) -> Vec<ScriptFn> {
                     }
                     start = prev_start;
                 }
-                out.push(ScriptFn { name: name.clone(), params, text: src[start..end].to_string() });
+                out.push(ScriptFn { name: name.clone(), params, text: src[start..end].to_string(), at: toks[k].1 });
                 k = j + 1;
                 continue;
             }
@@ -448,6 +509,24 @@ pub fn check_script(src: &str, db: &Database, maps: &[String], spawns: &HashMap<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The lexer covers every byte, ends an unterminated string with its line and nests comments.
+    #[test]
+    fn lexer_covers_the_source() {
+        let src = "fn a(x) { /* c /* d */ */ say(\"hi\\n\"); 'q' 1.5 }\nlet s = \"open\nfn b() {}";
+        let toks = lex(src);
+        assert_eq!(toks[0].start, 0);
+        assert!(toks.windows(2).all(|w| w[0].end == w[1].start), "contiguous");
+        assert_eq!(toks.last().unwrap().end, src.len());
+        let kinds: Vec<Lexeme> = toks.iter().filter(|t| !matches!(t.kind, Lexeme::Space)).map(|t| t.kind).take(8).collect();
+        assert_eq!(kinds, [Lexeme::Ident, Lexeme::Ident, Lexeme::Punct, Lexeme::Ident, Lexeme::Punct, Lexeme::Punct, Lexeme::Comment, Lexeme::Ident]);
+        let strings: Vec<(bool, &str)> = toks.iter().filter_map(|t| match t.kind { Lexeme::Str { closed } => Some((closed, &src[t.start..t.end])), _ => None }).collect();
+        assert_eq!(strings, [(true, "\"hi\\n\""), (true, "'q'"), (false, "\"open")]);
+        let hi = toks.iter().find(|t| matches!(t.kind, Lexeme::Str { .. })).unwrap();
+        assert_eq!(string_value(src, hi), "hi\n");
+        // The unterminated string didn't swallow the next line: both functions are found.
+        assert_eq!(functions(src).iter().map(|f| (f.name.as_str(), f.at)).collect::<Vec<_>>(), [("a", 0), ("b", src.rfind("fn b").unwrap())]);
+    }
 
     #[test]
     fn list_arguments() {

@@ -67,6 +67,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- One Rhai lexer (`script_refs::lex`, every byte covered) serves the editor's highlighter, the
+  reference finder, the function lists and completion; the four function finders are one. An
+  unterminated string now ends with its line everywhere (the reference finder used to read on to
+  the end of the file).
 - The agent server's 54 tools are declared once (`mcp_tools!` in `tools.rs`: description,
   annotations, name, parameters, what the editor runs); the `Call` enum, its names and the
   dispatch are generated from it instead of kept in step by hand in four places.

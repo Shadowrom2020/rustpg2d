@@ -167,6 +167,11 @@ cargo test --workspace
 
 ## Project notes
 
+- **Content first.** New features, fixes and workflows are built with the engine's own tools
+  (events, Rhai scripts, definitions, structures, assets) and land in the editor's starter asset
+  library, and in the example project when they should be seen in play. The Rust code changes only
+  when the engine can't do it, and only after the maintainer agreed to the proposed (small,
+  generic) addition. CLAUDE.md (*Content route*) describes the workflow.
 - Map and definition files must stay loadable by older and newer versions: append new enum
   variants at the end, and give new fields `#[serde(default)]`. `crates/engine/tests/fixtures/`
   holds files of earlier versions that the tests load; add the last release's file there when a

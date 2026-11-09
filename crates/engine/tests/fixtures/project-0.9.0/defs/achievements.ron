@@ -1,0 +1,134 @@
+[
+    (
+        id: "first_blood",
+        name: "First Blood",
+        description: "Defeat your first slime.",
+        icon: (
+            sheet: "items",
+            frame: 11,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Defeated(
+                    character: "slime",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "pest_control",
+        name: "Pest Control",
+        description: "Rid Tilda\'s deliveries of the slimes.",
+        icon: (
+            sheet: "items",
+            frame: 1,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Quest(
+                    quest: "pest_control",
+                    check: Completed,
+                    stage: 0,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "lights_in_the_dark",
+        name: "Lights in the Dark",
+        description: "Wake the old shrine in Whisperwood.",
+        icon: (
+            sheet: "items",
+            frame: 27,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Flag(
+                    name: "shrine_lit",
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "seasoned",
+        name: "Seasoned",
+        description: "Reach level 5.",
+        icon: (
+            sheet: "items",
+            frame: 30,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Level(
+                    op: Ge,
+                    value: 5,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "naturalist",
+        name: "Naturalist",
+        description: "Face a slime, a goblin archer, an outlaw and the bandit chief.",
+        icon: (
+            sheet: "items",
+            frame: 23,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Defeated(
+                    character: "slime",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+            (
+                cond: Defeated(
+                    character: "goblin",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+            (
+                cond: Defeated(
+                    character: "outlaw",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+            (
+                cond: Defeated(
+                    character: "bandit_chief",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "hidden_hoard",
+        name: "Hidden Hoard",
+        description: "Pick the lock of the old mine\'s treasure chest.",
+        icon: (
+            sheet: "items",
+            frame: 31,
+        ),
+        hidden: true,
+        conditions: [],
+    ),
+]

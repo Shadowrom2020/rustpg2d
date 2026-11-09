@@ -123,8 +123,14 @@ impl Editor {
         if changes.is_empty() {
             return;
         }
-        changes.dedup();
-        self.watch_apply(changes, false);
+        // (`dedup` only drops neighbours; the same file can be found twice far apart.)
+        let mut once: Vec<Changed> = Vec::with_capacity(changes.len());
+        for c in changes {
+            if !once.contains(&c) {
+                once.push(c);
+            }
+        }
+        self.watch_apply(once, false);
     }
 
     /// Applies disk changes: reloads what is clean; with `force` also what has unsaved edits

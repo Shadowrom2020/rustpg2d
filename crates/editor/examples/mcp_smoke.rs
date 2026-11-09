@@ -79,6 +79,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     check("write_asset outside the art folders is refused", r.is_error.unwrap_or(false), text(&r));
     let r = call("upsert_def", json!({"kind": "sheets", "def": {"id": "smoke", "image": "sprites/smoke.png", "frame_w": 32, "frame_h": 32}})).await?;
     check("upsert_def sheet for the new art", !r.is_error.unwrap_or(false), text(&r));
+    // A prop two tiles wide stands on a tile edge, like the editor places it.
+    let r = call("place_entity", json!({"map": "village", "kind": "prop", "def": "bench", "x": 12, "y": 52})).await?;
+    check("place_entity of a 2-wide prop", text(&r).contains("edge between tiles 12 and 13") && text(&r).contains("\"tile_x\": 13"), text(&r));
     let r = call("capture_structure", json!({"map": "village", "x": 32, "y": 19, "w": 5, "h": 5, "id": "smoke_square", "category": "Smoke"})).await?;
     check("capture_structure", text(&r).starts_with("New structure \"smoke_square\" (5x5 tiles"), text(&r));
     let r = call("library_send", json!({"assets": [{"kind": "sheet", "id": "smoke"}, {"kind": "structure", "id": "smoke_square"}], "replace": true, "drop_script_triggers": true})).await?;

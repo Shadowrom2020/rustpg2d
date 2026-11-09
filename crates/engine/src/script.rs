@@ -128,10 +128,7 @@ impl ScriptHost {
     fn compile_dir(&self, dir: &Path) -> (AST, Vec<String>) {
         let mut ast = AST::empty();
         let mut errors = Vec::new();
-        let Ok(all) = crate::sys::files_in(dir) else { return (ast, errors) };
-        let mut files: Vec<_> = all.into_iter().filter(|p| p.extension().is_some_and(|e| e == "rhai")).collect();
-        files.sort();
-        for f in files {
+        for f in crate::project::script_files_in(dir) {
             match crate::sys::read_to_string(&f).map_err(|e| e.to_string()).and_then(|src| self.engine.compile(&src).map_err(|e| e.to_string())) {
                 Ok(a) => ast = ast.merge(&a),
                 Err(e) => errors.push(format!("{}: {e}", f.file_name().map_or_else(|| f.display().to_string(), |n| n.to_string_lossy().into_owned()))),

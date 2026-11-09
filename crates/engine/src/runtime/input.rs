@@ -762,7 +762,15 @@ thread_local! {
 
 /// The keys that trigger `a` now.
 pub fn keys_of(a: Act) -> Vec<KeyCode> {
-    BINDINGS.with(|b| b.borrow().get(&a).cloned()).unwrap_or_else(|| a.default_keys().to_vec())
+    with_keys(a, |k| k.to_vec())
+}
+
+/// Runs `f` on the keys bound to `a` without copying them (every frame asks for many actions).
+fn with_keys<R>(a: Act, f: impl FnOnce(&[KeyCode]) -> R) -> R {
+    BINDINGS.with(|b| match b.borrow().get(&a) {
+        Some(k) => f(k),
+        None => f(a.default_keys()),
+    })
 }
 
 /// Applies the player's bindings (`settings.keys`: action id -> key names). Unknown actions,
@@ -795,12 +803,12 @@ pub fn conflicts(a: Act, key: KeyCode) -> Vec<Act> {
 
 /// The action is held (keyboard or gamepad).
 pub fn act_down(a: Act) -> bool {
-    keys_of(a).iter().any(|k| down(*k)) || a.pad().iter().any(|b| pad_down(*b))
+    with_keys(a, |keys| keys.iter().any(|k| down(*k))) || a.pad().iter().any(|b| pad_down(*b))
 }
 
 /// The action was triggered this frame.
 pub fn act_pressed(a: Act) -> bool {
-    keys_of(a).iter().any(|k| pressed(*k)) || a.pad().iter().any(|b| pad_pressed(*b))
+    with_keys(a, |keys| keys.iter().any(|k| pressed(*k))) || a.pad().iter().any(|b| pad_pressed(*b))
 }
 
 pub fn any_act_pressed(acts: &[Act]) -> bool {

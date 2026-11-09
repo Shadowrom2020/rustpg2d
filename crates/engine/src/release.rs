@@ -301,7 +301,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     }
     let mut files: BTreeSet<String> = BTreeSet::new();
     files.insert("project.ron".into());
-    for d in ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "skills", "spells", "recipes", "achievements"] {
+    for d in crate::project::DEFS.iter().filter(|d| **d != "structures") {
         let rel = format!("defs/{d}.ron");
         if root.join(&rel).exists() {
             files.insert(rel);
@@ -319,19 +319,15 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
             c.warnings.push(format!("The project offers the language '{code}' but has no {rel}; only R(ust)PG2D's own texts will be translated."));
         }
     }
-    if let Ok(rd) = std::fs::read_dir(project.scripts_dir()) {
-        for e in rd.flatten() {
-            if e.path().extension().is_some_and(|x| x == "rhai") {
-                files.insert(format!("scripts/{}", e.file_name().to_string_lossy()));
-            }
-        }
+    for f in project.script_files() {
+        files.insert(format!("scripts/{}", f.file_name().unwrap_or_default().to_string_lossy()));
     }
     let db = &project.db;
     let assets = db.tilesets.iter().map(|d| (&d.image, "tileset", &d.id)).chain(db.sheets.iter().map(|d| (&d.image, "sprite sheet", &d.id))).chain(db.sounds.iter().map(|d| (&d.file, "sound", &d.id)));
     for (rel, kind, id) in assets {
         if rel.is_empty() || !root.join(rel).exists() {
             c.warnings.push(format!("The {kind} '{id}' has no file ({rel}); it will be missing in the game."));
-        } else if rel.starts_with('/') || rel.split('/').any(|p| p == "..") {
+        } else if !crate::project::safe_rel(rel) {
             c.errors.push(format!("The {kind} '{id}' uses a file outside the project ({rel}); import it into the project first."));
         } else {
             files.insert(rel.clone());
@@ -348,6 +344,38 @@ pub struct Exported {
     pub files: usize,
     pub bytes: u64,
     pub warnings: Vec<String>,
+}
+
+/// The engine build a game runner binary was made from ([`crate::ENGINE_BUILD_TAG`] in its
+/// bytes); None for runners older than the tag.
+pub fn runner_build(bytes: &[u8]) -> Option<&str> {
+    const MARK: &[u8] = b"rustpg2d-engine-build:";
+    let mut from = 0;
+    while let Some(k) = bytes[from..].windows(MARK.len()).position(|w| w == MARK) {
+        let start = from + k + MARK.len();
+        let hex = bytes.get(start..start + 16)?;
+        if hex.iter().all(u8::is_ascii_hexdigit) && bytes.get(start + 16) == Some(&b';') {
+            return std::str::from_utf8(hex).ok();
+        }
+        from = start;
+    }
+    None
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Refuses a game runner built from another engine than this one: an exported game could not
+/// read the maps this editor writes (it would stop at "loading map ...").
+fn check_runner(bytes: &[u8], runner: &Path, rebuild: &str) -> Result<()> {
+    match runner_build(bytes) {
+        Some(b) if b == crate::ENGINE_BUILD => Ok(()),
+        found => bail!(
+            "{} was built from {} than this editor (runner {}, editor {}), so the exported game might not read this project. Rebuild it from the editor's sources: {rebuild}",
+            runner.display(),
+            if found.is_some() { "another engine" } else { "an older engine" },
+            found.unwrap_or("unknown"),
+            crate::ENGINE_BUILD
+        ),
+    }
 }
 
 /// Writes a bundle of `project` named `name` for `platform` into `out_dir/<slug>/` (Windows:
@@ -375,6 +403,12 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
         Platform::MacOS if !matches!(head.as_slice(), [0xcf, 0xfa, 0xed, 0xfe] | [0xca, 0xfe, 0xba, 0xbe]) => bail!("{} is not a macOS program", game_binary.display()),
         _ => {}
     }
+    let rebuild = match platform {
+        Platform::Windows => "`cargo build --release --target x86_64-pc-windows-gnu -p rustpg2d-game`",
+        Platform::MacOS => "build rustpg2d-game on a Mac (README, Exporting for macOS)",
+        Platform::Linux => "`cargo build --release -p rustpg2d-game`",
+    };
+    check_runner(&std::fs::read(game_binary).context("reading the game executable")?, game_binary, rebuild)?;
     let folder = out_dir.join(platform.folder(&slug));
     let project_root = project.root.canonicalize().unwrap_or_else(|_| project.root.clone());
     let folder_abs = std::fs::create_dir_all(out_dir).ok().and_then(|_| out_dir.canonicalize().ok()).map(|d| d.join(platform.folder(&slug)));
@@ -456,6 +490,7 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
     if !wasm.starts_with(b"\0asm") {
         bail!("{} is not a WebAssembly file", game_wasm.display());
     }
+    check_runner(&wasm, game_wasm, "`cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game`")?;
     let slug = slug(name);
     let folder = out_dir.join(format!("{slug}-web"));
     let project_root = project.root.canonicalize().unwrap_or_else(|_| project.root.clone());
@@ -480,7 +515,7 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
     // The bundled project carries the chosen name (title, storage of settings).
     let mut cfg = project.config.clone();
     cfg.name = name.trim().to_string();
-    packed.push(("project.ron".into(), ron::ser::to_string_pretty(&cfg, ron::ser::PrettyConfig::default().struct_names(false))?.into_bytes()));
+    packed.push(("project.ron".into(), crate::project::ron_text(&cfg)?.into_bytes()));
     let title = name.trim().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
     let readme = format!(
         "{name}\n\nThe web version: open index.html through a web server (browsers don't run WebAssembly from file:// pages), e.g. `python3 -m http.server` in this folder and http://localhost:8000, or upload {slug}-web.zip to itch.io as an HTML game.\nSave games and settings stay in the player's browser (local storage of the page's site).\n\nMade with R(ust)PG2D. The game ({WEB_WASM}) is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}; mq_js_bundle.js is macroquad's loader (MIT OR Apache-2.0).\n",
@@ -576,6 +611,24 @@ mod tests {
     use crate::map::{Map, Zone, ZoneKind};
     use crate::project::ProjectConfig;
 
+    /// A fake game runner: `head` plus this engine's build tag (as every real runner carries).
+    fn tagged(head: &[u8]) -> Vec<u8> {
+        [head, crate::ENGINE_BUILD_TAG.as_bytes()].concat()
+    }
+
+    #[test]
+    fn exports_refuse_runners_of_another_engine() {
+        assert_eq!(runner_build(&tagged(b"\0asm")), Some(crate::ENGINE_BUILD));
+        assert_eq!(runner_build(b"\0asm no tag here"), None);
+        // A bare marker (the scanner's own constant in a debug binary) is skipped.
+        assert_eq!(runner_build(b"rustpg2d-engine-build:xyz rustpg2d-engine-build:0123456789abcdef;"), Some("0123456789abcdef"));
+        let old = check_runner(b"\0asm", Path::new("old.wasm"), "rebuild").unwrap_err().to_string();
+        assert!(old.contains("an older engine") && old.contains("rebuild"), "{old}");
+        let other = check_runner(b"rustpg2d-engine-build:0000000000000000;", Path::new("x"), "r").unwrap_err().to_string();
+        assert!(crate::ENGINE_BUILD == "0000000000000000" || other.contains("another engine"), "{other}");
+        assert!(check_runner(&tagged(b"MZ"), Path::new("x"), "r").is_ok());
+    }
+
     #[test]
     fn slugs() {
         assert_eq!(slug("My Game!"), "my-game");
@@ -608,7 +661,7 @@ mod tests {
         std::fs::create_dir_all(root.join("saves")).unwrap();
         std::fs::write(root.join("saves/quick.ron"), b"()").unwrap();
         std::fs::write(root.join("sprites/unused.png"), b"x").unwrap();
-        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, kind: Default::default(), female: false, playable: false, tags: vec![] }], ..Default::default() };
+        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, ..Default::default() }], ..Default::default() };
         let mut p = Project { root: root.clone(), config: ProjectConfig::new("Test"), db };
         p.save_config().unwrap();
         p.save_defs().unwrap();
@@ -623,7 +676,7 @@ mod tests {
         std::fs::create_dir_all(root.join("lang")).unwrap();
         std::fs::write(root.join("lang/de.ron"), "(name: \"Deutsch\")").unwrap();
         let bin = tmp.join("rustpg2d-game");
-        std::fs::write(&bin, b"#!/bin/sh\n").unwrap();
+        std::fs::write(&bin, tagged(b"#!/bin/sh\n")).unwrap();
         let out = tmp.join("out");
         let r = export(&p, "Test Quest", Platform::Linux, &bin, &out, true, None).unwrap();
         let f = out.join("test-quest");
@@ -651,7 +704,7 @@ mod tests {
         assert!(export(&p, "Other", Platform::Linux, &bin, &out, false, None).is_err());
         // The web version: one pack with the game's files, the page and the loader.
         let wasm = tmp.join("rustpg2d-game.wasm");
-        std::fs::write(&wasm, b"\0asm\x01\0\0\0").unwrap();
+        std::fs::write(&wasm, tagged(b"\0asm\x01\0\0\0")).unwrap();
         assert!(export_web(&p, "Test Quest", &bin, &out, false).is_err(), "not WebAssembly");
         let r = export_web(&p, "Test Quest", &wasm, &out, true).unwrap();
         let w = out.join("test-quest-web");
@@ -674,7 +727,7 @@ mod tests {
         // Windows: needs a Windows program; its own folder, exe, zip and README next to Linux's.
         assert!(export(&p, "Test Quest", Platform::Windows, &bin, &out, false, None).is_err(), "not an exe");
         let win = tmp.join("rustpg2d-game.exe");
-        std::fs::write(&win, b"MZ\x90\0fake").unwrap();
+        std::fs::write(&win, tagged(b"MZ\x90\0fake")).unwrap();
         let r = export(&p, "Test Quest", Platform::Windows, &win, &out, true, None).unwrap();
         let w = out.join("test-quest-windows");
         assert_eq!(r.folder, w);
@@ -687,7 +740,7 @@ mod tests {
         // macOS: an application bundle named after the game, data in Contents/Resources, an icon.
         assert!(export(&p, "Test Quest", Platform::MacOS, &win, &out, false, None).is_err(), "not a Mach-O program");
         let mac = tmp.join("rustpg2d-game-macos");
-        std::fs::write(&mac, crate::macsign::tests::tiny_macho(true)).unwrap();
+        std::fs::write(&mac, tagged(&crate::macsign::tests::tiny_macho(true))).unwrap();
         let icon = crate::imageio::Rgba::new(20, 32).encode().unwrap();
         let r = export(&p, "Test: Quest", Platform::MacOS, &mac, &out, true, Some(&icon)).unwrap();
         let m = out.join("test-quest-macos");

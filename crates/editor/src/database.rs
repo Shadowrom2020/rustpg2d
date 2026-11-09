@@ -33,6 +33,27 @@ pub enum Tab {
     Achievements,
 }
 
+impl Tab {
+    /// The tab that edits definitions of `kind` (`None` for maps).
+    pub fn of(kind: RefKind) -> Option<Tab> {
+        Some(match kind {
+            RefKind::Item => Tab::Items,
+            RefKind::Prop => Tab::Props,
+            RefKind::Character => Tab::Characters,
+            RefKind::Tileset => Tab::Tilesets,
+            RefKind::Sheet => Tab::Sheets,
+            RefKind::Sound => Tab::Sounds,
+            RefKind::Quest => Tab::Quests,
+            RefKind::Structure => Tab::Structures,
+            RefKind::Skill => Tab::Skills,
+            RefKind::Spell => Tab::Spells,
+            RefKind::Recipe => Tab::Recipes,
+            RefKind::Achievement => Tab::Achievements,
+            RefKind::Map => return None,
+        })
+    }
+}
+
 /// Inline "rename id" editor state; at most one rename is open at a time.
 #[derive(Default)]
 pub struct RenameUi {
@@ -303,25 +324,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     &mut db.items,
                     sel,
                     |d| format!("{}  ({})", d.name, d.id),
-                    |ids| ItemDef {
-                        id: unique("item", ids),
-                        name: "New item".into(),
-                        description: String::new(),
-                        icon: SpriteRef::default(),
-                        consumable: false,
-                        on_use: vec![],
-                        weapon: None,
-                        armor: None,
-                        max_stack: 99,
-                        value: 0,
-        light: None,
-        teaches: String::new(),
-        held: String::new(),
-        tool: String::new(),
-        use_on: Default::default(),
-        crop: None,
-        food: false,
-                    },
+                    |ids| ItemDef::fresh(&unique("item", ids)),
                     |d| &mut d.id,
                 ),
                 Tab::Props => list_ui(
@@ -329,23 +332,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     &mut db.props,
                     sel,
                     |d| format!("{}  ({})", d.name, d.id),
-                    |ids| PropDef {
-                        id: unique("prop", ids),
-                        name: "New prop".into(),
-                        sprite: SpriteRef::default(),
-                        solid: true,
-                        hitbox: [28.0, 16.0],
-                        triggers: vec![],
-                        container: None,
-                        lock: None,
-                        default_state: default_state_name(),
-                        states: vec![],
-                        light: None,
-                        use_spot: None,
-                        gather: None,
-                        regrow: None,
-                        plot: false,
-                    },
+                    |ids| PropDef::fresh(&unique("prop", ids)),
                     |d| &mut d.id,
                 ),
                 Tab::Characters => list_ui(
@@ -361,7 +348,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     &mut db.tilesets,
                     sel,
                     |d| d.id.clone(),
-                    |ids| TilesetDef { id: unique("tileset", ids), image: "tilesets/new.png".into(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] },
+                    |ids| TilesetDef::fresh(&unique("tileset", ids)),
                     |d| &mut d.id,
                 ),
                 Tab::Sheets => list_ui(
@@ -369,7 +356,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     &mut db.sheets,
                     sel,
                     |d| d.id.clone(),
-                    |ids| SheetDef::new(&unique("sheet", ids), "sprites/new.png", 32, 32),
+                    |ids| SheetDef::fresh(&unique("sheet", ids)),
                     |d| &mut d.id,
                 ),
                 Tab::Sounds => list_ui(
@@ -601,6 +588,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
     }
     if list_changed || before.0 != ed.project.db || before.1 != ed.project.config {
         ed.defs_dirty = true;
+        ed.project.db.reindex();
         if before.0.quests != ed.project.db.quests {
             ed.refs.quests = ed.project.db.quests.iter().map(|q| q.id.clone()).collect();
             ed.refs.quest_stages = ed.project.db.quests.iter().map(|q| (q.id.clone(), q.stages.clone())).collect();
@@ -1344,17 +1332,11 @@ fn all_names_except(d: &PropDef, i: usize) -> Vec<String> {
 pub fn rename_state_in_triggers(ts: &mut [rustpg2d_engine::events::Trigger], old: &str, new: &str) {
     use rustpg2d_engine::events::{Action, Cond};
     fn actions(acts: &mut [Action], old: &str, new: &str) {
-        for a in acts {
-            match a {
-                Action::SetState { target, state } if (target == "self" || target.is_empty()) && state == old => *state = new.to_string(),
-                Action::If { conditions, then, otherwise } => {
-                    conds(conditions, old, new);
-                    actions(then, old, new);
-                    actions(otherwise, old, new);
-                }
-                _ => {}
-            }
-        }
+        rustpg2d_engine::events::walk_actions_mut(acts, &mut |a| match a {
+            Action::SetState { target, state } if (target == "self" || target.is_empty()) && state == old => *state = new.to_string(),
+            Action::If { conditions, .. } => conds(conditions, old, new),
+            _ => {}
+        });
     }
     fn conds(cs: &mut [rustpg2d_engine::events::Condition], old: &str, new: &str) {
         for c in cs {
@@ -2227,19 +2209,7 @@ fn {name}() {{
 
 /// `fn name(` definitions in a script, with the character index where each starts.
 pub(crate) fn script_functions(text: &str) -> Vec<(String, usize)> {
-    let mut out = Vec::new();
-    let mut chars = 0;
-    for line in text.split_inclusive('\n') {
-        let t = line.trim_start();
-        if let Some(rest) = t.strip_prefix("fn ").or_else(|| t.strip_prefix("private fn ")) {
-            let name: String = rest.trim_start().chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-            if !name.is_empty() {
-                out.push((name, chars + (line.chars().count() - t.chars().count())));
-            }
-        }
-        chars += line.chars().count();
-    }
-    out
+    rustpg2d_engine::script_refs::functions(text).into_iter().map(|f| (f.name, text[..f.at].chars().count())).collect()
 }
 
 impl Editor {
@@ -2275,14 +2245,7 @@ impl Editor {
 
 fn scripts_ui(ed: &mut Editor, ui: &mut egui::Ui) {
     let dir = ed.project.scripts_dir();
-    let mut files: Vec<_> = std::fs::read_dir(&dir)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|e| e == "rhai"))
-        .collect();
-    files.sort();
+    let files: Vec<std::path::PathBuf> = ed.project.script_files();
     // Always show a script: the first one when none (or a deleted one) is open.
     if ed.db.script_file.as_ref().is_none_or(|f| !files.contains(f)) {
         if let Some(f) = files.first().cloned() {
@@ -2367,9 +2330,10 @@ fn scripts_ui(ed: &mut Editor, ui: &mut egui::Ui) {
         });
     });
     if let Some(p) = create {
-        let _ = std::fs::create_dir_all(&dir);
         if !p.exists() {
-            let _ = std::fs::write(&p, "// New script\n\nfn my_function() {\n    say(\"Hello!\");\n}\n");
+            if let Err(e) = rustpg2d_engine::sys::write(&p, b"// New script\n\nfn my_function() {\n    say(\"Hello!\");\n}\n") {
+                eprintln!("[editor] cannot create {}: {e}", p.display());
+            }
         }
         ed.refresh_refs();
         open = Some((p, None));
@@ -2386,10 +2350,12 @@ fn scripts_ui(ed: &mut Editor, ui: &mut egui::Ui) {
         functions.extend(crate::script_editor::defined_functions(text));
         signatures.extend(crate::script_editor::defined_signatures(text));
         for a in rustpg2d_engine::script_refs::string_args(text) {
-            match (a.func.as_str(), a.arg) {
-                ("flag" | "set_flag", 0) => flags.push(a.value),
-                ("get_var" | "set_var" | "add_var" | "queue_set_var", 0) | ("choice", 2) => vars.push(a.value),
-                _ => {}
+            // Flag and variable arguments of any API function (the table says which).
+            let kinds: Vec<rustpg2d_engine::script_api::Arg> = rustpg2d_engine::script_api::arg_kinds(&a.func, a.arg).collect();
+            if kinds.contains(&rustpg2d_engine::script_api::Arg::Flag) {
+                flags.push(a.value);
+            } else if kinds.contains(&rustpg2d_engine::script_api::Arg::Var) {
+                vars.push(a.value);
             }
         }
     }

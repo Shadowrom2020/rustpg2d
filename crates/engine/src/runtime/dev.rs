@@ -52,11 +52,8 @@ pub(super) struct Dev {
 }
 
 fn snapshot(dir: &Path) -> Vec<Stamp> {
-    let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
-    let mut v: Vec<Stamp> = rd
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|e| e == "rhai"))
+    let mut v: Vec<Stamp> = crate::project::script_files_in(dir)
+        .into_iter()
         .map(|p| {
             let m = std::fs::metadata(&p).ok();
             let stamp = (m.as_ref().and_then(|m| m.modified().ok()), m.map_or(0, |m| m.len()));
@@ -223,6 +220,7 @@ impl Game {
             "call" if !arg(1).is_empty() => {
                 if self.scripts.has_function(arg(1)) {
                     self.sync_script_player();
+                    self.sync_script_player();
                     queued = self.scripts.call(&mut self.world, arg(1), None);
                 } else {
                     self.dev.print(format!("no script function {}", arg(1)));
@@ -273,6 +271,7 @@ impl Game {
                 self.dev.print(format!("xp {}", self.world.xp));
             }
             _ => {
+                self.sync_script_player();
                 self.sync_script_player();
                 let (r, actions) = self.scripts.eval(&mut self.world, line);
                 match r {

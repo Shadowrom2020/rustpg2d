@@ -198,6 +198,7 @@ impl Game {
                 e.body.pos = p;
                 e.body.move_target = None;
                 e.home = p;
+                self.occupy(i);
                 self.persist(i);
             }
             None => eprintln!("[cutscene] place: no character '{target}' on this map"),

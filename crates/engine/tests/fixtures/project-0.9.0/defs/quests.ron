@@ -1,0 +1,23 @@
+[
+    (
+        id: "strange_lights",
+        title: "The Strange Lights",
+        description: "Strange lights have been seen in Whisperwood, east of Emberbrook. Elder Rowan asked me to investigate the old shrine there.",
+        stages: [
+            "Take the gate key from the chest in Elder Rowan\'s house, north of the well.",
+            "Open the east gate and find the old shrine deep in Whisperwood.",
+            "Return to Elder Rowan.",
+        ],
+        xp: 80,
+    ),
+    (
+        id: "pest_control",
+        title: "Pest Control",
+        description: "Slimes from Whisperwood keep eating Tilda\'s deliveries. She promised 30 coins and a potion if I get rid of five of them.",
+        stages: [
+            "Defeat slimes in Whisperwood ({pest_slimes}/5).",
+            "Return to Tilda\'s shop for the reward.",
+        ],
+        xp: 40,
+    ),
+]

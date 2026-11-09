@@ -188,7 +188,13 @@ impl Game {
             }
             let Some(slot) = p.file_stem().map(|s| s.to_string_lossy().into_owned()) else { continue };
             let file_time = crate::sys::modified_secs(&p);
-            let world = crate::sys::read_to_string(&p).ok().and_then(|s| crate::state::WorldState::from_ron(&s).ok());
+            let world = match crate::sys::read_to_string(&p).map_err(|e| e.to_string()).and_then(|s| crate::state::WorldState::from_ron(&s).map_err(|e| format!("{e:#}"))) {
+                Ok(w) => Some(w),
+                Err(e) => {
+                    eprintln!("[game] save {} is unreadable: {e}", p.display());
+                    None
+                }
+            };
             let (map, saved, play) = match &world {
                 Some(w) => (w.current_map.clone(), if w.saved_at > 0 { w.saved_at } else { file_time }, w.play_time),
                 None => ("(unreadable)".into(), file_time, 0.0),
@@ -357,12 +363,11 @@ impl Game {
 
     /// Selects `row` on the current page (back from a sub-page onto the row that opened it).
     fn select(&mut self, row: &Row) {
-        if let Some(k) = self.rows().iter().position(|r| &r.0 == row) {
+        let rows = self.rows();
+        if let Some(k) = rows.iter().position(|r| &r.0 == row) {
             self.menu.sel = k;
             let max = self.max_rows();
-            if k >= self.menu.scroll + max {
-                self.menu.scroll = k + 1 - max;
-            }
+            super::ui::clamp_list(&mut self.menu.sel, &mut self.menu.scroll, rows.len(), max);
         }
     }
 
@@ -862,11 +867,8 @@ impl Game {
                 self.menu.sel = (self.menu.sel + 1) % n;
             }
             // Keep the selection visible.
-            if self.menu.sel < self.menu.scroll {
-                self.menu.scroll = self.menu.sel;
-            } else if self.menu.sel >= self.menu.scroll + self.max_rows() {
-                self.menu.scroll = self.menu.sel + 1 - self.max_rows();
-            }
+            let max = self.max_rows();
+            super::ui::clamp_list(&mut self.menu.sel, &mut self.menu.scroll, n, max);
             let wheel = input::wheel();
             let max_rows = self.max_rows();
             if wheel != 0.0 && panel_rect.contains(m) && n > max_rows {

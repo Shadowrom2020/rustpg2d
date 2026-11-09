@@ -1,6 +1,8 @@
 //! Tile maps: chunked, sparse layers so maps up to 1024x1024 tiles stay cheap.
 
 pub mod io;
+/// The non-tile part of a map (objects and settings), the editor's undo snapshot: see `io::Meta`.
+pub use io::Meta as MapObjects;
 pub mod transition;
 
 use serde::{Deserialize, Serialize};
@@ -38,6 +40,9 @@ impl Tile {
     }
 }
 
+/// Frozen: stored with postcard (by position, no defaults) inside map files, like [`TileLayer`].
+/// A new property of layers or chunks goes into the map's RON `Meta` (`io.rs`), or the format
+/// version is bumped with a reader for the old layout.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Chunk {
     pub tiles: Vec<Tile>,
@@ -53,6 +58,10 @@ impl Chunk {
 }
 
 /// One drawable layer of tiles, stored as a grid of optional chunks.
+///
+/// Frozen: map files store it with postcard (fields by position, no defaults), so the `serde`
+/// defaults below only apply to other formats. A new layer property goes into the map's RON
+/// `Meta` (`io.rs`), or the format version is bumped with a reader for the old layout.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TileLayer {
     pub name: String,
@@ -82,6 +91,22 @@ impl TileLayer {
             chunks_h,
             chunks: vec![None; (chunks_w * chunks_h) as usize],
         }
+    }
+
+    /// Checks a layer read from a file against the map's size: `get` and `set` index the chunk
+    /// grid without bounds checks, so a layer that doesn't fit is refused when loading.
+    pub fn validate(&self, width: u32, height: u32) -> Result<(), String> {
+        let (cw, ch) = (width.div_ceil(CHUNK_SIZE), height.div_ceil(CHUNK_SIZE));
+        if self.chunks_w != cw || self.chunks_h != ch {
+            return Err(format!("layer '{}' has a {}x{} chunk grid, the map needs {cw}x{ch}", self.name, self.chunks_w, self.chunks_h));
+        }
+        if self.chunks.len() != cw as usize * ch as usize {
+            return Err(format!("layer '{}' has {} chunks, not {}", self.name, self.chunks.len(), cw as usize * ch as usize));
+        }
+        if let Some(c) = self.chunks.iter().flatten().find(|c| c.tiles.len() != CHUNK_AREA) {
+            return Err(format!("layer '{}' has a chunk of {} tiles, not {CHUNK_AREA}", self.name, c.tiles.len()));
+        }
+        Ok(())
     }
 
     #[inline]

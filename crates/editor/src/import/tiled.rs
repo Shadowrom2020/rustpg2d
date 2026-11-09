@@ -92,34 +92,9 @@ const FLIP_FLAGS: u32 = 0xF000_0000;
 
 // ------------------------------------------------------------------ tile data
 
-/// Standard base64 (whitespace ignored).
+/// Standard base64 (whitespace ignored): the engine's decoder.
 pub fn base64(text: &str) -> Result<Vec<u8>> {
-    let val = |c: u8| -> Option<u32> {
-        Some(match c {
-            b'A'..=b'Z' => c - b'A',
-            b'a'..=b'z' => c - b'a' + 26,
-            b'0'..=b'9' => c - b'0' + 52,
-            b'+' => 62,
-            b'/' => 63,
-            _ => return None,
-        } as u32)
-    };
-    let clean: Vec<u8> = text.bytes().filter(|c| !c.is_ascii_whitespace() && *c != b'=').collect();
-    let mut out = Vec::with_capacity(clean.len() * 3 / 4);
-    for chunk in clean.chunks(4) {
-        let mut n = 0u32;
-        for (i, &c) in chunk.iter().enumerate() {
-            n |= val(c).context("invalid base64 data")? << (18 - 6 * i);
-        }
-        out.push((n >> 16) as u8);
-        if chunk.len() > 2 {
-            out.push((n >> 8) as u8);
-        }
-        if chunk.len() > 3 {
-            out.push(n as u8);
-        }
-    }
-    Ok(out)
+    rustpg2d_engine::hash::base64_decode(text).context("invalid base64 data")
 }
 
 /// A layer's tile ids from its encoded data.
@@ -685,7 +660,7 @@ pub fn convert(p: &Parsed, name: &str, root: &Path, db: &mut Database) -> Result
             animations.push(TileAnim { tile: *tile, frames: frames.iter().map(|f| f.0).collect(), fps: 1000.0 / ms });
         }
         let terrains = wang_terrains(&ts.wangsets, &mut rep);
-        db.tilesets.push(TilesetDef { id: id.clone(), image: rel, solid: ts.solid.iter().copied().collect(), ladder: vec![], animations, lights: vec![], terrains });
+        db.tilesets.push(TilesetDef { id: id.clone(), image: rel, solid: ts.solid.iter().copied().collect(), animations, terrains, ..Default::default() });
         if (ts.tile_w, ts.tile_h) != (TS, TS) {
             rep.scaled.push(format!("{id} ({} px)", ts.tile_w));
         }
@@ -835,7 +810,7 @@ mod tests {
         std::fs::create_dir_all(&root).unwrap();
         let p = parse_file(&fixtures().join("tiny.tmx")).unwrap();
         let mut db = Database::default();
-        db.tilesets.push(TilesetDef { id: "ground".into(), image: "x.png".into(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] });
+        db.tilesets.push(TilesetDef { id: "ground".into(), image: "x.png".into(), ..Default::default() });
         let (map, rep) = convert(&p, "tiny", &root, &mut db).unwrap();
         // Ids never clash with existing ones; images are 32 px grids.
         assert_eq!(rep.tilesets, vec!["ground_2".to_string(), "decorations".to_string()]);

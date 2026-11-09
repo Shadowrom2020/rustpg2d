@@ -9,7 +9,6 @@ use std::time::SystemTime;
 
 use egui_macroquad::egui::{self, Color32};
 use rustpg2d_engine::library::{self, AssetRef};
-use rustpg2d_engine::refactor::RefKind;
 
 use crate::app::{Editor, Mode, Pending};
 use crate::database::Tab;
@@ -116,21 +115,8 @@ impl Editor {
 
     /// Library mode: edit an asset in the Edit (Database) view.
     pub fn edit_library_asset(&mut self, a: &AssetRef) {
-        let db = &self.project.db;
-        let (tab, index) = match a.0 {
-            RefKind::Item => (Tab::Items, db.items.iter().position(|d| d.id == a.1)),
-            RefKind::Prop => (Tab::Props, db.props.iter().position(|d| d.id == a.1)),
-            RefKind::Character => (Tab::Characters, db.characters.iter().position(|d| d.id == a.1)),
-            RefKind::Tileset => (Tab::Tilesets, db.tilesets.iter().position(|d| d.id == a.1)),
-            RefKind::Sheet => (Tab::Sheets, db.sheets.iter().position(|d| d.id == a.1)),
-            RefKind::Sound => (Tab::Sounds, db.sounds.iter().position(|d| d.id == a.1)),
-            RefKind::Structure => (Tab::Structures, db.structures.iter().position(|d| d.id == a.1)),
-            RefKind::Skill => (Tab::Skills, db.skills.iter().position(|d| d.id == a.1)),
-            RefKind::Spell => (Tab::Spells, db.spells.iter().position(|d| d.id == a.1)),
-            RefKind::Recipe => (Tab::Recipes, db.recipes.iter().position(|d| d.id == a.1)),
-            _ => return,
-        };
-        let Some(i) = index else { return };
+        let Some(tab) = Tab::of(a.0) else { return };
+        let Some(i) = self.project.db.index_of(a.0, &a.1) else { return };
         self.db.tab = tab;
         self.db.sel = i;
         self.mode = Mode::Database;

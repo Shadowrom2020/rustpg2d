@@ -50,14 +50,15 @@ pub fn entity_json(e: &EntityInstance, ts: f32) -> Value {
     v
 }
 
-/// The tile an entity stands on.
+/// The tile an entity stands on ([`rustpg2d_engine::grid::feet_tile`]).
 pub fn tile_of(e: &EntityInstance, ts: f32) -> (i32, i32) {
-    ((e.x / ts).floor() as i32, (e.y / ts).floor() as i32)
+    rustpg2d_engine::grid::feet_tile(macroquad::math::vec2(e.x, e.y), ts)
 }
 
-/// Feet position (pixels) of an entity standing on tile `(tx, ty)`: bottom centre of the tile.
+/// Feet position (pixels) of an entity standing on tile `(tx, ty)` ([`rustpg2d_engine::grid::feet_spot`]).
 pub fn feet_of(tx: i32, ty: i32, ts: f32) -> (f32, f32) {
-    ((tx as f32 + 0.5) * ts, (ty as f32 + 1.0) * ts - 1.0)
+    let p = rustpg2d_engine::grid::feet_spot((tx, ty), ts);
+    (p.x, p.y)
 }
 
 /// An entity with `patch` applied: `tile_x` / `tile_y` move it, `uid` can't change.

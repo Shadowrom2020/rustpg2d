@@ -142,7 +142,7 @@ impl Game {
         // Lock without a key that can only be picked.
         if lock.key.is_empty() && lock.pick_difficulty > 0 {
             if using.is_none() {
-                let msg = if lock.locked_text.is_empty() { format!("It's locked. A lockpicking skill of {} could open it.", min_pick_level(lock.pick_difficulty)) } else { lock.locked_text.clone() };
+                let msg = if lock.locked_text.is_empty() { format!("It's locked. A lockpicking skill of {} could open it.", min_pick_level(lock.pick_difficulty)) } else { crate::lang::tr(&lock.locked_text) };
                 self.ui.toast(msg);
             }
             return false;

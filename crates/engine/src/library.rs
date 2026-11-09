@@ -38,19 +38,7 @@ pub type AssetRef = (RefKind, String);
 pub const KINDS: [RefKind; 10] = [RefKind::Tileset, RefKind::Sheet, RefKind::Sound, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe];
 
 pub fn kind_label(k: RefKind) -> &'static str {
-    match k {
-        RefKind::Tileset => "Tileset",
-        RefKind::Sheet => "Sprite sheet",
-        RefKind::Sound => "Sound",
-        RefKind::Item => "Item",
-        RefKind::Prop => "Prop",
-        RefKind::Character => "Character",
-        RefKind::Map => "Map",
-        RefKind::Structure => "Structure",
-        RefKind::Skill => "Skill",
-        RefKind::Spell => "Spell",
-        RefKind::Recipe => "Recipe",
-    }
+    k.label()
 }
 
 #[derive(Serialize, Deserialize)]
@@ -123,7 +111,13 @@ pub struct MergeReport {
 
 impl MergeReport {
     pub fn summary(&self) -> String {
-        let mut s = format!("{} added, {} already present", self.added.len(), self.existing.len());
+        let mut s = format!("{} added", self.added.len());
+        if !self.added.is_empty() && self.added.len() <= 8 {
+            // (Few: name them, so a report of one send says what arrived.)
+            let list: Vec<&str> = self.added.iter().map(|a| a.1.as_str()).collect();
+            s += &format!(" ({})", list.join(", "));
+        }
+        s += &format!(", {} already present", self.existing.len());
         if !self.renamed.is_empty() {
             let list: Vec<String> = self.renamed.iter().map(|(_, a, b)| format!("{a} → {b}")).collect();
             s += &format!(", renamed (id taken): {}", list.join(", "));
@@ -155,96 +149,28 @@ impl MergeReport {
 
 /// Do `a` and `b` have the same definition of `asset` (both missing counts as the same)?
 pub fn same_def(a: &Database, b: &Database, asset: &AssetRef) -> bool {
-    let id = asset.1.as_str();
-    match asset.0 {
-        RefKind::Tileset => a.tileset(id) == b.tileset(id),
-        RefKind::Sheet => a.sheet(id) == b.sheet(id),
-        RefKind::Sound => a.sounds.iter().find(|d| d.id == id) == b.sounds.iter().find(|d| d.id == id),
-        RefKind::Item => a.item(id) == b.item(id),
-        RefKind::Prop => a.prop(id) == b.prop(id),
-        RefKind::Character => a.character(id) == b.character(id),
-        RefKind::Structure => a.structure(id) == b.structure(id),
-        RefKind::Skill => a.skill(id) == b.skill(id),
-        RefKind::Spell => a.spell(id) == b.spell(id),
-        RefKind::Recipe => a.recipe(id) == b.recipe(id),
-        RefKind::Map => true,
-    }
+    a.same(b, asset.0, &asset.1)
 }
 
 /// Puts `from`'s definition of `asset` into `to`: replaces the one with the same id in place,
 /// or appends it.
 fn put_def(to: &mut Database, from: &Database, asset: &AssetRef) {
-    macro_rules! put {
-        ($list:ident) => {
-            if let Some(d) = from.$list.iter().find(|d| d.id == asset.1) {
-                match to.$list.iter().position(|o| o.id == asset.1) {
-                    Some(i) => to.$list[i] = d.clone(),
-                    None => to.$list.push(d.clone()),
-                }
-            }
-        };
-    }
-    match asset.0 {
-        RefKind::Tileset => put!(tilesets),
-        RefKind::Sheet => put!(sheets),
-        RefKind::Sound => put!(sounds),
-        RefKind::Item => put!(items),
-        RefKind::Prop => put!(props),
-        RefKind::Character => put!(characters),
-        RefKind::Structure => put!(structures),
-        RefKind::Skill => put!(skills),
-        RefKind::Spell => put!(spells),
-        RefKind::Recipe => put!(recipes),
-        RefKind::Map => {}
-    }
+    to.copy_from(from, asset.0, &asset.1);
 }
 
 pub fn exists(db: &Database, a: &AssetRef) -> bool {
-    let id = a.1.as_str();
-    match a.0 {
-        RefKind::Tileset => db.tileset(id).is_some(),
-        RefKind::Sheet => db.sheet(id).is_some(),
-        RefKind::Sound => db.sounds.iter().any(|d| d.id == id),
-        RefKind::Item => db.item(id).is_some(),
-        RefKind::Prop => db.prop(id).is_some(),
-        RefKind::Character => db.character(id).is_some(),
-        RefKind::Structure => db.structure(id).is_some(),
-        RefKind::Skill => db.skill(id).is_some(),
-        RefKind::Spell => db.spell(id).is_some(),
-        RefKind::Recipe => db.recipe(id).is_some(),
-        RefKind::Map => false,
-    }
+    db.has(a.0, &a.1)
 }
 
 /// Assets `a` refers to directly (only kinds that live in a bundle).
 pub fn deps(db: &Database, a: &AssetRef) -> Vec<AssetRef> {
-    let refs = match a.0 {
-        RefKind::Item => db.item(&a.1).map(refactor::refs_of_item),
-        RefKind::Prop => db.prop(&a.1).map(refactor::refs_of_prop),
-        RefKind::Character => db.character(&a.1).map(refactor::refs_of_character),
-        RefKind::Structure => db.structure(&a.1).map(refactor::refs_of_structure),
-        RefKind::Skill => db.skill(&a.1).map(refactor::refs_of_skill),
-        RefKind::Spell => db.spell(&a.1).map(refactor::refs_of_spell),
-        RefKind::Recipe => db.recipe(&a.1).map(refactor::refs_of_recipe),
-        _ => None,
-    };
-    refs.unwrap_or_default().into_iter().filter(|r| r.0 != RefKind::Map).collect()
+    db.refs_of(a.0, &a.1).into_iter().filter(|r| r.0 != RefKind::Map).collect()
 }
 
 /// All assets in a database, in dependency order.
 pub fn all_assets(db: &Database) -> Vec<AssetRef> {
-    let mut out = Vec::new();
-    out.extend(db.tilesets.iter().map(|d| (RefKind::Tileset, d.id.clone())));
-    out.extend(db.sheets.iter().map(|d| (RefKind::Sheet, d.id.clone())));
-    out.extend(db.sounds.iter().map(|d| (RefKind::Sound, d.id.clone())));
-    out.extend(db.items.iter().map(|d| (RefKind::Item, d.id.clone())));
-    out.extend(db.props.iter().map(|d| (RefKind::Prop, d.id.clone())));
-    out.extend(db.characters.iter().map(|d| (RefKind::Character, d.id.clone())));
-    out.extend(db.structures.iter().map(|d| (RefKind::Structure, d.id.clone())));
-    out.extend(db.skills.iter().map(|d| (RefKind::Skill, d.id.clone())));
-    out.extend(db.spells.iter().map(|d| (RefKind::Spell, d.id.clone())));
-    out.extend(db.recipes.iter().map(|d| (RefKind::Recipe, d.id.clone())));
-    out
+    // (`KINDS` is the dependency order.)
+    KINDS.iter().flat_map(|k| db.ids_of(*k).into_iter().map(move |id| (*k, id))).collect()
 }
 
 /// File (in `scripts/`) that receives script functions merged from bundles.
@@ -255,20 +181,14 @@ pub const LIBRARY_SCRIPT: &str = "library.rhai";
 pub fn script_roots(db: &Database, a: &AssetRef) -> Vec<String> {
     use crate::events::{Action, Cond, Trigger};
     fn actions(acts: &[Action], out: &mut Vec<String>) {
-        for a in acts {
-            match a {
-                Action::RunScript { function } | Action::Aim { function } | Action::Fly { function, .. } | Action::Cutscene { function } => out.push(function.clone()),
-                Action::If { conditions, then, otherwise } => {
-                    out.extend(conditions.iter().filter_map(|c| match &c.cond {
-                        Cond::Script { function } => Some(function.clone()),
-                        _ => None,
-                    }));
-                    actions(then, out);
-                    actions(otherwise, out);
-                }
-                _ => {}
-            }
-        }
+        crate::events::walk_actions(acts, &mut |a| match a {
+            Action::RunScript { function } | Action::Aim { function } | Action::Fly { function, .. } | Action::Cutscene { function } => out.push(function.clone()),
+            Action::If { conditions, .. } => out.extend(conditions.iter().filter_map(|c| match &c.cond {
+                Cond::Script { function } => Some(function.clone()),
+                _ => None,
+            })),
+            _ => {}
+        });
     }
     let triggers = |ts: &[Trigger], out: &mut Vec<String>| {
         for t in ts {
@@ -305,10 +225,7 @@ pub fn script_roots(db: &Database, a: &AssetRef) -> Vec<String> {
 
 /// The functions of every `*.rhai` file in `<root>/scripts` (files in name order).
 pub fn read_scripts(root: &Path) -> Vec<ScriptFn> {
-    let Ok(rd) = std::fs::read_dir(root.join("scripts")) else { return Vec::new() };
-    let mut files: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rhai")).collect();
-    files.sort();
-    files.iter().filter_map(|f| std::fs::read_to_string(f).ok()).flat_map(|src| crate::script_refs::functions(&src)).collect()
+    crate::project::script_files_in(&root.join("scripts")).iter().filter_map(|f| std::fs::read_to_string(f).ok()).flat_map(|src| crate::script_refs::functions(&src)).collect()
 }
 
 /// Assets that script functions refer to by id (sprite sheets, sounds, items, skills, spells).
@@ -335,10 +252,9 @@ fn with_suffix(path: &str, n: u32) -> String {
     }
 }
 
-/// Paths inside a package must stay inside the project.
-fn safe_rel(p: &str) -> bool {
-    !p.is_empty() && !p.starts_with('/') && !p.contains('\\') && p.split('/').all(|c| !c.is_empty() && c != "." && c != "..")
-}
+/// Paths inside a package must stay inside the project (the rule lives in `project.rs`, which the
+/// web game compiles too).
+pub use crate::project::safe_rel;
 
 impl Bundle {
     /// Collects `wanted` plus everything they depend on from a project-like store.
@@ -366,6 +282,7 @@ impl Bundle {
             recipes: db.recipes.iter().filter(|d| has(RefKind::Recipe, &d.id)).cloned().collect(),
             quests: Vec::new(),
             achievements: Vec::new(),
+            ..Default::default()
         };
         let mut files = BTreeMap::new();
         let paths = out.tilesets.iter().map(|d| &d.image).chain(out.sheets.iter().map(|d| &d.image)).chain(out.sounds.iter().map(|d| &d.file));
@@ -460,8 +377,7 @@ impl Bundle {
             recipes: self.db.recipes.clone(),
             scripts: self.scripts.clone(),
         };
-        let cfg = ron::ser::PrettyConfig::default().struct_names(false).new_line("\n");
-        let manifest = ron::ser::to_string_pretty(&m, cfg)?;
+        let manifest = crate::project::ron_text(&m)?;
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
         zw.start_file("manifest.ron", opts)?;
@@ -497,7 +413,7 @@ impl Bundle {
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
         }
-        let db = Database { tilesets: m.tilesets, sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new() };
+        let db = Database { tilesets: m.tilesets, sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
         for rel in b.db.tilesets.iter().map(|d| &d.image).chain(b.db.sheets.iter().map(|d| &d.image)).chain(b.db.sounds.iter().map(|d| &d.file)) {
             if !rel.is_empty() && !b.files.contains_key(rel) {
@@ -620,24 +536,7 @@ impl Bundle {
 
     /// Renames an asset inside the bundle (its definition and every reference to it).
     fn rename(&mut self, kind: RefKind, old: &str, new: &str) {
-        let set = |id: &mut String| {
-            if id == old {
-                *id = new.to_string();
-            }
-        };
-        match kind {
-            RefKind::Tileset => self.db.tilesets.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Sheet => self.db.sheets.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Sound => self.db.sounds.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Item => self.db.items.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Prop => self.db.props.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Character => self.db.characters.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Structure => self.db.structures.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Skill => self.db.skills.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Spell => self.db.spells.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Recipe => self.db.recipes.iter_mut().for_each(|d| set(&mut d.id)),
-            RefKind::Map => {}
-        }
+        self.db.rename(kind, old, new);
         let mut cfg = ProjectConfig::new("");
         refactor::rename_in_db(&mut self.db, &mut cfg, kind, old, new);
         // Ids passed to API calls in the bundle's script functions follow too.
@@ -914,20 +813,7 @@ impl Bundle {
                 report.existing.push(a);
                 continue;
             }
-            let id = a.1.as_str();
-            match a.0 {
-                RefKind::Tileset => db.tilesets.extend(self.db.tileset(id).cloned()),
-                RefKind::Sheet => db.sheets.extend(self.db.sheet(id).cloned()),
-                RefKind::Sound => db.sounds.extend(self.db.sounds.iter().find(|d| d.id == id).cloned()),
-                RefKind::Item => db.items.extend(self.db.item(id).cloned()),
-                RefKind::Prop => db.props.extend(self.db.prop(id).cloned()),
-                RefKind::Character => db.characters.extend(self.db.character(id).cloned()),
-                RefKind::Structure => db.structures.extend(self.db.structure(id).cloned()),
-                RefKind::Skill => db.skills.extend(self.db.skill(id).cloned()),
-                RefKind::Spell => db.spells.extend(self.db.spell(id).cloned()),
-                RefKind::Recipe => db.recipes.extend(self.db.recipe(id).cloned()),
-                RefKind::Map => {}
-            }
+            db.copy_from(&self.db, a.0, &a.1);
             report.added.push(a);
         }
 
@@ -1171,29 +1057,11 @@ mod tests {
         let root = tmp(&format!("src_{test}"));
         std::fs::create_dir_all(root.join("sprites")).unwrap();
         std::fs::write(root.join("sprites/items.png"), png(32, 16, [255, 0, 0, 255])).unwrap();
-        let item = |id: &str| ItemDef {
-            id: id.into(),
-            name: id.into(),
-            description: String::new(),
-            icon: SpriteRef::new("items", 0),
-            consumable: false,
-            on_use: vec![],
-            weapon: None,
-            armor: None,
-            max_stack: 99,
-            value: 0,
-        light: None,
-        teaches: String::new(),
-        held: String::new(),
-        tool: String::new(),
-        use_on: Default::default(),
-        crop: None,
-        food: false,
-        };
+        let item = |id: &str| ItemDef { id: id.into(), name: id.into(), icon: SpriteRef::new("items", 0), ..Default::default() };
         let mut bow = item("bow");
         bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "arrows".into() }));
         let db = Database {
-            sheets: vec![SheetDef { id: "items".into(), image: "sprites/items.png".into(), frame_w: 16, frame_h: 16, kind: Default::default(), female: false, playable: false, tags: vec![] }],
+            sheets: vec![SheetDef { id: "items".into(), image: "sprites/items.png".into(), frame_w: 16, frame_h: 16, ..Default::default() }],
             items: vec![item("arrows"), bow],
             ..Default::default()
         };
@@ -1293,7 +1161,7 @@ mod tests {
         use crate::skills::{SpellDef, SpellEffect};
         let (root, mut db) = source("scripts");
         std::fs::write(root.join("sprites/boom.png"), png(16, 16, [9, 9, 9, 255])).unwrap();
-        db.sheets.push(SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 16, frame_h: 16, kind: Default::default(), female: false, playable: false, tags: vec![] });
+        db.sheets.push(SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 16, frame_h: 16, ..Default::default() });
         db.spells.push(SpellDef::new("fireball", "Fireball", "", SpriteRef::new("items", 0), 5, 1.0, SpellEffect::Script { function: "cast_fireball".into() }));
         std::fs::create_dir_all(root.join("scripts")).unwrap();
         let src = "// Fireball: aim first.\n// (two comment lines)\nfn cast_fireball() {\n    aim(\"fireball_at\");\n}\n\nfn fireball_at(x, y) { if x > 0 { helper(); } effect(\"boom\", x, y); }\n\n// unrelated\nfn helper() { say(\"hi\"); }\n\nfn shop_talk() { say(\"{ not a brace }\"); }\n";
@@ -1336,7 +1204,7 @@ mod tests {
         let other = tmp("scripts_other");
         std::fs::create_dir_all(other.join("sprites")).unwrap();
         std::fs::write(other.join("sprites/boom.png"), png(8, 8, [1, 1, 1, 255])).unwrap();
-        let mut odb = Database { sheets: vec![SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 8, frame_h: 8, kind: Default::default(), female: false, playable: false, tags: vec![] }], ..Default::default() };
+        let mut odb = Database { sheets: vec![SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 8, frame_h: 8, ..Default::default() }], ..Default::default() };
         again.merge_into(&mut odb, &other).unwrap();
         let merged = std::fs::read_to_string(other.join("scripts").join(LIBRARY_SCRIPT)).unwrap();
         assert!(merged.contains("effect(\"boom_2\", x, y)"), "{merged}");
@@ -1351,23 +1219,7 @@ mod tests {
     #[test]
     fn rescale_doubles_art_and_sizes() {
         let (root, mut db) = source("rescale");
-        db.props.push(PropDef {
-            id: "crate".into(),
-            name: "Crate".into(),
-            sprite: SpriteRef::new("items", 0),
-            solid: true,
-            hitbox: [12.0, 6.0],
-            triggers: vec![],
-            container: None,
-            lock: None,
-            default_state: default_state_name(),
-            states: vec![],
-            light: None,
-            use_spot: None,
-            gather: None,
-            regrow: None,
-            plot: false,
-        });
+        db.props.push(PropDef { id: "crate".into(), name: "Crate".into(), sprite: SpriteRef::new("items", 0), solid: true, hitbox: [12.0, 6.0], ..Default::default() });
         let mut b = Bundle::collect(&db, &root, 16, "x", &all_assets(&db)).unwrap();
         b.rescale(32).unwrap();
         let img = Rgba::decode(&b.files["sprites/items.png"]).unwrap();
@@ -1389,7 +1241,7 @@ mod tests {
         }
         let mut pond = crate::autotile::Terrain { name: "Pond".into(), base: Some(0), ..Default::default() };
         pond.fill_from_block(0, 4);
-        let ts = |solid: Vec<u32>, terrains| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder: vec![], animations: vec![], lights: vec![], terrains };
+        let ts = |solid: Vec<u32>, terrains| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, terrains, ..Default::default() };
         let mut newer = Database { tilesets: vec![ts(vec![3, 5, 99], vec![pond.clone()])], ..Default::default() };
         newer.tilesets[0].animations = vec![TileAnim { tile: 15, frames: vec![15, 16], fps: 2.0 }, TileAnim { tile: 40, frames: vec![40, 41], fps: 2.0 }];
         let pack = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap();
@@ -1436,7 +1288,7 @@ mod tests {
             std::fs::create_dir_all(d.join("tilesets")).unwrap();
             std::fs::write(d.join("tilesets/t.png"), png).unwrap();
         }
-        let ts = |solid: Vec<u32>, ladder: Vec<u32>| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder, animations: vec![], lights: vec![], terrains: vec![] };
+        let ts = |solid: Vec<u32>, ladder: Vec<u32>| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder, ..Default::default() };
         let newer_db = Database { tilesets: vec![ts(vec![0, 1], vec![3])], ..Default::default() };
         let pack = Bundle::collect(&newer_db, &src, 32, "starter", &all_assets(&newer_db)).unwrap();
         // The library's own tile 0 is walkable: that stays.
@@ -1457,7 +1309,7 @@ mod tests {
             std::fs::create_dir_all(d.join("tilesets")).unwrap();
             std::fs::write(d.join("tilesets/t.png"), png(64, 64, c)).unwrap();
         }
-        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] };
+        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), ..Default::default() };
         let st = StructureDef { id: "tower".into(), name: "Tower".into(), w: 1, h: 1, tilesets: vec!["t".into()], layers: vec![vec![1]], collision: vec![0], ..Default::default() };
         let newer = Database { tilesets: vec![ts.clone()], structures: vec![st], ..Default::default() };
         // The library's tileset has other art (not an extension): the structure would get wrong tiles.
@@ -1488,7 +1340,7 @@ mod tests {
         // A newer starter set: only assets with new ids are added, existing ones stay as they are.
         let mut db2 = db.clone();
         db2.items[0].name = "Changed arrows".into();
-        db2.sheets.push(SheetDef { id: "extra".into(), image: "sprites/extra.png".into(), frame_w: 16, frame_h: 16, kind: Default::default(), female: false, playable: false, tags: vec![] });
+        db2.sheets.push(SheetDef { id: "extra".into(), image: "sprites/extra.png".into(), frame_w: 16, frame_h: 16, ..Default::default() });
         std::fs::write(root.join("sprites/extra.png"), png(16, 16, [1, 2, 3, 255])).unwrap();
         let pack2 = Bundle::collect(&db2, &root, 16, "starter", &all_assets(&db2)).unwrap().to_files().unwrap();
         let lib = open_library(&dir, Some(&borrowed(&pack2))).unwrap();

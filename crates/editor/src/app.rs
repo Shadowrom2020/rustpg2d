@@ -278,6 +278,9 @@ pub struct Editor {
     pub zone_template: ZoneTemplate,
     pub view: ViewOpts,
     pub status: (String, f64),
+    /// What a load left out (unreadable definition entries or map objects), shown in a banner
+    /// until dismissed.
+    pub notices: Vec<String>,
     pub new_map: Option<NewMapDialog>,
     pub resize: Option<(u32, u32)>,
     pub pending: Option<Pending>,
@@ -301,6 +304,9 @@ pub struct Editor {
     pub lib_changed: bool,
     pub db: DbState,
     pub refs: Refs,
+    /// What `refresh_refs` read from each map file, by map name: maps whose file didn't change
+    /// aren't decoded again (it runs after every save and every agent write).
+    map_refs: HashMap<String, MapRefs>,
     pub pointer_over_ui: bool,
     pub keyboard_busy: bool,
     /// Scroll the palette / map entity list to the armed definition / selection once.
@@ -336,8 +342,9 @@ impl Editor {
             let lib = rustpg2d_engine::library::open_library(&rustpg2d_engine::library::library_dir(), Some(crate::library_ui::STARTER)).ok();
             converted = rustpg2d_engine::migrate::upgrade(&root, lib.as_ref())?;
         }
-        let project = Project::load(&root)?;
+        let (project, warnings) = Project::load_with_warnings(&root)?;
         let mut ed = Self::with_project(project, true);
+        ed.note_defs_warnings(warnings);
         let first = if ed.maps.contains(&ed.project.config.start_map) {
             Some(ed.project.config.start_map.clone())
         } else {
@@ -416,6 +423,7 @@ impl Editor {
             weather_fx: Default::default(),
             light_cache: (-1.0, String::new(), Vec::new()),
             status: (String::new(), 0.0),
+            notices: Vec::new(),
             new_map: None,
             resize: None,
             pending: None,
@@ -433,6 +441,7 @@ impl Editor {
             builder: None,
             export: None,
             refs: Refs::default(),
+            map_refs: HashMap::new(),
             pointer_over_ui: false,
             keyboard_busy: false,
             palette_scroll_to_armed: false,
@@ -467,6 +476,56 @@ impl Editor {
         self.assets.tile_size
     }
 
+    /// Notes what loading `file` left out (its objects or entries that can't be read), after
+    /// backing the file up: saving it again would drop them for good.
+    pub fn note_load_warnings(&mut self, file: &std::path::Path, warnings: &[String]) {
+        if warnings.is_empty() {
+            return;
+        }
+        let rel = file.strip_prefix(&self.project.root).unwrap_or(file).display().to_string();
+        // (Definition warnings already start with their file.)
+        let details: Vec<&str> = warnings.iter().map(|w| w.strip_prefix(rel.as_str()).map_or(w.as_str(), str::trim_start)).collect();
+        for d in &details {
+            eprintln!("[editor] {rel}: {d}");
+        }
+        let backup = files::back_up_once(file).map(|b| format!(" (backup: {})", b.file_name().unwrap_or_default().to_string_lossy())).unwrap_or_default();
+        let n = warnings.len();
+        self.notices.push(format!("{rel}: {n} entr{} can't be read and will be lost when the file is saved again{backup}. {}", if n == 1 { "y" } else { "ies" }, details.join(" ")));
+    }
+
+    /// [`Self::note_load_warnings`] for the definitions: each warning starts with its file
+    /// (`defs/items.ron entry 7 …`).
+    pub fn note_defs_warnings(&mut self, warnings: Vec<String>) {
+        let mut by_file: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+        for w in warnings {
+            let file = w.split_whitespace().next().unwrap_or("defs").to_string();
+            by_file.entry(file).or_default().push(w);
+        }
+        for (file, ws) in by_file {
+            let path = self.project.root.join(&file);
+            self.note_load_warnings(&path, &ws);
+        }
+    }
+
+    /// The banner listing what a load left out (`notices`), with a Dismiss button.
+    pub fn notice_banner(&mut self, ctx: &egui::Context) {
+        if self.notices.is_empty() {
+            return;
+        }
+        let mut dismiss = false;
+        egui::TopBottomPanel::top("notice_banner").frame(egui::Frame::default().fill(Color32::from_rgb(70, 60, 20)).inner_margin(6.0)).show(ctx, |ui| {
+            for n in &self.notices {
+                ui.colored_label(Color32::YELLOW, n);
+            }
+            if ui.button("Dismiss").clicked() {
+                dismiss = true;
+            }
+        });
+        if dismiss {
+            self.notices.clear();
+        }
+    }
+
     pub fn set_status(&mut self, s: impl Into<String>) {
         let s = s.into();
         println!("[editor] {s}");
@@ -480,8 +539,10 @@ impl Editor {
         if let Some(d) = &self.doc {
             self.map_cams.insert(d.map.name.clone(), (self.cam.center, self.cam.zoom));
         }
-        match self.project.load_map(name) {
+        let mut warnings = Vec::new();
+        match rustpg2d_engine::map::io::load_with(&self.project.map_path(name), &mut |w| warnings.push(w)) {
             Ok(map) => {
+                self.note_load_warnings(&self.project.map_path(name), &warnings);
                 self.load_doc(map);
                 if let Some(&(center, zoom)) = self.map_cams.get(name) {
                     self.cam.center = center;
@@ -592,36 +653,30 @@ impl Editor {
         let mut all_flags: Vec<String> = Vec::new();
         let mut all_vars: Vec<String> = Vec::new();
         for m in &self.maps {
-            let loaded;
-            let map = match &self.doc {
-                Some(d) if &d.map.name == m => &d.map,
-                _ => match self.project.load_map(m) {
-                    Ok(x) => {
-                        loaded = x;
-                        &loaded
+            let refs = match &self.doc {
+                Some(d) if &d.map.name == m => MapRefs::of(&d.map, (0, 0)),
+                _ => {
+                    let stamp = file_stamp(&self.project.map_path(m));
+                    match self.map_refs.get(m) {
+                        Some(r) if r.stamp == stamp && stamp != (0, 0) => r.clone(),
+                        _ => match self.project.load_map(m) {
+                            Ok(x) => {
+                                let r = MapRefs::of(&x, stamp);
+                                self.map_refs.insert(m.clone(), r.clone());
+                                r
+                            }
+                            Err(_) => continue,
+                        },
                     }
-                    Err(_) => continue,
-                },
+                }
             };
-            all_names.extend(map.entities.iter().filter(|e| !e.name.is_empty()).map(|e| e.name.clone()));
-            collect_map_names(map, &mut all_flags, &mut all_vars);
-            let zones = map.zones.clone();
-            spawns.insert(m.clone(), zones.iter().filter(|z| z.kind == ZoneKind::Spawn).map(|z| z.name.clone()).collect());
-            transitions.insert(
-                m.clone(),
-                zones
-                    .iter()
-                    .filter_map(|z| match &z.kind {
-                        ZoneKind::Transition { target_map, target_zone } => Some((z.name.clone(), target_map.clone(), target_zone.clone())),
-                        _ => None,
-                    })
-                    .collect(),
-            );
+            all_names.extend(refs.names);
+            all_flags.extend(refs.flags);
+            all_vars.extend(refs.vars);
+            spawns.insert(m.clone(), refs.spawns);
+            transitions.insert(m.clone(), refs.transitions);
         }
-        let db = &self.project.db;
-        for ts in db.items.iter().map(|d| &d.on_use).chain(db.props.iter().map(|d| &d.triggers)).chain(db.characters.iter().map(|d| &d.triggers)) {
-            collect_names(ts, &mut all_flags, &mut all_vars);
-        }
+        rustpg2d_engine::events::walk_db_triggers(&self.project.db, &mut |_, ts| collect_names(ts, &mut all_flags, &mut all_vars));
         for v in [&mut all_names, &mut all_flags, &mut all_vars] {
             v.retain(|s| !s.is_empty());
             v.sort();
@@ -742,53 +797,23 @@ impl Editor {
         if !valid_name(new) {
             return Err("Ids may only contain letters, digits, '_' and '-'".into());
         }
-        let db = &mut self.project.db;
-        let taken = match kind {
-            RefKind::Tileset => db.tilesets.iter().any(|d| d.id == new),
-            RefKind::Sheet => db.sheets.iter().any(|d| d.id == new),
-            RefKind::Item => db.items.iter().any(|d| d.id == new),
-            RefKind::Prop => db.props.iter().any(|d| d.id == new),
-            RefKind::Character => db.characters.iter().any(|d| d.id == new),
-            RefKind::Sound => db.sounds.iter().any(|d| d.id == new),
-            RefKind::Map => self.maps.iter().any(|m| m == new),
-            RefKind::Structure => db.structures.iter().any(|d| d.id == new),
-            RefKind::Skill => db.skills.iter().any(|d| d.id == new),
-            RefKind::Spell => db.spells.iter().any(|d| d.id == new),
-            RefKind::Recipe => db.recipes.iter().any(|d| d.id == new),
-        };
+        let taken = if kind == RefKind::Map { self.maps.iter().any(|m| m == new) } else { self.project.db.has(kind, new) };
         if taken {
             return Err(format!("'{new}' is already used"));
         }
         // The thing itself.
-        macro_rules! rename_def {
-            ($list:expr) => {
-                if let Some(d) = $list.iter_mut().find(|d| d.id == old) {
-                    d.id = new.to_string();
-                }
-            };
-        }
-        match kind {
-            RefKind::Tileset => rename_def!(db.tilesets),
-            RefKind::Sheet => rename_def!(db.sheets),
-            RefKind::Item => rename_def!(db.items),
-            RefKind::Prop => rename_def!(db.props),
-            RefKind::Character => rename_def!(db.characters),
-            RefKind::Sound => rename_def!(db.sounds),
-            RefKind::Structure => rename_def!(db.structures),
-            RefKind::Skill => rename_def!(db.skills),
-            RefKind::Spell => rename_def!(db.spells),
-            RefKind::Recipe => rename_def!(db.recipes),
-            RefKind::Map => {
-                if let Err(e) = self.project.rename_map_file(old, new) {
-                    return Err(format!("Rename failed: {e:#}"));
-                }
-                for m in &mut self.maps {
-                    if m == old {
-                        *m = new.to_string();
-                    }
-                }
-                self.maps.sort();
+        if kind == RefKind::Map {
+            if let Err(e) = self.project.rename_map_file(old, new) {
+                return Err(format!("Rename failed: {e:#}"));
             }
+            for m in &mut self.maps {
+                if m == old {
+                    *m = new.to_string();
+                }
+            }
+            self.maps.sort();
+        } else {
+            self.project.db.rename(kind, old, new);
         }
         let mut refs = refactor::rename_in_db(&mut self.project.db, &mut self.project.config, kind, old, new);
 
@@ -846,10 +871,7 @@ impl Editor {
     /// "file:line,line" for every changed file. The open script editor follows.
     fn rename_in_scripts(&mut self, kind: RefKind, old: &str, new: &str, errors: &mut Vec<String>) -> Vec<String> {
         let mut changed = Vec::new();
-        let Ok(rd) = std::fs::read_dir(self.project.scripts_dir()) else { return changed };
-        let mut files: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rhai")).collect();
-        files.sort();
-        for f in files {
+        for f in self.project.script_files() {
             // The open file's editor text may have unsaved edits: rename in it as well.
             let open = self.db.script_file.as_ref() == Some(&f);
             let Ok(disk) = std::fs::read_to_string(&f) else { continue };
@@ -1109,9 +1131,7 @@ impl Editor {
         if free {
             return world.round();
         }
-        let ty = (world.y / ts).floor();
-        let x = if tiles_wide.is_multiple_of(2) { (world.x / ts).round() * ts } else { ((world.x / ts).floor() + 0.5) * ts };
-        macroquad::math::vec2(x, (ty + 1.0) * ts - 1.0)
+        rustpg2d_engine::grid::snap_feet(world, tiles_wide, ts)
     }
 
     /// Sprite of an entity definition (props / items; characters use their idle frame, layered
@@ -1292,6 +1312,7 @@ impl Editor {
             self.menu_bar(ctx);
             self.watch_project();
             self.watch_banner(ctx);
+            self.notice_banner(ctx);
         }
         self.mcp_window(ctx);
         if !self.project_open {
@@ -1650,7 +1671,7 @@ impl Editor {
                     let outdoor = self.doc.as_ref().is_some_and(|d| d.map.lighting.mode == rustpg2d_engine::map::LightMode::Outdoor);
                     if self.view.lighting && outdoor {
                         let mut h = self.view.hour;
-                        let label = format!("{:02}:{:02}", h as u32, (h.fract() * 60.0) as u32);
+                        let label = rustpg2d_engine::entity::hour_text(h);
                         if ui.add(egui::Slider::new(&mut h, 0.0..=23.99).show_value(false)).on_hover_text(format!("Preview time of day: {label}")).changed() {
                             self.view.hour = h;
                         }
@@ -3141,24 +3162,54 @@ pub fn collect_names(ts: &[rustpg2d_engine::events::Trigger], flags: &mut Vec<St
         }
     }
     fn actions(a: &[Action], flags: &mut Vec<String>, vars: &mut Vec<String>) {
-        for a in a {
-            match a {
-                Action::SetFlag { name, .. } => flags.push(name.clone()),
-                Action::SetVar { name, .. } => vars.push(name.clone()),
-                Action::Choice { var, .. } => vars.push(var.clone()),
-                Action::If { conditions, then, otherwise } => {
-                    conds(conditions, flags, vars);
-                    actions(then, flags, vars);
-                    actions(otherwise, flags, vars);
-                }
-                _ => {}
-            }
-        }
+        rustpg2d_engine::events::walk_actions(a, &mut |a| match a {
+            Action::SetFlag { name, .. } => flags.push(name.clone()),
+            Action::SetVar { name, .. } => vars.push(name.clone()),
+            Action::Choice { var, .. } => vars.push(var.clone()),
+            Action::If { conditions, .. } => conds(conditions, flags, vars),
+            _ => {}
+        });
     }
     for t in ts {
         conds(&t.conditions, flags, vars);
         actions(&t.actions, flags, vars);
     }
+}
+
+/// What the dropdowns need from one map (`Editor::refresh_refs`), with the file's stamp.
+#[derive(Clone, Default)]
+struct MapRefs {
+    stamp: (u64, u64),
+    names: Vec<String>,
+    flags: Vec<String>,
+    vars: Vec<String>,
+    spawns: Vec<String>,
+    transitions: Vec<(String, String, String)>,
+}
+
+impl MapRefs {
+    fn of(map: &Map, stamp: (u64, u64)) -> Self {
+        let mut r = MapRefs { stamp, ..Default::default() };
+        r.names.extend(map.entities.iter().filter(|e| !e.name.is_empty()).map(|e| e.name.clone()));
+        collect_map_names(map, &mut r.flags, &mut r.vars);
+        r.spawns = map.zones.iter().filter(|z| z.kind == ZoneKind::Spawn).map(|z| z.name.clone()).collect();
+        r.transitions = map
+            .zones
+            .iter()
+            .filter_map(|z| match &z.kind {
+                ZoneKind::Transition { target_map, target_zone } => Some((z.name.clone(), target_map.clone(), target_zone.clone())),
+                _ => None,
+            })
+            .collect();
+        r
+    }
+}
+
+/// (modification time, size) of a file; (0, 0) when it can't be read.
+fn file_stamp(path: &std::path::Path) -> (u64, u64) {
+    std::fs::metadata(path)
+        .map(|m| (m.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs()), m.len()))
+        .unwrap_or((0, 0))
 }
 
 fn collect_flags(map: &Map, out: &mut Vec<String>) {
@@ -3168,19 +3219,13 @@ fn collect_flags(map: &Map, out: &mut Vec<String>) {
 
 /// Flags and variables used by a map's triggers (map, entities, zones).
 fn collect_map_names(map: &Map, flags: &mut Vec<String>, vars: &mut Vec<String>) {
-    collect_names(&map.triggers, flags, vars);
-    for e in &map.entities {
-        collect_names(&e.triggers, flags, vars);
-    }
-    for z in &map.zones {
-        collect_names(&z.triggers, flags, vars);
-    }
+    rustpg2d_engine::events::walk_map_triggers(&map.name, map, &mut |_, ts| collect_names(ts, flags, vars));
 }
 
 /// Dialog speakers to offer for a map: placeholders, the characters on it (definition
 /// names and named instances) and speakers its dialogs already use.
 pub fn speakers_of(map: &Map, db: &rustpg2d_engine::defs::Database) -> Vec<(String, String)> {
-    use rustpg2d_engine::events::{Action, Trigger};
+    use rustpg2d_engine::events::Action;
     let mut out: Vec<(String, String)> = vec![("{self}".into(), "name of the trigger's owner".into()), ("{player}".into(), "the player's name".into())];
     let mut add = |v: String, hint: String| {
         if !v.trim().is_empty() && !out.iter().any(|(o, _)| *o == v) {
@@ -3198,22 +3243,13 @@ pub fn speakers_of(map: &Map, db: &rustpg2d_engine::defs::Database) -> Vec<(Stri
         }
     }
     fn used(acts: &[Action], out: &mut Vec<String>) {
-        for a in acts {
-            match a {
-                Action::Dialog { speaker, .. } | Action::Choice { speaker, .. } => out.push(speaker.clone()),
-                Action::If { then, otherwise, .. } => {
-                    used(then, out);
-                    used(otherwise, out);
-                }
-                _ => {}
-            }
-        }
+        rustpg2d_engine::events::walk_actions(acts, &mut |a| match a {
+            Action::Dialog { speaker, .. } | Action::Choice { speaker, .. } => out.push(speaker.clone()),
+            _ => {}
+        });
     }
     let mut names = Vec::new();
-    let mut trig = |ts: &[Trigger]| ts.iter().for_each(|t| used(&t.actions, &mut names));
-    trig(&map.triggers);
-    map.entities.iter().for_each(|e| trig(&e.triggers));
-    map.zones.iter().for_each(|z| trig(&z.triggers));
+    rustpg2d_engine::events::walk_map_triggers(&map.name, map, &mut |_, ts| ts.iter().for_each(|t| used(&t.actions, &mut names)));
     names.sort();
     for n in names {
         add(n, "used in a dialog here".into());

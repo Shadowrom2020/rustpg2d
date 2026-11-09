@@ -48,20 +48,7 @@ pub(crate) fn parse_facing(s: &str) -> Result<Facing, String> {
 }
 
 pub(crate) fn parse_ref_kind(s: &str) -> Result<RefKind, String> {
-    Ok(match s.to_lowercase().trim_end_matches('s') {
-        "tileset" => RefKind::Tileset,
-        "sheet" => RefKind::Sheet,
-        "item" => RefKind::Item,
-        "prop" => RefKind::Prop,
-        "character" => RefKind::Character,
-        "sound" => RefKind::Sound,
-        "map" => RefKind::Map,
-        "structure" => RefKind::Structure,
-        "skill" => RefKind::Skill,
-        "spell" => RefKind::Spell,
-        "recipe" => RefKind::Recipe,
-        _ => return Err(format!("kind \"{s}\" must be one of tileset, sheet, item, prop, character, sound, map, structure, skill, spell, recipe")),
-    })
+    RefKind::parse(s).ok_or_else(|| format!("kind \"{s}\" must be one of {}", RefKind::ALL.iter().map(|k| k.name()).collect::<Vec<_>>().join(", ")))
 }
 
 /// A zone's parsed kind, triggers, loot and the warnings found.
@@ -370,7 +357,7 @@ impl Editor {
         self.mcp.shots = keep;
     }
 
-    fn mcp_take_shot(&self, s: &ShotRequest) -> Result<Reply, String> {
+    pub(crate) fn mcp_take_shot(&self, s: &ShotRequest) -> Result<Reply, String> {
         let img = macroquad::prelude::get_screen_data();
         let (w, h) = (img.width as u32, img.height as u32);
         let scale = macroquad::window::screen_dpi_scale();
@@ -454,9 +441,14 @@ impl Editor {
         Ok(n)
     }
 
+    /// The open map's document (after `mcp_target_map`): an error, not a panic, without one.
+    pub(crate) fn mcp_doc(&self) -> Result<&crate::doc::MapDoc, String> {
+        self.doc.as_ref().ok_or_else(|| "no map is open in the editor: give `map`".to_string())
+    }
+
     pub(crate) fn mcp_set_tiles(&mut self, p: SetTilesParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let map = self.doc.as_ref().unwrap().map.clone();
+        let map = self.mcp_doc()?.map.clone();
         let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
         let mut cells = Vec::new();
         for c in &p.cells {
@@ -476,7 +468,7 @@ impl Editor {
 
     pub(crate) fn mcp_paint_grid(&mut self, p: PaintGridParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let map = self.doc.as_ref().unwrap().map.clone();
+        let map = self.mcp_doc()?.map.clone();
         let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
         let parsed = grid::parse_grid(&p.rows, &p.legend)?;
         let mut cells = Vec::new();
@@ -497,7 +489,7 @@ impl Editor {
 
     pub(crate) fn mcp_fill_rect(&mut self, p: FillRectParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let map = self.doc.as_ref().unwrap().map.clone();
+        let map = self.mcp_doc()?.map.clone();
         let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
         let tile = match p.index {
             i if i < 0 => Tile::EMPTY,
@@ -650,19 +642,10 @@ impl Editor {
     }
 
     pub(crate) fn mcp_ids_of(&self, kind: RefKind) -> Vec<String> {
-        let db = &self.project.db;
-        match kind {
-            RefKind::Tileset => db.tilesets.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Sheet => db.sheets.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Item => db.items.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Prop => db.props.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Character => db.characters.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Sound => db.sounds.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Map => self.maps.clone(),
-            RefKind::Structure => db.structures.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Skill => db.skills.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Spell => db.spells.iter().map(|d| d.id.clone()).collect(),
-            RefKind::Recipe => db.recipes.iter().map(|d| d.id.clone()).collect(),
+        if kind == RefKind::Map {
+            self.maps.clone()
+        } else {
+            self.project.db.ids_of(kind)
         }
     }
 
@@ -680,8 +663,11 @@ impl Editor {
         }
         let before = Objects::of(&doc.map);
         let uid = doc.map.alloc_uid();
-        let (fx, fy) = patch::feet_of(p.x, p.y, ts);
-        let mut e = EntityInstance::new(uid, kind, &p.def, fx, fy);
+        // Like the editor: a prop an even number of tiles wide stands on a tile edge, covering
+        // tiles x and x + 1; everything else on the centre of tile x.
+        let wide = self.def_tiles_wide(kind, &p.def);
+        let spot = rustpg2d_engine::grid::snap_feet(macroquad::math::vec2((p.x as f32 + 0.5) * ts, (p.y as f32 + 0.5) * ts), wide, ts);
+        let mut e = EntityInstance::new(uid, kind, &p.def, spot.x, spot.y);
         if let Some(n) = &p.name {
             e.name = n.clone();
         }
@@ -703,7 +689,8 @@ impl Editor {
         doc.map.entities.push(e.clone());
         doc.record_objects(before, "mcp-entity");
         let name = doc.map.name.clone();
-        let mut msg = format!("Placed {} \"{}\" on \"{name}\" at {},{} with uid {uid}.\n{}", p.kind.to_lowercase(), p.def, p.x, p.y, json(&patch::entity_json(&e, ts)));
+        let edge = if wide.is_multiple_of(2) { format!(" ({wide} tiles wide: it stands on the edge between tiles {} and {}, so tile_x reads {})", p.x, p.x + 1, p.x + 1) } else { String::new() };
+        let mut msg = format!("Placed {} \"{}\" on \"{name}\" at {},{}{edge} with uid {uid}.\n{}", p.kind.to_lowercase(), p.def, p.x, p.y, json(&patch::entity_json(&e, ts)));
         for w in warnings {
             msg += &format!("\nWarning: {w}");
         }
@@ -713,7 +700,7 @@ impl Editor {
     pub(crate) fn mcp_update_entity(&mut self, p: UpdateParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
         let ts = self.ts();
-        let doc = self.doc.as_ref().unwrap();
+        let doc = self.mcp_doc()?;
         let Some(old) = doc.map.entities.iter().find(|e| e.uid == p.uid).cloned() else { return Err(format!("no entity with uid {} on \"{}\"", p.uid, doc.map.name)) };
         let mut new = patch::patch_entity(&old, &p.patch, ts)?;
         let ids = self.project.db.ids(new.kind);
@@ -822,7 +809,7 @@ impl Editor {
 
     pub(crate) fn mcp_update_zone(&mut self, p: UpdateParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let doc = self.doc.as_ref().unwrap();
+        let doc = self.mcp_doc()?;
         let Some(old) = doc.map.zones.iter().find(|z| z.uid == p.uid).cloned() else { return Err(format!("no zone with uid {} on \"{}\"", p.uid, doc.map.name)) };
         let new = patch::patch_zone(&old, &p.patch)?;
         let (_, _, _, warnings) = self.zone_parts(&serde_json::to_value(&new.kind).unwrap_or(Value::Null), &Some(serde_json::to_value(&new.triggers).unwrap_or(Value::Null)), &new.loot.as_ref().map(|l| serde_json::to_value(l).unwrap_or(Value::Null)))?;
@@ -859,7 +846,7 @@ impl Editor {
 
     pub(crate) fn mcp_link_maps(&mut self, p: LinkMapsParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let this = self.doc.as_ref().unwrap().map.name.clone();
+        let this = self.mcp_doc()?.map.name.clone();
         if p.to_map == this {
             return Err("link_maps connects two different maps".into());
         }
@@ -999,7 +986,7 @@ impl Editor {
 
     pub(crate) fn mcp_set_map_settings(&mut self, p: MapSettingsParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        let doc = self.doc.as_ref().unwrap();
+        let doc = self.mcp_doc()?;
         let m = &doc.map;
         let cur = MapSettings { background: m.background, music: m.music.clone(), lighting: m.lighting, fog: m.fog, weather: m.weather, parallax: m.parallax.clone(), edges: m.edges.clone() };
         let new: MapSettings = patch::apply(&cur, &p.patch)?;

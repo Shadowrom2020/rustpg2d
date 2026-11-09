@@ -12,6 +12,7 @@ pub mod events;
 pub mod fog;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;
+pub mod grid;
 pub mod hash;
 pub mod icon;
 pub mod imageio;
@@ -35,6 +36,7 @@ pub mod release;
 pub mod render;
 pub mod runtime;
 pub mod script;
+pub mod script_api;
 pub mod script_refs;
 pub mod settings;
 pub mod skills;
@@ -47,3 +49,8 @@ pub use macroquad;
 /// Fingerprint of the engine sources this binary was built from. The editor compares it
 /// with `rustpg2d-game --engine-build` before a play-test to catch a stale game binary.
 pub const ENGINE_BUILD: &str = env!("RUSTPG2D_ENGINE_BUILD");
+
+/// [`ENGINE_BUILD`] between markers, kept in every game runner binary (`rustpg2d-game` keeps it
+/// alive): game exports read it from the file ([`release::runner_build`]), which works for the
+/// runners of other platforms and the web too (they can't be run here to ask them).
+pub static ENGINE_BUILD_TAG: &str = concat!("rustpg2d-engine-build:", env!("RUSTPG2D_ENGINE_BUILD"), ";");

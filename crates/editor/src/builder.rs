@@ -338,30 +338,12 @@ pub fn default_character(db: &Database, id: &str, name: &str) -> CharacterDef {
     }
     let u = rustpg2d_engine::project::TILE_SIZE as f32 / 16.0;
     CharacterDef {
-        id: id.into(),
         name: name.into(),
-        sheet: String::new(),
         speed: 50.0 * u,
         hitbox: [10.0 * u, 6.0 * u],
-        behavior: rustpg2d_engine::defs::Behavior::Static,
-        max_hp: 0,
-        damage: 0,
-        hostile: false,
-        weapon: None,
-        defense: 0,
-        xp: 0,
-        touch_effect: None,
-        description: String::new(),
-        triggers: vec![],
-        shop: None,
-        loot: vec![],
-        light: None,
         appearance: Appearance { body: first(SheetKind::Body), hair: first(SheetKind::Hair), ..Default::default() },
         equipment,
-        inventory: Vec::new(),
-        gear_locked: false,
-        portrait: Default::default(),
-        moods: Default::default(),
+        ..CharacterDef::fresh(id)
     }
 }
 

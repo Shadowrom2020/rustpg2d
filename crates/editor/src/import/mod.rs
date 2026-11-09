@@ -91,10 +91,7 @@ pub fn sanitize(s: &str) -> String {
     }
 }
 
-/// `base`, or `base_2`, `base_3`… — the first one `taken` says is free.
-pub fn unique_id(base: &str, taken: impl Fn(&str) -> bool) -> String {
-    std::iter::once(base.to_string()).chain((2..).map(|n| format!("{base}_{n}"))).find(|c| !taken(c)).unwrap()
-}
+pub use rustpg2d_engine::refactor::unique_id;
 
 /// Writes `bytes` to `<root>/<subdir>/<stem>.<ext>` under a file name not used yet; returns
 /// the project-relative path.

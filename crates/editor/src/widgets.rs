@@ -2016,9 +2016,7 @@ pub fn optional_effect_ui(ui: &mut egui::Ui, id: &str, label: &str, hint: &str, 
 
 /// "hh:mm" of an hour of the day (12.5 = "12:30").
 pub fn hour_text(hour: f32) -> String {
-    let h = hour.rem_euclid(24.0);
-    let m = ((h.fract() * 60.0).round() as u32).min(59);
-    format!("{:02}:{:02}", h as u32, m)
+    rustpg2d_engine::entity::hour_text(hour)
 }
 
 /// Reads "hh:mm" (or a plain number of hours) back.

@@ -299,21 +299,10 @@ fn plural(k: RefKind) -> String {
     format!("{}s", kind_label(k).to_lowercase())
 }
 
-/// Parses "item", "prop", "character", "sheet", "tileset", "sound" or "structure".
+/// Parses "item", "prop", "character", "sheet", "tileset", "sound", "structure", "skill",
+/// "spell" or "recipe": the kinds a library holds.
 pub fn parse_kind(s: &str) -> Option<RefKind> {
-    Some(match s {
-        "item" => RefKind::Item,
-        "prop" => RefKind::Prop,
-        "character" => RefKind::Character,
-        "sheet" => RefKind::Sheet,
-        "tileset" => RefKind::Tileset,
-        "sound" => RefKind::Sound,
-        "structure" => RefKind::Structure,
-        "skill" => RefKind::Skill,
-        "spell" => RefKind::Spell,
-        "recipe" => RefKind::Recipe,
-        _ => return None,
-    })
+    RefKind::parse(s).filter(|k| library::KINDS.contains(k))
 }
 
 fn with_ext(path: &Path) -> std::path::PathBuf {

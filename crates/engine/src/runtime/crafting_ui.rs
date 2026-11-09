@@ -8,7 +8,8 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::{ui::panel, Game};
+use super::ui::{panel, ListClick, ScrollList, PAD};
+use super::Game;
 use crate::crafting::{Missing, RecipeDef};
 use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
@@ -16,11 +17,9 @@ use super::text::{draw_text, measure_text};
 const ROW: f32 = 58.0;
 const ROWS: usize = 7;
 const W: f32 = 640.0;
-const PAD: f32 = 14.0;
 const TITLE_H: f32 = 44.0;
 const FOOT_H: f32 = 84.0;
 const BTN_W: f32 = 92.0;
-const DOUBLE_CLICK: f64 = 0.35;
 
 #[derive(Default)]
 pub(super) struct CraftingUi {
@@ -31,9 +30,7 @@ pub(super) struct CraftingUi {
     /// The station's prop (the trigger's owner; `RecipeDef::station_state` looks at it).
     prop: Option<u32>,
     pending_prop: Option<u32>,
-    sel: usize,
-    scroll: usize,
-    last_click: Option<(usize, f64)>,
+    list: ScrollList,
     /// Result of the last attempt (shown in the footer) and when it happened.
     msg: Option<(String, bool, f64)>,
 }
@@ -159,14 +156,7 @@ impl Game {
 
     fn clamp_crafting(&mut self) {
         let n = self.crafting_recipes().len();
-        let c = &mut self.crafting;
-        c.sel = c.sel.min(n.saturating_sub(1));
-        c.scroll = c.scroll.min(n.saturating_sub(ROWS));
-        if c.sel < c.scroll {
-            c.scroll = c.sel;
-        } else if c.sel >= c.scroll + ROWS {
-            c.scroll = c.sel + 1 - ROWS;
-        }
+        self.crafting.list.clamp(n, ROWS);
     }
 
     /// The open crafting window (for automated play-throughs): "station [ids] sel=K msg=…".
@@ -174,12 +164,12 @@ impl Game {
         let (station, _) = self.crafting.open.as_ref()?;
         let ids: Vec<String> = self.crafting_recipes().iter().map(|r| if self.recipe_missing(r).is_none() { r.id.clone() } else { format!("{}(missing)", r.id) }).collect();
         let msg = self.crafting.msg.as_ref().map_or("", |m| m.0.as_str());
-        Some(format!("{station} [{}] sel={} msg={msg:?}", ids.join(" "), self.crafting.sel))
+        Some(format!("{station} [{}] sel={} msg={msg:?}", ids.join(" "), self.crafting.list.sel))
     }
 
     /// Screen position of recipe row `k`'s *Make* button (for automated play-throughs).
     pub fn crafting_button_pos(&self, k: usize) -> Option<Vec2> {
-        let vis = k.checked_sub(self.crafting.scroll).filter(|v| *v < ROWS)?;
+        let vis = k.checked_sub(self.crafting.list.scroll).filter(|v| *v < ROWS)?;
         (k < self.crafting_recipes().len()).then(|| button_rect(row_rect(layout().list, vis)).center())
     }
 
@@ -192,8 +182,7 @@ impl Game {
             self.inv.close();
             self.crafting.open = Some(open);
             self.crafting.prop = self.crafting.pending_prop.take();
-            self.crafting.sel = 0;
-            self.crafting.scroll = 0;
+            self.crafting.list = Default::default();
             self.crafting.msg = None;
             self.audio.play(&self.project.config.sfx.open_container);
         }
@@ -208,36 +197,24 @@ impl Game {
         }
         let n = if input::act_down(Act::Run) { 10 } else { 1 };
         if input::act_pressed(Act::Down) {
-            self.crafting.sel += 1;
+            self.crafting.list.sel += 1;
         }
         if input::act_pressed(Act::Up) {
-            self.crafting.sel = self.crafting.sel.saturating_sub(1);
+            self.crafting.list.sel = self.crafting.list.sel.saturating_sub(1);
         }
         let wheel = input::wheel();
         if wheel != 0.0 {
-            let sel = &mut self.crafting.sel;
+            let sel = &mut self.crafting.list.sel;
             *sel = if wheel > 0.0 { sel.saturating_sub(1) } else { *sel + 1 };
         }
         self.clamp_crafting();
         let count = self.crafting_recipes().len();
         if input::act_pressed(Act::Confirm) && count > 0 {
-            self.craft_row(self.crafting.sel, n);
+            self.craft_row(self.crafting.list.sel, n);
         }
         if input::mouse_pressed(MouseButton::Left) {
-            for vis in 0..ROWS {
-                let k = self.crafting.scroll + vis;
-                let r = row_rect(l.list, vis);
-                if k >= count || !r.contains(m) {
-                    continue;
-                }
-                self.crafting.sel = k;
-                let now = get_time();
-                let double = self.crafting.last_click.is_some_and(|(i, t)| i == k && now - t < DOUBLE_CLICK);
-                self.crafting.last_click = Some((k, now));
-                if button_rect(r).contains(m) || double {
-                    self.crafting.last_click = None;
-                    self.craft_row(k, n);
-                }
+            if let ListClick::Activate(k) = self.crafting.list.click(m, count, ROWS, |vis| row_rect(l.list, vis), button_rect) {
+                self.craft_row(k, n);
             }
         }
         (true, l.panel.contains(m) || input::mouse_pressed(MouseButton::Left))
@@ -258,10 +235,10 @@ impl Game {
             draw_text("Nothing can be made here.", list.x + 12.0, list.y + 28.0, 22.0, GRAY);
         }
         let db = &self.project.db;
-        for (vis, r) in recipes.iter().skip(self.crafting.scroll).take(ROWS).enumerate() {
-            let k = self.crafting.scroll + vis;
+        for (vis, r) in recipes.iter().skip(self.crafting.list.scroll).take(ROWS).enumerate() {
+            let k = self.crafting.list.scroll + vis;
             let rr = row_rect(list, vis);
-            let selected = self.crafting.sel == k;
+            let selected = self.crafting.list.sel == k;
             let missing = self.recipe_missing(r);
             let bg = if selected {
                 Color::new(0.85, 0.7, 0.3, 0.22)
@@ -331,10 +308,10 @@ impl Game {
             let tw = measure_text("Make", None, 18, 1.0).width;
             draw_text("Make", b.x + (b.w - tw) / 2.0, b.y + b.h / 2.0 + 6.0, 18.0, if ok { WHITE } else { Color::new(0.9, 0.5, 0.5, 1.0) });
         }
-        if self.crafting.scroll > 0 {
+        if self.crafting.list.scroll > 0 {
             draw_text("more above", list.x + list.w - 80.0, list.y - 2.0, 14.0, LIGHTGRAY);
         }
-        if recipes.len() > self.crafting.scroll + ROWS {
+        if recipes.len() > self.crafting.list.scroll + ROWS {
             draw_text("more below", list.x + list.w - 80.0, list.y + list.h + 12.0, 14.0, LIGHTGRAY);
         }
         let c = l.close;
@@ -345,7 +322,7 @@ impl Game {
         // Footer: the selected result's description, the last message, help.
         let f = l.foot;
         draw_rectangle(f.x, f.y, f.w, f.h, Color::new(0.0, 0.0, 0.0, 0.25));
-        if let Some(d) = recipes.get(self.crafting.sel).and_then(|r| db.item(r.result_for(&self.world))) {
+        if let Some(d) = recipes.get(self.crafting.list.sel).and_then(|r| db.item(r.result_for(&self.world))) {
             draw_text(&d.name, f.x + 10.0, f.y + 22.0, 21.0, GOLD);
             for (k, line) in wrap_text(&d.description, 17, f.w - 20.0).iter().take(1).enumerate() {
                 draw_text(line, f.x + 10.0, f.y + 42.0 + k as f32 * 17.0, 17.0, LIGHTGRAY);

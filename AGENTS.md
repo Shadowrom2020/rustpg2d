@@ -102,13 +102,17 @@ gh pr create --base master --fill            # then merge it and the back-merge 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every pull request into `develop` / `master` and on pushes to
-`master` (Ubuntu 22.04, so the binaries need only glibc ≤ 2.35). Pushes to `develop` don't run it
+`master` (Ubuntu 22.04, so the binaries need only glibc ≤ 2.35). Every job uses the Rust version
+pinned in `rust-toolchain.toml` (also `rust-version` in `Cargo.toml` and the `toolchain:` inputs
+of the workflows; an xtask test keeps them equal), so a new stable release never breaks a pull
+request by surprise: bump the three together in a `chore/` branch. Pushes to `develop` don't run it
 again: the pull request already tested the merge. Its jobs are the required checks:
 
 | Check | What it does | Runs for |
 |---|---|---|
 | *Branch policy* | `cargo xtask check-branch HEAD BASE` (seconds: xtask without the engine) | every PR (required: develop, master) |
 | *Build, lint, test* | `cargo clippy --all-targets --all-features -D warnings`, `cargo test` (workspace, `--locked`, unoptimized: fast to compile) | every PR (required: develop, master) |
+| *Runtime smoke* | `scripts/ci/smoke.sh`: the game and the editor on a copy of the example project under Xvfb (title, a map, the clock, an old save, quick save, a map change + autosave, the editor opening a map, the MCP smoke client) | every PR (advisory) |
 | *Version* | `cargo xtask check-version BRANCH` | PRs into master (required there) |
 | *Packages* | release builds (Linux, web, Windows via MinGW-w64, the macOS build from *macOS*), `cargo xtask-dist` (AppImage, Flatpak, Windows zip, unsigned macOS app), smoke test of game and editor under Xvfb, downloads as artifact | PRs into master (required there) |
 | *Windows* | clippy and tests on `windows-latest` (MSVC) | PRs into master, manual runs |
@@ -154,7 +158,9 @@ cargo test --workspace
 ## Project notes
 
 - Map and definition files must stay loadable by older and newer versions: append new enum
-  variants at the end, and give new fields `#[serde(default)]`.
+  variants at the end, and give new fields `#[serde(default)]`. `crates/engine/tests/fixtures/`
+  holds files of earlier versions that the tests load; add the last release's file there when a
+  format changes.
 - Tiles are always 32 px (`project::TILE_SIZE`).
 - Features are verified end to end with scripted runs: `RUSTPG2D_AUTOPLAY` for the game and
   `RUSTPG2D_EDITOR_SCRIPT` for the editor (see `crates/game/src/main.rs` and

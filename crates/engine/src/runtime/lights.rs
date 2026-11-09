@@ -66,8 +66,7 @@ impl Game {
 
     /// "Hh:mm" of the in-game clock.
     pub fn clock_text(&self) -> String {
-        let h = self.world.hour.rem_euclid(24.0);
-        format!("{:02}:{:02}", h as u32, ((h.fract()) * 60.0) as u32)
+        crate::entity::hour_text(self.world.hour)
     }
 
     /// Small clock (top right) on maps with day and night.

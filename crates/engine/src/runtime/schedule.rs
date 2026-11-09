@@ -127,6 +127,7 @@ impl Game {
         e.away = false;
         let tile = (s.stops[k].x, s.stops[k].y);
         self.loaded.entities[i].body.pos = self.tile_spot(tile);
+        self.occupy(i);
         self.arrive(i);
     }
 

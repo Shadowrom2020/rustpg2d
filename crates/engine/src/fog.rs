@@ -79,14 +79,14 @@ impl Explored {
     }
 
     fn encode(&self) -> String {
-        format!("{}x{}:{}", self.width, self.height, base64_encode(&lz4_flex::compress_prepend_size(&self.bits)))
+        format!("{}x{}:{}", self.width, self.height, crate::hash::base64(&lz4_flex::compress_prepend_size(&self.bits)))
     }
 
     fn decode(s: &str) -> Option<Explored> {
         let (size, data) = s.split_once(':')?;
         let (w, h) = size.split_once('x')?;
         let (width, height) = (w.parse().ok()?, h.parse().ok()?);
-        let bits = lz4_flex::decompress_size_prepended(&base64_decode(data)?).ok()?;
+        let bits = lz4_flex::decompress_size_prepended(&crate::hash::base64_decode(data)?).ok()?;
         let e = Explored { width, height, bits };
         (e.bits.len() == Explored::new(width, height).bits.len()).then_some(e)
     }
@@ -103,37 +103,6 @@ impl<'de> Deserialize<'de> for Explored {
         let s = String::deserialize(d)?;
         Explored::decode(&s).ok_or_else(|| serde::de::Error::custom("invalid explored-tiles data"))
     }
-}
-
-const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-fn base64_encode(data: &[u8]) -> String {
-    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
-    for chunk in data.chunks(3) {
-        let n = (chunk[0] as u32) << 16 | (*chunk.get(1).unwrap_or(&0) as u32) << 8 | *chunk.get(2).unwrap_or(&0) as u32;
-        for k in 0..4 {
-            if k <= chunk.len() {
-                out.push(B64[(n >> (18 - 6 * k) & 63) as usize] as char);
-            } else {
-                out.push('=');
-            }
-        }
-    }
-    out
-}
-
-fn base64_decode(s: &str) -> Option<Vec<u8>> {
-    let mut out = Vec::with_capacity(s.len() / 4 * 3);
-    let (mut acc, mut n) = (0u32, 0);
-    for c in s.bytes().filter(|c| *c != b'=') {
-        acc = acc << 6 | B64.iter().position(|b| *b == c)? as u32;
-        n += 6;
-        if n >= 8 {
-            n -= 8;
-            out.push((acc >> n) as u8);
-        }
-    }
-    Some(out)
 }
 
 #[cfg(test)]
@@ -157,7 +126,7 @@ mod tests {
         // Base64 of every length.
         for len in 0..10 {
             let v: Vec<u8> = (0..len).map(|i| (i * 37 + 5) as u8).collect();
-            assert_eq!(base64_decode(&base64_encode(&v)).unwrap(), v);
+            assert_eq!(crate::hash::base64_decode(&crate::hash::base64(&v)).unwrap(), v);
         }
         // Huge maps stay small.
         let mut big = Explored::new(1024, 1024);

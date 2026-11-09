@@ -187,9 +187,30 @@ pub fn load_settings() -> EditorSettings {
 
 pub fn save_settings(s: &EditorSettings) {
     let Some(dir) = config_dir() else { return };
-    if std::fs::create_dir_all(&dir).is_ok() {
-        if let Ok(text) = ron::ser::to_string_pretty(s, ron::ser::PrettyConfig::default().new_line("\n")) {
-            let _ = std::fs::write(dir.join("editor.ron"), text);
+    match rustpg2d_engine::project::ron_text(s) {
+        Ok(text) => {
+            if let Err(e) = rustpg2d_engine::sys::write(&dir.join("editor.ron"), text.as_bytes()) {
+                eprintln!("[editor] cannot save the editor settings: {e}");
+            }
+        }
+        Err(e) => eprintln!("[editor] cannot serialize the editor settings: {e}"),
+    }
+}
+
+/// Copies `path` to `<name>.bak` beside it, once (an existing backup is kept): before the editor
+/// saves a file it could only read in part. The backup's path, or `None` when copying failed.
+pub fn back_up_once(path: &Path) -> Option<PathBuf> {
+    let mut name = path.file_name()?.to_os_string();
+    name.push(".bak");
+    let bak = path.with_file_name(name);
+    if bak.exists() {
+        return Some(bak);
+    }
+    match std::fs::copy(path, &bak) {
+        Ok(_) => Some(bak),
+        Err(e) => {
+            eprintln!("[editor] cannot back up {}: {e}", path.display());
+            None
         }
     }
 }
@@ -209,9 +230,9 @@ pub fn remember_recent(root: &Path) {
     list.retain(|p| *p != root);
     list.insert(0, root);
     list.truncate(RECENT_MAX);
-    if std::fs::create_dir_all(&dir).is_ok() {
-        if let Ok(s) = ron::ser::to_string_pretty(&list, ron::ser::PrettyConfig::default().new_line("\n")) {
-            let _ = std::fs::write(dir.join("recent.ron"), s);
+    if let Ok(s) = rustpg2d_engine::project::ron_text(&list) {
+        if let Err(e) = rustpg2d_engine::sys::write(&dir.join("recent.ron"), s.as_bytes()) {
+            eprintln!("[editor] cannot save the recent projects list: {e}");
         }
     }
 }

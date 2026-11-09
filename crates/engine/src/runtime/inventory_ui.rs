@@ -8,19 +8,13 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::{ui::panel, Game};
+use super::ui::{panel, slot_grid, slot_grid_size, DragState, SlotEvent, DETAIL_H, GAP, PAD, SLOT};
+use super::Game;
 use crate::defs::EquipSlot;
 use crate::inventory::{Inventory, ItemStack};
 use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
 
-const SLOT: f32 = 48.0;
-const GAP: f32 = 6.0;
-const PAD: f32 = 14.0;
-const TITLE_H: f32 = 40.0;
-const DETAIL_H: f32 = 84.0;
-const DOUBLE_CLICK: f64 = 0.35;
-const DRAG_START: f32 = 6.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Side {
@@ -56,9 +50,7 @@ pub(super) struct InvUi {
     /// Container to open once the current event sequence has finished.
     pub pending_loot: Option<u32>,
     sel: Option<(Side, usize)>,
-    press: Option<(Side, usize, Vec2)>,
-    dragging: bool,
-    last_click: Option<(Side, usize, f64)>,
+    drag: DragState<Side>,
     /// Quick bar slot that was just used (for a short highlight).
     quick_flash: Option<(usize, f64)>,
 }
@@ -70,8 +62,7 @@ impl InvUi {
     pub fn close(&mut self) {
         self.open = false;
         self.loot = None;
-        self.press = None;
-        self.dragging = false;
+        self.drag = DragState::default();
     }
 }
 
@@ -179,8 +170,7 @@ impl Game {
 }
 
 fn grid_size(n: usize, cols: usize) -> Vec2 {
-    let rows = n.div_ceil(cols).max(1);
-    vec2(cols as f32 * (SLOT + GAP) - GAP + 2.0 * PAD, rows as f32 * (SLOT + GAP) - GAP + 2.0 * PAD + TITLE_H)
+    slot_grid_size(n, cols)
 }
 
 /// Vertical distance of the equipment slots.
@@ -193,16 +183,10 @@ const SHEET_H: f32 = 530.0;
 const MIN_CONTAINER_W: f32 = 300.0;
 
 fn make_grid(side: Side, title: String, origin: Vec2, n: usize, cols: usize) -> Grid {
-    let mut size = grid_size(n, cols);
+    let (slots, mut size) = slot_grid(origin, n, cols);
     if side == Side::Container {
         size.x = size.x.max(MIN_CONTAINER_W);
     }
-    let slots = (0..n)
-        .map(|i| {
-            let (c, r) = (i % cols, i / cols);
-            Rect::new(origin.x + PAD + c as f32 * (SLOT + GAP), origin.y + TITLE_H + PAD + r as f32 * (SLOT + GAP), SLOT, SLOT)
-        })
-        .collect();
     Grid { side, title, panel: Rect::new(origin.x, origin.y, size.x, size.y), slots, cols }
 }
 
@@ -263,7 +247,7 @@ impl Game {
         };
         let ctx = crate::events::runner::ActionCtx { owner: Some(uid) };
         if !crate::events::runner::conditions_met(self, &spec.conditions, &ctx) {
-            let msg = if spec.locked_text.is_empty() { "It's locked.".to_string() } else { spec.locked_text.clone() };
+            let msg = if spec.locked_text.is_empty() { "It's locked.".to_string() } else { crate::lang::tr(&spec.locked_text) };
             self.ui.toast(msg);
             return;
         }
@@ -705,10 +689,7 @@ impl Game {
                 return (true, true);
             }
             match hit {
-                Some((side, i)) => {
-                    self.inv.press = Some((side, i, m));
-                    self.inv.dragging = false;
-                }
+                Some(at) => self.inv.drag.press(at, m),
                 None if !layout.contains(m) => {
                     self.inv.close();
                     return (true, true);
@@ -716,37 +697,25 @@ impl Game {
                 None => {}
             }
         }
-        if let Some((side, i, start)) = self.inv.press {
-            if input::mouse_down(MouseButton::Left) && m.distance(start) > DRAG_START {
-                self.inv.dragging = true;
-            }
-            if input::mouse_released(MouseButton::Left) || !input::mouse_down(MouseButton::Left) {
-                self.inv.press = None;
-                if self.inv.dragging {
-                    self.inv.dragging = false;
-                    match hit {
-                        Some(to) => {
-                            self.drop_on((side, i), to);
-                            if to.0 != Side::Quick {
-                                self.inv.sel = Some(to);
-                            }
-                        }
-                        // Dragging a shortcut off the bar removes it.
-                        None if side == Side::Quick => self.clear_quick(i),
-                        // Dragging a stack out of the window drops it on the ground.
-                        None if side == Side::Player && !layout.contains(m) => {
-                            self.drop_slot(i, None);
-                        }
-                        None => {}
-                    }
-                } else if hit == Some((side, i)) {
-                    let now = get_time();
-                    let double = self.inv.last_click.is_some_and(|(s, j, t)| s == side && j == i && now - t < DOUBLE_CLICK);
-                    self.inv.last_click = Some((side, i, now));
-                    self.inv.sel = Some((side, i));
-                    self.activate(side, i, double);
+        match self.inv.drag.update(m, hit) {
+            SlotEvent::Dropped { from, to: Some(to) } => {
+                self.drop_on(from, to);
+                if to.0 != Side::Quick {
+                    self.inv.sel = Some(to);
                 }
             }
+            // Dragging a shortcut off the bar removes it.
+            SlotEvent::Dropped { from: (Side::Quick, i), to: None } => self.clear_quick(i),
+            // Dragging a stack out of the window drops it on the ground.
+            SlotEvent::Dropped { from: (Side::Player, i), to: None } if !layout.contains(m) => {
+                self.drop_slot(i, None);
+            }
+            SlotEvent::Dropped { .. } => {}
+            SlotEvent::Clicked { at: (side, i), double } => {
+                self.inv.sel = Some((side, i));
+                self.activate(side, i, double);
+            }
+            SlotEvent::None => {}
         }
         if rclick {
             if let Some((side, i)) = hit {
@@ -781,7 +750,7 @@ impl Game {
         }
         let layout = self.layout();
         let hover = layout.hit(m);
-        let dragging = if self.inv.dragging { self.inv.press.map(|(s, i, _)| (s, i)) } else { None };
+        let dragging = self.inv.drag.dragging();
         for g in &layout.grids {
             let p = g.panel;
             if g.side != Side::Quick {
@@ -833,30 +802,10 @@ impl Game {
             draw_text("x", c.x + 6.0, c.y + 17.0, 24.0, if c.contains(m) { WHITE } else { GRAY });
         }
 
-        // Details of the hovered or selected stack.
-        let d = layout.detail;
-        panel(d.x, d.y, d.w, d.h);
+        // Details of the hovered or selected stack, and the help line.
         let focus = hover.or(self.inv.sel);
         let stack = focus.and_then(|(side, i)| self.slot_stack(side, i));
-        if let Some(s) = &stack {
-            let def = self.project.db.item(&s.item);
-            let name = def.map_or(s.item.as_str(), |d| d.name.as_str());
-            let title = if s.count > 1 { format!("{name}  x{}", s.count) } else { name.to_string() };
-            draw_text(&title, d.x + PAD, d.y + 24.0, 22.0, WHITE);
-            if let Some(def) = def {
-                let tw = measure_text(&title, None, 22, 1.0).width;
-                if let Some(line) = item_stats_line(def) {
-                    draw_text(&line, d.x + PAD + tw + 16.0, d.y + 23.0, 18.0, GOLD);
-                }
-                for (k, line) in wrap_text(&def.description, 18, d.w - 2.0 * PAD).iter().take(2).enumerate() {
-                    draw_text(line, d.x + PAD, d.y + 44.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
-                }
-            }
-        }
-        // The help line, smaller if it doesn't fit.
-        let hint = self.hint();
-        let size = (12..=16u16).rev().find(|s| measure_text(hint, None, *s, 1.0).width <= d.w - 2.0 * PAD).unwrap_or(12);
-        draw_text(hint, d.x + PAD, d.y + d.h - 8.0, size as f32, GRAY);
+        super::ui::draw_item_detail(&self.project.db, layout.detail, PAD, stack.as_ref(), self.hint());
 
         // The stack being dragged follows the cursor.
         if let Some((side, i)) = dragging {
@@ -873,25 +822,6 @@ fn cols_of(layout: &Layout, side: Side) -> usize {
 }
 
 /// Short stat summary of an equippable item, e.g. "Damage 2 · every 0.35s · reach 1.1".
-fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
-    if !d.tool.is_empty() {
-        return Some(format!("Tool · {}", d.tool));
-    }
-    if let Some(w) = &d.weapon {
-        return Some(match &w.ranged {
-            Some(r) => format!("Damage {} · every {:.2}s · range {:.0}", w.damage, w.cooldown, r.range),
-            None => format!("Damage {} · every {:.2}s · reach {:.1}", w.damage, w.cooldown, w.reach),
-        });
-    }
-    d.armor.as_ref().map(|a| {
-        let mut s = format!("{} · Defense +{}", a.slot.label(), a.defense);
-        if a.speed != 0.0 {
-            s.push_str(&format!(" · Speed {:+.0}%", a.speed * 100.0));
-        }
-        s
-    })
-}
-
 impl Game {
     /// Character sheet: portrait, equipment slots and stats.
     fn draw_sheet(&self, g: &Grid, hover: Option<(Side, usize)>, dragging: Option<(Side, usize)>) {
@@ -957,7 +887,7 @@ impl Game {
         let last = rects[QUICK_SLOTS - 1];
         draw_rectangle(first.x - 6.0, first.y - 6.0, last.right() - first.x + 12.0, QUICK_SLOT + 12.0, Color::new(0.04, 0.04, 0.08, 0.55));
         let open = self.inv.is_open();
-        let dragging = if self.inv.dragging { self.inv.press.map(|(s, i, _)| (s, i)) } else { None };
+        let dragging = self.inv.drag.dragging();
         let flash = self.inv.quick_flash.filter(|(_, t)| get_time() - t < 0.25).map(|(k, _)| k);
         for (k, r) in rects.iter().enumerate() {
             let hover = r.contains(m) && (open || !self.ui.dialog_open());
@@ -1012,10 +942,10 @@ impl Game {
         let ts = self.ts();
         let (dx, dy) = self.player.facing.dir();
         let ahead = self.player.pos + vec2(dx, dy) * ts * 0.9;
-        let (tx, ty) = ((ahead.x / ts).floor() as i32, ((ahead.y - 1.0) / ts).floor() as i32);
+        let (tx, ty) = self.tile_of(ahead);
         let blocked = self.loaded.entities.iter().any(|e| e.active && e.solid && e.body.rect().contains(vec2((tx as f32 + 0.5) * ts, (ty as f32 + 0.8) * ts)));
         if self.loaded.map.in_bounds(tx, ty) && !self.tile_solid(tx, ty) && !blocked {
-            vec2((tx as f32 + 0.5) * ts, (ty as f32 + 1.0) * ts - 1.0)
+            self.tile_spot((tx, ty))
         } else {
             self.player.pos
         }

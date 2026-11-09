@@ -85,7 +85,17 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
     Ok((root, start))
 }
 
+/// The project `window_conf` loaded for the window icon, taken over by `main` when it is the
+/// same folder. (The web game's files are mounted only in `main`: there it stays empty.)
+static PRELOADED: std::sync::Mutex<Option<(PathBuf, Project)>> = std::sync::Mutex::new(None);
+
+fn preloaded(root: &std::path::Path) -> Option<Project> {
+    PRELOADED.lock().unwrap_or_else(|e| e.into_inner()).take().filter(|(r, _)| r == root).map(|(_, p)| p)
+}
+
 fn window_conf() -> Conf {
+    // The engine build stays readable in the binary: the editor's exports check it.
+    std::hint::black_box(rustpg2d_engine::ENGINE_BUILD_TAG);
     rustpg2d_engine::desktop::startup("The game");
     if std::env::args().any(|a| a == "--engine-build") {
         println!("{}", rustpg2d_engine::ENGINE_BUILD);
@@ -99,8 +109,13 @@ fn window_conf() -> Conf {
         .map(|c| c.name)
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "R(ust)PG2D".to_owned());
-    // The window icon: the player character, else R(ust)PG2D's emblem.
-    let icon = Project::load(&root).ok().and_then(|p| rustpg2d_engine::icon::hero_icon(&p)).unwrap_or_else(rustpg2d_engine::icon::emblem);
+    // The window icon: the player character, else R(ust)PG2D's emblem. The project read here
+    // is handed to `main` (it used to be loaded twice).
+    let project = Project::load(&root).ok();
+    let icon = project.as_ref().and_then(rustpg2d_engine::icon::hero_icon).unwrap_or_else(rustpg2d_engine::icon::emblem);
+    if let Some(p) = project {
+        *PRELOADED.lock().unwrap_or_else(|e| e.into_inner()) = Some((root.clone(), p));
+    }
     Conf {
         window_title: title,
         icon: Some(rustpg2d_engine::icon::window_icon(&icon)),
@@ -139,9 +154,16 @@ fn loading_screen(text: &str, progress: Option<f32>) {
 /// The web game can't start: the reason on the canvas (and in the browser console).
 #[cfg(target_arch = "wasm32")]
 async fn web_failed(e: anyhow::Error) {
-    macroquad::logging::error!("{e:#}");
+    // (macroquad's log macros print a lone literal as it is: no inline `{e}`.)
+    macroquad::logging::error!("{:#}", e);
+    let causes: Vec<String> = e.chain().map(|c| c.to_string()).collect();
     loop {
-        loading_screen(&format!("The game could not start: {e}"), None);
+        // The error and each cause on its own line, so a long chain stays on the canvas.
+        loading_screen("The game could not start:", None);
+        for (k, c) in causes.iter().enumerate() {
+            let w = measure_text(c, None, 22, 1.0).width;
+            draw_text(c, ((screen_width() - w) / 2.0).max(8.0), screen_height() / 2.0 + 24.0 + 26.0 * k as f32, 22.0, GRAY);
+        }
         next_frame().await;
     }
 }
@@ -157,7 +179,13 @@ async fn main() {
             return web_failed(e).await;
         }
     }
-    let project = parse_args().and_then(|(root, start)| Ok((Project::load(&root).with_context(|| format!("loading project {}", root.display()))?, start)));
+    let project = parse_args().and_then(|(root, start)| {
+        let p = match preloaded(&root) {
+            Some(p) => p,
+            None => Project::load(&root).with_context(|| format!("loading project {}", root.display()))?,
+        };
+        Ok((p, start))
+    });
     // The web game: sounds decode asynchronously in the browser; load them before the game.
     #[cfg(target_arch = "wasm32")]
     if let Ok((p, _)) = &project {
@@ -189,10 +217,7 @@ async fn main() {
             #[cfg(target_arch = "wasm32")]
             return web_failed(e).await;
             #[cfg(not(target_arch = "wasm32"))]
-            {
-                eprintln!("error: {e:#}");
-                std::process::exit(1);
-            }
+            rustpg2d_engine::desktop::fatal("The game", &format!("{e:#}"))
         }
     };
     // Debug aids:

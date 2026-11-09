@@ -73,7 +73,21 @@ mod imp {
         if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
             std::fs::create_dir_all(dir)?;
         }
-        std::fs::write(path, data)
+        // Whole file or nothing: written beside the file, then renamed over it, so a crash (or a
+        // full disk) leaves at most a `<name>.tmp`, never a truncated save, map or defs file.
+        let tmp = tmp_path(path);
+        std::fs::write(&tmp, data)?;
+        std::fs::rename(&tmp, path).inspect_err(|_| {
+            let _ = std::fs::remove_file(&tmp);
+        })
+    }
+
+    /// `<file>.tmp` next to the file: the real extension stays inside the name, so listings of
+    /// `*.ron` / `*.map` (the editor's file watcher, exports) never pick it up.
+    fn tmp_path(path: &Path) -> PathBuf {
+        let mut name = path.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+        name.push(".tmp");
+        path.with_file_name(name)
     }
 
     pub fn exists(path: &Path) -> bool {
@@ -236,42 +250,13 @@ pub mod web {
 
 }
 
-const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-/// Standard base64 (the web game keeps binary files as text in `localStorage`).
+/// Standard base64 (the web game keeps binary files as text in `localStorage`); [`crate::hash`]'s.
 pub fn base64(data: &[u8]) -> String {
-    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
-    for c in data.chunks(3) {
-        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
-        for i in 0..4 {
-            if i <= c.len() {
-                out.push(B64[(n >> (18 - 6 * i) & 63) as usize] as char);
-            } else {
-                out.push('=');
-            }
-        }
-    }
-    out
+    crate::hash::base64(data)
 }
 
 pub fn unbase64(s: &str) -> Option<Vec<u8>> {
-    let val = |c: u8| B64.iter().position(|&b| b == c).map(|p| p as u32);
-    let clean: Vec<u8> = s.bytes().filter(|&c| c != b'=').collect();
-    let mut out = Vec::with_capacity(clean.len() * 3 / 4);
-    for chunk in clean.chunks(4) {
-        let mut n = 0u32;
-        for (i, &c) in chunk.iter().enumerate() {
-            n |= val(c)? << (18 - 6 * i);
-        }
-        out.push((n >> 16) as u8);
-        if chunk.len() > 2 {
-            out.push((n >> 8) as u8);
-        }
-        if chunk.len() > 3 {
-            out.push(n as u8);
-        }
-    }
-    Some(out)
+    crate::hash::base64_decode(s)
 }
 
 #[cfg(test)]
@@ -286,6 +271,9 @@ mod tests {
         write(&f, b"()").unwrap();
         assert!(exists(&f) && exists(&dir.join("saves")));
         assert_eq!(read_to_string(&f).unwrap(), "()");
+        // Written whole or not at all: the temporary file is gone, overwriting keeps one file.
+        write(&f, b"(x: 1)").unwrap();
+        assert_eq!(read_to_string(&f).unwrap(), "(x: 1)");
         assert_eq!(files_in(&dir.join("saves")).unwrap(), vec![f.clone()]);
         assert!(files_in(&dir).unwrap().is_empty(), "files only, not folders");
         remove_file(&f).unwrap();

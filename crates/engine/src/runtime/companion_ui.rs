@@ -9,18 +9,13 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::{ui::panel, Game};
+use super::ui::{panel, slot_grid, DragState, SlotEvent, DETAIL_H, PAD, SLOT};
+use super::Game;
 use crate::defs::EquipSlot;
 use crate::inventory::{Inventory, ItemStack};
 use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
 
-const SLOT: f32 = 48.0;
-const GAP: f32 = 6.0;
-const PAD: f32 = 14.0;
-const TITLE_H: f32 = 40.0;
-const DETAIL_H: f32 = 84.0;
-const DRAG_START: f32 = 6.0;
 /// Different kinds of items a companion carries.
 pub(super) const BAG_SLOTS: usize = 12;
 const BAG_COLS: usize = 4;
@@ -43,8 +38,7 @@ pub(super) struct CompanionWin {
     /// Its carried items as slots (written back to the entity after every change).
     bag: Inventory,
     sel: (Pane, usize),
-    press: Option<(Pane, usize, Vec2)>,
-    dragging: bool,
+    drag: DragState<Pane>,
 }
 
 struct Layout {
@@ -70,11 +64,6 @@ impl Layout {
     }
 }
 
-fn grid(origin: Vec2, n: usize, cols: usize) -> (Vec<Rect>, Vec2) {
-    let rows = n.div_ceil(cols).max(1);
-    let slots = (0..n).map(|i| Rect::new(origin.x + PAD + (i % cols) as f32 * (SLOT + GAP), origin.y + TITLE_H + PAD + (i / cols) as f32 * (SLOT + GAP), SLOT, SLOT)).collect();
-    (slots, vec2(cols as f32 * (SLOT + GAP) - GAP + 2.0 * PAD, rows as f32 * (SLOT + GAP) - GAP + 2.0 * PAD + TITLE_H))
-}
 
 impl Game {
     pub(super) fn companion_win_open(&self) -> bool {
@@ -99,7 +88,7 @@ impl Game {
             bag.add(&s.item, s.count);
         }
         self.inv.close();
-        self.comp_win = Some(CompanionWin { uid: e.uid, bag, sel: (Pane::Bag, 0), press: None, dragging: false });
+        self.comp_win = Some(CompanionWin { uid: e.uid, bag, sel: (Pane::Bag, 0), drag: DragState::default() });
         self.audio.play(&self.project.config.sfx.open_container);
     }
 
@@ -267,17 +256,17 @@ impl Game {
         let (sw, sh) = (screen_width(), screen_height());
         let cap = self.world.inventory.capacity();
         let bag_n = self.comp_win.as_ref().map_or(BAG_SLOTS, |w| w.bag.capacity());
-        let (_, bag_size) = grid(Vec2::ZERO, bag_n, BAG_COLS);
-        let (_, player_size) = grid(Vec2::ZERO, cap, PLAYER_COLS);
+        let (_, bag_size) = slot_grid(Vec2::ZERO, bag_n, BAG_COLS);
+        let (_, player_size) = slot_grid(Vec2::ZERO, cap, PLAYER_COLS);
         let h = (40.0 + GEAR.len() as f32 * 50.0 + 120.0).max(bag_size.y).max(player_size.y);
         let total = SHEET_W + 16.0 + bag_size.x + 16.0 + player_size.x;
         let x0 = ((sw - total) / 2.0).round();
         let top = ((sh - h - DETAIL_H - 6.0) / 2.0).max(10.0).round();
         let gear = (0..GEAR.len()).map(|k| Rect::new(x0 + 124.0, top + 50.0 + k as f32 * 50.0, SLOT, SLOT)).collect();
         let bx = x0 + SHEET_W + 16.0;
-        let (bag, _) = grid(vec2(bx, top), bag_n, BAG_COLS);
+        let (bag, _) = slot_grid(vec2(bx, top), bag_n, BAG_COLS);
         let px = bx + bag_size.x + 16.0;
-        let (player, _) = grid(vec2(px, top), cap, PLAYER_COLS);
+        let (player, _) = slot_grid(vec2(px, top), cap, PLAYER_COLS);
         let panels = [Rect::new(x0, top, SHEET_W, h), Rect::new(bx, top, bag_size.x, h), Rect::new(px, top, player_size.x, h)];
         let window = Rect::new(x0, top, total, h + 6.0 + DETAIL_H);
         Layout { window, gear, bag, player, panels, close: Rect::new(px + player_size.x - 30.0, top + 8.0, 22.0, 22.0), detail: Rect::new(x0, top + h + 6.0, total, DETAIL_H) }
@@ -367,10 +356,10 @@ impl Game {
                 return true;
             }
             match hit {
-                Some((p, s)) => {
-                    let w = self.comp_win.as_mut().expect("open");
-                    w.press = Some((p, s, m));
-                    w.dragging = false;
+                Some(at) => {
+                    if let Some(w) = self.comp_win.as_mut() {
+                        w.drag.press(at, m);
+                    }
                 }
                 None if !l.window.contains(m) => {
                     self.comp_win = None;
@@ -379,27 +368,22 @@ impl Game {
                 None => {}
             }
         }
-        let press = self.comp_win.as_ref().and_then(|w| w.press);
-        if let Some((p, s, start)) = press {
-            if input::mouse_down(MouseButton::Left) && m.distance(start) > DRAG_START {
-                self.comp_win.as_mut().expect("open").dragging = true;
-            }
-            if input::mouse_released(MouseButton::Left) || !input::mouse_down(MouseButton::Left) {
-                let w = self.comp_win.as_mut().expect("open");
-                w.press = None;
-                if w.dragging {
-                    w.dragging = false;
-                    if let Some(to) = hit {
-                        self.comp_drop((p, s), to);
-                        if let Some(w) = self.comp_win.as_mut() {
-                            w.sel = to;
-                        }
-                    }
-                } else if hit == Some((p, s)) {
-                    w.sel = (p, s);
-                    self.comp_activate(p, s);
+        let event = self.comp_win.as_mut().map_or(SlotEvent::None, |w| w.drag.update(m, hit));
+        match event {
+            SlotEvent::Dropped { from, to: Some(to) } => {
+                self.comp_drop(from, to);
+                if let Some(w) = self.comp_win.as_mut() {
+                    w.sel = to;
                 }
             }
+            SlotEvent::Dropped { .. } => {}
+            SlotEvent::Clicked { at: (p, s), .. } => {
+                if let Some(w) = self.comp_win.as_mut() {
+                    w.sel = (p, s);
+                }
+                self.comp_activate(p, s);
+            }
+            SlotEvent::None => {}
         }
         if rclick {
             if let Some((p, s)) = hit {
@@ -421,7 +405,7 @@ impl Game {
         let l = self.comp_layout();
         let m = input::mouse_pos();
         let hover = l.hit(m);
-        let dragging = if w.dragging { w.press.map(|(p, s, _)| (p, s)) } else { None };
+        let dragging = w.drag.dragging();
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.35));
         let e = &self.loaded.entities[i];
         let name = self.entity_display_name(e.uid).unwrap_or_else(|| e.name.clone());

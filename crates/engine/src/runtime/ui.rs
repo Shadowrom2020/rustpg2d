@@ -196,6 +196,92 @@ impl Ui {
 
 /// Seconds between two clicks that count as a double click (list rows, slots).
 pub(super) const DOUBLE_CLICK: f64 = 0.35;
+/// Pixels the pointer moves with the button down before a press becomes a drag.
+pub(super) const DRAG_START: f32 = 6.0;
+/// Inventory-like windows: slot size, the gap between slots, the panel padding, the title
+/// strip's height and the details footer's height.
+pub(super) const SLOT: f32 = 48.0;
+pub(super) const GAP: f32 = 6.0;
+pub(super) const PAD: f32 = 14.0;
+pub(super) const TITLE_H: f32 = 40.0;
+pub(super) const DETAIL_H: f32 = 84.0;
+
+/// The size of a panel holding `n` slots in `cols` columns under a title.
+pub(super) fn slot_grid_size(n: usize, cols: usize) -> Vec2 {
+    let rows = n.div_ceil(cols).max(1);
+    vec2(cols as f32 * (SLOT + GAP) - GAP + 2.0 * PAD, rows as f32 * (SLOT + GAP) - GAP + 2.0 * PAD + TITLE_H)
+}
+
+/// The slot rectangles of a grid of `n` slots in `cols` columns in a panel at `origin`, and the
+/// panel's size.
+pub(super) fn slot_grid(origin: Vec2, n: usize, cols: usize) -> (Vec<Rect>, Vec2) {
+    let slots = (0..n).map(|i| Rect::new(origin.x + PAD + (i % cols) as f32 * (SLOT + GAP), origin.y + TITLE_H + PAD + (i / cols) as f32 * (SLOT + GAP), SLOT, SLOT)).collect();
+    (slots, slot_grid_size(n, cols))
+}
+
+/// Pressing, dragging and clicking the slots of an inventory-like window. `K` tells the slot
+/// groups apart (the inventory's sides, the companion window's panes).
+#[derive(Clone, Debug)]
+pub(super) struct DragState<K: Copy + PartialEq> {
+    press: Option<(K, usize, Vec2)>,
+    dragging: bool,
+    last_click: Option<(K, usize, f64)>,
+}
+
+impl<K: Copy + PartialEq> Default for DragState<K> {
+    fn default() -> Self {
+        DragState { press: None, dragging: false, last_click: None }
+    }
+}
+
+/// What happened to a pressed slot ([`DragState::update`]).
+pub(super) enum SlotEvent<K> {
+    None,
+    /// Released after a drag: from a slot onto `to` (`None`: outside every slot).
+    Dropped { from: (K, usize), to: Option<(K, usize)> },
+    /// Released on the slot it was pressed on without dragging; `double` for the second click
+    /// within [`DOUBLE_CLICK`].
+    Clicked { at: (K, usize), double: bool },
+}
+
+impl<K: Copy + PartialEq> DragState<K> {
+    /// A left press on slot `hit` at `m`: a click, or the start of a drag.
+    pub fn press(&mut self, hit: (K, usize), m: Vec2) {
+        self.press = Some((hit.0, hit.1, m));
+        self.dragging = false;
+    }
+
+    /// Every frame after a press: the press turns into a drag once the pointer moved
+    /// [`DRAG_START`]; on release (or when the button is found up) says what it came to.
+    pub fn update(&mut self, m: Vec2, hit: Option<(K, usize)>) -> SlotEvent<K> {
+        let Some((k, i, start)) = self.press else { return SlotEvent::None };
+        if input::mouse_down(MouseButton::Left) && m.distance(start) > DRAG_START {
+            self.dragging = true;
+        }
+        if input::mouse_released(MouseButton::Left) || !input::mouse_down(MouseButton::Left) {
+            self.press = None;
+            if std::mem::take(&mut self.dragging) {
+                return SlotEvent::Dropped { from: (k, i), to: hit };
+            }
+            if hit == Some((k, i)) {
+                let now = get_time();
+                let double = self.last_click.is_some_and(|(s, j, t)| s == k && j == i && now - t < DOUBLE_CLICK);
+                self.last_click = Some((k, i, now));
+                return SlotEvent::Clicked { at: (k, i), double };
+            }
+        }
+        SlotEvent::None
+    }
+
+    /// The slot being dragged, to draw it under the cursor.
+    pub fn dragging(&self) -> Option<(K, usize)> {
+        if self.dragging {
+            self.press.map(|(k, i, _)| (k, i))
+        } else {
+            None
+        }
+    }
+}
 
 /// Keeps `sel` inside `len` rows and `scroll` such that the selection is among the `visible` rows.
 pub(super) fn clamp_list(sel: &mut usize, scroll: &mut usize, len: usize, visible: usize) {

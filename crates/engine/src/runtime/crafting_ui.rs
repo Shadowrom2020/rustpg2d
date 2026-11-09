@@ -8,7 +8,7 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::ui::{panel, ListClick, ScrollList};
+use super::ui::{panel, ListClick, ScrollList, PAD};
 use super::Game;
 use crate::crafting::{Missing, RecipeDef};
 use crate::render::wrap_text;
@@ -17,7 +17,6 @@ use super::text::{draw_text, measure_text};
 const ROW: f32 = 58.0;
 const ROWS: usize = 7;
 const W: f32 = 640.0;
-const PAD: f32 = 14.0;
 const TITLE_H: f32 = 44.0;
 const FOOT_H: f32 = 84.0;
 const BTN_W: f32 = 92.0;

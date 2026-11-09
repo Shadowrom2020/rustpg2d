@@ -7,7 +7,7 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::ui::{panel, ListClick, ScrollList};
+use super::ui::{panel, ListClick, ScrollList, PAD};
 use super::Game;
 use crate::defs::{ShopEntry, ShopSpec};
 use crate::render::wrap_text;
@@ -16,7 +16,6 @@ use super::text::{draw_text, measure_text};
 const ROW: f32 = 44.0;
 const ROWS: usize = 8;
 const COL_W: f32 = 380.0;
-const PAD: f32 = 14.0;
 const TITLE_H: f32 = 44.0;
 const FOOT_H: f32 = 96.0;
 const BTN_W: f32 = 92.0;

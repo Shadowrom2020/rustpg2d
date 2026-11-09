@@ -1,18 +1,26 @@
-# A merge into master is a release (AGENTS.md): build the R(ust)PG2D downloads (AppImage, Flatpak,
-# Windows zip, macOS app), tag the merge commit vX.Y.Z (the version in Cargo.toml, checked by CI
-# before the merge), publish a GitHub Release with the CHANGELOG section and the downloads, and
-# open the pull request that merges master back into develop.
-#   macos-build (a Mac: universal editor + game) -> packages (Linux: everything else, the
-#   unsigned macOS app) -> macos-app (a Mac: signs and zips the app) -> publish
-# Run by hand (Actions > Release > Run workflow, any branch) it only builds the downloads and
-# uploads them as artifacts - to try packaging changes before a release; tags and releases are
-# made only by a push to master.
+# A merge into master is a release (AGENTS.md): tag the merge commit vX.Y.Z (the version in
+# Cargo.toml, checked by CI before the merge), publish a GitHub Release with the CHANGELOG section
+# and the downloads (AppImage, Flatpak, Windows zip, macOS app), and open the pull request that
+# merges master back into develop.
+# The downloads are the ones CI built for the merged pull request: master only takes up-to-date
+# branches, so the merge commit has exactly the tree that pull request's run built and tested.
+#   version -> reuse (finds that run and its artifacts) -> publish        (about a minute)
+# Only when they can't be found (expired, a merge that changed the tree, a manual run) the
+# downloads are built here as in CI: builds.yml -> packages -> macos-app -> publish.
+# Run by hand (Actions > Release > Run workflow, any branch) it only builds the downloads, or with
+# `from_commit` (a pull request's head commit) fetches that pull request's packages, and checks
+# them; tags and releases are made only by a push to master.
 name: Release
 
 on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      from_commit:
+        description: "Head commit of a pull request into master whose CI packages to fetch (try the reuse path)"
+        required: false
+        default: ""
 
 concurrency:
   group: release
@@ -21,6 +29,8 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
+  # Artifacts of the pull request's CI run.
+  actions: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -52,24 +62,60 @@ jobs:
           fi
           case "$v" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;; esac
 
-  macos-build:
+  reuse:
+    name: Reuse the pull request's packages
     needs: version
     if: needs.version.outputs.build == 'true'
-    uses: ./.github/workflows/macos-build.yml
+    runs-on: ubuntu-22.04
+    outputs:
+      run-id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Find the pull request's CI run
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          FROM: ${{ inputs.from_commit }}
+        run: |
+          if [ -n "$FROM" ]; then
+            head=$FROM
+          elif [ "${{ github.event_name }}" = push ] && git rev-parse -q --verify HEAD^2 > /dev/null && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse 'HEAD^2^{tree}')" ]; then
+            head=$(git rev-parse HEAD^2)
+          else
+            echo "not a merge with its pull request's tree: building the downloads"
+            exit 0
+          fi
+          run=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$head&event=pull_request&status=success&per_page=30" \
+            --jq "[.workflow_runs[] | select(.head_repository.full_name == \"$REPO\")] | sort_by(.created_at) | last | .id // empty")
+          if [ -z "$run" ]; then
+            echo "no successful CI run of a pull request at $head: building the downloads"
+            exit 0
+          fi
+          names=" $(gh api "repos/$REPO/actions/runs/$run/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired | not) | .name] | join(" ")') "
+          for a in rustpg2d-packages rustpg2d-macos-app; do
+            case "$names" in
+              *" $a "*) ;;
+              *) echo "CI run $run has no $a (expired?): building the downloads"; exit 0 ;;
+            esac
+          done
+          echo "the downloads of CI run $run (pull request head $head)"
+          echo "run_id=$run" >> "$GITHUB_OUTPUT"
+
+  # Fallback: build the downloads here (as CI does for pull requests into master).
+  builds:
+    needs: [version, reuse]
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.reuse.outputs.run-id == '' }}
+    uses: ./.github/workflows/builds.yml
 
   packages:
     name: Packages
-    needs: [version, macos-build]
+    needs: builds
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.99.1
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: release
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev
       - uses: ./.github/actions/packages
       - uses: actions/upload-artifact@v7
         with:
@@ -86,8 +132,8 @@ jobs:
 
   publish:
     name: Publish
-    needs: [version, packages, macos-app]
-    if: github.event_name == 'push' && needs.version.outputs.exists == 'false'
+    needs: [version, reuse, packages, macos-app]
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && (needs.reuse.outputs.run-id != '' || needs.macos-app.result == 'success') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -96,18 +142,35 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.99.1
+      # From the pull request's CI run, else from the builds of this run.
       - uses: actions/download-artifact@v8
         with:
           pattern: "{rustpg2d-packages,rustpg2d-macos-app}"
           merge-multiple: true
           path: dist
+          run-id: ${{ needs.reuse.outputs.run-id || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: The downloads are this version
+        env:
+          V: ${{ needs.version.outputs.version }}
+        run: |
+          ls -la dist
+          n=0
+          for f in dist/*.AppImage dist/*.flatpak dist/*-windows-x86_64.zip dist/*-macos.zip; do
+            case "$(basename "$f")" in
+              rustpg2d-"$V"[.-]*) n=$((n + 1)) ;;
+              *) echo "::error::$f is not a download of version $V"; exit 1 ;;
+            esac
+          done
+          test "$n" -eq 4 || { echo "::error::expected 4 downloads, found $n"; exit 1; }
+          (cd dist && sha256sum -- *.AppImage *.flatpak *.zip > SHA256SUMS && cat SHA256SUMS)
       - name: Tag and GitHub Release
+        if: github.event_name == 'push' && needs.version.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           V: ${{ needs.version.outputs.version }}
           PRE: ${{ needs.version.outputs.prerelease }}
         run: |
-          (cd dist && sha256sum -- *.AppImage *.flatpak *.zip > SHA256SUMS && cat SHA256SUMS)
           cargo xtask release-notes "$V" > "$RUNNER_TEMP/notes.md"
           git tag "v$V" "$GITHUB_SHA"
           git push origin "v$V"
@@ -116,6 +179,7 @@ jobs:
           gh release create "v$V" dist/*.AppImage dist/*.flatpak dist/*-windows-x86_64.zip dist/*-macos.zip dist/SHA256SUMS \
             --title "R(ust)PG2D $V" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag "${flags[@]}"
       - name: Back-merge pull request (master into develop)
+        if: github.event_name == 'push' && needs.version.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           V: ${{ needs.version.outputs.version }}

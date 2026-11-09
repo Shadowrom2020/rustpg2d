@@ -45,10 +45,14 @@ Note: this repository's main branch is called `master` (not `main`).
    request unless the version is valid SemVer, above the latest release, equal to
    `[workspace.package] version` in `Cargo.toml`, has a `## X.Y.Z — date` section in
    CHANGELOG.md and no `## Unreleased` is left; a hotfix may only raise PATCH.
-5. **Merging into master releases automatically** (`.github/workflows/release.yml`): it builds
-   the R(ust)PG2D AppImage, Flatpak, Windows zip and macOS app, tags the merge commit `vX.Y.Z`, publishes a GitHub Release
-   (notes = the CHANGELOG section, with the packages and SHA256SUMS) and opens the pull request
-   that merges `master` back into `develop`. Merge that one too.
+5. **Merging into master releases automatically** (`.github/workflows/release.yml`): it takes
+   the R(ust)PG2D AppImage, Flatpak, Windows zip and macOS app that CI built for the merged pull
+   request (master only takes up-to-date branches, so the merge commit has exactly that tree; it
+   builds them again only when they can't be found, e.g. expired), tags the merge commit
+   `vX.Y.Z`, publishes a GitHub Release (notes = the CHANGELOG section, with the packages and
+   SHA256SUMS) and opens the pull request that merges `master` back into `develop`, about a
+   minute after the merge. Merge that one too: while `develop` has nothing `master` lacks, its
+   checks only report (the merge is the tested tree).
 6. Push and open pull requests only when asked to; merge only when asked to.
 7. Before starting work, check which branch is checked out (`git branch --show-current`) and
    that the working tree is clean. If the current branch is `master` or `develop`, create a
@@ -102,10 +106,13 @@ gh pr create --base master --fill            # then merge it and the back-merge 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every pull request into `develop` / `master` and on pushes to
-`master` (Ubuntu 22.04, so the binaries need only glibc ≤ 2.35). Every job uses the Rust version
+`master` (Ubuntu 22.04, so the binaries need only glibc ≤ 2.35). *Build, lint, test* and
+*Runtime smoke* only report success, without running, on a tree that was already tested: a push to
+`master` with its pull request's tree, and the back-merge `master` → `develop` while the merge is
+`master`'s tree. Every job uses the Rust version
 pinned in `rust-toolchain.toml` (also `rust-version` in `Cargo.toml` and the `toolchain:` inputs
 of the workflows; an xtask test keeps them equal), so a new stable release never breaks a pull
-request by surprise: bump the three together in a `chore/` branch. Pushes to `develop` don't run it
+request by surprise: bump the three together in a `feature/` branch. Pushes to `develop` don't run it
 again: the pull request already tested the merge. Its jobs are the required checks:
 
 | Check | What it does | Runs for |
@@ -114,15 +121,18 @@ again: the pull request already tested the merge. Its jobs are the required chec
 | *Build, lint, test* | `cargo clippy --all-targets --all-features -D warnings`, `cargo test` (workspace, `--locked`, unoptimized: fast to compile) | every PR (required: develop, master) |
 | *Runtime smoke* | `scripts/ci/smoke.sh`: the game and the editor on a copy of the example project under Xvfb (title, a map, the clock, an old save, quick save, a map change + autosave, the editor opening a map, the MCP smoke client) | every PR (advisory) |
 | *Version* | `cargo xtask check-version BRANCH` | PRs into master (required there) |
-| *Packages* | release builds (Linux, web, Windows via MinGW-w64, the macOS build from *macOS*), `cargo xtask-dist` (AppImage, Flatpak, Windows zip, unsigned macOS app), smoke test of game and editor under Xvfb, downloads as artifact | PRs into master (required there) |
+| *Release builds* | `builds.yml`, all at the same time: macOS editor + game per architecture (two `macos-latest` jobs), Linux editor + game + the packaging tool (`xtask` with `dist`), the web game, Windows editor + game (MinGW-w64) | PRs into master, manual runs |
+| *Packages* | assembles the release builds without compiling: universal macOS binaries (`llvm-lipo`), `xtask dist` (AppImage, Flatpak, Windows zip, unsigned macOS app), smoke test of game and editor under Xvfb, downloads as artifact (kept 30 days: the release publishes them) | PRs into master (required there) |
 | *Windows* | clippy and tests on `windows-latest` (MSVC) | PRs into master, manual runs |
-| *macOS* | clippy for editor and game, the engine's tests, universal editor + game (`lipo`) on `macos-latest` (`macos-build.yml`) | PRs into master, manual runs |
+| *macOS* | clippy for editor and game, the engine's tests on `macos-latest` | PRs into master, manual runs |
 | *macOS app* | signs the app ad hoc (`codesign --deep`), verifies, zips it (`macos-app.yml`) | PRs into master, manual runs |
 
 A pull request into `develop` therefore costs one compile-and-test job; the platform and package
 builds happen when a release or hotfix branch asks to enter `master`. To try them earlier, run
-*Actions › CI › Run workflow* on the branch (all platform jobs), or *Actions › Release › Run
-workflow* (only builds the downloads as artifacts; it never tags or publishes).
+*Actions › CI › Run workflow* on the branch (all platform jobs, about 15 minutes), or *Actions ›
+Release › Run workflow* (builds the downloads as artifacts, or with *from_commit* = a pull
+request's head commit fetches and checks that pull request's packages; it never tags or
+publishes).
 
 Dependabot opens monthly grouped updates (cargo, GitHub Actions) against `develop`; macroquad,
 egui-macroquad, egui and egui-phosphor are pinned and updated by hand.

@@ -400,6 +400,14 @@ mod tests {
         let mut bytes = MAGIC.to_vec();
         bytes.extend_from_slice(&1u32.to_le_bytes());
         bytes.extend_from_slice(&lz4_flex::compress_prepend_size(&postcard::to_stdvec(&v1).unwrap()));
+        // The committed copy freezes the postcard layout of TileLayer / Chunk (v2 stores them the
+        // same way): `RUSTPG2D_WRITE_FIXTURES=1 cargo test -p rustpg2d-engine reads_version_1`
+        // rewrites it after a deliberate format change.
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/maps/v1-synthetic.map");
+        if std::env::var("RUSTPG2D_WRITE_FIXTURES").is_ok() {
+            std::fs::write(&fixture, &bytes).unwrap();
+        }
+        assert_eq!(std::fs::read(&fixture).unwrap(), bytes, "tests/fixtures/maps/v1-synthetic.map differs: the map file layout changed");
         let back = decode(&bytes).unwrap();
         assert_eq!(back.layers[0].get(3, 3), Tile::new(0, 9));
         assert_eq!((back.entities[0].def.as_str(), back.entities[0].count), ("key", 2));

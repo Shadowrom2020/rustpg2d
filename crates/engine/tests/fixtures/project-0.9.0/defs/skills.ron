@@ -1,0 +1,153 @@
+[
+    (
+        id: "swordsmanship",
+        name: "Swordsmanship",
+        description: "Training with blades and fists: every level adds 10% to your melee damage.",
+        icon: (
+            sheet: "items",
+            frame: 11,
+        ),
+        max_level: 5,
+        effect: MeleeDamage(
+            percent: 10.0,
+        ),
+    ),
+    (
+        id: "archery",
+        name: "Archery",
+        description: "A steady hand with bow and crossbow: every level adds 10% to ranged weapon damage.",
+        icon: (
+            sheet: "items",
+            frame: 5,
+        ),
+        max_level: 5,
+        effect: RangedDamage(
+            percent: 10.0,
+        ),
+    ),
+    (
+        id: "toughness",
+        name: "Toughness",
+        description: "Take hits like a stone wall: every level adds 1 defense.",
+        icon: (
+            sheet: "items",
+            frame: 17,
+        ),
+        max_level: 3,
+        effect: Defense(
+            points: 1,
+        ),
+    ),
+    (
+        id: "lockpicking",
+        name: "Lockpicking",
+        description: "Opens locks without their key. Level 1 picks simple padlocks, level 2 old mine locks.",
+        icon: (
+            sheet: "items",
+            frame: 31,
+        ),
+        max_level: 3,
+        effect: Lockpick,
+    ),
+    (
+        id: "haggling",
+        name: "Haggling",
+        description: "Merchants give you better prices: 5% per level when buying and selling.",
+        icon: (
+            sheet: "items",
+            frame: 2,
+        ),
+        max_level: 4,
+        effect: Haggle(
+            percent: 5.0,
+        ),
+    ),
+    (
+        id: "arcana",
+        name: "Arcana",
+        description: "Understanding of magic. Each level adds 10 mana, and harder spells need it to be learned.",
+        icon: (
+            sheet: "items",
+            frame: 30,
+        ),
+        max_level: 5,
+        effect: Mana(
+            points: 10,
+        ),
+    ),
+    (
+        id: "spellcraft",
+        name: "Spellcraft",
+        description: "Focus and precision: every level adds 15% to the damage of Spark and Fire Burst.",
+        icon: (
+            sheet: "items",
+            frame: 26,
+        ),
+        max_level: 4,
+        effect: SpellDamage(
+            percent: 15.0,
+        ),
+    ),
+    (
+        id: "alchemy",
+        name: "Alchemy",
+        description: "The craft of brewing: Antidotes need level 1, Swiftness Potions level 2 (at an alchemy table, with a mortar and pestle).",
+        icon: (
+            sheet: "items",
+            frame: 46,
+        ),
+        max_level: 2,
+        effect: r#None,
+    ),
+    (
+        id: "smithing",
+        name: "Smithing",
+        description: "Working iron at the anvil: Iron Helmets at level 1, Chainmail at level 2, and from level 2 your swords come out fine.",
+        icon: (
+            sheet: "items",
+            frame: 52,
+        ),
+        max_level: 3,
+        effect: r#None,
+    ),
+    (
+        id: "cooking",
+        name: "Cooking",
+        description: "Good food, well made: Carrot Soup and Pumpkin Stew at level 1, Apple Pie at level 2, and all food heals 25% more per level.",
+        icon: (
+            sheet: "items",
+            frame: 3,
+        ),
+        max_level: 2,
+        effect: FoodBonus(
+            percent: 25.0,
+        ),
+    ),
+    (
+        id: "mining",
+        name: "Mining",
+        description: "Strong arms and a sharp eye for the seam: every level takes 20% fewer pickaxe hits to break off ore.",
+        icon: (
+            sheet: "items",
+            frame: 41,
+        ),
+        max_level: 3,
+        effect: Gather(
+            tool: "pickaxe",
+            percent: 20.0,
+        ),
+    ),
+    (
+        id: "scavenging",
+        name: "Scavenging",
+        description: "An eye for what others leave behind: defeated slimes drop an extra coin per level (a scripted skill: see scavenging() in main.rhai).",
+        icon: (
+            sheet: "items",
+            frame: 3,
+        ),
+        max_level: 3,
+        effect: Script(
+            function: "scavenging",
+        ),
+    ),
+]

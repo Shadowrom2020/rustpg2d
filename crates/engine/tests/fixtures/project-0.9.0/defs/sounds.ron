@@ -1,0 +1,72 @@
+[
+    (
+        id: "chime",
+        file: "sounds/chime.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "unlock",
+        file: "sounds/unlock.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "creak",
+        file: "sounds/creak.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "pickup",
+        file: "sounds/pickup.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "swing",
+        file: "sounds/swing.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "hit",
+        file: "sounds/hit.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "hurt",
+        file: "sounds/hurt.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "defeat",
+        file: "sounds/defeat.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "blip",
+        file: "sounds/blip.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "fireball",
+        file: "sounds/fireball.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "explosion",
+        file: "sounds/explosion.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "door",
+        file: "sounds/door.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "music_village",
+        file: "sounds/music_village.ogg",
+        volume: 0.5,
+    ),
+    (
+        id: "music_forest",
+        file: "sounds/music_forest.ogg",
+        volume: 0.5,
+    ),
+]

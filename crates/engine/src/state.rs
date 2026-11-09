@@ -122,8 +122,20 @@ pub struct PatrolState {
     pub route: Option<crate::entity::PatrolRoute>,
 }
 
+/// The save game layout this version writes (`WorldState::version`). Saves of older versions
+/// carry none (0); every field they lack has a default. The number only gives a future
+/// migration something to branch on.
+pub const SAVE_VERSION: u32 = 1;
+
+fn save_version<S: serde::Serializer>(_: &u32, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_u32(SAVE_VERSION)
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct WorldState {
+    /// [`SAVE_VERSION`] of the program that wrote the save (0: before 0.12).
+    #[serde(default, serialize_with = "save_version")]
+    pub version: u32,
     pub flags: BTreeSet<String>,
     pub vars: BTreeMap<String, i64>,
     pub inventory: Inventory,

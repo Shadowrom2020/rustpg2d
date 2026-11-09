@@ -175,6 +175,9 @@ example_project/        the example game, plain project files (edit them through
     (`map/mod.rs`) are stored with postcard (by position, no defaults) and are frozen too: a new
     layer property goes into `Meta`, or the format version is bumped with a reader for the old one.
   - Save games are `WorldState` RON: every new field needs a serde default.
+  - `crates/engine/tests/fixtures/` holds files of earlier versions (0.9.0 defs, old maps, a v1
+    map, saves); `cargo test -p rustpg2d-engine --test compat` must keep loading them. When a format
+    changes, add the previous release's file as a fixture (its README says how); never edit one.
 - Tiles are always 32 px; sizes in code are in pixels at that size (`Game::u()` = ts/16 scales
   effects). Rhai reserves `var`, hence `get_var` / `set_var`.
 - Game UI (macroquad's default font, ProggyClean) has Latin-1 only (ä, ö, ü, ß, é, · work): no `∞`, `▲`, `✔`, `–`, `“` in `draw_text`.

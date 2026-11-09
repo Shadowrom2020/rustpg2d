@@ -154,7 +154,9 @@ cargo test --workspace
 ## Project notes
 
 - Map and definition files must stay loadable by older and newer versions: append new enum
-  variants at the end, and give new fields `#[serde(default)]`.
+  variants at the end, and give new fields `#[serde(default)]`. `crates/engine/tests/fixtures/`
+  holds files of earlier versions that the tests load; add the last release's file there when a
+  format changes.
 - Tiles are always 32 px (`project::TILE_SIZE`).
 - Features are verified end to end with scripted runs: `RUSTPG2D_AUTOPLAY` for the game and
   `RUSTPG2D_EDITOR_SCRIPT` for the editor (see `crates/game/src/main.rs` and

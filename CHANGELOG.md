@@ -47,6 +47,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - The library report names the assets it added (up to eight): *2 added (smoke, smoke_square)*.
 
 ### Maintenance
+- **Compatibility fixtures**: `crates/engine/tests/fixtures/` holds the 0.9.0 example's
+  definitions, maps of 0.9.0 and 0.10.0, a frozen format-version-1 map and save games;
+  `tests/compat.rs` loads them, so a change that breaks old files fails the tests. Save games
+  carry a `version` from now on (older saves have none; nothing changes for them).
 - **Frame timing in `status`**: `fps=`, `frame_ms=avg/worst`, `update_ms=`, `draw_ms=` and
   `astar=searches/nodes` since the previous `status`; `RUSTPG2D_PERF=1` logs a `[perf]` line every
   second. For performance checks in scripted runs.

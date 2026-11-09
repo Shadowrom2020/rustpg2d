@@ -143,7 +143,8 @@ fn slime_defeated() {
 }
 
 // The town guard patrols the road (see his patrol route in the map inspector). Once the
-// shrine is lit he stops: stop_patrol(target) / patrol(target) / patrol(target, [[x, y], ...]).
+// shrine is lit he rests by the barracks: patrol(target, [[x, y], ...]) gives a route (one
+// point: walk there and stay), patrol(target) resumes the own route, stop_patrol(target) stops.
 // The intro of a new game, a cut-scene (village Map enter trigger, once): the player walks
 // into town from the west, the guard comes over and sends them to the elder.
 fn intro_cutscene() {
@@ -186,7 +187,7 @@ fn guard_talk() {
         then_call("guard_orders");
     } else if flag("shrine_lit") {
         say("Guard", "The lights are gone - I can finally take a rest. Thank you, {player}!");
-        stop_patrol("guard");
+        guard_rest();
     } else if flag("quest_accepted") {
         say("Guard", "Whisperwood, is it? You shouldn't go alone - the slimes grow bolder every day.");
         choice("Take the guard along?", ["Come with me", "I'll manage"], "guard_join");
@@ -220,7 +221,17 @@ fn guard_orders() {
     } else if cmd == 3 {
         say("Guard", "Back to the road, then. Good luck, {player}!");
         stop_following("guard");
+        if flag("shrine_lit") {
+            guard_rest();
+        } else {
+            patrol("guard");
+        }
     }
+}
+
+// Off duty: by the barracks door, beside it so the door stays free.
+fn guard_rest() {
+    patrol("guard", [[72, 27]]);
 }
 
 fn guard_answer() {

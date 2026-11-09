@@ -70,6 +70,8 @@ use text::{draw_text};
 /// Callback collecting `(once-key, triggers, owner)` while gathering event handlers.
 type TriggerSink<'a> = dyn FnMut(String, &[Trigger], Option<u32>) + 'a;
 
+/// Seconds the player walks into a friendly character before it steps aside ([`Game::push_past`]).
+const STEP_ASIDE_AFTER: f32 = 0.4;
 /// How many recently left maps are kept in memory.
 const MAP_CACHE: usize = 4;
 const FADE_TIME: f32 = 0.25;
@@ -258,6 +260,8 @@ pub struct Game {
     timed_lights: Vec<fx::TimedLight>,
     /// Click-to-move / click-to-act order.
     order: Option<Order>,
+    /// The friendly character the player is walking into and for how long (it steps aside).
+    bump: Option<(u32, f32)>,
     /// Where the last click landed (marker, age).
     click_marker: Option<(Vec2, f32)>,
     spawners: Vec<SpawnerRt>,
@@ -394,6 +398,7 @@ impl Game {
             fx: Vec::new(),
             timed_lights: Vec::new(),
             order: None,
+            bump: None,
             click_marker: None,
             spawners: Vec::new(),
             next_spawn_uid: spawner::SPAWN_UID_BASE,
@@ -885,6 +890,54 @@ impl Game {
         pos
     }
 
+    /// The player walks into a friendly character standing in the way (a guard in a gate, a
+    /// villager in a doorway): after [`STEP_ASIDE_AFTER`] seconds it steps to a free tile beside
+    /// it, or ahead out of a narrow passage, so no character can shut the player in.
+    fn push_past(&mut self, dir: Vec2, before: Vec2, want: f32, dt: f32) {
+        let blocked = self.player.pos.distance(before) < want * 0.5;
+        let probe = self.player.rect_at(before + dir * 3.0);
+        let blocker = if blocked {
+            self.loaded.entities.iter().position(|e| {
+                e.active && e.solid && e.kind == EntityKind::Character && !e.hostile && !e.away && e.body.move_target.is_none() && e.npc_seat.is_none() && e.body.rect().overlaps(&probe)
+            })
+        } else {
+            None
+        };
+        let Some(i) = blocker else {
+            self.bump = None;
+            return;
+        };
+        let uid = self.loaded.entities[i].uid;
+        let t = match self.bump {
+            Some((u, t)) if u == uid => t + dt,
+            _ => dt,
+        };
+        if t < STEP_ASIDE_AFTER {
+            self.bump = Some((uid, t));
+            return;
+        }
+        self.bump = None;
+        if let Some(spot) = self.aside_spot(i, dir) {
+            self.loaded.entities[i].body.move_target = Some(spot);
+        }
+    }
+
+    /// A free tile for character `i` to step to out of the way of the player walking `dir`: to
+    /// either side first, else straight ahead.
+    fn aside_spot(&self, i: usize, dir: Vec2) -> Option<Vec2> {
+        let e = &self.loaded.entities[i];
+        let t = self.tile_of(e.body.pos);
+        let fwd = if dir.x.abs() >= dir.y.abs() { (dir.x.signum() as i32, 0) } else { (0, dir.y.signum() as i32) };
+        let side = (fwd.1, fwd.0);
+        // The side nearer to where it stands within its tile first (less of a jump).
+        let off = e.body.pos - self.tile_spot(t);
+        let first = if off.x * side.0 as f32 + off.y * side.1 as f32 >= 0.0 { 1 } else { -1 };
+        [(side.0 * first, side.1 * first), (-side.0 * first, -side.1 * first), fwd]
+            .into_iter()
+            .map(|(dx, dy)| self.tile_spot((t.0 + dx, t.1 + dy)))
+            .find(|p| !self.rect_blocked(e.body.rect_at(*p), Some(e.uid), true))
+    }
+
     /// Moves along each axis separately so actors slide along walls.
     fn try_move(&self, body: &Body, delta: Vec2, ignore: Option<u32>, check_player: bool) -> Vec2 {
         // Characters it already overlaps don't block it (several leaving one door at once
@@ -1351,7 +1404,9 @@ impl Game {
                 self.player.facing = f;
             }
             let delta = dir * self.player.speed * self.speed_factor() * run * dt;
+            let before = self.player.pos;
             self.player.pos = self.try_move(&self.player, delta, None, false);
+            self.push_past(dir, before, delta.length(), dt);
             self.player.moving = true;
             self.player.anim += dt * run;
         } else {
@@ -1412,6 +1467,28 @@ impl Game {
         straight && (self.tile_solid(mx, my) || self.solid_entity_tiles(|p| p.kind == EntityKind::Prop).contains(&(mx, my)))
     }
 
+    /// The friendly character standing right behind prop `c` (seen from the player) — on the far
+    /// side of any of its tiles, the nearest to the player first.
+    fn behind_counter(&self, c: usize) -> Option<usize> {
+        let ts = self.ts();
+        let (fx, fy) = self.player.facing.dir();
+        let (fx, fy) = (fx.round() as i32, fy.round() as i32);
+        let r = self.loaded.entities[c].body.rect();
+        let tiles: Vec<(i32, i32)> = ((r.y / ts).floor() as i32..=((r.y + r.h - 0.001) / ts).floor() as i32)
+            .flat_map(|ty| ((r.x / ts).floor() as i32..=((r.x + r.w - 0.001) / ts).floor() as i32).map(move |tx| (tx, ty)))
+            .collect();
+        let behind: Vec<(i32, i32)> = tiles.iter().map(|&(x, y)| (x + fx, y + fy)).filter(|t| !tiles.contains(t)).collect();
+        (0..self.loaded.entities.len())
+            .filter(|&i| {
+                let e = &self.loaded.entities[i];
+                e.kind == EntityKind::Character && e.active && !e.hostile && behind.contains(&self.tile_of(e.body.pos))
+            })
+            .min_by(|&a, &b| {
+                let (da, db) = (self.loaded.entities[a].body.pos.distance_squared(self.player.pos), self.loaded.entities[b].body.pos.distance_squared(self.player.pos));
+                da.total_cmp(&db)
+            })
+    }
+
     /// A prop E does nothing with (a market stall, a crate): someone across it is talked to.
     fn inert_prop(&self, i: usize) -> bool {
         let e = &self.loaded.entities[i];
@@ -1428,6 +1505,11 @@ impl Game {
         let near = self.facing_entity_near().map(|i| self.user_of(i).unwrap_or(i));
         if near.is_some_and(|i| !self.inert_prop(i)) {
             return near;
+        }
+        // A counter prop right in front (a market stall, several tiles wide): whoever stands
+        // behind any part of it.
+        if let Some(i) = near.and_then(|c| self.behind_counter(c)) {
+            return Some(i);
         }
         // Nothing (or nothing to use) right in front: someone across a counter in the facing
         // direction?

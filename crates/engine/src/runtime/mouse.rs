@@ -143,8 +143,11 @@ impl Game {
             Goal::Interact(u) | Goal::Attack(u) => Some(u),
             _ => None,
         };
-        let occupied = self.solid_entity_tiles(|e| Some(e.uid) != ignore);
-        let blocked = |x: i32, y: i32| self.tile_solid(x, y) || occupied.contains(&(x, y));
+        // Round solid props and people, except the tiles of the target itself.
+        use super::occupancy::{Occupancy, OCC_CHAR, OCC_PROP};
+        let occ = &self.loaded.occupancy;
+        let targets: Vec<TilePos> = ignore.and_then(|u| self.uid_index(u)).map(|i| Occupancy::covered(self.loaded.entities[i].body.rect(), self.ts()).collect()).unwrap_or_default();
+        let blocked = |x: i32, y: i32| self.tile_solid(x, y) || (occ.has(x, y, OCC_PROP | OCC_CHAR) && !targets.contains(&(x, y)));
         let near = |a: TilePos, b: TilePos| (a.0 - b.0).abs() <= 1 && (a.1 - b.1).abs() <= 1;
         let start = self.player_tile();
         let path = match goal {
@@ -164,11 +167,10 @@ impl Game {
                 // Characters behind a counter: stand in front of it (two tiles away, a solid
                 // tile or prop in between, e.g. a market stall) and talk across — unless walking
                 // round to them is shorter.
-                let props = self.solid_entity_tiles(|p| p.kind == EntityKind::Prop);
                 let counter = |p: TilePos| {
                     let (dx, dy) = (t.0 - p.0, t.1 - p.1);
                     let mid = (p.0 + dx / 2, p.1 + dy / 2);
-                    ((dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0)) && (self.tile_solid(mid.0, mid.1) || props.contains(&mid))
+                    ((dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0)) && (self.tile_solid(mid.0, mid.1) || self.prop_blocks(mid.0, mid.1))
                 };
                 let talk = matches!(goal, Goal::Interact(_)) && self.loaded.entities[i].kind == EntityKind::Character;
                 let across = if talk { find_path(start, t, counter, blocked, MAX_NODES) } else { None };

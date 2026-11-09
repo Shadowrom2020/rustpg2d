@@ -128,6 +128,7 @@ impl Game {
                 e.loot = loot;
             }
             self.loaded.entities.push(e);
+            self.occupy(self.loaded.entities.len() - 1);
             if effect {
                 self.effects.push((pos - vec2(0.0, ts * 0.4), 0.0));
             }

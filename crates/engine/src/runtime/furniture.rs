@@ -365,6 +365,7 @@ impl Game {
         e.body.pos = pos;
         e.body.facing = spot.facing;
         e.body.moving = false;
+        self.occupy(i);
         true
     }
 
@@ -375,6 +376,7 @@ impl Game {
             let (body, uid) = (self.loaded.entities[i].body.clone(), self.loaded.entities[i].uid);
             let p = self.free_spot(&body, s.stand, Mover::Npc(uid));
             self.loaded.entities[i].body.pos = p;
+            self.occupy(i);
         }
     }
 

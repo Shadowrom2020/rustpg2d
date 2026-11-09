@@ -130,6 +130,7 @@ impl Game {
             l.walker = Walker::default();
             l.goal = None;
         }
+        self.occupy(i);
     }
 
     /// Position of companion `i` in the line behind the player (0 = first).

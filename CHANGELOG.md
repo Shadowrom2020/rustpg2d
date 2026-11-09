@@ -58,6 +58,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- An occupancy grid (which tiles solid props and characters stand on), rebuilt once per frame,
+  serves path planning and the broad phase of collision; before, every path search built a set
+  of all entities' tiles and every movement step compared against every entity.
 - The definitions the game looks up per entity per frame (items, props, characters, sheets,
   tilesets) are found through an id index instead of a scan of the list; a stale index falls
   back to the scan, so an edit in place can never return the wrong definition.

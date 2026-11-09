@@ -28,6 +28,7 @@ mod schedule;
 mod progression;
 mod paperdoll;
 mod npc_items;
+mod occupancy;
 mod npc_use;
 mod shop_ui;
 mod text;
@@ -244,6 +245,8 @@ struct Loaded {
     entities: Vec<RtEntity>,
     /// Lights of light-giving tiles (computed when the map is entered).
     tile_lights: Vec<render::lighting::Light>,
+    /// The tiles solid entities stand on, rebuilt every frame ([`Game::rebuild_occupancy`]).
+    occupancy: occupancy::Occupancy,
 }
 
 enum Fade {
@@ -462,7 +465,7 @@ impl Game {
             thumb_request: None,
             after_thumb: None,
             fullscreen: None,
-            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], entities: vec![], tile_lights: vec![] },
+            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], entities: vec![], tile_lights: vec![], occupancy: Default::default() },
             project,
             assets,
             audio,
@@ -776,12 +779,15 @@ impl Game {
         let ladder = self.assets.compute_ladder(&map);
         let entities = self.build_entities(&map);
         let tile_lights = render::lighting::tile_lights(&map, &self.project.db, ts);
-        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, entities, tile_lights });
+        let occupancy = occupancy::Occupancy::new(map.width, map.height);
+        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, entities, tile_lights, occupancy });
+        self.rebuild_occupancy();
         self.restore_unlocked();
         // Scheduled characters are where their day has taken them.
         for i in 0..self.loaded.entities.len() {
             self.place_on_schedule(i);
         }
+        self.rebuild_occupancy();
         if !old.map.name.is_empty() && old.map.name != self.loaded.map.name {
             self.cache.push_front(old.map);
             self.cache.truncate(MAP_CACHE);
@@ -916,23 +922,31 @@ impl Game {
         self.seat.is_none() && self.tile_ladder(t.0, t.1)
     }
 
-    /// Tiles taken by active solid entities that pass `keep` (any real overlap of the hitbox
-    /// blocks a tile: small hitboxes sit at the bottom of their tile). For path finding.
-    fn solid_entity_tiles(&self, keep: impl Fn(&RtEntity) -> bool) -> std::collections::HashSet<crate::path::TilePos> {
+    /// Marks the tiles every active solid entity stands on (once per frame, and when a map is
+    /// entered): planning and collision read [`Loaded::occupancy`] instead of scanning entities.
+    fn rebuild_occupancy(&mut self) {
         let ts = self.ts();
-        let mut occupied = std::collections::HashSet::new();
-        for e in self.loaded.entities.iter().filter(|e| e.active && e.solid && keep(e)) {
-            let r = e.body.rect();
-            for ty in (r.y / ts).floor() as i32..=((r.y + r.h) / ts).floor() as i32 {
-                for tx in (r.x / ts).floor() as i32..=((r.x + r.w) / ts).floor() as i32 {
-                    let inner = Rect::new(tx as f32 * ts + 2.0, ty as f32 * ts + 2.0, ts - 4.0, ts - 4.0);
-                    if r.overlaps(&inner) {
-                        occupied.insert((tx, ty));
-                    }
-                }
-            }
+        let Loaded { entities, occupancy, .. } = &mut self.loaded;
+        occupancy.clear();
+        for e in entities.iter().filter(|e| e.active && e.solid) {
+            occupancy.add(e.kind, e.body.rect(), ts);
         }
-        occupied
+    }
+
+    /// Marks entity `i` after it appeared or was moved by more than a tile within a frame
+    /// (spawned, dropped, teleported, placed, got up), so collision sees it before the next
+    /// rebuild. Steps through `try_move` don't need it.
+    pub(super) fn occupy(&mut self, i: usize) {
+        let ts = self.ts();
+        let Loaded { entities, occupancy, .. } = &mut self.loaded;
+        if let Some(e) = entities.get(i).filter(|e| e.active && e.solid) {
+            occupancy.add(e.kind, e.body.rect(), ts);
+        }
+    }
+
+    /// A solid prop stands on the tile (routes go round it).
+    pub(super) fn prop_blocks(&self, x: i32, y: i32) -> bool {
+        self.loaded.occupancy.has(x, y, occupancy::OCC_PROP)
     }
 
     fn rect_blocked(&self, r: Rect, mover: Mover, check_player: bool) -> bool {
@@ -957,6 +971,10 @@ impl Game {
         }
         if check_player && self.player.rect().overlaps(&r) {
             return true;
+        }
+        // Broad phase: no solid entity near any tile of `r` means none can overlap it.
+        if !self.loaded.occupancy.any_in(r, ts, occupancy::OCC_NEAR) {
+            return false;
         }
         self.loaded
             .entities
@@ -1290,6 +1308,7 @@ impl Game {
     }
 
     pub fn update(&mut self, dt: f32) {
+        self.rebuild_occupancy();
         self.update_juice(dt);
         self.after_thumbnail();
         self.sync_script_player();
@@ -1603,14 +1622,12 @@ impl Game {
         if e.kind != EntityKind::Character || !e.active || e.hostile {
             return false;
         }
-        let ts = self.ts();
-        let tile = |p: Vec2| ((p.x / ts).floor() as i32, ((p.y - 1.0) / ts).floor() as i32);
-        let ((px, py), (ex, ey)) = (tile(self.player.pos), tile(e.body.pos));
+        let ((px, py), (ex, ey)) = (self.tile_of(self.player.pos), self.tile_of(e.body.pos));
         let (dx, dy) = (ex - px, ey - py);
         let straight = (dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0);
         let (mx, my) = (px + dx / 2, py + dy / 2);
         // The counter: a solid tile, or a solid prop (a market stall's counter).
-        straight && (self.tile_solid(mx, my) || self.solid_entity_tiles(|p| p.kind == EntityKind::Prop).contains(&(mx, my)))
+        straight && (self.tile_solid(mx, my) || self.prop_blocks(mx, my))
     }
 
     /// The friendly character standing right behind prop `c` (seen from the player) — on the far

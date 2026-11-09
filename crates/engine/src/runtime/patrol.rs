@@ -4,8 +4,9 @@
 
 use macroquad::prelude::*;
 
+use super::occupancy::{Occupancy, OCC_CHAR, OCC_PROP};
 use super::{Game, Mover};
-use crate::entity::{EntityKind, Facing, PatrolRoute};
+use crate::entity::{Facing, PatrolRoute};
 use crate::path::{find_path, TilePos};
 use crate::state::PatrolState;
 
@@ -159,14 +160,14 @@ impl Game {
                 return Walk::Arrived;
             }
             // Around solid tiles and props (statues, wells, closed gates); characters move, so
-            // they are waited for instead.
-            let props = self.solid_entity_tiles(|e| e.kind == EntityKind::Prop);
-            let me = self.loaded.entities[i].uid;
-            let people = if w.avoid { self.solid_entity_tiles(|e| e.kind == EntityKind::Character && e.uid != me) } else { Default::default() };
-            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (props.contains(&(x, y)) || people.contains(&(x, y))));
+            // they are waited for instead (`avoid`: planned round too, except the walker itself).
+            let occ = &self.loaded.occupancy;
+            let mine: Vec<TilePos> = Occupancy::covered(self.loaded.entities[i].body.rect(), self.ts()).collect();
+            let people = |x: i32, y: i32| w.avoid && occ.has(x, y, OCC_CHAR) && !mine.contains(&(x, y));
+            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (occ.has(x, y, OCC_PROP) || people(x, y)));
             let planned = find_path(here, goal, |t| t == goal, blocked, MAX_NODES).or_else(|| {
                 // Hemmed in by people: plan as if they weren't there (they move on).
-                let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && props.contains(&(x, y)));
+                let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && occ.has(x, y, OCC_PROP));
                 find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
             });
             match planned {

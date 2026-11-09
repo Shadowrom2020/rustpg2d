@@ -297,8 +297,9 @@ impl Game {
             order.path = self.plan(order.goal)?;
         }
 
-        // Stuck (e.g. an NPC walked into the way): plan again, give up if impossible.
-        if self.player.pos.distance(order.last_pos) < 0.2 {
+        // Stuck (e.g. an NPC walked into the way): plan again, give up if impossible. "Hardly
+        // moved" is a tenth of a normal step, whatever the frame rate.
+        if self.player.pos.distance(order.last_pos) < self.player.speed * dt * 0.1 {
             order.stuck += dt;
         } else {
             order.stuck = 0.0;

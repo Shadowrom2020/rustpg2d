@@ -46,7 +46,7 @@ mod worldmap;
 
 use std::collections::{HashSet, VecDeque};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use macroquad::prelude::*;
 
 use crate::audio::Audio;
@@ -142,6 +142,12 @@ struct Body {
 }
 
 impl Body {
+    /// Advances the walk animation. Wrapped at a whole number of animation cycles (8 frames a
+    /// second, up to 8 frames a cycle), so the timer keeps its precision in long sessions.
+    fn animate(&mut self, dt: f32) {
+        self.anim = (self.anim + dt) % 60.0;
+    }
+
     fn rect_at(&self, p: Vec2) -> Rect {
         Rect::new(p.x - self.hitbox.x / 2.0, p.y - self.hitbox.y, self.hitbox.x, self.hitbox.y)
     }
@@ -832,6 +838,8 @@ impl Game {
             Err(e) => {
                 eprintln!("[game] cannot load map '{map_name}': {e:#}");
                 self.ui.toast(format!("Missing map: {map_name}"));
+                // (Otherwise the next real map change would skip its Map enter triggers too.)
+                self.resuming = false;
             }
         }
     }
@@ -843,7 +851,7 @@ impl Game {
         if !m.in_bounds(tx, ty) {
             return true;
         }
-        self.loaded.solid[(ty as u32 * m.width + tx as u32) as usize]
+        self.loaded.solid.get((ty as u32 * m.width + tx as u32) as usize).copied().unwrap_or(false)
     }
 
     /// A ladder tile at (tx, ty).
@@ -1041,7 +1049,19 @@ impl Game {
         let rt = &self.loaded.entities;
         let add_entity = |uid: u32, add: &mut TriggerSink| {
             if let Some(e) = rt.iter().find(|e| e.uid == uid) {
-                add(format!("{}/def:{}", map.name, e.uid), db.def_triggers(e.kind, &e.def), Some(uid));
+                // The once-key names something that lasts (saves keep it): companions and visitors
+                // by where they are placed, spawned characters by their spawner and definition
+                // (every spawn has a new runtime uid), placed entities by their uid.
+                let key = if let Some(l) = &e.companion {
+                    format!("{}/def:{}", l.map, l.uid)
+                } else if let Some(v) = &e.visitor {
+                    format!("{}/def:{}", v.map, v.uid)
+                } else if let Some(z) = e.spawned_by {
+                    format!("{}/spawn:{}/def:{}", map.name, z, e.def)
+                } else {
+                    format!("{}/def:{}", map.name, e.uid)
+                };
+                add(key, db.def_triggers(e.kind, &e.def), Some(uid));
             }
             if let Some(e) = map.entities.iter().find(|e| e.uid == uid) {
                 add(format!("{}/e:{}", map.name, e.uid), &e.triggers, Some(uid));
@@ -1153,16 +1173,22 @@ impl Game {
             return text.to_string();
         }
         let mut out = text.replace("{self}", &owner.and_then(|u| self.entity_display_name(u)).unwrap_or_default());
-        while let Some(i) = out.find("{uid:") {
+        let mut from = 0;
+        while let Some(k) = out[from..].find("{uid:") {
+            let i = from + k;
             let Some(j) = out[i..].find('}') else { break };
             let uid = out[i + 5..i + j].parse::<u32>().ok();
             let name = uid.and_then(|u| self.entity_display_name(u)).unwrap_or_default();
             out.replace_range(i..i + j + 1, &name);
+            from = i + name.len(); // (a name itself may contain "{uid:")
         }
         out
     }
 
     fn persist(&mut self, idx: usize) {
+        if self.loaded.map.name.is_empty() {
+            return; // between maps (the fade-out of a loaded game): nothing to save it under
+        }
         let e = &self.loaded.entities[idx];
         if e.spawned_by.is_some() || e.companion.is_some() || e.visitor.is_some() {
             return; // spawner characters are not saved individually, companions in `companions`, visitors follow their schedule
@@ -1402,7 +1428,7 @@ impl Game {
             self.player.facing = Facing::from_vec(target.x - pos.x, target.y - pos.y).unwrap_or(self.player.facing);
             self.player.pos = pos;
             self.player.moving = !done;
-            self.player.anim += dt;
+            self.player.animate(dt);
             if done {
                 self.player.move_target = None;
             }
@@ -1469,15 +1495,15 @@ impl Game {
             self.player.pos = self.try_move(&self.player, delta, Mover::Player, false);
             self.push_past(dir, before, delta.length(), dt);
             self.player.moving = true;
-            self.player.anim += dt * run;
+            self.player.animate(dt * run);
         } else {
             self.player.moving = false;
         }
 
         // Map edges.
         let m = &self.loaded.map;
-        if let Some(edge) = m.edges.crossing(self.player.pos, dir, m.width, m.height, ts) {
-            let link = m.edges.get(edge).unwrap().clone();
+        if let Some(link) = m.edges.crossing(self.player.pos, dir, m.width, m.height, ts).and_then(|edge| m.edges.get(edge).cloned().map(|l| (edge, l))) {
+            let (edge, link) = link;
             let target = link.target_map.clone();
             self.transition(&target, Arrival::Edge { edge, pos: self.player.pos, link });
             return;
@@ -1842,7 +1868,7 @@ impl Game {
                     .unwrap_or(e.body.facing);
                 e.body.pos = pos;
                 e.body.moving = !done;
-                e.body.anim += dt;
+                e.body.animate(dt);
                 if done {
                     e.body.move_target = None;
                     e.home = pos;
@@ -1915,7 +1941,7 @@ impl Game {
             e.body.facing = Facing::from_vec(delta.x, delta.y).unwrap_or(e.body.facing);
             e.body.pos = new_pos;
             e.body.moving = new_pos != body.pos;
-            e.body.anim += dt;
+            e.body.animate(dt);
         }
     }
 
@@ -2059,6 +2085,8 @@ impl Game {
     pub fn load_game(&mut self, slot: &str) -> Result<()> {
         let s = crate::sys::read_to_string(&self.project.saves_dir().join(format!("{slot}.ron")))?;
         let world = WorldState::from_ron(&s)?;
+        // The save's map first: if it can't be read, the running game stays as it is.
+        let fresh = self.project.load_map(&world.current_map).with_context(|| format!("loading the save's map '{}'", world.current_map))?;
         self.slot = Some(slot.to_string());
         self.ui_hidden = false;
         self.reset_cutscene();
@@ -2079,9 +2107,13 @@ impl Game {
         }
         // Rebuild the map from scratch so entity states from the save apply.
         self.cache.clear();
+        self.cache.push_back(fresh);
         self.loaded.map.name.clear();
         self.resuming = true;
-        self.transition(&map, Arrival::Pos(pos));
+        // Loading wins over a fade-out or a "leave them behind?" question already running.
+        self.leaving = None;
+        self.leave_hold = 0.0;
+        self.fade = Fade::Out { t: 0.0, map, arrival: Arrival::Pos(pos) };
         self.ui.toast("Game loaded".into());
         Ok(())
     }
@@ -2306,7 +2338,7 @@ impl Game {
             },
             EntityKind::Item => db.item(&e.def).is_some_and(|d| {
                 let u = self.u();
-                let bob = ((t * 3.0 + e.uid as f32).sin() * 1.5 * u).round();
+                let bob = ((t * 3.0 + (e.uid % 1024) as f32).sin() * 1.5 * u).round();
                 self.assets.draw_sprite(&d.icon, 0, e.body.pos - vec2(0.0, bob + 2.0 * u), WHITE)
             }),
         };

@@ -146,13 +146,14 @@ impl Game {
     }
 
     pub(super) fn update_combat(&mut self, dt: f32, frozen: bool, key_consumed: bool) {
+        // (Timers stop at 0 instead of counting down forever.)
         let c = &mut self.combat;
-        c.cooldown -= dt;
-        c.swing -= dt;
-        c.invuln -= dt;
+        c.cooldown = (c.cooldown - dt).max(0.0);
+        c.swing = (c.swing - dt).max(0.0);
+        c.invuln = (c.invuln - dt).max(0.0);
         for e in &mut self.loaded.entities {
-            e.invuln -= dt;
-            e.flash -= dt;
+            e.invuln = (e.invuln - dt).max(0.0);
+            e.flash = (e.flash - dt).max(0.0);
         }
         for fx in &mut self.effects {
             fx.1 += dt;

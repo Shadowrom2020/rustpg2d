@@ -16,6 +16,20 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   on a ladder tile where they could never move again.
 - The log lines of the *Patrol*, *Companion*, *Schedule* and *Open shop* actions and the game's
   start-up error carry the usual `[events]` / `[game]` prefix.
+- **Loading a game always lands in the save.** Quick-loading while a map change was fading out
+  (or while the game asked about knocked-down companions) carried the loaded world into the old
+  destination and dropped its *Map enter* triggers. The save's map is read first (a missing or
+  broken map leaves the running game alone), and the load replaces the fade.
+- A map that fails to load no longer leaves the game "resuming", which made the next map change
+  skip its *Map enter* triggers and its autosave.
+- Once-only triggers of companions, visitors and spawned characters are remembered by what lasts
+  (the placed entity, or the spawner and the definition) instead of a runtime uid that differed
+  every time: companions' once-triggers don't repeat, and saves stop collecting dead keys.
+- Animations seeded by an entity's uid (working villagers, bobbing dropped items) no longer freeze
+  for visitors and dropped items; walk and combat timers stop growing without bound.
+- The mouse walk's "stuck" check is a tenth of a step at any frame rate (it was 0.2 px per frame,
+  which stopped slow or climbing walks on fast displays). Nothing is persisted while no map is
+  loaded (the fade after loading a game).
 
 ### Maintenance
 - `Documentation/architecture.md`: how the engine, the game runner and the editor fit together

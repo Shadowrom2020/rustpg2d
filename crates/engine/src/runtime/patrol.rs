@@ -196,7 +196,7 @@ impl Game {
         e.body.facing = Facing::from_vec(step.x, step.y).unwrap_or(e.body.facing);
         e.body.pos = new_pos;
         e.body.moving = new_pos != pos;
-        e.body.anim += dt;
+        e.body.animate(dt);
         e.home = new_pos;
         if new_pos.distance(target) < 1.0 {
             w.path.remove(0);

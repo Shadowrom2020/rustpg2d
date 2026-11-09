@@ -382,7 +382,7 @@ impl Game {
         let map = self.loaded.map.name.clone();
         let Some(inst) = self.loaded.map.entity(e.uid).cloned() else { return };
         // Its runtime uid: one past the companions here (uids stay unique on this map).
-        let k = self.loaded.entities.iter().filter(|e| (COMPANION_UID_BASE..crate::state::DROPPED_UID_BASE).contains(&e.uid)).map(|e| e.uid - COMPANION_UID_BASE + 1).max().unwrap_or(0) as usize;
+        let k = self.loaded.entities.iter().filter(|e| (COMPANION_UID_BASE..super::schedule::VISITOR_UID_BASE).contains(&e.uid)).map(|e| e.uid - COMPANION_UID_BASE + 1).max().unwrap_or(0) as usize;
         self.world.companions.push(Companion { map: map.clone(), uid: e.uid, name: e.name.clone(), hp: (e.hp < e.max_hp).then_some(e.hp), down: None, order: Default::default(), post: None });
         make_companion(&mut self.loaded.entities[i], &map, inst.triggers, k);
         let name = self.display_name(i);

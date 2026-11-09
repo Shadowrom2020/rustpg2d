@@ -182,7 +182,7 @@ impl Game {
         e.body.facing = Facing::from_vec(look.x, look.y).unwrap_or(e.body.facing);
         e.body.moving = new_pos != e.body.pos;
         e.body.pos = new_pos;
-        e.body.anim += dt;
+        e.body.animate(dt);
     }
 
     /// Walks character `i` home along an A* path; returns false once it is there (or can't get
@@ -215,7 +215,7 @@ impl Game {
         e.body.facing = Facing::from_vec(step.x, step.y).unwrap_or(e.body.facing);
         e.body.moving = new_pos != pos;
         e.body.pos = new_pos;
-        e.body.anim += dt;
+        e.body.animate(dt);
         if new_pos.distance(spot) < 1.0 {
             e.ai.path.remove(0);
             e.ai.stuck = 0.0;

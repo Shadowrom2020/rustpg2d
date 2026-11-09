@@ -24,8 +24,16 @@ Emberbrook with interiors and a daily life, four more quests.
   `drop_script_triggers` leaves triggers that run the game's own scripts behind.
 
 ### Fixes
+- **Characters can't shut the player in any more.** Walking into a friendly character for a
+  moment makes it step aside — to a free tile beside it, or ahead out of a narrow passage. In the
+  example, the guard dismissed in the graveyard's gate and then told the shrine was lit froze
+  there for good (`stop_patrol` on the spot), boxing the player in; loading such a save, walk
+  into him and he makes way.
 - A merchant behind a counter **prop** (a market stall) can be talked to across it, like across
-  a solid counter tile; a prop in front that does nothing on E gives way to them.
+  a solid counter tile, from in front of any part of the counter (not only straight across from
+  the merchant); a prop in front that does nothing on E gives way to them. Right-clicking such a
+  counter talks to the merchant too, and right-clicking the merchant walks to the counter in
+  front instead of round the back of the stall.
 - Characters that start on the same spot (several villagers leaving one door at the same time)
   could block each other for good: a character may now always move away from characters it
   already overlaps, and a character blocked on its way plans around the people in it.
@@ -46,6 +54,14 @@ Emberbrook with interiors and a daily life, four more quests.
   every asset of the example project. The `vorbis_rs` dev-dependency went with the generator.
 
 ### Example project
+- The guard sent back to his post (*Go back to your post*) walks his road again instead of
+  staying where he was dismissed, and once the shrine is lit he goes off duty and stands
+  by the barracks door (`guard_rest()`) instead of stopping wherever he stands.
+- **Furniture**: the beds are drawn in the same three-quarter view as the rest of the art (an
+  upright headboard with posts, a quilted blanket, a footboard with legs and a shadow; the
+  sideways bed too), the tavern's tables have chairs whose backrests show over guests sitting
+  with their back to you, and Brother Ansel sleeps in his own chamber beside the chapel's nave
+  instead of a bed by the pews. The starter library has the new beds.
 - **Four village quests**: *The Lost Cat* (Mira; clues from Bram, Old Finn and the miller lead
   to Biscuit in the mill), *Bread for the Festival* (Bram; flour from the raided cart on the
   forest road and its two outlaws, the Festival Loaf baked at his oven), *The Herbalist's

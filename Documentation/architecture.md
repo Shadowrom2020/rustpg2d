@@ -233,4 +233,6 @@ Known properties of the current implementation (see the CHANGELOG for what each 
   functions instead. The game and the editor do run in CI (`scripts/ci/smoke.sh`).
 - A game binary older than the engine cannot read new map data; the editor compares
   `rustpg2d-game --engine-build` with its own fingerprint (the engine sources plus the versions
-  of the crates that define the file formats).
+  of the crates that define the file formats) before a play-test. Every runner also carries the
+  fingerprint as `ENGINE_BUILD_TAG` in its bytes, so the exports check runners they can't run
+  (web, other platforms) and refuse one built from another engine.

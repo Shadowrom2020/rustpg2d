@@ -94,6 +94,8 @@ fn preloaded(root: &std::path::Path) -> Option<Project> {
 }
 
 fn window_conf() -> Conf {
+    // The engine build stays readable in the binary: the editor's exports check it.
+    std::hint::black_box(rustpg2d_engine::ENGINE_BUILD_TAG);
     rustpg2d_engine::desktop::startup("The game");
     if std::env::args().any(|a| a == "--engine-build") {
         println!("{}", rustpg2d_engine::ENGINE_BUILD);
@@ -152,9 +154,16 @@ fn loading_screen(text: &str, progress: Option<f32>) {
 /// The web game can't start: the reason on the canvas (and in the browser console).
 #[cfg(target_arch = "wasm32")]
 async fn web_failed(e: anyhow::Error) {
-    macroquad::logging::error!("{e:#}");
+    // (macroquad's log macros print a lone literal as it is: no inline `{e}`.)
+    macroquad::logging::error!("{:#}", e);
+    let causes: Vec<String> = e.chain().map(|c| c.to_string()).collect();
     loop {
-        loading_screen(&format!("The game could not start: {e}"), None);
+        // The error and each cause on its own line, so a long chain stays on the canvas.
+        loading_screen("The game could not start:", None);
+        for (k, c) in causes.iter().enumerate() {
+            let w = measure_text(c, None, 22, 1.0).width;
+            draw_text(c, ((screen_width() - w) / 2.0).max(8.0), screen_height() / 2.0 + 24.0 + 26.0 * k as f32, 22.0, GRAY);
+        }
         next_frame().await;
     }
 }

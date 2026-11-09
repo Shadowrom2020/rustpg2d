@@ -347,7 +347,10 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   `RUSTPG2D_SETTINGS_DIR`, `RUSTPG2D_LIBRARY`, `RUSTPG2D_EDITOR_CONFIG` (and `HOME` for the
   example copy), or the adoption copies the user's real folders.
 - A game binary older than the engine can't read new map data (`Unexpected variant …`);
-  the editor warns when `rustpg2d-game --engine-build` differs. Rebuild the workspace.
+  the editor warns when `rustpg2d-game --engine-build` differs, and *Export game* refuses a
+  runner whose `ENGINE_BUILD_TAG` (in the binary's bytes, `release::runner_build`) differs. Rebuild
+  the workspace, and the web runner (`cargo build --release --target wasm32-unknown-unknown -p
+  rustpg2d-game`) before web exports.
 - `example_project/saves/` may contain the user's saves — never delete, overwrite or
   commit it (it is git-ignored).
 - Existing user libraries only gain *new* ids from the starter library (`Bundle::add_missing`),

@@ -3,9 +3,21 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.12.0 — 2026-11-09
+
+A quality and reliability release: characters no longer search for paths every frame, files are
+written whole or not at all, one bad entry no longer stops a project or map from loading, the
+Windows game explains why it can't start, and CI now runs the game and the editor. Much shared
+code was merged into one place each (`Documentation/architecture.md` describes the result).
+Projects, maps and save games of earlier versions load unchanged.
 
 ### Fixes
+- **Web exports with an outdated web runner.** The editor packed whatever `rustpg2d-game.wasm` it
+  found, also one built from an older engine; the exported game then stopped at "The game could
+  not start: loading map …". Every game runner now carries its engine build, and *Export game*
+  refuses a runner (web, Linux, Windows, macOS) built from another engine, naming the command that
+  rebuilds it. The web game's start-up error shows its whole cause on the page and in the browser
+  console (it printed a literal `{e:#}` there).
 - **Characters stop searching every frame.** A character blocked on its way planned a new path
   every frame from the first second until it gave up; a companion who found no way to the player
   (up a watchtower ladder, behind a shut door) searched again every frame too. Now one new plan

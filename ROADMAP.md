@@ -272,7 +272,7 @@ uids change); the other maps only gain entities at the end.
   an inn bed; buy at every shop; the new-game intro; the forest edge both ways; `mcp_smoke` passes;
   the Hour trigger in the editor's event picker and `events_reference`.
 
-- [ ] Four village quests — `feature/village-quests`
+- [x] Four village quests — `feature/village-quests`
 
   **Goal.** Quests that use the new village: *The Lost Cat* (Mira; clues from Bram, Finn, Jorun →
   Biscuit in the mill → Mira), *Bread for the Festival* (Bram; flour from the raided cart in the
@@ -289,6 +289,16 @@ uids change); the other maps only gain entities at the end.
   `slime_defeated`, `intro_cutscene` stay as `Documentation/scripting.md` quotes them. German for
   every new text. README: six quests, village tour, interiors, schedules, the Hour trigger,
   terrains, three music tracks; CHANGELOG complete; then `release/0.11.0`.
+
+  **Decided while building.** The quests live in `gen_example/village_quests.rs`: their
+  triggers are put in front of the villagers' own (by name, on the maps village_map.rs builds),
+  plus the forest's raided cart with two inactive outlaws (a Map enter trigger wakes them while
+  the flour is wanted) and Halvar's bones and locket in the mine. The festival, remedy and
+  rumour quests have two stages (baking / brewing and handing over are one stage: crafting fires
+  no event). Rewards come on completion (no later "come back" talk). Greta's menu gained
+  *Heard any rumours?*; Bram's everyday lines wait until his quest was offered. Achievements
+  unlock from `Quest Completed` conditions. Engine: talking across counter props (stalls), the
+  autoplay command `talkto NAME`.
 
   **Touch points.** `gen_example/main.rs` (`database()` quests / achievements, NPC triggers,
   `SCRIPT`), `lang_de.rs`, README, CHANGELOG, this file.

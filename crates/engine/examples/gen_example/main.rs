@@ -23,6 +23,7 @@ mod music;
 mod structures;
 mod village_db;
 mod village_map;
+mod village_quests;
 use art::*;
 
 // ------------------------------------------------------------------ sounds
@@ -806,6 +807,8 @@ fn forest() -> Map {
             b.big("feverleaf_bush", x, y, 1, 1);
         }
     }
+    // The miller's raided cart (Bread for the Festival).
+    village_quests::forest(&mut b);
     autotile_terrain(
         &mut b.m,
         |m, x, y| match ground(m, x, y)? {
@@ -1457,9 +1460,10 @@ fn database() -> Database {
         skills: skills(),
         spells: spells(),
         recipes: recipes(),
-        achievements: achievements(),
+        achievements: achievements().into_iter().chain(village_quests::achievements()).collect(),
     };
-    // The village (0.11.0): its props, goods, recipes, sheets and people.
+    // The village (0.11.0): its quests, props, goods, recipes, sheets and people.
+    db.quests.extend(village_quests::quests());
     db.props.extend(art::extra::props2().1);
     db.props.extend(village_db::props());
     db.items.extend(village_db::items());
@@ -1653,6 +1657,8 @@ fn mine() -> Map {
     );
     // Far below the chasm: dark mist, moving slower than the floor (depth).
     b.m.parallax.push(rustpg2d_engine::map::ParallaxLayer { sheet: "abyss_mist".into(), factor: [0.3, 0.3], drift: [3.0, 1.0], ..Default::default() });
+    // Halvar's bones and locket (Rumours at the Tavern, 0.11.0).
+    village_quests::mine(&mut b);
     b.m
 }
 
@@ -2130,26 +2136,31 @@ fn main() {
     };
     project.save_config().unwrap();
     project.save_defs().unwrap();
+    // The village and its interiors, with the quests' triggers on their people.
+    let with = |mut m: Map, quests: fn(&mut Map)| {
+        quests(&mut m);
+        m
+    };
     for map in [
-        village_map::village(),
+        with(village_map::village(), village_quests::village),
         house(),
         shop(),
         forest(),
         wilds(),
         mine(),
-        village_map::tavern(),
+        with(village_map::tavern(), village_quests::tavern),
         village_map::bakery(),
         village_map::smithy(),
         village_map::apothecary(),
         village_map::chapel(),
-        village_map::home_mira(),
-        village_map::mill(),
+        with(village_map::home_mira(), village_quests::home_mira),
+        with(village_map::mill(), village_quests::mill),
     ] {
         project.save_map(&map).unwrap();
         println!("map {:<8} {}x{}", map.name, map.width, map.height);
     }
     std::fs::create_dir_all(project.scripts_dir()).unwrap();
-    std::fs::write(project.scripts_dir().join("main.rhai"), SCRIPT).unwrap();
+    std::fs::write(project.scripts_dir().join("main.rhai"), format!("{SCRIPT}{}", village_quests::SCRIPT)).unwrap();
     // The German translation: every content text, filled from lang_de.rs (the rest stays empty =
     // shown in English).
     let (mut de, _) = rustpg2d_engine::lang::template(&project, "de", None);

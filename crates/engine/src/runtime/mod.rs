@@ -1407,19 +1407,38 @@ impl Game {
         let ((px, py), (ex, ey)) = (tile(self.player.pos), tile(e.body.pos));
         let (dx, dy) = (ex - px, ey - py);
         let straight = (dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0);
-        straight && self.tile_solid(px + dx / 2, py + dy / 2)
+        let (mx, my) = (px + dx / 2, py + dy / 2);
+        // The counter: a solid tile, or a solid prop (a market stall's counter).
+        straight && (self.tile_solid(mx, my) || self.solid_entity_tiles(|p| p.kind == EntityKind::Prop).contains(&(mx, my)))
+    }
+
+    /// A prop E does nothing with (a market stall, a crate): someone across it is talked to.
+    fn inert_prop(&self, i: usize) -> bool {
+        let e = &self.loaded.entities[i];
+        if e.kind != EntityKind::Prop {
+            return false;
+        }
+        if self.loaded.map.entities.iter().any(|m| m.uid == e.uid && (!m.triggers.is_empty() || m.container.is_some() || m.lock.is_some())) {
+            return false;
+        }
+        self.project.db.prop(&e.def).is_none_or(|d| d.triggers.is_empty() && d.container.is_none() && d.lock.is_none() && d.use_spot.is_none() && d.gather.is_none() && !d.plot)
     }
 
     fn facing_entity(&self) -> Option<usize> {
-        self.facing_entity_near().map(|i| self.user_of(i).unwrap_or(i)).or_else(|| {
-            // Nothing right in front: someone across a counter in the facing direction?
-            let ts = self.ts();
-            let (fx, fy) = self.player.facing.dir();
-            (0..self.loaded.entities.len()).find(|&i| {
+        let near = self.facing_entity_near().map(|i| self.user_of(i).unwrap_or(i));
+        if near.is_some_and(|i| !self.inert_prop(i)) {
+            return near;
+        }
+        // Nothing (or nothing to use) right in front: someone across a counter in the facing
+        // direction?
+        let ts = self.ts();
+        let (fx, fy) = self.player.facing.dir();
+        (0..self.loaded.entities.len())
+            .find(|&i| {
                 let d = self.loaded.entities[i].body.pos - self.player.pos;
                 self.across_counter(i) && (d.x * fx + d.y * fy) > ts
             })
-        })
+            .or(near)
     }
 
     /// The character using furniture `i` (a bed's sleeper): talking to the furniture talks to it.

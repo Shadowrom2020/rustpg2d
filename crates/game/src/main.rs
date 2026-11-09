@@ -366,14 +366,22 @@ impl Autoplay {
                     return true;
                 }
                 // click X Y [right]: mouse click on a tile (tile coordinates)
-                "click" | "rclick" | "clickenemy" => {
+                // talkto NAME: right-click the character named NAME where it stands now (walks
+                // there and talks)
+                "click" | "rclick" | "clickenemy" | "talkto" => {
                     let p = if arg(0) == "clickenemy" {
                         let Some((x, y)) = game.nearest_enemy_tile() else { continue };
+                        game.tile_to_screen(x, y)
+                    } else if arg(0) == "talkto" {
+                        let Some((x, y)) = game.named_entity_tile(arg(1)) else {
+                            say!("[autoplay] talkto: nobody named '{}' here", arg(1));
+                            continue;
+                        };
                         game.tile_to_screen(x, y)
                     } else {
                         game.tile_to_screen(secs(1), secs(2))
                     };
-                    let b = if arg(0) == "rclick" { MouseButton::Right } else { MouseButton::Left };
+                    let b = if matches!(arg(0), "rclick" | "talkto") { MouseButton::Right } else { MouseButton::Left };
                     click(&mut self.mouse_frames, p, b);
                     return true;
                 }

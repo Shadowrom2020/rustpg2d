@@ -685,7 +685,7 @@ pub fn convert(p: &Parsed, name: &str, root: &Path, db: &mut Database) -> Result
             animations.push(TileAnim { tile: *tile, frames: frames.iter().map(|f| f.0).collect(), fps: 1000.0 / ms });
         }
         let terrains = wang_terrains(&ts.wangsets, &mut rep);
-        db.tilesets.push(TilesetDef { id: id.clone(), image: rel, solid: ts.solid.iter().copied().collect(), ladder: vec![], animations, lights: vec![], terrains });
+        db.tilesets.push(TilesetDef { id: id.clone(), image: rel, solid: ts.solid.iter().copied().collect(), animations, terrains, ..Default::default() });
         if (ts.tile_w, ts.tile_h) != (TS, TS) {
             rep.scaled.push(format!("{id} ({} px)", ts.tile_w));
         }
@@ -835,7 +835,7 @@ mod tests {
         std::fs::create_dir_all(&root).unwrap();
         let p = parse_file(&fixtures().join("tiny.tmx")).unwrap();
         let mut db = Database::default();
-        db.tilesets.push(TilesetDef { id: "ground".into(), image: "x.png".into(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] });
+        db.tilesets.push(TilesetDef { id: "ground".into(), image: "x.png".into(), ..Default::default() });
         let (map, rep) = convert(&p, "tiny", &root, &mut db).unwrap();
         // Ids never clash with existing ones; images are 32 px grids.
         assert_eq!(rep.tilesets, vec!["ground_2".to_string(), "decorations".to_string()]);

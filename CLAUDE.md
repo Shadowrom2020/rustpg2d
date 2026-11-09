@@ -200,9 +200,11 @@ example_project/        the example game, plain project files (edit them through
   `script_refs::API_IDS` so renames and the script check cover it, and to the `API` table in
   `editor/src/script_editor.rs` (parameters, argument kinds, description) for completion. Note `go` and a few
   other words are reserved in Rhai.
-- **New definition fields:** update every struct literal (`editor/database.rs`, `editor/wizard.rs`, tests in
-  `library.rs` / `refactor.rs`), the editor form in `database.rs`, renames in `refactor.rs`,
-  and dependencies in `refs_of_*` so library export carries what it needs.
+- **New definition fields:** `TilesetDef`, `SheetDef`, `ItemDef`, `PropDef` and `CharacterDef`
+  implement `Default` by hand (= the serde defaults; the test `defaults_match_the_file_format`
+  pins it) and `fresh(id)` (the editor's "+ New" value): add the field to both, and literals
+  elsewhere use `..Default::default()`. Then the editor form in `database.rs`, renames in
+  `refactor.rs`, and dependencies in `refs_of_*` so library export carries what it needs.
 - **New defs file:** `project.rs` (`DEFS`, load, save), `release.rs` (exported files),
   `library.rs` (`Database` literals).
 - **Player-facing text:** run it through `WorldState::expand_text` (`{player}`,

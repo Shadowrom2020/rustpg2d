@@ -555,25 +555,7 @@ fn reward() {
     #[test]
     fn reports_unknown_ids() {
         let mut db = Database::default();
-        db.items.push(crate::defs::ItemDef {
-            id: "key".into(),
-            name: "Key".into(),
-            description: String::new(),
-            icon: crate::defs::SpriteRef::default(),
-            consumable: false,
-            on_use: vec![],
-            weapon: None,
-            armor: None,
-            max_stack: 99,
-            value: 0,
-        light: None,
-        teaches: String::new(),
-        held: String::new(),
-        tool: String::new(),
-        use_on: Default::default(),
-        crop: None,
-        food: false,
-        });
+        db.items.push(crate::defs::ItemDef { id: "key".into(), name: "Key".into(), icon: crate::defs::SpriteRef::default(), ..Default::default() });
         let maps = vec!["village".to_string()];
         let spawns: HashMap<String, Vec<String>> = [("village".to_string(), vec!["gate".to_string()])].into();
         let issues = check_script(SRC, &db, &maps, &spawns);

@@ -608,7 +608,7 @@ mod tests {
         std::fs::create_dir_all(root.join("saves")).unwrap();
         std::fs::write(root.join("saves/quick.ron"), b"()").unwrap();
         std::fs::write(root.join("sprites/unused.png"), b"x").unwrap();
-        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, kind: Default::default(), female: false, playable: false, tags: vec![] }], ..Default::default() };
+        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, ..Default::default() }], ..Default::default() };
         let mut p = Project { root: root.clone(), config: ProjectConfig::new("Test"), db };
         p.save_config().unwrap();
         p.save_defs().unwrap();

@@ -52,6 +52,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - The library report names the assets it added (up to eight): *2 added (smoke, smoke_square)*.
 
 ### Maintenance
+- The definition types implement `Default` (the file format's defaults, pinned by a test) and
+  `fresh(id)` (the editor's new entry): a new field is added in one place instead of in every
+  struct literal (26 of them, which had already drifted apart: the agent server's `def_template`
+  gave other defaults than the editor's *+ New*).
 - **Runtime smoke test** (`scripts/ci/smoke.sh`, CI job *Runtime smoke* on every pull request):
   the game and the editor run on a copy of the example project under Xvfb; checks the title
   screen, a map with the player, the clock, loading an old save, quick-saving, a map change with

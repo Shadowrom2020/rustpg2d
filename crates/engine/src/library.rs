@@ -1177,29 +1177,11 @@ mod tests {
         let root = tmp(&format!("src_{test}"));
         std::fs::create_dir_all(root.join("sprites")).unwrap();
         std::fs::write(root.join("sprites/items.png"), png(32, 16, [255, 0, 0, 255])).unwrap();
-        let item = |id: &str| ItemDef {
-            id: id.into(),
-            name: id.into(),
-            description: String::new(),
-            icon: SpriteRef::new("items", 0),
-            consumable: false,
-            on_use: vec![],
-            weapon: None,
-            armor: None,
-            max_stack: 99,
-            value: 0,
-        light: None,
-        teaches: String::new(),
-        held: String::new(),
-        tool: String::new(),
-        use_on: Default::default(),
-        crop: None,
-        food: false,
-        };
+        let item = |id: &str| ItemDef { id: id.into(), name: id.into(), icon: SpriteRef::new("items", 0), ..Default::default() };
         let mut bow = item("bow");
         bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "arrows".into() }));
         let db = Database {
-            sheets: vec![SheetDef { id: "items".into(), image: "sprites/items.png".into(), frame_w: 16, frame_h: 16, kind: Default::default(), female: false, playable: false, tags: vec![] }],
+            sheets: vec![SheetDef { id: "items".into(), image: "sprites/items.png".into(), frame_w: 16, frame_h: 16, ..Default::default() }],
             items: vec![item("arrows"), bow],
             ..Default::default()
         };
@@ -1299,7 +1281,7 @@ mod tests {
         use crate::skills::{SpellDef, SpellEffect};
         let (root, mut db) = source("scripts");
         std::fs::write(root.join("sprites/boom.png"), png(16, 16, [9, 9, 9, 255])).unwrap();
-        db.sheets.push(SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 16, frame_h: 16, kind: Default::default(), female: false, playable: false, tags: vec![] });
+        db.sheets.push(SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 16, frame_h: 16, ..Default::default() });
         db.spells.push(SpellDef::new("fireball", "Fireball", "", SpriteRef::new("items", 0), 5, 1.0, SpellEffect::Script { function: "cast_fireball".into() }));
         std::fs::create_dir_all(root.join("scripts")).unwrap();
         let src = "// Fireball: aim first.\n// (two comment lines)\nfn cast_fireball() {\n    aim(\"fireball_at\");\n}\n\nfn fireball_at(x, y) { if x > 0 { helper(); } effect(\"boom\", x, y); }\n\n// unrelated\nfn helper() { say(\"hi\"); }\n\nfn shop_talk() { say(\"{ not a brace }\"); }\n";
@@ -1342,7 +1324,7 @@ mod tests {
         let other = tmp("scripts_other");
         std::fs::create_dir_all(other.join("sprites")).unwrap();
         std::fs::write(other.join("sprites/boom.png"), png(8, 8, [1, 1, 1, 255])).unwrap();
-        let mut odb = Database { sheets: vec![SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 8, frame_h: 8, kind: Default::default(), female: false, playable: false, tags: vec![] }], ..Default::default() };
+        let mut odb = Database { sheets: vec![SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 8, frame_h: 8, ..Default::default() }], ..Default::default() };
         again.merge_into(&mut odb, &other).unwrap();
         let merged = std::fs::read_to_string(other.join("scripts").join(LIBRARY_SCRIPT)).unwrap();
         assert!(merged.contains("effect(\"boom_2\", x, y)"), "{merged}");
@@ -1357,23 +1339,7 @@ mod tests {
     #[test]
     fn rescale_doubles_art_and_sizes() {
         let (root, mut db) = source("rescale");
-        db.props.push(PropDef {
-            id: "crate".into(),
-            name: "Crate".into(),
-            sprite: SpriteRef::new("items", 0),
-            solid: true,
-            hitbox: [12.0, 6.0],
-            triggers: vec![],
-            container: None,
-            lock: None,
-            default_state: default_state_name(),
-            states: vec![],
-            light: None,
-            use_spot: None,
-            gather: None,
-            regrow: None,
-            plot: false,
-        });
+        db.props.push(PropDef { id: "crate".into(), name: "Crate".into(), sprite: SpriteRef::new("items", 0), solid: true, hitbox: [12.0, 6.0], ..Default::default() });
         let mut b = Bundle::collect(&db, &root, 16, "x", &all_assets(&db)).unwrap();
         b.rescale(32).unwrap();
         let img = Rgba::decode(&b.files["sprites/items.png"]).unwrap();
@@ -1395,7 +1361,7 @@ mod tests {
         }
         let mut pond = crate::autotile::Terrain { name: "Pond".into(), base: Some(0), ..Default::default() };
         pond.fill_from_block(0, 4);
-        let ts = |solid: Vec<u32>, terrains| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder: vec![], animations: vec![], lights: vec![], terrains };
+        let ts = |solid: Vec<u32>, terrains| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, terrains, ..Default::default() };
         let mut newer = Database { tilesets: vec![ts(vec![3, 5, 99], vec![pond.clone()])], ..Default::default() };
         newer.tilesets[0].animations = vec![TileAnim { tile: 15, frames: vec![15, 16], fps: 2.0 }, TileAnim { tile: 40, frames: vec![40, 41], fps: 2.0 }];
         let pack = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap();
@@ -1442,7 +1408,7 @@ mod tests {
             std::fs::create_dir_all(d.join("tilesets")).unwrap();
             std::fs::write(d.join("tilesets/t.png"), png).unwrap();
         }
-        let ts = |solid: Vec<u32>, ladder: Vec<u32>| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder, animations: vec![], lights: vec![], terrains: vec![] };
+        let ts = |solid: Vec<u32>, ladder: Vec<u32>| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder, ..Default::default() };
         let newer_db = Database { tilesets: vec![ts(vec![0, 1], vec![3])], ..Default::default() };
         let pack = Bundle::collect(&newer_db, &src, 32, "starter", &all_assets(&newer_db)).unwrap();
         // The library's own tile 0 is walkable: that stays.
@@ -1463,7 +1429,7 @@ mod tests {
             std::fs::create_dir_all(d.join("tilesets")).unwrap();
             std::fs::write(d.join("tilesets/t.png"), png(64, 64, c)).unwrap();
         }
-        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] };
+        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), ..Default::default() };
         let st = StructureDef { id: "tower".into(), name: "Tower".into(), w: 1, h: 1, tilesets: vec!["t".into()], layers: vec![vec![1]], collision: vec![0], ..Default::default() };
         let newer = Database { tilesets: vec![ts.clone()], structures: vec![st], ..Default::default() };
         // The library's tileset has other art (not an extension): the structure would get wrong tiles.
@@ -1494,7 +1460,7 @@ mod tests {
         // A newer starter set: only assets with new ids are added, existing ones stay as they are.
         let mut db2 = db.clone();
         db2.items[0].name = "Changed arrows".into();
-        db2.sheets.push(SheetDef { id: "extra".into(), image: "sprites/extra.png".into(), frame_w: 16, frame_h: 16, kind: Default::default(), female: false, playable: false, tags: vec![] });
+        db2.sheets.push(SheetDef { id: "extra".into(), image: "sprites/extra.png".into(), frame_w: 16, frame_h: 16, ..Default::default() });
         std::fs::write(root.join("sprites/extra.png"), png(16, 16, [1, 2, 3, 255])).unwrap();
         let pack2 = Bundle::collect(&db2, &root, 16, "starter", &all_assets(&db2)).unwrap().to_files().unwrap();
         let lib = open_library(&dir, Some(&borrowed(&pack2))).unwrap();

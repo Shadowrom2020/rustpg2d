@@ -513,25 +513,7 @@ mod tests {
         assert_eq!(m.edges.west.as_ref().unwrap().target_map, "town");
 
         let mut db = Database::default();
-        db.items.push(ItemDef {
-            id: "coin".into(),
-            name: "Coin".into(),
-            description: String::new(),
-            icon: SpriteRef::new("items", 0),
-            consumable: false,
-            on_use: vec![],
-            weapon: None,
-            armor: None,
-            max_stack: 99,
-            value: 0,
-        light: None,
-        teaches: String::new(),
-        held: String::new(),
-        tool: String::new(),
-        use_on: Default::default(),
-        crop: None,
-        food: false,
-        });
+        db.items.push(ItemDef { id: "coin".into(), name: "Coin".into(), icon: SpriteRef::new("items", 0), ..Default::default() });
         let mut cfg = ProjectConfig {
             name: "p".into(),
             tile_size: 32,

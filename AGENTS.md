@@ -109,6 +109,7 @@ again: the pull request already tested the merge. Its jobs are the required chec
 |---|---|---|
 | *Branch policy* | `cargo xtask check-branch HEAD BASE` (seconds: xtask without the engine) | every PR (required: develop, master) |
 | *Build, lint, test* | `cargo clippy --all-targets --all-features -D warnings`, `cargo test` (workspace, `--locked`, unoptimized: fast to compile) | every PR (required: develop, master) |
+| *Runtime smoke* | `scripts/ci/smoke.sh`: the game and the editor on a copy of the example project under Xvfb (title, a map, the clock, an old save, quick save, a map change + autosave, the editor opening a map, the MCP smoke client) | every PR (advisory) |
 | *Version* | `cargo xtask check-version BRANCH` | PRs into master (required there) |
 | *Packages* | release builds (Linux, web, Windows via MinGW-w64, the macOS build from *macOS*), `cargo xtask-dist` (AppImage, Flatpak, Windows zip, unsigned macOS app), smoke test of game and editor under Xvfb, downloads as artifact | PRs into master (required there) |
 | *Windows* | clippy and tests on `windows-latest` (MSVC) | PRs into master, manual runs |

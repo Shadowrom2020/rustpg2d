@@ -188,7 +188,8 @@ means per format:
 | `RUSTPG2D_AUTOPLAY="…"` | the game: key presses, clicks, saves, `status` (a line with every runtime state field), screenshots | every feature is verified with it; `Documentation/autoplay.md` |
 | `RUSTPG2D_EDITOR_SCRIPT="…"` | the editor: tools, Database tabs, library, exports, MCP on/off, screenshots | the same |
 | `crates/editor/examples/mcp_smoke.rs` | a real MCP client against the running editor: tools, resources, prompts, `write_asset`, `upsert_def`, `capture_structure`, `library_send`, `play_test` | by hand with a scratch library |
-| `cargo test --workspace` | unit tests: formats, library merges, scripting, translations, starter-library consistency | CI on every pull request |
+| `cargo test --workspace` | unit tests: formats, library merges, scripting, translations, starter-library consistency; `crates/engine/tests/compat.rs` loads files of earlier versions (`tests/fixtures/`) | CI on every pull request |
+| `scripts/ci/smoke.sh` | the game and the editor on a scratch copy of the example project: title, a map, the clock, an old save, quick save, a map change with its autosave, the editor opening a map, the MCP smoke client | CI's *Runtime smoke* job (Xvfb) on every pull request; locally with a display |
 | CI (`.github/workflows/ci.yml`) | *Branch policy*, *Build, lint, test* on every PR; *Version*, *Packages* (release builds, AppImage/Flatpak/Windows/macOS, an Xvfb smoke run of game and editor), *Windows*, *macOS*, *macOS app* on PRs into master | GitHub Actions |
 | Release workflow | tags, publishes the packages, opens the back-merge PR | merges into master |
 

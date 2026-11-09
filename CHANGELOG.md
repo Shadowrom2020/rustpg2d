@@ -47,6 +47,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - The library report names the assets it added (up to eight): *2 added (smoke, smoke_square)*.
 
 ### Maintenance
+- **Runtime smoke test** (`scripts/ci/smoke.sh`, CI job *Runtime smoke* on every pull request):
+  the game and the editor run on a copy of the example project under Xvfb; checks the title
+  screen, a map with the player, the clock, loading an old save, quick-saving, a map change with
+  its autosave, the editor opening a map and the agent server's smoke client (`mcp_smoke`).
 - **Compatibility fixtures**: `crates/engine/tests/fixtures/` holds the 0.9.0 example's
   definitions, maps of 0.9.0 and 0.10.0, a frozen format-version-1 map and save games;
   `tests/compat.rs` loads them, so a change that breaks old files fails the tests. Save games

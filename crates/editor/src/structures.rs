@@ -438,8 +438,8 @@ impl StructEdit {
                 let ts = TILE_SIZE as f32;
                 // Like placing on the map: even-width props stand on a tile edge.
                 let tiles_wide = db.prop(&self.prop).map_or(1, |p| (sprite_px(db, &p.sprite).x / ts).round().max(1.0) as u32);
-                let x = if tiles_wide.is_multiple_of(2) { cx as f32 * ts } else { (cx as f32 + 0.5) * ts };
-                d.entities.push(EntityInstance::new(0, EntityKind::Prop, &self.prop, x, (cy as f32 + 1.0) * ts - 1.0));
+                let p = rustpg2d_engine::grid::snap_feet(macroquad::math::vec2(cx as f32 * ts, (cy as f32 + 0.5) * ts), tiles_wide, ts);
+                d.entities.push(EntityInstance::new(0, EntityKind::Prop, &self.prop, p.x, p.y));
             }
         }
         d.prune();

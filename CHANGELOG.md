@@ -50,11 +50,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   removes its scratch folder however the run ends; files changed on disk are reloaded once each.
   The dropdown suggestions (`refresh_refs`) re-read only the map files that changed.
 - The library report names the assets it added (up to eight): *2 added (smoke, smoke_square)*.
+- **AI agent server**: `place_entity` puts a prop an even number of tiles wide on a tile edge like
+  the editor does (it covered half a tile on each side before); the reply says which tiles it
+  stands on.
 - The editor script's `rename` knows every kind (`structure`, `skill`, `spell`, `recipe`, `quest`,
   `achievement` too; an unknown word is an error instead of renaming a map), and the agent
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- `grid.rs`: one place for pixel ↔ tile conversions (`feet_tile`, `feet_spot`, `snap_feet`,
+  `tiles_of_rect`); the game and the editor used five different offsets. Characters' rest spots
+  moved one pixel (the editor's convention wins).
 - One kind enum (`RefKind`, now with quests and achievements) with `name` / `file` / `label` /
   `parse`, a `Def` trait for the twelve definition lists and `with_def_kind!`: the library, the
   agent server, the editor's rename and the library window share one `Database` API (`has`,

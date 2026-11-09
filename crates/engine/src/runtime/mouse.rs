@@ -63,13 +63,11 @@ impl Game {
     }
 
     pub(super) fn player_tile(&self) -> TilePos {
-        let ts = self.ts();
-        ((self.player.pos.x / ts).floor() as i32, ((self.player.pos.y - 0.5) / ts).floor() as i32)
+        self.tile_of(self.player.pos)
     }
 
     fn entity_tile(&self, e: &RtEntity) -> TilePos {
-        let ts = self.ts();
-        ((e.body.pos.x / ts).floor() as i32, ((e.body.pos.y - 0.5) / ts).floor() as i32)
+        self.tile_of(e.body.pos)
     }
 
     pub(super) fn mouse_world(&self) -> Vec2 {

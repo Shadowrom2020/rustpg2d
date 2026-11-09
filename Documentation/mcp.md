@@ -83,7 +83,7 @@ server when you don't use it; don't forward the port.
 | `set_collision {map, cells, rect, value}` | `solid`, `walkable` or back to `auto`. |
 | `clear_region {map, x, y, w, h}` | Empties all layers, overrides and entities in a rectangle. |
 | `resize_map {map, width, height}` | Keeps the top-left area. |
-| `place_entity {map, kind, def, x, y, name, facing, state, count, patch}` | A prop, character or item pickup; returns its uid and JSON. |
+| `place_entity {map, kind, def, x, y, name, facing, state, count, patch}` | A prop, character or item pickup; returns its uid and JSON. Like the editor, a prop an even number of tiles wide stands on the tile edge between `x` and `x + 1` (covering both); its `tile_x` then reads `x + 1`. |
 | `update_entity {map, uid, patch}` | Merge patch (`tile_x` / `tile_y` move it; `uid` is fixed). |
 | `remove_entity {map, uid}` | |
 | `add_zone {map, name, kind, x, y, w, h, triggers, loot}` | `kind`: `"Spawn"`, `"Trigger"`, `{"Portal": {target_map, target_spawn}}`, `{"Spawner": {character, count, respawn}}`, `{"Transition": {target_map, target_zone}}`, `{"FishingSpot": {rod}}`. A taken name gets a suffix. |

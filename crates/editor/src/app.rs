@@ -1137,9 +1137,7 @@ impl Editor {
         if free {
             return world.round();
         }
-        let ty = (world.y / ts).floor();
-        let x = if tiles_wide.is_multiple_of(2) { (world.x / ts).round() * ts } else { ((world.x / ts).floor() + 0.5) * ts };
-        macroquad::math::vec2(x, (ty + 1.0) * ts - 1.0)
+        rustpg2d_engine::grid::snap_feet(world, tiles_wide, ts)
     }
 
     /// Sprite of an entity definition (props / items; characters use their idle frame, layered

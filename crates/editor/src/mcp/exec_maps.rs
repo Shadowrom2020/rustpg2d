@@ -663,8 +663,11 @@ impl Editor {
         }
         let before = Objects::of(&doc.map);
         let uid = doc.map.alloc_uid();
-        let (fx, fy) = patch::feet_of(p.x, p.y, ts);
-        let mut e = EntityInstance::new(uid, kind, &p.def, fx, fy);
+        // Like the editor: a prop an even number of tiles wide stands on a tile edge, covering
+        // tiles x and x + 1; everything else on the centre of tile x.
+        let wide = self.def_tiles_wide(kind, &p.def);
+        let spot = rustpg2d_engine::grid::snap_feet(macroquad::math::vec2((p.x as f32 + 0.5) * ts, (p.y as f32 + 0.5) * ts), wide, ts);
+        let mut e = EntityInstance::new(uid, kind, &p.def, spot.x, spot.y);
         if let Some(n) = &p.name {
             e.name = n.clone();
         }
@@ -686,7 +689,8 @@ impl Editor {
         doc.map.entities.push(e.clone());
         doc.record_objects(before, "mcp-entity");
         let name = doc.map.name.clone();
-        let mut msg = format!("Placed {} \"{}\" on \"{name}\" at {},{} with uid {uid}.\n{}", p.kind.to_lowercase(), p.def, p.x, p.y, json(&patch::entity_json(&e, ts)));
+        let edge = if wide.is_multiple_of(2) { format!(" ({wide} tiles wide: it stands on the edge between tiles {} and {}, so tile_x reads {})", p.x, p.x + 1, p.x + 1) } else { String::new() };
+        let mut msg = format!("Placed {} \"{}\" on \"{name}\" at {},{}{edge} with uid {uid}.\n{}", p.kind.to_lowercase(), p.def, p.x, p.y, json(&patch::entity_json(&e, ts)));
         for w in warnings {
             msg += &format!("\nWarning: {w}");
         }

@@ -1012,10 +1012,10 @@ impl Game {
         let ts = self.ts();
         let (dx, dy) = self.player.facing.dir();
         let ahead = self.player.pos + vec2(dx, dy) * ts * 0.9;
-        let (tx, ty) = ((ahead.x / ts).floor() as i32, ((ahead.y - 1.0) / ts).floor() as i32);
+        let (tx, ty) = self.tile_of(ahead);
         let blocked = self.loaded.entities.iter().any(|e| e.active && e.solid && e.body.rect().contains(vec2((tx as f32 + 0.5) * ts, (ty as f32 + 0.8) * ts)));
         if self.loaded.map.in_bounds(tx, ty) && !self.tile_solid(tx, ty) && !blocked {
-            vec2((tx as f32 + 0.5) * ts, (ty as f32 + 1.0) * ts - 1.0)
+            self.tile_spot((tx, ty))
         } else {
             self.player.pos
         }

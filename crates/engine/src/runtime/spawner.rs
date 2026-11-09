@@ -114,7 +114,7 @@ impl Game {
             if self.tile_blocks_npc(tx as i32, ty as i32) {
                 continue;
             }
-            let pos = vec2((tx as f32 + 0.5) * ts, (ty as f32 + 1.0) * ts - 1.0);
+            let pos = self.tile_spot((tx as i32, ty as i32));
             if pos.distance(self.player.pos) < MIN_PLAYER_DIST * ts {
                 continue;
             }
@@ -194,13 +194,19 @@ impl Game {
             .iter()
             .filter(|e| e.active && e.hostile)
             .min_by(|a, b| a.body.pos.distance(self.player.pos).total_cmp(&b.body.pos.distance(self.player.pos)))
-            .map(|e| ((e.body.pos.x / ts).floor(), ((e.body.pos.y - 4.0) / ts).floor()))
+            .map(|e| {
+                let t = crate::grid::feet_tile(e.body.pos, ts);
+                (t.0 as f32, t.1 as f32)
+            })
     }
 
     /// Tile of the active entity named `name` (for automated play-throughs: `talkto`).
     pub fn named_entity_tile(&self, name: &str) -> Option<(f32, f32)> {
         let ts = self.ts();
-        self.loaded.entities.iter().find(|e| e.active && e.name == name).map(|e| ((e.body.pos.x / ts).floor(), ((e.body.pos.y - 4.0) / ts).floor()))
+        self.loaded.entities.iter().find(|e| e.active && e.name == name).map(|e| {
+            let t = crate::grid::feet_tile(e.body.pos, ts);
+            (t.0 as f32, t.1 as f32)
+        })
     }
 
     /// Spawner summary, e.g. `slime_den 3/4 (+1 pending)`.

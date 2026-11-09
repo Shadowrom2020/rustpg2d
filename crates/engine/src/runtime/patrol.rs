@@ -88,15 +88,14 @@ impl Patrol {
 }
 
 impl Game {
-    /// Feet position a character aims for on a tile.
+    /// Feet position a character aims for on a tile ([`crate::grid::feet_spot`]).
     pub(super) fn tile_spot(&self, t: TilePos) -> Vec2 {
-        let ts = self.ts();
-        vec2((t.0 as f32 + 0.5) * ts, (t.1 as f32 + 1.0) * ts - 2.0)
+        crate::grid::feet_spot(t, self.ts())
     }
 
+    /// The tile under feet at `p` ([`crate::grid::feet_tile`]).
     pub(super) fn tile_of(&self, p: Vec2) -> TilePos {
-        let ts = self.ts();
-        ((p.x / ts).floor() as i32, ((p.y - 1.0) / ts).floor() as i32)
+        crate::grid::feet_tile(p, self.ts())
     }
 
     /// Moves a patrolling character. Returns false if it doesn't patrol (other behaviours apply).

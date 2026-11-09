@@ -3,10 +3,12 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.11.0 — 2026-11-09
 
 A living village: every terrain a 47-tile set, many more assets, the village rebuilt as
-Emberbrook with interiors and a daily life, four more quests.
+Emberbrook with interiors and a daily life, four more quests, ladders and climbable
+watchtowers. The example project and the editor's starter library are now plain files, edited
+with the editor and its AI agent server (three new tools).
 
 ### Gameplay
 - **Ladders**: tiles marked as ladders in *Database → Tilesets* (*Pick ladder tiles in the

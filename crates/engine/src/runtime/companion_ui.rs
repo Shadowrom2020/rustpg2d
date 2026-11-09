@@ -485,22 +485,10 @@ impl Game {
         }
         let c = l.close;
         draw_text("x", c.x + 6.0, c.y + 17.0, 24.0, if c.contains(m) { WHITE } else { GRAY });
-        // Details of the hovered / selected stack and the help line.
-        let d = l.detail;
-        panel(d.x, d.y, d.w, d.h);
+        // Details of the hovered / selected stack (count and stats like the inventory's) and the help line.
         let focus = hover.unwrap_or(w.sel);
-        if let Some(s) = self.pane_stack(focus.0, focus.1) {
-            let def = self.project.db.item(&s.item);
-            let title = def.map_or(s.item.clone(), |d| d.name.clone());
-            draw_text(&title, d.x + PAD, d.y + 24.0, 22.0, WHITE);
-            if let Some(def) = def {
-                for (k, line) in wrap_text(&def.description, 18, d.w - 2.0 * PAD).iter().take(2).enumerate() {
-                    draw_text(line, d.x + PAD, d.y + 44.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
-                }
-            }
-        }
-        let size = (12..=16u16).rev().find(|s| measure_text(HINT, None, *s, 1.0).width <= d.w - 2.0 * PAD).unwrap_or(12);
-        draw_text(HINT, d.x + PAD, d.bottom() - 8.0, size as f32, GRAY);
+        let stack = self.pane_stack(focus.0, focus.1);
+        super::ui::draw_item_detail(&self.project.db, l.detail, PAD, stack.as_ref(), HINT);
         if let Some((p, s)) = dragging {
             if let Some(def) = self.pane_stack(p, s).and_then(|s| self.project.db.item(&s.item)) {
                 self.assets.draw_frame_in(&def.icon.sheet, def.icon.frame, Rect::new(m.x - 16.0, m.y - 16.0, 32.0, 32.0), WHITE);

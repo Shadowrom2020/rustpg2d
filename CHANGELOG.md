@@ -43,6 +43,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   solid props and waiting people like patrols do (it used to walk into them and give up after
   four seconds, making that spot its new home). A character's home moves when it arrives
   somewhere, not with every step.
+- The companion window's item details show the stack count and the item's numbers (damage,
+  defense, tool) like the inventory's do.
 - **Lock texts can be translated**: the texts of locks and containers ("It's the elder's
   chest…") are collected into translation templates and shown in the chosen language; the
   example's German file has them.
@@ -65,6 +67,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- The map file's object record (`map::MapObjects`) is also the editor's undo snapshot (one
+  field list instead of three), and the inventory and companion windows share one item details
+  footer.
 - One implementation each of base64 (`hash.rs`; the fog of war, the web storage and the Tiled
   import had their own), the clock text (`entity::hour_text`; the game's clock and the editor
   rounded differently), the project-relative path check (`library::safe_rel`; the export now also

@@ -194,6 +194,50 @@ impl Ui {
     }
 }
 
+/// The details panel of an inventory-like window: the focused stack's name with its count, its
+/// stats in gold, two lines of description, and the help line (smaller when it doesn't fit).
+pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, stack: Option<&crate::inventory::ItemStack>, hint: &str) {
+    panel(d.x, d.y, d.w, d.h);
+    if let Some(s) = stack {
+        let def = db.item(&s.item);
+        let name = def.map_or(s.item.as_str(), |d| d.name.as_str());
+        let title = if s.count > 1 { format!("{name}  x{}", s.count) } else { name.to_string() };
+        draw_text(&title, d.x + pad, d.y + 24.0, 22.0, WHITE);
+        if let Some(def) = def {
+            let tw = measure_text(&title, None, 22, 1.0).width;
+            if let Some(line) = item_stats_line(def) {
+                draw_text(&line, d.x + pad + tw + 16.0, d.y + 23.0, 18.0, GOLD);
+            }
+            for (k, line) in wrap_text(&def.description, 18, d.w - 2.0 * pad).iter().take(2).enumerate() {
+                draw_text(line, d.x + pad, d.y + 44.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
+            }
+        }
+    }
+    let size = (12..=16u16).rev().find(|s| measure_text(hint, None, *s, 1.0).width <= d.w - 2.0 * pad).unwrap_or(12);
+    draw_text(hint, d.x + pad, d.y + d.h - 8.0, size as f32, GRAY);
+}
+
+/// One line of an item's numbers: tool kind, weapon damage / cooldown / reach, armor slot /
+/// defense / speed.
+pub(super) fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
+    if !d.tool.is_empty() {
+        return Some(format!("Tool · {}", d.tool));
+    }
+    if let Some(w) = &d.weapon {
+        return Some(match &w.ranged {
+            Some(r) => format!("Damage {} · every {:.2}s · range {:.0}", w.damage, w.cooldown, r.range),
+            None => format!("Damage {} · every {:.2}s · reach {:.1}", w.damage, w.cooldown, w.reach),
+        });
+    }
+    d.armor.as_ref().map(|a| {
+        let mut s = format!("{} · Defense +{}", a.slot.label(), a.defense);
+        if a.speed != 0.0 {
+            s.push_str(&format!(" · Speed {:+.0}%", a.speed * 100.0));
+        }
+        s
+    })
+}
+
 pub(super) fn panel(x: f32, y: f32, w: f32, h: f32) {
     draw_rectangle(x, y, w, h, Color::new(0.06, 0.06, 0.12, 0.92));
     draw_rectangle_lines(x, y, w, h, 3.0, Color::new(0.85, 0.8, 0.6, 1.0));

@@ -40,23 +40,60 @@ struct Core {
     meta: String,
 }
 
-#[derive(Serialize, Deserialize)]
+/// Everything on a map that isn't tile data: the RON part of a map file, and (as
+/// `map::MapObjects`) the editor's undo snapshot of it. A new map property is added here, in
+/// [`Meta::of`] and [`Meta::apply`], and nowhere else.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-struct Meta {
-    entities: Vec<EntityInstance>,
-    zones: Vec<Zone>,
-    edges: EdgeLinks,
-    triggers: Vec<Trigger>,
-    next_uid: u32,
-    background: [u8; 3],
-    music: String,
-    lighting: crate::map::MapLighting,
-    fog: bool,
+pub struct Meta {
+    pub entities: Vec<EntityInstance>,
+    pub zones: Vec<Zone>,
+    pub edges: EdgeLinks,
+    pub triggers: Vec<Trigger>,
+    pub next_uid: u32,
+    pub background: [u8; 3],
+    pub music: String,
+    pub lighting: crate::map::MapLighting,
+    pub fog: bool,
     /// Clear weather isn't written (maps without weather stay as they were).
     #[serde(skip_serializing_if = "crate::map::Weather::is_clear")]
-    weather: crate::map::Weather,
+    pub weather: crate::map::Weather,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    parallax: Vec<crate::map::ParallaxLayer>,
+    pub parallax: Vec<crate::map::ParallaxLayer>,
+}
+
+impl Meta {
+    /// A copy of the map's objects and settings.
+    pub fn of(map: &Map) -> Meta {
+        Meta {
+            entities: map.entities.clone(),
+            zones: map.zones.clone(),
+            edges: map.edges.clone(),
+            triggers: map.triggers.clone(),
+            next_uid: map.next_uid,
+            background: map.background,
+            music: map.music.clone(),
+            lighting: map.lighting,
+            fog: map.fog,
+            weather: map.weather,
+            parallax: map.parallax.clone(),
+        }
+    }
+
+    /// Puts these objects and settings onto `map` (its tiles stay).
+    pub fn apply(&self, map: &mut Map) {
+        map.entities = self.entities.clone();
+        map.zones = self.zones.clone();
+        map.edges = self.edges.clone();
+        map.triggers = self.triggers.clone();
+        map.next_uid = self.next_uid;
+        map.background = self.background;
+        map.music = self.music.clone();
+        map.lighting = self.lighting;
+        map.fog = self.fog;
+        map.weather = self.weather;
+        map.parallax = self.parallax.clone();
+    }
 }
 
 impl Default for Meta {
@@ -201,19 +238,7 @@ struct MapV1 {
 pub fn encode(map: &Map) -> Result<Vec<u8>> {
     let mut map = map.clone();
     map.compact();
-    let meta = Meta {
-        entities: map.entities.clone(),
-        zones: map.zones.clone(),
-        edges: map.edges.clone(),
-        triggers: map.triggers.clone(),
-        next_uid: map.next_uid,
-        background: map.background,
-        music: map.music.clone(),
-        lighting: map.lighting,
-        fog: map.fog,
-        weather: map.weather,
-        parallax: map.parallax.clone(),
-    };
+    let meta = Meta::of(&map);
     let core = CoreRef {
         name: &map.name,
         width: map.width,

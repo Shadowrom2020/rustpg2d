@@ -833,30 +833,10 @@ impl Game {
             draw_text("x", c.x + 6.0, c.y + 17.0, 24.0, if c.contains(m) { WHITE } else { GRAY });
         }
 
-        // Details of the hovered or selected stack.
-        let d = layout.detail;
-        panel(d.x, d.y, d.w, d.h);
+        // Details of the hovered or selected stack, and the help line.
         let focus = hover.or(self.inv.sel);
         let stack = focus.and_then(|(side, i)| self.slot_stack(side, i));
-        if let Some(s) = &stack {
-            let def = self.project.db.item(&s.item);
-            let name = def.map_or(s.item.as_str(), |d| d.name.as_str());
-            let title = if s.count > 1 { format!("{name}  x{}", s.count) } else { name.to_string() };
-            draw_text(&title, d.x + PAD, d.y + 24.0, 22.0, WHITE);
-            if let Some(def) = def {
-                let tw = measure_text(&title, None, 22, 1.0).width;
-                if let Some(line) = item_stats_line(def) {
-                    draw_text(&line, d.x + PAD + tw + 16.0, d.y + 23.0, 18.0, GOLD);
-                }
-                for (k, line) in wrap_text(&def.description, 18, d.w - 2.0 * PAD).iter().take(2).enumerate() {
-                    draw_text(line, d.x + PAD, d.y + 44.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
-                }
-            }
-        }
-        // The help line, smaller if it doesn't fit.
-        let hint = self.hint();
-        let size = (12..=16u16).rev().find(|s| measure_text(hint, None, *s, 1.0).width <= d.w - 2.0 * PAD).unwrap_or(12);
-        draw_text(hint, d.x + PAD, d.y + d.h - 8.0, size as f32, GRAY);
+        super::ui::draw_item_detail(&self.project.db, layout.detail, PAD, stack.as_ref(), self.hint());
 
         // The stack being dragged follows the cursor.
         if let Some((side, i)) = dragging {
@@ -873,25 +853,6 @@ fn cols_of(layout: &Layout, side: Side) -> usize {
 }
 
 /// Short stat summary of an equippable item, e.g. "Damage 2 · every 0.35s · reach 1.1".
-fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
-    if !d.tool.is_empty() {
-        return Some(format!("Tool · {}", d.tool));
-    }
-    if let Some(w) = &d.weapon {
-        return Some(match &w.ranged {
-            Some(r) => format!("Damage {} · every {:.2}s · range {:.0}", w.damage, w.cooldown, r.range),
-            None => format!("Damage {} · every {:.2}s · reach {:.1}", w.damage, w.cooldown, w.reach),
-        });
-    }
-    d.armor.as_ref().map(|a| {
-        let mut s = format!("{} · Defense +{}", a.slot.label(), a.defense);
-        if a.speed != 0.0 {
-            s.push_str(&format!(" · Speed {:+.0}%", a.speed * 100.0));
-        }
-        s
-    })
-}
-
 impl Game {
     /// Character sheet: portrait, equipment slots and stats.
     fn draw_sheet(&self, g: &Grid, hover: Option<(Side, usize)>, dragging: Option<(Side, usize)>) {

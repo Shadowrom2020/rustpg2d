@@ -1,6 +1,8 @@
 //! Tile maps: chunked, sparse layers so maps up to 1024x1024 tiles stay cheap.
 
 pub mod io;
+/// The non-tile part of a map (objects and settings), the editor's undo snapshot: see `io::Meta`.
+pub use io::Meta as MapObjects;
 pub mod transition;
 
 use serde::{Deserialize, Serialize};

@@ -3,57 +3,11 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use rustpg2d_engine::entity::EntityInstance;
-use rustpg2d_engine::events::Trigger;
-use rustpg2d_engine::map::{EdgeLinks, Map, Tile, Zone};
+use rustpg2d_engine::map::{Map, Tile};
 use rustpg2d_engine::render::{Assets, Overview};
 
-/// Everything on a map that isn't tile data.
-#[derive(Clone, PartialEq)]
-pub struct Objects {
-    pub entities: Vec<EntityInstance>,
-    pub zones: Vec<Zone>,
-    pub edges: EdgeLinks,
-    pub triggers: Vec<Trigger>,
-    pub next_uid: u32,
-    pub background: [u8; 3],
-    pub music: String,
-    pub lighting: rustpg2d_engine::map::MapLighting,
-    pub fog: bool,
-    pub weather: rustpg2d_engine::map::Weather,
-    pub parallax: Vec<rustpg2d_engine::map::ParallaxLayer>,
-}
-
-impl Objects {
-    pub fn of(map: &Map) -> Self {
-        Objects {
-            entities: map.entities.clone(),
-            zones: map.zones.clone(),
-            edges: map.edges.clone(),
-            triggers: map.triggers.clone(),
-            next_uid: map.next_uid,
-            background: map.background,
-            music: map.music.clone(),
-            lighting: map.lighting,
-            fog: map.fog,
-            weather: map.weather,
-            parallax: map.parallax.clone(),
-        }
-    }
-    fn apply(&self, map: &mut Map) {
-        map.entities = self.entities.clone();
-        map.zones = self.zones.clone();
-        map.edges = self.edges.clone();
-        map.triggers = self.triggers.clone();
-        map.next_uid = self.next_uid;
-        map.background = self.background;
-        map.music = self.music.clone();
-        map.lighting = self.lighting;
-        map.fog = self.fog;
-        map.weather = self.weather;
-        map.parallax = self.parallax.clone();
-    }
-}
+/// Everything on a map that isn't tile data (the map file's own RON part).
+pub type Objects = rustpg2d_engine::map::MapObjects;
 
 pub enum Edit {
     Tiles { layer: usize, changes: Vec<(u32, u32, Tile, Tile)> },

@@ -60,6 +60,36 @@
         volume: 0.6,
     ),
     (
+        id: "bell",
+        file: "sounds/bell.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "cluck",
+        file: "sounds/cluck.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "bark",
+        file: "sounds/bark.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "meow",
+        file: "sounds/meow.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "baa",
+        file: "sounds/baa.wav",
+        volume: 0.6,
+    ),
+    (
+        id: "moo",
+        file: "sounds/moo.wav",
+        volume: 0.6,
+    ),
+    (
         id: "music_village",
         file: "sounds/music_village.ogg",
         volume: 0.5,
@@ -67,6 +97,11 @@
     (
         id: "music_forest",
         file: "sounds/music_forest.ogg",
+        volume: 0.5,
+    ),
+    (
+        id: "music_tavern",
+        file: "sounds/music_tavern.ogg",
         volume: 0.5,
     ),
 ]

@@ -90,6 +90,247 @@ fn room(w: i32, h: i32, floor: u32, wall: u32) -> P {
     p
 }
 
+/// Roofs of village buildings: (roof, eave, chimney).
+#[derive(Clone, Copy)]
+pub enum Roof {
+    Red,
+    Slate,
+    Thatch,
+}
+
+impl Roof {
+    pub fn tiles(self) -> (u32, u32, Option<u32>) {
+        match self {
+            Roof::Red => (t::ROOF, t::ROOF_EDGE, Some(t::CHIMNEY)),
+            Roof::Slate => (t::ROOF_SLATE, t::ROOF_SLATE_EDGE, Some(t::CHIMNEY_SLATE)),
+            Roof::Thatch => (t::ROOF_THATCH, t::ROOF_THATCH_EDGE, None),
+        }
+    }
+}
+
+/// Walls of village buildings: (wall, lit window, door).
+#[derive(Clone, Copy)]
+pub enum Wall {
+    Timber,
+    TimberX,
+    Stone,
+}
+
+impl Wall {
+    pub fn tiles(self) -> (u32, u32, u32) {
+        match self {
+            Wall::Timber => (t::HOUSE_WALL, t::WINDOW, t::DOOR),
+            Wall::TimberX => (t::TIMBER_WALL_X, t::WINDOW, t::DOOR),
+            Wall::Stone => (t::STONE_HOUSE, t::STONE_WINDOW, t::STONE_DOOR),
+        }
+    }
+}
+
+/// A village building `w` wide: two roof rows and the eave, `walls` wall rows with windows on
+/// the first one, a chimney near the right end, a walkable door in the middle of the bottom row.
+fn building(w: i32, walls: i32, roof: Roof, wall: Wall) -> P {
+    let (r, eave, chimney) = roof.tiles();
+    let (wt, window, door) = wall.tiles();
+    let h = 3 + walls;
+    let mut p = P::new(w as u32, h as u32);
+    p.fill(1, TR, 0, 0, w, 2, r);
+    p.fill(1, TR, 0, 2, w, 1, eave);
+    if let Some(c) = chimney {
+        p.set(1, TR, w - 2, 0, c);
+    }
+    p.fill(1, TR, 0, 3, w, walls, wt);
+    for x in (1..w - 1).step_by(3) {
+        if x != w / 2 {
+            p.set(1, TR, x, 3, window);
+        }
+    }
+    p.set(1, TR, w - 2, 3, window);
+    p.set(1, TR, w / 2, h - 1, door);
+    p.walkable(w / 2, h - 1);
+    p
+}
+
+/// A fenced enclosure `w` x `h` with posts at the corners and a gap of `gap` tiles in the
+/// middle of the bottom side.
+fn fenced(p: &mut P, w: i32, h: i32, gap: i32) {
+    p.fill(1, TR, 0, 0, w, 1, t::FENCE);
+    p.fill(1, TR, 0, h - 1, w, 1, t::FENCE);
+    p.fill(1, TR, 0, 0, 1, h, t::FENCE_V);
+    p.fill(1, TR, w - 1, 0, 1, h, t::FENCE_V);
+    for (x, y) in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)] {
+        p.set(1, TR, x, y, t::FENCE_POST);
+    }
+    let g0 = (w - gap) / 2;
+    for x in g0..g0 + gap {
+        p.m.layers[1].set(x as u32, (h - 1) as u32, Tile::EMPTY);
+    }
+}
+
+/// Village structures (0.11.0): the buildings, market, farm, graveyard, dock and rooms of
+/// Emberbrook.
+fn village_structures(out: &mut Vec<StructureDef>) {
+    // --- Buildings (a row of ground in front of the door)
+    let mut p = with_front(building(11, 2, Roof::Slate, Wall::TimberX), t::COBBLE);
+    p.prop("sign_tavern", 4, 4, 1);
+    p.prop("keg", 1, 5, 1);
+    p.prop("flower_box", 8, 5, 1);
+    out.push(p.done("tavern_front", "Tavern (slate roof, sign)", "Buildings", true));
+    let mut p = with_front(building(7, 2, Roof::Red, Wall::Timber), t::PATH);
+    p.prop("sign_bakery", 2, 4, 1);
+    p.prop("flour_sacks", 5, 5, 1);
+    out.push(p.done("bakery_front", "Bakery (sign, flour sacks)", "Buildings", true));
+    let mut p = with_front(building(7, 2, Roof::Slate, Wall::Stone), t::STONE_FLOOR);
+    p.prop("sign_smithy", 2, 4, 1);
+    p.prop("woodpile", 6, 5, 2);
+    out.push(p.done("smithy_stone", "Stone smithy (sign, woodpile)", "Buildings", true));
+    let mut p = building(9, 4, Roof::Slate, Wall::Stone);
+    for x in [1, 3, 5, 7] {
+        p.set(1, TR, x, 3, t::STONE_HOUSE);
+        p.set(1, TR, x, 4, t::CHAPEL_WINDOW);
+    }
+    p.set(1, TR, 7, 3, t::STONE_WINDOW);
+    let mut p = with_front(p, t::STONE_FLOOR);
+    p.prop("candle_stand", 2, 8, 1);
+    p.prop("candle_stand", 6, 8, 1);
+    out.push(p.done("chapel", "Chapel (stained glass)", "Buildings", true));
+    let mut p = with_front(building(7, 2, Roof::Thatch, Wall::Timber), t::PATH);
+    p.prop("hay_bale", 1, 5, 1);
+    p.prop("flower_pot", 5, 5, 1);
+    out.push(p.done("farmhouse_thatch", "Farmhouse (thatched roof)", "Buildings", true));
+    let mut p = P::new(10, 6);
+    p.prop("windmill", 2, 5, 4);
+    let house = building(5, 2, Roof::Thatch, Wall::Stone);
+    for y in 0..5 {
+        for x in 0..5 {
+            if let Some((s, i)) = house.m.layers[1].get(x, y).parts() {
+                let ts = house.m.tilesets[s].clone();
+                p.set(1, &ts, 5 + x as i32, 1 + y as i32, i);
+            }
+        }
+    }
+    p.walkable(7, 5);
+    p.prop("flour_sacks", 9, 5, 1);
+    out.push(p.done("mill", "Windmill and mill house", "Buildings", false));
+
+    // --- Market, farm, graveyard
+    let mut p = P::new(9, 3);
+    p.fill(0, TR, 0, 0, 9, 3, t::COBBLE);
+    for (k, def) in ["stall_produce", "stall_fish", "stall_bread"].iter().enumerate() {
+        p.prop(def, 1 + 3 * k as i32, 2, 3);
+    }
+    out.push(p.done("market_row", "Market row (three stalls)", "Outdoor", true));
+    let mut p = P::new(9, 7);
+    p.fill(0, TR, 1, 1, 7, 5, t::STRAW_FLOOR);
+    fenced(&mut p, 9, 7, 2);
+    p.prop("double_gate", 4, 6, 2);
+    p.prop("trough", 2, 2, 2);
+    p.prop("hay_bale", 7, 2, 1);
+    out.push(p.done("animal_pen", "Animal pen (trough, gate)", "Outdoor", true));
+    let mut p = P::new(7, 6);
+    fenced(&mut p, 7, 6, 1);
+    for (x, y) in [(1, 2), (3, 2), (5, 2)] {
+        p.set(0, TR, x, y + 1, t::GRAVE_MOUND);
+    }
+    p.prop("tombstone", 1, 2, 1);
+    p.prop("grave_cross", 3, 2, 1);
+    p.prop("tombstone", 5, 2, 1);
+    p.set(0, TR, 1, 4, t::GRAVE_MOUND);
+    p.prop("grave_cross", 5, 4, 1);
+    out.push(p.done("graveyard", "Graveyard (fence, graves)", "Outdoor", true));
+    let mut p = P::new(8, 7);
+    p.fill(0, TR, 0, 0, 8, 7, t::FLOWER_BED);
+    p.prop("apple_tree", 2, 3, 2);
+    p.prop("apple_tree", 6, 3, 2);
+    p.prop("apple_tree", 4, 6, 2);
+    p.prop("beehive", 7, 6, 1);
+    out.push(p.done("orchard", "Orchard (apple trees, beehive)", "Outdoor", true));
+    let mut p = P::new(4, 6);
+    p.fill(0, TR, 0, 0, 4, 6, t::WATER);
+    p.fill(0, TR, 1, 0, 1, 5, t::DOCK);
+    p.set(0, TR, 1, 5, t::DOCK_EDGE);
+    p.prop("boat", 3, 3, 2);
+    out.push(p.done("dock", "Fishing dock (boat)", "Outdoor", true));
+    let mut p = P::new(8, 3);
+    p.fill(1, TR, 0, 0, 2, 2, t::STONE_WALL);
+    p.fill(1, TR, 6, 0, 2, 2, t::STONE_WALL);
+    p.fill(1, TR, 2, 0, 1, 2, t::GATE_PILLAR);
+    p.fill(1, TR, 5, 0, 1, 2, t::GATE_PILLAR);
+    p.prop("double_gate", 4, 1, 2);
+    p.prop("brazier", 2, 2, 1);
+    p.prop("brazier", 5, 2, 1);
+    out.push(p.done("gate_towers", "Town gate (pillars, braziers)", "Walls & fences", false));
+
+    // --- Rooms
+    let mut p = room(12, 10, t::WOOD_FLOOR, t::TIMBER_WALL_X);
+    p.set(1, TR, 3, 1, t::WINDOW);
+    p.set(1, TR, 8, 1, t::WINDOW);
+    p.fill(1, TR, 1, 3, 6, 1, t::COUNTER);
+    p.prop("keg_rack", 3, 2, 2);
+    p.prop("keg", 5, 2, 1);
+    p.prop("fireplace", 10, 3, 2);
+    for (x, y) in [(3, 6), (8, 6)] {
+        p.prop("tavern_table", x, y, 2);
+        p.prop("stool", x - 1, y - 1, 1);
+        p.prop("stool_up", x, y + 1, 1);
+    }
+    p.fill(0, TR, 6, 2, 1, 7, t::CARPET);
+    out.push(p.done("room_tavern", "Tavern room (counter, kegs, tables)", "Rooms", true));
+    let mut p = room(10, 8, t::STONE_FLOOR, t::STONE_WALL);
+    p.prop("forge", 7, 3, 2);
+    p.prop("bellows", 5, 3, 1);
+    p.prop("anvil", 5, 5, 1);
+    p.prop("weapon_rack", 2, 3, 2);
+    p.prop("grindstone", 8, 5, 1);
+    p.prop("tool_rack", 3, 6, 2);
+    out.push(p.done("room_smithy", "Smithy (forge, anvil, racks)", "Rooms", true));
+    let mut p = room(10, 8, t::TILED_FLOOR, t::HOUSE_WALL);
+    p.set(1, TR, 2, 1, t::WINDOW);
+    p.prop("oven", 8, 3, 2);
+    p.prop("bread_shelf", 2, 3, 2);
+    p.fill(1, TR, 3, 4, 4, 1, t::COUNTER);
+    p.prop("dough_table", 7, 6, 2);
+    p.prop("flour_sacks", 1, 6, 1);
+    out.push(p.done("room_bakery", "Bakery (oven, shelves, counter)", "Rooms", true));
+    let mut p = room(11, 12, t::TILED_FLOOR, t::STONE_WALL);
+    for x in [2, 8] {
+        p.set(1, TR, x, 1, t::CHAPEL_WINDOW);
+    }
+    p.fill(0, TR, 5, 2, 1, 9, t::CARPET);
+    p.prop("altar", 6, 3, 2);
+    p.prop("candle_stand", 3, 2, 1);
+    p.prop("candle_stand", 7, 2, 1);
+    for y in [5, 7, 9] {
+        p.prop("pew", 3, y, 2);
+        p.prop("pew", 8, y, 2);
+    }
+    p.prop("bell_rope", 1, 2, 1);
+    out.push(p.done("room_chapel", "Chapel nave (altar, pews)", "Rooms", true));
+}
+
+/// `p` with one more row of `ground` below it (the street in front of a building).
+fn with_front(p: P, ground: u32) -> P {
+    let (w, h) = (p.m.width, p.m.height);
+    let mut q = P::new(w, h + 1);
+    for layer in 0..p.m.layers.len().min(q.m.layers.len()) {
+        for y in 0..h {
+            for x in 0..w {
+                if let Some((s, i)) = p.m.layers[layer].get(x, y).parts() {
+                    let ts = p.m.tilesets[s].clone();
+                    q.set(layer, &ts, x as i32, y as i32, i);
+                }
+            }
+        }
+    }
+    for y in 0..h {
+        for x in 0..w {
+            let c = p.m.collision_at(x, y);
+            q.m.set_collision(x, y, c);
+        }
+    }
+    q.fill(0, TR, 0, h as i32, w as i32, 1, ground);
+    q
+}
+
 /// Terrain-based structures (for the example project; they also end up in the starter pack).
 pub fn example_structures() -> Vec<StructureDef> {
     let mut out = Vec::new();
@@ -191,6 +432,7 @@ pub fn example_structures() -> Vec<StructureDef> {
     p.set(1, TR, 2, 1, t::ROCK);
     p.set(1, TR, 0, 1, t::MUSHROOM);
     out.push(p.done("rocks_bushes", "Rocks and bushes", "Outdoor", false));
+    village_structures(&mut out);
     out
 }
 

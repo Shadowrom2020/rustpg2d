@@ -338,7 +338,9 @@ impl Canvas {
 
 // ------------------------------------------------------------------ terrain tileset
 
+pub mod animals;
 pub mod extra;
+pub mod village;
 
 pub mod t {
     pub const GRASS: u32 = 0;
@@ -1988,6 +1990,11 @@ pub enum Held {
     Torch,
     /// A fishing rod (in the hand while fishing): its tip is where the engine starts the line.
     Rod,
+    /// Work tools (shown while characters sweep, hoe a field, hammer or mine).
+    Broom,
+    Hoe,
+    Hammer,
+    Pickaxe,
 }
 
 impl Held {
@@ -2118,6 +2125,29 @@ pub fn held_canvas(kind: Held) -> Canvas {
                     c.disc(hx + (tx - hx) * 0.12, hy + (ty - hy) * 0.12 + 1.0, 1.6, hex(IRON[2]));
                     c.px(tip.0, tip.1, hex(0xe53935));
                 }
+                Held::Broom | Held::Hoe => {
+                    // A long handle held slanted down in front, the head on the ground side.
+                    let d = if side { fwd } else { out };
+                    let (hx, hy) = (x + d * 7, (y + 9).min(41));
+                    c.stroke(x as f32 - d as f32 * 3.0, y as f32 - 12.0, hx as f32, hy as f32, 0.9, hex(WOOD[2]));
+                    if kind == Held::Broom {
+                        for k in 0..5 {
+                            c.stroke(hx as f32, hy as f32 - 1.0, (hx - 4 + k * 2) as f32, hy as f32 + 4.0, 0.7, hex(if k % 2 == 0 { 0xc4a44e } else { 0xa88a3c }));
+                        }
+                    } else {
+                        c.shade_box(if d > 0 { hx } else { hx - 4 }, hy - 1, 5, 3, steel);
+                    }
+                }
+                Held::Hammer | Held::Pickaxe => {
+                    c.rect(x - 1, y - 11, 2, 14, hex(WOOD[1]));
+                    c.vline(x - 1, y - 11, 14, hex(WOOD[2]));
+                    if kind == Held::Hammer {
+                        c.shade_box(x - 4, y - 14, 8, 4, IRON);
+                    } else {
+                        c.stroke(x as f32 - 7.0, y as f32 - 9.0, x as f32, y as f32 - 13.0, 0.9, hex(steel[2]));
+                        c.stroke(x as f32, y as f32 - 13.0, x as f32 + 7.0, y as f32 - 9.0, 0.9, hex(steel[2]));
+                    }
+                }
                 Held::Torch => {
                     c.rect(x - 1, y - 8, 2, 11, hex(WOOD[1]));
                     c.disc(x as f32, y as f32 - 10.0, 2.5, hex(0xe8590c));
@@ -2199,6 +2229,10 @@ pub fn shared_layers() -> Vec<(String, Canvas, rustpg2d_engine::defs::SheetKind,
         ("lantern", Held::Lantern),
         ("torch", Held::Torch),
         ("rod", Held::Rod),
+        ("broom", Held::Broom),
+        ("hoe", Held::Hoe),
+        ("hammer", Held::Hammer),
+        ("pickaxe", Held::Pickaxe),
     ] {
         v.push((format!("held_{id}"), held_canvas(kind), K::Held, false));
     }
@@ -3969,6 +4003,136 @@ pub fn food_icons(out: &Path) {
     c.save(&out.join("sprites/food.png"));
 }
 
+/// The village's goods (their own sheet: `items.png` is full).
+pub mod it2 {
+    pub const FLOUR: u32 = 0;
+    pub const EGG: u32 = 1;
+    pub const CHEESE: u32 = 2;
+    pub const MILK: u32 = 3;
+    pub const HONEY: u32 = 4;
+    pub const MOONPETAL: u32 = 5;
+    pub const FEVERLEAF: u32 = 6;
+    pub const BITTERROOT: u32 = 7;
+    pub const REMEDY: u32 = 8;
+    pub const LOCKET: u32 = 9;
+    pub const FESTIVAL_BREAD: u32 = 10;
+    pub const ALE: u32 = 11;
+    pub const BROOM: u32 = 12;
+    pub const HOE: u32 = 13;
+    pub const COUNT: u32 = 14;
+}
+
+pub fn items2(out: &Path) {
+    let mut c = Canvas::new(TS * it2::COUNT, TS);
+    let n = TS as i32;
+    let bread = [0x7a4a18, 0xb87a34, 0xd8a056, 0xf0c888];
+    for i in 0..it2::COUNT {
+        c.at(i * TS, 0);
+        match i {
+            it2::FLOUR => {
+                c.shade_ellipse(16.0, 19.0, 10.0, 11.0, [0xa89c80, 0xccc0a4, 0xe8dec4, 0xfffaf0]);
+                c.rect(12, 6, 8, 3, hex(0x9a805a));
+                c.hline(9, 19, 14, hex(0x5a7ab0));
+                c.hline(10, 21, 12, hex(0x5a7ab0));
+            }
+            it2::EGG => {
+                c.shade_ellipse(12.0, 18.0, 6.0, 8.0, [0xb89870, 0xd8b890, 0xf0d8b0, 0xfff4e0]);
+                c.shade_ellipse(21.0, 20.0, 5.5, 7.0, [0xb8b0a0, 0xdcd4c4, 0xf2ece0, 0xffffff]);
+            }
+            it2::CHEESE => {
+                for y in 0..14 {
+                    c.hline(5 + y / 2, 12 + y, 22 - y / 2, hex(if y == 0 { 0xfff0a0 } else { 0xf0c840 }));
+                }
+                c.rect(5, 12, 22, 3, hex(0xfff0a0));
+                for (x, y) in [(10, 18), (16, 22), (20, 17)] {
+                    c.disc(x as f32, y as f32, 1.5, hex(0xc8a020));
+                }
+            }
+            it2::MILK => {
+                c.shade_box(9, 10, 14, 18, [0x6a3018, 0x9a4a2a, 0xc0643a, 0xe0905a]);
+                c.rect(11, 6, 10, 5, hex(0xc0643a));
+                c.ellipse(16.0, 7.0, 5.0, 1.5, hex(0xffffff));
+                c.rect(23, 13, 3, 8, hex(0x9a4a2a));
+            }
+            it2::HONEY => {
+                c.shade_ellipse(16.0, 19.0, 9.0, 9.0, [0x8a5a10, 0xc08a20, 0xe8b040, 0xf8d878]);
+                c.rect(9, 8, 14, 4, hex(0xe8dec4));
+                c.hline(8, 11, 16, hex(0xa82a2a));
+                c.rect(14, 18, 4, 4, hex(0xfff0a0));
+            }
+            it2::MOONPETAL => {
+                c.stroke(16.0, 30.0, 16.0, 16.0, 1.0, hex(0x2e5c44));
+                for a in 0..6 {
+                    let ang = a as f32 * 1.047;
+                    c.shade_ellipse(16.0 + ang.cos() * 6.0, 12.0 + ang.sin() * 6.0, 4.0, 4.0, [0x6a7ab8, 0x9aaee0, 0xc8d8f8, 0xf0f6ff]);
+                }
+                c.disc(16.0, 12.0, 2.5, hex(0xfff8c0));
+            }
+            it2::FEVERLEAF => {
+                c.stroke(8.0, 26.0, 24.0, 6.0, 1.0, hex(0x4a6a24));
+                c.shade_ellipse(16.0, 16.0, 6.0, 10.0, [0x3a5a1a, 0x5a7a2a, 0x7a9a3a, 0xd04a2a]);
+                c.line(12, 22, 20, 10, hex(0x3a5a1a));
+            }
+            it2::BITTERROOT => {
+                c.shade_ellipse(14.0, 20.0, 7.0, 6.0, [0x3a1a3a, 0x5a2a5a, 0x7a4a7a, 0xa87aa8]);
+                c.stroke(18.0, 24.0, 26.0, 29.0, 0.8, hex(0x5a2a5a));
+                for (dx, l) in [(-4.0f32, 9.0f32), (0.0, 12.0), (4.0, 9.0)] {
+                    c.stroke(14.0, 15.0, 14.0 + dx, 15.0 - l, 1.5, hex(0x2e6a2a));
+                }
+            }
+            it2::REMEDY => {
+                c.shade_disc(16.0, 20.0, 8.5, [0x0a4a4a, 0x14787a, 0x2ab0a8, 0x9ae8e0]);
+                c.rect(13, 6, 6, 7, hex(0xcfe8ff));
+                c.rect(12, 4, 8, 3, hex(0x8a5a2e));
+                c.rect(12, 16, 3, 3, hex(0xffffff));
+            }
+            it2::LOCKET => {
+                c.stroke(8.0, 4.0, 16.0, 14.0, 0.6, hex(0xc5d0d6));
+                c.stroke(24.0, 4.0, 16.0, 14.0, 0.6, hex(0xc5d0d6));
+                c.shade_ellipse(16.0, 20.0, 7.0, 8.0, [0x5f6b73, 0x90a4ae, 0xc5d0d6, 0xf0f4f6]);
+                c.ellipse(16.0, 20.0, 3.5, 4.5, hex(0x90a4ae));
+                c.disc(16.0, 20.0, 1.5, hex(0x3f6fb5));
+            }
+            it2::FESTIVAL_BREAD => {
+                for (k, (dx, dy)) in [(-6.0, 4.0), (6.0, 4.0), (0.0, -2.0)].into_iter().enumerate() {
+                    c.shade_ellipse(16.0 + dx, 17.0 + dy, 8.0 - k as f32, 6.0, bread);
+                }
+                for (x, y) in [(12, 18), (20, 18), (16, 13), (9, 21), (23, 21)] {
+                    c.px(x, y, hex(0xfff4c0));
+                }
+                c.rect(14, 22, 4, 6, hex(0xa82a2a));
+            }
+            it2::ALE => {
+                c.shade_box(8, 10, 13, 18, [0x8a5a10, 0xc08a20, 0xe8b040, 0xf8d878]);
+                c.rect(7, 6, 15, 5, hex(0xfff8e8));
+                c.disc(10.0, 7.0, 2.5, hex(0xfff8e8));
+                c.disc(19.0, 6.5, 2.5, hex(0xfff8e8));
+                c.rect(21, 13, 5, 2, hex(0x8a5a10));
+                c.rect(24, 13, 2, 10, hex(0x8a5a10));
+                c.rect(21, 21, 5, 2, hex(0x8a5a10));
+                for y in [14, 22] {
+                    c.hline(8, y, 13, hex(0x8a5a10));
+                }
+            }
+            it2::BROOM => {
+                c.stroke(26.0, 3.0, 12.0, 20.0, 1.0, hex(WOOD[2]));
+                for k in 0..7 {
+                    c.stroke(12.0, 20.0, 3.0 + k as f32 * 2.0, 30.0 - (k % 2) as f32, 1.0, hex(if k % 2 == 0 { 0xc4a44e } else { 0xa88a3c }));
+                }
+                c.rect(10, 19, 5, 3, hex(0xa82a2a));
+            }
+            it2::HOE => {
+                c.stroke(6.0, 29.0, 22.0, 6.0, 1.0, hex(WOOD[2]));
+                c.shade_box(18, 3, 10, 5, [0x5f6b73, 0x90a4ae, 0xc5d0d6, 0xf0f4f6]);
+                c.rect(25, 8, 3, 4, hex(0x90a4ae));
+            }
+            _ => {}
+        }
+        c.auto_outline(n, n, OUTLINE);
+    }
+    c.save(&out.join("sprites/items2.png"));
+}
+
 // ------------------------------------------------------------------ spell effects
 
 /// Fire colors from dark red to white-hot.
@@ -4111,8 +4275,163 @@ pub mod portrait {
     pub const ELDER: u32 = 0;
     pub const ELDER_WORRIED: u32 = 1;
     pub const TILDA: u32 = 2;
-    pub const COUNT: u32 = 3;
+    // The villagers of 0.11.0 (drawn from `BUSTS`).
+    pub const MIRA: u32 = 3;
+    pub const BAKER: u32 = 4;
+    pub const INNKEEPER: u32 = 5;
+    pub const HERBALIST: u32 = 6;
+    pub const PRIEST: u32 = 7;
+    pub const MILLER: u32 = 8;
+    pub const BLACKSMITH: u32 = 9;
+    pub const FISHER: u32 = 10;
+    pub const COUNT: u32 = 11;
     pub const SIZE: u32 = 64;
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum BustHair {
+    Short,
+    Long,
+    Bun,
+    Braids,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum BustHat {
+    None,
+    Cap(u32),
+    Straw,
+    Hood(u32),
+    Scarf(u32),
+}
+
+/// A villager's portrait: head and shoulders.
+struct Bust {
+    skin: [u32; 4],
+    hair: [u32; 4],
+    style: BustHair,
+    beard: bool,
+    clothes: [u32; 4],
+    /// Apron straps / collar colour.
+    trim: Option<u32>,
+    hat: BustHat,
+    female: bool,
+    child: bool,
+    backdrop: [u32; 4],
+}
+
+const SKIN_LIGHT: [u32; 4] = [0x9c6b48, 0xc98f63, 0xe8b88a, 0xf6d3b0];
+const SKIN_TAN: [u32; 4] = [0x7a4a2a, 0xa86a42, 0xd09068, 0xe8b088];
+const SKIN_DARK: [u32; 4] = [0x4a2a18, 0x6a4028, 0x8d5a3b, 0xb07a52];
+const BG_BLUE: [u32; 4] = [0x1c1f2e, 0x282c40, 0x363b55, 0x444a68];
+const BG_GREEN: [u32; 4] = [0x1f2a22, 0x2c3b30, 0x3b5040, 0x4a6250];
+const BG_WARM: [u32; 4] = [0x2e1f18, 0x40291e, 0x553626, 0x6a4430];
+
+/// The busts of portraits MIRA.. in order.
+const BUSTS: [Bust; 8] = [
+    // Mira, a girl with red braids.
+    Bust { skin: SKIN_TAN, hair: [0x5a1a0a, 0x8a3014, 0xb04a20, 0xd87038], style: BustHair::Braids, beard: false, clothes: [0x8a6a10, 0xc8a020, 0xf0c840, 0xfff0a0], trim: Some(0xffffff), hat: BustHat::None, female: true, child: true, backdrop: BG_GREEN },
+    // Bram the baker: flour-white clothes and cap, a round face, a moustache.
+    Bust { skin: SKIN_LIGHT, hair: [0x5a3418, 0x7a4a22, 0x9a6232, 0xb88050], style: BustHair::Short, beard: true, clothes: [0xa89c80, 0xccc0a4, 0xe8dec4, 0xfffaf0], trim: None, hat: BustHat::Cap(0xf2ece0), female: false, child: false, backdrop: BG_WARM },
+    // Greta the innkeeper: red hair in a bun, a dress with an apron.
+    Bust { skin: SKIN_LIGHT, hair: [0x6a1a0a, 0xa83a14, 0xd05a24, 0xf08a48], style: BustHair::Bun, beard: false, clothes: [0x3a1a4a, 0x5a2a6a, 0x7a4a8a, 0x9a6aaa], trim: Some(0xf2ece0), hat: BustHat::None, female: true, child: false, backdrop: BG_WARM },
+    // Wren the herbalist: a green robe and a headscarf.
+    Bust { skin: SKIN_DARK, hair: [0x1a120c, 0x2a1e14, 0x3a2a1e, 0x4a3828], style: BustHair::Long, beard: false, clothes: [0x1b4a24, 0x2e7a3a, 0x43a04f, 0x8ad08a], trim: Some(0xd8c8a0), hat: BustHat::Scarf(0x7a5a8a), female: true, child: false, backdrop: BG_GREEN },
+    // Brother Ansel: a brown hooded robe.
+    Bust { skin: SKIN_LIGHT, hair: [0x3a3a3a, 0x5a5a5a, 0x7a7a7a, 0x9a9a9a], style: BustHair::Short, beard: true, clothes: [0x3e2616, 0x5a3a22, 0x7a5436, 0x9a7050], trim: Some(0xd8c8a0), hat: BustHat::Hood(0x5a3a22), female: false, child: false, backdrop: BG_BLUE },
+    // Jorun the miller: a straw hat, a dusty smock.
+    Bust { skin: SKIN_TAN, hair: [0x6a5a3a, 0x8a7a5a, 0xaa9a7a, 0xcabaa0], style: BustHair::Short, beard: false, clothes: [0x6a6050, 0x8a8070, 0xaaa090, 0xcac0b0], trim: None, hat: BustHat::Straw, female: false, child: false, backdrop: BG_WARM },
+    // Brom the smith: a black beard, a leather apron.
+    Bust { skin: SKIN_TAN, hair: [0x0e0a08, 0x1e1612, 0x2e221a, 0x3e3024], style: BustHair::Short, beard: true, clothes: [0x3a2a1e, 0x5a4030, 0x6b5040, 0x8a6a54], trim: Some(0x2a1a10), hat: BustHat::None, female: false, child: false, backdrop: BG_BLUE },
+    // Old Finn the fisher: a grey beard, a cap, an oilskin coat.
+    Bust { skin: SKIN_LIGHT, hair: [0x6a6a70, 0x8f8f96, 0xbdbdc4, 0xdedee4], style: BustHair::Short, beard: true, clothes: [0x6a5a10, 0x9a8420, 0xc8ac34, 0xe8d070], trim: None, hat: BustHat::Cap(0x2a4a6a), female: false, child: false, backdrop: BG_BLUE },
+];
+
+/// Draws a bust at the canvas origin (the backdrop is drawn already).
+fn bust(c: &mut Canvas, b: &Bust) {
+    let (hy, hr) = if b.child { (34.0, 12.0) } else { (28.0, 12.0) };
+    let sy = if b.child { 74.0 } else { 70.0 };
+    if matches!(b.style, BustHair::Long) {
+        c.shade_ellipse(32.0, hy + 8.0, hr + 5.0, 22.0, b.hair);
+    }
+    if let BustHat::Hood(col) = b.hat {
+        c.shade_ellipse(32.0, hy + 2.0, hr + 7.0, hr + 9.0, [mul(col, 0.5), mul(col, 0.75), col, mul(col, 1.3)]);
+    }
+    c.shade_ellipse(32.0, sy, if b.child { 22.0 } else { 29.0 }, 22.0, b.clothes);
+    if let Some(t) = b.trim {
+        if b.female || matches!(b.hat, BustHat::Hood(_)) {
+            c.stroke(25.0, 50.0, 23.0, 64.0, 1.5, hex(t));
+            c.stroke(39.0, 50.0, 41.0, 64.0, 1.5, hex(t));
+        } else {
+            c.rect(20, 54, 24, 10, hex(t));
+        }
+    }
+    c.rect(27, (hy + 12.0) as i32, 10, 8, hex(b.skin[1]));
+    c.shade_ellipse(32.0, hy, hr - if b.female { 0.5 } else { 0.0 }, hr + 2.5, b.skin);
+    c.shade_ellipse(32.0 - hr - 0.5, hy + 1.0, 2.5, 4.0, b.skin);
+    c.shade_ellipse(32.0 + hr + 0.5, hy + 1.0, 2.5, 4.0, b.skin);
+    // Hair on top.
+    match b.style {
+        BustHair::Short => c.shade_ellipse(32.0, hy - 10.0, hr + 0.5, 6.0, b.hair),
+        BustHair::Long => {
+            c.shade_ellipse(32.0, hy - 10.0, hr + 1.0, 6.5, b.hair);
+            c.shade_ellipse(32.0 - hr + 1.5, hy, 3.5, 11.0, b.hair);
+            c.shade_ellipse(32.0 + hr - 1.5, hy, 3.5, 11.0, b.hair);
+        }
+        BustHair::Bun => {
+            c.shade_disc(32.0, hy - 16.0, 6.0, b.hair);
+            c.shade_ellipse(32.0, hy - 9.0, hr + 0.5, 6.0, b.hair);
+        }
+        BustHair::Braids => {
+            c.shade_ellipse(32.0, hy - 9.0, hr + 1.0, 6.5, b.hair);
+            for x in [32.0 - hr - 2.0, 32.0 + hr + 2.0] {
+                c.shade_ellipse(x, hy + 10.0, 3.0, 10.0, b.hair);
+                c.rect(x as i32 - 2, (hy + 19.0) as i32, 4, 2, hex(0x43a047));
+            }
+        }
+    }
+    match b.hat {
+        BustHat::Cap(col) => {
+            c.shade_ellipse(32.0, hy - 11.0, hr + 1.0, 6.0, [mul(col, 0.6), mul(col, 0.8), col, mul(col, 1.15)]);
+            c.rect(19, (hy - 7.0) as i32, 26, 3, hex(mul(col, 0.7)));
+        }
+        BustHat::Straw => {
+            c.ellipse(32.0, hy - 8.0, hr + 9.0, 4.0, hex(0xc4a44e));
+            c.shade_ellipse(32.0, hy - 13.0, hr - 2.0, 6.0, [0x8a6e2a, 0xa88a3c, 0xc4a44e, 0xe0c870]);
+            c.hline(21, (hy - 9.0) as i32, 22, hex(0xa82a2a));
+        }
+        BustHat::Scarf(col) => {
+            c.shade_ellipse(32.0, hy - 10.0, hr + 1.5, 7.0, [mul(col, 0.6), mul(col, 0.8), col, mul(col, 1.2)]);
+        }
+        BustHat::Hood(col) => c.shade_ellipse(32.0, hy - 11.0, hr + 2.0, 6.0, [mul(col, 0.5), mul(col, 0.75), col, mul(col, 1.3)]),
+        BustHat::None => {}
+    }
+    // Face.
+    let ey = (hy + 1.0) as i32;
+    for ex in [26, 36] {
+        c.rect(ex, ey, 3, 2, hex(0xffffff));
+        c.px(ex + 1, ey, hex(0x2a1a10));
+        c.px(ex + 1, ey + 1, hex(0x2a1a10));
+        if b.female {
+            c.hline(ex, ey - 1, 3, hex(0x1e120c));
+        }
+    }
+    c.line(25, ey - 3, 29, ey - 4, hex(b.hair[1]));
+    c.line(35, ey - 4, 39, ey - 3, hex(b.hair[1]));
+    c.line(32, ey + 1, 31, ey + 5, hex(b.skin[1]));
+    if b.female || b.child {
+        c.rect(24, ey + 4, 3, 2, hex(0xe8907a));
+        c.rect(37, ey + 4, 3, 2, hex(0xe8907a));
+    }
+    if b.beard {
+        c.shade_ellipse(32.0, hy + 12.0, hr - 2.0, 7.0, b.hair);
+        c.shade_ellipse(32.0, hy + 7.0, 6.0, 2.0, b.hair);
+        c.hline(29, ey + 8, 6, hex(0x5a3030));
+    } else {
+        c.line(29, ey + 8, 31, ey + 9, hex(0xa04848));
+        c.line(31, ey + 9, 33, ey + 9, hex(0xa04848));
+        c.line(33, ey + 9, 35, ey + 8, hex(0xa04848));
+    }
 }
 
 /// Drawn dialog portraits: the elder (calm and worried) and Tilda the merchant, head and
@@ -4124,7 +4443,7 @@ pub fn portraits(out: &Path) {
     for k in 0..portrait::COUNT {
         let c = c.at(k * portrait::SIZE, 0);
         // Backdrop: a soft vignette.
-        let bg = if k == portrait::TILDA { [0x1f2a22, 0x2c3b30, 0x3b5040, 0x4a6250] } else { [0x1c1f2e, 0x282c40, 0x363b55, 0x444a68] };
+        let bg = if k == portrait::TILDA { BG_GREEN } else if k >= portrait::MIRA { BUSTS[(k - portrait::MIRA) as usize].backdrop } else { BG_BLUE };
         for y in 0..S {
             for x in 0..S {
                 let (dx, dy) = ((x as f32 - 32.0) / 40.0, (y as f32 - 26.0) / 40.0);
@@ -4180,6 +4499,7 @@ pub fn portraits(out: &Path) {
                 c.line(32, 29, 31, 33, hex(skin[1]));
                 c.px(32, 33, hex(skin[0]));
             }
+            k if k >= portrait::MIRA => bust(c, &BUSTS[(k - portrait::MIRA) as usize]),
             _ => {
                 let hair = [0x1e120c, 0x3a2418, 0x5a3a26, 0x7a5236];
                 let dress = [0x1b3a24, 0x2e5c3a, 0x43804f, 0x63a56c];

@@ -21,6 +21,7 @@ mod art;
 mod lang_de;
 mod music;
 mod structures;
+mod village_db;
 use art::*;
 
 // ------------------------------------------------------------------ sounds
@@ -80,7 +81,7 @@ fn midi(n: i32) -> f32 {
 
 type SoundFn = fn() -> Vec<f32>;
 
-const SOUNDS: [(&str, SoundFn); 12] = [
+const SOUNDS: [(&str, SoundFn); 18] = [
     // A bright, bell-like arpeggio for magic (the forest shrine).
     ("chime", || {
         let mut out = vec![0.0; (1.6 * RATE as f32) as usize];
@@ -103,6 +104,33 @@ const SOUNDS: [(&str, SoundFn); 12] = [
     ("fireball", || tone(500.0, 1600.0, 0.22, Wave::Noise, 0.35, 7.0)),
     ("explosion", || concat(&[tone(2000.0, 200.0, 0.12, Wave::Noise, 0.55, 6.0), tone(400.0, 40.0, 0.5, Wave::Noise, 0.6, 3.0)])),
     ("door", || concat(&[tone(150.0, 110.0, 0.12, Wave::Triangle, 0.6, 8.0), tone(200.0, 140.0, 0.15, Wave::Triangle, 0.5, 8.0)])),
+    // The village: the chapel bell, and the animals.
+    ("bell", || {
+        let mut out = vec![0.0; (3.0 * RATE as f32) as usize];
+        for (ratio, vol, decay) in [(1.0, 0.3, 1.0), (2.0, 0.16, 1.5), (2.4, 0.12, 2.2), (3.0, 0.08, 2.6), (4.2, 0.05, 3.5), (0.5, 0.12, 0.8)] {
+            let f = 220.0 * ratio;
+            mix(&mut out, &tone(f, f, 3.0, Wave::Triangle, vol, decay), 0);
+        }
+        out
+    }),
+    ("cluck", || {
+        let rest = || vec![0.0; (0.07 * RATE as f32) as usize];
+        concat(&[tone(700.0, 450.0, 0.06, Wave::Triangle, 0.4, 20.0), rest(), tone(650.0, 420.0, 0.05, Wave::Triangle, 0.35, 20.0), rest(), tone(900.0, 500.0, 0.12, Wave::Triangle, 0.4, 10.0)])
+    }),
+    ("bark", || {
+        let woof = || {
+            let mut v = tone(480.0, 260.0, 0.13, Wave::Square, 0.3, 14.0);
+            mix(&mut v, &tone(1800.0, 600.0, 0.08, Wave::Noise, 0.15, 25.0), 0);
+            v
+        };
+        concat(&[woof(), vec![0.0; (0.1 * RATE as f32) as usize], woof()])
+    }),
+    ("meow", || concat(&[tone(520.0, 820.0, 0.16, Wave::Triangle, 0.35, 2.0), tone(820.0, 460.0, 0.3, Wave::Triangle, 0.35, 4.0)])),
+    ("baa", || {
+        let parts: Vec<Vec<f32>> = (0..10).map(|k| tone(if k % 2 == 0 { 310.0 } else { 290.0 }, 295.0, 0.05, Wave::Square, 0.18, 1.0)).collect();
+        concat(&parts)
+    }),
+    ("moo", || concat(&[tone(120.0, 150.0, 0.3, Wave::Triangle, 0.6, 0.5), tone(150.0, 105.0, 0.7, Wave::Triangle, 0.6, 2.0)])),
 ];
 
 // ------------------------------------------------------------------ maps
@@ -1817,6 +1845,13 @@ fn database() -> Database {
         recipes: recipes(),
         achievements: achievements(),
     };
+    // The village (0.11.0): its props, goods, recipes, sheets and people.
+    db.props.extend(art::extra::props2().1);
+    db.props.extend(village_db::props());
+    db.items.extend(village_db::items());
+    db.recipes.extend(village_db::recipes());
+    db.sheets.extend(village_db::sheets());
+    db.characters.extend(village_db::characters());
     layered_characters(&mut db);
     // Cooked dishes: icons on the food sheet, stacks of ten.
     for (id, f) in [("grilled_trout", food::GRILLED_TROUT), ("bread", food::BREAD), ("carrot_soup", food::CARROT_SOUP), ("pumpkin_stew", food::STEW), ("apple_pie", food::PIE)] {
@@ -2259,6 +2294,18 @@ fn outfits() -> Vec<(&'static str, &'static str, Look, &'static str)> {
         ("merchant_dress", "Merchant Dress", Look { robe: Some(0x6a3a7a), apron: Some(0xe8dcc0), ..l(0x7a3a8a, 0x4a3a2a) }, "A long dress with an apron."),
         ("guard_uniform", "Guard Uniform", l(0x2b4c8c, 0x3a3a44), "The blue uniform of the town guard."),
         ("goblin_rags", "Goblin Rags", l(0x5d4037, 0x3e2723), "Smelly, but they cover the essentials."),
+        // The village (0.11.0).
+        ("baker_whites", "Baker's Whites", Look { apron: Some(0xffffff), hat: Hat::Cap(0xf2ece0), ..l(0xf2ece0, 0xd8d0c0) }, "Flour-dusted whites and a baker's cap."),
+        ("innkeeper_dress", "Innkeeper's Dress", Look { robe: Some(0x5a2a6a), apron: Some(0xf2ece0), ..l(0x7a4a8a, 0x4a3a2a) }, "A plum dress with a clean apron."),
+        ("herbalist_robe", "Herbalist's Robe", Look { robe: Some(0x2e7a3a), hat: Hat::Wrap(0x7a5a8a), ..l(0x43a04f, 0x2e4a2a) }, "A green robe that smells of herbs, and a headscarf."),
+        ("priest_robe", "Priest's Robe", Look { robe: Some(0x5a3a22), hat: Hat::Hood(0x5a3a22), ..l(0x5a3a22, 0x3e2616) }, "A plain brown habit with a hood."),
+        ("miller_smock", "Miller's Smock", Look { apron: Some(0xd8d0c0), hat: Hat::Straw(0xe2c46a), ..l(0x8a8070, 0x6a5a4a) }, "A dusty smock and a straw hat."),
+        ("fisher_coat", "Oilskin Coat", Look { hat: Hat::Cap(0x2a4a6a), ..l(0xc8ac34, 0x3a4a5a) }, "A yellow coat that keeps the spray out."),
+        ("crier_coat", "Crier's Coat", Look { hat: Hat::Cap(0x2a2a3a), ..l(0xa82a2a, 0x2a2a3a) }, "A bright red coat: the whole village sees the crier coming."),
+        ("farmer_clothes", "Farmer's Clothes", Look { hat: Hat::Straw(0xe2c46a), ..l(0xc9a25a, 0x3f5f8f) }, "Sturdy work clothes and a wide straw hat."),
+        ("farm_dress", "Farm Dress", Look { robe: Some(0x3f5f8f), apron: Some(0xe8dcc0), hat: Hat::Straw(0xe2c46a), ..l(0xe8dcc0, 0x3f5f8f) }, "A blue dress, an apron and a straw hat."),
+        ("smith_apron", "Smith's Apron", Look { apron: Some(0x4a3424), ..l(0x6b5040, 0x3a3020) }, "A scorched leather apron over work clothes."),
+        ("villager_dress", "Villager Dress", Look { robe: Some(0x2e9d5b), ..l(0x2e9d5b, 0x6b4a2a) }, "A plain green dress."),
     ]
 }
 
@@ -2278,7 +2325,7 @@ fn layered_characters(db: &mut Database) {
     }
     db.sheets.push(SheetDef::new("outfit_icons", "sprites/outfit_icons.png", 32, 32));
     // What weapons, shields and lights look like in a hand.
-    for (item, held) in [("sword", "held_sword"), ("iron_sword", "held_sword"), ("fine_iron_sword", "held_sword"), ("spear", "held_spear"), ("axe", "held_axe"), ("bow", "held_bow"), ("crossbow", "held_crossbow"), ("wooden_shield", "held_shield"), ("lantern", "held_lantern"), ("torch", "held_torch"), ("fishing_rod", "held_rod")] {
+    for (item, held) in [("sword", "held_sword"), ("iron_sword", "held_sword"), ("fine_iron_sword", "held_sword"), ("spear", "held_spear"), ("axe", "held_axe"), ("bow", "held_bow"), ("crossbow", "held_crossbow"), ("wooden_shield", "held_shield"), ("lantern", "held_lantern"), ("torch", "held_torch"), ("fishing_rod", "held_rod"), ("hammer", "held_hammer"), ("pickaxe", "held_pickaxe")] {
         db.items.iter_mut().find(|d| d.id == item).expect(item).held = held.into();
     }
     // The goblins' own bow: what they shoot with, dropped when they are defeated.
@@ -2319,10 +2366,27 @@ fn layered_characters(db: &mut Database) {
                 vec![(EquipSlot::Clothing, "tunic_red"), (EquipSlot::Body, "leather_armor"), (EquipSlot::Head, "leather_cap"), (EquipSlot::Weapon, "axe")],
             ),
             "outlaw" => (look("body_male", 0xe8b88a, "hair_short", 0x7a4a22, false), vec![(EquipSlot::Clothing, "tunic_green"), (EquipSlot::Head, "leather_cap"), (EquipSlot::Weapon, "sword")]),
+            // The village (0.11.0).
+            "baker" => (look("body_male", 0xf2c49b, "hair_short", 0x7a4a22, true), vec![(EquipSlot::Clothing, "baker_whites")]),
+            "innkeeper" => (look("body_female", 0xf2c49b, "hair_ponytail", 0xd05a24, false), vec![(EquipSlot::Clothing, "innkeeper_dress")]),
+            "herbalist" => (look("body_female", 0x8d5a3b, "hair_long", 0x2a1e14, false), vec![(EquipSlot::Clothing, "herbalist_robe")]),
+            "priest" => (look("body_male", 0xe8b88a, "hair_short", 0x7a7a7a, true), vec![(EquipSlot::Clothing, "priest_robe")]),
+            "miller" => (look("body_male", 0xd09068, "hair_short", 0xaa9a7a, false), vec![(EquipSlot::Clothing, "miller_smock")]),
+            "fisher" => (look("body_male", 0xe8b88a, "hair_short", 0xbdbdc4, true), vec![(EquipSlot::Clothing, "fisher_coat")]),
+            "town_crier" => (look("body_male", 0xf2c49b, "hair_short", 0x3a2a1e, false), vec![(EquipSlot::Clothing, "crier_coat")]),
+            "blacksmith" => (look("body_male", 0xc68a5e, "hair_short", 0x1e1612, true), vec![(EquipSlot::Clothing, "smith_apron"), (EquipSlot::Weapon, "hammer")]),
+            "farmer" => (look("body_male", 0xd9a066, "hair_short", 0x8a5a2e, false), vec![(EquipSlot::Clothing, "farmer_clothes"), (EquipSlot::Weapon, "hoe")]),
+            "farmer_f" => (look("body_female", 0xe0a878, "hair_ponytail", 0xd8a040, false), vec![(EquipSlot::Clothing, "farm_dress")]),
+            "villager_f" => (look("body_female", 0xc68a5e, "hair_long", 0xc0392b, false), vec![(EquipSlot::Clothing, "villager_dress")]),
+            "guard_f" => (look("body_female", 0xd8a070, "hair_ponytail", 0xb06a2a, false), vec![(EquipSlot::Clothing, "guard_uniform"), (EquipSlot::Head, "iron_helmet"), (EquipSlot::Weapon, "spear")]),
             _ => continue,
         };
         d.appearance = app;
         d.equipment = worn(&eq);
+    }
+    // The priest wears a small chin beard.
+    if let Some(p) = db.characters.iter_mut().find(|d| d.id == "priest") {
+        p.appearance.beard = "beard_goatee".into();
     }
     // The villager carries a few apples (dropped if anyone ever defeats him).
     if let Some(v) = db.characters.iter_mut().find(|d| d.id == "villager") {
@@ -2352,8 +2416,17 @@ fn main() {
     overlay(&out, "ov_chain", Gear::Chain);
     slime(&out);
     props(&out);
+    art::village::save(&out);
+    art::extra::props2().0.save(&out.join("sprites/props2.png"));
+    for a in &art::animals::ANIMALS {
+        art::animals::sheet(a).save(&out.join(format!("sprites/{}.png", a.id)));
+    }
+    for k in &art::animals::CHILDREN {
+        art::animals::child_sheet(k).save(&out.join(format!("sprites/{}.png", k.id)));
+    }
     items(&out);
     food_icons(&out);
+    items2(&out);
     parallax_images(&out);
     portraits(&out);
     fireball(&out);
@@ -2459,7 +2532,8 @@ fn write_starter_pack(project: &Project) {
     let tilesets: Vec<String> = b.db.tilesets.iter().map(|d| d.id.clone()).collect();
     b.db.tilesets.extend(extra.db.tilesets.into_iter().filter(|d| !tilesets.contains(&d.id)));
     b.db.sheets.extend(extra.db.sheets.into_iter().filter(|d| !sheets.contains(&d.id)));
-    b.db.props.extend(extra.db.props);
+    let props: Vec<String> = b.db.props.iter().map(|d| d.id.clone()).collect();
+    b.db.props.extend(extra.db.props.into_iter().filter(|d| !props.contains(&d.id)));
     let items: Vec<String> = b.db.items.iter().map(|d| d.id.clone()).collect();
     b.db.items.extend(extra.db.items.into_iter().filter(|d| !items.contains(&d.id)));
     b.db.characters.extend(extra.db.characters.into_iter().filter(|d| !chars.contains(&d.id)));
@@ -2467,6 +2541,19 @@ fn write_starter_pack(project: &Project) {
     for (path, bytes) in extra.files {
         b.files.entry(path).or_insert(bytes);
     }
+    // Every id once per kind (an id twice would leave the library with two assets of one name).
+    fn unique<'a>(kind: &str, ids: impl Iterator<Item = &'a String>) {
+        let mut seen = std::collections::HashSet::new();
+        for id in ids {
+            assert!(seen.insert(id), "the starter pack has the {kind} {id} twice");
+        }
+    }
+    unique("tileset", b.db.tilesets.iter().map(|d| &d.id));
+    unique("sheet", b.db.sheets.iter().map(|d| &d.id));
+    unique("item", b.db.items.iter().map(|d| &d.id));
+    unique("prop", b.db.props.iter().map(|d| &d.id));
+    unique("character", b.db.characters.iter().map(|d| &d.id));
+    unique("structure", b.db.structures.iter().map(|d| &d.id));
     let scripted = |t: &Trigger| t.actions.iter().any(|a| matches!(a, Action::RunScript { .. }));
     for d in &mut b.db.items {
         d.on_use.retain(|t| !scripted(t));

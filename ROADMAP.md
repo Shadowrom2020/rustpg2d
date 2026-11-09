@@ -94,7 +94,7 @@ starter library (`STARTER_RULES` 5 → 6; existing user libraries have to be reg
 new terrain art, see README). Save games made in the old village don't fit the new one (entity
 uids change); the other maps only gain entities at the end.
 
-- [~] Every terrain a 47-tile set — `feature/tilesets-47`
+- [x] Every terrain a 47-tile set — `feature/tilesets-47`
 
   **Goal.** All starter tilesets (`terrain`, and the library's desert, mountains, city, dungeon)
   carry full 47-tile blob sets for every terrain, so painted paths, water, cobbles and floors get
@@ -142,7 +142,7 @@ uids change); the other maps only gain entities at the end.
   gives the 16-tile fallback; `rustpg2d-editor --library` thumbnails of the tilesets;
   `cargo run -p rustpg2d-editor --example mcp_smoke` still passes.
 
-- [ ] Village assets: props, characters, animals, items, sounds, music, structures — `feature/village-assets`
+- [x] Village assets: props, characters, animals, items, sounds, music, structures — `feature/village-assets`
 
   **Goal.** The props, people, animals, goods and structures of a fantasy village, in the example
   project's definitions and the starter library, with German texts.
@@ -179,6 +179,16 @@ uids change); the other maps only gain entities at the end.
     `bakery_front`, `smithy_stone`, `chapel`, `farmhouse_thatch`, `mill`, `market_row`,
     `animal_pen`, `graveyard`, `dock`, `orchard`, `gate_towers`, `room_tavern`, `room_smithy`,
     `room_bakery`, `room_chapel`.
+
+  **Decided while building.** A market stall is one 3x3 prop (awning, the seller's place, the
+  counter) instead of separate counters and awnings: `stall_produce`, `stall_fish`,
+  `stall_bread`. The village sheet is packed from one list (`art/village.rs::SPRITES`; defs look
+  sprites up by name). The definitions live in a new `gen_example/village_db.rs`. A millstone
+  station grinds flour (`grind_flour`, station "mill"). The oven, hearth, fireplace, forge and
+  brazier start lit and are relit with coal. The festival loaf and the remedy aren't sold (quest
+  items). The library's male merchant / wizard / nomad / bandit outfit sheets became
+  `outfit_<id>_m…` (their female cut collided with the female versions' outfits);
+  `write_starter_pack` now asserts one id per kind. Portraits are drawn from a `Bust` table.
 
   **Touch points.** `gen_example/art.rs` (+ new `art/village.rs`, `art/animals.rs`), `art/extra.rs`
   (remove the promoted assets), `main.rs` (`database()`, `write_starter_pack`), `structures.rs`,

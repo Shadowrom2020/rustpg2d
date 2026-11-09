@@ -194,6 +194,67 @@ impl Ui {
     }
 }
 
+/// Seconds between two clicks that count as a double click (list rows, slots).
+pub(super) const DOUBLE_CLICK: f64 = 0.35;
+
+/// Keeps `sel` inside `len` rows and `scroll` such that the selection is among the `visible` rows.
+pub(super) fn clamp_list(sel: &mut usize, scroll: &mut usize, len: usize, visible: usize) {
+    *sel = (*sel).min(len.saturating_sub(1));
+    *scroll = (*scroll).min(len.saturating_sub(visible));
+    if *sel < *scroll {
+        *scroll = *sel;
+    } else if *sel >= *scroll + visible {
+        *scroll = *sel + 1 - visible;
+    }
+}
+
+/// Rows with a selection, a scroll offset and double-click detection: the trade window's two
+/// lists and the crafting window. Row `k` is drawn at `row_rect(k - scroll)` while visible.
+#[derive(Clone, Debug, Default)]
+pub(super) struct ScrollList {
+    pub sel: usize,
+    pub scroll: usize,
+    last_click: Option<(usize, f64)>,
+}
+
+/// What a click on a [`ScrollList`] did.
+pub(super) enum ListClick {
+    None,
+    /// A row was selected (`sel`).
+    Select,
+    /// The row's button was clicked, or the row double-clicked.
+    Activate(usize),
+}
+
+impl ScrollList {
+    /// See [`clamp_list`].
+    pub fn clamp(&mut self, len: usize, visible: usize) {
+        clamp_list(&mut self.sel, &mut self.scroll, len, visible);
+    }
+
+    /// A left click at `m`: selects the row under it; a click on the row's `button` part or a
+    /// second click within [`DOUBLE_CLICK`] activates it. `row_rect` gives visible row `vis`.
+    pub fn click(&mut self, m: Vec2, len: usize, visible: usize, row_rect: impl Fn(usize) -> Rect, button: impl Fn(Rect) -> Rect) -> ListClick {
+        for vis in 0..visible {
+            let k = self.scroll + vis;
+            let r = row_rect(vis);
+            if k >= len || !r.contains(m) {
+                continue;
+            }
+            self.sel = k;
+            let now = get_time();
+            let double = self.last_click.is_some_and(|(i, t)| i == k && now - t < DOUBLE_CLICK);
+            self.last_click = Some((k, now));
+            if button(r).contains(m) || double {
+                self.last_click = None;
+                return ListClick::Activate(k);
+            }
+            return ListClick::Select;
+        }
+        ListClick::None
+    }
+}
+
 /// The details panel of an inventory-like window: the focused stack's name with its count, its
 /// stats in gold, two lines of description, and the help line (smaller when it doesn't fit).
 pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, stack: Option<&crate::inventory::ItemStack>, hint: &str) {

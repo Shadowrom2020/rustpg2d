@@ -363,12 +363,11 @@ impl Game {
 
     /// Selects `row` on the current page (back from a sub-page onto the row that opened it).
     fn select(&mut self, row: &Row) {
-        if let Some(k) = self.rows().iter().position(|r| &r.0 == row) {
+        let rows = self.rows();
+        if let Some(k) = rows.iter().position(|r| &r.0 == row) {
             self.menu.sel = k;
             let max = self.max_rows();
-            if k >= self.menu.scroll + max {
-                self.menu.scroll = k + 1 - max;
-            }
+            super::ui::clamp_list(&mut self.menu.sel, &mut self.menu.scroll, rows.len(), max);
         }
     }
 
@@ -868,11 +867,8 @@ impl Game {
                 self.menu.sel = (self.menu.sel + 1) % n;
             }
             // Keep the selection visible.
-            if self.menu.sel < self.menu.scroll {
-                self.menu.scroll = self.menu.sel;
-            } else if self.menu.sel >= self.menu.scroll + self.max_rows() {
-                self.menu.scroll = self.menu.sel + 1 - self.max_rows();
-            }
+            let max = self.max_rows();
+            super::ui::clamp_list(&mut self.menu.sel, &mut self.menu.scroll, n, max);
             let wheel = input::wheel();
             let max_rows = self.max_rows();
             if wheel != 0.0 && panel_rect.contains(m) && n > max_rows {

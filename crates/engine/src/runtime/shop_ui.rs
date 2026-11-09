@@ -7,7 +7,8 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::{ui::panel, Game};
+use super::ui::{panel, ListClick, ScrollList};
+use super::Game;
 use crate::defs::{ShopEntry, ShopSpec};
 use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
@@ -19,7 +20,6 @@ const PAD: f32 = 14.0;
 const TITLE_H: f32 = 44.0;
 const FOOT_H: f32 = 96.0;
 const BTN_W: f32 = 92.0;
-const DOUBLE_CLICK: f64 = 0.35;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ShopSide {
@@ -46,9 +46,8 @@ pub(super) struct ShopUi {
     /// Merchant to open once the current event sequence has finished.
     pub pending: Option<u32>,
     side: Option<ShopSide>,
-    sel: [usize; 2],
-    scroll: [usize; 2],
-    last_click: Option<(ShopSide, usize, f64)>,
+    /// The merchant's and the player's list.
+    lists: [ScrollList; 2],
     /// Result of the last trade (shown in the footer) and when it happened.
     msg: Option<(String, bool, f64)>,
 }
@@ -295,14 +294,7 @@ impl Game {
     fn clamp_selection(&mut self) {
         for side in [ShopSide::Merchant, ShopSide::Player] {
             let n = self.shop_rows(side).len();
-            let s = side.idx();
-            self.shop.sel[s] = self.shop.sel[s].min(n.saturating_sub(1));
-            self.shop.scroll[s] = self.shop.scroll[s].min(n.saturating_sub(ROWS));
-            if self.shop.sel[s] < self.shop.scroll[s] {
-                self.shop.scroll[s] = self.shop.sel[s];
-            } else if self.shop.sel[s] >= self.shop.scroll[s] + ROWS {
-                self.shop.scroll[s] = self.shop.sel[s] + 1 - ROWS;
-            }
+            self.shop.lists[side.idx()].clamp(n, ROWS);
         }
     }
 
@@ -312,7 +304,7 @@ impl Game {
         let stock = self.world.shops.get(&self.loaded.map.name)?.get(&uid)?;
         let list: Vec<String> = stock.iter().map(|e| if e.unlimited { format!("{}:inf", e.item) } else { format!("{}:{}", e.item, e.count) }).collect();
         let msg = self.shop.msg.as_ref().map_or("", |m| m.0.as_str());
-        Some(format!("{} [{}] msg={msg:?} side={:?} sel={:?} scroll={:?}", self.shop_title(uid), list.join(" "), self.shop.side, self.shop.sel, self.shop.scroll))
+        Some(format!("{} [{}] msg={msg:?} side={:?} sel={:?} scroll={:?}", self.shop_title(uid), list.join(" "), self.shop.side, self.shop.lists.each_ref().map(|l| l.sel), self.shop.lists.each_ref().map(|l| l.scroll)))
     }
 
     /// Screen position of a row's trade button (for automated play-throughs):
@@ -320,7 +312,7 @@ impl Game {
     pub fn shop_button_pos(&self, side: &str, k: usize) -> Option<Vec2> {
         let side = if side == "sell" { ShopSide::Player } else { ShopSide::Merchant };
         let l = layout();
-        let vis = k.checked_sub(self.shop.scroll[side.idx()]).filter(|v| *v < ROWS)?;
+        let vis = k.checked_sub(self.shop.lists[side.idx()].scroll).filter(|v| *v < ROWS)?;
         (k < self.shop_rows(side).len()).then(|| button_rect(row_rect(l.lists[side.idx()], vis)).center())
     }
 
@@ -333,8 +325,7 @@ impl Game {
             self.inv.close();
             self.shop.open = Some(uid);
             self.shop.side = Some(ShopSide::Merchant);
-            self.shop.sel = [0, 0];
-            self.shop.scroll = [0, 0];
+            self.shop.lists = Default::default();
             self.shop.msg = None;
             self.audio.play(&self.project.config.sfx.open_container);
         }
@@ -354,14 +345,14 @@ impl Game {
         let side = self.shop.side.unwrap_or(ShopSide::Merchant);
         let s = side.idx();
         if input::act_pressed(Act::Down) {
-            self.shop.sel[s] += 1;
+            self.shop.lists[s].sel += 1;
         }
         if input::act_pressed(Act::Up) {
-            self.shop.sel[s] = self.shop.sel[s].saturating_sub(1);
+            self.shop.lists[s].sel = self.shop.lists[s].sel.saturating_sub(1);
         }
         self.clamp_selection();
         if input::act_pressed(Act::Confirm) && !self.shop_rows(side).is_empty() {
-            self.trade(side, self.shop.sel[s]);
+            self.trade(side, self.shop.lists[s].sel);
         }
 
         // ---- mouse
@@ -371,7 +362,7 @@ impl Game {
         if wheel != 0.0 {
             let side = [ShopSide::Merchant, ShopSide::Player].into_iter().find(|sd| l.lists[sd.idx()].contains(m)).unwrap_or(side);
             self.shop.side = Some(side);
-            let sel = &mut self.shop.sel[side.idx()];
+            let sel = &mut self.shop.lists[side.idx()].sel;
             *sel = if wheel > 0.0 { sel.saturating_sub(1) } else { *sel + 1 };
             self.clamp_selection();
         }
@@ -379,19 +370,11 @@ impl Game {
             for side in [ShopSide::Merchant, ShopSide::Player] {
                 let list = l.lists[side.idx()];
                 let n = self.shop_rows(side).len();
-                for vis in 0..ROWS {
-                    let k = self.shop.scroll[side.idx()] + vis;
-                    let r = row_rect(list, vis);
-                    if k >= n || !r.contains(m) {
-                        continue;
-                    }
-                    self.shop.side = Some(side);
-                    self.shop.sel[side.idx()] = k;
-                    let now = get_time();
-                    let double = self.shop.last_click.is_some_and(|(s, i, t)| s == side && i == k && now - t < DOUBLE_CLICK);
-                    self.shop.last_click = Some((side, k, now));
-                    if button_rect(r).contains(m) || double {
-                        self.shop.last_click = None;
+                match self.shop.lists[side.idx()].click(m, n, ROWS, |vis| row_rect(list, vis), button_rect) {
+                    ListClick::None => {}
+                    ListClick::Select => self.shop.side = Some(side),
+                    ListClick::Activate(k) => {
+                        self.shop.side = Some(side);
                         self.trade(side, k);
                     }
                 }
@@ -420,11 +403,11 @@ impl Game {
                 let msg = if this == ShopSide::Merchant { "Sold out." } else { "Nothing to sell." };
                 draw_text(msg, list.x + 12.0, list.y + 28.0, 22.0, GRAY);
             }
-            let scroll = self.shop.scroll[s];
+            let scroll = self.shop.lists[s].scroll;
             for (vis, row) in rows.iter().skip(scroll).take(ROWS).enumerate() {
                 let k = scroll + vis;
                 let r = row_rect(*list, vis);
-                let selected = this == side && self.shop.sel[s] == k;
+                let selected = this == side && self.shop.lists[s].sel == k;
                 let hover = r.contains(m);
                 let bg = if selected {
                     Color::new(0.85, 0.7, 0.3, 0.22)
@@ -486,7 +469,7 @@ impl Game {
             self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(f.x + f.w - 150.0, f.y + 8.0, 28.0, 28.0), WHITE);
         }
         draw_text(format!("{money}"), f.x + f.w - 116.0, f.y + 30.0, 26.0, GOLD);
-        let sel = self.shop_rows(side).into_iter().nth(self.shop.sel[side.idx()]);
+        let sel = self.shop_rows(side).into_iter().nth(self.shop.lists[side.idx()].sel);
         if let Some(d) = sel.as_ref().and_then(|r| self.project.db.item(&r.item)) {
             draw_text(&d.name, f.x + 10.0, f.y + 24.0, 22.0, GOLD);
             for (k, line) in wrap_text(&d.description, 18, f.w - 190.0).iter().take(2).enumerate() {

@@ -67,6 +67,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   server's kind words accept `npc` and `sprite_sheet` everywhere.
 
 ### Maintenance
+- The trade window's two lists, the crafting window and the menus share one `ScrollList`
+  (selection, scrolling, double clicks) instead of three copies of the same arithmetic.
 - The map file's object record (`map::MapObjects`) is also the editor's undo snapshot (one
   field list instead of three), and the inventory and companion windows share one item details
   footer.

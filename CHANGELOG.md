@@ -21,10 +21,36 @@ Emberbrook with interiors and a daily life, four more quests.
   chimneys on red and slate roofs, stone house walls with a lit window, a door and a stained-glass
   chapel window, a counter, a grave mound, a cross-beamed timber wall, a dark window, straw.
   The unused `tilesets/desert.png` was removed from the example project.
+- **Village assets** (in the example project's definitions and the starter library): about 60
+  new props on `sprites/village.png` — market stalls (produce, fish, bread; the seller stands
+  behind the counter), windmill, watchtower, bell tower, apple trees and beehives (picked by
+  hand, back a day later), a bread oven, kitchen hearth, fireplace, forge and brazier (lit, with
+  light; coal relights them), a millstone (grinds wheat into flour), shelves, racks, kegs, tavern
+  tables, stools (one picture, four facings) and pews to sit on, altar, candle stands, a bell rope
+  and the bell tower ring the new bell, farm and yard things, hanging shop signs (the tavern's
+  glows), feverleaf, bitterroot and the moonpetal that can only be picked at night. The props of
+  the old library sheet `props2.png` (street lamp, crate, pot, signpost, tombstone, lever,
+  haystack, bones, treasure, wall torch, crystals, sack, cactus, palm, market stall, fountain,
+  tent, cart) moved into the example. Villagers with outfits and drawn portraits: baker,
+  innkeeper, herbalist, priest, miller, fisher, town crier, blacksmith, farmer (male and female;
+  the merchants among them sell their goods), villager and town guard (female); children
+  (`child_boy`, `child_girl`) and animals (`chicken`, `dog`, `cat`, `cat_ginger`, `sheep`, `cow`)
+  as their own body sheets, with a sound and a line when talked to. Goods on `items2.png`:
+  flour, egg, cheese, milk, honey, moonpetal, feverleaf, bitterroot, herbal remedy, silver locket,
+  festival loaf, ale, broom and hoe (held in the hand like the smith's hammer and the pickaxe now
+  are). Recipes `grind_flour`, `bake_festival_bread`, `brew_remedy`. Sounds `bell`, `cluck`,
+  `bark`, `meow`, `baa`, `moo`; a third music track, *The Copper Kettle* (`music_tavern`).
+  16 structures: tavern, bakery, stone smithy, chapel, thatched farmhouse, windmill and mill
+  house, market row, animal pen, graveyard, orchard, fishing dock, town gate, and furnished
+  tavern, smithy, bakery and chapel rooms. Eight more portraits. German for all new texts.
 - **Asset library**: the starter rules are at version 6, so existing libraries are checked again
   for new assets; the reorganized terrain sheet is not an extension of the old one, so a library
   created before 0.11.0 keeps its old terrain art and 16-tile terrains until it is rebuilt from
   the starter set (back it up, delete `~/.local/share/rustpg2d/library`, open the editor).
+  The library's male merchant, wizard, nomad and bandit outfits use the sheets
+  `outfit_<id>_m` / `outfit_<id>_m_f`: their female cut had the same id as the female version's
+  outfit. The farmer, blacksmith and the female villager and town guard come from the example
+  project now (with their own outfits).
 
 ## 0.10.0 — 2026-11-08
 

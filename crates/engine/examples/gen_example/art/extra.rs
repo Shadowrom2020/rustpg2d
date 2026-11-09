@@ -35,17 +35,6 @@ pub fn library_extras() -> Extras {
         };
         x.db.tilesets.push(TilesetDef { id: id.into(), image, solid, animations: anims, lights, terrains });
     }
-    props(&mut x);
-    // Props that give light in their default state ("lit"; their "off" / "out" states don't).
-    for p in &mut x.db.props {
-        p.light = match p.id.as_str() {
-            "street_lamp" => Some(LightSpec::new(5.0, [255, 226, 170], false)),
-            "campfire" => Some(LightSpec::torch(5.5)),
-            "wall_torch" => Some(LightSpec::torch(4.5)),
-            "crystal" => Some(LightSpec { intensity: 0.7, ..LightSpec::new(2.5, [150, 120, 255], false) }),
-            _ => None,
-        };
-    }
     characters(&mut x);
     x
 }
@@ -1148,7 +1137,12 @@ mod q {
     pub const CART: u32 = 45; // 2x2
 }
 
-fn props(x: &mut Extras) {
+/// The props of `sprites/props2.png` (street lamp, crates, pots, signposts, tombstone, lever,
+/// haystack, bones, treasure, wall torch, crystals, sack, cactus, palm, market stall, fountain,
+/// tent, cart): the sheet and their definitions. They belong to the example project since
+/// 0.11.0 (the village uses them); the sheet still holds a campfire, an anvil and a bench (the
+/// example has its own, so they aren't defined here).
+pub fn props2() -> (Canvas, Vec<PropDef>) {
     let mut c = Canvas::new(TS * 8, TS * 7);
     let at = |c: &mut Canvas, cell: u32| {
         c.at(cell % 8 * TS, cell / 8 * TS);
@@ -1446,9 +1440,6 @@ fn props(x: &mut Extras) {
     c.auto_outline(64, 64, OUTLINE);
     c.shadow(32.0, 60.0, 30.0, 3.0);
 
-    let image = "sprites/props2.png".to_string();
-    x.files.insert(image.clone(), c.png());
-    x.db.sheets.push(SheetDef::new("props2", &image, TS, TS));
 
     let sp = |cell: u32| SpriteRef::new("props2", cell);
     let block = |cell: u32, w: u32, h: u32| SpriteRef::block("props2", cell, w, h);
@@ -1475,21 +1466,18 @@ fn props(x: &mut Extras) {
         d.states = states;
         d
     };
-    x.db.props.extend([
+    let mut defs = vec![
         with(prop("street_lamp", "Street Lamp", block(q::LAMP, 1, 2), true, [10.0, 8.0]), "lit", vec![st("off", block(q::LAMP + 1, 1, 2), true)]),
         with(prop("crate", "Crate", sp(q::CRATE), true, [26.0, 18.0]), "intact", vec![st("broken", sp(q::CRATE + 1), false)]),
         with(prop("pot", "Clay Pot", sp(q::POT), true, [18.0, 12.0]), "intact", vec![st("broken", sp(q::POT + 1), false)]),
-        with(prop("campfire", "Campfire", sp(q::CAMPFIRE), true, [22.0, 12.0]), "lit", vec![st("out", sp(q::CAMPFIRE + 1), true)]),
         prop("signpost", "Signpost", sp(q::SIGNPOST), true, [10.0, 8.0]),
         prop("tombstone", "Tombstone", sp(q::TOMBSTONE), true, [20.0, 10.0]),
         with(prop("lever", "Lever", sp(q::LEVER), true, [14.0, 10.0]), "off", vec![st("on", sp(q::LEVER + 1), true)]),
-        prop("anvil", "Anvil", sp(q::ANVIL), true, [24.0, 12.0]),
         prop("haystack", "Haystack", sp(q::HAYSTACK), true, [28.0, 14.0]),
         prop("bones", "Bones", sp(q::BONES), false, [20.0, 8.0]),
         prop("treasure", "Treasure Pile", sp(q::TREASURE), true, [24.0, 10.0]),
         with(prop("wall_torch", "Wall Torch", sp(q::TORCH), false, [12.0, 8.0]), "lit", vec![st("out", sp(q::TORCH + 1), false)]),
         prop("crystal", "Crystal Cluster", sp(q::CRYSTAL), true, [18.0, 10.0]),
-        prop("bench", "Bench", block(q::BENCH, 2, 1), true, [56.0, 12.0]),
         prop("sack", "Sack", sp(q::SACK), true, [18.0, 10.0]),
         prop("cactus_big", "Big Cactus", block(q::CACTUS, 1, 2), true, [16.0, 10.0]),
         prop("palm_tree", "Palm Tree", block(q::PALM, 2, 3), true, [16.0, 12.0]),
@@ -1497,7 +1485,17 @@ fn props(x: &mut Extras) {
         prop("fountain", "Fountain", block(q::FOUNTAIN, 2, 2), true, [56.0, 28.0]),
         prop("tent", "Tent", block(q::TENT, 2, 2), true, [56.0, 24.0]),
         prop("cart", "Cart", block(q::CART, 2, 2), true, [52.0, 20.0]),
-    ]);
+    ];
+    // Props that give light in their default state ("lit"; their "off" / "out" states don't).
+    for p in &mut defs {
+        p.light = match p.id.as_str() {
+            "street_lamp" => Some(LightSpec::new(5.0, [255, 226, 170], false)),
+            "wall_torch" => Some(LightSpec::torch(4.5)),
+            "crystal" => Some(LightSpec { intensity: 0.7, ..LightSpec::new(2.5, [150, 120, 255], false) }),
+            _ => None,
+        };
+    }
+    (c, defs)
 }
 
 // ------------------------------------------------------------------ characters
@@ -1594,19 +1592,14 @@ fn characters(x: &mut Extras) {
     let people: Vec<(&str, &str, Look)> = vec![
         ("hero_f", "Heroine", Look { skin: 0xf2c49b, hair: 0x7a4a22, shirt: 0x2e6fdb, pants: 0x3b3b4f, female: true, ..Default::default() }),
         ("elder_f", "Elder (female)", Look { skin: 0xe8b88a, hair: 0xdedede, shirt: 0x7b4fa0, pants: 0x4a3a5a, robe: Some(0x7b4fa0), female: true, ..Default::default() }),
-        ("villager_f", "Villager (female)", Look { skin: 0xc68a5e, hair: 0xc0392b, shirt: 0x2e9d5b, pants: 0x6b4a2a, robe: Some(0x2e9d5b), female: true, ..Default::default() }),
         ("goblin_f", "Goblin Scout", Look { skin: 0x8bc34a, hair: 0x2a4a14, shirt: 0x5d4037, pants: 0x3e2723, ears: true, female: true, hair_style: HairStyle::Ponytail, ..Default::default() }),
         ("merchant", "Merchant", Look { skin: 0xf2c49b, hair: 0x6b4a2a, shirt: 0x7a3a8a, pants: 0x4a3a2a, apron: Some(0xe8dcc0), hat: Hat::Cap(0x2e6b4f), ..Default::default() }),
         ("merchant_f", "Merchant (female)", Look { skin: 0xe8b88a, hair: 0x3a2418, shirt: 0x7a3a8a, pants: 0x4a3a2a, robe: Some(0x6a3a7a), apron: Some(0xe8dcc0), female: true, ..Default::default() }),
         ("guard", "Town Guard", Look { skin: 0xe8b88a, hair: 0x3a2a1e, shirt: 0x2b4c8c, pants: 0x3a3a44, hat: Hat::Helmet, ..Default::default() }),
-        ("guard_f", "Town Guard (female)", Look { skin: 0xd8a070, hair: 0xb06a2a, shirt: 0x2b4c8c, pants: 0x3a3a44, hat: Hat::Helmet, female: true, hair_style: HairStyle::Ponytail, ..Default::default() }),
         ("wizard", "Wizard", Look { skin: 0xe8c0a0, hair: 0xe8e8f0, shirt: 0x3b3b9e, pants: 0x2a2a6a, beard: true, robe: Some(0x3b3b9e), hat: Hat::Wizard(0x3b3b9e), ..Default::default() }),
         ("wizard_f", "Sorceress", Look { skin: 0xf2d0b8, hair: 0x2a1a3a, shirt: 0x6a2a8e, pants: 0x3a1a5a, robe: Some(0x6a2a8e), hat: Hat::Wizard(0x6a2a8e), female: true, ..Default::default() }),
-        ("farmer", "Farmer", Look { skin: 0xd9a066, hair: 0x8a5a2e, shirt: 0xc9a25a, pants: 0x3f5f8f, hat: Hat::Straw(0xe2c46a), ..Default::default() }),
-        ("farmer_f", "Farmer (female)", Look { skin: 0xe0a878, hair: 0xd8a040, shirt: 0xe8dcc0, pants: 0x3f5f8f, robe: Some(0x3f5f8f), apron: Some(0xe8dcc0), hat: Hat::Straw(0xe2c46a), female: true, hair_style: HairStyle::Ponytail, ..Default::default() }),
         ("nomad", "Desert Nomad", Look { skin: 0xb5794c, hair: 0x2a1e14, shirt: 0xe8d8b0, pants: 0xc9b28a, hat: Hat::Wrap(0xf2ead2), veil: Some(0xd8c49a), ..Default::default() }),
         ("nomad_f", "Desert Nomad (female)", Look { skin: 0xb5794c, hair: 0x1a120c, shirt: 0xc8643a, pants: 0xc9b28a, robe: Some(0xc8643a), hat: Hat::Wrap(0x2a6a8a), veil: Some(0x2a6a8a), female: true, ..Default::default() }),
-        ("blacksmith", "Blacksmith", Look { skin: 0xc68a5e, hair: 0x2a2018, shirt: 0x6b5040, pants: 0x3a3020, beard: true, beard_style: BeardStyle::Goatee, apron: Some(0x4a3424), ..Default::default() }),
         ("blacksmith_f", "Blacksmith (female)", Look { skin: 0xd09068, hair: 0x5a2a14, shirt: 0x6b5040, pants: 0x3a3020, apron: Some(0x4a3424), female: true, ..Default::default() }),
         ("noble_m", "Nobleman", Look { skin: 0xf6d0b0, hair: 0x6a4020, shirt: 0xb0306a, pants: 0x3a2a4a, hat: Hat::Tiara, ..Default::default() }),
         ("noble", "Noble Lady", Look { skin: 0xf6d0b0, hair: 0xe8c060, shirt: 0xb0306a, pants: 0xb0306a, robe: Some(0xb0306a), hat: Hat::Tiara, female: true, ..Default::default() }),
@@ -1625,8 +1618,13 @@ fn characters(x: &mut Extras) {
     sheets.push(("bat".into(), bat_sheet(), 32, SheetKind::Body, false, false));
     sheets.push(("ghost".into(), ghost_sheet(), FH, SheetKind::Body, false, false));
     sheets.extend(shared_layers().into_iter().map(|(id, c, k, f)| (id, c, FH, k, f, k == SheetKind::Body)));
+    // The sheets of an outfit are `outfit_<id>` and `outfit_<id>_f` (its female cut); where a
+    // female version `<id>_f` exists, the male one's sheets are `outfit_<id>_m…` so the names
+    // don't collide.
+    let ids: Vec<&str> = layered.iter().map(|p| p.0).collect();
+    let overlay = |id: &str| if ids.contains(&format!("{id}_f").as_str()) { format!("{id}_m") } else { id.to_string() };
     for (id, _, look) in &layered {
-        for (sheet, canvas) in outfit_cuts(id, look) {
+        for (sheet, canvas) in outfit_cuts(&overlay(id), look) {
             sheets.push((sheet, canvas, FH, SheetKind::Outfit, false, false));
         }
     }
@@ -1638,7 +1636,7 @@ fn characters(x: &mut Extras) {
         x.db.sheets.push(SheetDef { kind, female, playable, ..SheetDef::new(&id, &image, FW, fh) });
     }
     for (k, (id, name, _)) in layered.iter().enumerate() {
-        x.db.items.push(clothing_item(&format!("outfit_{id}"), &format!("{name} Outfit"), &format!("The clothes of the {name}."), "library_outfit_icons", k as u32, id, 10));
+        x.db.items.push(clothing_item(&format!("outfit_{id}"), &format!("{name} Outfit"), &format!("The clothes of the {name}."), "library_outfit_icons", k as u32, &overlay(id), 10));
     }
     let ch = |id: &str, name: &str, speed: f32, behavior: Behavior| CharacterDef {
         id: id.into(),
@@ -1703,7 +1701,7 @@ fn characters(x: &mut Extras) {
                 d.damage = 1;
                 d
             }
-            "farmer" | "farmer_f" | "noble" | "noble_m" | "nomad" | "nomad_f" | "villager_f" => ch(id, name, 70.0, Behavior::Wander { radius: 3.0 }),
+            "noble" | "noble_m" | "nomad" | "nomad_f" => ch(id, name, 70.0, Behavior::Wander { radius: 3.0 }),
             _ => ch(id, name, 70.0, Behavior::Static),
         };
         let mut d = d;

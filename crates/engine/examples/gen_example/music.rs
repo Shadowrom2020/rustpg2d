@@ -1,5 +1,5 @@
-//! The example's music: two looping tracks - *Market Day* (the village) and *Whisperwood* (the
-//! forest) - written in a small note notation and rendered by a tiny synthesizer: plucked
+//! The example's music: three looping tracks - *Market Day* (the village), *Whisperwood* (the
+//! forest) and *The Copper Kettle* (the tavern) - written in a small note notation and rendered by a tiny synthesizer: plucked
 //! strings (Karplus-Strong: lute, harp), a recorder, a bowed drone, a tabor, a shaker and
 //! bells, mixed in stereo through a Schroeder reverb, then encoded as Ogg Vorbis.
 //!
@@ -15,13 +15,14 @@ pub const SR: u32 = 44100;
 const SRF: f32 = SR as f32;
 
 /// The tracks: (sound id, title).
-pub const TRACKS: [(&str, &str); 2] = [("music_village", "Market Day"), ("music_forest", "Whisperwood")];
+pub const TRACKS: [(&str, &str); 3] = [("music_village", "Market Day"), ("music_forest", "Whisperwood"), ("music_tavern", "The Copper Kettle")];
 
 /// Renders a track (stereo samples, -1..1).
 pub fn render(id: &str) -> (Vec<f32>, Vec<f32>) {
     match id {
         "music_village" => village(),
         "music_forest" => forest(),
+        "music_tavern" => tavern(),
         _ => panic!("no track {id}"),
     }
 }
@@ -457,4 +458,74 @@ fn forest() -> (Vec<f32>, Vec<f32>) {
         m.add(bar_at(bar) + if bar == 19 { 2.0 * unit } else { 0.0 }, &s, 0.13, if bar % 4 == 2 { 0.5 } else { -0.5 }, 0.7);
     }
     m.finish(0.5, 0.84)
+}
+
+/// *The Copper Kettle*: a cheerful 4/4 jig-reel for the tavern in G major - lute "oom-pah",
+/// recorder, a fiddle for the middle part, tabor and shaker, a bell at every part.
+/// Intro (lute) - A - A - B (fiddle) - A.
+fn tavern() -> (Vec<f32>, Vec<f32>) {
+    let a_chords = ["G", "G", "C", "G", "Em", "C", "D", "G"];
+    let b_chords = ["C", "D", "G", "Em", "C", "D", "G", "D"];
+    let chords: Vec<&str> = [&["G", "D"][..], &a_chords, &a_chords, &b_chords, &a_chords].concat();
+    let bars = chords.len();
+    // A quarter: about 132 per minute (made to fill whole mixer buffers).
+    let beat = whole_buffers(0.455, bars * 4);
+    let mut m = Mix::new(bars as f32 * 4.0 * beat, 3.0);
+    let bar_at = |bar: usize| bar as f32 * 4.0 * beat;
+
+    // Lute: the root on 1 and 3 (the fifth on 3), a quick strum of the chord on 2 and 4.
+    for (bar, c) in chords.iter().enumerate() {
+        let (r, t) = chord(c, 43);
+        for (b, low) in [(0.0, r), (2.0, r + 7)] {
+            let s = pluck(&mut m.rng, hz(low), 0.7, 0.993, 2);
+            let at = bar_at(bar) + b * beat + m.loose(3.0);
+            m.add(at, &s, 0.5, -0.3, 0.25);
+        }
+        for b in [1.0, 3.0] {
+            for (k, iv) in [12, 12 + t, 19].iter().enumerate() {
+                let s = pluck(&mut m.rng, hz(r + iv), 0.45, 0.99, 1);
+                m.add(bar_at(bar) + b * beat + k as f32 * 0.012, &s, 0.22, -0.1, 0.3);
+            }
+        }
+    }
+    // The tune: the recorder plays A, the fiddle B.
+    let a = "D5 G5 A5 B5 D6/2 B5 G5 C6 B5 A5 G5 B5/2 G5/2 E5 G5 B5 G5 A5 G5 E5 C5 D5 F#5 A5 C6 B5 A5 G5/2";
+    let b = "E6/2 D6 C6 D6 C6 B5 A5 B5/2 D6/2 E6 D6 B5 G5 C6/2 E6 C6 A5 B5 C6 A5 B5 G5 D6 B5 A5/3 F#5";
+    let parts = [(a, false), (a, false), (b, true), (a, false)];
+    let mut at = bar_at(2);
+    for (k, (tune, fiddle)) in parts.iter().enumerate() {
+        let start = at;
+        let mut beats = 0.0;
+        for (n, len) in notes(tune) {
+            if let Some(n) = n {
+                let secs = len * beat - 0.04;
+                if *fiddle {
+                    let s = bowed(hz(n), secs, 0.03, 0.08);
+                    m.add(at, &s, 0.22, 0.25, 0.45);
+                } else {
+                    let s = recorder(&mut m.rng, hz(n), secs);
+                    m.add(at, &s, 0.24, 0.15, 0.45);
+                }
+            }
+            at += len * beat;
+            beats += len;
+        }
+        assert_eq!(beats, 32.0, "part {k} of the tavern tune must fill eight bars");
+        let s = bell(hz(79), 2.0);
+        m.add(start, &s, 0.12, 0.45, 0.6);
+    }
+    // Tabor on 1 and 3 from the second A on; a shaker on the off-beats from the B part.
+    for bar in 10..bars {
+        for (b, vol) in [(0.0, 0.42), (2.0, 0.28)] {
+            let s = tabor(&mut m.rng);
+            m.add(bar_at(bar) + b * beat, &s, vol, 0.0, 0.15);
+        }
+        if bar >= 18 {
+            for b in [0.5, 1.5, 2.5, 3.5] {
+                let s = shaker(&mut m.rng);
+                m.add(bar_at(bar) + b * beat, &s, 0.1, 0.5, 0.2);
+            }
+        }
+    }
+    m.finish(0.3, 0.72)
 }

@@ -32,6 +32,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   loaded (the fade after loading a game).
 
 ### Maintenance
+- **Frame timing in `status`**: `fps=`, `frame_ms=avg/worst`, `update_ms=`, `draw_ms=` and
+  `astar=searches/nodes` since the previous `status`; `RUSTPG2D_PERF=1` logs a `[perf]` line every
+  second. For performance checks in scripted runs.
 - `Documentation/architecture.md`: how the engine, the game runner and the editor fit together
   (technology, data model, the runtime's frame, the editor and its agent server, file formats and
   their compatibility rules, verification tooling, caveats). Linked from README and CLAUDE.md.

@@ -1,9 +1,22 @@
 //! A* pathfinding on the tile grid (used for click-to-move).
 
+use std::cell::Cell;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
 
 pub type TilePos = (i32, i32);
+
+thread_local! {
+    // Searches since the last `take_stats` and the nodes they expanded (performance checks: the
+    // game's `status` prints them as `astar=calls/nodes`).
+    static CALLS: Cell<u32> = const { Cell::new(0) };
+    static NODES: Cell<u32> = const { Cell::new(0) };
+}
+
+/// Path searches and the nodes they expanded since the last call (then counts from 0 again).
+pub fn take_stats() -> (u32, u32) {
+    (CALLS.take(), NODES.take())
+}
 
 const STRAIGHT: u32 = 10;
 const DIAGONAL: u32 = 14;
@@ -26,6 +39,7 @@ pub fn find_path(
     blocked: impl Fn(i32, i32) -> bool,
     max_nodes: usize,
 ) -> Option<Vec<TilePos>> {
+    CALLS.with(|c| c.set(c.get() + 1));
     if is_goal(start) {
         return Some(Vec::new());
     }
@@ -53,6 +67,7 @@ pub fn find_path(
             return Some(path);
         }
         expanded += 1;
+        NODES.with(|n| n.set(n.get() + 1));
         if expanded > max_nodes {
             return None;
         }

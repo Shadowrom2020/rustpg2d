@@ -397,6 +397,8 @@ For automated visual checks, both binaries accept a debug script through an envi
 RUSTPG2D_AUTOPLAY="press enter; wait 3; press e; hold right 2; click 30 16; clickenemy; status; spawners; shot /tmp/a.png; quit" ./target/debug/rustpg2d-game
 RUSTPG2D_SHOT=/tmp/a.png ./target/debug/rustpg2d-game        # screenshot after 1s, then exit
 RUSTPG2D_MUTE=1 ./target/debug/rustpg2d-game                  # no audio
+# `status` starts with fps= frame_ms=avg/worst update_ms= draw_ms= astar=searches/nodes (since the previous
+# status); RUSTPG2D_PERF=1 logs the same as a [perf] line every second
 
 # editor: tools and mouse clicks/drags in tile coordinates
 RUSTPG2D_EDITOR_SCRIPT="tool brush; brush 2 0 1 1; drag 2 2 20 2; dump 0 10 2; rename item key gate_key; shot /tmp/e.png; quit" ./target/debug/rustpg2d-editor

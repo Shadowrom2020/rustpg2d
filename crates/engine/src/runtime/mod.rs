@@ -252,6 +252,48 @@ enum Fade {
     In { t: f32 },
 }
 
+/// Frame timing since the last `status` (automated runs; `RUSTPG2D_PERF=1` logs it every second).
+#[derive(Default)]
+struct Perf {
+    frames: u32,
+    /// Real seconds (not the capped `dt`).
+    secs: f32,
+    worst: f32,
+    update: f32,
+    draw: f32,
+    /// Seconds since the last `[perf]` line.
+    log_secs: f32,
+    log: bool,
+}
+
+impl Perf {
+    fn sample(&mut self, real: f32, update: f32, draw: f32) {
+        self.frames += 1;
+        self.secs += real;
+        self.worst = self.worst.max(real);
+        self.update += update;
+        self.draw += draw;
+        self.log_secs += real;
+    }
+
+    /// `fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes` since the last
+    /// report, which starts the next window.
+    fn report(&mut self) -> String {
+        let n = self.frames.max(1) as f32;
+        let (calls, nodes) = crate::path::take_stats();
+        let s = format!(
+            "fps={:.0} frame_ms={:.1}/{:.1} update_ms={:.1} draw_ms={:.1} astar={calls}/{nodes}",
+            n / self.secs.max(1e-6),
+            self.secs * 1000.0 / n,
+            self.worst * 1000.0,
+            self.update * 1000.0 / n,
+            self.draw * 1000.0 / n
+        );
+        *self = Perf { log: self.log, ..Perf::default() };
+        s
+    }
+}
+
 /// Which owner's triggers an event is delivered to.
 #[derive(Clone, Debug)]
 enum Source {
@@ -325,6 +367,8 @@ pub struct Game {
     chips: Vec<gather::Chip>,
     /// Seconds to the next check of regrowing props.
     regrow_timer: f32,
+    /// Frame timing for `status` (a cell: `status` takes `&self`).
+    perf: std::cell::RefCell<Perf>,
     /// The open companion orders menu (G).
     order_menu: Option<orders::OrderMenu>,
     /// The open companion window (its gear and bag).
@@ -449,6 +493,7 @@ impl Game {
             heal_pick: None,
             chips: Vec::new(),
             regrow_timer: 0.0,
+            perf: std::cell::RefCell::new(Perf { log: std::env::var("RUSTPG2D_PERF").is_ok_and(|v| v != "0"), ..Perf::default() }),
             order_menu: None,
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),
@@ -1225,9 +1270,23 @@ impl Game {
     /// Runs one frame: update and draw.
     pub fn frame(&mut self) {
         input::poll_pad();
-        let dt = get_frame_time().min(0.05);
+        let real = get_frame_time();
+        let dt = real.min(0.05);
+        let t0 = get_time();
         self.update(dt);
+        let t1 = get_time();
         self.draw();
+        let t2 = get_time();
+        self.perf_sample(real, (t1 - t0) as f32, (t2 - t1) as f32);
+    }
+
+    fn perf_sample(&self, real: f32, update: f32, draw: f32) {
+        let mut p = self.perf.borrow_mut();
+        p.sample(real, update, draw);
+        if p.log && p.log_secs >= 1.0 {
+            let line = p.report();
+            eprintln!("[perf] {line} entities={}", self.loaded.entities.iter().filter(|e| e.active).count());
+        }
     }
 
     pub fn update(&mut self, dt: f32) {
@@ -1954,8 +2013,9 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
             self.dev_status(),
+            self.perf.borrow_mut().report(),
             self.weather_status(),
             self.menu_status(),
             self.autosave_status(),

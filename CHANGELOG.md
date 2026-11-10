@@ -6,6 +6,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Combat feel**: when the player's blow, arrow or spell lands, the world pauses for a moment
+  (40 ms, 70 ms for a critical hit or a kill), the character hit flashes white (instead of red) and a
+  damage number rises from it: white, big and yellow for critical hits, red when the player or a
+  companion is hurt. **Critical hits** of the player's do double damage and shake the view a
+  little; each weapon has its chance (*Critical hits* on the item form, 5 % by default; the
+  example's weapons range from 3 % to 12 %). Health bars show for three seconds after a hit and
+  then fade, the lost part draining in white. Knockback starts harder and stops sooner (about
+  the same distance). New option *Damage numbers* (on); *Shake & flash* also switches the pause
+  off. Autoplay `crit always|never|chance`; `status` prints `hitstop=` and `numbers=`.
 - **Smarter enemies**: groups take turns: at most two melee enemies attack the player (or one
   companion) at a time while the others circle around at a distance and step in when a place frees
   up; they spread out instead of stacking. An enemy that first sees the player alerts others of its

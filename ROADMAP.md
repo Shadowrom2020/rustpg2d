@@ -245,7 +245,7 @@ Instructions for every session (people and coding agents) that implements roadma
   (`chase`, `circle`, `attack`, `flee`) and at most two `attack`; an archer behind a wall
   changes position until it shoots; `astar=` stays low (performance). Shots of a surround.
 
-- [ ] Combat feel — `feature/combat-feel`
+- [x] Combat feel — `feature/combat-feel`
 
   **Goal.** Hits feel like hits.
 
@@ -254,7 +254,22 @@ Instructions for every session (people and coding agents) that implements roadma
   (fade after 3 s), a heavier knockback curve, critical hits from the weapon skill (2× damage,
   bigger number). Everything respects *Shake & flash* off.
 
-  **Engine.** Proposed (needs the go-ahead): `juice.rs`, `combat.rs`, `menu.rs` (option).
+  **Decided while building.** Critical hits are a chance per weapon (`Weapon::crit`, 5 % by
+  default; the user's choice) instead of coming from the weapon skill, and only the player's hits
+  (melee, its arrows / bolts) are critical, so enemies stay readable. Hit-stop runs the update with
+  dt = 0 (input and drawing go on), only for the player's own hits (weapon, arrows, spells; not
+  companions'), and is part of *Shake & flash*; the white flash (a white-silhouette material
+  drawn over the character) always shows. The numbers are drawn in screen space over the lit
+  world (above overhead tiles), with an outline; they record in `status` even when switched off.
+  Knockback: 1.5x speed and 1.5x braking. The health bar also shows on hurt companions for three
+  seconds; damage over time (poison) shows the bar and its numbers too, without hit-stop.
+
+  **Engine.** Agreed: `Weapon::crit` + its form field, `juice.rs` (hit-stop, numbers, flash
+  material, `roll_crit`), `combat.rs` (`Blow`, `strike_entity`, bars, knockback curve),
+  `Settings::damage_numbers` + the Options row, autoplay `crit`, `status` fields.
+
+  **Example.** Weapons get their own chances: crossbow and fine iron sword 12 %, spear 10 %,
+  hunting bow 8 %, iron sword 6 %, short sword 5 %, battle axe 4 %, crude bow 3 %.
 
   **Verify.** Autoplay: `status` prints `hitstop=` and the last damage numbers; shots of a hit.
 

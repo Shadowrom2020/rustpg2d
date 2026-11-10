@@ -211,6 +211,10 @@ struct RtEntity {
     damage: i32,
     invuln: f32,
     flash: f32,
+    /// Seconds its health bar still shows after a hit, and the HP share the bar's white "lost"
+    /// part reaches down to (it drains towards the HP left).
+    bar: f32,
+    bar_lag: f32,
     /// What it does all day where it stands (`EntityInstance::activity`), the way it faces
     /// while doing it, seconds a talk still pauses it, the last work stroke (its sound).
     activity: Option<crate::entity::Activity>,
@@ -681,6 +685,8 @@ impl Game {
             act_cycle: 0,
             item_cd: 0.0,
             flash: 0.0,
+            bar: 0.0,
+            bar_lag: 0.0,
             knock: Vec2::ZERO,
             weapon,
             attack_cd: rand::gen_range(0.5, 1.5),
@@ -1361,7 +1367,12 @@ impl Game {
         input::poll_pad();
         input::update_device();
         let real = get_frame_time();
-        let dt = real.min(0.05);
+        let mut dt = real.min(0.05);
+        // Hit-stop: the world stands still a moment (input and drawing go on).
+        if self.juice.hitstop > 0.0 {
+            self.juice.hitstop = (self.juice.hitstop - real).max(0.0);
+            dt = 0.0;
+        }
         let t0 = get_time();
         self.update(dt);
         let t1 = get_time();
@@ -2118,7 +2129,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2193,7 +2204,8 @@ impl Game {
             glyphs::style().id(),
             self.attacks_status(),
             self.defense_status(),
-            self.emotes_status()
+            self.emotes_status(),
+            self.hits_status()
         )
     }
 
@@ -2453,6 +2465,9 @@ impl Game {
         }
 
         set_default_camera();
+        if !self.on_title() {
+            self.draw_damage_numbers(&cam);
+        }
         let alpha = match &self.fade {
             Fade::None => 0.0,
             Fade::Out { t, .. } => (t / FADE_TIME).min(1.0),
@@ -2525,7 +2540,7 @@ impl Game {
         let ts = self.ts();
         let db = &self.project.db;
         let e = &self.loaded.entities[i];
-        let tint = if e.flash > 0.0 { Color::new(1.0, 0.35, 0.35, 1.0) } else { Self::effect_tint(&e.effects).unwrap_or(WHITE) };
+        let tint = Self::effect_tint(&e.effects).unwrap_or(WHITE);
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
                 let ok = self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE);
@@ -2535,23 +2550,17 @@ impl Game {
                 ok
             }),
             EntityKind::Character if e.companion.as_ref().is_some_and(|l| l.down.is_some()) => self.draw_downed(e),
-            EntityKind::Character => match (&e.npc_seat, self.current_activity(i)) {
-                (Some(s), _) => {
-                    self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
-                    true
+            EntityKind::Character => {
+                let ok = self.draw_character_entity(i, tint);
+                // Just hit: the white flash over it.
+                if ok && e.flash > 0.0 {
+                    let a = (e.flash / juice::HIT_FLASH).min(1.0) * 0.85;
+                    self.draw_white(|| {
+                        self.draw_character_entity(i, Color::new(1.0, 1.0, 1.0, a));
+                    });
                 }
-                (None, Some(_)) => {
-                    let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
-                    let col = self.activity_frame(i).unwrap_or(0);
-                    self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
-                }
-                (None, None) => {
-                    db.character(&e.def).is_some() && {
-                        let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
-                        self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
-                    }
-                }
-            },
+                ok
+            }
             EntityKind::Item => db.item(&e.def).is_some_and(|d| {
                 let u = self.u();
                 let bob = ((t * 3.0 + (e.uid % 1024) as f32).sin() * 1.5 * u).round();
@@ -2561,6 +2570,28 @@ impl Game {
         if !drawn {
             let r = e.body.rect();
             draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, MAGENTA);
+        }
+    }
+
+    /// Draws character `i` (standing, walking, at work or on furniture) tinted `tint`.
+    fn draw_character_entity(&self, i: usize, tint: Color) -> bool {
+        let e = &self.loaded.entities[i];
+        match (&e.npc_seat, self.current_activity(i)) {
+            (Some(s), _) => {
+                self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
+                true
+            }
+            (None, Some(_)) => {
+                let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
+                let col = self.activity_frame(i).unwrap_or(0);
+                self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
+            }
+            (None, None) => {
+                self.project.db.character(&e.def).is_some() && {
+                    let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
+                    self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
+                }
+            }
         }
     }
 

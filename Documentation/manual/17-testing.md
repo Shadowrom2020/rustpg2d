@@ -47,6 +47,7 @@ own `[game]` / `[events]` messages, and `error:` lines.
 | `console LINE` | A developer console line (the game runs with `--dev` in play-tests): `call FN`, `give ITEM N`, `take ITEM N`, `flag NAME on\|off`, `var NAME V`, `settime H`, `teleport MAP SPAWN`, `hp N`, `xp N`, `reload`, or any Rhai expression. |
 | `settime H` / `settime +H` | Sets the clock / lets H hours pass (days pass, props regrow). |
 | `skillpoint ID` / `learn ID` / `cast ID` / `call FN` | Spend a skill point, learn / cast a spell, call a script function. |
+| `crit always\|never\|chance` | The player's critical hits: forced on, forced off, or by the weapon's chance again. |
 | `spawners` | Prints the spawner zones' state. |
 | `close` | The open window's close button. |
 | `talkto NAME` | Right-clicks the character named NAME where it stands now: the player walks there and talks (characters that wander). |
@@ -60,7 +61,7 @@ begins on the chosen map and spawn, with the map's *Map enter* triggers and cut-
 
 ## The `status` line
 
-`[autoplay] dev=on|off fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes … menu=title|pause|…|- autosave=none|pending|saved cutscene=NAME|- ui_hidden=… window=closed|… npcs=[…] worldmap={…} skills={points=N skills={..} spells={..} mana=N/M …} xp=N level=N effects=[…] ai=[def:hunting|attack|circle|fleeing|regroup|returning@x,y …] bestiary=[…] dialog_log=N pad=… attacking=… time=HH:MM light=… weather=kind:intensity … companions=[…] player="Name|Sex|body" creator=… quests=[id:stage …] achievements=[…] minigame=… climbing=true|false props=[def:state@x,y] crops=[…] lang=CODE map=NAME tile=(X,Y) hp=Some(N) vars={…} inv={item: count …} flags={…} music=… dialog=true|false busy=true|false enemies=N sounds=[…] foes=[name:hp/max@x,y …] device=Keys|Pad pad_style=xbox|playstation|nintendo attacks=[name:windup|swing|lunge|recover …] block=on|parry|roll|off dodge=ready|N.N emotes=[who:emotion …]`
+`[autoplay] dev=on|off fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes … menu=title|pause|…|- autosave=none|pending|saved cutscene=NAME|- ui_hidden=… window=closed|… npcs=[…] worldmap={…} skills={points=N skills={..} spells={..} mana=N/M …} xp=N level=N effects=[…] ai=[def:hunting|attack|circle|fleeing|regroup|returning@x,y …] bestiary=[…] dialog_log=N pad=… attacking=… time=HH:MM light=… weather=kind:intensity … companions=[…] player="Name|Sex|body" creator=… quests=[id:stage …] achievements=[…] minigame=… climbing=true|false props=[def:state@x,y] crops=[…] lang=CODE map=NAME tile=(X,Y) hp=Some(N) vars={…} inv={item: count …} flags={…} music=… dialog=true|false busy=true|false enemies=N sounds=[…] foes=[name:hp/max@x,y …] device=Keys|Pad pad_style=xbox|playstation|nintendo attacks=[name:windup|swing|lunge|recover …] block=on|parry|roll|off dodge=ready|N.N emotes=[who:emotion …] hitstop=SECS/COUNT numbers=[3 6! -2 …]` (`numbers=`: the last six damage numbers, `!` = critical, `-` = the player or a companion hurt)
 
 The useful fields for checking content: `map` and `tile` (where the player is), `dialog` (a
 dialog is open), `cutscene`, `quests` (quest id → stage), `inv`, `flags`, `vars`, `hp`,

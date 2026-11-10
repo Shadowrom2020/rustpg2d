@@ -346,8 +346,14 @@ pub struct Weapon {
     /// A status effect for whoever the weapon hits (melee or projectile).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effect: Option<crate::effects::EffectSpec>,
+    /// Chance (0..1) that a hit of the player's is critical: double damage.
+    #[serde(default = "default_crit")]
+    pub crit: f32,
 }
 
+fn default_crit() -> f32 {
+    0.05
+}
 fn default_reach() -> f32 {
     1.0
 }
@@ -361,7 +367,7 @@ fn default_knockback() -> f32 {
 impl Weapon {
     /// A melee weapon with default reach / arc / knockback.
     pub fn melee(damage: i32, cooldown: f32) -> Self {
-        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None }
+        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None, crit: default_crit() }
     }
     pub fn ranged(damage: i32, cooldown: f32, ranged: Ranged) -> Self {
         Weapon { ranged: Some(ranged), ..Weapon::melee(damage, cooldown) }
@@ -1842,6 +1848,14 @@ mod tests {
         assert!(other.remove::<PropDef>("chest") && other.props.is_empty());
         assert_eq!(<ItemDef as Def>::KIND, RefKind::Item);
         assert!(RefKind::DEFS.iter().all(|k| db.ids_of(*k).len() <= 1));
+    }
+
+    /// Weapons of older files hit critically 5 % of the time.
+    #[test]
+    fn weapon_crit_default() {
+        let w: Weapon = ron::from_str("(damage: 2)").unwrap();
+        assert_eq!(w.crit, 0.05);
+        assert_eq!(w, Weapon::melee(2, 0.4));
     }
 
     /// Chasers of older files fight as a group and alert their kind within 6 tiles, like

@@ -21,8 +21,11 @@ pub struct Settings {
     pub ambience_volume: f32,
     /// Dialog text speed multiplier (0 = instant).
     pub text_speed: f32,
-    /// Screen shake and the red flash when hurt (off for players who find them unpleasant).
+    /// Screen shake, the red flash when hurt and the hit-stop (off for players who find them
+    /// unpleasant).
     pub screen_effects: bool,
+    /// Damage numbers rising from hits.
+    pub damage_numbers: bool,
     /// Keys the player changed (Options › Controls): action id -> key names; other actions keep
     /// their default keys.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
@@ -41,7 +44,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, keys: Default::default(), pad: Default::default(), pad_style: "auto".into(), language: None }
+        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, damage_numbers: true, keys: Default::default(), pad: Default::default(), pad_style: "auto".into(), language: None }
     }
 }
 

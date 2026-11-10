@@ -24,7 +24,7 @@ use crate::doc::{MapDoc, Objects};
 use crate::ui::{self, ph};
 use crate::widgets::{self, Refs, Textures};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mode {
     Map,
     Database,
@@ -176,6 +176,8 @@ pub enum Pending {
     Open(String),
     /// Open a map and focus a zone (by name; "" = none).
     OpenAt(String, String),
+    /// Open a map (unless it is open) and select / center an object (search and usages).
+    OpenSelect(String, Selection),
     New,
     Quit,
     OpenProject(PathBuf),
@@ -293,6 +295,9 @@ pub struct Editor {
     pub(crate) defs_saved: Box<(rustpg2d_engine::defs::Database, rustpg2d_engine::project::ProjectConfig)>,
     /// Undo / redo of definition and project-setting changes (`db_undo.rs`).
     pub db_hist: crate::db_undo::DbHistory,
+    /// Quick search (Ctrl+P) and the Usages window.
+    pub search: crate::search::Search,
+    pub usages: crate::search::Usages,
     /// This editor is the Asset Library window (`--library`): `project` is the library.
     pub library_mode: bool,
     /// Lighting preview: renderer and the map's tile lights (refreshed twice a second).
@@ -436,6 +441,8 @@ impl Editor {
             defs_dirty: false,
             defs_saved: Box::new((project.db.clone(), project.config.clone())),
             db_hist: Default::default(),
+            search: Default::default(),
+            usages: Default::default(),
             library_mode: false,
             lib_window: Default::default(),
             lib_stamp: None,
@@ -1332,6 +1339,7 @@ impl Editor {
             self.notice_banner(ctx);
         }
         self.mcp_window(ctx);
+        self.search_windows(ctx);
         if !self.project_open {
             self.status_bar(ctx);
             self.welcome(ctx);
@@ -1543,6 +1551,11 @@ impl Editor {
                     }
                     if ui.add_enabled(self.sel != Selection::None, egui::Button::new(ui::t(ph::TRASH, "Delete   Del"))).clicked() {
                         self.delete_selection();
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button(ui::t(ph::MAGNIFYING_GLASS, "Quick search…   Ctrl+P")).on_hover_text("Find maps, definitions, script functions, characters, zones and dialog lines, and go there").clicked() {
+                        self.open_search(None);
                         ui.close_menu();
                     }
                 });
@@ -1821,6 +1834,12 @@ impl Editor {
                 Err(e) => self.set_status(format!("Could not create project: {e:#}")),
             },
             Pending::Open(m) => self.open_map(&m),
+            Pending::OpenSelect(m, sel) => {
+                if self.doc.as_ref().is_none_or(|d| d.map.name != m) {
+                    self.open_map(&m);
+                }
+                self.focus_selection(sel);
+            }
             Pending::OpenAt(m, zone) => {
                 self.open_map(&m);
                 if !zone.is_empty() {

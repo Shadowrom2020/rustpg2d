@@ -669,6 +669,9 @@ with_params {
     /// Creates or replaces a definition (or merges fields into it); checks the ids and files it refers to, then saves.
     #[tool(annotations(idempotent_hint = true))]
     upsert_def: UpsertDef(p: UpsertDefParams) => ed.mcp_upsert_def(p);
+    /// Every place a definition (kind: items, props, …) or a map (kind: map) is used: placed entities and spawners, map / zone / entity triggers, other definitions, script lines, the project settings; each with where to find it.
+    #[tool(annotations(read_only_hint = true))]
+    find_usages: FindUsages(p: DefParams) => ed.mcp_find_usages(p);
     /// Deletes a definition unless something still uses it (then it lists the users; `force` deletes anyway). Files are kept.
     #[tool(annotations(destructive_hint = true))]
     delete_def: DeleteDef(p: DeleteDefParams) => ed.mcp_delete_def(p);

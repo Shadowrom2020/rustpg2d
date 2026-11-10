@@ -5,6 +5,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Editor
+- **Quick search** (Ctrl+P, *Edit › Quick search…*): finds maps, definitions of every kind,
+  script functions, named characters and zones on every map, and dialog / choice lines, with
+  fuzzy matching; Enter goes there (opens the map and selects the object, opens the definition,
+  the script at the function).
+- **Find usages**: the *Usages* button above every Database list (or right-click a name) lists
+  every place a definition is used: placed copies and spawners, triggers on maps, zones, objects
+  and definitions, other definitions, script lines, project settings; each entry goes there.
+  Agents get the same list with the new `find_usages` tool. Editor script `search`, `searchpick`,
+  `usages`, `usagepick`.
+
 ### Gameplay
 - **Combat feel**: when the player's blow, arrow or spell lands, the world pauses for a moment
   (40 ms, 70 ms for a critical hit or a kill), the character hit flashes white (instead of red) and a

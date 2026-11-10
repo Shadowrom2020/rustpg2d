@@ -273,7 +273,7 @@ Instructions for every session (people and coding agents) that implements roadma
 
   **Verify.** Autoplay: `status` prints `hitstop=` and the last damage numbers; shots of a hit.
 
-- [ ] Editor: quick search and usages — `feature/quick-search`
+- [x] Editor: quick search and usages — `feature/quick-search`
 
   **Goal.** Ctrl+P opens a search box that finds anything in the project: maps, definitions of
   every kind, script functions, named entities, zones, quests, texts; Enter jumps there. *Find
@@ -284,7 +284,16 @@ Instructions for every session (people and coding agents) that implements roadma
   usages from `refactor.rs` (`refs_of_*`, the same code that renames ids) plus the scripts
   (`script_refs.rs`).
 
-  **Engine.** Editor code (needs the go-ahead): a new `search.rs`, hooks in `app.rs`.
+  **Decided while building.** The index is rebuilt each time the box opens (maps not open are
+  read from disk: no stale index, no save hooks). Names and ids match fuzzily (a space stands for
+  a word gap; an exact id or name ranks first), dialog lines only by their words. Usages are
+  found by the ids in each place's JSON (an object's own name doesn't count; map ids only under
+  `map` / `target_map`, as spawns are often named like maps), plus library dependents and the
+  script API's id arguments; `delete_def` keeps its own summary. The button sits above every
+  Database list (and in its right-click menu) instead of in each form.
+
+  **Engine.** Agreed: editor code only: `search.rs`, `Pending::OpenSelect`, the list button and
+  context menu, the Edit menu entry, the `find_usages` agent tool, editor script commands.
 
   **Verify.** Editor script: `search potion` prints the hits, `searchpick 0` jumps (`status`
   shows the open tab / map and selection), `usages item potion` lists maps, shops, loot,

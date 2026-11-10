@@ -384,6 +384,21 @@ impl Editor {
         users
     }
 
+    pub(crate) fn mcp_find_usages(&mut self, p: DefParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let kind = if matches!(p.kind.as_str(), "map" | "maps") { RefKind::Map } else { parse_def_kind(&p.kind)? };
+        let known = if kind == RefKind::Map { self.maps.clone() } else { self.def_ids(kind) };
+        if !known.contains(&p.id) {
+            return Err(format!("no {} \"{}\".{}", kind.name(), p.id, suggestions(&p.id, known.iter().map(String::as_str))));
+        }
+        let list = self.find_usages(kind, &p.id);
+        if list.is_empty() {
+            return text(format!("{} \"{}\" isn't used anywhere.", kind.name(), p.id));
+        }
+        let lines: Vec<String> = list.iter().map(|e| format!("- {} {}: {} [{}]", e.what.name(), e.label, e.detail, e.target.describe())).collect();
+        text(format!("{} usage(s) of {} \"{}\":\n{}", list.len(), kind.name(), p.id, lines.join("\n")))
+    }
+
     pub(crate) fn mcp_delete_def(&mut self, p: DeleteDefParams) -> Result<Reply, String> {
         self.mcp_writable()?;
         let kind = parse_def_kind(&p.kind)?;

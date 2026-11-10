@@ -52,7 +52,36 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
     }
 }
 
+thread_local! {
+    /// *Find usages* asked for in a definition list (the id; the open tab gives the kind).
+    static USAGES: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The id whose usages the Database list asked for (once).
+pub fn take_usages_request() -> Option<String> {
+    USAGES.with(|u| u.borrow_mut().take())
+}
+
 impl Tab {
+    /// The kind of definitions the tab edits (`None` for Project and Scripts).
+    pub fn kind(self) -> Option<RefKind> {
+        Some(match self {
+            Tab::Items => RefKind::Item,
+            Tab::Props => RefKind::Prop,
+            Tab::Characters => RefKind::Character,
+            Tab::Tilesets => RefKind::Tileset,
+            Tab::Sheets => RefKind::Sheet,
+            Tab::Sounds => RefKind::Sound,
+            Tab::Quests => RefKind::Quest,
+            Tab::Structures => RefKind::Structure,
+            Tab::Skills => RefKind::Skill,
+            Tab::Spells => RefKind::Spell,
+            Tab::Recipes => RefKind::Recipe,
+            Tab::Achievements => RefKind::Achievement,
+            Tab::Project | Tab::Scripts => return None,
+        })
+    }
+
     /// The tab that edits definitions of `kind` (`None` for maps).
     pub fn of(kind: RefKind) -> Option<Tab> {
         Some(match kind {
@@ -210,13 +239,28 @@ fn list_ui<T: Clone>(
             *sel = sel.saturating_sub(1);
             changed = true;
         }
+        if ui
+            .add_enabled(*sel < ids.len(), egui::Button::new(ui::t(ph::LIST_MAGNIFYING_GLASS, "Usages")))
+            .on_hover_text("Find usages: every map, trigger, definition and script that uses the selected definition (also right-click a name)")
+            .clicked()
+        {
+            USAGES.with(|u| *u.borrow_mut() = ids.get(*sel).cloned());
+        }
     });
     ui.separator();
     egui::ScrollArea::vertical().id_salt("db_list").auto_shrink(false).show(ui, |ui| {
         for (i, it) in items.iter().enumerate() {
-            if ui.selectable_label(*sel == i, label(it)).clicked() {
+            let r = ui.selectable_label(*sel == i, label(it));
+            if r.clicked() {
                 *sel = i;
             }
+            r.context_menu(|ui| {
+                if ui.button(ui::t(ph::LIST_MAGNIFYING_GLASS, "Find usages")).clicked() {
+                    *sel = i;
+                    USAGES.with(|u| *u.borrow_mut() = ids.get(i).cloned());
+                    ui.close_menu();
+                }
+            });
         }
     });
     changed

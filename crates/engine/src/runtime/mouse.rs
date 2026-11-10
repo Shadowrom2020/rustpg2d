@@ -123,13 +123,14 @@ impl Game {
         }
     }
 
-    /// Whether a straight shot between two points is free of solid tiles
-    /// (the tiles of the shooter and the target themselves don't count).
+    /// Whether a straight shot (or a look) between two points is free of what stops shots:
+    /// walls, tall props; low obstacles don't count ([`Game::blocks_shot`]). The tiles of the
+    /// shooter and the target themselves don't count.
     pub(super) fn line_clear(&self, a: Vec2, b: Vec2) -> bool {
         let ts = self.ts();
-        let tb = ((b.x / ts).floor() as i32, (b.y / ts).floor() as i32);
+        let (ta, tb) = (((a.x / ts).floor() as i32, (a.y / ts).floor() as i32), ((b.x / ts).floor() as i32, (b.y / ts).floor() as i32));
         // Every tile the line crosses between its ends (a grid walk, not pixel steps).
-        crate::grid::line_tiles(a, b, ts).all(|t| t == tb || !self.tile_solid(t.0, t.1))
+        crate::grid::line_tiles(a, b, ts).all(|t| t == ta || t == tb || !self.blocks_shot(t.0, t.1))
     }
 
     /// Plans a path for a goal (tiles occupied by solid entities are avoided).

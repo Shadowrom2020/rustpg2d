@@ -90,7 +90,7 @@ Instructions for every session (people and coding agents) that implements roadma
 
 ## 0.14.0 — Forest work, fair shots and gamepads
 
-- [ ] Low obstacles — `feature/low-obstacles`
+- [x] Low obstacles — `feature/low-obstacles`
 
   **Goal.** Low things (fences, crates, rocks, mushrooms, water, counters) stop walking but not
   arrows, bolts and thrown spells; tall things (walls, trees, statues) stop both. Today a shot
@@ -110,8 +110,14 @@ Instructions for every session (people and coding agents) that implements roadma
     as before.
   - Players see the difference: none needed in the art; the manual explains the flag.
 
-  **Engine.** Proposed (needs the go-ahead): `TilesetDef.low`, `PropDef.low`, `PropState.low`,
-  the shot grid. Generic and small: no new actions.
+  **Decided while building.** The user chose opt-out props: every solid prop stops shots unless
+  marked *Low* (as for tiles). No per-state override: a state's own *solid* already covers open
+  gates (only solid things stop shots). A cell painted *force solid* counts as high. Existing
+  asset libraries take the low marks for tilesets with the same image and props they haven't
+  changed (`STARTER_RULES` 8). `status` gained `foes=` for the checks.
+
+  **Engine.** Agreed: `TilesetDef.low`, `PropDef.low`, the shot grid (`Loaded.shot` from the
+  tiles, `OCC_HIGH` in the occupancy grid for props, `Game::blocks_shot`).
 
   **Touch points.** `defs.rs` (`TilesetDef` + its hand-written `Default`, `PropDef` / `fresh`,
   `PropState`), `render/mod.rs` (tile flags next to `ladder`), `runtime/mod.rs` (`Loaded`,

@@ -159,6 +159,19 @@ impl Body {
     }
 }
 
+/// Height above the ground (in tiles) that arrows and flying spell sprites travel at: they are
+/// drawn in depth order by the ground point below them.
+const FLIGHT_HEIGHT: f32 = 0.3;
+
+/// What one step of the depth-sorted world drawing draws.
+#[derive(Clone, Copy)]
+enum Drawn {
+    Player,
+    Entity(usize),
+    Projectile(usize),
+    Fly(usize),
+}
+
 struct RtEntity {
     uid: u32,
     kind: EntityKind,
@@ -176,6 +189,8 @@ struct RtEntity {
     /// Current state of a prop (index into its definition's states; 0 = default).
     state: usize,
     solid: bool,
+    /// A low prop (`PropDef::low`): while solid it stops walking but not shots.
+    low: bool,
     behavior: Behavior,
     wander_timer: f32,
     wander_dir: Vec2,
@@ -248,6 +263,9 @@ struct Loaded {
     solid: Vec<bool>,
     /// Cells with a ladder tile (the player climbs them, characters keep off).
     ladder: Vec<bool>,
+    /// Cells whose tiles stop shots and sight (solid tiles that aren't low; props are in
+    /// `occupancy`, see [`Game::blocks_shot`]).
+    shot: Vec<bool>,
     entities: Vec<RtEntity>,
     /// Lights of light-giving tiles (computed when the map is entered).
     tile_lights: Vec<render::lighting::Light>,
@@ -476,7 +494,7 @@ impl Game {
             thumb_request: None,
             after_thumb: None,
             fullscreen: None,
-            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], entities: vec![], tile_lights: vec![], occupancy: Default::default() },
+            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], shot: vec![], entities: vec![], tile_lights: vec![], occupancy: Default::default() },
             project,
             assets,
             audio,
@@ -597,6 +615,7 @@ impl Game {
         frame: u32,
     ) -> RtEntity {
         let ts = self.ts();
+        let low = kind == EntityKind::Prop && self.project.db.prop(def).is_some_and(|d| d.low);
         let (hitbox, speed, solid, behavior) = match kind {
             EntityKind::Prop => match self.project.db.prop(def) {
                 Some(d) => (vec2(d.hitbox[0], d.hitbox[1]), 0.0, d.solid, Behavior::Static),
@@ -624,6 +643,7 @@ impl Game {
             frame,
             // Hostiles overlap the player (contact damage) instead of blocking.
             solid: solid && !hostile,
+            low,
             behavior,
             wander_timer: rand::gen_range(0.5, 2.0),
             wander_dir: Vec2::ZERO,
@@ -794,10 +814,11 @@ impl Game {
         let ts = self.ts();
         let solid = self.assets.compute_solid(&map);
         let ladder = self.assets.compute_ladder(&map);
+        let shot = self.assets.compute_shot_block(&map);
         let entities = self.build_entities(&map);
         let tile_lights = render::lighting::tile_lights(&map, &self.project.db, ts);
         let occupancy = occupancy::Occupancy::new(map.width, map.height);
-        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, entities, tile_lights, occupancy });
+        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, shot, entities, tile_lights, occupancy });
         self.rebuild_occupancy();
         self.restore_unlocked();
         // Scheduled characters are where their day has taken them.
@@ -922,6 +943,16 @@ impl Game {
         self.loaded.solid.get((ty as u32 * m.width + tx as u32) as usize).copied().unwrap_or(false)
     }
 
+    /// Whether shots and sight stop at (tx, ty): a solid tile that isn't low, a solid prop that
+    /// isn't low, or the map's edge. Low obstacles (fences, water, barrels) stop only walking.
+    pub(super) fn blocks_shot(&self, tx: i32, ty: i32) -> bool {
+        let m = &self.loaded.map;
+        if !m.in_bounds(tx, ty) {
+            return true;
+        }
+        self.loaded.shot.get((ty as u32 * m.width + tx as u32) as usize).copied().unwrap_or(false) || self.loaded.occupancy.has(tx, ty, occupancy::OCC_HIGH)
+    }
+
     /// A ladder tile at (tx, ty).
     fn tile_ladder(&self, tx: i32, ty: i32) -> bool {
         let m = &self.loaded.map;
@@ -947,6 +978,9 @@ impl Game {
         occupancy.clear();
         for e in entities.iter().filter(|e| e.active && e.solid) {
             occupancy.add(e.kind, e.body.rect(), ts);
+            if e.kind == EntityKind::Prop && !e.low {
+                occupancy.add_high(e.body.rect(), ts);
+            }
         }
     }
 
@@ -958,6 +992,9 @@ impl Game {
         let Loaded { entities, occupancy, .. } = &mut self.loaded;
         if let Some(e) = entities.get(i).filter(|e| e.active && e.solid) {
             occupancy.add(e.kind, e.body.rect(), ts);
+            if e.kind == EntityKind::Prop && !e.low {
+                occupancy.add_high(e.body.rect(), ts);
+            }
         }
     }
 
@@ -2052,7 +2089,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2121,8 +2158,24 @@ impl Game {
             self.world.flags,
             self.audio.current_music(),
             self.audio.music_loop_status(),
-            self.audio.recent()
+            self.audio.recent(),
+            self.foes_status()
         )
+    }
+
+    /// `foes=`: the hostile characters on the map, `name:hp/max@x,y` (tiles; the definition id
+    /// when unnamed), for scripted combat checks.
+    fn foes_status(&self) -> Vec<String> {
+        let ts = self.ts();
+        self.loaded
+            .entities
+            .iter()
+            .filter(|e| e.active && e.hostile && e.max_hp > 0)
+            .map(|e| {
+                let t = crate::grid::feet_tile(e.body.pos, ts);
+                format!("{}:{}/{}@{},{}", if e.name.is_empty() { &e.def } else { &e.name }, e.hp, e.max_hp, t.0, t.1)
+            })
+            .collect()
     }
 
     // ---------------------------------------------------------------- save / load
@@ -2271,19 +2324,36 @@ impl Game {
             }
         }
 
-        // Y-sorted entities + player.
-        let mut order: Vec<(f32, Option<usize>)> = self
+        // Y-sorted entities, the player, and what flies between them (arrows, flying spell
+        // sprites: sorted by the ground under them, so a tree crown or a character in front
+        // hides them).
+        let mut order: Vec<(f32, Drawn)> = self
             .loaded
             .entities
             .iter()
             .enumerate()
             .filter(|(_, e)| e.active)
-            .map(|(i, e)| (e.npc_seat.as_ref().map_or(e.body.pos.y, |s| s.prop_feet.y + 0.5), Some(i)))
+            .map(|(i, e)| (e.npc_seat.as_ref().map_or(e.body.pos.y, |s| s.prop_feet.y + 0.5), Drawn::Entity(i)))
             .collect();
-        order.push((self.player_sort_y(), None));
+        order.push((self.player_sort_y(), Drawn::Player));
+        let above_ground = ts * FLIGHT_HEIGHT;
+        order.extend(self.projectiles.iter().enumerate().map(|(k, p)| (p.ground_y(above_ground), Drawn::Projectile(k))));
+        order.extend(self.flying_fx().map(|(k, y)| (y + above_ground, Drawn::Fly(k))));
         order.sort_by(|a, b| a.0.total_cmp(&b.0));
         let t = get_time() as f32;
-        for (_, idx) in order {
+        for (_, drawn) in order {
+            let idx = match drawn {
+                Drawn::Projectile(k) => {
+                    self.draw_projectile(k);
+                    continue;
+                }
+                Drawn::Fly(k) => {
+                    self.draw_one_fx(k);
+                    continue;
+                }
+                Drawn::Player => None,
+                Drawn::Entity(i) => Some(i),
+            };
             match idx {
                 None if self.on_title() => {}
                 None => {
@@ -2466,8 +2536,11 @@ impl Game {
         let y1 = ((view.y + view.h) / ts).ceil().min(m.height as f32) as u32;
         for y in y0..y1 {
             for x in x0..x1 {
-                if self.loaded.solid[(y * m.width + x) as usize] {
-                    draw_rectangle(x as f32 * ts, y as f32 * ts, ts, ts, Color::new(1., 0., 0., 0.25));
+                let i = (y * m.width + x) as usize;
+                if self.loaded.solid[i] {
+                    // Red: stops walking and shots; yellow: low, stops only walking.
+                    let c = if self.loaded.shot.get(i).copied().unwrap_or(true) { Color::new(1., 0., 0., 0.25) } else { Color::new(1., 0.85, 0., 0.25) };
+                    draw_rectangle(x as f32 * ts, y as f32 * ts, ts, ts, c);
                 }
             }
         }

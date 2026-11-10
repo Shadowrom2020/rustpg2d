@@ -580,7 +580,7 @@ impl Bundle {
         // animation); flags of the tiles that were there stay as the library has them.
         for n in &self.db.tilesets {
             let (Some(tiles), Some(o)) = (fresh.get(&n.id), db.tilesets.iter_mut().find(|o| o.id == n.id)) else { continue };
-            for (new, old) in [(&n.solid, &mut o.solid), (&n.ladder, &mut o.ladder)] {
+            for (new, old) in [(&n.solid, &mut o.solid), (&n.ladder, &mut o.ladder), (&n.low, &mut o.low)] {
                 let add: Vec<u32> = new.iter().copied().filter(|t| tiles.contains(t) && !old.contains(t)).collect();
                 old.extend(add);
                 old.sort();
@@ -625,6 +625,28 @@ impl Bundle {
             }
             if !upgraded.contains(&key) {
                 upgraded.push(key);
+            }
+        }
+        // Low tiles and low props (added in 0.14.0): a tileset without any low tiles gets the
+        // newer set's when it uses the same (or an upgraded) image; a prop gets the flag when it
+        // is otherwise the same as the newer set's.
+        for n in self.db.tilesets.iter().filter(|n| !n.low.is_empty()) {
+            let Some(o) = db.tilesets.iter_mut().find(|o| o.id == n.id && o.low.is_empty()) else { continue };
+            let key = (RefKind::Tileset, n.id.clone());
+            let same_image = upgraded.contains(&key) || (safe_rel(&o.image) && std::fs::read(root.join(&o.image)).ok().as_ref() == self.files.get(&n.image));
+            if same_image {
+                o.low = n.low.clone();
+                if !upgraded.contains(&key) {
+                    upgraded.push(key);
+                }
+            }
+        }
+        for n in self.db.props.iter().filter(|n| n.low) {
+            if let Some(o) = db.props.iter_mut().find(|o| o.id == n.id && !o.low) {
+                if (PropDef { low: true, ..o.clone() }) == *n {
+                    o.low = true;
+                    upgraded.push((RefKind::Prop, n.id.clone()));
+                }
             }
         }
         // New structures place tiles by index: they need the tilesets as the set has them. A
@@ -1006,8 +1028,8 @@ const STARTER_STAMP: &str = "starter.stamp";
 /// sheet is 16 columns wide with a 47-tile set per terrain — not an extension of the old
 /// sheet, so existing libraries keep their art until they are rebuilt; 7: an image of the
 /// same size that only fills empty cells is an upgrade too, and the new tiles bring their
-/// solid / ladder / light / animation flags).
-const STARTER_RULES: u32 = 7;
+/// solid / ladder / light / animation flags; 8: tilesets and props get the low flags).
+const STARTER_RULES: u32 = 8;
 
 /// 64-bit FNV-1a hash of every path and content (a cheap fingerprint of the starter set that
 /// only changes when the files do).
@@ -1297,6 +1319,33 @@ mod tests {
         assert_eq!(std::fs::read(dst.join("tilesets/t.png")).unwrap(), newer);
         assert_eq!((db.tilesets[0].solid.clone(), db.tilesets[0].ladder.clone()), (vec![1], vec![3]));
         assert_eq!(report.upgraded, vec![(RefKind::Tileset, "t".to_string())]);
+        let _ = (std::fs::remove_dir_all(src), std::fs::remove_dir_all(dst));
+    }
+
+    #[test]
+    fn low_flags_reach_existing_libraries() {
+        let src = tmp("low_src");
+        let dst = tmp("low_dst");
+        for d in [&src, &dst] {
+            let _ = std::fs::remove_dir_all(d);
+            std::fs::create_dir_all(d.join("tilesets")).unwrap();
+            std::fs::write(d.join("tilesets/t.png"), png(64, 64, [10, 200, 10, 255])).unwrap();
+        }
+        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid: vec![0, 1], ..Default::default() };
+        let prop = |id: &str, low: bool| PropDef { id: id.into(), name: id.into(), solid: true, low, ..Default::default() };
+        let newer = Database { tilesets: vec![TilesetDef { low: vec![1], ..ts.clone() }], props: vec![prop("barrel", true), prop("crate", true)], ..Default::default() };
+        // The library has the same tileset without low tiles, the barrel as it was, a crate the user edited.
+        let mut db = Database { tilesets: vec![ts.clone()], props: vec![prop("barrel", false), PropDef { name: "My crate".into(), ..prop("crate", false) }], ..Default::default() };
+        let report = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap().add_missing(&mut db, &dst).unwrap();
+        assert_eq!(db.tilesets[0].low, vec![1]);
+        assert!(db.props[0].low, "the unchanged barrel gets the flag");
+        assert!(!db.props[1].low, "an edited prop stays as it is");
+        assert!(report.upgraded.contains(&(RefKind::Prop, "barrel".to_string())));
+        // Other art in the library: its tileset keeps no low tiles.
+        std::fs::write(dst.join("tilesets/t.png"), png(64, 64, [1, 2, 3, 255])).unwrap();
+        let mut db = Database { tilesets: vec![ts], ..Default::default() };
+        Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap().add_missing(&mut db, &dst).unwrap();
+        assert!(db.tilesets[0].low.is_empty());
         let _ = (std::fs::remove_dir_all(src), std::fs::remove_dir_all(dst));
     }
 

@@ -29,6 +29,7 @@
             open_state: "open",
         )),
         lock: None,
+        low: true,
     ),
     (
         id: "sign",
@@ -44,6 +45,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "gate",
@@ -109,6 +111,7 @@
             open_state: "",
         )),
         lock: None,
+        low: true,
     ),
     (
         id: "shrine",
@@ -158,6 +161,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "chair",
@@ -183,6 +187,7 @@
                 frame: 0,
             ),
         )),
+        low: true,
     ),
     (
         id: "chair_up",
@@ -208,6 +213,7 @@
                 frame: 79,
             ),
         )),
+        low: true,
     ),
     (
         id: "chair_left",
@@ -233,6 +239,7 @@
                 frame: 0,
             ),
         )),
+        low: true,
     ),
     (
         id: "chair_right",
@@ -258,6 +265,7 @@
                 frame: 0,
             ),
         )),
+        low: true,
     ),
     (
         id: "bench",
@@ -284,6 +292,7 @@
                 frame: 0,
             ),
         )),
+        low: true,
     ),
     (
         id: "bed",
@@ -311,6 +320,7 @@
                 h: 2,
             ),
         )),
+        low: true,
     ),
     (
         id: "bed_side",
@@ -338,6 +348,7 @@
                 w: 2,
             ),
         )),
+        low: true,
     ),
     (
         id: "vein_copper",
@@ -380,6 +391,7 @@
             to: "default",
             hours: 72.0,
         )),
+        low: true,
     ),
     (
         id: "vein_iron",
@@ -428,6 +440,7 @@
             to: "default",
             hours: 72.0,
         )),
+        low: true,
     ),
     (
         id: "vein_silver",
@@ -470,6 +483,7 @@
             to: "default",
             hours: 72.0,
         )),
+        low: true,
     ),
     (
         id: "vein_gem",
@@ -518,6 +532,7 @@
             to: "default",
             hours: 72.0,
         )),
+        low: true,
     ),
     (
         id: "vein_coal",
@@ -560,6 +575,7 @@
             to: "default",
             hours: 72.0,
         )),
+        low: true,
     ),
     (
         id: "herb_bush",
@@ -712,6 +728,7 @@
             to: "out",
             hours: 8.0,
         )),
+        low: true,
     ),
     (
         id: "soil_plot",
@@ -755,6 +772,7 @@
         ],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "smelter",
@@ -816,6 +834,7 @@
         ],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "double_gate",
@@ -991,6 +1010,7 @@
             intensity: 1.0,
             flicker: false,
         )),
+        low: true,
     ),
     (
         id: "crate",
@@ -1015,6 +1035,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "pot",
@@ -1039,6 +1060,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "signpost",
@@ -1054,6 +1076,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "tombstone",
@@ -1069,6 +1092,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "lever",
@@ -1093,6 +1117,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "haystack",
@@ -1108,6 +1133,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "bones",
@@ -1138,6 +1164,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "wall_torch",
@@ -1189,6 +1216,7 @@
             intensity: 0.7,
             flicker: false,
         )),
+        low: true,
     ),
     (
         id: "sack",
@@ -1204,6 +1232,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "cactus_big",
@@ -1271,6 +1300,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "tent",
@@ -1305,6 +1335,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "stall_produce",
@@ -1753,6 +1784,7 @@
             intensity: 0.9,
             flicker: true,
         )),
+        low: true,
     ),
     (
         id: "candle_stand",
@@ -1783,6 +1815,7 @@
             intensity: 0.7,
             flicker: true,
         )),
+        low: true,
     ),
     (
         id: "millstone",
@@ -1912,6 +1945,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "keg",
@@ -1927,6 +1961,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "tavern_table",
@@ -1943,6 +1978,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "dough_table",
@@ -1959,6 +1995,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "stool",
@@ -1984,6 +2021,7 @@
                 frame: 0,
             ),
         )),
+        low: true,
     ),
     (
         id: "stool_up",
@@ -2009,6 +2047,7 @@
                 frame: 0,
             ),
         )),
+        low: true,
     ),
     (
         id: "stool_left",
@@ -2034,6 +2073,7 @@
                 frame: 0,
             ),
         )),
+        low: true,
     ),
     (
         id: "stool_right",
@@ -2059,6 +2099,7 @@
                 frame: 0,
             ),
         )),
+        low: true,
     ),
     (
         id: "pew",
@@ -2086,6 +2127,7 @@
                 w: 2,
             ),
         )),
+        low: true,
     ),
     (
         id: "altar",
@@ -2102,6 +2144,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "bell_rope",
@@ -2143,6 +2186,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "grindstone",
@@ -2158,6 +2202,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "cauldron",
@@ -2173,6 +2218,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "flour_sacks",
@@ -2188,6 +2234,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "cat_basket",
@@ -2218,6 +2265,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "flower_box",
@@ -2233,6 +2281,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "chicken_coop",
@@ -2266,6 +2315,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "hay_bale",
@@ -2281,6 +2331,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "beehive",
@@ -2323,6 +2374,7 @@
             to: "default",
             hours: 24.0,
         )),
+        low: true,
     ),
     (
         id: "scarecrow",
@@ -2339,6 +2391,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "woodpile",
@@ -2355,6 +2408,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "broken_cart",
@@ -2372,6 +2426,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "laundry",
@@ -2445,6 +2500,7 @@
             open_state: "",
         )),
         lock: None,
+        low: true,
     ),
     (
         id: "boat",
@@ -2461,6 +2517,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "sign_tavern",
@@ -2542,6 +2599,7 @@
         triggers: [],
         container: None,
         lock: None,
+        low: true,
     ),
     (
         id: "moonpetal",
@@ -2736,5 +2794,6 @@
             ],
             refuse_text: "This bed is for paying guests. Greta rents rooms at the bar.",
         )),
+        low: true,
     ),
 ]

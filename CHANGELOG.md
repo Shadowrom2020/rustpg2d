@@ -3,6 +3,33 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Gameplay
+- **Low obstacles**: solid things are *high* or *low*. Low tiles and props (fences, rocks,
+  mushrooms, water, tables, barrels, chairs) stop walking, but arrows, bolts and the sight of
+  enemies pass over them; high ones (walls, tree trunks, statues, stalls) stop both. Tilesets mark
+  their low tiles (*Database › Tilesets › Pick low tiles in the grid*), props have a *Low*
+  checkbox; the collision overlay shows low tiles in yellow. The example's and the starter
+  library's tilesets and props are marked, and existing asset libraries take the marks for
+  tilesets with the same image and props they haven't changed.
+- **Changed behaviour**: solid props now stop shots unless they are marked *Low* (before, arrows
+  flew through every prop, trees and statues included). Projects with their own solid props
+  should mark the low ones (barrels, crates, furniture); until then archers can't shoot over them.
+
+### Fixes
+- Arrows, bolts and flying spell sprites (`fly()`, the fireball) were drawn on top of tree crowns,
+  tall props and characters they flew behind; they are now drawn in depth order with characters
+  and props (overhead tile layers still cover them).
+
+### Editor
+- Agent server: `tileset_legend` lists low tiles; `upsert_def` describes the `low` fields of
+  tilesets and props.
+
+### Maintenance
+- `status` prints `foes=` (hostile characters with HP and tile) for scripted combat checks; the
+  editor script command `tilepick low|ladder|light|off` switches the Tilesets tab's grid mode.
+
 ## 0.13.0 — 2026-11-10
 
 ### Gameplay

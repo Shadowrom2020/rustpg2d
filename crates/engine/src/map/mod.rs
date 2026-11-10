@@ -444,6 +444,28 @@ impl Map {
         }
     }
 
+    /// Whether a tile stops shots and sight, given `(tileset_slot, tile_index) -> high` (solid
+    /// and not low). A cell painted solid in the collision layer stops them; one painted
+    /// walkable doesn't. Overhead layers never count.
+    pub fn tile_blocks_shot(&self, x: u32, y: u32, is_high: &impl Fn(usize, u32) -> bool) -> bool {
+        match self.collision_at(x, y) {
+            CollisionOverride::Solid => true,
+            CollisionOverride::Walkable => false,
+            CollisionOverride::Auto => self.layers.iter().any(|l| !l.above_entities && l.get(x, y).parts().is_some_and(|(s, i)| is_high(s, i))),
+        }
+    }
+
+    /// Computes the shot grid for the whole map ([`Self::tile_blocks_shot`]).
+    pub fn compute_shot_block(&self, is_high: impl Fn(usize, u32) -> bool) -> Vec<bool> {
+        let mut out = vec![false; (self.width * self.height) as usize];
+        for y in 0..self.height {
+            for x in 0..self.width {
+                out[(y * self.width + x) as usize] = self.tile_blocks_shot(x, y, &is_high);
+            }
+        }
+        out
+    }
+
     /// Computes the walkability grid for the whole map.
     pub fn compute_solid(&self, is_solid: impl Fn(usize, u32) -> bool) -> Vec<bool> {
         let mut out = vec![false; (self.width * self.height) as usize];
@@ -553,5 +575,23 @@ mod tests {
         assert!(!solid[2 * 4 + 2]);
         assert!(solid[3 * 4 + 3]);
         assert!(!solid[0]);
+    }
+
+    #[test]
+    fn low_tiles_stop_walking_but_not_shots() {
+        // Tile 7 is a wall (solid, high), tile 5 a fence (solid, low).
+        let mut m = Map::new("m", 4, 2);
+        m.layers[0].set(0, 0, Tile::new(0, 7));
+        m.layers[0].set(1, 0, Tile::new(0, 5));
+        // A fence over water, both low; a wall under an overhead layer still stops shots.
+        m.layers[0].set(2, 0, Tile::new(0, 5));
+        m.set_collision(3, 0, CollisionOverride::Solid);
+        m.set_collision(0, 1, CollisionOverride::Walkable);
+        m.layers[0].set(0, 1, Tile::new(0, 7));
+        let solid = m.compute_solid(|_, i| i == 7 || i == 5);
+        let shot = m.compute_shot_block(|_, i| i == 7);
+        assert_eq!(&solid[..4], &[true, true, true, true]);
+        assert_eq!(&shot[..4], &[true, false, false, true], "walls and painted collision stop shots, fences don't");
+        assert!(!shot[4], "a cell painted walkable stops nothing");
     }
 }

@@ -30,6 +30,8 @@ pub struct TilesetTex {
     pub solid: Vec<bool>,
     /// Ladder tiles (climbed by the player).
     pub ladder: Vec<bool>,
+    /// Low tiles: solid ones stop walking but not shots (`TilesetDef::low`).
+    pub low: Vec<bool>,
     /// Per tile index: animation (if any).
     anim_of: Vec<Option<usize>>,
     pub anims: Vec<TileAnim>,
@@ -66,6 +68,15 @@ impl TilesetTex {
 
     pub fn is_ladder(&self, index: u32) -> bool {
         self.ladder.get(index as usize).copied().unwrap_or(false)
+    }
+
+    pub fn is_low(&self, index: u32) -> bool {
+        self.low.get(index as usize).copied().unwrap_or(false)
+    }
+
+    /// A solid tile that isn't low: it stops shots and sight too.
+    pub fn is_high(&self, index: u32) -> bool {
+        self.is_solid(index) && !self.is_low(index)
     }
 }
 
@@ -183,6 +194,7 @@ impl Assets {
                 colors: Vec::with_capacity(count as usize),
                 solid: vec![false; count as usize],
                 ladder: vec![false; count as usize],
+                low: vec![false; count as usize],
                 anim_of: Vec::new(),
                 anims: Vec::new(),
                 image,
@@ -199,6 +211,11 @@ impl Assets {
             }
             for &s in &def.ladder {
                 if let Some(v) = t.ladder.get_mut(s as usize) {
+                    *v = true;
+                }
+            }
+            for &s in &def.low {
+                if let Some(v) = t.low.get_mut(s as usize) {
                     *v = true;
                 }
             }
@@ -237,6 +254,12 @@ impl Assets {
     pub fn compute_solid(&self, map: &Map) -> Vec<bool> {
         let sets = self.map_tilesets(map);
         map.compute_solid(|slot, i| sets.get(slot).copied().flatten().is_some_and(|t| t.is_solid(i)))
+    }
+
+    /// Shot grid of a map: cells that stop shots and sight (solid, and not only low tiles).
+    pub fn compute_shot_block(&self, map: &Map) -> Vec<bool> {
+        let sets = self.map_tilesets(map);
+        map.compute_shot_block(|slot, i| sets.get(slot).copied().flatten().is_some_and(|t| t.is_high(i)))
     }
 
     /// Ladder grid of a map: cells with a ladder tile on a layer below the characters.

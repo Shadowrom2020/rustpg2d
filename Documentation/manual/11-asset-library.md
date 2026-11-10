@@ -10,7 +10,7 @@ The first time the editor opens the library, it fills it with the **starter set*
 game's art (the village's buildings and some 60 props, its villagers, children and animals in both
 sexes, outfits, goods, recipes, sounds and music, 17 structures) plus **desert, mountain, city and
 dungeon tilesets** (with animated water, waterfalls and lava), more characters (hero, elder, wizard
-and sorceress, nomads, nobles, bandits, skeletons, a bat and a ghost, every humanoid in a male and a
+and sorceress, nomads, nobles, bandits, skeletons, a wolf, a bat and a ghost, every humanoid in a male and a
 female version) and more structures (town houses, city walls, dungeon rooms). The starter library
 also includes the scripted Fireball spell and Scavenging skill with their script functions.
 

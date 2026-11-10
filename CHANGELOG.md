@@ -6,6 +6,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Art
+- **Wolves and bats in the Wilds**: a new monster, the wolf (drawn in the new style, with walk and
+  bite frames), hunts in packs of three: the whole pack comes when one sees you, and a badly hurt
+  wolf runs. It drops a *Wolf Pelt* to sell. Six wolf packs and four bat swarms now live in the
+  Wilds; both are in the starter library.
 - **New characters**: every character of the example and the starter library (46: the villagers,
   guards, bandits, goblins, wizards, nobles, children, animals and monsters) is redrawn as detailed
   2× pixel art (64 × 96 frames for people) with walking, breathing while standing, attack frames for

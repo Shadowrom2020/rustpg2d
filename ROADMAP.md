@@ -161,13 +161,18 @@ Instructions for every session (people and coding agents) that implements roadma
   (`SheetDef::complete`: only the body is drawn, not recoloured; the creator hides skin / hair /
   beard for them; the weapon's swing sprite is replaced by the figure's painted swing).
 
-- [ ] New monsters for the wilds — `feature/creature-art`
+- [x] New monsters for the wilds — `feature/creature-art`
 
   **Goal.** Two monsters for the wilds to give the combat AI more to work with: a wolf (new, in the
   new style, with walk and attack frames) and the bat (in the library since this release), placed
   in the wilds with spawners.
 
   **Engine.** None (content).
+
+  **Done.** The wolf (sheet `wolf`, generated with Meshy like the other characters) has a pack
+  behaviour (*Chase* with group alert, flees below 25 %), drops `wolf_pelt` (icon on the
+  `materials` sheet); the example's Wilds have six wolf spawners (3 each) and four bat spawners (4
+  each), away from the existing ones.
 
   **Verify.** Shots in play and in the bestiary.
 

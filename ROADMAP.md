@@ -109,12 +109,19 @@ Instructions for every session (people and coding agents) that implements roadma
   **Verify.** `image=` in `status` (scroll offset moving, `:hand` after arrow keys), screenshots,
   the web export in headless Brave, the editor's fields and a sheet rename.
 
-- [ ] Activities that produce something — `feature/producing-activities`
+- [x] Activities that produce something — `feature/producing-activities`
 
   **Goal.** What villagers do yields goods: Finn's catch is for sale at his stall the next morning,
   the baker's bread at his.
 
   **Engine.** *Shop stock* action, `add_stock` / `set_stock` / `stock_of`, `day()` (agreed).
+
+  **Decided while building.** The baker restocks apple pies (his bread is unlimited). The restock
+  is a generic library script, `restock_from_activity(owner, item, per_day, max)`, run by the
+  fisher's and the baker's definition triggers; `SELF` is passed on because helper functions
+  don't see it (documented). The starter library test now accepts definitions with their scripted
+  triggers when the functions travel along (library features), as well as without them (story
+  triggers).
 
 - [ ] Companions learn spells — `feature/companion-spells`
 

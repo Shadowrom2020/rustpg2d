@@ -106,6 +106,32 @@ impl Game {
         self.shop.is_open() || self.crafting.is_open()
     }
 
+    /// The *Shop stock* action: adds `count` of `item` to merchant `i`'s stock (a new line at
+    /// `price`), or sets it (0 removes the line). Unlimited lines stay unlimited.
+    pub(super) fn change_stock(&mut self, i: usize, item: &str, op: crate::events::VarOp, count: u32, price: u32) {
+        let uid = self.loaded.entities[i].uid;
+        match self.shop_stock(uid) {
+            Some(stock) => apply_stock(stock, item, op, count, price),
+            None => eprintln!("[game] Shop stock: {} is no merchant", self.loaded.entities[i].def),
+        }
+    }
+
+    /// What merchants on the current map have, for `stock_of()`: (uid, name, [(item, count)]),
+    /// unlimited lines as 999.
+    pub(super) fn merchant_stock(&self) -> Vec<crate::script::MerchantStock> {
+        let map = &self.loaded.map.name;
+        self.loaded
+            .entities
+            .iter()
+            .filter(|e| e.active)
+            .filter_map(|e| {
+                let saved = self.world.shops.get(map).and_then(|m| m.get(&e.uid)).cloned();
+                let stock = saved.or_else(|| self.shop_spec(e.uid).map(|s| s.items))?;
+                Some((e.uid, e.name.clone(), stock.into_iter().map(|l| (l.item, if l.unlimited { 999 } else { l.count })).collect()))
+            })
+            .collect()
+    }
+
     /// The merchant spec of a character on the current map.
     fn shop_spec(&self, uid: u32) -> Option<ShopSpec> {
         let e = self.loaded.map.entity(uid)?;
@@ -113,7 +139,7 @@ impl Game {
     }
 
     /// Current stock of a merchant (created from its spec the first time).
-    fn shop_stock(&mut self, uid: u32) -> Option<&mut Vec<ShopEntry>> {
+    pub(super) fn shop_stock(&mut self, uid: u32) -> Option<&mut Vec<ShopEntry>> {
         let map = self.loaded.map.name.clone();
         if self.world.shops.get(&map).is_none_or(|m| !m.contains_key(&uid)) {
             let spec = self.shop_spec(uid)?;
@@ -486,5 +512,43 @@ impl Game {
         }
         let hint = "Click price / Enter: trade one   Shift: ten   Wheel / Up / Down: select   Tab: switch side   Esc: close";
         draw_text(hint, f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
+    }
+}
+
+/// Adds `count` of `item` to a stock (a new line at `price`) or sets it (0 removes the line);
+/// unlimited lines stay unlimited.
+fn apply_stock(stock: &mut Vec<ShopEntry>, item: &str, op: crate::events::VarOp, count: u32, price: u32) {
+    use crate::events::VarOp;
+    match (stock.iter().position(|e| e.item == item), op) {
+        (Some(k), _) if stock[k].unlimited => {}
+        (Some(k), VarOp::Set) if count == 0 => {
+            stock.remove(k);
+        }
+        (Some(k), VarOp::Set) => stock[k].count = count,
+        (Some(k), VarOp::Add) => stock[k].count = stock[k].count.saturating_add(count),
+        (None, _) if count > 0 => stock.push(ShopEntry { item: item.to_string(), count, unlimited: false, price }),
+        (None, _) => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stock_changes() {
+        use crate::events::VarOp;
+        let mut stock = vec![ShopEntry { item: "apple".into(), count: 0, unlimited: true, price: 0 }];
+        apply_stock(&mut stock, "trout", VarOp::Add, 3, 0);
+        apply_stock(&mut stock, "trout", VarOp::Add, 2, 9);
+        assert_eq!((stock[1].item.as_str(), stock[1].count, stock[1].price), ("trout", 5, 0), "added up, first price kept");
+        apply_stock(&mut stock, "trout", VarOp::Set, 4, 0);
+        assert_eq!(stock[1].count, 4);
+        apply_stock(&mut stock, "apple", VarOp::Set, 1, 0);
+        assert!(stock[0].unlimited, "unlimited lines stay");
+        apply_stock(&mut stock, "trout", VarOp::Set, 0, 0);
+        assert_eq!(stock.len(), 1, "set to 0 removes the line");
+        apply_stock(&mut stock, "bread", VarOp::Set, 0, 0);
+        assert_eq!(stock.len(), 1, "nothing to remove, nothing added");
     }
 }

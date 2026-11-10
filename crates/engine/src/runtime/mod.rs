@@ -2576,6 +2576,12 @@ impl ActionHost for Game {
                 self.image = None;
                 Step::Continue
             }
+            Action::ShopStock { target, item, op, count, price } => {
+                if let Some(i) = self.entity_index(target, ctx.owner) {
+                    self.change_stock(i, item, *op, *count, *price);
+                }
+                Step::Continue
+            }
             Action::Mood { target, mood } => {
                 self.set_mood(target, mood, ctx.owner);
                 Step::Continue

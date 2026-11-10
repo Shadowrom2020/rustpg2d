@@ -176,7 +176,9 @@ Functions that act on an entity take a **target**:
   editor's inspector, e.g. `mira`, `guard`).
 
 `SELF` is a number: the owner's id (uid), or `-1` when there is no owner (spells, skills,
-callbacks). `say(SELF, "…")` shows the owner's name as the speaker.
+callbacks). `say(SELF, "…")` shows the owner's name as the speaker. `SELF` is only visible in the function the
+trigger calls; a helper function it calls doesn't see it, so pass it on as an argument
+(`helper(SELF, …)`). The target `"self"` works everywhere.
 
 ## Positions, numbers and text
 
@@ -344,6 +346,9 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `open_companion(target)` | Opens a companion's window — its gear and bag next to the player's inventory — once the running event is over, e.g. after a dialog's "Let me see your gear". *(queued)* |
 | `follow_schedule(target)` | The character follows its daily schedule again: it heads for the stop of the current hour. *(queued)* |
 | `open_shop(target)` | Opens a merchant's trade window. *(queued)* |
+| `add_stock(target, item, count)` | Adds items to a merchant's stock (a new line at the item's value), e.g. what a villager produced. *(queued)* |
+| `set_stock(target, item, count)` | Sets how many of an item a merchant has; `0` removes it from the stock. Unlimited lines stay unlimited. *(queued)* |
+| `stock_of(target, item)` | How many of an item a merchant on the map has (`999` for unlimited, `0` if none or no merchant). |
 | `defeated_count(character)` | How many characters of a definition the player has defeated (the bestiary's count), e.g. `defeated_count("slime")`. |
 | `hp_of(target)` | A character's HP right now: `"player"`, `"self"` (or `SELF`) or the name of a character on this map; `-1` if there is none (or it can't be hurt). |
 
@@ -490,6 +495,7 @@ save. Scripts can add autosaves at important moments, e.g. after a boss fight or
 | `hour()` | Time of day in hours, `0` to `24` (`13.5` = half past one in the afternoon). |
 | `is_night()` | Whether it is night (dark on outdoor maps). |
 | `set_hour(hour)` | Sets the time of day, e.g. `set_hour(22)`. *(queued)* |
+| `day()` | The in-game day: `0` on the first day; midnight and sleeping move it on. For things that happen once a day (see the recipe *A stall that sells what was made*). |
 
 ### Weather
 
@@ -687,6 +693,36 @@ fn mira_talk() {
     } else {
         say("Mira", "Talked to me " + n + " times now. You must be bored!");
     }
+}
+```
+
+### A stall that sells what was made
+
+What a villager produces can reach their stall: here Finn's catch. The fisher's *Interact* trigger
+(he is a merchant) runs `restock_catch` before his shop opens. Every day since the last restock adds
+`per_day` trout, up to `max` in stock; the days are counted with `day()`, so the stall fills up even
+when the player wasn't in the village at dawn. The variable remembering the day is per merchant
+(`SELF` is passed on, see [Targets and `SELF`](#targets-and-self)).
+
+```rust
+fn restock_from_activity(owner, item, per_day, max) {
+    let key = "stocked_day_" + owner + "_" + item;
+    let days = day() - get_var(key);
+    if days > 0 {
+        let add = days * per_day;
+        let room = max - stock_of("self", item);
+        if add > room {
+            add = room;
+        }
+        if add > 0 {
+            add_stock("self", item, add);
+        }
+        set_var(key, day());
+    }
+}
+
+fn restock_catch() {                    // the fisher's Interact trigger runs this
+    restock_from_activity(SELF, "trout", 3, 8);
 }
 ```
 

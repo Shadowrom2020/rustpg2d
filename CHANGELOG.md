@@ -6,6 +6,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Villagers who produce**: the *Shop stock* action and `add_stock` / `set_stock` / `stock_of`
+  change a merchant's stock; `day()` counts in-game days. In the example, Finn's catch is for
+  sale at his fish stall the next morning and Bram's apple pies at his bread stall (a restock
+  script on the fisher's and the baker's definitions, in the asset library too); Finn tells you so
+  while he fishes.
 - **Pictures over the game** (*Show image* / *Hide image* actions, `show_image(sheet[, options])` /
   `hide_image()`): a sprite sheet drawn whole, at its own size or scaled down to fit the window
   (aspect ratio kept, drawn smoothly when shrunk). *Scroll* pans a picture taller than the window

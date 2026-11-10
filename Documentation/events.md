@@ -150,6 +150,7 @@ Facing: `Down`, `Left`, `Right`, `Up`. Equipment slots: `Weapon`, `OffHand`, `He
 | Set mood | `{"Mood":{"target":"self","mood":"worried"}}` |
 | Show image | `{"ShowImage":{"sheet":"tilda_full","wait":true,"scroll":true,"speed":40.0,"scale":1.0}}` |
 | Hide image | `"HideImage"` |
+| Shop stock | `{"ShopStock":{"target":"self","item":"trout","op":"Add","count":3,"price":0}}` (`op` `Add` / `Set`; `Set` with `count` 0 removes the line) |
 
 ## Patterns
 

@@ -118,6 +118,8 @@ impl Game {
         self.scripts.set_player(info);
         let chars = self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0).map(|e| (e.uid, e.name.clone(), e.hp)).collect();
         self.scripts.set_characters(chars);
+        let merchants = self.merchant_stock();
+        self.scripts.set_merchants(merchants);
     }
 
     /// Runs a script function and queues its actions (automated play-throughs).

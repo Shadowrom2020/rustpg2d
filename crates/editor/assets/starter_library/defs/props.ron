@@ -690,7 +690,15 @@
         triggers: [
             (
                 on: Interact,
-                conditions: [],
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: false,
+                    ),
+                ],
                 actions: [
                     OpenCrafting(
                         station: "cooking",
@@ -700,13 +708,40 @@
                 once: false,
             ),
             (
+                on: Interact,
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: true,
+                    ),
+                ],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "The campfire is cold. Use a log on it to light it.",
+                    ),
+                ],
+                once: false,
+            ),
+            (
                 on: UseItem(
-                    item: "coal",
+                    item: "log",
                 ),
-                conditions: [],
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: true,
+                    ),
+                ],
                 actions: [
                     TakeItem(
-                        item: "coal",
+                        item: "log",
                         count: 1,
                     ),
                     SetState(
@@ -715,7 +750,28 @@
                     ),
                     Dialog(
                         speaker: "",
-                        text: "The coal catches and the fire crackles to life.",
+                        text: "You stack the logs and the fire crackles to life.",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "log",
+                ),
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "The fire is burning well already.",
                     ),
                 ],
                 once: false,
@@ -726,7 +782,7 @@
         regrow: Some((
             from: "lit",
             to: "out",
-            hours: 8.0,
+            hours: 4.0,
         )),
         low: true,
     ),
@@ -1594,17 +1650,50 @@
             ),
             (
                 on: UseItem(
-                    item: "coal",
+                    item: "log",
                 ),
-                conditions: [],
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: true,
+                    ),
+                ],
                 actions: [
                     TakeItem(
-                        item: "coal",
+                        item: "log",
                         count: 1,
                     ),
                     SetState(
                         target: "self",
                         state: "lit",
+                    ),
+                    Dialog(
+                        speaker: "",
+                        text: "You stack the logs and the fire crackles to life.",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "log",
+                ),
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "The fire is burning well already.",
                     ),
                 ],
                 once: false,
@@ -1657,17 +1746,50 @@
             ),
             (
                 on: UseItem(
-                    item: "coal",
+                    item: "log",
                 ),
-                conditions: [],
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: true,
+                    ),
+                ],
                 actions: [
                     TakeItem(
-                        item: "coal",
+                        item: "log",
                         count: 1,
                     ),
                     SetState(
                         target: "self",
                         state: "lit",
+                    ),
+                    Dialog(
+                        speaker: "",
+                        text: "You stack the logs and the fire crackles to life.",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "log",
+                ),
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "The fire is burning well already.",
                     ),
                 ],
                 once: false,
@@ -1709,17 +1831,50 @@
         triggers: [
             (
                 on: UseItem(
-                    item: "coal",
+                    item: "log",
                 ),
-                conditions: [],
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: true,
+                    ),
+                ],
                 actions: [
                     TakeItem(
-                        item: "coal",
+                        item: "log",
                         count: 1,
                     ),
                     SetState(
                         target: "self",
                         state: "lit",
+                    ),
+                    Dialog(
+                        speaker: "",
+                        text: "You stack the logs and the fire crackles to life.",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "log",
+                ),
+                conditions: [
+                    (
+                        cond: PropState(
+                            target: "self",
+                            state: "lit",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "The fire is burning well already.",
                     ),
                 ],
                 once: false,

@@ -158,8 +158,14 @@ button. Items marked **Food** heal more with a skill with the *Food* effect.
 The example has an alchemy table (potions, the herbal remedy; needs a mortar), a smelter (ingots;
 needs tongs), an anvil (swords, helmets, chainmail, arrows, the woodcutter's axe; needs a hammer and
 tongs), a sawhorse by the mill (planks from logs, a wooden shield, a fishing rod), a kitchen
-hearth and a bread oven that cook while lit (coal relights them), and a campfire that burns for eight
-in-game hours.
+hearth and a bread oven that cook while lit, and a campfire by the forest path.
+
+**Cooking fires burn wood.** The library's campfire, kitchen hearth, bread oven and fireplace are lit
+by using a **Log** on them (one log is used; on a fire that already burns, nothing is used). A
+campfire burns for four in-game hours and then goes out; while it is cold, E on it says what it
+needs instead of opening the cooking window. The hearth, oven and fireplace start lit and stay lit:
+their owners tend them. The forge and the smelter keep burning coal. In the example a cold campfire
+with three logs beside it waits by the forest path.
 
 ## Gathering and mining
 

@@ -52,9 +52,9 @@ struct Layout {
     orders: Vec<Rect>,
 }
 
-const HINT: &str = "Click an order or Left / Right + E   Esc: close";
+const HINT: &str = "Click an order or {key:left} / {key:right} + {key:confirm}   {key:cancel}: close";
 /// The hint with several companions (the "who" row).
-const HINT_MANY: &str = "Click an order or Left / Right + E   Up / Down: who   Esc: close";
+const HINT_MANY: &str = "Click an order or {key:left} / {key:right} + {key:confirm}   {key:up} / {key:down}: who   {key:cancel}: close";
 
 impl Game {
     /// Companions that can take orders (on this map, not knocked down).
@@ -183,7 +183,7 @@ impl Game {
             }
         }
         let who_w: Vec<f32> = names.iter().map(|n| bw(n)).collect();
-        let w = row(&orders_w).max(if names.is_empty() { 0.0 } else { row(&who_w) }).max(measure_text(HINT_MANY, None, 16, 1.0).width).max(measure_text(self.order_title(m, targets).as_str(), None, 22, 1.0).width) + 32.0;
+        let w = row(&orders_w).max(if names.is_empty() { 0.0 } else { row(&who_w) }).max(super::glyphs::measure_hint(HINT_MANY, 16.0)).max(measure_text(self.order_title(m, targets).as_str(), None, 22, 1.0).width) + 32.0;
         let h = if names.is_empty() { 96.0 } else { 132.0 };
         let panel = Rect::new((screen_width() - w) / 2.0, screen_height() - h - 24.0, w, h);
         let mut y = panel.y + 36.0;
@@ -260,8 +260,8 @@ impl Game {
             button(r, CHOICES[k].label(), k == m.sel, !m.on_who, has(CHOICES[k]));
         }
         let hint = if lay.who.is_empty() { HINT } else { HINT_MANY };
-        let hw = measure_text(hint, None, 16, 1.0).width;
-        draw_text(hint, p.x + (p.w - hw) / 2.0, p.bottom() - 10.0, 16.0, LIGHTGRAY);
+        let hw = super::glyphs::measure_hint(hint, 16.0);
+        super::glyphs::draw_hint(hint, p.x + (p.w - hw) / 2.0, p.bottom() - 10.0, 16.0, LIGHTGRAY);
     }
 
     /// `status()`: the open menu's choice (`orders=<who>:<order>`), else `-`.

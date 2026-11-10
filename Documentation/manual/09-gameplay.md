@@ -12,7 +12,10 @@ The **status frame** at the top left shows a small portrait of the hero as dress
 equipped bow or crossbow.
 
 - **Melee weapons** have their own damage, speed, reach, swing arc and knockback (a sword, a spear,
-  an axe). **Ranged weapons** (bow, crossbow) shoot projectiles and use ammunition.
+  an axe). **Ranged weapons** (bow, crossbow) shoot projectiles and use ammunition. Shots fly over
+  low obstacles (fences, rocks, water, barrels) and stop at high ones (walls, tree trunks, statues);
+  enemy archers only shoot when they have such a clear line ([Maps › Low and high
+  obstacles](03-maps.md#low-and-high-obstacles)).
 - **Armor** reduces damage: what gets through is `damage − defense`, at least 1. Heavy armor can
   slow the wearer.
 - Hits knock back and give a moment of invulnerability. When the player is hurt the screen shakes
@@ -153,9 +156,16 @@ each recipe with its ingredients and what the player has of each (red where shor
 button. Items marked **Food** heal more with a skill with the *Food* effect.
 
 The example has an alchemy table (potions, the herbal remedy; needs a mortar), a smelter (ingots;
-needs tongs), an anvil (swords, helmets, chainmail, arrows; needs a hammer and tongs), a kitchen
-hearth and a bread oven that cook while lit (coal relights them), and a campfire that burns for eight
-in-game hours.
+needs tongs), an anvil (swords, helmets, chainmail, arrows, the woodcutter's axe; needs a hammer and
+tongs), a sawhorse by the mill (planks from logs, a wooden shield, a fishing rod), a kitchen
+hearth and a bread oven that cook while lit, and a campfire by the forest path.
+
+**Cooking fires burn wood.** The library's campfire, kitchen hearth, bread oven and fireplace are lit
+by using a **Log** on them (one log is used; on a fire that already burns, nothing is used). A
+campfire burns for four in-game hours and then goes out; while it is cold, E on it says what it
+needs instead of opening the cooking window. The hearth, oven and fireplace start lit and stay lit:
+their owners tend them. The forge and the smelter keep burning coal. In the example a cold campfire
+with three logs beside it waits by the forest path.
 
 ## Gathering and mining
 
@@ -167,6 +177,22 @@ player is elsewhere, so a mined-out vein refills and a picked bush grows back.
 
 The example's old mine has copper, iron, silver, gem and coal veins that refill after three days, a
 crate with a pickaxe, and a Mining skill.
+
+### Woodcutting
+
+Trees are gathered the same way, with an axe: the starter library's **Woodcutter's Axe** (tool kind
+`axe`; the *Battle Axe* is a weapon and doesn't chop) fells the **Big Oak** and **Big Pine** in five
+strokes (2 to 4 **Logs**, sometimes an apple from the oak) and the smaller **Young Oak** and **Young
+Pine** in three (1 or 2 logs). A felled tree leaves a stump you can walk over, which grows back into
+a tree after four days (three for the young ones). The **Woodcutting** skill takes 20 % fewer strokes
+per level. At a **Sawhorse** (a crafting station) two logs make three **Planks**, and planks make a
+wooden shield, a fishing rod and, at the anvil with an iron ingot, a new woodcutter's axe. All of it
+is library content: give your own tree props a *Gathering* section with the tool kind `axe` and a
+*stump* state to make them choppable.
+
+In the example, a woodcutter's axe lies in the mill, Brom the blacksmith stocks two, young trees
+grow by the mill and along the forest path, and the sawhorse stands next to the mill's door. Trees
+drawn as map tiles can't be felled: only tree props can.
 
 ## Farming
 

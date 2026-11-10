@@ -58,13 +58,15 @@ enum Opt {
     ScreenEffects,
     /// The game's language (its own and its translations).
     Language,
+    /// How gamepad buttons are shown (Auto / Xbox / PlayStation / Nintendo).
+    ButtonStyle,
     /// Opens the Controls page.
     Controls,
     Reset,
     Back,
 }
 
-const OPTS: [Opt; 13] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::Language, Opt::Controls, Opt::Reset, Opt::Back];
+const OPTS: [Opt; 14] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back];
 
 struct SaveInfo {
     slot: String,
@@ -524,7 +526,10 @@ impl Game {
             (_, Row::Opt(Opt::Back)) => self.back(),
             (_, Row::Opt(Opt::Controls)) => self.go(Page::Controls),
             (_, Row::Bind(a)) => self.menu.capture = Some(a),
-            (_, Row::ResetKeys) => self.set_keys(None, None),
+            (_, Row::ResetKeys) => {
+                self.set_keys(None, None);
+                self.set_pads(None, None);
+            }
             (_, Row::BackToOptions) => self.back(),
             (_, Row::Opt(o)) => self.change_opt(o, 1, true),
             (_, Row::SaveQuit) => {
@@ -595,6 +600,7 @@ impl Game {
             Opt::TextSpeed => "Text speed",
             Opt::ScreenEffects => "Shake & flash",
             Opt::Language => "Language",
+            Opt::ButtonStyle => "Button style",
             Opt::Controls => "Controls...",
             Opt::Reset => "Reset to defaults",
             Opt::Back => "Back",
@@ -616,6 +622,7 @@ impl Game {
             Opt::Ambience => pct(s.ambience_volume),
             Opt::TextSpeed => TEXT_SPEEDS.iter().find(|t| t.0 == s.text_speed).map_or("Normal", |t| t.1).to_string(),
             Opt::Language => self.languages.iter().find(|(c, _)| *c == self.lang_code).map_or_else(|| self.lang_code.clone(), |(_, n)| n.clone()),
+            Opt::ButtonStyle => super::glyphs::PadStyle::from_id(&s.pad_style).label().to_string(),
             Opt::Controls | Opt::Reset | Opt::Back => String::new(),
         }
     }
@@ -649,8 +656,15 @@ impl Game {
                 let j = if wrap { (i + dir).rem_euclid(n) } else { (i + dir).clamp(0, n - 1) };
                 s.language = self.languages.get(j as usize).map(|(c, _)| c.clone());
             }
-            // The keys and the language have their own ways back.
-            Opt::Reset => *s = Settings { keys: std::mem::take(&mut s.keys), language: s.language.take(), ..Settings::default() },
+            Opt::ButtonStyle => {
+                use super::glyphs::PadStyle;
+                let n = PadStyle::ALL.len() as i32;
+                let i = PadStyle::ALL.iter().position(|p| *p == PadStyle::from_id(&s.pad_style)).unwrap_or(0) as i32;
+                let j = if wrap { (i + dir).rem_euclid(n) } else { (i + dir).clamp(0, n - 1) };
+                s.pad_style = PadStyle::ALL[j as usize].id().to_string();
+            }
+            // The keys, the buttons and the language have their own ways back.
+            Opt::Reset => *s = Settings { keys: std::mem::take(&mut s.keys), pad: std::mem::take(&mut s.pad), language: s.language.take(), ..Settings::default() },
             Opt::Controls | Opt::Back => return,
         }
         self.apply_settings();
@@ -688,11 +702,29 @@ impl Game {
         }
     }
 
-    /// Controls page: what the selected row's keys clash with.
+    /// Sets the gamepad button of `act` (`None` clears it); `act` None resets every action.
+    /// Applies and saves.
+    fn set_pads(&mut self, act: Option<Act>, pad: Option<Pad>) {
+        let mut table: std::collections::HashMap<Act, Vec<Pad>> = Act::ALL.into_iter().map(|a| (a, input::pads_of(a))).collect();
+        match act {
+            None => table.clear(),
+            Some(a) => {
+                table.insert(a, pad.into_iter().collect());
+            }
+        }
+        self.settings.pad = input::pad_binding_names(&table);
+        input::set_pad_bindings(&self.settings.pad);
+        if let Err(e) = self.settings.save(&self.project.config.name) {
+            self.menu.message = Some(format!("Could not save the options: {e}"));
+        }
+    }
+
+    /// Controls page: what the selected row's keys and button clash with.
     fn conflict_text(&self, a: Act) -> Option<String> {
         let clashes: Vec<String> = input::keys_of(a)
             .into_iter()
             .flat_map(|k| input::conflicts(a, k).into_iter().map(move |b| format!("{} is also {}", input::key_label(k), b.label())))
+            .chain(input::pads_of(a).into_iter().filter(|_| a.pad_rebindable()).flat_map(|p| input::pad_conflicts(a, p).into_iter().map(move |b| format!("{} is also {}", super::glyphs::pad_label(p), b.label()))))
             .collect();
         (!clashes.is_empty()).then(|| clashes.join(" · "))
     }
@@ -700,6 +732,8 @@ impl Game {
     /// Applies the options: volumes, fullscreen, keys (zoom, FPS and text speed are read where used).
     pub(super) fn apply_settings(&mut self) {
         input::set_bindings(&self.settings.keys);
+        input::set_pad_bindings(&self.settings.pad);
+        super::glyphs::set_style(super::glyphs::PadStyle::from_id(&self.settings.pad_style));
         if let Some(code) = self.settings.language.clone() {
             if code != self.lang_code {
                 self.set_language(&code);
@@ -842,8 +876,17 @@ impl Game {
                     return true;
                 }
                 self.set_keys(Some(a), Some(k));
-            } else if input::pad_pressed(Pad::East) || input::pad_pressed(Pad::Start) {
+            } else if let Some(b) = input::last_pad_pressed() {
+                // B and Start keep the buttons; the d-pad moves.
                 self.menu.capture = None;
+                if matches!(b, Pad::East | Pad::Start) {
+                    return true;
+                }
+                if !a.pad_rebindable() || matches!(b, Pad::Up | Pad::Down | Pad::Left | Pad::Right) {
+                    self.menu.message = Some("That button can't be used for it.".into());
+                    return true;
+                }
+                self.set_pads(Some(a), Some(b));
             }
             return true;
         }
@@ -852,11 +895,17 @@ impl Game {
             self.back();
             return true;
         }
-        // Controls page: Del / Backspace (gamepad X) clears the selected action's keys.
-        if self.menu.page == Page::Controls && (input::any_pressed(&[KeyCode::Delete, KeyCode::Backspace]) || input::pad_pressed(Pad::West)) {
+        // Controls page: Del / Backspace clears the selected action's keys, the gamepad's X its button.
+        if self.menu.page == Page::Controls {
             if let Some((Row::Bind(a), _, _)) = rows.get(self.menu.sel) {
-                self.set_keys(Some(*a), None);
-                return true;
+                if input::any_pressed(&[KeyCode::Delete, KeyCode::Backspace]) {
+                    self.set_keys(Some(*a), None);
+                    return true;
+                }
+                if input::pad_pressed(Pad::West) && a.pad_rebindable() {
+                    self.set_pads(Some(*a), None);
+                    return true;
+                }
             }
         }
         if n > 0 {
@@ -1016,7 +1065,7 @@ impl Game {
                 draw_text(label, r.x + 14.0, r.y + 26.0, 22.0, c);
                 let Row::Bind(a) = rows[idx].0 else { continue };
                 let (text, col) = if self.menu.capture == Some(a) {
-                    ("Press a key...".to_string(), GOLD)
+                    ("Press a key or a button...".to_string(), GOLD)
                 } else if self.conflict_text(a).is_some() {
                     (detail.clone(), Color::new(1.0, 0.65, 0.25, 1.0))
                 } else {
@@ -1024,6 +1073,11 @@ impl Game {
                 };
                 let tw = measure_text(&text, None, 20, 1.0).width;
                 draw_text(&text, r.x + r.w - 14.0 - tw, r.y + 25.0, 20.0, col);
+                // Its gamepad button(s) in a column of their own.
+                let mut bx = r.x + r.w * 0.5;
+                for b in input::pads_of(a) {
+                    bx += super::glyphs::draw_pad(b, bx, r.y + 19.0, 20.0) + 4.0;
+                }
             } else if let Row::Achievement(id) = &rows[idx].0 {
                 // An achievement: its icon (dim while locked), name and description / date.
                 let unlocked = self.ach.progress.has(id);
@@ -1072,17 +1126,18 @@ impl Game {
             draw_text(format!("{}-{} of {}", self.menu.scroll + 1, (self.menu.scroll + self.max_rows()).min(rows.len()), rows.len()), p.x + p.w - 110.0, p.y + 42.0, 16.0, GRAY);
         }
         let hint = match self.menu.page {
-            Page::Title => "Up/Down + Enter or click",
-            Page::Main => "Up/Down + Enter or click · Esc: resume",
-            Page::Save => "Pick a save to overwrite, or make a new one · Esc: back",
-            Page::Load => "Enter / click: load · Del: delete · Esc: back",
+            Page::Title => "{key:up}/{key:down} + {key:confirm} or click",
+            Page::Main => "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume",
+            Page::Save => "Pick a save to overwrite, or make a new one · {key:cancel}: back",
+            Page::Load => "{key:confirm} / click: load · Del: delete · {key:cancel}: back",
             Page::Name => "Type a name · Enter: save · Esc: back",
-            Page::Options => "Left/Right or click < >: change · saved right away · Esc: back",
-            Page::Controls if self.menu.capture.is_some() => "Press the new key · Esc: keep the keys",
-            Page::Controls => "Enter: add a key · Del: clear · saved right away · Esc: back",
-            Page::Defeated => "Up/Down: choose · Enter / click: confirm",
-            Page::Achievements => "Up/Down or wheel: browse · Esc: back",
-            _ => "Enter / click · Esc: back",
+            Page::Options => "{key:left}/{key:right} or click < >: change · saved right away · {key:cancel}: back",
+            Page::Controls if self.menu.capture.is_some() => "Press a new key or button · Esc / {pad:b}: keep them",
+            Page::Controls if input::device() == input::Device::Pad => "{pad:a}: set a button · {pad:x}: clear the button · saved right away · {pad:b}: back",
+            Page::Controls => "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back",
+            Page::Defeated => "{key:up}/{key:down}: choose · {key:confirm} / click: confirm",
+            Page::Achievements => "{key:up}/{key:down} or wheel: browse · {key:cancel}: back",
+            _ => "{key:confirm} / click · {key:cancel}: back",
         };
         // Controls page: what the selected action's keys clash with.
         let clash = match (&self.menu.page, rows.get(self.menu.sel)) {
@@ -1092,7 +1147,7 @@ impl Game {
         if let Some(msg) = self.menu.message.as_ref().or(clash.as_ref()) {
             draw_text(msg, p.x + 16.0, p.y + p.h - 34.0, 18.0, Color::new(1.0, 0.5, 0.5, 1.0));
         }
-        draw_text(hint, p.x + 16.0, p.y + p.h - 12.0, 16.0, GRAY);
+        super::glyphs::draw_hint(hint, p.x + 16.0, p.y + p.h - 12.0, 16.0, GRAY);
     }
 }
 

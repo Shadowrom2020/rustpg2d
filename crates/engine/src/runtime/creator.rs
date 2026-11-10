@@ -419,6 +419,6 @@ impl Game {
 
         button(l.start, "Start adventure", sel == Some(Row::Start), false, l.start.contains(m));
         button(l.back, "Back", sel == Some(Row::Back), false, l.back.contains(m));
-        draw_text("Type a name  -  Up/Down: select  -  Left/Right: change  -  Enter: start  -  Esc: back", p.x + 30.0, p.y + H - 6.0, 16.0, GRAY);
+        super::glyphs::draw_hint("Type a name  -  {key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: start  -  {key:cancel}: back", p.x + 30.0, p.y + H - 6.0, 16.0, GRAY);
     }
 }

@@ -33,6 +33,13 @@ pub(super) struct Projectile {
     effect: Option<crate::effects::EffectSpec>,
 }
 
+impl Projectile {
+    /// The ground point below it (it flies `above` px over the ground), for depth sorting.
+    pub(super) fn ground_y(&self, above: f32) -> f32 {
+        self.pos.y + above
+    }
+}
+
 pub(super) struct PlayerCombat {
     /// 0 disables combat (no HUD, no attacking, can't be hurt).
     pub max_hp: i32,
@@ -408,6 +415,7 @@ impl Game {
                     }
                 }
                 // Walls are checked after targets, so characters standing on a solid tile can still be hit.
+                // Low obstacles (fences, water, barrels) don't stop shots; walls, trees and tall props do.
                 let leaving = self.projectiles[i].traveled < ts * 0.5; // shooter may stand on a solid tile
                 let tile = ((pos.x / ts).floor() as i32, (pos.y / ts).floor() as i32);
                 // Characters stuck inside a solid tile can still be hit.
@@ -418,7 +426,7 @@ impl Game {
                         e.active && e.max_hp > 0 && Rect::new(r.x, r.y - ts * 0.6, r.w, r.h + ts * 0.6).overlaps(&tr)
                     })
                 };
-                if !leaving && self.tile_solid(tile.0, tile.1) && !occupied() {
+                if !leaving && self.blocks_shot(tile.0, tile.1) && !occupied() {
                     self.effects.push((pos, EFFECT_TIME * 0.6));
                     alive = false;
                     break;
@@ -634,12 +642,6 @@ impl Game {
             // Above the head of a full-height (1.5 tiles) character.
             self.draw_npc_effects(e.body.pos.x, e.body.pos.y - ts * 1.5 - 2.0 * u, &e.effects);
         }
-        for p in &self.projectiles {
-            let angle = p.vel.y.atan2(p.vel.x);
-            if !self.assets.draw_frame_rotated(&p.sprite.sheet, p.sprite.frame, p.pos, angle, WHITE) {
-                draw_line(p.pos.x, p.pos.y, p.pos.x - p.vel.x * 0.03, p.pos.y - p.vel.y * 0.03, 1.5 * u, WHITE);
-            }
-        }
         for (pos, age) in &self.effects {
             let t = age / EFFECT_TIME;
             let c = Color::new(1.0, 1.0, 1.0, 1.0 - t);
@@ -649,6 +651,16 @@ impl Game {
                 let d = (4.0 + t * 12.0) * u;
                 draw_rectangle(pos.x + a.cos() * d - u, pos.y + a.sin() * d - u, 2.0 * u, 2.0 * u, c);
             }
+        }
+    }
+
+    /// Draws projectile `k` (in the depth-sorted world drawing, see `Game::draw`).
+    pub(super) fn draw_projectile(&self, k: usize) {
+        let Some(p) = self.projectiles.get(k) else { return };
+        let angle = p.vel.y.atan2(p.vel.x);
+        if !self.assets.draw_frame_rotated(&p.sprite.sheet, p.sprite.frame, p.pos, angle, WHITE) {
+            let u = self.u();
+            draw_line(p.pos.x, p.pos.y, p.pos.x - p.vel.x * 0.03, p.pos.y - p.vel.y * 0.03, 1.5 * u, WHITE);
         }
     }
 

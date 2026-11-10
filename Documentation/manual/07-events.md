@@ -113,8 +113,11 @@ AI agents get every event, condition and action with its fields as JSON ([below]
   another trigger of the same moment that checks that flag: give such triggers conditions that
   exclude each other (*Flag set* on one, *not Flag set* on the other).
 - **once** makes a trigger run a single time per save game.
-- Texts may use `{player}` (the player's name), `{sir|madam}` (by the player's sex) and
-  `{variable}` (a variable's value). In a speaker, `{self}` is the owner's name.
+- Texts may use `{player}` (the player's name), `{sir|madam}` (by the player's sex),
+  `{variable}` (a variable's value) and `{key:interact}` (the key or gamepad button of an action:
+  "E" with the keyboard, "A" with an Xbox pad; any action id such as `attack`, `journal`, `map`
+  works, `interact` is the same as `confirm`). In a speaker, `{self}` is the owner's name. Item
+  descriptions understand `{key:…}` too ("press {key:interact} to cast").
 
 ## Common patterns
 

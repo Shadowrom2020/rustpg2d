@@ -435,7 +435,8 @@ impl WorldState {
 
     /// Fills in text placeholders (dialogs, choices, quest texts):
     /// `{player}` = the player's name, `{his|her}` = the first word for a male player, the
-    /// second for a female one, `{name}` = the value of variable `name`. Anything else in
+    /// second for a female one, `{name}` = the value of variable `name`, `{key:confirm}` = the key
+    /// or gamepad button of an action (any action id; `interact` = confirm). Anything else in
     /// braces is kept as it is.
     /// The text in the current language (`lang::tr`, looked up before the placeholders are
     /// filled in) with `{player}`, `{sir|madam}` and `{var}` filled in.
@@ -455,6 +456,9 @@ impl WorldState {
             let ident = !inner.is_empty() && inner.chars().all(|c| c.is_alphanumeric() || c == '_');
             if inner == "player" {
                 out.push_str(&self.player_name);
+            } else if let Some(key) = inner.strip_prefix("key:").and_then(crate::runtime::glyphs::key_text) {
+                // {key:confirm}: the key ("E") or, after gamepad use, the button ("A") for it.
+                out.push_str(&key);
             } else if inner.contains('|') && !inner.contains('{') {
                 let mut parts = inner.splitn(2, '|');
                 let (m, f) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));

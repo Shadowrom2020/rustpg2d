@@ -3,6 +3,73 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.14.0 — 2026-11-10
+
+### Gameplay
+- **Gamepads in the web game**: browser versions read controllers through the browser's Gamepad
+  API (R(ust)PG2D's web plugin, now version 2): moving, buttons, rebinding and the button pictures
+  work as on the desktop, with the style detected from the pad's name. A browser shows a pad to the
+  page after its first button press there. The character window's tabs show the action's button
+  too (*Character (△)*).
+- **Gamepad glyphs and rebinding**: the help lines of windows and menus show the controller's
+  buttons as soon as a pad is used (and the keys again after a key press or a click), drawn in the
+  pad's style: Xbox (also the Steam Deck), PlayStation or Nintendo, detected from the pad or chosen
+  in *Options › Button style*. *Options › Controls* shows each action's button and rebinds it (A,
+  then the new button; X clears it), saved in `settings.ron` (`pad`, `pad_style`). Texts can name an
+  action's key or button: `{key:interact}` in dialogs, choices, quest texts, scripts' `say` and item
+  descriptions says "E" or "A". The example's tool descriptions use it. `status` prints `device=`
+  and `pad_style=`.
+- **Woodcutting** (starter library and example): a *Woodcutter's Axe* fells the Big Oak and Big
+  Pine and the new *Young Oak* and *Young Pine* props for *Logs*; stumps grow back after a few days;
+  a *Woodcutting* skill takes fewer strokes; at the new *Sawhorse* station logs become *Planks*, and
+  planks a wooden shield, a fishing rod and (at the anvil) a woodcutter's axe. In the example the axe
+  lies in the mill, the blacksmith sells it, and young trees grow by the mill and the forest path.
+- **Cooking on a wood fire** (starter library and example): the campfire, kitchen hearth, bread
+  oven and fireplace are lit with a *Log* instead of coal (none is used on a fire that burns); a
+  campfire burns for four in-game hours and, cold, tells the player to use a log on it instead of
+  opening an empty cooking window. The forge and the smelter keep coal. The example has a cold
+  campfire with logs by the forest path.
+- **Low obstacles**: solid things are *high* or *low*. Low tiles and props (fences, rocks,
+  mushrooms, water, tables, barrels, chairs) stop walking, but arrows, bolts and the sight of
+  enemies pass over them; high ones (walls, tree trunks, statues, stalls) stop both. Tilesets mark
+  their low tiles (*Database › Tilesets › Pick low tiles in the grid*), props have a *Low*
+  checkbox; the collision overlay shows low tiles in yellow. The example's and the starter
+  library's tilesets and props are marked, and existing asset libraries take the marks for
+  tilesets with the same image and props they haven't changed.
+- **Changed behaviour**: solid props now stop shots unless they are marked *Low* (before, arrows
+  flew through every prop, trees and statues included). Projects with their own solid props
+  should mark the low ones (barrels, crates, furniture); until then archers can't shoot over them.
+
+### Fixes
+- Merchants whose daily schedule takes them to another map didn't open their shop there (Brom the
+  blacksmith, who works and sleeps in the smithy, never sold anything): a visitor's shop and stock
+  now come from where it is placed, the same wherever it stands; `stock_of` / `add_stock` reach it
+  too.
+- Arrows, bolts and flying spell sprites (`fly()`, the fireball) were drawn on top of tree crowns,
+  tall props and characters they flew behind; they are now drawn in depth order with characters
+  and props (overhead tile layers still cover them).
+
+### Editor
+- **Multi-select on maps**: with the Select tool, Ctrl+click adds or removes an entity or zone,
+  Ctrl+drag on empty space selects the entities and zones in a box; dragging one moves them all,
+  Del / Ctrl+D / Ctrl+C / Ctrl+X act on all of them (one undo step each), and the inspector lists
+  them with a shared *Active* switch. Editor script `selectadd`, `boxselect`, `movesel`, `delete`,
+  `duplicate`; `status` prints `multi=N`.
+- **Undo in the Database**: Ctrl+Z / Ctrl+Y, the toolbar's Undo / Redo and *Edit › Undo
+  (definitions)* undo changes to definitions and project settings: form edits, new / duplicated /
+  deleted definitions, the character builder, an AI agent's writes. Typing into one field is one
+  step; undoing a rename renames back, maps and scripts included. 100 steps, kept until another
+  project is opened or the definitions change on disk. Editor script `dbundo` / `dbredo`, `status`
+  prints `dbundo=undo/redo`.
+- The editor no longer reloads its own definitions a second after saving them (the file watcher
+  took the editor's save for an outside change).
+- Agent server: `tileset_legend` lists low tiles; `upsert_def` describes the `low` fields of
+  tilesets and props.
+
+### Maintenance
+- `status` prints `foes=` (hostile characters with HP and tile) for scripted combat checks; the
+  editor script command `tilepick low|ladder|light|off` switches the Tilesets tab's grid mode.
+
 ## 0.13.0 — 2026-11-10
 
 ### Gameplay

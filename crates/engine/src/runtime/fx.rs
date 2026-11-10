@@ -175,8 +175,24 @@ impl Game {
     }
 
     /// Draws the effects (world space).
+    /// Draws the effects played once (explosions, bursts) over the scene; flying sprites are
+    /// depth-sorted with characters and props instead ([`Self::flying_fx`]).
     pub(super) fn draw_fx(&self) {
-        for f in &self.fx {
+        for (k, f) in self.fx.iter().enumerate() {
+            if matches!(f.kind, FxKind::Once) {
+                self.draw_one_fx(k);
+            }
+        }
+    }
+
+    /// Flying sprites: index and y (their height in the air is added by the caller).
+    pub(super) fn flying_fx(&self) -> impl Iterator<Item = (usize, f32)> + '_ {
+        self.fx.iter().enumerate().filter(|(_, f)| matches!(f.kind, FxKind::Fly { .. })).map(|(k, f)| (k, f.pos.y))
+    }
+
+    /// Draws effect `k`.
+    pub(super) fn draw_one_fx(&self, k: usize) {
+        if let Some(f) = self.fx.get(k) {
             let n = self.fx_frames(&f.sprite);
             let step = (f.age * f.sprite.fps) as u32;
             let (frame, angle) = match &f.kind {

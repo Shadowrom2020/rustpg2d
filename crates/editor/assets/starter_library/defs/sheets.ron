@@ -852,4 +852,22 @@
         frame_w: 1024,
         frame_h: 1024,
     ),
+    (
+        id: "materials",
+        image: "sprites/materials.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
+    (
+        id: "woodwork",
+        image: "sprites/woodwork.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
+    (
+        id: "trees_small",
+        image: "sprites/trees_small.png",
+        frame_w: 32,
+        frame_h: 64,
+    ),
 ]

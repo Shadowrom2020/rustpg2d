@@ -1,5 +1,5 @@
 // R(ust)PG2D's plugin for macroquad's JS loader (load it after mq_js_bundle.js, before
-// load(...)): the browser storage and clock the web game uses (engine/src/sys.rs). Files the
+// load(...)): the browser storage, clock and gamepads the web game uses (engine/src/sys.rs). Files the
 // game writes (save games, settings, achievements) are kept in localStorage under
 // "rustpg2d:<page folder>:<path>" as base64 text, so each game on a site has its own.
 "use strict";
@@ -15,7 +15,7 @@
     };
     miniquad_add_plugin({
         name: "rustpg2d",
-        version: 1,
+        version: 2,
         register_plugin: function (importObject) {
             const env = importObject.env;
             env.rustpg2d_now = () => Date.now() / 1000;
@@ -56,6 +56,41 @@
                 pending = encoder.encode(navigator.language || "");
                 return pending.length;
             };
+            // Gamepads (the browser's Gamepad API; a pad shows up after its first button press):
+            // the first connected one's buttons in the "standard" layout as bits 0-15 (A B X Y,
+            // LB RB LT RT, View Menu, stick clicks, d-pad), its stick axes and its name.
+            const pad = () => {
+                const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+                for (const p of pads) {
+                    if (p && p.connected) {
+                        return p;
+                    }
+                }
+                return null;
+            };
+            env.rustpg2d_pad_buttons = () => {
+                const p = pad();
+                let bits = 0;
+                if (p) {
+                    for (let i = 0; i < Math.min(p.buttons.length, 16); i++) {
+                        const b = p.buttons[i];
+                        if (b && (b.pressed || b.value > 0.5)) {
+                            bits |= 1 << i;
+                        }
+                    }
+                }
+                return bits;
+            };
+            env.rustpg2d_pad_axis = (i) => {
+                const p = pad();
+                return p && i < p.axes.length ? p.axes[i] : 0;
+            };
+            env.rustpg2d_pad_id_dump = () => {
+                const p = pad();
+                pending = encoder.encode(p ? p.id : "");
+                return pending.length;
+            };
+            env.rustpg2d_pad_id_take = take;
         },
     });
 })();

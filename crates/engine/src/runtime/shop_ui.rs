@@ -119,34 +119,53 @@ impl Game {
     /// What merchants on the current map have, for `stock_of()`: (uid, name, [(item, count)]),
     /// unlimited lines as 999.
     pub(super) fn merchant_stock(&self) -> Vec<crate::script::MerchantStock> {
-        let map = &self.loaded.map.name;
         self.loaded
             .entities
             .iter()
             .filter(|e| e.active)
             .filter_map(|e| {
-                let saved = self.world.shops.get(map).and_then(|m| m.get(&e.uid)).cloned();
+                let saved = self.saved_stock(e.uid).cloned();
                 let stock = saved.or_else(|| self.shop_spec(e.uid).map(|s| s.items))?;
                 Some((e.uid, e.name.clone(), stock.into_iter().map(|l| (l.item, if l.unlimited { 999 } else { l.count })).collect()))
             })
             .collect()
     }
 
-    /// The merchant spec of a character on the current map.
+    /// Where the merchant with runtime `uid` is placed: its home map, its uid there and its
+    /// placed instance. A character visiting from another map (its daily schedule) is placed
+    /// on its home map, and so are its shop and saved stock, the same wherever it stands.
+    fn merchant_home(&self, uid: u32) -> Option<(&str, u32, &crate::entity::EntityInstance)> {
+        let visitor = self.loaded.entities.iter().find(|e| e.uid == uid).and_then(|e| e.visitor.as_deref());
+        match visitor {
+            Some(v) => {
+                let def = self.visitor_defs.as_deref()?.iter().find(|d| d.home == v.map && d.inst.uid == v.uid)?;
+                Some((def.home.as_str(), v.uid, &def.inst))
+            }
+            None => Some((self.loaded.map.name.as_str(), uid, self.loaded.map.entity(uid)?)),
+        }
+    }
+
+    /// The merchant spec of a character on the current map (a visitor's from its home map).
     fn shop_spec(&self, uid: u32) -> Option<ShopSpec> {
-        let e = self.loaded.map.entity(uid)?;
+        let (_, _, e) = self.merchant_home(uid)?;
         self.project.db.shop_of(e).cloned()
+    }
+
+    /// A merchant's saved stock, if it has traded yet.
+    fn saved_stock(&self, uid: u32) -> Option<&Vec<ShopEntry>> {
+        let (map, home_uid, _) = self.merchant_home(uid)?;
+        self.world.shops.get(map)?.get(&home_uid)
     }
 
     /// Current stock of a merchant (created from its spec the first time).
     pub(super) fn shop_stock(&mut self, uid: u32) -> Option<&mut Vec<ShopEntry>> {
-        let map = self.loaded.map.name.clone();
-        if self.world.shops.get(&map).is_none_or(|m| !m.contains_key(&uid)) {
+        let (map, home_uid) = self.merchant_home(uid).map(|(m, u, _)| (m.to_string(), u))?;
+        if self.world.shops.get(&map).is_none_or(|m| !m.contains_key(&home_uid)) {
             let spec = self.shop_spec(uid)?;
             let stock = spec.items.into_iter().filter(|e| !e.item.is_empty()).collect();
-            self.world.shops.entry(map.clone()).or_default().insert(uid, stock);
+            self.world.shops.entry(map.clone()).or_default().insert(home_uid, stock);
         }
-        self.world.shops.get_mut(&map)?.get_mut(&uid)
+        self.world.shops.get_mut(&map)?.get_mut(&home_uid)
     }
 
     /// Queues the trade window of a merchant (opens once the current events have finished).
@@ -164,7 +183,7 @@ impl Game {
     }
 
     fn merchant_name(&self, uid: u32) -> String {
-        let def = self.loaded.map.entity(uid).map(|e| e.def.clone()).unwrap_or_default();
+        let def = self.merchant_home(uid).map(|(_, _, e)| e.def.clone()).unwrap_or_default();
         self.project.db.character(&def).map_or("Merchant".into(), |d| d.name.clone())
     }
 
@@ -184,7 +203,7 @@ impl Game {
         let Some(uid) = self.shop.open else { return Vec::new() };
         let Some(spec) = self.shop_spec(uid) else { return Vec::new() };
         let empty = Vec::new();
-        let stock = self.world.shops.get(&self.loaded.map.name).and_then(|m| m.get(&uid)).unwrap_or(&empty);
+        let stock = self.saved_stock(uid).unwrap_or(&empty);
         let db = &self.project.db;
         // Haggling: buying cheaper, selling better (never below 1).
         let h = self.haggle_percent() / 100.0;
@@ -326,7 +345,7 @@ impl Game {
     /// Open merchant and its stock (for automated play-throughs).
     pub(super) fn shop_status(&self) -> Option<String> {
         let uid = self.shop.open?;
-        let stock = self.world.shops.get(&self.loaded.map.name)?.get(&uid)?;
+        let stock = self.saved_stock(uid)?;
         let list: Vec<String> = stock.iter().map(|e| if e.unlimited { format!("{}:inf", e.item) } else { format!("{}:{}", e.item, e.count) }).collect();
         let msg = self.shop.msg.as_ref().map_or("", |m| m.0.as_str());
         Some(format!("{} [{}] msg={msg:?} side={:?} sel={:?} scroll={:?}", self.shop_title(uid), list.join(" "), self.shop.side, self.shop.lists.each_ref().map(|l| l.sel), self.shop.lists.each_ref().map(|l| l.scroll)))
@@ -497,7 +516,7 @@ impl Game {
         let sel = self.shop_rows(side).into_iter().nth(self.shop.lists[side.idx()].sel);
         if let Some(d) = sel.as_ref().and_then(|r| self.project.db.item(&r.item)) {
             draw_text(&d.name, f.x + 10.0, f.y + 24.0, 22.0, GOLD);
-            for (k, line) in wrap_text(&d.description, 18, f.w - 190.0).iter().take(2).enumerate() {
+            for (k, line) in wrap_text(&super::glyphs::expand_keys(&d.description), 18, f.w - 190.0).iter().take(2).enumerate() {
                 draw_text(line, f.x + 10.0, f.y + 46.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
             }
         }
@@ -510,8 +529,8 @@ impl Game {
                 draw_text(text, f.x + f.w - tw - 10.0, f.y + 62.0, 20.0, c);
             }
         }
-        let hint = "Click price / Enter: trade one   Shift: ten   Wheel / Up / Down: select   Tab: switch side   Esc: close";
-        draw_text(hint, f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
+        let hint = "Click price / {key:confirm}: trade one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:next_tab}: switch side   {key:cancel}: close";
+        super::glyphs::draw_hint(hint, f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
     }
 }
 

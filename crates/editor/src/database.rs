@@ -33,6 +33,25 @@ pub enum Tab {
     Achievements,
 }
 
+/// How many definitions the list of `tab` shows (0 for the tabs without a list).
+pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
+    match tab {
+        Tab::Items => db.items.len(),
+        Tab::Props => db.props.len(),
+        Tab::Characters => db.characters.len(),
+        Tab::Tilesets => db.tilesets.len(),
+        Tab::Sheets => db.sheets.len(),
+        Tab::Sounds => db.sounds.len(),
+        Tab::Quests => db.quests.len(),
+        Tab::Structures => db.structures.len(),
+        Tab::Skills => db.skills.len(),
+        Tab::Spells => db.spells.len(),
+        Tab::Recipes => db.recipes.len(),
+        Tab::Achievements => db.achievements.len(),
+        Tab::Project | Tab::Scripts => 0,
+    }
+}
+
 impl Tab {
     /// The tab that edits definitions of `kind` (`None` for maps).
     pub fn of(kind: RefKind) -> Option<Tab> {
@@ -90,6 +109,8 @@ pub struct DbState {
     pub tile_light_pick: bool,
     /// Tilesets tab: clicks on the tile grid toggle ladder tiles.
     pub tile_ladder_pick: bool,
+    /// Tilesets tab: clicks on the tile grid toggle low tiles (shots fly over them).
+    pub tile_low_pick: bool,
     /// Editor script `dbscroll Y`: scroll the definition form there once.
     pub form_scroll: Option<f32>,
     /// Tilesets tab: the terrain whose tiles clicks into the grid assign.
@@ -122,6 +143,7 @@ struct Cx<'a> {
     st_edit: &'a mut crate::structures::StructEdit,
     tile_light_pick: &'a mut bool,
     tile_ladder_pick: &'a mut bool,
+    tile_low_pick: &'a mut bool,
     terrain_pick: &'a mut Option<crate::terrain::TerrainPick>,
 }
 
@@ -237,6 +259,13 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             }
         }
         ui.separator();
+        let (u, r) = (ed.db_hist.can_undo(), ed.db_hist.can_redo());
+        if ui::icon_button(ui, u, ph::ARROW_ARC_LEFT, "Undo", "Ctrl+Z", "Undoes the latest change to the definitions or project settings (a rename is renamed back, maps and scripts included)").clicked() {
+            ed.db_undo();
+        }
+        if ui::icon_button(ui, r, ph::ARROW_ARC_RIGHT, "Redo", "Ctrl+Y", "Redoes the change undone last").clicked() {
+            ed.db_redo();
+        }
         if ui.button(ui::t(ph::FLOPPY_DISK, "Save definitions")).on_hover_text("Writes defs/*.ron (Ctrl+S saves everything)").clicked() {
             ed.save_defs();
         }
@@ -466,6 +495,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     st_edit: &mut ed.db.st_edit,
                     tile_light_pick: &mut ed.db.tile_light_pick,
                     tile_ladder_pick: &mut ed.db.tile_ladder_pick,
+                    tile_low_pick: &mut ed.db.tile_low_pick,
                     terrain_pick: &mut ed.db.terrain_pick,
                 };
                 let i = ed.db.sel;
@@ -1042,6 +1072,9 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     rename_row(ui, RefKind::Prop, &d.id, cx.rename);
     name_row(ui, &mut d.name);
     hitbox(ui, &mut d.hitbox);
+    ui.checkbox(&mut d.low, "Low (shots fly over it)").on_hover_text(
+        "A low prop (a barrel, a chair, a fence) stops walking while it is solid, but arrows, bolts and the sight of enemies pass over it. Solid props that aren't low stop shots too (trees, statues, stalls).",
+    );
     ui.separator();
     prop_states_ui(ui, d, cx);
     ui.separator();
@@ -1656,6 +1689,7 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
     if ui.selectable_label(*cx.tile_light_pick, ui::t(ui::ph::LIGHTBULB, "Pick light tiles in the grid")).on_hover_text("While on, clicking a tile below adds or removes its light").clicked() {
         *cx.tile_light_pick = !*cx.tile_light_pick;
         *cx.tile_ladder_pick = false;
+        *cx.tile_low_pick = false;
         *cx.anim_target = None;
         *cx.terrain_pick = None;
     }
@@ -1667,11 +1701,28 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
         {
             *cx.tile_ladder_pick = !*cx.tile_ladder_pick;
             *cx.tile_light_pick = false;
+            *cx.tile_low_pick = false;
             *cx.anim_target = None;
             *cx.terrain_pick = None;
         }
         if !d.ladder.is_empty() {
             ui.weak(format!("{} ladder tile(s)", d.ladder.len()));
+        }
+    });
+    ui.horizontal(|ui| {
+        if ui
+            .selectable_label(*cx.tile_low_pick, ui::t(ui::ph::ARROW_FAT_LINES_DOWN, "Pick low tiles in the grid"))
+            .on_hover_text("While on, clicking a tile below marks it as low or not. A low solid tile (a fence, a rock, water, a table) stops walking, but arrows, bolts and the sight of enemies pass over it. Solid tiles that aren't low stop shots too (walls, tree trunks).")
+            .clicked()
+        {
+            *cx.tile_low_pick = !*cx.tile_low_pick;
+            *cx.tile_ladder_pick = false;
+            *cx.tile_light_pick = false;
+            *cx.anim_target = None;
+            *cx.terrain_pick = None;
+        }
+        if !d.low.is_empty() {
+            ui.weak(format!("{} low tile(s)", d.low.len()));
         }
     });
 
@@ -1683,6 +1734,7 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
         *cx.anim_target = None;
         *cx.tile_light_pick = false;
         *cx.tile_ladder_pick = false;
+        *cx.tile_low_pick = false;
     }
 
     // ---- tile grid
@@ -1690,6 +1742,7 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
     let editing_terrain = cx.terrain_pick.and_then(|p| d.terrains.get(p.terrain).map(|t| (p, t.name.clone())));
     match (*cx.anim_target, *cx.tile_light_pick) {
         _ if *cx.tile_ladder_pick && editing_terrain.is_none() && cx.anim_target.is_none() => ui.label("Click tiles to mark or unmark ladders (green rungs = ladder)."),
+        _ if *cx.tile_low_pick && editing_terrain.is_none() && cx.anim_target.is_none() => ui.label("Click tiles to mark or unmark them as low (yellow = solid but low: shots fly over it)."),
         _ if editing_terrain.is_some() => {
             let (p, name) = editing_terrain.clone().unwrap();
             let blob = d.terrains.get(p.terrain).is_some_and(|t| t.is_blob());
@@ -1720,8 +1773,13 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
         for i in 0..ts.count {
             let r = egui::Rect::from_min_size(rect.min + vec2((i % ts.columns) as f32 * cell, (i / ts.columns) as f32 * cell), vec2(cell, cell));
             p.rect_stroke(r, 0.0, Stroke::new(1.0_f32, Color32::from_white_alpha(20)), StrokeKind::Inside);
+            let low = d.low.contains(&i);
             if d.solid.contains(&i) {
-                p.rect_filled(r, 0.0, Color32::from_rgba_unmultiplied(255, 0, 0, 70));
+                let c = if low { Color32::from_rgba_unmultiplied(255, 210, 0, 80) } else { Color32::from_rgba_unmultiplied(255, 0, 0, 70) };
+                p.rect_filled(r, 0.0, c);
+            }
+            if low {
+                p.text(r.right_bottom() + vec2(-2.0, -2.0), egui::Align2::RIGHT_BOTTOM, ui::ph::ARROW_FAT_LINES_DOWN, egui::FontId::proportional(14.0), Color32::from_rgb(255, 220, 60));
             }
             if animated.contains(&i) {
                 p.rect_stroke(r, 0.0, Stroke::new(2.0_f32, Color32::LIGHT_BLUE), StrokeKind::Inside);
@@ -1759,6 +1817,20 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
                                 d.ladder.sort();
                             }
                         },
+                        None if *cx.tile_low_pick => {
+                            match d.low.iter().position(|&l| l == i) {
+                                Some(k) => {
+                                    d.low.remove(k);
+                                }
+                                None => {
+                                    d.low.push(i);
+                                    d.low.sort();
+                                }
+                            }
+                            if let Some(v) = ts.low.get_mut(i as usize) {
+                                *v = d.low.contains(&i);
+                            }
+                        }
                         None if *cx.tile_light_pick => match d.lights.iter().position(|l| l.tile == i) {
                             Some(k) => {
                                 d.lights.remove(k);

@@ -21,6 +21,8 @@ the left and the selected definition's form on the right.
 - **Add from library…** copies assets from your asset library into the project; **Add to library**
   and **Export…** send the selected definition to the library or into a package
   ([The asset library](11-asset-library.md)).
+- **Undo** / **Redo** (Ctrl+Z / Ctrl+Y) step back and forth through the changes to definitions,
+  renames included ([The editor › Saving and undo](02-the-editor.md#saving-and-undo)).
 - **Save definitions** (or Ctrl+S) writes the files; **Reload assets** reads images and sounds again
   after you changed them in another program.
 
@@ -68,6 +70,7 @@ is full, assigns it and opens it for drawing.
 |---|---|
 | **States** | Every prop has a list of named states, each with its own sprite and whether it blocks movement (an iron gate: *closed*, *open*, *destroyed*; a shrine: *dormant*, *glowing*). The first is the default. *+ Add state*, *Make default*, the arrows and ✖ organise them; renaming a state updates placed props and triggers. |
 | **Size and hitbox** | *Size (cells)* for props made of several frames of their sheet (a 2 × 2 double gate, a 3 × 4 oak), and the collision box (e.g. only the trunk), so the player walks behind big crowns. |
+| **Low** | While solid, the prop stops walking but not shots or sight (barrels, chairs, crates, fences). Solid props that aren't low stop arrows and bolts where their hitbox is (a tree at its trunk); see [Maps › Low and high obstacles](03-maps.md#low-and-high-obstacles). |
 | **Lockable** | A default lock for every copy: the key item, whether the key is *used up* or *stays*, what happens when unlocked (disappear, or switch to a state such as *open*), the locked / unlocked messages, *Can be locked again with the key*, and a **Lockpicking** difficulty. A lock without a key item is a door that simply opens. |
 | **Lootable container** | Slots, starting contents, *Opens only if* conditions with a locked message, and the state to switch to when first opened. Contents are saved. |
 | **Furniture** | Makes it sittable or a bed ([Gameplay › Furniture](09-gameplay.md#furniture-sitting-and-sleeping)). |
@@ -99,6 +102,7 @@ portrait and moods. They have their own chapter: [Characters](06-characters.md).
 | **Solid tiles** | Click tiles in the grid to make them block movement by default |
 | **Light tiles** | Tiles that glow (windows, lamps): a list, or *Pick light tiles in the grid*. A bulb marks them |
 | **Ladder tiles** | *Pick ladder tiles in the grid*; a green ladder icon marks them |
+| **Low tiles** | *Pick low tiles in the grid*: solid tiles that stop walking but not shots or sight (fences, rocks, water, tables; [Maps › Low and high obstacles](03-maps.md#low-and-high-obstacles)). They are drawn yellow instead of red, with an arrow mark |
 | **Animations** | Add an animation, then click tiles in the image to append its frames (water, lava, waterfalls) |
 | **Terrains** | Auto-tiling terrains ([Maps › Terrains](03-maps.md#defining-a-terrain)) |
 

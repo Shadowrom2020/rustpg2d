@@ -222,6 +222,7 @@ pub fn key_name(k: KeyCode) -> Option<&'static str> {
 pub fn key_label(k: KeyCode) -> String {
     let n = key_name(k).unwrap_or("?");
     match n {
+        "escape" => "Esc".into(),
         "kpplus" => "Num +".into(),
         "kpminus" => "Num -".into(),
         "kpmultiply" => "Num *".into(),
@@ -339,14 +340,25 @@ impl Pad {
 }
 
 /// Stick deflection that counts as a direction (and the lower one that keeps it held).
-#[cfg(not(target_arch = "wasm32"))]
 const STICK_ON: f32 = 0.5;
-#[cfg(not(target_arch = "wasm32"))]
 const STICK_OFF: f32 = 0.35;
+
+/// The left stick as d-pad bits (`x` right, `y` up), with a little hysteresis: `prev` holds the
+/// directions held last frame.
+fn stick_bits(x: f32, y: f32, prev: u32) -> u32 {
+    let mut down = 0;
+    for (v, pad) in [(-y, Pad::Down), (y, Pad::Up), (-x, Pad::Left), (x, Pad::Right)] {
+        let held = prev & pad.bit() != 0;
+        if v > STICK_ON || (held && v > STICK_OFF) {
+            down |= pad.bit();
+        }
+    }
+    down
+}
 
 #[derive(Default)]
 struct PadState {
-    /// (No gilrs in the web game: browsers' gamepads aren't read yet.) Never dropped: on Windows,
+    /// (The web game reads the browser's gamepads through the JS plugin instead.) Never dropped: on Windows,
     /// gilrs joins its event thread when dropped, which panics during process exit (thread-local
     /// destructors run after the other threads are gone).
     #[cfg(not(target_arch = "wasm32"))]
@@ -358,6 +370,9 @@ struct PadState {
     prev: u32,
     /// The connected gamepad's name ("" = none).
     name: String,
+    /// Frames until the web game asks the browser for the pad's name again.
+    #[cfg(target_arch = "wasm32")]
+    name_wait: u32,
     inj_down: Vec<Pad>,
     inj_pressed: Vec<Pad>,
 }
@@ -381,8 +396,18 @@ pub fn poll_pad() {
 
 /// The buttons held on connected gamepads (with the left stick as a d-pad) and the first one's name.
 #[cfg(target_arch = "wasm32")]
-fn read_gamepads(_: &mut PadState, _: u32) -> (u32, String) {
-    (0, String::new())
+fn read_gamepads(p: &mut PadState, prev: u32) -> (u32, String) {
+    let (buttons, x, y) = crate::sys::web::pad_state();
+    // The standard layout's buttons 0-15 are `Pad::ALL` in order (= their bits); the browser's
+    // stick y grows downwards.
+    let down = (buttons & 0xffff) | stick_bits(x, -y, prev);
+    // The name rarely changes: ask about twice a second.
+    if p.name_wait == 0 {
+        p.name_wait = 30;
+        return (down, crate::sys::web::pad_id());
+    }
+    p.name_wait -= 1;
+    (down, p.name.clone())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -431,13 +456,7 @@ fn read_gamepads(p: &mut PadState, prev: u32) -> (u32, String) {
                     }
                 }
                 // The left stick as a d-pad, with a little hysteresis.
-                let (x, y) = (gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY));
-                for (v, pad) in [(-y, Pad::Down), (y, Pad::Up), (-x, Pad::Left), (x, Pad::Right)] {
-                    let held = prev & pad.bit() != 0;
-                    if v > STICK_ON || (held && v > STICK_OFF) {
-                        down |= pad.bit();
-                    }
-                }
+                down |= stick_bits(gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY), prev);
             }
         }
         (down, name)
@@ -726,8 +745,13 @@ impl Act {
         }
     }
 
-    /// The gamepad buttons that trigger it.
-    pub fn pad(self) -> &'static [Pad] {
+    /// Players can change its gamepad button (movement stays on the stick and d-pad).
+    pub fn pad_rebindable(self) -> bool {
+        self.rebindable() && !matches!(self, Act::Up | Act::Down | Act::Left | Act::Right)
+    }
+
+    /// The gamepad buttons it has unless the player changed them.
+    pub fn default_pad(self) -> &'static [Pad] {
         match self {
             Act::Up => &[Pad::Up],
             Act::Down => &[Pad::Down],
@@ -795,6 +819,97 @@ pub fn binding_names(table: &std::collections::HashMap<Act, Vec<KeyCode>>) -> st
         .collect()
 }
 
+thread_local! {
+    /// Gamepad buttons the player bound instead of the defaults (Options › Controls).
+    static PAD_BINDINGS: RefCell<std::collections::HashMap<Act, Vec<Pad>>> = RefCell::new(Default::default());
+}
+
+/// The gamepad buttons that trigger `a` now.
+pub fn pads_of(a: Act) -> Vec<Pad> {
+    with_pads(a, |p| p.to_vec())
+}
+
+fn with_pads<R>(a: Act, f: impl FnOnce(&[Pad]) -> R) -> R {
+    PAD_BINDINGS.with(|b| match b.borrow().get(&a) {
+        Some(p) => f(p),
+        None => f(a.default_pad()),
+    })
+}
+
+/// Applies the player's gamepad bindings (`settings.pad`: action id -> button names); unknown
+/// actions and buttons and actions whose button can't change are ignored.
+pub fn set_pad_bindings(pads: &std::collections::BTreeMap<String, Vec<String>>) {
+    let map = pads
+        .iter()
+        .filter_map(|(id, names)| {
+            let a = Act::from_id(id).filter(|a| a.pad_rebindable())?;
+            Some((a, names.iter().filter_map(|n| Pad::from_name(n)).collect::<Vec<_>>()))
+        })
+        .collect();
+    PAD_BINDINGS.with(|b| *b.borrow_mut() = map);
+}
+
+/// Button names for `settings.pad` (only actions that differ from the defaults).
+pub fn pad_binding_names(table: &std::collections::HashMap<Act, Vec<Pad>>) -> std::collections::BTreeMap<String, Vec<String>> {
+    table
+        .iter()
+        .filter(|(a, pads)| a.pad_rebindable() && pads.as_slice() != a.default_pad())
+        .map(|(a, pads)| (a.id().to_string(), pads.iter().map(|p| p.name().to_string()).collect()))
+        .collect()
+}
+
+/// Other actions that button `pad` also triggers where `a` is used.
+pub fn pad_conflicts(a: Act, pad: Pad) -> Vec<Act> {
+    Act::ALL.into_iter().filter(|b| *b != a && b.places() & a.places() != 0 && pads_of(*b).contains(&pad)).collect()
+}
+
+/// The gamepad button pressed this frame, if any (the Controls page waits for one).
+pub fn last_pad_pressed() -> Option<Pad> {
+    Pad::ALL.into_iter().find(|p| pad_pressed(*p))
+}
+
+// ------------------------------------------------------------------ last device
+
+/// What the player used last: hints name its keys or show its buttons.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Device {
+    #[default]
+    Keys,
+    Pad,
+}
+
+thread_local! {
+    static DEVICE: std::cell::Cell<Device> = const { std::cell::Cell::new(Device::Keys) };
+    /// Where the real mouse was last frame (a clear move counts as using it).
+    static LAST_MOUSE: std::cell::Cell<Option<Vec2>> = const { std::cell::Cell::new(None) };
+}
+
+/// The device used last.
+pub fn device() -> Device {
+    DEVICE.with(|d| d.get())
+}
+
+/// Notes which device was used this frame; call once per frame after [`poll_pad`].
+pub fn update_device() {
+    let pad = last_pad_pressed().is_some();
+    let keys = INJECTED.with(|i| {
+        let i = i.borrow();
+        !i.pressed.is_empty() || i.mouse.as_ref().is_some_and(|m| !m.pressed.is_empty() || m.wheel != 0.0)
+    }) || !macroquad::input::get_keys_pressed().is_empty()
+        || [MouseButton::Left, MouseButton::Right, MouseButton::Middle].into_iter().any(is_mouse_button_pressed);
+    // The real mouse moving more than a few pixels (not an injected one, which stays parked).
+    let moved = INJECTED.with(|i| i.borrow().mouse.is_none()) && {
+        let now = Vec2::from(mouse_position());
+        let before = LAST_MOUSE.with(|l| l.replace(Some(now)));
+        before.is_some_and(|b| b.distance(now) > 6.0)
+    };
+    if pad {
+        DEVICE.with(|d| d.set(Device::Pad));
+    } else if keys || moved {
+        DEVICE.with(|d| d.set(Device::Keys));
+    }
+}
+
 /// Other (rebindable) actions that `key` would also trigger where `a` is used. Escape, shared
 /// by *Back* and *Pause* on purpose, can't be bound (it cancels the key prompt).
 pub fn conflicts(a: Act, key: KeyCode) -> Vec<Act> {
@@ -803,12 +918,12 @@ pub fn conflicts(a: Act, key: KeyCode) -> Vec<Act> {
 
 /// The action is held (keyboard or gamepad).
 pub fn act_down(a: Act) -> bool {
-    with_keys(a, |keys| keys.iter().any(|k| down(*k))) || a.pad().iter().any(|b| pad_down(*b))
+    with_keys(a, |keys| keys.iter().any(|k| down(*k))) || with_pads(a, |pads| pads.iter().any(|b| pad_down(*b)))
 }
 
 /// The action was triggered this frame.
 pub fn act_pressed(a: Act) -> bool {
-    with_keys(a, |keys| keys.iter().any(|k| pressed(*k))) || a.pad().iter().any(|b| pad_pressed(*b))
+    with_keys(a, |keys| keys.iter().any(|k| pressed(*k))) || with_pads(a, |pads| pads.iter().any(|b| pad_pressed(*b)))
 }
 
 pub fn any_act_pressed(acts: &[Act]) -> bool {
@@ -825,7 +940,7 @@ pub fn nav_pressed(a: Act) -> bool {
         Act::Right => KeyCode::Right,
         _ => return act_pressed(a),
     };
-    pressed(key) || a.pad().iter().any(|b| pad_pressed(*b))
+    pressed(key) || with_pads(a, |pads| pads.iter().any(|b| pad_pressed(*b)))
 }
 
 #[cfg(test)]
@@ -848,6 +963,22 @@ mod tests {
     }
 
     #[test]
+    fn the_stick_and_the_standard_layout() {
+        // The browser's standard gamepad layout numbers its buttons in the order of Pad::ALL
+        // (0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 8 View, 9 Menu, 10/11 sticks, 12-15 d-pad),
+        // so its bit i is Pad::ALL[i]'s bit.
+        let standard = [Pad::South, Pad::East, Pad::West, Pad::North, Pad::Lb, Pad::Rb, Pad::Lt, Pad::Rt, Pad::Select, Pad::Start, Pad::LStick, Pad::RStick, Pad::Up, Pad::Down, Pad::Left, Pad::Right];
+        for (i, p) in standard.iter().enumerate() {
+            assert_eq!(p.bit(), 1 << i, "{p:?}");
+        }
+        // Up is positive y; a held direction stays held a little below the threshold.
+        assert_eq!(stick_bits(0.0, 0.9, 0), Pad::Up.bit());
+        assert_eq!(stick_bits(-0.9, -0.9, 0), Pad::Left.bit() | Pad::Down.bit());
+        assert_eq!(stick_bits(0.4, 0.0, 0), 0);
+        assert_eq!(stick_bits(0.4, 0.0, Pad::Right.bit()), Pad::Right.bit());
+    }
+
+    #[test]
     fn actions_keep_the_old_keys() {
         assert_eq!(Act::Confirm.default_keys(), &[KeyCode::E, KeyCode::Space, KeyCode::Enter]);
         assert_eq!(Act::Attack.default_keys(), &[KeyCode::X]);
@@ -855,7 +986,7 @@ mod tests {
         assert!(Act::QUICK.iter().enumerate().all(|(k, a)| a.default_keys().len() == 1 && key_from_name(&(k + 1).to_string()) == Some(a.default_keys()[0])));
         // The gamepad reaches everything a controller player needs.
         for a in [Act::Up, Act::Down, Act::Left, Act::Right, Act::Confirm, Act::Cancel, Act::Pause, Act::Attack, Act::Character, Act::NextTab, Act::PrevTab, Act::Map, Act::Journal] {
-            assert!(!a.pad().is_empty(), "{a:?} has no gamepad button");
+            assert!(!a.default_pad().is_empty(), "{a:?} has no gamepad button");
         }
     }
 

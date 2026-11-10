@@ -270,11 +270,11 @@ impl Game {
         draw_line(c.x + 6.0, c.y + 6.0, c.x + c.w - 6.0, c.y + c.h - 6.0, 2.0, WHITE);
         draw_line(c.x + c.w - 6.0, c.y + 6.0, c.x + 6.0, c.y + c.h - 6.0, 2.0, WHITE);
         let hint = if self.journal.tab == JournalTab::Dialogs {
-            "Up/Down, wheel, PgUp/PgDn, Home/End: scroll   Tab: next tab   J / Esc: close"
+            "{key:up}/{key:down}, wheel, PgUp/PgDn, Home/End: scroll   {key:next_tab}: next tab   {key:journal} / {key:cancel}: close"
         } else {
-            "Up/Down or click: select   Tab: next tab   J / Esc: close"
+            "{key:up}/{key:down} or click: select   {key:next_tab}: next tab   {key:journal} / {key:cancel}: close"
         };
-        draw_text(hint, r.x + PAD, r.y + r.h - 14.0, 16.0, GRAY);
+        super::glyphs::draw_hint(hint, r.x + PAD, r.y + r.h - 14.0, 16.0, GRAY);
         for (t, tr) in tab_rects(r) {
             let on = self.journal.tab == t;
             let fill = if on { Color::new(0.85, 0.7, 0.3, 0.3) } else if tr.contains(m) { Color::new(1.0, 1.0, 1.0, 0.08) } else { Color::new(0.0, 0.0, 0.0, 0.25) };

@@ -13,6 +13,8 @@ pub(super) const OCC_PROP: u8 = 1;
 pub(super) const OCC_CHAR: u8 = 2;
 /// A solid entity's hitbox touches this tile or a neighbour: collision has to look at entities.
 pub(super) const OCC_NEAR: u8 = 4;
+/// A solid prop that isn't low covers the tile: it stops shots and sight.
+pub(super) const OCC_HIGH: u8 = 8;
 
 #[derive(Default)]
 pub(super) struct Occupancy {
@@ -50,6 +52,13 @@ impl Occupancy {
             for x in x0..=x1 {
                 self.or(x, y, OCC_NEAR);
             }
+        }
+    }
+
+    /// Marks the tiles a solid, not low prop with hitbox `r` covers as stopping shots.
+    pub fn add_high(&mut self, r: Rect, ts: f32) {
+        for (x, y) in Self::covered(r, ts) {
+            self.or(x, y, OCC_HIGH);
         }
     }
 

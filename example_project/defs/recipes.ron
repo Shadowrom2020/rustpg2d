@@ -423,4 +423,68 @@
             "mortar",
         ],
     ),
+    (
+        id: "saw_planks",
+        result: "plank",
+        count: 3,
+        ingredients: [
+            (
+                item: "log",
+                count: 2,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_wooden_shield",
+        result: "wooden_shield",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 3,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_fishing_rod",
+        result: "fishing_rod",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 2,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "forge_woodcutter_axe",
+        result: "woodcutter_axe",
+        count: 1,
+        ingredients: [
+            (
+                item: "iron_ingot",
+                count: 1,
+            ),
+            (
+                item: "plank",
+                count: 1,
+            ),
+        ],
+        station: "anvil",
+        skill: "smithing",
+        level: 0,
+        tools: [
+            "hammer",
+            "tongs",
+        ],
+    ),
 ]

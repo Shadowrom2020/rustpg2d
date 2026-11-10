@@ -690,7 +690,7 @@
     (
         id: "fishing_rod",
         name: "Fishing Rod",
-        description: "A tool: stand at the pond\'s edge and press E to cast.",
+        description: "A tool: stand at the pond\'s edge and press {key:interact} to cast.",
         icon: (
             sheet: "items",
             frame: 37,
@@ -736,7 +736,7 @@
     (
         id: "pickaxe",
         name: "Pickaxe",
-        description: "A miner\'s tool: press E or swing at an ore vein while you carry it.",
+        description: "A miner\'s tool: press {key:interact} or swing at an ore vein while you carry it.",
         icon: (
             sheet: "items",
             frame: 41,
@@ -2458,5 +2458,52 @@
         )),
         max_stack: 1,
         value: 10,
+    ),
+    (
+        id: "woodcutter_axe",
+        name: "Woodcutter\'s Axe",
+        description: "A light axe for felling trees: press {key:interact} or swing at a tree while you carry it.",
+        icon: (
+            sheet: "materials",
+            frame: 0,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 1,
+        value: 30,
+        held: "held_axe",
+        tool: "axe",
+    ),
+    (
+        id: "log",
+        name: "Log",
+        description: "A length of trunk. Firewood, or planks at a sawhorse.",
+        icon: (
+            sheet: "materials",
+            frame: 1,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 30,
+        value: 2,
+    ),
+    (
+        id: "plank",
+        name: "Plank",
+        description: "A sawn board for carpentry: shields, fishing rods, tool handles.",
+        icon: (
+            sheet: "materials",
+            frame: 2,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 30,
+        value: 4,
     ),
 ]

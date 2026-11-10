@@ -19,6 +19,10 @@ pub struct TilesetDef {
     /// characters keep off them. Not solid by themselves.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ladder: Vec<u32>,
+    /// Low tiles (fences, rocks, water, a table): when solid they stop walking but not shots or
+    /// sight. Solid tiles not listed here stop both (walls, trees).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub low: Vec<u32>,
     /// Animated tiles: wherever `tile` is placed, it cycles through `frames`.
     #[serde(default)]
     pub animations: Vec<TileAnim>,
@@ -84,7 +88,7 @@ pub struct TileLight {
 /// value is [`TilesetDef::fresh`].
 impl Default for TilesetDef {
     fn default() -> Self {
-        TilesetDef { id: String::new(), image: String::new(), solid: vec![], ladder: vec![], animations: vec![], lights: vec![], terrains: vec![] }
+        TilesetDef { id: String::new(), image: String::new(), solid: vec![], ladder: vec![], low: vec![], animations: vec![], lights: vec![], terrains: vec![] }
     }
 }
 
@@ -759,6 +763,10 @@ pub struct PropDef {
     /// A farm plot: seeds (items with a crop) are planted on it and grow over in-game time.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub plot: bool,
+    /// A low prop (a barrel, a chair, a fence): when solid it stops walking but not shots or
+    /// sight. Solid props that aren't low stop both (trees, statues, stalls).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub low: bool,
 }
 
 /// The serde defaults (what an entry with only `id`, `name` and `sprite` loads as: not solid,
@@ -781,6 +789,7 @@ impl Default for PropDef {
             gather: None,
             regrow: None,
             plot: false,
+            low: false,
         }
     }
 }

@@ -252,6 +252,9 @@ pub struct Editor {
     pub brush: Brush,
     pub cam: Cam,
     pub sel: Selection,
+    /// A multi-selection (`multisel.rs`): the primary `sel` it was made with, and every selected
+    /// entity / zone. Void as soon as `sel` is something else.
+    pub multi: Option<(Selection, Vec<Selection>)>,
     pub place_kind: EntityKind,
     /// Definition placed by clicking empty space ("" = nothing: clicks only select).
     pub place_def: String,
@@ -288,6 +291,8 @@ pub struct Editor {
     /// Definitions and project settings as last loaded / saved: `defs_dirty` is cleared again
     /// when the edits are reverted (e.g. undone in a text field, a checkbox toggled back).
     pub(crate) defs_saved: Box<(rustpg2d_engine::defs::Database, rustpg2d_engine::project::ProjectConfig)>,
+    /// Undo / redo of definition and project-setting changes (`db_undo.rs`).
+    pub db_hist: crate::db_undo::DbHistory,
     /// This editor is the Asset Library window (`--library`): `project` is the library.
     pub library_mode: bool,
     /// Lighting preview: renderer and the map's tile lights (refreshed twice a second).
@@ -403,6 +408,7 @@ impl Editor {
             brush: Brush { tileset: brush_ts, x: 0, y: 0, w: 1, h: 1 },
             cam: Cam { center: Vec2::ZERO, zoom: 2.0 },
             sel: Selection::None,
+            multi: None,
             place_kind: EntityKind::Prop,
             place_def: String::new(),
             place_tab: None,
@@ -429,6 +435,7 @@ impl Editor {
             pending: None,
             defs_dirty: false,
             defs_saved: Box::new((project.db.clone(), project.config.clone())),
+            db_hist: Default::default(),
             library_mode: false,
             lib_window: Default::default(),
             lib_stamp: None,
@@ -777,6 +784,7 @@ impl Editor {
             }
         }
         self.defs_dirty = true;
+        self.db_hist.record(crate::db_undo::Extra::StateRename { prop: prop.to_string(), old: old.to_string(), new: new.to_string() });
         self.set_status(format!("Renamed state '{old}' \u{E13A} '{new}' of '{prop}' ({changed} placed prop(s) updated). Save the definitions to keep it."));
     }
 
@@ -864,6 +872,7 @@ impl Editor {
         if !errors.is_empty() {
             msg = format!("{msg}; errors: {}", errors.join("; "));
         }
+        self.db_hist.record(crate::db_undo::Extra::Rename { kind, old: old.to_string(), new: new.to_string() });
         Ok(msg)
     }
 
@@ -1242,6 +1251,9 @@ impl Editor {
     }
 
     pub fn delete_selection(&mut self) {
+        if self.is_multi() {
+            return self.delete_many();
+        }
         let Some(doc) = &mut self.doc else { return };
         let before = Objects::of(&doc.map);
         match self.sel {
@@ -1256,6 +1268,9 @@ impl Editor {
     }
 
     pub fn duplicate_selection(&mut self) {
+        if self.is_multi() {
+            return self.duplicate_many();
+        }
         let ts = self.ts();
         let Some(doc) = &mut self.doc else { return };
         let before = Objects::of(&doc.map);
@@ -1292,6 +1307,7 @@ impl Editor {
             println!("[probe] {p:?}: layer {layer:?} (pixels per point {ppp})");
         }
         self.poll_file_dialog();
+        self.db_history_frame(ctx);
         if self.defs_dirty && self.defs_saved.0 == self.project.db && self.defs_saved.1 == self.project.config {
             self.defs_dirty = false; // edited and changed back
         }
@@ -1480,15 +1496,26 @@ impl Editor {
                     }
                 });
                 ui.menu_button("Edit", |ui| {
-                    let (u, r) = self.doc.as_ref().map_or((false, false), |d| (d.can_undo(), d.can_redo()));
-                    if ui.add_enabled(u, egui::Button::new(ui::t(ph::ARROW_ARC_LEFT, "Undo   Ctrl+Z"))).clicked() {
-                        if let Some(d) = &mut self.doc {
+                    // The Database mode undoes definition changes, the others map edits.
+                    let defs = self.mode == Mode::Database;
+                    let (u, r) = if defs {
+                        (self.db_hist.can_undo(), self.db_hist.can_redo())
+                    } else {
+                        self.doc.as_ref().map_or((false, false), |d| (d.can_undo(), d.can_redo()))
+                    };
+                    let what = if defs { " (definitions)" } else { "" };
+                    if ui.add_enabled(u, egui::Button::new(ui::t(ph::ARROW_ARC_LEFT, &format!("Undo{what}   Ctrl+Z")))).clicked() {
+                        if defs {
+                            self.db_undo();
+                        } else if let Some(d) = &mut self.doc {
                             d.undo(&self.assets);
                         }
                         ui.close_menu();
                     }
-                    if ui.add_enabled(r, egui::Button::new(ui::t(ph::ARROW_ARC_RIGHT, "Redo   Ctrl+Y"))).clicked() {
-                        if let Some(d) = &mut self.doc {
+                    if ui.add_enabled(r, egui::Button::new(ui::t(ph::ARROW_ARC_RIGHT, &format!("Redo{what}   Ctrl+Y")))).clicked() {
+                        if defs {
+                            self.db_redo();
+                        } else if let Some(d) = &mut self.doc {
                             d.redo(&self.assets);
                         }
                         ui.close_menu();
@@ -2004,6 +2031,7 @@ impl Editor {
             Tool::Select => {
                 ui.heading("Select");
                 ui.label("Click an entity or zone to select it, drag to move it. Click again to cycle through objects on the same spot. Clicking empty space or right-click deselects.");
+                ui.label("Several at once: Ctrl+click adds or removes an object, Ctrl+drag on empty space selects the entities and zones in the box. Drag one of them to move them all; Del, Ctrl+D, Ctrl+C and Ctrl+X act on all.");
                 ui.label("Drag on empty space (Shift+drag anywhere) to select a region of tiles: Ctrl+C copies it (all layers, collision, entities), Ctrl+X cuts it, Del clears it. Ctrl+V pastes: the copy follows the mouse, each click places it, Esc stops. The clipboard is kept when you open another map.");
                 ui.weak("Nothing is painted with this tool. Pick a tile below (or press B / R / F) to paint; Esc returns here.");
                 ui.separator();
@@ -2250,6 +2278,9 @@ impl Editor {
     // ------------------------------------------------------------ inspector
 
     fn inspector(&mut self, ui: &mut egui::Ui) {
+        if self.is_multi() {
+            return self.multi_inspector(ui);
+        }
         let Some(doc) = &mut self.doc else {
             ui.label("No map open. Use Map \u{E13A} New map.");
             return;

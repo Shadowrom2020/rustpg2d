@@ -152,7 +152,9 @@ Facing: `Down`, `Left`, `Right`, `Up`. Equipment slots: `Weapon`, `OffHand`, `He
 ## Patterns
 
 - **A talking character**: `Interact` → `Dialog`s; gate different conversations with `Quest` /
-  `Flag` conditions on several `Interact` triggers (the first whose conditions hold runs).
+  `Flag` conditions on several `Interact` triggers. Every trigger whose conditions hold runs (a
+  definition's before the placed entity's own, each in list order), and all conditions are checked
+  before any action runs, so give the triggers conditions that exclude each other.
 - **A quest**: `upsert_def quests` (stages), the giver's `Interact` trigger starts it, zones /
   props / defeated enemies advance it (`Quest` with `Advance`), the giver's later trigger with
   `Quest {check: AtStage}` completes it and rewards (`GiveItem`, `GiveXp`).

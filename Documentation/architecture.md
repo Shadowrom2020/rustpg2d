@@ -3,7 +3,7 @@
 How the engine, the game runner and the editor fit together: the technology, the data model, the
 runtime's frame, the editor and its agent server, the file formats and their compatibility rules,
 the verification tooling, and the caveats worth knowing. Written for people (and agents) changing
-the code; [README.md](../README.md) is the user manual, [CLAUDE.md](../CLAUDE.md) the working rules
+the code; the [Creator's Manual](manual/README.md) is the user manual, [CLAUDE.md](../CLAUDE.md) the working rules
 and the module-by-module map.
 
 ## 1. Technology

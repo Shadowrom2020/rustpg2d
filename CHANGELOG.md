@@ -5,6 +5,16 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Fixes
+- **Hidden characters stayed hidden only until their schedule moved them.** A character placed
+  hidden (or switched off with *Set active*) that has a daily routine was shown again at its next
+  stop, and visited other maps all the same. Now schedules only move hidden characters out of sight
+  and back; *Set active* shows them at the stop the hour wants. In the example, Pip was in the game
+  twice: sick in bed and running around the village before he was cured, and in his bed twice at
+  night. He is now only sick in bed until cured, and only up and about afterwards.
+- Curing Pip also played his "I feel so hot" line right after the cure (both of his triggers ran);
+  his lines are one trigger now.
+
 ### Documentation
 - **The Creator's Manual** (`Documentation/manual/`): sixteen chapters on making games with
   R(ust)PG2D, from getting started and the editor through maps, objects and zones, the Database,

@@ -124,7 +124,10 @@ the character walks to the stop of the hour and stays there (wandering around it
 isn't on aren't simulated.
 
 The **Schedule** action and the scripts `stop_schedule(target)` / `follow_schedule(target)` pause and
-resume a schedule. The **Time of day** condition gives night-time lines, and the **Pose** condition
+resume a schedule. A character that is **hidden** (placed with *Active* off, or switched off with
+*Set active*) stays hidden whatever its schedule says and doesn't visit other maps; once *Set
+active* shows it, it goes straight to the stop of the hour. That's how a character can join the
+village's life later, like Pip after he is cured. The **Time of day** condition gives night-time lines, and the **Pose** condition
 (sitting, lying, at furniture, on its feet) lets a character say different things in bed. A sleeper
 without a matching line just shows "… is asleep."
 

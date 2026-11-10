@@ -233,7 +233,7 @@ Instructions for every session (people and coding agents) that implements roadma
   `status` shows the old value; rename an item → undo restores the id and the references; MCP
   `upsert_def` then `undo`.
 
-- [ ] Editor: multi-select on maps — `feature/map-multiselect`
+- [x] Editor: multi-select on maps — `feature/map-multiselect`
 
   **Goal.** Select several objects on a map at once: Shift+click adds or removes one, dragging a
   box on empty ground with the Select tool selects all inside; move them together (drag or arrow
@@ -244,7 +244,17 @@ Instructions for every session (people and coding agents) that implements roadma
   entity part. The inspector shows the shared fields (active, facing, name prefix) for a
   multi-selection, a list with the selected objects otherwise. Zones join the selection too.
 
-  **Engine.** Editor code (needs the go-ahead): `app.rs`, `canvas.rs`, `clipboard.rs`, `doc.rs`.
+  **Decided while building.** Ctrl instead of Shift (Shift+drag already selects a tile region):
+  Ctrl+click toggles an object, Ctrl+drag on empty space box-selects (entities by the tile under
+  their feet, zones lying completely inside, only while zones are shown); a plain drag still
+  selects a region. Arrow keys keep panning the view (no nudging). `Editor::sel` stays the primary
+  object and `Editor::multi` holds the set with the primary it was made with, so the many places
+  that set `sel` end a multi-selection by themselves (new `multisel.rs`). A group move stops at the
+  map's edge for the whole group. The inspector offers the list, *Active* for all, Duplicate and
+  Delete (no shared facing / name fields).
+
+  **Engine.** Agreed: editor code only (`multisel.rs`, `app.rs`, `canvas.rs`, `clipboard.rs`,
+  `main.rs`).
 
   **Verify.** Editor script: `select` with shift, `boxselect X Y W H` (new command), `move DX DY`,
   `delete`, `undo`; `status` prints `sel=N`; shots of a box selection.

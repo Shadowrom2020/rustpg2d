@@ -21,6 +21,7 @@ mod library_ui;
 mod library_window;
 mod maps;
 mod mcp;
+mod multisel;
 mod models;
 mod new_project;
 mod pixel;
@@ -562,7 +563,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -573,6 +574,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.library_mode,
             ed.defs_dirty,
             ed.db_hist.status(),
+            ed.selected_set().len(),
             ed.lib.add.as_ref().map_or("closed".to_string(), |d| format!("{:?}:{}", d.kind, d.picked.len())),
             ed.builder_status(),
             ed.audio.previewing(),
@@ -994,6 +996,22 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 _ => Tool::Brush,
             }
         }
+        // selectadd entity N | zone N | named NAME: Ctrl+click on that object (into the
+        // selection or out of it) · boxselect X Y W H: Ctrl+drag over tiles · movesel DX DY:
+        // drags the selection by whole tiles (one undo step)
+        "selectadd" => {
+            let s = match arg(1) {
+                "entity" => Selection::Entity(num(2) as u32),
+                "zone" => Selection::Zone(num(2) as u32),
+                "named" => ed.doc.as_ref().and_then(|d| d.map.entities.iter().find(|e| e.name == arg(2))).map_or(Selection::None, |e| Selection::Entity(e.uid)),
+                _ => Selection::None,
+            };
+            ed.toggle_selected(s);
+        }
+        "delete" => ed.delete_selection(),
+        "duplicate" => ed.duplicate_selection(),
+        "boxselect" => ed.box_select((num(1) as u32, num(2) as u32, num(3) as u32, num(4) as u32)),
+        "movesel" => ed.move_selection(num(1) as i32, num(2) as i32),
         "select" => {
             ed.sel = match arg(1) {
                 "entity" => Selection::Entity(num(2) as u32),

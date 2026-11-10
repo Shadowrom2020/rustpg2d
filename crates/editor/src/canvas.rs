@@ -61,6 +61,10 @@ pub enum Drag {
     Capture { start: (i32, i32) },
     /// Select tool on empty space (or with Shift): a region of tiles to copy / cut.
     Region { start: (i32, i32) },
+    /// Select tool, Ctrl+drag on empty space: selects the objects in the box.
+    BoxSelect { start: (i32, i32) },
+    /// Moving every object of a multi-selection by whole tiles.
+    MoveMany { grab: (i32, i32), origs: Vec<crate::multisel::Orig>, before: Box<Objects> },
 }
 
 fn modifier_ctrl() -> bool {
@@ -527,6 +531,23 @@ impl Editor {
             Tool::Pick => self.pick(tile),
             Tool::Select => {
                 let stack = self.objects_at(world);
+                // Ctrl: an object goes into the selection or out of it; on empty space a box
+                // selects the objects inside.
+                if modifier_ctrl() {
+                    match stack.first() {
+                        Some(&first) => self.toggle_selected(first),
+                        None => self.drag = Some(Drag::BoxSelect { start: tile }),
+                    }
+                    return;
+                }
+                // A press on one of several selected objects moves them all.
+                if self.is_multi() && !modifier_shift() && stack.iter().any(|s| self.selected_set().contains(s)) {
+                    let origs = self.selection_origins();
+                    if let Some(doc) = &self.doc {
+                        self.drag = Some(Drag::MoveMany { grab: tile, origs, before: Box::new(Objects::of(&doc.map)) });
+                    }
+                    return;
+                }
                 // Empty space (or Shift anywhere): drag a region of tiles; a plain click deselects.
                 let Some(&first) = stack.first().filter(|_| !modifier_shift()) else {
                     self.sel = Selection::None;
@@ -623,7 +644,7 @@ impl Editor {
                 }
                 self.drag = Some(Drag::Paint { last: tile });
             }
-            Some(d @ (Drag::MoveEntity { .. } | Drag::MoveZone { .. })) if !self.dragged(world) => {
+            Some(d @ (Drag::MoveEntity { .. } | Drag::MoveZone { .. } | Drag::MoveMany { .. })) if !self.dragged(world) => {
                 // Not a drag yet: a plain click must not nudge anything.
                 self.drag = Some(d);
             }
@@ -635,6 +656,13 @@ impl Editor {
                     e.y = target.y;
                 }
                 self.drag = Some(Drag::MoveEntity { uid, grab, before });
+            }
+            Some(Drag::MoveMany { grab, origs, before }) => {
+                let ts = self.ts();
+                if let Some(doc) = &mut self.doc {
+                    crate::multisel::place_moved(&mut doc.map, &origs, tile.0 - grab.0, tile.1 - grab.1, ts);
+                }
+                self.drag = Some(Drag::MoveMany { grab, origs, before });
             }
             Some(Drag::MoveZone { uid, grab, orig, before }) => {
                 if let Some(doc) = &mut self.doc {
@@ -686,6 +714,16 @@ impl Editor {
                         self.sel = stack[i];
                         self.on_map_scroll = true;
                     }
+                }
+            }
+            Some(Drag::MoveMany { before, .. }) => {
+                if let Some(doc) = &mut self.doc {
+                    doc.record_objects(*before, "move");
+                }
+            }
+            Some(Drag::BoxSelect { start }) => {
+                if let Some(r) = self.doc.as_ref().and_then(|d| crate::clipboard::clip_rect(&d.map, start, tile)) {
+                    self.box_select(r);
                 }
             }
             Some(Drag::Region { start }) => {
@@ -900,12 +938,13 @@ impl Editor {
             }
         }
 
+        let multi = if self.is_multi() { self.selected_set() } else { Vec::new() };
         if self.view.zones {
             for z in &map.zones {
                 let r = z.pixel_rect(ts);
                 let c = zone_color(&z.kind);
                 draw_rectangle(r.x, r.y, r.w, r.h, Color::new(c.r, c.g, c.b, 0.22));
-                let selected = self.sel == Selection::Zone(z.uid);
+                let selected = self.sel == Selection::Zone(z.uid) || multi.contains(&Selection::Zone(z.uid));
                 draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 * px } else { 1.5 * px }, if selected { YELLOW } else { c });
             }
             for e in Edge::ALL {
@@ -976,6 +1015,14 @@ impl Editor {
             }
         }
 
+        // A multi-selection: every selected entity outlined.
+        for s in &multi {
+            let Selection::Entity(uid) = s else { continue };
+            if let Some(e) = map.entity(*uid) {
+                let r = self.entity_rect(e);
+                draw_rectangle_lines(r.x - px, r.y - px, r.w + 2.0 * px, r.h + 2.0 * px, 2.0 * px, YELLOW);
+            }
+        }
         // Selection outline.
         if let Selection::Entity(uid) = self.sel {
             if let Some(e) = map.entity(uid) {
@@ -1010,6 +1057,11 @@ impl Editor {
                 (Some(Drag::NewZone { start }), _) => {
                     let (rx, ry, rw, rh) = rect_of(*start, (tx, ty));
                     draw_rectangle_lines(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, 2.0 * px, SKYBLUE);
+                }
+                (Some(Drag::BoxSelect { start }), _) => {
+                    let (rx, ry, rw, rh) = rect_of(*start, (tx, ty));
+                    draw_rectangle(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, Color::new(1.0, 0.85, 0.2, 0.12));
+                    draw_rectangle_lines(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, 2.0 * px, YELLOW);
                 }
                 (Some(Drag::Capture { start }), _) => {
                     let (rx, ry, rw, rh) = rect_of(*start, (tx, ty));

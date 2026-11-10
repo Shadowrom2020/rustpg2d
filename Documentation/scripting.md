@@ -430,6 +430,36 @@ are still shown. Not saved: a loaded game always starts with the HUD visible.
 | `shake(seconds)` | Shakes the screen as hard as a hit on the player, fading out (earthquakes, explosions, a boss landing). *(queued)* |
 | `shake(seconds, strength)` | The same with a strength: `1` = like a hit, `2` = twice as hard. *(queued)* |
 
+#### Pictures
+
+A picture over the game: a full-body painting of a character the first time the player meets
+them, a letter, a map, a poster. The picture is a sprite sheet drawn whole (*Database › Sprite
+sheets*; its frame size doesn't matter). It is drawn at its own size (or `scale`), and scaled down
+to fit the window when it is larger, keeping its proportions. A **scrolling** picture taller than
+the window keeps the window's width instead and pans slowly from the top down and back up, resting
+a second at each end, until it is closed; the arrow keys, the stick and the mouse wheel scroll it
+by hand.
+
+By default the event **waits** until the player closes the picture (E, Space, Enter, a click or
+Esc). With `wait: false` the event goes on at once and the picture stays under the following
+dialogs until `hide_image()` or the end of the event, so a character can talk in front of their
+portrait.
+
+| Function | Description |
+|---|---|
+| `show_image(sheet)` | Shows the picture; the event waits until the player closes it. *(queued)* |
+| `show_image(sheet, options)` | Options `#{ wait: false, scroll: true, speed: 60, scale: 2 }`: `wait` (default `true`), `scroll` (default `false`), `speed` of the scroll in screen pixels per second (default 40), `scale` (default 1; 2, 3 … for small pixel art). *(queued)* |
+| `hide_image()` | Takes the picture away. *(queued)* |
+
+```rust
+fn meet_tilda() {
+    show_image("tilda_full", #{ scroll: true });     // waits until the player closes it
+    show_image("tilda_portrait", #{ wait: false });  // stays behind the lines below
+    say("Tilda", "Well, hello there, {player}.");
+    say("Tilda", "First time in my shop?");
+}                                                    // the portrait goes when the event ends
+```
+
 ### Saving
 
 The game autosaves to the *Autosave* slot after every map change (once the new map's *Map

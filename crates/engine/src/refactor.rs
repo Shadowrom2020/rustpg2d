@@ -342,6 +342,7 @@ impl Renamer<'_> {
             Action::Teleport { map, .. } | Action::SetSpawners { map, .. } | Action::SetWeather { map, .. } => self.fix(RefKind::Map, map),
             Action::PlaySound { sound } | Action::PlayMusic { sound } => self.fix(RefKind::Sound, sound),
             Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
+            Action::ShowImage { sheet, .. } => self.fix(RefKind::Sheet, sheet),
             Action::If { conditions, .. } => self.conditions(conditions),
             _ => {}
         });

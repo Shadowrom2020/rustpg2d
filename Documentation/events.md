@@ -148,6 +148,8 @@ Facing: `Down`, `Left`, `Right`, `Up`. Equipment slots: `Weapon`, `OffHand`, `He
 | Companion order | `{"CompanionOrder":{"target":"self","order":"stay"}}` |
 | Open companion window | `{"OpenCompanion":{"target":"self"}}` |
 | Set mood | `{"Mood":{"target":"self","mood":"worried"}}` |
+| Show image | `{"ShowImage":{"sheet":"tilda_full","wait":true,"scroll":true,"speed":40.0,"scale":1.0}}` |
+| Hide image | `"HideImage"` |
 
 ## Patterns
 
@@ -160,6 +162,10 @@ Facing: `Down`, `Left`, `Right`, `Up`. Equipment slots: `Weapon`, `OffHand`, `He
   `Quest {check: AtStage}` completes it and rewards (`GiveItem`, `GiveXp`).
 - **A locked door**: a prop with `lock` ({key, on_unlock}) and `Unlock` trigger; the key an
   item somewhere (`place_entity` item) or bought (`shop`).
+- **A picture on first meeting**: the character's `Interact` trigger with a `Flag` condition
+  (negated), `SetFlag`, then `ShowImage` (`wait`: the event goes on once the player closes it;
+  `scroll` for a tall picture) and `ShowImage` with `wait: false` for a portrait that stays
+  behind the following `Dialog`s until the event ends.
 - **A cut-scene**: `Cutscene {function}` runs a script function with `walk_to`, `say`, `place`
   while the HUD is hidden (see the scripting documentation).
 - **Checks the engine can't express**: `Script {function}` conditions and `RunScript` actions

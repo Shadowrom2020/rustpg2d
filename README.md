@@ -59,6 +59,7 @@ for how to use it all.
 - Events without code: triggers, conditions and actions clicked together in the editor.
 - Rhai scripting when you need more, with completion, error checks, live reload and a developer console.
 - Cut-scenes, dialogs with drawn portraits and moods, choices, quests with stages, a journal and achievements.
+- Show pictures from events and scripts: a full-body painting when you meet someone, a letter, a map; scaled to fit, scrolling when tall.
 - Translations built in: export a template, translate it, players pick their language.
 
 **Characters**

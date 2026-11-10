@@ -555,6 +555,38 @@ pub enum Action {
     /// = its usual one) until changed or the running event is over. `target`: a character on
     /// the map, or a character definition's id or name.
     Mood { target: TargetName, mood: String },
+    /// Shows a picture over the game: a sprite sheet drawn whole, at `scale` (1 = its own
+    /// pixels) or scaled down to fit the window, aspect ratio kept. `scroll`: a picture taller
+    /// than the window is fitted to its width and pans down and back up at `speed` (screen
+    /// pixels per second); the player can scroll it too. `wait`: the event waits until the player
+    /// closes it; otherwise it stays under the following dialogs until *Hide image* or the end of
+    /// the event.
+    ShowImage {
+        sheet: String,
+        #[serde(default = "yes")]
+        wait: bool,
+        #[serde(default)]
+        scroll: bool,
+        #[serde(default = "image_speed")]
+        speed: f32,
+        #[serde(default = "one_f32")]
+        scale: f32,
+    },
+    /// Takes a picture of *Show image* away.
+    HideImage,
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// Default speed of a scrolling picture (screen pixels per second).
+pub fn image_speed() -> f32 {
+    40.0
+}
+
+fn one_f32() -> f32 {
+    1.0
 }
 
 /// Default color of spell lights (a cool white-blue).
@@ -686,6 +718,8 @@ impl Action {
             Action::CompanionOrder { .. } => "Companion order",
             Action::OpenCompanion { .. } => "Open companion window",
             Action::Mood { .. } => "Set mood",
+            Action::ShowImage { .. } => "Show image",
+            Action::HideImage => "Hide image",
         }
     }
 
@@ -756,6 +790,8 @@ impl Action {
             Action::CompanionOrder { target: "self".into(), order: "stay".into() },
             Action::OpenCompanion { target: "self".into() },
             Action::Mood { target: "self".into(), mood: "worried".into() },
+            Action::ShowImage { sheet: String::new(), wait: true, scroll: false, speed: image_speed(), scale: 1.0 },
+            Action::HideImage,
         ]
     }
 }

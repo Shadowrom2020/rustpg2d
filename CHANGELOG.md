@@ -5,6 +5,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Gameplay
+- **Pictures over the game** (*Show image* / *Hide image* actions, `show_image(sheet[, options])` /
+  `hide_image()`): a sprite sheet drawn whole, at its own size or scaled down to fit the window
+  (aspect ratio kept, drawn smoothly when shrunk). *Scroll* pans a picture taller than the window
+  down and back up, and the player can scroll it by hand. *Wait until closed* lets the event go on
+  once the player closes it; without it the picture stays behind the following dialogs until the
+  event ends. `status` prints `image=`. In the example, Tilda shows a full-body painting and her
+  portrait the first time the player enters her shop.
+
 ### Fixes
 - **Hidden characters stayed hidden only until their schedule moved them.** A character placed
   hidden (or switched off with *Set active*) that has a daily routine was shown again at its next

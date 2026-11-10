@@ -160,6 +160,21 @@ them to Elder Rowan; and the first touch of the forest shrine darkens the cleari
 statues with bursts of blue magic, defeats every monster left in the forest and switches off its
 spawners.
 
+## Pictures
+
+`show_image(sheet)` shows a picture over the game and waits until the player closes it;
+`show_image(sheet, #{ wait: false })` keeps it behind the following dialogs instead, until
+`hide_image()` or the end of the event; `scroll: true` pans a tall picture, `scale: 2` enlarges
+small pixel art. See [Events › A picture when you first meet someone](07-events.md#a-picture-when-you-first-meet-someone).
+
+```rust
+fn meet_tilda() {
+    show_image("tilda_full", #{ scroll: true });
+    show_image("tilda_portrait", #{ wait: false });
+    say("Tilda", "Well, hello there, {player}.");
+}
+```
+
 ## A scripted spell
 
 The example's **Fireball** is a spell with the *Script* effect whose function aims, throws an

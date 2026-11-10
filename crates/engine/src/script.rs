@@ -480,6 +480,11 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("open_shop", with!(ctx, |c, t: &str| c.actions.push(Action::OpenShop { target: t.into() })));
     // The HUD (status frame, clock, quick bar, buttons), e.g. for cut-scenes.
     engine.register_fn("hide_ui", with!(ctx, |c| c.actions.push(Action::SetUiVisible { visible: false })));
+    // Pictures over the game: a sprite sheet drawn whole (the event waits until the player closes
+    // it, unless `wait: false`).
+    engine.register_fn("show_image", with!(ctx, |c, sheet: &str| c.actions.push(show_image(sheet, &Map::new()))));
+    engine.register_fn("show_image", with!(ctx, |c, sheet: &str, o: Map| c.actions.push(show_image(sheet, &o))));
+    engine.register_fn("hide_image", with!(ctx, |c| c.actions.push(Action::HideImage)));
     // Cut-scenes and scripted walking (tile coordinates; fractional ones are rounded down).
     engine.register_fn("cutscene", with!(ctx, |c, f: &str| c.actions.push(Action::Cutscene { function: f.into() })));
     engine.register_fn("dim", with!(ctx, |c, amount: Dynamic, seconds: Dynamic| c.actions.push(Action::Dim {
@@ -552,6 +557,17 @@ fn effect_kind(name: &str) -> Option<crate::effects::EffectKind> {
         eprintln!("[script] unknown effect '{name}' (one of: {})", names.join(", "));
     }
     k
+}
+
+/// `show_image(sheet, #{ wait, scroll, speed, scale })`.
+fn show_image(sheet: &str, o: &Map) -> Action {
+    Action::ShowImage {
+        sheet: sheet.into(),
+        wait: o.get("wait").and_then(|v| v.as_bool().ok()).unwrap_or(true),
+        scroll: o.get("scroll").and_then(|v| v.as_bool().ok()).unwrap_or(false),
+        speed: o.get("speed").map_or(crate::events::image_speed(), num).max(1.0),
+        scale: o.get("scale").map_or(1.0, num).max(0.05),
+    }
 }
 
 fn num(d: &Dynamic) -> f32 {

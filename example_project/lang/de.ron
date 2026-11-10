@@ -553,6 +553,7 @@
         "Welcome to the R(ust)PG2D demo! Move: arrows/WASD or left-click. Interact: E/Space or right-click. Attack: X or left-click an enemy. Switch weapon: Q. Character & inventory: C or I, skills: K, spells: L. Quest journal: J. Map: M. Save/Load: F5/F9. Debug: F3.": "Willkommen in der R(ust)PG2D-Demo! Bewegen: Pfeiltasten/WASD oder Linksklick. Benutzen: E/Leertaste oder Rechtsklick. Angreifen: X oder Linksklick auf einen Gegner. Waffe wechseln: Q. Charakter & Inventar: C oder I, Fertigkeiten: K, Zauber: L. Tagebuch: J. Karte: M. Speichern/Laden: F5/F9. Debug: F3.",
         "Welcome, welcome, {good sir|my lady}! Potions, arrows, armor - and I pay fair coin for whatever you find out there.": "Willkommen, willkommen, {werter Herr|meine Dame}! Tränke, Pfeile, Rüstungen - und ich zahle faire Münze für alles, was du da draußen findest.",
         "Well": "Brunnen",
+        "Well, hello there, {player}. First time in Tilda\'s? I\'d remember a face like yours.": "Na, sieh mal einer an, {player}. Zum ersten Mal bei Tilda? An so ein Gesicht würde ich mich erinnern.",
         "What is it, {player}?": "Was gibt es, {player}?",
         "Wheat": "Weizen",
         "Wheat Seeds": "Weizensamen",

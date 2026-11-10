@@ -138,8 +138,8 @@ impl Game {
         let tabs = self.win_tabs();
         if !key_consumed {
             let mut want = None;
-            // Tab / RB: next tab, LB: previous one (both open the window when it is closed).
-            let step = if input::act_pressed(Act::NextTab) {
+            // Tab / RB: next tab, LB: previous one (in the open window; C / I / Y open it).
+            let step = if open.is_some() && input::act_pressed(Act::NextTab) {
                 1
             } else if open.is_some() && input::act_pressed(Act::PrevTab) {
                 tabs.len() - 1

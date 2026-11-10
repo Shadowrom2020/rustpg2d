@@ -33,6 +33,9 @@ equipped bow or crossbow.
   - **Archers** shoot; other hostile characters (traps, creatures that don't chase) hurt by touch.
   - They attack companions as well as the player. *Attack wind-up* on the character's form changes
     the wind-up (a slow, heavy brute; a quick assassin).
+- **Blocking and dodging**: the player blocks with a shield (frontal hits do no damage; a block
+  raised right before a blow parries it and stuns the attacker) and dodges with a roll that nothing
+  touches ([Player's guide › Defending yourself](15-players-guide.md#defending-yourself)).
   The player's attacks only hit hostile characters, never companions or friendly villagers; make a
   huntable animal *hostile* with 0 damage.
 - A defeated character runs its *Defeat* triggers and drops its loot and gear.

@@ -6,6 +6,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Block and dodge**: hold F (gamepad RB) with a shield to block: walking at half speed, blows,
+  arrows and lunges from the front do no damage; raising the shield right before a blow lands
+  parries it and stuns the attacker for a second. Space (gamepad B) rolls about three tiles,
+  untouchable while it lasts, then a second's cooldown (a blue pip after the hearts). Both are
+  rebindable. **Changed defaults**: Space no longer confirms (E and Enter do), and Tab / RB no
+  longer open the closed character window while playing (C, I and Y do). Autoplay `keydown` /
+  `keyup`; `status` prints `block=` and `dodge=`.
 - **Enemy attacks you can see coming**: armed enemies (a melee weapon in their equipment) stop at
   their weapon's reach, wind up (the weapon raised, a red zone on the ground where the swing will
   land), swing in the direction they locked for the weapon's damage, reach, arc and knockback, and

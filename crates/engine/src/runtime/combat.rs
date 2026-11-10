@@ -14,7 +14,7 @@ const SWING_TIME: f32 = 0.18;
 const HIT_INVULN: f32 = 0.3;
 /// Player invulnerability after being hurt.
 const HURT_INVULN: f32 = 1.0;
-const KNOCKBACK: f32 = 190.0;
+pub(super) const KNOCKBACK: f32 = 190.0;
 const GAME_OVER_TIME: f32 = 2.5;
 const EFFECT_TIME: f32 = 0.35;
 
@@ -51,6 +51,12 @@ pub(super) struct PlayerCombat {
     pub swing: f32,
     pub invuln: f32,
     pub knock: Vec2,
+    /// Seconds the shield has been held up (None = not blocking; `defense.rs`).
+    pub block: Option<f32>,
+    /// A dodge roll: its direction and time so far.
+    pub roll: Option<(Vec2, f32)>,
+    /// Seconds until the next roll.
+    pub dodge_cd: f32,
     /// Last melee swing: direction, reach (px) and half-angle (radians), for drawing.
     swing_dir: Vec2,
     swing_reach: f32,
@@ -68,6 +74,9 @@ impl PlayerCombat {
             swing: 0.0,
             invuln: 0.0,
             knock: Vec2::ZERO,
+            block: None,
+            roll: None,
+            dodge_cd: 0.0,
             swing_dir: vec2(0.0, 1.0),
             swing_reach: 16.0,
             swing_arc: 1.0,
@@ -81,6 +90,9 @@ impl PlayerCombat {
         self.swing = 0.0;
         self.invuln = 0.0;
         self.knock = Vec2::ZERO;
+        self.block = None;
+        self.roll = None;
+        self.dodge_cd = 0.0;
     }
 }
 
@@ -172,7 +184,8 @@ impl Game {
         if !key_consumed && input::act_pressed(input::Act::SwitchWeapon) {
             self.cycle_weapon();
         }
-        if !key_consumed && self.combat.cooldown <= 0.0 && input::act_pressed(input::Act::Attack) {
+        self.update_defense(dt, key_consumed);
+        if !key_consumed && self.combat.cooldown <= 0.0 && !self.blocking() && !self.rolling() && input::act_pressed(input::Act::Attack) {
             self.order = None;
             self.attack_at(None);
         }
@@ -192,10 +205,18 @@ impl Game {
             if let Some(i) = hit {
                 let e = &self.loaded.entities[i];
                 let (dmg, from) = (crate::effects::scale_damage(&e.effects, e.damage), e.body.pos);
-                if let Some(fx) = self.touch_effect(i) {
-                    self.apply_player_effect(&fx);
+                match self.guard_against(from) {
+                    super::defense::Guard::Open => {
+                        if let Some(fx) = self.touch_effect(i) {
+                            self.apply_player_effect(&fx);
+                        }
+                        self.hurt_player(dmg, from);
+                    }
+                    g => {
+                        self.blocked(g, from, None);
+                        self.combat.invuln = HURT_INVULN / 2.0;
+                    }
                 }
-                self.hurt_player(dmg, from);
             }
         }
     }
@@ -404,13 +425,20 @@ impl Game {
                     }
                     let r = self.player.rect();
                     let body = Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8);
-                    if body.overlaps(&hit_box) {
-                        if self.combat.invuln <= 0.0 {
-                            let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
-                            if let Some(fx) = fx {
-                                self.apply_player_effect(&fx);
+                    // A rolling player lets arrows fly past; a raised shield stops them from the front.
+                    if body.overlaps(&hit_box) && !self.rolling() {
+                        let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                        match self.guard_against(pos - p.vel.normalize_or_zero() * ts * 2.0) {
+                            super::defense::Guard::Open => {
+                                if self.combat.invuln <= 0.0 {
+                                    if let Some(fx) = fx {
+                                        self.apply_player_effect(&fx);
+                                    }
+                                    self.hurt_player(dmg, from);
+                                }
                             }
-                            self.hurt_player(dmg, from);
+                            // (No parry: there is nobody within reach to stun.)
+                            _ => self.blocked(super::defense::Guard::Blocked, from, None),
                         }
                         alive = false;
                         break;
@@ -440,6 +468,11 @@ impl Game {
                 self.projectiles.swap_remove(i);
             }
         }
+    }
+
+    /// A spark where something hit (a wall, a shield).
+    pub(super) fn add_impact(&mut self, at: Vec2) {
+        self.effects.push((at, 0.0));
     }
 
     /// Applies damage (minus the target's defense, at least 1) with knockback.
@@ -529,7 +562,8 @@ impl Game {
     }
 
     pub(super) fn hurt_player(&mut self, dmg: i32, from: Vec2) {
-        if !self.combat.enabled() || self.game_over.is_some() {
+        // A dodge roll gets through anything.
+        if !self.combat.enabled() || self.game_over.is_some() || self.rolling() {
             return;
         }
         // Armor absorbs damage, but at least 1 always gets through.
@@ -758,6 +792,22 @@ impl Game {
             draw_heart(x + 1.0, y + 1.0, HEART, if left >= 1 { full } else { empty });
             if left == 1 {
                 draw_heart_right_half(x + 1.0, y + 1.0, HEART, empty);
+            }
+        }
+        // The dodge pip after the hearts (lit = ready, filling while it recovers), and a shield
+        // while it is raised.
+        {
+            let (px, py, r) = (tx + hearts as f32 * STEP + 8.0, y + HEART / 2.0 + 1.0, HEART * 0.32);
+            let ready = self.combat.dodge_cd <= 0.0;
+            draw_circle(px, py, r, Color::new(0.1, 0.1, 0.15, 0.9));
+            let fill = if ready { 1.0 } else { 1.0 - (self.combat.dodge_cd / 1.3).clamp(0.0, 1.0) };
+            draw_circle(px, py, r * fill, if ready { Color::new(0.55, 0.85, 1.0, 1.0) } else { Color::new(0.35, 0.5, 0.65, 1.0) });
+            draw_circle_lines(px, py, r, 1.0, Color::new(0.85, 0.72, 0.38, 1.0));
+            if self.blocking() {
+                let sx = px + r + 6.0;
+                let sh = HEART * 0.9;
+                draw_triangle(vec2(sx, py - sh / 2.0), vec2(sx + sh * 0.8, py - sh / 2.0), vec2(sx + sh * 0.4, py + sh / 2.0), Color::new(0.6, 0.85, 1.0, 1.0));
+                draw_rectangle(sx, py - sh / 2.0, sh * 0.8, sh * 0.35, Color::new(0.6, 0.85, 1.0, 1.0));
             }
         }
         y += HEART + 6.0;

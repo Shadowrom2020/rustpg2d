@@ -224,12 +224,15 @@ impl Game {
                 continue;
             }
             match who {
-                None if self.combat.invuln <= 0.0 => {
-                    if let Some(fx) = w.effect {
-                        self.apply_player_effect(&fx);
+                None if self.combat.invuln <= 0.0 => match self.guard_against(from) {
+                    super::defense::Guard::Open => {
+                        if let Some(fx) = w.effect {
+                            self.apply_player_effect(&fx);
+                        }
+                        self.hurt_player(damage, from);
                     }
-                    self.hurt_player(damage, from);
-                }
+                    g => self.blocked(g, from, Some(i)),
+                },
                 None => {}
                 Some(c) => {
                     if let Some(fx) = &w.effect {
@@ -247,11 +250,19 @@ impl Game {
         let me = e.body.rect();
         let (dmg, from) = (crate::effects::scale_damage(&e.effects, e.damage), e.body.pos);
         let player_hit = self.combat.invuln <= 0.0 && me.overlaps(&Rect::new(self.player.rect().x - 2.0, self.player.rect().y - 2.0, self.player.rect().w + 4.0, self.player.rect().h + 4.0));
+        if player_hit && self.rolling() {
+            return;
+        }
         if player_hit {
-            if let Some(fx) = self.touch_effect(i) {
-                self.apply_player_effect(&fx);
+            match self.guard_against(from) {
+                super::defense::Guard::Open => {
+                    if let Some(fx) = self.touch_effect(i) {
+                        self.apply_player_effect(&fx);
+                    }
+                    self.hurt_player(dmg, from);
+                }
+                g => self.blocked(g, from, Some(i)),
             }
-            self.hurt_player(dmg, from);
         } else if let Some(c) = self.companion_targets().into_iter().map(|(c, _)| c).find(|&c| self.loaded.entities[c].invuln <= 0.0 && self.loaded.entities[c].body.rect().overlaps(&me)) {
             self.damage_entity(c, dmg, from, 1.0);
         } else {

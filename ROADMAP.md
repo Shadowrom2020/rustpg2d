@@ -88,17 +88,44 @@ Instructions for every session (people and coding agents) that implements roadma
     `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
     checks, merge the back-merge pull request.
 
+## 0.13.0 — Pictures, producing activities, companion magic
+
+- [x] Image display — `feature/image-display`
+
+  **Goal.** Show a picture over the game from events and scripts: a full-body painting when the
+  player first meets a character, letters, maps, posters.
+
+  **Design.** *Show image* (sheet, wait, scroll, speed, scale) and *Hide image* actions,
+  `show_image` / `hide_image`; the picture is a sprite sheet drawn whole at `scale`, scaled down to
+  fit the window with its aspect ratio kept (smooth when shrunk); *scroll* fits a tall picture's
+  width and pans down and back up, the player can scroll by hand; *wait* blocks the event until
+  the player closes it, otherwise it stays under the dialogs until the event ends.
+
+  **Engine.** The two actions, the script functions and `runtime/image.rs` (agreed with the user).
+
+  **Example.** Tilda's first-meeting trigger shows the user's paintings `tilda_full` (scrolling)
+  and `tilda_portrait` (behind her greeting).
+
+  **Verify.** `image=` in `status` (scroll offset moving, `:hand` after arrow keys), screenshots,
+  the web export in headless Brave, the editor's fields and a sheet rename.
+
+- [ ] Activities that produce something — `feature/producing-activities`
+
+  **Goal.** What villagers do yields goods: Finn's catch is for sale at his stall the next morning,
+  the baker's bread at his.
+
+  **Engine.** *Shop stock* action, `add_stock` / `set_stock` / `stock_of`, `day()` (agreed).
+
+- [ ] Companions learn spells — `feature/companion-spells`
+
+  **Goal.** Scrolls and books given to a companion teach it *Heal* and *Bolt* spells, cast from a
+  mana pool of its definition.
+
+  **Engine.** Companion spells and mana in save games, learning, casting (agreed).
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
   ad-hoc signed; documented). Packaging work: needs the user's go-ahead.
 - Gamepad button glyphs in the HUD and hints (Steam Deck); rebinding gamepad buttons. Engine
   work (the HUD and input are Rust): needs the user's go-ahead.
-- Companions learn spells from scrolls and books given to them and cast heal / bolt spells by
-  the rules of *Companion inventory* (`Companion.spells`, a mana pool from the definition).
-  Content route first (item *on use* triggers, scripts); companions' casting decisions are
-  engine logic today, so expect an engine proposal.
-- Activities that produce something: the fishing NPC sells fresh trout at a market stall the
-  next morning (a trigger at the end of an *NPC routines* activity). Content route: schedule
-  stops, *Time reached* triggers and *Give item to character*; check first whether a shop's stock
-  can be changed from events or scripts, else that is an engine proposal.

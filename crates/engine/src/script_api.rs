@@ -123,6 +123,9 @@ pub const API: &[ApiFn] = api! {
     "unequip"(target: Target, slot: Text) "Takes off what a character wears in \"clothing\", \"head\", \"body\", \"weapon\", \"offhand\" or \"tool\" (into its carried items) (queued)";
     "give_item_to"(target: Target, item: Item, count: Num) "Adds items to what a character carries (dropped when it is defeated) (queued)";
     "take_item_from"(target: Target, item: Item, count: Num) "Takes items from what a character carries (queued)";
+    "show_image"(sheet: Sheet) "Shows a picture over the game (a sprite sheet drawn whole, scaled down to fit the window); the event waits until the player closes it (queued)";
+    "show_image"(sheet: Sheet, options: Opts) "Like show_image(); options #{ wait: false (stays under the following dialogs until the event ends or hide_image()), scroll: true (a tall picture pans down and back up), speed: pixels per second, scale: 2 (pixel art bigger) } (queued)";
+    "hide_image"() "Takes away a picture shown with show_image() (queued)";
     "hide_ui"() "Hides the HUD (status frame, clock, quick bar, buttons), e.g. for a cut-scene; dialogs still show. The player shows it again with H (queued)";
     "show_ui"() "Shows the HUD again after hide_ui() or H (queued)";
     "player_x"() "The player's x position in tiles (fractional; the feet)";
@@ -304,6 +307,7 @@ mod tests {
             ("give_item_to", 1, IdKind::Item),
             ("take_item_from", 1, IdKind::Item),
             ("effect", 0, IdKind::Sheet),
+            ("show_image", 0, IdKind::Sheet),
             ("defeated_count", 0, IdKind::Character),
             ("can_craft", 0, IdKind::Recipe),
             ("unlock_achievement", 0, IdKind::Achievement),

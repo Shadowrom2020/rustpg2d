@@ -1546,6 +1546,27 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             });
             ui.weak("(the portrait of that mood, from the character's definition, until changed or the event ends; empty = its usual portrait)");
         }
+        Action::ShowImage { sheet, wait, scroll, speed, scale } => {
+            labeled(ui, "picture", |ui| suggest(ui, &format!("{id}/sheet"), sheet, &refs.sheets, 140.0));
+            ui.weak("(a sprite sheet, drawn whole: Database › Sprite sheets)");
+            labeled(ui, "", |ui| {
+                ui.checkbox(wait, "Wait until closed").on_hover_text(
+                    "On: the event goes on once the player closes the picture (E, click or Esc). Off: it stays under the following dialogs until 'Hide image' or the end of the event",
+                );
+                ui.checkbox(scroll, "Scroll").on_hover_text("A picture taller than the window keeps the window's width and pans down and back up; the player can scroll it with the arrow keys or the mouse wheel");
+            });
+            labeled(ui, "size", |ui| {
+                ui.add(egui::DragValue::new(scale).range(0.05..=16.0).speed(0.05).prefix("x "))
+                    .on_hover_text("1 = the picture's own pixels (painted art); 2, 3 … for small pixel art. Too large for the window: scaled down to fit, aspect ratio kept");
+                if *scroll {
+                    ui.label("speed");
+                    ui.add(egui::DragValue::new(speed).range(1.0..=2000.0).speed(1.0).suffix(" px/s"));
+                }
+            });
+        }
+        Action::HideImage => {
+            ui.weak("(takes away the picture of 'Show image')");
+        }
         Action::OpenCompanion { target } => {
             target_field(ui, id, target, refs);
             ui.weak("(a companion: its window with its gear and bag opens after the event, e.g. after a dialog's \"Let me see your gear\")");

@@ -840,4 +840,16 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "tilda_full",
+        image: "sprites/tilda_full.png",
+        frame_w: 864,
+        frame_h: 1536,
+    ),
+    (
+        id: "tilda_portrait",
+        image: "sprites/tilda_portrait.png",
+        frame_w: 1024,
+        frame_h: 1024,
+    ),
 ]

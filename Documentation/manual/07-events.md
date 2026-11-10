@@ -93,6 +93,7 @@ across map changes and in save games.
 - **Play cutscene**, **Walk to tile**, **Walk up to character**, **Place at tile**, **Dim the
   scene**, **Show / hide UI**, **Wait**.
 - **Play sound**, **Play music**, **Shake the screen**.
+- **Show image** / **Hide image**: a picture over the game (below).
 - **Play effect** (an animation once), **Fly sprite to point** (a projectile that calls a script on
   arrival), **Light at point**, **Light around player**, **Damage area**, **Damage around player**,
   **Heal area**, **Aim (then run script)**.
@@ -153,6 +154,23 @@ them, or look at them in the Events graph.
 
 A merchant whose *Talking opens the shop* is off: *Interact*: *Dialog* "Welcome!", *Choice* "Buy
 something?" (Yes / No) into `shop`, *If* `shop` = 0: *Open shop* `self`.
+
+### A picture when you first meet someone
+
+**Show image** draws a sprite sheet whole over the game, for a full-body painting of a character, a
+letter, a map or a poster:
+
+| Setting | Effect |
+|---|---|
+| **picture** | The sprite sheet (*Database › Sprite sheets*; *Browse…* a PNG of any size, the frame size doesn't matter) |
+| **Wait until closed** | On: the event goes on once the player closes the picture (E, a click or Esc). Off: it stays **behind** the following dialogs until *Hide image* or the end of the event, so a character can talk in front of their portrait |
+| **Scroll** | A picture taller than the window keeps the window's width and pans slowly down and back up; the arrow keys and the mouse wheel scroll it by hand |
+| **size** | 1 = the picture's own pixels (painted art); 2, 3… for small pixel art. A picture larger than the window is scaled down to fit, keeping its proportions, and drawn smoothly |
+
+The example's Tilda shows both the first time you enter her shop: her full figure, scrolling, then
+her portrait behind her greeting. Her first *Interact* trigger (with *not Flag set* `met_tilda`):
+*Set flag* `met_tilda`, *Show image* `tilda_full` (wait, scroll), *Show image* `tilda_portrait`
+(no wait), *Dialog*, *Dialog*. The portrait goes when the conversation ends and her shop opens.
 
 ### A cut-scene
 

@@ -227,6 +227,9 @@ impl Editor {
             None => out += " (image not loaded)\n",
         }
         out += &format!("solid tiles: {}\n", if def.solid.is_empty() { "none".to_string() } else { def.solid.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", ") });
+        if !def.low.is_empty() {
+            out += &format!("low tiles (solid ones stop walking, not shots or sight): {}\n", def.low.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", "));
+        }
         if !def.ladder.is_empty() {
             out += &format!("ladder tiles (the player climbs them, characters keep off): {}\n", def.ladder.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", "));
         }

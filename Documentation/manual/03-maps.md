@@ -90,6 +90,16 @@ button in the ribbon's View group shows the result as an overlay.
 
 Props and characters have their own hitboxes and need no collision painting.
 
+### Low and high obstacles
+
+Solid things come in two heights. **High** ones (walls, tree trunks, statues, market stalls) stop
+walking, arrows, bolts and the sight of enemies. **Low** ones (fences, rocks, mushrooms, water,
+tables, barrels, chairs) stop only walking: the player and the archers in the game shoot over them,
+and enemies see across them. Which tiles are low is set per tileset (*Database › Tilesets › Pick
+low tiles in the grid*), which props are low per prop (*Database › Props › Low*); everything solid
+is high unless it is marked low. In the collision overlay low tiles are yellow, high ones red, and
+a cell painted *force solid* with the Collision tool counts as high.
+
 ## Copying, cutting and pasting regions
 
 With the **Select** tool, drag on empty space (or **Shift+drag** anywhere, also over entities) to

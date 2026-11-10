@@ -868,12 +868,20 @@ impl Editor {
 
         if (self.view.collision || self.tool == Tool::Collision) && tile_px >= 3.0 {
             let is_solid = |slot: usize, i: u32| sets.get(slot).copied().flatten().is_some_and(|t| t.is_solid(i));
+            let is_high = |slot: usize, i: u32| sets.get(slot).copied().flatten().is_some_and(|t| t.is_high(i));
             for y in y0..y1 {
                 for x in x0..x1 {
                     let over = map.collision_at(x, y);
                     let (fx, fy) = (x as f32 * ts, y as f32 * ts);
                     if map.tile_solid(x, y, &is_solid) {
-                        let c = if over == CollisionOverride::Solid { Color::new(1.0, 0.1, 0.1, 0.55) } else { Color::new(1.0, 0.2, 0.2, 0.3) };
+                        // Red: stops walking and shots; yellow: low (shots fly over it).
+                        let c = if over == CollisionOverride::Solid {
+                            Color::new(1.0, 0.1, 0.1, 0.55)
+                        } else if map.tile_blocks_shot(x, y, &is_high) {
+                            Color::new(1.0, 0.2, 0.2, 0.3)
+                        } else {
+                            Color::new(1.0, 0.85, 0.1, 0.35)
+                        };
                         draw_rectangle(fx, fy, ts, ts, c);
                     } else if over == CollisionOverride::Walkable {
                         draw_rectangle(fx, fy, ts, ts, Color::new(0.2, 1.0, 0.3, 0.3));

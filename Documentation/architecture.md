@@ -221,6 +221,11 @@ Known properties of the current implementation (see the CHANGELOG for what each 
   Planning and the broad phase of collision read the per-frame occupancy grid
   (`runtime/occupancy.rs`); code that moves an entity by more than a tile within a frame calls
   `occupy(i)`.
+- Two collision grids per map: `Loaded::solid` (walking) and `Loaded::shot` (shots and sight:
+  solid tiles that aren't in their tileset's `low` list; a cell painted *force solid* counts).
+  Solid props that aren't `low` add `OCC_HIGH` to the occupancy grid; `Game::blocks_shot` reads
+  both and is what projectiles and `line_clear` (aiming, enemy and companion line of fire, enemy
+  sight) use.
 - Pixel ↔ tile conversions follow `grid.rs` (feet one pixel above the tile's bottom edge; props an
   even number of tiles wide stand on a tile edge).
 - `status` prints frame timing (`fps=`, `frame_ms=`, `update_ms=`, `draw_ms=`) and the number of

@@ -12,7 +12,10 @@ The **status frame** at the top left shows a small portrait of the hero as dress
 equipped bow or crossbow.
 
 - **Melee weapons** have their own damage, speed, reach, swing arc and knockback (a sword, a spear,
-  an axe). **Ranged weapons** (bow, crossbow) shoot projectiles and use ammunition.
+  an axe). **Ranged weapons** (bow, crossbow) shoot projectiles and use ammunition. Shots fly over
+  low obstacles (fences, rocks, water, barrels) and stop at high ones (walls, tree trunks, statues);
+  enemy archers only shoot when they have such a clear line ([Maps › Low and high
+  obstacles](03-maps.md#low-and-high-obstacles)).
 - **Armor** reduces damage: what gets through is `damage − defense`, at least 1. Heavy armor can
   slow the wearer.
 - Hits knock back and give a moment of invulnerability. When the player is hurt the screen shakes

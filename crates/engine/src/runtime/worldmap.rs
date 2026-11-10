@@ -495,8 +495,8 @@ impl Game {
                 }
             }
         }
-        draw_text(
-            "Arrows / WASD, drag or wheel (Shift: sideways): scroll   + / -: zoom   Space: center on you   M / Esc: close",
+        super::glyphs::draw_hint(
+            "Arrows / WASD, drag or wheel ({key:run}: sideways): scroll   {key:zoom_in} / {key:zoom_out}: zoom   {key:map_center}: center on you   {key:map} / {key:cancel}: close",
             p.x + 16.0,
             p.bottom() - 12.0,
             16.0,

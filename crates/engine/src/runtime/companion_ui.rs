@@ -22,7 +22,7 @@ const BAG_COLS: usize = 4;
 const PLAYER_COLS: usize = 6;
 const GEAR: [EquipSlot; 6] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool];
 const SHEET_W: f32 = 250.0;
-const HINT: &str = "Click: give / take (right-click: one) · Drag onto a gear slot (or Enter on a bag item): equip · Tab: next panel · Esc: close";
+const HINT: &str = "Click: give / take (right-click: one) · Drag onto a gear slot (or {key:confirm} on a bag item): equip · {key:next_tab}: next panel · {key:cancel}: close";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Pane {

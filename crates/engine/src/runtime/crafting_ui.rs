@@ -324,7 +324,7 @@ impl Game {
         draw_rectangle(f.x, f.y, f.w, f.h, Color::new(0.0, 0.0, 0.0, 0.25));
         if let Some(d) = recipes.get(self.crafting.list.sel).and_then(|r| db.item(r.result_for(&self.world))) {
             draw_text(&d.name, f.x + 10.0, f.y + 22.0, 21.0, GOLD);
-            for (k, line) in wrap_text(&d.description, 17, f.w - 20.0).iter().take(1).enumerate() {
+            for (k, line) in wrap_text(&super::glyphs::expand_keys(&d.description), 17, f.w - 20.0).iter().take(1).enumerate() {
                 draw_text(line, f.x + 10.0, f.y + 42.0 + k as f32 * 17.0, 17.0, LIGHTGRAY);
             }
         }
@@ -337,6 +337,6 @@ impl Game {
                 draw_text(text, f.x + f.w - tw - 10.0, f.y + 22.0, 20.0, c);
             }
         }
-        draw_text("Make / Enter: make one   Shift: ten   Wheel / Up / Down: select   Esc: close", f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
+        super::glyphs::draw_hint("Make / {key:confirm}: make one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:cancel}: close", f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
     }
 }

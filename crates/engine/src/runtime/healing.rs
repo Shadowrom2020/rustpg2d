@@ -41,7 +41,7 @@ struct BarLayout {
     buttons: Vec<Rect>,
 }
 
-const HINT: &str = "Click or Left / Right + E: heal   Esc: cancel";
+const HINT: &str = "Click or {key:left} / {key:right} + {key:confirm}: heal   {key:cancel}: cancel";
 
 /// Size of a companion's HUD row (screen pixels).
 const ROW_W: f32 = 176.0;
@@ -347,7 +347,7 @@ impl Game {
         let names: Vec<String> = pick.choices.iter().map(label).collect();
         let widths: Vec<f32> = names.iter().map(|n| measure_text(n, None, 20, 1.0).width + 24.0).collect();
         let row_w = widths.iter().sum::<f32>() + 8.0 * (names.len() as f32 - 1.0);
-        let w = row_w.max(measure_text(HINT, None, 16, 1.0).width).max(measure_text(&title, None, 22, 1.0).width) + 32.0;
+        let w = row_w.max(super::glyphs::measure_hint(HINT, 16.0)).max(measure_text(&title, None, 22, 1.0).width) + 32.0;
         let h = 96.0;
         let panel = Rect::new((screen_width() - w) / 2.0, screen_height() - h - 24.0, w, h);
         let mut cx = panel.x + (w - row_w) / 2.0;
@@ -379,8 +379,8 @@ impl Game {
             }
             draw_text(n, r.x + 12.0, r.y + 20.0, 20.0, WHITE);
         }
-        let hw = measure_text(HINT, None, 16, 1.0).width;
-        draw_text(HINT, p.x + (p.w - hw) / 2.0, p.y + p.h - 10.0, 16.0, LIGHTGRAY);
+        let hw = super::glyphs::measure_hint(HINT, 16.0);
+        super::glyphs::draw_hint(HINT, p.x + (p.w - hw) / 2.0, p.y + p.h - 10.0, 16.0, LIGHTGRAY);
         // The chosen character on the map.
         let pos = match pick.choices[pick.sel] {
             None => Some(self.player.pos),

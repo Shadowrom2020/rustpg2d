@@ -196,5 +196,7 @@ mod tests {
         assert_eq!(w.expand_text("Thank you, {sir|madam} {player}! {He|She} said."), "Thank you, sir Ada! He said.");
         w.player_sex = crate::state::Sex::Female;
         assert_eq!(w.expand_text("{sir|madam} {player}, {|ms. }x"), "madam Ada, ms. x");
+        // An action's key (the keyboard: no gamepad used in tests); unknown actions stay as written.
+        assert_eq!(w.expand_text("Press {key:interact} to talk, {key:journal} for the journal. {key:nope}"), "Press E to talk, J for the journal. {key:nope}");
     }
 }

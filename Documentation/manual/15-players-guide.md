@@ -63,6 +63,18 @@ generic ones); the left stick and the d-pad move and navigate.
 | Right stick click | Journal |
 | Left stick click | Hide or show the interface |
 
+**Hints follow your hands.** The help lines at the bottom of windows and menus name the keys while
+you play with the keyboard and mouse, and show your controller's buttons as soon as you press one
+(and back when you press a key or click). The pictures match the controller: coloured A B X Y for
+Xbox pads and the Steam Deck, ✕ ○ □ △ for PlayStation, the Nintendo letters for Switch pads. If the
+game guesses wrong, choose it in *Options › Button style* (Auto, Xbox, PlayStation, Nintendo).
+
+**Rebinding buttons.** In *Options › Controls* every action shows its button next to its keys. Select
+an action, press A (Enter on the keyboard) and then the button you want for it; X clears the
+action's button, *Reset to defaults* brings back all keys and buttons. B and Start keep the old
+buttons; moving stays on the stick and the d-pad. A button that does something else in the same
+place is named under the list (*R2 is also Switch weapon*).
+
 ## Menus
 
 - **Title screen**: *New game*, *Continue* (the latest save), *Load game*, *Options*, *Achievements*

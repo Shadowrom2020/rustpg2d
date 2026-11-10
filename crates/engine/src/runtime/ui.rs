@@ -355,13 +355,13 @@ pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, st
             if let Some(line) = item_stats_line(def) {
                 draw_text(&line, d.x + pad + tw + 16.0, d.y + 23.0, 18.0, GOLD);
             }
-            for (k, line) in wrap_text(&def.description, 18, d.w - 2.0 * pad).iter().take(2).enumerate() {
+            for (k, line) in wrap_text(&super::glyphs::expand_keys(&def.description), 18, d.w - 2.0 * pad).iter().take(2).enumerate() {
                 draw_text(line, d.x + pad, d.y + 44.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
             }
         }
     }
-    let size = (12..=16u16).rev().find(|s| measure_text(hint, None, *s, 1.0).width <= d.w - 2.0 * pad).unwrap_or(12);
-    draw_text(hint, d.x + pad, d.y + d.h - 8.0, size as f32, GRAY);
+    let size = super::glyphs::hint_size(hint, d.w - 2.0 * pad, 16);
+    super::glyphs::draw_hint(hint, d.x + pad, d.y + d.h - 8.0, size, GRAY);
 }
 
 /// One line of an item's numbers: tool kind, weapon damage / cooldown / reach, armor slot /

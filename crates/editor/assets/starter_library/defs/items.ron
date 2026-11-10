@@ -690,7 +690,7 @@
     (
         id: "fishing_rod",
         name: "Fishing Rod",
-        description: "A tool: stand at the pond\'s edge and press E to cast.",
+        description: "A tool: stand at the pond\'s edge and press {key:interact} to cast.",
         icon: (
             sheet: "items",
             frame: 37,
@@ -736,7 +736,7 @@
     (
         id: "pickaxe",
         name: "Pickaxe",
-        description: "A miner\'s tool: press E or swing at an ore vein while you carry it.",
+        description: "A miner\'s tool: press {key:interact} or swing at an ore vein while you carry it.",
         icon: (
             sheet: "items",
             frame: 41,
@@ -2462,7 +2462,7 @@
     (
         id: "woodcutter_axe",
         name: "Woodcutter\'s Axe",
-        description: "A light axe for felling trees: press E or swing at a tree while you carry it.",
+        description: "A light axe for felling trees: press {key:interact} or swing at a tree while you carry it.",
         icon: (
             sheet: "materials",
             frame: 0,

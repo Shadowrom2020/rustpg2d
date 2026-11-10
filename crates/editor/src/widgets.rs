@@ -1783,7 +1783,7 @@ pub fn sprite_field(ui: &mut Ui, id: &str, sprite: &mut SpriteRef, tex: &Texture
                                 paint_frame(ui, tex, assets, sid, 0, r.shrink(2.0));
                                 ui.vertical(|ui| {
                                     ui.label(egui::RichText::new(sid.as_str()).strong().color(if on { Color32::YELLOW } else { Color32::WHITE }));
-                                    ui.weak(format!("{} frames · {}×{}", s.count, s.frame_w as u32, s.frame_h as u32));
+                                    ui.weak(format!("{} frames · {}×{}{}", s.count, s.frame_w as u32, s.frame_h as u32, if s.scale > 1.0 { format!(" · {}×", s.scale) } else { String::new() }));
                                 });
                             });
                             let resp = ui.interact(row.response.rect, key.with(("sheet", sid.as_str())), Sense::click());
@@ -1805,7 +1805,8 @@ pub fn sprite_field(ui: &mut Ui, id: &str, sprite: &mut SpriteRef, tex: &Texture
                         st.zoom = 2.0;
                     }
                     if st.zoom <= 0.0 {
-                        let w = assets.sheets.get(&st.sheet).map_or(256.0, |s| s.image.width as f32);
+                        // (World width: a 2x sheet is shown as big as a 1x one.)
+                        let w = assets.sheets.get(&st.sheet).map_or(256.0, |s| s.image.width as f32 / s.scale);
                         st.zoom = ((ui.available_width() - 20.0) / w).floor().clamp(1.0, 4.0);
                     }
                     ui.horizontal(|ui| {
@@ -1852,7 +1853,8 @@ pub fn sprite_field(ui: &mut Ui, id: &str, sprite: &mut SpriteRef, tex: &Texture
                         return;
                     }
                     let rows = s.count.div_ceil(s.columns.max(1));
-                    let z = st.zoom;
+                    // Zoom in world pixels: a high-resolution sheet shows at the same size, with its detail.
+                    let z = st.zoom / s.scale;
                     let (cw, ch) = (s.frame_w * z, s.frame_h * z);
                     let size = vec2(s.image.width as f32 * z, s.image.height as f32 * z);
                     egui::ScrollArea::both().id_salt(key.with("grid")).max_height(420.0).max_width(ui.available_width()).show(ui, |ui| {

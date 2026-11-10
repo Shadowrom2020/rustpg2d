@@ -3,6 +3,16 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Art
+- **High-resolution sprites**: a sprite sheet's new **Scale** (1×–4×, *Database › Sprite sheets*)
+  says how many image pixels make one world pixel, so 2× art (64 × 96 character frames) fills the
+  place of 1× art with twice the detail. Sheets of different scales mix (a 2× body with 1× hair and
+  outfits lines up); positions, hitboxes and tiles don't change, tilesets stay 1×. The pickers show
+  2× frames at the same size, the pixel editor edits the image's own pixels, and the LPC and
+  Aseprite imports ask for the scale. Old sheets are 1×.
+
 ## 0.15.0 — 2026-11-10
 
 ### Editor

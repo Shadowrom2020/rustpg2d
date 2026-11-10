@@ -19,10 +19,13 @@ pub fn entity_sprite(db: &Database, e: &EntityInstance) -> Option<SpriteRef> {
     }
 }
 
-/// Size of a sprite in pixels (from its sheet's frame size).
+/// World size of a sprite in pixels (its sheet's frame size divided by the sheet's scale).
 pub fn sprite_px(db: &Database, s: &SpriteRef) -> egui::Vec2 {
     let (cw, ch) = s.cells();
-    db.sheet(&s.sheet).map_or(vec2(TILE_SIZE as f32, TILE_SIZE as f32), |d| vec2((d.frame_w * cw) as f32, (d.frame_h * ch) as f32))
+    db.sheet(&s.sheet).map_or(vec2(TILE_SIZE as f32, TILE_SIZE as f32), |d| {
+        let k = d.scale.max(1) as f32;
+        vec2((d.frame_w * cw) as f32 / k, (d.frame_h * ch) as f32 / k)
+    })
 }
 
 /// Paints a structure scaled into `rect` (tiles of all layers, its entities above the detail
@@ -959,5 +962,19 @@ fn structure_canvas(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit
     }
     if !primary {
         st.last_cell = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustpg2d_engine::defs::SheetDef;
+
+    /// A 2x sheet's 64 x 96 frames take the place of a 1x sheet's 32 x 48 ones.
+    #[test]
+    fn sprite_size_is_in_world_pixels() {
+        let db = Database { sheets: vec![SheetDef::new("lo", "sprites/lo.png", 32, 48), SheetDef { scale: 2, ..SheetDef::new("hi", "sprites/hi.png", 64, 96) }], ..Default::default() };
+        assert_eq!(sprite_px(&db, &SpriteRef::new("lo", 0)), sprite_px(&db, &SpriteRef::new("hi", 0)));
+        assert_eq!(sprite_px(&db, &SpriteRef::new("hi", 0)), vec2(32.0, 48.0));
     }
 }

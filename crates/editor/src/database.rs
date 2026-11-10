@@ -506,6 +506,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         }
         let db_snapshot = ed.project.db.clone();
         let mut embed: Option<(String, (u32, u32), bool)> = None;
+        // A sheet's frame size or scale changed: its textures are cut / drawn anew.
+        let mut sheet_changed = false;
         egui::CentralPanel::default().show_inside(ui, |ui| {
             // Sprite sheets: a compact form on top, the pixel editor below it.
             let art_tab = matches!(tab, Tab::Items | Tab::Props | Tab::Characters) && ed.db.art_open;
@@ -571,7 +573,9 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     }
                     Tab::Sheets => {
                         if let Some(d) = db.sheets.get_mut(i) {
+                            let before = (d.frame_w, d.frame_h, d.scale);
                             sheet_form(ui, d, &mut cx);
+                            sheet_changed = before != (d.frame_w, d.frame_h, d.scale);
                             let character = db_snapshot.characters.iter().any(|c| c.sheet == d.id);
                             embed = Some((d.image.clone(), (d.frame_w, d.frame_h), character));
                         }
@@ -616,6 +620,9 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     _ => {}
                 }
             });
+            if sheet_changed {
+                ed.reload_assets();
+            }
             if let Some((rel, frame, character)) = embed.take() {
                 ui.separator();
                 let h = ui.available_height().max(260.0);
@@ -1971,7 +1978,21 @@ fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
         ui.horizontal(|ui| {
             ui.add(egui::DragValue::new(&mut d.frame_w).range(1..=512));
             ui.add(egui::DragValue::new(&mut d.frame_h).range(1..=512));
+            ui.weak("image pixels");
         });
+        ui.end_row();
+        ui.label("Scale");
+        ui.horizontal(|ui| {
+            for k in 1..=4u32 {
+                ui.radio_value(&mut d.scale, k, format!("{k}\u{00D7}"));
+            }
+        })
+        .response
+        .on_hover_text("Image pixels per world pixel. 2\u{00D7} = high resolution: 64\u{00D7}96 frames fill the place of a 32\u{00D7}48 character, with twice the detail. Layers of different scales line up; hitboxes and positions don't change.");
+        ui.end_row();
+        let k = d.scale.max(1);
+        ui.label("");
+        ui.weak(format!("In the world: {}\u{00D7}{} px per frame", d.frame_w as f32 / k as f32, d.frame_h as f32 / k as f32));
         ui.end_row();
     });
     // Named animations (from Aseprite tags, or added here): Effect / Fly actions and

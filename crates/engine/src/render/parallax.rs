@@ -13,7 +13,8 @@ pub fn draw(assets: &Assets, layers: &[ParallaxLayer], above: bool, view: Rect, 
     for l in layers.iter().filter(|l| l.above == above && l.alpha > 0.0) {
         let Some(sheet) = assets.sheets.get(&l.sheet) else { continue };
         let tex = &sheet.texture;
-        let scale = l.scale.max(0.01);
+        // (A high-resolution sheet covers its image size divided by its scale.)
+        let scale = l.scale.max(0.01) / sheet.scale;
         let (w, h) = (tex.width() * scale, tex.height() * scale);
         let o = l.origin([view.x, view.y], time);
         let (x0, nx) = ParallaxLayer::copies(o[0], w, l.repeat[0], view.x, view.right());

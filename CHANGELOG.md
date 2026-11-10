@@ -3,7 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.14.0 — 2026-11-10
 
 ### Gameplay
 - **Gamepads in the web game**: browser versions read controllers through the browser's Gamepad

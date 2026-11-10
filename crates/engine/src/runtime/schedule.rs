@@ -91,9 +91,10 @@ impl Game {
         let defs: Vec<VisitorDef> = self.visitor_defs().iter().filter(|v| v.home != map && v.inst.schedule.iter().any(|s| s.map == map)).cloned().collect();
         let mut out = Vec::new();
         for (k, v) in defs.into_iter().enumerate() {
-            // Companions follow the player instead; a stopped schedule keeps it at home.
+            // Companions follow the player instead; a stopped schedule keeps it at home; a hidden
+            // character (placed inactive, or switched off) doesn't visit either.
             let st = self.world.entity_state(&v.home, v.inst.uid);
-            if self.world.is_companion(&v.home, v.inst.uid) || st.is_some_and(|s| s.schedule_off || !s.active) {
+            if self.world.is_companion(&v.home, v.inst.uid) || !visits(st, v.inst.active) {
                 continue;
             }
             let mut rt = self.build_placed(&v.home, &v.inst);
@@ -123,7 +124,7 @@ impl Game {
             return;
         }
         s.elsewhere = false;
-        e.active = true;
+        e.active = !e.hidden;
         e.away = false;
         let tile = (s.stops[k].x, s.stops[k].y);
         self.loaded.entities[i].body.pos = self.tile_spot(tile);
@@ -186,7 +187,7 @@ impl Game {
             s.walker = Walker::default();
             if target == here && e.away {
                 e.away = false;
-                e.active = true;
+                e.active = !e.hidden;
                 s.elsewhere = false;
                 if let Some(p) = entry_pos {
                     e.body.pos = p;
@@ -274,14 +275,14 @@ impl Game {
         s.walker = Walker::default();
         if e.away && !s.elsewhere {
             e.away = false;
-            e.active = true;
+            e.active = !e.hidden;
         }
         e.body.moving = false;
         self.persist(i);
     }
 
     /// Characters with a schedule on this map (for automated play-throughs):
-    /// "name:stop[>map]@x,y" plus "(walking)", "(inside)", "(elsewhere)", "(stopped)" and
+    /// "name:stop[>map]@x,y" plus "(hidden)", "(walking)", "(inside)", "(elsewhere)", "(stopped)" and
     /// ":sit" / ":lie" on furniture; stop = "HH:MM".
     pub(super) fn schedule_status(&self) -> Vec<String> {
         (0..self.loaded.entities.len())
@@ -291,7 +292,9 @@ impl Game {
                 let t = self.tile_of(e.body.pos);
                 let name = if e.name.is_empty() { e.def.as_str() } else { e.name.as_str() };
                 let stop = s.current.and_then(|k| s.stops.get(k)).map_or("-".to_string(), |st| if st.map.is_empty() { st.time_text() } else { format!("{}>{}", st.time_text(), st.map) });
-                let how = if !s.on {
+                let how = if e.hidden {
+                    "(hidden)"
+                } else if !s.on {
                     "(stopped)"
                 } else if e.away && s.elsewhere {
                     "(elsewhere)"
@@ -311,9 +314,26 @@ impl Game {
 }
 
 
+/// Whether a character placed on another map comes visiting: not when it is hidden (placed
+/// inactive, or switched off and saved so) or its schedule was stopped.
+fn visits(st: Option<&crate::state::EntityState>, placed_active: bool) -> bool {
+    st.map_or(placed_active, |s| s.active) && !st.is_some_and(|s| s.schedule_off)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn hidden_characters_dont_visit() {
+        use crate::state::EntityState;
+        let saved = |active: bool, schedule_off: bool| -> EntityState { ron::from_str(&format!("(active: {active}, frame: 0, x: 0, y: 0, facing: Down, schedule_off: {schedule_off})")).unwrap() };
+        assert!(visits(None, true), "placed visible, nothing saved: visits");
+        assert!(!visits(None, false), "placed hidden (e.g. healthy Pip before the cure): stays away");
+        assert!(visits(Some(&saved(true, false)), false), "shown later by Set active: visits");
+        assert!(!visits(Some(&saved(false, false)), true), "switched off: stays away");
+        assert!(!visits(Some(&saved(true, true)), true), "schedule stopped: stays home");
+    }
+
 
     #[test]
     fn stops_on_other_maps() {

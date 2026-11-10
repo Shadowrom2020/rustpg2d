@@ -253,7 +253,7 @@ impl Game {
             sch.current = None;
             if e.away {
                 e.away = false;
-                e.active = true;
+                e.active = !e.hidden;
             }
             self.place_on_schedule(i);
         }

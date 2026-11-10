@@ -165,6 +165,10 @@ struct RtEntity {
     body: Body,
     home: Vec2,
     active: bool,
+    /// Hidden by the game's design: placed inactive or switched off with *Set active*. Daily
+    /// schedules only show / hide characters that aren't hidden (they move in and out of sight
+    /// with `away`); `active` is what is drawn now.
+    hidden: bool,
     /// Legacy frame offset added to the state's sprite (SetFrame action).
     frame: u32,
     /// Current state of a prop (index into its definition's states; 0 = default).
@@ -611,6 +615,7 @@ impl Game {
             body: Body { pos, facing, hitbox, speed, moving: false, anim: 0.0, move_target: None },
             home: pos,
             active,
+            hidden: false,
             frame,
             // Hostiles overlap the player (contact damage) instead of blocking.
             solid: solid && !hostile,
@@ -715,6 +720,8 @@ impl Game {
             st.map_or(e.frame, |s| s.frame),
         );
         rt.count = count;
+        // Placed inactive (or switched off and saved so): hidden until *Set active* shows it.
+        rt.hidden = e.kind == EntityKind::Character && !st.map_or(e.active, |s| s.active);
         rt.changed_at = st.and_then(|s| s.changed_at);
         rt.planted = st.and_then(|s| s.planted.clone());
         rt.light = e.light.clone();
@@ -1268,8 +1275,9 @@ impl Game {
         }
         let state = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def)).flatten().map(|d| d.state_name(e.state).to_string());
         let st = EntityState {
-            // Indoors at a schedule stop is not inactive (the schedule brings it out again).
-            active: e.active || e.away,
+            // Indoors at a schedule stop is not inactive (the schedule brings it out again);
+            // a hidden character stays hidden wherever its schedule is.
+            active: (e.active || e.away) && !e.hidden,
             frame: e.frame,
             x: e.body.pos.x,
             y: e.body.pos.y,
@@ -2574,8 +2582,15 @@ impl ActionHost for Game {
             }
             Action::SetActive { target, active } => {
                 if let Some(i) = self.entity_index(target, ctx.owner) {
-                    self.loaded.entities[i].active = *active;
-                    self.loaded.entities[i].away = false;
+                    let e = &mut self.loaded.entities[i];
+                    e.active = *active;
+                    e.hidden = !*active;
+                    e.away = false;
+                    // Shown, a character with a daily routine goes where the hour wants it
+                    // (another map's stop keeps it out of sight here).
+                    if *active && e.schedule.as_ref().is_some_and(|s| s.on) {
+                        self.place_on_schedule(i);
+                    }
                     self.persist(i);
                 }
                 Step::Continue

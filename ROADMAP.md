@@ -37,7 +37,7 @@ Instructions for every session (people and coding agents) that implements roadma
    library (and the example project when it shows it), is covered by the scripted checks in
    *Verify* (autoplay / editor script + screenshots, on a scratch copy of the example project),
    has tests where engine logic changed, is documented
-   (the manual in `Documentation/manual/`, `Documentation/scripting.md` for every script function,
+   (the manual in `Documentation/manual/`, its `08-scripting.md` for every script function,
    the editor's `API` table, CHANGELOG *Unreleased*), and `cargo build / clippy -D warnings / test --workspace`
    pass. The example project (`example_project/`, edited with the editor or its AI agent
    server) shows the feature: add new entities instead of recreating existing ones, so uids
@@ -76,8 +76,8 @@ Instructions for every session (people and coding agents) that implements roadma
     (as *Save thumbnails* did from *Screen shake*, both in `menu.rs`), open the pull requests
     in that order, and say so in the pull request text. One pull request per item.
 14. **Documentation per item**, all before the report: the manual chapter of the area
-    (`Documentation/manual/`; controls in `15-players-guide.md`, events in `07-events.md` and
-    `Documentation/events.md`), a README highlight for notable features, `Documentation/scripting.md` for every script function (a test
+    (`Documentation/manual/`; controls in `15-players-guide.md`, events in `07-events.md`),
+    a README highlight for notable features, `08-scripting.md` for every script function (a test
     fails otherwise), the editor's `API` table, CHANGELOG under the matching `###` heading of
     *Unreleased* (Gameplay, Editor, Fixes, Documentation, Maintenance), the roadmap mark.
 15. **CI hiccups.** A job that fails within a minute with a download timeout

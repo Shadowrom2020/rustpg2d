@@ -892,10 +892,10 @@ mod tests {
         );
     }
 
-    /// The examples in Documentation/scripting.md compile, and the Rhai primer does what it says.
+    /// The examples in Documentation/manual/08-scripting.md compile, and the Rhai primer does what it says.
     #[test]
     fn documentation_examples() {
-        let doc = include_str!("../../../Documentation/scripting.md");
+        let doc = include_str!("../../../Documentation/manual/08-scripting.md");
         let blocks: Vec<&str> = doc.split("```rust").skip(1).filter_map(|b| b.split("```").next()).collect();
         assert!(blocks.len() >= 10, "{}", blocks.len());
         for b in &blocks {

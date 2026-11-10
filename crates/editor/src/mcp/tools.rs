@@ -2,7 +2,7 @@
 //! [`Call`] for the main thread. The parameter structs' doc comments become the JSON schema
 //! descriptions, so they are written for the agent. Also the prompts.
 //!
-//! Conventions (also in `Documentation/mcp.md`): coordinates are tiles (origin top-left, x right,
+//! Conventions (also in `Documentation/manual/13-ai-agents.md`): coordinates are tiles (origin top-left, x right,
 //! y down; an entity stands on the tile of its feet); rects are `x, y, w, h`; `map` omitted means
 //! the map open in the editor; definitions, entities, zones and triggers are JSON in the serde
 //! form of the engine's types (externally tagged enums), so what `get_*` returns is valid input.
@@ -786,27 +786,27 @@ Steps:\n\
 mod tests {
     use super::*;
 
-    /// Documentation/mcp.md names every tool, and every tool has a description.
+    /// Documentation/manual/13-ai-agents.md names every tool, and every tool has a description.
     #[test]
     fn docs_list_every_tool() {
-        let doc = include_str!("../../../../Documentation/mcp.md");
+        let doc = include_str!("../../../../Documentation/manual/13-ai-agents.md");
         let tools = Handler::tool_router().list_all();
         assert!(tools.len() >= 50, "{} tools", tools.len());
         for t in &tools {
             assert!(t.description.as_deref().is_some_and(|d| !d.is_empty()), "{} has no description", t.name);
-            assert!(doc.contains(&format!("`{}", t.name)), "Documentation/mcp.md doesn't mention `{}`", t.name);
+            assert!(doc.contains(&format!("`{}", t.name)), "Documentation/manual/13-ai-agents.md doesn't mention `{}`", t.name);
         }
         for p in prompts() {
-            assert!(doc.contains(&p.name), "Documentation/mcp.md doesn't mention the prompt {}", p.name);
+            assert!(doc.contains(&p.name), "Documentation/manual/13-ai-agents.md doesn't mention the prompt {}", p.name);
             assert!(prompt_text(&p.name, &|_| String::new()).is_some());
         }
     }
 
-    /// Documentation/autoplay.md names every autoplay command of the game runner.
+    /// Documentation/manual/17-testing.md names every autoplay command of the game runner.
     #[test]
     fn autoplay_docs_are_complete() {
         let src = include_str!("../../../game/src/main.rs");
-        let doc = include_str!("../../../../Documentation/autoplay.md");
+        let doc = include_str!("../../../../Documentation/manual/17-testing.md");
         let start = src.find("while let Some(cmd) = self.cmds.pop_front()").expect("the autoplay loop");
         let body = &src[start..];
         let end = body.find("\n        }\n").unwrap_or(body.len());
@@ -824,7 +824,7 @@ mod tests {
         }
         assert!(names.len() > 20, "{names:?}");
         for n in names {
-            assert!(doc.contains(&format!("`{n}")) || doc.contains(&format!(" {n} ")) || doc.contains(&format!("`{n} ")) || doc.contains(&format!("{n}\\|")) || doc.contains(&format!("\\|{n}")), "Documentation/autoplay.md doesn't mention `{n}`");
+            assert!(doc.contains(&format!("`{n}")) || doc.contains(&format!(" {n} ")) || doc.contains(&format!("`{n} ")) || doc.contains(&format!("{n}\\|")) || doc.contains(&format!("\\|{n}")), "Documentation/manual/17-testing.md doesn't mention `{n}`");
         }
     }
 }

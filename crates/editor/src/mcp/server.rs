@@ -78,10 +78,10 @@ pub fn to_result(reply: Reply) -> CallToolResult {
 
 /// The documentation served as MCP resources.
 pub const DOCS: &[(&str, &str, &str, &str)] = &[
-    ("rustpg2d://docs/mcp", "mcp", "How to work with this server: tools, conventions, the file watcher", include_str!("../../../../Documentation/mcp.md")),
-    ("rustpg2d://docs/scripting", "scripting", "The Rhai scripting API of games (functions, events, examples)", include_str!("../../../../Documentation/scripting.md")),
-    ("rustpg2d://docs/events", "events", "Triggers, conditions and actions: owners, events and the JSON shapes tools take", include_str!("../../../../Documentation/events.md")),
-    ("rustpg2d://docs/autoplay", "autoplay", "The autoplay commands play_test accepts and the status fields it prints", include_str!("../../../../Documentation/autoplay.md")),
+    ("rustpg2d://docs/mcp", "mcp", "How to work with this server: tools, conventions, the file watcher", include_str!("../../../../Documentation/manual/13-ai-agents.md")),
+    ("rustpg2d://docs/scripting", "scripting", "The Rhai scripting API of games (functions, events, examples)", include_str!("../../../../Documentation/manual/08-scripting.md")),
+    ("rustpg2d://docs/events", "events", "Triggers, conditions and actions: events, owners, patterns (the events_reference tool prints the JSON shapes)", include_str!("../../../../Documentation/manual/07-events.md")),
+    ("rustpg2d://docs/autoplay", "autoplay", "The autoplay commands play_test accepts and the status fields it prints", include_str!("../../../../Documentation/manual/17-testing.md")),
 ];
 const PROJECT_URI: &str = "rustpg2d://project";
 

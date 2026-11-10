@@ -38,10 +38,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   his lines are one trigger now.
 
 ### Documentation
-- **The Creator's Manual** (`Documentation/manual/`): sixteen chapters on making games with
+- **The Creator's Manual** (`Documentation/manual/`): seventeen chapters on making games with
   R(ust)PG2D, from getting started and the editor through maps, objects and zones, the Database,
   characters, events, scripting, the gameplay systems, art and sound, the asset library,
-  languages, AI agents and publishing to a player's guide and troubleshooting, with screenshots.
+  languages, AI agents and publishing to a player's guide, troubleshooting and testing, with
+  screenshots.
+- **One place for everything**: the separate scripting, events, AI agent server and autoplay
+  references are merged into the manual (chapter 8 holds every script function, chapter 13 every
+  agent tool, the new chapter 17 *Testing your game* the autoplay commands; agents get the
+  trigger JSON from `events_reference`). The editor's agent server serves the chapters as its
+  `rustpg2d://docs/…` resources. Only `Documentation/architecture.md`, for developers of the
+  engine, stays outside the manual.
 - **README** rewritten as the project's landing page: what R(ust)PG2D is, screenshots of the game
   and the editor, highlights, downloads, a first game in five minutes and building from source.
   Its former detailed sections live on in the manual.

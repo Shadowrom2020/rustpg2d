@@ -17,25 +17,22 @@ interest you.
 5. [The Database](05-database.md): items, props, tilesets, sprite sheets, sounds, quests, recipes, achievements, project settings
 6. [Characters](06-characters.md): the character builder, the player and the character creator, behaviour, routines, merchants, companions, portraits
 7. [Events](07-events.md): triggers, conditions and actions, cut-scenes, the Events graph
-8. [Scripting](08-scripting.md): Rhai scripts, the script editor, live reload and the developer console
+8. [Scripting](08-scripting.md): Rhai scripts, the script editor, live reload, the console, and every script function with recipes
 9. [Gameplay systems](09-gameplay.md): combat, levels, skills and magic, status effects, inventory, crafting, farming, fishing, lockpicking, furniture, time of day, achievements
 10. [Art and sound](10-art-and-sound.md): sprite sheets, the pixel editor, new assets, importing from Tiled, LPC and Aseprite, sounds and music
 11. [The asset library](11-asset-library.md): shared assets, the Asset Library window, packages, scripted assets
 12. [Languages](12-languages.md): translating a game
-13. [AI agents](13-ai-agents.md): letting an AI assistant work in the editor
+13. [AI agents](13-ai-agents.md): letting an AI assistant work in the editor, and every tool it gets
 14. [Publishing](14-publishing.md): exporting for Windows, macOS, Linux and the web, itch.io
 15. [The player's guide](15-players-guide.md): controls, menus and options, as your players see them
 16. [Troubleshooting](16-troubleshooting.md): common problems and their fixes
+17. [Testing your game](17-testing.md): driving the game from a script (autoplay), the `status` line
 
-## References
+## For developers
 
-These documents list everything in one place; the chapters link to them where it matters.
-
-- [Scripting reference](../scripting.md): every script function, with recipes
-- [Events reference](../events.md): every event, condition and action
-- [AI agent server](../mcp.md): the tools AI assistants get
-- [Autoplay](../autoplay.md): driving the game from a script, for testing
-- [Architecture](../architecture.md): how R(ust)PG2D works inside
+[Architecture](../architecture.md) explains how R(ust)PG2D works inside: the engine, the game
+runner and the editor, the file formats and their compatibility rules. It is meant for people who
+change R(ust)PG2D itself.
 
 ## Words used in this manual
 

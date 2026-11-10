@@ -1,4 +1,21 @@
-# Autoplay: driving the game from a script
+# 17. Testing your game
+
+Besides playing it, a game can be **driven by a script**: the game runner presses keys, clicks,
+waits, takes screenshots and prints its state. That is how the editor's AI agents play-test
+(`play_test`, [chapter 13](13-ai-agents.md)), and how you can check that a quest still works after
+a change without playing it through by hand. From a terminal:
+
+```sh
+RUSTPG2D_AUTOPLAY="wait 1; talkto tilda; wait 3; status; shot /tmp/tilda.png; quit" \
+  rustpg2d-game path/to/project --no-title --map shop --spawn entrance
+```
+
+`--no-title` skips the title screen; `--map` / `--spawn` (or `--pos X,Y` in pixels) start
+somewhere specific; `--dev` adds the developer console and live script reloading
+(play-tests from the editor use it). A crafted save in `saves/quick.ron` loaded with `press f9`
+starts in a precise situation (loading never fires *Map enter* triggers).
+
+## How a script runs
 
 The game runner plays a script when it is started with `RUSTPG2D_AUTOPLAY="cmd; cmd; …"` —
 the editor's play-tests from agents (`play_test`) and the project's own test runs use it. Commands

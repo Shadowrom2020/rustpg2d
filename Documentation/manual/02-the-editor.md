@@ -89,7 +89,7 @@ Play-tests run in developer mode:
   half a second. A script with an error keeps the previous version running and shows the error.
 - **F4 opens the developer console**: give items, set flags and variables, jump in time, teleport,
   call script functions and run any line of script. See
-  [Scripting › The developer console](08-scripting.md#the-developer-console).
+  [Scripting › The developer console](08-scripting.md#trying-scripts-while-the-game-runs).
 - **F3** shows the debug overlay (collision, zones, map edges, hitboxes).
 - *Play-test in* (*Database › Project › Languages*) starts play-tests in another language.
 

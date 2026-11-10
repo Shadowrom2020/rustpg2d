@@ -6,6 +6,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Companions learn spells**: a character with mana (*Database › Characters › Magic*:
+  `max_mana`, `mana_regen`) learns the *Heal* or *Bolt* spell of a scroll or spell book handed to
+  it as a companion (a scroll that is used up when read is used up), or from the *Teach spell*
+  action / `teach_spell(target, spell)`; `npc_knows_spell` tells. It casts *Heal* on the most hurt
+  of the player, the companions and itself (a knocked-down one first) and *Bolt* at the enemy it
+  fights, from its own mana. The HUD row shows its mana, the companion window its spells; spells
+  and mana are kept in save games (spells also when it is dismissed). `status` prints
+  `:mana=a/b:spells=…` for companions. In the example the town guard has mana.
 - **Villagers who produce**: the *Shop stock* action and `add_stock` / `set_stock` / `stock_of`
   change a merchant's stock; `day()` counts in-game days. In the example, Finn's catch is for
   sale at his fish stall the next morning and Bram's apple pies at his bread stall (a restock

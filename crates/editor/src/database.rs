@@ -1461,6 +1461,13 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
         ui.checkbox(&mut d.gear_locked, "can't be given gear")
             .on_hover_text("A companion's window lets the player equip it and hand it items; tick this for animals and creatures that can't wear anything (they still carry items and use potions).");
         ui.end_row();
+        ui.label("Magic (companion)");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut d.max_mana).range(0..=999).prefix("mana "))
+                .on_hover_text("0 = it can't learn spells. With mana, a companion learns the Heal and Bolt spells of scrolls and spell books the player gives it (or 'Teach spell') and casts them: Heal on whoever is badly hurt, Bolt at its enemy.");
+            ui.add(egui::DragValue::new(&mut d.mana_regen).range(0.0..=50.0).speed(0.05).suffix(" /s")).on_hover_text("Mana it regains per second");
+        });
+        ui.end_row();
         ui.label("Experience");
         ui.add(egui::DragValue::new(&mut d.xp).range(0..=1_000_000).suffix(" XP"))
             .on_hover_text("What the player gains for defeating this character (Project › Experience and levels must be on). 'Defeat all enemies' gives none.");

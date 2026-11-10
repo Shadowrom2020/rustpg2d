@@ -587,6 +587,10 @@ pub enum Action {
         #[serde(default)]
         price: u32,
     },
+    /// Teaches a character a spell (`target`: a companion, or any character on the map, which
+    /// casts it once it follows the player). Companions cast *Heal* and *Bolt* spells from their
+    /// definition's mana.
+    TeachSpell { target: TargetName, spell: String },
 }
 
 fn yes() -> bool {
@@ -734,6 +738,7 @@ impl Action {
             Action::ShowImage { .. } => "Show image",
             Action::HideImage => "Hide image",
             Action::ShopStock { .. } => "Shop stock",
+            Action::TeachSpell { .. } => "Teach spell",
         }
     }
 
@@ -807,6 +812,7 @@ impl Action {
             Action::ShowImage { sheet: String::new(), wait: true, scroll: false, speed: image_speed(), scale: 1.0 },
             Action::HideImage,
             Action::ShopStock { target: "self".into(), item: String::new(), op: VarOp::Add, count: 3, price: 0 },
+            Action::TeachSpell { target: "self".into(), spell: String::new() },
         ]
     }
 }

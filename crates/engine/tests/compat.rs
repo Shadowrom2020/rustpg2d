@@ -87,6 +87,23 @@ fn save_of_0_11_0_loads() {
 }
 
 #[test]
+fn save_of_0_12_0_loads() {
+    // A quick save of 0.12.0 with the town guard following the player (hurt): before companions
+    // had mana and learned spells.
+    let s = std::fs::read_to_string(fixture("saves/save-0.12.0.ron")).unwrap();
+    let w = WorldState::from_ron(&s).unwrap();
+    assert_eq!(w.version, SAVE_VERSION);
+    assert_eq!(w.current_map, "village");
+    assert_eq!(w.companions.len(), 1);
+    let c = &w.companions[0];
+    assert_eq!((c.map.as_str(), c.uid, c.name.as_str(), c.hp), ("village", 121, "guard", Some(7)));
+    assert_eq!(c.mana, None, "full mana");
+    assert!(w.npc_spells.is_empty() && w.npc_spells("village", 121).is_empty(), "no spells learned yet");
+    let text = w.to_ron().unwrap();
+    assert_eq!(WorldState::from_ron(&text).unwrap().to_ron().unwrap(), text);
+}
+
+#[test]
 fn minimal_save_loads_with_defaults() {
     let s = std::fs::read_to_string(fixture("saves/minimal.ron")).unwrap();
     let w = WorldState::from_ron(&s).unwrap();

@@ -547,6 +547,12 @@ These only matter in projects with skills (and magic) enabled in *Database › P
 | `learn_spell(spell)` | Teaches a spell. *(queued)* |
 | `mana()` | Current mana. |
 | `add_mana(amount)` | Adds mana (negative drains it). *(queued)* |
+| `teach_spell(target, spell)` | Teaches a character a spell. A companion with mana (*Database › Characters › Magic*) casts *Heal* on whoever is badly hurt and *Bolt* at its enemy; others keep it for when they follow the player. *(queued)* |
+| `npc_knows_spell(target, spell)` | Whether a character on the map has learned a spell (from `teach_spell`, or a scroll or spell book given to it as a companion). |
+
+Companions learn spells by themselves too: a scroll or spell book (an item with *Teaches spell*)
+handed to a companion teaches it the spell, if the companion has mana and it is a *Heal* or *Bolt*
+spell; a scroll that is used up when read is used up.
 
 ### Experience and levels
 

@@ -146,6 +146,8 @@
             )),
             offhand: None,
         ),
+        max_mana: 20,
+        mana_regen: 0.5,
     ),
     (
         id: "slime",

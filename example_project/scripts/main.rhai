@@ -237,6 +237,9 @@ fn guard_rest() {
 fn guard_answer() {
     if get_var("guard_join") == 0 {
         say("Guard", "Lead the way, {player}!");
+        // Companions learn the spells of scrolls and spell books handed to them (the guard has
+        // mana: Database > Characters > Magic) and cast Heal and Bolt spells.
+        say("Guard", "And if you find a scroll, hand it over. My mother taught me my letters - I can read a spell as well as anyone.");
         follow("guard");
     }
 }

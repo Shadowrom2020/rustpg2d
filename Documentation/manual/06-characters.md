@@ -56,6 +56,7 @@ definition while every villager looks different.
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
 | **Merchant** | Makes it a trader ([Merchants](#merchants)) |
 | **As companion** | *Can't be given gear*, for animals and creatures |
+| **Magic (companion)** | Mana and mana per second: a companion with mana learns and casts *Heal* and *Bolt* spells |
 | **Light** | Carries a light (a lantern); placed characters can carry their own instead |
 | **Default triggers** | Triggers every copy runs ([Events](07-events.md)) |
 
@@ -184,6 +185,14 @@ the player:
   A bow you gave a companion shoots arrows from its bag.
 - **Healing**: items and *Heal* spells set to *Use on: Player or companion* ask whom to heal; the
   *Heal character* action and `heal_npc(name, amount)` heal any character.
+- **Magic**: a companion whose definition has mana (*Magic (companion)* in the character form)
+  learns the spell of a scroll or spell book you hand it in the companion window (a scroll that
+  is used up when read is used up; a book stays in its bag), or from the *Teach spell* action /
+  `teach_spell`. It casts *Heal* on the most hurt of you, the companions near it and itself when
+  someone is below half their HP (a knocked-down companion first: the heal gets it up), and *Bolt*
+  spells at the enemy it fights. Mana regenerates; its HUD row shows a blue mana bar, and its window
+  lists its mana and spells. Spells stay learned when it is dismissed. In the example the town
+  guard has mana: give him Tilda's *Scroll of Healing* or the elder's spell book.
 - **At 0 HP** a companion is **knocked down**: it lies where it fell, enemies leave it alone, and
   any heal gets it back up. Leaving the map with a downed companion asks whether to leave it behind
   (it then limps home). *Database › Project › Companions at 0 HP* can instead let it get up by

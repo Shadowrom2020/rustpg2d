@@ -7,6 +7,7 @@ mod charwin;
 mod combat;
 mod companion_ui;
 mod companions;
+mod companion_magic;
 mod cutscene;
 mod dev;
 mod effects;
@@ -2574,6 +2575,12 @@ impl ActionHost for Game {
             }
             Action::HideImage => {
                 self.image = None;
+                Step::Continue
+            }
+            Action::TeachSpell { target, spell } => {
+                if let Some(i) = self.entity_index(target, ctx.owner) {
+                    self.teach_character(i, spell);
+                }
                 Step::Continue
             }
             Action::ShopStock { target, item, op, count, price } => {

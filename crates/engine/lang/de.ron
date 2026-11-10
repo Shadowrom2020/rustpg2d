@@ -186,9 +186,9 @@
         "Type a name  -  {key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: start  -  {key:cancel}: back": "Namen tippen  -  {key:up}/{key:down}: wählen  -  {key:left}/{key:right}: ändern  -  Enter: los  -  {key:cancel}: zurück",
 
         // ---- character window, inventory, containers
-        "Character (C)": "Charakter (C)",
-        "Skills (K)": "Fertigkeiten (K)",
-        "Spells (L)": "Zauber (L)",
+        "Character ({key:character})": "Charakter ({key:character})",
+        "Skills ({key:skills})": "Fertigkeiten ({key:skills})",
+        "Spells ({key:spells})": "Zauber ({key:spells})",
         "Character": "Charakter",
         "Container": "Behälter",
         "Double-click / {key:confirm}: use or equip · Drag to slots or quick bar (1-8) · {key:drop} / drag out: drop ({key:run}+{key:drop}: one) · {key:next_tab}: next tab · {key:cancel}: close": "Doppelklick/{key:confirm}: benutzen · Auf Plätze/Schnellleiste (1-8) ziehen · {key:drop}/hinausziehen: ablegen ({key:run}+{key:drop}: 1) · {key:next_tab}: Reiter · {key:cancel}: zu",

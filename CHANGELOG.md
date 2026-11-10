@@ -6,6 +6,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Gamepads in the web game**: browser versions read controllers through the browser's Gamepad
+  API (R(ust)PG2D's web plugin, now version 2): moving, buttons, rebinding and the button pictures
+  work as on the desktop, with the style detected from the pad's name. A browser shows a pad to the
+  page after its first button press there. The character window's tabs show the action's button
+  too (*Character (△)*).
 - **Gamepad glyphs and rebinding**: the help lines of windows and menus show the controller's
   buttons as soon as a pad is used (and the keys again after a key press or a click), drawn in the
   pad's style: Xbox (also the Steam Deck), PlayStation or Nintendo, detected from the pad or chosen

@@ -340,14 +340,25 @@ impl Pad {
 }
 
 /// Stick deflection that counts as a direction (and the lower one that keeps it held).
-#[cfg(not(target_arch = "wasm32"))]
 const STICK_ON: f32 = 0.5;
-#[cfg(not(target_arch = "wasm32"))]
 const STICK_OFF: f32 = 0.35;
+
+/// The left stick as d-pad bits (`x` right, `y` up), with a little hysteresis: `prev` holds the
+/// directions held last frame.
+fn stick_bits(x: f32, y: f32, prev: u32) -> u32 {
+    let mut down = 0;
+    for (v, pad) in [(-y, Pad::Down), (y, Pad::Up), (-x, Pad::Left), (x, Pad::Right)] {
+        let held = prev & pad.bit() != 0;
+        if v > STICK_ON || (held && v > STICK_OFF) {
+            down |= pad.bit();
+        }
+    }
+    down
+}
 
 #[derive(Default)]
 struct PadState {
-    /// (No gilrs in the web game: browsers' gamepads aren't read yet.) Never dropped: on Windows,
+    /// (The web game reads the browser's gamepads through the JS plugin instead.) Never dropped: on Windows,
     /// gilrs joins its event thread when dropped, which panics during process exit (thread-local
     /// destructors run after the other threads are gone).
     #[cfg(not(target_arch = "wasm32"))]
@@ -359,6 +370,9 @@ struct PadState {
     prev: u32,
     /// The connected gamepad's name ("" = none).
     name: String,
+    /// Frames until the web game asks the browser for the pad's name again.
+    #[cfg(target_arch = "wasm32")]
+    name_wait: u32,
     inj_down: Vec<Pad>,
     inj_pressed: Vec<Pad>,
 }
@@ -382,8 +396,18 @@ pub fn poll_pad() {
 
 /// The buttons held on connected gamepads (with the left stick as a d-pad) and the first one's name.
 #[cfg(target_arch = "wasm32")]
-fn read_gamepads(_: &mut PadState, _: u32) -> (u32, String) {
-    (0, String::new())
+fn read_gamepads(p: &mut PadState, prev: u32) -> (u32, String) {
+    let (buttons, x, y) = crate::sys::web::pad_state();
+    // The standard layout's buttons 0-15 are `Pad::ALL` in order (= their bits); the browser's
+    // stick y grows downwards.
+    let down = (buttons & 0xffff) | stick_bits(x, -y, prev);
+    // The name rarely changes: ask about twice a second.
+    if p.name_wait == 0 {
+        p.name_wait = 30;
+        return (down, crate::sys::web::pad_id());
+    }
+    p.name_wait -= 1;
+    (down, p.name.clone())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -432,13 +456,7 @@ fn read_gamepads(p: &mut PadState, prev: u32) -> (u32, String) {
                     }
                 }
                 // The left stick as a d-pad, with a little hysteresis.
-                let (x, y) = (gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY));
-                for (v, pad) in [(-y, Pad::Down), (y, Pad::Up), (-x, Pad::Left), (x, Pad::Right)] {
-                    let held = prev & pad.bit() != 0;
-                    if v > STICK_ON || (held && v > STICK_OFF) {
-                        down |= pad.bit();
-                    }
-                }
+                down |= stick_bits(gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY), prev);
             }
         }
         (down, name)
@@ -942,6 +960,22 @@ mod tests {
             a | b
         });
         assert_eq!(bits.count_ones() as usize, Pad::ALL.len());
+    }
+
+    #[test]
+    fn the_stick_and_the_standard_layout() {
+        // The browser's standard gamepad layout numbers its buttons in the order of Pad::ALL
+        // (0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 8 View, 9 Menu, 10/11 sticks, 12-15 d-pad),
+        // so its bit i is Pad::ALL[i]'s bit.
+        let standard = [Pad::South, Pad::East, Pad::West, Pad::North, Pad::Lb, Pad::Rb, Pad::Lt, Pad::Rt, Pad::Select, Pad::Start, Pad::LStick, Pad::RStick, Pad::Up, Pad::Down, Pad::Left, Pad::Right];
+        for (i, p) in standard.iter().enumerate() {
+            assert_eq!(p.bit(), 1 << i, "{p:?}");
+        }
+        // Up is positive y; a held direction stays held a little below the threshold.
+        assert_eq!(stick_bits(0.0, 0.9, 0), Pad::Up.bit());
+        assert_eq!(stick_bits(-0.9, -0.9, 0), Pad::Left.bit() | Pad::Down.bit());
+        assert_eq!(stick_bits(0.4, 0.0, 0), 0);
+        assert_eq!(stick_bits(0.4, 0.0, Pad::Right.bit()), Pad::Right.bit());
     }
 
     #[test]

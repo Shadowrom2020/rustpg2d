@@ -252,6 +252,9 @@ pub struct Editor {
     pub brush: Brush,
     pub cam: Cam,
     pub sel: Selection,
+    /// A multi-selection (`multisel.rs`): the primary `sel` it was made with, and every selected
+    /// entity / zone. Void as soon as `sel` is something else.
+    pub multi: Option<(Selection, Vec<Selection>)>,
     pub place_kind: EntityKind,
     /// Definition placed by clicking empty space ("" = nothing: clicks only select).
     pub place_def: String,
@@ -405,6 +408,7 @@ impl Editor {
             brush: Brush { tileset: brush_ts, x: 0, y: 0, w: 1, h: 1 },
             cam: Cam { center: Vec2::ZERO, zoom: 2.0 },
             sel: Selection::None,
+            multi: None,
             place_kind: EntityKind::Prop,
             place_def: String::new(),
             place_tab: None,
@@ -1247,6 +1251,9 @@ impl Editor {
     }
 
     pub fn delete_selection(&mut self) {
+        if self.is_multi() {
+            return self.delete_many();
+        }
         let Some(doc) = &mut self.doc else { return };
         let before = Objects::of(&doc.map);
         match self.sel {
@@ -1261,6 +1268,9 @@ impl Editor {
     }
 
     pub fn duplicate_selection(&mut self) {
+        if self.is_multi() {
+            return self.duplicate_many();
+        }
         let ts = self.ts();
         let Some(doc) = &mut self.doc else { return };
         let before = Objects::of(&doc.map);
@@ -2021,6 +2031,7 @@ impl Editor {
             Tool::Select => {
                 ui.heading("Select");
                 ui.label("Click an entity or zone to select it, drag to move it. Click again to cycle through objects on the same spot. Clicking empty space or right-click deselects.");
+                ui.label("Several at once: Ctrl+click adds or removes an object, Ctrl+drag on empty space selects the entities and zones in the box. Drag one of them to move them all; Del, Ctrl+D, Ctrl+C and Ctrl+X act on all.");
                 ui.label("Drag on empty space (Shift+drag anywhere) to select a region of tiles: Ctrl+C copies it (all layers, collision, entities), Ctrl+X cuts it, Del clears it. Ctrl+V pastes: the copy follows the mouse, each click places it, Esc stops. The clipboard is kept when you open another map.");
                 ui.weak("Nothing is painted with this tool. Pick a tile below (or press B / R / F) to paint; Esc returns here.");
                 ui.separator();
@@ -2267,6 +2278,9 @@ impl Editor {
     // ------------------------------------------------------------ inspector
 
     fn inspector(&mut self, ui: &mut egui::Ui) {
+        if self.is_multi() {
+            return self.multi_inspector(ui);
+        }
         let Some(doc) = &mut self.doc else {
             ui.label("No map open. Use Map \u{E13A} New map.");
             return;

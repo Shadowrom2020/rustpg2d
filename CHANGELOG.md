@@ -37,6 +37,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   and props (overhead tile layers still cover them).
 
 ### Editor
+- **Multi-select on maps**: with the Select tool, Ctrl+click adds or removes an entity or zone,
+  Ctrl+drag on empty space selects the entities and zones in a box; dragging one moves them all,
+  Del / Ctrl+D / Ctrl+C / Ctrl+X act on all of them (one undo step each), and the inspector lists
+  them with a shared *Active* switch. Editor script `selectadd`, `boxselect`, `movesel`, `delete`,
+  `duplicate`; `status` prints `multi=N`.
 - **Undo in the Database**: Ctrl+Z / Ctrl+Y, the toolbar's Undo / Redo and *Edit › Undo
   (definitions)* undo changes to definitions and project settings: form edits, new / duplicated /
   deleted definitions, the character builder, an AI agent's writes. Typing into one field is one

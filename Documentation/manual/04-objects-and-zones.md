@@ -31,6 +31,15 @@ it stands on) and drag it to move it. Clicking again on the same spot cycles thr
 there. Empty space or a right-click deselects. **Ctrl+D** duplicates the selection, **Del** deletes
 it, and *Place more like this* in the inspector arms its definition for placing.
 
+**Several objects at once:** **Ctrl+click** adds an entity or zone to the selection (or takes it out
+again), **Ctrl+drag** on empty space selects every entity standing in the box and every zone lying
+completely inside it. Dragging one of the selected objects moves them all together by whole tiles
+(the group stops at the map's edge), **Del** deletes them, **Ctrl+D** duplicates them one tile to
+the right, **Ctrl+C** / **Ctrl+X** copy or cut the selected entities (zones aren't copied) for
+**Ctrl+V**. Each of these is one undo step. The inspector then lists the selected objects (click one
+to select only it) and switches *Active* for all of them. A plain drag on empty space still selects
+a region of tiles ([Maps › Copying, cutting and pasting regions](03-maps.md#copying-cutting-and-pasting-regions)).
+
 ### The inspector
 
 The right panel shows the selected entity's settings:

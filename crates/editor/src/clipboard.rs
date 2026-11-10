@@ -94,7 +94,16 @@ impl Editor {
     pub fn copy_selection(&mut self) -> bool {
         let Some(doc) = &self.doc else { return false };
         let ts = self.ts();
-        let clip = match self.sel {
+        let clip = if self.is_multi() {
+            match self.copy_many() {
+                Some(c) => c,
+                None => {
+                    self.set_status("Zones aren't copied: select entities (Ctrl+click) or drag a region of tiles");
+                    return false;
+                }
+            }
+        } else {
+            match self.sel {
             Selection::Region(r) => StructureDef::capture(&doc.map, "clipboard", "Clipboard", r, true),
             Selection::Entity(uid) => {
                 let Some(e) = doc.map.entity(uid) else { return false };
@@ -114,8 +123,11 @@ impl Editor {
                 self.set_status("Nothing to copy: drag a region with the Select tool (V), or select an entity");
                 return false;
             }
+            }
         };
-        let what = if clip.layers.is_empty() {
+        let what = if clip.layers.is_empty() && clip.entities.len() > 1 {
+            format!("Copied {} entities", clip.entities.len())
+        } else if clip.layers.is_empty() {
             format!("Copied {}", clip.entities.first().map_or("", |e| e.def.as_str()))
         } else {
             format!("Copied {}×{} tiles and {} entities", clip.w, clip.h, clip.entities.len())
@@ -132,6 +144,7 @@ impl Editor {
             return;
         }
         match self.sel {
+            _ if self.is_multi() => self.delete_many(),
             Selection::Region(r) => {
                 if let Some(doc) = &mut self.doc {
                     doc.clear_region(r, &self.assets);

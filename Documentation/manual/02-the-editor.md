@@ -52,7 +52,7 @@ From top to bottom:
 | Right-click (tile tools) | Pick the tile under the cursor |
 | 1–9 | Select a layer |
 | G / Home | Toggle the grid / fit the map into the view |
-| Ctrl+Z / Ctrl+Y | Undo / redo |
+| Ctrl+Z / Ctrl+Y | Undo / redo (in the Database mode: definition changes) |
 | Ctrl+S | Save the map and the definitions |
 | Ctrl+C / Ctrl+X / Ctrl+V | Copy / cut the selected region or entity / paste |
 | Ctrl+D / Del | Duplicate / delete the selected entity or zone; Del on a region clears it |
@@ -73,6 +73,14 @@ back to the saved state makes them clean again.
 Every edit on a map is one undo step (Ctrl+Z, Ctrl+Y), including placing a structure, pasting a
 region and changes made by an AI agent. Renaming a definition saves at once, because it rewrites
 every file that refers to it.
+
+**Definitions have their own undo.** In the Database mode Ctrl+Z / Ctrl+Y, the **Undo** / **Redo**
+buttons in its toolbar and *Edit › Undo (definitions)* step through the changes to definitions and
+project settings: form edits, *+ New*, *Duplicate*, *Delete*, characters made in the character
+builder and definitions an AI agent wrote. What you type into one field is one step (until you
+pause for a moment or move to another field). Undoing a **rename** renames back, in the maps and
+scripts too. A text field you are typing in keeps its own Ctrl+Z for its text. The last 100 steps
+are kept until you open another project or the definition files are changed by another program.
 
 *File › New project*, *Open project* and *Close project* first ask to save or discard unsaved map,
 definition and pixel-editor changes; *Cancel* keeps everything as it is.

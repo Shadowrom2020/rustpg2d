@@ -21,6 +21,8 @@ the left and the selected definition's form on the right.
 - **Add from library…** copies assets from your asset library into the project; **Add to library**
   and **Export…** send the selected definition to the library or into a package
   ([The asset library](11-asset-library.md)).
+- **Undo** / **Redo** (Ctrl+Z / Ctrl+Y) step back and forth through the changes to definitions,
+  renames included ([The editor › Saving and undo](02-the-editor.md#saving-and-undo)).
 - **Save definitions** (or Ctrl+S) writes the files; **Reload assets** reads images and sounds again
   after you changed them in another program.
 

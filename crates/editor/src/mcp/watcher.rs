@@ -147,12 +147,18 @@ impl Editor {
                         blocked.push(if c == Changed::Config { "project.ron".to_string() } else { "defs/".to_string() });
                         continue;
                     }
+                    let before = (self.project.db.clone(), self.project.config.clone());
                     match self.project.reload() {
                         Ok(()) => {
                             self.defs_dirty = false;
                             *self.defs_saved = (self.project.db.clone(), self.project.config.clone());
-                            self.reload_assets();
-                            reloaded.push("definitions");
+                            // Only the editor's own save (the files hold what it has): nothing to
+                            // reload or say. Otherwise the undo steps refer to what was there before.
+                            if self.project.db != before.0 || self.project.config != before.1 {
+                                self.db_hist.clear();
+                                self.reload_assets();
+                                reloaded.push("definitions");
+                            }
                         }
                         Err(e) => self.set_status(format!("Definitions changed on disk but can't be read: {e:#}")),
                     }

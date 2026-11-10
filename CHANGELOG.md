@@ -37,6 +37,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   and props (overhead tile layers still cover them).
 
 ### Editor
+- **Undo in the Database**: Ctrl+Z / Ctrl+Y, the toolbar's Undo / Redo and *Edit › Undo
+  (definitions)* undo changes to definitions and project settings: form edits, new / duplicated /
+  deleted definitions, the character builder, an AI agent's writes. Typing into one field is one
+  step; undoing a rename renames back, maps and scripts included. 100 steps, kept until another
+  project is opened or the definitions change on disk. Editor script `dbundo` / `dbredo`, `status`
+  prints `dbundo=undo/redo`.
+- The editor no longer reloads its own definitions a second after saving them (the file watcher
+  took the editor's save for an outside change).
 - Agent server: `tileset_legend` lists low tiles; `upsert_def` describes the `low` fields of
   tilesets and props.
 

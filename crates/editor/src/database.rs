@@ -33,6 +33,25 @@ pub enum Tab {
     Achievements,
 }
 
+/// How many definitions the list of `tab` shows (0 for the tabs without a list).
+pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
+    match tab {
+        Tab::Items => db.items.len(),
+        Tab::Props => db.props.len(),
+        Tab::Characters => db.characters.len(),
+        Tab::Tilesets => db.tilesets.len(),
+        Tab::Sheets => db.sheets.len(),
+        Tab::Sounds => db.sounds.len(),
+        Tab::Quests => db.quests.len(),
+        Tab::Structures => db.structures.len(),
+        Tab::Skills => db.skills.len(),
+        Tab::Spells => db.spells.len(),
+        Tab::Recipes => db.recipes.len(),
+        Tab::Achievements => db.achievements.len(),
+        Tab::Project | Tab::Scripts => 0,
+    }
+}
+
 impl Tab {
     /// The tab that edits definitions of `kind` (`None` for maps).
     pub fn of(kind: RefKind) -> Option<Tab> {
@@ -240,6 +259,13 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             }
         }
         ui.separator();
+        let (u, r) = (ed.db_hist.can_undo(), ed.db_hist.can_redo());
+        if ui::icon_button(ui, u, ph::ARROW_ARC_LEFT, "Undo", "Ctrl+Z", "Undoes the latest change to the definitions or project settings (a rename is renamed back, maps and scripts included)").clicked() {
+            ed.db_undo();
+        }
+        if ui::icon_button(ui, r, ph::ARROW_ARC_RIGHT, "Redo", "Ctrl+Y", "Redoes the change undone last").clicked() {
+            ed.db_redo();
+        }
         if ui.button(ui::t(ph::FLOPPY_DISK, "Save definitions")).on_hover_text("Writes defs/*.ron (Ctrl+S saves everything)").clicked() {
             ed.save_defs();
         }

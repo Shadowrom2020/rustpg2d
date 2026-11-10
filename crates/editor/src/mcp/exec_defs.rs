@@ -534,9 +534,29 @@ impl Editor {
             self.db.script_dirty = false;
         }
         self.refresh_refs();
+        self.problems.stale = true;
         self.watch_resnapshot();
         let check = self.check_scripts_text(Some(&path));
         text(format!("{} {} ({} lines).\n{check}", if existed { "Wrote" } else { "Created" }, path.file_name().unwrap_or_default().to_string_lossy(), p.text.lines().count()))
+    }
+
+    pub(crate) fn mcp_problems(&mut self, p: ProblemsParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let severity = match p.severity.as_deref() {
+            Some(s) => Some(crate::problems::Severity::parse(s).ok_or_else(|| format!("unknown severity \"{s}\": use \"error\" or \"warning\""))?),
+            None => None,
+        };
+        let area = match p.area.as_deref() {
+            Some(a) => Some(crate::problems::Area::parse(a).ok_or_else(|| format!("unknown area \"{a}\": use project, definitions, maps, scripts or translations"))?),
+            None => None,
+        };
+        self.refresh_problems();
+        let list: Vec<String> = self.problems.list.iter().filter(|x| severity.is_none_or(|s| s == x.severity) && area.is_none_or(|a| a == x.area)).map(|x| format!("- {} [{}]", x.line(), x.target.describe())).collect();
+        let (errors, warnings) = self.problems.counts();
+        if list.is_empty() {
+            return text(format!("No problems found{} ({errors} error(s), {warnings} warning(s) in the whole project).", if severity.is_some() || area.is_some() { " with these filters" } else { "" }));
+        }
+        text(format!("{} problem(s) ({errors} error(s), {warnings} warning(s) in the whole project):\n{}", list.len(), list.join("\n")))
     }
 
     pub(crate) fn mcp_check_script(&mut self, p: CheckScriptParams) -> Result<Reply, String> {

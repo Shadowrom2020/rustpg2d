@@ -119,6 +119,7 @@ impl Editor {
         }
         self.save_all();
         self.refresh_refs();
+        self.problems.stale = true;
         self.watch_resnapshot();
         let mut out = done;
         if self.doc.as_ref().is_some_and(|d| d.is_dirty()) || self.defs_dirty {

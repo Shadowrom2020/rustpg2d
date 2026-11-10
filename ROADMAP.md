@@ -176,7 +176,7 @@ Instructions for every session (people and coding agents) that implements roadma
 
   **Verify.** Shots in play and in the bestiary.
 
-- [ ] Editor: project problems panel — `feature/problems-panel`
+- [x] Editor: project problems panel — `feature/problems-panel`
 
   **Goal.** One list of everything that is broken in the project: unknown ids in maps,
   definitions and scripts, portals to missing spawns, unreachable maps, script errors,
@@ -188,7 +188,12 @@ Instructions for every session (people and coding agents) that implements roadma
   into one model the editor shows (a panel with filters: errors / warnings, per kind) and a new
   agent server tool `problems` returns.
 
-  **Engine.** Editor code (needs the go-ahead): a new `problems.rs`.
+  **Engine.** Editor code (agreed): `crates/editor/src/problems.rs` (the checks, the *Problems*
+  window, the status bar counts), the agent tool `problems`, editor script `problems [AREA]` /
+  `problempick K`, `status` `problems=E/W`. Placed objects are checked through `refs_of_character`
+  / `refs_of_prop` on their own fields; the export's `release::check` supplies the project
+  entries. The list is rebuilt on every save and when files change on disk (maps are read again
+  only when their file changed).
 
   **Verify.** Editor script on a scratch copy with planted problems: `problems` prints them,
   `problempick K` jumps; shots.

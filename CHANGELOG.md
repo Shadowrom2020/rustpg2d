@@ -27,6 +27,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   2× frames at the same size, the pixel editor edits the image's own pixels, and the LPC and
   Aseprite imports ask for the scale. Old sheets are 1×.
 
+### Editor
+- **Problems** (*Edit › Problems…*, or the error / warning counts in the status bar): one list of
+  everything broken in the project: unknown ids in definitions, maps, triggers and scripts,
+  missing image and sound files, portals and transitions to missing maps, spawns or zones, script
+  errors, maps nothing leads to, characters without a body, untranslated texts, entries a file had
+  to leave out. Errors and warnings, filtered by area; each entry goes to its place; checked again
+  on every save. Agents get it with the new `problems` tool; editor script `problems`,
+  `problempick`, `status` prints `problems=`.
+
 ### Engine
 - **Character animations**: a character sheet may have rows for idle (2 frames), attack (4) and
   hurt (1) below the walk; the game plays them (standing characters breathe, wind-ups and swings,

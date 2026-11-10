@@ -108,9 +108,20 @@ impl Game {
                 None => list.push(s.clone()),
             }
         }
+        // Items it didn't carry before (handed over now): a scroll or spell book teaches it.
+        let had = |item: &str| self.loaded.entities[i].inventory.iter().filter(|s| s.item == item).map(|s| s.count).sum::<u32>();
+        let gained: Vec<String> = list.iter().filter(|s| s.count > had(&s.item)).map(|s| s.item.clone()).collect();
         self.loaded.entities[i].inventory = list;
         super::npc_items::apply_gear(&self.project.db, &mut self.loaded.entities[i]);
         self.persist_npc_items(i);
+        for item in gained {
+            // (A scroll that is used up leaves the bag the window shows too.)
+            if self.companion_reads(i, &item) {
+                if let Some(w) = self.comp_win.as_mut() {
+                    w.bag.remove(&item, 1);
+                }
+            }
+        }
     }
 
     fn pane_stack(&self, pane: Pane, k: usize) -> Option<ItemStack> {
@@ -443,13 +454,21 @@ impl Game {
             }
         }
         let wpn = e.weapon.as_ref().map_or("none".to_string(), |w| format!("{} dmg", w.damage));
-        let stats = [format!("Health  {} / {}", e.hp, e.max_hp), format!("Defense {}", e.defense), format!("Weapon  {wpn}")];
+        let mut stats = vec![format!("Health  {} / {}", e.hp, e.max_hp), format!("Defense {}", e.defense), format!("Weapon  {wpn}")];
+        // Its magic: mana and the spells it learned from scrolls and books.
+        let max_mana = self.npc_max_mana(i);
+        if max_mana > 0.0 {
+            let mana = e.companion.as_ref().map_or(0.0, |l| l.mana);
+            stats.push(format!("Mana    {:.0} / {:.0}", mana, max_mana));
+            let spells: Vec<String> = self.npc_spell_list(i).iter().map(|s| self.project.db.spell(s).map_or(s.clone(), |d| d.name.clone())).collect();
+            stats.push(if spells.is_empty() { "Spells  none (give it a scroll)".to_string() } else { format!("Spells  {}", spells.join(", ")) });
+        }
         let sy = l.gear.last().map_or(pr.bottom(), |r| r.bottom()) + 24.0;
         for (n, t) in stats.iter().enumerate() {
             draw_text(t, l.panels[0].x + PAD, sy + n as f32 * 20.0, 18.0, WHITE);
         }
         if locked {
-            draw_text("Can't wear gear", l.panels[0].x + PAD, sy + 64.0, 16.0, GRAY);
+            draw_text("Can't wear gear", l.panels[0].x + PAD, sy + stats.len() as f32 * 20.0 + 4.0, 16.0, GRAY);
         }
         for (pane, rects, inv) in [(Pane::Bag, &l.bag, &w.bag), (Pane::Player, &l.player, &self.world.inventory)] {
             for (k, r) in rects.iter().enumerate() {

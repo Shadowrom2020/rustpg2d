@@ -1205,6 +1205,11 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         Action::LearnSpell { spell } => {
             labeled(ui, "spell", |ui| suggest(ui, &format!("{id}/sp"), spell, &refs.spells, 120.0));
         }
+        Action::TeachSpell { target, spell } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "spell", |ui| suggest(ui, &format!("{id}/sp"), spell, &refs.spells, 120.0));
+            ui.weak("(a character learns it; as a companion it casts Heal and Bolt spells from its mana: Database › Characters › Magic)");
+        }
         Action::AddMana { amount } => {
             labeled(ui, "mana", |ui| {
                 ui.add(egui::DragValue::new(amount).range(-999..=999)).on_hover_text("Negative drains mana");

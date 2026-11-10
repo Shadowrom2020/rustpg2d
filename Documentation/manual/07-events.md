@@ -100,8 +100,8 @@ across map changes and in save games.
   **Heal area**, **Aim (then run script)**.
 
 **Skills and magic**
-- **Give skill points**, **Set skill level**, **Learn spell**, **Add mana**, **Apply effect**, **Cure
-  effect**.
+- **Give skill points**, **Set skill level**, **Learn spell**, **Teach spell** (a character, e.g. a
+  companion), **Add mana**, **Apply effect**, **Cure effect**.
 
 The [events reference](../events.md) lists every event, condition and action with its fields.
 

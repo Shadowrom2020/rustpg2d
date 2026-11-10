@@ -27,6 +27,8 @@ struct Ctx {
     characters: Vec<(u32, String, i32)>,
     /// Merchants on the current map and what they have: (uid, name, [(item, count)]).
     merchants: Vec<MerchantStock>,
+    /// Characters on the current map that learned spells: (uid, name, spell ids).
+    casters: Vec<(u32, String, Vec<String>)>,
     /// Tool items' kinds (`can_craft` with tools).
     tool_kinds: crate::crafting::ToolKinds,
     /// The project's crafting recipes (`can_craft`).
@@ -101,6 +103,11 @@ impl ScriptHost {
     /// The current map's characters that can be hurt, as (uid, name, HP), for `hp_of()`.
     pub fn set_characters(&mut self, characters: Vec<(u32, String, i32)>) {
         self.ctx.borrow_mut().characters = characters;
+    }
+
+    /// The current map's characters that learned spells, for `npc_knows_spell()`.
+    pub fn set_casters(&mut self, casters: Vec<(u32, String, Vec<String>)>) {
+        self.ctx.borrow_mut().casters = casters;
     }
 
     /// The current map's merchants and their stock, for `stock_of()`.
@@ -362,6 +369,15 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         m.map_or(0, |m| m.2.iter().filter(|(i, _)| i == item).map(|(_, n)| *n as i64).sum())
     }));
     engine.register_fn("day", with!(ctx, |c| c.world.day as i64));
+    // Characters' spells (companions cast Heal and Bolt from their mana).
+    engine.register_fn("teach_spell", with!(ctx, |c, t: &str, spell: &str| c.actions.push(Action::TeachSpell { target: t.into(), spell: spell.into() })));
+    engine.register_fn("npc_knows_spell", with!(ctx, |c, t: &str, spell: &str| {
+        let who = match t {
+            "" | "self" => c.owner.and_then(|u| c.casters.iter().find(|m| m.0 == u)),
+            name => c.casters.iter().find(|m| m.1 == name),
+        };
+        who.is_some_and(|m| m.2.iter().any(|s| s == spell))
+    }));
     // Bestiary: how many characters of a definition the player has defeated.
     engine.register_fn("defeated_count", with!(ctx, |c, id: &str| c.world.defeated(id) as i64));
     // Screen shake (scenes: earthquakes, a boss landing).
@@ -923,7 +939,7 @@ mod tests {
         let actions = host.call(&mut WorldState::default(), "party", None);
         assert_eq!(actions, vec![Action::Companion { target: "guard".into(), join: true }, Action::Companion { target: "self".into(), join: false }]);
         let mut w = WorldState::default();
-        w.companions.push(crate::state::Companion { map: "village".into(), uid: 22, name: "guard".into(), hp: None, down: None, order: Default::default(), post: None });
+        w.companions.push(crate::state::Companion { map: "village".into(), uid: 22, name: "guard".into(), hp: None, down: None, order: Default::default(), post: None, mana: None });
         assert!(host.call(&mut w, "party", None).len() == 1, "already following: only stop_following");
     }
 

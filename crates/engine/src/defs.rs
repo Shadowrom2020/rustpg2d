@@ -1079,6 +1079,16 @@ pub struct CharacterDef {
     /// Portraits for moods ("worried", "angry", ...), shown while a dialog sets that mood.
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub moods: std::collections::BTreeMap<String, SpriteRef>,
+    /// As a companion: its mana for spells it learns (0 = it can't learn any).
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub max_mana: u32,
+    /// Mana it regains per second.
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub mana_regen: f32,
+}
+
+fn is_zero_f32(v: &f32) -> bool {
+    *v == 0.0
 }
 
 /// The serde defaults (what an entry with only `id` and `name` loads as). The editor's "+ New"
@@ -1110,6 +1120,8 @@ impl Default for CharacterDef {
             gear_locked: false,
             portrait: SpriteRef::default(),
             moods: Default::default(),
+            max_mana: 0,
+            mana_regen: 0.0,
         }
     }
 }

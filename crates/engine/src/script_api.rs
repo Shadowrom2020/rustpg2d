@@ -124,6 +124,8 @@ pub const API: &[ApiFn] = api! {
     "unequip"(target: Target, slot: Text) "Takes off what a character wears in \"clothing\", \"head\", \"body\", \"weapon\", \"offhand\" or \"tool\" (into its carried items) (queued)";
     "give_item_to"(target: Target, item: Item, count: Num) "Adds items to what a character carries (dropped when it is defeated) (queued)";
     "take_item_from"(target: Target, item: Item, count: Num) "Takes items from what a character carries (queued)";
+    "teach_spell"(target: Target, spell: Spell) "Teaches a character a spell; a companion casts Heal and Bolt spells from its own mana (queued)";
+    "npc_knows_spell"(target: Target, spell: Spell) "Whether a character on the map has learned a spell (teach_spell, or a scroll given to a companion)";
     "add_stock"(target: Target, item: Item, count: Num) "Adds items to a merchant's stock, e.g. what a villager produced (queued)";
     "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
     "stock_of"(target: Target, item: Item) "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
@@ -313,6 +315,8 @@ mod tests {
             ("effect", 0, IdKind::Sheet),
             ("show_image", 0, IdKind::Sheet),
             ("add_stock", 1, IdKind::Item),
+            ("teach_spell", 1, IdKind::Spell),
+            ("npc_knows_spell", 1, IdKind::Spell),
             ("set_stock", 1, IdKind::Item),
             ("stock_of", 1, IdKind::Item),
             ("defeated_count", 0, IdKind::Character),

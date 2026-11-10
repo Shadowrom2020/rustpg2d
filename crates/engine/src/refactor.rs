@@ -343,6 +343,7 @@ impl Renamer<'_> {
             Action::PlaySound { sound } | Action::PlayMusic { sound } => self.fix(RefKind::Sound, sound),
             Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
             Action::ShowImage { sheet, .. } => self.fix(RefKind::Sheet, sheet),
+            Action::TeachSpell { spell, .. } => self.fix(RefKind::Spell, spell),
             Action::If { conditions, .. } => self.conditions(conditions),
             _ => {}
         });

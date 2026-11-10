@@ -101,6 +101,10 @@ flies.
 Conditions: *Skill level*, *Knows spell*. Actions: *Give skill points*, *Set skill level*, *Learn
 spell*, *Add mana*, *Damage around player*, *Light around player*.
 
+**Companions use magic too**: hand a companion with mana a scroll or a spell book and it learns
+*Heal* and *Bolt* spells, then heals whoever is badly hurt and casts bolts at its enemy
+([Characters › Companions](06-characters.md#companions)).
+
 ## Inventory, quick bar and containers
 
 ![The character window](../images/game-character.webp)

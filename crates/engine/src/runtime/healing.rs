@@ -310,6 +310,12 @@ impl Game {
             draw_rectangle(tx - 1.0, by - 1.0, bw + 2.0, 9.0, Color::new(0.0, 0.0, 0.0, 0.7));
             let col = if share > 0.5 { Color::new(0.3, 0.8, 0.35, 1.0) } else if share > 0.25 { Color::new(0.9, 0.7, 0.2, 1.0) } else { Color::new(0.9, 0.2, 0.2, 1.0) };
             draw_rectangle(tx, by, bw * share, 7.0, col);
+            // Mana of a companion that knows magic: a thin blue bar under the HP.
+            let max_mana = self.npc_max_mana(i);
+            if let (Some(l), true) = (&e.companion, max_mana > 0.0) {
+                draw_rectangle(tx - 1.0, by + 8.0, bw + 2.0, 4.0, Color::new(0.0, 0.0, 0.0, 0.7));
+                draw_rectangle(tx, by + 9.0, bw * (l.mana / max_mana).clamp(0.0, 1.0), 2.0, Color::new(0.35, 0.55, 1.0, 1.0));
+            }
             // Ammunition of a bow the player gave it (red when out).
             if let Some((kind, n)) = self.companion_ammo(i) {
                 let icon = self.project.db.item(&kind).map(|d| d.icon.clone());

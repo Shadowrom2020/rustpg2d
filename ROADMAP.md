@@ -123,12 +123,19 @@ Instructions for every session (people and coding agents) that implements roadma
   triggers when the functions travel along (library features), as well as without them (story
   triggers).
 
-- [ ] Companions learn spells — `feature/companion-spells`
+- [x] Companions learn spells — `feature/companion-spells`
 
   **Goal.** Scrolls and books given to a companion teach it *Heal* and *Bolt* spells, cast from a
   mana pool of its definition.
 
   **Engine.** Companion spells and mana in save games, learning, casting (agreed).
+
+  **Decided while building.** Learned spells are kept per placed character
+  (`WorldState::npc_spells`, "map/uid"), not on the companion entry, so a dismissed companion keeps
+  them; mana stays on the companion entry like its HP. Learning happens wherever a companion
+  receives an item (the companion window's hand-over, *Give item to character*); spells other than
+  *Heal* and *Bolt* (aimed by the player) are refused with a message. A spell's skill requirement
+  doesn't apply to companions.
 
 ## Backlog (unscheduled ideas)
 

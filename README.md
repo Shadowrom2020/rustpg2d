@@ -16,7 +16,7 @@ world, fill it with villagers, monsters and quests, and export a finished game f
 Linux and the browser with one click. Free and open source under the MIT license; the games you
 make are yours.
 
-Current version: **0.15.0** — see the [CHANGELOG](CHANGELOG.md) for what changed, the
+Current version: **0.16.0** — see the [CHANGELOG](CHANGELOG.md) for what changed, the
 [ROADMAP](ROADMAP.md) for what's planned, and the **[Creator's Manual](Documentation/manual/README.md)**
 for how to use it all.
 
@@ -61,8 +61,10 @@ for how to use it all.
 - Cut-scenes, dialogs with drawn portraits and moods, choices, quests with stages, a journal and achievements.
 - Show pictures from events and scripts: a full-body painting when you meet someone, a letter, a map; scaled to fit, scrolling when tall.
 - Translations built in: export a template, translate it, players pick their language.
+- A Problems list of everything broken in the project (unknown ids, missing files, broken portals, script errors, untranslated texts), each a click away.
 
 **Characters**
+- Detailed pixel-art characters at twice the classic resolution that walk, breathe, strike and flinch when hit; use them as ready-made figures or mix and match bodies, hair and gear.
 - Layered characters: a body, skin and hair colours, hair style, beard, clothing, and every weapon, shield, lantern or tool shown in their hands.
 - Villagers with daily schedules who sit on benches, sleep in their beds, visit other maps and work at their spot.
 - Enemies that notice you, hunt, flee when hurt and give up when lured too far.

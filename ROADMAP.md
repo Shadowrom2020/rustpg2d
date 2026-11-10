@@ -123,7 +123,7 @@ Instructions for every session (people and coding agents) that implements roadma
   `outlaw:windup` then `:swing`; stepping back during the wind-up → no damage; standing still →
   damage; slimes still hurt by touch. Shots of the tell and the swing.
 
-- [ ] Block and dodge — `feature/block-dodge`
+- [x] Block and dodge — `feature/block-dodge`
 
   **Goal.** The player can defend: hold *Block* with a shield to stop frontal hits, or *Dodge*
   (a short roll) through an attack.
@@ -135,8 +135,16 @@ Instructions for every session (people and coding agents) that implements roadma
   of invulnerability, 1 s cooldown. Both work for gamepads and in the Options key list;
   shown in the HUD (shield raised, a dodge cooldown pip).
 
-  **Engine.** Proposed (needs the go-ahead): `combat.rs`, `input.rs`, `paperdoll.rs` (block pose,
-  roll), `menu.rs` (keys); the manual's `15-players-guide.md`.
+  **Decided while building.** Keys (agreed): Block = F / RB (held), Dodge = Space / B. Space left
+  *Confirm*, and *Next tab* (Tab / RB) only works in an open window now (C / I / Y open it). The
+  pose is drawn, not animated: the shield's icon in front of the player with a guard arc; the roll
+  leaves dust. A blocked hit pushes back a little (no parry against arrows: nobody to stun);
+  `hurt_player` ignores everything while rolling (traps too). Pad conflicts leave out fixed actions
+  (B as *Back* only cancels aiming while playing). New `runtime/defense.rs`; the HUD's dodge pip
+  and shield symbol; autoplay `keydown` / `keyup` to screenshot a held block.
+
+  **Engine.** Agreed: `defense.rs`, `input.rs` (Block, Dodge), `combat.rs`, `attacks.rs`,
+  `mod.rs` (roll movement, half speed), `charwin.rs`, HUD; the game's autoplay.
 
   **Verify.** Autoplay: `status` prints `block=on|off dodge=ready|N.N`; a blocked swing leaves the
   HP unchanged; a timed block → `outlaw:stagger`; a dodge through a swing → no damage.

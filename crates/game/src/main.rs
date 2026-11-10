@@ -284,6 +284,8 @@ struct Autoplay {
     cmds: std::collections::VecDeque<Vec<String>>,
     timer: f32,
     held: Vec<KeyCode>,
+    /// Keys held down across commands (`keydown` / `keyup`).
+    sticky: Vec<KeyCode>,
     /// Gamepad buttons held by `padhold`.
     held_pad: Vec<rustpg2d_engine::runtime::input::Pad>,
     /// Screenshot to take after the next frame is drawn.
@@ -310,7 +312,7 @@ impl Autoplay {
             .map(|c| c.split_whitespace().map(str::to_string).collect::<Vec<_>>())
             .filter(|c| !c.is_empty())
             .collect();
-        Autoplay { cmds, timer: 0.0, held: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), until: None }
+        Autoplay { cmds, timer: 0.0, held: Vec::new(), sticky: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), until: None }
     }
 
     /// Advances the script; returns false to quit.
@@ -347,13 +349,13 @@ impl Autoplay {
         }
         if self.timer > 0.0 {
             self.timer -= get_frame_time();
-            inject(&self.held, &[]);
+            inject(&[self.held.as_slice(), self.sticky.as_slice()].concat(), &[]);
             inject_pad(&self.held_pad, &[]);
             return true;
         }
         self.held.clear();
         self.held_pad.clear();
-        inject(&[], &[]);
+        inject(&self.sticky, &[]);
         inject_pad(&[], &[]);
         while let Some(cmd) = self.cmds.pop_front() {
             let arg = |i: usize| cmd.get(i).map(String::as_str).unwrap_or("");
@@ -365,9 +367,25 @@ impl Autoplay {
                     inject(&self.held, &[]);
                     return true;
                 }
+                // keydown KEY[+KEY]: hold keys while the next commands run · keyup [KEY]: let go
+                // (all without a key)
+                "keydown" => {
+                    self.sticky.extend(arg(1).split('+').filter_map(key_from_name));
+                    inject(&self.sticky, &[]);
+                    self.timer = 0.05;
+                    return true;
+                }
+                "keyup" => {
+                    let up: Vec<_> = arg(1).split('+').filter_map(key_from_name).collect();
+                    self.sticky.retain(|k| !up.is_empty() && !up.contains(k));
+                    inject(&self.sticky, &[]);
+                    self.timer = 0.05;
+                    return true;
+                }
                 "press" => {
                     let keys: Vec<_> = arg(1).split('+').filter_map(key_from_name).collect();
-                    inject(&keys, &keys); // held too, so "shift+g" works
+                    let down = [keys.as_slice(), self.sticky.as_slice()].concat();
+                    inject(&down, &keys); // held too, so "shift+g" works
                     // Let one frame consume the press, then idle a little.
                     self.timer = 0.1;
                     return true;

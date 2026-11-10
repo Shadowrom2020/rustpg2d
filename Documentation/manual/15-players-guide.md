@@ -10,8 +10,10 @@ These are the default keys; players change them in *Options › Controls*.
 | Key | Action |
 |---|---|
 | Arrows / WASD (Shift = run) | Move |
-| E / Space / Enter | Interact, talk, advance a dialog |
+| E / Enter | Interact, talk, advance a dialog |
 | X | Attack in the facing direction |
+| F (hold) | Block with a shield (see below) |
+| Space | Dodge roll |
 | Q | Switch weapon (bare hands, then the weapons you own) |
 | 1–8, or a click on a quick bar slot | Use that item or spell |
 | C / I | The character window: character sheet and inventory |
@@ -43,6 +45,19 @@ with E or a right-click.
 - **Journal**: Tab or Left / Right switch tabs; the *Dialogs* tab scrolls with Up / Down, PgUp / PgDn,
   Home / End.
 
+## Defending yourself
+
+**Block**: hold F (gamepad: RB) with a shield in your left hand. You walk at half speed and can't
+attack, but blows, arrows and lunges coming **from the front** do no damage, only push you back a
+little. Raise the shield just before a blow lands (the last moment of the enemy's wind-up) to
+**parry**: the attacker is stunned for a second. Without a shield, F only tells you that you need
+one.
+
+**Dodge**: Space (gamepad: B) rolls you about three tiles in the direction you are moving (or
+facing). Nothing touches you while you roll, so you can roll away from a blow or straight through
+it. Then you need a second before the next roll: the small blue dot after your hearts lights up
+when you can roll again; a shield symbol next to it shows that your shield is raised.
+
 ## Gamepad
 
 Any controller the system knows works next to the keyboard and mouse (Xbox, PlayStation, Switch Pro,
@@ -56,7 +71,8 @@ the first button press makes the pad known to the page.
 | B | Close a window, go back |
 | X | Attack (while aiming a spell: cast straight ahead) |
 | Y | Character window |
-| RB / LB | Next / previous tab; on the map: zoom; while playing, LB opens companion orders |
+| RB / LB | Next / previous tab of an open window; on the map: zoom; while playing, RB (held) blocks with a shield and LB opens companion orders |
+| B (while playing) | Dodge roll (while aiming a spell: cancel it) |
 | LT (hold) | Run; buy / sell ten |
 | RT | Switch weapon |
 | Start | Pause menu |

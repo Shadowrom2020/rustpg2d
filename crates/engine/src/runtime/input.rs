@@ -549,12 +549,16 @@ pub enum Act {
     Debug,
     /// The companions' orders menu.
     Command,
+    /// Hold to raise the shield.
+    Block,
+    /// A quick roll.
+    Dodge,
 }
 
 impl Act {
     pub const QUICK: [Act; 8] = [Act::Quick1, Act::Quick2, Act::Quick3, Act::Quick4, Act::Quick5, Act::Quick6, Act::Quick7, Act::Quick8];
 
-    pub const ALL: [Act; 36] = [
+    pub const ALL: [Act; 38] = [
         Act::Up,
         Act::Down,
         Act::Left,
@@ -562,6 +566,8 @@ impl Act {
         Act::Run,
         Act::Confirm,
         Act::Attack,
+        Act::Block,
+        Act::Dodge,
         Act::SwitchWeapon,
         Act::Character,
         Act::Skills,
@@ -632,6 +638,8 @@ impl Act {
             Act::QuickLoad => "quick_load",
             Act::Debug => "debug",
             Act::Command => "command",
+            Act::Block => "block",
+            Act::Dodge => "dodge",
         }
     }
 
@@ -678,6 +686,8 @@ impl Act {
             Act::QuickLoad => "Quick load",
             Act::Debug => "Debug overlay",
             Act::Command => "Companion orders",
+            Act::Block => "Block (hold, with a shield)",
+            Act::Dodge => "Dodge roll",
         }
     }
 
@@ -691,7 +701,9 @@ impl Act {
     fn places(self) -> u8 {
         match self {
             Act::Up | Act::Down | Act::Left | Act::Right | Act::Run => 1 | 2 | 4,
-            Act::Confirm | Act::Character | Act::NextTab => 1 | 2,
+            Act::Confirm | Act::Character => 1 | 2,
+            // Tab / RB switch tabs of an open window (RB raises the shield while playing).
+            Act::NextTab => 2,
             // LB only switches tabs in an open window (it gives companion orders in play).
             Act::PrevTab => 2,
             Act::Quick1 | Act::Quick2 | Act::Quick3 | Act::Quick4 | Act::Quick5 | Act::Quick6 | Act::Quick7 | Act::Quick8 => 1 | 2,
@@ -712,7 +724,9 @@ impl Act {
             Act::Left => &[K::Left, K::A],
             Act::Right => &[K::Right, K::D],
             Act::Run => &[K::LeftShift, K::RightShift],
-            Act::Confirm => &[K::E, K::Space, K::Enter],
+            Act::Confirm => &[K::E, K::Enter],
+            Act::Block => &[K::F],
+            Act::Dodge => &[K::Space],
             Act::Cancel | Act::Pause => &[K::Escape],
             Act::Attack => &[K::X],
             Act::SwitchWeapon => &[K::Q],
@@ -774,6 +788,8 @@ impl Act {
             Act::ZoomOut => &[Pad::Lb],
             Act::MapCenter => &[Pad::South],
             Act::Command => &[Pad::Lb],
+            Act::Block => &[Pad::Rb],
+            Act::Dodge => &[Pad::East],
             _ => &[],
         }
     }
@@ -860,7 +876,8 @@ pub fn pad_binding_names(table: &std::collections::HashMap<Act, Vec<Pad>>) -> st
 
 /// Other actions that button `pad` also triggers where `a` is used.
 pub fn pad_conflicts(a: Act, pad: Pad) -> Vec<Act> {
-    Act::ALL.into_iter().filter(|b| *b != a && b.places() & a.places() != 0 && pads_of(*b).contains(&pad)).collect()
+    // (B is also *Back*, which only cancels aiming while playing: fixed actions aren't named.)
+    Act::ALL.into_iter().filter(|b| *b != a && b.pad_rebindable() && b.places() & a.places() != 0 && pads_of(*b).contains(&pad)).collect()
 }
 
 /// The gamepad button pressed this frame, if any (the Controls page waits for one).
@@ -980,7 +997,14 @@ mod tests {
 
     #[test]
     fn actions_keep_the_old_keys() {
-        assert_eq!(Act::Confirm.default_keys(), &[KeyCode::E, KeyCode::Space, KeyCode::Enter]);
+        assert_eq!(Act::Confirm.default_keys(), &[KeyCode::E, KeyCode::Enter]);
+        assert_eq!((Act::Block.default_keys(), Act::Dodge.default_keys()), (&[KeyCode::F][..], &[KeyCode::Space][..]));
+        // The gamepad's defaults don't clash either (B as Back only cancels aiming in play).
+        for a in Act::ALL.into_iter().filter(|a| a.pad_rebindable()) {
+            for p in a.default_pad() {
+                assert!(pad_conflicts(a, *p).is_empty(), "{a:?} {p:?}: {:?}", pad_conflicts(a, *p));
+            }
+        }
         assert_eq!(Act::Attack.default_keys(), &[KeyCode::X]);
         assert_eq!(Act::Character.default_keys(), &[KeyCode::C, KeyCode::I]);
         assert!(Act::QUICK.iter().enumerate().all(|(k, a)| a.default_keys().len() == 1 && key_from_name(&(k + 1).to_string()) == Some(a.default_keys()[0])));

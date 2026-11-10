@@ -42,6 +42,7 @@ mod orders;
 pub mod input;
 pub mod glyphs;
 mod attacks;
+mod defense;
 mod mouse;
 mod spawner;
 mod thumbs;
@@ -1593,6 +1594,10 @@ impl Game {
             self.order = None;
             return;
         }
+        // A dodge roll carries the player on its own.
+        if self.update_roll(dt) {
+            return;
+        }
 
         let mut dir = Vec2::ZERO;
         if input::act_down(Act::Left) {
@@ -1608,6 +1613,10 @@ impl Game {
             dir.y += 1.0;
         }
         let mut run = if input::act_down(Act::Run) { 1.8 } else { 1.0 };
+        // Behind a raised shield: half speed.
+        if self.blocking() {
+            run = 0.5;
+        }
         if dir != Vec2::ZERO {
             // Keyboard movement cancels click-to-move.
             self.order = None;
@@ -2098,7 +2107,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2171,7 +2180,8 @@ impl Game {
             self.foes_status(),
             input::device(),
             glyphs::style().id(),
-            self.attacks_status()
+            self.attacks_status(),
+            self.defense_status()
         )
     }
 
@@ -2396,6 +2406,7 @@ impl Game {
 
         self.draw_combat_world();
         self.draw_attacks();
+        self.draw_defense();
         self.draw_gather();
         self.draw_activities();
         self.draw_fx();

@@ -30,6 +30,7 @@ own `[game]` / `[events]` messages, and `error:` lines.
 | `wait SECS` | Waits (dialog text types out over ~2.5 s; wait before reading it). |
 | `press KEY[+KEY]` | Presses keys for one frame: letters, `enter`, `escape`, `space`, `tab`, `up` `down` `left` `right`, `f1`…`f12`, `shift+g` (Shift held). `e` interacts / confirms (first press completes a dialog page's text, the second closes it), `escape` opens the pause menu, `c`/`i` the character window, `k` skills, `l` spells, `m` the map, `h` hides the HUD, `x` attacks, `f5` quick-saves, `f9` quick-loads, `q` swaps weapons. |
 | `hold KEY SECS` | Holds keys (movement: `hold right 0.5` walks about one tile per 0.2 s). |
+| `keydown KEY[+KEY]` / `keyup [KEY]` | Holds keys while the next commands run (`keydown f; wait 0.3; shot …; keyup`); `keyup` without a key lets go of all. |
 | `pad BUTTON[+BUTTON]` / `padhold BUTTON SECS` | Gamepad: `a b x y lb rb lt rt select start ls rs up down left right`. |
 | `click X Y` / `rclick X Y` | Left / right click on tile (X, Y) of the map; right-click walks there. |
 | `clickenemy` | Clicks the nearest enemy. |
@@ -59,7 +60,7 @@ begins on the chosen map and spawn, with the map's *Map enter* triggers and cut-
 
 ## The `status` line
 
-`[autoplay] dev=on|off fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes … menu=title|pause|…|- autosave=none|pending|saved cutscene=NAME|- ui_hidden=… window=closed|… npcs=[…] worldmap={…} skills={points=N skills={..} spells={..} mana=N/M …} xp=N level=N effects=[…] ai=[…] bestiary=[…] dialog_log=N pad=… attacking=… time=HH:MM light=… weather=kind:intensity … companions=[…] player="Name|Sex|body" creator=… quests=[id:stage …] achievements=[…] minigame=… climbing=true|false props=[def:state@x,y] crops=[…] lang=CODE map=NAME tile=(X,Y) hp=Some(N) vars={…} inv={item: count …} flags={…} music=… dialog=true|false busy=true|false enemies=N sounds=[…] foes=[name:hp/max@x,y …] device=Keys|Pad pad_style=xbox|playstation|nintendo attacks=[name:windup|swing|lunge|recover …]`
+`[autoplay] dev=on|off fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes … menu=title|pause|…|- autosave=none|pending|saved cutscene=NAME|- ui_hidden=… window=closed|… npcs=[…] worldmap={…} skills={points=N skills={..} spells={..} mana=N/M …} xp=N level=N effects=[…] ai=[…] bestiary=[…] dialog_log=N pad=… attacking=… time=HH:MM light=… weather=kind:intensity … companions=[…] player="Name|Sex|body" creator=… quests=[id:stage …] achievements=[…] minigame=… climbing=true|false props=[def:state@x,y] crops=[…] lang=CODE map=NAME tile=(X,Y) hp=Some(N) vars={…} inv={item: count …} flags={…} music=… dialog=true|false busy=true|false enemies=N sounds=[…] foes=[name:hp/max@x,y …] device=Keys|Pad pad_style=xbox|playstation|nintendo attacks=[name:windup|swing|lunge|recover …] block=on|parry|roll|off dodge=ready|N.N`
 
 The useful fields for checking content: `map` and `tile` (where the player is), `dialog` (a
 dialog is open), `cutscene`, `quests` (quest id → stage), `inv`, `flags`, `vars`, `hp`,
@@ -70,7 +71,8 @@ effects started, also when the game is muted: a bell or an animal's call), `clim
 player is on a ladder tile), `foes` (the hostile characters on the map with their HP and tile:
 whether a shot hit), `device` (the device used last: hints show keys or pad buttons; `pad a`
 switches to the pad, `press` or a click back), `pad_style` (how buttons are drawn) and `attacks`
-(hostile characters winding up, swinging or lunging, recovering).
+(hostile characters winding up, swinging or lunging, recovering), `block` (the player's shield:
+`parry` in its first 0.2 s, `roll` while dodging) and `dodge` (seconds until the next roll).
 
 For performance checks: `fps`, `frame_ms` (average / worst frame), `update_ms` and `draw_ms`
 (average time of the two halves of a frame) and `astar` (path searches and the nodes they

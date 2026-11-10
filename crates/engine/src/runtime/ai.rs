@@ -46,6 +46,13 @@ impl Game {
             self.loaded.entities[i].ai = Ai::default();
             return false;
         }
+        // Winding up, swinging, catching its breath: it stands (a lunge's hop is a push).
+        if e.attack.is_some_and(|a| a.holds()) {
+            self.loaded.entities[i].body.moving = false;
+            return true;
+        }
+        let melee_reach = self.strike_reach(i);
+        let e = &self.loaded.entities[i];
         let pos = e.body.pos;
         // Gave up: walk home first.
         if e.ai.returning {
@@ -133,7 +140,8 @@ impl Game {
                 return true;
             }
         }
-        if dist < 1.0 {
+        // Armed: stop where the weapon reaches (the swing starts in `attacks.rs`).
+        if dist < 1.0 || melee_reach.is_some_and(|r| dist <= r * 0.8) {
             Self::hold(&mut self.loaded.entities[i].body, dir);
             return true;
         }

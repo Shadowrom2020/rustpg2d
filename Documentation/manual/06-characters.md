@@ -51,7 +51,7 @@ definition while every villager looks different.
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
 | **Look & equipment** | The builder |
 | **Behavior** | *Static*, *Wander* or *Chase player* (below) |
-| **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
+| **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
 | **Experience** | XP the player gets for defeating it |
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
 | **Merchant** | Makes it a trader ([Merchants](#merchants)) |

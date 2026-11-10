@@ -20,7 +20,19 @@ equipped bow or crossbow.
   slow the wearer.
 - Hits knock back and give a moment of invulnerability. When the player is hurt the screen shakes
   briefly and flashes red (players can turn this off in *Options › Shake & flash*).
-- **Hostile characters** chase or shoot at the player ([Characters › Behaviour](06-characters.md#behaviour)).
+- **Hostile characters** chase or shoot at the player ([Characters › Behaviour](06-characters.md#behaviour)),
+  and their attacks can be seen coming:
+  - **Armed** (a melee weapon in their equipment): they stop at their weapon's reach and **wind up**
+    (0.4 s: the weapon raised over the head, a red zone on the ground shows where the swing will
+    land), then **swing** in the direction they locked when the wind-up began, for the weapon's
+    damage, reach, arc and knockback, and **recover** for the weapon's cooldown and a moment more.
+    Stepping out of the red zone during the wind-up dodges the blow. They don't hurt by touch.
+  - **Unarmed chasers** (slimes): close to their target they **crouch** (0.3 s, a red ring
+    tightening around them) and **lunge**, hurting by touch (and its *On touch* effect) only during
+    the hop; then they rest a moment.
+  - **Archers** shoot; other hostile characters (traps, creatures that don't chase) hurt by touch.
+  - They attack companions as well as the player. *Attack wind-up* on the character's form changes
+    the wind-up (a slow, heavy brute; a quick assassin).
   The player's attacks only hit hostile characters, never companions or friendly villagers; make a
   huntable animal *hostile* with 0 damage.
 - A defeated character runs its *Defeat* triggers and drops its loot and gear.

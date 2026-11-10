@@ -90,7 +90,7 @@ Instructions for every session (people and coding agents) that implements roadma
 
 ## 0.15.0 — Combat and emotions
 
-- [ ] Enemy attacks — `feature/enemy-attacks`
+- [x] Enemy attacks — `feature/enemy-attacks`
 
   **Goal.** Armed enemies attack instead of hurting by touch: they stop, wind up (a visible
   tell), swing their weapon in an arc or shoot, and recover; the player can see an attack
@@ -107,8 +107,17 @@ Instructions for every session (people and coding agents) that implements roadma
   - Companions use the same attack code (they swing like the player today); enemies attack
     companions as well as the player.
 
-  **Engine.** Proposed (needs the go-ahead): attack states in `ai.rs` / `combat.rs`, the
-  `attack` field, drawing the swing for characters (`paperdoll.rs`).
+  **Decided while building.** Damage = the weapon's (sword 2 keeps the outlaw as it was, the axe
+  makes the chief hit 4, slower). Instead of an `attack: AttackStyle` field, the kind follows
+  from the character (melee weapon: swing; unarmed chaser with damage: lunge; ranged: shoot;
+  otherwise touch) and only the wind-up is a definition field (`CharacterDef::windup`, 0 =
+  standard 0.4 s / 0.3 s). The tell is drawn, not animated: the weapon's icon raised over the head
+  and the danger zone on the ground; the lunge is a crouch ring and a hop of about two tiles. New
+  `runtime/attacks.rs`; recovery = the weapon's cooldown + 0.5 s (a lunge: 0.9 s). Companions keep
+  their instant swings but show them.
+
+  **Engine.** Agreed: `attacks.rs`, hooks in `combat.rs`, `ai.rs`, `companions.rs`, `defs.rs`
+  (`windup` + editor form).
 
   **Verify.** Autoplay: an outlaw with a sword approaches, `status enemies=` shows
   `outlaw:windup` then `:swing`; stepping back during the wind-up → no damage; standing still →

@@ -41,6 +41,7 @@ mod image;
 mod orders;
 pub mod input;
 pub mod glyphs;
+mod attacks;
 mod mouse;
 mod spawner;
 mod thumbs;
@@ -192,6 +193,10 @@ struct RtEntity {
     solid: bool,
     /// A low prop (`PropDef::low`): while solid it stops walking but not shots.
     low: bool,
+    /// A weapon swing or lunge in progress (`attacks.rs`; not saved).
+    attack: Option<attacks::Attack>,
+    /// Its definition's wind-up (`CharacterDef::windup`; 0 = the standard one).
+    windup: f32,
     behavior: Behavior,
     wander_timer: f32,
     wander_dir: Vec2,
@@ -645,6 +650,8 @@ impl Game {
             // Hostiles overlap the player (contact damage) instead of blocking.
             solid: solid && !hostile,
             low,
+            attack: None,
+            windup: self.project.db.character(def).filter(|_| kind == EntityKind::Character).map_or(0.0, |d| d.windup.max(0.0)),
             behavior,
             wander_timer: rand::gen_range(0.5, 2.0),
             wander_dir: Vec2::ZERO,
@@ -2091,7 +2098,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2163,7 +2170,8 @@ impl Game {
             self.audio.recent(),
             self.foes_status(),
             input::device(),
-            glyphs::style().id()
+            glyphs::style().id(),
+            self.attacks_status()
         )
     }
 
@@ -2387,6 +2395,7 @@ impl Game {
         }
 
         self.draw_combat_world();
+        self.draw_attacks();
         self.draw_gather();
         self.draw_activities();
         self.draw_fx();

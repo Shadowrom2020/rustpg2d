@@ -1488,7 +1488,14 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
         ui.add(egui::DragValue::new(&mut d.defense).range(-99..=99)).on_hover_text("Subtracted from incoming damage (at least 1 always gets through). Player: base defense before armor.");
         ui.end_row();
         ui.label("Hostile");
-        ui.checkbox(&mut d.hostile, "hurts the player on contact");
+        ui.checkbox(&mut d.hostile, "attacks the player").on_hover_text(
+            "With a melee weapon (its equipment) it winds up and swings it; unarmed and chasing it crouches and lunges; with a ranged weapon it shoots; otherwise it hurts by touch.",
+        );
+        ui.end_row();
+        ui.label("Attack wind-up");
+        ui.add(egui::DragValue::new(&mut d.windup).range(0.0..=3.0).speed(0.01).suffix(" s")).on_hover_text(
+            "How long it winds up before a weapon swing or a lunge: the time the player has to step out of the way. 0 = standard (0.4 s swing, 0.3 s lunge).",
+        );
         ui.end_row();
         ui.label("As companion");
         ui.checkbox(&mut d.gear_locked, "can't be given gear")

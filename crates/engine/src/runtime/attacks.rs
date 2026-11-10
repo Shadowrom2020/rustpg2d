@@ -56,6 +56,18 @@ pub(super) struct Attack {
 }
 
 impl Attack {
+    /// The animation frame it shows: wind-up, the swing in two halves, then the first moment of
+    /// recovery (a lunge's hop too); afterwards the character stands as usual.
+    pub fn anim(&self) -> Option<super::paperdoll::Anim> {
+        use super::paperdoll::Anim;
+        match self.phase {
+            Phase::Windup => Some(Anim::Attack(0)),
+            Phase::Swing => Some(Anim::Attack(if self.t < SWING_TIME / 2.0 { 1 } else { 2 })),
+            Phase::Recover if self.t < 0.2 => Some(Anim::Attack(3)),
+            Phase::Recover => None,
+        }
+    }
+
     /// It stands still (winding up, swinging, catching its breath).
     pub fn holds(&self) -> bool {
         self.kind != Kind::Shown
@@ -297,7 +309,8 @@ impl Game {
             let Some(a) = e.attack else { continue };
             let center = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0);
             let base = a.dir.y.atan2(a.dir.x);
-            let icon = e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone());
+            // (A weapon whose held sheet has attack rows swings in the hand instead.)
+            let icon = if self.weapon_animates(&e.equipment) || self.figure_animates(&e.appearance) { None } else { e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone()) };
             match (a.kind, a.phase) {
                 (Kind::Strike, Phase::Windup) => {
                     // Where the swing will land, filling up; the weapon raised behind the head.

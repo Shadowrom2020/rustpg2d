@@ -798,7 +798,9 @@ impl Editor {
         let fr = Rect::from_min_size(origin + vec2(fx as f32, fy as f32) * zoom, vec2(d.frame.0 as f32, d.frame.1 as f32) * zoom);
         painter.rect_stroke(fr, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Outside);
         if d.layout == Layout::Character {
-            for (r, label) in ["Down", "Left", "Right", "Up"].iter().enumerate().take(d.rows() as usize) {
+            // Walk rows, then the animation rows (render::character::ANIM_ROWS).
+            const LABELS: [&str; 16] = ["Down", "Left", "Right", "Up", "Idle Down", "Idle Left", "Idle Right", "Idle Up", "Attack Down", "Attack Left", "Attack Right", "Attack Up", "Hurt Down", "Hurt Left", "Hurt Right", "Hurt Up"];
+            for (r, label) in LABELS.iter().enumerate().take(d.rows() as usize) {
                 let p = pos2(origin.x - 6.0, origin.y + (r as f32 + 0.5) * d.frame.1 as f32 * zoom);
                 painter.text(p, egui::Align2::RIGHT_CENTER, *label, egui::FontId::proportional(14.0), Color32::LIGHT_GRAY);
             }

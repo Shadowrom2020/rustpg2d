@@ -1961,6 +1961,9 @@ fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
             ui.label("Playable");
             ui.checkbox(&mut d.playable, "players may choose it in the character creator").on_hover_text("People yes, a slime or a ghost usually not. The creator offers the playable bodies of the chosen sex.");
             ui.end_row();
+            ui.label("Complete figure");
+            ui.checkbox(&mut d.complete, "clothes, hair and held items are painted in").on_hover_text("Nothing is drawn over this body: no outfit, armor, hair, beard or held items (equipment still counts, it just isn't shown), and it isn't recoloured. The character creator hides skin, hair and beard for it.");
+            ui.end_row();
         }
         ui.label("Image");
         ui.horizontal(|ui| {

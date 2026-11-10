@@ -121,32 +121,51 @@ Instructions for every session (people and coding agents) that implements roadma
   **Verify.** Unit tests (draw size per scale); autoplay shots of a 2× test body next to 1×
   characters at zoom 2 and 3; editor shots of the sheet picker and the canvas; the web export.
 
-- [ ] Character art in a new style — `feature/character-art`
+- [x] Character art at 2× in today's style — `feature/classic-art-2x`
 
-  **Goal.** The characters look clearly better: new proportions, shading and animation at 2×
-  resolution (64×96 frames) for every layer.
+  **Goal.** The layered character sheets (bodies, hair, beards, outfits, armor, held items) at
+  twice the resolution in today's style, for creators who mix and match.
 
-  **Design.** First a style sheet, agreed with the user from samples before the full set:
-  palette, outline (dark, coloured, not black), light from the top left, 3.5 heads tall,
-  4-frame walk + idle breathing (2 frames) + attack and hurt frames (used by 0.15's attacks).
-  Then the full set, painted with the same skin (magenta) and hair (cyan) reference ramps so
-  `recolor.rs` keeps working: bodies (human ♂/♀, goblin ♂/♀), hair, beards, every outfit
-  (with its female cut), armor overlays, held items (with hand positions for the new frames),
-  children. The old 1× sheets stay in the library for existing projects (new ids or a
-  `_classic` suffix for the old ones; decided at the start, so existing projects don't change
-  their look by surprise on a library update).
+  **Decided while building.** All 107 layered character sheets of the starter library were
+  redrawn with Scale2x (frame borders not crossed) plus a little shading along the silhouette
+  (skin and hair stay on their magenta / cyan reference lines). Same ids, `scale: 2`. The
+  creatures and children among them were then replaced by the new art (next item); their
+  layered-style versions stay in the library as `<id>_classic`.
 
-  **Engine.** None beyond the previous item (content), unless the extra animation rows need a
-  sheet layout field: then propose it.
+  **Engine.** None (content).
 
-  **Verify.** Shots of every layer combination in the character builder and in play (walk,
-  attack, sit, lie), the creator's previews, portraits; the starter-library test.
+- [x] Character art in a new style — `feature/classic-art-2x`
 
-- [ ] Monsters and animals in the new style — `feature/creature-art`
+  **Goal.** Detailed character art like the user's reference (an expressive face, detailed
+  shading, 64×96 frames), with idle, attack and hurt frames.
 
-  **Goal.** The slime, the village animals (chicken, dog, cats, sheep, cow) and the children in
-  the new style at 2×, with attack and hurt frames for 0.15's combat; two new monsters for the
-  wilds (a wolf, a bat) to give the combat AI more to work with.
+  **Decided while building.** Procedurally painted samples were rejected; a pixel-artist brief
+  was written and then put aside. The art comes from Meshy's Image to Image API (`nano-banana-2-lite`,
+  3 credits a sheet; the user's reference picture and a GPT-Image walk sheet of the guard as
+  style and layout references): one 4 × 4 walk sheet per character (front, side, side, back ×
+  4 frames) and an attack sheet per fighter. A converter (scratchpad tooling) cuts the figures out
+  of the cells (specks and neighbours' pieces dropped, faded holes filled), scales every size class
+  to one height (humans 82 px, children 66, animals per kind), puts the feet on the feet point,
+  uses the first side row facing left and its mirror for right (the models draw the second side row
+  either way), flips side frames that face the wrong way, gives each sheet one palette and the soft
+  shadow, and derives the idle frames (the upper body a pixel lower) and the hurt frame (the upper
+  body leaning back) from the standing frame. 46 characters (the example's 30, the library's 16),
+  15 fighters with attack frames; about 230 credits in all. The cow was generated on a magenta
+  background and keyed, as the background removal ate its white body. Characters are complete
+  figures (no layers): the creator offers pre-made heroes (hero, heroine, goblin, goblin scout).
+  Archers' bow-shot frames exist but aren't played yet (shooting has no attack phase).
+
+  **Engine.** Agreed: the 16-row layout (walk, idle, attack, hurt; `Anim`, `Layer::fallback`,
+  `npc_anim` / `player_anim`, `anims=` status, the builder's Walk / Idle / Attack / Hurt preview,
+  editor script `charanim`, row labels in the pixel editor) and complete figures
+  (`SheetDef::complete`: only the body is drawn, not recoloured; the creator hides skin / hair /
+  beard for them; the weapon's swing sprite is replaced by the figure's painted swing).
+
+- [ ] New monsters for the wilds — `feature/creature-art`
+
+  **Goal.** Two monsters for the wilds to give the combat AI more to work with: a wolf (new, in the
+  new style, with walk and attack frames) and the bat (in the library since this release), placed
+  in the wilds with spawners.
 
   **Engine.** None (content).
 

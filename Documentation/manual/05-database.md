@@ -121,6 +121,7 @@ portraits and parallax images all come from sprite sheets.
 | **Kind** | *Character body, Hair, Beard, Outfit, Armor, Held item, Emotions* or plain. The character builder offers sheets by kind; every animation of an *Emotions* sheet is an emotion shown over heads ([Events › Emotions over heads](07-events.md#emotions-over-heads)) |
 | **Female body** | For bodies: outfits use their female cut on it |
 | **Playable** | For bodies: players may choose it in the character creator |
+| **Complete figure** | For bodies: clothes, hair and held items are painted in; nothing is drawn over it and it isn't recoloured |
 | **Animations** | Named frame ranges (imported from Aseprite tags, or made here) for the *Effect* and *Fly* actions |
 | **Used by** | Which items, props and characters use the sheet |
 

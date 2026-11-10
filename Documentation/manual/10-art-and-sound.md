@@ -3,11 +3,18 @@
 ## Sizes and layouts
 
 - **Tiles** are always 32 × 32 pixels. Tilesets are images of tiles in a grid.
-- **Characters** are usually 32 × 48 pixels per frame. A **character sheet** has 4 rows (facing
-  down, left, right, up) × 4 walk frames; the first column is the standing pose. Bodies, hair,
-  beards, outfits, armor and held items all use this layout, so the layers line up.
+- **Characters** are usually 32 × 48 pixels per frame (64 × 96 on 2× sheets). A **character sheet**
+  has 4 rows (facing down, left, right, up) × 4 walk frames; the first column is the standing pose.
+  It may continue with 12 more rows of the same order: **idle** (rows 5–8, 2 frames: breathing),
+  **attack** (rows 9–12, 4 frames: wind-up, swing, follow-through, recover) and **hurt** (rows 13–16,
+  1 frame). The game plays them when they are there and shows the standing frame otherwise. Bodies,
+  hair, beards, outfits, armor and held items all use this layout, so the layers line up. A body
+  marked **Complete figure** has everything painted in and is drawn alone ([Characters](06-characters.md#how-characters-look)).
 - **Item icons** are 32 × 32. **Props** use one frame, or a block of several frames for big props.
 - **Portraits** can be any size (64 × 64 works well).
+- The starter library's characters (people, animals, monsters and every layer they wear) are
+  **2× sheets**: 64 × 96 image pixels per frame for people, drawn in the 32 × 48 place
+  ([High-resolution sprites](#high-resolution-sprites)). Your own 1× layers still fit them.
 - Keep images at most 2048 pixels wide and high; the editor shrinks bigger ones for display.
 
 ### High-resolution sprites

@@ -18,13 +18,26 @@ Every character is a **body** dressed in layers:
 Everything a character wears is real equipment: it counts in combat, and an enemy drops it when
 defeated.
 
+**Complete figures**: a body sheet marked *Complete figure* is a whole character with clothes, hair
+and what it holds painted in. Nothing is drawn over it (no outfit, armor, hair, beard or held
+items) and it isn't recoloured; its equipment still counts, it just isn't shown. The example's
+people, animals and monsters are complete figures (one sheet per character); the layered bodies,
+hair styles and outfits stay in the asset library for characters you assemble yourself.
+
+**Animations**: besides walking, a character sheet can have rows for **idle** (breathing while it
+stands), **attack** (wind-up, swing, follow-through, recover) and **hurt** (when hit); see [Art and
+sound › Character sheets](10-art-and-sound.md#sizes-and-layouts). The game plays them by itself:
+standing characters breathe, enemies' wind-ups and swings and the player's swing show the attack
+frames, a hit shows the hurt frame. A sheet without these rows (or a layer that lacks them) shows
+its standing frame instead.
+
 ## The character builder
 
 ![The character builder](../images/editor-builder.webp)
 
 *Database › Characters › Look & equipment* assembles a character visually. On the left is a
-**walking preview** (facing buttons, *turn around*, and the four idle directions); on the right rows
-of clickable **cards**:
+**preview** that walks, breathes, attacks or flinches (*Walk*, *Idle*, *Attack*, *Hurt*; facing
+buttons, *turn around*, and the four standing directions); on the right rows of clickable **cards**:
 
 - **Body** (sprite sheets of kind *Character body*), **Skin** swatches (presets or any colour),
   **Hair** style cards, **Hair colour** swatches, **Beard** cards;
@@ -238,7 +251,9 @@ The **character creator** (*Database › Project › Character creator*, *Show t
 lets players create their hero after *New game*: a **name** (with a default), **Male / Female** (or
 fixed, if the project says *Always male* / *Always female*), a **body** among the bodies of that sex
 marked *Playable* (e.g. human or goblin), and **skin colour, hair style, hair colour** and, for men, a
-**beard**, from the lists you set (a list left empty has no row). An animated preview walks through
+**beard**, from the lists you set (a list left empty has no row). A playable **complete figure** is a
+pre-made hero: the creator names it after the character that wears it and hides the skin, hair
+and beard rows for it. The example offers the hero, the heroine, a goblin and a goblin scout. An animated preview walks through
 all four directions. Name, sex and look are kept in save games. Play-tests skip the creator and use
 the default name.
 

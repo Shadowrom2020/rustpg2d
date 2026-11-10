@@ -21,8 +21,8 @@
         enabled: true,
         sex: Both,
         default_name: "Alex",
-        body_male: "body_male",
-        body_female: "body_female",
+        body_male: "hero",
+        body_female: "heroine",
         skin_colors: [
             (242, 196, 155),
             (232, 184, 138),

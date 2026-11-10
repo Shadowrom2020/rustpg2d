@@ -149,7 +149,7 @@ pub const API: &[ApiFn] = api! {
     "say"(text: Line) "Shows a dialog (queued)";
     "say"(speaker: Line, text: Line) "Shows a dialog with a speaker name (queued)";
     "say"(entity: Num, text: Line) "Shows a dialog with an entity's name as speaker, e.g. say(SELF, \"...\") (queued)";
-    "say"(speaker: Line, text: Line, options: Opts) "A dialog line with options: #{ mood: \"worried\" } shows the speaker's portrait for that mood for this line (queued)";
+    "say"(speaker: Line, text: Line, options: Opts) "A dialog line with options: #{ mood: \"worried\" } shows the speaker's portrait for that mood for this line, #{ emote: \"joy\" } an emotion over the speaker's head (queued)";
     "choice"(text: Line, options: List, var: Var) "Asks a question; the chosen index goes into the variable (queued)";
     "teleport"(map: Map, spawn: Spawn) "Moves the player to a spawn point on a map (queued)";
     "set_active"(target: Target, active: Bool) "Shows / hides an entity (queued)";
@@ -174,6 +174,9 @@ pub const API: &[ApiFn] = api! {
     "heal"(amount: Num) "Heals the player (queued)";
     "order"(target: Target, order: Text) "Tells a companion (or \"all\") what to do: \"attack\", \"defend\" (only what attacks you), \"passive\" (no fighting), \"stay\" (wait here), \"follow\" (queued)";
     "order_of"(name: Text) "How a companion fights: \"attack\", \"defend\" or \"passive\" (\"\" = no companion of that name)";
+    "emote"(target: Target, emotion: Text) "Shows an emotion over a character's head (\"player\" too) for 2.5 s: a tag of an Emotions sprite sheet (\"surprise\", \"joy\", \"sleepy\", ...) (queued)";
+    "emote"(target: Target, emotion: Text, options: Opts) "Like emote(); options #{ seconds: 4 (below 0: until clear_emote), wait: true (the script's next actions wait until it is over) } (queued)";
+    "clear_emote"(target: Target) "Takes a character's emotion away (queued)";
     "mood"(target: Target, mood: Text) "A character's portrait shows that mood (its definition's mood portrait) until changed or the event ends; \"\" = its usual one (queued)";
     "open_companion"(target: Target) "Opens a companion's window (its gear and bag next to the player's inventory) once the event is over (queued)";
     "is_staying"(name: Text) "Whether a companion was told to wait where it is";

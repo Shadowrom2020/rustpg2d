@@ -53,6 +53,13 @@ pub(super) struct NpcSeat {
     pub stand: Vec2,
 }
 
+impl NpcSeat {
+    /// Lying (in a bed).
+    pub fn lying(&self) -> bool {
+        self.pose == crate::defs::Pose::Lie
+    }
+}
+
 /// The sleep sequence in progress.
 #[derive(Clone, Debug)]
 pub(super) struct Sleeping {

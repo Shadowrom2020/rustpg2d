@@ -298,17 +298,33 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     })));
     // say(speaker, "...", #{ mood: "worried" }): the line with a mood portrait of the speaker.
     fn say_with(c: &mut Ctx, speaker: String, text: &str, opts: &rhai::Map) {
+        // An emotion over the speaker's head while the line is up (the dialog takes it away).
+        let emote = opts.get("emote").map(|m| m.to_string()).unwrap_or_default();
+        if !emote.is_empty() {
+            c.actions.push(Action::Emote { target: speaker.clone(), emotion: emote, seconds: -1.0, wait: false });
+        }
         let mood = opts.get("mood").map(|m| m.to_string()).unwrap_or_default();
         if !mood.is_empty() {
             c.actions.push(Action::Mood { target: speaker.clone(), mood });
         }
         c.actions.push(Action::Dialog { speaker: speaker.clone(), text: text.into() });
+        if opts.contains_key("emote") {
+            c.actions.push(Action::ClearEmote { target: speaker.clone() });
+        }
         if opts.contains_key("mood") {
             c.actions.push(Action::Mood { target: speaker, mood: String::new() });
         }
     }
     engine.register_fn("say", with!(ctx, |c, speaker: &str, text: &str, opts: rhai::Map| say_with(&mut c, speaker.into(), text, &opts)));
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
+    // emote(target, "joy"[, #{ seconds, wait }]) / clear_emote(target): an emotion over the head.
+    engine.register_fn("emote", with!(ctx, |c, t: &str, e: &str| c.actions.push(Action::Emote { target: t.into(), emotion: e.into(), seconds: 0.0, wait: false })));
+    engine.register_fn("emote", with!(ctx, |c, t: &str, e: &str, opts: rhai::Map| {
+        let seconds = opts.get("seconds").and_then(|v| v.as_float().ok().or_else(|| v.as_int().ok().map(|i| i as f64))).unwrap_or(0.0) as f32;
+        let wait = opts.get("wait").and_then(|v| v.as_bool().ok()).unwrap_or(false);
+        c.actions.push(Action::Emote { target: t.into(), emotion: e.into(), seconds, wait })
+    }));
+    engine.register_fn("clear_emote", with!(ctx, |c, t: &str| c.actions.push(Action::ClearEmote { target: t.into() })));
     // mood(name, "worried"): the character's portrait shows that mood until changed ("" = usual).
     engine.register_fn("mood", with!(ctx, |c, t: &str, m: &str| c.actions.push(Action::Mood { target: t.into(), mood: m.into() })));
     engine.register_fn("choice", with!(ctx, |c, text: &str, options: Array, var: &str| {
@@ -989,6 +1005,24 @@ mod tests {
         // Without an owner SELF is -1: no speaker.
         let actions = host.call(&mut WorldState::default(), "talk", None);
         assert_eq!(actions, vec![Action::Dialog { speaker: String::new(), text: "Hello".into() }]);
+    }
+
+    #[test]
+    fn emotions_from_scripts() {
+        let mut host = ScriptHost::new();
+        host.load_source(r#"fn f() { emote("guard", "surprise", #{ wait: true, seconds: 1.5 }); say("Tilda", "Hello!", #{ emote: "joy" }); clear_emote("player"); }"#).unwrap();
+        let actions = host.call(&mut WorldState::default(), "f", None);
+        assert_eq!(
+            actions,
+            vec![
+                Action::Emote { target: "guard".into(), emotion: "surprise".into(), seconds: 1.5, wait: true },
+                // While the line is up, then taken away.
+                Action::Emote { target: "Tilda".into(), emotion: "joy".into(), seconds: -1.0, wait: false },
+                Action::Dialog { speaker: "Tilda".into(), text: "Hello!".into() },
+                Action::ClearEmote { target: "Tilda".into() },
+                Action::ClearEmote { target: "player".into() },
+            ]
+        );
     }
 
     #[test]

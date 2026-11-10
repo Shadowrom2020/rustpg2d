@@ -92,12 +92,23 @@ impl Game {
         let hurt = e.max_hp > 0 && flee_below > 0.0 && (e.hp as f32) < flee_below * e.max_hp as f32;
         let ranged = e.weapon.as_ref().and_then(|w| w.ranged.as_ref()).map(|r| r.range * ts);
         let e = &mut self.loaded.entities[i];
+        let was_hunting = e.ai.aggro > 0.0;
+        let was_fleeing = e.ai.fleeing;
         if sees {
             e.ai.aggro = AGGRO_MEMORY;
             e.ai.last_seen = target;
         } else {
             e.ai.aggro -= dt;
         }
+        // Emotions (automatic): noticing someone, losing them, running away.
+        if sees && !was_hunting {
+            self.auto_emote(i, "surprise");
+        } else if !sees && was_hunting && self.loaded.entities[i].ai.aggro <= 0.0 {
+            self.auto_emote(i, "confused");
+        } else if hurt && !was_fleeing {
+            self.auto_emote(i, "fear");
+        }
+        let e = &mut self.loaded.entities[i];
         if e.ai.aggro <= 0.0 {
             e.ai.fleeing = false;
             return false;

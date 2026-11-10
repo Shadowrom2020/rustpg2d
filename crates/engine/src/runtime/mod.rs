@@ -43,6 +43,7 @@ pub mod input;
 pub mod glyphs;
 mod attacks;
 mod defense;
+mod emotions;
 mod mouse;
 mod spawner;
 mod thumbs;
@@ -196,6 +197,8 @@ struct RtEntity {
     low: bool,
     /// A weapon swing or lunge in progress (`attacks.rs`; not saved).
     attack: Option<attacks::Attack>,
+    /// The emotion shown over its head (`emotions.rs`; not saved).
+    emote: Option<Box<emotions::Emote>>,
     /// Its definition's wind-up (`CharacterDef::windup`; 0 = the standard one).
     windup: f32,
     behavior: Behavior,
@@ -383,6 +386,8 @@ pub struct Game {
     minigame: Option<minigame::Minigame>,
     /// A picture of *Show image* (not saved).
     image: Option<image::ImageView>,
+    /// The emotion over the player's head.
+    player_emote: Option<emotions::Emote>,
     /// Whose portrait the open dialog shows.
     portrait: Option<portraits::Speaker>,
     /// The furniture the player uses, the sleep sequence, and the bed a Sleep action lies in.
@@ -523,6 +528,7 @@ impl Game {
             ach: Default::default(),
             minigame: None,
             image: None,
+            player_emote: None,
             portrait: None,
             seat: None,
             leaving: None,
@@ -652,6 +658,7 @@ impl Game {
             solid: solid && !hostile,
             low,
             attack: None,
+            emote: None,
             windup: self.project.db.character(def).filter(|_| kind == EntityKind::Character).map_or(0.0, |d| d.windup.max(0.0)),
             behavior,
             wander_timer: rand::gen_range(0.5, 2.0),
@@ -1538,6 +1545,7 @@ impl Game {
         self.reveal_fog();
         self.update_entities(dt, frozen);
         self.update_combat(dt, frozen, consumed);
+        self.update_emotes(dt);
         if !frozen {
             self.update_projectiles(dt);
             self.update_spawners(dt);
@@ -2107,7 +2115,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2181,7 +2189,8 @@ impl Game {
             input::device(),
             glyphs::style().id(),
             self.attacks_status(),
-            self.defense_status()
+            self.defense_status(),
+            self.emotes_status()
         )
     }
 
@@ -2407,6 +2416,7 @@ impl Game {
         self.draw_combat_world();
         self.draw_attacks();
         self.draw_defense();
+        self.draw_emotes();
         self.draw_gather();
         self.draw_activities();
         self.draw_fx();
@@ -2669,6 +2679,25 @@ impl ActionHost for Game {
                 } else {
                     Step::Continue
                 }
+            }
+            Action::Emote { target, emotion, seconds, wait } => {
+                match self.emote_target(target, ctx.owner) {
+                    Some(who) if self.start_emote(who, emotion, *seconds) && *wait => {
+                        let secs = if *seconds > 0.0 { *seconds } else { emotions::DEFAULT_SECONDS };
+                        Step::Insert(vec![(Action::Wait { seconds: secs }, ctx.clone())])
+                    }
+                    Some(_) => Step::Continue,
+                    None => {
+                        eprintln!("[events] Show emotion: no character '{target}'");
+                        Step::Continue
+                    }
+                }
+            }
+            Action::ClearEmote { target } => {
+                if let Some(who) = self.emote_target(target, ctx.owner) {
+                    self.clear_emote(who);
+                }
+                Step::Continue
             }
             Action::HideImage => {
                 self.image = None;

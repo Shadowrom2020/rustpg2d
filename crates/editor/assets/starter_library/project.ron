@@ -41,6 +41,7 @@
         skill_points_per_level: 1,
     ),
     dialog_portraits: true,
+    auto_emotions: true,
     companion_down: StaysDown,
     language: "en",
 )

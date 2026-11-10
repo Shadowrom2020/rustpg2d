@@ -591,6 +591,11 @@ pub enum Action {
     /// casts it once it follows the player). Companions cast *Heal* and *Bolt* spells from their
     /// definition's mana.
     TeachSpell { target: TargetName, spell: String },
+    /// Shows an emotion over a character's head (`player` too): a tag of an *Emotions* sprite
+    /// sheet. `seconds` 0 = 2.5 s, below 0 = until cleared; `wait`: the event goes on when it is over.
+    Emote { target: TargetName, emotion: String, #[serde(default)] seconds: f32, #[serde(default)] wait: bool },
+    /// Takes a character's emotion away.
+    ClearEmote { target: TargetName },
 }
 
 fn yes() -> bool {
@@ -739,6 +744,8 @@ impl Action {
             Action::HideImage => "Hide image",
             Action::ShopStock { .. } => "Shop stock",
             Action::TeachSpell { .. } => "Teach spell",
+            Action::Emote { .. } => "Show emotion",
+            Action::ClearEmote { .. } => "Clear emotion",
         }
     }
 
@@ -813,6 +820,8 @@ impl Action {
             Action::HideImage,
             Action::ShopStock { target: "self".into(), item: String::new(), op: VarOp::Add, count: 3, price: 0 },
             Action::TeachSpell { target: "self".into(), spell: String::new() },
+            Action::Emote { target: "self".into(), emotion: "joy".into(), seconds: 0.0, wait: false },
+            Action::ClearEmote { target: "self".into() },
         ]
     }
 }

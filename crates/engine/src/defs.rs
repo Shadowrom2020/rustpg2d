@@ -210,7 +210,7 @@ impl SheetDef {
             SheetKind::Outfit => "outfit_",
             SheetKind::Armor => "ov_",
             SheetKind::Held => "held_",
-            SheetKind::Sprite => "",
+            SheetKind::Sprite | SheetKind::Emotions => "",
         };
         let s = self.id.strip_prefix(prefix).unwrap_or(&self.id).replace('_', " ");
         let mut c = s.chars();
@@ -237,10 +237,13 @@ pub enum SheetKind {
     Armor,
     /// An item held in a hand (weapons, shields, lights).
     Held,
+    /// Emotion icons shown over characters' heads: every tag (named frame range) is an emotion
+    /// (`emote(target, "joy")`, the *Show emotion* action).
+    Emotions,
 }
 
 impl SheetKind {
-    pub const ALL: [SheetKind; 7] = [SheetKind::Sprite, SheetKind::Body, SheetKind::Hair, SheetKind::Beard, SheetKind::Outfit, SheetKind::Armor, SheetKind::Held];
+    pub const ALL: [SheetKind; 8] = [SheetKind::Sprite, SheetKind::Body, SheetKind::Hair, SheetKind::Beard, SheetKind::Outfit, SheetKind::Armor, SheetKind::Held, SheetKind::Emotions];
     pub fn label(self) -> &'static str {
         match self {
             SheetKind::Sprite => "Sprite",
@@ -250,6 +253,7 @@ impl SheetKind {
             SheetKind::Outfit => "Outfit (clothing)",
             SheetKind::Armor => "Armor overlay",
             SheetKind::Held => "Held item",
+            SheetKind::Emotions => "Emotions (icons over heads)",
         }
     }
     fn is_sprite(&self) -> bool {

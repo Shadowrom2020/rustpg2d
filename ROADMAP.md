@@ -137,7 +137,7 @@ Instructions for every session (people and coding agents) that implements roadma
   an archer outlaw shoots over a fence; an arrow at a big oak stops. Editor: shot of the low-tile
   pick view and the collision view.
 
-- [ ] Woodcutting — `feature/woodcutting`
+- [x] Woodcutting — `feature/woodcutting`
 
   **Goal.** Trees can be felled with an axe for logs; the stump grows back after a few days. A
   *Woodcutting* skill makes it faster.
@@ -157,8 +157,15 @@ Instructions for every session (people and coding agents) that implements roadma
     used by a couple of recipes (a *Wooden Shield* recipe at the anvil, a *Fishing Rod*).
   - Felling sound (`chop`), chips in wood colours (gather chips take the prop's colour already).
 
-  **Engine.** None (content). If chopping needs anything the gathering system lacks (e.g. a
-  tree falling animation), propose it then.
+  **Decided while building.** The station is called `sawhorse` (a recipe's station must be a prop
+  id). A stump is not solid (a prop's `low` is per definition, not per state, and a stump you walk
+  over reads fine). The woodcutter's axe is a tool only (tools go into the tool slot, not the weapon
+  slot), no pine cone, no felling sound (gathering always plays the hit sound and fires no event
+  when a prop is used up). The forest's trees are tiles: six of them by the path were swapped for
+  the new young-tree props, which have the same 1 x 2 footprint. Merchants buy anything already, so
+  the miller needed no change. Planks also make a woodcutter's axe at the anvil.
+
+  **Engine.** None (content).
 
   **Example.** The axe is sold by the blacksmith and one lies in the mill; choppable oaks and pines
   around the village edge, the forest and the wilds; a sawhorse at the mill; the miller buys

@@ -954,6 +954,12 @@
                     price: 0,
                 ),
                 (
+                    item: "woodcutter_axe",
+                    count: 2,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
                     item: "hammer",
                     count: 1,
                     unlimited: false,

@@ -886,11 +886,44 @@
         ),
         solid: true,
         default_state: "default",
-        states: [],
+        states: [
+            (
+                name: "stump",
+                sprite: (
+                    sheet: "woodwork",
+                    frame: 0,
+                ),
+                solid: false,
+            ),
+        ],
         hitbox: (28.0, 16.0),
         triggers: [],
         container: None,
         lock: None,
+        gather: Some((
+            tool: "axe",
+            hits: 5,
+            loot: [
+                (
+                    item: "log",
+                    chance: 100.0,
+                    min: 2,
+                    max: 4,
+                ),
+                (
+                    item: "apple",
+                    chance: 20.0,
+                    min: 1,
+                    max: 1,
+                ),
+            ],
+            then_state: "stump",
+        )),
+        regrow: Some((
+            from: "stump",
+            to: "default",
+            hours: 96.0,
+        )),
     ),
     (
         id: "big_pine",
@@ -903,11 +936,38 @@
         ),
         solid: true,
         default_state: "default",
-        states: [],
+        states: [
+            (
+                name: "stump",
+                sprite: (
+                    sheet: "woodwork",
+                    frame: 1,
+                ),
+                solid: false,
+            ),
+        ],
         hitbox: (20.0, 16.0),
         triggers: [],
         container: None,
         lock: None,
+        gather: Some((
+            tool: "axe",
+            hits: 5,
+            loot: [
+                (
+                    item: "log",
+                    chance: 100.0,
+                    min: 2,
+                    max: 4,
+                ),
+            ],
+            then_state: "stump",
+        )),
+        regrow: Some((
+            from: "stump",
+            to: "default",
+            hours: 96.0,
+        )),
     ),
     (
         id: "boulder",
@@ -2794,6 +2854,118 @@
             ],
             refuse_text: "This bed is for paying guests. Greta rents rooms at the bar.",
         )),
+        low: true,
+    ),
+    (
+        id: "oak_tree",
+        name: "Young Oak",
+        sprite: (
+            sheet: "trees_small",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [
+            (
+                name: "stump",
+                sprite: (
+                    sheet: "woodwork",
+                    frame: 1,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (12.0, 10.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "axe",
+            hits: 3,
+            loot: [
+                (
+                    item: "log",
+                    chance: 100.0,
+                    min: 1,
+                    max: 2,
+                ),
+            ],
+            then_state: "stump",
+        )),
+        regrow: Some((
+            from: "stump",
+            to: "default",
+            hours: 72.0,
+        )),
+    ),
+    (
+        id: "pine_tree",
+        name: "Young Pine",
+        sprite: (
+            sheet: "trees_small",
+            frame: 1,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [
+            (
+                name: "stump",
+                sprite: (
+                    sheet: "woodwork",
+                    frame: 1,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (12.0, 10.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        gather: Some((
+            tool: "axe",
+            hits: 3,
+            loot: [
+                (
+                    item: "log",
+                    chance: 100.0,
+                    min: 1,
+                    max: 2,
+                ),
+            ],
+            then_state: "stump",
+        )),
+        regrow: Some((
+            from: "stump",
+            to: "default",
+            hours: 72.0,
+        )),
+    ),
+    (
+        id: "sawhorse",
+        name: "Sawhorse",
+        sprite: (
+            sheet: "woodwork",
+            frame: 2,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (28.0, 12.0),
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    OpenCrafting(
+                        station: "sawhorse",
+                        title: "Sawhorse",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        container: None,
+        lock: None,
         low: true,
     ),
 ]

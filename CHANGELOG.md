@@ -6,6 +6,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Woodcutting** (starter library and example): a *Woodcutter's Axe* fells the Big Oak and Big
+  Pine and the new *Young Oak* and *Young Pine* props for *Logs*; stumps grow back after a few days;
+  a *Woodcutting* skill takes fewer strokes; at the new *Sawhorse* station logs become *Planks*, and
+  planks a wooden shield, a fishing rod and (at the anvil) a woodcutter's axe. In the example the axe
+  lies in the mill, the blacksmith sells it, and young trees grow by the mill and the forest path.
 - **Low obstacles**: solid things are *high* or *low*. Low tiles and props (fences, rocks,
   mushrooms, water, tables, barrels, chairs) stop walking, but arrows, bolts and the sight of
   enemies pass over them; high ones (walls, tree trunks, statues, stalls) stop both. Tilesets mark

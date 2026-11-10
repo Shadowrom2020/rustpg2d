@@ -57,6 +57,7 @@ From top to bottom:
 | Ctrl+C / Ctrl+X / Ctrl+V | Copy / cut the selected region or entity / paste |
 | Ctrl+D / Del | Duplicate / delete the selected entity or zone; Del on a region clears it |
 | Esc | Deselect; stop placing or pasting; otherwise back to the Select tool |
+| Ctrl+P | Quick search: maps, definitions, script functions, named characters, zones, dialog lines ([Finding things](#finding-things)) |
 | Ctrl+M | Go to a map (searchable) |
 | Ctrl+PgUp / Ctrl+PgDn | Previous / next map |
 | F5 | Play-test from the camera position (or from the selected spawn point) |
@@ -81,6 +82,24 @@ builder and definitions an AI agent wrote. What you type into one field is one s
 pause for a moment or move to another field). Undoing a **rename** renames back, in the maps and
 scripts too. A text field you are typing in keeps its own Ctrl+Z for its text. The last 100 steps
 are kept until you open another project or the definition files are changed by another program.
+
+## Finding things
+
+**Quick search** (**Ctrl+P**, or *Edit › Quick search…*) opens a search box at the top of the
+editor. It finds maps, definitions of every kind (by id and name), script functions, the named
+characters and objects and the zones of every map, and the lines of dialogs and choices in
+triggers. Letters only need to come in order (`hpot` finds *health_potion*, `shrine awa` finds
+`shrine_awakening()`); exact ids and names come first. Arrow keys and **Enter** (or a click) go
+there: a map opens, a definition opens in the Database, a function opens in the script editor at
+its line, a character or zone is selected and centred on its map, a dialog line selects whoever
+says it. **Esc** closes the box.
+
+**Find usages** lists every place a definition is used: the **Usages** button above the
+Database list, or right-click a name in the list › *Find usages*. The *Usages* window shows the
+placed copies and spawners on every map, the triggers that name it (on maps, zones, objects and
+definitions), other definitions that use it (shops, loot, recipes, equipment), script lines and
+the project settings; click one to go there, *Refresh* after changes. Use it before deleting or
+changing a definition.
 
 *File › New project*, *Open project* and *Close project* first ask to save or discard unsaved map,
 definition and pixel-editor changes; *Cancel* keeps everything as it is.

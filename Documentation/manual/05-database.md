@@ -11,7 +11,8 @@ The tabs along the top are *Items, Props, Characters, Tilesets, Sprite sheets, S
 Skills, Spells, Recipes, Quests, Achievements, Project* and *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
 
-- **+ New**, **Duplicate** and **Delete** manage the list; **New asset…** starts a wizard that also
+- **+ New**, **Duplicate** and **Delete** manage the list, **Usages** lists every place the
+  selected definition is used ([Finding things](02-the-editor.md#finding-things)); **New asset…** starts a wizard that also
   draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** opens the
   character builder.
 - Every definition has an **id** (used by the files, triggers and scripts) and a **name** (shown to

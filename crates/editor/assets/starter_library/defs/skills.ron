@@ -150,4 +150,18 @@
             function: "scavenging",
         ),
     ),
+    (
+        id: "woodcutting",
+        name: "Woodcutting",
+        description: "A steady swing and an eye for the grain: every level takes 20% fewer axe strokes to fell a tree.",
+        icon: (
+            sheet: "materials",
+            frame: 0,
+        ),
+        max_level: 3,
+        effect: Gather(
+            tool: "axe",
+            percent: 20.0,
+        ),
+    ),
 ]

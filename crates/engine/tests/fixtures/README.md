@@ -10,6 +10,7 @@ loading fails the tests.
 | `maps/mine-0.10.0.map` | the mine at v0.10.0 |
 | `maps/v1-synthetic.map` | a format version 1 map built by the `reads_version_1` test (v1 never shipped; the file freezes the postcard layout of `TileLayer` / `Chunk`, which v2 uses too). `RUSTPG2D_WRITE_FIXTURES=1 cargo test -p rustpg2d-engine reads_version_1` rewrites it |
 | `saves/save-0.11.0.ron` | a quick save written by 0.11.0 (the save layout is unchanged since 0.10.0; no `version` field yet) |
+| `saves/save-0.12.0.ron` | a quick save written by the 0.12.0 game (built from tag v0.12.0) with the town guard as a hurt companion: before companions had mana and learned spells |
 | `saves/minimal.ron` | only the fields without a default: the oldest save layout |
 
 Add a fixture when a format changes (take the file from the last release's tag), never edit one.

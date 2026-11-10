@@ -56,6 +56,9 @@ pub(super) struct Link {
     fighting: bool,
     /// It already said it is out of ammunition.
     out_of_ammo: bool,
+    /// Mana for the spells it learned, and seconds until each can be cast again.
+    pub mana: f32,
+    pub cooldowns: Vec<(String, f32)>,
 }
 
 impl Game {
@@ -85,9 +88,11 @@ impl Game {
             if let Some(hp) = c.hp {
                 rt.hp = hp.clamp(1, rt.max_hp.max(1));
             }
+            let max_mana = self.project.db.character(&rt.def).map_or(0, |d| d.max_mana) as f32;
             if let Some(l) = &mut rt.companion {
                 l.order = c.order;
                 l.post = c.post.map(|[x, y]| vec2(x, y));
+                l.mana = c.mana.unwrap_or(max_mana).min(max_mana);
             }
             if let Some([x, y]) = c.post {
                 rt.body.pos = vec2(x, y);
@@ -173,7 +178,8 @@ impl Game {
             return true;
         }
         self.companion_regen(i, dt);
-        let fighting = self.companion_fight(i, dt);
+        // A spell (healing someone, a bolt at the enemy) takes its turn before the weapon.
+        let fighting = self.companion_magic(i, dt) || self.companion_fight(i, dt);
         if let Some(l) = self.loaded.entities[i].companion.as_mut() {
             l.fighting = fighting;
         }
@@ -272,8 +278,11 @@ impl Game {
         let e = &self.loaded.entities[i];
         let Some(l) = &e.companion else { return };
         let hp = (e.hp < e.max_hp).then_some(e.hp);
+        let max_mana = self.npc_max_mana(i);
+        let mana = (l.mana < max_mana).then_some(l.mana);
         if let Some(c) = self.world.companions.iter_mut().find(|c| c.map == l.map && c.uid == l.uid) {
             c.hp = hp;
+            c.mana = mana;
         }
     }
 
@@ -310,27 +319,7 @@ impl Game {
         }
         let me = e.body.pos;
         let eye = me - vec2(0.0, e.body.hitbox.y / 2.0);
-        let Some(link) = e.companion.as_ref() else { return false };
-        let (order, staying) = (link.order, link.post.is_some());
-        if order == crate::state::Order::Passive {
-            return false;
-        }
-        let player = self.player.pos;
-        let target = (0..self.loaded.entities.len())
-            .filter(|&t| {
-                let o = &self.loaded.entities[t];
-                if !(o.active && o.hostile && o.max_hp > 0) {
-                    return false;
-                }
-                // Staying: only what comes close; else what is near both it and the player.
-                let near = if staying { o.body.pos.distance(me) <= STAY_GUARD * ts } else { o.body.pos.distance(me) <= ENGAGE * ts && o.body.pos.distance(player) <= ENGAGE * 1.5 * ts };
-                // Defend: only enemies hunting the player or this companion.
-                let threat = order != crate::state::Order::Defend || (o.ai.aggro > 0.0 && (o.ai.last_seen.distance(player) < 1.5 * ts || o.ai.last_seen.distance(me) < 1.5 * ts));
-                near && threat
-            })
-            .filter(|&t| self.line_clear(eye, self.loaded.entities[t].body.pos - vec2(0.0, self.loaded.entities[t].body.hitbox.y / 2.0)))
-            .min_by(|&a, &b| self.loaded.entities[a].body.pos.distance(me).total_cmp(&self.loaded.entities[b].body.pos.distance(me)));
-        let Some(t) = target else { return false };
+        let Some(t) = self.companion_target(i) else { return false };
         let o = &self.loaded.entities[t];
         let to = o.body.pos - me;
         let dir = to.try_normalize().unwrap_or(vec2(0.0, 1.0));
@@ -371,6 +360,35 @@ impl Game {
         true
     }
 
+    /// The hostile character companion `i` should fight now: the nearest one close to it and to
+    /// the player (staying: close to it), in sight, that its order allows.
+    pub(super) fn companion_target(&self, i: usize) -> Option<usize> {
+        let ts = self.ts();
+        let e = &self.loaded.entities[i];
+        let me = e.body.pos;
+        let eye = me - vec2(0.0, e.body.hitbox.y / 2.0);
+        let link = e.companion.as_ref()?;
+        let (order, staying) = (link.order, link.post.is_some());
+        if order == crate::state::Order::Passive {
+            return None;
+        }
+        let player = self.player.pos;
+        (0..self.loaded.entities.len())
+            .filter(|&t| {
+                let o = &self.loaded.entities[t];
+                if !(o.active && o.hostile && o.max_hp > 0) {
+                    return false;
+                }
+                // Staying: only what comes close; else what is near both it and the player.
+                let near = if staying { o.body.pos.distance(me) <= STAY_GUARD * ts } else { o.body.pos.distance(me) <= ENGAGE * ts && o.body.pos.distance(player) <= ENGAGE * 1.5 * ts };
+                // Defend: only enemies hunting the player or this companion.
+                let threat = order != crate::state::Order::Defend || (o.ai.aggro > 0.0 && (o.ai.last_seen.distance(player) < 1.5 * ts || o.ai.last_seen.distance(me) < 1.5 * ts));
+                near && threat
+            })
+            .filter(|&t| self.line_clear(eye, self.loaded.entities[t].body.pos - vec2(0.0, self.loaded.entities[t].body.hitbox.y / 2.0)))
+            .min_by(|&a, &b| self.loaded.entities[a].body.pos.distance(me).total_cmp(&self.loaded.entities[b].body.pos.distance(me)))
+    }
+
     /// A placed character on this map joins (`Action::Companion`).
     pub(super) fn recruit(&mut self, i: usize) {
         let e = &self.loaded.entities[i];
@@ -385,8 +403,12 @@ impl Game {
         let Some(inst) = self.loaded.map.entity(e.uid).cloned() else { return };
         // Its runtime uid: one past the companions here (uids stay unique on this map).
         let k = self.loaded.entities.iter().filter(|e| (COMPANION_UID_BASE..super::schedule::VISITOR_UID_BASE).contains(&e.uid)).map(|e| e.uid - COMPANION_UID_BASE + 1).max().unwrap_or(0) as usize;
-        self.world.companions.push(Companion { map: map.clone(), uid: e.uid, name: e.name.clone(), hp: (e.hp < e.max_hp).then_some(e.hp), down: None, order: Default::default(), post: None });
+        self.world.companions.push(Companion { map: map.clone(), uid: e.uid, name: e.name.clone(), hp: (e.hp < e.max_hp).then_some(e.hp), down: None, order: Default::default(), post: None, mana: None });
         make_companion(&mut self.loaded.entities[i], &map, inst.triggers, k);
+        let max_mana = self.npc_max_mana(i);
+        if let Some(l) = self.loaded.entities[i].companion.as_mut() {
+            l.mana = max_mana;
+        }
         let name = self.display_name(i);
         self.ui.toast(format!("{name} joins you."));
     }
@@ -637,8 +659,9 @@ impl Game {
         self.loaded
             .entities
             .iter()
-            .filter(|e| e.companion.is_some())
-            .map(|e| {
+            .enumerate()
+            .filter(|(_, e)| e.companion.is_some())
+            .map(|(i, e)| {
                 let t = self.tile_of(e.body.pos);
                 let name = if e.name.is_empty() { e.def.as_str() } else { e.name.as_str() };
                 let l = e.companion.as_ref();
@@ -646,7 +669,8 @@ impl Game {
                 let order = l.map(|l| l.order).filter(|o| *o != crate::state::Order::Attack).map_or(String::new(), |o| format!(":{}", o.id()));
                 let stay = if l.is_some_and(|l| l.post.is_some()) { ":stay" } else { "" };
                 let fighting = if l.is_some_and(|l| l.fighting) { ":fighting" } else { "" };
-                format!("{name}:{}/{}{down}{order}{stay}{fighting}@{},{}", e.hp, e.max_hp, t.0, t.1)
+                let magic = self.companion_magic_status(i);
+                format!("{name}:{}/{}{down}{order}{stay}{fighting}{magic}@{},{}", e.hp, e.max_hp, t.0, t.1)
             })
             .collect()
     }
@@ -663,7 +687,22 @@ fn make_companion(rt: &mut RtEntity, map: &str, triggers: Vec<Trigger>, k: usize
     rt.body.move_target = None;
     // The player walks through companions (they never block a corridor).
     rt.solid = false;
-    rt.companion = Some(Box::new(Link { map: map.to_string(), uid: home_uid, triggers, walker: Walker::default(), goal: None, retry: 0.0, regen: 0.0, down: None, order: Default::default(), post: None, fighting: false, out_of_ammo: false }));
+    rt.companion = Some(Box::new(Link {
+        map: map.to_string(),
+        uid: home_uid,
+        triggers,
+        walker: Walker::default(),
+        goal: None,
+        retry: 0.0,
+        regen: 0.0,
+        down: None,
+        order: Default::default(),
+        post: None,
+        fighting: false,
+        out_of_ammo: false,
+        mana: 0.0,
+        cooldowns: Vec::new(),
+    }));
 }
 
 fn is_hurtable_companion(e: &RtEntity) -> bool {

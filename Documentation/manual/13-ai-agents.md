@@ -1,12 +1,11 @@
-# The AI agent server (MCP)
+# 13. AI agents
 
-The R(ust)PG2D editor can serve the **Model Context Protocol** so AI agents — Claude Code,
-Cursor, Claude Desktop (through `mcp-remote`) and others — read and build the open project:
-maps, definitions, dialogs and triggers, quests, scripts, translations, and play-test the
-result. The agent's edits appear in the editor at once and every write is one undo step
-(Ctrl+Z); the project is saved after each write.
+The editor has a built-in **AI agent server**. It lets an AI assistant such as Claude Code, Cursor or
+Claude Desktop work in your open project: read and draw maps, place characters, write triggers,
+quests and scripts, create art and sounds, translate, and play-test the result. You keep the editor
+open and watch; every change appears at once and is one undo step (Ctrl+Z).
 
-## Connecting
+## Starting the server and connecting
 
 *Assets › AI agent server…* in the editor: *Start* listens on `http://127.0.0.1:7743/mcp`
 (Streamable HTTP; the port is adjustable, *Start with the editor* remembers the choice in the
@@ -25,6 +24,12 @@ Editor script commands for tests: `mcp on [PORT]`, `mcp off`, `mcpwindow`; `stat
 **Security.** The server binds to the loopback address only and has no authentication:
 anything on the same computer that can reach the port can edit the open project. Stop the
 server when you don't use it; don't forward the port.
+
+## Asking
+
+Then ask in plain words, for example: "Add a fisherman to the village who sells trout in the morning
+and fishes at the pond in the afternoon", or "Build a small cave map behind the waterfall with three
+bats and a chest".
 
 ## Conventions the tools share
 
@@ -126,7 +131,7 @@ server when you don't use it; don't forward the port.
 `play_test {script, map, spawn, pos, from_start, title, lang, timeout_secs}` saves everything and
 runs the game (`rustpg2d-game … --dev`) with an autoplay script: commands separated by `;` such as
 `wait 2`, `press e`, `hold right 1`, `click 6 3`, `type Name`, `status`, `shot NAME` — see the
-resource `rustpg2d://docs/autoplay`. `quit` is appended. The reply has the game's output lines
+resource `rustpg2d://docs/autoplay` ([Testing your game](17-testing.md)). `quit` is appended. The reply has the game's output lines
 (`[autoplay] …` status lines with the player's position, hp, quests, inventory, flags, …) and the
 screenshots as images. The game opens a real window on the person's screen for the run.
 
@@ -140,8 +145,9 @@ screenshots as images. The game opens a real window on the person's screen for t
 
 ## Resources and prompts
 
-Resources: `rustpg2d://docs/mcp` (this file), `rustpg2d://docs/scripting`,
-`rustpg2d://docs/events`, `rustpg2d://docs/autoplay`, `rustpg2d://project` (the project
+Resources: `rustpg2d://docs/mcp` (this chapter), `rustpg2d://docs/scripting`
+([Scripting](08-scripting.md)), `rustpg2d://docs/events` ([Events](07-events.md)),
+`rustpg2d://docs/autoplay` ([Testing your game](17-testing.md)), `rustpg2d://project` (the project
 summary). Prompts: `design_quest (theme, giver, reward)` and `build_map (name, setting, width,
 height, connect_to)` — step-by-step instructions over the tools above.
 

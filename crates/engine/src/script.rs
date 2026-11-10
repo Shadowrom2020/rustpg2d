@@ -13,6 +13,9 @@ use crate::entity::Facing;
 use crate::events::{Action, FxSprite, VarOp};
 use crate::state::WorldState;
 
+/// A merchant on the current map and what it has: (uid, name, [(item, count)]), unlimited = 999.
+pub type MerchantStock = (u32, String, Vec<(String, u32)>);
+
 #[derive(Default)]
 struct Ctx {
     world: WorldState,
@@ -22,6 +25,10 @@ struct Ctx {
     owner: Option<u32>,
     /// Characters on the current map that can be hurt: (uid, name, HP).
     characters: Vec<(u32, String, i32)>,
+    /// Merchants on the current map and what they have: (uid, name, [(item, count)]).
+    merchants: Vec<MerchantStock>,
+    /// Characters on the current map that learned spells: (uid, name, spell ids).
+    casters: Vec<(u32, String, Vec<String>)>,
     /// Tool items' kinds (`can_craft` with tools).
     tool_kinds: crate::crafting::ToolKinds,
     /// The project's crafting recipes (`can_craft`).
@@ -96,6 +103,16 @@ impl ScriptHost {
     /// The current map's characters that can be hurt, as (uid, name, HP), for `hp_of()`.
     pub fn set_characters(&mut self, characters: Vec<(u32, String, i32)>) {
         self.ctx.borrow_mut().characters = characters;
+    }
+
+    /// The current map's characters that learned spells, for `npc_knows_spell()`.
+    pub fn set_casters(&mut self, casters: Vec<(u32, String, Vec<String>)>) {
+        self.ctx.borrow_mut().casters = casters;
+    }
+
+    /// The current map's merchants and their stock, for `stock_of()`.
+    pub fn set_merchants(&mut self, merchants: Vec<MerchantStock>) {
+        self.ctx.borrow_mut().merchants = merchants;
     }
 
     /// Compiles every `*.rhai` file in `dir` into one module (functions are global). Files
@@ -328,6 +345,39 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         name => c.characters.iter().find(|ch| ch.1 == name).map_or(-1, |ch| ch.2 as i64),
     }));
     engine.register_fn("hp_of", with!(ctx, |c, uid: i64| c.characters.iter().find(|ch| ch.0 as i64 == uid).map_or(-1, |ch| ch.2 as i64)));
+    // Merchants' stock (what villagers produce reaches their stall), and the day number for
+    // "once a day" rules.
+    engine.register_fn("add_stock", with!(ctx, |c, t: &str, item: &str, n: i64| c.actions.push(Action::ShopStock {
+        target: t.into(),
+        item: item.into(),
+        op: crate::events::VarOp::Add,
+        count: n.max(0) as u32,
+        price: 0
+    })));
+    engine.register_fn("set_stock", with!(ctx, |c, t: &str, item: &str, n: i64| c.actions.push(Action::ShopStock {
+        target: t.into(),
+        item: item.into(),
+        op: crate::events::VarOp::Set,
+        count: n.max(0) as u32,
+        price: 0
+    })));
+    engine.register_fn("stock_of", with!(ctx, |c, t: &str, item: &str| {
+        let m = match t {
+            "" | "self" => c.owner.and_then(|u| c.merchants.iter().find(|m| m.0 == u)),
+            name => c.merchants.iter().find(|m| m.1 == name),
+        };
+        m.map_or(0, |m| m.2.iter().filter(|(i, _)| i == item).map(|(_, n)| *n as i64).sum())
+    }));
+    engine.register_fn("day", with!(ctx, |c| c.world.day as i64));
+    // Characters' spells (companions cast Heal and Bolt from their mana).
+    engine.register_fn("teach_spell", with!(ctx, |c, t: &str, spell: &str| c.actions.push(Action::TeachSpell { target: t.into(), spell: spell.into() })));
+    engine.register_fn("npc_knows_spell", with!(ctx, |c, t: &str, spell: &str| {
+        let who = match t {
+            "" | "self" => c.owner.and_then(|u| c.casters.iter().find(|m| m.0 == u)),
+            name => c.casters.iter().find(|m| m.1 == name),
+        };
+        who.is_some_and(|m| m.2.iter().any(|s| s == spell))
+    }));
     // Bestiary: how many characters of a definition the player has defeated.
     engine.register_fn("defeated_count", with!(ctx, |c, id: &str| c.world.defeated(id) as i64));
     // Screen shake (scenes: earthquakes, a boss landing).
@@ -480,6 +530,11 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("open_shop", with!(ctx, |c, t: &str| c.actions.push(Action::OpenShop { target: t.into() })));
     // The HUD (status frame, clock, quick bar, buttons), e.g. for cut-scenes.
     engine.register_fn("hide_ui", with!(ctx, |c| c.actions.push(Action::SetUiVisible { visible: false })));
+    // Pictures over the game: a sprite sheet drawn whole (the event waits until the player closes
+    // it, unless `wait: false`).
+    engine.register_fn("show_image", with!(ctx, |c, sheet: &str| c.actions.push(show_image(sheet, &Map::new()))));
+    engine.register_fn("show_image", with!(ctx, |c, sheet: &str, o: Map| c.actions.push(show_image(sheet, &o))));
+    engine.register_fn("hide_image", with!(ctx, |c| c.actions.push(Action::HideImage)));
     // Cut-scenes and scripted walking (tile coordinates; fractional ones are rounded down).
     engine.register_fn("cutscene", with!(ctx, |c, f: &str| c.actions.push(Action::Cutscene { function: f.into() })));
     engine.register_fn("dim", with!(ctx, |c, amount: Dynamic, seconds: Dynamic| c.actions.push(Action::Dim {
@@ -552,6 +607,17 @@ fn effect_kind(name: &str) -> Option<crate::effects::EffectKind> {
         eprintln!("[script] unknown effect '{name}' (one of: {})", names.join(", "));
     }
     k
+}
+
+/// `show_image(sheet, #{ wait, scroll, speed, scale })`.
+fn show_image(sheet: &str, o: &Map) -> Action {
+    Action::ShowImage {
+        sheet: sheet.into(),
+        wait: o.get("wait").and_then(|v| v.as_bool().ok()).unwrap_or(true),
+        scroll: o.get("scroll").and_then(|v| v.as_bool().ok()).unwrap_or(false),
+        speed: o.get("speed").map_or(crate::events::image_speed(), num).max(1.0),
+        scale: o.get("scale").map_or(1.0, num).max(0.05),
+    }
 }
 
 fn num(d: &Dynamic) -> f32 {
@@ -826,10 +892,10 @@ mod tests {
         );
     }
 
-    /// The examples in Documentation/scripting.md compile, and the Rhai primer does what it says.
+    /// The examples in Documentation/manual/08-scripting.md compile, and the Rhai primer does what it says.
     #[test]
     fn documentation_examples() {
-        let doc = include_str!("../../../Documentation/scripting.md");
+        let doc = include_str!("../../../Documentation/manual/08-scripting.md");
         let blocks: Vec<&str> = doc.split("```rust").skip(1).filter_map(|b| b.split("```").next()).collect();
         assert!(blocks.len() >= 10, "{}", blocks.len());
         for b in &blocks {
@@ -873,7 +939,7 @@ mod tests {
         let actions = host.call(&mut WorldState::default(), "party", None);
         assert_eq!(actions, vec![Action::Companion { target: "guard".into(), join: true }, Action::Companion { target: "self".into(), join: false }]);
         let mut w = WorldState::default();
-        w.companions.push(crate::state::Companion { map: "village".into(), uid: 22, name: "guard".into(), hp: None, down: None, order: Default::default(), post: None });
+        w.companions.push(crate::state::Companion { map: "village".into(), uid: 22, name: "guard".into(), hp: None, down: None, order: Default::default(), post: None, mana: None });
         assert!(host.call(&mut w, "party", None).len() == 1, "already following: only stop_following");
     }
 

@@ -1,4 +1,4 @@
-# Scripting in R(ust)PG2D
+# 8. Scripting
 
 R(ust)PG2D games are mostly built in the editor: maps, characters, items, triggers and their
 actions. **Scripts** are for everything the editor's actions can't express on their own:
@@ -6,7 +6,7 @@ conversations that remember what was said, counters, quests with conditions, scr
 and spells, traps and other effects.
 
 Scripts are written in [Rhai](https://rhai.rs/book/), a small scripting language with a syntax
-close to Rust and JavaScript. This document covers how scripts fit into a game, the rules they
+close to Rust and JavaScript. This chapter covers how scripts fit into a game, the rules they
 follow, and every function the engine provides.
 
 ## Contents
@@ -176,7 +176,9 @@ Functions that act on an entity take a **target**:
   editor's inspector, e.g. `mira`, `guard`).
 
 `SELF` is a number: the owner's id (uid), or `-1` when there is no owner (spells, skills,
-callbacks). `say(SELF, "…")` shows the owner's name as the speaker.
+callbacks). `say(SELF, "…")` shows the owner's name as the speaker. `SELF` is only visible in the function the
+trigger calls; a helper function it calls doesn't see it, so pass it on as an argument
+(`helper(SELF, …)`). The target `"self"` works everywhere.
 
 ## Positions, numbers and text
 
@@ -203,6 +205,8 @@ callbacks). `say(SELF, "…")` shows the owner's name as the speaker.
   translation template can't list it and no translation matches it.
 
 ## Writing scripts in the editor
+
+![The script editor](../images/editor-script.webp)
 
 **Database › Scripts** lists the script files and their functions. Click a file to edit it, or a
 function to jump to it. **+ New** creates a file, **Save & check** (Ctrl+S) saves and reports
@@ -344,6 +348,9 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `open_companion(target)` | Opens a companion's window — its gear and bag next to the player's inventory — once the running event is over, e.g. after a dialog's "Let me see your gear". *(queued)* |
 | `follow_schedule(target)` | The character follows its daily schedule again: it heads for the stop of the current hour. *(queued)* |
 | `open_shop(target)` | Opens a merchant's trade window. *(queued)* |
+| `add_stock(target, item, count)` | Adds items to a merchant's stock (a new line at the item's value), e.g. what a villager produced. *(queued)* |
+| `set_stock(target, item, count)` | Sets how many of an item a merchant has; `0` removes it from the stock. Unlimited lines stay unlimited. *(queued)* |
+| `stock_of(target, item)` | How many of an item a merchant on the map has (`999` for unlimited, `0` if none or no merchant). |
 | `defeated_count(character)` | How many characters of a definition the player has defeated (the bestiary's count), e.g. `defeated_count("slime")`. |
 | `hp_of(target)` | A character's HP right now: `"player"`, `"self"` (or `SELF`) or the name of a character on this map; `-1` if there is none (or it can't be hurt). |
 
@@ -430,6 +437,36 @@ are still shown. Not saved: a loaded game always starts with the HUD visible.
 | `shake(seconds)` | Shakes the screen as hard as a hit on the player, fading out (earthquakes, explosions, a boss landing). *(queued)* |
 | `shake(seconds, strength)` | The same with a strength: `1` = like a hit, `2` = twice as hard. *(queued)* |
 
+#### Pictures
+
+A picture over the game: a full-body painting of a character the first time the player meets
+them, a letter, a map, a poster. The picture is a sprite sheet drawn whole (*Database › Sprite
+sheets*; its frame size doesn't matter). It is drawn at its own size (or `scale`), and scaled down
+to fit the window when it is larger, keeping its proportions. A **scrolling** picture taller than
+the window keeps the window's width instead and pans slowly from the top down and back up, resting
+a second at each end, until it is closed; the arrow keys, the stick and the mouse wheel scroll it
+by hand.
+
+By default the event **waits** until the player closes the picture (E, Space, Enter, a click or
+Esc). With `wait: false` the event goes on at once and the picture stays under the following
+dialogs until `hide_image()` or the end of the event, so a character can talk in front of their
+portrait.
+
+| Function | Description |
+|---|---|
+| `show_image(sheet)` | Shows the picture; the event waits until the player closes it. *(queued)* |
+| `show_image(sheet, options)` | Options `#{ wait: false, scroll: true, speed: 60, scale: 2 }`: `wait` (default `true`), `scroll` (default `false`), `speed` of the scroll in screen pixels per second (default 40), `scale` (default 1; 2, 3 … for small pixel art). *(queued)* |
+| `hide_image()` | Takes the picture away. *(queued)* |
+
+```rust
+fn meet_tilda() {
+    show_image("tilda_full", #{ scroll: true });     // waits until the player closes it
+    show_image("tilda_portrait", #{ wait: false });  // stays behind the lines below
+    say("Tilda", "Well, hello there, {player}.");
+    say("Tilda", "First time in my shop?");
+}                                                    // the portrait goes when the event ends
+```
+
 ### Saving
 
 The game autosaves to the *Autosave* slot after every map change (once the new map's *Map
@@ -460,6 +497,7 @@ save. Scripts can add autosaves at important moments, e.g. after a boss fight or
 | `hour()` | Time of day in hours, `0` to `24` (`13.5` = half past one in the afternoon). |
 | `is_night()` | Whether it is night (dark on outdoor maps). |
 | `set_hour(hour)` | Sets the time of day, e.g. `set_hour(22)`. *(queued)* |
+| `day()` | The in-game day: `0` on the first day; midnight and sleeping move it on. For things that happen once a day (see the recipe *A stall that sells what was made*). |
 
 ### Weather
 
@@ -511,6 +549,12 @@ These only matter in projects with skills (and magic) enabled in *Database › P
 | `learn_spell(spell)` | Teaches a spell. *(queued)* |
 | `mana()` | Current mana. |
 | `add_mana(amount)` | Adds mana (negative drains it). *(queued)* |
+| `teach_spell(target, spell)` | Teaches a character a spell. A companion with mana (*Database › Characters › Magic*) casts *Heal* on whoever is badly hurt and *Bolt* at its enemy; others keep it for when they follow the player. *(queued)* |
+| `npc_knows_spell(target, spell)` | Whether a character on the map has learned a spell (from `teach_spell`, or a scroll or spell book given to it as a companion). |
+
+Companions learn spells by themselves too: a scroll or spell book (an item with *Teaches spell*)
+handed to a companion teaches it the spell, if the companion has mana and it is a *Heal* or *Bolt*
+spell; a scroll that is used up when read is used up.
 
 ### Experience and levels
 
@@ -657,6 +701,36 @@ fn mira_talk() {
     } else {
         say("Mira", "Talked to me " + n + " times now. You must be bored!");
     }
+}
+```
+
+### A stall that sells what was made
+
+What a villager produces can reach their stall: here Finn's catch. The fisher's *Interact* trigger
+(he is a merchant) runs `restock_catch` before his shop opens. Every day since the last restock adds
+`per_day` trout, up to `max` in stock; the days are counted with `day()`, so the stall fills up even
+when the player wasn't in the village at dawn. The variable remembering the day is per merchant
+(`SELF` is passed on, see [Targets and `SELF`](#targets-and-self)).
+
+```rust
+fn restock_from_activity(owner, item, per_day, max) {
+    let key = "stocked_day_" + owner + "_" + item;
+    let days = day() - get_var(key);
+    if days > 0 {
+        let add = days * per_day;
+        let room = max - stock_of("self", item);
+        if add > room {
+            add = room;
+        }
+        if add > 0 {
+            add_stock("self", item, add);
+        }
+        set_var(key, day());
+    }
+}
+
+fn restock_catch() {                    // the fisher's Interact trigger runs this
+    restock_from_activity(SELF, "trout", 3, 8);
 }
 ```
 

@@ -7,6 +7,7 @@ mod charwin;
 mod combat;
 mod companion_ui;
 mod companions;
+mod companion_magic;
 mod cutscene;
 mod dev;
 mod effects;
@@ -36,6 +37,7 @@ mod crafting_ui;
 mod locks;
 mod menu;
 mod minigame;
+mod image;
 mod orders;
 pub mod input;
 mod mouse;
@@ -165,6 +167,10 @@ struct RtEntity {
     body: Body,
     home: Vec2,
     active: bool,
+    /// Hidden by the game's design: placed inactive or switched off with *Set active*. Daily
+    /// schedules only show / hide characters that aren't hidden (they move in and out of sight
+    /// with `away`); `active` is what is drawn now.
+    hidden: bool,
     /// Legacy frame offset added to the state's sprite (SetFrame action).
     frame: u32,
     /// Current state of a prop (index into its definition's states; 0 = default).
@@ -350,6 +356,8 @@ pub struct Game {
     ach: achievements::Achievements,
     /// Lockpicking / fishing in progress (pauses the world).
     minigame: Option<minigame::Minigame>,
+    /// A picture of *Show image* (not saved).
+    image: Option<image::ImageView>,
     /// Whose portrait the open dialog shows.
     portrait: Option<portraits::Speaker>,
     /// The furniture the player uses, the sleep sequence, and the bed a Sleep action lies in.
@@ -489,6 +497,7 @@ impl Game {
             crafting: Default::default(),
             ach: Default::default(),
             minigame: None,
+            image: None,
             portrait: None,
             seat: None,
             leaving: None,
@@ -611,6 +620,7 @@ impl Game {
             body: Body { pos, facing, hitbox, speed, moving: false, anim: 0.0, move_target: None },
             home: pos,
             active,
+            hidden: false,
             frame,
             // Hostiles overlap the player (contact damage) instead of blocking.
             solid: solid && !hostile,
@@ -715,6 +725,8 @@ impl Game {
             st.map_or(e.frame, |s| s.frame),
         );
         rt.count = count;
+        // Placed inactive (or switched off and saved so): hidden until *Set active* shows it.
+        rt.hidden = e.kind == EntityKind::Character && !st.map_or(e.active, |s| s.active);
         rt.changed_at = st.and_then(|s| s.changed_at);
         rt.planted = st.and_then(|s| s.planted.clone());
         rt.light = e.light.clone();
@@ -774,8 +786,9 @@ impl Game {
     }
 
     fn enter_map(&mut self, map: Map, arrival: Arrival) {
-        // Off any furniture (it belongs to the old map).
+        // Off any furniture (it belongs to the old map); pictures belong to the event before.
         self.seat = None;
+        self.image = None;
         // Patrolling characters continue where they were when the player comes back.
         self.persist_patrols();
         let ts = self.ts();
@@ -1268,8 +1281,9 @@ impl Game {
         }
         let state = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def)).flatten().map(|d| d.state_name(e.state).to_string());
         let st = EntityState {
-            // Indoors at a schedule stop is not inactive (the schedule brings it out again).
-            active: e.active || e.away,
+            // Indoors at a schedule stop is not inactive (the schedule brings it out again);
+            // a hidden character stays hidden wherever its schedule is.
+            active: (e.active || e.away) && !e.hidden,
             frame: e.frame,
             x: e.body.pos.x,
             y: e.body.pos.y,
@@ -1332,6 +1346,10 @@ impl Game {
             return;
         }
         if self.update_creator(dt) {
+            return;
+        }
+        // A picture the event waits for pauses the world until the player closes it.
+        if self.update_image(dt) {
             return;
         }
         // Lockpicking and fishing pause the world (Esc gives up instead of opening the menu).
@@ -1457,10 +1475,11 @@ impl Game {
         let queued = std::mem::replace(&mut self.runner, runner);
         self.runner.append(queued);
         self.update_leaving(dt);
-        // Moods last as long as the event that set them.
+        // Moods last as long as the event that set them; so do pictures that don't wait.
         if !self.moods.is_empty() && !self.runner.busy() && !self.ui.dialog_open() {
             self.moods.clear();
         }
+        self.end_image_with_event();
         self.update_cutscene(dt);
 
         let frozen = self.runner.busy() || !matches!(self.fade, Fade::None) || self.modal();
@@ -2033,7 +2052,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2070,6 +2089,7 @@ impl Game {
             self.world.quests.iter().map(|(k, q)| format!("{k}:{}:{:?}", q.stage, q.status)).collect::<Vec<_>>(),
             self.achievements_status(),
             self.minigame_status(),
+            self.image_status(),
             self.pose_status(),
             self.climbing(),
             self.gather_status(),
@@ -2369,6 +2389,7 @@ impl Game {
         }
         self.draw_cutscene_bars();
         self.draw_fps();
+        self.draw_image();
         self.ui.draw_toasts();
         self.ui.draw_dialog();
         self.draw_dialog_portrait();
@@ -2545,6 +2566,29 @@ impl ActionHost for Game {
                 self.order_companion(target, order, ctx.owner);
                 Step::Continue
             }
+            Action::ShowImage { sheet, wait, scroll, speed, scale } => {
+                if self.show_image(sheet, *wait, *scroll, *speed, *scale) && *wait {
+                    Step::Block
+                } else {
+                    Step::Continue
+                }
+            }
+            Action::HideImage => {
+                self.image = None;
+                Step::Continue
+            }
+            Action::TeachSpell { target, spell } => {
+                if let Some(i) = self.entity_index(target, ctx.owner) {
+                    self.teach_character(i, spell);
+                }
+                Step::Continue
+            }
+            Action::ShopStock { target, item, op, count, price } => {
+                if let Some(i) = self.entity_index(target, ctx.owner) {
+                    self.change_stock(i, item, *op, *count, *price);
+                }
+                Step::Continue
+            }
             Action::Mood { target, mood } => {
                 self.set_mood(target, mood, ctx.owner);
                 Step::Continue
@@ -2574,8 +2618,15 @@ impl ActionHost for Game {
             }
             Action::SetActive { target, active } => {
                 if let Some(i) = self.entity_index(target, ctx.owner) {
-                    self.loaded.entities[i].active = *active;
-                    self.loaded.entities[i].away = false;
+                    let e = &mut self.loaded.entities[i];
+                    e.active = *active;
+                    e.hidden = !*active;
+                    e.away = false;
+                    // Shown, a character with a daily routine goes where the hour wants it
+                    // (another map's stop keeps it out of sight here).
+                    if *active && e.schedule.as_ref().is_some_and(|s| s.on) {
+                        self.place_on_schedule(i);
+                    }
                     self.persist(i);
                 }
                 Step::Continue
@@ -2851,7 +2902,7 @@ impl ActionHost for Game {
             // Characters that walked up to someone turn to face them.
             self.apply_face_after();
         }
-        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping()
+        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting()
     }
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {

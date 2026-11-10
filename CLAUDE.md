@@ -8,10 +8,21 @@ before merging, commit messages — are in AGENTS.md and apply in full:
 
 ## Working with the user
 
+- **Content first.** Every request (features, fixes, editor workflows) is solved with the
+  engine's own tools: event triggers, conditions and actions, Rhai scripts, definitions (items,
+  props with states, characters, skills / spells with a *Script* effect, recipes, quests,
+  achievements, shops, loot), zones, structures, terrains, art and sounds. The result goes into
+  the starter asset library, and into the example project when it should be seen in play (see
+  *Content route* below). **Before changing Rust code (`crates/`), stop and ask the user**: say
+  what the content route can't do and propose the smallest generic engine addition (a script
+  function, an action / condition, a definition field) on which the feature is then built as
+  content. This holds for fixes too: a broken quest is content; an engine bug is a proposal.
+  Library or example data that is plainly wrong is fixed as content without asking.
 - The user asks for features in one or two sentences and expects them **working in the
   running binaries**, not just compiling. Verify every feature end to end (scripted runs +
   screenshots, see *Verification*) and report what was tested; say plainly what wasn't.
-- Pick sensible defaults instead of asking, and mention them in the summary. Ask only when a
+- Pick sensible defaults instead of asking (Rust changes excepted, see *Content first*), and
+  mention them in the summary. Ask only when a
   decision really is the user's (e.g. which of two incompatible behaviours they want).
 - **Branches:** follow AGENTS.md. Before any change: `git branch --show-current` and
   `git status`. Work on `feature/<name>` or `bugfix/<name>` created from an up-to-date
@@ -31,10 +42,19 @@ before merging, commit messages — are in AGENTS.md and apply in full:
 - `ROADMAP.md` holds the planned releases and their work items with design notes. When the
   user asks for the next feature or names a roadmap item, start from its block, follow *How to
   work from this roadmap* there and keep the item's status up to date.
-- Keep `README.md` up to date with every user-visible feature (controls table, editor
-  section, scripting API), and `Documentation/scripting.md` with every script API change
-  (tests fail when an engine script function is missing there or in the editor's `API` table,
-  and the document's code examples must compile).
+- **Documentation:** `README.md` is the landing page (pitch, screenshots, highlights, download,
+  build); the **Creator's Manual** (`Documentation/manual/`, one chapter per area, index in its
+  `README.md`) describes every user-visible feature and how to use it: keep it up to date with
+  every change creators or players see (controls in `15-players-guide.md`, editor tools and forms
+  in their chapters, game systems in `09-gameplay.md`). Add a README highlight only for notable
+  features. Keep the manual's `08-scripting.md` current with every script API change (tests fail
+  when an engine script function is missing there or in the editor's `API` table, and its code
+  examples must compile), `07-events.md` with every event, condition and action,
+  `13-ai-agents.md` with every agent server tool (a test) and `17-testing.md` with every
+  autoplay command (a test). `Documentation/architecture.md` is the only document outside the
+  manual (for developers of the engine).
+  Screenshots live in `Documentation/images/` as lossless WebP (taken with autoplay / editor
+  scripts on a scratch copy of the example).
 
 ## Workspace map
 
@@ -118,11 +138,12 @@ crates/xtask/           `cargo xtask check-version | check-branch | release-note
                         seconds) and `cargo xtask-dist` (feature `dist`: toolkit AppImage + Flatpak, Windows
                         zip, macOS app folder + tar to sign on a Mac)
 .github/                workflows/ci.yml (required checks), workflows/release.yml (merge into master =
-                        tag + GitHub Release with the toolkit AppImage / Flatpak + back-merge PR),
-                        workflows/macos-build.yml (universal macOS editor + game, artifact
-                        rustpg2d-macos-build), workflows/macos-app.yml (codesign + zip of the app
-                        the Packages job assembled), both called by ci.yml and release.yml,
-                        actions/packages (build + smoke test), dependabot, PR / issue templates
+                        tag + GitHub Release with the packages of the merged PR's CI run + back-merge PR),
+                        workflows/builds.yml (release builds of every platform in parallel: macOS per
+                        architecture, Linux + xtask, web, Windows), workflows/macos-app.yml (codesign +
+                        zip of the app the Packages job assembled), both called by ci.yml and release.yml,
+                        actions/packages (assembly: llvm-lipo, xtask dist, smoke test; no compiling),
+                        dependabot, PR / issue templates
 crates/editor/src/      editor binary
   main.rs               loop + RUSTPG2D_EDITOR_SCRIPT command runner
   mcp/                  the AI agent server (Assets › AI agent server…): server.rs (rmcp Streamable HTTP on
@@ -190,7 +211,31 @@ example_project/        the example game, plain project files (edit them through
 - egui closures: take what you need out of `self` first (or use thread_local request hooks as
   in `maps.rs`, `models.rs`, `widgets::request_chooser`) to avoid borrow conflicts.
 
-### Where a new feature usually has to touch
+### Content route (the default for every feature)
+
+1. **Look up what exists**: the script API (`engine/src/script_api.rs`,
+   `Documentation/manual/08-scripting.md`), the event system (`events/mod.rs`: `TriggerOn`, `Cond`,
+   `Action::templates()`; `Documentation/manual/07-events.md`), the definition forms, the agent server's
+   tools (`Documentation/manual/13-ai-agents.md`).
+2. **Build it** on a scratch copy of the example project, then in `example_project/` through the
+   editor or its AI agent server (`write_script` + `check_script`, `upsert_def`, `write_asset`,
+   `capture_structure`, map and trigger tools). Hang script functions on assets (an item's, prop's
+   or character's definition triggers, a skill / spell *Script* effect): the library carries the
+   functions an asset needs (`library.rs`, `Bundle::collect_with_scripts` into
+   `scripts/library.rhai`), so a feature travels as assets. Story-specific logic of the example
+   (quest steps, dialogs) goes on placed entities, zones and map triggers instead, so the
+   definitions stay reusable.
+3. **Put it into the starter library** with `library_send {assets, replace: true}`: feature
+   assets keep their scripted triggers and functions. `drop_script_triggers: true` is only for
+   example assets whose definition triggers run the example's story scripts (see *Example
+   content*). Keep `lang/de.ron` complete.
+4. **Verify** with autoplay and screenshots like any feature (*Verification*).
+5. **Document**: the manual chapter of the area (saying it is library content), CHANGELOG *Unreleased*.
+
+When the user approved an engine change, the addition is generic and small, and the feature
+itself is still built as content on top of it. The checklist below is for that case.
+
+### Where a new feature usually has to touch (approved engine changes)
 
 - **New `Action` / `Cond` variant:** `events/mod.rs` (variant at the end, `label()`,
   `templates()`), execution in `runtime/mod.rs` (`execute`) or `Condition::eval` /
@@ -200,7 +245,7 @@ example_project/        the example game, plain project files (edit them through
   `engine/src/script_api.rs` (parameters with their `Arg` kinds, description) — that one table
   drives the editor's completion, the agent server's API resource, renames and the script check
   (id arguments), translation templates (text arguments) and the flag / variable collectors; a
-  test fails until `Documentation/scripting.md` describes it too. Note `go` and a few other words
+  test fails until `Documentation/manual/08-scripting.md` describes it too. Note `go` and a few other words
   are reserved in Rhai.
 - **New definition fields:** `TilesetDef`, `SheetDef`, `ItemDef`, `PropDef` and `CharacterDef`
   implement `Default` by hand (= the serde defaults; the test `defaults_match_the_file_format`
@@ -212,8 +257,9 @@ example_project/        the example game, plain project files (edit them through
 - **Player-facing text:** run it through `WorldState::expand_text` (`{player}`,
   `{sir|madam}`, `{var}`) like dialogs, choices and quest texts.
 - **Example content:** `example_project/` and `crates/editor/assets/starter_library/` are plain
-  files (the generator that once wrote them was removed in 0.11.0). Edit them with the editor
-  and its AI agent server (`Documentation/mcp.md`): start
+  files (the generator that once wrote them was removed in 0.11.0), and the place where new
+  features are built (*Content route*). Edit them with the editor
+  and its AI agent server (`Documentation/manual/13-ai-agents.md`): start
   `RUSTPG2D_LIBRARY=crates/editor/assets/starter_library target/debug/rustpg2d-editor example_project`
   with `RUSTPG2D_EDITOR_SCRIPT="mcp on PORT; wait 3600; quit"` (plus scratch `RUSTPG2D_SETTINGS_DIR` /
   `RUSTPG2D_EDITOR_CONFIG`) and drive it with an MCP client (as `crates/editor/examples/mcp_smoke.rs`
@@ -221,7 +267,8 @@ example_project/        the example game, plain project files (edit them through
   draw or render them (e.g. a Python / PIL script in the scratchpad), then `write_asset` +
   `upsert_def`; new structures: build them on a map, `capture_structure`. Every example asset
   must also be in the starter library, identical (test `starter_library_has_every_example_asset`):
-  send new or changed ones with `library_send {assets, replace: true, drop_script_triggers: true}`.
+  send new or changed ones with `library_send {assets, replace: true}`, adding
+  `drop_script_triggers: true` for assets whose definition triggers run the example's story scripts.
   Library-only assets: open the starter folder itself as a project (`rustpg2d-editor
   crates/editor/assets/starter_library`). Keep `lang/de.ron` complete and without leftovers
   (`translation_template de`, `write_translation`; tests in `lang.rs`). Existing entities keep
@@ -303,7 +350,7 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   `WINEPREFIX`; on this machine Wine's EGL fails on the NVIDIA GPU, so use `env -u WAYLAND_DISPLAY
   __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1`.
   Paths for the game under Wine: `Z:/…` (shots, project folders).
-- **macOS:** the universal runner and editor can only be built on a Mac (README, *macOS games*);
+- **macOS:** the universal runner and editor can only be built on a Mac (README, *Building on macOS*);
   the Linux editor finds the runner as `target/release/rustpg2d-game-macos`, `cargo xtask-dist`
   the pair in `target/macos/` (then sign `dist/macos/R(ust)PG2D.app` on the Mac with
   `codesign --force --deep --sign -`, as CI does). When the user provides a test Mac

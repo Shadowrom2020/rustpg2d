@@ -210,6 +210,7 @@ pub fn action_summary(a: &Action) -> String {
         Action::SetState { target, state } => format!("{target} {} state {state}", ph::ARROW_RIGHT),
         Action::SetActive { target, active } => format!("{target} {}", if *active { "appears" } else { "disappears" }),
         Action::PlaySound { sound } => format!("sound {sound}"),
+        Action::ShowImage { sheet, wait, scroll, .. } => format!("image {sheet}{}{}", if *scroll { " (scrolls)" } else { "" }, if *wait { "" } else { " behind" }),
         Action::Wait { seconds } => format!("wait {seconds} s"),
         Action::If { conditions, then, otherwise } => format!("if {} ({} then, {} else)", conds_summary(conditions), then.len(), otherwise.len()),
         other => other.label().to_string(),

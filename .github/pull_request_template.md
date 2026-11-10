@@ -15,6 +15,6 @@
 ## Checklist
 
 - [ ] `cargo build --workspace`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace` pass
-- [ ] CHANGELOG.md (*Unreleased*), README.md and Documentation/scripting.md updated where users see a change
+- [ ] CHANGELOG.md (*Unreleased*), the manual (Documentation/manual/; every script function in 08-scripting.md) and README.md highlights updated where users see a change
 - [ ] Old maps, definitions and save games still load (new enum variants appended, new fields have serde defaults)
 - [ ] Example assets that changed are in `crates/editor/assets/starter_library/` too

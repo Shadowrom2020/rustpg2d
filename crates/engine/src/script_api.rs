@@ -3,7 +3,7 @@
 //! feeds the script editor's completion and signature hints, the agent server's API resource,
 //! the renames and the script check (which arguments are ids: [`api_ids`]), the translation
 //! templates (which arguments are texts) and the editor's flag / variable collectors. A test
-//! keeps it complete against `script.rs` and `Documentation/scripting.md`.
+//! keeps it complete against `script.rs` and `Documentation/manual/08-scripting.md`.
 
 use std::sync::LazyLock;
 
@@ -87,6 +87,7 @@ pub const API: &[ApiFn] = api! {
     "is_female"() "Whether the player character is female";
     "is_male"() "Whether the player character is male";
     "hour"() "Time of day in hours (0..24, e.g. 13.5 = half past one in the afternoon)";
+    "day"() "The in-game day (0 on the first day; sleeping and midnight move it on), e.g. for things that happen once a day";
     "is_night"() "Whether it is night (dark outdoors)";
     "set_hour"(hour: Num) "Sets the time of day, e.g. set_hour(22) (queued)";
     "skill"(skill: Skill) "The player's level in a skill (0 = none)";
@@ -123,6 +124,14 @@ pub const API: &[ApiFn] = api! {
     "unequip"(target: Target, slot: Text) "Takes off what a character wears in \"clothing\", \"head\", \"body\", \"weapon\", \"offhand\" or \"tool\" (into its carried items) (queued)";
     "give_item_to"(target: Target, item: Item, count: Num) "Adds items to what a character carries (dropped when it is defeated) (queued)";
     "take_item_from"(target: Target, item: Item, count: Num) "Takes items from what a character carries (queued)";
+    "teach_spell"(target: Target, spell: Spell) "Teaches a character a spell; a companion casts Heal and Bolt spells from its own mana (queued)";
+    "npc_knows_spell"(target: Target, spell: Spell) "Whether a character on the map has learned a spell (teach_spell, or a scroll given to a companion)";
+    "add_stock"(target: Target, item: Item, count: Num) "Adds items to a merchant's stock, e.g. what a villager produced (queued)";
+    "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
+    "stock_of"(target: Target, item: Item) "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
+    "show_image"(sheet: Sheet) "Shows a picture over the game (a sprite sheet drawn whole, scaled down to fit the window); the event waits until the player closes it (queued)";
+    "show_image"(sheet: Sheet, options: Opts) "Like show_image(); options #{ wait: false (stays under the following dialogs until the event ends or hide_image()), scroll: true (a tall picture pans down and back up), speed: pixels per second, scale: 2 (pixel art bigger) } (queued)";
+    "hide_image"() "Takes away a picture shown with show_image() (queued)";
     "hide_ui"() "Hides the HUD (status frame, clock, quick bar, buttons), e.g. for a cut-scene; dialogs still show. The player shows it again with H (queued)";
     "show_ui"() "Shows the HUD again after hide_ui() or H (queued)";
     "player_x"() "The player's x position in tiles (fractional; the feet)";
@@ -264,10 +273,10 @@ mod tests {
         // ... and the table has nothing the engine doesn't know.
         let unknown: Vec<&str> = API.iter().map(|f| f.name).filter(|n| !registered.contains(n)).collect();
         assert!(unknown.is_empty(), "not registered in the engine: {unknown:?}");
-        // ... and Documentation/scripting.md describes every one.
-        let doc = include_str!("../../../Documentation/scripting.md");
+        // ... and Documentation/manual/08-scripting.md describes every one.
+        let doc = include_str!("../../../Documentation/manual/08-scripting.md");
         let undocumented: Vec<&&str> = registered.iter().filter(|n| !doc.contains(&format!("`{n}("))).collect();
-        assert!(undocumented.is_empty(), "missing in Documentation/scripting.md: {undocumented:?}");
+        assert!(undocumented.is_empty(), "missing in Documentation/manual/08-scripting.md: {undocumented:?}");
     }
 
     /// The id arguments derived from the table are the ones renames and the script check knew
@@ -304,6 +313,12 @@ mod tests {
             ("give_item_to", 1, IdKind::Item),
             ("take_item_from", 1, IdKind::Item),
             ("effect", 0, IdKind::Sheet),
+            ("show_image", 0, IdKind::Sheet),
+            ("add_stock", 1, IdKind::Item),
+            ("teach_spell", 1, IdKind::Spell),
+            ("npc_knows_spell", 1, IdKind::Spell),
+            ("set_stock", 1, IdKind::Item),
+            ("stock_of", 1, IdKind::Item),
             ("defeated_count", 0, IdKind::Character),
             ("can_craft", 0, IdKind::Recipe),
             ("unlock_achievement", 0, IdKind::Achievement),

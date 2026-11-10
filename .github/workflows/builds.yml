@@ -1,0 +1,114 @@
+# The release builds of R(ust)PG2D, each platform on its own runner at the same time (they used to
+# run one after the other): the packages (.github/actions/packages) only assemble them.
+#   macos   (a Mac, one job per architecture): editor + game for Apple Silicon and Intel; the
+#           Packages job joins them into universal binaries (llvm-lipo)
+#   linux:   editor + game, plus the packaging tool (xtask with feature dist)
+#   web:     the game for browsers (wasm32)
+#   windows: editor + game cross-compiled with MinGW-w64
+# Each uploads its binaries as an artifact (rustpg2d-<platform>-build). Called by ci.yml (pull
+# requests into master, manual runs) and release.yml (only when the pull request's packages
+# can't be reused).
+name: Builds
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    name: macOS build (${{ matrix.target }})
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [aarch64-apple-darwin, x86_64-apple-darwin]
+    env:
+      # The app and exported games say macOS 11 (the first with Apple Silicon) in their Info.plist.
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: macos-${{ matrix.target }}
+      - run: cargo build --release --locked -p rustpg2d-editor -p rustpg2d-game --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rustpg2d-macos-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/rustpg2d-editor
+            target/${{ matrix.target }}/release/rustpg2d-game
+          retention-days: 7
+
+  linux:
+    name: Linux build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: linux-build
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev
+      - run: cargo build --release --locked -p rustpg2d-editor -p rustpg2d-game
+      # The packaging tool, so the Packages job needs no Rust toolchain. A separate build: the
+      # dist feature must not change the features the editor and the game are built with.
+      - run: cargo build --release --locked -p xtask --features dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rustpg2d-linux-build
+          path: |
+            target/release/rustpg2d-editor
+            target/release/rustpg2d-game
+            target/release/xtask
+          retention-days: 7
+
+  web:
+    name: Web build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: web-build
+      - run: cargo build --release --locked --target wasm32-unknown-unknown -p rustpg2d-game
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rustpg2d-web-build
+          path: target/wasm32-unknown-unknown/release/rustpg2d-game.wasm
+          retention-days: 7
+
+  windows:
+    name: Windows build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: windows-build
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends gcc-mingw-w64-x86-64
+      - run: cargo build --release --locked --target x86_64-pc-windows-gnu -p rustpg2d-editor -p rustpg2d-game
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rustpg2d-windows-build
+          path: |
+            target/x86_64-pc-windows-gnu/release/rustpg2d-editor.exe
+            target/x86_64-pc-windows-gnu/release/rustpg2d-game.exe
+          retention-days: 7

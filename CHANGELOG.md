@@ -3,6 +3,67 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.13.0 — 2026-11-10
+
+### Gameplay
+- **Companions learn spells**: a character with mana (*Database › Characters › Magic*:
+  `max_mana`, `mana_regen`) learns the *Heal* or *Bolt* spell of a scroll or spell book handed to
+  it as a companion (a scroll that is used up when read is used up), or from the *Teach spell*
+  action / `teach_spell(target, spell)`; `npc_knows_spell` tells. It casts *Heal* on the most hurt
+  of the player, the companions and itself (a knocked-down one first) and *Bolt* at the enemy it
+  fights, from its own mana. The HUD row shows its mana, the companion window its spells; spells
+  and mana are kept in save games (spells also when it is dismissed). `status` prints
+  `:mana=a/b:spells=…` for companions. In the example the town guard has mana.
+- **Villagers who produce**: the *Shop stock* action and `add_stock` / `set_stock` / `stock_of`
+  change a merchant's stock; `day()` counts in-game days. In the example, Finn's catch is for
+  sale at his fish stall the next morning and Bram's apple pies at his bread stall (a restock
+  script on the fisher's and the baker's definitions, in the asset library too); Finn tells you so
+  while he fishes.
+- **Pictures over the game** (*Show image* / *Hide image* actions, `show_image(sheet[, options])` /
+  `hide_image()`): a sprite sheet drawn whole, at its own size or scaled down to fit the window
+  (aspect ratio kept, drawn smoothly when shrunk). *Scroll* pans a picture taller than the window
+  down and back up, and the player can scroll it by hand. *Wait until closed* lets the event go on
+  once the player closes it; without it the picture stays behind the following dialogs until the
+  event ends. `status` prints `image=`. In the example, Tilda shows a full-body painting and her
+  portrait the first time the player enters her shop.
+
+### Fixes
+- **Hidden characters stayed hidden only until their schedule moved them.** A character placed
+  hidden (or switched off with *Set active*) that has a daily routine was shown again at its next
+  stop, and visited other maps all the same. Now schedules only move hidden characters out of sight
+  and back; *Set active* shows them at the stop the hour wants. In the example, Pip was in the game
+  twice: sick in bed and running around the village before he was cured, and in his bed twice at
+  night. He is now only sick in bed until cured, and only up and about afterwards.
+- Curing Pip also played his "I feel so hot" line right after the cure (both of his triggers ran);
+  his lines are one trigger now.
+
+### Documentation
+- **The Creator's Manual** (`Documentation/manual/`): seventeen chapters on making games with
+  R(ust)PG2D, from getting started and the editor through maps, objects and zones, the Database,
+  characters, events, scripting, the gameplay systems, art and sound, the asset library,
+  languages, AI agents and publishing to a player's guide, troubleshooting and testing, with
+  screenshots.
+- **One place for everything**: the separate scripting, events, AI agent server and autoplay
+  references are merged into the manual (chapter 8 holds every script function, chapter 13 every
+  agent tool, the new chapter 17 *Testing your game* the autoplay commands; agents get the
+  trigger JSON from `events_reference`). The editor's agent server serves the chapters as its
+  `rustpg2d://docs/…` resources. Only `Documentation/architecture.md`, for developers of the
+  engine, stays outside the manual.
+- **README** rewritten as the project's landing page: what R(ust)PG2D is, screenshots of the game
+  and the editor, highlights, downloads, a first game in five minutes and building from source.
+  Its former detailed sections live on in the manual.
+- The events reference said only the first matching *Interact* trigger runs; every trigger whose
+  conditions hold runs (all conditions are checked before any action), as the manual explains.
+
+### Maintenance
+- **Faster releases.** The release builds run at the same time (macOS per architecture, Linux,
+  web, Windows) instead of one after the other, and the *Packages* check only assembles them: a
+  pull request into master takes about 15 minutes instead of 27. Merging it no longer builds
+  everything again: the Release workflow publishes the packages that pull request's CI run built
+  (the same tree), so the release and the back-merge pull request follow in about a minute
+  instead of 30. Pushes to master and the back-merge only report the checks their trees already
+  passed.
+
 ## 0.12.0 — 2026-11-09
 
 A quality and reliability release: characters no longer search for paths every frame, files are

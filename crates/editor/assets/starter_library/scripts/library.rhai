@@ -28,3 +28,29 @@ fn fireball_hit(x, y) {
 fn scavenging(level) {
     set_var("scavenging", level);
 }
+
+// The baker's apple pies, baked at dawn.
+fn restock_baking() {
+    restock_from_activity(SELF, "apple_pie", 2, 6);
+}
+
+// The fisher's catch of the day before (he fishes at dawn and in the afternoon).
+fn restock_catch() {
+    restock_from_activity(SELF, "trout", 3, 8);
+}
+
+fn restock_from_activity(owner, item, per_day, max) {
+    let key = "stocked_day_" + owner + "_" + item;
+    let days = day() - get_var(key);
+    if days > 0 {
+        let add = days * per_day;
+        let room = max - stock_of("self", item);
+        if add > room {
+            add = room;
+        }
+        if add > 0 {
+            add_stock("self", item, add);
+        }
+        set_var(key, day());
+    }
+}

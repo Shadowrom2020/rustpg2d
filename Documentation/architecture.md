@@ -3,7 +3,7 @@
 How the engine, the game runner and the editor fit together: the technology, the data model, the
 runtime's frame, the editor and its agent server, the file formats and their compatibility rules,
 the verification tooling, and the caveats worth knowing. Written for people (and agents) changing
-the code; [README.md](../README.md) is the user manual, [CLAUDE.md](../CLAUDE.md) the working rules
+the code; the [Creator's Manual](manual/README.md) is the user manual, [CLAUDE.md](../CLAUDE.md) the working rules
 and the module-by-module map.
 
 ## 1. Technology
@@ -190,19 +190,19 @@ means per format:
   is registered in `script.rs` and described once in the `API` table of `script_api.rs` (parameter
   kinds: `Arg::Id` for ids, `Arg::Line` for a line players read, `Arg::Text` for other words),
   which drives the editor's completion, renames, the script check, translation templates and the
-  flag / variable collectors; `Documentation/scripting.md` must describe it too (a test checks).
+  flag / variable collectors; the manual's chapter 8 (`Documentation/manual/08-scripting.md`) must describe it too (a test checks).
 
 ## 6. Verification tooling
 
 | Tool | What it drives | Where it runs |
 |---|---|---|
-| `RUSTPG2D_AUTOPLAY="…"` | the game: key presses, clicks, saves, `status` (a line with every runtime state field), screenshots | every feature is verified with it; `Documentation/autoplay.md` |
+| `RUSTPG2D_AUTOPLAY="…"` | the game: key presses, clicks, saves, `status` (a line with every runtime state field), screenshots | every feature is verified with it; `Documentation/manual/17-testing.md` |
 | `RUSTPG2D_EDITOR_SCRIPT="…"` | the editor: tools, Database tabs, library, exports, MCP on/off, screenshots | the same |
 | `crates/editor/examples/mcp_smoke.rs` | a real MCP client against the running editor: tools, resources, prompts, `write_asset`, `upsert_def`, `capture_structure`, `library_send`, `play_test` | by hand with a scratch library |
 | `cargo test --workspace` | unit tests: formats, library merges, scripting, translations, starter-library consistency; `crates/engine/tests/compat.rs` loads files of earlier versions (`tests/fixtures/`) | CI on every pull request |
 | `scripts/ci/smoke.sh` | the game and the editor on a scratch copy of the example project: title, a map, the clock, an old save, quick save, a map change with its autosave, the editor opening a map, the MCP smoke client | CI's *Runtime smoke* job (Xvfb) on every pull request; locally with a display |
-| CI (`.github/workflows/ci.yml`) | *Branch policy*, *Build, lint, test* on every PR; *Version*, *Packages* (release builds, AppImage/Flatpak/Windows/macOS, an Xvfb smoke run of game and editor), *Windows*, *macOS*, *macOS app* on PRs into master | GitHub Actions |
-| Release workflow | tags, publishes the packages, opens the back-merge PR | merges into master |
+| CI (`.github/workflows/ci.yml`) | *Branch policy*, *Build, lint, test* on every PR; *Version*, the release builds (`builds.yml`: every platform at once), *Packages* (assembles AppImage/Flatpak/Windows/macOS, an Xvfb smoke run of game and editor), *Windows*, *macOS*, *macOS app* on PRs into master; already tested trees (a merge into master, a back-merge with master's tree) only report | GitHub Actions |
+| Release workflow | publishes the packages of the merged PR's CI run (builds them only when they are gone), tags, opens the back-merge PR | merges into master |
 
 ## 7. Caveats and performance characteristics
 

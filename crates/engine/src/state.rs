@@ -239,6 +239,10 @@ pub struct WorldState {
     /// Characters following the player, in the order they joined.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub companions: Vec<Companion>,
+    /// Spells characters learned, by where they are placed ("map/uid"): companions cast them.
+    /// Kept when a companion is dismissed.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub npc_spells: BTreeMap<String, Vec<String>>,
 }
 
 /// A placed character that follows the player from map to map. Its look, items and triggers
@@ -262,6 +266,9 @@ pub struct Companion {
     /// Told to stay: where it waits on the current map (world pixels); None = follows.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub post: Option<[f32; 2]>,
+    /// Its mana (None = full).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mana: Option<f32>,
 }
 
 /// How a companion fights (`Companion::order`); staying put is separate (`Companion::post`).
@@ -383,6 +390,21 @@ impl WorldState {
     /// The placed character `uid` of `map` follows the player.
     pub fn is_companion(&self, map: &str, uid: u32) -> bool {
         self.companions.iter().any(|c| c.uid == uid && c.map == map)
+    }
+
+    /// The spells the character placed as `uid` on `map` has learned.
+    pub fn npc_spells(&self, map: &str, uid: u32) -> &[String] {
+        self.npc_spells.get(&format!("{map}/{uid}")).map_or(&[], Vec::as_slice)
+    }
+
+    /// Teaches it `spell`; false when it knew it already.
+    pub fn teach_npc(&mut self, map: &str, uid: u32, spell: &str) -> bool {
+        let known = self.npc_spells.entry(format!("{map}/{uid}")).or_default();
+        if known.iter().any(|s| s == spell) {
+            return false;
+        }
+        known.push(spell.to_string());
+        true
     }
 
     /// Adds a line to the dialog log (dropping the oldest beyond [`DIALOG_LOG_MAX`]).
@@ -681,7 +703,7 @@ mod tests {
         assert!(!old.contains("companions"));
         assert!(WorldState::from_ron(&old).unwrap().companions.is_empty());
         let mut w = WorldState::default();
-        w.companions.push(Companion { map: "village".into(), uid: 22, name: "guard".into(), hp: Some(5), down: None, order: Order::Defend, post: Some([100.0, 200.0]) });
+        w.companions.push(Companion { map: "village".into(), uid: 22, name: "guard".into(), hp: Some(5), down: None, order: Order::Defend, post: Some([100.0, 200.0]), mana: None });
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert_eq!(back.companions, w.companions);
         assert!(back.is_companion("village", 22) && !back.is_companion("forest", 22));

@@ -1205,6 +1205,11 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         Action::LearnSpell { spell } => {
             labeled(ui, "spell", |ui| suggest(ui, &format!("{id}/sp"), spell, &refs.spells, 120.0));
         }
+        Action::TeachSpell { target, spell } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "spell", |ui| suggest(ui, &format!("{id}/sp"), spell, &refs.spells, 120.0));
+            ui.weak("(a character learns it; as a companion it casts Heal and Bolt spells from its mana: Database › Characters › Magic)");
+        }
         Action::AddMana { amount } => {
             labeled(ui, "mana", |ui| {
                 ui.add(egui::DragValue::new(amount).range(-999..=999)).on_hover_text("Negative drains mana");
@@ -1545,6 +1550,43 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 ui.add(egui::TextEdit::singleline(mood).desired_width(120.0).hint_text("worried"));
             });
             ui.weak("(the portrait of that mood, from the character's definition, until changed or the event ends; empty = its usual portrait)");
+        }
+        Action::ShowImage { sheet, wait, scroll, speed, scale } => {
+            labeled(ui, "picture", |ui| suggest(ui, &format!("{id}/sheet"), sheet, &refs.sheets, 140.0));
+            ui.weak("(a sprite sheet, drawn whole: Database › Sprite sheets)");
+            labeled(ui, "", |ui| {
+                ui.checkbox(wait, "Wait until closed").on_hover_text(
+                    "On: the event goes on once the player closes the picture (E, click or Esc). Off: it stays under the following dialogs until 'Hide image' or the end of the event",
+                );
+                ui.checkbox(scroll, "Scroll").on_hover_text("A picture taller than the window keeps the window's width and pans down and back up; the player can scroll it with the arrow keys or the mouse wheel");
+            });
+            labeled(ui, "size", |ui| {
+                ui.add(egui::DragValue::new(scale).range(0.05..=16.0).speed(0.05).prefix("x "))
+                    .on_hover_text("1 = the picture's own pixels (painted art); 2, 3 … for small pixel art. Too large for the window: scaled down to fit, aspect ratio kept");
+                if *scroll {
+                    ui.label("speed");
+                    ui.add(egui::DragValue::new(speed).range(1.0..=2000.0).speed(1.0).suffix(" px/s"));
+                }
+            });
+        }
+        Action::HideImage => {
+            ui.weak("(takes away the picture of 'Show image')");
+        }
+        Action::ShopStock { target, item, op, count, price } => {
+            target_field(ui, id, target, refs);
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_id_salt(format!("{id}/op")).width(60.0).selected_text(if *op == VarOp::Add { "add" } else { "set to" }).show_ui(ui, |ui| {
+                    ui.selectable_value(op, VarOp::Add, "add");
+                    ui.selectable_value(op, VarOp::Set, "set to");
+                });
+                ui.add(egui::DragValue::new(count).range(0..=9999));
+                ui.label("x");
+                suggest(ui, &format!("{id}/it"), item, &refs.items, 110.0);
+            });
+            labeled(ui, "price", |ui| {
+                ui.add(egui::DragValue::new(price).range(0..=99999)).on_hover_text("For a new line in the stock; 0 = the item's value");
+            });
+            ui.weak("(a merchant's stock: what villagers produce reaches their stall; 'set to' 0 removes the item)");
         }
         Action::OpenCompanion { target } => {
             target_field(ui, id, target, refs);

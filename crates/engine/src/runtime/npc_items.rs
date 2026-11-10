@@ -91,6 +91,10 @@ impl Game {
             remove(&mut e.inventory, item, (-count) as u32);
         }
         self.persist_npc_items(i);
+        // A scroll or spell book given to a companion teaches it the spell.
+        if count > 0 {
+            self.npc_received(i, item);
+        }
     }
 
     /// A defeated NPC drops everything it wore and carried (next to its loot).

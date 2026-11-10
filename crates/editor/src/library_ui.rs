@@ -905,20 +905,23 @@ mod tests {
 
     /// Everything the example project has (but its quests, achievements and story scripts) is in
     /// the starter library, identical: send changed example assets with the AI agent server's
-    /// `library_send` (replace, drop_script_triggers) and `RUSTPG2D_LIBRARY` set to
-    /// `crates/editor/assets/starter_library`.
+    /// `library_send` (replace) and `RUSTPG2D_LIBRARY` set to `crates/editor/assets/starter_library`.
+    /// A definition matches with its scripted triggers (library features such as the fisher's
+    /// restock, whose functions travel along) or without them (`drop_script_triggers`: triggers
+    /// that run the example's story scripts stay with the example).
     #[test]
     fn starter_library_has_every_example_asset() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example_project");
         let example = Project::load(&root).unwrap();
-        let mut ex = Bundle::collect(&example.db, &root, rustpg2d_engine::project::TILE_SIZE, "", &library::all_assets(&example.db)).unwrap();
+        let full = Bundle::collect(&example.db, &root, rustpg2d_engine::project::TILE_SIZE, "", &library::all_assets(&example.db)).unwrap();
+        let mut ex = full.clone();
         ex.drop_script_triggers();
         let st = starter();
         let mut wrong = Vec::new();
         for a in library::all_assets(&ex.db) {
             if !library::exists(&st.db, &a) {
                 wrong.push(format!("{} {} is missing", kind_label(a.0), a.1));
-            } else if !library::same_def(&ex.db, &st.db, &a) {
+            } else if !library::same_def(&ex.db, &st.db, &a) && !library::same_def(&full.db, &st.db, &a) {
                 wrong.push(format!("{} {} differs", kind_label(a.0), a.1));
             }
         }

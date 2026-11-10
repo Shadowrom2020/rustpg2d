@@ -32,9 +32,9 @@ impl Game {
         }
     }
 
-    /// Frame size of a model's body sheet (32 x 48 if it is missing).
+    /// World size of a model's body frame (32 x 48 if the sheet is missing).
     pub(super) fn character_frame_size(&self, a: &Appearance) -> (f32, f32) {
-        self.assets.sheets.get(&a.body).map_or((32.0, 48.0), |t| (t.frame_w, t.frame_h))
+        self.assets.sheets.get(&a.body).map_or((32.0, 48.0), |t| t.world_size().into())
     }
 
     /// The player's model: the creator's choice, else the player definition's.

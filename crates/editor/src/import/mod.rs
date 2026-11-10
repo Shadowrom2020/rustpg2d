@@ -65,11 +65,13 @@ pub struct ImportDialog {
     pub id: String,
     pub sheet_kind: SheetKind,
     pub female: bool,
+    /// The new sheet's scale (`SheetDef::scale`: 2 = high-resolution art).
+    pub scale: u32,
 }
 
 impl Default for ImportDialog {
     fn default() -> Self {
-        ImportDialog { kind: ImportKind::Tiled, id: String::new(), sheet_kind: SheetKind::Body, female: false }
+        ImportDialog { kind: ImportKind::Tiled, id: String::new(), sheet_kind: SheetKind::Body, female: false, scale: 1 }
     }
 }
 
@@ -109,7 +111,9 @@ fn stem(path: &Path) -> String {
 
 impl Editor {
     /// Imports `path`; `id` = map name / sheet id ("" = from the file name). Returns the report.
-    pub fn run_import(&mut self, kind: ImportKind, path: &Path, id: &str, sheet_kind: SheetKind, female: bool) -> Result<String> {
+    /// `scale`: the new sheet's `SheetDef::scale` (LPC, Aseprite).
+    pub fn run_import(&mut self, kind: ImportKind, path: &Path, id: &str, sheet_kind: SheetKind, female: bool, scale: u32) -> Result<String> {
+        let scale = scale.clamp(1, 4);
         if !self.project_open {
             bail!("open a project first");
         }
@@ -137,7 +141,7 @@ impl Editor {
                 let (sheet, note) = lpc::convert(&img)?;
                 let id = unique_id(&base, |c| self.project.db.sheet(c).is_some());
                 let rel = write_new(&root, "sprites", &id, "png", &sheet.encode()?)?;
-                self.project.db.sheets.push(SheetDef { kind: sheet_kind, female: female && sheet_kind == SheetKind::Body, ..SheetDef::new(&id, &rel, lpc::FRAME, lpc::FRAME) });
+                self.project.db.sheets.push(SheetDef { kind: sheet_kind, female: female && sheet_kind == SheetKind::Body, scale, ..SheetDef::new(&id, &rel, lpc::FRAME, lpc::FRAME) });
                 self.after_import();
                 let mut msg = format!(
                     "Imported LPC sheet '{id}' as {} ({rel}: the walk cycle, 4 frames per direction, 64×64). Colors stay as drawn (no skin / hair recoloring).",
@@ -161,7 +165,7 @@ impl Editor {
                 let id = unique_id(&base, |c| self.project.db.sheet(c).is_some());
                 let rel = write_new(&root, "sprites", &id, "png", &sheet.encode()?)?;
                 let names: Vec<String> = tags.iter().map(|t| t.name.clone()).collect();
-                self.project.db.sheets.push(SheetDef { tags, ..SheetDef::new(&id, &rel, parsed.frame_w, parsed.frame_h) });
+                self.project.db.sheets.push(SheetDef { tags, scale, ..SheetDef::new(&id, &rel, parsed.frame_w, parsed.frame_h) });
                 self.after_import();
                 let mut msg = format!(
                     "Imported sprite sheet '{id}' ({rel}: {} frames of {}×{}; animations: {}).",
@@ -188,7 +192,7 @@ impl Editor {
     /// Runs an import and shows its result.
     pub fn import_and_report(&mut self, kind: ImportKind, path: &Path) {
         let d = self.import.take().unwrap_or_default();
-        let r = self.run_import(kind, path, &d.id, d.sheet_kind, d.female);
+        let r = self.run_import(kind, path, &d.id, d.sheet_kind, d.female, d.scale);
         let text = match &r {
             Ok(m) => m.clone(),
             Err(e) => format!("Import failed: {e:#}"),
@@ -226,6 +230,17 @@ impl Editor {
                                 ui.checkbox(&mut d.female, "female body");
                             }
                         });
+                        ui.end_row();
+                    }
+                    if d.kind != ImportKind::Tiled {
+                        ui.label("Scale");
+                        ui.horizontal(|ui| {
+                            for k in 1..=4u32 {
+                                ui.radio_value(&mut d.scale, k, format!("{k}\u{00D7}"));
+                            }
+                        })
+                        .response
+                        .on_hover_text("2\u{00D7} for high-resolution art: the frames are drawn at half their pixel size (64\u{00D7}96 fills a 32\u{00D7}48 place)");
                         ui.end_row();
                     }
                 });

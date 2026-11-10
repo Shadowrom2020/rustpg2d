@@ -182,7 +182,8 @@ fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance, eq: &Equipment) {
     let order = [Facing::Down, Facing::Left, Facing::Up, Facing::Right];
     let facing = if st.turning { order[(t / 1.5) as usize % 4] } else { st.facing };
     let col = (t * 7.0) as u32 % character::LAYOUT_FRAMES;
-    let (fw, fh) = cx.assets.sheets.get(&a.body).map_or((32.0, 48.0), |s| (s.frame_w, s.frame_h));
+    // (World size: a high-resolution body shows as big as a 1x one.)
+    let (fw, fh) = cx.assets.sheets.get(&a.body).map_or((32.0, 48.0), |s| (s.world_size().x, s.world_size().y));
     let scale = (PREVIEW_H / fh).floor().max(1.0);
     ui.vertical(|ui| {
         let (r, _) = ui.allocate_exact_size(vec2((fw * scale).max(120.0), PREVIEW_H + 6.0), Sense::hover());

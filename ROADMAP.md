@@ -90,7 +90,7 @@ Instructions for every session (people and coding agents) that implements roadma
 
 ## 0.16.0 — A new look
 
-- [ ] High-resolution sprites — `feature/hires-sprites`
+- [x] High-resolution sprites — `feature/hires-sprites`
 
   **Goal.** Sprite sheets can carry twice the detail: a sheet drawn at half its pixel size, so
   64×96 art fills the same 32×48 place as today's characters. Old 1× sheets keep working and
@@ -104,7 +104,19 @@ Instructions for every session (people and coding agents) that implements roadma
   its full detail; at zoom 1 it is sampled down. The pixel editor edits at the image's own
   resolution. Import (LPC, Aseprite) can set the scale.
 
-  **Engine.** Proposed (needs the go-ahead): the field, the drawing, the editor views.
+  **Decided while building.** `scale` is 1-4, written to the file only when above 1. `SheetTex`
+  keeps `frame_w` / `frame_h` in image pixels (where frames are cut; the editor's egui previews
+  slice textures with them) and gains `scale` and `world_size()`: every engine draw function
+  draws at image size / scale, and the places that meant world size (character height, click
+  areas, the editor canvas, structure sizes, the builder preview, parallax layers) use it.
+  Tilesets stay 1x; *Show image* keeps fitting the picture. Changing a sheet's frame size or
+  scale on the form reloads the textures. The 2x test body (Scale2x of `body_male`, which keeps
+  the reference shades so recolouring works) stayed in the scratchpad; the new-style art is the
+  next item.
+
+  **Engine.** Agreed: `SheetDef::scale`, the drawing (`render/mod.rs`, `parallax.rs`,
+  `paperdoll.rs`, `mouse.rs`), the sheet form's *Scale*, the import dialog's scale (editor
+  script `import … scale=N`), the agent server's sheet notes.
 
   **Verify.** Unit tests (draw size per scale); autoplay shots of a 2× test body next to 1×
   characters at zoom 2 and 3; editor shots of the sheet picker and the canvas; the web export.

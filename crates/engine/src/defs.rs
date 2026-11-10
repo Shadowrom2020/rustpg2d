@@ -157,8 +157,13 @@ fn full_volume() -> f32 {
 pub struct SheetDef {
     pub id: String,
     pub image: String,
+    /// Frame size in image pixels.
     pub frame_w: u32,
     pub frame_h: u32,
+    /// Image pixels per world pixel (1 = as before; 2 = high resolution: 64 x 96 frames fill a
+    /// 32 x 48 place). Positions, hitboxes and tiles stay in world pixels.
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub scale: u32,
     /// What the sheet is for (offered by the matching pickers: bodies, hair styles, ...).
     #[serde(default, skip_serializing_if = "SheetKind::is_sprite")]
     pub kind: SheetKind,
@@ -187,7 +192,7 @@ pub struct SheetTag {
 /// tile. The editor's "+ New" value is [`SheetDef::fresh`].
 impl Default for SheetDef {
     fn default() -> Self {
-        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, kind: SheetKind::Sprite, female: false, playable: false, tags: Vec::new() }
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, tags: Vec::new() }
     }
 }
 
@@ -1848,6 +1853,17 @@ mod tests {
         assert!(other.remove::<PropDef>("chest") && other.props.is_empty());
         assert_eq!(<ItemDef as Def>::KIND, RefKind::Item);
         assert!(RefKind::DEFS.iter().all(|k| db.ids_of(*k).len() <= 1));
+    }
+
+    /// Sheets of older files are 1x; 1x isn't written out, 2x round-trips.
+    #[test]
+    fn sheet_scale() {
+        let s: SheetDef = ron::from_str(r#"(id: "s", image: "sprites/s.png", frame_w: 32, frame_h: 48)"#).unwrap();
+        assert_eq!(s.scale, 1);
+        assert!(!ron::to_string(&s).unwrap().contains("scale"));
+        let hd = SheetDef { scale: 2, ..SheetDef::new("hd", "sprites/hd.png", 64, 96) };
+        let back: SheetDef = ron::from_str(&ron::to_string(&hd).unwrap()).unwrap();
+        assert_eq!(back, hd);
     }
 
     /// Weapons of older files hit critically 5 % of the time.

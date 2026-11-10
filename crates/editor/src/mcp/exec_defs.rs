@@ -51,7 +51,7 @@ macro_rules! def_facts {
 }
 
 def_facts!(TilesetDef, |d| format!("image {}; {} solid tiles; terrains [{}]; {} animations", d.image, d.solid.len(), d.terrains.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", "), d.animations.len()));
-def_facts!(SheetDef, |d| format!("image {}; {}x{} px frames; {:?}{}{}", d.image, d.frame_w, d.frame_h, d.kind, if d.female { "; female cut" } else { "" }, if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) }));
+def_facts!(SheetDef, |d| format!("image {}; {}x{} px frames{}; {:?}{}{}", d.image, d.frame_w, d.frame_h, if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() }, d.kind, if d.female { "; female cut" } else { "" }, if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) }));
 def_facts!(ItemDef, |d| {
     let mut f = vec![format!("\"{}\"", d.name)];
     if let Some(w) = &d.weapon {
@@ -179,7 +179,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         ),
         RefKind::Sheet => (
             val(&SheetDef::new(id, "sprites/<file>.png", 32, 32)),
-            "kind: Sprite (props, effects) | Body | Hair | Beard | Outfit | Armor | Held (layered characters: 4 rows down/left/right/up, 4 frames); frame_w/frame_h in px; tags: named frame ranges [{name, first, last, fps}].",
+            "kind: Sprite (props, effects) | Body | Hair | Beard | Outfit | Armor | Held (layered characters: 4 rows down/left/right/up, 4 frames); frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art, 64x96 frames fill a 32x48 place); tags: named frame ranges [{name, first, last, fps}].",
         ),
         RefKind::Item => (
             val(&ItemDef::fresh(id)),

@@ -10,6 +10,21 @@
 - **Portraits** can be any size (64 × 64 works well).
 - Keep images at most 2048 pixels wide and high; the editor shrinks bigger ones for display.
 
+### High-resolution sprites
+
+A sprite sheet can carry more detail than its place in the world: its **Scale** (*Database ›
+Sprite sheets*) says how many image pixels make one world pixel. At **2×** a character frame is
+drawn 64 × 96 pixels in the image and fills the same 32 × 48 place as a 1× character, with twice
+the detail; item icons are 64 × 64, and so on (3× and 4× work the same way). Sheets of different
+scales mix freely: a 2× body wears 1× hair and outfits, and they line up. Positions, hitboxes and
+tiles stay in world pixels, and tilesets are always 1×.
+
+The game draws the world magnified (the project's *Scale* times the player's *Zoom*), so a 2× sheet
+shows all its detail at a magnification of 2 or more; at less it is sampled down. The frame size
+on the form is in image pixels; the form shows the size in the world below it. The pixel editor
+works on the image's own pixels, and the sheet and frame pickers show 2× frames at the same size
+as 1× ones. A 2× body must still use the skin and hair reference shades below.
+
 Positions of entities are their **feet** (bottom centre), which is how characters stand on tiles
 and sort in front of and behind each other.
 
@@ -82,6 +97,9 @@ recoloured.
 **Aseprite sprite sheets** (the JSON of *File › Export Sprite Sheet*, next to its PNG): the frames are
 packed into a grid and the tags become the sheet's **animations**, which the *Effect* and *Fly*
 actions offer and scripts play with `effect(sheet, x, y, #{ tag: "explode" })`.
+
+For LPC and Aseprite imports the dialog also asks for the **Scale** of the new sheet (2× for art
+drawn at twice the resolution; see [High-resolution sprites](#high-resolution-sprites)).
 
 ## Sounds and music
 

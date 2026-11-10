@@ -367,7 +367,9 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "held" => SheetKind::Held,
                 _ => SheetKind::Body,
             };
-            ed.import = Some(import::ImportDialog { kind, id: arg(3).to_string(), sheet_kind, female: false });
+            // (import KIND FILE [ID] [SHEETKIND] [scale=N])
+            let scale = cmd.iter().find_map(|a| a.strip_prefix("scale=")).and_then(|v| v.parse().ok()).unwrap_or(1);
+            ed.import = Some(import::ImportDialog { kind, id: arg(3).to_string(), sheet_kind, female: false, scale });
             ed.import_and_report(kind, std::path::Path::new(arg(2)));
             println!("[import] {}", ed.import_report.as_ref().map_or(String::new(), |r| r.1.clone()));
         }

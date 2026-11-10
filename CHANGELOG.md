@@ -23,6 +23,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   should mark the low ones (barrels, crates, furniture); until then archers can't shoot over them.
 
 ### Fixes
+- Merchants whose daily schedule takes them to another map didn't open their shop there (Brom the
+  blacksmith, who works and sleeps in the smithy, never sold anything): a visitor's shop and stock
+  now come from where it is placed, the same wherever it stands; `stock_of` / `add_stock` reach it
+  too.
 - Arrows, bolts and flying spell sprites (`fly()`, the fireball) were drawn on top of tree crowns,
   tall props and characters they flew behind; they are now drawn in depth order with characters
   and props (overhead tile layers still cover them).

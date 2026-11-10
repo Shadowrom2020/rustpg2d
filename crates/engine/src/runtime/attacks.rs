@@ -185,7 +185,8 @@ impl Game {
     fn maybe_start_attack(&mut self, i: usize, kind: Kind) {
         let ts = self.ts();
         let e = &self.loaded.entities[i];
-        if e.ai.aggro <= 0.0 && matches!(e.behavior, Behavior::Chase { .. }) || e.knock != Vec2::ZERO {
+        // Group fighters waiting for their turn don't attack.
+        if e.ai.aggro <= 0.0 && matches!(e.behavior, Behavior::Chase { .. }) || e.knock != Vec2::ZERO || e.ai.circling {
             return;
         }
         let center = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0);

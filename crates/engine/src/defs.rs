@@ -1012,13 +1012,26 @@ pub enum Behavior {
         /// coming closer once the player is well within range).
         #[serde(default)]
         keep_distance: f32,
+        /// Fights as a group with others that chase: at most two close in on one target at a
+        /// time (the rest circle and wait for a gap), they spread out instead of stacking, and the
+        /// badly hurt run to their allies and come back.
+        #[serde(default = "yes")]
+        group: bool,
+        /// On noticing the player, alerts others of the same kind within this many tiles (0 = never).
+        #[serde(default = "default_alert")]
+        alert: f32,
     },
 }
 
+fn default_alert() -> f32 {
+    6.0
+}
+
 impl Behavior {
-    /// Chasing with only a sight range (no leash, never flees, no kept distance).
+    /// Chasing with only a sight range (no leash, never flees, no kept distance; fights as a
+    /// group and alerts its kind within 6 tiles).
     pub fn chase(sight: f32) -> Self {
-        Behavior::Chase { sight, leash: 0.0, flee_below: 0.0, keep_distance: 0.0 }
+        Behavior::Chase { sight, leash: 0.0, flee_below: 0.0, keep_distance: 0.0, group: true, alert: default_alert() }
     }
 }
 
@@ -1829,6 +1842,18 @@ mod tests {
         assert!(other.remove::<PropDef>("chest") && other.props.is_empty());
         assert_eq!(<ItemDef as Def>::KIND, RefKind::Item);
         assert!(RefKind::DEFS.iter().all(|k| db.ids_of(*k).len() <= 1));
+    }
+
+    /// Chasers of older files fight as a group and alert their kind within 6 tiles, like
+    /// `Behavior::chase`; both can be switched off.
+    #[test]
+    fn chase_group_defaults() {
+        let b: Behavior = ron::from_str("Chase(sight: 4.0)").unwrap();
+        assert_eq!(b, Behavior::chase(4.0));
+        let Behavior::Chase { group, alert, .. } = b else { panic!() };
+        assert!(group && alert == 6.0);
+        let b: Behavior = ron::from_str("Chase(sight: 4.0, group: false, alert: 0.0)").unwrap();
+        assert!(matches!(b, Behavior::Chase { group: false, alert: 0.0, .. }));
     }
 
     /// `Default` is what a file entry with only the required fields loads as (so tests and the

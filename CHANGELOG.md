@@ -6,6 +6,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Smarter enemies**: groups take turns: at most two melee enemies attack the player (or one
+  companion) at a time while the others circle around at a distance and step in when a place frees
+  up; they spread out instead of stacking. An enemy that first sees the player alerts others of its
+  kind within 6 tiles. Archers without a clear shot step sideways until they have one and aim a
+  little ahead of a walking player. Badly hurt enemies run to an ally, bring it along and come
+  back after catching their breath. New *Group* and *Alert* settings on the character form (on /
+  6 tiles by default, so existing projects get it too). `status ai=` shows `attack`, `circle` and
+  `regroup`.
 - **Emotions over heads**: characters and the player show a small animated icon over their head
   (surprise, joy, anger, love, thinking, sleepy and more: 14 in the starter library) with the new
   *Show emotion* / *Clear emotion* actions, `emote(target, emotion[, #{ seconds, wait }])`,

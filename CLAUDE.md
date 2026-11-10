@@ -42,10 +42,16 @@ before merging, commit messages — are in AGENTS.md and apply in full:
 - `ROADMAP.md` holds the planned releases and their work items with design notes. When the
   user asks for the next feature or names a roadmap item, start from its block, follow *How to
   work from this roadmap* there and keep the item's status up to date.
-- Keep `README.md` up to date with every user-visible feature (controls table, editor
-  section, scripting API), and `Documentation/scripting.md` with every script API change
-  (tests fail when an engine script function is missing there or in the editor's `API` table,
-  and the document's code examples must compile).
+- **Documentation:** `README.md` is the landing page (pitch, screenshots, highlights, download,
+  build); the **Creator's Manual** (`Documentation/manual/`, one chapter per area, index in its
+  `README.md`) describes every user-visible feature and how to use it: keep it up to date with
+  every change creators or players see (controls in `15-players-guide.md`, editor tools and forms
+  in their chapters, game systems in `09-gameplay.md`). Add a README highlight only for notable
+  features. Keep `Documentation/scripting.md` current with every script API change (tests fail
+  when an engine script function is missing there or in the editor's `API` table, and its code
+  examples must compile) and `Documentation/events.md` with every event, condition and action.
+  Screenshots live in `Documentation/images/` as lossless WebP (taken with autoplay / editor
+  scripts on a scratch copy of the example).
 
 ## Workspace map
 
@@ -221,7 +227,7 @@ example_project/        the example game, plain project files (edit them through
    example assets whose definition triggers run the example's story scripts (see *Example
    content*). Keep `lang/de.ron` complete.
 4. **Verify** with autoplay and screenshots like any feature (*Verification*).
-5. **Document**: README (the feature, saying it is library content), CHANGELOG *Unreleased*.
+5. **Document**: the manual chapter of the area (saying it is library content), CHANGELOG *Unreleased*.
 
 When the user approved an engine change, the addition is generic and small, and the feature
 itself is still built as content on top of it. The checklist below is for that case.
@@ -341,7 +347,7 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   `WINEPREFIX`; on this machine Wine's EGL fails on the NVIDIA GPU, so use `env -u WAYLAND_DISPLAY
   __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1`.
   Paths for the game under Wine: `Z:/…` (shots, project folders).
-- **macOS:** the universal runner and editor can only be built on a Mac (README, *macOS games*);
+- **macOS:** the universal runner and editor can only be built on a Mac (README, *Building on macOS*);
   the Linux editor finds the runner as `target/release/rustpg2d-game-macos`, `cargo xtask-dist`
   the pair in `target/macos/` (then sign `dist/macos/R(ust)PG2D.app` on the Mac with
   `codesign --force --deep --sign -`, as CI does). When the user provides a test Mac

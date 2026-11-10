@@ -5,6 +5,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Documentation
+- **The Creator's Manual** (`Documentation/manual/`): sixteen chapters on making games with
+  R(ust)PG2D, from getting started and the editor through maps, objects and zones, the Database,
+  characters, events, scripting, the gameplay systems, art and sound, the asset library,
+  languages, AI agents and publishing to a player's guide and troubleshooting, with screenshots.
+- **README** rewritten as the project's landing page: what R(ust)PG2D is, screenshots of the game
+  and the editor, highlights, downloads, a first game in five minutes and building from source.
+  Its former detailed sections live on in the manual.
+- The events reference said only the first matching *Interact* trigger runs; every trigger whose
+  conditions hold runs (all conditions are checked before any action), as the manual explains.
+
 ### Maintenance
 - **Faster releases.** The release builds run at the same time (macOS per architecture, Linux,
   web, Windows) instead of one after the other, and the *Packages* check only assembles them: a

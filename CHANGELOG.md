@@ -6,6 +6,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Gamepad glyphs and rebinding**: the help lines of windows and menus show the controller's
+  buttons as soon as a pad is used (and the keys again after a key press or a click), drawn in the
+  pad's style: Xbox (also the Steam Deck), PlayStation or Nintendo, detected from the pad or chosen
+  in *Options › Button style*. *Options › Controls* shows each action's button and rebinds it (A,
+  then the new button; X clears it), saved in `settings.ron` (`pad`, `pad_style`). Texts can name an
+  action's key or button: `{key:interact}` in dialogs, choices, quest texts, scripts' `say` and item
+  descriptions says "E" or "A". The example's tool descriptions use it. `status` prints `device=`
+  and `pad_style=`.
 - **Woodcutting** (starter library and example): a *Woodcutter's Axe* fells the Big Oak and Big
   Pine and the new *Young Oak* and *Young Pine* props for *Logs*; stumps grow back after a few days;
   a *Woodcutting* skill takes fewer strokes; at the new *Sawhorse* station logs become *Planks*, and

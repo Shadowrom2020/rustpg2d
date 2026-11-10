@@ -366,7 +366,7 @@ impl Game {
                 // Misses left.
                 let left = MAX_MISSES.saturating_sub(l.misses);
                 draw_text(format!("Picks left: {left}"), x + 24.0, y + 140.0, 20.0, if left <= 1 { Color::new(1.0, 0.55, 0.5, 1.0) } else { LIGHTGRAY });
-                draw_text("E / Space: set the pin while the marker is in the green   Esc: give up", x + 24.0, y + h - 18.0, 16.0, GRAY);
+                super::glyphs::draw_hint("{key:confirm}: set the pin while the marker is in the green   {key:cancel}: give up", x + 24.0, y + h - 18.0, 16.0, GRAY);
             }
             Kind::Fishing(f) => {
                 // The line and the bobber in front of the player.
@@ -390,9 +390,9 @@ impl Game {
                 let (x, y) = (((sw - w) / 2.0).round(), (sh - h - 110.0).round());
                 panel(x, y, w, h);
                 let (title, hint) = match f.phase {
-                    FishPhase::Wait(_) => ("Waiting for a bite...", "Wait for the bobber to dip   Esc: reel in"),
-                    FishPhase::Bite(_) => ("A bite! Strike now!", "E / Space: strike"),
-                    FishPhase::Reel => ("Reel it in!", "Hold E / Space to reel, let go before the line turns red"),
+                    FishPhase::Wait(_) => ("Waiting for a bite...", "Wait for the bobber to dip   {key:cancel}: reel in"),
+                    FishPhase::Bite(_) => ("A bite! Strike now!", "{key:confirm}: strike"),
+                    FishPhase::Reel => ("Reel it in!", "Hold {key:confirm} to reel, let go before the line turns red"),
                 };
                 draw_text(title, x + 18.0, y + 32.0, 24.0, if bite { GOLD } else { WHITE });
                 if f.phase == FishPhase::Reel {
@@ -407,7 +407,7 @@ impl Game {
                     bar(y + 46.0, f.tension, tc, "Tension");
                     bar(y + 70.0, f.progress, Color::new(0.35, 0.6, 0.95, 1.0), "Reeled");
                 }
-                draw_text(hint, x + 18.0, y + h - 12.0, 16.0, GRAY);
+                super::glyphs::draw_hint(hint, x + 18.0, y + h - 12.0, 16.0, GRAY);
             }
         }
         if let Some((won, _, msg)) = &m.done {

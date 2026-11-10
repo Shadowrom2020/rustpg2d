@@ -516,7 +516,7 @@ impl Game {
         let sel = self.shop_rows(side).into_iter().nth(self.shop.lists[side.idx()].sel);
         if let Some(d) = sel.as_ref().and_then(|r| self.project.db.item(&r.item)) {
             draw_text(&d.name, f.x + 10.0, f.y + 24.0, 22.0, GOLD);
-            for (k, line) in wrap_text(&d.description, 18, f.w - 190.0).iter().take(2).enumerate() {
+            for (k, line) in wrap_text(&super::glyphs::expand_keys(&d.description), 18, f.w - 190.0).iter().take(2).enumerate() {
                 draw_text(line, f.x + 10.0, f.y + 46.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
             }
         }
@@ -529,8 +529,8 @@ impl Game {
                 draw_text(text, f.x + f.w - tw - 10.0, f.y + 62.0, 20.0, c);
             }
         }
-        let hint = "Click price / Enter: trade one   Shift: ten   Wheel / Up / Down: select   Tab: switch side   Esc: close";
-        draw_text(hint, f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
+        let hint = "Click price / {key:confirm}: trade one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:next_tab}: switch side   {key:cancel}: close";
+        super::glyphs::draw_hint(hint, f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
     }
 }
 

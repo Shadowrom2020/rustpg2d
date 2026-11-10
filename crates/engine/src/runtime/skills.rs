@@ -610,11 +610,11 @@ impl Game {
         };
         draw_text(&head, r.x + PAD, r.y + 32.0, 22.0, if self.skills.tab == 0 && points > 0 { GOLD } else { LIGHTGRAY });
         let help = if self.skills.tab == 0 {
-            "Up/Down: select   Enter or +: spend a point   Tab: next tab   K / Esc: close"
+            "{key:up}/{key:down}: select   {key:confirm} or +: spend a point   {key:next_tab}: next tab   {key:skills} / {key:cancel}: close"
         } else {
-            "Up/Down: select   Enter: cast   1-8: put on the quick bar   Tab: next tab   L / Esc: close"
+            "{key:up}/{key:down}: select   {key:confirm}: cast   1-8: put on the quick bar   {key:next_tab}: next tab   {key:spells} / {key:cancel}: close"
         };
-        draw_text(help, r.x + PAD, r.y + r.h - 14.0, 16.0, GRAY);
+        super::glyphs::draw_hint(help, r.x + PAD, r.y + r.h - 14.0, 16.0, GRAY);
         draw_line(r.x + LIST_W + 8.0, r.y + LIST_TOP, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, Color::new(0.85, 0.8, 0.6, 0.4));
 
         let rows = self.skill_rows();

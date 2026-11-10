@@ -259,7 +259,7 @@ Instructions for every session (people and coding agents) that implements roadma
   **Verify.** Editor script: `select` with shift, `boxselect X Y W H` (new command), `move DX DY`,
   `delete`, `undo`; `status` prints `sel=N`; shots of a box selection.
 
-- [ ] Gamepad glyphs and rebinding — `feature/pad-glyphs`
+- [x] Gamepad glyphs and rebinding — `feature/pad-glyphs`
 
   **Goal.** Players with a gamepad (Steam Deck, Xbox, PlayStation, Switch controllers) see the
   buttons of their pad wherever the game names a key, and can rebind the pad's buttons like the
@@ -285,10 +285,18 @@ Instructions for every session (people and coding agents) that implements roadma
     `settings.ron` (`pad: BTreeMap<String, Vec<String>>`, serde default = today's layout).
     Movement stays on the stick and d-pad; Escape / Start stays fixed.
 
-  **Engine.** Proposed (needs the go-ahead): `input.rs` (last device, pad bindings like
-  `set_bindings`), `settings.rs` (`pad`), `menu.rs` (the page, button style), a glyph sheet in
-  the engine (`include_bytes!`, like the window icons), the `{key:…}` placeholder in
-  `state.rs::expand_text`, the hint texts in the runtime windows, German texts.
+  **Decided while building.** The glyphs are drawn from shapes and letters (`runtime/glyphs.rs`),
+  no image sheet. No separate Gamepad page: the Controls page shows each action's button in its
+  own column, and while it waits for input a key adds a key and a button sets the button (B and
+  Start cancel; X clears; one button per action). Hint lines are templates with `{key:ACTION}`
+  (and `{pad:NAME}`) tokens drawn by `glyphs::draw_hint`; the German runtime texts use the same
+  tokens and key names are translated ("Leertaste"). In content `{key:…}` becomes text (the key or
+  the button's name); item descriptions expand it too (`glyphs::expand_keys`). The keyboard label
+  of Escape is now "Esc". Actions without a pad button (drop, use) show their key in pad mode.
+
+  **Engine.** Agreed: `input.rs` (last device, pad bindings), new `runtime/glyphs.rs`,
+  `settings.rs` (`pad`, `pad_style`), `menu.rs`, the runtime hint lines, `state.rs::expand_text`,
+  `lang/de.ron`.
 
   **Example.** The example's first hints (the guard's "press E to talk", the crafting and
   fishing tutorials) use `{key:…}`.

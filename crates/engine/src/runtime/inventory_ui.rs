@@ -104,7 +104,7 @@ enum HudButton {
 }
 
 /// Help line of the inventory (Character tab).
-const INVENTORY_HINT: &str = "Double-click / Enter: use or equip · Drag to slots or quick bar (1-8) · G / drag out: drop (Shift+G: one) · Tab: next tab · Esc: close";
+const INVENTORY_HINT: &str = "Double-click / {key:confirm}: use or equip · Drag to slots or quick bar (1-8) · {key:drop} / drag out: drop ({key:run}+{key:drop}: one) · {key:next_tab}: next tab · {key:cancel}: close";
 
 impl Game {
     /// The HUD buttons with their screen rects, right to left.
@@ -320,7 +320,7 @@ impl Game {
                 }
                 // Loot: at least wide enough for the help line.
                 Some(_) => {
-                    let w = (right - left).max(measure_text(self.hint(), None, 16, 1.0).width + 2.0 * PAD);
+                    let w = (right - left).max(super::glyphs::measure_hint(self.hint(), 16.0) + 2.0 * PAD);
                     Rect::new(((left + right) / 2.0 - w / 2.0).round(), bottom + 6.0, w, DETAIL_H)
                 }
             },
@@ -990,7 +990,7 @@ impl Game {
 
     fn hint(&self) -> &'static str {
         if self.inv.loot.is_some() {
-            "Click: take/store stack · Right-click: one · Drag: move · T: take all · Esc: close"
+            "Click: take/store stack · Right-click: one · Drag: move · {key:take_all}: take all · {key:cancel}: close"
         } else {
             INVENTORY_HINT
         }

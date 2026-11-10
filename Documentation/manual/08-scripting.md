@@ -196,7 +196,11 @@ trigger calls; a helper function it calls doesn't see it, so pass it on as an ar
   - `{player}` — the player's name;
   - `{sir|madam}` — the first word for a male player character, the second for a female one
     (`{his|her}`, `{hero|heroine}`, …);
-  - `{name}` — the value of the variable `name`, e.g. `"You have defeated {slimes_defeated} slimes."`.
+  - `{name}` — the value of the variable `name`, e.g. `"You have defeated {slimes_defeated} slimes."`;
+  - `{key:ACTION}` — the key or gamepad button the player uses for an action, as text: `"Press
+    {key:interact} to talk."` says "Press E" with the keyboard and "Press A" with an Xbox pad. Action
+    ids: `confirm` (also `interact`), `attack`, `character`, `skills`, `spells`, `map`, `journal`,
+    `switch_weapon`, `command`, `quick1` … `quick8` and the others of the Controls page.
 - **Translations**: the texts of `say(…)` and `choice(…)` are looked up in the game's language
   files (`lang/<code>.ron`, *Database › Project › Languages*) like dialogs in triggers, by the
   exact text before the placeholders are filled in. Write a text as **one string with

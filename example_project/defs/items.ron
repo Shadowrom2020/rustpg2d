@@ -2212,4 +2212,19 @@
         max_stack: 30,
         value: 4,
     ),
+    (
+        id: "wolf_pelt",
+        name: "Wolf Pelt",
+        description: "A thick grey pelt. Tanners and traders pay well for it.",
+        icon: (
+            sheet: "materials",
+            frame: 3,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 20,
+        value: 12,
+    ),
 ]

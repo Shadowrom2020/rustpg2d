@@ -57,7 +57,7 @@ What you'll find in it:
   routines and go to bed at night.
 - **Whisperwood**, a forest with slimes, goblin archers, a bandit camp and a shrine at its heart;
   an **old mine** with ore veins and a pitch-dark treasure room; and **The Wilds**, a generated
-  1024 × 1024 map with forty enemy spawners.
+  1024 × 1024 map with fifty enemy spawners: slimes, goblin archers, wolf packs and bat swarms.
 - **Six quests**: *The Strange Lights* (the main quest from Elder Rowan), *Pest Control* (Tilda's
   slime hunt), *The Lost Cat*, *Bread for the Festival*, *The Herbalist's Remedy* and *Rumours at
   the Tavern*.

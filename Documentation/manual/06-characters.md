@@ -8,7 +8,7 @@ in *Database › Characters*, placed on maps with the Entities tool.
 Every character is a **body** dressed in layers:
 
 - the **body**: people in underwear (male, female, goblin, female goblin), or a whole creature for
-  monsters and animals (slimes, skeletons, bats, chickens);
+  monsters and animals (slimes, wolves, skeletons, bats, chickens);
 - **skin colour**, **hair style**, **hair colour** and, for men, a **beard**;
 - **clothing**: an outfit, with a fitted female cut on female bodies;
 - **armor** over it: a helmet, body armor;

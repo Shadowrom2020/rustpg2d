@@ -1504,4 +1504,13 @@
         female: true,
         complete: true,
     ),
+    (
+        id: "wolf",
+        image: "sprites/wolf.png",
+        frame_w: 64,
+        frame_h: 64,
+        scale: 2,
+        kind: Body,
+        complete: true,
+    ),
 ]

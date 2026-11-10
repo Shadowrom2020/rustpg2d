@@ -1055,6 +1055,10 @@ pub struct CharacterDef {
     /// A status effect its touch gives the player (hostile characters, with contact damage).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub touch_effect: Option<crate::effects::EffectSpec>,
+    /// Seconds a hostile character winds up before its weapon swing or lunge (0 = the standard
+    /// 0.4 s swing / 0.3 s lunge): the time the player has to step out of the way.
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub windup: f32,
     /// What the bestiary says about it (shown once the player has defeated one).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
@@ -1118,6 +1122,7 @@ impl Default for CharacterDef {
             defense: 0,
             xp: 0,
             touch_effect: None,
+            windup: 0.0,
             description: String::new(),
             triggers: vec![],
             shop: None,

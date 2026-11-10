@@ -3,6 +3,18 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Gameplay
+- **Enemy attacks you can see coming**: armed enemies (a melee weapon in their equipment) stop at
+  their weapon's reach, wind up (the weapon raised, a red zone on the ground where the swing will
+  land), swing in the direction they locked for the weapon's damage, reach, arc and knockback, and
+  recover; stepping out of the zone dodges the blow. Unarmed chasers (slimes) crouch and lunge,
+  hurting only during the hop. Armed enemies and chasers no longer hurt by touch; they attack
+  companions too, and companions' swings are drawn. *Attack wind-up* on the character form
+  (`windup`) changes the timing. In the example the outlaws' swords and the bandit chief's axe
+  now count (the chief hits harder and slower). `status` prints `attacks=`.
+
 ## 0.14.0 — 2026-11-10
 
 ### Gameplay

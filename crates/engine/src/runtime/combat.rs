@@ -177,8 +177,10 @@ impl Game {
             self.attack_at(None);
         }
         self.enemy_shooting(dt);
+        self.update_attacks(dt);
         self.companion_contact_damage();
-        // Contact damage from hostile characters.
+        // Contact damage from hostile characters that don't attack in their own way (armed ones
+        // swing, unarmed chasers lunge: `attacks.rs`).
         if self.combat.invuln <= 0.0 {
             let me = inflate(self.player.rect(), 1.0);
             // Stunned characters don't hurt; strength / weakness change the damage.
@@ -186,7 +188,7 @@ impl Game {
                 .loaded
                 .entities
                 .iter()
-                .position(|e| e.active && e.hostile && e.damage > 0 && !e.ai.harmless() && !crate::effects::stunned(&e.effects) && e.body.rect().overlaps(&me));
+                .position(|e| e.active && e.hostile && e.damage > 0 && !e.ai.harmless() && !crate::effects::stunned(&e.effects) && e.body.rect().overlaps(&me) && super::attacks::kind_of(e.weapon.as_ref(), e.damage, &e.behavior).is_none());
             if let Some(i) = hit {
                 let e = &self.loaded.entities[i];
                 let (dmg, from) = (crate::effects::scale_damage(&e.effects, e.damage), e.body.pos);

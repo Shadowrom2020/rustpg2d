@@ -10,6 +10,7 @@ mod builder;
 mod canvas;
 mod clipboard;
 mod database;
+mod db_undo;
 mod doc;
 mod export;
 mod package;
@@ -338,6 +339,9 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 d.redo(&ed.assets);
             }
         }
+        // dbundo / dbredo: undo / redo a definition change (the Database mode's Ctrl+Z / Ctrl+Y)
+        "dbundo" => ed.db_undo(),
+        "dbredo" => ed.db_redo(),
         "save" => ed.save_all(),
         // play [start]: F5 (from the camera / selected spawn) or F6 (project start); the game
         // inherits the environment, so RUSTPG2D_AUTOPLAY can drive the play-test
@@ -558,7 +562,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -568,6 +572,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.doc.as_ref().is_some_and(|d| d.is_dirty()),
             ed.library_mode,
             ed.defs_dirty,
+            ed.db_hist.status(),
             ed.lib.add.as_ref().map_or("closed".to_string(), |d| format!("{:?}:{}", d.kind, d.picked.len())),
             ed.builder_status(),
             ed.audio.previewing(),

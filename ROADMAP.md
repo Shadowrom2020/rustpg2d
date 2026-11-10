@@ -205,7 +205,7 @@ Instructions for every session (people and coding agents) that implements roadma
   one log fewer; coal no longer lights it; cook a trout; `settime +5` → unlit again; the forge
   still takes coal.
 
-- [ ] Editor: undo in the Database — `feature/db-undo`
+- [x] Editor: undo in the Database — `feature/db-undo`
 
   **Goal.** Ctrl+Z / Ctrl+Y (and the Edit menu) undo and redo changes to definitions (items,
   props, characters, quests, skills, spells, recipes, achievements, sheets, tilesets, sounds,
@@ -218,8 +218,16 @@ Instructions for every session (people and coding agents) that implements roadma
   shortcut acts on what has focus: the map canvas → map undo, the Database → Database undo. The
   agent server's `upsert_def` / `delete_def` create steps too.
 
-  **Engine.** Editor code (needs the go-ahead): `doc.rs`-like stack in `database.rs`, hooks in
-  `app.rs` menus / shortcuts.
+  **Decided while building.** Steps are found by comparing the definitions and project settings
+  with the previous frame (about 9 µs a frame on the example), so every source of changes is
+  covered without hooks in the forms; a step is a copy of the state before it. Typing merges while
+  the same egui field keeps the focus and pauses stay under 1.5 s. Id renames and prop-state
+  renames record themselves (`DbHistory::record`) and are undone by renaming back. The file
+  watcher used to reload the editor's own saves a second later; it now leaves them alone (and
+  keeps the history) when the files hold what the editor has. New `db_undo.rs`.
+
+  **Engine.** Agreed: editor code only (`db_undo.rs`, hooks in `app.rs`, `database.rs`,
+  `mcp/watcher.rs`, `main.rs`).
 
   **Verify.** Editor script: `mode db; tab items potion`, change a field (script command), `undo`,
   `status` shows the old value; rename an item → undo restores the id and the references; MCP

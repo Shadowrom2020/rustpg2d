@@ -288,6 +288,8 @@ pub struct Editor {
     /// Definitions and project settings as last loaded / saved: `defs_dirty` is cleared again
     /// when the edits are reverted (e.g. undone in a text field, a checkbox toggled back).
     pub(crate) defs_saved: Box<(rustpg2d_engine::defs::Database, rustpg2d_engine::project::ProjectConfig)>,
+    /// Undo / redo of definition and project-setting changes (`db_undo.rs`).
+    pub db_hist: crate::db_undo::DbHistory,
     /// This editor is the Asset Library window (`--library`): `project` is the library.
     pub library_mode: bool,
     /// Lighting preview: renderer and the map's tile lights (refreshed twice a second).
@@ -429,6 +431,7 @@ impl Editor {
             pending: None,
             defs_dirty: false,
             defs_saved: Box::new((project.db.clone(), project.config.clone())),
+            db_hist: Default::default(),
             library_mode: false,
             lib_window: Default::default(),
             lib_stamp: None,
@@ -777,6 +780,7 @@ impl Editor {
             }
         }
         self.defs_dirty = true;
+        self.db_hist.record(crate::db_undo::Extra::StateRename { prop: prop.to_string(), old: old.to_string(), new: new.to_string() });
         self.set_status(format!("Renamed state '{old}' \u{E13A} '{new}' of '{prop}' ({changed} placed prop(s) updated). Save the definitions to keep it."));
     }
 
@@ -864,6 +868,7 @@ impl Editor {
         if !errors.is_empty() {
             msg = format!("{msg}; errors: {}", errors.join("; "));
         }
+        self.db_hist.record(crate::db_undo::Extra::Rename { kind, old: old.to_string(), new: new.to_string() });
         Ok(msg)
     }
 
@@ -1292,6 +1297,7 @@ impl Editor {
             println!("[probe] {p:?}: layer {layer:?} (pixels per point {ppp})");
         }
         self.poll_file_dialog();
+        self.db_history_frame(ctx);
         if self.defs_dirty && self.defs_saved.0 == self.project.db && self.defs_saved.1 == self.project.config {
             self.defs_dirty = false; // edited and changed back
         }
@@ -1480,15 +1486,26 @@ impl Editor {
                     }
                 });
                 ui.menu_button("Edit", |ui| {
-                    let (u, r) = self.doc.as_ref().map_or((false, false), |d| (d.can_undo(), d.can_redo()));
-                    if ui.add_enabled(u, egui::Button::new(ui::t(ph::ARROW_ARC_LEFT, "Undo   Ctrl+Z"))).clicked() {
-                        if let Some(d) = &mut self.doc {
+                    // The Database mode undoes definition changes, the others map edits.
+                    let defs = self.mode == Mode::Database;
+                    let (u, r) = if defs {
+                        (self.db_hist.can_undo(), self.db_hist.can_redo())
+                    } else {
+                        self.doc.as_ref().map_or((false, false), |d| (d.can_undo(), d.can_redo()))
+                    };
+                    let what = if defs { " (definitions)" } else { "" };
+                    if ui.add_enabled(u, egui::Button::new(ui::t(ph::ARROW_ARC_LEFT, &format!("Undo{what}   Ctrl+Z")))).clicked() {
+                        if defs {
+                            self.db_undo();
+                        } else if let Some(d) = &mut self.doc {
                             d.undo(&self.assets);
                         }
                         ui.close_menu();
                     }
-                    if ui.add_enabled(r, egui::Button::new(ui::t(ph::ARROW_ARC_RIGHT, "Redo   Ctrl+Y"))).clicked() {
-                        if let Some(d) = &mut self.doc {
+                    if ui.add_enabled(r, egui::Button::new(ui::t(ph::ARROW_ARC_RIGHT, &format!("Redo{what}   Ctrl+Y")))).clicked() {
+                        if defs {
+                            self.db_redo();
+                        } else if let Some(d) = &mut self.doc {
                             d.redo(&self.assets);
                         }
                         ui.close_menu();

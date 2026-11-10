@@ -47,9 +47,12 @@ before merging, commit messages — are in AGENTS.md and apply in full:
   `README.md`) describes every user-visible feature and how to use it: keep it up to date with
   every change creators or players see (controls in `15-players-guide.md`, editor tools and forms
   in their chapters, game systems in `09-gameplay.md`). Add a README highlight only for notable
-  features. Keep `Documentation/scripting.md` current with every script API change (tests fail
+  features. Keep the manual's `08-scripting.md` current with every script API change (tests fail
   when an engine script function is missing there or in the editor's `API` table, and its code
-  examples must compile) and `Documentation/events.md` with every event, condition and action.
+  examples must compile), `07-events.md` with every event, condition and action,
+  `13-ai-agents.md` with every agent server tool (a test) and `17-testing.md` with every
+  autoplay command (a test). `Documentation/architecture.md` is the only document outside the
+  manual (for developers of the engine).
   Screenshots live in `Documentation/images/` as lossless WebP (taken with autoplay / editor
   scripts on a scratch copy of the example).
 
@@ -211,9 +214,9 @@ example_project/        the example game, plain project files (edit them through
 ### Content route (the default for every feature)
 
 1. **Look up what exists**: the script API (`engine/src/script_api.rs`,
-   `Documentation/scripting.md`), the event system (`events/mod.rs`: `TriggerOn`, `Cond`,
-   `Action::templates()`; `Documentation/events.md`), the definition forms, the agent server's
-   tools (`Documentation/mcp.md`).
+   `Documentation/manual/08-scripting.md`), the event system (`events/mod.rs`: `TriggerOn`, `Cond`,
+   `Action::templates()`; `Documentation/manual/07-events.md`), the definition forms, the agent server's
+   tools (`Documentation/manual/13-ai-agents.md`).
 2. **Build it** on a scratch copy of the example project, then in `example_project/` through the
    editor or its AI agent server (`write_script` + `check_script`, `upsert_def`, `write_asset`,
    `capture_structure`, map and trigger tools). Hang script functions on assets (an item's, prop's
@@ -242,7 +245,7 @@ itself is still built as content on top of it. The checklist below is for that c
   `engine/src/script_api.rs` (parameters with their `Arg` kinds, description) — that one table
   drives the editor's completion, the agent server's API resource, renames and the script check
   (id arguments), translation templates (text arguments) and the flag / variable collectors; a
-  test fails until `Documentation/scripting.md` describes it too. Note `go` and a few other words
+  test fails until `Documentation/manual/08-scripting.md` describes it too. Note `go` and a few other words
   are reserved in Rhai.
 - **New definition fields:** `TilesetDef`, `SheetDef`, `ItemDef`, `PropDef` and `CharacterDef`
   implement `Default` by hand (= the serde defaults; the test `defaults_match_the_file_format`
@@ -256,7 +259,7 @@ itself is still built as content on top of it. The checklist below is for that c
 - **Example content:** `example_project/` and `crates/editor/assets/starter_library/` are plain
   files (the generator that once wrote them was removed in 0.11.0), and the place where new
   features are built (*Content route*). Edit them with the editor
-  and its AI agent server (`Documentation/mcp.md`): start
+  and its AI agent server (`Documentation/manual/13-ai-agents.md`): start
   `RUSTPG2D_LIBRARY=crates/editor/assets/starter_library target/debug/rustpg2d-editor example_project`
   with `RUSTPG2D_EDITOR_SCRIPT="mcp on PORT; wait 3600; quit"` (plus scratch `RUSTPG2D_SETTINGS_DIR` /
   `RUSTPG2D_EDITOR_CONFIG`) and drive it with an MCP client (as `crates/editor/examples/mcp_smoke.rs`

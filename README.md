@@ -79,7 +79,7 @@ for how to use it all.
 - The web export writes a zip ready to upload to **itch.io** as an HTML game; Linux games also as AppImage and Flatpak.
 
 **Building with AI, if you like**
-- The editor's built-in [AI agent server](Documentation/mcp.md) lets Claude Code, Cursor and other assistants read your project, build maps, quests and scripts with you, and play-test the result. Every change shows up in the editor at once and can be undone.
+- The editor's built-in [AI agent server](Documentation/manual/13-ai-agents.md) lets Claude Code, Cursor and other assistants read your project, build maps, quests and scripts with you, and play-test the result. Every change shows up in the editor at once and can be undone.
 
 ## Meet Emberbrook
 
@@ -130,12 +130,10 @@ publishing on itch.io.
 
 | | |
 |---|---|
-| [Creator's Manual](Documentation/manual/README.md) | Everything for making games: the editor, maps, characters, events, scripting, gameplay systems, art and sound, the asset library, translations, AI agents, publishing |
-| [Scripting reference](Documentation/scripting.md) | Every script function with examples |
-| [Events reference](Documentation/events.md) | Every trigger event, condition and action |
-| [AI agent server](Documentation/mcp.md) | Connecting AI assistants to the editor, and its tools |
-| [Architecture](Documentation/architecture.md) | How the engine, the game runner and the editor work inside |
-| [Autoplay](Documentation/autoplay.md) | Driving the game from a script, for tests |
+| [Creator's Manual](Documentation/manual/README.md) | Everything for making games: the editor, maps, characters, events, scripting, gameplay systems, art and sound, the asset library, translations, AI agents, publishing, testing |
+| [Scripting](Documentation/manual/08-scripting.md) | Every script function with examples (chapter 8 of the manual) |
+| [AI agents](Documentation/manual/13-ai-agents.md) | Connecting AI assistants to the editor, and every tool they get (chapter 13) |
+| [Architecture](Documentation/architecture.md) | How the engine, the game runner and the editor work inside (for developers of R(ust)PG2D) |
 
 ## Building from source
 

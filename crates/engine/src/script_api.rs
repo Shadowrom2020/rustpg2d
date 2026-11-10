@@ -3,7 +3,7 @@
 //! feeds the script editor's completion and signature hints, the agent server's API resource,
 //! the renames and the script check (which arguments are ids: [`api_ids`]), the translation
 //! templates (which arguments are texts) and the editor's flag / variable collectors. A test
-//! keeps it complete against `script.rs` and `Documentation/scripting.md`.
+//! keeps it complete against `script.rs` and `Documentation/manual/08-scripting.md`.
 
 use std::sync::LazyLock;
 
@@ -273,10 +273,10 @@ mod tests {
         // ... and the table has nothing the engine doesn't know.
         let unknown: Vec<&str> = API.iter().map(|f| f.name).filter(|n| !registered.contains(n)).collect();
         assert!(unknown.is_empty(), "not registered in the engine: {unknown:?}");
-        // ... and Documentation/scripting.md describes every one.
-        let doc = include_str!("../../../Documentation/scripting.md");
+        // ... and Documentation/manual/08-scripting.md describes every one.
+        let doc = include_str!("../../../Documentation/manual/08-scripting.md");
         let undocumented: Vec<&&str> = registered.iter().filter(|n| !doc.contains(&format!("`{n}("))).collect();
-        assert!(undocumented.is_empty(), "missing in Documentation/scripting.md: {undocumented:?}");
+        assert!(undocumented.is_empty(), "missing in Documentation/manual/08-scripting.md: {undocumented:?}");
     }
 
     /// The id arguments derived from the table are the ones renames and the script check knew

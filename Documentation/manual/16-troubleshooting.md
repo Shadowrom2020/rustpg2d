@@ -43,7 +43,7 @@ triggers conditions that exclude each other ([Events › How triggers run](07-ev
 
 **A script doesn't see the answer to a choice.**
 `choice` and `say` are queued and run after your function returns; continue with `then_call`
-([Scripting](08-scripting.md#the-one-rule-immediate-and-queued)).
+([Scripting](08-scripting.md#immediate-and-queued-functions)).
 
 **Music has a short gap at the loop.**
 Use Ogg Vorbis or WAV at 44.1 kHz; the engine makes the loop seamless, and a track whose length is a

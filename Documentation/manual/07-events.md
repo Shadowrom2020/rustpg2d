@@ -103,7 +103,7 @@ across map changes and in save games.
 - **Give skill points**, **Set skill level**, **Learn spell**, **Teach spell** (a character, e.g. a
   companion), **Add mana**, **Apply effect**, **Cure effect**.
 
-The [events reference](../events.md) lists every event, condition and action with its fields.
+AI agents get every event, condition and action with its fields as JSON ([below](#the-json-form-ai-agents-hand-written-files)).
 
 ## How triggers run
 
@@ -202,3 +202,28 @@ are read-only with *Open in Database*; function nodes have *Edit in <file>*, own
 maps *Open*. *Whole map* / *Selected object* switches between everything and only what the selected
 entity's or zone's triggers lead to; *All script functions* also shows functions the map doesn't
 run.
+
+## The JSON form (AI agents, hand-written files)
+
+AI agents ([chapter 13](13-ai-agents.md)) write triggers as JSON, and the definition files hold
+them in the same structure:
+
+```json
+{"on": "Interact",
+ "conditions": [{"cond": {"Quest": {"quest": "pest_control", "check": "NotStarted", "stage": 0}}, "negate": false}],
+ "actions": [{"Dialog": {"speaker": "Elder", "text": "Slimes in the cellar again, {player}…"}},
+             {"Choice": {"speaker": "Elder", "text": "Will you help?", "options": ["Yes", "Later"], "var": "help"}},
+             {"If": {"conditions": [{"cond": {"Var": {"name": "help", "op": "Eq", "value": 0}}, "negate": false}],
+                     "then": [{"Quest": {"quest": "pest_control", "op": "Start", "stage": 0}}], "otherwise": []}}],
+ "once": false}
+```
+
+Every event, condition and action has a JSON form like these; the agent server's
+`events_reference` tool prints all of them with example values (always matching the running
+editor), the events each owner accepts, and the operators (`Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge`;
+quest checks `NotStarted`, `Active`, `Completed`, `Failed`, `AtStage`, `StageAtLeast`; quest
+operations `Start`, `Advance`, `SetStage`, `Complete`, `Fail`; variable operations `Set`, `Add`).
+A `"target"` names `self` (the trigger's owner), `player` or a placed entity's name. Agents send
+triggers to `set_triggers`, `add_trigger`, `place_entity` / `update_entity` (`triggers`),
+`add_zone` (`triggers`) and `upsert_def` (`triggers` / `on_use`); `set_triggers` refuses events
+the owner can't receive ([Where triggers live](#where-triggers-live)).

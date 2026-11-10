@@ -190,13 +190,13 @@ means per format:
   is registered in `script.rs` and described once in the `API` table of `script_api.rs` (parameter
   kinds: `Arg::Id` for ids, `Arg::Line` for a line players read, `Arg::Text` for other words),
   which drives the editor's completion, renames, the script check, translation templates and the
-  flag / variable collectors; `Documentation/scripting.md` must describe it too (a test checks).
+  flag / variable collectors; the manual's chapter 8 (`Documentation/manual/08-scripting.md`) must describe it too (a test checks).
 
 ## 6. Verification tooling
 
 | Tool | What it drives | Where it runs |
 |---|---|---|
-| `RUSTPG2D_AUTOPLAY="…"` | the game: key presses, clicks, saves, `status` (a line with every runtime state field), screenshots | every feature is verified with it; `Documentation/autoplay.md` |
+| `RUSTPG2D_AUTOPLAY="…"` | the game: key presses, clicks, saves, `status` (a line with every runtime state field), screenshots | every feature is verified with it; `Documentation/manual/17-testing.md` |
 | `RUSTPG2D_EDITOR_SCRIPT="…"` | the editor: tools, Database tabs, library, exports, MCP on/off, screenshots | the same |
 | `crates/editor/examples/mcp_smoke.rs` | a real MCP client against the running editor: tools, resources, prompts, `write_asset`, `upsert_def`, `capture_structure`, `library_send`, `play_test` | by hand with a scratch library |
 | `cargo test --workspace` | unit tests: formats, library merges, scripting, translations, starter-library consistency; `crates/engine/tests/compat.rs` loads files of earlier versions (`tests/fixtures/`) | CI on every pull request |

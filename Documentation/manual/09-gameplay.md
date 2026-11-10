@@ -88,7 +88,7 @@ an effect:
 | *Bolt* | A projectile, aimed with the mouse |
 | *Blast* | Damages everything within a radius |
 | *Light* | A glow around the player for a while |
-| *Script* | A script function: aim, throw animated sprites, play effects, damage areas ([the Fireball](08-scripting.md#a-scripted-spell)) |
+| *Script* | A script function: aim, throw animated sprites, play effects, damage areas ([the Fireball](08-scripting.md#a-fireball-spell)) |
 
 Spells are learned from items with *Teaches spell* (scrolls that are consumed, books that aren't) or
 the *Learn spell* action, and cast from the **Spells** tab (L) or the quick bar. **Bolt spells are
@@ -128,7 +128,7 @@ definitions have an *Interact* trigger that runs a small library script before t
 for every day since the last restock it adds what they made (Finn's trout from the pond, Bram's
 apple pies from the oven), up to a limit. So Finn's catch is at his stall the next morning, even if
 the player was elsewhere at dawn, and while he fishes he tells you so. The script
-(`restock_from_activity` in the [scripting reference](../scripting.md#a-stall-that-sells-what-was-made))
+(`restock_from_activity` in the [scripting chapter](08-scripting.md#a-stall-that-sells-what-was-made))
 comes along when you add the fisher or the baker from the asset library.
 
 ## Crafting, cooking and blacksmithing

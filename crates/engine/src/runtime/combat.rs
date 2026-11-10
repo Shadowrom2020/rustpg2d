@@ -17,6 +17,8 @@ const HURT_INVULN: f32 = 1.0;
 pub(super) const KNOCKBACK: f32 = 190.0;
 const GAME_OVER_TIME: f32 = 2.5;
 const EFFECT_TIME: f32 = 0.35;
+/// Shooters aim this share of the way to where a moving player will be when the shot arrives.
+const LEAD: f32 = 0.7;
 
 /// A flying arrow, bolt, ...
 pub(super) struct Projectile {
@@ -57,6 +59,9 @@ pub(super) struct PlayerCombat {
     pub roll: Option<(Vec2, f32)>,
     /// Seconds until the next roll.
     pub dodge_cd: f32,
+    /// The player's smoothed velocity (px/s) and last position, for shooters leading their aim.
+    vel: Vec2,
+    last_pos: Option<Vec2>,
     /// Last melee swing: direction, reach (px) and half-angle (radians), for drawing.
     swing_dir: Vec2,
     swing_reach: f32,
@@ -77,6 +82,8 @@ impl PlayerCombat {
             block: None,
             roll: None,
             dodge_cd: 0.0,
+            vel: Vec2::ZERO,
+            last_pos: None,
             swing_dir: vec2(0.0, 1.0),
             swing_reach: 16.0,
             swing_arc: 1.0,
@@ -93,6 +100,7 @@ impl PlayerCombat {
         self.block = None;
         self.roll = None;
         self.dodge_cd = 0.0;
+        self.last_pos = None;
     }
 }
 
@@ -334,6 +342,13 @@ impl Game {
     /// Hostile characters with a ranged weapon shoot when the player is in range and in sight.
     fn enemy_shooting(&mut self, dt: f32) {
         let ts = self.ts();
+        // How fast the player moves (a jump of more than a few tiles is a teleport, not a step).
+        if dt > 0.0 {
+            let c = &mut self.combat;
+            let v = c.last_pos.map_or(Vec2::ZERO, |p| (self.player.pos - p) / dt);
+            c.vel = if v.length() > 30.0 * ts { Vec2::ZERO } else { c.vel.lerp(v, (dt * 8.0).min(1.0)) };
+            c.last_pos = Some(self.player.pos);
+        }
         let player = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
         // The player and companions that can be hurt: each shooter aims at the nearest in sight.
         let mut aims = vec![player];
@@ -356,9 +371,11 @@ impl Game {
             let mut near: Vec<Vec2> = aims.iter().copied().filter(|a| origin.distance(*a) <= range).collect();
             near.sort_by(|a, b| origin.distance(*a).total_cmp(&origin.distance(*b)));
             let Some(target) = near.into_iter().find(|a| self.line_clear(origin, *a)) else { continue };
+            // A moving player: aim a little ahead (most of the way to where they'll be when it arrives).
+            let aim = if target == player && r.speed > 0.0 { target + self.combat.vel * (origin.distance(target) / r.speed) * LEAD } else { target };
             let e = &mut self.loaded.entities[i];
             e.attack_cd = cd.max(0.3) + rand::gen_range(0.0, 0.6);
-            let dir = (target - origin).normalize_or_zero();
+            let dir = (aim - origin).normalize_or_zero();
             e.body.facing = Facing::from_vec(dir.x, dir.y).unwrap_or(e.body.facing);
             shots.push((origin, dir, r, dmg, uid, fx));
         }

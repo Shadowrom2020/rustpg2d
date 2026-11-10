@@ -1444,7 +1444,7 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             }
         });
         ui.end_row();
-        if let Behavior::Chase { leash, flee_below, keep_distance, .. } = &mut d.behavior {
+        if let Behavior::Chase { leash, flee_below, keep_distance, group, alert, .. } = &mut d.behavior {
             ui.label("Leash");
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(leash).range(0.0..=256.0).speed(0.1).suffix(" tiles"))
@@ -1470,6 +1470,18 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
                 ui.add(egui::DragValue::new(keep_distance).range(0.0..=64.0).speed(0.1).suffix(" tiles"))
                     .on_hover_text("Shooters (ranged weapon): back off when the player comes closer than this. 0 = they only stop coming closer once the player is well within range.");
                 ui.weak("(shooters)");
+            });
+            ui.end_row();
+            ui.label("Group");
+            ui.checkbox(group, "Fights as a group").on_hover_text(
+                "At most two group fighters close in on the player (or a companion) at a time; the others circle at a distance and step in when one falls back. They spread out instead of stacking up, and the badly hurt run to their allies, catch their breath and come back.",
+            );
+            ui.end_row();
+            ui.label("Alert");
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(alert).range(0.0..=64.0).speed(0.1).suffix(" tiles"))
+                    .on_hover_text("On noticing the player it alerts other characters of the same kind within this distance: they come too, even without seeing the player. 0 = never.");
+                ui.weak(if *alert > 0.0 { "same kind" } else { "(alerts nobody)" });
             });
             ui.end_row();
         }

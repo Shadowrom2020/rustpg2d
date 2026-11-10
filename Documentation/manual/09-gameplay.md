@@ -33,6 +33,15 @@ equipped bow or crossbow.
   - **Archers** shoot; other hostile characters (traps, creatures that don't chase) hurt by touch.
   - They attack companions as well as the player. *Attack wind-up* on the character's form changes
     the wind-up (a slow, heavy brute; a quick assassin).
+- **Groups fight like groups** (*Group* on the character's form, on by default): at most two
+  enemies close in on the player (or on one companion) at a time; the others **circle** at about
+  two and a half tiles, facing their target, and step in when one of the two falls or falls
+  behind. They spread out instead of stacking up. An enemy that sees the player for the first
+  time **alerts** others of its kind within its *Alert* range (6 tiles), who come over with a
+  surprised look even without seeing the player. **Archers** without a clear shot (a wall or a
+  tall prop in the way) step sideways along it until they have one, and aim a little ahead of a
+  player who keeps walking. **Badly hurt** enemies run to an ally out of the fight instead of
+  just away, tell it (it joins the hunt), catch their breath for three seconds and come back.
 - **Blocking and dodging**: the player blocks with a shield (frontal hits do no damage; a block
   raised right before a blow parries it and stuns the attacker) and dodges with a roll that nothing
   touches ([Player's guide › Defending yourself](15-players-guide.md#defending-yourself)).

@@ -207,7 +207,7 @@ Instructions for every session (people and coding agents) that implements roadma
   Database tab with the preview. A custom emotion added through the agent server
   (`write_asset` + `upsert_def`) shows up in play.
 
-- [ ] Smarter enemies — `feature/combat-ai`
+- [x] Smarter enemies — `feature/combat-ai`
 
   **Goal.** Groups fight like groups: they spread around the player instead of stacking, take
   turns, call their friends, archers look for a clear shot, and the hurt ones fall back.
@@ -225,8 +225,21 @@ Instructions for every session (people and coding agents) that implements roadma
   - All of it on by default for `Chase` (new fields of `Behavior::Chase` with serde defaults:
     `group: bool = true`, `alert: f32 = 6.0`); old projects get the smarter enemies too.
 
-  **Engine.** Proposed (needs the go-ahead): `ai.rs` (slots, separation, alerting, line search),
-  `combat.rs::enemy_shooting`.
+  **Decided while building.** Slots go to the two nearest group fighters that see a target
+  (swinging or lunging ones keep theirs, slot holders win ties within 1.5 tiles), handed out once a
+  frame; circlers keep 2.5 tiles at 55 % speed, turn when blocked and now and then by themselves,
+  and don't start attacks. Shooters don't take slots. Each enemy alerts its kind the first time it
+  sees the target itself (also when it was alerted before), so the word spreads as the group moves,
+  but alerted enemies don't relay it at once (no whole forest of slimes converging). Archers step
+  sideways along the obstacle (no A*), leading only the player (70 % of the way). A fleeing group
+  fighter runs to the nearest ally within 8 tiles that isn't fighting right at the threat, alerts it
+  (any kind: it fetched help), rests there 3 s and is back in the fight until it calms down;
+  without an ally it flees as before. Also fixed: an idle hurt enemy showed *fear* again and again.
+  `ai=` states: `hunting`, `attack`, `circle`, `fleeing`, `regroup`, `returning`.
+
+  **Engine.** Agreed: `Behavior::Chase` gains `group` / `alert` (serde defaults), `ai.rs` (slots,
+  circling, spreading, alerting, side steps, regrouping), `combat.rs::enemy_shooting` (leading),
+  the editor's two fields.
 
   **Verify.** Autoplay with the forest's outlaw group: `status enemies=` shows states
   (`chase`, `circle`, `attack`, `flee`) and at most two `attack`; an archer behind a wall

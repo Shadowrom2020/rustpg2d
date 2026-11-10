@@ -2012,6 +2012,9 @@ impl Game {
 
     fn update_entities(&mut self, dt: f32, frozen: bool) {
         let ts = self.ts();
+        if !frozen {
+            self.assign_attack_slots();
+        }
         for i in 0..self.loaded.entities.len() {
             let e = &self.loaded.entities[i];
             if e.away && !frozen {

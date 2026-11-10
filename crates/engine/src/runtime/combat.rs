@@ -7,6 +7,7 @@ use crate::defs::{CharacterDef, Ranged, SpriteRef};
 use crate::entity::Facing;
 use crate::events::GameEvent;
 use crate::state::WorldState;
+use super::juice::NumberKind;
 use super::text::{draw_text, measure_text};
 
 const SWING_TIME: f32 = 0.18;
@@ -14,9 +15,11 @@ const SWING_TIME: f32 = 0.18;
 const HIT_INVULN: f32 = 0.3;
 /// Player invulnerability after being hurt.
 const HURT_INVULN: f32 = 1.0;
-const KNOCKBACK: f32 = 190.0;
+pub(super) const KNOCKBACK: f32 = 190.0;
 const GAME_OVER_TIME: f32 = 2.5;
 const EFFECT_TIME: f32 = 0.35;
+/// Shooters aim this share of the way to where a moving player will be when the shot arrives.
+const LEAD: f32 = 0.7;
 
 /// A flying arrow, bolt, ...
 pub(super) struct Projectile {
@@ -31,6 +34,16 @@ pub(super) struct Projectile {
     sprite: SpriteRef,
     /// A status effect for whoever it hits.
     effect: Option<crate::effects::EffectSpec>,
+    /// A critical shot of the player's (its damage already doubled).
+    crit: bool,
+}
+
+/// Who dealt a hit, for its feedback (hit-stop, the number's color).
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct Blow {
+    /// The player's own hit (weapon or spell; not a companion's).
+    pub by_player: bool,
+    pub crit: bool,
 }
 
 impl Projectile {
@@ -51,6 +64,15 @@ pub(super) struct PlayerCombat {
     pub swing: f32,
     pub invuln: f32,
     pub knock: Vec2,
+    /// Seconds the shield has been held up (None = not blocking; `defense.rs`).
+    pub block: Option<f32>,
+    /// A dodge roll: its direction and time so far.
+    pub roll: Option<(Vec2, f32)>,
+    /// Seconds until the next roll.
+    pub dodge_cd: f32,
+    /// The player's smoothed velocity (px/s) and last position, for shooters leading their aim.
+    vel: Vec2,
+    last_pos: Option<Vec2>,
     /// Last melee swing: direction, reach (px) and half-angle (radians), for drawing.
     swing_dir: Vec2,
     swing_reach: f32,
@@ -68,6 +90,11 @@ impl PlayerCombat {
             swing: 0.0,
             invuln: 0.0,
             knock: Vec2::ZERO,
+            block: None,
+            roll: None,
+            dodge_cd: 0.0,
+            vel: Vec2::ZERO,
+            last_pos: None,
             swing_dir: vec2(0.0, 1.0),
             swing_reach: 16.0,
             swing_arc: 1.0,
@@ -81,6 +108,10 @@ impl PlayerCombat {
         self.swing = 0.0;
         self.invuln = 0.0;
         self.knock = Vec2::ZERO;
+        self.block = None;
+        self.roll = None;
+        self.dodge_cd = 0.0;
+        self.last_pos = None;
     }
 }
 
@@ -89,9 +120,11 @@ fn inflate(r: Rect, by: f32) -> Rect {
 }
 
 /// Decays a knockback velocity; returns the movement for this frame (`u` = art pixel size).
+/// One frame of knockback: a hard start that stops quickly (1.5× the speed, 1.5× the braking:
+/// about the same distance as the old gentle slide).
 fn decay(knock: &mut Vec2, dt: f32, u: f32) -> Vec2 {
-    let step = *knock * dt;
-    *knock *= (1.0 - 9.0 * dt).max(0.0);
+    let step = *knock * dt * 1.5;
+    *knock *= (1.0 - 13.5 * dt).max(0.0);
     if knock.length() < 8.0 * u {
         *knock = Vec2::ZERO;
     }
@@ -161,6 +194,13 @@ impl Game {
         for e in &mut self.loaded.entities {
             e.invuln = (e.invuln - dt).max(0.0);
             e.flash = (e.flash - dt).max(0.0);
+            // The bar's lost part waits a moment, then drains to the HP left.
+            let frac = if e.max_hp > 0 { e.hp.max(0) as f32 / e.max_hp as f32 } else { 0.0 };
+            if e.bar < super::juice::BAR_TIME - 0.3 {
+                e.bar_lag -= dt * 0.8;
+            }
+            e.bar_lag = e.bar_lag.max(frac);
+            e.bar = (e.bar - dt).max(0.0);
         }
         for fx in &mut self.effects {
             fx.1 += dt;
@@ -172,13 +212,16 @@ impl Game {
         if !key_consumed && input::act_pressed(input::Act::SwitchWeapon) {
             self.cycle_weapon();
         }
-        if !key_consumed && self.combat.cooldown <= 0.0 && input::act_pressed(input::Act::Attack) {
+        self.update_defense(dt, key_consumed);
+        if !key_consumed && self.combat.cooldown <= 0.0 && !self.blocking() && !self.rolling() && input::act_pressed(input::Act::Attack) {
             self.order = None;
             self.attack_at(None);
         }
         self.enemy_shooting(dt);
+        self.update_attacks(dt);
         self.companion_contact_damage();
-        // Contact damage from hostile characters.
+        // Contact damage from hostile characters that don't attack in their own way (armed ones
+        // swing, unarmed chasers lunge: `attacks.rs`).
         if self.combat.invuln <= 0.0 {
             let me = inflate(self.player.rect(), 1.0);
             // Stunned characters don't hurt; strength / weakness change the damage.
@@ -186,14 +229,22 @@ impl Game {
                 .loaded
                 .entities
                 .iter()
-                .position(|e| e.active && e.hostile && e.damage > 0 && !e.ai.harmless() && !crate::effects::stunned(&e.effects) && e.body.rect().overlaps(&me));
+                .position(|e| e.active && e.hostile && e.damage > 0 && !e.ai.harmless() && !crate::effects::stunned(&e.effects) && e.body.rect().overlaps(&me) && super::attacks::kind_of(e.weapon.as_ref(), e.damage, &e.behavior).is_none());
             if let Some(i) = hit {
                 let e = &self.loaded.entities[i];
                 let (dmg, from) = (crate::effects::scale_damage(&e.effects, e.damage), e.body.pos);
-                if let Some(fx) = self.touch_effect(i) {
-                    self.apply_player_effect(&fx);
+                match self.guard_against(from) {
+                    super::defense::Guard::Open => {
+                        if let Some(fx) = self.touch_effect(i) {
+                            self.apply_player_effect(&fx);
+                        }
+                        self.hurt_player(dmg, from);
+                    }
+                    g => {
+                        self.blocked(g, from, None);
+                        self.combat.invuln = HURT_INVULN / 2.0;
+                    }
                 }
-                self.hurt_player(dmg, from);
             }
         }
     }
@@ -228,7 +279,11 @@ impl Game {
             };
             self.combat.cooldown = cooldown;
             self.audio.play(&self.project.config.sfx.attack);
-            self.shoot(origin, dir, &r, damage, true, None, weapon.effect);
+            let crit = self.roll_crit(weapon.crit);
+            self.shoot(origin, dir, &r, if crit { damage * 2 } else { damage }, true, None, weapon.effect);
+            if let Some(p) = self.projectiles.last_mut() {
+                p.crit = crit;
+            }
             return;
         }
         // Melee: everything within reach inside the swing arc.
@@ -278,7 +333,9 @@ impl Game {
             if let Some(fx) = &weapon.effect {
                 crate::effects::apply(&mut self.loaded.entities[i].effects, fx);
             }
-            self.damage_entity(i, damage, from, weapon.knockback);
+            let crit = self.roll_crit(weapon.crit);
+            let dmg = if crit { damage * 2 } else { damage };
+            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit });
         }
     }
 
@@ -305,12 +362,20 @@ impl Game {
             shooter,
             sprite: r.projectile.clone(),
             effect,
+            crit: false,
         });
     }
 
     /// Hostile characters with a ranged weapon shoot when the player is in range and in sight.
     fn enemy_shooting(&mut self, dt: f32) {
         let ts = self.ts();
+        // How fast the player moves (a jump of more than a few tiles is a teleport, not a step).
+        if dt > 0.0 {
+            let c = &mut self.combat;
+            let v = c.last_pos.map_or(Vec2::ZERO, |p| (self.player.pos - p) / dt);
+            c.vel = if v.length() > 30.0 * ts { Vec2::ZERO } else { c.vel.lerp(v, (dt * 8.0).min(1.0)) };
+            c.last_pos = Some(self.player.pos);
+        }
         let player = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
         // The player and companions that can be hurt: each shooter aims at the nearest in sight.
         let mut aims = vec![player];
@@ -333,9 +398,11 @@ impl Game {
             let mut near: Vec<Vec2> = aims.iter().copied().filter(|a| origin.distance(*a) <= range).collect();
             near.sort_by(|a, b| origin.distance(*a).total_cmp(&origin.distance(*b)));
             let Some(target) = near.into_iter().find(|a| self.line_clear(origin, *a)) else { continue };
+            // A moving player: aim a little ahead (most of the way to where they'll be when it arrives).
+            let aim = if target == player && r.speed > 0.0 { target + self.combat.vel * (origin.distance(target) / r.speed) * LEAD } else { target };
             let e = &mut self.loaded.entities[i];
             e.attack_cd = cd.max(0.3) + rand::gen_range(0.0, 0.6);
-            let dir = (target - origin).normalize_or_zero();
+            let dir = (aim - origin).normalize_or_zero();
             e.body.facing = Facing::from_vec(dir.x, dir.y).unwrap_or(e.body.facing);
             shots.push((origin, dir, r, dmg, uid, fx));
         }
@@ -378,10 +445,11 @@ impl Game {
                     });
                     if let Some(t) = target {
                         let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                        let blow = Blow { by_player: p.shooter.is_none(), crit: p.crit };
                         if let Some(fx) = fx {
                             crate::effects::apply(&mut self.loaded.entities[t].effects, &fx);
                         }
-                        self.damage_entity(t, dmg, from, 1.0);
+                        self.strike_entity(t, dmg, from, 1.0, blow);
                         alive = false;
                         break;
                     }
@@ -402,13 +470,20 @@ impl Game {
                     }
                     let r = self.player.rect();
                     let body = Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8);
-                    if body.overlaps(&hit_box) {
-                        if self.combat.invuln <= 0.0 {
-                            let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
-                            if let Some(fx) = fx {
-                                self.apply_player_effect(&fx);
+                    // A rolling player lets arrows fly past; a raised shield stops them from the front.
+                    if body.overlaps(&hit_box) && !self.rolling() {
+                        let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                        match self.guard_against(pos - p.vel.normalize_or_zero() * ts * 2.0) {
+                            super::defense::Guard::Open => {
+                                if self.combat.invuln <= 0.0 {
+                                    if let Some(fx) = fx {
+                                        self.apply_player_effect(&fx);
+                                    }
+                                    self.hurt_player(dmg, from);
+                                }
                             }
-                            self.hurt_player(dmg, from);
+                            // (No parry: there is nobody within reach to stun.)
+                            _ => self.blocked(super::defense::Guard::Blocked, from, None),
                         }
                         alive = false;
                         break;
@@ -440,20 +515,51 @@ impl Game {
         }
     }
 
+    /// A spark where something hit (a wall, a shield).
+    pub(super) fn add_impact(&mut self, at: Vec2) {
+        self.effects.push((at, 0.0));
+    }
+
     /// Applies damage (minus the target's defense, at least 1) with knockback.
     pub(super) fn damage_entity(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32) {
-        let u = self.u();
+        self.strike_entity(i, dmg, from, knockback, Blow::default());
+    }
+
+    /// [`Self::damage_entity`] with what dealt the blow: the player's own hits pause the world a
+    /// moment (longer for a critical hit or a kill), critical ones shake it a little.
+    pub(super) fn strike_entity(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32, blow: Blow) {
+        let (u, ts) = (self.u(), self.ts());
         let e = &mut self.loaded.entities[i];
         let before = e.hp;
         let hit = (dmg - e.defense - crate::effects::defense_bonus(&e.effects)).max(1);
         e.hp -= hit;
         e.last_hit = hit;
         e.invuln = HIT_INVULN;
-        e.flash = 0.15;
+        e.flash = super::juice::HIT_FLASH;
+        // The health bar shows again; what the hit took drains away from where the bar stood.
+        if e.bar <= 0.0 && e.max_hp > 0 {
+            e.bar_lag = before.max(0) as f32 / e.max_hp as f32;
+        }
+        e.bar = super::juice::BAR_TIME;
         e.body.move_target = None;
         let away = (e.body.pos - from).try_normalize().unwrap_or(vec2(0.0, 1.0));
         e.knock = away * KNOCKBACK * u * knockback.max(0.0);
-        if e.hp <= 0 {
+        let kind = if e.companion.is_some() {
+            NumberKind::Hurt
+        } else if blow.crit {
+            NumberKind::Crit
+        } else {
+            NumberKind::Hit
+        };
+        let (head, killed) = (e.body.pos - vec2(0.0, ts * 1.1), e.hp <= 0);
+        self.damage_number(head, hit, kind);
+        if blow.by_player {
+            self.hit_stop(blow.crit || killed);
+            if blow.crit {
+                self.shake_screen(0.12, 0.6);
+            }
+        }
+        if killed {
             self.defeat(i);
         } else {
             self.audio.play(&self.project.config.sfx.hit);
@@ -527,7 +633,8 @@ impl Game {
     }
 
     pub(super) fn hurt_player(&mut self, dmg: i32, from: Vec2) {
-        if !self.combat.enabled() || self.game_over.is_some() {
+        // A dodge roll gets through anything.
+        if !self.combat.enabled() || self.game_over.is_some() || self.rolling() {
             return;
         }
         // Armor absorbs damage, but at least 1 always gets through.
@@ -539,6 +646,8 @@ impl Game {
         self.combat.knock = away * KNOCKBACK * self.u();
         self.audio.play(&self.project.config.sfx.hurt);
         self.hurt_feedback();
+        let head = self.player.pos - vec2(0.0, self.ts() * 1.1);
+        self.damage_number(head, taken, NumberKind::Hurt);
         if hp == 0 {
             self.player_defeated();
         }
@@ -631,11 +740,16 @@ impl Game {
                 self.assets.draw_frame_scaled(&icon.sheet, icon.frame, at, a1 + std::f32::consts::FRAC_PI_4, 1.0, WHITE);
             }
         }
-        for e in self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0 && e.hp < e.max_hp && !e.companion.as_ref().is_some_and(|l| l.down.is_some())) {
+        // Health bars of characters hurt in the last few seconds (fading out), the lost part
+        // draining in white.
+        for e in self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0 && e.hp > 0 && e.bar > 0.0 && !e.companion.as_ref().is_some_and(|l| l.down.is_some())) {
+            let a = (e.bar / 0.5).min(1.0);
             let w = 14.0 * u;
             let (x, y) = (e.body.pos.x - w / 2.0, e.body.pos.y - ts - 6.0 * u);
-            draw_rectangle(x - u, y - u, w + 2.0 * u, 4.0 * u, Color::new(0.0, 0.0, 0.0, 0.7));
-            draw_rectangle(x, y, w * e.hp as f32 / e.max_hp as f32, 2.0 * u, Color::new(0.9, 0.2, 0.2, 1.0));
+            let frac = e.hp as f32 / e.max_hp as f32;
+            draw_rectangle(x - u, y - u, w + 2.0 * u, 4.0 * u, Color::new(0.0, 0.0, 0.0, 0.7 * a));
+            draw_rectangle(x, y, w * e.bar_lag.min(1.0), 2.0 * u, Color::new(1.0, 1.0, 1.0, 0.85 * a));
+            draw_rectangle(x, y, w * frac, 2.0 * u, Color::new(0.9, 0.2, 0.2, a));
         }
         // Status effects: small colored squares above the health bar.
         for e in self.loaded.entities.iter().filter(|e| e.active && !e.effects.is_empty()) {
@@ -756,6 +870,22 @@ impl Game {
             draw_heart(x + 1.0, y + 1.0, HEART, if left >= 1 { full } else { empty });
             if left == 1 {
                 draw_heart_right_half(x + 1.0, y + 1.0, HEART, empty);
+            }
+        }
+        // The dodge pip after the hearts (lit = ready, filling while it recovers), and a shield
+        // while it is raised.
+        {
+            let (px, py, r) = (tx + hearts as f32 * STEP + 8.0, y + HEART / 2.0 + 1.0, HEART * 0.32);
+            let ready = self.combat.dodge_cd <= 0.0;
+            draw_circle(px, py, r, Color::new(0.1, 0.1, 0.15, 0.9));
+            let fill = if ready { 1.0 } else { 1.0 - (self.combat.dodge_cd / 1.3).clamp(0.0, 1.0) };
+            draw_circle(px, py, r * fill, if ready { Color::new(0.55, 0.85, 1.0, 1.0) } else { Color::new(0.35, 0.5, 0.65, 1.0) });
+            draw_circle_lines(px, py, r, 1.0, Color::new(0.85, 0.72, 0.38, 1.0));
+            if self.blocking() {
+                let sx = px + r + 6.0;
+                let sh = HEART * 0.9;
+                draw_triangle(vec2(sx, py - sh / 2.0), vec2(sx + sh * 0.8, py - sh / 2.0), vec2(sx + sh * 0.4, py + sh / 2.0), Color::new(0.6, 0.85, 1.0, 1.0));
+                draw_rectangle(sx, py - sh / 2.0, sh * 0.8, sh * 0.35, Color::new(0.6, 0.85, 1.0, 1.0));
             }
         }
         y += HEART + 6.0;

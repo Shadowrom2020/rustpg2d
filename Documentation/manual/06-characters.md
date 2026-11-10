@@ -51,7 +51,7 @@ definition while every villager looks different.
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
 | **Look & equipment** | The builder |
 | **Behavior** | *Static*, *Wander* or *Chase player* (below) |
-| **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
+| **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
 | **Experience** | XP the player gets for defeating it |
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
 | **Merchant** | Makes it a trader ([Merchants](#merchants)) |
@@ -73,8 +73,14 @@ walls and trees only within half of it. They keep hunting for a few seconds afte
 walking to where they last saw the player, and slide around obstacles. Per character:
 
 - **Leash**: beyond that many tiles from home they give up and walk back, harmless on the way.
-- **Flee below**: below that share of their HP they run away and stop attacking.
+- **Flee below**: below that share of their HP they run away and stop attacking (group fighters
+  run to an ally instead and come back after a short rest).
 - **Keep distance**: shooters back off when the player comes closer.
+- **Group** (*Fights as a group*, on by default): at most two group fighters close in on the
+  player or a companion at a time, the others circle around and wait for their turn; they spread
+  out instead of stacking. Turn it off for a lone brute that always attacks.
+- **Alert** (tiles, default 6): on first seeing the player it alerts others of the same
+  definition this close; 0 alerts nobody.
 
 An *HP below %* trigger lets a character react when it's hurt, e.g. a boss calling for help; scripts
 read any character's HP with `hp_of(target)`. In the example, the goblin archers keep four tiles

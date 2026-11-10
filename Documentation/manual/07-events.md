@@ -72,6 +72,7 @@ across map changes and in save games.
 - **Dialog**: a line of text with a speaker. **Choice**: a question with options; the chosen
   option's number (0, 1, 2…) goes into a variable that later conditions check.
 - **Set mood**: the portrait mood a character shows ([Characters](06-characters.md#dialog-portraits-and-moods)).
+- **Show emotion** / **Clear emotion**: an icon over a character's head (below).
 
 **Game state**
 - **Set flag**, **Set variable** (= or +=), **Give item**, **Take item**, **Heal player** (negative
@@ -158,6 +159,26 @@ them, or look at them in the Events graph.
 
 A merchant whose *Talking opens the shop* is off: *Interact*: *Dialog* "Welcome!", *Choice* "Buy
 something?" (Yes / No) into `shop`, *If* `shop` = 0: *Open shop* `self`.
+
+### Emotions over heads
+
+**Show emotion** puts a small animated icon over a character (or the player): surprise, joy, anger,
+a thinking "...", a sleepy "Zz" and so on. It pops up, follows the character while it walks, bobs a
+little and fades out.
+
+| Setting | Effect |
+|---|---|
+| **target** | `self`, `player`, a placed character's name |
+| **emotion** | The name of an animation of a sprite sheet of the kind *Emotions* (the starter library has 14: `surprise`, `confused`, `anger`, `joy`, `love`, `embarrassed`, `sad`, `fear`, `sleepy`, `thinking`, `idea`, `music`, `sweat`, `annoyed`) |
+| **seconds** | 0 = 2.5 s; -1 = until **Clear emotion** |
+| **wait until it is over** | The event goes on only afterwards (a beat before a line) |
+
+Put it right before a *Dialog* to show how the speaker feels while they talk. Characters also show
+emotions by themselves when *Automatic emotions* is on (*Database › Project*): enemies are
+surprised when they notice the player, confused when they lose them and afraid when they flee;
+sleepers snore; companions are happy when they learn a spell. In the example, the guard is surprised
+to see you arrive, Tilda is glad to meet you, Elder Rowan dozes, thinks before he tells you about the
+lights and is happy when you return, and Pip is relieved when the remedy works.
 
 ### A picture when you first meet someone
 

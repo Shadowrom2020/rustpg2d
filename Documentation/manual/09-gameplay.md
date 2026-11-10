@@ -18,9 +18,42 @@ equipped bow or crossbow.
   obstacles](03-maps.md#low-and-high-obstacles)).
 - **Armor** reduces damage: what gets through is `damage − defense`, at least 1. Heavy armor can
   slow the wearer.
-- Hits knock back and give a moment of invulnerability. When the player is hurt the screen shakes
-  briefly and flashes red (players can turn this off in *Options › Shake & flash*).
-- **Hostile characters** chase or shoot at the player ([Characters › Behaviour](06-characters.md#behaviour)).
+- Hits knock back (a hard shove that stops quickly) and give a moment of invulnerability. When
+  the player is hurt the screen shakes briefly and flashes red (players can turn this off in
+  *Options › Shake & flash*).
+- **Hits feel like hits**: when the player's blow, arrow or spell lands, the world pauses for a
+  few hundredths of a second (longer for a critical hit or a kill; off with *Shake & flash*), the
+  character hit flashes white, and a **damage number** rises from it: white for the player's hits,
+  big and yellow for **critical hits**, red when the player or a companion is hurt (*Options ›
+  Damage numbers*). A **critical hit** does double damage and shakes the view a little; each
+  weapon has its own chance (*Critical hits* on the item form, 5 % by default; in the example
+  the crossbow and the fine iron sword are best at it). Characters show a **health bar** for
+  three seconds after they were hurt; the part the hit took drains away in white.
+- **Hostile characters** chase or shoot at the player ([Characters › Behaviour](06-characters.md#behaviour)),
+  and their attacks can be seen coming:
+  - **Armed** (a melee weapon in their equipment): they stop at their weapon's reach and **wind up**
+    (0.4 s: the weapon raised over the head, a red zone on the ground shows where the swing will
+    land), then **swing** in the direction they locked when the wind-up began, for the weapon's
+    damage, reach, arc and knockback, and **recover** for the weapon's cooldown and a moment more.
+    Stepping out of the red zone during the wind-up dodges the blow. They don't hurt by touch.
+  - **Unarmed chasers** (slimes): close to their target they **crouch** (0.3 s, a red ring
+    tightening around them) and **lunge**, hurting by touch (and its *On touch* effect) only during
+    the hop; then they rest a moment.
+  - **Archers** shoot; other hostile characters (traps, creatures that don't chase) hurt by touch.
+  - They attack companions as well as the player. *Attack wind-up* on the character's form changes
+    the wind-up (a slow, heavy brute; a quick assassin).
+- **Groups fight like groups** (*Group* on the character's form, on by default): at most two
+  enemies close in on the player (or on one companion) at a time; the others **circle** at about
+  two and a half tiles, facing their target, and step in when one of the two falls or falls
+  behind. They spread out instead of stacking up. An enemy that sees the player for the first
+  time **alerts** others of its kind within its *Alert* range (6 tiles), who come over with a
+  surprised look even without seeing the player. **Archers** without a clear shot (a wall or a
+  tall prop in the way) step sideways along it until they have one, and aim a little ahead of a
+  player who keeps walking. **Badly hurt** enemies run to an ally out of the fight instead of
+  just away, tell it (it joins the hunt), catch their breath for three seconds and come back.
+- **Blocking and dodging**: the player blocks with a shield (frontal hits do no damage; a block
+  raised right before a blow parries it and stuns the attacker) and dodges with a roll that nothing
+  touches ([Player's guide › Defending yourself](15-players-guide.md#defending-yourself)).
   The player's attacks only hit hostile characters, never companions or friendly villagers; make a
   huntable animal *hostile* with 0 damage.
 - A defeated character runs its *Defeat* triggers and drops its loot and gear.
@@ -241,6 +274,15 @@ triggers run and the game autosaves. Not with enemies nearby. A movement key, an
 up. The **Sleep** action and `sleep(hours)` rest without a bed (camping, an inn's "Rest").
 
 Villagers use furniture too, through their schedules ([Characters](06-characters.md#daily-schedules)).
+
+## Emotions
+
+Characters show how they feel with a small icon over their head
+([Events › Emotions over heads](07-events.md#emotions-over-heads)). With *Automatic emotions* on
+(*Database › Project*, on by default) they also do it by themselves: an enemy shows **surprise** when
+it notices you, **confused** when it lost you and **fear** when it flees; villagers asleep in bed
+show **sleepy**; a companion who learns a spell shows **joy**. The emotions come from the project's
+*Emotions* sprite sheets (the starter library's `emotions`); a project without one shows none.
 
 ## Time of day
 

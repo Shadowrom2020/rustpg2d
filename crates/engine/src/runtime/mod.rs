@@ -41,6 +41,9 @@ mod image;
 mod orders;
 pub mod input;
 pub mod glyphs;
+mod attacks;
+mod defense;
+mod emotions;
 mod mouse;
 mod spawner;
 mod thumbs;
@@ -192,6 +195,12 @@ struct RtEntity {
     solid: bool,
     /// A low prop (`PropDef::low`): while solid it stops walking but not shots.
     low: bool,
+    /// A weapon swing or lunge in progress (`attacks.rs`; not saved).
+    attack: Option<attacks::Attack>,
+    /// The emotion shown over its head (`emotions.rs`; not saved).
+    emote: Option<Box<emotions::Emote>>,
+    /// Its definition's wind-up (`CharacterDef::windup`; 0 = the standard one).
+    windup: f32,
     behavior: Behavior,
     wander_timer: f32,
     wander_dir: Vec2,
@@ -202,6 +211,10 @@ struct RtEntity {
     damage: i32,
     invuln: f32,
     flash: f32,
+    /// Seconds its health bar still shows after a hit, and the HP share the bar's white "lost"
+    /// part reaches down to (it drains towards the HP left).
+    bar: f32,
+    bar_lag: f32,
     /// What it does all day where it stands (`EntityInstance::activity`), the way it faces
     /// while doing it, seconds a talk still pauses it, the last work stroke (its sound).
     activity: Option<crate::entity::Activity>,
@@ -377,6 +390,8 @@ pub struct Game {
     minigame: Option<minigame::Minigame>,
     /// A picture of *Show image* (not saved).
     image: Option<image::ImageView>,
+    /// The emotion over the player's head.
+    player_emote: Option<emotions::Emote>,
     /// Whose portrait the open dialog shows.
     portrait: Option<portraits::Speaker>,
     /// The furniture the player uses, the sleep sequence, and the bed a Sleep action lies in.
@@ -517,6 +532,7 @@ impl Game {
             ach: Default::default(),
             minigame: None,
             image: None,
+            player_emote: None,
             portrait: None,
             seat: None,
             leaving: None,
@@ -645,6 +661,9 @@ impl Game {
             // Hostiles overlap the player (contact damage) instead of blocking.
             solid: solid && !hostile,
             low,
+            attack: None,
+            emote: None,
+            windup: self.project.db.character(def).filter(|_| kind == EntityKind::Character).map_or(0.0, |d| d.windup.max(0.0)),
             behavior,
             wander_timer: rand::gen_range(0.5, 2.0),
             wander_dir: Vec2::ZERO,
@@ -666,6 +685,8 @@ impl Game {
             act_cycle: 0,
             item_cd: 0.0,
             flash: 0.0,
+            bar: 0.0,
+            bar_lag: 0.0,
             knock: Vec2::ZERO,
             weapon,
             attack_cd: rand::gen_range(0.5, 1.5),
@@ -1346,7 +1367,12 @@ impl Game {
         input::poll_pad();
         input::update_device();
         let real = get_frame_time();
-        let dt = real.min(0.05);
+        let mut dt = real.min(0.05);
+        // Hit-stop: the world stands still a moment (input and drawing go on).
+        if self.juice.hitstop > 0.0 {
+            self.juice.hitstop = (self.juice.hitstop - real).max(0.0);
+            dt = 0.0;
+        }
         let t0 = get_time();
         self.update(dt);
         let t1 = get_time();
@@ -1530,6 +1556,7 @@ impl Game {
         self.reveal_fog();
         self.update_entities(dt, frozen);
         self.update_combat(dt, frozen, consumed);
+        self.update_emotes(dt);
         if !frozen {
             self.update_projectiles(dt);
             self.update_spawners(dt);
@@ -1586,6 +1613,10 @@ impl Game {
             self.order = None;
             return;
         }
+        // A dodge roll carries the player on its own.
+        if self.update_roll(dt) {
+            return;
+        }
 
         let mut dir = Vec2::ZERO;
         if input::act_down(Act::Left) {
@@ -1601,6 +1632,10 @@ impl Game {
             dir.y += 1.0;
         }
         let mut run = if input::act_down(Act::Run) { 1.8 } else { 1.0 };
+        // Behind a raised shield: half speed.
+        if self.blocking() {
+            run = 0.5;
+        }
         if dir != Vec2::ZERO {
             // Keyboard movement cancels click-to-move.
             self.order = None;
@@ -1988,6 +2023,9 @@ impl Game {
 
     fn update_entities(&mut self, dt: f32, frozen: bool) {
         let ts = self.ts();
+        if !frozen {
+            self.assign_attack_slots();
+        }
         for i in 0..self.loaded.entities.len() {
             let e = &self.loaded.entities[i];
             if e.away && !frozen {
@@ -2091,7 +2129,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2163,7 +2201,11 @@ impl Game {
             self.audio.recent(),
             self.foes_status(),
             input::device(),
-            glyphs::style().id()
+            glyphs::style().id(),
+            self.attacks_status(),
+            self.defense_status(),
+            self.emotes_status(),
+            self.hits_status()
         )
     }
 
@@ -2387,6 +2429,9 @@ impl Game {
         }
 
         self.draw_combat_world();
+        self.draw_attacks();
+        self.draw_defense();
+        self.draw_emotes();
         self.draw_gather();
         self.draw_activities();
         self.draw_fx();
@@ -2420,6 +2465,9 @@ impl Game {
         }
 
         set_default_camera();
+        if !self.on_title() {
+            self.draw_damage_numbers(&cam);
+        }
         let alpha = match &self.fade {
             Fade::None => 0.0,
             Fade::Out { t, .. } => (t / FADE_TIME).min(1.0),
@@ -2492,7 +2540,7 @@ impl Game {
         let ts = self.ts();
         let db = &self.project.db;
         let e = &self.loaded.entities[i];
-        let tint = if e.flash > 0.0 { Color::new(1.0, 0.35, 0.35, 1.0) } else { Self::effect_tint(&e.effects).unwrap_or(WHITE) };
+        let tint = Self::effect_tint(&e.effects).unwrap_or(WHITE);
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
                 let ok = self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE);
@@ -2502,23 +2550,17 @@ impl Game {
                 ok
             }),
             EntityKind::Character if e.companion.as_ref().is_some_and(|l| l.down.is_some()) => self.draw_downed(e),
-            EntityKind::Character => match (&e.npc_seat, self.current_activity(i)) {
-                (Some(s), _) => {
-                    self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
-                    true
+            EntityKind::Character => {
+                let ok = self.draw_character_entity(i, tint);
+                // Just hit: the white flash over it.
+                if ok && e.flash > 0.0 {
+                    let a = (e.flash / juice::HIT_FLASH).min(1.0) * 0.85;
+                    self.draw_white(|| {
+                        self.draw_character_entity(i, Color::new(1.0, 1.0, 1.0, a));
+                    });
                 }
-                (None, Some(_)) => {
-                    let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
-                    let col = self.activity_frame(i).unwrap_or(0);
-                    self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
-                }
-                (None, None) => {
-                    db.character(&e.def).is_some() && {
-                        let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
-                        self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
-                    }
-                }
-            },
+                ok
+            }
             EntityKind::Item => db.item(&e.def).is_some_and(|d| {
                 let u = self.u();
                 let bob = ((t * 3.0 + (e.uid % 1024) as f32).sin() * 1.5 * u).round();
@@ -2528,6 +2570,28 @@ impl Game {
         if !drawn {
             let r = e.body.rect();
             draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, MAGENTA);
+        }
+    }
+
+    /// Draws character `i` (standing, walking, at work or on furniture) tinted `tint`.
+    fn draw_character_entity(&self, i: usize, tint: Color) -> bool {
+        let e = &self.loaded.entities[i];
+        match (&e.npc_seat, self.current_activity(i)) {
+            (Some(s), _) => {
+                self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
+                true
+            }
+            (None, Some(_)) => {
+                let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
+                let col = self.activity_frame(i).unwrap_or(0);
+                self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
+            }
+            (None, None) => {
+                self.project.db.character(&e.def).is_some() && {
+                    let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
+                    self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
+                }
+            }
         }
     }
 
@@ -2649,6 +2713,25 @@ impl ActionHost for Game {
                 } else {
                     Step::Continue
                 }
+            }
+            Action::Emote { target, emotion, seconds, wait } => {
+                match self.emote_target(target, ctx.owner) {
+                    Some(who) if self.start_emote(who, emotion, *seconds) && *wait => {
+                        let secs = if *seconds > 0.0 { *seconds } else { emotions::DEFAULT_SECONDS };
+                        Step::Insert(vec![(Action::Wait { seconds: secs }, ctx.clone())])
+                    }
+                    Some(_) => Step::Continue,
+                    None => {
+                        eprintln!("[events] Show emotion: no character '{target}'");
+                        Step::Continue
+                    }
+                }
+            }
+            Action::ClearEmote { target } => {
+                if let Some(who) = self.emote_target(target, ctx.owner) {
+                    self.clear_emote(who);
+                }
+                Step::Continue
             }
             Action::HideImage => {
                 self.image = None;

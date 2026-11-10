@@ -107,6 +107,9 @@ state back into `world.entities[map]`.
 
 `update_entities` handles every character by priority: scripted `move_target`, item use,
 knockback, speed effects, companion, chase AI, schedule, activity, patrol, then a wander fallback.
+Before that loop, `assign_attack_slots` (`ai.rs`) decides once a frame which group fighters may
+close in on each target (two per target; the rest circle), so the chase AI of each character
+only reads its own `Ai::circling` and needs no knowledge of the others' plans.
 Walking characters share `walk_to_tile` (`patrol.rs`): an A* path (`path.rs`, budget per
 waypoint), one tile at a time through `try_move`, with re-planning when blocked and giving up
 after a few seconds. The player moves through `try_move` too: solid tiles, solid entities and the

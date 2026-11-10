@@ -352,6 +352,7 @@ impl Game {
                     crate::effects::apply(&mut self.loaded.entities[t].effects, fx);
                 }
                 self.damage_entity(t, damage, me, w.knockback);
+                self.show_swing(i, dir);
             }
             return true;
         }
@@ -645,7 +646,7 @@ impl Game {
                 .loaded
                 .entities
                 .iter()
-                .position(|o| o.active && o.hostile && o.damage > 0 && !o.ai.harmless() && !crate::effects::stunned(&o.effects) && o.body.rect().overlaps(&me));
+                .position(|o| o.active && o.hostile && o.damage > 0 && !o.ai.harmless() && !crate::effects::stunned(&o.effects) && o.body.rect().overlaps(&me) && super::attacks::kind_of(o.weapon.as_ref(), o.damage, &o.behavior).is_none());
             if let Some(h) = hit {
                 let o = &self.loaded.entities[h];
                 let (dmg, from) = (crate::effects::scale_damage(&o.effects, o.damage), o.body.pos);

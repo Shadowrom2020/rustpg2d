@@ -107,6 +107,7 @@ bats and a chest".
 | `get_def {kind, id}` | JSON. |
 | `def_template {kind, id}` | A complete new definition to fill in, with notes on the fields. |
 | `upsert_def {kind, def, merge}` | Create or replace (or merge fields into) a definition; checks referenced ids, image / sound files and the definition's own triggers; tilesets, sheets and sounds reload the editor's textures. |
+| `find_usages {kind, id}` | Every place a definition (or a map: kind `map`) is used: placed entities and spawners, map / zone / entity triggers, other definitions, script lines, project settings, each with its map and uid, definition or script line. |
 | `delete_def {kind, id, force}` | Refuses while definitions, maps or scripts use it unless `force`; files are kept. |
 | `write_asset {path, base64 \| source}` | Writes an image (`.png`) or sound (`.wav`, `.ogg`) under `sprites/`, `tilesets/` or `sounds/` — from Base64 or by copying a file on this computer — after checking that it decodes, and reloads the art. Replacing a file updates every definition that uses it; a new file needs a definition (`upsert_def`). |
 | `events_reference {what}` | Allowed events per owner, every condition and action as JSON with example values. |

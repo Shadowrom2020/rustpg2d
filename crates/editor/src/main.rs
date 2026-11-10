@@ -26,6 +26,7 @@ mod models;
 mod new_project;
 mod pixel;
 mod script_editor;
+mod search;
 mod structures;
 mod terrain;
 mod ui;
@@ -563,7 +564,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -588,6 +589,12 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.mcp.status(),
             ed.watch.status(),
             ed.notices.len(),
+            ed.search.status(),
+            ed.usages.status(),
+            ed.mode,
+            ed.db.tab,
+            ed.db.sel,
+            ed.db.script_file.as_ref().and_then(|f| f.file_name()).map(|f| f.to_string_lossy().to_string()),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),
@@ -906,6 +913,39 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                     }
                 }
                 doc.record_objects(before, "schedule");
+            }
+        }
+        // search TEXT: Ctrl+P with that query (prints the hits) · searchpick N: Enter on hit N
+        "search" => {
+            let q = cmd[1..].join(" ");
+            ed.open_search(Some(&q));
+            for k in 0..ed.search.hits.len() {
+                if let Some(e) = ed.search.hit(k) {
+                    println!("[search] {k}: {} {} — {}", e.what.name(), e.label, e.detail);
+                }
+            }
+            println!("[search] {} hit(s) for {q:?}", ed.search.hits.len());
+        }
+        "searchpick" => {
+            if let Some(t) = ed.search.hit(num(1) as usize).map(|e| e.target.clone()) {
+                ed.search.open = false;
+                ed.jump_to(&t);
+            }
+        }
+        // usages KIND ID: Find usages (prints them, opens the window) · usagepick N: click usage N
+        "usages" => match rustpg2d_engine::refactor::RefKind::parse(arg(1)) {
+            Some(kind) => {
+                ed.show_usages(kind, arg(2));
+                for (k, e) in ed.usages.list.iter().enumerate() {
+                    println!("[usages] {k}: {} {} — {}", e.what.name(), e.label, e.detail);
+                }
+                println!("[usages] {} usage(s) of {} {:?}", ed.usages.list.len(), kind.name(), arg(2));
+            }
+            None => eprintln!("[script] usages: unknown kind {:?}", arg(1)),
+        },
+        "usagepick" => {
+            if let Some(t) = ed.usages.list.get(num(1) as usize).map(|e| e.target.clone()) {
+                ed.jump_to(&t);
             }
         }
         // scriptsel FILE: what clicking a file in Database > Scripts does

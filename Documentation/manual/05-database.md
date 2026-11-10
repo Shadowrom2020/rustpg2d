@@ -11,7 +11,8 @@ The tabs along the top are *Items, Props, Characters, Tilesets, Sprite sheets, S
 Skills, Spells, Recipes, Quests, Achievements, Project* and *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
 
-- **+ New**, **Duplicate** and **Delete** manage the list; **New asset…** starts a wizard that also
+- **+ New**, **Duplicate** and **Delete** manage the list, **Usages** lists every place the
+  selected definition is used ([Finding things](02-the-editor.md#finding-things)); **New asset…** starts a wizard that also
   draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** opens the
   character builder.
 - Every definition has an **id** (used by the files, triggers and scripts) and a **name** (shown to
@@ -54,7 +55,9 @@ is full, assigns it and opens it for drawing.
 
 - **Weapon**: melee (damage, cooldown, reach, swing arc, knockback) or ranged (projectile sprite,
   speed, range, ammo item). **Two-handed** weapons (spear, bow, crossbow) can't be used with a
-  shield or a light. A weapon can apply a status effect **on hit**.
+  shield or a light. A weapon can apply a status effect **on hit**. **Critical hits**: the chance
+  (5 % by default) that a hit of the player's with it is critical: double damage and a big yellow
+  number (enemies don't hit critically).
 - **Helmet**, **Body armor**: defense, a speed change (heavy armor slows), and an overlay sprite
   sheet drawn over the wearer.
 - **Left hand**: shields (defense) or lights (a lantern, a torch: give the item a *Light*).
@@ -114,7 +117,7 @@ portraits and parallax images all come from sprite sheets.
 | Setting | Meaning |
 |---|---|
 | **Image**, **Frame size** | The picture and the size of one frame |
-| **Kind** | *Character body, Hair, Beard, Outfit, Armor, Held item* or plain. The character builder offers sheets by kind |
+| **Kind** | *Character body, Hair, Beard, Outfit, Armor, Held item, Emotions* or plain. The character builder offers sheets by kind; every animation of an *Emotions* sheet is an emotion shown over heads ([Events › Emotions over heads](07-events.md#emotions-over-heads)) |
 | **Female body** | For bodies: outfits use their female cut on it |
 | **Playable** | For bodies: players may choose it in the character creator |
 | **Animations** | Named frame ranges (imported from Aseprite tags, or made here) for the *Effect* and *Fly* actions |

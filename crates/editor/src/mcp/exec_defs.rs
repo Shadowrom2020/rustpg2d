@@ -189,7 +189,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
             val(&PropDef::fresh(id)),
             "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot.",
         ),
-        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {body (a Body sheet), skin, hair (sheet), hair_color, beard}; equipment / inventory: the items it wears and carries; behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies; shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
+        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {body (a Body sheet), skin, hair (sheet), hair_color, beard}; equipment / inventory: the items it wears and carries; behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
         RefKind::Sound => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0 }), "file: WAV or Ogg Vorbis under the project; volume 0..1. Used by PlaySound / PlayMusic, map music and the project's built-in sounds."),
         RefKind::Quest => (val(&QuestDef { id: id.into(), title: "New quest".into(), description: String::new(), stages: vec!["Find out more".into(), "Done".into()], xp: 0 }), "stages: the journal lines in order (stage 0 is the first after Start); xp on completion. Triggers drive it: Action Quest{quest, op: Start|Advance|SetStage|Complete|Fail, stage}, Cond Quest{quest, check: NotStarted|Active|Completed|Failed|AtStage|StageAtLeast, stage}."),
         RefKind::Structure => (val(&StructureDef { id: id.into(), name: "New structure".into(), category: String::new(), w: 2, h: 2, tilesets: vec![], layers: vec![vec![0; 4], vec![0; 4], vec![0; 4]], collision: vec![0; 4], entities: vec![] }), "layers: one Vec per map layer of w*h tile values (0 = empty; tile = slot << 16 | index with slot into `tilesets`); collision: w*h bytes (0 auto, 1 solid, 2 walkable); entities with positions relative to the top-left. Easier: build it on a map and capture it in the editor (Structures tool)."),
@@ -382,6 +382,21 @@ impl Editor {
             users.push("the project's player character".into());
         }
         users
+    }
+
+    pub(crate) fn mcp_find_usages(&mut self, p: DefParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let kind = if matches!(p.kind.as_str(), "map" | "maps") { RefKind::Map } else { parse_def_kind(&p.kind)? };
+        let known = if kind == RefKind::Map { self.maps.clone() } else { self.def_ids(kind) };
+        if !known.contains(&p.id) {
+            return Err(format!("no {} \"{}\".{}", kind.name(), p.id, suggestions(&p.id, known.iter().map(String::as_str))));
+        }
+        let list = self.find_usages(kind, &p.id);
+        if list.is_empty() {
+            return text(format!("{} \"{}\" isn't used anywhere.", kind.name(), p.id));
+        }
+        let lines: Vec<String> = list.iter().map(|e| format!("- {} {}: {} [{}]", e.what.name(), e.label, e.detail, e.target.describe())).collect();
+        text(format!("{} usage(s) of {} \"{}\":\n{}", list.len(), kind.name(), p.id, lines.join("\n")))
     }
 
     pub(crate) fn mcp_delete_def(&mut self, p: DeleteDefParams) -> Result<Reply, String> {

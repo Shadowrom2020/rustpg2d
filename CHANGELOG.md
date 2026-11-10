@@ -3,6 +3,62 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.15.0 — 2026-11-10
+
+### Editor
+- **Quick search** (Ctrl+P, *Edit › Quick search…*): finds maps, definitions of every kind,
+  script functions, named characters and zones on every map, and dialog / choice lines, with
+  fuzzy matching; Enter goes there (opens the map and selects the object, opens the definition,
+  the script at the function).
+- **Find usages**: the *Usages* button above every Database list (or right-click a name) lists
+  every place a definition is used: placed copies and spawners, triggers on maps, zones, objects
+  and definitions, other definitions, script lines, project settings; each entry goes there.
+  Agents get the same list with the new `find_usages` tool. Editor script `search`, `searchpick`,
+  `usages`, `usagepick`.
+
+### Gameplay
+- **Combat feel**: when the player's blow, arrow or spell lands, the world pauses for a moment
+  (40 ms, 70 ms for a critical hit or a kill), the character hit flashes white (instead of red) and a
+  damage number rises from it: white, big and yellow for critical hits, red when the player or a
+  companion is hurt. **Critical hits** of the player's do double damage and shake the view a
+  little; each weapon has its chance (*Critical hits* on the item form, 5 % by default; the
+  example's weapons range from 3 % to 12 %). Health bars show for three seconds after a hit and
+  then fade, the lost part draining in white. Knockback starts harder and stops sooner (about
+  the same distance). New option *Damage numbers* (on); *Shake & flash* also switches the pause
+  off. Autoplay `crit always|never|chance`; `status` prints `hitstop=` and `numbers=`.
+- **Smarter enemies**: groups take turns: at most two melee enemies attack the player (or one
+  companion) at a time while the others circle around at a distance and step in when a place frees
+  up; they spread out instead of stacking. An enemy that first sees the player alerts others of its
+  kind within 6 tiles. Archers without a clear shot step sideways until they have one and aim a
+  little ahead of a walking player. Badly hurt enemies run to an ally, bring it along and come
+  back after catching their breath. New *Group* and *Alert* settings on the character form (on /
+  6 tiles by default, so existing projects get it too). `status ai=` shows `attack`, `circle` and
+  `regroup`.
+- **Emotions over heads**: characters and the player show a small animated icon over their head
+  (surprise, joy, anger, love, thinking, sleepy and more: 14 in the starter library) with the new
+  *Show emotion* / *Clear emotion* actions, `emote(target, emotion[, #{ seconds, wait }])`,
+  `clear_emote(target)` and `say(…, #{ emote: "joy" })`. Emotions are the animations of sprite
+  sheets of the new kind *Emotions*, so creators add their own by drawing frames and naming an
+  animation. With *Automatic emotions* (Database › Project, on by default) enemies are surprised
+  when they notice the player, confused when they lose them, afraid when they flee; sleepers snore;
+  companions are happy to learn a spell. In the example the guard, Tilda, Elder Rowan and Pip show
+  emotions. `status` prints `emotes=`.
+- **Block and dodge**: hold F (gamepad RB) with a shield to block: walking at half speed, blows,
+  arrows and lunges from the front do no damage; raising the shield right before a blow lands
+  parries it and stuns the attacker for a second. Space (gamepad B) rolls about three tiles,
+  untouchable while it lasts, then a second's cooldown (a blue pip after the hearts). Both are
+  rebindable. **Changed defaults**: Space no longer confirms (E and Enter do), and Tab / RB no
+  longer open the closed character window while playing (C, I and Y do). Autoplay `keydown` /
+  `keyup`; `status` prints `block=` and `dodge=`.
+- **Enemy attacks you can see coming**: armed enemies (a melee weapon in their equipment) stop at
+  their weapon's reach, wind up (the weapon raised, a red zone on the ground where the swing will
+  land), swing in the direction they locked for the weapon's damage, reach, arc and knockback, and
+  recover; stepping out of the zone dodges the blow. Unarmed chasers (slimes) crouch and lunge,
+  hurting only during the hop. Armed enemies and chasers no longer hurt by touch; they attack
+  companions too, and companions' swings are drawn. *Attack wind-up* on the character form
+  (`windup`) changes the timing. In the example the outlaws' swords and the bandit chief's axe
+  now count (the chief hits harder and slower). `status` prints `attacks=`.
+
 ## 0.14.0 — 2026-11-10
 
 ### Gameplay

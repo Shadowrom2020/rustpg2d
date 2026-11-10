@@ -210,7 +210,7 @@ impl SheetDef {
             SheetKind::Outfit => "outfit_",
             SheetKind::Armor => "ov_",
             SheetKind::Held => "held_",
-            SheetKind::Sprite => "",
+            SheetKind::Sprite | SheetKind::Emotions => "",
         };
         let s = self.id.strip_prefix(prefix).unwrap_or(&self.id).replace('_', " ");
         let mut c = s.chars();
@@ -237,10 +237,13 @@ pub enum SheetKind {
     Armor,
     /// An item held in a hand (weapons, shields, lights).
     Held,
+    /// Emotion icons shown over characters' heads: every tag (named frame range) is an emotion
+    /// (`emote(target, "joy")`, the *Show emotion* action).
+    Emotions,
 }
 
 impl SheetKind {
-    pub const ALL: [SheetKind; 7] = [SheetKind::Sprite, SheetKind::Body, SheetKind::Hair, SheetKind::Beard, SheetKind::Outfit, SheetKind::Armor, SheetKind::Held];
+    pub const ALL: [SheetKind; 8] = [SheetKind::Sprite, SheetKind::Body, SheetKind::Hair, SheetKind::Beard, SheetKind::Outfit, SheetKind::Armor, SheetKind::Held, SheetKind::Emotions];
     pub fn label(self) -> &'static str {
         match self {
             SheetKind::Sprite => "Sprite",
@@ -250,6 +253,7 @@ impl SheetKind {
             SheetKind::Outfit => "Outfit (clothing)",
             SheetKind::Armor => "Armor overlay",
             SheetKind::Held => "Held item",
+            SheetKind::Emotions => "Emotions (icons over heads)",
         }
     }
     fn is_sprite(&self) -> bool {
@@ -342,8 +346,14 @@ pub struct Weapon {
     /// A status effect for whoever the weapon hits (melee or projectile).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effect: Option<crate::effects::EffectSpec>,
+    /// Chance (0..1) that a hit of the player's is critical: double damage.
+    #[serde(default = "default_crit")]
+    pub crit: f32,
 }
 
+fn default_crit() -> f32 {
+    0.05
+}
 fn default_reach() -> f32 {
     1.0
 }
@@ -357,7 +367,7 @@ fn default_knockback() -> f32 {
 impl Weapon {
     /// A melee weapon with default reach / arc / knockback.
     pub fn melee(damage: i32, cooldown: f32) -> Self {
-        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None }
+        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None, crit: default_crit() }
     }
     pub fn ranged(damage: i32, cooldown: f32, ranged: Ranged) -> Self {
         Weapon { ranged: Some(ranged), ..Weapon::melee(damage, cooldown) }
@@ -1008,13 +1018,26 @@ pub enum Behavior {
         /// coming closer once the player is well within range).
         #[serde(default)]
         keep_distance: f32,
+        /// Fights as a group with others that chase: at most two close in on one target at a
+        /// time (the rest circle and wait for a gap), they spread out instead of stacking, and the
+        /// badly hurt run to their allies and come back.
+        #[serde(default = "yes")]
+        group: bool,
+        /// On noticing the player, alerts others of the same kind within this many tiles (0 = never).
+        #[serde(default = "default_alert")]
+        alert: f32,
     },
 }
 
+fn default_alert() -> f32 {
+    6.0
+}
+
 impl Behavior {
-    /// Chasing with only a sight range (no leash, never flees, no kept distance).
+    /// Chasing with only a sight range (no leash, never flees, no kept distance; fights as a
+    /// group and alerts its kind within 6 tiles).
     pub fn chase(sight: f32) -> Self {
-        Behavior::Chase { sight, leash: 0.0, flee_below: 0.0, keep_distance: 0.0 }
+        Behavior::Chase { sight, leash: 0.0, flee_below: 0.0, keep_distance: 0.0, group: true, alert: default_alert() }
     }
 }
 
@@ -1055,6 +1078,10 @@ pub struct CharacterDef {
     /// A status effect its touch gives the player (hostile characters, with contact damage).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub touch_effect: Option<crate::effects::EffectSpec>,
+    /// Seconds a hostile character winds up before its weapon swing or lunge (0 = the standard
+    /// 0.4 s swing / 0.3 s lunge): the time the player has to step out of the way.
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub windup: f32,
     /// What the bestiary says about it (shown once the player has defeated one).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
@@ -1118,6 +1145,7 @@ impl Default for CharacterDef {
             defense: 0,
             xp: 0,
             touch_effect: None,
+            windup: 0.0,
             description: String::new(),
             triggers: vec![],
             shop: None,
@@ -1820,6 +1848,26 @@ mod tests {
         assert!(other.remove::<PropDef>("chest") && other.props.is_empty());
         assert_eq!(<ItemDef as Def>::KIND, RefKind::Item);
         assert!(RefKind::DEFS.iter().all(|k| db.ids_of(*k).len() <= 1));
+    }
+
+    /// Weapons of older files hit critically 5 % of the time.
+    #[test]
+    fn weapon_crit_default() {
+        let w: Weapon = ron::from_str("(damage: 2)").unwrap();
+        assert_eq!(w.crit, 0.05);
+        assert_eq!(w, Weapon::melee(2, 0.4));
+    }
+
+    /// Chasers of older files fight as a group and alert their kind within 6 tiles, like
+    /// `Behavior::chase`; both can be switched off.
+    #[test]
+    fn chase_group_defaults() {
+        let b: Behavior = ron::from_str("Chase(sight: 4.0)").unwrap();
+        assert_eq!(b, Behavior::chase(4.0));
+        let Behavior::Chase { group, alert, .. } = b else { panic!() };
+        assert!(group && alert == 6.0);
+        let b: Behavior = ron::from_str("Chase(sight: 4.0, group: false, alert: 0.0)").unwrap();
+        assert!(matches!(b, Behavior::Chase { group: false, alert: 0.0, .. }));
     }
 
     /// `Default` is what a file entry with only the required fields loads as (so tests and the

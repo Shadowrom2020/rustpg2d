@@ -52,7 +52,36 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
     }
 }
 
+thread_local! {
+    /// *Find usages* asked for in a definition list (the id; the open tab gives the kind).
+    static USAGES: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The id whose usages the Database list asked for (once).
+pub fn take_usages_request() -> Option<String> {
+    USAGES.with(|u| u.borrow_mut().take())
+}
+
 impl Tab {
+    /// The kind of definitions the tab edits (`None` for Project and Scripts).
+    pub fn kind(self) -> Option<RefKind> {
+        Some(match self {
+            Tab::Items => RefKind::Item,
+            Tab::Props => RefKind::Prop,
+            Tab::Characters => RefKind::Character,
+            Tab::Tilesets => RefKind::Tileset,
+            Tab::Sheets => RefKind::Sheet,
+            Tab::Sounds => RefKind::Sound,
+            Tab::Quests => RefKind::Quest,
+            Tab::Structures => RefKind::Structure,
+            Tab::Skills => RefKind::Skill,
+            Tab::Spells => RefKind::Spell,
+            Tab::Recipes => RefKind::Recipe,
+            Tab::Achievements => RefKind::Achievement,
+            Tab::Project | Tab::Scripts => return None,
+        })
+    }
+
     /// The tab that edits definitions of `kind` (`None` for maps).
     pub fn of(kind: RefKind) -> Option<Tab> {
         Some(match kind {
@@ -210,13 +239,28 @@ fn list_ui<T: Clone>(
             *sel = sel.saturating_sub(1);
             changed = true;
         }
+        if ui
+            .add_enabled(*sel < ids.len(), egui::Button::new(ui::t(ph::LIST_MAGNIFYING_GLASS, "Usages")))
+            .on_hover_text("Find usages: every map, trigger, definition and script that uses the selected definition (also right-click a name)")
+            .clicked()
+        {
+            USAGES.with(|u| *u.borrow_mut() = ids.get(*sel).cloned());
+        }
     });
     ui.separator();
     egui::ScrollArea::vertical().id_salt("db_list").auto_shrink(false).show(ui, |ui| {
         for (i, it) in items.iter().enumerate() {
-            if ui.selectable_label(*sel == i, label(it)).clicked() {
+            let r = ui.selectable_label(*sel == i, label(it));
+            if r.clicked() {
                 *sel = i;
             }
+            r.context_menu(|ui| {
+                if ui.button(ui::t(ph::LIST_MAGNIFYING_GLASS, "Find usages")).clicked() {
+                    *sel = i;
+                    USAGES.with(|u| *u.borrow_mut() = ids.get(i).cloned());
+                    ui.close_menu();
+                }
+            });
         }
     });
     changed
@@ -727,6 +771,16 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
         if !character {
             ui.label("Hands");
             ui.checkbox(&mut w.two_handed, "Two-handed").on_hover_text("Nothing can be held in the left hand (shield, lantern) while this weapon is equipped");
+            ui.end_row();
+            ui.label("Critical hits");
+            let mut pct = (w.crit * 100.0).round() as i32;
+            if ui
+                .add(egui::DragValue::new(&mut pct).range(0..=100).suffix(" %"))
+                .on_hover_text("Chance that a hit of the player's with this weapon is critical: double damage, a big yellow number. 0 = never.")
+                .changed()
+            {
+                w.crit = pct as f32 / 100.0;
+            }
             ui.end_row();
         }
         if let Some(r) = &mut w.ranged {
@@ -1444,7 +1498,7 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             }
         });
         ui.end_row();
-        if let Behavior::Chase { leash, flee_below, keep_distance, .. } = &mut d.behavior {
+        if let Behavior::Chase { leash, flee_below, keep_distance, group, alert, .. } = &mut d.behavior {
             ui.label("Leash");
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(leash).range(0.0..=256.0).speed(0.1).suffix(" tiles"))
@@ -1472,6 +1526,18 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
                 ui.weak("(shooters)");
             });
             ui.end_row();
+            ui.label("Group");
+            ui.checkbox(group, "Fights as a group").on_hover_text(
+                "At most two group fighters close in on the player (or a companion) at a time; the others circle at a distance and step in when one falls back. They spread out instead of stacking up, and the badly hurt run to their allies, catch their breath and come back.",
+            );
+            ui.end_row();
+            ui.label("Alert");
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(alert).range(0.0..=64.0).speed(0.1).suffix(" tiles"))
+                    .on_hover_text("On noticing the player it alerts other characters of the same kind within this distance: they come too, even without seeing the player. 0 = never.");
+                ui.weak(if *alert > 0.0 { "same kind" } else { "(alerts nobody)" });
+            });
+            ui.end_row();
         }
     });
     hitbox(ui, &mut d.hitbox);
@@ -1488,7 +1554,14 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
         ui.add(egui::DragValue::new(&mut d.defense).range(-99..=99)).on_hover_text("Subtracted from incoming damage (at least 1 always gets through). Player: base defense before armor.");
         ui.end_row();
         ui.label("Hostile");
-        ui.checkbox(&mut d.hostile, "hurts the player on contact");
+        ui.checkbox(&mut d.hostile, "attacks the player").on_hover_text(
+            "With a melee weapon (its equipment) it winds up and swings it; unarmed and chasing it crouches and lunges; with a ranged weapon it shoots; otherwise it hurts by touch.",
+        );
+        ui.end_row();
+        ui.label("Attack wind-up");
+        ui.add(egui::DragValue::new(&mut d.windup).range(0.0..=3.0).speed(0.01).suffix(" s")).on_hover_text(
+            "How long it winds up before a weapon swing or a lunge: the time the player has to step out of the way. 0 = standard (0.4 s swing, 0.3 s lunge).",
+        );
         ui.end_row();
         ui.label("As companion");
         ui.checkbox(&mut d.gear_locked, "can't be given gear")
@@ -1902,7 +1975,10 @@ fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
         ui.end_row();
     });
     // Named animations (from Aseprite tags, or added here): Effect / Fly actions and
-    // effect(…, #{ tag }) play them by name.
+    // effect(…, #{ tag }) play them by name; on an Emotions sheet each one is an emotion.
+    if d.kind == rustpg2d_engine::defs::SheetKind::Emotions {
+        ui.weak("Every animation of this sheet is an emotion shown over characters' heads: its name is what 'Show emotion', emote(target, \"name\") and say(..., #{ emote: \"name\" }) use.");
+    }
     egui::CollapsingHeader::new(format!("Animations ({})", d.tags.len())).id_salt(("sheet_tags", &d.id)).default_open(!d.tags.is_empty()).show(ui, |ui| {
         let mut remove = None;
         for (k, t) in d.tags.iter_mut().enumerate() {
@@ -2071,6 +2147,11 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
         ui.label("Dialog portraits");
         ui.checkbox(&mut c.dialog_portraits, "show the speaker's portrait in dialogs")
             .on_hover_text("Found from the speaker's name: the player (\"{player}\" or the player's name), the trigger's owner ({self}), a character on the map or a character definition with that name. Narration and signs (no matching character) have none.");
+        ui.end_row();
+        ui.label("Automatic emotions");
+        ui.checkbox(&mut c.auto_emotions, "characters show emotions by themselves").on_hover_text(
+            "Enemies show 'surprise' when they notice the player, 'confused' when they lose them and 'fear' when they flee; sleepers 'sleepy'; companions 'joy' when they learn a spell. Needs those emotions (tags) in an Emotions sprite sheet.",
+        );
         ui.end_row();
         ui.label("Player portrait");
         ui.vertical(|ui| {

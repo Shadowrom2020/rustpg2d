@@ -6,12 +6,32 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Art
+- **New characters**: every character of the example and the starter library (46: the villagers,
+  guards, bandits, goblins, wizards, nobles, children, animals and monsters) is redrawn as detailed
+  2× pixel art (64 × 96 frames for people) with walking, breathing while standing, attack frames for
+  the fighters (sword slashes, spear thrusts, axe chops, the slime's pounce …) and a hit reaction.
+  They are **complete figures**: one sheet per character with clothes, hair and weapon painted in.
+  The character creator offers pre-made heroes (hero, heroine, goblin, goblin scout).
+- **Layered sheets at 2×**: the mix-and-match bodies, hair styles, beards, outfits, armor and held
+  items are 2× too, in their familiar style with smoother edges; the earlier creature and children
+  sheets stay in the library as `<id>_classic`. Existing projects and asset libraries keep their
+  sheets.
 - **High-resolution sprites**: a sprite sheet's new **Scale** (1×–4×, *Database › Sprite sheets*)
   says how many image pixels make one world pixel, so 2× art (64 × 96 character frames) fills the
   place of 1× art with twice the detail. Sheets of different scales mix (a 2× body with 1× hair and
   outfits lines up); positions, hitboxes and tiles don't change, tilesets stay 1×. The pickers show
   2× frames at the same size, the pixel editor edits the image's own pixels, and the LPC and
   Aseprite imports ask for the scale. Old sheets are 1×.
+
+### Engine
+- **Character animations**: a character sheet may have rows for idle (2 frames), attack (4) and
+  hurt (1) below the walk; the game plays them (standing characters breathe, wind-ups and swings,
+  hits). Sheets and layers without them show their standing frame, so older art looks as before.
+  The character builder previews *Walk*, *Idle*, *Attack* and *Hurt*; `status` prints `anims=`.
+- **Complete figures**: a body sheet can be marked *Complete figure* (*Database › Sprite sheets*):
+  nothing is drawn over it and it isn't recoloured; the creator hides skin, hair and beard for it
+  and names it after the character that wears it; its painted swing replaces the weapon's swing
+  sprite.
 
 ## 0.15.0 — 2026-11-10
 

@@ -10,11 +10,11 @@ use crate::state::WorldState;
 use super::juice::NumberKind;
 use super::text::{draw_text, measure_text};
 
-const SWING_TIME: f32 = 0.18;
+pub(super) const SWING_TIME: f32 = 0.18;
 /// Enemy invulnerability after a hit.
 const HIT_INVULN: f32 = 0.3;
 /// Player invulnerability after being hurt.
-const HURT_INVULN: f32 = 1.0;
+pub(super) const HURT_INVULN: f32 = 1.0;
 pub(super) const KNOCKBACK: f32 = 190.0;
 const GAME_OVER_TIME: f32 = 2.5;
 const EFFECT_TIME: f32 = 0.35;
@@ -194,6 +194,7 @@ impl Game {
         for e in &mut self.loaded.entities {
             e.invuln = (e.invuln - dt).max(0.0);
             e.flash = (e.flash - dt).max(0.0);
+            e.hurt = (e.hurt - dt).max(0.0);
             // The bar's lost part waits a moment, then drains to the HP left.
             let frac = if e.max_hp > 0 { e.hp.max(0) as f32 / e.max_hp as f32 } else { 0.0 };
             if e.bar < super::juice::BAR_TIME - 0.3 {
@@ -536,6 +537,7 @@ impl Game {
         e.last_hit = hit;
         e.invuln = HIT_INVULN;
         e.flash = super::juice::HIT_FLASH;
+        e.hurt = 0.25;
         // The health bar shows again; what the hit took drains away from where the bar stood.
         if e.bar <= 0.0 && e.max_hp > 0 {
             e.bar_lag = before.max(0) as f32 / e.max_hp as f32;
@@ -735,7 +737,8 @@ impl Game {
             // The weapon itself (out of the hand meanwhile) sweeps along the arc. Item icons
             // point up-right, so they are turned by the arc's angle + 45 degrees.
             let icon = self.world.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone());
-            if let Some(icon) = icon {
+            let painted = self.player_appearance().is_some_and(|a| self.figure_animates(&a));
+            if let Some(icon) = icon.filter(|_| !painted && !self.weapon_animates(&self.player_equipment_drawn())) {
                 let at = center + vec2(a1.cos(), a1.sin()) * (r * 0.5).max(ts * 0.45);
                 self.assets.draw_frame_scaled(&icon.sheet, icon.frame, at, a1 + std::f32::consts::FRAC_PI_4, 1.0, WHITE);
             }

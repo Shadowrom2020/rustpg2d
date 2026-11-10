@@ -69,6 +69,42 @@ pub struct Out {
 struct Preview {
     facing: Facing,
     turning: bool,
+    /// What the big preview plays: 0 walk, 1 idle, 2 attack, 3 hurt.
+    anim: u8,
+}
+
+thread_local! {
+    /// Editor script `charanim walk|idle|attack|hurt`: the animation every builder preview plays.
+    static PREVIEW_ANIM: std::cell::Cell<Option<u8>> = const { std::cell::Cell::new(None) };
+}
+
+/// Sets the builder previews' animation (editor script).
+pub fn set_preview_anim(name: &str) {
+    let k = match name {
+        "idle" => 1,
+        "attack" => 2,
+        "hurt" => 3,
+        _ => 0,
+    };
+    PREVIEW_ANIM.with(|a| a.set(Some(k)));
+}
+
+/// The animation frame of preview mode `anim` at time `t` (an attack plays its 4 frames, then rests).
+fn preview_anim(anim: u8, t: f64) -> character::Anim {
+    use character::Anim;
+    match anim {
+        1 => Anim::Idle((t * 1.25) as u32 % 2),
+        2 => {
+            let k = (t * 6.0) as u32 % 7;
+            if k < 4 {
+                Anim::Attack(k)
+            } else {
+                Anim::Idle(0)
+            }
+        }
+        3 => Anim::Hurt,
+        _ => Anim::Walk((t * 7.0) as u32 % character::LAYOUT_FRAMES),
+    }
 }
 
 const THUMB: egui::Vec2 = vec2(52.0, 72.0);
@@ -177,11 +213,14 @@ fn item_cards(ui: &mut Ui, cx: &Cx, slot: EquipSlot, a: &Appearance, eq: &Equipm
 /// The animated preview: walking in place, facing `facing` (or turning), the four idle
 /// directions below.
 fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance, eq: &Equipment) {
-    let mut st = ui.ctx().data_mut(|d| *d.get_temp_mut_or(id, Preview { facing: Facing::Down, turning: true }));
+    let mut st = ui.ctx().data_mut(|d| *d.get_temp_mut_or(id, Preview { facing: Facing::Down, turning: true, anim: 0 }));
+    if let Some(k) = PREVIEW_ANIM.with(|a| a.take()) {
+        st.anim = k;
+    }
     let t = macroquad::time::get_time();
     let order = [Facing::Down, Facing::Left, Facing::Up, Facing::Right];
     let facing = if st.turning { order[(t / 1.5) as usize % 4] } else { st.facing };
-    let col = (t * 7.0) as u32 % character::LAYOUT_FRAMES;
+    let anim = preview_anim(st.anim, t);
     // (World size: a high-resolution body shows as big as a 1x one.)
     let (fw, fh) = cx.assets.sheets.get(&a.body).map_or((32.0, 48.0), |s| (s.world_size().x, s.world_size().y));
     let scale = (PREVIEW_H / fh).floor().max(1.0);
@@ -189,7 +228,7 @@ fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance, eq: &Equipment) {
         let (r, _) = ui.allocate_exact_size(vec2((fw * scale).max(120.0), PREVIEW_H + 6.0), Sense::hover());
         ui.painter().rect_filled(r, 4.0, Color32::from_gray(34));
         let dest = Rect::from_min_size(pos2(r.center().x - fw * scale / 2.0, r.max.y - 3.0 - fh * scale), vec2(fw * scale, fh * scale));
-        if !paint(ui, cx, &character::layers(cx.db, a, eq, facing, col, false), dest) {
+        if !paint(ui, cx, &character::layers(cx.db, a, eq, facing, anim, false), dest) {
             ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "no body", egui::FontId::default(), Color32::LIGHT_RED);
         }
         ui.horizontal(|ui| {
@@ -200,6 +239,18 @@ fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance, eq: &Equipment) {
                 }
             }
             ui.toggle_value(&mut st.turning, ph::ARROWS_CLOCKWISE).on_hover_text("Turn around");
+        });
+        ui.horizontal(|ui| {
+            for (k, label, tip) in [
+                (0u8, "Walk", "The walk cycle"),
+                (1, "Idle", "Standing still: breathing (sheets with animation rows)"),
+                (2, "Attack", "Wind-up, swing, follow-through, recover (sheets with animation rows)"),
+                (3, "Hurt", "Just hit (sheets with animation rows)"),
+            ] {
+                if ui.selectable_label(st.anim == k, label).on_hover_text(tip).clicked() {
+                    st.anim = k;
+                }
+            }
         });
         ui.horizontal(|ui| {
             for f in order {

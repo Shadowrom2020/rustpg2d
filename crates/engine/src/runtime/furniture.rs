@@ -321,7 +321,7 @@ impl Game {
                 let drop = 6.0 * k;
                 let dest = Rect::new(seat.pos.x - fw / 2.0, seat.pos.y - fh + drop, fw, fh * part.h);
                 for l in self.character_layers(&a, eq, seat.facing, 0, false) {
-                    self.assets.draw_frame_part_in(&l.sheet, l.frame, part, dest, l.skin, l.hair);
+                    self.assets.draw_frame_part_in(&l.sheet, self.layer_frame(&l), part, dest, l.skin, l.hair);
                 }
             }
             Pose::Lie => {
@@ -334,11 +334,11 @@ impl Game {
                 };
                 let center = seat.pos + head * fh / 2.0;
                 for l in self.character_layers(&a, eq, Facing::Down, 0, false) {
-                    self.assets.draw_frame_colored_rotated(&l.sheet, l.frame, center, angle, (l.skin, l.hair), WHITE);
+                    self.assets.draw_frame_colored_rotated(&l.sheet, self.layer_frame(&l), center, angle, (l.skin, l.hair), WHITE);
                 }
             }
             Pose::Stand => {
-                self.draw_character(&a, eq, (seat.facing, 0), seat.pos, tint, false);
+                self.draw_character(&a, eq, (seat.facing, 0.into()), seat.pos, tint, false);
             }
         }
         if !cover.sheet.is_empty() {

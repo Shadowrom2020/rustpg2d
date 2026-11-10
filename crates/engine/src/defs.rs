@@ -173,6 +173,10 @@ pub struct SheetDef {
     /// Bodies: players may choose it in the character creator (people yes, a slime no).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub playable: bool,
+    /// Bodies: a complete figure (clothes, hair and what it holds painted in): nothing is drawn
+    /// over it (no outfit, armor, hair, beard or held items) and it isn't recoloured.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub complete: bool,
     /// Named frame ranges (animations), e.g. from an Aseprite export: offered by the *Effect* /
     /// *Fly* actions and the `tag` option of `effect()` / `fly()`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -192,7 +196,7 @@ pub struct SheetTag {
 /// tile. The editor's "+ New" value is [`SheetDef::fresh`].
 impl Default for SheetDef {
     fn default() -> Self {
-        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, tags: Vec::new() }
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, complete: false, tags: Vec::new() }
     }
 }
 
@@ -1507,6 +1511,11 @@ impl Database {
     /// Is `sheet` a female body?
     pub fn female_body(&self, sheet: &str) -> bool {
         self.sheet(sheet).is_some_and(|s| s.female)
+    }
+
+    /// The body sheet is a complete figure ([`SheetDef::complete`]).
+    pub fn complete_body(&self, sheet: &str) -> bool {
+        self.sheet(sheet).is_some_and(|s| s.complete)
     }
 
     /// Bodies players may choose for a character of sex `female` (in sheet order).

@@ -950,6 +950,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 ed.jump_to(&t);
             }
         }
+        // charanim walk|idle|attack|hurt: what the character builder's preview plays
+        "charanim" => builder::set_preview_anim(arg(1)),
         // scriptsel FILE: what clicking a file in Database > Scripts does
         "scriptsel" => {
             let f = ed.project.scripts_dir().join(arg(1));

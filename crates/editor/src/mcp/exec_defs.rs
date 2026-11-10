@@ -179,7 +179,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         ),
         RefKind::Sheet => (
             val(&SheetDef::new(id, "sprites/<file>.png", 32, 32)),
-            "kind: Sprite (props, effects) | Body | Hair | Beard | Outfit | Armor | Held (layered characters: 4 rows down/left/right/up, 4 frames); frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art, 64x96 frames fill a 32x48 place); tags: named frame ranges [{name, first, last, fps}].",
+            "kind: Sprite (props, effects) | Body | Hair | Beard | Outfit | Armor | Held (layered characters: 4 rows down/left/right/up, 4 frames); frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art, 64x96 frames fill a 32x48 place); complete: a Body that is a complete figure (clothes, hair, held items painted in; nothing drawn over it, not recoloured); character sheets may have 16 rows (walk, idle 2 frames, attack 4, hurt 1; each block down/left/right/up); tags: named frame ranges [{name, first, last, fps}].",
         ),
         RefKind::Item => (
             val(&ItemDef::fresh(id)),

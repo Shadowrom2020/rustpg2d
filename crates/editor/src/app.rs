@@ -1173,7 +1173,8 @@ impl Editor {
     pub fn draw_char_layers(&self, layers: &[rustpg2d_engine::render::character::Layer], feet: Vec2, tint: macroquad::color::Color) -> bool {
         let mut any = false;
         for l in layers {
-            any |= self.assets.draw_frame_colored(&l.sheet, l.frame, feet, tint, l.skin, l.hair);
+            let frame = self.assets.sheets.get(&l.sheet).map_or(l.fallback, |s| l.frame_in(s.count));
+            any |= self.assets.draw_frame_colored(&l.sheet, frame, feet, tint, l.skin, l.hair);
         }
         any
     }

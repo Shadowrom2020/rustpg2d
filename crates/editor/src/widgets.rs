@@ -118,7 +118,7 @@ pub fn paint_character(ui: &Ui, tex: &Textures, assets: &Assets, layers: &[rustp
     let mut any = false;
     for l in layers {
         let (Some(s), Some(id)) = (assets.sheets.get(&l.sheet), tex.colored(ui.ctx(), assets, &l.sheet, l.skin, l.hair)) else { continue };
-        let src = s.src_rect(l.frame);
+        let src = s.src_rect(l.frame_in(s.count));
         let (w, h) = (s.image.width as f32, s.image.height as f32);
         let uv = Rect::from_min_max(pos2(src.x / w, src.y / h), pos2((src.x + src.w) / w, (src.y + src.h) / h));
         ui.painter().image(id, dest, uv, Color32::WHITE);

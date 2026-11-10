@@ -88,55 +88,6 @@ Instructions for every session (people and coding agents) that implements roadma
     `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
     checks, merge the back-merge pull request.
 
-## 0.13.0 — Pictures, producing activities, companion magic
-
-- [x] Image display — `feature/image-display`
-
-  **Goal.** Show a picture over the game from events and scripts: a full-body painting when the
-  player first meets a character, letters, maps, posters.
-
-  **Design.** *Show image* (sheet, wait, scroll, speed, scale) and *Hide image* actions,
-  `show_image` / `hide_image`; the picture is a sprite sheet drawn whole at `scale`, scaled down to
-  fit the window with its aspect ratio kept (smooth when shrunk); *scroll* fits a tall picture's
-  width and pans down and back up, the player can scroll by hand; *wait* blocks the event until
-  the player closes it, otherwise it stays under the dialogs until the event ends.
-
-  **Engine.** The two actions, the script functions and `runtime/image.rs` (agreed with the user).
-
-  **Example.** Tilda's first-meeting trigger shows the user's paintings `tilda_full` (scrolling)
-  and `tilda_portrait` (behind her greeting).
-
-  **Verify.** `image=` in `status` (scroll offset moving, `:hand` after arrow keys), screenshots,
-  the web export in headless Brave, the editor's fields and a sheet rename.
-
-- [x] Activities that produce something — `feature/producing-activities`
-
-  **Goal.** What villagers do yields goods: Finn's catch is for sale at his stall the next morning,
-  the baker's bread at his.
-
-  **Engine.** *Shop stock* action, `add_stock` / `set_stock` / `stock_of`, `day()` (agreed).
-
-  **Decided while building.** The baker restocks apple pies (his bread is unlimited). The restock
-  is a generic library script, `restock_from_activity(owner, item, per_day, max)`, run by the
-  fisher's and the baker's definition triggers; `SELF` is passed on because helper functions
-  don't see it (documented). The starter library test now accepts definitions with their scripted
-  triggers when the functions travel along (library features), as well as without them (story
-  triggers).
-
-- [x] Companions learn spells — `feature/companion-spells`
-
-  **Goal.** Scrolls and books given to a companion teach it *Heal* and *Bolt* spells, cast from a
-  mana pool of its definition.
-
-  **Engine.** Companion spells and mana in save games, learning, casting (agreed).
-
-  **Decided while building.** Learned spells are kept per placed character
-  (`WorldState::npc_spells`, "map/uid"), not on the companion entry, so a dismissed companion keeps
-  them; mana stays on the companion entry like its HP. Learning happens wherever a companion
-  receives an item (the companion window's hand-over, *Give item to character*); spells other than
-  *Heal* and *Bolt* (aimed by the player) are refused with a message. A spell's skill requirement
-  doesn't apply to companions.
-
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS

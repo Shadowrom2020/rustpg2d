@@ -256,6 +256,11 @@ async fn main() {
                 match cmd.as_str() {
                     "skillpoint" => game.spend_skill_point(&id),
                     "call" => game.run_script(&id),
+                    "crit" => game.set_crit_mode(match id.as_str() {
+                        "always" => Some(true),
+                        "never" => Some(false),
+                        _ => None,
+                    }),
                     "cast" => {
                         game.cast_spell(&id);
                     }
@@ -367,6 +372,7 @@ impl Autoplay {
                     inject(&self.held, &[]);
                     return true;
                 }
+                // crit always|never|chance: the player's critical hits forced on / off, or by chance
                 // keydown KEY[+KEY]: hold keys while the next commands run · keyup [KEY]: let go
                 // (all without a key)
                 "keydown" => {
@@ -561,7 +567,8 @@ impl Autoplay {
                 },
                 // skillpoint ID: spend a skill point · cast ID: cast a spell · learn ID: learn a spell
                 // call FN: runs a script function (its queued actions too)
-                "skillpoint" | "cast" | "learn" | "call" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),
+                // crit always|never|chance: the player's critical hits forced on / off, or by chance
+                "skillpoint" | "cast" | "learn" | "call" | "crit" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),
                 "quit" => return false,
                 // close: as if the window's close button was clicked
                 "close" => {

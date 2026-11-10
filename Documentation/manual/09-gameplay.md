@@ -18,8 +18,17 @@ equipped bow or crossbow.
   obstacles](03-maps.md#low-and-high-obstacles)).
 - **Armor** reduces damage: what gets through is `damage − defense`, at least 1. Heavy armor can
   slow the wearer.
-- Hits knock back and give a moment of invulnerability. When the player is hurt the screen shakes
-  briefly and flashes red (players can turn this off in *Options › Shake & flash*).
+- Hits knock back (a hard shove that stops quickly) and give a moment of invulnerability. When
+  the player is hurt the screen shakes briefly and flashes red (players can turn this off in
+  *Options › Shake & flash*).
+- **Hits feel like hits**: when the player's blow, arrow or spell lands, the world pauses for a
+  few hundredths of a second (longer for a critical hit or a kill; off with *Shake & flash*), the
+  character hit flashes white, and a **damage number** rises from it: white for the player's hits,
+  big and yellow for **critical hits**, red when the player or a companion is hurt (*Options ›
+  Damage numbers*). A **critical hit** does double damage and shakes the view a little; each
+  weapon has its own chance (*Critical hits* on the item form, 5 % by default; in the example
+  the crossbow and the fine iron sword are best at it). Characters show a **health bar** for
+  three seconds after they were hurt; the part the hit took drains away in white.
 - **Hostile characters** chase or shoot at the player ([Characters › Behaviour](06-characters.md#behaviour)),
   and their attacks can be seen coming:
   - **Armed** (a melee weapon in their equipment): they stop at their weapon's reach and **wind up**

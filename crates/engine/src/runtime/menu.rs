@@ -56,6 +56,8 @@ enum Opt {
     TextSpeed,
     /// Screen shake and the hurt flash.
     ScreenEffects,
+    /// Damage numbers over hits.
+    DamageNumbers,
     /// The game's language (its own and its translations).
     Language,
     /// How gamepad buttons are shown (Auto / Xbox / PlayStation / Nintendo).
@@ -66,7 +68,7 @@ enum Opt {
     Back,
 }
 
-const OPTS: [Opt; 14] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back];
+const OPTS: [Opt; 15] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::DamageNumbers, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back];
 
 struct SaveInfo {
     slot: String,
@@ -599,6 +601,7 @@ impl Game {
             Opt::Ambience => "Ambience volume",
             Opt::TextSpeed => "Text speed",
             Opt::ScreenEffects => "Shake & flash",
+            Opt::DamageNumbers => "Damage numbers",
             Opt::Language => "Language",
             Opt::ButtonStyle => "Button style",
             Opt::Controls => "Controls...",
@@ -616,6 +619,7 @@ impl Game {
             Opt::Zoom => pct(s.zoom),
             Opt::ShowFps => on(s.show_fps),
             Opt::ScreenEffects => on(s.screen_effects),
+            Opt::DamageNumbers => on(s.damage_numbers),
             Opt::Master => pct(s.master_volume),
             Opt::Music => pct(s.music_volume),
             Opt::Effects => pct(s.effects_volume),
@@ -641,6 +645,7 @@ impl Game {
             Opt::Fullscreen => s.fullscreen = !s.fullscreen,
             Opt::ShowFps => s.show_fps = !s.show_fps,
             Opt::ScreenEffects => s.screen_effects = !s.screen_effects,
+            Opt::DamageNumbers => s.damage_numbers = !s.damage_numbers,
             Opt::Zoom => s.zoom = step(&ZOOMS, s.zoom),
             Opt::Master => s.master_volume = step(&VOLUMES, s.master_volume),
             Opt::Music => s.music_volume = step(&VOLUMES, s.music_volume),

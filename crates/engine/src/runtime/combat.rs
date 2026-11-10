@@ -7,6 +7,7 @@ use crate::defs::{CharacterDef, Ranged, SpriteRef};
 use crate::entity::Facing;
 use crate::events::GameEvent;
 use crate::state::WorldState;
+use super::juice::NumberKind;
 use super::text::{draw_text, measure_text};
 
 const SWING_TIME: f32 = 0.18;
@@ -33,6 +34,16 @@ pub(super) struct Projectile {
     sprite: SpriteRef,
     /// A status effect for whoever it hits.
     effect: Option<crate::effects::EffectSpec>,
+    /// A critical shot of the player's (its damage already doubled).
+    crit: bool,
+}
+
+/// Who dealt a hit, for its feedback (hit-stop, the number's color).
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct Blow {
+    /// The player's own hit (weapon or spell; not a companion's).
+    pub by_player: bool,
+    pub crit: bool,
 }
 
 impl Projectile {
@@ -109,9 +120,11 @@ fn inflate(r: Rect, by: f32) -> Rect {
 }
 
 /// Decays a knockback velocity; returns the movement for this frame (`u` = art pixel size).
+/// One frame of knockback: a hard start that stops quickly (1.5× the speed, 1.5× the braking:
+/// about the same distance as the old gentle slide).
 fn decay(knock: &mut Vec2, dt: f32, u: f32) -> Vec2 {
-    let step = *knock * dt;
-    *knock *= (1.0 - 9.0 * dt).max(0.0);
+    let step = *knock * dt * 1.5;
+    *knock *= (1.0 - 13.5 * dt).max(0.0);
     if knock.length() < 8.0 * u {
         *knock = Vec2::ZERO;
     }
@@ -181,6 +194,13 @@ impl Game {
         for e in &mut self.loaded.entities {
             e.invuln = (e.invuln - dt).max(0.0);
             e.flash = (e.flash - dt).max(0.0);
+            // The bar's lost part waits a moment, then drains to the HP left.
+            let frac = if e.max_hp > 0 { e.hp.max(0) as f32 / e.max_hp as f32 } else { 0.0 };
+            if e.bar < super::juice::BAR_TIME - 0.3 {
+                e.bar_lag -= dt * 0.8;
+            }
+            e.bar_lag = e.bar_lag.max(frac);
+            e.bar = (e.bar - dt).max(0.0);
         }
         for fx in &mut self.effects {
             fx.1 += dt;
@@ -259,7 +279,11 @@ impl Game {
             };
             self.combat.cooldown = cooldown;
             self.audio.play(&self.project.config.sfx.attack);
-            self.shoot(origin, dir, &r, damage, true, None, weapon.effect);
+            let crit = self.roll_crit(weapon.crit);
+            self.shoot(origin, dir, &r, if crit { damage * 2 } else { damage }, true, None, weapon.effect);
+            if let Some(p) = self.projectiles.last_mut() {
+                p.crit = crit;
+            }
             return;
         }
         // Melee: everything within reach inside the swing arc.
@@ -309,7 +333,9 @@ impl Game {
             if let Some(fx) = &weapon.effect {
                 crate::effects::apply(&mut self.loaded.entities[i].effects, fx);
             }
-            self.damage_entity(i, damage, from, weapon.knockback);
+            let crit = self.roll_crit(weapon.crit);
+            let dmg = if crit { damage * 2 } else { damage };
+            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit });
         }
     }
 
@@ -336,6 +362,7 @@ impl Game {
             shooter,
             sprite: r.projectile.clone(),
             effect,
+            crit: false,
         });
     }
 
@@ -418,10 +445,11 @@ impl Game {
                     });
                     if let Some(t) = target {
                         let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                        let blow = Blow { by_player: p.shooter.is_none(), crit: p.crit };
                         if let Some(fx) = fx {
                             crate::effects::apply(&mut self.loaded.entities[t].effects, &fx);
                         }
-                        self.damage_entity(t, dmg, from, 1.0);
+                        self.strike_entity(t, dmg, from, 1.0, blow);
                         alive = false;
                         break;
                     }
@@ -494,18 +522,44 @@ impl Game {
 
     /// Applies damage (minus the target's defense, at least 1) with knockback.
     pub(super) fn damage_entity(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32) {
-        let u = self.u();
+        self.strike_entity(i, dmg, from, knockback, Blow::default());
+    }
+
+    /// [`Self::damage_entity`] with what dealt the blow: the player's own hits pause the world a
+    /// moment (longer for a critical hit or a kill), critical ones shake it a little.
+    pub(super) fn strike_entity(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32, blow: Blow) {
+        let (u, ts) = (self.u(), self.ts());
         let e = &mut self.loaded.entities[i];
         let before = e.hp;
         let hit = (dmg - e.defense - crate::effects::defense_bonus(&e.effects)).max(1);
         e.hp -= hit;
         e.last_hit = hit;
         e.invuln = HIT_INVULN;
-        e.flash = 0.15;
+        e.flash = super::juice::HIT_FLASH;
+        // The health bar shows again; what the hit took drains away from where the bar stood.
+        if e.bar <= 0.0 && e.max_hp > 0 {
+            e.bar_lag = before.max(0) as f32 / e.max_hp as f32;
+        }
+        e.bar = super::juice::BAR_TIME;
         e.body.move_target = None;
         let away = (e.body.pos - from).try_normalize().unwrap_or(vec2(0.0, 1.0));
         e.knock = away * KNOCKBACK * u * knockback.max(0.0);
-        if e.hp <= 0 {
+        let kind = if e.companion.is_some() {
+            NumberKind::Hurt
+        } else if blow.crit {
+            NumberKind::Crit
+        } else {
+            NumberKind::Hit
+        };
+        let (head, killed) = (e.body.pos - vec2(0.0, ts * 1.1), e.hp <= 0);
+        self.damage_number(head, hit, kind);
+        if blow.by_player {
+            self.hit_stop(blow.crit || killed);
+            if blow.crit {
+                self.shake_screen(0.12, 0.6);
+            }
+        }
+        if killed {
             self.defeat(i);
         } else {
             self.audio.play(&self.project.config.sfx.hit);
@@ -592,6 +646,8 @@ impl Game {
         self.combat.knock = away * KNOCKBACK * self.u();
         self.audio.play(&self.project.config.sfx.hurt);
         self.hurt_feedback();
+        let head = self.player.pos - vec2(0.0, self.ts() * 1.1);
+        self.damage_number(head, taken, NumberKind::Hurt);
         if hp == 0 {
             self.player_defeated();
         }
@@ -684,11 +740,16 @@ impl Game {
                 self.assets.draw_frame_scaled(&icon.sheet, icon.frame, at, a1 + std::f32::consts::FRAC_PI_4, 1.0, WHITE);
             }
         }
-        for e in self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0 && e.hp < e.max_hp && !e.companion.as_ref().is_some_and(|l| l.down.is_some())) {
+        // Health bars of characters hurt in the last few seconds (fading out), the lost part
+        // draining in white.
+        for e in self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0 && e.hp > 0 && e.bar > 0.0 && !e.companion.as_ref().is_some_and(|l| l.down.is_some())) {
+            let a = (e.bar / 0.5).min(1.0);
             let w = 14.0 * u;
             let (x, y) = (e.body.pos.x - w / 2.0, e.body.pos.y - ts - 6.0 * u);
-            draw_rectangle(x - u, y - u, w + 2.0 * u, 4.0 * u, Color::new(0.0, 0.0, 0.0, 0.7));
-            draw_rectangle(x, y, w * e.hp as f32 / e.max_hp as f32, 2.0 * u, Color::new(0.9, 0.2, 0.2, 1.0));
+            let frac = e.hp as f32 / e.max_hp as f32;
+            draw_rectangle(x - u, y - u, w + 2.0 * u, 4.0 * u, Color::new(0.0, 0.0, 0.0, 0.7 * a));
+            draw_rectangle(x, y, w * e.bar_lag.min(1.0), 2.0 * u, Color::new(1.0, 1.0, 1.0, 0.85 * a));
+            draw_rectangle(x, y, w * frac, 2.0 * u, Color::new(0.9, 0.2, 0.2, a));
         }
         // Status effects: small colored squares above the health bar.
         for e in self.loaded.entities.iter().filter(|e| e.active && !e.effects.is_empty()) {

@@ -110,7 +110,8 @@ place is named under the list (*R2 is also Switch weapon*).
 | Show FPS | On / off |
 | Master, Music, Effects, Ambience volume | In 10 % steps (ambience = sounds like the rain) |
 | Text speed | Slow, Normal, Fast, Instant |
-| Shake & flash | The screen shake and red flash when hurt, and shakes from explosions |
+| Shake & flash | The screen shake and red flash when hurt, shakes from explosions, and the short pause when a blow lands |
+| Damage numbers | On / off: the numbers that rise from hits |
 | Language | The game's languages |
 | Controls… | Every action with its keys: Enter, then a key, adds one (up to three per action); Del clears; *Reset to defaults* |
 

@@ -54,7 +54,9 @@ is full, assigns it and opens it for drawing.
 
 - **Weapon**: melee (damage, cooldown, reach, swing arc, knockback) or ranged (projectile sprite,
   speed, range, ammo item). **Two-handed** weapons (spear, bow, crossbow) can't be used with a
-  shield or a light. A weapon can apply a status effect **on hit**.
+  shield or a light. A weapon can apply a status effect **on hit**. **Critical hits**: the chance
+  (5 % by default) that a hit of the player's with it is critical: double damage and a big yellow
+  number (enemies don't hit critically).
 - **Helmet**, **Body armor**: defense, a speed change (heavy armor slows), and an overlay sprite
   sheet drawn over the wearer.
 - **Left hand**: shields (defense) or lights (a lantern, a torch: give the item a *Light*).

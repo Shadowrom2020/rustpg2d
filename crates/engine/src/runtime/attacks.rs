@@ -368,6 +368,7 @@ mod tests {
             knockback: 1.0,
             two_handed: false,
             effect: None,
+            crit: 0.05,
         }
     }
 

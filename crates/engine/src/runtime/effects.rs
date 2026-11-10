@@ -65,6 +65,14 @@ impl Game {
                 let before = e.hp;
                 e.hp += hp;
                 e.flash = 0.15;
+                if e.bar <= 0.0 {
+                    e.bar_lag = before.max(0) as f32 / e.max_hp as f32;
+                }
+                e.bar = super::juice::BAR_TIME;
+                let kind = if e.companion.is_some() { super::juice::NumberKind::Hurt } else { super::juice::NumberKind::Hit };
+                let head = e.body.pos - vec2(0.0, self.ts() * 1.1);
+                self.damage_number(head, -hp, kind);
+                let e = &self.loaded.entities[i];
                 if e.hp <= 0 {
                     self.defeat(i);
                 } else {

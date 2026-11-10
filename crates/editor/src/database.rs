@@ -728,6 +728,16 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
             ui.label("Hands");
             ui.checkbox(&mut w.two_handed, "Two-handed").on_hover_text("Nothing can be held in the left hand (shield, lantern) while this weapon is equipped");
             ui.end_row();
+            ui.label("Critical hits");
+            let mut pct = (w.crit * 100.0).round() as i32;
+            if ui
+                .add(egui::DragValue::new(&mut pct).range(0..=100).suffix(" %"))
+                .on_hover_text("Chance that a hit of the player's with this weapon is critical: double damage, a big yellow number. 0 = never.")
+                .changed()
+            {
+                w.crit = pct as f32 / 100.0;
+            }
+            ui.end_row();
         }
         if let Some(r) = &mut w.ranged {
             ui.label("Speed (px/s)");

@@ -98,6 +98,14 @@ a file into `sounds/`.
   hits, dialogs, doors. The rain has its own built-in sound.
 - Players set the volume of music, effects and ambience in *Options*.
 
+## Emotion icons
+
+Emotions are animations of a sprite sheet of the kind **Emotions** (*Database › Sprite sheets ›
+Kind*). The starter library's `emotions` sheet has 32 × 32 frames, three per emotion in one row
+(a speech bubble with a symbol), and an animation per emotion under *Animations* (name, first and
+last frame, speed). To add your own, draw frames on that sheet or on a new *Emotions* sheet and add
+an animation named after the emotion: *Show emotion* and `emote()` find it by that name.
+
 ## Parallax images
 
 Sky, abyss, mist and cloud-shadow layers are sprite sheets drawn whole, set in a map's settings

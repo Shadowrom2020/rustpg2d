@@ -6,6 +6,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Emotions over heads**: characters and the player show a small animated icon over their head
+  (surprise, joy, anger, love, thinking, sleepy and more: 14 in the starter library) with the new
+  *Show emotion* / *Clear emotion* actions, `emote(target, emotion[, #{ seconds, wait }])`,
+  `clear_emote(target)` and `say(…, #{ emote: "joy" })`. Emotions are the animations of sprite
+  sheets of the new kind *Emotions*, so creators add their own by drawing frames and naming an
+  animation. With *Automatic emotions* (Database › Project, on by default) enemies are surprised
+  when they notice the player, confused when they lose them, afraid when they flee; sleepers snore;
+  companions are happy to learn a spell. In the example the guard, Tilda, Elder Rowan and Pip show
+  emotions. `status` prints `emotes=`.
 - **Block and dodge**: hold F (gamepad RB) with a shield to block: walking at half speed, blows,
   arrows and lunges from the front do no damage; raising the shield right before a blow lands
   parries it and stuns the attacker for a second. Space (gamepad B) rolls about three tiles,

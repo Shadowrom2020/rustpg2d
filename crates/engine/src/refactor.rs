@@ -665,6 +665,7 @@ mod tests {
         skills: Default::default(),
         progression: Default::default(),
         dialog_portraits: true,
+        auto_emotions: true,
         companion_down: Default::default(),
         player_portrait: Default::default(),
         language: "en".into(),

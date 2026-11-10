@@ -149,7 +149,7 @@ Instructions for every session (people and coding agents) that implements roadma
   **Verify.** Autoplay: `status` prints `block=on|off dodge=ready|N.N`; a blocked swing leaves the
   HP unchanged; a timed block → `outlaw:stagger`; a dodge through a swing → no damage.
 
-- [ ] Emotions — `feature/emotions`
+- [x] Emotions — `feature/emotions`
 
   **Goal.** Characters, NPCs, enemies and the player show what they feel with a small icon over
   their head: surprise (!), confusion (?), anger, joy, love, embarrassment, sadness, fear,
@@ -180,16 +180,19 @@ Instructions for every session (people and coding agents) that implements roadma
   - **Moods and emotions**: independent (moods change the dialog portrait), but *Set mood* can
     also show the emotion of the same name when the project setting *Show mood as emotion* is on.
 
-  **Engine.** Proposed (needs the go-ahead). Content can't do it: `effect()` plays a one-shot
-  animation at a fixed spot, it doesn't follow a walking character, can't stay up and has no
-  hooks for "an enemy noticed the player". The addition: the definition type (new defs file:
-  `project.rs` `DEFS`, `release.rs`, `library.rs` kind *emotion* + `refs_of_*`, renames),
-  `Action::ShowEmotion` / `Action::ClearEmotion` appended, the `emote` field on *Dialog* /
-  *Choice* (serde default), script functions (`script.rs`, `script_api.rs` with a new id kind
-  *Emotion* for completion and renames), a new `runtime/emotions.rs` (state, drawing, the
-  automatic hooks in `ai.rs`, `combat.rs`, `furniture.rs`, `companion_magic.rs`), the editor's
-  Database tab with a live preview and the action fields, the agent server (`upsert_def` kind
-  `emotions`).
+  **Decided while building.** Emotions are the animations (tags) of sprite sheets of the new kind
+  *Emotions* instead of a definition type (the user's choice): creators add one by drawing frames
+  and naming an animation; it travels with the sheet. No new field on *Dialog* / *Choice* (map files
+  store actions by position): *Show emotion* before the dialog, or `say(…, #{ emote })`, which shows
+  it while the line is up. *Show emotion* has target, emotion, seconds (0 = 2.5 s, -1 = until
+  cleared) and wait; no per-emotion sound or pop style. Automatic emotions are one project switch
+  (`auto_emotions`); sleepers snore only at night (21-6); a villager hit by the player isn't
+  possible (the player only hits hostile characters), so no automatic anger. The starter set is
+  14 speech-bubble icons with three frames each (`emotions.png`). New `runtime/emotions.rs`.
+
+  **Engine.** Agreed: `SheetKind::Emotions`, `Action::Emote` / `ClearEmote`, `emote` /
+  `clear_emote` and the `say` option, `ProjectConfig::auto_emotions`, `runtime/emotions.rs`
+  with hooks in `ai.rs` and `companion_magic.rs`, the editor's fields.
 
   **Example.** The guard shows *surprise* when the player first arrives, Tilda *joy* when greeting,
   Pip *embarrassment* when thanking the player after the cure, the elder *thinking* before he

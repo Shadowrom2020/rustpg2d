@@ -733,6 +733,7 @@ impl Editor {
             },
             sheets: self.project.db.sheets.iter().map(|q| q.id.clone()).collect(),
             sheet_tags: self.project.db.sheets.iter().filter(|q| !q.tags.is_empty()).map(|q| (q.id.clone(), q.tags.clone())).collect(),
+            emotions: self.project.db.sheets.iter().filter(|q| q.kind == rustpg2d_engine::defs::SheetKind::Emotions).flat_map(|q| q.tags.iter().map(|t| t.name.clone())).collect(),
         };
     }
 

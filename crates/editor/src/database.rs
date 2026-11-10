@@ -1909,7 +1909,10 @@ fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
         ui.end_row();
     });
     // Named animations (from Aseprite tags, or added here): Effect / Fly actions and
-    // effect(…, #{ tag }) play them by name.
+    // effect(…, #{ tag }) play them by name; on an Emotions sheet each one is an emotion.
+    if d.kind == rustpg2d_engine::defs::SheetKind::Emotions {
+        ui.weak("Every animation of this sheet is an emotion shown over characters' heads: its name is what 'Show emotion', emote(target, \"name\") and say(..., #{ emote: \"name\" }) use.");
+    }
     egui::CollapsingHeader::new(format!("Animations ({})", d.tags.len())).id_salt(("sheet_tags", &d.id)).default_open(!d.tags.is_empty()).show(ui, |ui| {
         let mut remove = None;
         for (k, t) in d.tags.iter_mut().enumerate() {
@@ -2078,6 +2081,11 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
         ui.label("Dialog portraits");
         ui.checkbox(&mut c.dialog_portraits, "show the speaker's portrait in dialogs")
             .on_hover_text("Found from the speaker's name: the player (\"{player}\" or the player's name), the trigger's owner ({self}), a character on the map or a character definition with that name. Narration and signs (no matching character) have none.");
+        ui.end_row();
+        ui.label("Automatic emotions");
+        ui.checkbox(&mut c.auto_emotions, "characters show emotions by themselves").on_hover_text(
+            "Enemies show 'surprise' when they notice the player, 'confused' when they lose them and 'fear' when they flee; sleepers 'sleepy'; companions 'joy' when they learn a spell. Needs those emotions (tags) in an Emotions sprite sheet.",
+        );
         ui.end_row();
         ui.label("Player portrait");
         ui.vertical(|ui| {

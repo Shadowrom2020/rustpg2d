@@ -257,6 +257,15 @@ up. The **Sleep** action and `sleep(hours)` rest without a bed (camping, an inn'
 
 Villagers use furniture too, through their schedules ([Characters](06-characters.md#daily-schedules)).
 
+## Emotions
+
+Characters show how they feel with a small icon over their head
+([Events › Emotions over heads](07-events.md#emotions-over-heads)). With *Automatic emotions* on
+(*Database › Project*, on by default) they also do it by themselves: an enemy shows **surprise** when
+it notices you, **confused** when it lost you and **fear** when it flees; villagers asleep in bed
+show **sleepy**; a companion who learns a spell shows **joy**. The emotions come from the project's
+*Emotions* sprite sheets (the starter library's `emotions`); a project without one shows none.
+
 ## Time of day
 
 ![Emberbrook's market at night](../images/game-night.webp)

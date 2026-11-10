@@ -79,6 +79,7 @@ impl Game {
             return false;
         }
         self.ui.toast(crate::lang::tr_ui("{} learned {}.").replacen("{}", &who, 1).replacen("{}", &name, 1));
+        self.auto_emote(i, "joy");
         true
     }
 

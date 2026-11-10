@@ -677,6 +677,8 @@ pub struct Refs {
     pub sheets: Vec<String>,
     /// Named animations of sprite sheets (Aseprite tags).
     pub sheet_tags: HashMap<String, Vec<rustpg2d_engine::defs::SheetTag>>,
+    /// Emotion names (the tags of Emotions sprite sheets).
+    pub emotions: Vec<String>,
 }
 
 /// Placeholders understood in dialog / choice texts (and quest texts).
@@ -1543,6 +1545,20 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 ui.add(egui::DragValue::new(amount).range(-99..=99));
             });
             ui.weak("(negative = damage; on a healing item set to 'Use on: Player or companion' it heals whom the player chooses)");
+        }
+        Action::Emote { target, emotion, seconds, wait } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "emotion", |ui| suggest(ui, &format!("{id}/emo"), emotion, &refs.emotions, 120.0));
+            labeled(ui, "seconds", |ui| {
+                ui.add(egui::DragValue::new(seconds).range(-1.0..=60.0).speed(0.1)).on_hover_text("0 = 2.5 s; -1 = until 'Clear emotion'");
+            });
+            ui.checkbox(wait, "wait until it is over");
+            if refs.emotions.is_empty() {
+                ui.weak("(no emotions yet: add a sprite sheet of the kind Emotions; its animations are the emotions)");
+            }
+        }
+        Action::ClearEmote { target } => {
+            target_field(ui, id, target, refs);
         }
         Action::Mood { target, mood } => {
             target_field(ui, id, target, refs);

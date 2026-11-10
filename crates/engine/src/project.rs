@@ -46,6 +46,11 @@ pub struct ProjectConfig {
     /// Dialog boxes show the speaker's portrait (on by default).
     #[serde(default = "yes")]
     pub dialog_portraits: bool,
+    /// Characters show emotions by themselves (on by default): enemies noticing the player
+    /// (surprise), losing them (confused), fleeing (fear); sleepers (sleepy); companions learning
+    /// a spell (joy). Needs those emotions in an *Emotions* sprite sheet.
+    #[serde(default = "yes")]
+    pub auto_emotions: bool,
     /// What happens to a companion at 0 HP.
     #[serde(default)]
     pub companion_down: DownRule,
@@ -191,6 +196,7 @@ impl ProjectConfig {
             skills: Default::default(),
             progression: Default::default(),
             dialog_portraits: true,
+            auto_emotions: true,
             companion_down: Default::default(),
             player_portrait: Default::default(),
             language: default_language(),

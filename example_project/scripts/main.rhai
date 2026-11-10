@@ -154,6 +154,7 @@ fn intro_cutscene() {
     walk_to("player", 5, 30);
     wait(0.4);
     approach("guard", "player");
+    emote("guard", "surprise", #{ wait: true, seconds: 1.2 });
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");
     say("{player}", "I came as fast as I could. What is going on?");
     say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the slimes grow bolder every day.");
@@ -186,6 +187,7 @@ fn guard_talk() {
         choice("What is it, {player}?", [wait, fight, "Let me see your gear", "Go back to your post", "Nothing"], "guard_cmd");
         then_call("guard_orders");
     } else if flag("shrine_lit") {
+        emote("guard", "joy");
         say("Guard", "The lights are gone - I can finally take a rest. Thank you, {player}!");
         guard_rest();
     } else if flag("quest_accepted") {

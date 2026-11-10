@@ -2419,6 +2419,7 @@ impl Editor {
                 Ok(()) => {
                     self.db.script_dirty = false;
                     self.db.script_saved = self.db.script_text.clone();
+                    self.problems.stale = true;
                     self.set_status(format!("Saved {}", f.file_name().unwrap_or_default().to_string_lossy()));
                 }
                 Err(e) => self.set_status(format!("Saving script failed: {e}")),

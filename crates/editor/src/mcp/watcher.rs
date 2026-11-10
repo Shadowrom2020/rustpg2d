@@ -205,6 +205,9 @@ impl Editor {
                 self.refresh_refs();
             }
         }
+        if map_list || !reloaded.is_empty() {
+            self.problems.stale = true;
+        }
         if !reloaded.is_empty() {
             reloaded.dedup();
             self.set_status(format!("Changed on disk, reloaded: {}", reloaded.join(", ")));

@@ -372,6 +372,14 @@ pub struct CheckScriptParams {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ProblemsParams {
+    /// Only "error" or "warning" entries; default: both.
+    pub severity: Option<String>,
+    /// Only one area: "project", "definitions", "maps", "scripts" or "translations"; default: all.
+    pub area: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 pub struct FilterParams {
     /// Only entries containing this text.
     pub filter: Option<String>,
@@ -687,6 +695,9 @@ with_params {
     /// Checks the scripts: compile errors, unknown item / map / quest / … ids, duplicate functions.
     #[tool(annotations(read_only_hint = true))]
     check_script: CheckScript(p: CheckScriptParams) => ed.mcp_check_script(p);
+    /// Everything broken in the project (the editor's Problems panel): unknown ids in definitions, maps and scripts, missing image / sound files, portals and transitions to missing maps / spawns / zones, script errors, maps nothing leads to, characters without a body, untranslated texts, objects a file had to leave out; errors and warnings, each with where it is.
+    #[tool(annotations(read_only_hint = true))]
+    problems: Problems(p: ProblemsParams) => ed.mcp_problems(p);
     /// The scripting API: every engine function with its parameters and a description, plus the project's own functions.
     #[tool(annotations(read_only_hint = true))]
     scripting_api: ScriptingApi(p: FilterParams) => ed.mcp_scripting_api(p);

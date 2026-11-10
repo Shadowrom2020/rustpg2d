@@ -25,6 +25,7 @@ mod multisel;
 mod models;
 mod new_project;
 mod pixel;
+mod problems;
 mod script_editor;
 mod search;
 mod structures;
@@ -566,7 +567,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -593,6 +594,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.notices.len(),
             ed.search.status(),
             ed.usages.status(),
+            ed.problems.status(),
             ed.mode,
             ed.db.tab,
             ed.db.sel,
@@ -947,6 +949,23 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         },
         "usagepick" => {
             if let Some(t) = ed.usages.list.get(num(1) as usize).map(|e| e.target.clone()) {
+                ed.jump_to(&t);
+            }
+        }
+        // problems [AREA]: check the project, print the list (opens the Problems window) · problempick K: click entry K
+        "problems" => {
+            ed.refresh_problems();
+            ed.problems.open = true;
+            ed.problems.area = crate::problems::Area::parse(arg(1));
+            let shown: Vec<String> = ed.problems.shown().iter().map(|p| p.line()).collect();
+            for (k, l) in shown.iter().enumerate() {
+                println!("[problems] {k}: {l}");
+            }
+            let (e, w) = ed.problems.counts();
+            println!("[problems] {} shown, {e} error(s), {w} warning(s)", shown.len());
+        }
+        "problempick" => {
+            if let Some(t) = ed.problems.shown().get(num(1) as usize).map(|p| p.target.clone()) {
                 ed.jump_to(&t);
             }
         }

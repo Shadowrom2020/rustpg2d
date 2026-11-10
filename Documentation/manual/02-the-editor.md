@@ -101,6 +101,26 @@ definitions), other definitions that use it (shops, loot, recipes, equipment), s
 the project settings; click one to go there, *Refresh* after changes. Use it before deleting or
 changing a definition.
 
+**Problems** (*Edit › Problems…*, or click the error and warning counts in the status bar) lists
+everything broken in the project in one window:
+
+- **errors** (something is missing or can't work): definitions that refer to ids that don't exist
+  or whose image or sound file is missing, characters without a body; placed objects whose
+  definition is gone, triggers and loot naming unknown ids or script functions that don't exist,
+  portals and transitions to missing maps, spawns or zones, spawners of unknown characters;
+  unknown ids and compile errors in scripts; entries a map or definitions file had to leave out
+  when it was loaded (they are lost when the file is saved again);
+- **warnings** (probably not what you meant): maps no portal, transition, map edge, trigger or
+  script leads to from the start map, quests without stages, script functions defined twice,
+  untranslated texts and leftover translations per language, and the project check of *Export
+  game* (start spawn, player character, languages without a file).
+
+The buttons at the top show or hide errors and warnings, the list next to them picks one area
+(project, definitions, maps, scripts, translations). Click an entry to go there: a definition opens
+in the Database, an object or zone is selected and centred on its map, a script opens at the line.
+The list is checked again whenever something is saved (in the editor, by an AI agent, or a file
+that changed on disk) and with *Refresh*.
+
 *File › New project*, *Open project* and *Close project* first ask to save or discard unsaved map,
 definition and pixel-editor changes; *Cancel* keeps everything as it is.
 

@@ -119,6 +119,7 @@ bats and a chest".
 | `read_script {file, from_line, to_line}` | |
 | `write_script {file, text, force}` | Writes a whole `.rhai` file (refuses to overwrite a dirty file open in the editor unless `force`), then checks it. |
 | `check_script {file}` | Compile errors, unknown ids (items, maps, quests, …), duplicate functions. |
+| `problems {severity, area}` | The editor's *Problems* list: everything broken in the project (unknown ids in definitions, maps and scripts, missing files, broken portals, script errors, unreachable maps, characters without a body, untranslated texts), each with its place; `severity` `error` / `warning`, `area` `project`, `definitions`, `maps`, `scripts` or `translations`. |
 | `scripting_api {filter}` | Every engine function with parameter kinds and description, plus the project's functions. The resource `rustpg2d://docs/scripting` is the full reference. |
 
 ### Languages

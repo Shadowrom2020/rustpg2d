@@ -46,7 +46,8 @@ with E or a right-click.
 ## Gamepad
 
 Any controller the system knows works next to the keyboard and mouse (Xbox, PlayStation, Switch Pro,
-generic ones); the left stick and the d-pad move and navigate.
+generic ones); the left stick and the d-pad move and navigate. In the browser version too: there
+the first button press makes the pad known to the page.
 
 | Button (Xbox names) | Action |
 |---|---|

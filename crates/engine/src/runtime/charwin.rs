@@ -7,7 +7,6 @@ use macroquad::prelude::*;
 use super::inventory_ui::Side;
 use super::input::{self, Act};
 use super::{ui::panel, Game};
-use super::text::{draw_text, measure_text};
 
 /// Height of the tab strip above the content.
 const TAB_H: f32 = 34.0;
@@ -30,9 +29,9 @@ pub(super) enum WinTab {
 impl WinTab {
     fn label(self) -> &'static str {
         match self {
-            WinTab::Character => "Character (C)",
-            WinTab::Skills => "Skills (K)",
-            WinTab::Spells => "Spells (L)",
+            WinTab::Character => "Character ({key:character})",
+            WinTab::Skills => "Skills ({key:skills})",
+            WinTab::Spells => "Spells ({key:spells})",
         }
     }
     fn parse(s: &str) -> Option<WinTab> {
@@ -213,8 +212,8 @@ impl Game {
                 draw_rectangle(r.x + 3.0, r.y + r.h - 3.0, r.w - 6.0, 6.0, Color::new(0.06, 0.06, 0.12, 1.0));
             }
             let label = t.label();
-            let tw = measure_text(label, None, 22, 1.0).width;
-            draw_text(label, r.x + (r.w - tw) / 2.0, r.y + 23.0, 22.0, if on { GOLD } else { LIGHTGRAY });
+            let tw = super::glyphs::measure_hint(label, 22.0);
+            super::glyphs::draw_hint(label, r.x + (r.w - tw) / 2.0, r.y + 23.0, 22.0, if on { GOLD } else { LIGHTGRAY });
         }
         let x = self.window_close();
         let hover = x.contains(m);

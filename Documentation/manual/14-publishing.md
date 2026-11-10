@@ -82,8 +82,11 @@ In the browser:
 - save games, settings and achievements stay in the player's browser (per site and game folder);
   clearing the site data deletes them;
 - sound starts with the first click or key press (browsers block it before);
-- the title screen has no *Exit* (players close the tab); gamepads, the developer console and script
-  reloading aren't available;
+- gamepads work as on the desktop (moving, buttons, rebinding, the button pictures in hints); a
+  browser only shows a pad to the page after one of its buttons was pressed there, so the first
+  press wakes it up;
+- the title screen has no *Exit* (players close the tab); the developer console and script reloading
+  aren't available;
 - the download is about 12 MB.
 
 ## From a source build

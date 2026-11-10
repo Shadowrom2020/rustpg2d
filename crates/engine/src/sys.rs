@@ -169,12 +169,37 @@ pub mod web {
         fn rustpg2d_query_dump() -> usize;
         fn rustpg2d_language_dump() -> usize;
         fn rustpg2d_query_take(dest: *mut u8);
+        fn rustpg2d_pad_buttons() -> u32;
+        fn rustpg2d_pad_axis(i: u32) -> f32;
+        fn rustpg2d_pad_id_dump() -> usize;
+        fn rustpg2d_pad_id_take(dest: *mut u8);
     }
 
-    /// macroquad's loader checks that a JS plugin's crate is there (web/rustpg2d.js, version 1).
+    /// macroquad's loader checks that a JS plugin's crate is there (web/rustpg2d.js, version 2).
     #[no_mangle]
     pub extern "C" fn rustpg2d_crate_version() -> u32 {
-        1
+        2
+    }
+
+    /// The first connected gamepad (the browser's Gamepad API): its buttons in the standard
+    /// layout as bits 0-15 (the order of `runtime::input::Pad::ALL`) and its left stick (x, y;
+    /// y grows downwards).
+    pub fn pad_state() -> (u32, f32, f32) {
+        // SAFETY: plain values from the JS plugin.
+        unsafe { (rustpg2d_pad_buttons(), rustpg2d_pad_axis(0), rustpg2d_pad_axis(1)) }
+    }
+
+    /// The first connected gamepad's name ("" = none).
+    pub fn pad_id() -> String {
+        // SAFETY: the JS copies `len` bytes into the buffer it was asked for.
+        unsafe {
+            let len = rustpg2d_pad_id_dump();
+            let mut buf = vec![0u8; len];
+            if len > 0 {
+                rustpg2d_pad_id_take(buf.as_mut_ptr());
+            }
+            String::from_utf8_lossy(&buf).into_owned()
+        }
     }
 
     /// A path as the key of the file table: components joined with `/`, without `.`.

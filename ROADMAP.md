@@ -307,7 +307,7 @@ Instructions for every session (people and coding agents) that implements roadma
   restart (`settings.ron`); an old `settings.ron` without `pad` loads. The Steam Deck itself:
   only if the user tests it (say so in the report).
 
-- [ ] Gamepads in the web game — `feature/web-pads`
+- [x] Gamepads in the web game — `feature/web-pads`
 
   **Goal.** The browser version of a game can be played with a gamepad too (today only the
   desktop builds read pads, through gilrs).
@@ -317,8 +317,15 @@ Instructions for every session (people and coding agents) that implements roadma
   axes to the game, which feeds them into the same `Pad` state gilrs fills on the desktop, so
   bindings, glyphs (by the pad's id string) and the autoplay `pad` commands work the same.
 
-  **Engine.** Proposed (needs the go-ahead): a few functions in `rustpg2d.js` and `sys.rs` /
-  `input.rs` (`#[cfg(target_arch = "wasm32")]`).
+  **Decided while building.** The standard layout numbers its buttons in the order of `Pad::ALL`,
+  so the plugin's bitmask is used as it is (`rustpg2d_pad_buttons`, `rustpg2d_pad_axis`,
+  `rustpg2d_pad_id_dump` / `_take`; the name is asked for about twice a second). The stick code is
+  shared with the desktop (`stick_bits`). Plugin version 2 (`rustpg2d_crate_version`). Verified in
+  headless Brave with a test page that seeds a save in the page's storage and replaces
+  `navigator.getGamepads` with a scripted DualSense. While testing, the character window's tab
+  labels ("Character (C)") turned out to be key hints as well: they use tokens now.
+
+  **Engine.** Agreed: `rustpg2d.js`, `sys.rs` (web), `input.rs`.
 
   **Verify.** Headless Brave can't connect a pad: unit tests of the mapping, and the autoplay
   `pad` commands in the web export; a real pad only if the user tests it in a browser (say so).

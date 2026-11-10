@@ -275,3 +275,35 @@ fn cat_clue() {
         say("Two clues point the same way: Biscuit must be hiding in the old mill, across the river.");
     }
 }
+
+// ------------------------------------------------------------------ Stalls
+// What villagers make reaches their stall: a merchant's Interact trigger (the fisher's and the
+// baker's definitions) restocks before the shop opens. Every day since the last restock adds
+// per_day, up to max in stock; days are counted with day(), so the stall fills up even when the
+// player wasn't there in the morning. (Helpers don't see SELF: the trigger's function passes it.)
+
+fn restock_from_activity(owner, item, per_day, max) {
+    let key = "stocked_day_" + owner + "_" + item;
+    let days = day() - get_var(key);
+    if days > 0 {
+        let add = days * per_day;
+        let room = max - stock_of("self", item);
+        if add > room {
+            add = room;
+        }
+        if add > 0 {
+            add_stock("self", item, add);
+        }
+        set_var(key, day());
+    }
+}
+
+// The fisher's catch of the day before (he fishes at dawn and in the afternoon).
+fn restock_catch() {
+    restock_from_activity(SELF, "trout", 3, 8);
+}
+
+// The baker's apple pies, baked at dawn.
+fn restock_baking() {
+    restock_from_activity(SELF, "apple_pie", 2, 6);
+}

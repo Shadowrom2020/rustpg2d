@@ -1567,6 +1567,22 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         Action::HideImage => {
             ui.weak("(takes away the picture of 'Show image')");
         }
+        Action::ShopStock { target, item, op, count, price } => {
+            target_field(ui, id, target, refs);
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_id_salt(format!("{id}/op")).width(60.0).selected_text(if *op == VarOp::Add { "add" } else { "set to" }).show_ui(ui, |ui| {
+                    ui.selectable_value(op, VarOp::Add, "add");
+                    ui.selectable_value(op, VarOp::Set, "set to");
+                });
+                ui.add(egui::DragValue::new(count).range(0..=9999));
+                ui.label("x");
+                suggest(ui, &format!("{id}/it"), item, &refs.items, 110.0);
+            });
+            labeled(ui, "price", |ui| {
+                ui.add(egui::DragValue::new(price).range(0..=99999)).on_hover_text("For a new line in the stock; 0 = the item's value");
+            });
+            ui.weak("(a merchant's stock: what villagers produce reaches their stall; 'set to' 0 removes the item)");
+        }
         Action::OpenCompanion { target } => {
             target_field(ui, id, target, refs);
             ui.weak("(a companion: its window with its gear and bag opens after the event, e.g. after a dialog's \"Let me see your gear\")");

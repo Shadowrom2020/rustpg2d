@@ -86,7 +86,8 @@ across map changes and in save games.
 - **Equip item**, **Unequip slot**, **Give item to character**, **Take item from character**.
 - **Patrol**, **Schedule** (follow / stop), **Companion** (joins / leaves), **Companion order**,
   **Open companion window**.
-- **Open shop**, **Open crafting**, **Lockpicking game**, **Sleep** (hours).
+- **Open shop**, **Shop stock** (add to or set a merchant's stock), **Open crafting**,
+  **Lockpicking game**, **Sleep** (hours).
 - **Set time of day**, **Set weather**, **Spawners on / off**, **Defeat all enemies**.
 
 **Cut-scenes and effects**

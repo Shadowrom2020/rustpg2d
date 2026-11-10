@@ -384,9 +384,10 @@ pub fn all_met(
     conds.iter().all(|c| c.eval(world, script))
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VarOp {
     Set,
+    #[default]
     Add,
 }
 
@@ -574,6 +575,18 @@ pub enum Action {
     },
     /// Takes a picture of *Show image* away.
     HideImage,
+    /// Changes a merchant's stock (`target`: a merchant on the map): *Add* `count` of `item` (a
+    /// new line at `price`, 0 = the item's value), or *Set* it to `count` (0 removes the line).
+    /// What villagers produce reaches their stall this way. Kept in save games.
+    ShopStock {
+        target: TargetName,
+        item: String,
+        #[serde(default)]
+        op: VarOp,
+        count: u32,
+        #[serde(default)]
+        price: u32,
+    },
 }
 
 fn yes() -> bool {
@@ -720,6 +733,7 @@ impl Action {
             Action::Mood { .. } => "Set mood",
             Action::ShowImage { .. } => "Show image",
             Action::HideImage => "Hide image",
+            Action::ShopStock { .. } => "Shop stock",
         }
     }
 
@@ -792,6 +806,7 @@ impl Action {
             Action::Mood { target: "self".into(), mood: "worried".into() },
             Action::ShowImage { sheet: String::new(), wait: true, scroll: false, speed: image_speed(), scale: 1.0 },
             Action::HideImage,
+            Action::ShopStock { target: "self".into(), item: String::new(), op: VarOp::Add, count: 3, price: 0 },
         ]
     }
 }

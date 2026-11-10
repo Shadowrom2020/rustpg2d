@@ -13,6 +13,9 @@ use crate::entity::Facing;
 use crate::events::{Action, FxSprite, VarOp};
 use crate::state::WorldState;
 
+/// A merchant on the current map and what it has: (uid, name, [(item, count)]), unlimited = 999.
+pub type MerchantStock = (u32, String, Vec<(String, u32)>);
+
 #[derive(Default)]
 struct Ctx {
     world: WorldState,
@@ -22,6 +25,8 @@ struct Ctx {
     owner: Option<u32>,
     /// Characters on the current map that can be hurt: (uid, name, HP).
     characters: Vec<(u32, String, i32)>,
+    /// Merchants on the current map and what they have: (uid, name, [(item, count)]).
+    merchants: Vec<MerchantStock>,
     /// Tool items' kinds (`can_craft` with tools).
     tool_kinds: crate::crafting::ToolKinds,
     /// The project's crafting recipes (`can_craft`).
@@ -96,6 +101,11 @@ impl ScriptHost {
     /// The current map's characters that can be hurt, as (uid, name, HP), for `hp_of()`.
     pub fn set_characters(&mut self, characters: Vec<(u32, String, i32)>) {
         self.ctx.borrow_mut().characters = characters;
+    }
+
+    /// The current map's merchants and their stock, for `stock_of()`.
+    pub fn set_merchants(&mut self, merchants: Vec<MerchantStock>) {
+        self.ctx.borrow_mut().merchants = merchants;
     }
 
     /// Compiles every `*.rhai` file in `dir` into one module (functions are global). Files
@@ -328,6 +338,30 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         name => c.characters.iter().find(|ch| ch.1 == name).map_or(-1, |ch| ch.2 as i64),
     }));
     engine.register_fn("hp_of", with!(ctx, |c, uid: i64| c.characters.iter().find(|ch| ch.0 as i64 == uid).map_or(-1, |ch| ch.2 as i64)));
+    // Merchants' stock (what villagers produce reaches their stall), and the day number for
+    // "once a day" rules.
+    engine.register_fn("add_stock", with!(ctx, |c, t: &str, item: &str, n: i64| c.actions.push(Action::ShopStock {
+        target: t.into(),
+        item: item.into(),
+        op: crate::events::VarOp::Add,
+        count: n.max(0) as u32,
+        price: 0
+    })));
+    engine.register_fn("set_stock", with!(ctx, |c, t: &str, item: &str, n: i64| c.actions.push(Action::ShopStock {
+        target: t.into(),
+        item: item.into(),
+        op: crate::events::VarOp::Set,
+        count: n.max(0) as u32,
+        price: 0
+    })));
+    engine.register_fn("stock_of", with!(ctx, |c, t: &str, item: &str| {
+        let m = match t {
+            "" | "self" => c.owner.and_then(|u| c.merchants.iter().find(|m| m.0 == u)),
+            name => c.merchants.iter().find(|m| m.1 == name),
+        };
+        m.map_or(0, |m| m.2.iter().filter(|(i, _)| i == item).map(|(_, n)| *n as i64).sum())
+    }));
+    engine.register_fn("day", with!(ctx, |c| c.world.day as i64));
     // Bestiary: how many characters of a definition the player has defeated.
     engine.register_fn("defeated_count", with!(ctx, |c, id: &str| c.world.defeated(id) as i64));
     // Screen shake (scenes: earthquakes, a boss landing).

@@ -516,7 +516,18 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "restock_baking",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: Some((
             title: "",
             currency: "coin",
@@ -827,7 +838,18 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "restock_catch",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: Some((
             title: "",
             currency: "coin",

@@ -115,6 +115,18 @@ spell*, *Add mana*, *Damage around player*, *Light around player*.
 - **Containers** (chests, barrels: *Lootable container* props) open a window next to the inventory:
   take what you want, or store things. Their contents are saved.
 
+## Villagers who produce
+
+What villagers do can yield goods for sale. The **Shop stock** action adds items to a merchant's
+stock (or sets how many it has; 0 removes the item), and the scripts `add_stock`, `set_stock`,
+`stock_of` and `day()` do the same with a count of in-game days. The example's fisher and baker
+definitions have an *Interact* trigger that runs a small library script before their shop opens:
+for every day since the last restock it adds what they made (Finn's trout from the pond, Bram's
+apple pies from the oven), up to a limit. So Finn's catch is at his stall the next morning, even if
+the player was elsewhere at dawn, and while he fishes he tells you so. The script
+(`restock_from_activity` in the [scripting reference](../scripting.md#a-stall-that-sells-what-was-made))
+comes along when you add the fisher or the baker from the asset library.
+
 ## Crafting, cooking and blacksmithing
 
 ![The crafting window at an alchemy table](../images/game-crafting.webp)

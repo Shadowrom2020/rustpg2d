@@ -11,6 +11,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   a *Woodcutting* skill takes fewer strokes; at the new *Sawhorse* station logs become *Planks*, and
   planks a wooden shield, a fishing rod and (at the anvil) a woodcutter's axe. In the example the axe
   lies in the mill, the blacksmith sells it, and young trees grow by the mill and the forest path.
+- **Cooking on a wood fire** (starter library and example): the campfire, kitchen hearth, bread
+  oven and fireplace are lit with a *Log* instead of coal (none is used on a fire that burns); a
+  campfire burns for four in-game hours and, cold, tells the player to use a log on it instead of
+  opening an empty cooking window. The forge and the smelter keep coal. The example has a cold
+  campfire with logs by the forest path.
 - **Low obstacles**: solid things are *high* or *low*. Low tiles and props (fences, rocks,
   mushrooms, water, tables, barrels, chairs) stop walking, but arrows, bolts and the sight of
   enemies pass over them; high ones (walls, tree trunks, statues, stalls) stop both. Tilesets mark

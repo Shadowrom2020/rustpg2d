@@ -176,7 +176,7 @@ Instructions for every session (people and coding agents) that implements roadma
   with Woodcutting 2 fewer hits; craft planks at the sawhorse (`craft 0`). Shots of the
   chopping and the stump.
 
-- [ ] Cooking on a wood fire — `feature/wood-fires`
+- [x] Cooking on a wood fire — `feature/wood-fires`
 
   **Goal.** Cooking fires (campfire, hearth, bread oven, fireplace) are lit with logs (firewood)
   instead of coal, and burn down after a while; the forge and the smelter keep coal.
@@ -187,10 +187,19 @@ Instructions for every session (people and coding agents) that implements roadma
   `station_state: "lit"`. The brazier and street lamps keep their current rules. Dialogs and
   hints that mention coal for cooking are rewritten (and their German lines).
 
+  **Decided while building.** Only the campfire burns down (four hours instead of the eight it had):
+  a regrow from a prop's default state counts from the moment the player first sees it, so a
+  burn-down time on the hearth, oven and fireplace (which start lit) would put the tavern's hearth
+  out four hours into every game; the villagers tend those, logs only relight them. A log on a
+  burning fire isn't used ("The fire is burning well already."); a cold campfire tells the player to
+  use a log instead of opening the cooking window. The example had no campfire on any map: a cold
+  one with three logs now stands by the forest path. The baker's oven needed no schedule (it
+  starts lit and stays lit).
+
   **Engine.** None (content).
 
-  **Example.** The tavern hearth and Mira's fireplace start lit; the campfire in the forest needs
-  logs; the baker's oven is lit by his schedule (he fetches logs in the morning: an activity).
+  **Example.** A cold campfire with logs by the forest path; the tavern hearth, the bakery oven and
+  Mira's fireplace start lit as before.
 
   **Verify.** Autoplay: `press e` at an unlit campfire with a log → `props=campfire:lit@…`,
   one log fewer; coal no longer lights it; cook a trout; `settime +5` → unlit again; the forge

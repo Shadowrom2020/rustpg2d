@@ -138,7 +138,14 @@ pub struct ArtRequest {
     /// 3D characters: model this figure (its front, side and back frames) instead of drawing a
     /// turnaround picture ("" = draw one).
     pub from: String,
+    /// 3D characters: extra animations from Meshy's library (see [`EXTRAS`]).
+    pub extras: Vec<String>,
 }
+
+/// Extra animations a 3D character can get (3 credits each): working at an anvil, bending to
+/// pick crops, chopping wood, sleeping in a bed. Fishing, sweeping and reading have no clip in
+/// Meshy's library (they play idle with the tool in hand).
+pub const EXTRAS: [&str; 4] = ["craft", "farm", "chop", "sleep"];
 
 /// Credits of the 3D steps (Meshy's prices; what a task really consumed is shown when it ends).
 pub const COST_MODEL: u32 = 30;
@@ -147,17 +154,29 @@ pub const COST_CLIP: u32 = 3;
 
 /// The animation-library clips a 3D character gets: walking, idle, its attack, a hit reaction,
 /// sitting on a chair.
-pub fn clip_actions(attack: &str, female: bool) -> Vec<u32> {
+pub fn clip_actions(attack: &str, female: bool, extras: &[String]) -> Vec<u32> {
     let attack = match attack {
         "slash" => Some(219),
-        "chop" => Some(237),
+        // Heavy Hammer Swing: an overhead blow (the Charged Axe Chop crouches for seconds first).
+        "chop" => Some(128),
         "thrust" => Some(240),
-        "bow" => Some(222),
+        // Archery Shot (Draw and Shoot from Back lasts eight seconds).
+        "bow" => Some(224),
         "club" => Some(4),
         "cast" => Some(129),
         _ => None,
     };
-    [Some(566), Some(11), Some(178), attack, Some(if female { 32 } else { 33 })].into_iter().flatten().collect()
+    let extra = extras.iter().filter_map(|e| match e.as_str() {
+        "craft" => Some(128),
+        "farm" => Some(if female { 277 } else { 276 }),
+        "chop" => Some(128),
+        "sleep" => Some(267),
+        _ => None,
+    });
+    let mut ids: Vec<u32> = [Some(566), Some(11), Some(178), attack, Some(if female { 32 } else { 33 })].into_iter().flatten().chain(extra).collect();
+    let mut seen = std::collections::HashSet::new();
+    ids.retain(|i| seen.insert(*i));
+    ids
 }
 
 impl ArtRequest {
@@ -168,6 +187,7 @@ impl ArtRequest {
             ArtKind::Character => vec!["walk"],
             ArtKind::Model3d if !self.from.is_empty() => vec!["model", "rig", "clips"],
             ArtKind::Model3d => vec!["views", "model", "rig", "clips"],
+            ArtKind::Creature3d if !self.from.is_empty() => vec!["model"],
             ArtKind::Creature3d => vec!["views", "model"],
             ArtKind::Gear3d => vec!["model"],
             _ => vec!["picture"],
@@ -179,7 +199,7 @@ impl ArtRequest {
         match name {
             "model" => COST_MODEL,
             "rig" => COST_RIG,
-            "clips" => COST_CLIP * clip_actions(&self.attack, self.female).len() as u32,
+            "clips" => COST_CLIP * clip_actions(&self.attack, self.female, &self.extras).len() as u32,
             _ => picture_cost,
         }
     }
@@ -193,6 +213,9 @@ impl ArtRequest {
         }
         if self.kind == ArtKind::Model3d && !ATTACKS.iter().any(|a| a.0 == self.attack && a.0 != "bite") {
             return Err(anyhow!("unknown attack \"{}\" for a 3D character: {}", self.attack, ATTACKS.map(|a| a.0).into_iter().filter(|a| *a != "bite").collect::<Vec<_>>().join(", ")));
+        }
+        if let Some(e) = self.extras.iter().find(|e| !EXTRAS.contains(&e.as_str())) {
+            return Err(anyhow!("unknown extra animation \"{e}\": {}", EXTRAS.join(", ")));
         }
         if self.kind == ArtKind::Character {
             convert::size_class(&self.size).ok_or_else(|| anyhow!("unknown size \"{}\": {}", self.size, convert::SIZES.map(|s| s.id).join(", ")))?;
@@ -541,6 +564,7 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
             };
             ("multi-image-to-3d", serde_json::json!({ "image_urls": views, "should_texture": true, "should_remesh": true, "target_polycount": 6000, "pose_mode": "a-pose" }))
         }
+        ("model", ArtKind::Creature3d) if !req.from.is_empty() => ("multi-image-to-3d", serde_json::json!({ "image_urls": refs.views, "should_texture": true, "should_remesh": true, "target_polycount": 5000 })),
         ("model", ArtKind::Creature3d) => {
             let png = job.lock().unwrap().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone()).ok_or_else(|| anyhow!("the picture is missing"))?;
             ("image-to-3d", serde_json::json!({ "image_url": meshy::data_uri(&png), "should_texture": true, "should_remesh": true, "target_polycount": 6000 }))
@@ -550,7 +574,7 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
             ("image-to-3d", serde_json::json!({ "image_url": icon, "should_texture": true, "should_remesh": true, "target_polycount": 1500, "texture_prompt": req.description.trim() }))
         }
         ("rig", _) => ("rigging", serde_json::json!({ "input_task_id": task_of("model").ok_or_else(|| anyhow!("no model to rig"))?, "height_meters": 1.7 })),
-        _ => ("animations", serde_json::json!({ "rig_task_id": task_of("rig").ok_or_else(|| anyhow!("no rig to animate"))?, "action_ids": clip_actions(&req.attack, req.female) })),
+        _ => ("animations", serde_json::json!({ "rig_task_id": task_of("rig").ok_or_else(|| anyhow!("no rig to animate"))?, "action_ids": clip_actions(&req.attack, req.female, &req.extras) })),
     };
     if let Some(dir) = fake_dir() {
         // Keeps what would have been sent (tests look at the views and the icon).
@@ -795,7 +819,7 @@ mod tests {
     use super::*;
 
     fn req(kind: ArtKind, attack: &str) -> ArtRequest {
-        ArtRequest { kind, id: "orc_shaman".into(), description: "an orc shaman with a staff".into(), size: "big".into(), attack: attack.into(), tiles: (1, 1), portrait_for: String::new(), by_agent: true, female: false, from: String::new() }
+        ArtRequest { kind, id: "orc_shaman".into(), description: "an orc shaman with a staff".into(), size: "big".into(), attack: attack.into(), tiles: (1, 1), portrait_for: String::new(), by_agent: true, female: false, from: String::new(), extras: Vec::new() }
     }
 
     #[test]
@@ -827,10 +851,13 @@ mod tests {
         assert_eq!(r.pictures(), vec!["views", "model", "rig", "clips"]);
         // A turnaround picture, the model, the rig, five clips (walk, idle, hurt, slash, sit).
         assert_eq!(ArtState::cost(&r, "nano-banana-2-lite"), 3 + COST_MODEL + COST_RIG + 5 * COST_CLIP);
-        assert_eq!(clip_actions("none", true), vec![566, 11, 178, 32]);
+        assert_eq!(clip_actions("none", true, &[]), vec![566, 11, 178, 32]);
+        assert_eq!(clip_actions("chop", false, &["craft".into(), "farm".into()]), vec![566, 11, 178, 128, 33, 276]);
+        assert!(ArtRequest { extras: vec!["juggle".into()], ..r.clone() }.check().is_err());
         let from = ArtRequest { from: "hero".into(), ..r.clone() };
         assert_eq!(from.pictures(), vec!["model", "rig", "clips"]);
         assert_eq!(req(ArtKind::Creature3d, "none").pictures(), vec!["views", "model"]);
+        assert_eq!(ArtRequest { from: "wolf".into(), ..req(ArtKind::Creature3d, "none") }.pictures(), vec!["model"]);
         assert_eq!(ArtState::cost(&req(ArtKind::Gear3d, "none"), "nano-banana-2-lite"), COST_MODEL);
         let job = Job { id: 1, req: r.clone(), model: "nano-banana-2-lite".into(), cost: 0, pictures: r.pictures().into_iter().map(|name| Picture { name, task: None, status: String::new(), progress: 0, png: None, credits: 0 }).collect(), stage: Stage::Done, result: None, frame: (0, 0), applied: None, version: 0, told: false, made: Made3d::default() };
         assert_eq!(ArtState::redo_steps(&job, "rig"), vec!["rig", "clips"], "a new rig needs new clips");

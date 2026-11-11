@@ -14,7 +14,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "hero",
+            model: "hero",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -42,7 +43,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "elder",
+            model: "elder",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -82,7 +84,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "villager",
+            model: "villager",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -123,7 +126,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "guard",
+            model: "guard",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -198,7 +202,8 @@
             ),
         ],
         appearance: (
-            body: "slime",
+            model: "slime",
+            body: "",
         ),
     ),
     (
@@ -256,7 +261,8 @@
             ),
         ],
         appearance: (
-            body: "goblin",
+            model: "goblin",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -327,7 +333,8 @@
             ),
         ],
         appearance: (
-            body: "goblin_scout",
+            model: "goblin_scout",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -388,7 +395,8 @@
             ),
         ],
         appearance: (
-            body: "bandit_chief",
+            model: "bandit_chief",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -443,7 +451,8 @@
             ),
         ],
         appearance: (
-            body: "outlaw",
+            model: "outlaw",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -496,7 +505,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "merchant_f",
+            model: "merchant_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -560,7 +570,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "baker",
+            model: "baker",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -635,7 +646,8 @@
             open_on_talk: false,
         )),
         appearance: (
-            body: "innkeeper",
+            model: "innkeeper",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -710,7 +722,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "herbalist",
+            model: "herbalist",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -742,7 +755,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "priest",
+            model: "priest",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -799,7 +813,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "miller",
+            model: "miller",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -867,7 +882,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "fisher",
+            model: "fisher",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -899,7 +915,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "town_crier",
+            model: "town_crier",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -982,7 +999,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "blacksmith",
+            model: "blacksmith",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1019,7 +1037,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "farmer",
+            model: "farmer",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1107,7 +1126,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "farmer_f",
+            model: "farmer_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1137,7 +1157,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "villager_f",
+            model: "villager_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1172,7 +1193,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "guard_f",
+            model: "guard_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1208,7 +1230,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "child_boy",
+            model: "child_boy",
+            body: "",
         ),
     ),
     (
@@ -1228,7 +1251,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "child_girl",
+            model: "child_girl",
+            body: "",
         ),
     ),
     (
@@ -1262,7 +1286,8 @@
         ],
         shop: None,
         appearance: (
-            body: "chicken",
+            model: "chicken",
+            body: "",
         ),
     ),
     (
@@ -1296,7 +1321,8 @@
         ],
         shop: None,
         appearance: (
-            body: "dog",
+            model: "dog",
+            body: "",
         ),
     ),
     (
@@ -1330,7 +1356,8 @@
         ],
         shop: None,
         appearance: (
-            body: "cat",
+            model: "cat",
+            body: "",
         ),
     ),
     (
@@ -1364,7 +1391,8 @@
         ],
         shop: None,
         appearance: (
-            body: "cat_ginger",
+            model: "cat",
+            body: "",
         ),
     ),
     (
@@ -1398,7 +1426,8 @@
         ],
         shop: None,
         appearance: (
-            body: "sheep",
+            model: "sheep",
+            body: "",
         ),
     ),
     (
@@ -1432,7 +1461,8 @@
         ],
         shop: None,
         appearance: (
-            body: "cow",
+            model: "cow",
+            body: "",
         ),
     ),
     (
@@ -1473,7 +1503,8 @@
             ),
         ],
         appearance: (
-            body: "wolf",
+            model: "wolf",
+            body: "",
         ),
     ),
     (
@@ -1500,7 +1531,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "bat",
+            model: "bat",
+            body: "",
         ),
     ),
     (
@@ -1521,7 +1553,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "elf",
+            model: "elf",
+            body: "",
         ),
     ),
     (
@@ -1542,7 +1575,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "elf_f",
+            model: "elf_f",
+            body: "",
         ),
     ),
     (
@@ -1561,7 +1595,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "dwarf",
+            model: "dwarf",
+            body: "",
         ),
     ),
     (
@@ -1580,7 +1615,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "dwarf_f",
+            model: "dwarf_f",
+            body: "",
         ),
     ),
     (
@@ -1621,7 +1657,8 @@
             ),
         ],
         appearance: (
-            body: "orc",
+            model: "orc",
+            body: "",
         ),
         equipment: (
             head: None,
@@ -1671,7 +1708,8 @@
             ),
         ],
         appearance: (
-            body: "orc_f",
+            model: "orc_f",
+            body: "",
         ),
         equipment: (
             head: None,
@@ -1728,7 +1766,8 @@
             ),
         ],
         appearance: (
-            body: "orc_chief",
+            model: "orc_chief",
+            body: "",
         ),
         equipment: (
             head: None,
@@ -1780,7 +1819,8 @@
             ),
         ],
         appearance: (
-            body: "troll",
+            model: "troll",
+            body: "",
         ),
     ),
     (
@@ -1836,7 +1876,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "dwarf_merchant",
+            model: "dwarf_merchant",
+            body: "",
         ),
     ),
     (
@@ -1880,7 +1921,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "elf_herbalist",
+            model: "elf_herbalist",
+            body: "",
         ),
     ),
     (
@@ -1924,7 +1966,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "elf",
+            model: "elf",
+            body: "",
         ),
         equipment: (
             head: None,

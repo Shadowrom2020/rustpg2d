@@ -421,10 +421,12 @@ impl Editor {
             }
             let mut list: Vec<_> = n.into_iter().collect();
             list.sort_by_key(|x| std::cmp::Reverse(x.1));
-            out.push(format!("texture colours ({}), most used first:", list.len()));
+            out.push(format!("texture colours ({}), most used first, with where they are on the model (0 = feet, 1 = top):", list.len()));
+            let at = self.assets.models.texture_heights(&d.id);
             for (c, k) in list {
                 let feature = d.features.iter().find(|f| f.shades.contains(&c)).map_or(String::new(), |f| format!("  feature {}", f.name));
-                out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {k} px{feature}", c[0], c[1], c[2], c[0], c[1], c[2]));
+                let place = at.get(&c).map_or(String::new(), |(h, _)| format!("  at {h:.2}"));
+                out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {k} px{place}{feature}", c[0], c[1], c[2], c[0], c[1], c[2]));
             }
         }
         text(out.join("\n"))

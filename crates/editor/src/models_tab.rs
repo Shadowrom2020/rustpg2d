@@ -26,6 +26,48 @@ pub fn choose_template(d: &mut ModelDef, db: &Database, template: &str) {
 }
 
 impl Editor {
+    /// Compacts model file `rel` of the project in place (`model::compact`; kept when that fails
+    /// or isn't smaller) and returns its bytes.
+    pub fn compact_file(&self, rel: &str, keep_mesh: bool) -> anyhow::Result<Vec<u8>> {
+        let path = self.project.root.join(rel);
+        let bytes = std::fs::read(&path)?;
+        match rustpg2d_engine::model::compact(&bytes, keep_mesh) {
+            Ok(small) if small.len() < bytes.len() => {
+                std::fs::write(&path, &small)?;
+                Ok(small)
+            }
+            Ok(_) => Ok(bytes),
+            Err(e) => {
+                eprintln!("[models] {rel} not compacted: {e:#}");
+                Ok(bytes)
+            }
+        }
+    }
+
+    /// Compacts every model file of the project: models, their clip files (without meshes), items'
+    /// models. Returns what it saved.
+    pub fn compact_models(&mut self) -> String {
+        let db = &self.project.db;
+        let mut files: Vec<(String, bool)> = Vec::new();
+        for m in &db.models {
+            files.push((m.file.clone(), true));
+            files.extend(m.clip_files.iter().map(|f| (f.clone(), false)));
+        }
+        files.extend(db.items.iter().filter_map(|i| i.model.as_ref()).map(|m| (m.file.clone(), true)));
+        files.sort();
+        files.dedup();
+        let size = |f: &str| std::fs::metadata(self.project.root.join(f)).map_or(0, |m| m.len());
+        let before: u64 = files.iter().map(|(f, _)| size(f)).sum();
+        for (f, keep) in &files {
+            if let Err(e) = self.compact_file(f, *keep) {
+                eprintln!("[models] {f}: {e:#}");
+            }
+        }
+        let after: u64 = files.iter().map(|(f, _)| size(f)).sum();
+        self.reload_assets();
+        format!("{} model files: {} KB -> {} KB", files.len(), before / 1024, after / 1024)
+    }
+
     /// Fits rig template `template` (None: keep, "" or "-": none) to model `id`, with `turn`
     /// (None: keep) and the moved joints `joints` (None: keep; offsets in parts of the height).
     /// Saves; returns the fitted joints (positions in parts of the height, from the feet).
@@ -84,11 +126,23 @@ impl Editor {
     /// Uses `rel` (a `.glb` under the project) as a new model (`id` empty), as model `id`'s file,
     /// or (`clips`) as a file with more clips for it. Returns the status message.
     pub fn use_model_file(&mut self, id: &str, clips: bool, rel: &str) -> String {
-        let model = match std::fs::read(self.project.root.join(rel)).map_err(anyhow::Error::from).and_then(|b| Model::load(&b)) {
-            Ok(m) => m,
+        // Smaller first: textures as the game uses them; a clip file without its mesh.
+        let bytes = match self.compact_file(rel, !clips) {
+            Ok(b) => b,
             Err(e) => return format!("{rel} can't be used as a model: {e:#}"),
         };
-        let names: Vec<String> = model.clips.iter().map(|c| c.name.clone()).collect();
+        let names = match rustpg2d_engine::model::clip_names(&bytes) {
+            Ok(n) => n,
+            Err(e) => return format!("{rel} can't be used as a model: {e:#}"),
+        };
+        let model = if clips {
+            None
+        } else {
+            match Model::load(&bytes) {
+                Ok(m) => Some(m),
+                Err(e) => return format!("{rel} can't be used as a model: {e:#}"),
+            }
+        };
         let db = &mut self.project.db;
         let msg = if id.is_empty() {
             let stem = std::path::Path::new(rel).file_stem().unwrap_or_default().to_string_lossy().to_lowercase().replace([' ', '-'], "_");
@@ -105,10 +159,10 @@ impl Editor {
             self.db.sel = db.models.len() - 1;
             format!(
                 "Imported model {new_id}: {} triangles, {} clips{}{}",
-                model.indices.len() / 3,
+                model.as_ref().map_or(0, |m| m.indices.len() / 3),
                 names.len(),
                 if mapped.is_empty() { String::new() } else { format!(" ({mapped})") },
-                if model.joints.len() < 2 { " - no skeleton: give it a rig template" } else { "" }
+                if model.as_ref().is_some_and(|m| m.joints.len() < 2) { " - no skeleton: give it a rig template" } else { "" }
             )
         } else {
             let Some(d) = db.models.iter_mut().find(|d| d.id == id) else { return format!("No model {id}") };
@@ -135,7 +189,7 @@ impl Editor {
     /// Gives item `id` the 3D model `rel` (a `.glb` under the project): its hold point and handle
     /// direction estimated from its shape. Returns the status message.
     pub fn use_item_model(&mut self, id: &str, rel: &str) -> String {
-        let model = match std::fs::read(self.project.root.join(rel)).map_err(anyhow::Error::from).and_then(|b| Model::load(&b)) {
+        let model = match self.compact_file(rel, true).and_then(|b| Model::load(&b)) {
             Ok(m) => m,
             Err(e) => return format!("{rel} can't be used as a model: {e:#}"),
         };

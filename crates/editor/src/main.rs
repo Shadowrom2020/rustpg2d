@@ -418,6 +418,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
             println!("[script] {}", ed.fit_rig(&id, None, None, Some(joints)).unwrap_or_else(|e| e));
         }
+        // modelcompact: every model file of the project smaller (textures, clip files' meshes)
+        "modelcompact" => println!("[script] {}", ed.compact_models()),
         // itemmodel ITEM FILE: the item's 3D model (where it is held estimated).
         "itemmodel" => ed.handle_file(files::Purpose::ItemModel(arg(1).into()), arg(2).into()),
         // itemicon ITEM: its inventory icon rendered from its 3D model.
@@ -1050,7 +1052,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                     // 3D characters take their options in the SIZE place: female / male, from=SHEET (comma separated).
                     let opts: Vec<&str> = arg(3).split(',').collect();
                     let from = opts.iter().find_map(|o| o.strip_prefix("from=")).unwrap_or("").to_string();
-                    let req = art::ArtRequest { kind, id: arg(2).to_string(), size: arg(3).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from };
+                    let req = art::ArtRequest { kind, id: arg(2).to_string(), size: arg(3).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from, extras: opts.iter().filter(|o| art::EXTRAS.contains(o)).map(|o| o.to_string()).collect() };
                     match ed.start_art(req) {
                         Ok(id) => println!("[art] started job {id}"),
                         Err(e) => println!("[art] refused: {e:#}"),

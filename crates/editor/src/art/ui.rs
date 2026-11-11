@@ -23,6 +23,7 @@ pub struct ArtWindow {
     /// 3D characters: a woman; the figure to model from ("" = a new turnaround picture).
     pub female: bool,
     pub from: String,
+    pub extras: Vec<String>,
     /// A job waits for "Draw for N credits" (Ask before spending).
     pub confirm: bool,
     /// Which sheets set the style (worked out when the window opens).
@@ -34,7 +35,7 @@ pub struct ArtWindow {
 
 impl Default for ArtWindow {
     fn default() -> Self {
-        ArtWindow { open: false, kind: ArtKind::Character, id: String::new(), description: String::new(), size: "person".into(), attack: "none".into(), tiles: (1, 1), portrait_for: String::new(), female: false, from: String::new(), confirm: false, refs_from: None, message: None, previews: Default::default() }
+        ArtWindow { open: false, kind: ArtKind::Character, id: String::new(), description: String::new(), size: "person".into(), attack: "none".into(), tiles: (1, 1), portrait_for: String::new(), female: false, from: String::new(), extras: Vec::new(), confirm: false, refs_from: None, message: None, previews: Default::default() }
     }
 }
 
@@ -109,7 +110,7 @@ impl Editor {
             Ok((im, d.frame_w.max(1), d.frame_h.max(1)))
         };
         match req.kind {
-            ArtKind::Model3d if !req.from.is_empty() => {
+            ArtKind::Model3d | ArtKind::Creature3d if !req.from.is_empty() => {
                 let (im, fw, fh) = sheet_image(&req.from)?;
                 if im.h / fh < 8 || im.w / fw < 1 {
                     anyhow::bail!("\"{}\" isn't a figure with standing frames (rows 4-7)", req.from);
@@ -468,8 +469,26 @@ impl Editor {
                     ui.label("");
                     ui.checkbox(&mut w.female, "a woman").on_hover_text("Picks the women's sitting clip and marks the model as a woman's (the creator)");
                     ui.end_row();
+                    ui.label("Extra animations");
+                    ui.horizontal(|ui| {
+                        for e in super::EXTRAS {
+                            let mut on = w.extras.iter().any(|x| x == e);
+                            if ui.checkbox(&mut on, e).on_hover_text("3 credits more: a clip for this activity (else it plays idle)").changed() {
+                                w.extras.retain(|x| x != e);
+                                if on {
+                                    w.extras.push(e.to_string());
+                                }
+                            }
+                        }
+                    });
+                    ui.end_row();
                     ui.label("From figure");
                     ui.add(egui::TextEdit::singleline(&mut w.from).hint_text("(draw a turnaround picture)").desired_width(180.0)).on_hover_text("A figure sheet id: its standing frames (front, side, back) become the model, no picture is drawn");
+                    ui.end_row();
+                }
+                if w.kind == ArtKind::Creature3d {
+                    ui.label("From figure");
+                    ui.add(egui::TextEdit::singleline(&mut w.from).hint_text("(draw a picture)").desired_width(180.0)).on_hover_text("A figure sheet id: its standing frames (front, side, back) become the model, no picture is drawn");
                     ui.end_row();
                 }
                 if w.kind == ArtKind::Portrait {
@@ -608,7 +627,7 @@ impl Editor {
 
     fn req_from_form(&self) -> ArtRequest {
         let w = &self.art.window;
-        ArtRequest { kind: w.kind, id: w.id.trim().to_string(), description: w.description.clone(), size: w.size.clone(), attack: w.attack.clone(), tiles: w.tiles, portrait_for: w.portrait_for.trim().to_string(), by_agent: false, female: w.female, from: w.from.trim().to_string() }
+        ArtRequest { kind: w.kind, id: w.id.trim().to_string(), description: w.description.clone(), size: w.size.clone(), attack: w.attack.clone(), tiles: w.tiles, portrait_for: w.portrait_for.trim().to_string(), by_agent: false, female: w.female, from: w.from.trim().to_string(), extras: w.extras.clone() }
     }
 }
 

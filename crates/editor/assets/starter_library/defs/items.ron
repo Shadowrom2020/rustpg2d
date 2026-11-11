@@ -143,6 +143,12 @@
             points: -45.0,
             scale: 0.9,
         )),
+        model: Some((
+            file: "models/bow.glb",
+            grip: (2.0503998e-5, 0.35128456, 0.015026031),
+            axis: (0.0, -1.0, 0.0),
+            size: 22.0,
+        )),
     ),
     (
         id: "crossbow",
@@ -179,6 +185,12 @@
             grip: (0.3, 0.55),
             points: 0.0,
             scale: 0.7,
+        )),
+        model: Some((
+            file: "models/crossbow.glb",
+            grip: (0.8747985, -0.00043147802, -0.0010225233),
+            axis: (-1.0, 0.0, 0.0),
+            size: 22.0,
         )),
     ),
     (
@@ -263,6 +275,12 @@
         armor: None,
         max_stack: 1,
         value: 30,
+        model: Some((
+            file: "models/sword.glb",
+            grip: (0.00086948276, 0.2614255, -0.0005179718),
+            axis: (0.0, -1.0, 0.0),
+            size: 22.0,
+        )),
     ),
     (
         id: "iron_sword",
@@ -287,6 +305,12 @@
         armor: None,
         max_stack: 1,
         value: 45,
+        model: Some((
+            file: "models/iron_sword.glb",
+            grip: (8.499622e-5, 0.070815384, -0.0005369969),
+            axis: (0.0, -1.0, 0.0),
+            size: 22.0,
+        )),
     ),
     (
         id: "fine_iron_sword",
@@ -311,6 +335,12 @@
         armor: None,
         max_stack: 1,
         value: 80,
+        model: Some((
+            file: "models/fine_iron_sword.glb",
+            grip: (0.16594046, -0.0009865165, 0.0054680128),
+            axis: (-1.0, 0.0, 0.0),
+            size: 22.0,
+        )),
     ),
     (
         id: "spear",
@@ -344,6 +374,12 @@
             points: -90.0,
             scale: 1.25,
         )),
+        model: Some((
+            file: "models/spear.glb",
+            grip: (0.07052857, -0.0004569888, -0.00047901645),
+            axis: (-1.0, 0.0, 0.0),
+            size: 22.0,
+        )),
     ),
     (
         id: "axe",
@@ -368,6 +404,12 @@
         armor: None,
         max_stack: 1,
         value: 60,
+        model: Some((
+            file: "models/axe.glb",
+            grip: (-9.7543e-5, 0.87879854, -0.00049801543),
+            axis: (0.0, -1.0, 0.0),
+            size: 22.0,
+        )),
     ),
     (
         id: "leather_cap",
@@ -474,6 +516,12 @@
             points: 0.0,
             scale: 0.5,
         )),
+        model: Some((
+            file: "models/lantern.glb",
+            grip: (-0.00053700805, 0.87869585, -0.00050342083),
+            axis: (0.0, -1.0, 0.0),
+            size: 22.0,
+        )),
     ),
     (
         id: "torch",
@@ -503,6 +551,12 @@
             grip: (0.25, 0.75),
             points: 0.0,
             scale: 0.6,
+        )),
+        model: Some((
+            file: "models/torch.glb",
+            grip: (-0.00023898482, -0.071290255, -0.00044295937),
+            axis: (0.0, 1.0, 0.0),
+            size: 22.0,
         )),
     ),
     (
@@ -731,6 +785,12 @@
             points: -50.0,
             scale: 1.0,
         )),
+        model: Some((
+            file: "models/fishing_rod.glb",
+            grip: (0.0073364973, -0.8805796, -0.00058647245),
+            axis: (0.0, 1.0, 0.0),
+            size: 22.0,
+        )),
         tool: "fishing rod",
     ),
     (
@@ -780,6 +840,12 @@
             grip: (0.78, 0.82),
             points: -135.0,
             scale: 0.7,
+        )),
+        model: Some((
+            file: "models/pickaxe.glb",
+            grip: (-0.8803169, -0.0002949834, -0.0024534743),
+            axis: (1.0, 0.0, 0.0),
+            size: 22.0,
         )),
         tool: "pickaxe",
     ),
@@ -874,6 +940,12 @@
         armor: None,
         max_stack: 1,
         value: 20,
+        model: Some((
+            file: "models/hammer.glb",
+            grip: (0.00096699595, 0.16611624, -0.00034555048),
+            axis: (0.0, -1.0, 0.0),
+            size: 22.0,
+        )),
         tool: "hammer",
     ),
     (
@@ -1409,6 +1481,12 @@
             points: 90.0,
             scale: 0.5,
         )),
+        model: Some((
+            file: "models/wooden_shield.glb",
+            grip: (-0.87994695, 7.9482794e-5, 0.0007234886),
+            axis: (1.0, 0.0, 0.0),
+            size: 22.0,
+        )),
     ),
     (
         id: "letter",
@@ -1733,6 +1811,12 @@
             points: 135.0,
             scale: 1.0,
         )),
+        model: Some((
+            file: "models/broom.glb",
+            grip: (-0.00038048625, -0.024662018, -0.000494007),
+            axis: (0.0, 1.0, 0.0),
+            size: 22.0,
+        )),
         tool: "broom",
     ),
     (
@@ -1753,6 +1837,12 @@
             grip: (0.22, 0.78),
             points: -45.0,
             scale: 0.7,
+        )),
+        model: Some((
+            file: "models/hoe.glb",
+            grip: (-0.0007375181, 0.16580766, -0.0006389916),
+            axis: (0.0, -1.0, 0.0),
+            size: 22.0,
         )),
         tool: "hoe",
     ),
@@ -2152,6 +2242,12 @@
             grip: (0.45, 0.5),
             points: -45.0,
             scale: 0.9,
+        )),
+        model: Some((
+            file: "models/crude_bow.glb",
+            grip: (-0.00056898594, 0.40329975, -0.00041355565),
+            axis: (0.0, -1.0, 0.0),
+            size: 22.0,
         )),
     ),
     (

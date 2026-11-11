@@ -45,6 +45,7 @@ impl Editor {
             portrait_for: p.portrait_for.unwrap_or_default(),
             by_agent: true,
             female: p.female.unwrap_or(false),
+            extras: p.extras.unwrap_or_default(),
             from: p.from.unwrap_or_default(),
         };
         req.check().map_err(|e| format!("{e:#}"))?;

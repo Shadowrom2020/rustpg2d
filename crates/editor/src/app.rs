@@ -232,6 +232,8 @@ pub struct Editor {
     /// False on the welcome screen: `project` is then an empty placeholder.
     pub project_open: bool,
     pub lib: crate::library_ui::LibState,
+    /// *Update asset library* (window and banner).
+    pub lib_update: crate::library_update::LibUpdate,
     pub px: crate::pixel::PixelState,
     pub wizard: Option<crate::wizard::Wizard>,
     pub export: Option<crate::export::ExportDialog>,
@@ -447,6 +449,7 @@ impl Editor {
             usages: Default::default(),
             problems: crate::problems::Problems::new(),
             library_mode: false,
+            lib_update: Default::default(),
             lib_window: Default::default(),
             lib_stamp: None,
             lib_check: 0.0,
@@ -1332,8 +1335,10 @@ impl Editor {
             self.tex = Textures::build(ctx, &self.assets);
             self.tex_dirty = false;
         }
+        self.check_library_update();
         if self.library_mode {
             self.library_menu_bar(ctx);
+            self.library_update_banner(ctx);
             self.watch_library();
             if self.mode == Mode::Map {
                 self.mode = Mode::Library;
@@ -1346,7 +1351,9 @@ impl Editor {
             self.watch_project();
             self.watch_banner(ctx);
             self.notice_banner(ctx);
+            self.library_update_banner(ctx);
         }
+        self.library_update_window(ctx);
         self.mcp_window(ctx);
         self.search_windows(ctx);
         self.problems_tick();
@@ -1614,6 +1621,10 @@ impl Editor {
                     ui.separator();
                     if ui.button(ui::t(ph::BOOKS, "Asset Library window…")).on_hover_text("Opens the shared asset library in its own window: edit, create, import and export library assets").clicked() {
                         self.open_library_window();
+                        ui.close_menu();
+                    }
+                    if ui.button(ui::t(ph::ARROWS_CLOCKWISE, "Update asset library…")).on_hover_text("Brings this version's starter assets into your asset library: adds new ones, replaces the ones you never changed, asks about the rest").clicked() {
+                        self.open_library_update();
                         ui.close_menu();
                     }
                     if ui.button(ui::t(ph::ROBOT, "AI agent server…")).on_hover_text("Lets AI agents (Claude Code, Cursor, …) read and build this project live through the Model Context Protocol").clicked() {

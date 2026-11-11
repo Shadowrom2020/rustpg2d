@@ -18,6 +18,7 @@ mod files;
 mod graph;
 mod import;
 mod library_ui;
+mod library_update;
 mod library_window;
 mod maps;
 mod mcp;
@@ -567,7 +568,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -595,6 +596,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.search.status(),
             ed.usages.status(),
             ed.problems.status(),
+            ed.lib_update.status(),
             ed.mode,
             ed.db.tab,
             ed.db.sel,
@@ -952,6 +954,41 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 ed.jump_to(&t);
             }
         }
+        // libupdate: Assets › Update asset library… (prints the lists) · libupdatepick edited|retired KIND ID on|off · libupdateok · libupdatecancel
+        "libupdate" => {
+            ed.open_library_update();
+            let u = &ed.lib_update;
+            if let Some(e) = &u.error {
+                println!("[libupdate] error: {e}");
+            }
+            if let Some(p) = &u.plan {
+                let ids = |v: &[rustpg2d_engine::library::AssetRef]| v.iter().map(|a| format!("{}:{}", a.0.name(), a.1)).collect::<Vec<_>>().join(" ");
+                println!("[libupdate] added: {}", ids(&p.added));
+                println!("[libupdate] updated: {}", ids(&p.updated));
+                println!("[libupdate] edited: {}", ids(&p.edited));
+                for r in &p.retired {
+                    println!("[libupdate] retired: {}:{} untouched={} used_by={:?} delete={}", r.asset.0.name(), r.asset.1, r.untouched, r.used_by, u.delete.contains(&r.asset));
+                }
+                println!("[libupdate] {}", p.counts());
+            }
+        }
+        "libupdatepick" => match rustpg2d_engine::refactor::RefKind::parse(arg(2)) {
+            Some(kind) => {
+                let a = (kind, arg(3).to_string());
+                let set = if arg(1) == "retired" { &mut ed.lib_update.delete } else { &mut ed.lib_update.take };
+                if arg(4) == "off" {
+                    set.remove(&a);
+                } else {
+                    set.insert(a);
+                }
+            }
+            None => eprintln!("[script] libupdatepick: unknown kind {:?}", arg(2)),
+        },
+        "libupdateok" => {
+            ed.apply_library_update();
+            println!("[libupdate] {}", ed.lib_update.report.clone().or_else(|| ed.lib_update.error.clone()).unwrap_or_default());
+        }
+        "libupdatecancel" => ed.lib_update.open = false,
         // problems [AREA]: check the project, print the list (opens the Problems window) · problempick K: click entry K
         "problems" => {
             ed.refresh_problems();

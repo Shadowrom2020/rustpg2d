@@ -144,6 +144,10 @@ impl Editor {
                         self.open_file_dialog(files::Purpose::ImportPackage { into_library: true });
                         ui.close_menu();
                     }
+                    if ui.button(ui::t(ph::ARROWS_CLOCKWISE, "Update from the starter set…")).on_hover_text("Brings this version's starter assets into the library: adds new ones, replaces the ones you never changed, asks about the rest").clicked() {
+                        self.open_library_update();
+                        ui.close_menu();
+                    }
                     ui.separator();
                     if ui.button(ui::t(ph::X, "Close window")).clicked() {
                         self.request(Pending::Quit);

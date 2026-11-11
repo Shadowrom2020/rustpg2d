@@ -984,7 +984,8 @@ pub fn library_dir() -> PathBuf {
 pub type LibraryFiles<'a> = [(&'a str, &'a [u8])];
 
 /// Opens the library at `dir`, creating it (filled with the `starter` library's assets) if
-/// needed. A changed starter set (a newer editor) adds the assets the library doesn't have yet.
+/// needed. A changed starter set (a newer editor) adds the assets the library doesn't have yet
+/// and leaves [`crate::starter_update::PENDING_FILE`]: changed assets wait for the creator's update.
 pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Project> {
     let stamp_file = dir.join(STARTER_STAMP);
     // The stamp includes how starter sets are applied, so libraries get a changed rule once.
@@ -1016,6 +1017,8 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
                 lib.save_defs()?;
             }
             std::fs::write(&stamp_file, s)?;
+            // Changed assets need the creator's *Update asset library* (the editor offers it).
+            std::fs::write(dir.join(crate::starter_update::PENDING_FILE), s)?;
         }
     }
     Ok(lib)
@@ -1028,8 +1031,9 @@ const STARTER_STAMP: &str = "starter.stamp";
 /// sheet is 16 columns wide with a 47-tile set per terrain — not an extension of the old
 /// sheet, so existing libraries keep their art until they are rebuilt; 7: an image of the
 /// same size that only fills empty cells is an upgrade too, and the new tiles bring their
-/// solid / ladder / light / animation flags; 8: tilesets and props get the low flags).
-const STARTER_RULES: u32 = 8;
+/// solid / ladder / light / animation flags; 8: tilesets and props get the low flags; 9: a
+/// changed starter set also leaves `starter.pending`, so the editor offers *Update asset library*).
+const STARTER_RULES: u32 = 9;
 
 /// 64-bit FNV-1a hash of every path and content (a cheap fingerprint of the starter set that
 /// only changes when the files do).

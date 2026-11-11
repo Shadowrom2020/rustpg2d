@@ -85,10 +85,29 @@ Instructions for every session (people and coding agents) that implements roadma
 16. **Cutting a release.** `release/X.Y.Z` from develop: version in `Cargo.toml` (the build
     updates `Cargo.lock`), `## Unreleased` → `## X.Y.Z — date`, README *Current version*,
     the version's roadmap section removed from this file (the CHANGELOG is its record),
-    `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
+    `starter_history.ron` current (`cargo run -p rustpg2d-editor --example starter_history`; the
+    tests fail otherwise), `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
     checks, merge the back-merge pull request.
 
 ## 0.17.0 — Peoples of the world
+
+- [x] Update the asset library from the starter set — `feature/library-update`
+
+  **Goal.** A menu entry brings a new version's starter assets into the creator's asset library:
+  adds new ones, replaces updated ones, asks whether assets the starter dropped should be
+  deleted, so nobody has to rebuild their library by hand.
+
+  **Design.** *Assets › Update asset library…* (and *File › Update from the starter set…* in the
+  Asset Library window, plus a banner when `open_library` left `starter.pending`). Untouched
+  assets (definition and files match a version in `crates/editor/assets/starter_history.ron`)
+  are replaced; assets the creator changed that the starter changed too are listed unticked
+  (their version stays unless ticked); retired ids are offered for deletion (ticked when
+  untouched and unused, refused while still used). The library folder is backed up to
+  `<library>.bak-YYYYMMDD-HHMMSS` first; script functions the creator changed are kept.
+
+  **Engine.** Agreed: `starter_update.rs` (history, plan, apply, backup), `STARTER_RULES` 9
+  (`starter.pending`); editor `library_update.rs`, the history generator
+  `crates/editor/examples/starter_history.rs` and the test `starter_history_covers_the_starter`.
 
 - [ ] Races — `feature/races`
 

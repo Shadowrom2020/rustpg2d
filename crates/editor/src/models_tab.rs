@@ -2,13 +2,85 @@
 //! animations by name), extra clip files, replacing a model's file. The form is
 //! `database::model_form`.
 
-use rustpg2d_engine::defs::ModelDef;
+use rustpg2d_engine::defs::{Database, JointNudge, ModelDef, RigFit};
 use rustpg2d_engine::model::{guess_clips, Model};
 
 use crate::app::Editor;
 use crate::database::Tab;
 
+/// Gives model `d` the rig template `template` ("" = none), keeping its turn (joints moved for
+/// another template start over). Without clips of its own (or with the old template's) it plays
+/// the template's.
+pub fn choose_template(d: &mut ModelDef, db: &Database, template: &str) {
+    let old = d.rig.as_ref().map(|r| r.template.clone()).unwrap_or_default();
+    if template.is_empty() {
+        d.rig = None;
+        return;
+    }
+    let old_clips = db.model(&old).map(|t| t.clips.clone());
+    let (turn, joints) = d.rig.as_ref().map_or((0.0, Vec::new()), |r| (r.turn, if r.template == template { r.joints.clone() } else { Vec::new() }));
+    d.rig = Some(RigFit { template: template.to_string(), turn, joints });
+    if d.clips.is_empty() || old_clips.as_ref() == Some(&d.clips) {
+        d.clips = db.model(template).map(|t| t.clips.clone()).unwrap_or_default();
+    }
+}
+
 impl Editor {
+    /// Fits rig template `template` (None: keep, "" or "-": none) to model `id`, with `turn`
+    /// (None: keep) and the moved joints `joints` (None: keep; offsets in parts of the height).
+    /// Saves; returns the fitted joints (positions in parts of the height, from the feet).
+    pub fn fit_rig(&mut self, id: &str, template: Option<&str>, turn: Option<f32>, joints: Option<Vec<JointNudge>>) -> Result<String, String> {
+        let db = &self.project.db;
+        let d = db.model(id).ok_or_else(|| format!("no model \"{id}\""))?;
+        if let Some(t) = template.filter(|t| !t.is_empty() && *t != "-") {
+            if t == id {
+                return Err("a model can't be its own rig template".into());
+            }
+            db.model(t).ok_or_else(|| format!("no model \"{t}\" to use as rig template"))?;
+            if !self.assets.models.info(t).is_some_and(|i| i.rigged) {
+                return Err(format!("{t} has no skeleton of its own: a rig template must be rigged"));
+            }
+        }
+        if self.assets.models.info(id).is_some_and(|i| i.rigged) {
+            return Err(format!("{id} has its own skeleton: rig templates are for unrigged models"));
+        }
+        let mut d = d.clone();
+        if let Some(t) = template {
+            choose_template(&mut d, db, if t == "-" { "" } else { t });
+        }
+        if let Some(rig) = &mut d.rig {
+            if let Some(turn) = turn {
+                rig.turn = turn;
+            }
+            if let Some(j) = joints {
+                rig.joints = j;
+            }
+        } else if turn.is_some() || joints.is_some() {
+            return Err(format!("{id} has no rig template yet: give one"));
+        }
+        let rig = d.rig.clone();
+        if let Some(m) = self.project.db.models.iter_mut().find(|m| m.id == id) {
+            *m = d;
+        }
+        self.defs_dirty = true;
+        self.save_defs();
+        self.reload_assets();
+        let Some(rig) = rig else { return Ok(format!("{id} has no rig template now")) };
+        let view = self.assets.models.rig_view(id).ok_or_else(|| self.assets.models.errors.iter().find(|e| e.contains(&format!("model {id}:"))).cloned().unwrap_or_else(|| format!("{id} didn't load")))?;
+        let h = (view.hi.y - view.lo.y).max(1e-5);
+        let list: Vec<String> = view.joints.iter().map(|(n, p, _)| {
+            let q = (*p - view.lo) / h;
+            format!("{n} ({:.2}, {:.2}, {:.2})", q.x - (view.hi.x - view.lo.x) / h / 2.0, q.y, q.z - (view.hi.z - view.lo.z) / h / 2.0)
+        }).collect();
+        Ok(format!(
+            "{id} uses rig template {} (turned {} deg, {} joint(s) moved). Joints (x right, y up from the feet, z front; parts of the height, from the middle): {}",
+            rig.template,
+            rig.turn,
+            rig.joints.len(),
+            list.join(", ")
+        ))
+    }
+
     /// Uses `rel` (a `.glb` under the project) as a new model (`id` empty), as model `id`'s file,
     /// or (`clips`) as a file with more clips for it. Returns the status message.
     pub fn use_model_file(&mut self, id: &str, clips: bool, rel: &str) -> String {

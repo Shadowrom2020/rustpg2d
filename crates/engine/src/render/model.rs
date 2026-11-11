@@ -133,6 +133,24 @@ struct Loaded {
     ppu: f32,
     target_y: f32,
     textures: RefCell<HashMap<u64, Texture2D>>,
+    /// Rig templates: the unfitted model, the template and the template's clip map (refitting
+    /// when the fit is edited).
+    fitted: Option<Box<Fitted>>,
+}
+
+struct Fitted {
+    base: Model,
+    template: Model,
+    clips: Vec<crate::defs::ClipMap>,
+}
+
+/// A model's definition as it plays: without clips of its own, a fitted model plays the
+/// template's.
+fn effective(def: &ModelDef, fitted: Option<&Fitted>) -> ModelDef {
+    match fitted {
+        Some(f) if def.clips.is_empty() => ModelDef { clips: f.clips.clone(), ..def.clone() },
+        _ => def.clone(),
+    }
 }
 
 struct Page {
@@ -219,7 +237,7 @@ impl Models {
     pub fn load(db: &Database, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> Models {
         let mut m = Models::default();
         for def in &db.models {
-            match load_one(def, read) {
+            match load_one(def, db, read) {
                 Ok(l) => {
                     m.loaded.insert(def.id.clone(), l);
                 }
@@ -418,7 +436,24 @@ impl Models {
             clips: m.clips.iter().map(|c| (c.name.clone(), c.duration)).collect(),
             hands: l.hands.iter().all(Option::is_some),
             texture: l.texture.as_ref().map(|t| (t.width, t.height)),
+            rigged: l.fitted.is_none() && m.joints.len() >= 2,
         })
+    }
+
+    /// Model `id` at rest with its joints (a fitted rig template's: the editor drags them).
+    pub fn rig_view(&self, id: &str) -> Option<RigView> {
+        let m = &self.loaded.get(id)?.model;
+        let mut pts = Vec::new();
+        m.skin(&m.pose(None, 0.0), &mut pts);
+        let (lo, hi) = pts.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)));
+        // Corners and the middles of the triangles (a silhouette also for models of few, big faces).
+        let mut all: Vec<Vec3> = pts.iter().map(|(p, _)| *p).collect();
+        all.extend(m.indices.as_chunks::<3>().0.iter().filter_map(|t| Some((pts.get(t[0] as usize)?.0 + pts.get(t[1] as usize)?.0 + pts.get(t[2] as usize)?.0) / 3.0)));
+        let step = (all.len() / 3000).max(1);
+        let points = all.into_iter().step_by(step).collect();
+        let rest = m.joints_at_rest();
+        let joints = rest.iter().map(|(_, name, p, parent)| (name.clone(), *p, parent.and_then(|pn| rest.iter().position(|r| r.0 == pn)))).collect();
+        Some(RigView { points, joints, lo, hi })
     }
 
     /// Model `id`'s texture as loaded (downsized), for picking colour features.
@@ -430,14 +465,28 @@ impl Models {
     /// again; its poses render anew. False when the model isn't loaded (a new file: reload).
     pub fn set_def(&mut self, def: &ModelDef) -> bool {
         let Some(l) = self.loaded.get_mut(&def.id) else { return false };
-        if l.def == *def {
+        if l.def == effective(def, l.fitted.as_deref()) {
             return true;
         }
         if l.def.file != def.file || l.def.clip_files != def.clip_files {
             return false;
         }
+        if l.def.rig != def.rig {
+            // A new fit of the same template is computed from the kept parts; anything else reads
+            // the files again.
+            let (Some(f), Some(rig)) = (&l.fitted, &def.rig) else { return false };
+            if l.def.rig.as_ref().map(|r| &r.template) != Some(&rig.template) {
+                return false;
+            }
+            match f.base.fit_rig(&f.template, rig.turn, &def.nudges()) {
+                Ok(m) => l.model = m,
+                Err(_) => return false,
+            }
+            let (lo, hi) = l.model.bounds();
+            l.height = (hi.y - lo.y).max(1e-3);
+        }
         (l.frame, l.ppu, l.target_y) = layout(def, l.height);
-        l.def = def.clone();
+        l.def = effective(def, l.fitted.as_deref());
         l.textures.borrow_mut().clear();
         self.cache.borrow_mut().poses.retain(|k, _| k.model != def.id);
         true
@@ -487,11 +536,22 @@ fn hash<T: Hash>(v: &T) -> u64 {
     h.finish()
 }
 
-fn load_one(def: &ModelDef, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> anyhow::Result<Loaded> {
+fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> anyhow::Result<Loaded> {
     use anyhow::Context;
-    let mut model = Model::load(&read(&def.file).with_context(|| format!("reading {}", def.file))?)?;
-    for f in &def.clip_files {
-        model.add_clips(&read(f).with_context(|| format!("reading {f}"))?)?;
+    let load = |def: &ModelDef| -> anyhow::Result<Model> {
+        let mut model = Model::load(&read(&def.file).with_context(|| format!("reading {}", def.file))?)?;
+        for f in &def.clip_files {
+            model.add_clips(&read(f).with_context(|| format!("reading {f}"))?)?;
+        }
+        Ok(model)
+    };
+    let mut model = load(def)?;
+    let mut fitted = None;
+    if let Some(rig) = &def.rig {
+        let tdef = db.model(&rig.template).filter(|t| t.id != def.id).ok_or_else(|| anyhow::anyhow!("no rig template \"{}\"", rig.template))?;
+        let template = load(tdef).with_context(|| format!("rig template {}", tdef.id))?;
+        let fit = model.fit_rig(&template, rig.turn, &def.nudges())?;
+        fitted = Some(Box::new(Fitted { base: std::mem::replace(&mut model, fit), template, clips: tdef.clips.clone() }));
     }
     let mut align = HashMap::new();
     for c in &model.clips {
@@ -514,7 +574,7 @@ fn load_one(def: &ModelDef, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> 
     let height = (hi.y - lo.y).max(1e-3);
     let (frame, ppu, target_y) = layout(def, height);
     let texture = model.texture.clone();
-    Ok(Loaded { def: def.clone(), model, texture, align, hands, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()) })
+    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted })
 }
 
 /// A model's frame (image pixels), pixels per model unit and camera target height: the standing
@@ -538,6 +598,17 @@ pub struct ModelInfo {
     /// Hand bones found (gear can be held).
     pub hands: bool,
     pub texture: Option<(u16, u16)>,
+    /// Its own skeleton: false for an unrigged model (with or without a rig template fitted).
+    pub rigged: bool,
+}
+
+/// A model at rest for editing a fitted rig template: a sample of its mesh's points and the
+/// joints (name, position, parent joint index), in model space; its height.
+pub struct RigView {
+    pub points: Vec<Vec3>,
+    pub joints: Vec<(String, Vec3, Option<usize>)>,
+    pub lo: Vec3,
+    pub hi: Vec3,
 }
 
 /// The clip of a request, its frame number and the time in it.
@@ -840,7 +911,7 @@ mod tests {
     fn loaded() -> Loaded {
         let glb = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/model_two_bones.glb")).unwrap();
         let def = ModelDef { clips: vec![ClipMap { anim: "walk".into(), clip: "bend".into(), fps: 10.0 }], ..ModelDef::new("m", "models/m.glb") };
-        load_one(&def, &|_| Ok(glb.clone())).unwrap()
+        load_one(&def, &Database::default(), &|_| Ok(glb.clone())).unwrap()
     }
 
     #[test]

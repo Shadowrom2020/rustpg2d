@@ -356,6 +356,38 @@ pub struct ModelDef {
     pub playable: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub female: bool,
+    /// An unrigged model (an animal, a monster) animated by a rig template: another model's
+    /// skeleton fitted to it, and that model's clips.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rig: Option<RigFit>,
+}
+
+/// A rig template fitted to an unrigged model ([`crate::model::Model::fit_rig`]): the template's
+/// skeleton is stretched over the model's bounds, then single joints are moved.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct RigFit {
+    /// The rigged model (an id) whose skeleton and clips it takes.
+    pub template: String,
+    /// Turns the model about the up axis first (degrees), so it faces the front (+Z, toward the
+    /// viewer) like the template.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub turn: f32,
+    /// Joints moved after the fit.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub joints: Vec<JointNudge>,
+}
+
+/// A joint of a fitted rig template moved by hand.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct JointNudge {
+    /// The joint's name in the template.
+    pub joint: String,
+    /// How far, in parts of the model's height (x right, y up, z front).
+    pub offset: [f32; 3],
+}
+
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
 }
 
 fn model_height() -> f32 {
@@ -380,12 +412,17 @@ fn clip_fps() -> f32 {
 
 impl ModelDef {
     pub fn new(id: &str, file: &str) -> ModelDef {
-        ModelDef { id: id.into(), name: String::new(), file: file.into(), clip_files: Vec::new(), height: model_height(), clips: Vec::new(), features: Vec::new(), playable: false, female: false }
+        ModelDef { id: id.into(), name: String::new(), file: file.into(), clip_files: Vec::new(), height: model_height(), clips: Vec::new(), features: Vec::new(), playable: false, female: false, rig: None }
     }
 
     /// The clip of animation `anim`.
     pub fn clip_of(&self, anim: &str) -> Option<&ClipMap> {
         self.clips.iter().find(|c| c.anim == anim)
+    }
+
+    /// The template's nudges as (joint, offset).
+    pub fn nudges(&self) -> Vec<(String, [f32; 3])> {
+        self.rig.as_ref().map_or_else(Vec::new, |r| r.joints.iter().map(|j| (j.joint.clone(), j.offset)).collect())
     }
 
     pub fn label(&self) -> &str {
@@ -1739,7 +1776,7 @@ impl_def!(crate::skills::SpellDef, crate::refactor::RefKind::Spell, spells, refs
 impl_def!(crate::crafting::RecipeDef, crate::refactor::RefKind::Recipe, recipes, refs = crate::refactor::refs_of_recipe);
 impl_def!(crate::achievements::AchievementDef, crate::refactor::RefKind::Achievement, achievements);
 impl_def!(crate::races::RaceDef, crate::refactor::RefKind::Race, races, refs = crate::refactor::refs_of_race);
-impl_def!(ModelDef, crate::refactor::RefKind::Model, models);
+impl_def!(ModelDef, crate::refactor::RefKind::Model, models, refs = crate::refactor::refs_of_model);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.

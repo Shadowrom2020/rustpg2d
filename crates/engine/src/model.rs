@@ -260,6 +260,110 @@ impl Model {
         (acc.length() > 1e-4).then(|| acc.x.atan2(acc.z))
     }
 
+    /// The skin's joints at rest: (node index, name, position, parent joint node) in model space.
+    pub fn joints_at_rest(&self) -> Vec<(usize, String, Vec3, Option<usize>)> {
+        let w = self.pose(None, 0.0);
+        let joint_parent = |mut i: usize| loop {
+            match self.nodes[i].parent {
+                Some(p) if self.joints.contains(&p) => return Some(p),
+                Some(p) => i = p,
+                None => return None,
+            }
+        };
+        self.joints.iter().map(|&j| (j, self.nodes[j].name.clone(), w[j].w_axis.truncate(), joint_parent(j))).collect()
+    }
+
+    /// This (unrigged) model with `template`'s skeleton and clips: the mesh is turned by `turn`
+    /// degrees about the up axis, the template's joints are stretched from the template mesh's
+    /// bounds over this mesh's bounds (each axis on its own), the `nudges` (joint name, offset in
+    /// parts of the height) move single joints, and every vertex is bound to the four bones
+    /// nearest to it. Rotations of the template's clips play as they are; their moves (the body
+    /// bobbing) scale with the height.
+    pub fn fit_rig(&self, template: &Model, turn: f32, nudges: &[(String, [f32; 3])]) -> Result<Model> {
+        let tpl = template;
+        if tpl.joints.len() < 2 {
+            bail!("the rig template has no skeleton");
+        }
+        // The mesh at rest, turned, in model space.
+        let rot = Quat::from_rotation_y(turn.to_radians());
+        let mut pts = Vec::new();
+        self.skin(&self.pose(None, 0.0), &mut pts);
+        for (p, n) in &mut pts {
+            (*p, *n) = (rot * *p, rot * *n);
+        }
+        let bounds = |pts: &[(Vec3, Vec3)]| pts.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)));
+        let (mlo, mhi) = bounds(&pts);
+        let tw = tpl.pose(None, 0.0);
+        let mut tp = Vec::new();
+        tpl.skin(&tw, &mut tp);
+        let (tlo, thi) = bounds(&tp);
+        let scale = (mhi - mlo) / (thi - tlo).max(Vec3::splat(1e-5));
+        let height = (mhi.y - mlo.y).max(1e-5);
+        let target = |j: usize| -> Vec3 {
+            let nudge = nudges.iter().find(|(n, _)| *n == tpl.nodes[j].name).map_or(Vec3::ZERO, |(_, o)| Vec3::from(*o) * height);
+            mlo + (tw[j].w_axis.truncate() - tlo) * scale + nudge
+        };
+        // The template's tree with its joints moved to their targets (rotations kept, so the
+        // clips' turns still mean the same).
+        let mut nodes = tpl.nodes.clone();
+        let mut world = vec![Mat4::IDENTITY; nodes.len()];
+        for &i in &tpl.order {
+            let parent = nodes[i].parent.map_or(Mat4::IDENTITY, |p| world[p]);
+            if tpl.joints.contains(&i) {
+                nodes[i].t = parent.inverse().transform_point3(target(i));
+            }
+            world[i] = parent * Mat4::from_scale_rotation_translation(nodes[i].s, nodes[i].r, nodes[i].t);
+        }
+        let inverse_bind: Vec<Mat4> = tpl.joints.iter().map(|&j| world[j].inverse()).collect();
+        // Bones as segments from a joint to each of its child joints; a last joint (a head, a
+        // tail's tip) goes on in its parent bone's direction for half that bone's length.
+        let pos = |j: usize| world[j].w_axis.truncate();
+        let mut bones: Vec<(usize, Vec3, Vec3)> = Vec::new();
+        for (k, &j) in tpl.joints.iter().enumerate() {
+            let kids: Vec<usize> = tpl.joints.iter().copied().filter(|&c| nodes[c].parent == Some(j)).collect();
+            if kids.is_empty() {
+                let from = nodes[j].parent.filter(|p| tpl.joints.contains(p)).map_or(pos(j), pos);
+                bones.push((k, pos(j), pos(j) + (pos(j) - from) * 0.5));
+            }
+            bones.extend(kids.into_iter().map(|c| (k, pos(j), pos(c))));
+        }
+        let near = 0.02 * height;
+        let vertices = self
+            .vertices
+            .iter()
+            .zip(&pts)
+            .map(|(v, (p, n))| {
+                // The nearest distance to each joint's bones, then the four nearest joints.
+                let mut d = vec![f32::MAX; tpl.joints.len()];
+                for (k, a, b) in &bones {
+                    d[*k] = d[*k].min(segment_distance(*p, *a, *b));
+                }
+                let mut order: Vec<usize> = (0..d.len()).collect();
+                order.sort_by(|a, b| d[*a].total_cmp(&d[*b]));
+                let (mut joints, mut weights) = ([0u16; 4], [0f32; 4]);
+                for (s, &k) in order.iter().take(4).enumerate() {
+                    joints[s] = k as u16;
+                    weights[s] = 1.0 / (d[k] + near).powi(4);
+                }
+                let sum: f32 = weights.iter().sum();
+                SkinVertex { pos: *p, normal: *n, uv: v.uv, joints, weights: weights.map(|w| w / sum) }
+            })
+            .collect();
+        // Clips: moves of joints are relative to the template's rest, scaled with the height.
+        let k = scale.y;
+        let mut clips = tpl.clips.clone();
+        for c in &mut clips {
+            for t in c.tracks.iter_mut().filter(|t| t.path == Path::Translation && tpl.joints.contains(&t.node)) {
+                let (rest, fit) = (tpl.nodes[t.node].t, nodes[t.node].t);
+                for v in &mut t.values {
+                    let moved = fit + (Vec3::new(v[0], v[1], v[2]) - rest) * k;
+                    v[..3].copy_from_slice(&moved.to_array());
+                }
+            }
+        }
+        Ok(Model { vertices, indices: self.indices.clone(), nodes, order: tpl.order.clone(), joints: tpl.joints.clone(), inverse_bind, clips, texture: self.texture.clone() })
+    }
+
     /// The rest pose's height (model units) and the lowest point: for framing.
     pub fn bounds(&self) -> (Vec3, Vec3) {
         let world = self.pose(None, 0.0);
@@ -267,6 +371,13 @@ impl Model {
         self.skin(&world, &mut out);
         out.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)))
     }
+}
+
+/// The distance from `p` to the segment `a`-`b`.
+fn segment_distance(p: Vec3, a: Vec3, b: Vec3) -> f32 {
+    let ab = b - a;
+    let t = if ab.length_squared() > 1e-12 { ((p - a).dot(ab) / ab.length_squared()).clamp(0.0, 1.0) } else { 0.0 };
+    (p - (a + ab * t)).length()
 }
 
 /// Where a held item's model is held and which way its handle runs, guessed from its shape:
@@ -582,6 +693,46 @@ mod tests {
         assert_eq!(m.node("upper"), Some(2));
         // No texture: a palette of its material colours (one part, the default white).
         assert_eq!(m.texture.as_ref().map(|t| (t.width, t.height, t.bytes.clone())), Some((1, 1, vec![255, 255, 255, 255])));
+    }
+
+    /// An unrigged column of points from y = 0 to 4 (one joint: its own node).
+    fn column() -> Model {
+        let vertices: Vec<SkinVertex> = (0..=8).map(|i| SkinVertex { pos: Vec3::new(if i % 2 == 0 { 0.5 } else { -0.5 }, i as f32 * 0.5, 0.0), normal: Vec3::Z, uv: Vec2::ZERO, joints: [0; 4], weights: [1.0, 0.0, 0.0, 0.0] }).collect();
+        let nodes = vec![Node { name: "Column".into(), parent: None, t: Vec3::ZERO, r: Quat::IDENTITY, s: Vec3::ONE }];
+        Model { vertices, indices: vec![0, 1, 2], nodes, order: vec![0], joints: vec![0], inverse_bind: vec![Mat4::IDENTITY], clips: Vec::new(), texture: None }
+    }
+
+    #[test]
+    fn rig_templates_fit_unrigged_models() {
+        let tpl = Model::load(&fixture()).unwrap();
+        let m = column();
+        let fit = m.fit_rig(&tpl, 0.0, &[]).unwrap();
+        assert_eq!(fit.joints, tpl.joints);
+        assert_eq!(fit.clips.len(), 1);
+        // At rest the mesh stays where it was.
+        let mut out = Vec::new();
+        fit.skin(&fit.pose(None, 0.0), &mut out);
+        for (v, (p, _)) in m.vertices.iter().zip(&out) {
+            assert!((v.pos - *p).length() < 1e-3, "{:?} -> {p:?}", v.pos);
+        }
+        // The template is 2 tall with its upper joint at 1: stretched over 4, the joint is at 2.
+        let upper = fit.joints_at_rest().into_iter().find(|j| j.1 == "Upper").unwrap();
+        assert!((upper.2.y - 2.0).abs() < 1e-3, "{upper:?}");
+        // The top follows the upper bone, the bottom the root.
+        let top = fit.vertices.last().unwrap();
+        assert_eq!(top.joints[0] as usize, fit.joints.iter().position(|&j| j == upper.0).unwrap());
+        assert!(top.weights[0] > 0.9, "{top:?}");
+        // Bent by the clip, the top moves; the bottom doesn't.
+        fit.skin(&fit.pose(fit.clips.first(), 0.5), &mut out);
+        assert!((out[8].0 - Vec3::new(0.5, 4.0, 0.0)).length() > 0.5, "{:?}", out[8]);
+        assert!((out[0].0.y).abs() < 0.05, "{:?}", out[0]);
+        // A nudge moves the joint (parts of the height), a turn the mesh.
+        let nudged = m.fit_rig(&tpl, 0.0, &[("Upper".into(), [0.0, 0.25, 0.0])]).unwrap();
+        let upper = nudged.joints_at_rest().into_iter().find(|j| j.1 == "Upper").unwrap();
+        assert!((upper.2.y - 3.0).abs() < 1e-3, "{upper:?}");
+        let turned = m.fit_rig(&tpl, 90.0, &[]).unwrap();
+        assert!(turned.vertices[0].pos.x.abs() < 1e-4 && (turned.vertices[0].pos.z + 0.5).abs() < 1e-4, "{:?}", turned.vertices[0].pos);
+        assert!(m.fit_rig(&column(), 0.0, &[]).is_err(), "a template needs a skeleton");
     }
 
     #[test]

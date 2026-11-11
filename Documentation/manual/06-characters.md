@@ -44,6 +44,16 @@ walking, idle, attacks, hurt, activities (`fish`, `farm`, `craft`, `chop`, `mine
   the body's direction, and walking stays in place.
 - **Colour features** are picked from the model's texture, which is reduced to 32 colours when it
   loads, as on figures: the character editor and the creator then offer colour rows.
+- **Animals and creatures** without a skeleton of their own (Meshy rigs only people; a 3D creature
+  from *Generate art* is unrigged) get a **rig template** in the model's form: *Template* picks a
+  rigged model whose skeleton is stretched over this one and whose walk, idle, attack and hurt it
+  plays. The starter library has five, made for it: **four legs** (wolves, dogs, boars, deer),
+  **bird** (standing birds), **flyer** (bats, birds in flight), **blob** (slimes) and **floating**
+  (ghosts, wisps). *Turn* makes the model face the front first (the down view shows its face). The
+  side and front views show the fitted skeleton over the model: drag a joint (a dot) to where it
+  belongs, a leg into its leg or the head into the head; *Mirror left and right* moves the other
+  side's twin along, *Reset joints* starts over. The model keeps its own file; the fit is worked
+  out when it loads.
 - **Generate art** makes 3D characters, creatures and items' models with Meshy ([Art and sound ›
   Generate art](10-art-and-sound.md#generate-art-with-meshy)).
 - In the **character editor** the *3D models* cards above the figures choose a model; the game's

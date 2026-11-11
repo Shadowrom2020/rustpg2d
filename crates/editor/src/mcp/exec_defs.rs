@@ -409,6 +409,11 @@ impl Editor {
             format!("clips: {}", i.clips.iter().map(|(n, s)| format!("{n} ({s:.1} s)")).collect::<Vec<_>>().join(", ")),
             format!("animations: {}", rustpg2d_engine::model::ANIMS.iter().map(|a| format!("{a}={}", d.clip_of(a).map_or("-", |c| c.clip.as_str()))).collect::<Vec<_>>().join(", ")),
         ];
+        match &d.rig {
+            Some(r) => out.push(format!("rig template: {} (turned {} deg, {} joint(s) moved: fit_rig)", r.template, r.turn, r.joints.len())),
+            None if !i.rigged => out.push("no skeleton of its own: give it a rig template with fit_rig (rig_quadruped, rig_bird, rig_flyer, rig_blob, rig_floating)".into()),
+            None => {}
+        }
         if let Some(t) = self.assets.models.texture_image(&d.id) {
             let mut n: BTreeMap<[u8; 3], u32> = BTreeMap::new();
             for px in t.bytes.as_chunks::<4>().0.iter().filter(|p| p[3] > 0) {
@@ -423,6 +428,14 @@ impl Editor {
             }
         }
         text(out.join("\n"))
+    }
+
+    pub(crate) fn mcp_fit_rig(&mut self, p: FitRigParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let joints = p.joints.map(|j| j.into_iter().map(|j| rustpg2d_engine::defs::JointNudge { joint: j.joint, offset: j.offset }).collect());
+        let msg = self.fit_rig(&p.model, p.template.as_deref(), p.turn, joints)?;
+        self.watch_resnapshot();
+        text(msg)
     }
 
     pub(crate) fn mcp_sheet_colors(&mut self, p: SheetColorsParams) -> Result<Reply, String> {

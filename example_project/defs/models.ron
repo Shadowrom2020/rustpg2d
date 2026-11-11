@@ -1,0 +1,142 @@
+[
+    (
+        id: "rig_quadruped",
+        name: "Rig template: four legs",
+        file: "models/rig_quadruped.glb",
+        height: 24.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "Walk",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hurt",
+                fps: 12.0,
+            ),
+        ],
+    ),
+    (
+        id: "rig_bird",
+        name: "Rig template: bird",
+        file: "models/rig_bird.glb",
+        height: 18.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "Walk",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hurt",
+                fps: 12.0,
+            ),
+        ],
+    ),
+    (
+        id: "rig_flyer",
+        name: "Rig template: flyer",
+        file: "models/rig_flyer.glb",
+        height: 20.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "Walk",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hurt",
+                fps: 12.0,
+            ),
+        ],
+    ),
+    (
+        id: "rig_blob",
+        name: "Rig template: blob",
+        file: "models/rig_blob.glb",
+        height: 16.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "Walk",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hurt",
+                fps: 12.0,
+            ),
+        ],
+    ),
+    (
+        id: "rig_floating",
+        name: "Rig template: floating",
+        file: "models/rig_floating.glb",
+        height: 30.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "Walk",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hurt",
+                fps: 12.0,
+            ),
+        ],
+    ),
+]

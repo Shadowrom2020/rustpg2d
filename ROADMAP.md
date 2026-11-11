@@ -514,7 +514,7 @@ Instructions for every session (people and coding agents) that implements roadma
   **Done.** As designed. The rig templates moved into their own item (below), the removal of the
   figure tools into *The cast in 3D*.
 
-- [ ] Rig templates for animals and creatures — `feature/3d-rig-templates`
+- [x] Rig templates for animals and creatures — `feature/3d-rig-templates`
 
   **Goal.** Unrigged models (animals, monsters: Meshy rigs only humanoids) move with shared motions.
 
@@ -528,6 +528,13 @@ Instructions for every session (people and coding agents) that implements roadma
 
   **Verify.** A Meshy animal (unrigged) fitted to the four-legged template, walking and attacking
   in the game; unit tests for fitting and skinning.
+
+  **Done.** The fit is the engine's (`ModelDef.rig`: template, turn, joint offsets; worked out when
+  the model loads, so the files stay as they are and dragging refits at once). Templates come from
+  `scripts/art/rigs/templates.py` (Blender) with plain stand-in bodies, in the example and the
+  starter library. Verified on a Blender-made unrigged wolf (other proportions than the template):
+  contact sheets of all four animations in four facings (`model_sheet` example) and a fight in the
+  game; a Meshy creature waits for the cast item, where creatures are generated anyway.
 
 - [x] Generate 3D characters and gear with Meshy — `feature/3d-meshy`
 

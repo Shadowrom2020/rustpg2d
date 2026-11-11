@@ -997,6 +997,56 @@
                 9348527919872257672,
             ],
         ),
+        "model:rig_bird": (
+            defs: [
+                8919362118750572197,
+            ],
+            files: {
+                "models/rig_bird.glb": [
+                    13091311801464294588,
+                ],
+            },
+        ),
+        "model:rig_blob": (
+            defs: [
+                2459542019987657443,
+            ],
+            files: {
+                "models/rig_blob.glb": [
+                    6357737367827671358,
+                ],
+            },
+        ),
+        "model:rig_floating": (
+            defs: [
+                2631990780458355340,
+            ],
+            files: {
+                "models/rig_floating.glb": [
+                    12542942737658861209,
+                ],
+            },
+        ),
+        "model:rig_flyer": (
+            defs: [
+                11803333420767178055,
+            ],
+            files: {
+                "models/rig_flyer.glb": [
+                    16830106522304689888,
+                ],
+            },
+        ),
+        "model:rig_quadruped": (
+            defs: [
+                15119502609922620704,
+            ],
+            files: {
+                "models/rig_quadruped.glb": [
+                    14225693202550485023,
+                ],
+            },
+        ),
         "prop:alchemy_table": (
             defs: [
                 2235891144514627842,

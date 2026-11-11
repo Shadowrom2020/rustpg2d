@@ -78,6 +78,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   point and handle direction estimated from the shape, *Flip*, length, *Render icon*): 3D model
   characters hold it on their hand bone. The asset library carries models. Agents get
   `import_model` and `model_info`.
+- **Rig templates** for animals and creatures (Meshy rigs only people): *Database › 3D models ›
+  Rig template* stretches a rigged model's skeleton over an unrigged model, binds it to the bones
+  and plays the template's clips; *Turn* and draggable joints in a side and a front view fix the
+  fit. The starter library and the example have five templates with walk, idle, attack and hurt:
+  four legs, bird, flyer, blob and floating (made by `scripts/art/rigs/templates.py` in Blender).
+  Agents get `fit_rig`; editor script `modelrig`, `modeljoint`. `cargo run -p rustpg2d-engine
+  --example model_sheet` renders a model's animations in all facings into a contact sheet.
 - **3D art with Meshy**: *Generate art* makes a **3D character** (a turnaround picture or a
   figure's standing frames, a model, a skeleton and animations: walk, idle, the chosen attack, hit,
   sitting; about 50 credits), a **3D creature** (a picture and an unrigged model) and an **item's 3D

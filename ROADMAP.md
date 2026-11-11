@@ -244,6 +244,60 @@ Instructions for every session (people and coding agents) that implements roadma
 
   **Verify.** Autoplay through each new place; shots; the starter-library test.
 
+- [x] Characters from real art — `feature/real-art-characters`
+
+  **Goal.** Characters are complete figures: drawn, generated with Meshy or imported. The old
+  layered system (bodies with skin / hair ramps, hair, beards, outfits, armor and held-item
+  overlays, cuts) is removed. A creator marks **colour features** on a figure (skin, hair,
+  clothing…) and the colours each may take; NPCs and the in-game character creator use them.
+
+  **Design.** `SheetDef.features` (name, the art's shades, offered colours); `Appearance` = body
+  + colour per feature; recolouring maps the picked shades onto the chosen colour by their
+  brightness. Equipment counts in play but isn't drawn (the art shows it). The character editor:
+  figure, colours, preview, equipment and carried items. *New character…* starts from AI
+  generation, a new 16-row sheet to draw, an import (LPC with attack and hurt, Aseprite tags) or
+  an existing figure. The creator: Race, Sex, Body and a colour row per feature.
+
+  **Decided.** Features are picked from the art's own colours (no repainting); equipment isn't
+  drawn on figures; this ships in 0.17.0. **Breaking:** save games, projects and libraries of
+  earlier versions load, but layered characters keep only their body, worn / held overlays are
+  gone and saved player looks keep only the body.
+
+  **Engine.** Approved by the user: removal of the layered system, colour features, the
+  creator's colour rows.
+
+  **Verify.** Creator rows and the recoloured player in autoplay; NPC colours; the sheet form's
+  colour features; New character through each source; old fixtures still load; *Update asset
+  library* retires the layered assets.
+
+  **Done.** As designed. The example's and the starter library's figures got their features by
+  picking their palette colours; where hair shared shades with belts and boots, the head-area hair
+  pixels were moved one step off (`+1` blue) so the parts separate. The male dwarf has only skin
+  (his beard and sleeves share their reds). LPC imports bring attack and hurt along, Aseprite tags
+  named after the animations make figures; *Update asset library* lets retired assets go that only
+  replaced assets used (the layered bodies the races listed). 64 layered sheets left the example,
+  107 the starter library.
+
+- [x] Animation workflow in the sprite editor — `feature/real-art-characters`
+
+  **Goal.** Drawing and fixing character animations without leaving the editor.
+
+  **Design.** Figure sheets always open with the 16-row layout; an animation panel (walk / idle /
+  attack / hurt per facing, play / pause / step, fps, frame strip, colour preview); onion skin;
+  duplicate frame, copy / paste / clear / mirror rows (Left → Right), fill idle and hurt from
+  the standing frames, nudge a frame by a pixel, replace a colour in a frame / row / sheet; all
+  undoable. Agent tool `edit_frames`; editor script `px…` commands.
+
+  **Engine.** None (editor).
+
+  **Verify.** Editor scripts with screenshots of the panel and onion skin; row mirror checked
+  pixel by pixel; undo; the agent tool through an MCP client.
+
+  **Done.** As designed, on the same branch as *Characters from real art* (it builds on figures):
+  the frame operations live in `crates/editor/src/frame_ops.rs` (unit-tested), shared by the
+  sprite editor's buttons, the `px…` script commands and `edit_frames`. The colour preview stays
+  in the sheet form's *Colour features* (a preview row per offered colour).
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS

@@ -416,8 +416,8 @@ triggers.
 ### Equipment and carried items of characters
 
 Every humanoid character has equipment (Clothing, Head, Body, Weapon, Left hand) and carried items.
-What NPCs wear and hold is visible on layered models, counts in combat (an equipped weapon
-replaces the definition's), and everything they wear and carry is dropped when they are defeated.
+What NPCs wear and hold counts in combat (an equipped weapon replaces the definition's; their
+figures show what they carry), and everything they wear and carry is dropped when they are defeated.
 Changes are saved with the game.
 
 | Function | Description |

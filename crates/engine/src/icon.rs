@@ -9,13 +9,13 @@ use crate::render::{character, recolor};
 /// Size of the package icons (pixels, square).
 pub const ICON: u32 = 256;
 
-/// The player character facing the viewer (layers composed like in the game), enlarged with
+/// The player character facing the viewer (its figure in its feature colours), enlarged with
 /// sharp pixels onto a 256 x 256 transparent square.
 pub fn hero_icon(project: &Project) -> Option<Rgba> {
     let db = &project.db;
     let d = db.character(&project.config.player)?;
     let mut canvas: Option<Rgba> = None;
-    for l in character::layers(db, &d.appearance, &d.equipment, Facing::Down, 0, false) {
+    for l in [character::figure(db, &d.appearance, Facing::Down, 0)] {
         let Some(sheet) = db.sheet(&l.sheet) else { continue };
         let Ok(img) = std::fs::read(project.path(&sheet.image)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
         let (fw, fh) = (sheet.frame_w.max(1), sheet.frame_h.max(1));
@@ -27,9 +27,10 @@ pub fn hero_icon(project: &Project) -> Option<Rgba> {
                 frame.set(x, y, img.get(fx + x, fy + y));
             }
         }
-        recolor::recolor(&mut frame.px, l.skin, l.hair);
+        let features: Vec<(&[[u8; 3]], [u8; 3])> = sheet.features.iter().zip(&l.colors).filter_map(|(f, c)| c.map(|c| (f.shades.as_slice(), c))).collect();
+        recolor::recolor(&mut frame.px, &features);
         let c = canvas.get_or_insert_with(|| Rgba::new(fw, fh));
-        // Layers of another frame size stand on the same ground, centered.
+        // (Standing on the ground, centered.)
         let (ox, oy) = ((c.w as i32 - fw as i32) / 2, c.h as i32 - fh as i32);
         for y in 0..fh as i32 {
             for x in 0..fw as i32 {

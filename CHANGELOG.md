@@ -5,11 +5,52 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Breaking
+- **Layered characters are removed.** Characters are figures: complete pictures (clothes, hair and
+  what they carry painted in) on one sheet with walk, idle, attack and hurt rows. Bodies with skin
+  and hair reference ramps, hair styles, beards, outfits, armor and held-item overlays, female and
+  race cuts are gone, and equipment isn't drawn on characters any more (it still counts in play).
+  Projects, asset libraries and save games of earlier versions load: sheets of the removed kinds
+  become plain sprites, layered characters keep only their body (a layered body shows its
+  reference colours), and saved player looks keep only the body. *Update asset library* offers the
+  layered and `_classic` sheets of the starter set for deletion. The character creator's skin, hair
+  and beard lists, the races' looks, items' *Held sprite* and armor's overlay sheets are removed;
+  the editor script `entskin` is now `entcolor`, and `charset` takes `color FEATURE RRGGBB`.
+
+### Characters
+- **Colour features** (*Database › Sprite sheets › Colour features*): mark the parts of a figure
+  that can take other colours (skin, hair, clothing, eyes, …) by clicking the art's own shades, and
+  the colours each offers; a preview shows the figure in every colour. Characters choose a colour
+  per feature (the character editor, a placed NPC's own look, `entcolor`); the game keeps light and
+  shadow. The **character creator** shows a colour row for each feature of the chosen figure. In
+  the example and the starter library: the hero, the heroine, the elves, the female dwarf and the
+  villagers (skin, hair, clothing) and the dwarf (skin); two villagers wear their own colours.
+- **The character editor** replaces the character builder: figure cards, colour swatches per
+  feature, *Random colours*, equipment and carried items, the animated preview.
+- **New character…** starts from an existing figure, a **new figure sheet to draw** (blank or a copy
+  of a figure of the same size, opened in the sprite editor), an **import** or **AI generation**.
+  LPC imports now bring the attack (slash) and hurt rows along and always become figures; Aseprite
+  exports with tags named after the animations (`walk_down`, `attack_left`, …) become figures.
+  AI-generated characters get a person's speed and hitbox, portraits can be made for a character
+  (*For character*, `portrait_for`), and finished art opens in the sprite editor with *Edit in
+  sprite editor*. Agents get `sheet_colors` (a sheet's exact colours, where they appear, their
+  feature).
+- *Update asset library*: retired assets that only replaced assets used can be deleted in the same
+  update.
+- **Animating figures in the sprite editor**: figure sheets always open with their 16 labelled
+  rows and an animation panel (walk, idle, attack, hurt per facing; play / pause / next frame, a
+  frame strip), **onion skin** (the previous and next frame over the selected one), *Duplicate*,
+  moving a frame's pixels (arrows, Shift+arrow keys), copy / paste / clear a row, *Mirror Left to
+  Right* (one animation or all), *Fill idle & hurt* from the standing frames and *Replace colour*
+  in a frame, row or sheet; every operation is one undo step. Agents get `edit_frames`. Editor
+  script `pxanim`, `pxplay`, `pxonion`, `pxdup`, `pxnudge`, `pxrow`, `pxfill`, `pxreplace`,
+  `pxundo`; `status` prints `pixel=`.
+
 ### Editor
 - **Generate art** (*Assets › Generate art…*) with your own Meshy account (API key, model, a
   credit budget per session and *Ask before spending* in the new *Edit › Settings…*): characters
-  in the project's style (a walk grid with your complete figures as references, then an attack;
-  converted into a complete-figure sheet with walk, idle, attack and hurt rows), item icons in the
+  in the project's style (a walk grid with your figures as references, then an attack; converted
+  into a figure sheet with walk, idle, attack and hurt rows), item icons in the
   style of your icons, props, portraits and painted images. The cost is shown first; results are
   previewed, single pictures can be redrawn, *Add to project* writes the image, its sheet and a
   character / item / prop. Agents get `art_settings`, `generate_art` (the price must be confirmed),
@@ -47,8 +88,7 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   starting skills for a player of that race, and a size (bigger or smaller characters with a
   hitbox to match). The character creator starts with a *Race* row for the playable races (in
   the example human: Haggling 1, +2 HP; elf and dwarf see *Art*). Characters name their race; the *Player race*
-  condition and `player_race()` tell the player's. Outfits and armor fit other body shapes by a
-  *Cut* on the body sheet (`outfit_X_dwarf`), like the female cut.
+  condition and `player_race()` tell the player's.
 
 ### Editor
 - **Update asset library** (*Assets › Update asset library…*, the Asset Library window's *File*

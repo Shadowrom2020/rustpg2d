@@ -215,7 +215,7 @@ pub struct WorldState {
     /// Fog of war: explored tiles per map (only maps with fog of war).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub explored: BTreeMap<String, crate::fog::Explored>,
-    /// The look chosen in the character creator (layered models).
+    /// The look chosen in the character creator (figure and colours).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub player_appearance: Option<crate::defs::Appearance>,
     /// NPCs whose equipment or carried items changed (scripts, actions): map -> uid -> items.

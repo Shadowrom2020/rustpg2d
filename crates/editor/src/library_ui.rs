@@ -72,7 +72,7 @@ pub struct LibState {
     pub lib: Option<Project>,
     pub error: Option<String>,
     tex: HashMap<String, Tex>,
-    /// Sheet images (for recolored layered characters) and their recolored textures.
+    /// Sheet images (for recoloured figures) and their recoloured textures.
     raw: HashMap<String, Rgba>,
     colored: std::cell::RefCell<HashMap<rustpg2d_engine::render::ColorKey, Tex>>,
     pub tex_dirty: bool,
@@ -147,7 +147,7 @@ impl LibState {
     fn paint_character_in(&self, ui: &egui::Ui, db: &Database, id: &str, facing: rustpg2d_engine::entity::Facing, rect: Rect) -> bool {
         use rustpg2d_engine::render::character;
         let Some(d) = db.character(id) else { return false };
-        let layers = character::layers(db, &d.appearance, &d.equipment, facing, 0, false);
+        let layers = [character::figure(db, &d.appearance, facing, 0)];
         let Some(base) = layers.iter().find_map(|l| db.sheet(&l.sheet)) else { return false };
         let (fw, fh) = (base.frame_w.max(1) as f32, base.frame_h.max(1) as f32);
         let scale = (rect.width() / fw).min(rect.height() / fh);
@@ -157,15 +157,16 @@ impl LibState {
         for l in &layers {
             let Some(s) = db.sheet(&l.sheet) else { continue };
             let key = format!("sh:{}", l.sheet);
-            let colored = l.skin.is_some() || l.hair.is_some();
+            let colored = l.colors.iter().any(Option::is_some);
             let mut cache = self.colored.borrow_mut();
             let t = if colored {
                 let Some(img) = self.raw.get(&key) else { continue };
-                cache.entry((l.sheet.clone(), l.skin, l.hair)).or_insert_with(|| {
+                cache.entry((l.sheet.clone(), l.colors.clone())).or_insert_with(|| {
                     let mut px = img.px.clone();
-                    rustpg2d_engine::render::recolor::recolor(&mut px, l.skin, l.hair);
+                    let features: Vec<(&[[u8; 3]], [u8; 3])> = s.features.iter().zip(&l.colors).filter_map(|(f, c)| c.map(|c| (f.shades.as_slice(), c))).collect();
+                    rustpg2d_engine::render::recolor::recolor(&mut px, &features);
                     let ci = crate::widgets::color_image(ui.ctx(), img.w as usize, img.h as usize, &px);
-                    let handle = ui.ctx().load_texture(format!("libc:{key}:{:?}:{:?}", l.skin, l.hair), ci, egui::TextureOptions::NEAREST);
+                    let handle = ui.ctx().load_texture(format!("libc:{key}:{:?}", l.colors), ci, egui::TextureOptions::NEAREST);
                     Tex { handle, w: img.w as f32, h: img.h as f32 }
                 })
             } else {
@@ -903,7 +904,7 @@ mod tests {
         for a in library::script_asset_refs(b.scripts.values().map(String::as_str)) {
             assert!(library::exists(&b.db, &a), "a starter script uses the {} {}, which the library lacks", kind_label(a.0), a.1);
         }
-        assert!(b.db.tilesets.len() >= 5 && b.db.sheets.len() > 100, "{} tilesets, {} sheets", b.db.tilesets.len(), b.db.sheets.len());
+        assert!(b.db.tilesets.len() >= 5 && b.db.sheets.len() > 60, "{} tilesets, {} sheets", b.db.tilesets.len(), b.db.sheets.len());
     }
 
     /// Everything the example project has (but its quests, achievements and story scripts) is in

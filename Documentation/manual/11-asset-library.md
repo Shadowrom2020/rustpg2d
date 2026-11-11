@@ -8,7 +8,7 @@ once, use it in every game.
 
 The first time the editor opens the library, it fills it with the **starter set**: all of the example
 game's art (the village's buildings and some 60 props, its villagers, children and animals in both
-sexes, outfits, goods, recipes, sounds and music, 17 structures) plus **desert, mountain, city and
+sexes, goods, recipes, sounds and music, 17 structures) plus **desert, mountain, city and
 dungeon tilesets** (with animated water, waterfalls and lava), more characters (hero, elder, wizard
 and sorceress, nomads, nobles, bandits, skeletons, elves, dwarves, orcs (and their chief), a troll, a dwarf
 trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the example; every humanoid in a male and a
@@ -54,7 +54,7 @@ library…* (all kinds). The dialog shows the library's assets as cards with thu
 - Click cards to pick one or more (*Pick all shown*, search). Assets the project already has are
   marked *in project*, and a line lists what the picks bring along.
 - **Add N to project** (or a double-click) copies them in, **with everything they need**: their
-  sprite sheets, ammunition, keys, overlay sheets, sounds used by their triggers, and script
+  sprite sheets, ammunition, keys, sounds used by their triggers, and script
   functions.
 - Assets already in the project with identical content are reused. An id or file name taken by
   something different gets a `_2` suffix, and all references follow.

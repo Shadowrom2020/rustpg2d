@@ -183,14 +183,12 @@ impl Game {
         }
     }
 
-    /// Draws worn armor over the player sprite (same frame layout as the player sheet).
-    /// Draws the player's idle front frame with what they wear, scaled into `dest` (character
-    /// sheet portrait).
+    /// Draws the player's idle front frame scaled into `dest` (character sheet portrait).
     pub(super) fn draw_portrait(&self, dest: Rect) {
         let Some(a) = self.player_appearance() else { return };
         let (fw, fh) = self.character_frame_size(&a);
         let scale = (dest.w / fw).min(dest.h / fh).floor().max(1.0);
         let (w, h) = (fw * scale, fh * scale);
-        self.draw_character_in(&a, &self.world.equipment, Rect::new(dest.x + (dest.w - w) / 2.0, dest.y + dest.h - h, w, h));
+        self.draw_character_in(&a, Rect::new(dest.x + (dest.w - w) / 2.0, dest.y + dest.h - h, w, h));
     }
 }

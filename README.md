@@ -31,11 +31,11 @@ for how to use it all.
   </tr>
   <tr>
     <td><img src="Documentation/images/game-character.webp" alt="The character window with the hero's gear, stats, inventory and quick bar"></td>
-    <td><img src="Documentation/images/editor-builder.webp" alt="The character builder with body, skin, hair and clothing cards and a walking preview"></td>
+    <td><img src="Documentation/images/editor-builder.webp" alt="The character editor with figure cards, colour swatches for skin, hair and clothing, and a walking preview"></td>
   </tr>
   <tr>
-    <td align="center"><em>Equipment you can see on every character, inventory, quick bar</em></td>
-    <td align="center"><em>Assemble characters visually with the character builder</em></td>
+    <td align="center"><em>Equipment, stats, inventory and quick bar</em></td>
+    <td align="center"><em>Characters from real art, in the colours you pick</em></td>
   </tr>
   <tr>
     <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night, lit by street lamps"></td>
@@ -64,8 +64,8 @@ for how to use it all.
 - A Problems list of everything broken in the project (unknown ids, missing files, broken portals, script errors, untranslated texts), each a click away.
 
 **Characters**
-- Detailed pixel-art characters at twice the classic resolution that walk, breathe, strike and flinch when hit; use them as ready-made figures or mix and match bodies, hair and gear.
-- Layered characters: a body, skin and hair colours, hair style, beard, clothing, and every weapon, shield, lantern or tool shown in their hands.
+- Detailed pixel-art characters at twice the classic resolution that walk, breathe, strike and flinch when hit.
+- New characters drawn in the sprite editor, imported (LPC, Aseprite) or generated with AI in your game's style; colour features (skin, hair, clothing) that NPCs and the player's character creator recolour.
 - Villagers with daily schedules who sit on benches, sleep in their beds, visit other maps and work at their spot.
 - Enemies that notice you, hunt, flee when hurt and give up when lured too far.
 - Companions who follow you, fight, carry and use their own gear, and take orders.

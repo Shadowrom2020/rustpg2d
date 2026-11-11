@@ -3,7 +3,7 @@
 The **Database** tab holds every kind of thing in your game. A map places copies of them; the
 Database says what they are.
 
-![The Database: the elder's character form](../images/editor-character.webp)
+![The Database: the villager's character form](../images/editor-character.webp)
 
 ## Working with definitions
 
@@ -13,8 +13,9 @@ the left and the selected definition's form on the right.
 
 - **+ New**, **Duplicate** and **Delete** manage the list, **Usages** lists every place the
   selected definition is used ([Finding things](02-the-editor.md#finding-things)); **New asset…** starts a wizard that also
-  draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** opens the
-  character builder.
+  draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** makes a
+  character from an existing figure, a new one to draw, an import or AI generation
+  ([Characters › New characters](06-characters.md#new-characters)).
 - Every definition has an **id** (used by the files, triggers and scripts) and a **name** (shown to
   players). **Rename…** next to the id changes the id everywhere: maps (also those not open),
   triggers, other definitions, the project settings and the scripts (only the exact arguments of
@@ -43,7 +44,7 @@ is full, assigns it and opens it for drawing.
 | Section | Settings |
 |---|---|
 | **Basics** | Name, description, **Stack size** (how many fit in one inventory slot), **Value** (the default shop price), **Consumed when used**, **Food** (healing that the *Cooking* skill improves) |
-| **Icon** | The inventory picture; **Held sprite**: how it looks in a character's hand (a sheet of kind *Held item*) |
+| **Icon** | The inventory picture |
 | **Use on** | *Player* (the default), *Player or companion* (asks whom to heal when a companion is around) or *Companions* |
 | **Equipment** | *None, Weapon, Helmet, Body armor, Left hand, Clothing* or *Tool* (below) |
 | **Seed** | Makes it plantable on farm plots: growth stages with a sprite and hours each, and the harvest ([Farming](09-gameplay.md#farming)) |
@@ -58,10 +59,12 @@ is full, assigns it and opens it for drawing.
   shield or a light. A weapon can apply a status effect **on hit**. **Critical hits**: the chance
   (5 % by default) that a hit of the player's with it is critical: double damage and a big yellow
   number (enemies don't hit critically).
-- **Helmet**, **Body armor**: defense, a speed change (heavy armor slows), and an overlay sprite
-  sheet drawn over the wearer.
+- **Helmet**, **Body armor**: defense and a speed change (heavy armor slows).
 - **Left hand**: shields (defense) or lights (a lantern, a torch: give the item a *Light*).
-- **Clothing**: outfits shown on the body, with a **Female cut** sheet for female bodies.
+- **Clothing**: outfits (defense, speed).
+
+Worn and held items count in play; they aren't drawn over characters, whose figures show what they
+carry ([Characters](06-characters.md#how-characters-look)).
 - **Tool**: a *Tool kind* (`rod`, `pickaxe`, `hammer`, `hoe`…) for activities, gathering, fishing
   and crafting recipes. Held in the right hand while used.
 
@@ -124,11 +127,10 @@ portraits and parallax images all come from sprite sheets.
 |---|---|
 | **Image**, **Frame size** | The picture and the size of one frame (in image pixels) |
 | **Scale** | 1× normally; 2× (3×, 4×) for high-resolution art: the frames are drawn at half (a third, a quarter) of their pixel size, so 64 × 96 frames fill a 32 × 48 place ([Art and sound › High-resolution sprites](10-art-and-sound.md#high-resolution-sprites)) |
-| **Kind** | *Character body, Hair, Beard, Outfit, Armor, Held item, Emotions* or plain. The character builder offers sheets by kind; every animation of an *Emotions* sheet is an emotion shown over heads ([Events › Emotions over heads](07-events.md#emotions-over-heads)) |
-| **Female body** | For bodies: outfits use their female cut on it |
-| **Playable** | For bodies: players may choose it in the character creator |
-| **Complete figure** | For bodies: clothes, hair and held items are painted in; nothing is drawn over it and it isn't recoloured |
-| **Cut** | For bodies of another shape (`dwarf`, `troll`): outfits and armor use their `_<cut>` sheets on it where they exist |
+| **Kind** | *Character figure* (a complete character in the 16-row character layout; the character pickers offer them), *Emotions* (every animation is an emotion shown over heads, [Events › Emotions over heads](07-events.md#emotions-over-heads)) or plain *Sprite* |
+| **Woman** | For figures: offered to female players |
+| **Playable** | For figures: players may choose it in the character creator |
+| **Colour features** | For figures: the parts that can take other colours and the colours offered ([Art and sound › Colour features](10-art-and-sound.md#colour-features)) |
 | **Animations** | Named frame ranges (imported from Aseprite tags, or made here) for the *Effect* and *Fly* actions |
 | **Used by** | Which items, props and characters use the sheet |
 
@@ -166,7 +168,7 @@ These belong to the game systems they drive: [Skills and magic](09-gameplay.md#s
 |---|---|
 | **Project** | Name; start map and start spawn; pixel scale; inventory slots; the clock's **day length** (real minutes per in-game day, default 24; 0 = time stands still) and the hour **new games start at** |
 | **Player character** | The character definition the player is, and the **player portrait** |
-| **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable bodies, skin colours, hair styles, hair colours and beards offered ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
+| **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable figures and the default figure per sex (the colour rows come from the figures' colour features) ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
 | **Dialog portraits** | Show the speaker's portrait in dialogs (on by default) |
 | **Companions at 0 HP** | Knocked down until healed (default), get up after some seconds, or go home ([Companions](06-characters.md#companions)) |
 | **Factions** | The factions and the attitude table between them: who fights whom and how they treat the player ([Characters › Factions](06-characters.md#factions)) |

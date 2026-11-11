@@ -18,6 +18,8 @@ pub struct ArtWindow {
     pub size: String,
     pub attack: String,
     pub tiles: (u32, u32),
+    /// Portraits: the character it is for ("" = none).
+    pub portrait_for: String,
     /// A job waits for "Draw for N credits" (Ask before spending).
     pub confirm: bool,
     /// Which sheets set the style (worked out when the window opens).
@@ -29,7 +31,7 @@ pub struct ArtWindow {
 
 impl Default for ArtWindow {
     fn default() -> Self {
-        ArtWindow { open: false, kind: ArtKind::Character, id: String::new(), description: String::new(), size: "person".into(), attack: "none".into(), tiles: (1, 1), confirm: false, refs_from: None, message: None, previews: Default::default() }
+        ArtWindow { open: false, kind: ArtKind::Character, id: String::new(), description: String::new(), size: "person".into(), attack: "none".into(), tiles: (1, 1), portrait_for: String::new(), confirm: false, refs_from: None, message: None, previews: Default::default() }
     }
 }
 
@@ -46,7 +48,7 @@ impl Editor {
         let db = &self.project.db;
         // People-sized complete figures with all 16 rows.
         let file = |sheet: &str| -> Option<Vec<u8>> {
-            let d = db.sheet(sheet).filter(|d| d.complete && (d.frame_w, d.frame_h) == (64, 96))?;
+            let d = db.sheet(sheet).filter(|d| d.kind == SheetKind::Body && (d.frame_w, d.frame_h) == (64, 96))?;
             let bytes = std::fs::read(self.project.root.join(&d.image)).ok()?;
             let im = Rgba::decode(&bytes).ok()?;
             (im.h / d.frame_h.max(1) >= 16 && im.w / d.frame_w.max(1) == 4).then_some(bytes)
@@ -57,7 +59,7 @@ impl Editor {
             picked.push((player_body.clone(), b));
         }
         // The second: a playable body (a hero of the creator), a woman if possible, else another person.
-        let mut others: Vec<&SheetDef> = db.sheets.iter().filter(|s| s.complete && s.kind == SheetKind::Body && s.id != player_body).collect();
+        let mut others: Vec<&SheetDef> = db.sheets.iter().filter(|s| s.kind == SheetKind::Body && s.id != player_body).collect();
         others.sort_by_key(|s| (!s.playable, !s.female));
         for s in others {
             if picked.len() >= 2 {
@@ -143,7 +145,7 @@ impl Editor {
         let sheet = match j.req.kind {
             ArtKind::Character => {
                 let scale = convert::size_class(&j.req.size).map_or(2, |s| s.scale);
-                SheetDef { kind: SheetKind::Body, complete: true, scale, ..SheetDef::new(id, &rel, fw, fh) }
+                SheetDef { kind: SheetKind::Body, scale, ..SheetDef::new(id, &rel, fw, fh) }
             }
             ArtKind::Prop | ArtKind::Portrait => SheetDef { scale: 2, ..SheetDef::new(id, &rel, fw, fh) },
             ArtKind::Icon | ArtKind::Image => SheetDef::new(id, &rel, fw, fh),
@@ -155,11 +157,18 @@ impl Editor {
         let name = name[..1].to_uppercase() + &name[1..];
         match j.req.kind {
             ArtKind::Character if db.character(id).is_none() => {
-                let mut c = CharacterDef { name: name.clone(), description: j.req.description.trim().to_string(), ..CharacterDef::fresh(id) };
+                let mut c = CharacterDef { description: j.req.description.trim().to_string(), ..crate::builder::default_character(db, id, &name) };
                 c.appearance.body = id.to_string();
                 db.upsert(c);
                 added.push(format!("character {id}"));
             }
+            ArtKind::Portrait if !j.req.portrait_for.is_empty() => match db.characters.iter_mut().find(|c| c.id == j.req.portrait_for) {
+                Some(c) => {
+                    c.portrait = SpriteRef::new(id, 0);
+                    added.push(format!("the portrait of {}", j.req.portrait_for));
+                }
+                None => added.push(format!("(no character \"{}\" for the portrait)", j.req.portrait_for)),
+            },
             ArtKind::Icon if db.item(id).is_none() => {
                 db.upsert(ItemDef { name: name.clone(), icon: SpriteRef::new(id, 0), ..ItemDef::fresh(id) });
                 added.push(format!("item {id}"));
@@ -288,6 +297,7 @@ impl Editor {
         }
         let mut open = true;
         let mut start = false;
+        let mut edit_sheet: Option<String> = None;
         let mut redo: Option<(u32, &'static str)> = None;
         let mut apply: Option<(u32, String)> = None;
         let jobs: Vec<Job> = self.art.jobs.iter().rev().map(|j| j.lock().unwrap().clone()).collect();
@@ -333,6 +343,11 @@ impl Editor {
                             ui.selectable_value(&mut w.attack, id.to_string(), label);
                         }
                     });
+                    ui.end_row();
+                }
+                if w.kind == ArtKind::Portrait {
+                    ui.label("For character");
+                    ui.add(egui::TextEdit::singleline(&mut w.portrait_for).hint_text("(none)").desired_width(180.0)).on_hover_text("A character id: Add to project makes the picture its dialog portrait");
                     ui.end_row();
                 }
                 if w.kind == ArtKind::Prop {
@@ -416,6 +431,9 @@ impl Editor {
                                 match &j.applied {
                                     Some(a) => {
                                         ui.label(format!("added as {a}"));
+                                        if ui.button(ui::t(ph::PENCIL_SIMPLE, "Edit in sprite editor")).on_hover_text("Database › Sprite sheets with the sheet open in the sprite editor").clicked() {
+                                            edit_sheet = Some(a.clone());
+                                        }
                                     }
                                     None => {
                                         if ui.button(ui::t(ph::PLUS, "Add to project")).clicked() {
@@ -446,6 +464,9 @@ impl Editor {
                 self.art.window.message = Some(format!("{e:#}"));
             }
         }
+        if let Some(sheet) = edit_sheet {
+            self.edit_sheet(&sheet);
+        }
         if !open {
             self.art.window.open = false;
         }
@@ -453,7 +474,7 @@ impl Editor {
 
     fn req_from_form(&self) -> ArtRequest {
         let w = &self.art.window;
-        ArtRequest { kind: w.kind, id: w.id.trim().to_string(), description: w.description.clone(), size: w.size.clone(), attack: w.attack.clone(), tiles: w.tiles, by_agent: false }
+        ArtRequest { kind: w.kind, id: w.id.trim().to_string(), description: w.description.clone(), size: w.size.clone(), attack: w.attack.clone(), tiles: w.tiles, portrait_for: w.portrait_for.trim().to_string(), by_agent: false }
     }
 }
 

@@ -761,9 +761,8 @@ impl Game {
         draw_ellipse(e.body.pos.x, e.body.pos.y - 2.0 * u, fh * 0.45, 4.0 * u, 0.0, Color::new(0.0, 0.0, 0.0, 0.3));
         let center = e.body.pos - vec2(0.0, 6.0 * u);
         let grey = Color::new(0.62, 0.62, 0.7, 1.0);
-        for l in self.character_layers(&e.appearance, &e.equipment, Facing::Down, 0, true) {
-            self.assets.draw_frame_colored_rotated(&l.sheet, l.frame, center, -std::f32::consts::FRAC_PI_2, (l.skin, l.hair), grey);
-        }
+        let l = self.character_figure(&e.appearance, Facing::Down, 0);
+        self.assets.draw_frame_colored_rotated(&l.sheet, l.frame, center, -std::f32::consts::FRAC_PI_2, &l.colors, grey);
         true
     }
 }

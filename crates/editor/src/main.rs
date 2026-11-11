@@ -26,6 +26,7 @@ mod mcp;
 mod multisel;
 mod models;
 mod new_project;
+mod frame_ops;
 mod pixel;
 mod problems;
 mod script_editor;
@@ -353,7 +354,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // inherits the environment, so RUSTPG2D_AUTOPLAY can drive the play-test
         "play" => ed.play(arg(1) != "start"),
         // Same code paths as the file dialogs, without the dialog.
-        // import tiled FILE [NAME] · import lpc FILE [ID] [body|hair|beard|outfit|armor|held] ·
+        // import tiled FILE [NAME] · import lpc FILE [ID] [body|sprite] ·
         // import aseprite FILE [ID]: the File › Import… imports (result printed and shown)
         "import" if matches!(arg(1), "tiled" | "lpc" | "aseprite") => {
             use import::ImportKind;
@@ -364,11 +365,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 _ => ImportKind::Aseprite,
             };
             let sheet_kind = match arg(4) {
-                "hair" => SheetKind::Hair,
-                "beard" => SheetKind::Beard,
-                "outfit" => SheetKind::Outfit,
-                "armor" => SheetKind::Armor,
-                "held" => SheetKind::Held,
+                "sprite" => SheetKind::Sprite,
                 _ => SheetKind::Body,
             };
             // (import KIND FILE [ID] [SHEETKIND] [scale=N])
@@ -424,9 +421,10 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.art_action(database::ArtAction::NewFrame { cells }, tab);
             println!("[script] {}", ed.status.0);
         }
-        // Character builder: charnew [ID] · charcustom (selected placed NPC) · charset KEY VALUE
-        // (body|hair|beard|skin|haircolor|clothing|head|armor|weapon|offhand|carry ITEMxN|
-        // random|id|name; on the open builder, else the selected character) · charrandom ·
+        // Character editor: charnew [ID NAME] (New character…) · charcustom (selected placed NPC) ·
+        // charset KEY VALUE (body|color FEATURE RRGGBB|-|clothing|head|armor|weapon|offhand|
+        // carry ITEMxN|random|id|name|source existing|draw|import|ai|size SIZE|from SHEET|-|
+        // female on|off; on the open window, else the selected character) · charrandom ·
         // chartemplate ID (project or library character) · charcreate / charapply · charcancel ·
         // charreset (selected NPC uses the definition's look)
         "charnew" => {
@@ -570,7 +568,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} art={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -600,6 +598,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.problems.status(),
             ed.lib_update.status(),
             ed.art.status(),
+            ed.px.status(),
             ed.mode,
             ed.db.tab,
             ed.db.sel,
@@ -1000,7 +999,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             let kind = art::ArtKind::parse(arg(1));
             match kind {
                 Some(kind) => {
-                    let req = art::ArtRequest { kind, id: arg(2).to_string(), size: arg(3).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), by_agent: false };
+                    let req = art::ArtRequest { kind, id: arg(2).to_string(), size: arg(3).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false };
                     match ed.start_art(req) {
                         Ok(id) => println!("[art] started job {id}"),
                         Err(e) => println!("[art] refused: {e:#}"),
@@ -1065,7 +1064,11 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
         }
         // Pixel editor: pxopen REL FW FH · pxtool NAME · pxcolor RRGGBB · pxat X Y [right] · pxsave
-        "pxopen" => ed.open_pixel(arg(1), (num(2) as u32, num(3) as u32), pixel::Layout::Plain),
+        // pxopen REL FW FH: a figure's image opens with the character layout
+        "pxopen" => {
+            let figure = ed.project.db.sheets.iter().any(|s| s.image == arg(1) && s.kind == rustpg2d_engine::defs::SheetKind::Body);
+            ed.open_pixel(arg(1), (num(2) as u32, num(3) as u32), if figure { pixel::Layout::Character } else { pixel::Layout::Plain });
+        }
         "pxtool" => {
             if let Some(t) = pixel::PxTool::parse(arg(1)) {
                 ed.px.tool = t;
@@ -1081,6 +1084,51 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // pxframe N: select frame N · pxclip copy|cut|paste|mirror (Ctrl+C / X / V)
         "pxframe" => ed.px.sel_frame = num(1) as u32,
         "pxclip" => ed.frame_clipboard(arg(1)),
+        // Figures: pxanim walk|idle|attack|hurt down|left|right|up · pxplay on|off · pxonion on|off
+        // [next] · pxdup · pxnudge DX DY · pxrow copy|paste|clear|mirror [all] · pxfill standing ·
+        // pxreplace FROM TO frame|row|sheet (RRGGBB colours) · pxundo; `status` prints `pixel=`
+        "pxanim" => match (frame_ops::anim_index(arg(1)), frame_ops::dir_index(arg(2))) {
+            (Some(a), Some(d)) => ed.px.show_anim(a, d),
+            _ => println!("[script] pxanim: walk|idle|attack|hurt down|left|right|up"),
+        },
+        "pxplay" => ed.px.playing = arg(1) != "off",
+        "pxundo" => {
+            if let Some(d) = &mut ed.px.doc {
+                d.undo();
+            }
+        }
+        "pxonion" => {
+            ed.px.onion = arg(1) != "off";
+            ed.px.onion_next = ed.px.onion && arg(2) == "next";
+        }
+        "pxdup" | "pxnudge" | "pxrow" | "pxfill" | "pxreplace" => {
+            let rgb = |v: &str| u32::from_str_radix(v.trim_start_matches('#'), 16).ok().map(|v| [(v >> 16) as u8, (v >> 8) as u8, v as u8]);
+            let op = match (arg(0), arg(1)) {
+                ("pxdup", _) => Some(pixel::FrameOp::Duplicate),
+                ("pxnudge", _) => Some(pixel::FrameOp::Nudge(num(1) as i32, num(2) as i32)),
+                ("pxrow", "copy") => Some(pixel::FrameOp::RowCopy),
+                ("pxrow", "paste") => Some(pixel::FrameOp::RowPaste),
+                ("pxrow", "clear") => Some(pixel::FrameOp::RowClear),
+                ("pxrow", "mirror") => Some(pixel::FrameOp::Mirror(arg(2) == "all")),
+                ("pxfill", _) => Some(pixel::FrameOp::FillStanding),
+                ("pxreplace", _) => match (rgb(arg(1)), rgb(arg(2))) {
+                    (Some(from), Some(to)) => {
+                        let scope = match arg(3) {
+                            "frame" => pixel::Scope::Frame,
+                            "row" => pixel::Scope::Row,
+                            _ => pixel::Scope::Sheet,
+                        };
+                        Some(pixel::FrameOp::Replace { from, to: [to[0], to[1], to[2], 255], scope })
+                    }
+                    _ => None,
+                },
+                _ => None,
+            };
+            match op.and_then(|op| ed.px.frame_op(op)) {
+                Some(m) => println!("[script] {m}"),
+                None => println!("[script] {}: nothing done", arg(0)),
+            }
+        }
         // dbscroll Y: scrolls the Database form to Y px (a large number = the end)
         "dbscroll" => ed.db.form_scroll = Some(num(1)),
         "tab" => {
@@ -1229,8 +1277,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
         }
         // entequip ITEM: the selected NPC wears / holds ITEM (its own equipment, in the item's slot)
-        // entskin RRGGBB: the selected NPC gets its own look with that skin color
-        "entequip" | "entskin" => {
+        // entcolor FEATURE RRGGBB|-: the selected NPC gets its own look with that feature colour
+        "entequip" | "entcolor" => {
             if let (Selection::Entity(uid), Some(doc)) = (ed.sel, ed.doc.as_mut()) {
                 let before = doc::Objects::of(&doc.map);
                 let db = &ed.project.db;
@@ -1241,9 +1289,17 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                             let eq = e.equipment.get_or_insert_with(|| d.equipment.clone());
                             *eq.slot_mut(slot) = Some(rustpg2d_engine::inventory::ItemStack::new(arg(1), 1));
                         }
-                    } else if let (Ok(v), Some(d)) = (u32::from_str_radix(arg(1), 16), &def) {
+                    } else if let Some(d) = &def {
+                        // entcolor FEATURE RRGGBB|-
                         let a = e.appearance.get_or_insert_with(|| d.appearance.clone());
-                        a.skin = [(v >> 16) as u8, (v >> 8) as u8, v as u8];
+                        match u32::from_str_radix(arg(2), 16) {
+                            Ok(v) => {
+                                a.colors.insert(arg(1).to_string(), [(v >> 16) as u8, (v >> 8) as u8, v as u8]);
+                            }
+                            Err(_) => {
+                                a.colors.remove(arg(1));
+                            }
+                        }
                     }
                 }
                 doc.record_objects(before, "inspector");

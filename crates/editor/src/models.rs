@@ -87,10 +87,8 @@ impl Editor {
                 for (kind, old, new) in &report.renamed {
                     match kind {
                         RefKind::Sheet => {
-                            for s in [&mut a.body, &mut a.hair, &mut a.beard] {
-                                if s == old {
-                                    *s = new.clone();
-                                }
+                            if &a.body == old {
+                                a.body = new.clone();
                             }
                         }
                         RefKind::Item => {
@@ -165,7 +163,7 @@ impl Editor {
                         Some(ModelPick::Project(s)) => format!("Project: {}", self.project.db.character(s).map_or(s.clone(), |c| c.name.clone())),
                         Some(ModelPick::Library(c)) => format!("Library: {} (its sheets and items are copied into the project)", self.lib_char_name(c)),
                     });
-                    ui.weak("Copies the body, colors, hair, beard and equipment; the target's other settings stay.");
+                    ui.weak("Copies the figure, colours and equipment; the target's other settings stay.");
                     ui.horizontal(|ui| {
                         if ui.add_enabled(st.pick.is_some(), egui::Button::new("\u{E182} Use this look")).clicked() {
                             done = Some(true);

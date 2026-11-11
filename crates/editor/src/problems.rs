@@ -181,8 +181,6 @@ fn entity_refs(e: &rustpg2d_engine::entity::EntityInstance) -> Vec<(RefKind, Str
         c.appearance = a.clone();
     } else {
         c.appearance.body.clear();
-        c.appearance.hair.clear();
-        c.appearance.beard.clear();
     }
     if let Some(eq) = &e.equipment {
         c.equipment = eq.clone();

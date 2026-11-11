@@ -315,6 +315,7 @@ impl Editor {
             RefKind::Spell,
             RefKind::Recipe,
             RefKind::Achievement,
+            RefKind::Race,
             RefKind::Structure,
             RefKind::Sheet,
             RefKind::Tileset,

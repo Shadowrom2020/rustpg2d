@@ -25,12 +25,14 @@ pub enum RefKind {
     Recipe,
     Quest,
     Achievement,
+    /// Race (`races::RaceDef`).
+    Race,
 }
 
 impl RefKind {
-    /// Every kind: the twelve definition lists in `defs/` file order ([`crate::project::DEFS`]),
+    /// Every kind: the thirteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
     /// then `Map`.
-    pub const ALL: [RefKind; 13] = [
+    pub const ALL: [RefKind; 14] = [
         RefKind::Tileset,
         RefKind::Sheet,
         RefKind::Item,
@@ -43,10 +45,11 @@ impl RefKind {
         RefKind::Spell,
         RefKind::Recipe,
         RefKind::Achievement,
+        RefKind::Race,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 12] = [
+    pub const DEFS: [RefKind; 13] = [
         RefKind::Tileset,
         RefKind::Sheet,
         RefKind::Item,
@@ -59,6 +62,7 @@ impl RefKind {
         RefKind::Spell,
         RefKind::Recipe,
         RefKind::Achievement,
+        RefKind::Race,
     ];
 
     /// The kind's word in messages and commands: "tileset", "sheet", …, "map".
@@ -77,6 +81,7 @@ impl RefKind {
             RefKind::Recipe => "recipe",
             RefKind::Quest => "quest",
             RefKind::Achievement => "achievement",
+            RefKind::Race => "race",
         }
     }
 
@@ -95,6 +100,7 @@ impl RefKind {
             RefKind::Spell => "spells",
             RefKind::Recipe => "recipes",
             RefKind::Achievement => "achievements",
+            RefKind::Race => "races",
             RefKind::Map => return None,
         })
     }
@@ -115,6 +121,7 @@ impl RefKind {
             RefKind::Recipe => "Recipe",
             RefKind::Quest => "Quest",
             RefKind::Achievement => "Achievement",
+            RefKind::Race => "Race",
         }
     }
 
@@ -135,6 +142,7 @@ impl RefKind {
             "recipe" => RefKind::Recipe,
             "quest" => RefKind::Quest,
             "achievement" => RefKind::Achievement,
+            "race" => RefKind::Race,
             _ => return None,
         })
     }
@@ -245,6 +253,15 @@ impl Renamer<'_> {
         }
     }
 
+    fn race(&mut self, d: &mut crate::races::RaceDef) {
+        for s in d.bodies_male.iter_mut().chain(&mut d.bodies_female).chain(&mut d.hair_styles).chain(&mut d.beards) {
+            self.fix(RefKind::Sheet, s);
+        }
+        for s in &mut d.skills {
+            self.fix(RefKind::Skill, &mut s.skill);
+        }
+    }
+
     fn recipe(&mut self, d: &mut crate::crafting::RecipeDef) {
         self.fix(RefKind::Item, &mut d.result);
         for s in &mut d.ingredients {
@@ -330,6 +347,7 @@ impl Renamer<'_> {
             match &mut c.cond {
                 Cond::HasItem { item, .. } => self.fix(RefKind::Item, item),
                 Cond::Defeated { character, .. } => self.fix(RefKind::Character, character),
+                Cond::PlayerRace { race } => self.fix(RefKind::Race, race),
                 _ => {}
             }
         }
@@ -380,6 +398,7 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
         }
     }
     for d in &mut db.characters {
+        r.fix(RefKind::Race, &mut d.race);
         r.triggers(&mut d.triggers);
         r.weapon(&mut d.weapon);
         r.shop(&mut d.shop);
@@ -403,6 +422,9 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
     for d in &mut db.achievements {
         r.fix(RefKind::Sheet, &mut d.icon.sheet);
         r.conditions(&mut d.conditions);
+    }
+    for d in &mut db.races {
+        r.race(d);
     }
     r.fix(RefKind::Character, &mut config.player);
     r.fix(RefKind::Sheet, &mut config.player_portrait.sheet);
@@ -531,9 +553,18 @@ pub fn refs_of_triggers(ts: &[Trigger]) -> Vec<(RefKind, String)> {
     r.found.unwrap_or_default()
 }
 
+/// The bodies, hair, beards and skills of a race.
+pub fn refs_of_race(d: &crate::races::RaceDef) -> Vec<(RefKind, String)> {
+    let mut d = d.clone();
+    let mut r = collector();
+    r.race(&mut d);
+    r.found.unwrap_or_default()
+}
+
 pub fn refs_of_character(d: &crate::defs::CharacterDef) -> Vec<(RefKind, String)> {
     let mut d = d.clone();
     let mut r = collector();
+    r.fix(RefKind::Race, &mut d.race);
     r.triggers(&mut d.triggers);
     r.weapon(&mut d.weapon);
     r.shop(&mut d.shop);

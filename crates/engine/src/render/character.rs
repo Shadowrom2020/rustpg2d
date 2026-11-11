@@ -110,12 +110,20 @@ pub fn held_behind(slot: EquipSlot, f: Facing) -> bool {
 }
 
 /// Overlay sheet an equipped item adds in `slot` ("" = none): outfit / armor overlays (the
-/// female cut on a female body), the held sprite of weapons and left-hand items.
-fn overlay_of(db: &Database, eq: &Equipment, slot: EquipSlot, female: bool) -> Option<String> {
+/// female cut on a female body; for a body with a `cut`, `<overlay>_<cut>` / `<overlay>_<cut>_f`
+/// when that sheet exists), the held sprite of weapons and left-hand items.
+fn overlay_of(db: &Database, eq: &Equipment, slot: EquipSlot, female: bool, cut: &str) -> Option<String> {
     let d = db.item(eq.item(slot)?)?;
     let s = match slot {
         EquipSlot::Weapon | EquipSlot::Offhand => d.held.clone(),
-        _ => d.armor.as_ref().filter(|a| a.slot == slot).map(|a| a.overlay_for(female).to_string())?,
+        _ => {
+            let a = d.armor.as_ref().filter(|a| a.slot == slot)?;
+            let cut_sheet = (!cut.is_empty() && !a.overlay.is_empty()).then(|| {
+                let base = format!("{}_{cut}", a.overlay);
+                [if female { Some(format!("{base}_f")) } else { None }, Some(base)].into_iter().flatten().find(|s| db.sheet(s).is_some())
+            });
+            cut_sheet.flatten().unwrap_or_else(|| a.overlay_for(female).to_string())
+        }
     };
     (!s.is_empty()).then_some(s)
 }
@@ -124,6 +132,7 @@ fn overlay_of(db: &Database, eq: &Equipment, slot: EquipSlot, female: bool) -> O
 /// `hide_weapon` while a melee swing shows the weapon instead.
 pub fn layers(db: &Database, a: &Appearance, eq: &Equipment, facing: Facing, anim: impl Into<Anim>, hide_weapon: bool) -> Vec<Layer> {
     let female = db.female_body(&a.body);
+    let cut = db.sheet(&a.body).map_or("", |s| s.cut.as_str());
     let (over, fallback) = anim.into().frames(facing);
     // A complete figure has everything painted in: only the body, not recoloured.
     if db.complete_body(&a.body) {
@@ -134,17 +143,17 @@ pub fn layers(db: &Database, a: &Appearance, eq: &Equipment, facing: Facing, ani
         [EquipSlot::Weapon, EquipSlot::Offhand]
             .into_iter()
             .filter(move |s| held_behind(*s, facing) == behind && !(hide_weapon && *s == EquipSlot::Weapon))
-            .filter_map(|s| overlay_of(db, eq, s, female))
+            .filter_map(|s| overlay_of(db, eq, s, female, cut))
             .map(plain)
     };
     let mut out: Vec<Layer> = held(true).collect();
     out.push(Layer { sheet: a.body.clone(), frame: over, fallback, skin: Some(a.skin), hair: None });
-    out.extend(overlay_of(db, eq, EquipSlot::Clothing, female).map(plain));
-    out.extend(overlay_of(db, eq, EquipSlot::Body, female).map(plain));
+    out.extend(overlay_of(db, eq, EquipSlot::Clothing, female, cut).map(plain));
+    out.extend(overlay_of(db, eq, EquipSlot::Body, female, cut).map(plain));
     for s in [&a.hair, &a.beard].into_iter().filter(|s| !s.is_empty()) {
         out.push(Layer { sheet: s.clone(), frame: over, fallback, skin: None, hair: Some(a.hair_color) });
     }
-    out.extend(overlay_of(db, eq, EquipSlot::Head, female).map(plain));
+    out.extend(overlay_of(db, eq, EquipSlot::Head, female, cut).map(plain));
     out.extend(held(false));
     out
 }
@@ -188,6 +197,32 @@ mod tests {
         assert!(held_behind(EquipSlot::Weapon, Facing::Up) && held_behind(EquipSlot::Offhand, Facing::Up));
         assert!(held_behind(EquipSlot::Weapon, Facing::Left) && !held_behind(EquipSlot::Offhand, Facing::Left));
         assert!(!held_behind(EquipSlot::Weapon, Facing::Right) && held_behind(EquipSlot::Offhand, Facing::Right));
+    }
+
+    #[test]
+    fn bodies_with_a_cut_wear_that_cut_where_one_exists() {
+        let mut db = Database::default();
+        db.sheets.push(SheetDef { kind: SheetKind::Body, cut: "dwarf".into(), ..SheetDef::new("body_dwarf", "d.png", 32, 48) });
+        db.sheets.push(SheetDef { kind: SheetKind::Body, female: true, cut: "dwarf".into(), ..SheetDef::new("body_dwarf_f", "df.png", 32, 48) });
+        for s in ["outfit_tunic", "outfit_tunic_f", "outfit_tunic_dwarf", "outfit_tunic_dwarf_f", "outfit_robe", "outfit_robe_f"] {
+            db.sheets.push(SheetDef::new(s, "x.png", 32, 48));
+        }
+        let item = |id: &str, overlay: &str| {
+            let mut d: ItemDef = ron::from_str(&format!(r#"(id: "{id}", name: "x", icon: (sheet: "items", frame: 0))"#)).unwrap();
+            d.armor = Some(Armor { slot: EquipSlot::Clothing, defense: 0, speed: 0.0, overlay: overlay.into(), overlay_f: format!("{overlay}_f") });
+            d
+        };
+        db.items.extend([item("tunic", "outfit_tunic"), item("robe", "outfit_robe")]);
+        let worn = |body: &str, it: &str| {
+            let eq = Equipment { clothing: Some(ItemStack::new(it, 1)), ..Default::default() };
+            let a = Appearance { body: body.into(), ..Default::default() };
+            layers(&db, &a, &eq, Facing::Down, 1, false).into_iter().map(|l| l.sheet).nth(1).unwrap()
+        };
+        assert_eq!(worn("body_dwarf", "tunic"), "outfit_tunic_dwarf");
+        assert_eq!(worn("body_dwarf_f", "tunic"), "outfit_tunic_dwarf_f");
+        // No dwarf cut of the robe: the standard (female) one.
+        assert_eq!(worn("body_dwarf", "robe"), "outfit_robe");
+        assert_eq!(worn("body_dwarf_f", "robe"), "outfit_robe_f");
     }
 
     #[test]

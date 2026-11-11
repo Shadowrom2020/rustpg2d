@@ -189,6 +189,9 @@ pub struct WorldState {
     pub player_name: String,
     #[serde(default)]
     pub player_sex: Sex,
+    /// The player's race (`races::RaceDef`; "" = none).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub player_race: String,
     /// map -> items the player dropped there (they stay until picked up again).
     #[serde(default)]
     pub dropped: BTreeMap<String, Vec<DroppedItem>>,

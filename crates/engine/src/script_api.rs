@@ -84,6 +84,7 @@ pub const API: &[ApiFn] = api! {
     "player_hp"() "The player's hit points";
     "player_name"() "The player's name";
     "player_sex"() "\"male\" or \"female\"";
+    "player_race"() "The player's race id (Database \u{203A} Races), \"\" without one";
     "is_female"() "Whether the player character is female";
     "is_male"() "Whether the player character is male";
     "hour"() "Time of day in hours (0..24, e.g. 13.5 = half past one in the afternoon)";

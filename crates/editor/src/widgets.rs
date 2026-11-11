@@ -669,6 +669,8 @@ pub struct Refs {
     pub quest_stages: HashMap<String, Vec<String>>,
     pub skills: Vec<String>,
     pub spells: Vec<String>,
+    /// Race ids (Database › Races).
+    pub races: Vec<String>,
     /// Crafting stations named by recipes.
     pub stations: Vec<String>,
     /// Achievement ids.
@@ -999,6 +1001,10 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     ui.label("to");
                     ui.add(egui::DragValue::new(to).range(0.0..=24.0).speed(0.25).suffix(" h"))
                         .on_hover_text("Hours 0–24; e.g. 20 to 6 = at night (wraps around midnight)");
+                }
+                Cond::PlayerRace { race } => {
+                    ui.label("player is a");
+                    suggest(ui, &format!("{id}/race"), race, &refs.races, 110.0);
                 }
                 Cond::PlayerSex { sex } => {
                     ui.label("player is");

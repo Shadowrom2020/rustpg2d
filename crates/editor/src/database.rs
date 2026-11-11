@@ -31,6 +31,7 @@ pub enum Tab {
     Spells,
     Recipes,
     Achievements,
+    Races,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -48,6 +49,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Spells => db.spells.len(),
         Tab::Recipes => db.recipes.len(),
         Tab::Achievements => db.achievements.len(),
+        Tab::Races => db.races.len(),
         Tab::Project | Tab::Scripts => 0,
     }
 }
@@ -78,6 +80,7 @@ impl Tab {
             Tab::Spells => RefKind::Spell,
             Tab::Recipes => RefKind::Recipe,
             Tab::Achievements => RefKind::Achievement,
+            Tab::Races => RefKind::Race,
             Tab::Project | Tab::Scripts => return None,
         })
     }
@@ -97,6 +100,7 @@ impl Tab {
             RefKind::Spell => Tab::Spells,
             RefKind::Recipe => Tab::Recipes,
             RefKind::Achievement => Tab::Achievements,
+            RefKind::Race => Tab::Races,
             RefKind::Map => return None,
         })
     }
@@ -202,6 +206,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Spells => ph::MAGIC_WAND,
         Tab::Recipes => ph::HAMMER,
         Tab::Achievements => ph::TROPHY,
+        Tab::Races => ph::USERS_THREE,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
     }
@@ -278,6 +283,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Items, "Items"),
             (Tab::Props, "Props"),
             (Tab::Characters, "Characters"),
+            (Tab::Races, "Races"),
             (Tab::Tilesets, "Tilesets"),
             (Tab::Sheets, "Sprite sheets"),
             (Tab::Sounds, "Sounds"),
@@ -331,6 +337,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Skills => db.skills.get(i).map(|d| (RefKind::Skill, d.id.clone())),
             Tab::Spells => db.spells.get(i).map(|d| (RefKind::Spell, d.id.clone())),
             Tab::Recipes => db.recipes.get(i).map(|d| (RefKind::Recipe, d.id.clone())),
+            Tab::Races => db.races.get(i).map(|d| (RefKind::Race, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -345,6 +352,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Skills => Some(RefKind::Skill),
                 Tab::Spells => Some(RefKind::Spell),
                 Tab::Recipes => Some(RefKind::Recipe),
+                Tab::Races => Some(RefKind::Race),
                 _ => None,
             };
             if kind.is_some() {
@@ -464,6 +472,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     |ids| rustpg2d_engine::skills::SpellDef::new(&unique("spell", ids), "New spell", "", SpriteRef::default(), 5, 1.0, rustpg2d_engine::skills::SpellEffect::Heal { amount: 4 }),
                     |d| &mut d.id,
                 ),
+                Tab::Races => list_ui(ui, &mut db.races, sel, |d| format!("{}  ({}){}", d.name, d.id, if d.playable { "" } else { "  - not playable" }), |ids| rustpg2d_engine::races::RaceDef::fresh(&unique("race", ids)), |d| &mut d.id),
                 Tab::Recipes => {
                     // Listed by what they make.
                     let names: std::collections::HashMap<String, String> = db.items.iter().map(|d| (d.id.clone(), d.name.clone())).collect();
@@ -608,6 +617,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Achievements => {
                         if let Some(d) = db.achievements.get_mut(i) {
                             achievement_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Races => {
+                        if let Some(d) = db.races.get_mut(i) {
+                            race_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -1454,6 +1468,20 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     ui.label("Description").on_hover_text("What the bestiary (journal, J) says about it once the player has defeated one. Placeholders like {player} work.");
     text_box(ui, &mut d.description, 3, "Shown in the bestiary once the player has defeated one");
     portrait_ui(ui, d, cx);
+    if !cx.db.races.is_empty() || !d.race.is_empty() {
+        ui.horizontal(|ui| {
+            ui.label("Race");
+            let label = cx.db.race(&d.race).map_or_else(|| if d.race.is_empty() { "(none)".to_string() } else { format!("{} (missing)", d.race) }, |r| r.name.clone());
+            egui::ComboBox::from_id_salt("chr_race").selected_text(label).show_ui(ui, |ui| {
+                ui.selectable_value(&mut d.race, String::new(), "(none)");
+                for r in &cx.db.races {
+                    ui.selectable_value(&mut d.race, r.id.clone(), format!("{}  ({})", r.name, r.id));
+                }
+            })
+            .response
+            .on_hover_text("What it is (Database \u{E13A} Races): for the 'Race of' condition, scripts and factions. Its size comes from its body (the race that lists it).");
+        });
+    }
     // The look: assembled in the character builder (body, colors, hair, clothes, gear).
     ui.separator();
     ui.heading("Look & equipment");
@@ -1963,6 +1991,12 @@ fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
             ui.end_row();
             ui.label("Complete figure");
             ui.checkbox(&mut d.complete, "clothes, hair and held items are painted in").on_hover_text("Nothing is drawn over this body: no outfit, armor, hair, beard or held items (equipment still counts, it just isn't shown), and it isn't recoloured. The character creator hides skin, hair and beard for it.");
+            ui.end_row();
+            ui.label("Cut");
+            ui.horizontal(|ui| {
+                ui.add(egui::TextEdit::singleline(&mut d.cut).desired_width(90.0).hint_text("standard"));
+                ui.weak("body shape outfits and armor need (e.g. dwarf): an overlay X is drawn as X_<cut> (women X_<cut>_f) when that sheet exists");
+            });
             ui.end_row();
         }
         ui.label("Image");
@@ -2880,6 +2914,119 @@ fn achievement_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::achievements::Ac
     ui.heading("Icon");
     widgets::sprite_field(ui, "ach_icon", &mut d.icon, cx.tex, cx.assets, cx.db, false);
     ui.weak("Unlocks belong to the player, not to a save game: they are kept in achievements.ron next to the game's settings (play-tests use the same file; Reset achievements in the game's menu clears it).");
+}
+
+/// A list of colours with add / remove buttons.
+fn color_list(ui: &mut egui::Ui, list: &mut Vec<[u8; 3]>, presets: &[[u8; 3]]) {
+    ui.horizontal_wrapped(|ui| {
+        let mut remove = None;
+        for (k, c) in list.iter_mut().enumerate() {
+            ui.color_edit_button_srgb(c);
+            if ui.small_button("\u{E4F6}").on_hover_text("Remove").clicked() {
+                remove = Some(k);
+            }
+        }
+        if let Some(k) = remove {
+            list.remove(k);
+        }
+        if ui.small_button("+").on_hover_text("Add a color").clicked() {
+            list.push(presets[list.len() % presets.len()]);
+        }
+    });
+}
+
+/// Toggles of the sheets of one kind in `list` ("" = `none`, e.g. no hair).
+fn sheet_toggles(ui: &mut egui::Ui, db: &Database, kind: SheetKind, none: Option<&str>, list: &mut Vec<String>) {
+    ui.horizontal_wrapped(|ui| {
+        let entries = none.map(|n| (String::new(), n.to_string())).into_iter().chain(db.sheets.iter().filter(|s| s.kind == kind).map(|s| (s.id.clone(), s.id.clone())));
+        for (id, label) in entries {
+            let mut on = list.contains(&id);
+            if ui.toggle_value(&mut on, label).changed() {
+                if on {
+                    list.push(id);
+                } else {
+                    list.retain(|x| *x != id);
+                }
+            }
+        }
+    });
+}
+
+fn race_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mut Cx) {
+    ui.heading("Race");
+    rename_row(ui, RefKind::Race, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.label("Description").on_hover_text("Shown in the character creator under the race.");
+    text_box(ui, &mut d.description, 2, "Shown in the character creator");
+    ui.checkbox(&mut d.playable, "Playable: offered in the character creator");
+    ui.separator();
+    ui.heading("Bodies");
+    ui.weak("The creator offers the bodies of the chosen sex; characters with one of these bodies get the race's size. Click a body to add or remove it.");
+    {
+        let bcx = crate::builder::Cx { db: cx.db, tex: cx.tex, assets: cx.assets };
+        let bodies: Vec<String> = cx.db.sheets.iter().filter(|s| s.kind == SheetKind::Body).map(|s| s.id.clone()).collect();
+        for (label, list) in [("Men", &mut d.bodies_male), ("Women", &mut d.bodies_female)] {
+            ui.label(format!("{label}: {}", if list.is_empty() { "(none: the project's Character creation bodies)".to_string() } else { list.join(", ") }));
+            let base = Appearance::default();
+            if let Some(b) = crate::builder::body_cards(ui, &bcx, &bodies, None, &base, "") {
+                if list.contains(&b) {
+                    list.retain(|x| *x != b);
+                } else {
+                    list.push(b);
+                }
+            }
+        }
+    }
+    ui.separator();
+    ui.heading("Looks of layered bodies");
+    ui.weak("What the creator offers for bodies that aren't complete figures (empty = the project's Character creation lists).");
+    ui.label("Hair styles");
+    sheet_toggles(ui, cx.db, SheetKind::Hair, Some("No hair"), &mut d.hair_styles);
+    ui.label("Beards (men)");
+    sheet_toggles(ui, cx.db, SheetKind::Beard, Some("No beard"), &mut d.beards);
+    ui.label("Skin colors");
+    color_list(ui, &mut d.skin_colors, &widgets::SKIN_PRESETS);
+    ui.label("Hair colors");
+    color_list(ui, &mut d.hair_colors, &widgets::HAIR_PRESETS);
+    ui.separator();
+    ui.heading("A player of this race");
+    egui::Grid::new("race_stats").num_columns(2).show(ui, |ui| {
+        ui.label("Max HP");
+        ui.add(egui::DragValue::new(&mut d.max_hp).range(-50..=100)).on_hover_text("Added to the player's max HP (negative: less)");
+        ui.end_row();
+        ui.label("Speed");
+        ui.add(egui::DragValue::new(&mut d.speed).range(-50.0..=100.0).suffix(" %")).on_hover_text("Faster (or slower, negative) than other players");
+        ui.end_row();
+        ui.label("Defense");
+        ui.add(egui::DragValue::new(&mut d.defense).range(-20..=50)).on_hover_text("Added to the player's defense");
+        ui.end_row();
+        ui.label("Starting skills");
+        ui.vertical(|ui| {
+            let mut remove = None;
+            for (k, s) in d.skills.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    widgets::suggest(ui, &format!("race_skill{k}"), &mut s.skill, &cx.refs.skills, 120.0);
+                    ui.label("level");
+                    ui.add(egui::DragValue::new(&mut s.level).range(1..=20));
+                    if ui.small_button("x").clicked() {
+                        remove = Some(k);
+                    }
+                });
+            }
+            if let Some(k) = remove {
+                d.skills.remove(k);
+            }
+            if ui.small_button("+ Skill").on_hover_text("A skill level the player starts with (Database \u{E13A} Skills)").clicked() {
+                d.skills.push(rustpg2d_engine::races::RaceSkill { skill: cx.refs.skills.first().cloned().unwrap_or_default(), level: 1 });
+            }
+        });
+        ui.end_row();
+    });
+    ui.separator();
+    ui.horizontal(|ui| {
+        ui.label("Size");
+        ui.add(egui::Slider::new(&mut d.size, 0.5..=2.0).step_by(0.05)).on_hover_text("Characters with this race's bodies are drawn this much larger (and their hitbox grows with them): trolls 1.5");
+    });
 }
 
 fn recipe_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::crafting::RecipeDef, cx: &mut Cx) {

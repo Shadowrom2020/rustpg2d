@@ -24,8 +24,10 @@ impl Game {
     /// drawn (missing sheets). `pose` = facing and what it does (walk frame, idle, attack, hurt).
     pub(super) fn draw_character(&self, a: &Appearance, eq: &Equipment, pose: (Facing, Anim), feet: Vec2, tint: Color, hide_weapon: bool) -> bool {
         let mut any = false;
+        // Bigger (or smaller) races: every layer at the body's size.
+        let size = self.project.db.body_size(&a.body);
         for l in self.character_layers(a, eq, pose.0, pose.1, hide_weapon) {
-            any |= self.assets.draw_frame_colored(&l.sheet, self.layer_frame(&l), feet, tint, l.skin, l.hair);
+            any |= if size == 1.0 { self.assets.draw_frame_colored(&l.sheet, self.layer_frame(&l), feet, tint, l.skin, l.hair) } else { self.assets.draw_frame_colored_sized(&l.sheet, self.layer_frame(&l), feet, tint, (l.skin, l.hair), size) };
         }
         any
     }

@@ -27,6 +27,7 @@ mod patrol;
 mod portraits;
 mod schedule;
 mod progression;
+mod races;
 mod paperdoll;
 mod npc_items;
 mod occupancy;
@@ -640,8 +641,9 @@ impl Game {
                 Some(d) => (vec2(d.hitbox[0], d.hitbox[1]), 0.0, d.solid, Behavior::Static),
                 None => (vec2(ts, ts), 0.0, false, Behavior::Static),
             },
+            // (Bigger races have bigger hitboxes.)
             EntityKind::Character => match self.project.db.character(def) {
-                Some(d) => (vec2(d.hitbox[0], d.hitbox[1]), d.speed, true, d.behavior.clone()),
+                Some(d) => (vec2(d.hitbox[0], d.hitbox[1]) * self.project.db.body_size(&d.appearance.body), d.speed, true, d.behavior.clone()),
                 None => (vec2(ts * 0.75, ts * 0.5), 50.0, true, Behavior::Static),
             },
             EntityKind::Item => (vec2(ts * 0.75, ts * 0.75), 0.0, false, Behavior::Static),
@@ -1928,6 +1930,13 @@ impl Game {
             inv.set_limits(limits.clone());
         }
         self.dress_player();
+        // A new game is the player character's race (the creator may choose another).
+        let fresh = self.world.play_time == 0.0 && self.world.current_map.is_empty();
+        let race = self.project.db.character(&self.project.config.player).map(|d| d.race.clone()).unwrap_or_default();
+        if fresh && self.world.player_race.is_empty() && !race.is_empty() {
+            self.begin_as_race(&race);
+        }
+        self.refresh_player_size();
     }
 
     /// The player definition's equipment and carried items: a new game starts with them; a save
@@ -2132,7 +2141,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2165,6 +2174,7 @@ impl Game {
                 here.map(|e| format!("{}x{}@{},{}", e.def, e.count, (e.body.pos.x / ts).floor(), ((e.body.pos.y - 1.0) / ts).floor())).collect::<Vec<_>>()
             },
             format!("{}|{:?}|{}", self.world.player_name, self.world.player_sex, self.player_appearance().map_or("-".to_string(), |a| a.body)),
+            self.race_status(),
             self.creator_status(),
             self.world.quests.iter().map(|(k, q)| format!("{k}:{}:{:?}", q.stage, q.status)).collect::<Vec<_>>(),
             self.achievements_status(),

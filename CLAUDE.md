@@ -67,6 +67,8 @@ crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: tilesets, sheets, items, props (+states, container, lock),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron
   skills.rs             SkillSettings (project), SkillDef / SkillEffect, SpellDef / SpellEffect
+  races.rs              RaceDef (defs/races.ron): bodies per sex, creator looks, stat changes, starting
+                        skills, size; runtime/races.rs applies them (WorldState.player_race)
   achievements.rs       AchievementDef (defs/achievements.ron), Progress = the player's unlocks
                         (achievements.ron next to settings.ron, not in save games)
   crafting.rs           RecipeDef (defs/recipes.ron): result, ingredients, station, skill level;
@@ -177,6 +179,8 @@ crates/editor/assets/starter_library/
                         crates/editor/build.rs (library_ui::STARTER) = the example's assets + extras
 example_project/        the example game, plain project files (edit them through the editor / its
                         AI agent server, see *Example content*)
+scripts/art/meshy/      the Meshy pipeline that draws the complete-figure character sheets (README there;
+                        key in ~/.config/meshy/api_key, work/ is git-ignored)
 ```
 
 ## Coding guide

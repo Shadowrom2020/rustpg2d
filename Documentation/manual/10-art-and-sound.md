@@ -41,7 +41,8 @@ The starter bodies are drawn with reference shades that the game recolours: skin
 shades (recoloured to the chosen skin colour) and hair in **cyan** shades (the chosen hair colour).
 To draw your own body or hair style, start from a copy of a starter sheet (`body_male.png`,
 `hair_short.png`) and keep those shades. Outfits and armor draw an outline only where they stick out
-past the body. An outfit has a **female cut** (`outfit_X_f` next to `outfit_X`) for female bodies,
+past the body. An outfit has a **female cut** (`outfit_X_f` next to `outfit_X`) for female bodies
+(and for bodies with a *Cut* such as `dwarf`, `outfit_X_dwarf` / `outfit_X_dwarf_f` when drawn),
 and held items follow the hand positions of the walk animation.
 
 ## The pixel editor

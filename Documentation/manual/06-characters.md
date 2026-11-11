@@ -249,13 +249,45 @@ its look and equipment are what a new game starts with.
 
 The **character creator** (*Database › Project › Character creator*, *Show the character creator…*)
 lets players create their hero after *New game*: a **name** (with a default), **Male / Female** (or
-fixed, if the project says *Always male* / *Always female*), a **body** among the bodies of that sex
-marked *Playable* (e.g. human or goblin), and **skin colour, hair style, hair colour** and, for men, a
+fixed, if the project says *Always male* / *Always female*), a **race** when the project has several
+playable races ([Races](#races)), a **body** among the race's bodies of that sex (without races:
+the bodies of that sex marked *Playable*, e.g. human or goblin), and **skin colour, hair style, hair colour** and, for men, a
 **beard**, from the lists you set (a list left empty has no row). A playable **complete figure** is a
 pre-made hero: the creator names it after the character that wears it and hides the skin, hair
 and beard rows for it. The example offers the hero, the heroine, a goblin and a goblin scout. An animated preview walks through
 all four directions. Name, sex and look are kept in save games. Play-tests skip the creator and use
 the default name.
+
+## Races
+
+Races are definitions of their own (*Database › Races*): humans, goblins, elves, dwarves, orcs and
+trolls in the example and the starter library, each with a male and a female body (trolls one)
+drawn as complete figures. A race has:
+
+- a **name** and **description** (the creator shows it under the preview);
+- **bodies** for men and women, complete figures or layered bodies. The creator offers the race's
+  bodies of the chosen sex; without any, the project's *Character creation* bodies;
+- **looks of layered bodies**: hair styles, beards, skin and hair colours the creator offers
+  (empty = the project's lists);
+- for **a player of this race**: extra **max HP** (negative: fewer), **speed** in percent,
+  **defense**, and **starting skills**, skill levels a new game begins with. In the example a
+  human starts with Haggling 1 and 2 more HP; a goblin with Scavenging 1, 2 fewer HP and 10 %
+  more speed; an elf with Archery 1 (5 % faster, 1 HP less); a dwarf with Mining 1 and Smithing 1
+  (3 more HP, +1 defense, 10 % slower); an orc with Swordsmanship 1 (2 more HP); a troll with
+  Toughness 2 (6 more HP, +1 defense, 15 % slower, size 1.5);
+- a **size**: characters whose body belongs to the race are drawn that much larger (or smaller)
+  and get a hitbox to match (trolls 1.5);
+- **Playable**: offered in the character creator.
+
+With more than one playable race, the creator starts with a **Race** row; changing it switches the
+bodies and looks. The player's race is kept in the save game. The player character's own race
+(*Race* in its form) is the one a game started without the creator has. Other characters name
+their race in the same field (for scripts and, later, factions). The **Player race** condition
+and `player_race()` tell the player's race.
+
+Outfits and armor fit other body shapes by a **cut**, like the female cut: a body sheet with the
+*Cut* `dwarf` wears `outfit_tunic_dwarf` (women: `outfit_tunic_dwarf_f`) where that sheet exists,
+else the standard one ([Art and sound](10-art-and-sound.md)).
 
 **Addressing the player**: in dialog, choice and quest texts, `{player}` becomes the player's name
 and `{sir|madam}` the first word for a male player and the second for a female one (any pair works:

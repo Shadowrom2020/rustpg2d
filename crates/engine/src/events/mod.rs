@@ -287,6 +287,8 @@ pub enum Cond {
     Defeated { character: String, op: CmpOp, count: i64 },
     /// How a character (or "player") rests on furniture: "sit", "lie", "stand"; "" = on its feet.
     Pose { target: TargetName, pose: String },
+    /// The player's race (`races::RaceDef`; "" = none chosen).
+    PlayerRace { race: String },
 }
 
 /// Whether `hour` lies in `from..to` (hours 0..24; `from > to` wraps around midnight).
@@ -317,6 +319,7 @@ impl Cond {
             Cond::HasEffect { .. } => "Player has effect",
             Cond::Defeated { .. } => "Defeated count",
             Cond::Pose { .. } => "Pose (sitting, asleep)",
+            Cond::PlayerRace { .. } => "Player race",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -336,6 +339,7 @@ impl Cond {
             Cond::HasEffect { kind: crate::effects::EffectKind::Poison },
             Cond::Defeated { character: String::new(), op: CmpOp::Ge, count: 10 },
             Cond::Pose { target: "self".into(), pose: "lie".into() },
+            Cond::PlayerRace { race: String::new() },
         ]
     }
 }
@@ -371,6 +375,7 @@ impl Condition {
             Cond::Defeated { character, op, count } => op.apply(world.defeated(character) as i64, *count),
             // Needs the running game (see `conditions_met`).
             Cond::Pose { .. } => false,
+            Cond::PlayerRace { race } => world.player_race == *race,
         };
         v != self.negate
     }

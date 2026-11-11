@@ -301,7 +301,7 @@ pub struct RenameParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ListDefsParams {
-    /// "tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes" or "achievements".
+    /// "tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements" or "races".
     pub kind: String,
     /// Only ids / names containing this text.
     pub filter: Option<String>,

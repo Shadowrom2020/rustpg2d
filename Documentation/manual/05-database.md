@@ -97,6 +97,12 @@ can pick a lock instead ([Lockpicking](09-gameplay.md#lockpicking)).
 Characters have the most settings: look and equipment, behaviour, combat values, loot, a shop, a
 portrait and moods. They have their own chapter: [Characters](06-characters.md).
 
+## Races
+
+Humans, goblins, elves…: each race's bodies, the looks the creator offers, what a player of the
+race gets (max HP, speed, defense, starting skills) and its size. See
+[Characters › Races](06-characters.md#races).
+
 ## Tilesets
 
 | Setting | Meaning |
@@ -122,6 +128,7 @@ portraits and parallax images all come from sprite sheets.
 | **Female body** | For bodies: outfits use their female cut on it |
 | **Playable** | For bodies: players may choose it in the character creator |
 | **Complete figure** | For bodies: clothes, hair and held items are painted in; nothing is drawn over it and it isn't recoloured |
+| **Cut** | For bodies of another shape (`dwarf`, `troll`): outfits and armor use their `_<cut>` sheets on it where they exist |
 | **Animations** | Named frame ranges (imported from Aseprite tags, or made here) for the *Effect* and *Fly* actions |
 | **Used by** | Which items, props and characters use the sheet |
 

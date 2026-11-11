@@ -215,6 +215,8 @@ impl LibState {
             RefKind::Spell => db.spell(&a.1).map(|d| d.icon.clone()).filter(|i| !i.sheet.is_empty()),
             // A recipe shows what it makes.
             RefKind::Recipe => db.recipe(&a.1).and_then(|r| db.item(&r.result)).map(|d| d.icon.clone()),
+            // A race shows its first body.
+            RefKind::Race => db.race(&a.1).and_then(|r| r.bodies_male.first().or(r.bodies_female.first())).map(|b| SpriteRef::new(b, 0)),
             _ => None,
         };
         let drawn = match (a.0, sprite) {
@@ -279,6 +281,7 @@ fn name_of(db: &Database, a: &AssetRef) -> String {
         RefKind::Skill => db.skill(&a.1).map(|d| d.name.clone()),
         RefKind::Spell => db.spell(&a.1).map(|d| d.name.clone()),
         RefKind::Recipe => db.recipe(&a.1).and_then(|r| db.item(&r.result)).map(|d| format!("{} (recipe)", d.name)),
+        RefKind::Race => db.race(&a.1).map(|d| format!("{} (race)", d.name)),
         _ => None,
     }
     .unwrap_or_else(|| a.1.clone())

@@ -40,7 +40,7 @@ debug builds play at full speed; CI's test job overrides it to 0 for speed.
 ## 2. Data model
 
 **Project** = a folder: `project.ron` (`ProjectConfig`: name, player, inventory size, skills,
-languages, …), `defs/*.ron` (twelve lists, `project::DEFS`), `maps/*.map`, `sprites/`, `tilesets/`,
+languages, …), `defs/*.ron` (thirteen lists, `project::DEFS`, the last being races), `maps/*.map`, `sprites/`, `tilesets/`,
 `sounds/`, `scripts/*.rhai`, `lang/<code>.ron`, and the ignored `saves/`. `Project::load` reads it
 all into `Database` (`defs.rs`), one `Vec` per kind, referenced by string ids everywhere
 (`refactor.rs` knows every reference for renames and library exports: `refs_of_*`).

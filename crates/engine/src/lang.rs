@@ -10,7 +10,7 @@
 //! ```
 //!
 //! - **`texts`**: the game's content — dialog lines, choices, names and descriptions of items,
-//!   props, characters, quests, skills, spells, recipes and achievements, signs, script `say`
+//!   props, characters, quests, skills, spells, recipes, achievements and races, signs, script `say`
 //!   texts. Looked up whole ([`tr`]) where content reaches the player: `WorldState::expand_text`
 //!   (before `{player}` etc. are filled in) and the translated database ([`translate_db`]).
 //! - **`ui`**: the runtime's own texts (menus, windows, HUD, messages). R(ust)PG2D ships them for
@@ -299,6 +299,10 @@ pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
         t(&mut a.name);
         t(&mut a.description);
     }
+    for r in &mut d.races {
+        t(&mut r.name);
+        t(&mut r.description);
+    }
     d.reindex();
     d
 }
@@ -374,6 +378,10 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for a in &db.achievements {
         add(&a.name);
         add(&a.description);
+    }
+    for r in &db.races {
+        add(&r.name);
+        add(&r.description);
     }
     // Every trigger of the definitions and the maps, and the lock / container texts of props and
     // placed entities.

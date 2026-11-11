@@ -103,7 +103,7 @@ bats and a chest".
 ### Definitions
 | Tool | Does |
 |---|---|
-| `list_defs {kind, filter, offset}` | `tilesets`, `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `skills`, `spells`, `recipes`, `achievements`: id and key facts per line. |
+| `list_defs {kind, filter, offset}` | `tilesets`, `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `skills`, `spells`, `recipes`, `achievements`, `races`: id and key facts per line. |
 | `get_def {kind, id}` | JSON. |
 | `def_template {kind, id}` | A complete new definition to fill in, with notes on the fields. |
 | `upsert_def {kind, def, merge}` | Create or replace (or merge fields into) a definition; checks referenced ids, image / sound files and the definition's own triggers; tilesets, sheets and sounds reload the editor's textures. |

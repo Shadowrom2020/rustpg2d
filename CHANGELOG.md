@@ -5,6 +5,25 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Art
+- **Elves, dwarves, orcs and trolls**: ten new characters drawn with Meshy in the 2x style (elf,
+  dwarf and orc men and women, a troll, the orc chief, a dwarf trader, an elven herbalist), with
+  walk, idle, attack (bow shots, axe and hammer blows, sword slashes, club smashes) and hit frames.
+  The four races are playable in the example's creator. In the example: a dwarf trader in the old
+  mine sells ore and tools, an elven herbalist wanders the Wilds by the hour, an orc camp with a
+  chief (beating him stops the camp's reinforcements) and a troll guarding a new bridge (a
+  mini-boss that rages at half health). The Meshy pipeline that draws them is in
+  `scripts/art/meshy/`.
+
+### Gameplay
+- **Races** (*Database › Races*): humans and goblins in the example and the starter library. A race
+  has its bodies per sex, the looks the creator offers, extra max HP, speed and defense and
+  starting skills for a player of that race, and a size (bigger or smaller characters with a
+  hitbox to match). The character creator starts with a *Race* row (human: Haggling 1, +2 HP;
+  goblin: Scavenging 1, -2 HP, 10 % faster; elves, dwarves, orcs and trolls see *Art*). Characters name their race; the *Player race*
+  condition and `player_race()` tell the player's. Outfits and armor fit other body shapes by a
+  *Cut* on the body sheet (`outfit_X_dwarf`), like the female cut.
+
 ### Editor
 - **Update asset library** (*Assets › Update asset library…*, the Asset Library window's *File*
   menu, or the banner a new version shows): brings the starter set of this version into your

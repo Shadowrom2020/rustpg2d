@@ -177,6 +177,11 @@ pub struct SheetDef {
     /// over it (no outfit, armor, hair, beard or held items) and it isn't recoloured.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub complete: bool,
+    /// Bodies: the cut outfits and armor need for this body shape ("dwarf", "troll"; "" = the
+    /// standard one): an overlay `X` is drawn as `X_<cut>` (women: `X_<cut>_f`) when that sheet
+    /// exists.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub cut: String,
     /// Named frame ranges (animations), e.g. from an Aseprite export: offered by the *Effect* /
     /// *Fly* actions and the `tag` option of `effect()` / `fly()`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -196,7 +201,7 @@ pub struct SheetTag {
 /// tile. The editor's "+ New" value is [`SheetDef::fresh`].
 impl Default for SheetDef {
     fn default() -> Self {
-        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, complete: false, tags: Vec::new() }
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, complete: false, cut: String::new(), tags: Vec::new() }
     }
 }
 
@@ -1059,6 +1064,9 @@ pub struct CharacterDef {
     /// (`Database::upgrade_characters`).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub sheet: String,
+    /// Its race (`races::RaceDef`; "" = none): for conditions, scripts and factions.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub race: String,
     /// Movement speed in pixels per second.
     #[serde(default = "default_speed")]
     pub speed: f32,
@@ -1144,6 +1152,7 @@ impl Default for CharacterDef {
             id: String::new(),
             name: String::new(),
             sheet: String::new(),
+            race: String::new(),
             speed: default_speed(),
             hitbox: default_box(),
             behavior: default_behavior(),
@@ -1326,6 +1335,8 @@ pub struct Database {
     pub recipes: Vec<crate::crafting::RecipeDef>,
     /// Achievements (the game's; unlocks are the player's, see `achievements::Progress`).
     pub achievements: Vec<crate::achievements::AchievementDef>,
+    /// Races (humans, goblins, elves…; the player picks one in the creator).
+    pub races: Vec<crate::races::RaceDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1449,6 +1460,20 @@ impl Database {
     }
     pub fn recipe(&self, id: &str) -> Option<&crate::crafting::RecipeDef> {
         self.recipes.iter().find(|d| d.id == id)
+    }
+
+    pub fn race(&self, id: &str) -> Option<&crate::races::RaceDef> {
+        self.races.iter().find(|d| d.id == id)
+    }
+
+    /// The race whose bodies include `body` (the first one).
+    pub fn race_of_body(&self, body: &str) -> Option<&crate::races::RaceDef> {
+        (!body.is_empty()).then(|| self.races.iter().find(|r| r.bodies_male.iter().chain(&r.bodies_female).any(|b| b == body))).flatten()
+    }
+
+    /// Size of characters with this body (its race's; 1 without one).
+    pub fn body_size(&self, body: &str) -> f32 {
+        self.race_of_body(body).map_or(1.0, |r| r.size.clamp(0.25, 4.0))
     }
     /// Recipes of a crafting station, in definition order.
     pub fn recipes_at<'a>(&'a self, station: &'a str) -> impl Iterator<Item = &'a crate::crafting::RecipeDef> + 'a {
@@ -1622,6 +1647,7 @@ impl_def!(crate::skills::SkillDef, crate::refactor::RefKind::Skill, skills, refs
 impl_def!(crate::skills::SpellDef, crate::refactor::RefKind::Spell, spells, refs = crate::refactor::refs_of_spell);
 impl_def!(crate::crafting::RecipeDef, crate::refactor::RefKind::Recipe, recipes, refs = crate::refactor::refs_of_recipe);
 impl_def!(crate::achievements::AchievementDef, crate::refactor::RefKind::Achievement, achievements);
+impl_def!(crate::races::RaceDef, crate::refactor::RefKind::Race, races, refs = crate::refactor::refs_of_race);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
@@ -1679,6 +1705,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Achievement => {
                 type $T = $crate::achievements::AchievementDef;
+                $body
+            }
+            $crate::refactor::RefKind::Race => {
+                type $T = $crate::races::RaceDef;
                 $body
             }
             $crate::refactor::RefKind::Map => $else,

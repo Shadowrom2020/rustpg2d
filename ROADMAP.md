@@ -332,6 +332,240 @@ Instructions for every session (people and coding agents) that implements roadma
   pre-rendered 3D characters (Meshy model, rig and animation clips rendered with Blender, exact
   hand bones as marks) followed; real-time 3D characters are planned below.
 
+## 0.18.0 — Characters in 3D
+
+**One system for characters**:
+- Every character (people, animals, monsters, the player) is a rigged 3D model.
+- It is rendered with its gear off screen, in the 2D pixel look, and drawn into the world as a 2D
+  image.
+- Sprite-sheet figures are removed. Ease of use for creators and players comes first;
+  compatibility with earlier projects is not a concern in this release.
+
+**Decided with the user** (2026-11-11).
+- **The test:** Meshy modelled, rigged and animated the hero (multi-image to 3D from his front,
+  side and back pictures, 30 credits; rigging 5; library clips 3 each), Blender rendered the clips
+  into our sheet, and the hand bones gave exact hand marks. It showed that:
+  - hand data from bones is exact;
+  - Meshy's animation library has what we need (walk, idle, slashes, hit reactions, sitting, bow
+    shots…);
+  - clips need aligning (some stand turned, its own walk swings the upper body round).
+- **Real-time and offscreen:** a character, its held gear and what it carries render together into
+  an offscreen image per pose, drawn into the world like a sprite. Depth sorting, lighting, fog,
+  tints, the UI and cut-scenes keep working on that image.
+- **Gear is 3D:** items get 3D models made with Meshy from their icon and description.
+- **Animals and creatures**, which Meshy can't rig, get **rig templates**: a few prepared skeletons
+  (four-legged, bird, flyer, blob, floating) are fitted to an unrigged model, with motions made
+  once per template and shared.
+- **The cast is merged:** one model per distinct look, varied by colour features (villager m/f,
+  guard, bandit, noble, child…). About 25–30 people models instead of 47 figures.
+
+**Removed in this release** (breaking):
+- The *Character figure* sheet kind and its 16-row layout, figure colour features, the sheets'
+  hand marks (`SheetDef.hands`) and items' 2D *Held* marks.
+- The sprite editor's figure tools: the animation panel for figures, the Hands tool, onion skin
+  for figures, *Fill idle & hurt*, *Mirror Left → Right* for figures, and the `pxgrip` / `pxhands`
+  / figure `px…` commands and `edit_frames`' figure operations.
+- *New character…* sources that draw or import a sheet (LPC, Aseprite figures), and the 2D
+  *Character* kind of *Generate art*.
+- The figure sheets in the starter library and the example.
+- Sprite sheets stay for everything else (props, effects, icons, portraits, emotions, tiles).
+- Earlier projects load; characters whose figure is gone show the starter **mannequin** model until
+  a model is chosen (the problem list names them).
+
+**Architecture.**
+- **Models**: `defs/models.ron`, `ModelDef`:
+  - `id`, `file` (a `.glb` under `models/`), `height` (world pixels standing), `rig` (`humanoid`
+    or a template: `quadruped`, `bird`, `flyer`, `blob`, `floating`);
+  - `clips`: animation name → clip and fps (`walk`, `idle`, `attack`, `hurt`, plus extras: `sit`,
+    `sleep`, `fish`, `hammer`, `farm`, `cast`, `shoot`, `carry`, `talk`…); missing ones fall
+    back to `idle`;
+  - `attach`: the bones gear hangs on (right hand, left hand, head, back; found at import);
+  - `features`: colour features of its texture (the shades of a part → recoloured with
+    `recolor.rs`, as figures were), with the colours offered to players.
+- **Characters and the player:** `Appearance { model, colors }` replaces `{ body, colors }`.
+  Races list models per sex; the character creator turns a 3D preview of the chosen model and
+  colours.
+- **Loading**: the `gltf` crate (a new dependency) reads GLB bytes through `sys.rs` (web too):
+  meshes (positions, normals, UVs, 4 joints and weights), skin, clips, base-colour texture.
+  - The importer downsizes textures to 256 px and warns above about 5k triangles.
+  - The game's `Conf` raises macroquad's draw-call vertex / index capacity.
+- **Animation**: clips sampled stepped at their fps (12 by default, pixel-art motion), bone
+  matrices, CPU skinning (4 weights) into the `Vec<Vertex>` `draw_mesh` uploads. The hips' root
+  motion is removed, and each clip is aligned once by the body's average forward (square to the
+  hip and shoulder line).
+- **Gear in the scene**:
+  - an item may have a model, `ItemDef.model { file, grip, axis, scale, bone }` (the hold point
+    and handle direction in the model's space, set on a 3D preview); it is placed on its bone
+    every pose: the weapon and tools on the right hand, shields and lights on the left, bows in
+    the left, two-handed weapons along both hands, helmets and hats on the head;
+  - items without a model are drawn as their 2D icon on a quad at the hand;
+  - a carried prop is its 2D sprite on a quad between the hands, upright.
+  - Body armour and clothing are part of the character model (colour variants), not separate
+    meshes.
+- **Offscreen pose render, cached**:
+  - A pose is (model, colours, gear, carried, animation, frame, facing).
+  - It renders once into an atlas page of a `render_target_ex` with depth: an orthographic camera
+    at 20° elevation, at the old figures' pixel density (64 x 96 image pixels for a 32 x 48 world
+    place); taller models get taller frames.
+  - The cache is bounded (LRU per page) and filled lazily. Four facings.
+  - The picture's feet point, its height and the held items' tips (fishing line) come with it.
+- **The 2D look** (GLSL 100 for WebGL1):
+  - cel shading in 2–3 light bands from the vertex normal (in macroquad's free `Vertex::normal`);
+  - nearest texture sampling and a colour step per channel;
+  - a 1-pixel dark outline pass on the rendered pose;
+  - the ground shadow.
+- **Portraits**: a character without a drawn portrait gets a bust render (head and shoulders,
+  front, idle) of its model, for dialogs, the companions' HUD and the character window.
+- **Drawing**: `paperdoll.rs` draws the cached pose image instead of sheet layers. `hands.rs`
+  becomes the gear placement on bones. Hit flashes, tints, fades, sitting and lying (furniture
+  poses become clips) work on the image.
+
+- [x] 3D characters in the engine — `feature/3d-characters`
+
+  **Goal.** Characters and the player are drawn from models with their gear: walk, idle, attack,
+  hurt and the extra clips, four facings, the 2D look. Figures keep working next to models until
+  the cast is converted (their removal moved to *The cast in 3D*, so `develop` stays playable).
+
+  **Design.**
+  - The *Architecture* above, engine side: models, the scene, the cache, the shaders, gear on
+    bones, carried props, portraits.
+  - The player's swing plays the attack clip fitted to the game's swing time; NPC wind-ups use
+    its first part.
+  - Activities and furniture play their clips (`fish`, `hammer`, `farm`, `sit`, `sleep`; idle when
+    a model lacks one).
+  - `status`: `models=` (cached poses, pages, renders this second), `anims=` as now, `held=` from
+    the scene.
+  - `RUSTPG2D_MODEL_DEBUG=1` shows the first atlas page with the cells and feet points.
+  - Walking characters pass the time walked (`Anim::Walking`), activities and furniture an
+    extra animation (`Anim::Extra`: `fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `read`,
+    `sit`, `sleep`); a model without the clip plays idle, and sitting / lying without a clip crop
+    or turn the idle pose like figures.
+  - Portraits render the model's head close up (64 x 64, the rest pose, facing the front).
+  - Gear: held items without a 3D model are their pictures on quads at the hand bones (hold point
+    and orientation mark on the thumb-side axis, both hands, mirroring as *Visible equipment*),
+    depth-sorted with the body; 3D item models come with the editor item.
+
+  **Engine.**
+  - New: the `gltf` dependency, `model.rs` (load, skin, clips, align), `render/model.rs`
+    (camera, shaders, atlas cache, gear, bust), `defs/models.ron` in `project.rs`.
+  - `release.rs` (exports carry `models/`; web: in `data.pack`), `library.rs`, renames in
+    `refactor.rs`, `refs_of_*` (a model's file, an item's model).
+  - `RefKind::Model` (renames, references, starter update files), the export check (models and
+    their clip files travel with games).
+
+  **Touch points.**
+  - `defs.rs` (`Appearance`, `ItemDef.model`, `RaceDef` models);
+  - `runtime/paperdoll.rs`, `combat.rs` (swing timing), `activities.rs`, `furniture.rs`,
+    `creator.rs`, `cutscene.rs`;
+  - `sys.rs`, the game's `window_conf`.
+
+  **Verify.**
+  - Unit tests: GLB loading (a small fixture with two bones and one clip), skinning, clip
+    sampling and alignment, gear placement on a bone, the cache.
+  - Autoplay shots: the hero in four facings walking, idle, attacking (frame by frame via
+    `anims=`) and hurt, with sword and shield; the guard's spear; fishing (line from the rod's
+    tip); sitting; carrying a crate; a dialog with a bust portrait.
+  - 30 characters on a map: `fps=` / `frame_ms=` on desktop and in the web build (headless
+    Brave).
+
+  **Done.** As designed, with figures kept until *The cast in 3D*. Verified on scratch copies with
+  the test hero (Meshy rig and clips): four facings, idle, walking, the slash's frames, sword and
+  shield, the guard's spear, fishing (line from the rod's tip), sitting (cropped idle: the hero has
+  no sit clip), lying in a bed, carrying a crate (held level in front of the chest), a dialog bust;
+  42 characters on the model at 60 fps (0.2 ms drawing, 78 poses cached), the web export at
+  58–60 fps under WebGL. Attack frames sit at fixed points of the clip (wind-up 0.22, swing 0.42,
+  follow-through 0.58, recover 0.8). Not yet: model files in asset-library bundles (with the
+  editor item); textures of models aren't recoloured until a model has colour features.
+
+- [ ] Models in the editor — `feature/3d-editor`
+
+  **Goal.** Creators add, check and use models, and give items 3D gear, without editing files.
+
+  **Design.**
+  - *Database › Models*: import a `.glb`, which copies it to `models/`, downsizes the texture and
+    reports triangles, bones and clips.
+    - Set the height and the rig; map clips to animations (each clip previewed).
+    - The gear bones are auto-detected.
+    - Colour features are picked on the texture (click the model's colours) with the colours
+      offered.
+    - A turning 3D preview using the engine's renderer in an egui texture.
+  - **Rig templates for unrigged models**:
+    - choose a template; the editor fits its skeleton to the model (scaled to the model's bounds
+      and proportions, adjustable by dragging joints on the preview) and skins it (envelope
+      weights by distance to the bones);
+    - the template's shared clips then animate it;
+    - templates are GLBs of the starter library: skeleton + clips, made once.
+  - The character editor and the creator choose models and colours with the 3D preview.
+  - The item form's **3D model** section: import or generate, set the hold point and handle
+    direction on the preview (click / drag), the bone, the size; preview in a character's hands;
+    **Render icon** makes the inventory icon from the model.
+  - Remove the figure tools listed above.
+  - Agents: `import_model`, `model_info`, `fit_rig`, `upsert_def` for models, `item_model`.
+  - Editor script `model…` commands; `status` prints `model=`.
+
+  **Verify.** Editor scripts with screenshots of the Models tab, a fitted template rig on an animal,
+  the item form's 3D section, the creator.
+
+- [ ] Generate 3D characters and gear with Meshy — `feature/3d-meshy`
+
+  **Goal.** *Generate art* makes whole animated characters and gear models.
+
+  **Design.** The cost is shown first; the session budget applies; jobs keep their task ids, so
+  nothing is paid twice.
+  - **Person**:
+    - a reference picture, drawn (3 credits) or given;
+    - multi-image or image to 3D at about 5k triangles in A-pose (30);
+    - rigging (5);
+    - clips in one request (3 each): walk (*Walking 2*), idle (*Idle 1*), an attack matching the
+      chosen kind, *Hit Reaction*, plus optional extras (sit, sleep, work).
+    - About 47 credits for the default set.
+  - **Animal or creature**: image to 3D, unrigged (about 30); a rig template is chosen and fitted
+    (*Models in the editor*).
+  - **Gear**: image to 3D from the item's icon and description (about 20–30); the hold point is
+    estimated (the handle end), then checked in the item form.
+  - Previews turn the model; *Add to project* imports it as a model plus a character, or as the
+    item's model.
+  - Agents: `generate_art` kinds `model`, `creature`, `gear`.
+
+  **Verify.** `RUSTPG2D_MESHY_FAKE` with stored GLB results; real runs only with the user's
+  confirmation.
+
+- [ ] The cast in 3D — `feature/3d-cast`
+
+  **Goal.** The example and the starter library have only 3D characters, and figures are gone.
+
+  **Removal** (moved here from the engine item): the figure parts of `render/character.rs`,
+  `SheetKind::Body`, `SheetDef.hands` / `features` for figures, `hands.rs`' sheet grips, the
+  sprite editor's figure tools, and the starter **mannequin** (a rigged neutral humanoid) as the
+  fallback for characters without a model.
+
+  **Design.**
+  - **Merged to distinct looks**: one model per look, the rest colour variants. The list is
+    worked out from the 47 figures and confirmed first: hero, heroine, villager m/f, guard m/f,
+    child m/f, elder m/f, merchant, noble m/f, bandit m/f, outlaw, priest, smith, farmer, fisher,
+    wizard m/f, elf m/f, dwarf m/f, goblin, orc m/f, troll, skeleton, … about 25–30 models.
+  - **Animals and creatures with templates**: chicken (bird), dog / cats / sheep / cow / wolf
+    (quadruped), bat (flyer), slime (blob), ghost (floating).
+  - **Gear for the 19 holdable items.**
+  - **Credits:** about 1200–1400 for the people, 300 for the animals and 400–550 for the gear,
+    against 1373 credits on the account. The user confirms each batch: playable characters and
+    the main village cast first, then the gear, then the rest (a top-up may be needed).
+  - Colour features on the textures; the player's creator rows; the races' models per sex.
+  - Lighting, outline and colour steps tuned against the tiles.
+
+  **Verify.**
+  - Autoplay shots of every map with its characters.
+  - The creator choosing race, sex and colours.
+  - A play-through of the first quest and the Wilds.
+  - The web export's size and frame rate.
+
+**Open points to settle while building.**
+- The atlas cache's memory budget.
+- Eight facings.
+- Whether worn armour should ever become a separate mesh.
+- How players' own characters from earlier versions map onto models (save games may lose their
+  look; acceptable at this stage).
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS

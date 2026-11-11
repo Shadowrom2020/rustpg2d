@@ -101,6 +101,8 @@ impl Tab {
             RefKind::Recipe => Tab::Recipes,
             RefKind::Achievement => Tab::Achievements,
             RefKind::Race => Tab::Races,
+            // Models get their tab with the editor support (0.18 *Models in the editor*).
+            RefKind::Model => return None,
             RefKind::Map => return None,
         })
     }

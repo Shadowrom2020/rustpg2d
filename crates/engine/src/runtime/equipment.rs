@@ -189,7 +189,7 @@ impl Game {
         let (fw, fh) = self.character_frame_size(&a);
         let scale = (dest.w / fw).min(dest.h / fh).floor().max(1.0);
         let (w, h) = (fw * scale, fh * scale);
-        let held = self.player_held((crate::entity::Facing::Down, super::paperdoll::Anim::Walk(0)));
-        self.draw_character_in(&a, &held, Rect::new(dest.x + (dest.w - w) / 2.0, dest.y + dest.h - h, w, h));
+        let gear = self.player_gear();
+        self.draw_character_in(&a, &gear, Rect::new(dest.x + (dest.w - w) / 2.0, dest.y + dest.h - h, w, h));
     }
 }

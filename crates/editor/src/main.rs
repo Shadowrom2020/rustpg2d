@@ -54,10 +54,10 @@ fn library_arg() -> Option<std::path::PathBuf> {
     Some(args.get(i + 1).filter(|a| !a.starts_with("--")).map_or_else(rustpg2d_engine::library::library_dir, std::path::PathBuf::from))
 }
 
-fn window_conf() -> Conf {
+fn window_conf() -> macroquad::conf::Conf {
     rustpg2d_engine::desktop::startup("The R(ust)PG2D editor");
     let library = library_arg().is_some();
-    Conf {
+    let window = Conf {
         icon: Some(rustpg2d_engine::icon::window_icon(&rustpg2d_engine::icon::emblem())),
         window_title: if library { "R(ust)PG2D – Asset Library" } else { "R(ust)PG2D editor" }.to_owned(),
         window_width: if library { 1300 } else { 1600 },
@@ -65,6 +65,14 @@ fn window_conf() -> Conf {
         high_dpi: true,
         window_resizable: true,
         ..Default::default()
+    };
+    macroquad::conf::Conf {
+        miniquad_conf: window,
+        update_on: None,
+        default_filter_mode: FilterMode::Linear,
+        // 3D character models are drawn as one mesh each (render/model.rs).
+        draw_call_vertex_capacity: rustpg2d_engine::render::model::DRAW_VERTICES,
+        draw_call_index_capacity: rustpg2d_engine::render::model::DRAW_INDICES,
     }
 }
 

@@ -160,7 +160,7 @@ impl Game {
         let night = self.world.hour >= 21.0 || self.world.hour < 6.0;
         let sleepy = if self.project.config.auto_emotions && night { self.find_emotion("sleepy") } else { None };
         for e in self.loaded.entities.iter().filter(|e| e.active) {
-            let h = if e.appearance.body.is_empty() { 32.0 } else { self.character_frame_size(&e.appearance).1 };
+            let h = if !e.appearance.has_look() { 32.0 } else { self.character_frame_size(&e.appearance).1 };
             if let Some(m) = &e.emote {
                 draw(m, e.body.pos, h);
             } else if let (Some((sheet, first, last, fps)), Some(seat)) = (&sleepy, &e.npc_seat) {

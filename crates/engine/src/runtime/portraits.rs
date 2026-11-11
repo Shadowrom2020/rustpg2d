@@ -70,7 +70,7 @@ impl Game {
         if let Some(e) = near {
             return Some(Speaker::Entity(e.uid));
         }
-        db.characters.iter().find(|d| names_match(&d.name, name) && !d.appearance.body.is_empty()).map(|d| Speaker::Def(d.id.clone()))
+        db.characters.iter().find(|d| names_match(&d.name, name) && d.appearance.has_look()).map(|d| Speaker::Def(d.id.clone()))
     }
 
     /// Shows the portrait of whoever `raw` / `shown` names in the dialog just opened.
@@ -157,7 +157,7 @@ impl Game {
             Speaker::Player => self.player_appearance(),
             Speaker::Entity(uid) => {
                 let e = self.loaded.entities.iter().find(|e| e.uid == *uid)?;
-                (!e.appearance.body.is_empty()).then(|| e.appearance.clone())
+                e.appearance.has_look().then(|| e.appearance.clone())
             }
             Speaker::Def(id) => self.project.db.character(id).map(|d| d.appearance.clone()),
         }
@@ -166,6 +166,14 @@ impl Game {
     /// Head and shoulders of a character, scaled into `r` (bottom-aligned, centered).
     pub(super) fn draw_bust(&self, a: &Appearance, r: Rect) {
         let (fw, fh) = self.character_frame_size(a);
+        if self.uses_model(a) {
+            // A close-up render, square, scaled into the box.
+            if let Some(cell) = self.model_bust(a) {
+                let side = r.w.min(r.h);
+                self.assets.models.draw_in(&cell, Rect::new(r.x + (r.w - side) / 2.0, r.bottom() - side, side, side), WHITE);
+            }
+            return;
+        }
         let part = if (fw, fh) == (32.0, 48.0) { BUST } else { Rect::new(0.0, 0.0, 1.0, 0.6) };
         let (pw, ph) = (fw * part.w, fh * part.h);
         let scale = (r.w / pw).min(r.h / ph);

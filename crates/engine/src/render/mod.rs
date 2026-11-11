@@ -7,6 +7,7 @@
 pub mod character;
 pub mod fish;
 pub mod lighting;
+pub mod model;
 pub mod recolor;
 pub mod parallax;
 pub mod weather;
@@ -125,6 +126,8 @@ pub struct Assets {
     pub errors: Vec<String>,
     /// Recoloured copies of figure sheets (colour features), made on first use.
     recolored: RefCell<HashMap<ColorKey, Texture2D>>,
+    /// 3D character models and their rendered poses.
+    pub models: model::Models,
 }
 
 /// The colours chosen for a sheet's colour features, in feature order (`None` = as drawn).
@@ -192,7 +195,7 @@ fn average_color(img: &Image, r: Rect) -> Color {
 impl Assets {
     /// No images (tests).
     pub fn empty(tile_size: f32) -> Assets {
-        Assets { tile_size, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), recolored: RefCell::default() }
+        Assets { tile_size, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), recolored: RefCell::default(), models: model::Models::default() }
     }
 
     /// Loads all tileset and sprite sheet images. Needs a macroquad window.
@@ -262,7 +265,9 @@ impl Assets {
         for e in &errors {
             eprintln!("[assets] {e}");
         }
-        Assets { tile_size: ts, tilesets, sheets, errors, recolored: RefCell::default() }
+        let models = model::Models::load(&project.db, &|rel| crate::sys::read(&project.path(rel)));
+        errors.extend(models.errors.iter().cloned());
+        Assets { tile_size: ts, tilesets, sheets, errors, recolored: RefCell::default(), models }
     }
 
     /// Tileset textures for each slot of a map.

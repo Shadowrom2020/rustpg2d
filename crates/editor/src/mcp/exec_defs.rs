@@ -124,6 +124,16 @@ def_facts!(SkillDef, |d| format!("\"{}\"; max level {}; {:?}", d.name, d.max_lev
 def_facts!(SpellDef, |d| format!("\"{}\"; mana {}; cooldown {}; needs {} level {}; {:?}", d.name, d.mana, d.cooldown, d.skill, d.level, d.effect));
 def_facts!(RecipeDef, |d| format!("makes {} x{} from [{}]{}{}", d.result, d.count, d.ingredients.iter().map(|i| format!("{} x{}", i.item, i.count)).collect::<Vec<_>>().join(", "), if d.station.is_empty() { String::new() } else { format!(" at {}", d.station) }, if d.skill.is_empty() { String::new() } else { format!("; {} level {}", d.skill, d.level) }));
 def_facts!(AchievementDef, |d| format!("\"{}\"; {}{} conditions", d.name, if d.hidden { "hidden; " } else { "" }, d.conditions.len()));
+def_facts!(rustpg2d_engine::defs::ModelDef, |d| format!(
+    "\"{}\" {}{}; height {} px; clips [{}]; {} colour features{}",
+    d.label(),
+    d.file,
+    if d.clip_files.is_empty() { String::new() } else { format!(" + {} clip file(s)", d.clip_files.len()) },
+    d.height,
+    d.clips.iter().map(|c| format!("{}={}", c.anim, c.clip)).collect::<Vec<_>>().join(", "),
+    d.features.len(),
+    if d.playable { "; playable" } else { "" }
+));
 def_facts!(rustpg2d_engine::races::RaceDef, |d| format!(
     "\"{}\"{}; bodies [{}] / [{}]; hp {:+}, speed {:+}%, defense {:+}; skills [{}]{}",
     d.name,
@@ -216,6 +226,10 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Recipe => (val(&RecipeDef::new(id, "<item id>", 1, vec![], "")), "result + count from ingredients [{item, count}]; station: a prop id the player must use (empty = anywhere, craftable from the inventory), station_state: the state it must be in (a lit fire); skill + level required; tools: item ids that must be in the inventory; quality: [{level, result}] better results at higher skill."),
         RefKind::Achievement => (val(&AchievementDef { id: id.into(), name: "New achievement".into(), description: String::new(), icon, hidden: false, conditions: vec![] }), "conditions: checked while playing (same shapes as trigger conditions: Quest, Flag, Var, Defeated, Level, HasItem, …); hidden: shown as ??? until unlocked; also unlocked by the UnlockAchievement action / unlock_achievement()."),
         RefKind::Race => (val(&rustpg2d_engine::races::RaceDef::fresh(id)), "bodies_male / bodies_female: figure sheet ids (the creator offers them with a colour row per colour feature, and they get the race's size); max_hp / defense: added for a player of this race, speed: percent; skills: [{skill, level}] starting levels; size: 1 = as drawn (trolls 1.5: bigger sprite and hitbox); playable: offered in the creator. Characters name their race in `race`."),
+        RefKind::Model => (
+            val(&rustpg2d_engine::defs::ModelDef::new(id, "models/<file>.glb")),
+            "file: a rigged .glb under models/ (Meshy, Blender…); clip_files: more .glb files with clips of the same rig; height: standing height in world px (40 = a person); clips: [{anim: walk|idle|attack|hurt|sit|sleep|fish|farm|craft|chop|mine|sweep|read, clip: the clip's name in the files, fps (12)}]; features: colour features of its texture (as a figure sheet's); playable / female: offered in the character creator. Characters use it with appearance.model.",
+        ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
     }
 }

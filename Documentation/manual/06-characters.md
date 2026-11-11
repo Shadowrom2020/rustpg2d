@@ -29,6 +29,34 @@ carries. This needs a figure with **hand marks**: per frame where each hand is a
 are drawn with empty hands; armour and clothing show only in the art. How each item sits in a hand
 is set in its *Held* section ([Database › Items](05-database.md#items)).
 
+**3D models** (in development; the editor support follows): a character can be a rigged 3D model
+instead of a figure. The game renders it with its held items in the pixel look (a few light bands,
+a dark outline) and draws it like a figure: walking, idle, attacks, hurt, activities (`fish`,
+`farm`, `craft`, `chop`, `mine`, `sweep`, `read`) and sitting / sleeping play the model's clips;
+dialog portraits show its head close up. For now a model is added by hand: the `.glb` files under
+`models/` and an entry in `defs/models.ron`, then `appearance: (model: "id")` on the character:
+
+```ron
+[
+    (
+        id: "hero",
+        file: "models/hero.glb",              // the rigged model (Meshy, Blender…)
+        clip_files: ["models/hero_clips.glb"], // more files with clips of the same rig
+        height: 40.0,                          // standing height in world pixels
+        clips: [
+            (anim: "walk", clip: "walking_2"),
+            (anim: "idle", clip: "Idle_02", fps: 8.0),
+            (anim: "attack", clip: "Right_Hand_Sword_Slash"),
+            (anim: "hurt", clip: "Hit_Reaction"),
+        ],
+    ),
+]
+```
+
+An animation without a clip plays idle. Clips are drawn at 12 frames a second unless `fps` says
+otherwise; clips that stand turned are straightened by the body's direction, and walking stays in
+place.
+
 **Carrying props**: the *Carry prop* action and the scripts `carry(target, prop)` /
 `stop_carrying(target)` / `player_carrying()` let the player or a character carry a prop (a crate, a
 basket) in both hands. While carrying, the weapon and left-hand item aren't shown and the player

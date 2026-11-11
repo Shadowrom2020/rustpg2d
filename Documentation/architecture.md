@@ -185,6 +185,24 @@ across the axis when it points left; carried props upright), two-handed things o
 (`Assets::draw_held_sprite` rotates about the hold point); `held_tip` (the farthest opaque pixel)
 places the fishing line. The editor's sprite editor, item / prop forms and character editor
 preview use the same functions.
+3D characters (`model.rs`, `render/model.rs`): a character whose `Appearance.model` names a
+`ModelDef` is drawn from a rigged glTF. `Model::load` keeps the skinned mesh, the node tree, the
+skin's joints with their inverse bind matrices and the clips (`add_clips` adds those of other files,
+matched by node name); `pose` samples a clip (stepped at the clip's fps by the caller) into world
+matrices and removes the root's horizontal motion; `skin` deforms the mesh on the CPU (macroquad
+uploads vertices on every draw anyway). `render::model::Models` renders a pose
+(`PoseReq`: look, `Gear`, animation, time, facing) once: the mesh turned to the facing plus the
+clip's alignment (`facing_of`: square to the hips and shoulders), into a scratch render target with
+depth through an orthographic `Camera3D` 20° above, with the cel shader (GLSL 100: light bands, a
+colour step; `Vertex::normal` carries the normals); held items are quads at the hand bones (the
+grip axis is the hand bone's thumb-side axis, found in the rest pose) laid out by `hands::held_with`;
+then the picture is copied with a 1-pixel dark outline into an atlas page (1024², shelf-packed, the
+oldest of 8 pages reused) and its `Cell` cached by (model, colours, gear, animation, frame, facing).
+At most 24 new poses render per frame; `push_camera_state` lets this happen in the middle of the
+world pass. The world, windows and portraits draw cells like sprites (`draw`, `draw_in`,
+`draw_part`, `draw_rotated`); busts are their own 64 x 64 close-ups of the head bone. The game and
+editor windows ask macroquad for bigger draw calls (`DRAW_VERTICES`, `DRAW_INDICES`) so a model is
+one mesh.
 
 ## 4. The editor (`crates/editor/src/`)
 

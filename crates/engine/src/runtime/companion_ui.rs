@@ -428,12 +428,12 @@ impl Game {
         // The companion as dressed now, its HP, defense and weapon.
         let pr = Rect::new(l.panels[0].x + PAD, l.panels[0].y + 50.0, 96.0, 150.0);
         draw_rectangle(pr.x, pr.y, pr.w, pr.h, Color::new(0.0, 0.0, 0.0, 0.3));
-        if !e.appearance.body.is_empty() {
+        if e.appearance.has_look() {
             let (fw, fh) = self.character_frame_size(&e.appearance);
             let s = ((pr.w - 8.0) / fw).min((pr.h - 8.0) / fh);
             let (dw, dh) = (fw * s, fh * s);
-            let held = self.character_held(&e.appearance, &e.equipment, &e.carrying, None, (crate::entity::Facing::Down, super::paperdoll::Anim::Walk(0)));
-            self.draw_character_in(&e.appearance, &held, Rect::new(pr.x + (pr.w - dw) / 2.0, pr.bottom() - 4.0 - dh, dw, dh));
+            let gear = self.character_gear(&e.equipment, &e.carrying, None);
+            self.draw_character_in(&e.appearance, &gear, Rect::new(pr.x + (pr.w - dw) / 2.0, pr.bottom() - 4.0 - dh, dw, dh));
         }
         let locked = !self.wears_gear(i);
         for (k, r) in l.gear.iter().enumerate() {

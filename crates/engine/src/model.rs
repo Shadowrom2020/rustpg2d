@@ -1,0 +1,441 @@
+//! 3D character models: rigged glTF binaries (`.glb` under `models/`) as Meshy, Blender and most
+//! tools write them. A [`Model`] keeps the skinned mesh (positions, normals, UVs, four joints and
+//! weights per vertex), the node tree with the skin's joints, the animation clips (more can come
+//! from other files of the same rig: [`Model::add_clips`]) and the base-colour texture, downsized
+//! for the pixel look. [`Model::pose`] samples a clip into node transforms (root motion removed),
+//! [`Model::skin`] deforms the mesh. Drawing is `render/model.rs`.
+
+use anyhow::{anyhow, bail, Context, Result};
+use macroquad::math::{Mat4, Quat, Vec2, Vec3};
+use macroquad::texture::Image;
+
+/// One vertex of the skinned mesh in its bind pose.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SkinVertex {
+    pub pos: Vec3,
+    pub normal: Vec3,
+    pub uv: Vec2,
+    pub joints: [u16; 4],
+    pub weights: [f32; 4],
+}
+
+/// A node of the model's tree (bones are nodes) with its rest transform.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Node {
+    pub name: String,
+    pub parent: Option<usize>,
+    pub t: Vec3,
+    pub r: Quat,
+    pub s: Vec3,
+}
+
+/// What a track animates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Path {
+    Translation,
+    Rotation,
+    Scale,
+}
+
+/// The keyframes of one node property.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Track {
+    pub node: usize,
+    pub path: Path,
+    /// Hold each key until the next (else linear: lerp, slerp for rotations).
+    pub step: bool,
+    pub times: Vec<f32>,
+    /// x, y, z(, w) per key.
+    pub values: Vec<[f32; 4]>,
+}
+
+/// An animation clip.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Clip {
+    pub name: String,
+    /// Seconds.
+    pub duration: f32,
+    pub tracks: Vec<Track>,
+}
+
+/// A loaded model.
+#[derive(Clone, Debug)]
+pub struct Model {
+    pub vertices: Vec<SkinVertex>,
+    pub indices: Vec<u16>,
+    pub nodes: Vec<Node>,
+    /// Node indices, parents before children.
+    order: Vec<usize>,
+    /// The skin's joints (node indices) and their inverse bind matrices.
+    pub joints: Vec<usize>,
+    pub inverse_bind: Vec<Mat4>,
+    pub clips: Vec<Clip>,
+    /// The base-colour texture (at most [`TEXTURE_MAX`] pixels on a side), if any.
+    pub texture: Option<Image>,
+}
+
+/// Textures are downsized to this: figures are drawn a few dozen pixels tall.
+pub const TEXTURE_MAX: u16 = 256;
+
+impl Model {
+    /// Reads a `.glb` (one skinned mesh; several primitives are merged, the first textured
+    /// material gives the texture).
+    pub fn load(glb: &[u8]) -> Result<Model> {
+        let g = gltf::Gltf::from_slice(glb).context("not a glTF binary")?;
+        let blob = g.blob.as_deref();
+        let buf = |b: gltf::Buffer| match b.source() {
+            gltf::buffer::Source::Bin => blob,
+            gltf::buffer::Source::Uri(_) => None,
+        };
+        let nodes = read_nodes(&g.document);
+        let order = topo_order(&nodes);
+        let mesh_node = g.document.nodes().find(|n| n.mesh().is_some() && n.skin().is_some()).or_else(|| g.document.nodes().find(|n| n.mesh().is_some())).ok_or_else(|| anyhow!("the file has no mesh"))?;
+        let mesh = mesh_node.mesh().unwrap();
+        let (mut vertices, mut indices) = (Vec::new(), Vec::new());
+        let mut texture = None;
+        for p in mesh.primitives() {
+            if p.mode() != gltf::mesh::Mode::Triangles {
+                continue;
+            }
+            let r = p.reader(buf);
+            let pos: Vec<[f32; 3]> = r.read_positions().ok_or_else(|| anyhow!("a mesh part without positions"))?.collect();
+            let n = pos.len();
+            let normals: Vec<[f32; 3]> = r.read_normals().map(|i| i.collect()).unwrap_or_else(|| vec![[0.0, 1.0, 0.0]; n]);
+            let uvs: Vec<[f32; 2]> = r.read_tex_coords(0).map(|i| i.into_f32().collect()).unwrap_or_else(|| vec![[0.0, 0.0]; n]);
+            let joints: Vec<[u16; 4]> = r.read_joints(0).map(|i| i.into_u16().collect()).unwrap_or_else(|| vec![[0; 4]; n]);
+            let weights: Vec<[f32; 4]> = r.read_weights(0).map(|i| i.into_f32().collect()).unwrap_or_else(|| vec![[1.0, 0.0, 0.0, 0.0]; n]);
+            let base = vertices.len() as u32;
+            if base as usize + n > u16::MAX as usize {
+                bail!("the model has more than {} vertices: reduce it to about 5000 triangles", u16::MAX);
+            }
+            for k in 0..n {
+                let w = weights[k];
+                let sum = (w[0] + w[1] + w[2] + w[3]).max(1e-6);
+                vertices.push(SkinVertex { pos: pos[k].into(), normal: normals[k].into(), uv: uvs[k].into(), joints: joints[k], weights: w.map(|x| x / sum) });
+            }
+            match r.read_indices() {
+                Some(ix) => indices.extend(ix.into_u32().map(|i| (i + base) as u16)),
+                None => indices.extend((0..n as u32).map(|i| (i + base) as u16)),
+            }
+            if texture.is_none() {
+                if let Some(t) = p.material().pbr_metallic_roughness().base_color_texture() {
+                    texture = read_image(&t.texture().source(), blob).ok();
+                }
+            }
+        }
+        if vertices.is_empty() {
+            bail!("the mesh has no triangles");
+        }
+        let (joints, inverse_bind) = match mesh_node.skin() {
+            Some(skin) => {
+                let joints: Vec<usize> = skin.joints().map(|j| j.index()).collect();
+                let ib: Vec<Mat4> = match skin.reader(buf).read_inverse_bind_matrices() {
+                    Some(m) => m.map(|c| Mat4::from_cols_array_2d(&c)).collect(),
+                    None => vec![Mat4::IDENTITY; joints.len()],
+                };
+                (joints, ib)
+            }
+            // Unrigged: one joint, the mesh's own node (rig templates add bones later).
+            None => (vec![mesh_node.index()], vec![Mat4::IDENTITY]),
+        };
+        let mut m = Model { vertices, indices, nodes, order, joints, inverse_bind, clips: Vec::new(), texture };
+        m.clips = read_clips(&g.document, blob, &|i| Some(i));
+        Ok(m)
+    }
+
+    /// Adds the clips of another `.glb` of the same rig (its nodes matched by name). Returns
+    /// how many were added; clips named like an existing one replace it.
+    pub fn add_clips(&mut self, glb: &[u8]) -> Result<usize> {
+        let g = gltf::Gltf::from_slice(glb).context("not a glTF binary")?;
+        let names: Vec<String> = g.document.nodes().map(|n| n.name().unwrap_or("").to_string()).collect();
+        let map = |i: usize| self.nodes.iter().position(|n| !n.name.is_empty() && n.name == names[i]);
+        let clips = read_clips(&g.document, g.blob.as_deref(), &map);
+        let n = clips.len();
+        for c in clips {
+            self.clips.retain(|o| o.name != c.name);
+            self.clips.push(c);
+        }
+        Ok(n)
+    }
+
+    pub fn clip(&self, name: &str) -> Option<&Clip> {
+        self.clips.iter().find(|c| c.name == name)
+    }
+
+    /// The node whose name contains `part` (case-insensitive), the shortest such name first
+    /// (`"hand"` finds `RightHand` before `RightHandThumb1`).
+    pub fn node(&self, part: &str) -> Option<usize> {
+        let p = part.to_lowercase();
+        self.nodes.iter().enumerate().filter(|(_, n)| n.name.to_lowercase().contains(&p)).min_by_key(|(_, n)| n.name.len()).map(|(i, _)| i)
+    }
+
+    /// The root bone (the hips): the skin's first joint.
+    pub fn root_joint(&self) -> Option<usize> {
+        self.node("hips").or_else(|| self.joints.first().copied())
+    }
+
+    /// World transforms of every node for `clip` at `t` seconds (looping; None = the rest pose).
+    /// The root bone's horizontal movement is removed, so walking stays in place.
+    pub fn pose(&self, clip: Option<&Clip>, t: f32) -> Vec<Mat4> {
+        let mut local: Vec<(Vec3, Quat, Vec3)> = self.nodes.iter().map(|n| (n.t, n.r, n.s)).collect();
+        if let Some(c) = clip {
+            let t = if c.duration > 0.0 { t.rem_euclid(c.duration) } else { 0.0 };
+            for tr in &c.tracks {
+                let v = sample(tr, t);
+                let l = &mut local[tr.node];
+                match tr.path {
+                    Path::Translation => l.0 = Vec3::new(v[0], v[1], v[2]),
+                    Path::Rotation => l.1 = Quat::from_xyzw(v[0], v[1], v[2], v[3]).normalize(),
+                    Path::Scale => l.2 = Vec3::new(v[0], v[1], v[2]),
+                }
+            }
+        }
+        let mut world = vec![Mat4::IDENTITY; self.nodes.len()];
+        for &i in &self.order {
+            let (t, r, s) = local[i];
+            let m = Mat4::from_scale_rotation_translation(s, r, t);
+            world[i] = match self.nodes[i].parent {
+                Some(p) => world[p] * m,
+                None => m,
+            };
+        }
+        if let (Some(_), Some(root)) = (clip, self.root_joint()) {
+            let rest = self.pose(None, 0.0)[root].w_axis.truncate();
+            let now = world[root].w_axis.truncate();
+            let shift = Mat4::from_translation(Vec3::new(rest.x - now.x, 0.0, rest.z - now.z));
+            for w in &mut world {
+                *w = shift * *w;
+            }
+        }
+        world
+    }
+
+    /// The deformed mesh for node transforms `world` (from [`Model::pose`]): positions and
+    /// normals per vertex, in the model's space.
+    pub fn skin(&self, world: &[Mat4], out: &mut Vec<(Vec3, Vec3)>) {
+        let mats: Vec<Mat4> = self.joints.iter().zip(&self.inverse_bind).map(|(&j, ib)| world[j] * *ib).collect();
+        out.clear();
+        out.extend(self.vertices.iter().map(|v| {
+            let mut m = Mat4::ZERO;
+            for k in 0..4 {
+                if v.weights[k] > 0.0 {
+                    if let Some(j) = mats.get(v.joints[k] as usize) {
+                        m += *j * v.weights[k];
+                    }
+                }
+            }
+            (m.transform_point3(v.pos), m.transform_vector3(v.normal).normalize_or_zero())
+        }));
+    }
+
+    /// The direction a clip's body faces on average, as a turn about the up axis (radians, 0 =
+    /// facing +Z, the glTF front): square to the line through the hips and the shoulders. None
+    /// without such bones. Turning by its negative makes the clip face the front.
+    pub fn facing_of(&self, clip: Option<&Clip>) -> Option<f32> {
+        let bones = ["leftupleg", "rightupleg", "leftarm", "rightarm"].map(|b| self.node(b));
+        let [Some(lu), Some(ru), Some(la), Some(ra)] = bones else { return None };
+        let n = if clip.is_some() { 16 } else { 1 };
+        let mut acc = Vec3::ZERO;
+        for k in 0..n {
+            let t = clip.map_or(0.0, |c| c.duration * k as f32 / n as f32);
+            let w = self.pose(clip, t);
+            let p = |i: usize| w[i].w_axis.truncate();
+            let lateral = (p(lu) - p(ru)) + (p(la) - p(ra));
+            acc += lateral.cross(Vec3::Y).normalize_or_zero();
+        }
+        (acc.length() > 1e-4).then(|| acc.x.atan2(acc.z))
+    }
+
+    /// The rest pose's height (model units) and the lowest point: for framing.
+    pub fn bounds(&self) -> (Vec3, Vec3) {
+        let world = self.pose(None, 0.0);
+        let mut out = Vec::new();
+        self.skin(&world, &mut out);
+        out.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)))
+    }
+}
+
+fn read_nodes(doc: &gltf::Document) -> Vec<Node> {
+    let mut nodes: Vec<Node> = doc
+        .nodes()
+        .map(|n| {
+            let (t, r, s) = n.transform().decomposed();
+            Node { name: n.name().unwrap_or("").to_string(), parent: None, t: t.into(), r: Quat::from_array(r), s: s.into() }
+        })
+        .collect();
+    for n in doc.nodes() {
+        for c in n.children() {
+            nodes[c.index()].parent = Some(n.index());
+        }
+    }
+    nodes
+}
+
+fn topo_order(nodes: &[Node]) -> Vec<usize> {
+    let mut order = Vec::with_capacity(nodes.len());
+    let mut done = vec![false; nodes.len()];
+    fn visit(i: usize, nodes: &[Node], done: &mut [bool], order: &mut Vec<usize>, depth: usize) {
+        if done[i] || depth > nodes.len() {
+            return;
+        }
+        if let Some(p) = nodes[i].parent {
+            visit(p, nodes, done, order, depth + 1);
+        }
+        if !done[i] {
+            done[i] = true;
+            order.push(i);
+        }
+    }
+    for i in 0..nodes.len() {
+        visit(i, nodes, &mut done, &mut order, 0);
+    }
+    order
+}
+
+/// The clips of a document; `map` turns its node indices into the model's (None: skipped).
+fn read_clips(doc: &gltf::Document, blob: Option<&[u8]>, map: &dyn Fn(usize) -> Option<usize>) -> Vec<Clip> {
+    let buf = |b: gltf::Buffer| match b.source() {
+        gltf::buffer::Source::Bin => blob,
+        gltf::buffer::Source::Uri(_) => None,
+    };
+    let mut clips = Vec::new();
+    for (k, a) in doc.animations().enumerate() {
+        let mut tracks = Vec::new();
+        let mut duration: f32 = 0.0;
+        for ch in a.channels() {
+            let Some(node) = map(ch.target().node().index()) else { continue };
+            let r = ch.reader(buf);
+            let Some(times) = r.read_inputs().map(|i| i.collect::<Vec<f32>>()) else { continue };
+            use gltf::animation::util::ReadOutputs;
+            let (path, mut values): (Path, Vec<[f32; 4]>) = match r.read_outputs() {
+                Some(ReadOutputs::Translations(v)) => (Path::Translation, v.map(|p| [p[0], p[1], p[2], 0.0]).collect()),
+                Some(ReadOutputs::Rotations(v)) => (Path::Rotation, v.into_f32().collect()),
+                Some(ReadOutputs::Scales(v)) => (Path::Scale, v.map(|p| [p[0], p[1], p[2], 0.0]).collect()),
+                _ => continue,
+            };
+            let interp = ch.sampler().interpolation();
+            if interp == gltf::animation::Interpolation::CubicSpline {
+                // In-tangent, value, out-tangent per key: keep the values.
+                values = values.chunks(3).filter_map(|c| c.get(1).copied()).collect();
+            }
+            if times.is_empty() || values.len() < times.len() {
+                continue;
+            }
+            duration = duration.max(*times.last().unwrap());
+            tracks.push(Track { node, path, step: interp == gltf::animation::Interpolation::Step, times, values });
+        }
+        if !tracks.is_empty() {
+            clips.push(Clip { name: a.name().map_or_else(|| format!("clip{k}"), str::to_string), duration, tracks });
+        }
+    }
+    clips
+}
+
+/// A track's value at `t`.
+fn sample(tr: &Track, t: f32) -> [f32; 4] {
+    let n = tr.times.len();
+    let i = tr.times.partition_point(|&x| x <= t);
+    if i == 0 {
+        return tr.values[0];
+    }
+    if i >= n || tr.step {
+        return tr.values[(i - 1).min(n - 1)];
+    }
+    let (t0, t1) = (tr.times[i - 1], tr.times[i]);
+    let f = if t1 > t0 { (t - t0) / (t1 - t0) } else { 0.0 };
+    let (a, b) = (tr.values[i - 1], tr.values[i]);
+    match tr.path {
+        Path::Rotation => {
+            let q = Quat::from_array(a).slerp(Quat::from_array(b), f);
+            q.to_array()
+        }
+        _ => [0, 1, 2, 3].map(|k| a[k] + (b[k] - a[k]) * f),
+    }
+}
+
+/// A texture image of the file (PNG or JPEG), downsized to [`TEXTURE_MAX`].
+fn read_image(img: &gltf::Image, blob: Option<&[u8]>) -> Result<Image> {
+    let gltf::image::Source::View { view, mime_type } = img.source() else { bail!("textures in separate files aren't supported") };
+    let data = blob.ok_or_else(|| anyhow!("no binary chunk"))?;
+    let bytes = data.get(view.offset()..view.offset() + view.length()).ok_or_else(|| anyhow!("texture outside the file"))?;
+    let format = if mime_type.contains("jpeg") || mime_type.contains("jpg") { macroquad::prelude::ImageFormat::Jpeg } else { macroquad::prelude::ImageFormat::Png };
+    let im = Image::from_file_with_format(bytes, Some(format)).map_err(|e| anyhow!("texture: {e}"))?;
+    Ok(downsize(&im, TEXTURE_MAX))
+}
+
+/// Box-filters an image down so its longer side is at most `max`.
+pub fn downsize(im: &Image, max: u16) -> Image {
+    let (w, h) = (im.width, im.height);
+    let k = (w.max(h) as f32 / max as f32).ceil().max(1.0) as u16;
+    if k <= 1 {
+        return im.clone();
+    }
+    let (nw, nh) = (w / k, h / k);
+    let mut out = Image::gen_image_color(nw, nh, macroquad::color::BLANK);
+    for y in 0..nh {
+        for x in 0..nw {
+            let mut acc = [0u32; 4];
+            for dy in 0..k {
+                for dx in 0..k {
+                    let i = (((y * k + dy) as usize) * w as usize + (x * k + dx) as usize) * 4;
+                    for (c, a) in acc.iter_mut().enumerate() {
+                        *a += im.bytes[i + c] as u32;
+                    }
+                }
+            }
+            let o = ((y as usize) * nw as usize + x as usize) * 4;
+            let n = (k as u32) * (k as u32);
+            for (c, a) in acc.iter().enumerate() {
+                out.bytes[o + c] = (a / n) as u8;
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture() -> Vec<u8> {
+        std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/model_two_bones.glb")).unwrap()
+    }
+
+    #[test]
+    fn a_two_bone_model_loads_poses_and_skins() {
+        let m = Model::load(&fixture()).unwrap();
+        assert_eq!((m.vertices.len(), m.indices.len(), m.joints.len()), (3, 3, 2));
+        assert_eq!(m.clips.len(), 1);
+        let c = m.clip("bend").unwrap();
+        assert!((c.duration - 1.0).abs() < 1e-6);
+        // Rest pose: the tip vertex (bound to the upper bone) stays at (0, 2, 0).
+        let mut out = Vec::new();
+        m.skin(&m.pose(None, 0.0), &mut out);
+        assert!((out[2].0 - Vec3::new(0.0, 2.0, 0.0)).length() < 1e-4, "{:?}", out[2]);
+        // Halfway the upper bone has turned 45 degrees about Z (linear keys 0 -> 90 degrees);
+        // the root moved 1 along X, which is removed (walking stays in place).
+        m.skin(&m.pose(Some(c), 0.5), &mut out);
+        let s = std::f32::consts::FRAC_1_SQRT_2;
+        assert!((out[2].0 - Vec3::new(-s, 1.0 + s, 0.0)).length() < 1e-3, "{:?}", out[2]);
+        // The lower vertices follow the root bone only.
+        assert!((out[0].0 - Vec3::new(-0.5, 0.0, 0.0)).length() < 1e-4, "{:?}", out[0]);
+        // Looping.
+        m.skin(&m.pose(Some(c), 1.5), &mut out);
+        assert!((out[2].0 - Vec3::new(-s, 1.0 + s, 0.0)).length() < 1e-3);
+        assert_eq!(m.node("upper"), Some(2));
+        assert!(m.texture.is_none());
+    }
+
+    #[test]
+    fn clips_come_from_other_files_and_textures_downsize() {
+        let mut m = Model::load(&fixture()).unwrap();
+        // The same file again: its clip replaces the one of the same name.
+        assert_eq!(m.add_clips(&fixture()).unwrap(), 1);
+        assert_eq!(m.clips.len(), 1);
+        let im = Image::gen_image_color(512, 300, macroquad::color::Color::from_rgba(255, 0, 0, 255));
+        let d = downsize(&im, 256);
+        assert_eq!((d.width, d.height), (256, 150));
+        assert_eq!(&d.bytes[..4], &[255, 0, 0, 255]);
+        assert!(Model::load(b"not a model").is_err());
+    }
+}

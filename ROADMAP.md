@@ -529,7 +529,7 @@ Instructions for every session (people and coding agents) that implements roadma
   **Verify.** A Meshy animal (unrigged) fitted to the four-legged template, walking and attacking
   in the game; unit tests for fitting and skinning.
 
-- [ ] Generate 3D characters and gear with Meshy — `feature/3d-meshy`
+- [x] Generate 3D characters and gear with Meshy — `feature/3d-meshy`
 
   **Goal.** *Generate art* makes whole animated characters and gear models.
 
@@ -552,6 +552,17 @@ Instructions for every session (people and coding agents) that implements roadma
 
   **Verify.** `RUSTPG2D_MESHY_FAKE` with stored GLB results; real runs only with the user's
   confirmation.
+
+  **Done.** In the Art window's second row (*3D character*, *3D creature*, *Item 3D model*) and
+  `generate_art` kinds `model`, `creature`, `gear`. A person: a turnaround picture (or *From
+  figure*: a figure's standing frames), multi-image to 3D at 6k triangles in an A-pose, rigging, one
+  animations request (walk, idle, the attack, hit, sitting; sleeping and work clips can be added
+  later as extra clip files): about 50 credits. Redoing a step redoes the steps after it. The
+  model's turning preview stays in *Database › 3D models* after adding (the job shows its
+  pictures). Tested with stored results, then one real run (83 credits): a town guard (turnaround,
+  model at 6k triangles, rig, five clips all mapped by name, about 3.5 minutes) and the iron sword
+  from its icon, played together in the game. The turnaround prompt now also forbids sheaths (Meshy
+  hung a scabbard on the belt).
 
 - [ ] The cast in 3D — `feature/3d-cast`
 

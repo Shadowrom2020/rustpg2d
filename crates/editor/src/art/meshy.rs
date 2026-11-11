@@ -103,3 +103,43 @@ pub fn download(url: &str) -> Result<Vec<u8>> {
 pub fn data_uri(png: &[u8]) -> String {
     format!("data:image/png;base64,{}", rustpg2d_engine::hash::base64(png))
 }
+
+/// Starts a 3D task (`path`: "multi-image-to-3d", "image-to-3d", "rigging" or "animations") with
+/// its JSON body; returns its id.
+pub fn start3d(key: &str, path: &str, body: &Value) -> Result<String> {
+    let v = answer(agent().post(format!("{BASE}/openapi/v1/{path}")).header("Authorization", format!("Bearer {key}")).send_json(body), "starting a 3D task")?;
+    v.get("result").and_then(Value::as_str).map(str::to_string).ok_or_else(|| anyhow!("starting a 3D task: no task id in the answer"))
+}
+
+/// A 3D task's state and the files it made (name, address): `model.glb` (a model), `rig.glb` (the
+/// rigged model), `clips.glb` (animations).
+#[derive(Clone, Debug, Default)]
+pub struct Task3d {
+    pub status: String,
+    pub progress: u32,
+    pub credits: u32,
+    pub error: String,
+    pub files: Vec<(&'static str, String)>,
+}
+
+pub fn task3d(key: &str, path: &str, id: &str) -> Result<Task3d> {
+    let v = answer(agent().get(format!("{BASE}/openapi/v1/{path}/{id}")).header("Authorization", format!("Bearer {key}")).call(), "checking a 3D task")?;
+    let s = |v: Option<&Value>| v.and_then(Value::as_str).map(str::to_string);
+    let mut files = Vec::new();
+    if let Some(u) = s(v.get("model_urls").and_then(|m| m.get("glb"))) {
+        files.push(("model.glb", u));
+    }
+    if let Some(u) = s(v.get("result").and_then(|r| r.get("rigged_character_glb_url"))) {
+        files.push(("rig.glb", u));
+    }
+    if let Some(u) = s(v.get("result").and_then(|r| r.get("animation_glb_url"))) {
+        files.push(("clips.glb", u));
+    }
+    Ok(Task3d {
+        status: v.get("status").and_then(Value::as_str).unwrap_or("PENDING").to_string(),
+        progress: v.get("progress").and_then(Value::as_u64).unwrap_or(0) as u32,
+        credits: v.get("consumed_credits").and_then(Value::as_u64).unwrap_or(0) as u32,
+        error: v.get("task_error").and_then(|e| e.get("message")).and_then(Value::as_str).unwrap_or_default().to_string(),
+        files,
+    })
+}

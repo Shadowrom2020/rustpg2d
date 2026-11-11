@@ -166,18 +166,25 @@ pub(crate) fn config_dir() -> Option<PathBuf> {
     Some(dir)
 }
 
-/// The editor's own settings (`<config dir>/editor.ron`): the AI agent server's choices.
+/// The editor's own settings (`<config dir>/editor.ron`): the AI agent server's choices and the
+/// Meshy art settings (the API key is kept apart, in `meshy.key`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct EditorSettings {
     /// Start the agent server when the editor starts.
     pub mcp_autostart: bool,
     pub mcp_port: u16,
+    /// Meshy model for Generate art.
+    pub meshy_model: String,
+    /// Credits a session may spend on art.
+    pub meshy_budget: u32,
+    /// The Art window asks before each spend.
+    pub meshy_ask: bool,
 }
 
 impl Default for EditorSettings {
     fn default() -> Self {
-        EditorSettings { mcp_autostart: false, mcp_port: crate::mcp::DEFAULT_PORT }
+        EditorSettings { mcp_autostart: false, mcp_port: crate::mcp::DEFAULT_PORT, meshy_model: "nano-banana-2-lite".into(), meshy_budget: 60, meshy_ask: true }
     }
 }
 

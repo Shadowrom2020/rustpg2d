@@ -79,6 +79,46 @@ pub struct TilesetParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GenerateArtParams {
+    /// "character", "icon", "prop", "portrait" or "image".
+    pub kind: String,
+    /// Id the asset will get (letters, digits, _).
+    pub id: String,
+    /// What it looks like: build, colours, clothes, what it holds (characters), the object (icons, props).
+    pub description: String,
+    /// Characters: "person", "small", "big", "huge", "animal", "beast" or "flying" (default person).
+    pub size: Option<String>,
+    /// Characters: "none", "slash", "chop", "thrust", "bow", "club", "cast" or "bite" (default none).
+    pub attack: Option<String>,
+    /// Props: width and height in tiles (1-4, default 1 x 1).
+    pub tiles: Option<[u32; 2]>,
+    /// Must equal the cost in credits that art_settings / a refused call names: the creator's money.
+    pub confirm_credits: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtJobParams {
+    /// The job number (art_jobs lists them).
+    pub job: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtApplyParams {
+    pub job: u32,
+    /// Id of the new asset (default: the job's id).
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtRedoParams {
+    pub job: u32,
+    /// "walk", "attack" or "picture".
+    pub picture: String,
+    /// Must equal the cost of one picture.
+    pub confirm_credits: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ViewImageParams {
     /// "tileset" or "sheet".
     pub kind: String,
@@ -576,6 +616,12 @@ plain(ed) {
     /// The project's script files with the functions each defines.
     #[tool(annotations(read_only_hint = true))]
     list_scripts: ListScripts => ed.mcp_list_scripts();
+    /// Generate art with the creator's Meshy account: whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, the sizes and attacks for characters.
+    #[tool(annotations(read_only_hint = true))]
+    art_settings: ArtSettings => ed.mcp_art_settings();
+    /// Every art job of this session: pictures and their progress, credits spent, finished or failed, added as which asset.
+    #[tool(annotations(read_only_hint = true))]
+    art_jobs: ArtJobs => ed.mcp_art_jobs();
 }
 with_params {
     /// Undoes the last edit(s) of the open map (yours or the person's). The map is then unsaved: call save.
@@ -599,6 +645,18 @@ with_params {
     /// The image of a tileset or sprite sheet (PNG), with cell borders and indices drawn in by default.
     #[tool(annotations(read_only_hint = true))]
     view_image: ViewImage(p: ViewImageParams) => ed.mcp_view_image(p);
+    /// Starts drawing art with Meshy (characters in the project's style: a walk grid, plus an attack grid; icons, props, portraits, painted images): returns the job number at once. Costs credits: call without confirm_credits first to learn the price, ask the person, then call with confirm_credits = that price. Watch it with art_jobs, look at it with art_result, add it with art_apply.
+    #[tool]
+    generate_art: GenerateArt(p: GenerateArtParams) => ed.mcp_generate_art(p);
+    /// A finished art job's result as an image (characters: the 16-row sheet; walk / idle / attack / hurt rows) to judge before adding it; the raw Meshy pictures too.
+    #[tool(annotations(read_only_hint = true))]
+    art_result: ArtResult(p: ArtJobParams) => ed.mcp_art_result(p);
+    /// Adds a finished art job to the project: the image and its sprite sheet, and a character / item / prop using it (if none has that id). Saves.
+    #[tool]
+    art_apply: ArtApply(p: ArtApplyParams) => ed.mcp_art_apply(p);
+    /// Draws one picture of a finished job again (a bad frame, the wrong look) and converts it again; costs one picture (confirm_credits).
+    #[tool]
+    art_redo: ArtRedo(p: ArtRedoParams) => ed.mcp_art_redo(p);
     /// A rendered picture (PNG) of a map region as the editor draws it, optionally with grid, collision overlay and zones.
     #[tool(annotations(read_only_hint = true))]
     screenshot_map: ScreenshotMap(p: ScreenshotParams) => ed.mcp_screenshot_map(p).map(Reply::Shot);

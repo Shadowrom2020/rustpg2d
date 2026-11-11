@@ -5,6 +5,19 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Editor
+- **Generate art** (*Assets › Generate art…*) with your own Meshy account (API key, model, a
+  credit budget per session and *Ask before spending* in the new *Edit › Settings…*): characters
+  in the project's style (a walk grid with your complete figures as references, then an attack;
+  converted into a complete-figure sheet with walk, idle, attack and hurt rows), item icons in the
+  style of your icons, props, portraits and painted images. The cost is shown first; results are
+  previewed, single pictures can be redrawn, *Add to project* writes the image, its sheet and a
+  character / item / prop. Agents get `art_settings`, `generate_art` (the price must be confirmed),
+  `art_jobs`, `art_result`, `art_apply`, `art_redo`. The key stays in `meshy.key` next to the
+  editor settings, never in projects or agent replies. Editor script `artwindow`, `settingswindow`,
+  `artgen`, `artjobs`, `artapply`, `artredo`, `artbalance`; `status` prints `art=`;
+  `RUSTPG2D_MESHY_FAKE` replaces Meshy by stored pictures for tests.
+
 ### Art
 - **Elves, dwarves, orcs and trolls**: ten new characters drawn with Meshy in the 2x style (elf,
   dwarf and orc men and women, a troll, the orc chief, a dwarf trader, an elven herbalist), with

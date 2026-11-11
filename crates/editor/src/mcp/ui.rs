@@ -99,7 +99,7 @@ impl Editor {
             self.set_status("AI agent server stopped");
         }
         if save_settings {
-            crate::files::save_settings(&crate::files::EditorSettings { mcp_autostart: self.mcp.autostart, mcp_port: self.mcp.port });
+            crate::files::save_settings(&crate::files::EditorSettings { mcp_autostart: self.mcp.autostart, mcp_port: self.mcp.port, ..crate::files::load_settings() });
         }
         self.mcp.window_open = open;
     }

@@ -27,6 +27,8 @@ axum = { version = "0.8", default-features = false, features = ["http1", "tokio"
 serde.workspace = true
 serde_json = "1"
 schemars = "1"
+# Assets › Generate art… (art/): the Meshy API over HTTPS (rustls: no system TLS library to ship).
+ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
 
 [dev-dependencies]
 # examples/mcp_smoke.rs: an MCP client driving the editor's agent server.

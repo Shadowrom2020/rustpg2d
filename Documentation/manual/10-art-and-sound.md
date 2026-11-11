@@ -79,6 +79,38 @@ In the forms, **+ New blank icon** (items) and **+ New blank frame for this stat
 empty frame on the sheet, or add a row when it's full, and open it for drawing. Characters have
 **+ New sheet**: a blank 4 × 4 walking sheet or a copy of another character's.
 
+## Generate art with Meshy
+
+*Assets › Generate art…* draws new art with your own [Meshy](https://www.meshy.ai) account. Enter
+your API key once in *Edit › Settings… › Meshy* (it is kept for your user only, apart from
+projects, and never shown to AI agents); *Test key* shows your credits. The settings also pick
+the model (the cheapest, *Nano Banana 2 Lite*, costs 3 credits a picture), a **budget per
+session** (Generate art stops when the session has spent it) and *Ask before spending*.
+
+In the window, choose what to draw, give it an id and describe it:
+
+- **Character**: a size (person, small person, big, huge, small animal, large animal, flying
+  creature) and an attack (none, sword slash, overhead blow, spear thrust, bow shot, club smash,
+  spell cast, pounce). It is drawn in your project's style: Meshy gets the walk cycles of two of
+  your complete figures (the player character's and a playable one; else the starter library's
+  hero) as references, draws the character's walk in all four directions, then, with that as the
+  character's reference, its attack. The editor turns the pictures into a complete-figure sheet
+  with walk, idle (breathing), attack and hurt rows. 1 picture, 2 with an attack.
+- **Item icon**: 32 × 32, in the style of your *items* sheet's icons.
+- **Prop**: 1 to 4 tiles wide and high, standing on its bottom edge.
+- **Portrait**: head and shoulders for dialogs, 128 × 128 at 2×.
+- **Painted image**: a picture for *Show image* (up to 1024 pixels).
+
+*Draw* shows the cost first; the job's pictures then take about a minute each. The result is
+previewed (characters walk, idle, attack and flinch); **Redo walk** / **Redo attack** / **Redo
+picture** draws one picture again if Meshy got something wrong (a missing staff, a wrong colour),
+and **Add to project** writes the image and its sprite sheet, plus a character (characters), an
+item (icons) or a prop (props) with that id when there is none yet. The status bar tells when a
+job is ready and what it cost. Agents can do all of this from a chat ([AI agents](13-ai-agents.md#drawing-art)).
+
+The scripts the example's art was made with are in `scripts/art/meshy/` (for batches of
+characters).
+
 ## Importing
 
 *File › Import…* brings existing art in without redrawing it. A report says what was imported and

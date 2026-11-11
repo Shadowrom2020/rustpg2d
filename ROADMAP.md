@@ -137,7 +137,7 @@ Instructions for every session (people and coding agents) that implements roadma
   the creator with each race (`status creator=`), stats and skills applied, a dwarf wearing the
   tunic's dwarf cut; shots of all races side by side.
 
-- [ ] Meshy art in the editor — `feature/meshy-art`
+- [x] Meshy art in the editor — `feature/meshy-art`
 
   **Goal.** Creators draw new art from the editor with their own Meshy account: they enter an API
   key in the editor's settings, describe a character (or an item icon, a prop, a portrait) and
@@ -179,9 +179,12 @@ Instructions for every session (people and coding agents) that implements roadma
     images) and applies, asking before it spends. An LLM chat inside the editor would need a
     second AI API and key; it is not part of this item.
 
-  **Engine.** Editor code (needs the go-ahead): settings, the `art/` module (Meshy client, jobs on
-  a background thread, converter), the window, the agent tools; an HTTP client dependency
-  (`ureq` with rustls, or the `reqwest` the MCP client tests already pull in). No engine changes.
+  **Engine.** Editor code (agreed): settings (`EditorSettings` + `meshy.key`), the `art/` module
+  (`meshy.rs` client, `mod.rs` jobs on worker threads, `convert.rs` the converter, `ui.rs` the
+  windows, `agent.rs` the tools), `ureq` 3 with rustls (ring) as the HTTP client. No engine
+  changes. As built: jobs are polled (no SSE stream, no MCP progress notifications: `art_jobs`
+  shows progress); icons use image-to-image with the project's *items* icons as reference
+  (text-to-image without one), props / portraits / images text-to-image.
 
   **Verify.** Unit tests of the converter on stored Meshy grids (no network in CI); with a key: a
   character and an item icon from the Art window and from an MCP client (cost refused without

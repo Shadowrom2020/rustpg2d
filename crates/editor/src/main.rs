@@ -6,6 +6,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod app;
+mod art;
 mod builder;
 mod canvas;
 mod clipboard;
@@ -108,6 +109,7 @@ async fn main() {
     let settings = files::load_settings();
     ed.mcp.port = settings.mcp_port;
     ed.mcp.autostart = settings.mcp_autostart;
+    ed.art_settings = art::ArtSettings { model: settings.meshy_model.clone(), budget: settings.meshy_budget, ask: settings.meshy_ask };
     ed.mcp_autostart();
     egui_macroquad::cfg(|ctx| {
         ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_UNIT * EMQ_WHEEL_DIVISOR);
@@ -568,7 +570,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} art={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -597,6 +599,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.usages.status(),
             ed.problems.status(),
             ed.lib_update.status(),
+            ed.art.status(),
             ed.mode,
             ed.db.tab,
             ed.db.sel,
@@ -989,6 +992,45 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             println!("[libupdate] {}", ed.lib_update.report.clone().or_else(|| ed.lib_update.error.clone()).unwrap_or_default());
         }
         "libupdatecancel" => ed.lib_update.open = false,
+        // Generate art: artwindow / settingswindow open the windows · artgen KIND ID SIZE ATTACK DESCRIPTION… starts a
+        // job (the cost confirmed) · artjobs prints them · artapply JOB [ID] · artredo JOB PICTURE · status prints art=
+        "artwindow" => ed.art.window.open = true,
+        "settingswindow" => ed.art.settings_open = true,
+        "artgen" => {
+            let kind = art::ArtKind::parse(arg(1));
+            match kind {
+                Some(kind) => {
+                    let req = art::ArtRequest { kind, id: arg(2).to_string(), size: arg(3).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), by_agent: false };
+                    match ed.start_art(req) {
+                        Ok(id) => println!("[art] started job {id}"),
+                        Err(e) => println!("[art] refused: {e:#}"),
+                    }
+                }
+                None => println!("[art] unknown kind {:?}", arg(1)),
+            }
+        }
+        // artbalance: Edit › Settings › Meshy › Test key (prints the balance, never the key)
+        "artbalance" => match art::meshy::balance(&art::api_key()) {
+            Ok(b) => println!("[art] balance {b}"),
+            Err(e) => println!("[art] balance failed: {e:#}"),
+        },
+        "artjobs" => {
+            for j in &ed.art.jobs {
+                println!("[art] {}", j.lock().unwrap().line());
+            }
+        }
+        "artapply" => {
+            let job = num(1) as u32;
+            let id = if arg(2).is_empty() { ed.art.job(job).map(|j| j.lock().unwrap().req.id.clone()).unwrap_or_default() } else { arg(2).to_string() };
+            match ed.apply_art(job, &id) {
+                Ok(m) => println!("[art] {m}"),
+                Err(e) => println!("[art] apply refused: {e:#}"),
+            }
+        }
+        "artredo" => match ed.redo_art(num(1) as u32, arg(2)) {
+            Ok(()) => println!("[art] redrawing"),
+            Err(e) => println!("[art] redo refused: {e:#}"),
+        },
         // problems [AREA]: check the project, print the list (opens the Problems window) · problempick K: click entry K
         "problems" => {
             ed.refresh_problems();

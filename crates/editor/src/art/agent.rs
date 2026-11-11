@@ -38,6 +38,7 @@ impl Editor {
             size: p.size.unwrap_or_else(|| "person".into()),
             attack: p.attack.unwrap_or_else(|| "none".into()),
             tiles: (tiles[0], tiles[1]),
+            portrait_for: p.portrait_for.unwrap_or_default(),
             by_agent: true,
         };
         req.check().map_err(|e| format!("{e:#}"))?;

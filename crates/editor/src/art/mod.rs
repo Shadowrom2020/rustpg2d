@@ -102,6 +102,8 @@ pub struct ArtRequest {
     pub attack: String,
     /// Props: size in tiles.
     pub tiles: (u32, u32),
+    /// Portraits: the character whose dialog portrait it becomes ("" = none).
+    pub portrait_for: String,
     /// Started by an AI agent (shown as such).
     pub by_agent: bool,
 }
@@ -548,7 +550,7 @@ mod tests {
     use super::*;
 
     fn req(kind: ArtKind, attack: &str) -> ArtRequest {
-        ArtRequest { kind, id: "orc_shaman".into(), description: "an orc shaman with a staff".into(), size: "big".into(), attack: attack.into(), tiles: (1, 1), by_agent: true }
+        ArtRequest { kind, id: "orc_shaman".into(), description: "an orc shaman with a staff".into(), size: "big".into(), attack: attack.into(), tiles: (1, 1), portrait_for: String::new(), by_agent: true }
     }
 
     #[test]

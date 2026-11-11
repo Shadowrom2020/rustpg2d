@@ -15,10 +15,6 @@
         shop: None,
         appearance: (
             body: "hero",
-            skin: (242, 196, 155),
-            hair: "hair_short",
-            hair_color: (93, 58, 26),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -47,10 +43,6 @@
         shop: None,
         appearance: (
             body: "elder",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (222, 222, 222),
-            beard: "beard_full",
         ),
         equipment: (
             clothing: Some((
@@ -91,10 +83,6 @@
         shop: None,
         appearance: (
             body: "villager",
-            skin: (198, 138, 94),
-            hair: "hair_short",
-            hair_color: (192, 57, 43),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -136,10 +124,6 @@
         shop: None,
         appearance: (
             body: "guard",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (58, 42, 30),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -215,10 +199,6 @@
         ],
         appearance: (
             body: "slime",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -277,10 +257,6 @@
         ],
         appearance: (
             body: "goblin",
-            skin: (124, 179, 66),
-            hair: "hair_short",
-            hair_color: (51, 105, 30),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -352,10 +328,6 @@
         ],
         appearance: (
             body: "goblin_scout",
-            skin: (139, 195, 74),
-            hair: "hair_ponytail",
-            hair_color: (42, 74, 20),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -417,10 +389,6 @@
         ],
         appearance: (
             body: "bandit_chief",
-            skin: (208, 144, 104),
-            hair: "hair_long",
-            hair_color: (30, 22, 18),
-            beard: "beard_full",
         ),
         equipment: (
             clothing: Some((
@@ -476,10 +444,6 @@
         ],
         appearance: (
             body: "outlaw",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (122, 74, 34),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -533,10 +497,6 @@
         )),
         appearance: (
             body: "merchant_f",
-            skin: (232, 184, 138),
-            hair: "hair_long",
-            hair_color: (58, 36, 24),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -601,10 +561,6 @@
         )),
         appearance: (
             body: "baker",
-            skin: (242, 196, 155),
-            hair: "hair_short",
-            hair_color: (122, 74, 34),
-            beard: "beard_full",
         ),
         equipment: (
             clothing: Some((
@@ -680,10 +636,6 @@
         )),
         appearance: (
             body: "innkeeper",
-            skin: (242, 196, 155),
-            hair: "hair_ponytail",
-            hair_color: (208, 90, 36),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -759,10 +711,6 @@
         )),
         appearance: (
             body: "herbalist",
-            skin: (141, 90, 59),
-            hair: "hair_long",
-            hair_color: (42, 30, 20),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -795,10 +743,6 @@
         shop: None,
         appearance: (
             body: "priest",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (122, 122, 122),
-            beard: "beard_goatee",
         ),
         equipment: (
             clothing: Some((
@@ -856,10 +800,6 @@
         )),
         appearance: (
             body: "miller",
-            skin: (208, 144, 104),
-            hair: "hair_short",
-            hair_color: (170, 154, 122),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -928,10 +868,6 @@
         )),
         appearance: (
             body: "fisher",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (189, 189, 196),
-            beard: "beard_full",
         ),
         equipment: (
             clothing: Some((
@@ -964,10 +900,6 @@
         shop: None,
         appearance: (
             body: "town_crier",
-            skin: (242, 196, 155),
-            hair: "hair_short",
-            hair_color: (58, 42, 30),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -1051,10 +983,6 @@
         )),
         appearance: (
             body: "blacksmith",
-            skin: (198, 138, 94),
-            hair: "hair_short",
-            hair_color: (30, 22, 18),
-            beard: "beard_full",
         ),
         equipment: (
             clothing: Some((
@@ -1092,10 +1020,6 @@
         shop: None,
         appearance: (
             body: "farmer",
-            skin: (217, 160, 102),
-            hair: "hair_short",
-            hair_color: (138, 90, 46),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -1184,10 +1108,6 @@
         )),
         appearance: (
             body: "farmer_f",
-            skin: (224, 168, 120),
-            hair: "hair_ponytail",
-            hair_color: (216, 160, 64),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -1218,10 +1138,6 @@
         shop: None,
         appearance: (
             body: "villager_f",
-            skin: (198, 138, 94),
-            hair: "hair_long",
-            hair_color: (192, 57, 43),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -1257,10 +1173,6 @@
         shop: None,
         appearance: (
             body: "guard_f",
-            skin: (216, 160, 112),
-            hair: "hair_ponytail",
-            hair_color: (176, 106, 42),
-            beard: "",
         ),
         equipment: (
             clothing: Some((
@@ -1297,10 +1209,6 @@
         shop: None,
         appearance: (
             body: "child_boy",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1321,10 +1229,6 @@
         shop: None,
         appearance: (
             body: "child_girl",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1359,10 +1263,6 @@
         shop: None,
         appearance: (
             body: "chicken",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1397,10 +1297,6 @@
         shop: None,
         appearance: (
             body: "dog",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1435,10 +1331,6 @@
         shop: None,
         appearance: (
             body: "cat",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1473,10 +1365,6 @@
         shop: None,
         appearance: (
             body: "cat_ginger",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1511,10 +1399,6 @@
         shop: None,
         appearance: (
             body: "sheep",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1549,10 +1433,6 @@
         shop: None,
         appearance: (
             body: "cow",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1594,10 +1474,6 @@
         ],
         appearance: (
             body: "wolf",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1625,10 +1501,6 @@
         shop: None,
         appearance: (
             body: "bat",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1650,10 +1522,6 @@
         shop: None,
         appearance: (
             body: "elf",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1675,10 +1543,6 @@
         shop: None,
         appearance: (
             body: "elf_f",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1698,10 +1562,6 @@
         shop: None,
         appearance: (
             body: "dwarf",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1721,10 +1581,6 @@
         shop: None,
         appearance: (
             body: "dwarf_f",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1766,10 +1622,6 @@
         ],
         appearance: (
             body: "orc",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
         equipment: (
             head: None,
@@ -1820,10 +1672,6 @@
         ],
         appearance: (
             body: "orc_f",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
         equipment: (
             head: None,
@@ -1881,10 +1729,6 @@
         ],
         appearance: (
             body: "orc_chief",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
         equipment: (
             head: None,
@@ -1937,10 +1781,6 @@
         ],
         appearance: (
             body: "troll",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -1997,10 +1837,6 @@
         )),
         appearance: (
             body: "dwarf_merchant",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -2045,10 +1881,6 @@
         )),
         appearance: (
             body: "elf_herbalist",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
     ),
     (
@@ -2093,10 +1925,6 @@
         shop: None,
         appearance: (
             body: "elf",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
         ),
         equipment: (
             head: None,

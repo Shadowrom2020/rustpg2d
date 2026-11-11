@@ -1,14 +1,13 @@
-//! Layered characters: which sheets make up a character (body, clothing, armor, hair, held
-//! items) in drawing order. Used by the game and by the editor's previews.
+//! Character figures: the frame of a character's figure sheet (a complete picture: clothes,
+//! hair and what it carries painted in) and the colours of its colour features. Used by the game
+//! and by the editor's previews.
 //!
-//! Layer order (back to front): held items on the far side → body → clothing → body armor →
-//! hair, beard → head armor → held items on the near side. Every layer uses the character
-//! layout (4 frames per row, rows = facings: down, left, right, up); the body sheet sets the
-//! frame size. A sheet may continue below the walk with more rows of the same kind
-//! ([`ANIM_ROWS`]): idle (2 frames, breathing), attack (4: wind-up, swing, follow-through,
-//! recover) and hurt (1). A layer whose sheet lacks a row shows its standing frame instead.
+//! Figure sheets use the character layout: 4 frames per row, rows = facings (down, left, right,
+//! up); walk, then more rows of the same kind ([`ANIM_ROWS`]): idle (2 frames, breathing), attack
+//! (4: wind-up, swing, follow-through, recover) and hurt (1). A sheet that lacks a row shows its
+//! standing frame instead.
 
-use crate::defs::{Appearance, CharacterDef, Database, EquipSlot};
+use crate::defs::{Appearance, CharacterDef, Database};
 use crate::entity::{EntityInstance, Facing};
 use crate::state::Equipment;
 
@@ -76,15 +75,16 @@ pub fn equipment_of<'a>(def: &'a CharacterDef, inst: Option<&'a EntityInstance>)
     inst.and_then(|e| e.equipment.as_ref()).unwrap_or(&def.equipment)
 }
 
-/// One sheet frame to draw (recolored for bodies / hair).
+/// One sheet frame to draw, with the colours of the sheet's colour features.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Layer {
     pub sheet: String,
     /// The frame of the animation, and the one to show when the sheet has no such row.
     pub frame: u32,
     pub fallback: u32,
-    pub skin: Option<[u8; 3]>,
-    pub hair: Option<[u8; 3]>,
+    /// The chosen colour of each of the sheet's colour features, in feature order (`None` = as
+    /// drawn; empty = nothing recoloured).
+    pub colors: Vec<Option<[u8; 3]>>,
 }
 
 impl Layer {
@@ -98,71 +98,28 @@ impl Layer {
     }
 }
 
-/// Is the item in `slot` on the far side of the body (drawn behind it) when facing `f`? The
-/// weapon is in the right hand, the left-hand slot in the left one.
-pub fn held_behind(slot: EquipSlot, f: Facing) -> bool {
-    match f {
-        Facing::Up => true,
-        Facing::Down => false,
-        Facing::Left => slot == EquipSlot::Weapon,
-        Facing::Right => slot == EquipSlot::Offhand,
+/// The colours an appearance gives its figure's colour features, in feature order (empty when
+/// nothing is recoloured).
+pub fn feature_colors(db: &Database, a: &Appearance) -> Vec<Option<[u8; 3]>> {
+    let Some(sheet) = db.sheet(&a.body) else { return Vec::new() };
+    let colors: Vec<Option<[u8; 3]>> = sheet.features.iter().map(|f| a.colors.get(&f.name).copied()).collect();
+    if colors.iter().all(Option::is_none) {
+        Vec::new()
+    } else {
+        colors
     }
 }
 
-/// Overlay sheet an equipped item adds in `slot` ("" = none): outfit / armor overlays (the
-/// female cut on a female body; for a body with a `cut`, `<overlay>_<cut>` / `<overlay>_<cut>_f`
-/// when that sheet exists), the held sprite of weapons and left-hand items.
-fn overlay_of(db: &Database, eq: &Equipment, slot: EquipSlot, female: bool, cut: &str) -> Option<String> {
-    let d = db.item(eq.item(slot)?)?;
-    let s = match slot {
-        EquipSlot::Weapon | EquipSlot::Offhand => d.held.clone(),
-        _ => {
-            let a = d.armor.as_ref().filter(|a| a.slot == slot)?;
-            let cut_sheet = (!cut.is_empty() && !a.overlay.is_empty()).then(|| {
-                let base = format!("{}_{cut}", a.overlay);
-                [if female { Some(format!("{base}_f")) } else { None }, Some(base)].into_iter().flatten().find(|s| db.sheet(s).is_some())
-            });
-            cut_sheet.flatten().unwrap_or_else(|| a.overlay_for(female).to_string())
-        }
-    };
-    (!s.is_empty()).then_some(s)
-}
-
-/// The layers of a character in drawing order. `anim`: what it does (a number = walk frame);
-/// `hide_weapon` while a melee swing shows the weapon instead.
-pub fn layers(db: &Database, a: &Appearance, eq: &Equipment, facing: Facing, anim: impl Into<Anim>, hide_weapon: bool) -> Vec<Layer> {
-    let female = db.female_body(&a.body);
-    let cut = db.sheet(&a.body).map_or("", |s| s.cut.as_str());
-    let (over, fallback) = anim.into().frames(facing);
-    // A complete figure has everything painted in: only the body, not recoloured.
-    if db.complete_body(&a.body) {
-        return vec![Layer { sheet: a.body.clone(), frame: over, fallback, skin: None, hair: None }];
-    }
-    let plain = |sheet: String| Layer { sheet, frame: over, fallback, skin: None, hair: None };
-    let held = |behind: bool| {
-        [EquipSlot::Weapon, EquipSlot::Offhand]
-            .into_iter()
-            .filter(move |s| held_behind(*s, facing) == behind && !(hide_weapon && *s == EquipSlot::Weapon))
-            .filter_map(|s| overlay_of(db, eq, s, female, cut))
-            .map(plain)
-    };
-    let mut out: Vec<Layer> = held(true).collect();
-    out.push(Layer { sheet: a.body.clone(), frame: over, fallback, skin: Some(a.skin), hair: None });
-    out.extend(overlay_of(db, eq, EquipSlot::Clothing, female, cut).map(plain));
-    out.extend(overlay_of(db, eq, EquipSlot::Body, female, cut).map(plain));
-    for s in [&a.hair, &a.beard].into_iter().filter(|s| !s.is_empty()) {
-        out.push(Layer { sheet: s.clone(), frame: over, fallback, skin: None, hair: Some(a.hair_color) });
-    }
-    out.extend(overlay_of(db, eq, EquipSlot::Head, female, cut).map(plain));
-    out.extend(held(false));
-    out
+/// A character's figure frame. `anim`: what it does (a number = walk frame).
+pub fn figure(db: &Database, a: &Appearance, facing: Facing, anim: impl Into<Anim>) -> Layer {
+    let (frame, fallback) = anim.into().frames(facing);
+    Layer { sheet: a.body.clone(), frame, fallback, colors: feature_colors(db, a) }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::defs::{Armor, ItemDef, SheetDef, SheetKind};
-    use crate::inventory::ItemStack;
+    use crate::defs::{ColorFeature, SheetDef, SheetKind};
 
     #[test]
     fn animation_rows_fall_back_to_standing() {
@@ -172,81 +129,32 @@ mod tests {
         assert_eq!(Anim::Attack(2).frames(Facing::Right), ((8 + 2) * 4 + 2, 8));
         assert_eq!(Anim::Hurt.frames(Facing::Down), (12 * 4, 0));
         // A 4-row sheet (16 frames) shows the standing frame; a 16-row sheet the animation.
-        let l = Layer { sheet: "s".into(), frame: 41, fallback: 8, skin: None, hair: None };
+        let l = Layer { sheet: "s".into(), frame: 41, fallback: 8, colors: Vec::new() };
         assert_eq!((l.frame_in(16), l.frame_in(ANIM_ROWS * LAYOUT_FRAMES)), (8, 41));
     }
 
     #[test]
-    fn complete_figures_are_drawn_alone() {
+    fn a_figure_carries_its_feature_colours_in_feature_order() {
         let mut db = Database::default();
-        db.sheets.push(SheetDef { kind: SheetKind::Body, complete: true, ..SheetDef::new("hero", "hero.png", 64, 96) });
-        let mut sword: ItemDef = ron::from_str(r#"(id: "sword", name: "Sword", icon: (sheet: "items", frame: 0), held: "held_sword")"#).unwrap();
-        sword.weapon = Some(crate::defs::Weapon::melee(2, 0.4));
-        db.items.push(sword);
-        let eq = Equipment { weapon: Some(ItemStack::new("sword", 1)), ..Default::default() };
-        let a = Appearance { body: "hero".into(), hair: "hair_short".into(), ..Default::default() };
-        let l = layers(&db, &a, &eq, Facing::Down, 0, false);
-        assert_eq!(l.len(), 1);
-        assert_eq!((l[0].sheet.as_str(), l[0].skin, l[0].hair), ("hero", None, None));
+        let feature = |name: &str| ColorFeature { name: name.into(), shades: vec![[1, 2, 3]], colors: Vec::new() };
+        db.sheets.push(SheetDef { kind: SheetKind::Body, features: vec![feature("skin"), feature("hair")], ..SheetDef::new("hero", "hero.png", 64, 96) });
+        let mut a = Appearance { body: "hero".into(), ..Default::default() };
+        assert!(figure(&db, &a, Facing::Down, 0).colors.is_empty());
+        a.colors.insert("hair".into(), [200, 180, 90]);
+        a.colors.insert("eyes".into(), [0, 0, 255]); // not a feature of this figure: ignored
+        let l = figure(&db, &a, Facing::Left, Anim::Idle(1));
+        assert_eq!(l.sheet, "hero");
+        assert_eq!(l.colors, vec![None, Some([200, 180, 90])]);
+        assert_eq!(l.frame, (4 + 1) * 4 + 1);
     }
 
     #[test]
-    fn hands_by_facing() {
-        // Facing down both hands are in front, facing up both behind; sideways the far hand.
-        assert!(!held_behind(EquipSlot::Weapon, Facing::Down) && !held_behind(EquipSlot::Offhand, Facing::Down));
-        assert!(held_behind(EquipSlot::Weapon, Facing::Up) && held_behind(EquipSlot::Offhand, Facing::Up));
-        assert!(held_behind(EquipSlot::Weapon, Facing::Left) && !held_behind(EquipSlot::Offhand, Facing::Left));
-        assert!(!held_behind(EquipSlot::Weapon, Facing::Right) && held_behind(EquipSlot::Offhand, Facing::Right));
-    }
-
-    #[test]
-    fn bodies_with_a_cut_wear_that_cut_where_one_exists() {
-        let mut db = Database::default();
-        db.sheets.push(SheetDef { kind: SheetKind::Body, cut: "dwarf".into(), ..SheetDef::new("body_dwarf", "d.png", 32, 48) });
-        db.sheets.push(SheetDef { kind: SheetKind::Body, female: true, cut: "dwarf".into(), ..SheetDef::new("body_dwarf_f", "df.png", 32, 48) });
-        for s in ["outfit_tunic", "outfit_tunic_f", "outfit_tunic_dwarf", "outfit_tunic_dwarf_f", "outfit_robe", "outfit_robe_f"] {
-            db.sheets.push(SheetDef::new(s, "x.png", 32, 48));
-        }
-        let item = |id: &str, overlay: &str| {
-            let mut d: ItemDef = ron::from_str(&format!(r#"(id: "{id}", name: "x", icon: (sheet: "items", frame: 0))"#)).unwrap();
-            d.armor = Some(Armor { slot: EquipSlot::Clothing, defense: 0, speed: 0.0, overlay: overlay.into(), overlay_f: format!("{overlay}_f") });
-            d
-        };
-        db.items.extend([item("tunic", "outfit_tunic"), item("robe", "outfit_robe")]);
-        let worn = |body: &str, it: &str| {
-            let eq = Equipment { clothing: Some(ItemStack::new(it, 1)), ..Default::default() };
-            let a = Appearance { body: body.into(), ..Default::default() };
-            layers(&db, &a, &eq, Facing::Down, 1, false).into_iter().map(|l| l.sheet).nth(1).unwrap()
-        };
-        assert_eq!(worn("body_dwarf", "tunic"), "outfit_tunic_dwarf");
-        assert_eq!(worn("body_dwarf_f", "tunic"), "outfit_tunic_dwarf_f");
-        // No dwarf cut of the robe: the standard (female) one.
-        assert_eq!(worn("body_dwarf", "robe"), "outfit_robe");
-        assert_eq!(worn("body_dwarf_f", "robe"), "outfit_robe_f");
-    }
-
-    #[test]
-    fn female_bodies_wear_the_female_cut() {
-        let mut db = Database::default();
-        db.sheets.push(SheetDef { kind: SheetKind::Body, ..SheetDef::new("body_male", "m.png", 32, 48) });
-        db.sheets.push(SheetDef { kind: SheetKind::Body, female: true, ..SheetDef::new("body_female", "f.png", 32, 48) });
-        let mut tunic: ItemDef = ron::from_str(r#"(id: "tunic", name: "Tunic", icon: (sheet: "items", frame: 0))"#).unwrap();
-        tunic.armor = Some(Armor { slot: EquipSlot::Clothing, defense: 0, speed: 0.0, overlay: "outfit_tunic".into(), overlay_f: "outfit_tunic_f".into() });
-        db.items.push(tunic);
-        let eq = Equipment { clothing: Some(ItemStack::new("tunic", 1)), ..Default::default() };
-        let sheets = |body: &str| {
-            let a = Appearance { body: body.into(), hair: "hair_long".into(), ..Default::default() };
-            layers(&db, &a, &eq, Facing::Down, 1, false).into_iter().map(|l| l.sheet).collect::<Vec<_>>()
-        };
-        assert_eq!(sheets("body_male"), ["body_male", "outfit_tunic", "hair_long"]);
-        assert_eq!(sheets("body_female"), ["body_female", "outfit_tunic_f", "hair_long"]);
-        // Old projects: the pre-drawn sheet becomes the body.
-        let mut old = Database::default();
-        old.sheets.push(SheetDef::new("hero", "hero.png", 32, 48));
-        old.characters.push(ron::from_str(r#"(id: "hero", name: "Hero", sheet: "hero")"#).unwrap());
-        old.upgrade_characters();
-        assert_eq!(old.characters[0].appearance.body, "hero");
-        assert!(old.characters[0].sheet.is_empty());
-        assert_eq!(old.sheets[0].kind, SheetKind::Body);
+    fn the_removed_layer_kinds_load_as_sprites() {
+        let s: SheetDef = ron::from_str(r#"(id: "hair_short", image: "h.png", frame_w: 64, frame_h: 96, kind: Hair)"#).unwrap();
+        assert_eq!(s.kind, SheetKind::Sprite);
+        let b: SheetDef = ron::from_str(r#"(id: "hero", image: "h.png", frame_w: 64, frame_h: 96, kind: Body, complete: true, cut: "")"#).unwrap();
+        assert_eq!(b.kind, SheetKind::Body);
+        let a: Appearance = ron::from_str(r#"(body: "body_male", skin: (1, 2, 3), hair: "hair_short", hair_color: (4, 5, 6), beard: "")"#).unwrap();
+        assert_eq!(a, Appearance { body: "body_male".into(), ..Default::default() });
     }
 }

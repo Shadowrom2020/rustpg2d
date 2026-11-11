@@ -92,6 +92,8 @@ pub struct GenerateArtParams {
     pub attack: Option<String>,
     /// Props: width and height in tiles (1-4, default 1 x 1).
     pub tiles: Option<[u32; 2]>,
+    /// Portraits: the character id whose dialog portrait it becomes when applied.
+    pub portrait_for: Option<String>,
     /// Must equal the cost in credits that art_settings / a refused call names: the creator's money.
     pub confirm_credits: Option<u32>,
 }
@@ -126,6 +128,38 @@ pub struct ViewImageParams {
     pub id: String,
     /// Draw cell borders and tile / frame indices over the image (default true).
     pub grid: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct EditFramesParams {
+    /// The sprite sheet's id.
+    pub sheet: String,
+    /// "mirror_rows" (Right rows = mirrored Left rows), "copy_row", "clear_row", "duplicate"
+    /// (a frame into the next column), "nudge" (move a frame's pixels), "replace_color",
+    /// "fill_standing" (empty idle / hurt frames get the standing walk frame).
+    pub op: String,
+    /// mirror_rows: the animation ("walk", "idle", "attack", "hurt"); omitted = all.
+    pub anim: Option<String>,
+    /// duplicate / nudge / replace_color (scope "frame"): the frame (row * columns + column).
+    pub frame: Option<u32>,
+    /// copy_row: the source row; clear_row / replace_color (scope "row"): the row.
+    pub row: Option<u32>,
+    /// copy_row: the target row.
+    pub to_row: Option<u32>,
+    /// nudge: pixels right / down (negative: left / up).
+    pub dx: Option<i32>,
+    pub dy: Option<i32>,
+    /// replace_color: the colour to replace and the new one, [r, g, b].
+    pub from: Option<[u8; 3]>,
+    pub to: Option<[u8; 3]>,
+    /// replace_color: "frame", "row" or "sheet" (default).
+    pub scope: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct SheetColorsParams {
+    /// The sprite sheet's id.
+    pub sheet: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
@@ -645,6 +679,12 @@ with_params {
     /// The image of a tileset or sprite sheet (PNG), with cell borders and indices drawn in by default.
     #[tool(annotations(read_only_hint = true))]
     view_image: ViewImage(p: ViewImageParams) => ed.mcp_view_image(p);
+    /// The exact colours of a sprite sheet's image, most used first, with their pixel counts, the animation rows they appear in (figures) and the colour feature they belong to: pick a part's shades for a figure's colour features (upsert_def sheet `features: [{name, shades, colors}]`).
+    #[tool(annotations(read_only_hint = true))]
+    sheet_colors: SheetColors(p: SheetColorsParams) => ed.mcp_sheet_colors(p);
+    /// Edits the frames of a sprite sheet's image, for animating character figures (4 columns, 16 rows: walk, idle, attack, hurt; facings down, left, right, up): mirror Left rows into Right rows, copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (e.g. split a shade two colour features share), fill empty idle / hurt frames with the standing frame. Writes the PNG and reloads the art; view_image shows the result.
+    #[tool]
+    edit_frames: EditFrames(p: EditFramesParams) => ed.mcp_edit_frames(p);
     /// Starts drawing art with Meshy (characters in the project's style: a walk grid, plus an attack grid; icons, props, portraits, painted images): returns the job number at once. Costs credits: call without confirm_credits first to learn the price, ask the person, then call with confirm_credits = that price. Watch it with art_jobs, look at it with art_result, add it with art_apply.
     #[tool]
     generate_art: GenerateArt(p: GenerateArtParams) => ed.mcp_generate_art(p);

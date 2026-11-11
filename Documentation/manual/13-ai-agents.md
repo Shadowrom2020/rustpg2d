@@ -74,6 +74,8 @@ bats and a chest".
 | `get_object {map, uid}` | An entity or zone as JSON. |
 | `tileset_legend {tileset}` | Columns and tile count (index = row · columns + column), solid tiles, animations, light tiles, terrains. |
 | `view_image {kind, id, grid}` | The PNG of a tileset or sprite sheet, with cell borders drawn in (small images are shown enlarged). |
+| `edit_frames {sheet, op, anim, frame, row, to_row, dx, dy, from, to, scope}` | Frame operations on a sheet's image, for animating figures: `mirror_rows` (Right rows = the mirrored Left rows; of `anim` or all), `copy_row` / `clear_row`, `duplicate` (a frame into the next column), `nudge` (move a frame's pixels), `replace_color` (`from` → `to` in a `frame`, `row` or the whole `sheet`), `fill_standing` (empty idle / hurt frames get the standing frame). Writes the PNG and reloads the art. |
+| `sheet_colors {sheet}` | The exact colours of a sprite sheet's image, most used first, with pixel counts, the animation rows they appear in (figures) and the colour feature they belong to: the shades to put into a figure's colour features (`upsert_def` sheet `features`). |
 | `screenshot_map {map, x, y, w, h, zoom, grid, collision, zones}` | A PNG of the region as the editor draws it. |
 | `screenshot_editor` | A PNG of the whole editor window. |
 
@@ -155,7 +157,7 @@ also shows in the editor's Art window and status bar.
 | Tool | Does |
 |---|---|
 | `art_settings` | Whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, character sizes and attacks, which sheets set the style. |
-| `generate_art {kind, id, description, size, attack, tiles, confirm_credits}` | Starts a job (`character`, `icon`, `prop`, `portrait`, `image`) and returns its number at once; refuses unless `confirm_credits` equals the price, or past the budget. |
+| `generate_art {kind, id, description, size, attack, tiles, portrait_for, confirm_credits}` | Starts a job (`character`, `icon`, `prop`, `portrait`, `image`; `portrait_for`: the character whose dialog portrait it becomes) and returns its number at once; refuses unless `confirm_credits` equals the price, or past the budget. |
 | `art_jobs` | Every job of the session: its pictures and their progress, credits, done or failed, added as which asset. |
 | `art_result {job}` | A finished job as images: the converted art (characters: the 16-row sheet) and Meshy's raw pictures, to judge before adding it. |
 | `art_apply {job, id}` | Adds it to the project: the image, its sprite sheet and a character / item / prop using it. Saves. |

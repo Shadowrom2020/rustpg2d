@@ -112,7 +112,7 @@ pub struct EntityInstance {
     /// Light of this placed entity, instead of its definition's (props: of its current state).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub light: Option<crate::defs::LightSpec>,
-    /// Characters: layered look instead of the definition's.
+    /// Characters: own figure / colours instead of the definition's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub appearance: Option<crate::defs::Appearance>,
     /// Characters: equipment instead of the definition's.
@@ -232,7 +232,7 @@ pub struct ScheduleStop {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Activity {
     pub kind: ActivityKind,
-    /// Item held while doing it (shown if it has a held sprite); "" = none.
+    /// The tool it works with (the fishing line comes from it); "" = none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub tool: String,
 }

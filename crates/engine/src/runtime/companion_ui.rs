@@ -432,7 +432,7 @@ impl Game {
             let (fw, fh) = self.character_frame_size(&e.appearance);
             let s = ((pr.w - 8.0) / fw).min((pr.h - 8.0) / fh);
             let (dw, dh) = (fw * s, fh * s);
-            self.draw_character_in(&e.appearance, &e.equipment, Rect::new(pr.x + (pr.w - dw) / 2.0, pr.bottom() - 4.0 - dh, dw, dh));
+            self.draw_character_in(&e.appearance, Rect::new(pr.x + (pr.w - dw) / 2.0, pr.bottom() - 4.0 - dh, dw, dh));
         }
         let locked = !self.wears_gear(i);
         for (k, r) in l.gear.iter().enumerate() {

@@ -143,12 +143,9 @@ impl Editor {
                 let rel = write_new(&root, "sprites", &id, "png", &sheet.encode()?)?;
                 self.project.db.sheets.push(SheetDef { kind: sheet_kind, female: female && sheet_kind == SheetKind::Body, scale, ..SheetDef::new(&id, &rel, lpc::FRAME, lpc::FRAME) });
                 self.after_import();
-                let mut msg = format!(
-                    "Imported LPC sheet '{id}' as {} ({rel}: the walk cycle, 4 frames per direction, 64×64). Colors stay as drawn (no skin / hair recoloring).",
-                    sheet_kind.label()
-                );
+                let mut msg = format!("Imported LPC sheet '{id}' as {} ({rel}: {} rows of 4 frames, 64×64).", sheet_kind.label(), sheet.h / lpc::FRAME);
                 if sheet_kind == SheetKind::Body {
-                    msg += " Use it in Database › Characters › Look & equipment (Body); LPC hair and clothing of the same size fit on it.";
+                    msg += " Give it to a character in Database › Characters (Figure), and mark its skin, hair or clothing as colour features in Database › Sprite sheets.";
                 }
                 if !note.is_empty() {
                     msg += &format!(" Note: {note}.");
@@ -161,8 +158,20 @@ impl Editor {
                 let dir = path.parent().unwrap_or(Path::new("."));
                 let image = if parsed.image.is_empty() { path.with_extension("png") } else { dir.join(&parsed.image) };
                 let img = Rgba::decode(&std::fs::read(&image).with_context(|| format!("reading the sheet image {}", image.display()))?)?;
-                let (sheet, tags, notes) = aseprite::build(&parsed, &img);
                 let id = unique_id(&base, |c| self.project.db.sheet(c).is_some());
+                // Tags named after the character animations (walk_down, attack_left…): a figure.
+                if let Some((sheet, rows)) = aseprite::character_layout(&parsed, &img) {
+                    let rel = write_new(&root, "sprites", &id, "png", &sheet.encode()?)?;
+                    self.project.db.sheets.push(SheetDef { kind: SheetKind::Body, female, scale, ..SheetDef::new(&id, &rel, parsed.frame_w, parsed.frame_h) });
+                    self.after_import();
+                    return Ok(format!(
+                        "Imported '{id}' as a character figure ({rel}: {}×{} frames; from the tags: {}). Give it to a character in Database › Characters (Figure).",
+                        parsed.frame_w,
+                        parsed.frame_h,
+                        rows.join(", ")
+                    ));
+                }
+                let (sheet, tags, notes) = aseprite::build(&parsed, &img);
                 let rel = write_new(&root, "sprites", &id, "png", &sheet.encode()?)?;
                 let names: Vec<String> = tags.iter().map(|t| t.name.clone()).collect();
                 self.project.db.sheets.push(SheetDef { tags, scale, ..SheetDef::new(&id, &rel, parsed.frame_w, parsed.frame_h) });
@@ -218,18 +227,9 @@ impl Editor {
                     ui.label(if d.kind == ImportKind::Tiled { "Map name" } else { "Sheet id" });
                     ui.add(egui::TextEdit::singleline(&mut d.id).hint_text("from the file name").desired_width(200.0));
                     ui.end_row();
-                    if d.kind == ImportKind::Lpc {
-                        ui.label("Kind");
-                        ui.horizontal(|ui| {
-                            egui::ComboBox::from_id_salt("import_kind").selected_text(d.sheet_kind.label()).show_ui(ui, |ui| {
-                                for k in SheetKind::ALL.into_iter().filter(|k| *k != SheetKind::Sprite) {
-                                    ui.selectable_value(&mut d.sheet_kind, k, k.label());
-                                }
-                            });
-                            if d.sheet_kind == SheetKind::Body {
-                                ui.checkbox(&mut d.female, "female body");
-                            }
-                        });
+                    if d.kind != ImportKind::Tiled {
+                        ui.label("Character");
+                        ui.checkbox(&mut d.female, "a woman (offered to female players when playable)").on_hover_text("LPC sheets and Aseprite sheets with tags named walk_down, idle_left, attack_right, hurt_up… become character figures");
                         ui.end_row();
                     }
                     if d.kind != ImportKind::Tiled {

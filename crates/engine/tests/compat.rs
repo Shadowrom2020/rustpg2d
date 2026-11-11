@@ -21,9 +21,10 @@ fn definitions_of_0_9_0_load() {
     assert!(!db.items.is_empty() && !db.props.is_empty() && !db.characters.is_empty() && !db.tilesets.is_empty() && !db.sheets.is_empty());
     assert!(!db.structures.is_empty() && !db.recipes.is_empty() && !db.skills.is_empty() && !db.spells.is_empty());
     assert!(!db.quests.is_empty() && !db.sounds.is_empty() && !db.achievements.is_empty());
-    // Four characters of that version carried a pre-drawn `sheet`; it became their body.
-    assert!(db.characters.iter().all(|c| c.sheet.is_empty()), "legacy sheets are upgraded on load");
+    // Its layered characters (removed in 0.17) keep their body; hair, outfit and armor sheets load
+    // as plain sprites.
     assert!(db.characters.iter().all(|c| !c.appearance.body.is_empty()), "every character has a body");
+    assert!(db.sheets.iter().any(|s| s.id.starts_with("hair_") && s.kind == rustpg2d_engine::defs::SheetKind::Sprite));
 }
 
 /// Old definitions written by today's writer read back the same (nothing is lost or changed).
@@ -111,7 +112,7 @@ fn definitions_of_0_16_0_load_without_races() {
     assert!(!db.characters.is_empty() && !db.sheets.is_empty());
     assert!(db.races.is_empty());
     assert!(db.characters.iter().all(|c| c.race.is_empty()));
-    assert!(db.sheets.iter().any(|s| s.complete) && db.sheets.iter().all(|s| s.cut.is_empty()));
+    assert!(db.sheets.iter().any(|s| s.kind == rustpg2d_engine::defs::SheetKind::Body) && db.sheets.iter().all(|s| s.features.is_empty()));
     let w = WorldState::from_ron(&std::fs::read_to_string(fixture("saves/save-0.12.0.ron")).unwrap()).unwrap();
     assert!(w.player_race.is_empty());
 }

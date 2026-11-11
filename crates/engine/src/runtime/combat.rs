@@ -804,7 +804,7 @@ impl Game {
             // point up-right, so they are turned by the arc's angle + 45 degrees.
             let icon = self.world.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone());
             let painted = self.player_appearance().is_some_and(|a| self.figure_animates(&a));
-            if let Some(icon) = icon.filter(|_| !painted && !self.weapon_animates(&self.player_equipment_drawn())) {
+            if let Some(icon) = icon.filter(|_| !painted) {
                 let at = center + vec2(a1.cos(), a1.sin()) * (r * 0.5).max(ts * 0.45);
                 self.assets.draw_frame_scaled(&icon.sheet, icon.frame, at, a1 + std::f32::consts::FRAC_PI_4, 1.0, WHITE);
             }
@@ -917,7 +917,7 @@ impl Game {
             let (fw, fh) = self.character_frame_size(&a);
             let scale = ((portrait.w - 4.0) / fw).min((portrait.h - 4.0) / fh);
             let (w, hh) = (fw * scale, fh * scale);
-            self.draw_character_in(&a, &self.world.equipment, Rect::new(portrait.x + (portrait.w - w) / 2.0, portrait.bottom() - 2.0 - hh, w, hh));
+            self.draw_character_in(&a, Rect::new(portrait.x + (portrait.w - w) / 2.0, portrait.bottom() - 2.0 - hh, w, hh));
         }
 
         // Name, defense.

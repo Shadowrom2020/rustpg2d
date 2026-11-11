@@ -117,22 +117,12 @@ pub struct CharacterCreation {
     /// character definition's name.
     #[serde(default)]
     pub default_name: String,
-    /// The body sheets of a male / female player ("" = the player character's own body). The
-    /// player picks skin, hair style, hair color and (men) a beard from the lists below.
+    /// The figure of a male / female player ("" = the player character's own figure). The
+    /// creator offers a colour row for each of the figure's colour features.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub body_male: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub body_female: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub skin_colors: Vec<[u8; 3]>,
-    /// Hair sheets ("" = no hair).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hair_styles: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hair_colors: Vec<[u8; 3]>,
-    /// Beard sheets offered to male players ("" = no beard).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub beards: Vec<String>,
 }
 
 impl CharacterCreation {
@@ -321,7 +311,6 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         ..Default::default()
     };
     db.upgrade_prop_states();
-    db.upgrade_characters();
     db.reindex();
     Ok(db)
 }

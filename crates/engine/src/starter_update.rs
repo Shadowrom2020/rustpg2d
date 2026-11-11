@@ -205,8 +205,10 @@ pub fn plan(lib: &Project, starter: &Bundle, history: &StarterHistory) -> Starte
     }
     let retired: BTreeSet<AssetRef> = history.ids().filter(|a| KINDS.contains(&a.0) && exists(&lib.db, a) && !exists(&starter.db, a)).collect();
     for a in &retired {
-        // (Other retired assets that use it can go with it.)
-        let used_by = dependents(&lib.db, a).into_iter().filter(|d| !retired.contains(d)).map(|(k, id)| format!("{} {id}", k.name())).collect();
+        // (Other retired assets that use it can go with it, and so can assets this update replaces
+        // by a starter version that no longer uses it: the update runs before the deletions.)
+        let replaced = |d: &AssetRef| out.updated.contains(d) && !starter.db.refs_of(d.0, &d.1).iter().any(|r| r == a);
+        let used_by = dependents(&lib.db, a).into_iter().filter(|d| !retired.contains(d) && !replaced(d)).map(|(k, id)| format!("{} {id}", k.name())).collect();
         out.retired.push(Retired { untouched: history.untouched(&lib.db, &lib.root, a), used_by, asset: a.clone() });
     }
     out
@@ -480,6 +482,31 @@ mod tests {
         assert_eq!(lib.db.item("gem").unwrap().name, "Shiny gem");
         assert_eq!(r.replaced.len(), 1);
         assert!(plan(&lib, &v2, &history).is_empty());
+        let _ = std::fs::remove_dir_all(root.parent().unwrap());
+    }
+
+    #[test]
+    fn retired_assets_used_only_by_replaced_versions_can_go() {
+        let a = |k: RefKind, id: &str| (k, id.to_string());
+        // v1's bow shoots relics; v2's bow shoots nothing and the relic is gone.
+        let mut bow = item("bow", "Bow");
+        bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "relic".into() }));
+        let v1 = starter([255, 0, 0, 255], vec![bow.clone(), item("relic", "Relic")], "v1");
+        bow.weapon.as_mut().unwrap().ranged.as_mut().unwrap().ammo.clear();
+        let v2 = starter([255, 0, 0, 255], vec![bow], "v1");
+        let mut history = StarterHistory::default();
+        history.record(&v1);
+        history.record(&v2);
+        let root = std::env::temp_dir().join(format!("rustpg2d_starter_replaced_{}", std::process::id())).join("lib");
+        let _ = std::fs::remove_dir_all(root.parent().unwrap());
+        std::fs::create_dir_all(&root).unwrap();
+        let mut lib = Project { root: root.clone(), config: ProjectConfig::new("Asset library"), db: Database::default() };
+        v1.clone().merge_into(&mut lib.db, &root).unwrap();
+        let p = plan(&lib, &v2, &history);
+        assert_eq!(p.updated, [a(RefKind::Item, "bow")]);
+        assert!(p.retired.iter().all(|r| r.used_by.is_empty()), "the bow that used the relic is replaced: {:?}", p.retired);
+        let r = apply(&mut lib, &v2, &p, &history, &[], &[a(RefKind::Item, "relic")]).unwrap();
+        assert!(r.refused.is_empty() && lib.db.item("relic").is_none());
         let _ = std::fs::remove_dir_all(root.parent().unwrap());
     }
 

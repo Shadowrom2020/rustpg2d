@@ -1,6 +1,7 @@
 //! Content definitions edited in the editor and stored as RON in `defs/`.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::entity::EntityKind;
 use crate::events::{Condition, Trigger};
@@ -164,24 +165,19 @@ pub struct SheetDef {
     /// 32 x 48 place). Positions, hitboxes and tiles stay in world pixels.
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub scale: u32,
-    /// What the sheet is for (offered by the matching pickers: bodies, hair styles, ...).
+    /// What the sheet is for (character figures are offered by the character pickers).
     #[serde(default, skip_serializing_if = "SheetKind::is_sprite")]
     pub kind: SheetKind,
-    /// Bodies: a woman's body, which wears the female cut of outfits (`Armor::overlay_f`).
+    /// Figures: a woman (the creator offers it to female players).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub female: bool,
-    /// Bodies: players may choose it in the character creator (people yes, a slime no).
+    /// Figures: players may choose it in the character creator (people yes, a slime no).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub playable: bool,
-    /// Bodies: a complete figure (clothes, hair and what it holds painted in): nothing is drawn
-    /// over it (no outfit, armor, hair, beard or held items) and it isn't recoloured.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub complete: bool,
-    /// Bodies: the cut outfits and armor need for this body shape ("dwarf", "troll"; "" = the
-    /// standard one): an overlay `X` is drawn as `X_<cut>` (women: `X_<cut>_f`) when that sheet
-    /// exists.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub cut: String,
+    /// Figures: parts that can take other colours (skin, hair, clothing...), by the art's own
+    /// shades (see [`ColorFeature`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<ColorFeature>,
     /// Named frame ranges (animations), e.g. from an Aseprite export: offered by the *Effect* /
     /// *Fly* actions and the `tag` option of `effect()` / `fly()`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -201,7 +197,7 @@ pub struct SheetTag {
 /// tile. The editor's "+ New" value is [`SheetDef::fresh`].
 impl Default for SheetDef {
     fn default() -> Self {
-        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, complete: false, cut: String::new(), tags: Vec::new() }
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, features: Vec::new(), tags: Vec::new() }
     }
 }
 
@@ -214,59 +210,63 @@ impl SheetDef {
     pub fn fresh(id: &str) -> Self {
         Self::new(id, "sprites/new.png", crate::project::TILE_SIZE, crate::project::TILE_SIZE)
     }
-    /// "hair_short" -> "Short", "body_goblin_female" -> "Goblin female": the id without the kind's
-    /// prefix, for pickers.
+    /// "goblin_scout" -> "Goblin scout": the id as a label, for pickers.
     pub fn label(&self) -> String {
-        let prefix = match self.kind {
-            SheetKind::Body => "body_",
-            SheetKind::Hair => "hair_",
-            SheetKind::Beard => "beard_",
-            SheetKind::Outfit => "outfit_",
-            SheetKind::Armor => "ov_",
-            SheetKind::Held => "held_",
-            SheetKind::Sprite | SheetKind::Emotions => "",
-        };
-        let s = self.id.strip_prefix(prefix).unwrap_or(&self.id).replace('_', " ");
+        let s = self.id.replace('_', " ");
+        let mut c = s.chars();
+        c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+    }
+
+    pub fn feature(&self, name: &str) -> Option<&ColorFeature> {
+        self.features.iter().find(|f| f.name == name)
+    }
+}
+
+/// A part of a figure that can take another colour: the art's own `shades` of it (exact colours,
+/// darkest to lightest or in any order) are replaced by the chosen colour, each as much darker or
+/// lighter as it was than the feature's middle shade.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ColorFeature {
+    /// "skin", "hair", "clothing"...: characters and the creator name the feature.
+    pub name: String,
+    pub shades: Vec<[u8; 3]>,
+    /// The colours offered (the character creator's swatches; empty = the editor offers any).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub colors: Vec<[u8; 3]>,
+}
+
+impl ColorFeature {
+    /// "hair_colour" -> "Hair colour": the creator's row label (translatable content).
+    pub fn label(&self) -> String {
+        let s = self.name.replace('_', " ");
         let mut c = s.chars();
         c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
     }
 }
 
-/// Role of a sprite sheet. Layered character models combine sheets in the character layout
-/// (4 walk frames per row, rows = facings): a body, hair / beard, an outfit, armor and held items.
+/// Role of a sprite sheet.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SheetKind {
-    /// Anything else: props, items, effects.
+    /// Anything else: props, items, effects. (Sheets of the layered characters removed in 0.17,
+    /// hair, beards, outfits, armor and held items, load as plain sprites.)
     #[default]
+    #[serde(alias = "Hair", alias = "Beard", alias = "Outfit", alias = "Armor", alias = "Held")]
     Sprite,
-    /// A character's body (people: in underwear, skin pixels in the magenta reference ramp;
-    /// monsters: the whole creature). Any frame size; 4 walk frames per row, rows = facings.
+    /// A character figure, drawn complete (clothes, hair and what it holds painted in), in the
+    /// character layout: 4 columns, 16 rows (walk, idle, attack, hurt; facings down, left, right,
+    /// up). Any frame size.
     Body,
-    /// A hair style; hair pixels use the cyan reference ramp.
-    Hair,
-    Beard,
-    /// Clothing drawn over a body (items in the Clothing slot).
-    Outfit,
-    /// Armor drawn over clothing (head / body armor items).
-    Armor,
-    /// An item held in a hand (weapons, shields, lights).
-    Held,
     /// Emotion icons shown over characters' heads: every tag (named frame range) is an emotion
     /// (`emote(target, "joy")`, the *Show emotion* action).
     Emotions,
 }
 
 impl SheetKind {
-    pub const ALL: [SheetKind; 8] = [SheetKind::Sprite, SheetKind::Body, SheetKind::Hair, SheetKind::Beard, SheetKind::Outfit, SheetKind::Armor, SheetKind::Held, SheetKind::Emotions];
+    pub const ALL: [SheetKind; 3] = [SheetKind::Sprite, SheetKind::Body, SheetKind::Emotions];
     pub fn label(self) -> &'static str {
         match self {
             SheetKind::Sprite => "Sprite",
-            SheetKind::Body => "Character body",
-            SheetKind::Hair => "Hair style",
-            SheetKind::Beard => "Beard",
-            SheetKind::Outfit => "Outfit (clothing)",
-            SheetKind::Armor => "Armor overlay",
-            SheetKind::Held => "Held item",
+            SheetKind::Body => "Character figure",
             SheetKind::Emotions => "Emotions (icons over heads)",
         }
     }
@@ -275,22 +275,14 @@ impl SheetKind {
     }
 }
 
-/// Look of a layered character model: a body sheet with skin and hair colors (sheets of kind
-/// Body / Hair / Beard; "" = none). What it wears comes from its equipment.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Look of a character: its figure (a sheet of kind Body) and the colours chosen for the figure's
+/// colour features (feature name -> colour; a feature not listed keeps the art's colours).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Appearance {
     pub body: String,
-    pub skin: [u8; 3],
-    pub hair: String,
-    pub hair_color: [u8; 3],
-    pub beard: String,
-}
-
-impl Default for Appearance {
-    fn default() -> Self {
-        Appearance { body: String::new(), skin: [232, 184, 138], hair: String::new(), hair_color: [92, 60, 34], beard: String::new() }
-    }
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub colors: BTreeMap<String, [u8; 3]>,
 }
 
 /// A sprite: a block of `w × h` frames (cells) of a sheet, starting at `frame`
@@ -396,7 +388,7 @@ pub enum EquipSlot {
     Weapon,
     /// Left hand: a shield or a light (not while holding a two-handed weapon).
     Offhand,
-    /// An outfit: changes how a layered character looks (armor is worn over it).
+    /// Clothing (its defense and speed; the figure's art shows what it wears).
     Clothing,
     /// A tool used for an activity (a fishing rod, later pickaxes, hoes, …): held in the
     /// right hand while it is being used, the weapon otherwise.
@@ -440,24 +432,6 @@ pub struct Armor {
     /// Movement speed change, e.g. -0.1 = 10% slower.
     #[serde(default)]
     pub speed: f32,
-    /// Sprite sheet drawn over the character (character layout): the outfit of clothing, the
-    /// armor of head / body pieces; "" = none.
-    #[serde(default)]
-    pub overlay: String,
-    /// The female cut: drawn instead of `overlay` on a female body sheet ("" = `overlay`).
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub overlay_f: String,
-}
-
-impl Armor {
-    /// The overlay sheet worn on a female (`female`) or other body ("" = none).
-    pub fn overlay_for(&self, female: bool) -> &str {
-        if female && !self.overlay_f.is_empty() {
-            &self.overlay_f
-        } else {
-            &self.overlay
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -516,10 +490,6 @@ pub struct ItemDef {
     /// Using the item teaches this spell (scrolls, spell books); "" = none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub teaches: String,
-    /// Sheet (character layout) drawn in the character's hand while the item is in the Weapon
-    /// or left-hand slot, or a tool while it is used; "" = not visible.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub held: String,
     /// What kind of tool it is ("fishing rod", "pickaxe", …; "" = no tool): tools go into the
     /// Tool slot and are what activities ask for (a fishing spot needs a fishing rod).
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -553,7 +523,6 @@ impl Default for ItemDef {
             value: 0,
             light: None,
             teaches: String::new(),
-            held: String::new(),
             tool: String::new(),
             use_on: UseTarget::default(),
             crop: None,
@@ -1055,15 +1024,12 @@ impl Behavior {
     }
 }
 
-/// A character: a layered model (`appearance` + `equipment`) with behavior and combat values.
+/// A character: a figure (`appearance`), what it carries (`equipment`, counted in play, not drawn),
+/// behavior and combat values.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CharacterDef {
     pub id: String,
     pub name: String,
-    /// Legacy: the pre-drawn sheet of old projects; becomes the body on load
-    /// (`Database::upgrade_characters`).
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub sheet: String,
     /// Its race (`races::RaceDef`; "" = none): for conditions, scripts and factions.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub race: String,
@@ -1154,7 +1120,6 @@ impl Default for CharacterDef {
         CharacterDef {
             id: String::new(),
             name: String::new(),
-            sheet: String::new(),
             race: String::new(),
             faction: String::new(),
             speed: default_speed(),
@@ -1531,29 +1496,9 @@ impl Database {
         }
     }
 
-    /// Old projects: a character's pre-drawn `sheet` becomes the body of its model (the sheet
-    /// has no reference-ramp pixels, so nothing is recolored).
-    pub fn upgrade_characters(&mut self) {
-        for d in &mut self.characters {
-            if d.appearance.body.is_empty() && !d.sheet.is_empty() {
-                d.appearance.body = std::mem::take(&mut d.sheet);
-                if let Some(s) = self.sheets.iter_mut().find(|s| s.id == d.appearance.body) {
-                    s.kind = SheetKind::Body;
-                }
-            } else {
-                d.sheet.clear();
-            }
-        }
-    }
-
-    /// Is `sheet` a female body?
+    /// Is `sheet` a woman's figure?
     pub fn female_body(&self, sheet: &str) -> bool {
         self.sheet(sheet).is_some_and(|s| s.female)
-    }
-
-    /// The body sheet is a complete figure ([`SheetDef::complete`]).
-    pub fn complete_body(&self, sheet: &str) -> bool {
-        self.sheet(sheet).is_some_and(|s| s.complete)
     }
 
     /// Bodies players may choose for a character of sex `female` (in sheet order).
@@ -2006,7 +1951,7 @@ mod tests {
         let mut item: ItemDef = ron::from_str(r#"(id: "cap", name: "Cap", icon: (sheet: "items", frame: 0))"#).unwrap();
         assert_eq!(item.equip_slot(), None);
         assert_eq!(item.max_stack, crate::inventory::DEFAULT_STACK);
-        item.armor = Some(Armor { slot: EquipSlot::Head, defense: 1, speed: 0.0, overlay: String::new(), overlay_f: String::new() });
+        item.armor = Some(Armor { slot: EquipSlot::Head, defense: 1, speed: 0.0 });
         assert_eq!(item.equip_slot(), Some(EquipSlot::Head));
         item.weapon = Some(Weapon::melee(1, 0.3));
         assert_eq!(item.equip_slot(), Some(EquipSlot::Weapon));

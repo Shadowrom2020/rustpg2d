@@ -1169,8 +1169,8 @@ impl Editor {
         rustpg2d_engine::grid::snap_feet(world, tiles_wide, ts)
     }
 
-    /// Sprite of an entity definition (props / items; characters use their idle frame, layered
-    /// ones a `@char:` marker that `widgets::paint_sprite` paints from their layers).
+    /// Sprite of an entity definition (props / items; characters a `@char:` marker that
+    /// `widgets::paint_sprite` paints from their figure).
     pub fn def_sprite(&self, kind: EntityKind, def: &str) -> Option<rustpg2d_engine::defs::SpriteRef> {
         let db = &self.project.db;
         match kind {
@@ -1180,11 +1180,11 @@ impl Editor {
         }
     }
 
-    /// Layers of a character definition, or of a placed character with its own look / items.
+    /// The figure of a character definition, or of a placed character with its own look.
     pub fn char_layers(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>, facing: rustpg2d_engine::entity::Facing, col: u32) -> Vec<rustpg2d_engine::render::character::Layer> {
         use rustpg2d_engine::render::character;
         let Some(d) = self.project.db.character(def) else { return Vec::new() };
-        character::layers(&self.project.db, character::appearance_of(d, inst), character::equipment_of(d, inst), facing, col, false)
+        vec![character::figure(&self.project.db, character::appearance_of(d, inst), facing, col)]
     }
 
     /// Draws character layers with the bottom-center at `feet` (map view, macroquad).
@@ -1192,7 +1192,7 @@ impl Editor {
         let mut any = false;
         for l in layers {
             let frame = self.assets.sheets.get(&l.sheet).map_or(l.fallback, |s| l.frame_in(s.count));
-            any |= self.assets.draw_frame_colored(&l.sheet, frame, feet, tint, l.skin, l.hair);
+            any |= self.assets.draw_frame_colored(&l.sheet, frame, feet, tint, &l.colors);
         }
         any
     }
@@ -2474,7 +2474,7 @@ impl Editor {
                     let own = e.appearance.is_some() || e.equipment.is_some() || e.inventory.is_some();
                     egui::CollapsingHeader::new(ui::t(ph::USER, "Look & equipment")).default_open(true).show(ui, |ui| {
                         use rustpg2d_engine::render::character;
-                        widgets::character_preview(ui, &self.tex, &self.assets, db, character::appearance_of(d, Some(e)), character::equipment_of(d, Some(e)));
+                        widgets::character_preview(ui, &self.tex, &self.assets, db, character::appearance_of(d, Some(e)));
                         let mut what = Vec::new();
                         if e.appearance.is_some() {
                             what.push("look");
@@ -2491,7 +2491,7 @@ impl Editor {
                             ui.weak("The definition's look, equipment and carried items.");
                         }
                         ui.horizontal(|ui| {
-                            if ui.button(ui::t(ph::USER, "Customize this one…")).on_hover_text("Give just this placed character its own body, colors, hair, clothes, gear and carried items").clicked() {
+                            if ui.button(ui::t(ph::USER, "Customize this one…")).on_hover_text("Give just this placed character its own figure, colours, gear and carried items").clicked() {
                                 customize = Some(e.uid);
                             }
                             if own && ui.button("Use the definition's").on_hover_text("Drop this one's own look, equipment and carried items").clicked() {

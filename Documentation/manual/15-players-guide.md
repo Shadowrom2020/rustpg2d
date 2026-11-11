@@ -96,7 +96,7 @@ place is named under the list (*R2 is also Switch weapon*).
 
 - **Character creator** (after *New game*, when the game has one): type a name, then Up / Down
   choose a row and Left / Right change it: race (each with its own strengths, described under the
-  picture), sex, body and looks. Enter starts the adventure, Esc goes back.
+  picture), sex, body and colours (skin, hair, clothing…). Enter starts the adventure, Esc goes back.
 - **Title screen**: *New game*, *Continue* (the latest save), *Load game*, *Options*, *Achievements*
   (if the game has them), *Exit*.
 - **Pause menu** (Esc): *Resume*, *Save game* (a new named save or overwrite one), *Load game* (every

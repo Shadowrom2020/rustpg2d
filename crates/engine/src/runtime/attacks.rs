@@ -322,8 +322,8 @@ impl Game {
             let Some(a) = e.attack else { continue };
             let center = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0);
             let base = a.dir.y.atan2(a.dir.x);
-            // (A weapon whose held sheet has attack rows swings in the hand instead.)
-            let icon = if self.weapon_animates(&e.equipment) || self.figure_animates(&e.appearance) { None } else { e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone()) };
+            // (A figure with attack rows swings its painted weapon instead.)
+            let icon = if self.figure_animates(&e.appearance) { None } else { e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone()) };
             match (a.kind, a.phase) {
                 (Kind::Strike, Phase::Windup) => {
                     // Where the swing will land, filling up; the weapon raised behind the head.

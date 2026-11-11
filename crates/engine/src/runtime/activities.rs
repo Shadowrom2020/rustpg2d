@@ -78,16 +78,6 @@ impl Game {
         true
     }
 
-    /// The equipment character `i` is drawn with: its activity's tool in the hand.
-    pub(super) fn activity_equipment(&self, i: usize) -> Option<crate::state::Equipment> {
-        let (a, _) = self.current_activity(i)?;
-        let mut eq = self.loaded.entities[i].equipment.clone();
-        if !a.tool.is_empty() {
-            eq.weapon = Some(crate::inventory::ItemStack::new(&a.tool, 1));
-        }
-        Some(eq)
-    }
-
     /// The walk column character `i` is drawn with while working (strokes swing the arms).
     pub(super) fn activity_frame(&self, i: usize) -> Option<u32> {
         let (a, _) = self.current_activity(i)?;

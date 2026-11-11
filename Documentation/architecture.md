@@ -159,9 +159,12 @@ change state directly.
 ### Rendering and assets
 
 `render/mod.rs` draws the tiles in view one `draw_texture_ex` each (sparse chunks skip empty
-areas; macroquad batches draws by texture). Characters are layered (`render/character.rs`): body,
-clothing, armor, hair, beard, held items, each recolored from reference ramps (`recolor.rs`) and
-cached per sheet, skin and hair colour. `render/lighting.rs` renders the lights into a
+areas; macroquad batches draws by texture). Characters are figures (`render/character.rs`: one sheet in
+the 16-row character layout, `figure()` = the frame and fallback). A figure's colour features
+(`SheetDef::features`: the art's shades of a part) are recoloured by `recolor.rs` (each shade by its
+brightness relative to the feature's middle shade, exact colour matches) into a copy of the sheet,
+cached per sheet and colour list (`Assets::colored`; `set_features` refreshes the shades when the
+editor edits them). `render/lighting.rs` renders the lights into a
 half-resolution target (ambient colour, one additive glow per light in view) and multiplies it
 over the scene. `Assets::load` loads every tileset and sheet up front, computing per-tile average
 colours (the world map) and the solid / ladder flags; a missing image becomes a checkerboard.

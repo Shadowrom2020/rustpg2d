@@ -1,5 +1,5 @@
-//! Races (`defs/races.ron`): humans, goblins, elves, dwarves… Each race has its bodies (per
-//! sex), the looks the character creator offers for layered bodies, stat changes and starting
+//! Races (`defs/races.ron`): humans, goblins, elves, dwarves… Each race has its figures (per
+//! sex; the creator offers them with their colour features), stat changes and starting
 //! skill levels for a player of that race, and a size (trolls are bigger: their bodies are drawn
 //! larger and get a larger hitbox). The player picks a playable race in the creator
 //! (`WorldState::player_race`); characters name theirs in `CharacterDef::race` (for conditions,
@@ -41,22 +41,12 @@ pub struct RaceDef {
     /// Offered in the character creator.
     #[serde(default)]
     pub playable: bool,
-    /// Body sheets of men / women of this race (complete figures or layered bodies); the
-    /// creator offers them, and a body listed here gets the race's size.
+    /// Figure sheets of men / women of this race: the creator offers them (with their colour
+    /// features), and a figure listed here gets the race's size.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bodies_male: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bodies_female: Vec<String>,
-    /// Looks the creator offers for layered bodies (empty = the project's *Character creation*
-    /// lists): hair sheets ("" = no hair), beard sheets, skin and hair colours.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hair_styles: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub beards: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub skin_colors: Vec<[u8; 3]>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hair_colors: Vec<[u8; 3]>,
     /// A player of this race: extra max HP (negative: less), speed in percent, defense.
     #[serde(default, skip_serializing_if = "is_zero_i")]
     pub max_hp: i32,
@@ -84,10 +74,6 @@ impl Default for RaceDef {
             playable: false,
             bodies_male: Vec::new(),
             bodies_female: Vec::new(),
-            hair_styles: Vec::new(),
-            beards: Vec::new(),
-            skin_colors: Vec::new(),
-            hair_colors: Vec::new(),
             max_hp: 0,
             speed: 0.0,
             defense: 0,

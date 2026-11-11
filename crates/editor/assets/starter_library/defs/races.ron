@@ -6,11 +6,9 @@
         playable: true,
         bodies_male: [
             "hero",
-            "body_male",
         ],
         bodies_female: [
             "heroine",
-            "body_female",
         ],
         max_hp: 2,
         skills: [
@@ -28,11 +26,9 @@
         playable: false,
         bodies_male: [
             "goblin",
-            "body_goblin",
         ],
         bodies_female: [
             "goblin_scout",
-            "body_goblin_female",
         ],
         max_hp: -2,
         speed: 10.0,

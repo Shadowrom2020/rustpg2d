@@ -5,56 +5,68 @@ in *Database › Characters*, placed on maps with the Entities tool.
 
 ## How characters look
 
-Every character is a **body** dressed in layers:
+Every character is a **figure**: a complete picture of it, with its clothes, hair and what it
+carries painted in, on a sprite sheet of kind *Character figure* ([Art and sound › Character
+figures](10-art-and-sound.md#sizes-and-layouts)). One sheet holds all of its animations: **walk**,
+**idle** (breathing while it stands), **attack** (wind-up, swing, follow-through, recover) and
+**hurt** (when hit), each facing down, left, right and up. The game plays them by itself: standing
+characters breathe, enemies' wind-ups and swings and the player's swing show the attack frames, a
+hit shows the hurt frame. A sheet without some of these rows shows the standing frame instead.
 
-- the **body**: people in underwear (male, female, goblin, female goblin), or a whole creature for
-  monsters and animals (slimes, wolves, skeletons, bats, chickens);
-- **skin colour**, **hair style**, **hair colour** and, for men, a **beard**;
-- **clothing**: an outfit, with a fitted female cut on female bodies;
-- **armor** over it: a helmet, body armor;
-- what's **in their hands**: a weapon, a shield, a lantern or a tool, drawn per facing and walk
-  frame; a melee swing shows the weapon sweeping.
+**Colour features**: parts of a figure that can take other colours, such as its skin, hair or
+clothing (*Database › Sprite sheets › Colour features*). A feature is made of the art's own shades
+of that part. A character that chooses a colour for it gets those shades replaced by the chosen
+colour, each as much darker or lighter as it was, so light and shadow stay. Each feature lists the
+colours it offers: the character creator's swatches. In the example the hero, the heroine, the
+elves, the female dwarf and the villagers have skin, hair and (most) clothing features; the dwarf
+has skin. Two placed villagers wear their own colours.
 
-Everything a character wears is real equipment: it counts in combat, and an enemy drops it when
-defeated.
+**Equipment** is real: a character's weapon, armor and clothing count in combat, and an enemy drops
+them when defeated. They aren't drawn over the figure: its art shows what it carries.
 
-**Complete figures**: a body sheet marked *Complete figure* is a whole character with clothes, hair
-and what it holds painted in. Nothing is drawn over it (no outfit, armor, hair, beard or held
-items) and it isn't recoloured; its equipment still counts, it just isn't shown. The example's
-people, animals and monsters are complete figures (one sheet per character); the layered bodies,
-hair styles and outfits stay in the asset library for characters you assemble yourself.
+## The character editor
 
-**Animations**: besides walking, a character sheet can have rows for **idle** (breathing while it
-stands), **attack** (wind-up, swing, follow-through, recover) and **hurt** (when hit); see [Art and
-sound › Character sheets](10-art-and-sound.md#sizes-and-layouts). The game plays them by itself:
-standing characters breathe, enemies' wind-ups and swings and the player's swing show the attack
-frames, a hit shows the hurt frame. A sheet without these rows (or a layer that lacks them) shows
-its standing frame instead.
+![The character editor](../images/editor-builder.webp)
 
-## The character builder
-
-![The character builder](../images/editor-builder.webp)
-
-*Database › Characters › Look & equipment* assembles a character visually. On the left is a
+*Database › Characters* shows the character editor under the form's first rows. On the left is a
 **preview** that walks, breathes, attacks or flinches (*Walk*, *Idle*, *Attack*, *Hurt*; facing
-buttons, *turn around*, and the four standing directions); on the right rows of clickable **cards**:
+buttons, *turn around*, and the four standing directions); on the right:
 
-- **Body** (sprite sheets of kind *Character body*), **Skin** swatches (presets or any colour),
-  **Hair** style cards, **Hair colour** swatches, **Beard** cards;
-- **Clothing** (items of kind *Clothing*, shown worn), **Armor & hands** (*Head*, *Body armor*,
-  *Weapon*, *Left hand*) and **Carried items**.
+- **Figure**: cards of the project's figures; *Playable* lets players choose it in the creator;
+- **Colours**: for each colour feature of the figure, *As drawn*, the feature's colours and any
+  other colour;
+- **Equipment**: weapon, left hand, head, body armor and clothing (they count in play);
+- **Carried items**.
 
-**Randomize** rolls hair, colours, beard and clothing for the body. **Start from…** copies the look
-and equipment of any character in the project or the asset library (a library character's sheets
-and items are copied into the project first).
-
-**New character…** (in the Characters tab) opens the builder as a window with an id and a name;
-*Create* adds the character, then set its behaviour and combat values in the form.
+**Random colours** picks an offered colour for each feature. **Start from…** copies the figure and
+colours of any character in the project or the asset library (a library character's sheets are
+copied into the project first).
 
 **Placed characters with their own look**: select one on the map; *Look & equipment* in the
-inspector shows what it wears. **Customize this one…** opens the builder for that one character only
+inspector shows it. **Customize this one…** opens the character editor for that one character only
 (*Apply*), and *Use the definition's* drops the changes. A whole village can share one *villager*
-definition while every villager looks different.
+definition while every villager wears other colours.
+
+## New characters
+
+**New character…** (in the Characters tab, or *Assets › New asset… › Character*) asks for an id
+and a name and where the figure comes from:
+
+- **Existing figure**: one of the project's figures (or one added from the asset library), with
+  the character editor to choose its colours and equipment;
+- **Draw a new figure**: a new sheet in the character layout of a size (person, small person, big,
+  huge, small animal, large animal, flying creature), blank or a copy of a figure of the same size
+  to paint over (its colour features come along). *Create* adds the sheet and the character and
+  opens the sheet in the sprite editor to draw;
+- **Import**: an LPC character sheet (its walk, slash and hurt rows become walk, idle, attack and
+  hurt) or an Aseprite export whose tags are named after the animations (`walk_down`,
+  `idle_left`, `attack_right`, `hurt_up`…; see [Art and sound](10-art-and-sound.md)). Then choose
+  the new figure under *Existing figure*;
+- **Generate with AI**: opens [Generate art](10-art-and-sound.md#generate-art-with-meshy) for a
+  character with this id; *Add to project* creates the character with a person's speed and hitbox.
+
+Then mark the figure's colour features (*Database › Sprite sheets*) and set the character's
+behaviour and combat values in the form.
 
 ## The character form
 
@@ -62,7 +74,7 @@ definition while every villager looks different.
 |---|---|
 | **Character** | Name; **Description** (shown in the bestiary once the player has defeated one); speed in pixels per second; hitbox |
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
-| **Look & equipment** | The builder |
+| **Look & equipment** | The character editor: figure, colours, equipment, carried items |
 | **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
 | **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
 | **Experience** | XP the player gets for defeating it |
@@ -250,25 +262,23 @@ its look and equipment are what a new game starts with.
 The **character creator** (*Database › Project › Character creator*, *Show the character creator…*)
 lets players create their hero after *New game*: a **name** (with a default), **Male / Female** (or
 fixed, if the project says *Always male* / *Always female*), a **race** when the project has several
-playable races ([Races](#races)), a **body** among the race's bodies of that sex (without races:
-the bodies of that sex marked *Playable*, e.g. human or goblin), and **skin colour, hair style, hair colour** and, for men, a
-**beard**, from the lists you set (a list left empty has no row). A playable **complete figure** is a
-pre-made hero: the creator names it after the character that wears it and hides the skin, hair
-and beard rows for it. The example offers the hero, the heroine, a goblin and a goblin scout. An animated preview walks through
-all four directions. Name, sex and look are kept in save games. Play-tests skip the creator and use
-the default name.
+playable races ([Races](#races)), a **body** (a figure) among the race's figures of that sex
+(without races: the project's default figure for that sex and the other figures of that sex marked
+*Playable*; the row shows only when there is a choice), and a **colour row for each colour feature**
+of that figure that offers colours (*Skin*, *Hair*, *Clothing*…: *As drawn* or one of the
+feature's colours). The example offers humans (the hero, the heroine), elves and dwarves with
+skin, hair and clothing colours. An animated preview walks through all four directions. Name, sex,
+figure and colours are kept in save games. Play-tests skip the creator and use the default name.
 
 ## Races
 
 Races are definitions of their own (*Database › Races*): humans, goblins, elves, dwarves, orcs and
-trolls in the example and the starter library, each with a male and a female body (trolls one)
-drawn as complete figures. A race has:
+trolls in the example and the starter library, each with a male and a female figure (trolls one).
+A race has:
 
 - a **name** and **description** (the creator shows it under the preview);
-- **bodies** for men and women, complete figures or layered bodies. The creator offers the race's
-  bodies of the chosen sex; without any, the project's *Character creation* bodies;
-- **looks of layered bodies**: hair styles, beards, skin and hair colours the creator offers
-  (empty = the project's lists);
+- **bodies** (figures) for men and women. The creator offers the race's figures of the chosen sex
+  with their colour features; without any, the project's *Character creation* figures;
 - for **a player of this race**: extra **max HP** (negative: fewer), **speed** in percent,
   **defense**, and **starting skills**, skill levels a new game begins with. In the example a
   human starts with Haggling 1 and 2 more HP; a goblin with Scavenging 1, 2 fewer HP and 10 %
@@ -282,14 +292,10 @@ drawn as complete figures. A race has:
   bonuses stay for projects that make them playable).
 
 With more than one playable race, the creator starts with a **Race** row; changing it switches the
-bodies and looks. The player's race is kept in the save game. The player character's own race
+figures and their colour rows. The player's race is kept in the save game. The player character's own race
 (*Race* in its form) is the one a game started without the creator has. Other characters name
 their race in the same field (for scripts and [factions](#factions)). The **Player race** condition
 and `player_race()` tell the player's race.
-
-Outfits and armor fit other body shapes by a **cut**, like the female cut: a body sheet with the
-*Cut* `dwarf` wears `outfit_tunic_dwarf` (women: `outfit_tunic_dwarf_f`) where that sheet exists,
-else the standard one ([Art and sound](10-art-and-sound.md)).
 
 **Addressing the player**: in dialog, choice and quest texts, `{player}` becomes the player's name
 and `{sir|madam}` the first word for a male player and the second for a female one (any pair works:
@@ -333,7 +339,7 @@ herbalist two wolf pelts (*Friend of the Elves*) raises the standing with the el
 
 ## What characters carry
 
-Characters have equipment and carried items too, set in the builder for the definition or for one
+Characters have equipment and carried items too, set in the character editor for the definition or for one
 placed character. They use their equipped weapon and their armor's defense in combat, use the items
 they carry, and drop everything when defeated. The *Equip item*, *Unequip slot*, *Give item to
 character* and *Take item from character* actions and the scripts `equip`, `unequip`,

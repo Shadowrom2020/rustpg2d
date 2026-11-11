@@ -2431,12 +2431,8 @@ impl Game {
                         continue;
                     }
                     let anim = self.player_anim();
-                    let eq = self.player_equipment_drawn();
-                    // During a melee swing the weapon is drawn along the swing instead (unless
-                    // its held sheet has attack frames: then it swings in the hand).
-                    let swinging = self.combat.swing > 0.0 && !self.weapon_animates(&eq);
                     let tint = Self::effect_tint(&self.world.effects).unwrap_or(WHITE);
-                    let drawn = self.draw_seated_player(&eq, tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &eq, (self.player.facing, anim), self.player.pos, tint, swinging));
+                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, (self.player.facing, anim), self.player.pos, tint));
                     if !drawn {
                         let r = self.player.rect();
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
@@ -2602,18 +2598,17 @@ impl Game {
         let e = &self.loaded.entities[i];
         match (&e.npc_seat, self.current_activity(i)) {
             (Some(s), _) => {
-                self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
+                self.draw_on_furniture(&e.appearance, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
                 true
             }
             (None, Some(_)) => {
-                let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
                 let col = self.activity_frame(i).unwrap_or(0);
-                self.draw_character(&e.appearance, &eq, (e.body.facing, col.into()), e.body.pos, tint, false)
+                self.draw_character(&e.appearance, (e.body.facing, col.into()), e.body.pos, tint)
             }
             (None, None) => {
                 self.project.db.character(&e.def).is_some() && {
                     let anim = self.npc_anim(i);
-                    self.draw_character(&e.appearance, &e.equipment, (e.body.facing, anim), e.body.pos, tint, false)
+                    self.draw_character(&e.appearance, (e.body.facing, anim), e.body.pos, tint)
                 }
             }
         }

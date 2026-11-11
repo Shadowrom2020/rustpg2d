@@ -1,5 +1,5 @@
-//! Drawing characters: a layered model (body + hair, recolored skin / hair) with clothing,
-//! armor and the items in their hands on top (see [`character::layers`] for the order).
+//! Drawing characters: a figure (a complete picture) in the colours chosen for its colour
+//! features (see [`character::figure`]).
 
 use macroquad::prelude::*;
 
@@ -7,12 +7,11 @@ use super::Game;
 pub(super) use crate::render::character::{self, Anim, Layer, ANIM_ROWS, LAYOUT_FRAMES};
 use crate::defs::Appearance;
 use crate::entity::Facing;
-use crate::state::Equipment;
 
 impl Game {
-    /// The layers of a character in drawing order (see [`character::layers`]).
-    pub(super) fn character_layers(&self, a: &Appearance, eq: &Equipment, facing: Facing, anim: impl Into<Anim>, hide_weapon: bool) -> Vec<Layer> {
-        character::layers(&self.project.db, a, eq, facing, anim, hide_weapon)
+    /// A character's figure frame (see [`character::figure`]).
+    pub(super) fn character_figure(&self, a: &Appearance, facing: Facing, anim: impl Into<Anim>) -> Layer {
+        character::figure(&self.project.db, a, facing, anim)
     }
 
     /// The frame of a layer its sheet has (the standing frame when it lacks the animation's row).
@@ -22,26 +21,20 @@ impl Game {
 
     /// Draws a character with its bottom-center at `feet`. Returns false if nothing could be
     /// drawn (missing sheets). `pose` = facing and what it does (walk frame, idle, attack, hurt).
-    pub(super) fn draw_character(&self, a: &Appearance, eq: &Equipment, pose: (Facing, Anim), feet: Vec2, tint: Color, hide_weapon: bool) -> bool {
-        let mut any = false;
-        // Bigger (or smaller) races: every layer at the body's size.
+    pub(super) fn draw_character(&self, a: &Appearance, pose: (Facing, Anim), feet: Vec2, tint: Color) -> bool {
+        // Bigger (or smaller) races: the figure at the race's size.
         let size = self.project.db.body_size(&a.body);
-        for l in self.character_layers(a, eq, pose.0, pose.1, hide_weapon) {
-            any |= if size == 1.0 { self.assets.draw_frame_colored(&l.sheet, self.layer_frame(&l), feet, tint, l.skin, l.hair) } else { self.assets.draw_frame_colored_sized(&l.sheet, self.layer_frame(&l), feet, tint, (l.skin, l.hair), size) };
+        let l = self.character_figure(a, pose.0, pose.1);
+        if size == 1.0 {
+            self.assets.draw_frame_colored(&l.sheet, self.layer_frame(&l), feet, tint, &l.colors)
+        } else {
+            self.assets.draw_frame_colored_sized(&l.sheet, self.layer_frame(&l), feet, tint, &l.colors, size)
         }
-        any
     }
 
-    /// A complete figure with attack rows: its painted swing replaces the weapon's swing sprite.
+    /// A figure with attack rows: its painted swing replaces the weapon's swing sprite.
     pub(super) fn figure_animates(&self, a: &Appearance) -> bool {
-        self.project.db.complete_body(&a.body) && self.assets.sheets.get(&a.body).is_some_and(|s| s.count >= ANIM_ROWS * LAYOUT_FRAMES)
-    }
-
-    /// The weapon in `eq` has a held sheet with attack rows (it swings in the hand: no separate
-    /// swing sprite).
-    pub(super) fn weapon_animates(&self, eq: &Equipment) -> bool {
-        let held = eq.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.held.clone()).unwrap_or_default();
-        self.assets.sheets.get(&held).is_some_and(|s| s.count >= ANIM_ROWS * LAYOUT_FRAMES)
+        self.assets.sheets.get(&a.body).is_some_and(|s| s.count >= ANIM_ROWS * LAYOUT_FRAMES)
     }
 
     /// Breathing frame (0 / 1) of a character standing still; `seed` keeps neighbours apart.
@@ -95,10 +88,9 @@ impl Game {
     }
 
     /// Draws a character's front idle frame scaled into `dest` (portraits, the creator).
-    pub(super) fn draw_character_in(&self, a: &Appearance, eq: &Equipment, dest: Rect) {
-        for l in self.character_layers(a, eq, Facing::Down, 0, false) {
-            self.assets.draw_frame_colored_in(&l.sheet, self.layer_frame(&l), dest, l.skin, l.hair);
-        }
+    pub(super) fn draw_character_in(&self, a: &Appearance, dest: Rect) {
+        let l = self.character_figure(a, Facing::Down, 0);
+        self.assets.draw_frame_colored_in(&l.sheet, self.layer_frame(&l), dest, &l.colors);
     }
 
     /// World size of a model's body frame (32 x 48 if the sheet is missing).

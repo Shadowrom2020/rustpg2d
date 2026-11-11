@@ -475,20 +475,6 @@ impl Game {
 }
 
 impl Game {
-    /// What the player is drawn with: while fishing, the tool (the rod) is in the right hand
-    /// instead of the weapon.
-    pub(super) fn player_equipment_drawn(&self) -> std::borrow::Cow<'_, crate::state::Equipment> {
-        let fishing = matches!(self.minigame.as_ref().map(|m| &m.game), Some(Kind::Fishing(_)));
-        match (&self.world.equipment.tool, fishing) {
-            (Some(tool), true) => {
-                let mut eq = self.world.equipment.clone();
-                eq.weapon = Some(tool.clone());
-                std::borrow::Cow::Owned(eq)
-            }
-            _ => std::borrow::Cow::Borrowed(&self.world.equipment),
-        }
-    }
-
     /// Where the fishing line leaves the rod (world pixels): about the tip of a rod held in the
     /// right hand of the idle frame (32 x 48 character layout, scaled to the tile size).
     fn rod_tip(&self) -> Vec2 {

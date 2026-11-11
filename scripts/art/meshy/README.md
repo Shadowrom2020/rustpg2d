@@ -28,7 +28,17 @@ python3 sprites.py --all              # work/out/<name>.png: 4 x 16 game sheets
 ```
 
 `gen.py` keeps every task id in `work/gen_state.json` and skips finished pictures, so a rerun
-never pays twice; delete `work/gen/<job>.png` (and its entry) to draw one again.
+never pays twice; delete `work/gen/<job>.png` (and its entry) to draw one again. `jobs.py NAME…`
+writes the jobs of some characters only.
+
+**People without what they hold** (0.17: the game draws weapons, tools and shields at the figures'
+hand marks): with `ART_CAST=noweapon ART_WORK=$PWD/work_noweapon` the scripts use
+`cast_noweapon.py` (every armed figure, its own size class = its earlier standing height), empty
+fists in the walk prompt, attacks as arm motions, and `ref_villager_walk` / `ref_villager_f_walk`
+as style references (`python3 refs.py villager villager_f`). After adding the sheets, estimate
+their hands (sprite editor: *Hands* › *Estimate all again*, or `pxopen …; pxhands estimateall;
+pxsave`) and swap the side attack rows of archers (`pxhands swap`); re-pick colour features with
+`../features.py` (`pick NAME IMAGE OUT_DIR`, then `write SHEETS.RON ID SHADES.json`).
 
 Then add the sheets with the editor or its agent server (`write_asset`, `upsert_def` with
 `kind: Body`, `complete: true`, `scale: 2` — the troll: 96 x 144 frames at `scale: 3`), the

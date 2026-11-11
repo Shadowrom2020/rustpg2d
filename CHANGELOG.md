@@ -6,10 +6,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Breaking
-- **Layered characters are removed.** Characters are figures: complete pictures (clothes, hair and
-  what they carry painted in) on one sheet with walk, idle, attack and hurt rows. Bodies with skin
-  and hair reference ramps, hair styles, beards, outfits, armor and held-item overlays, female and
-  race cuts are gone, and equipment isn't drawn on characters any more (it still counts in play).
+- **Layered characters are removed.** Characters are figures: complete pictures (clothes and hair
+  painted in, hands empty) on one sheet with walk, idle, attack and hurt rows. Bodies with skin
+  and hair reference ramps, hair styles, beards, outfits, armor overlays, female and race cuts are
+  gone; worn armour and clothing show only in a figure's art (they still count in play), and held
+  items are drawn at the figures' hand marks (*Characters*).
   Projects, asset libraries and save games of earlier versions load: sheets of the removed kinds
   become plain sprites, layered characters keep only their body (a layered body shows its
   reference colours), and saved player looks keep only the body. *Update asset library* offers the
@@ -45,6 +46,26 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   in a frame, row or sheet; every operation is one undo step. Agents get `edit_frames`. Editor
   script `pxanim`, `pxplay`, `pxonion`, `pxdup`, `pxnudge`, `pxrow`, `pxfill`, `pxreplace`,
   `pxundo`; `status` prints `pixel=`.
+- **Visible equipment: what characters hold is drawn in their hands.** Figure sheets mark per
+  frame where the hands are and how they are turned (a position, the grip axis a handle runs
+  through the fist, a size, in front of or behind the figure; frames without marks use the standing
+  frame). The weapon, the left-hand item (shields, lanterns, torches), bows in the left hand,
+  two-handed weapons along the line through both fists, a tool while it is used (the fisher's rod,
+  with the line from its tip; the farmer's hoe) and carried props are drawn there, in the game, the
+  character window and the character editor's preview. Items have a **Held** section: an own
+  picture or the icon, the **hold point** (click) and **orientation mark** (drag) that lie on the
+  hand, the size and the hand, with previews in a figure's hands; a picture held to the left is
+  mirrored across its axis, so a raised rod stays raised. Props have a **Carried** section.
+- **The Hands tool** of the sprite editor (H): place, turn, resize and remove the marks,
+  **Estimate** them from the outline (walking hands hold things forward through the fist; in
+  attacks the raised or swung fist, its axis across the arm), **Swap hands** (archers), preview
+  items in the hands; frame operations keep the marks in step. *Generate art* draws people with
+  empty hands and estimates their marks. Agents: `edit_frames` gains `set_grip`, `clear_grips`,
+  `estimate_hands`, `swap_hands`. Editor script `pxgrip`, `pxhands estimate|estimateall|clear|swap`,
+  `pxpreview`; `status` prints `held=`.
+- **Carrying props**: the *Carry prop* action and `carry(target, prop)`, `stop_carrying(target)`,
+  `player_carrying()`: the player or a character carries a prop in both hands (no attacking
+  meanwhile; saved for the player).
 
 ### Editor
 - **Generate art** (*Assets › Generate art…*) with your own Meshy account (API key, model, a
@@ -68,6 +89,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   chief (beating him stops the camp's reinforcements) and a troll guarding a new bridge (a
   mini-boss that rages at half health). The Meshy pipeline that draws them is in
   `scripts/art/meshy/`.
+- **26 figures redrawn with empty hands** (hero, heroine, guards, goblins, bandits, outlaw,
+  skeletons, fisher, town crier, farmer, blacksmith, wizards, elves, dwarves, orcs, the orc chief and
+  the troll), with hand marks; their colour features re-picked (`scripts/art/features.py`). Their
+  weapons are now their equipment (bandits and skeletons gain swords, the blacksmith a hammer), the
+  starter items have held settings, and a new `held` sheet holds a thin spear and fishing rod.
 
 ### Gameplay
 - **Factions** (*Database › Project › Factions*): factions with an attitude table (hostile, neutral,

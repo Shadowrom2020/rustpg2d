@@ -610,6 +610,9 @@ pub enum Action {
     /// Changes the player's standing with a faction (`factions.rs`; -100..100, at -20 or below
     /// its characters attack the player).
     ChangeStanding { faction: String, amount: i32 },
+    /// A character (or "player") carries a prop in both hands ("" = puts it down); while carrying
+    /// it holds nothing else and the player can't attack.
+    Carry { target: TargetName, prop: String },
 }
 
 fn yes() -> bool {
@@ -761,6 +764,7 @@ impl Action {
             Action::Emote { .. } => "Show emotion",
             Action::ClearEmote { .. } => "Clear emotion",
             Action::ChangeStanding { .. } => "Change standing",
+            Action::Carry { .. } => "Carry prop",
         }
     }
 
@@ -838,6 +842,7 @@ impl Action {
             Action::Emote { target: "self".into(), emotion: "joy".into(), seconds: 0.0, wait: false },
             Action::ClearEmote { target: "self".into() },
             Action::ChangeStanding { faction: String::new(), amount: 10 },
+            Action::Carry { target: "player".into(), prop: String::new() },
         ]
     }
 }

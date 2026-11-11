@@ -1,5 +1,6 @@
 //! Drawing characters: a figure (a complete picture) in the colours chosen for its colour
-//! features (see [`character::figure`]).
+//! features (see [`character::figure`]), and what it holds at its hands' grips
+//! ([`crate::hands::held`]): behind the figure, then the figure, then in front of it.
 
 use macroquad::prelude::*;
 
@@ -7,6 +8,8 @@ use super::Game;
 pub(super) use crate::render::character::{self, Anim, Layer, ANIM_ROWS, LAYOUT_FRAMES};
 use crate::defs::Appearance;
 use crate::entity::Facing;
+use crate::hands::HeldLayer;
+use crate::state::Equipment;
 
 impl Game {
     /// A character's figure frame (see [`character::figure`]).
@@ -21,14 +24,67 @@ impl Game {
 
     /// Draws a character with its bottom-center at `feet`. Returns false if nothing could be
     /// drawn (missing sheets). `pose` = facing and what it does (walk frame, idle, attack, hurt).
-    pub(super) fn draw_character(&self, a: &Appearance, pose: (Facing, Anim), feet: Vec2, tint: Color) -> bool {
+    pub(super) fn draw_character(&self, a: &Appearance, held: &[HeldLayer], pose: (Facing, Anim), feet: Vec2, tint: Color) -> bool {
         // Bigger (or smaller) races: the figure at the race's size.
         let size = self.project.db.body_size(&a.body);
         let l = self.character_figure(a, pose.0, pose.1);
-        if size == 1.0 {
+        self.draw_held(a, held, false, feet, tint);
+        let drawn = if size == 1.0 {
             self.assets.draw_frame_colored(&l.sheet, self.layer_frame(&l), feet, tint, &l.colors)
         } else {
             self.assets.draw_frame_colored_sized(&l.sheet, self.layer_frame(&l), feet, tint, &l.colors, size)
+        };
+        self.draw_held(a, held, true, feet, tint);
+        drawn
+    }
+
+    /// What a character holds this frame (see [`crate::hands::held`]).
+    pub(super) fn character_held(&self, a: &Appearance, eq: &Equipment, carrying: &str, tool: Option<&str>, pose: (Facing, Anim)) -> Vec<HeldLayer> {
+        crate::hands::held(&self.project.db, &a.body, eq, carrying, tool, pose.0, pose.1)
+    }
+
+    /// The world point where a held item's grip is, for a figure standing at `feet`.
+    fn held_at(&self, a: &Appearance, feet: Vec2, h: &HeldLayer) -> Option<Vec2> {
+        let s = self.assets.sheets.get(&a.body)?;
+        let size = self.project.db.body_size(&a.body);
+        Some(feet + vec2(h.at.0 - s.frame_w / 2.0, h.at.1 - s.frame_h) / s.scale * size)
+    }
+
+    /// The far end of a held item (the tip of a fishing rod) in the world: the opaque pixel of its
+    /// picture farthest from the hold point, turned as drawn.
+    pub(super) fn held_tip(&self, a: &Appearance, feet: Vec2, h: &HeldLayer) -> Option<Vec2> {
+        let at = self.held_at(a, feet, h)?;
+        let (sheet, (cw, ch)) = (self.assets.sheets.get(&h.sprite.sheet)?, h.sprite.cells());
+        let src = sheet.region(h.sprite.frame, cw, ch);
+        let size = sheet.world_of(src) * h.scale * self.project.db.body_size(&a.body);
+        let k = vec2(size.x / src.w.max(1.0), size.y / src.h.max(1.0));
+        let g = vec2(h.grip[0] * src.w, h.grip[1] * src.h);
+        let (mut far, mut best) = (None, -1.0);
+        for y in 0..src.h as u32 {
+            for x in 0..src.w as u32 {
+                let (ix, iy) = (src.x as u32 + x, src.y as u32 + y);
+                if ix >= sheet.image.width() as u32 || iy >= sheet.image.height() as u32 || sheet.image.get_pixel(ix, iy).a < 0.5 {
+                    continue;
+                }
+                // Pixel centres; the picture is mirrored top to bottom when the layer is flipped.
+                let p = vec2(x as f32 + 0.5, if h.flip { src.h - y as f32 - 0.5 } else { y as f32 + 0.5 }) - g;
+                if p.length_squared() > best {
+                    (far, best) = (Some(p * k), p.length_squared());
+                }
+            }
+        }
+        let far = far?;
+        let (sn, cs) = h.rotation.to_radians().sin_cos();
+        Some(at + vec2(far.x * cs - far.y * sn, far.x * sn + far.y * cs))
+    }
+
+    /// Draws the held items in front of (or behind) a figure standing at `feet`.
+    fn draw_held(&self, a: &Appearance, held: &[HeldLayer], front: bool, feet: Vec2, tint: Color) {
+        let Some(s) = self.assets.sheets.get(&a.body) else { return };
+        let size = self.project.db.body_size(&a.body);
+        for l in held.iter().filter(|l| l.front == front) {
+            let at = feet + vec2(l.at.0 - s.frame_w / 2.0, l.at.1 - s.frame_h) / s.scale * size;
+            self.assets.draw_held_sprite(l, at, l.scale * size, tint);
         }
     }
 
@@ -87,10 +143,41 @@ impl Game {
         out
     }
 
+    /// `held=` for `status`: what the player and the characters within 8 tiles hold, as
+    /// `who:item@hand` (`R`, `L`, `B` = both; `front` / `back` of the figure).
+    pub(super) fn held_status(&self) -> Vec<String> {
+        let fmt = |who: &str, held: Vec<HeldLayer>| held.into_iter().map(|h| format!("{who}:{}@{}{}", h.id, &format!("{:?}", h.hand)[..1], if h.front { "" } else { "/back" })).collect::<Vec<_>>();
+        let mut out = fmt("player", self.player_held((self.player.facing, self.player_anim())));
+        let ts = self.ts();
+        for (i, e) in self.loaded.entities.iter().enumerate() {
+            if e.active && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) < 8.0 * ts {
+                let who = if e.name.is_empty() { &e.def } else { &e.name };
+                out.extend(fmt(who, self.character_held(&e.appearance, &e.equipment, &e.carrying, self.activity_tool(i).as_deref(), (e.body.facing, self.npc_anim(i)))));
+            }
+        }
+        out
+    }
+
     /// Draws a character's front idle frame scaled into `dest` (portraits, the creator).
-    pub(super) fn draw_character_in(&self, a: &Appearance, dest: Rect) {
+    pub(super) fn draw_character_in(&self, a: &Appearance, held: &[HeldLayer], dest: Rect) {
         let l = self.character_figure(a, Facing::Down, 0);
+        let Some(s) = self.assets.sheets.get(&a.body) else { return };
+        // Screen pixels per image pixel.
+        let k = dest.w / s.frame_w;
+        let place = |front: bool| {
+            for h in held.iter().filter(|h| h.front == front) {
+                self.assets.draw_held_sprite(h, vec2(dest.x + h.at.0 * k, dest.y + h.at.1 * k), h.scale * k * s.scale, WHITE);
+            }
+        };
+        place(false);
         self.assets.draw_frame_colored_in(&l.sheet, self.layer_frame(&l), dest, &l.colors);
+        place(true);
+    }
+
+    /// What the player holds (fishing: the rod instead of the weapon; carrying a prop).
+    pub(super) fn player_held(&self, pose: (Facing, Anim)) -> Vec<HeldLayer> {
+        let Some(a) = self.player_appearance() else { return Vec::new() };
+        self.character_held(&a, &self.world.equipment, &self.world.player_carrying, self.player_tool_in_use().as_deref(), pose)
     }
 
     /// World size of a model's body frame (32 x 48 if the sheet is missing).

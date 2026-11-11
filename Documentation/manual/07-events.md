@@ -75,6 +75,8 @@ across map changes and in save games.
   option's number (0, 1, 2…) goes into a variable that later conditions check.
 - **Set mood**: the portrait mood a character shows ([Characters](06-characters.md#dialog-portraits-and-moods)).
 - **Show emotion** / **Clear emotion**: an icon over a character's head (below).
+- **Carry prop**: a character (or the player) carries a prop in both hands (empty = puts it
+  down); while carrying it holds nothing else and the player can't attack.
 
 **Game state**
 - **Set flag**, **Set variable** (= or +=), **Give item**, **Take item**, **Heal player** (negative

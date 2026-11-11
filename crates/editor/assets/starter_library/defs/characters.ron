@@ -1640,7 +1640,10 @@
             )),
             head: None,
             body: None,
-            weapon: None,
+            weapon: Some((
+                item: "hammer",
+                count: 1,
+            )),
             offhand: None,
         ),
     ),
@@ -1734,7 +1737,10 @@
             )),
             head: None,
             body: None,
-            weapon: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
             offhand: None,
         ),
     ),
@@ -1770,7 +1776,10 @@
             )),
             head: None,
             body: None,
-            weapon: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
             offhand: None,
         ),
     ),
@@ -1804,6 +1813,15 @@
         appearance: (
             body: "skeleton",
         ),
+        equipment: (
+            head: None,
+            body: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
+            offhand: None,
+        ),
     ),
     (
         id: "skeleton_f",
@@ -1834,6 +1852,15 @@
         shop: None,
         appearance: (
             body: "skeleton_f",
+        ),
+        equipment: (
+            head: None,
+            body: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
+            offhand: None,
         ),
     ),
     (

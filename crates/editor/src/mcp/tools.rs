@@ -136,13 +136,15 @@ pub struct EditFramesParams {
     pub sheet: String,
     /// "mirror_rows" (Right rows = mirrored Left rows), "copy_row", "clear_row", "duplicate"
     /// (a frame into the next column), "nudge" (move a frame's pixels), "replace_color",
-    /// "fill_standing" (empty idle / hurt frames get the standing walk frame).
+    /// "fill_standing" (empty idle / hurt frames get the standing walk frame); figures: "set_grip",
+    /// "clear_grips" (a frame's, or all), "estimate_hands", "swap_hands" (right and left grips trade
+    /// places in a row, or in every facing of an anim).
     pub op: String,
-    /// mirror_rows: the animation ("walk", "idle", "attack", "hurt"); omitted = all.
+    /// mirror_rows / swap_hands: the animation ("walk", "idle", "attack", "hurt"); mirror_rows: omitted = all.
     pub anim: Option<String>,
     /// duplicate / nudge / replace_color (scope "frame"): the frame (row * columns + column).
     pub frame: Option<u32>,
-    /// copy_row: the source row; clear_row / replace_color (scope "row"): the row.
+    /// copy_row: the source row; clear_row / replace_color (scope "row") / swap_hands: the row.
     pub row: Option<u32>,
     /// copy_row: the target row.
     pub to_row: Option<u32>,
@@ -154,6 +156,17 @@ pub struct EditFramesParams {
     pub to: Option<[u8; 3]>,
     /// replace_color: "frame", "row" or "sheet" (default).
     pub scope: Option<String>,
+    /// set_grip: "right" or "left"; the grip in the frame's image pixels, the direction a held
+    /// item points (degrees: 0 right, 90 down, -90 up), its size (default 1) and whether it is in
+    /// front of the figure (default true).
+    pub hand: Option<String>,
+    pub x: Option<f32>,
+    pub y: Option<f32>,
+    pub angle: Option<f32>,
+    pub size: Option<f32>,
+    pub front: Option<bool>,
+    /// estimate_hands: estimate every frame again (default: only frames without grips).
+    pub all: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -682,7 +695,7 @@ with_params {
     /// The exact colours of a sprite sheet's image, most used first, with their pixel counts, the animation rows they appear in (figures) and the colour feature they belong to: pick a part's shades for a figure's colour features (upsert_def sheet `features: [{name, shades, colors}]`).
     #[tool(annotations(read_only_hint = true))]
     sheet_colors: SheetColors(p: SheetColorsParams) => ed.mcp_sheet_colors(p);
-    /// Edits the frames of a sprite sheet's image, for animating character figures (4 columns, 16 rows: walk, idle, attack, hurt; facings down, left, right, up): mirror Left rows into Right rows, copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (e.g. split a shade two colour features share), fill empty idle / hurt frames with the standing frame. Writes the PNG and reloads the art; view_image shows the result.
+    /// Edits the frames of a sprite sheet's image and a figure's hand grips (4 columns, 16 rows: walk, idle, attack, hurt; facings down, left, right, up): mirror Left rows into Right rows, copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (e.g. split a shade two colour features share), fill empty idle / hurt frames with the standing frame, set_grip / clear_grips / estimate_hands (where held weapons, tools and props are drawn). Grips move with the frames. Writes the PNG and the definition and reloads the art; view_image shows the result.
     #[tool]
     edit_frames: EditFrames(p: EditFramesParams) => ed.mcp_edit_frames(p);
     /// Starts drawing art with Meshy (characters in the project's style: a walk grid, plus an attack grid; icons, props, portraits, painted images): returns the job number at once. Costs credits: call without confirm_credits first to learn the price, ask the person, then call with confirm_credits = that price. Watch it with art_jobs, look at it with art_result, add it with art_apply.

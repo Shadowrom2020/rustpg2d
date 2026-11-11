@@ -98,6 +98,31 @@ prop and character forms open it.
 Every operation is one undo step.
 - **Ctrl+S** saves the PNG and updates it everywhere; Ctrl+Z / Ctrl+Y undo and redo.
 
+### Hands
+
+Figures of people mark per frame where their hands are, so the game can draw what they hold:
+weapons, shields, lights, tools at work and carried props ([Characters](06-characters.md#how-characters-look)).
+A mark is a position, a **grip axis** (the line a handle runs through the closed fist: held things
+turn with it), a size (bigger hands hold bigger things) and *in front of* or *behind* the figure.
+Frames without marks use the standing frame of their facing.
+
+The **Hands** tool (**H**) of the pixel editor edits them on a figure sheet:
+
+- choose *Right (weapon)* or *Left (shield)*, **click** where that hand holds things, **drag** to
+  turn its grip axis, **right-click** removes it; **[** / **]** change its size; *in front of the
+  figure* sets the layer;
+- **Estimate missing** / **Estimate all again** guess the marks from the figure's outline and skin
+  colour: hands at the sides when walking (the axis pointing forward through the fist: level seen
+  from the side, toward the viewer, so down, from the front), and in attacks the fist that is raised
+  or swung out, its axis across the arm;
+- **Swap hands** trades the right and left marks of the row (Shift: in every facing of the
+  animation), e.g. for archers, whose bow arm is the left;
+- **Preview in the right hand** / **in the left** show items in every marked frame and in the
+  animation panel; *Mirror Left → Right*, *Duplicate*, *Nudge* and the row operations keep the marks
+  in step with the pixels.
+
+The marks are part of the sheet's definition and are saved with the image (*Ctrl+S*).
+
 ## New assets
 
 **New asset…** (*Assets* menu, the Database, or the Asset Library window) is a wizard for a **prop**
@@ -125,9 +150,11 @@ In the window, choose what to draw, give it an id and describe it:
   spell cast, pounce). It is drawn in your project's style: Meshy gets the walk cycles of two of
   your figures (the player character's and a playable one; else the starter library's hero) as
   references, draws the character's walk in all four directions, then, with that as the
-  character's reference, its attack. The editor turns the pictures into a figure sheet with walk,
-  idle (breathing), attack and hurt rows. 1 picture, 2 with an attack. *Add to project* creates
-  the character with a person's speed and hitbox; mark its colour features afterwards.
+  character's reference, its attack. People are drawn with **empty hands** (the game draws what
+  they hold) and their attacks as arm motions. The editor turns the pictures into a figure sheet
+  with walk, idle (breathing), attack and hurt rows. 1 picture, 2 with an attack. *Add to project*
+  creates the character with a person's speed and hitbox and estimates the hand marks of people;
+  mark its colour features afterwards and check the hands with the Hands tool.
 - **Item icon**: 32 × 32, in the style of your *items* sheet's icons.
 - **Prop**: 1 to 4 tiles wide and high, standing on its bottom edge.
 - **Portrait**: head and shoulders for dialogs, 128 × 128 at 2×; *For character* makes it that
@@ -143,7 +170,9 @@ opens the new sheet to touch it up. The status bar tells when a
 job is ready and what it cost. Agents can do all of this from a chat ([AI agents](13-ai-agents.md#drawing-art)).
 
 The scripts the example's art was made with are in `scripts/art/meshy/` (for batches of
-characters).
+characters; `ART_CAST=noweapon` draws the people without what they hold) and
+`scripts/art/features.py` (picks the colour features' shades and keeps shades a part shares with
+another apart).
 
 ## Importing
 

@@ -134,6 +134,29 @@ pub fn paint_character(ui: &Ui, tex: &Textures, assets: &Assets, layers: &[rustp
     any
 }
 
+/// Paints a sprite turned by `rotation` degrees about its point `grip` (fractions), put at `at`:
+/// `px` screen pixels per world pixel, `scale` times its world size (held items).
+#[allow(clippy::too_many_arguments)]
+pub fn paint_rotated(painter: &egui::Painter, tex: &Textures, assets: &Assets, sprite: &SpriteRef, at: egui::Pos2, grip: [f32; 2], rotation: f32, px: f32, scale: f32, flip: bool) {
+    let (Some(s), Some(t)) = (assets.sheets.get(&sprite.sheet), tex.sheets.get(&sprite.sheet)) else { return };
+    let (cw, ch) = sprite.cells();
+    let src = s.region(sprite.frame, cw, ch);
+    let size = vec2(src.w, src.h) / s.scale * scale * px;
+    let (iw, ih) = (s.image.width as f32, s.image.height as f32);
+    let uv = Rect::from_min_max(pos2(src.x / iw, src.y / ih), pos2((src.x + src.w) / iw, (src.y + src.h) / ih));
+    let (sn, cs) = rotation.to_radians().sin_cos();
+    let rot = |v: egui::Vec2| vec2(v.x * cs - v.y * sn, v.x * sn + v.y * cs);
+    let g = vec2(grip[0] * size.x, grip[1] * size.y);
+    let corners = [vec2(0.0, 0.0), vec2(size.x, 0.0), vec2(size.x, size.y), vec2(0.0, size.y)].map(|c| at + rot(c - g));
+    let uvs = if flip { [uv.left_bottom(), uv.right_bottom(), uv.right_top(), uv.left_top()] } else { [uv.left_top(), uv.right_top(), uv.right_bottom(), uv.left_bottom()] };
+    let mut mesh = egui::Mesh::with_texture(t.id());
+    for k in 0..4 {
+        mesh.vertices.push(egui::epaint::Vertex { pos: corners[k], uv: uvs[k], color: Color32::WHITE });
+    }
+    mesh.indices.extend([0, 1, 2, 0, 2, 3]);
+    painter.add(egui::Shape::mesh(mesh));
+}
+
 /// Sheet name prefix of a character's thumbnail sprite (see [`character_sprite`]).
 pub const CHAR_PREFIX: &str = "@char:";
 
@@ -635,6 +658,8 @@ pub fn region_picker(ui: &mut Ui, id: &str, sprite: &mut SpriteRef, tex: &Textur
 #[derive(Default, Clone)]
 pub struct Refs {
     pub items: Vec<String>,
+    /// Prop definition ids.
+    pub props: Vec<String>,
     pub maps: Vec<String>,
     /// "self", "player" and entity names on the current map.
     pub targets: Vec<String>,
@@ -1571,6 +1596,11 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         }
         Action::ClearEmote { target } => {
             target_field(ui, id, target, refs);
+        }
+        Action::Carry { target, prop } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "prop", |ui| suggest(ui, &format!("{id}/carry"), prop, &refs.props, 120.0));
+            ui.weak("(carried in both hands, drawn at the figure's hands; empty = puts it down. While carrying it holds nothing else and the player can't attack)");
         }
         Action::ChangeStanding { faction, amount } => {
             labeled(ui, "faction", |ui| suggest(ui, &format!("{id}/fac"), faction, &refs.factions, 120.0));

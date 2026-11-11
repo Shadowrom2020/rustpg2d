@@ -175,8 +175,16 @@ or `sprite_size()`, never `frame_w` (the editor's egui previews slice textures w
 Character frames: `render/character.rs::layers` takes an `Anim` (walk, idle, attack, hurt) and gives
 each layer the frame of that animation's row block plus a `fallback` (its standing frame), which
 the draw uses when the sheet has no such row (`Layer::frame_in`). `paperdoll.rs` picks the animation
-(`player_anim`, `npc_anim`: attack phase, `RtEntity::hurt`, moving, breathing). A body with
-`SheetDef::complete` is drawn alone (no other layers, not recoloured).
+(`player_anim`, `npc_anim`: attack phase, `RtEntity::hurt`, moving, breathing).
+Held items (`hands.rs`): a figure sheet's `hands` mark per frame each hand's position, grip axis,
+size and layer (frames without marks use their facing's standing frame). `hands::held` turns a
+character's equipment (or the tool of its activity, or a carried prop) into `HeldLayer`s: the
+item's `HeldSprite` (picture, hold point, orientation mark) laid onto the hand by `lay` (mirrored
+across the axis when it points left; carried props upright), two-handed things on `both_hands`.
+`paperdoll::draw_character` draws the layers behind, the figure, then the layers in front
+(`Assets::draw_held_sprite` rotates about the hold point); `held_tip` (the farthest opaque pixel)
+places the fishing line. The editor's sprite editor, item / prop forms and character editor
+preview use the same functions.
 
 ## 4. The editor (`crates/editor/src/`)
 

@@ -1092,6 +1092,32 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             _ => println!("[script] pxanim: walk|idle|attack|hurt down|left|right|up"),
         },
         "pxplay" => ed.px.playing = arg(1) != "off",
+        // pxgrip right|left X Y ANGLE [SCALE] [front|back] (the selected frame) · pxgrip right|left -
+        // removes it · pxhands estimate|estimateall|clear · pxpreview WEAPON [LEFTHANDITEM|-]
+        "pxgrip" => {
+            let hand = if arg(1).starts_with('l') { rustpg2d_engine::hands::Hand::Left } else { rustpg2d_engine::hands::Hand::Right };
+            let grip = (arg(2) != "-").then(|| rustpg2d_engine::hands::Grip { x: num(2), y: num(3), angle: num(4), scale: if arg(5).is_empty() || arg(5).parse::<f32>().is_err() { 1.0 } else { num(5) }, front: !cmd.iter().any(|a| *a == "back") });
+            match ed.px.frame_op(pixel::FrameOp::SetGrip { hand, grip }) {
+                Some(m) => println!("[script] {m}"),
+                None => println!("[script] pxgrip: nothing open"),
+            }
+        }
+        "pxhands" => {
+            let sheet = ed.px.doc.as_ref().and_then(|d| d.sheet.clone()).and_then(|id| ed.project.db.sheet(&id).cloned());
+            let op = match arg(1) {
+                "clear" => Some(pixel::FrameOp::ClearGrips),
+                "swap" => Some(pixel::FrameOp::SwapHands(arg(2) == "all")),
+                "estimate" | "estimateall" => sheet.map(|s| pixel::FrameOp::EstimateHands { all: arg(1) == "estimateall", skin: s.feature("skin").map(|f| f.shades.clone()).unwrap_or_default(), scale: s.scale }),
+                _ => None,
+            };
+            match op.and_then(|op| ed.px.frame_op(op)) {
+                Some(m) => println!("[script] {m}"),
+                None => println!("[script] pxhands: open a figure (estimate|estimateall|clear|swap [all])"),
+            }
+        }
+        "pxpreview" => {
+            ed.px.preview = [arg(1).to_string(), if arg(2) == "-" { String::new() } else { arg(2).to_string() }];
+        }
         "pxundo" => {
             if let Some(d) = &mut ed.px.doc {
                 d.undo();

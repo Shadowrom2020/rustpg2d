@@ -75,17 +75,22 @@ pub const ATTACKS: [(&str, &str); 8] = [
     ("bite", "Pounce / bite (animals)"),
 ];
 
+/// The attack motion. People are drawn with empty hands (the game puts the weapon in the hand), so
+/// their attacks are arm motions; animals keep their pounce.
 fn attack_prompt(attack: &str) -> &'static str {
     match attack {
-        "chop" => "The 4 columns are a heavy overhead blow: 1 the weapon raised high behind the head, 2 swinging it down in front in the facing direction, 3 the weapon low in front after the blow, 4 back to standing.",
-        "thrust" => "The 4 columns are a spear thrust: 1 the spear drawn back, 2 thrusting it forward in the facing direction, 3 the arm fully stretched, 4 back to standing.",
-        "bow" => "The 4 columns are a bow shot: 1 raising the bow and drawing an arrow, 2 the bow fully drawn, aiming in the facing direction, 3 the arrow released and the string snapping forward, 4 lowering the bow.",
-        "club" => "The 4 columns are a club smash: 1 the club raised high over the head, 2 smashing it down in front in the facing direction, 3 the club down at the feet in front, 4 lifting it back up.",
-        "cast" => "The 4 columns are a spell cast: 1 gathering glowing light in the hands, 2 thrusting the hands forward in the facing direction, 3 releasing a burst of light, 4 back to standing.",
+        "chop" => "The 4 columns are an overhead blow with EMPTY fists (no weapon): 1 both fists raised high behind the head, 2 both arms swinging down in front in the facing direction, 3 both fists low in front after the blow, 4 back to standing.",
+        "thrust" => "The 4 columns are a spear-thrust motion with EMPTY fists (no spear): 1 both fists pulled back at the hip, 2 both arms thrusting forward in the facing direction, 3 both arms fully extended forward, 4 back to standing.",
+        "bow" => "The 4 columns are an archery motion with EMPTY hands (no bow, no arrow): 1 raising the left fist forward, 2 the left arm fully extended forward in the facing direction and the right fist pulled back to the cheek, 3 the right hand opening and moving back, 4 lowering both arms.",
+        "club" => "The 4 columns are a club smash with EMPTY fists (no club): 1 both fists raised high over the head, 2 both arms smashing down in front in the facing direction, 3 both fists down near the feet in front, 4 lifting the arms back up.",
+        "cast" => "The 4 columns are casting a spell with EMPTY hands (no staff, no effects): 1 the right hand raised high, 2 the right arm thrust forward in the facing direction, palm open, 3 the arm fully extended, 4 back to standing.",
         "bite" => "The 4 columns are a lunging attack: 1 crouched low gathering to spring, 2 leaping forward in the facing direction with jaws or claws out, 3 striking at the end of the leap, 4 landing and standing again.",
-        _ => "The 4 columns are a sword slash: 1 the sword raised to the side ready to strike, 2 slashing across in the facing direction, 3 follow-through with the sword low on the other side, 4 back to standing.",
+        _ => "The 4 columns are a sword-slash motion with an EMPTY right fist (no sword): 1 the right fist raised to the side ready to strike, 2 the right arm swinging across in the facing direction, 3 follow-through with the right fist low on the other side, 4 back to standing.",
     }
 }
+
+/// People hold nothing in their pictures: the game draws weapons, tools and shields at their hands.
+const EMPTY_HANDS: &str = "IMPORTANT: the character holds nothing at all: no weapon, no sword, no spear, no bow, no staff, no tool, no shield, nothing in the hands and nothing on the back. Both hands are empty and closed into loose fists, as if gripping a handle. ";
 
 const GRID: &str = "Layout exactly like the second reference image: a grid of 4 rows and 4 columns, every cell the same size, one full-body figure per cell, nothing overlapping or crossing into another cell. Row 1: facing the viewer (front). Row 2: facing left (side view). Row 3: facing right (side view). Row 4: facing away (back view). ";
 
@@ -137,7 +142,8 @@ impl ArtRequest {
         Ok(())
     }
 
-    fn animal(&self) -> bool {
+    /// An animal or creature size class: no hands, no held items.
+    pub fn animal(&self) -> bool {
         matches!(self.size.as_str(), "animal" | "beast" | "flying")
     }
 
@@ -152,11 +158,12 @@ impl ArtRequest {
                 } else {
                     "The 4 columns are a walk cycle with clear steps: standing, left foot well forward, standing, right foot well forward. "
                 };
-                let prompt = format!("Pixel art in exactly the art style of the references (same shading, dark brown outline, proportions, face style, same figure size and pixel size as in the second reference). {GRID}Exactly the same character, colours and size in every frame, feet at the same height in every cell. Plain flat background, no text, no labels, no ground shadows. {what}The character: {desc}");
+                let empty = if self.animal() { "" } else { EMPTY_HANDS };
+                let prompt = format!("Pixel art in exactly the art style of the references (same shading, dark brown outline, proportions, face style, same figure size and pixel size as in the second reference). {GRID}Exactly the same character, colours and size in every frame, feet at the same height in every cell. Plain flat background, no text, no labels, no ground shadows. {what}{empty}The character: {desc}");
                 meshy::Request::FromImages { prompt, refs: refs.walk.clone(), aspect: "3:4".into() }
             }
             (ArtKind::Character, _) => {
-                let prompt = format!("Pixel art sprite sheet. The character is exactly the character of the first reference image (same face, clothes, colours, proportions, size and pixel style). {} Feet at the same height in every cell. Plain flat background, no text, no labels, no ground shadows, no motion lines or effects. {} The character: {desc}", GRID.trim_end(), attack_prompt(&self.attack));
+                let prompt = format!("Pixel art sprite sheet. The character is exactly the character of the first reference image (same face, clothes, colours, proportions, size and pixel style). {} Feet at the same height in every cell. Plain flat background, no text, no labels, no ground shadows, no motion lines or effects. {}{} The character: {desc}", GRID.trim_end(), if self.animal() { "" } else { EMPTY_HANDS }, attack_prompt(&self.attack));
                 let mut r = vec![walk_png.map(meshy::data_uri).unwrap_or_default()];
                 r.push(refs.attack.clone());
                 meshy::Request::FromImages { prompt, refs: r, aspect: "3:4".into() }

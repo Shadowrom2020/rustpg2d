@@ -295,6 +295,9 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `player_name()` | The name the player chose. |
 | `player_sex()` | `"male"` or `"female"`. |
 | `player_race()` | The player's race id (*Database › Races*), e.g. `"goblin"`; `""` without one. |
+| `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")`: drawn at the figure's hands; while carrying it holds nothing else and the player can't attack. *(queued)* |
+| `stop_carrying(target)` | Puts down what a character carries. *(queued)* |
+| `player_carrying()` | The prop the player carries (`""` = none). |
 | `player_faction()` | The player's faction id (*Database › Project › Factions*): their race's, else the player character's; `""` without one. |
 | `standing(faction)` | The player's standing with a faction, -100 to 100. It starts at 100 for the player's own faction, 50 for friendly, 0 for neutral and -50 for hostile factions (the attitude table); at -20 or below the faction's characters attack the player. |
 | `change_standing(faction, amount)` | Raises the standing (a negative amount lowers it); the faction's characters turn hostile or calm down at once. *(queued)* |

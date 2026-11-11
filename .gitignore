@@ -5,4 +5,5 @@ example_project/saves-backup-*/
 /crates/editor/assets/starter_library/starter.stamp
 /crates/editor/assets/starter_library/starter.pending
 /scripts/art/meshy/work/
+/scripts/art/meshy/work_*/
 __pycache__/

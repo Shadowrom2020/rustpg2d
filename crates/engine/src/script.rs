@@ -497,6 +497,9 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("player_sex", with!(ctx, |c| c.world.player_sex.key().to_string()));
     engine.register_fn("player_race", with!(ctx, |c| c.world.player_race.clone()));
     engine.register_fn("player_faction", with!(ctx, |c| c.player.faction.clone()));
+    engine.register_fn("carry", with!(ctx, |c, t: &str, prop: &str| c.actions.push(Action::Carry { target: t.into(), prop: prop.into() })));
+    engine.register_fn("stop_carrying", with!(ctx, |c, t: &str| c.actions.push(Action::Carry { target: t.into(), prop: String::new() })));
+    engine.register_fn("player_carrying", with!(ctx, |c| c.world.player_carrying.clone()));
     engine.register_fn("standing", with!(ctx, |c, f: &str| c.world.standing.get(f).copied().unwrap_or_else(|| c.factions.base_standing(&c.player.faction, f)) as i64));
     engine.register_fn("change_standing", with!(ctx, |c, f: &str, amount: i64| c.actions.push(Action::ChangeStanding { faction: f.into(), amount: amount as i32 })));
     engine.register_fn("is_female", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Female));

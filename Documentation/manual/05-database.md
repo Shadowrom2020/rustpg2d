@@ -50,6 +50,7 @@ is full, assigns it and opens it for drawing.
 | **Seed** | Makes it plantable on farm plots: growth stages with a sprite and hours each, and the harvest ([Farming](09-gameplay.md#farming)) |
 | **Magic** | **Teaches spell**: using it teaches a spell (a scroll that is consumed, a book that isn't) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
+| **Held** | Weapons, left-hand items and tools: how figures hold it (below) |
 | **On use** | Triggers that run when the player uses the item: heal, give something, run a script ([Events](07-events.md)) |
 
 **Equipment kinds:**
@@ -63,10 +64,26 @@ is full, assigns it and opens it for drawing.
 - **Left hand**: shields (defense) or lights (a lantern, a torch: give the item a *Light*).
 - **Clothing**: outfits (defense, speed).
 
-Worn and held items count in play; they aren't drawn over characters, whose figures show what they
-carry ([Characters](06-characters.md#how-characters-look)).
 - **Tool**: a *Tool kind* (`rod`, `pickaxe`, `hammer`, `hoe`…) for activities, gathering, fishing
   and crafting recipes. Held in the right hand while used.
+
+Worn items count in play and show only in a figure's art. **Held items are drawn in the hands**
+of figures that have hand marks ([Art and sound › Hands](10-art-and-sound.md#hands)): the weapon in
+the right hand, shields and lights in the left, bows in the left, two-handed weapons in both, a tool
+in the right hand while it is used. The **Held** section says how:
+
+- without *Own marks* the item's icon is held at its lower left corner, its blade (pointing up-right
+  in the icon) along the hand's grip axis, at half its size;
+- with **Own marks**: an own **picture** (none: the icon; long thin things such as the spear and the
+  fishing rod have their own on the starter `held` sheet), the **hold point** (click the picture),
+  the **orientation** (drag from the hold point: the direction in the picture that lies on the hand's
+  grip axis; setting it off the picture's length tilts the item, as the fishing rod held 40° up),
+  the **size** and the **hand** (*By its kind* or right, left, both). Previews show it in a figure's
+  hands facing down, facing right and in a swing.
+
+A hand's **grip axis** is the line a handle runs through the closed fist. Turned to the left, the
+picture is mirrored across it, so whatever is tilted up stays up in both directions. Two-handed
+things run along the line through both fists.
 
 ![An item form with an On use trigger that runs a script](../images/editor-item.webp)
 
@@ -83,6 +100,7 @@ carry ([Characters](06-characters.md#how-characters-look)).
 | **Gathering** | Mined or picked with a tool ([Gathering and mining](09-gameplay.md#gathering-and-mining)). |
 | **Farm plot** | Takes seeds ([Farming](09-gameplay.md#farming)). |
 | **Light** | A light per state: a lamp lit in *lit* and dark in *off*. |
+| **Carried** | How characters carry it in both hands (the *Carry prop* action, `carry()`): without *Own marks* at the middle of its lower half, its horizontal along the hands, at 0.6 of its size; *Own marks* set the hold point, orientation and size like an item's *Held* section. A carried prop never turns upside down. |
 | **Triggers** | Triggers every copy of the prop runs ([Events](07-events.md)). |
 
 The *Set prop state* action and `set_state(target, "name")` switch states during the game, the

@@ -298,6 +298,40 @@ Instructions for every session (people and coding agents) that implements roadma
   sprite editor's buttons, the `px…` script commands and `edit_frames`. The colour preview stays
   in the sheet form's *Colour features* (a preview row per offered colour).
 
+- [x] Visible equipment: hand grips on figures — `feature/held-equipment`
+
+  **Goal.** What characters hold shows again: weapons, left-hand items (shields, lanterns,
+  torches), tools while they are used, and props they carry. The armed figures are re-rendered
+  without weapons.
+
+  **Design.** Figure sheets get **hand grips** per frame (position, angle, size, in front of or
+  behind the body; a frame without grips uses its standing frame's), edited with a *Hands* tool in
+  the sprite editor and estimated for generated art. Held items are drawn at the grip, turned with
+  the hand: the item's icon by default or an own held sprite with a grip point. Weapons swing with
+  the attack frames. A *Carry* action / `carry()` lets characters carry props.
+
+  **Decided.** Grips are data on the sheet, not marker pixels in the art (the user's first idea):
+  they don't touch the art or its colour features and can be estimated for AI output. All armed
+  figures of the example and the starter library are re-rendered with Meshy (about 180–250
+  credits). Compatibility may break (0.17.0).
+
+  **Engine.** Approved by the user: sheet hand grips, item held sprites, held drawing, Carry.
+
+  **Verify.** Autoplay shots: the player walking and attacking with sword and shield, an archer,
+  fishing, the smith, carrying a crate; the Hands tool and Estimate hands in the editor; unit
+  tests for grips, fallback, held layers and frame operations.
+
+  **Done.** After a play-test the user changed the model: no fixed "rest" directions (a spear
+  doesn't stay upright while walking); hands carry a **grip axis** (across the fist), held things
+  a **hold point and orientation mark** that are laid onto it, two-handed things run through both
+  fists, a picture held to the left is mirrored across its axis, carried props get the same marks
+  (`PropDef.carry`) and never turn upside down. The estimator reads the axes from the art (forward
+  through hanging fists, across the arm of a raised or swung one) and skips attack rows that only
+  copy the standing frame; *Swap hands* fixes archers. 26 figures were redrawn with empty hands
+  (147 credits, `ART_CAST=noweapon`); long items got thin held pictures (`held` sheet). A test of
+  pre-rendered 3D characters (Meshy model, rig and animation clips rendered with Blender, exact
+  hand bones as marks) followed; real-time 3D characters are planned below.
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS

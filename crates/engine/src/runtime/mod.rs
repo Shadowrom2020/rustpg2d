@@ -210,6 +210,9 @@ struct RtEntity {
     hp: i32,
     max_hp: i32,
     hostile: bool,
+    /// The prop it carries in both hands ("" = none; `Action::Carry`, saved with the entity's
+    /// state).
+    carrying: String,
     /// Its faction (index into `Game::factions`).
     faction: Option<u16>,
     damage: i32,
@@ -681,6 +684,7 @@ impl Game {
             hp: max_hp,
             max_hp,
             hostile,
+            carrying: String::new(),
             faction: if kind == EntityKind::Character { self.factions.index(&self.project.db.faction_of(def)) } else { None },
             damage,
             invuln: 0.0,
@@ -2149,7 +2153,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?} held={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2228,7 +2232,8 @@ impl Game {
             self.defense_status(),
             self.emotes_status(),
             self.hits_status(),
-            self.anims_status()
+            self.anims_status(),
+            self.held_status()
         )
     }
 
@@ -2432,7 +2437,8 @@ impl Game {
                     }
                     let anim = self.player_anim();
                     let tint = Self::effect_tint(&self.world.effects).unwrap_or(WHITE);
-                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, (self.player.facing, anim), self.player.pos, tint));
+                    let held = self.player_held((self.player.facing, anim));
+                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &held, (self.player.facing, anim), self.player.pos, tint));
                     if !drawn {
                         let r = self.player.rect();
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
@@ -2603,12 +2609,15 @@ impl Game {
             }
             (None, Some(_)) => {
                 let col = self.activity_frame(i).unwrap_or(0);
-                self.draw_character(&e.appearance, (e.body.facing, col.into()), e.body.pos, tint)
+                let pose = (e.body.facing, col.into());
+                let held = self.character_held(&e.appearance, &e.equipment, &e.carrying, self.activity_tool(i).as_deref(), pose);
+                self.draw_character(&e.appearance, &held, pose, e.body.pos, tint)
             }
             (None, None) => {
                 self.project.db.character(&e.def).is_some() && {
                     let anim = self.npc_anim(i);
-                    self.draw_character(&e.appearance, (e.body.facing, anim), e.body.pos, tint)
+                    let held = self.character_held(&e.appearance, &e.equipment, &e.carrying, None, (e.body.facing, anim));
+                    self.draw_character(&e.appearance, &held, (e.body.facing, anim), e.body.pos, tint)
                 }
             }
         }
@@ -2749,6 +2758,14 @@ impl ActionHost for Game {
             Action::ClearEmote { target } => {
                 if let Some(who) = self.emote_target(target, ctx.owner) {
                     self.clear_emote(who);
+                }
+                Step::Continue
+            }
+            Action::Carry { target, prop } => {
+                if target.eq_ignore_ascii_case("player") {
+                    self.world.player_carrying = prop.clone();
+                } else if let Some(i) = self.entity_index(target, ctx.owner) {
+                    self.loaded.entities[i].carrying = prop.clone();
                 }
                 Step::Continue
             }

@@ -336,7 +336,7 @@ impl Game {
                 self.assets.draw_frame_colored_rotated(&l.sheet, self.layer_frame(&l), center, angle, &l.colors, WHITE);
             }
             Pose::Stand => {
-                self.draw_character(&a, (seat.facing, 0.into()), seat.pos, tint);
+                self.draw_character(&a, &[], (seat.facing, 0.into()), seat.pos, tint);
             }
         }
         if !cover.sheet.is_empty() {

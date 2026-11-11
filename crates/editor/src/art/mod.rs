@@ -5,9 +5,14 @@
 //! start, watch and apply them. Spending is guarded: the cost is shown (and must be confirmed by
 //! agents) before a job starts, and a per-session credit budget stops jobs beyond it.
 //!
+//! 3D jobs make models: a 3D character (a turnaround picture or a figure's views -> a model ->
+//! a rig -> animation clips), a 3D creature (a picture -> an unrigged model), an item's 3D model
+//! (from its icon).
+//!
 //! The API key lives in `<config>/meshy.key` (owner-only), never in projects, exports, logs or
-//! agent replies. `RUSTPG2D_MESHY_FAKE=<dir>` replaces the API by stored pictures
-//! (`walk.png`, `attack.png`, `picture.png`) for tests.
+//! agent replies. `RUSTPG2D_MESHY_FAKE=<dir>` replaces the API by stored files (`walk.png`,
+//! `attack.png`, `picture.png`, `views.png`, `model.glb`, `rig.glb`, `clips.glb`) for tests; 3D
+//! steps leave the request they would have sent there (`sent_<step>.json`).
 
 mod agent;
 pub mod convert;
@@ -32,10 +37,21 @@ pub enum ArtKind {
     Portrait,
     /// A painted picture (Show image).
     Image,
+    /// A rigged, animated 3D character (a person: Meshy rigs humanoids).
+    Model3d,
+    /// An unrigged 3D model of an animal or creature (rig templates animate it).
+    Creature3d,
+    /// The 3D model of an existing item (`id`), from its icon.
+    Gear3d,
 }
 
 impl ArtKind {
-    pub const ALL: [ArtKind; 5] = [ArtKind::Character, ArtKind::Icon, ArtKind::Prop, ArtKind::Portrait, ArtKind::Image];
+    pub const ALL: [ArtKind; 8] = [ArtKind::Character, ArtKind::Icon, ArtKind::Prop, ArtKind::Portrait, ArtKind::Image, ArtKind::Model3d, ArtKind::Creature3d, ArtKind::Gear3d];
+
+    /// A 3D job (models, not pictures).
+    pub fn is_3d(self) -> bool {
+        matches!(self, ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d)
+    }
 
     pub fn name(self) -> &'static str {
         match self {
@@ -44,6 +60,9 @@ impl ArtKind {
             ArtKind::Prop => "prop",
             ArtKind::Portrait => "portrait",
             ArtKind::Image => "image",
+            ArtKind::Model3d => "model",
+            ArtKind::Creature3d => "creature",
+            ArtKind::Gear3d => "gear",
         }
     }
 
@@ -54,6 +73,9 @@ impl ArtKind {
             ArtKind::Prop => "Prop",
             ArtKind::Portrait => "Portrait",
             ArtKind::Image => "Painted image",
+            ArtKind::Model3d => "3D character",
+            ArtKind::Creature3d => "3D creature",
+            ArtKind::Gear3d => "Item 3D model",
         }
     }
 
@@ -111,6 +133,31 @@ pub struct ArtRequest {
     pub portrait_for: String,
     /// Started by an AI agent (shown as such).
     pub by_agent: bool,
+    /// 3D characters: a woman (her sitting clip).
+    pub female: bool,
+    /// 3D characters: model this figure (its front, side and back frames) instead of drawing a
+    /// turnaround picture ("" = draw one).
+    pub from: String,
+}
+
+/// Credits of the 3D steps (Meshy's prices; what a task really consumed is shown when it ends).
+pub const COST_MODEL: u32 = 30;
+pub const COST_RIG: u32 = 5;
+pub const COST_CLIP: u32 = 3;
+
+/// The animation-library clips a 3D character gets: walking, idle, its attack, a hit reaction,
+/// sitting on a chair.
+pub fn clip_actions(attack: &str, female: bool) -> Vec<u32> {
+    let attack = match attack {
+        "slash" => Some(219),
+        "chop" => Some(237),
+        "thrust" => Some(240),
+        "bow" => Some(222),
+        "club" => Some(4),
+        "cast" => Some(129),
+        _ => None,
+    };
+    [Some(566), Some(11), Some(178), attack, Some(if female { 32 } else { 33 })].into_iter().flatten().collect()
 }
 
 impl ArtRequest {
@@ -119,16 +166,33 @@ impl ArtRequest {
         match self.kind {
             ArtKind::Character if self.attack != "none" => vec!["walk", "attack"],
             ArtKind::Character => vec!["walk"],
+            ArtKind::Model3d if !self.from.is_empty() => vec!["model", "rig", "clips"],
+            ArtKind::Model3d => vec!["views", "model", "rig", "clips"],
+            ArtKind::Creature3d => vec!["views", "model"],
+            ArtKind::Gear3d => vec!["model"],
             _ => vec!["picture"],
         }
     }
 
+    /// Credits of one step.
+    pub fn step_cost(&self, name: &str, picture_cost: u32) -> u32 {
+        match name {
+            "model" => COST_MODEL,
+            "rig" => COST_RIG,
+            "clips" => COST_CLIP * clip_actions(&self.attack, self.female).len() as u32,
+            _ => picture_cost,
+        }
+    }
+
     pub fn check(&self) -> Result<()> {
-        if self.description.trim().len() < 8 {
+        if self.description.trim().len() < 8 && self.kind != ArtKind::Gear3d {
             return Err(anyhow!("describe it in a few words (what it looks like, what it wears or holds)"));
         }
         if self.id.trim().is_empty() || !self.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
             return Err(anyhow!("the id must be letters, digits and _"));
+        }
+        if self.kind == ArtKind::Model3d && !ATTACKS.iter().any(|a| a.0 == self.attack && a.0 != "bite") {
+            return Err(anyhow!("unknown attack \"{}\" for a 3D character: {}", self.attack, ATTACKS.map(|a| a.0).into_iter().filter(|a| *a != "bite").collect::<Vec<_>>().join(", ")));
         }
         if self.kind == ArtKind::Character {
             convert::size_class(&self.size).ok_or_else(|| anyhow!("unknown size \"{}\": {}", self.size, convert::SIZES.map(|s| s.id).join(", ")))?;
@@ -181,6 +245,17 @@ impl ArtRequest {
                 aspect: if self.tiles.0 > self.tiles.1 { "4:3" } else if self.tiles.1 > self.tiles.0 { "3:4" } else { "1:1" }.into(),
                 background: false,
             },
+            (ArtKind::Model3d, _) => meshy::Request::FromText {
+                prompt: format!("Character turnaround sheet for a 3D model: the same character three times side by side, full body, standing straight in an A-pose with the arms slightly away from the body, both hands empty and open, no weapons, no sheaths or scabbards, nothing hanging from the belt. Left: front view. Middle: side view facing left. Right: back view. Stylized fantasy RPG character, clean shapes, soft shading, plain white background, no text, no shadows. The character: {desc}"),
+                aspect: "16:9".into(),
+                background: false,
+            },
+            (ArtKind::Creature3d, _) => meshy::Request::FromText {
+                prompt: format!("A single creature for a 3D model, full body, standing on all its feet, seen from the front and a little from the side, stylized fantasy RPG creature, clean shapes, soft shading, plain white background, no text, no shadows: {desc}"),
+                aspect: "1:1".into(),
+                background: false,
+            },
+            (ArtKind::Gear3d, _) => meshy::Request::FromText { prompt: desc.to_string(), aspect: "1:1".into(), background: false },
             (ArtKind::Portrait, _) => meshy::Request::FromText { prompt: format!("Painted fantasy RPG character portrait, head and shoulders, facing the viewer, soft painterly shading, centred, plain flat background, no text: {desc}"), aspect: "1:1".into(), background: false },
             (ArtKind::Image, _) => meshy::Request::FromText { prompt: format!("Painted fantasy RPG illustration, detailed, rich colours, no text: {desc}"), aspect: "3:4".into(), background: true },
         }
@@ -198,6 +273,10 @@ pub struct References {
     pub icons: Option<String>,
     /// Which sheets they come from (for the window).
     pub from: String,
+    /// 3D characters from a figure: its front, side and back frames, enlarged (PNG data URIs).
+    pub views: Vec<String>,
+    /// Item 3D models: the item's icon, enlarged (PNG data URI).
+    pub icon: Option<String>,
 }
 
 /// Rows `first..first + 4` of a 16-row character sheet, enlarged 4x on a flat background.
@@ -237,6 +316,15 @@ pub struct Picture {
     pub credits: u32,
 }
 
+/// What a 3D step made and how it went (kept for the next step and for adding it).
+#[derive(Clone, Debug, Default)]
+pub struct Made3d {
+    /// Meshy's task id of each step ("model", "rig"): the next step names it.
+    pub tasks: Vec<(&'static str, String)>,
+    /// Downloaded files: "model.glb", "rig.glb", "clips.glb".
+    pub files: Vec<(&'static str, Vec<u8>)>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Job {
     pub id: u32,
@@ -256,6 +344,8 @@ pub struct Job {
     pub version: u32,
     /// The status line told that it ended.
     pub told: bool,
+    /// 3D jobs: the tasks and files made.
+    pub made: Made3d,
 }
 
 impl Job {
@@ -388,6 +478,122 @@ fn draw(job: &Arc<Mutex<Job>>, k: usize, key: &str, model: &str, req: meshy::Req
     }
 }
 
+/// A grey square: the preview of 3D jobs without a picture.
+fn placeholder_png() -> Vec<u8> {
+    let mut im = Rgba::new(64, 64);
+    for y in 0..64 {
+        for x in 0..64 {
+            im.set(x, y, [60, 60, 70, 255]);
+        }
+    }
+    im.encode().unwrap_or_default()
+}
+
+/// The three views of a turnaround picture (left, middle, right thirds), each on white, as PNG
+/// data URIs.
+pub fn split_views(png: &[u8]) -> Result<Vec<String>> {
+    let im = Rgba::decode(png)?;
+    let w = im.w / 3;
+    (0..3)
+        .map(|k| {
+            let mut v = Rgba::new(w, im.h);
+            for y in 0..im.h {
+                for x in 0..w {
+                    let c = im.get((k * w + x) as i32, y as i32);
+                    let a = c[3] as u32;
+                    let mix = |i: usize| ((c[i] as u32 * a + 255 * (255 - a)) / 255) as u8;
+                    v.set(x as i32, y as i32, [mix(0), mix(1), mix(2), 255]);
+                }
+            }
+            Ok(meshy::data_uri(&v.encode()?))
+        })
+        .collect()
+}
+
+/// The file a 3D step makes.
+fn file3d(step: &str) -> &'static str {
+    match step {
+        "model" => "model.glb",
+        "rig" => "rig.glb",
+        "clips" => "clips.glb",
+        _ => "",
+    }
+}
+
+/// Runs one 3D step of a job: starts its Meshy task (from the previous step's), waits for it and
+/// downloads its file.
+fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &References) -> Result<()> {
+    let name = job.lock().unwrap().pictures[k].name;
+    let set = |f: &dyn Fn(&mut Picture)| {
+        let mut j = job.lock().unwrap();
+        f(&mut j.pictures[k]);
+        j.version += 1;
+    };
+    let file = file3d(name);
+    let task_of = |n: &str| job.lock().unwrap().made.tasks.iter().find(|(t, _)| *t == n).map(|(_, id)| id.clone());
+    let (path, body) = match (name, req.kind) {
+        ("model", ArtKind::Model3d) => {
+            let views = if req.from.is_empty() {
+                let png = job.lock().unwrap().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone()).ok_or_else(|| anyhow!("the turnaround picture is missing"))?;
+                split_views(&png)?
+            } else {
+                refs.views.clone()
+            };
+            ("multi-image-to-3d", serde_json::json!({ "image_urls": views, "should_texture": true, "should_remesh": true, "target_polycount": 6000, "pose_mode": "a-pose" }))
+        }
+        ("model", ArtKind::Creature3d) => {
+            let png = job.lock().unwrap().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone()).ok_or_else(|| anyhow!("the picture is missing"))?;
+            ("image-to-3d", serde_json::json!({ "image_url": meshy::data_uri(&png), "should_texture": true, "should_remesh": true, "target_polycount": 6000 }))
+        }
+        ("model", _) => {
+            let icon = refs.icon.clone().ok_or_else(|| anyhow!("the item has no icon to model it from"))?;
+            ("image-to-3d", serde_json::json!({ "image_url": icon, "should_texture": true, "should_remesh": true, "target_polycount": 1500, "texture_prompt": req.description.trim() }))
+        }
+        ("rig", _) => ("rigging", serde_json::json!({ "input_task_id": task_of("model").ok_or_else(|| anyhow!("no model to rig"))?, "height_meters": 1.7 })),
+        _ => ("animations", serde_json::json!({ "rig_task_id": task_of("rig").ok_or_else(|| anyhow!("no rig to animate"))?, "action_ids": clip_actions(&req.attack, req.female) })),
+    };
+    if let Some(dir) = fake_dir() {
+        // Keeps what would have been sent (tests look at the views and the icon).
+        std::fs::write(dir.join(format!("sent_{name}.json")), serde_json::to_vec_pretty(&serde_json::json!({ "path": path, "body": body }))?)?;
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let bytes = std::fs::read(dir.join(file))?;
+        let credits = req.step_cost(name, 0);
+        let mut j = job.lock().unwrap();
+        j.made.tasks.push((name, format!("fake-{name}")));
+        j.made.files.push((file, bytes));
+        let p = &mut j.pictures[k];
+        (p.status, p.progress, p.credits) = ("SUCCEEDED".into(), 100, credits);
+        j.version += 1;
+        return Ok(());
+    }
+    let task = meshy::start3d(key, path, &body)?;
+    set(&|p| {
+        p.task = Some(task.clone());
+        p.status = "PENDING".into();
+    });
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(6));
+        let t = meshy::task3d(key, path, &task)?;
+        set(&|p| {
+            p.status = t.status.clone();
+            p.progress = t.progress;
+            p.credits = t.credits;
+        });
+        match t.status.as_str() {
+            "SUCCEEDED" => {
+                let url = t.files.iter().find(|(n, _)| *n == file).map(|(_, u)| u.clone()).ok_or_else(|| anyhow!("the finished task has no {file}"))?;
+                let bytes = meshy::download(&url)?;
+                let mut j = job.lock().unwrap();
+                j.made.tasks.push((name, task.clone()));
+                j.made.files.push((file, bytes));
+                return Ok(());
+            }
+            "FAILED" | "CANCELED" => return Err(anyhow!("Meshy could not make the {name}{}", if t.error.is_empty() { String::new() } else { format!(": {}", t.error) })),
+            _ => {}
+        }
+    }
+}
+
 /// Converts a job's pictures into its result.
 fn convert_job(job: &Arc<Mutex<Job>>) -> Result<()> {
     let (req, pics) = {
@@ -417,6 +623,13 @@ fn convert_job(job: &Arc<Mutex<Job>>) -> Result<()> {
             let f = (p.w, p.h);
             (p, f)
         }
+        // 3D jobs: the picture they were made from (the files are kept in `made`).
+        ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d => {
+            let p = decode("views").or_else(|_| Rgba::decode(&placeholder_png()))?;
+            let p = convert::shrink(&p, 512);
+            let f = (p.w, p.h);
+            (p, f)
+        }
     };
     let bytes = img.encode()?;
     let mut j = job.lock().unwrap();
@@ -430,7 +643,7 @@ fn convert_job(job: &Arc<Mutex<Job>>) -> Result<()> {
 impl ArtState {
     /// The estimated cost of a request.
     pub fn cost(req: &ArtRequest, model: &str) -> u32 {
-        req.pictures().len() as u32 * meshy::model_cost(model)
+        req.pictures().iter().map(|n| req.step_cost(n, meshy::model_cost(model))).sum()
     }
 
     /// Books `cost` credits of the session's budget (refused beyond it).
@@ -460,18 +673,33 @@ impl ArtState {
         self.reserve(cost, settings.budget)?;
         self.next_id += 1;
         let pictures = req.pictures().into_iter().map(|name| Picture { name, task: None, status: "WAITING".into(), progress: 0, png: None, credits: 0 }).collect();
-        let job = Arc::new(Mutex::new(Job { id: self.next_id, req, model: settings.model.clone(), cost, pictures, stage: Stage::Drawing, result: None, frame: (0, 0), applied: None, version: 0, told: false }));
+        let job = Arc::new(Mutex::new(Job { id: self.next_id, req, model: settings.model.clone(), cost, pictures, stage: Stage::Drawing, result: None, frame: (0, 0), applied: None, version: 0, told: false, made: Made3d::default() }));
         self.jobs.push(job.clone());
         let spent = self.spent.clone();
         std::thread::spawn(move || run(job, key, refs, None, spent));
         Ok(self.next_id)
     }
 
-    /// Draws picture `name` of a job again (and converts again).
+    /// The steps a redo of `name` makes again: that picture; in 3D jobs also every later step
+    /// (a new model needs a new rig and new clips).
+    pub fn redo_steps(job: &Job, name: &str) -> Vec<&'static str> {
+        let names: Vec<&'static str> = job.pictures.iter().map(|p| p.name).collect();
+        match names.iter().position(|n| *n == name) {
+            Some(k) if job.req.kind.is_3d() => names[k..].to_vec(),
+            Some(k) => vec![names[k]],
+            None => Vec::new(),
+        }
+    }
+
+    /// The credits of redoing `name`.
+    pub fn redo_cost(job: &Job, name: &str) -> u32 {
+        Self::redo_steps(job, name).iter().map(|n| job.req.step_cost(n, meshy::model_cost(&job.model))).sum()
+    }
+
+    /// Draws picture `name` of a job again (in 3D jobs with the steps after it) and converts again.
     pub fn redo(&mut self, id: u32, name: &str, settings: &ArtSettings, refs: References) -> Result<()> {
         let job = self.job(id).ok_or_else(|| anyhow!("no job {id}"))?;
-        let cost = meshy::model_cost(&settings.model);
-        {
+        let (steps, cost) = {
             let j = job.lock().unwrap();
             if !j.pictures.iter().any(|p| p.name == name) {
                 return Err(anyhow!("job {id} has no {name} picture (it has {})", j.pictures.iter().map(|p| p.name).collect::<Vec<_>>().join(", ")));
@@ -479,25 +707,30 @@ impl ArtState {
             if j.stage == Stage::Drawing || j.stage == Stage::Converting {
                 return Err(anyhow!("job {id} is still drawing"));
             }
-        }
+            (Self::redo_steps(&j, name), Self::redo_cost(&j, name))
+        };
         self.reserve(cost, settings.budget)?;
         {
             let mut j = job.lock().unwrap();
             j.stage = Stage::Drawing;
             j.told = false;
+            j.applied = None;
             j.cost += cost;
-            if let Some(p) = j.pictures.iter_mut().find(|p| p.name == name) {
+            for p in j.pictures.iter_mut().filter(|p| steps.contains(&p.name)) {
                 p.status = "WAITING".into();
                 p.progress = 0;
                 p.png = None;
                 p.credits = 0;
             }
+            // Later steps are made from the new ones.
+            j.made.tasks.retain(|(n, _)| !steps.contains(n));
+            let files: Vec<&str> = steps.iter().map(|n| file3d(n)).collect();
+            j.made.files.retain(|(f, _)| !files.contains(f));
             j.version += 1;
         }
         let key = api_key();
         let spent = self.spent.clone();
-        let only = name.to_string();
-        std::thread::spawn(move || run(job, key, refs, Some(only), spent));
+        std::thread::spawn(move || run(job, key, refs, Some(steps), spent));
         Ok(())
     }
 
@@ -520,22 +753,27 @@ impl ArtState {
 }
 
 /// A job's worker: draws its pictures in order (only `only` when redoing), converts.
-fn run(job: Arc<Mutex<Job>>, key: String, refs: References, only: Option<String>, spent: Arc<Mutex<u32>>) {
+fn run(job: Arc<Mutex<Job>>, key: String, refs: References, only: Option<Vec<&'static str>>, spent: Arc<Mutex<u32>>) {
     let (req, model, names) = {
         let j = job.lock().unwrap();
         (j.req.clone(), j.model.clone(), j.pictures.iter().map(|p| p.name).collect::<Vec<_>>())
     };
     for (k, name) in names.iter().enumerate() {
-        if only.as_deref().is_some_and(|o| o != *name) {
+        if only.as_ref().is_some_and(|o| !o.contains(name)) {
             continue;
         }
         let walk = job.lock().unwrap().pictures.iter().find(|p| p.name == "walk").and_then(|p| p.png.clone());
-        let r = req.request(name, &refs, walk.as_deref());
-        let i2i = matches!(r, meshy::Request::FromImages { .. });
-        if let Err(e) = draw(&job, k, &key, &model, r, i2i) {
+        let result = if matches!(*name, "model" | "rig" | "clips") {
+            step3d(&job, k, &key, &req, &refs)
+        } else {
+            let r = req.request(name, &refs, walk.as_deref());
+            let i2i = matches!(r, meshy::Request::FromImages { .. });
+            draw(&job, k, &key, &model, r, i2i)
+        };
+        if let Err(e) = result {
             let mut j = job.lock().unwrap();
-            // A failed picture costs nothing: give its reservation back.
-            let back = meshy::model_cost(&model).saturating_sub(j.pictures[k].credits);
+            // A failed step costs nothing: give its reservation back.
+            let back = req.step_cost(name, meshy::model_cost(&model)).saturating_sub(j.pictures[k].credits);
             let mut s = spent.lock().unwrap();
             *s = s.saturating_sub(back);
             j.pictures[k].status = "FAILED".into();
@@ -557,7 +795,7 @@ mod tests {
     use super::*;
 
     fn req(kind: ArtKind, attack: &str) -> ArtRequest {
-        ArtRequest { kind, id: "orc_shaman".into(), description: "an orc shaman with a staff".into(), size: "big".into(), attack: attack.into(), tiles: (1, 1), portrait_for: String::new(), by_agent: true }
+        ArtRequest { kind, id: "orc_shaman".into(), description: "an orc shaman with a staff".into(), size: "big".into(), attack: attack.into(), tiles: (1, 1), portrait_for: String::new(), by_agent: true, female: false, from: String::new() }
     }
 
     #[test]
@@ -579,5 +817,34 @@ mod tests {
         assert!(ArtRequest { id: "bad id".into(), ..req(ArtKind::Icon, "none") }.check().is_err());
         assert!(ArtRequest { description: "orc".into(), ..req(ArtKind::Icon, "none") }.check().is_err());
         assert_eq!(ArtKind::parse("Icons"), Some(ArtKind::Icon));
+        assert!(req(ArtKind::Model3d, "bite").check().is_err(), "3D characters are people");
+        assert!(ArtRequest { description: String::new(), ..req(ArtKind::Gear3d, "none") }.check().is_ok(), "an item's model needs no description");
+    }
+
+    #[test]
+    fn three_d_jobs_have_their_steps_and_costs() {
+        let r = req(ArtKind::Model3d, "slash");
+        assert_eq!(r.pictures(), vec!["views", "model", "rig", "clips"]);
+        // A turnaround picture, the model, the rig, five clips (walk, idle, hurt, slash, sit).
+        assert_eq!(ArtState::cost(&r, "nano-banana-2-lite"), 3 + COST_MODEL + COST_RIG + 5 * COST_CLIP);
+        assert_eq!(clip_actions("none", true), vec![566, 11, 178, 32]);
+        let from = ArtRequest { from: "hero".into(), ..r.clone() };
+        assert_eq!(from.pictures(), vec!["model", "rig", "clips"]);
+        assert_eq!(req(ArtKind::Creature3d, "none").pictures(), vec!["views", "model"]);
+        assert_eq!(ArtState::cost(&req(ArtKind::Gear3d, "none"), "nano-banana-2-lite"), COST_MODEL);
+        let job = Job { id: 1, req: r.clone(), model: "nano-banana-2-lite".into(), cost: 0, pictures: r.pictures().into_iter().map(|name| Picture { name, task: None, status: String::new(), progress: 0, png: None, credits: 0 }).collect(), stage: Stage::Done, result: None, frame: (0, 0), applied: None, version: 0, told: false, made: Made3d::default() };
+        assert_eq!(ArtState::redo_steps(&job, "rig"), vec!["rig", "clips"], "a new rig needs new clips");
+        assert_eq!(ArtState::redo_cost(&job, "rig"), COST_RIG + 5 * COST_CLIP);
+    }
+
+    #[test]
+    fn a_turnaround_is_cut_into_three_views() {
+        let mut im = Rgba::new(30, 10);
+        for x in 0..30 {
+            im.set(x, 5, [(x / 10 * 100) as u8, 0, 0, 255]);
+        }
+        let views = split_views(&im.encode().unwrap()).unwrap();
+        assert_eq!(views.len(), 3);
+        assert!(views.iter().all(|v| v.starts_with("data:image/png;base64,")));
     }
 }

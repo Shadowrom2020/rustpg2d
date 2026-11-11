@@ -78,6 +78,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   point and handle direction estimated from the shape, *Flip*, length, *Render icon*): 3D model
   characters hold it on their hand bone. The asset library carries models. Agents get
   `import_model` and `model_info`.
+- **3D art with Meshy**: *Generate art* makes a **3D character** (a turnaround picture or a
+  figure's standing frames, a model, a skeleton and animations: walk, idle, the chosen attack, hit,
+  sitting; about 50 credits), a **3D creature** (a picture and an unrigged model) and an **item's 3D
+  model** from its icon. *Add to project* writes the files under `models/` and adds the model with
+  its clips and a character, or gives the item its model. Redoing a step makes the steps after it
+  again. Agents: `generate_art` kinds `model`, `creature`, `gear` (`female`, `from`); editor script
+  `artkind`, `artgen model ID female,from=SHEET ATTACK …`.
 - **Carrying props**: the *Carry prop* action and `carry(target, prop)`, `stop_carrying(target)`,
   `player_carrying()`: the player or a character carries a prop in both hands (no attacking
   meanwhile; saved for the player).

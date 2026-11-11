@@ -44,6 +44,8 @@ walking, idle, attacks, hurt, activities (`fish`, `farm`, `craft`, `chop`, `mine
   the body's direction, and walking stays in place.
 - **Colour features** are picked from the model's texture, which is reduced to 32 colours when it
   loads, as on figures: the character editor and the creator then offer colour rows.
+- **Generate art** makes 3D characters, creatures and items' models with Meshy ([Art and sound ›
+  Generate art](10-art-and-sound.md#generate-art-with-meshy)).
 - In the **character editor** the *3D models* cards above the figures choose a model; the game's
   **character creator** offers playable models (races may list model ids in their bodies too).
 - Items can have a **3D model** ([Database › Items](05-database.md#items)): 3D model characters

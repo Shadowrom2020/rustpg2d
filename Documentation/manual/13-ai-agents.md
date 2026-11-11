@@ -159,11 +159,11 @@ also shows in the editor's Art window and status bar.
 | Tool | Does |
 |---|---|
 | `art_settings` | Whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, character sizes and attacks, which sheets set the style. |
-| `generate_art {kind, id, description, size, attack, tiles, portrait_for, confirm_credits}` | Starts a job (`character`, `icon`, `prop`, `portrait`, `image`; `portrait_for`: the character whose dialog portrait it becomes) and returns its number at once; refuses unless `confirm_credits` equals the price, or past the budget. |
+| `generate_art {kind, id, description, size, attack, tiles, portrait_for, female, from, confirm_credits}` | Starts a job (`character`, `icon`, `prop`, `portrait`, `image`; `portrait_for`: the character whose dialog portrait it becomes; 3D: `model` = a rigged and animated 3D character, `female` for a woman, `from` = a figure sheet to model instead of drawing a turnaround picture; `creature` = an unrigged model; `gear` = the 3D model of the item `id` from its icon) and returns its number at once; refuses unless `confirm_credits` equals the price (the refusal lists the steps' prices), or past the budget. |
 | `art_jobs` | Every job of the session: its pictures and their progress, credits, done or failed, added as which asset. |
 | `art_result {job}` | A finished job as images: the converted art (characters: the 16-row sheet) and Meshy's raw pictures, to judge before adding it. |
-| `art_apply {job, id}` | Adds it to the project: the image, its sprite sheet and a character / item / prop using it; people's figures (drawn with empty hands) get estimated hand marks (check them with `view_image` and fix them with `edit_frames`). Saves. |
-| `art_redo {job, picture, confirm_credits}` | Draws one picture (`walk`, `attack`, `picture`) again and converts again. |
+| `art_apply {job, id}` | Adds it to the project: the image, its sprite sheet and a character / item / prop using it; people's figures (drawn with empty hands) get estimated hand marks (check them with `view_image` and fix them with `edit_frames`). 3D jobs: the files under `models/`, the 3D model and a character using it, or the item's model (check it with `model_info`). Saves. |
+| `art_redo {job, picture, confirm_credits}` | Draws one picture (`walk`, `attack`, `picture`) again and converts again; in 3D jobs (`views`, `model`, `rig`, `clips`) makes that step and the steps after it again. |
 
 In a chat this reads like: *"Draw an orc shaman with a skull staff for the swamp camp."* The
 assistant checks `art_settings`, tells you the price (6 credits with an attack), starts the job

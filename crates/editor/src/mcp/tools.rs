@@ -80,7 +80,7 @@ pub struct TilesetParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GenerateArtParams {
-    /// "character", "icon", "prop", "portrait" or "image".
+    /// "character", "icon", "prop", "portrait" or "image" (pictures); "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature) or "gear" (the 3D model of the existing item `id`, made from its icon).
     pub kind: String,
     /// Id the asset will get (letters, digits, _).
     pub id: String,
@@ -94,6 +94,10 @@ pub struct GenerateArtParams {
     pub tiles: Option<[u32; 2]>,
     /// Portraits: the character id whose dialog portrait it becomes when applied.
     pub portrait_for: Option<String>,
+    /// 3D characters ("model"): a woman (her sitting clip; the model is marked as a woman's).
+    pub female: Option<bool>,
+    /// 3D characters ("model"): a figure sheet id whose standing frames (front, side, back) are modelled, instead of drawing a turnaround picture first.
+    pub from: Option<String>,
     /// Must equal the cost in credits that art_settings / a refused call names: the creator's money.
     pub confirm_credits: Option<u32>,
 }
@@ -114,9 +118,9 @@ pub struct ArtApplyParams {
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ArtRedoParams {
     pub job: u32,
-    /// "walk", "attack" or "picture".
+    /// "walk", "attack" or "picture"; in 3D jobs "views", "model", "rig" or "clips" (the steps after it are made again too).
     pub picture: String,
-    /// Must equal the cost of one picture.
+    /// Must equal the cost a refused call names (one picture; in 3D jobs the step and the steps after it).
     pub confirm_credits: Option<u32>,
 }
 
@@ -678,7 +682,7 @@ plain(ed) {
     /// The project's script files with the functions each defines.
     #[tool(annotations(read_only_hint = true))]
     list_scripts: ListScripts => ed.mcp_list_scripts();
-    /// Generate art with the creator's Meshy account: whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, the sizes and attacks for characters.
+    /// Generate art with the creator's Meshy account: whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, the sizes and attacks for characters, the prices of 3D steps.
     #[tool(annotations(read_only_hint = true))]
     art_settings: ArtSettings => ed.mcp_art_settings();
     /// Every art job of this session: pictures and their progress, credits spent, finished or failed, added as which asset.
@@ -719,16 +723,16 @@ with_params {
     /// Edits the frames of a sprite sheet's image and a figure's hand grips (4 columns, 16 rows: walk, idle, attack, hurt; facings down, left, right, up): mirror Left rows into Right rows, copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (e.g. split a shade two colour features share), fill empty idle / hurt frames with the standing frame, set_grip / clear_grips / estimate_hands (where held weapons, tools and props are drawn). Grips move with the frames. Writes the PNG and the definition and reloads the art; view_image shows the result.
     #[tool]
     edit_frames: EditFrames(p: EditFramesParams) => ed.mcp_edit_frames(p);
-    /// Starts drawing art with Meshy (characters in the project's style: a walk grid, plus an attack grid; icons, props, portraits, painted images): returns the job number at once. Costs credits: call without confirm_credits first to learn the price, ask the person, then call with confirm_credits = that price. Watch it with art_jobs, look at it with art_result, add it with art_apply.
+    /// Starts drawing art with Meshy (characters in the project's style: a walk grid, plus an attack grid; icons, props, portraits, painted images; 3D: a rigged and animated 3D character, an unrigged creature model, an existing item's 3D model from its icon): returns the job number at once. Costs credits: call without confirm_credits first to learn the price, ask the person, then call with confirm_credits = that price. Watch it with art_jobs, look at it with art_result, add it with art_apply.
     #[tool]
     generate_art: GenerateArt(p: GenerateArtParams) => ed.mcp_generate_art(p);
     /// A finished art job's result as an image (characters: the 16-row sheet; walk / idle / attack / hurt rows) to judge before adding it; the raw Meshy pictures too.
     #[tool(annotations(read_only_hint = true))]
     art_result: ArtResult(p: ArtJobParams) => ed.mcp_art_result(p);
-    /// Adds a finished art job to the project: the image and its sprite sheet, and a character / item / prop using it (if none has that id). Saves.
+    /// Adds a finished art job to the project: the image and its sprite sheet, and a character / item / prop using it (if none has that id); 3D jobs: the model files (models/), the 3D model and a character using it, or the item's 3D model. Saves.
     #[tool]
     art_apply: ArtApply(p: ArtApplyParams) => ed.mcp_art_apply(p);
-    /// Draws one picture of a finished job again (a bad frame, the wrong look) and converts it again; costs one picture (confirm_credits).
+    /// Draws one picture of a finished job again (a bad frame, the wrong look) and converts it again; costs one picture (confirm_credits). In 3D jobs it makes a step again with the steps after it.
     #[tool]
     art_redo: ArtRedo(p: ArtRedoParams) => ed.mcp_art_redo(p);
     /// A rendered picture (PNG) of a map region as the editor draws it, optionally with grid, collision overlay and zones.

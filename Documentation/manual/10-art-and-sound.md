@@ -161,9 +161,27 @@ In the window, choose what to draw, give it an id and describe it:
   character's dialog portrait when added.
 - **Painted image**: a picture for *Show image* (up to 1024 pixels).
 
+The second row makes **3D art** (see [Characters › How characters look](06-characters.md#how-characters-look)):
+
+- **3D character**: a person, modelled, rigged and animated. Meshy first draws a turnaround picture
+  (front, side and back in an A-pose with empty hands; 3 credits), or, with **From figure** set to
+  a figure sheet, uses that figure's standing frames instead. Then it builds a 3D model from the
+  three views (30), gives it a skeleton (5) and animations from its library (3 each): walking,
+  standing, the chosen attack (sword slash, overhead blow, spear thrust, bow shot, club smash,
+  spell cast), a hit reaction and sitting on a chair (*a woman* picks the women's sitting clip).
+  About 50 credits; each step takes one to three minutes. *Add to project* writes `models/<id>.glb`
+  and `models/<id>_clips.glb`, adds the 3D model with its clips mapped to the animations and a
+  character using it. Pick its colour features in *Database › 3D models* afterwards.
+- **3D creature**: an animal or monster: a picture and an unrigged model of it (33 credits). Meshy
+  rigs only people, so it is added as a 3D model without a character; a rig template animates it.
+- **Item 3D model**: the **Id** is an existing item; Meshy models it from the item's icon (the
+  description, if any, guides the colours; 30 credits). *Add to project* gives the item the model
+  with its hold point estimated: check it in the item's *3D model* section.
+
 *Draw* shows the cost first; the job's pictures then take about a minute each. The result is
 previewed (characters walk, idle, attack and flinch); **Redo walk** / **Redo attack** / **Redo
-picture** draws one picture again if Meshy got something wrong (a missing staff, a wrong colour),
+picture** draws one picture again if Meshy got something wrong (a missing staff, a wrong colour;
+in 3D jobs **Redo** makes that step again with the steps after it, e.g. a new rig needs new clips),
 and **Add to project** writes the image and its sprite sheet, plus a character (characters), an
 item (icons) or a prop (props) with that id when there is none yet. **Edit in sprite editor** then
 opens the new sheet to touch it up. The status bar tells when a

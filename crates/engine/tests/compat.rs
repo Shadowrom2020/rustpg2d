@@ -103,6 +103,19 @@ fn save_of_0_12_0_loads() {
     assert_eq!(WorldState::from_ron(&text).unwrap().to_ron().unwrap(), text);
 }
 
+/// 0.16.0 had no races: characters have none, the project no races file, the player no race.
+#[test]
+fn definitions_of_0_16_0_load_without_races() {
+    let p = Project::load(&fixture("project-0.16.0")).expect("the 0.16.0 project loads");
+    let db = &p.db;
+    assert!(!db.characters.is_empty() && !db.sheets.is_empty());
+    assert!(db.races.is_empty());
+    assert!(db.characters.iter().all(|c| c.race.is_empty()));
+    assert!(db.sheets.iter().any(|s| s.complete) && db.sheets.iter().all(|s| s.cut.is_empty()));
+    let w = WorldState::from_ron(&std::fs::read_to_string(fixture("saves/save-0.12.0.ron")).unwrap()).unwrap();
+    assert!(w.player_race.is_empty());
+}
+
 #[test]
 fn minimal_save_loads_with_defaults() {
     let s = std::fs::read_to_string(fixture("saves/minimal.ron")).unwrap();

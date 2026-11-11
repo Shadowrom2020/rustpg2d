@@ -13,7 +13,12 @@ impl Game {
     /// The player's max HP: the player character's, plus the levels' bonus (0 = no combat).
     pub(super) fn player_max_hp(&self) -> i32 {
         let base = self.combat.max_hp;
-        if base <= 0 || !self.progression_on() {
+        if base <= 0 {
+            return base;
+        }
+        // The race's extra (or fewer) HP.
+        let base = (base + self.player_race().map_or(0, |r| r.max_hp)).max(1);
+        if !self.progression_on() {
             return base;
         }
         let p = &self.project.config.progression;

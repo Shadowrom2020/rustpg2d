@@ -1,7 +1,8 @@
 //! Character creator, shown after "New game" when the project enables it: the player types a
-//! name, picks male / female, a body (the project's default body for that sex and the other
-//! playable bodies of that sex, e.g. a goblin), skin color, hair style and hair color, and
-//! (men) a beard.
+//! name, picks a race (when the project has several playable races), male / female, a body (the
+//! race's bodies of that sex; without races the project's default body for that sex and the
+//! other playable bodies of that sex, e.g. a goblin), skin color, hair style and hair color, and
+//! (men) a beard. A race may bring its own lists of looks.
 //!
 //! Keyboard: typing edits the name (Backspace deletes), Up/Down select a row, Left/Right
 //! change it, Enter starts, Esc goes back to the title screen. Everything can be clicked.
@@ -22,6 +23,8 @@ const ROW_H: f32 = 54.0;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Row {
     Name,
+    /// Playable races (only when there is more than one).
+    Race,
     Sex,
     /// Playable bodies of the chosen sex (only when there is more than one).
     Body,
@@ -38,6 +41,7 @@ impl Row {
     fn label(self) -> &'static str {
         match self {
             Row::Name => "Name",
+            Row::Race => "Race",
             Row::Sex => "Sex",
             Row::Body => "Body",
             Row::Skin => "Skin",
@@ -51,6 +55,8 @@ impl Row {
 
 pub(super) struct Creator {
     name: String,
+    /// Chosen race (index into `creator_races`).
+    race: usize,
     sex: Sex,
     /// Chosen body per sex (index into `creator_bodies`).
     body: [usize; 2],
@@ -75,9 +81,11 @@ fn layout(n_rows: usize) -> Layout {
     let (sw, sh) = (screen_width(), screen_height());
     let p = Rect::new(((sw - W) / 2.0).round(), ((sh - H) / 2.0).round(), W, H);
     let fx = p.x + 170.0;
+    // Rows close up a little when there are many (a race row on top of all the looks).
+    let row_h = ROW_H.min((H - 76.0 - 84.0) / n_rows.max(1) as f32).floor();
     Layout {
         panel: p,
-        rows: (0..n_rows).map(|k| Rect::new(fx, p.y + 76.0 + k as f32 * ROW_H, 280.0, 38.0)).collect(),
+        rows: (0..n_rows).map(|k| Rect::new(fx, p.y + 76.0 + k as f32 * row_h, 280.0, 38.0)).collect(),
         preview: Rect::new(p.x + p.w - 270.0, p.y + 76.0, 240.0, 300.0),
         start: Rect::new(p.x + 30.0, p.y + H - 62.0, 220.0, 42.0),
         back: Rect::new(p.x + 266.0, p.y + H - 62.0, 120.0, 42.0),
@@ -103,6 +111,14 @@ fn button(r: Rect, label: &str, selected: bool, active: bool, hover: bool) {
     draw_text(label, r.x + (r.w - tw) / 2.0, r.y + r.h / 2.0 + 8.0, 24.0, WHITE);
 }
 
+/// The looks the creator offers (the race's lists, else the project's).
+struct Looks {
+    skin: Vec<[u8; 3]>,
+    hair: Vec<String>,
+    hair_colors: Vec<[u8; 3]>,
+    beards: Vec<String>,
+}
+
 fn rgb(c: [u8; 3]) -> Color {
     Color::from_rgba(c[0], c[1], c[2], 255)
 }
@@ -126,9 +142,26 @@ impl Game {
         if name.trim().is_empty() { "Hero".into() } else { name }
     }
 
-    /// Bodies a player of `sex` may choose: the project's default body for that sex first, then
-    /// the other playable bodies of that sex (sheets that exist).
-    fn creator_bodies(&self, sex: Sex) -> Vec<String> {
+    /// Races the player may choose (playable ones; none = the project has no race choice).
+    fn creator_races(&self) -> Vec<&crate::races::RaceDef> {
+        self.project.db.races.iter().filter(|r| r.playable).collect()
+    }
+
+    /// The chosen race (None without playable races).
+    fn creator_race(&self, c: &Creator) -> Option<&crate::races::RaceDef> {
+        let races = self.creator_races();
+        (!races.is_empty()).then(|| races[c.race % races.len()])
+    }
+
+    /// Bodies a player of `sex` may choose: the race's (that exist), else the project's default
+    /// body for that sex first, then the other playable bodies of that sex.
+    fn creator_bodies(&self, race: Option<&crate::races::RaceDef>, sex: Sex) -> Vec<String> {
+        if let Some(r) = race {
+            let v: Vec<String> = r.bodies(sex).iter().filter(|b| self.assets.sheets.contains_key(*b)).cloned().collect();
+            if !v.is_empty() {
+                return v;
+            }
+        }
         let cc = &self.project.config.creation;
         let mut v: Vec<String> = Vec::new();
         let default = cc.body(sex);
@@ -144,17 +177,36 @@ impl Game {
         v
     }
 
-    /// Choice rows the project offers (a list without entries has no row; Body only with a
-    /// choice).
-    fn creator_rows(&self, c: &Creator) -> Vec<Row> {
+    /// The looks offered: the race's lists, else the project's.
+    fn creator_looks(&self, c: &Creator) -> Looks {
         let cc = &self.project.config.creation;
-        let mut rows = vec![Row::Name, Row::Sex];
-        let beards = if c.sex == Sex::Male { cc.beards.len() } else { 0 };
-        let bodies = self.creator_bodies(c.sex).len();
+        let r = self.creator_race(c);
+        fn or<T: Clone>(race: Option<&Vec<T>>, project: &[T]) -> Vec<T> {
+            race.filter(|v| !v.is_empty()).cloned().unwrap_or_else(|| project.to_vec())
+        }
+        Looks {
+            skin: or(r.map(|r| &r.skin_colors), &cc.skin_colors),
+            hair: or(r.map(|r| &r.hair_styles), &cc.hair_styles),
+            hair_colors: or(r.map(|r| &r.hair_colors), &cc.hair_colors),
+            beards: or(r.map(|r| &r.beards), &cc.beards),
+        }
+    }
+
+    /// Choice rows the project offers (a list without entries has no row; Race and Body only
+    /// with a choice).
+    fn creator_rows(&self, c: &Creator) -> Vec<Row> {
+        let looks = self.creator_looks(c);
+        let mut rows = vec![Row::Name];
+        if self.creator_races().len() > 1 {
+            rows.push(Row::Race);
+        }
+        rows.push(Row::Sex);
+        let beards = if c.sex == Sex::Male { looks.beards.len() } else { 0 };
+        let bodies = self.creator_bodies(self.creator_race(c), c.sex).len();
         // A complete figure (a pre-made hero) has its skin and hair painted in.
         let complete = self.project.db.complete_body(&self.chosen_appearance(c).body);
-        let looks = |n: usize| if complete { 0 } else { n };
-        let choices = [(Row::Body, if bodies > 1 { bodies } else { 0 }), (Row::Skin, looks(cc.skin_colors.len())), (Row::Hair, looks(cc.hair_styles.len())), (Row::HairColor, looks(cc.hair_colors.len())), (Row::Beard, looks(beards))];
+        let n = |n: usize| if complete { 0 } else { n };
+        let choices = [(Row::Body, if bodies > 1 { bodies } else { 0 }), (Row::Skin, n(looks.skin.len())), (Row::Hair, n(looks.hair.len())), (Row::HairColor, n(looks.hair_colors.len())), (Row::Beard, n(beards))];
         rows.extend(choices.into_iter().filter(|(_, n)| *n > 0).map(|(r, _)| r));
         rows.extend([Row::Start, Row::Back]);
         rows
@@ -162,22 +214,22 @@ impl Game {
 
     /// The player definition's look with the creator's choices.
     fn chosen_appearance(&self, c: &Creator) -> Appearance {
-        let cc = &self.project.config.creation;
+        let looks = self.creator_looks(c);
         let mut a = self.project.db.character(&self.project.config.player).map(|d| d.appearance.clone()).unwrap_or_default();
-        let bodies = self.creator_bodies(c.sex);
+        let bodies = self.creator_bodies(self.creator_race(c), c.sex);
         if !bodies.is_empty() {
             a.body = bodies[c.body[c.sex as usize] % bodies.len()].clone();
         }
         let pick = |v: &Vec<[u8; 3]>, k: usize, d: [u8; 3]| if v.is_empty() { d } else { v[k % v.len()] };
-        a.skin = pick(&cc.skin_colors, c.skin, a.skin);
-        a.hair_color = pick(&cc.hair_colors, c.hair_color, a.hair_color);
-        if !cc.hair_styles.is_empty() {
-            a.hair = cc.hair_styles[c.hair % cc.hair_styles.len()].clone();
+        a.skin = pick(&looks.skin, c.skin, a.skin);
+        a.hair_color = pick(&looks.hair_colors, c.hair_color, a.hair_color);
+        if !looks.hair.is_empty() {
+            a.hair = looks.hair[c.hair % looks.hair.len()].clone();
         }
         if c.sex == Sex::Female {
             a.beard.clear();
-        } else if !cc.beards.is_empty() {
-            a.beard = cc.beards[c.beard % cc.beards.len()].clone();
+        } else if !looks.beards.is_empty() {
+            a.beard = looks.beards[c.beard % looks.beards.len()].clone();
         }
         a
     }
@@ -186,7 +238,10 @@ impl Game {
     pub(super) fn open_creator(&mut self) {
         while input::next_char().is_some() {} // drop keys typed before
         let sex = self.project.config.creation.sex.fixed().unwrap_or(Sex::Male);
-        self.creator = Some(Creator { name: self.default_player_name(), sex, body: [0, 0], skin: 0, hair: 0, hair_color: 0, beard: 0, row: 0, time: 0.0 });
+        // The player character's own race comes first when it is playable.
+        let own = self.project.db.character(&self.project.config.player).map(|d| d.race.clone()).unwrap_or_default();
+        let race = self.creator_races().iter().position(|r| r.id == own).unwrap_or(0);
+        self.creator = Some(Creator { name: self.default_player_name(), race, sex, body: [0, 0], skin: 0, hair: 0, hair_color: 0, beard: 0, row: 0, time: 0.0 });
     }
 
     /// Steps the choice of a row.
@@ -194,21 +249,28 @@ impl Game {
         if self.creator.is_none() {
             return;
         }
-        let cc = &self.project.config.creation;
-        let sex = self.creator.as_ref().map_or(Sex::Male, |c| c.sex);
+        let c = self.creator.as_ref().unwrap();
+        let looks = self.creator_looks(c);
         let n = match row {
-            Row::Body => self.creator_bodies(sex).len(),
-            Row::Skin => cc.skin_colors.len(),
-            Row::Hair => cc.hair_styles.len(),
-            Row::HairColor => cc.hair_colors.len(),
-            Row::Beard => cc.beards.len(),
+            Row::Race => self.creator_races().len(),
+            Row::Body => self.creator_bodies(self.creator_race(c), c.sex).len(),
+            Row::Skin => looks.skin.len(),
+            Row::Hair => looks.hair.len(),
+            Row::HairColor => looks.hair_colors.len(),
+            Row::Beard => looks.beards.len(),
             _ => 0,
         }
         .max(1) as i32;
-        let fixed = cc.sex.fixed().is_some();
+        let fixed = self.project.config.creation.sex.fixed().is_some();
         let c = self.creator.as_mut().unwrap();
         let cycle = |v: &mut usize| *v = (*v as i32 + step).rem_euclid(n) as usize;
         match row {
+            Row::Race => {
+                cycle(&mut c.race);
+                // Another race has other bodies and looks.
+                c.body = [0, 0];
+                (c.skin, c.hair, c.hair_color, c.beard) = (0, 0, 0, 0);
+            }
             Row::Sex if !fixed => c.sex = if c.sex == Sex::Male { Sex::Female } else { Sex::Male },
             Row::Body => cycle(&mut c.body[c.sex as usize]),
             Row::Skin => cycle(&mut c.skin),
@@ -222,11 +284,16 @@ impl Game {
     fn start_created(&mut self) {
         let Some(c) = self.creator.take() else { return };
         let appearance = self.chosen_appearance(&c);
+        let race = self.creator_race(&c).map(|r| r.id.clone());
         let name = c.name.trim().to_string();
         self.new_game();
         self.world.player_name = if name.is_empty() { self.default_player_name() } else { name };
         self.world.player_sex = c.sex;
         self.world.player_appearance = Some(appearance);
+        match race {
+            Some(r) => self.begin_as_race(&r),
+            None => self.refresh_player_size(),
+        }
         self.close_title();
     }
 
@@ -324,7 +391,8 @@ impl Game {
         let or = |s: &str| if s.is_empty() { "-".to_string() } else { s.to_string() };
         let rows: Vec<&str> = self.creator_rows(c).iter().map(|r| r.label()).filter(|l| !l.is_empty()).collect();
         let look = format!("{} skin {:?} hair {} {:?} beard {} rows {}", a.body, a.skin, or(&a.hair), a.hair_color, or(&a.beard), rows.join("/"));
-        Some(format!("{}|{:?}|{}", c.name, c.sex, look))
+        let race = self.creator_race(c).map_or("-".to_string(), |r| r.id.clone());
+        Some(format!("{}|{}|{:?}|{}", c.name, race, c.sex, look))
     }
 
     pub(super) fn draw_creator(&self) {
@@ -341,6 +409,8 @@ impl Game {
         let tw = measure_text(title, None, 34, 1.0).width;
         draw_text(title, p.x + (p.w - tw) / 2.0, p.y + 46.0, 34.0, GOLD);
         let cc = &self.project.config.creation;
+        let looks = self.creator_looks(c);
+        let race = self.creator_race(c);
 
         for (k, row) in choice_rows.iter().enumerate() {
             let r = l.rows[k];
@@ -375,16 +445,17 @@ impl Game {
                         let h = list.get(k % list.len().max(1)).cloned().unwrap_or_default();
                         (if h.is_empty() { "None".to_string() } else { pretty(&h) }, None)
                     };
-                    let bodies = self.creator_bodies(c.sex);
+                    let bodies = self.creator_bodies(race, c.sex);
                     let (text, swatch) = match row {
+                        Row::Race => (race.map_or(String::new(), |r| r.name.clone()), None),
                         Row::Body => {
                             let b = bodies.get(c.body[c.sex as usize] % bodies.len().max(1)).cloned().unwrap_or_default();
                             (self.project.db.sheet(&b).map_or(b.clone(), |s| s.label()), None)
                         }
-                        Row::Skin => (format!("{}/{}", c.skin % cc.skin_colors.len().max(1) + 1, cc.skin_colors.len()), cc.skin_colors.get(c.skin % cc.skin_colors.len().max(1)).copied()),
-                        Row::Hair => style(&cc.hair_styles, c.hair),
-                        Row::Beard => style(&cc.beards, c.beard),
-                        _ => (format!("{}/{}", c.hair_color % cc.hair_colors.len().max(1) + 1, cc.hair_colors.len()), cc.hair_colors.get(c.hair_color % cc.hair_colors.len().max(1)).copied()),
+                        Row::Skin => (format!("{}/{}", c.skin % looks.skin.len().max(1) + 1, looks.skin.len()), looks.skin.get(c.skin % looks.skin.len().max(1)).copied()),
+                        Row::Hair => style(&looks.hair, c.hair),
+                        Row::Beard => style(&looks.beards, c.beard),
+                        _ => (format!("{}/{}", c.hair_color % looks.hair_colors.len().max(1) + 1, looks.hair_colors.len()), looks.hair_colors.get(c.hair_color % looks.hair_colors.len().max(1)).copied()),
                     };
                     let mut x = mid.x + 10.0;
                     if let Some(col) = swatch {
@@ -417,6 +488,26 @@ impl Game {
                 for layer in self.character_layers(&a, &eq, *f, 0, false) {
                     self.assets.draw_frame_colored_in(&layer.sheet, layer.frame, r, layer.skin, layer.hair);
                 }
+            }
+        }
+
+        // The race's description under the preview.
+        if let Some(r) = race.filter(|r| !r.description.is_empty() && self.creator_races().len() > 1) {
+            let text = r.description.clone();
+            let mut y = pr.y + pr.h + 26.0;
+            let mut line = String::new();
+            for w in text.split_whitespace() {
+                let next = if line.is_empty() { w.to_string() } else { format!("{line} {w}") };
+                if measure_text(&next, None, 18, 1.0).width > pr.w && !line.is_empty() {
+                    draw_text(&line, pr.x, y, 18.0, LIGHTGRAY);
+                    y += 20.0;
+                    line = w.to_string();
+                } else {
+                    line = next;
+                }
+            }
+            if !line.is_empty() {
+                draw_text(&line, pr.x, y, 18.0, LIGHTGRAY);
             }
         }
 

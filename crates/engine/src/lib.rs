@@ -31,6 +31,7 @@ pub mod paths;
 pub mod progression;
 pub mod project;
 pub mod quest;
+pub mod races;
 pub mod refactor;
 pub mod release;
 pub mod render;

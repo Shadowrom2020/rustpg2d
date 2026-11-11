@@ -109,7 +109,7 @@ Instructions for every session (people and coding agents) that implements roadma
   (`starter.pending`); editor `library_update.rs`, the history generator
   `crates/editor/examples/starter_history.rs` and the test `starter_history_covers_the_starter`.
 
-- [ ] Races — `feature/races`
+- [x] Races — `feature/races`
 
   **Goal.** Races are a definition type: humans, goblins, elves, dwarves, orcs and trolls, each
   with its own bodies, looks, strengths and a faction. The player picks one in the character
@@ -126,12 +126,67 @@ Instructions for every session (people and coding agents) that implements roadma
   `<overlay>_<cut>` (and `_<cut>_f`) before the plain one, so one item serves every race whose
   cut exists. Script / conditions: `player_race()`, a *Player race* condition.
 
-  **Engine.** Proposed (needs the go-ahead): the definition type (+ Database tab, refs, library,
-  release export), the creator page, the cut lookup, the condition and script function.
+  **Engine.** Agreed: `races.rs` (`RaceDef`: bodies per sex, looks, max HP / speed % / defense,
+  starting skills, size, playable) + `defs/races.ron`, `RefKind::Race`, Database tab, renames,
+  library; `CharacterDef.race`, `WorldState.player_race`, `SheetDef.cut`; the creator's Race row;
+  `runtime/races.rs` (stats, starting skills, size of bodies listed by a race); the *Player race*
+  condition and `player_race()`. The race's default faction comes with *Factions*. Done: human and
+  goblin races in the example and the starter library.
 
   **Verify.** Unit tests (defaults, an old save without a race, overlay lookup by cut). Autoplay:
   the creator with each race (`status creator=`), stats and skills applied, a dwarf wearing the
   tunic's dwarf cut; shots of all races side by side.
+
+- [ ] Meshy art in the editor — `feature/meshy-art`
+
+  **Goal.** Creators draw new art from the editor with their own Meshy account: they enter an API
+  key in the editor's settings, describe a character (or an item icon, a prop, a portrait) and
+  get a finished sheet in the project's style, without the Python scripts of
+  `scripts/art/meshy/`. AI agents connected to the editor's agent server can do the same from a
+  chat ("draw an orc shaman for the swamp camp").
+
+  **Design.**
+  - *Settings* (*Edit › Settings… › Meshy*, `EditorSettings`): the API key (stored apart from
+    `editor.ron` in `<config>/meshy.key`, owner-only permissions; never written into projects,
+    exports, logs or agent replies), the model (default `nano-banana-2-lite`, 3 credits a
+    picture), a credit budget per session (default 60) and *Ask before spending*. A *Test key*
+    button shows the balance.
+  - *Two Meshy modes, one key*: **image-to-image** with the project's own sheets as style and
+    layout references (characters: a walk grid, then an attack grid with the walk grid as the
+    character reference, as the pipeline does), so new art matches what the project has;
+    **text-to-image** (`POST /openapi/v1/text-to-image`, `remove_background`) for pictures without
+    a reference (item icons, portraits, painted images for *Show image*). Tasks are polled (or
+    followed over the SSE stream) and downloaded; failed tasks cost nothing.
+  - *Converter in Rust* (editor `art/` module): the steps of `scripts/art/meshy/sprites.py`
+    (figure extraction, size classes, side rows and flipping, faded frames, idle / hurt frames,
+    palette, shadow) and icon / portrait cropping, producing a `Body` sheet (complete figure),
+    an icon on a sheet or a portrait sheet.
+  - *Art window* (*Assets › Generate art…*): kind (character with or without attack, item icon,
+    prop, portrait, image), description, size class (person, small, big, huge, animal) and
+    attack style, the cost before spending, progress per picture, a preview of the result
+    (walk / attack / idle / hurt rows animated) with *Redo* per picture and *Add to project*
+    (the sheet and, for characters, a character definition with the body).
+  - *Agent server tools*: `art_settings` (key set?, model, budget left, balance; never the key),
+    `generate_art {kind, id, description, size, attack, confirm_credits}` starts a job and returns
+    its id and cost at once (the call refuses without `confirm_credits` equal to the cost, or past
+    the budget), `art_jobs` (progress of every job; MCP progress notifications while a client
+    waits), `art_result {job}` (the converted sheet as an image to look at, frame problems found),
+    `art_apply {job, id}` (writes the asset and its definition like `write_asset` +
+    `upsert_def`), `art_redo {job, picture}`. The editor shows every spend in its status bar and
+    the Art window lists agent jobs too, so the creator sees what an agent draws.
+  - *Chat*: the creator's chat is their AI assistant connected to the agent server (Claude
+    Desktop / Code, Cursor, …): it describes, starts, watches, judges (`art_result` returns
+    images) and applies, asking before it spends. An LLM chat inside the editor would need a
+    second AI API and key; it is not part of this item.
+
+  **Engine.** Editor code (needs the go-ahead): settings, the `art/` module (Meshy client, jobs on
+  a background thread, converter), the window, the agent tools; an HTTP client dependency
+  (`ureq` with rustls, or the `reqwest` the MCP client tests already pull in). No engine changes.
+
+  **Verify.** Unit tests of the converter on stored Meshy grids (no network in CI); with a key: a
+  character and an item icon from the Art window and from an MCP client (cost refused without
+  confirmation, budget respected, progress, result image, applied asset in play); the key never
+  in project files, exports or replies.
 
 - [ ] Factions — `feature/factions`
 
@@ -155,7 +210,7 @@ Instructions for every session (people and coding agents) that implements roadma
   fighting; the player as an orc walks past an orc camp unharmed; standing changes after a
   quest.
 
-- [ ] Elves, dwarves, orcs and trolls — `feature/race-art`
+- [x] Elves, dwarves, orcs and trolls — `feature/race-art`
 
   **Goal.** The new races in the example and the starter library, in the 2× style.
 
@@ -164,6 +219,11 @@ Instructions for every session (people and coding agents) that implements roadma
   hair), portraits.
 
   **Engine.** None (content).
+
+  **Done.** Drawn with Meshy (`scripts/art/meshy/`) as complete figures like 0.16's characters, so
+  no outfit cuts or race hair were needed (the engine supports cuts for layered race bodies
+  later); no portraits (dialogs show the head and shoulders). Elf, dwarf and orc bodies per sex,
+  one troll body (3x art at race size 1.5), the orc chief, a dwarf trader, an elven herbalist.
 
   **Example.** A dwarf merchant at the mine (ores and tools), an elven herbalist travelling the
   wilds (schedule), an orc camp in the wilds (enemies, a chief, loot), a troll guarding a bridge

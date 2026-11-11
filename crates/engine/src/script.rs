@@ -487,6 +487,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("set_hour", with!(ctx, |c, h: f64| c.actions.push(Action::SetTime { hour: h as f32 })));
     engine.register_fn("set_hour", with!(ctx, |c, h: i64| c.actions.push(Action::SetTime { hour: h as f32 })));
     engine.register_fn("player_sex", with!(ctx, |c| c.world.player_sex.key().to_string()));
+    engine.register_fn("player_race", with!(ctx, |c| c.world.player_race.clone()));
     engine.register_fn("is_female", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Female));
     engine.register_fn("is_male", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Male));
     // Placeholders like in dialog texts: "{player}", "{sir|madam}", "{var}".

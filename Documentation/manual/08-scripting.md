@@ -294,6 +294,7 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 |---|---|
 | `player_name()` | The name the player chose. |
 | `player_sex()` | `"male"` or `"female"`. |
+| `player_race()` | The player's race id (*Database › Races*), e.g. `"goblin"`; `""` without one. |
 | `is_female()` / `is_male()` | The player character's sex. |
 | `player_hp()` | Current hit points (2 per heart). |
 | `player_max_hp()` | Maximum hit points. |

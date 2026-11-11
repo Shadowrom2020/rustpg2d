@@ -319,6 +319,17 @@ impl Assets {
         true
     }
 
+    /// Like [`draw_frame_colored`](Self::draw_frame_colored), `size` times as large (bigger or
+    /// smaller races), still standing at `feet`.
+    pub fn draw_frame_colored_sized(&self, sheet: &str, frame: u32, feet: Vec2, tint: Color, (skin, hair): (Option<[u8; 3]>, Option<[u8; 3]>), size: f32) -> bool {
+        let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
+        let src = s.src_rect(frame);
+        let d = s.world_of(src) * size;
+        let pos = vec2((feet.x - d.x / 2.0).round(), (feet.y - d.y).round());
+        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(src)), dest_size: Some(d), ..Default::default() });
+        true
+    }
+
     /// Like [`draw_frame_colored`](Self::draw_frame_colored), centered at `center` and rotated
     /// by `angle` radians (clockwise on screen): characters lying in a sideways bed.
     pub fn draw_frame_colored_rotated(&self, sheet: &str, frame: u32, center: Vec2, angle: f32, (skin, hair): (Option<[u8; 3]>, Option<[u8; 3]>), tint: Color) -> bool {

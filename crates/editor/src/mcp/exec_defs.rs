@@ -118,6 +118,18 @@ def_facts!(SkillDef, |d| format!("\"{}\"; max level {}; {:?}", d.name, d.max_lev
 def_facts!(SpellDef, |d| format!("\"{}\"; mana {}; cooldown {}; needs {} level {}; {:?}", d.name, d.mana, d.cooldown, d.skill, d.level, d.effect));
 def_facts!(RecipeDef, |d| format!("makes {} x{} from [{}]{}{}", d.result, d.count, d.ingredients.iter().map(|i| format!("{} x{}", i.item, i.count)).collect::<Vec<_>>().join(", "), if d.station.is_empty() { String::new() } else { format!(" at {}", d.station) }, if d.skill.is_empty() { String::new() } else { format!("; {} level {}", d.skill, d.level) }));
 def_facts!(AchievementDef, |d| format!("\"{}\"; {}{} conditions", d.name, if d.hidden { "hidden; " } else { "" }, d.conditions.len()));
+def_facts!(rustpg2d_engine::races::RaceDef, |d| format!(
+    "\"{}\"{}; bodies [{}] / [{}]; hp {:+}, speed {:+}%, defense {:+}; skills [{}]{}",
+    d.name,
+    if d.playable { "; playable" } else { "" },
+    d.bodies_male.join(", "),
+    d.bodies_female.join(", "),
+    d.max_hp,
+    d.speed,
+    d.defense,
+    d.skills.iter().map(|s| format!("{} {}", s.skill, s.level)).collect::<Vec<_>>().join(", "),
+    if d.size != 1.0 { format!("; size {}", d.size) } else { String::new() }
+));
 
 /// Calls a generic function on the definition list of `kind` (a kind from `parse_def_kind`).
 macro_rules! on_defs {
@@ -197,6 +209,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Spell => (val(&SpellDef::new(id, "New spell", "", icon.clone(), 5, 1.0, SpellEffect::Heal { amount: 5 })), "effect: {Heal:{amount}} | {Bolt:{damage, projectile (sheet), speed, range}} | {Blast:{..}} | {Light:{..}} | {Script:{function}}; mana cost; cooldown s; skill + level required to learn (empty skill = none). Items with teaches = this id teach it."),
         RefKind::Recipe => (val(&RecipeDef::new(id, "<item id>", 1, vec![], "")), "result + count from ingredients [{item, count}]; station: a prop id the player must use (empty = anywhere, craftable from the inventory), station_state: the state it must be in (a lit fire); skill + level required; tools: item ids that must be in the inventory; quality: [{level, result}] better results at higher skill."),
         RefKind::Achievement => (val(&AchievementDef { id: id.into(), name: "New achievement".into(), description: String::new(), icon, hidden: false, conditions: vec![] }), "conditions: checked while playing (same shapes as trigger conditions: Quest, Flag, Var, Defeated, Level, HasItem, …); hidden: shown as ??? until unlocked; also unlocked by the UnlockAchievement action / unlock_achievement()."),
+        RefKind::Race => (val(&rustpg2d_engine::races::RaceDef::fresh(id)), "bodies_male / bodies_female: body sheet ids (complete figures or layered bodies; the creator offers them, and they get the race's size); hair_styles / beards: hair / beard sheets (\"\" = none) and skin_colors / hair_colors [[r,g,b]] the creator offers for layered bodies (empty = the project's Character creation lists); max_hp / defense: added for a player of this race, speed: percent; skills: [{skill, level}] starting levels; size: 1 = as drawn (trolls 1.5: bigger sprite and hitbox); playable: offered in the creator. Characters name their race in `race`."),
         RefKind::Map => (Value::Null, "maps are not definitions"),
     }
 }

@@ -741,6 +741,7 @@ impl Editor {
             quests: self.project.db.quests.iter().map(|q| q.id.clone()).collect(),
             quest_stages: self.project.db.quests.iter().map(|q| (q.id.clone(), q.stages.clone())).collect(),
             skills: self.project.db.skills.iter().map(|q| q.id.clone()).collect(),
+            races: self.project.db.races.iter().map(|r| r.id.clone()).collect(),
             spells: self.project.db.spells.iter().map(|q| q.id.clone()).collect(),
             achievements: self.project.db.achievements.iter().map(|a| a.id.clone()).collect(),
             stations: {

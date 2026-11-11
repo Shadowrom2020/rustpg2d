@@ -49,12 +49,13 @@ impl Game {
     }
 
     pub(super) fn player_defense(&self) -> i32 {
-        self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + self.skill_defense() + crate::effects::defense_bonus(&self.world.effects)
+        self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + self.skill_defense() + crate::effects::defense_bonus(&self.world.effects) + self.player_race().map_or(0, |r| r.defense)
     }
 
     /// Movement speed factor from armor (heavy armor slows down).
     pub(super) fn speed_factor(&self) -> f32 {
-        let base = ((1.0 + self.armor_pieces().map(|a| a.speed).sum::<f32>()) * self.skill_speed_factor()).clamp(0.3, 2.0);
+        let race = self.player_race().map_or(1.0, |r| r.speed_factor());
+        let base = ((1.0 + self.armor_pieces().map(|a| a.speed).sum::<f32>()) * self.skill_speed_factor() * race).clamp(0.3, 2.0);
         base * crate::effects::speed_factor(&self.world.effects)
     }
 

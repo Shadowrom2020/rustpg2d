@@ -35,7 +35,7 @@ const PACK_VERSION: u32 = 1;
 pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
-pub const KINDS: [RefKind; 10] = [RefKind::Tileset, RefKind::Sheet, RefKind::Sound, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe];
+pub const KINDS: [RefKind; 11] = [RefKind::Tileset, RefKind::Sheet, RefKind::Sound, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()
@@ -66,6 +66,8 @@ struct Manifest {
     spells: Vec<crate::skills::SpellDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     recipes: Vec<crate::crafting::RecipeDef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    races: Vec<crate::races::RaceDef>,
     /// Script functions by name (their whole source text).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     scripts: BTreeMap<String, String>,
@@ -280,6 +282,7 @@ impl Bundle {
             skills: db.skills.iter().filter(|d| has(RefKind::Skill, &d.id)).cloned().collect(),
             spells: db.spells.iter().filter(|d| has(RefKind::Spell, &d.id)).cloned().collect(),
             recipes: db.recipes.iter().filter(|d| has(RefKind::Recipe, &d.id)).cloned().collect(),
+            races: db.races.iter().filter(|d| has(RefKind::Race, &d.id)).cloned().collect(),
             quests: Vec::new(),
             achievements: Vec::new(),
             ..Default::default()
@@ -375,6 +378,7 @@ impl Bundle {
             skills: self.db.skills.clone(),
             spells: self.db.spells.clone(),
             recipes: self.db.recipes.clone(),
+            races: self.db.races.clone(),
             scripts: self.scripts.clone(),
         };
         let manifest = crate::project::ron_text(&m)?;
@@ -413,7 +417,7 @@ impl Bundle {
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
         }
-        let db = Database { tilesets: m.tilesets, sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), ..Default::default() };
+        let db = Database { tilesets: m.tilesets, sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
         for rel in b.db.tilesets.iter().map(|d| &d.image).chain(b.db.sheets.iter().map(|d| &d.image)).chain(b.db.sounds.iter().map(|d| &d.file)) {
             if !rel.is_empty() && !b.files.contains_key(rel) {
@@ -465,7 +469,7 @@ impl Bundle {
         config.tile_size = self.tile_size;
         let mut out = vec![("project.ron".to_string(), crate::project::ron_text(&config)?.into_bytes())];
         let db = &self.db;
-        let defs: [(&str, String); 10] = [
+        let defs: [(&str, String); 11] = [
             ("tilesets", crate::project::ron_text(&db.tilesets)?),
             ("sheets", crate::project::ron_text(&db.sheets)?),
             ("items", crate::project::ron_text(&db.items)?),
@@ -476,6 +480,7 @@ impl Bundle {
             ("skills", crate::project::ron_text(&db.skills)?),
             ("spells", crate::project::ron_text(&db.spells)?),
             ("recipes", crate::project::ron_text(&db.recipes)?),
+            ("races", crate::project::ron_text(&db.races)?),
         ];
         out.extend(defs.into_iter().map(|(n, t)| (format!("defs/{n}.ron"), t.into_bytes())));
         if !self.scripts.is_empty() {
@@ -685,6 +690,7 @@ impl Bundle {
         self.db.skills.retain(|d| new(RefKind::Skill, &d.id));
         self.db.spells.retain(|d| new(RefKind::Spell, &d.id));
         self.db.recipes.retain(|d| new(RefKind::Recipe, &d.id));
+        self.db.races.retain(|d| new(RefKind::Race, &d.id));
         let used = files_of(&self.db);
         self.files.retain(|rel, _| used.contains(rel));
         let mut report = self.merge_into(db, root)?;
@@ -891,6 +897,7 @@ pub fn remove_assets(project: &mut Project, assets: &[AssetRef]) -> Result<()> {
     db.skills.retain(|d| keep(RefKind::Skill, &d.id));
     db.spells.retain(|d| keep(RefKind::Spell, &d.id));
     db.recipes.retain(|d| keep(RefKind::Recipe, &d.id));
+    db.races.retain(|d| keep(RefKind::Race, &d.id));
     let files_after = files_of(&project.db);
     for f in files_before.difference(&files_after) {
         if safe_rel(f) {

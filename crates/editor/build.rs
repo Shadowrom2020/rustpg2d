@@ -9,8 +9,8 @@ fn walk(dir: &Path, files: &mut Vec<PathBuf>) {
     for e in rd.flatten() {
         let p = e.path();
         let name = e.file_name().to_string_lossy().to_string();
-        // starter.stamp appears when the folder itself is opened as the asset library.
-        if name.starts_with('.') || name == "starter.stamp" {
+        // starter.stamp / starter.pending appear when the folder itself is opened as the asset library.
+        if name.starts_with('.') || name == "starter.stamp" || name == "starter.pending" {
             continue;
         }
         if p.is_dir() {

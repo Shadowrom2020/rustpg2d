@@ -64,7 +64,13 @@ can change lives here; nothing else is persisted.
 `~/.local/share/rustpg2d/library` (`RUSTPG2D_LIBRARY` overrides). The editor's starter set is the
 committed folder `crates/editor/assets/starter_library/`, embedded by `crates/editor/build.rs` and
 applied to a library when its `starter.stamp` (rules version + hash of the files) differs: new ids
-are added, images the new set only extends are replaced, structures wait for their tileset art.
+are added, images the new set only extends are replaced, structures wait for their tileset art,
+and `starter.pending` is left for the editor to offer *Update asset library*
+(`starter_update.rs`): it compares the library with the starter set using
+`crates/editor/assets/starter_history.ron` (fingerprints of every definition, file and script
+function any starter set shipped, written by `cargo run -p rustpg2d-editor --example
+starter_history` from git; a test keeps it current), replaces untouched assets, asks about edited
+and retired ones, and backs the library folder up first.
 `.r2dpack` files are zip bundles of assets with a manifest, for sharing between projects.
 
 **Translations** (`lang.rs`): `lang/<code>.ron` with `texts` (content: dialogs, names, quest texts,
@@ -196,8 +202,10 @@ means per format:
   version is bumped with a reader for the old one.
 - **Saves**: `WorldState` fields all default; unknown fields are ignored, so a newer save loads in
   an older game minus what it does not know.
-- **Libraries**: existing libraries only gain new ids from a changed starter set (images that are
-  pure extensions are replaced); bump `STARTER_RULES` when the way starter sets are applied changes.
+- **Libraries**: existing libraries only gain new ids from a changed starter set on their own
+  (images that are pure extensions are replaced); changed assets arrive through *Update asset
+  library*. Bump `STARTER_RULES` when the way starter sets are applied changes, and regenerate
+  `starter_history.ron` whenever the starter set changes (the test says so).
 - **Script API**: functions are never removed or change meaning within a major version; a new one
   is registered in `script.rs` and described once in the `API` table of `script_api.rs` (parameter
   kinds: `Arg::Id` for ids, `Arg::Line` for a line players read, `Arg::Text` for other words),

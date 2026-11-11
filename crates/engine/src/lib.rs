@@ -40,6 +40,8 @@ pub mod script_api;
 pub mod script_refs;
 pub mod settings;
 pub mod skills;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod starter_update;
 pub mod state;
 pub mod sys;
 pub mod structure;

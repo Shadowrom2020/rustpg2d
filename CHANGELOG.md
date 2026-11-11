@@ -3,6 +3,19 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Editor
+- **Update asset library** (*Assets › Update asset library…*, the Asset Library window's *File*
+  menu, or the banner a new version shows): brings the starter set of this version into your
+  asset library. New assets are added, assets you never changed are replaced with their newer
+  version, assets you changed that the starter set changed too are listed for you to tick, and
+  assets the starter set dropped are offered for deletion (not those still in use). The library
+  folder is backed up first; your own script functions stay. The editor knows every starter asset
+  version it ever shipped (`starter_history.ron`), so it tells your edits from older versions.
+  Editor script `libupdate`, `libupdatepick`, `libupdateok`, `libupdatecancel`; `status` prints
+  `libupdate=`.
+
 ## 0.16.0 — 2026-11-11
 
 ### Art

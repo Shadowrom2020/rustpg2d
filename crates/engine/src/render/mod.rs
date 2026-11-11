@@ -83,13 +83,26 @@ impl TilesetTex {
 pub struct SheetTex {
     pub texture: Texture2D,
     pub image: Image,
+    /// Frame size in image pixels (where frames are cut).
     pub frame_w: f32,
     pub frame_h: f32,
     pub columns: u32,
     pub count: u32,
+    /// Image pixels per world pixel (`SheetDef::scale`): frames are drawn at their size divided by it.
+    pub scale: f32,
 }
 
 impl SheetTex {
+    /// A frame's size in the world (pixels at the 32-px tile size).
+    pub fn world_size(&self) -> Vec2 {
+        vec2(self.frame_w, self.frame_h) / self.scale
+    }
+
+    /// The world size of a source rectangle of the image.
+    pub fn world_of(&self, src: Rect) -> Vec2 {
+        src.size() / self.scale
+    }
+
     pub fn src_rect(&self, frame: u32) -> Rect {
         let c = frame % self.columns.max(1);
         let r = frame / self.columns.max(1);
@@ -236,6 +249,7 @@ impl Assets {
                     frame_h: fh as f32,
                     columns,
                     count: columns * rows,
+                    scale: def.scale.clamp(1, 4) as f32,
                 },
             );
         }
@@ -279,14 +293,7 @@ impl Assets {
     /// Draws a sheet frame with its bottom-center at `feet`.
     pub fn draw_frame(&self, sheet: &str, frame: u32, feet: Vec2, tint: Color) -> bool {
         let Some(s) = self.sheets.get(sheet) else { return false };
-        let pos = vec2((feet.x - s.frame_w / 2.0).round(), (feet.y - s.frame_h).round());
-        draw_texture_ex(
-            &s.texture,
-            pos.x,
-            pos.y,
-            tint,
-            DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(s.src_rect(frame).size()), ..Default::default() },
-        );
+        draw_at_feet(&s.texture, s, s.src_rect(frame), feet, tint);
         true
     }
 
@@ -308,18 +315,17 @@ impl Assets {
     /// Draws a frame of a body / hair sheet recolored with `skin` / `hair`, bottom-center at `feet`.
     pub fn draw_frame_colored(&self, sheet: &str, frame: u32, feet: Vec2, tint: Color, skin: Option<[u8; 3]>, hair: Option<[u8; 3]>) -> bool {
         let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
-        let pos = vec2((feet.x - s.frame_w / 2.0).round(), (feet.y - s.frame_h).round());
-        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(s.src_rect(frame).size()), ..Default::default() });
+        draw_at_feet(&tex, s, s.src_rect(frame), feet, tint);
         true
     }
 
-    /// Like [`draw_frame_colored`](Self::draw_frame_colored), scaled into `dest` (portraits).
     /// Like [`draw_frame_colored`](Self::draw_frame_colored), centered at `center` and rotated
     /// by `angle` radians (clockwise on screen): characters lying in a sideways bed.
     pub fn draw_frame_colored_rotated(&self, sheet: &str, frame: u32, center: Vec2, angle: f32, (skin, hair): (Option<[u8; 3]>, Option<[u8; 3]>), tint: Color) -> bool {
         let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
-        let pos = vec2((center.x - s.frame_w / 2.0).round(), (center.y - s.frame_h / 2.0).round());
-        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(s.src_rect(frame).size()), rotation: angle, ..Default::default() });
+        let size = s.world_size();
+        let pos = vec2((center.x - size.x / 2.0).round(), (center.y - size.y / 2.0).round());
+        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(size), rotation: angle, ..Default::default() });
         true
     }
 
@@ -344,37 +350,25 @@ impl Assets {
     pub fn draw_sprite(&self, sprite: &SpriteRef, extra_frame: u32, feet: Vec2, tint: Color) -> bool {
         let Some(s) = self.sheets.get(&sprite.sheet) else { return false };
         let (w, h) = sprite.cells();
-        let src = s.region(sprite.frame + extra_frame, w, h);
-        let pos = vec2((feet.x - src.w / 2.0).round(), (feet.y - src.h).round());
-        draw_texture_ex(&s.texture, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(src)), dest_size: Some(src.size()), ..Default::default() });
+        draw_at_feet(&s.texture, s, s.region(sprite.frame + extra_frame, w, h), feet, tint);
         true
     }
 
-    /// Pixel size of a sprite (one frame if the sheet is unknown: `fallback`).
+    /// World size of a sprite (one frame if the sheet is unknown: `fallback`).
     pub fn sprite_size(&self, sprite: &SpriteRef, fallback: f32) -> Vec2 {
         let (w, h) = sprite.cells();
-        self.sheets
-            .get(&sprite.sheet)
-            .map_or(vec2(fallback, fallback), |s| vec2(s.frame_w * w as f32, s.frame_h * h as f32))
+        self.sheets.get(&sprite.sheet).map_or(vec2(fallback, fallback), |s| s.world_size() * vec2(w as f32, h as f32))
     }
 
     /// Draws a frame centered at `center`, rotated by `angle` radians.
     pub fn draw_frame_rotated(&self, sheet: &str, frame: u32, center: Vec2, angle: f32, tint: Color) -> bool {
-        let Some(s) = self.sheets.get(sheet) else { return false };
-        draw_texture_ex(
-            &s.texture,
-            center.x - s.frame_w / 2.0,
-            center.y - s.frame_h / 2.0,
-            tint,
-            DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(s.src_rect(frame).size()), rotation: angle, ..Default::default() },
-        );
-        true
+        self.draw_frame_scaled(sheet, frame, center, angle, 1.0, tint)
     }
 
     /// Draws a frame centered at `center`, rotated by `angle` radians and scaled by `scale`.
     pub fn draw_frame_scaled(&self, sheet: &str, frame: u32, center: Vec2, angle: f32, scale: f32, tint: Color) -> bool {
         let Some(s) = self.sheets.get(sheet) else { return false };
-        let size = vec2(s.frame_w, s.frame_h) * scale;
+        let size = s.world_size() * scale;
         draw_texture_ex(
             &s.texture,
             center.x - size.x / 2.0,
@@ -385,7 +379,6 @@ impl Assets {
         true
     }
 
-    /// Draws a frame scaled into `dest` (screen UI, icons).
     /// Draws a sprite (its whole cell block) scaled into `r` keeping its shape: centered,
     /// standing on the bottom edge. Returns false if the sheet is unknown.
     pub fn draw_sprite_fit(&self, sprite: &crate::defs::SpriteRef, r: Rect) -> bool {
@@ -398,6 +391,7 @@ impl Assets {
         true
     }
 
+    /// Draws a frame scaled into `dest` (screen UI, icons).
     pub fn draw_frame_in(&self, sheet: &str, frame: u32, dest: Rect, tint: Color) -> bool {
         let Some(s) = self.sheets.get(sheet) else { return false };
         draw_texture_ex(
@@ -413,6 +407,13 @@ impl Assets {
         );
         true
     }
+}
+
+/// Draws `src` of a sheet's texture at its world size, bottom-center at `feet` (pixel-snapped).
+fn draw_at_feet(tex: &Texture2D, s: &SheetTex, src: Rect, feet: Vec2, tint: Color) {
+    let size = s.world_of(src);
+    let pos = vec2((feet.x - size.x / 2.0).round(), (feet.y - size.y).round());
+    draw_texture_ex(tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(src)), dest_size: Some(size), ..Default::default() });
 }
 
 /// A source rectangle shrunk by a sliver of a texel on every side, for drawing. With nearest

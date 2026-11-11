@@ -151,7 +151,10 @@ impl Game {
         let mut rows = vec![Row::Name, Row::Sex];
         let beards = if c.sex == Sex::Male { cc.beards.len() } else { 0 };
         let bodies = self.creator_bodies(c.sex).len();
-        let choices = [(Row::Body, if bodies > 1 { bodies } else { 0 }), (Row::Skin, cc.skin_colors.len()), (Row::Hair, cc.hair_styles.len()), (Row::HairColor, cc.hair_colors.len()), (Row::Beard, beards)];
+        // A complete figure (a pre-made hero) has its skin and hair painted in.
+        let complete = self.project.db.complete_body(&self.chosen_appearance(c).body);
+        let looks = |n: usize| if complete { 0 } else { n };
+        let choices = [(Row::Body, if bodies > 1 { bodies } else { 0 }), (Row::Skin, looks(cc.skin_colors.len())), (Row::Hair, looks(cc.hair_styles.len())), (Row::HairColor, looks(cc.hair_colors.len())), (Row::Beard, looks(beards))];
         rows.extend(choices.into_iter().filter(|(_, n)| *n > 0).map(|(r, _)| r));
         rows.extend([Row::Start, Row::Back]);
         rows

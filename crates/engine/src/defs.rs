@@ -157,8 +157,13 @@ fn full_volume() -> f32 {
 pub struct SheetDef {
     pub id: String,
     pub image: String,
+    /// Frame size in image pixels.
     pub frame_w: u32,
     pub frame_h: u32,
+    /// Image pixels per world pixel (1 = as before; 2 = high resolution: 64 x 96 frames fill a
+    /// 32 x 48 place). Positions, hitboxes and tiles stay in world pixels.
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub scale: u32,
     /// What the sheet is for (offered by the matching pickers: bodies, hair styles, ...).
     #[serde(default, skip_serializing_if = "SheetKind::is_sprite")]
     pub kind: SheetKind,
@@ -168,6 +173,10 @@ pub struct SheetDef {
     /// Bodies: players may choose it in the character creator (people yes, a slime no).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub playable: bool,
+    /// Bodies: a complete figure (clothes, hair and what it holds painted in): nothing is drawn
+    /// over it (no outfit, armor, hair, beard or held items) and it isn't recoloured.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub complete: bool,
     /// Named frame ranges (animations), e.g. from an Aseprite export: offered by the *Effect* /
     /// *Fly* actions and the `tag` option of `effect()` / `fly()`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -187,7 +196,7 @@ pub struct SheetTag {
 /// tile. The editor's "+ New" value is [`SheetDef::fresh`].
 impl Default for SheetDef {
     fn default() -> Self {
-        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, kind: SheetKind::Sprite, female: false, playable: false, tags: Vec::new() }
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, complete: false, tags: Vec::new() }
     }
 }
 
@@ -1504,6 +1513,11 @@ impl Database {
         self.sheet(sheet).is_some_and(|s| s.female)
     }
 
+    /// The body sheet is a complete figure ([`SheetDef::complete`]).
+    pub fn complete_body(&self, sheet: &str) -> bool {
+        self.sheet(sheet).is_some_and(|s| s.complete)
+    }
+
     /// Bodies players may choose for a character of sex `female` (in sheet order).
     pub fn playable_bodies(&self, female: bool) -> Vec<&SheetDef> {
         self.sheets.iter().filter(|s| s.kind == SheetKind::Body && s.playable && s.female == female).collect()
@@ -1848,6 +1862,17 @@ mod tests {
         assert!(other.remove::<PropDef>("chest") && other.props.is_empty());
         assert_eq!(<ItemDef as Def>::KIND, RefKind::Item);
         assert!(RefKind::DEFS.iter().all(|k| db.ids_of(*k).len() <= 1));
+    }
+
+    /// Sheets of older files are 1x; 1x isn't written out, 2x round-trips.
+    #[test]
+    fn sheet_scale() {
+        let s: SheetDef = ron::from_str(r#"(id: "s", image: "sprites/s.png", frame_w: 32, frame_h: 48)"#).unwrap();
+        assert_eq!(s.scale, 1);
+        assert!(!ron::to_string(&s).unwrap().contains("scale"));
+        let hd = SheetDef { scale: 2, ..SheetDef::new("hd", "sprites/hd.png", 64, 96) };
+        let back: SheetDef = ron::from_str(&ron::to_string(&hd).unwrap()).unwrap();
+        assert_eq!(back, hd);
     }
 
     /// Weapons of older files hit critically 5 % of the time.

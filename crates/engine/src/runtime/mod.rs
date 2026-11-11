@@ -211,6 +211,8 @@ struct RtEntity {
     damage: i32,
     invuln: f32,
     flash: f32,
+    /// Seconds it still shows its hurt frame (animation rows) after a hit.
+    hurt: f32,
     /// Seconds its health bar still shows after a hit, and the HP share the bar's white "lost"
     /// part reaches down to (it drains towards the HP left).
     bar: f32,
@@ -685,6 +687,7 @@ impl Game {
             act_cycle: 0,
             item_cd: 0.0,
             flash: 0.0,
+            hurt: 0.0,
             bar: 0.0,
             bar_lag: 0.0,
             knock: Vec2::ZERO,
@@ -2129,7 +2132,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2205,7 +2208,8 @@ impl Game {
             self.attacks_status(),
             self.defense_status(),
             self.emotes_status(),
-            self.hits_status()
+            self.hits_status(),
+            self.anims_status()
         )
     }
 
@@ -2407,12 +2411,13 @@ impl Game {
                     if self.combat.invuln > 0.0 && (self.combat.invuln * 12.0) as i32 % 2 == 0 {
                         continue;
                     }
-                    let col = if self.player.moving { (self.player.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
-                    // During a melee swing the weapon is drawn along the swing instead.
-                    let swinging = self.combat.swing > 0.0;
+                    let anim = self.player_anim();
                     let eq = self.player_equipment_drawn();
+                    // During a melee swing the weapon is drawn along the swing instead (unless
+                    // its held sheet has attack frames: then it swings in the hand).
+                    let swinging = self.combat.swing > 0.0 && !self.weapon_animates(&eq);
                     let tint = Self::effect_tint(&self.world.effects).unwrap_or(WHITE);
-                    let drawn = self.draw_seated_player(&eq, tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &eq, (self.player.facing, col), self.player.pos, tint, swinging));
+                    let drawn = self.draw_seated_player(&eq, tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &eq, (self.player.facing, anim), self.player.pos, tint, swinging));
                     if !drawn {
                         let r = self.player.rect();
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
@@ -2584,12 +2589,12 @@ impl Game {
             (None, Some(_)) => {
                 let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
                 let col = self.activity_frame(i).unwrap_or(0);
-                self.draw_character(&e.appearance, &eq, (e.body.facing, col), e.body.pos, tint, false)
+                self.draw_character(&e.appearance, &eq, (e.body.facing, col.into()), e.body.pos, tint, false)
             }
             (None, None) => {
                 self.project.db.character(&e.def).is_some() && {
-                    let col = if e.body.moving { (e.body.anim * 8.0) as u32 % paperdoll::LAYOUT_FRAMES } else { 0 };
-                    self.draw_character(&e.appearance, &e.equipment, (e.body.facing, col), e.body.pos, tint, false)
+                    let anim = self.npc_anim(i);
+                    self.draw_character(&e.appearance, &e.equipment, (e.body.facing, anim), e.body.pos, tint, false)
                 }
             }
         }

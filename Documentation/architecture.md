@@ -152,6 +152,15 @@ cached per sheet, skin and hair colour. `render/lighting.rs` renders the lights 
 half-resolution target (ambient colour, one additive glow per light in view) and multiplies it
 over the scene. `Assets::load` loads every tileset and sheet up front, computing per-tile average
 colours (the world map) and the solid / ladder flags; a missing image becomes a checkerboard.
+A sheet's `SheetTex` cuts frames in image pixels (`frame_w`, `src_rect`) but every draw function
+draws them at `world_size()` = image size / `SheetDef::scale`, so high-resolution (2x) sheets
+take the same place as 1x ones; code that needs a sprite's size in the world uses `world_size()`
+or `sprite_size()`, never `frame_w` (the editor's egui previews slice textures with `frame_w`).
+Character frames: `render/character.rs::layers` takes an `Anim` (walk, idle, attack, hurt) and gives
+each layer the frame of that animation's row block plus a `fallback` (its standing frame), which
+the draw uses when the sheet has no such row (`Layer::frame_in`). `paperdoll.rs` picks the animation
+(`player_anim`, `npc_anim`: attack phase, `RtEntity::hurt`, moving, breathing). A body with
+`SheetDef::complete` is drawn alone (no other layers, not recoloured).
 
 ## 4. The editor (`crates/editor/src/`)
 

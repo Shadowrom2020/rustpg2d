@@ -3,6 +3,49 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.16.0 — 2026-11-11
+
+### Art
+- **Wolves and bats in the Wilds**: a new monster, the wolf (drawn in the new style, with walk and
+  bite frames), hunts in packs of three: the whole pack comes when one sees you, and a badly hurt
+  wolf runs. It drops a *Wolf Pelt* to sell. Six wolf packs and four bat swarms now live in the
+  Wilds; both are in the starter library.
+- **New characters**: every character of the example and the starter library (46: the villagers,
+  guards, bandits, goblins, wizards, nobles, children, animals and monsters) is redrawn as detailed
+  2× pixel art (64 × 96 frames for people) with walking, breathing while standing, attack frames for
+  the fighters (sword slashes, spear thrusts, axe chops, the slime's pounce …) and a hit reaction.
+  They are **complete figures**: one sheet per character with clothes, hair and weapon painted in.
+  The character creator offers pre-made heroes (hero, heroine, goblin, goblin scout).
+- **Layered sheets at 2×**: the mix-and-match bodies, hair styles, beards, outfits, armor and held
+  items are 2× too, in their familiar style with smoother edges; the earlier creature and children
+  sheets stay in the library as `<id>_classic`. Existing projects and asset libraries keep their
+  sheets.
+- **High-resolution sprites**: a sprite sheet's new **Scale** (1×–4×, *Database › Sprite sheets*)
+  says how many image pixels make one world pixel, so 2× art (64 × 96 character frames) fills the
+  place of 1× art with twice the detail. Sheets of different scales mix (a 2× body with 1× hair and
+  outfits lines up); positions, hitboxes and tiles don't change, tilesets stay 1×. The pickers show
+  2× frames at the same size, the pixel editor edits the image's own pixels, and the LPC and
+  Aseprite imports ask for the scale. Old sheets are 1×.
+
+### Editor
+- **Problems** (*Edit › Problems…*, or the error / warning counts in the status bar): one list of
+  everything broken in the project: unknown ids in definitions, maps, triggers and scripts,
+  missing image and sound files, portals and transitions to missing maps, spawns or zones, script
+  errors, maps nothing leads to, characters without a body, untranslated texts, entries a file had
+  to leave out. Errors and warnings, filtered by area; each entry goes to its place; checked again
+  on every save. Agents get it with the new `problems` tool; editor script `problems`,
+  `problempick`, `status` prints `problems=`.
+
+### Engine
+- **Character animations**: a character sheet may have rows for idle (2 frames), attack (4) and
+  hurt (1) below the walk; the game plays them (standing characters breathe, wind-ups and swings,
+  hits). Sheets and layers without them show their standing frame, so older art looks as before.
+  The character builder previews *Walk*, *Idle*, *Attack* and *Hurt*; `status` prints `anims=`.
+- **Complete figures**: a body sheet can be marked *Complete figure* (*Database › Sprite sheets*):
+  nothing is drawn over it and it isn't recoloured; the creator hides skin, hair and beard for it
+  and names it after the character that wears it; its painted swing replaces the weapon's swing
+  sprite.
+
 ## 0.15.0 — 2026-11-10
 
 ### Editor

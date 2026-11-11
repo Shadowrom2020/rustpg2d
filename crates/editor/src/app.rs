@@ -298,6 +298,8 @@ pub struct Editor {
     /// Quick search (Ctrl+P) and the Usages window.
     pub search: crate::search::Search,
     pub usages: crate::search::Usages,
+    /// The *Problems* panel (the project check).
+    pub problems: crate::problems::Problems,
     /// This editor is the Asset Library window (`--library`): `project` is the library.
     pub library_mode: bool,
     /// Lighting preview: renderer and the map's tile lights (refreshed twice a second).
@@ -443,6 +445,7 @@ impl Editor {
             db_hist: Default::default(),
             search: Default::default(),
             usages: Default::default(),
+            problems: crate::problems::Problems::new(),
             library_mode: false,
             lib_window: Default::default(),
             lib_stamp: None,
@@ -510,6 +513,7 @@ impl Editor {
     /// [`Self::note_load_warnings`] for the definitions: each warning starts with its file
     /// (`defs/items.ron entry 7 …`).
     pub fn note_defs_warnings(&mut self, warnings: Vec<String>) {
+        self.problems.defs_warnings = warnings.clone();
         let mut by_file: std::collections::BTreeMap<String, Vec<String>> = Default::default();
         for w in warnings {
             let file = w.split_whitespace().next().unwrap_or("defs").to_string();
@@ -611,6 +615,7 @@ impl Editor {
                     self.maps.sort();
                 }
                 self.refresh_refs();
+                self.problems.stale = true;
                 self.set_status(format!("Saved map {name}"));
             }
             Err(e) => self.set_status(format!("Save failed: {e:#}")),
@@ -622,6 +627,9 @@ impl Editor {
             Ok(()) => {
                 self.defs_dirty = false;
                 *self.defs_saved = (self.project.db.clone(), self.project.config.clone());
+                // (What loading left out is gone now.)
+                self.problems.defs_warnings.clear();
+                self.problems.stale = true;
                 if self.library_mode {
                     self.mark_library_saved();
                     self.lib.tex_dirty = true;
@@ -1173,7 +1181,8 @@ impl Editor {
     pub fn draw_char_layers(&self, layers: &[rustpg2d_engine::render::character::Layer], feet: Vec2, tint: macroquad::color::Color) -> bool {
         let mut any = false;
         for l in layers {
-            any |= self.assets.draw_frame_colored(&l.sheet, l.frame, feet, tint, l.skin, l.hair);
+            let frame = self.assets.sheets.get(&l.sheet).map_or(l.fallback, |s| l.frame_in(s.count));
+            any |= self.assets.draw_frame_colored(&l.sheet, frame, feet, tint, l.skin, l.hair);
         }
         any
     }
@@ -1340,6 +1349,8 @@ impl Editor {
         }
         self.mcp_window(ctx);
         self.search_windows(ctx);
+        self.problems_tick();
+        self.problems_window(ctx);
         if !self.project_open {
             self.status_bar(ctx);
             self.welcome(ctx);
@@ -1558,6 +1569,10 @@ impl Editor {
                         self.open_search(None);
                         ui.close_menu();
                     }
+                    if ui.button(ui::t(ph::WARNING_CIRCLE, "Problems…")).on_hover_text("Everything broken in the project: unknown ids, missing files, broken portals, script errors, unreachable maps, missing translations; click one to go there").clicked() {
+                        self.problems.open = true;
+                        ui.close_menu();
+                    }
                 });
                 ui.menu_button("Map", |ui| {
                     if ui.button(ui::t(ph::PLUS, "New map…")).clicked() {
@@ -1757,6 +1772,15 @@ impl Editor {
                 }
                 ui.separator();
                 ui.monospace(format!("{} fps", macroquad::time::get_fps()));
+                if self.project_open && !self.library_mode && self.problems.built {
+                    ui.separator();
+                    let (e, w) = self.problems.counts();
+                    let text = egui::RichText::new(format!("{} {e}  {} {w}", ph::X_CIRCLE, ph::WARNING));
+                    let text = if e > 0 { text.color(Color32::from_rgb(235, 110, 100)) } else if w > 0 { text.color(Color32::from_rgb(230, 190, 90)) } else { text };
+                    if ui.add(egui::Label::new(text).sense(egui::Sense::click())).on_hover_text("Problems in the project (errors, warnings): click for the list (Edit › Problems…)").clicked() {
+                        self.problems.open = !self.problems.open;
+                    }
+                }
                 if let Some(r) = &self.mcp.running {
                     ui.separator();
                     if ui.label(format!("{} {}", ph::ROBOT, r.addr.port())).on_hover_text(format!("AI agent server listening on http://{}/mcp ({} calls). Assets > AI agent server...", r.addr, self.mcp.calls)).clicked() {
@@ -3257,7 +3281,7 @@ impl MapRefs {
 }
 
 /// (modification time, size) of a file; (0, 0) when it can't be read.
-fn file_stamp(path: &std::path::Path) -> (u64, u64) {
+pub(crate) fn file_stamp(path: &std::path::Path) -> (u64, u64) {
     std::fs::metadata(path)
         .map(|m| (m.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs()), m.len()))
         .unwrap_or((0, 0))

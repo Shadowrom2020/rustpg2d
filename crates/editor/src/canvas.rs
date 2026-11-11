@@ -110,7 +110,7 @@ impl Editor {
             if e.kind == EntityKind::Character {
                 // Characters: one frame of their (base) sheet.
                 let layers = self.char_layers(&e.def, Some(e), e.facing, 0);
-                layers.iter().find_map(|l| self.assets.sheets.get(&l.sheet)).map_or(vec2(ts, ts), |t| vec2(t.frame_w, t.frame_h))
+                layers.iter().find_map(|l| self.assets.sheets.get(&l.sheet)).map_or(vec2(ts, ts), |t| { let w = t.world_size(); vec2(w.x, w.y) })
             } else {
                 self.assets.sprite_size(&s, ts)
             }

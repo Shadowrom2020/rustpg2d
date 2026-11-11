@@ -25,6 +25,7 @@ mod multisel;
 mod models;
 mod new_project;
 mod pixel;
+mod problems;
 mod script_editor;
 mod search;
 mod structures;
@@ -367,7 +368,9 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "held" => SheetKind::Held,
                 _ => SheetKind::Body,
             };
-            ed.import = Some(import::ImportDialog { kind, id: arg(3).to_string(), sheet_kind, female: false });
+            // (import KIND FILE [ID] [SHEETKIND] [scale=N])
+            let scale = cmd.iter().find_map(|a| a.strip_prefix("scale=")).and_then(|v| v.parse().ok()).unwrap_or(1);
+            ed.import = Some(import::ImportDialog { kind, id: arg(3).to_string(), sheet_kind, female: false, scale });
             ed.import_and_report(kind, std::path::Path::new(arg(2)));
             println!("[import] {}", ed.import_report.as_ref().map_or(String::new(), |r| r.1.clone()));
         }
@@ -564,7 +567,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -591,6 +594,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.notices.len(),
             ed.search.status(),
             ed.usages.status(),
+            ed.problems.status(),
             ed.mode,
             ed.db.tab,
             ed.db.sel,
@@ -948,6 +952,25 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 ed.jump_to(&t);
             }
         }
+        // problems [AREA]: check the project, print the list (opens the Problems window) · problempick K: click entry K
+        "problems" => {
+            ed.refresh_problems();
+            ed.problems.open = true;
+            ed.problems.area = crate::problems::Area::parse(arg(1));
+            let shown: Vec<String> = ed.problems.shown().iter().map(|p| p.line()).collect();
+            for (k, l) in shown.iter().enumerate() {
+                println!("[problems] {k}: {l}");
+            }
+            let (e, w) = ed.problems.counts();
+            println!("[problems] {} shown, {e} error(s), {w} warning(s)", shown.len());
+        }
+        "problempick" => {
+            if let Some(t) = ed.problems.shown().get(num(1) as usize).map(|p| p.target.clone()) {
+                ed.jump_to(&t);
+            }
+        }
+        // charanim walk|idle|attack|hurt: what the character builder's preview plays
+        "charanim" => builder::set_preview_anim(arg(1)),
         // scriptsel FILE: what clicking a file in Database > Scripts does
         "scriptsel" => {
             let f = ed.project.scripts_dir().join(arg(1));

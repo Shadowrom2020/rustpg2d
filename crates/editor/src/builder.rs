@@ -55,6 +55,18 @@ pub fn body_cards(ui: &mut Ui, cx: &Cx, ids: &[String], none: Option<&str>, base
     })
 }
 
+/// Cards of the project's 3D models (standing, facing the front); playable ones marked. Returns the
+/// clicked id.
+pub fn model_cards(ui: &mut Ui, cx: &Cx, base: &Appearance, current: &str) -> Option<String> {
+    let entries: Vec<(String, String)> = cx.db.models.iter().map(|m| (m.id.clone(), if m.playable { format!("{} {}", ph::GAME_CONTROLLER, m.label()) } else { m.label().to_string() })).collect();
+    let gear = rustpg2d_engine::render::model::Gear::default();
+    cards(ui, THUMB, &entries, Some(&current.to_string()), &|ui, id, r| {
+        let a = Appearance { model: id.clone(), colors: if *id == base.model { base.colors.clone() } else { Default::default() }, ..base.clone() };
+        let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: false, facing: Facing::Down, bust: false };
+        widgets::paint_model(ui, cx.assets, cx.db, &req, r)
+    })
+}
+
 /// What happened in the character editor this frame.
 #[derive(Default)]
 pub struct Out {
@@ -199,6 +211,13 @@ fn item_cards(ui: &mut Ui, cx: &Cx, slot: EquipSlot, eq: &Equipment) -> Option<S
 /// A figure with what it holds (`eq`: weapon, left hand) in `dest`: the held items behind it, the
 /// figure, the held items in front (figures with hand marks), kept inside `clip`.
 fn paint_holding(ui: &Ui, cx: &Cx, a: &Appearance, eq: &Equipment, (facing, anim): (Facing, character::Anim), dest: Rect, clip: Rect) -> bool {
+    if is_model(cx, a) {
+        // A 3D model renders its gear itself.
+        let gear = rustpg2d_engine::render::model::Gear::of(eq, "", None);
+        let (name, time, once) = rustpg2d_engine::render::model::anim_req(anim, macroquad::time::get_time() as f32);
+        let req = rustpg2d_engine::render::model::PoseReq { look: a, gear: &gear, anim: name, time, once, facing, bust: false };
+        return widgets::paint_model(ui, cx.assets, cx.db, &req, dest);
+    }
     let held = rustpg2d_engine::hands::held(cx.db, &a.body, eq, "", None, facing, anim);
     let sheet_scale = cx.assets.sheets.get(&a.body).map_or(1.0, |s| s.scale);
     let fw = cx.assets.sheets.get(&a.body).map_or(1.0, |s| s.world_size().x);
@@ -215,6 +234,27 @@ fn paint_holding(ui: &Ui, cx: &Cx, a: &Appearance, eq: &Equipment, (facing, anim
     ok
 }
 
+/// Whether a look is drawn from a 3D model (one that is loaded).
+pub fn is_model(cx: &Cx, a: &Appearance) -> bool {
+    !a.model.is_empty() && cx.assets.models.has(&a.model)
+}
+
+/// The colour features of a look: its model's, else its figure's.
+pub fn look_features(db: &Database, a: &Appearance) -> Vec<ColorFeature> {
+    if !a.model.is_empty() {
+        return db.model(&a.model).map(|m| m.features.clone()).unwrap_or_default();
+    }
+    db.sheet(&a.body).map(|s| s.features.clone()).unwrap_or_default()
+}
+
+/// World size of a look's frame (a model's or the figure's).
+fn look_size(cx: &Cx, a: &Appearance) -> (f32, f32) {
+    if is_model(cx, a) {
+        return cx.assets.models.frame_size(&a.model).unwrap_or((32.0, 48.0));
+    }
+    cx.assets.sheets.get(&a.body).map_or((32.0, 48.0), |s| (s.world_size().x, s.world_size().y))
+}
+
 /// The animated preview: facing `facing` (or turning) playing the chosen animation, the four
 /// idle directions below; with what it holds.
 fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance, eq: &Equipment) {
@@ -227,7 +267,7 @@ fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance, eq: &Equipment) {
     let facing = if st.turning { order[(t / 1.5) as usize % 4] } else { st.facing };
     let anim = preview_anim(st.anim, t);
     // (World size: a high-resolution figure shows as big as a 1x one.)
-    let (fw, fh) = cx.assets.sheets.get(&a.body).map_or((32.0, 48.0), |s| (s.world_size().x, s.world_size().y));
+    let (fw, fh) = look_size(cx, a);
     let scale = (PREVIEW_H / fh).floor().max(1.0);
     ui.vertical(|ui| {
         let (r, _) = ui.allocate_exact_size(vec2((fw * scale).max(120.0), PREVIEW_H + 6.0), Sense::hover());
@@ -273,7 +313,7 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
         ui.add_space(8.0);
         ui.vertical(|ui| {
             ui.set_min_width(ui.available_width().min(560.0));
-            let features: Vec<ColorFeature> = cx.db.sheet(&a.body).map(|s| s.features.clone()).unwrap_or_default();
+            let features: Vec<ColorFeature> = look_features(cx.db, a);
             ui.horizontal(|ui| {
                 if ui.add_enabled(features.iter().any(|f| !f.colors.is_empty()), egui::Button::new(crate::ui::t(ph::DICE_FIVE, "Random colours"))).on_hover_text("A random colour of each colour feature that offers colours").clicked() {
                     random_colors(a, cx.db);
@@ -287,16 +327,29 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
                 egui::CollapsingHeader::new(title).id_salt((id, title)).default_open(open).show(ui, |ui| body(ui));
             };
             section(ui, "Figure", true, &mut |ui| {
+                if !cx.db.models.is_empty() {
+                    ui.label("3D models");
+                    if let Some(m) = model_cards(ui, cx, a, &a.model) {
+                        if m != a.model {
+                            a.colors.clear();
+                        }
+                        a.model = m;
+                        out.changed = true;
+                    }
+                    ui.label("Figures");
+                }
                 let ids: Vec<String> = cx.db.sheets.iter().filter(|s| s.kind == SheetKind::Body).map(|s| s.id.clone()).collect();
-                if let Some(b) = body_cards(ui, cx, &ids, None, a, &a.body) {
-                    if b != a.body {
+                let current = if a.model.is_empty() { a.body.clone() } else { String::new() };
+                if let Some(b) = body_cards(ui, cx, &ids, None, a, &current) {
+                    if b != a.body || !a.model.is_empty() {
                         // Another figure has other features.
                         a.colors.clear();
                     }
                     a.body = b;
+                    a.model.clear();
                     out.changed = true;
                 }
-                if let Some(s) = cx.db.sheet(&a.body).filter(|s| s.kind == SheetKind::Body) {
+                if let Some(s) = cx.db.sheet(&a.body).filter(|s| s.kind == SheetKind::Body && a.model.is_empty()) {
                     let mut on = s.playable;
                     let label = crate::ui::t(ph::GAME_CONTROLLER, &format!("Playable: players may choose {} in the character creator", s.label()));
                     if ui.checkbox(&mut on, label).on_hover_text("For the whole project (a slime or a ghost usually isn't). The creator offers the playable figures of the chosen sex, with their colour features.").changed() {
@@ -345,8 +398,7 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
 pub fn random_colors(a: &mut Appearance, db: &Database) {
     use macroquad::rand::{gen_range, srand};
     srand((macroquad::time::get_time() * 1000.0) as u64 ^ a.body.len() as u64);
-    let Some(sheet) = db.sheet(&a.body) else { return };
-    for f in sheet.features.iter().filter(|f| !f.colors.is_empty()) {
+    for f in look_features(db, a).iter().filter(|f| !f.colors.is_empty()) {
         a.colors.insert(f.name.clone(), f.colors[gen_range(0, f.colors.len())]);
     }
 }
@@ -792,6 +844,18 @@ impl Editor {
                     p.appearance.colors.clear();
                 }
                 p.appearance.body = value.to_string();
+                p.appearance.model.clear();
+            }
+            // `model ID` (or `-`: the figure again).
+            "model" => {
+                let id = if value == "-" { "" } else { value };
+                if !id.is_empty() && db.model(id).is_none() {
+                    return Err(format!("unknown model '{id}'"));
+                }
+                if p.appearance.model != id {
+                    p.appearance.colors.clear();
+                }
+                p.appearance.model = id.to_string();
             }
             // `color FEATURE RRGGBB` (or `-`: as drawn).
             "color" => {

@@ -71,6 +71,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   attacks, hurt, activities and sitting play the model's clips, portraits are close-up renders of
   its head. Exports carry the model files. `status` prints `models=`; `RUSTPG2D_MODEL_DEBUG=1`
   shows the atlas. The editor support, Meshy generation and the cast follow (ROADMAP 0.18.0).
+- **3D models in the editor**: *Database › 3D models* imports `.glb` models (clips matched to
+  the animations by name, more clip files), with a turning preview, the clip per animation, and
+  colour features picked from the texture (reduced to 32 colours when loaded). The character
+  editor and the game's character creator offer models. Items get a *3D model* section (the hold
+  point and handle direction estimated from the shape, *Flip*, length, *Render icon*): 3D model
+  characters hold it on their hand bone. The asset library carries models. Agents get
+  `import_model` and `model_info`.
 - **Carrying props**: the *Carry prop* action and `carry(target, prop)`, `stop_carrying(target)`,
   `player_carrying()`: the player or a character carries a prop in both hands (no attacking
   meanwhile; saved for the player).

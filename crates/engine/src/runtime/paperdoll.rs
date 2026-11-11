@@ -34,16 +34,7 @@ impl Game {
         if !self.uses_model(a) {
             return None;
         }
-        let (anim, time, once) = match pose.1 {
-            Anim::Walk(c) => ("walk", (c as f32 + 0.5) / LAYOUT_FRAMES as f32, true),
-            Anim::Walking(t) => ("walk", t as f32 / 100.0, false),
-            Anim::Idle(_) => ("idle", macroquad::time::get_time() as f32, false),
-            // Wind-up, swing, follow-through, recover: points of the clip (strikes sit in its
-            // middle; the player's swing shows the last three).
-            Anim::Attack(k) => ("attack", [0.22, 0.42, 0.58, 0.8][k.min(3) as usize], true),
-            Anim::Hurt => ("hurt", 0.4, true),
-            Anim::Extra(n, _) => (n, macroquad::time::get_time() as f32, false),
-        };
+        let (anim, time, once) = crate::render::model::anim_req(pose.1, macroquad::time::get_time() as f32);
         let req = PoseReq { look: a, gear, anim, time, once, facing: pose.0, bust: false };
         self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
     }

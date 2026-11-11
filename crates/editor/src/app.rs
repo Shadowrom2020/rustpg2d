@@ -1099,6 +1099,28 @@ impl Editor {
                     w.parent = path.display().to_string();
                 }
             }
+            P::ItemModel(ref id) => {
+                let rel = match import("models") {
+                    Ok(rel) => rel,
+                    Err(e) => {
+                        self.set_status(format!("Import failed: {e:#}"));
+                        return;
+                    }
+                };
+                let msg = self.use_item_model(id, &rel);
+                self.set_status(msg);
+            }
+            P::ModelFile { ref id, clips } => {
+                let rel = match import("models") {
+                    Ok(rel) => rel,
+                    Err(e) => {
+                        self.set_status(format!("Import failed: {e:#}"));
+                        return;
+                    }
+                };
+                let msg = self.use_model_file(id, clips, &rel);
+                self.set_status(msg);
+            }
             P::TilesetImage(ref id) | P::SheetImage(ref id) | P::SoundFile(ref id) => {
                 let id = id.clone();
                 let sub = match purpose {

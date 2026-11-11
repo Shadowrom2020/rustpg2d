@@ -93,15 +93,24 @@ impl Model {
         let mesh = mesh_node.mesh().unwrap();
         let (mut vertices, mut indices) = (Vec::new(), Vec::new());
         let mut texture = None;
-        for p in mesh.primitives() {
-            if p.mode() != gltf::mesh::Mode::Triangles {
-                continue;
-            }
+        // Parts without a texture (models made of plain-coloured materials) get one texel each
+        // of a palette texture with their material's colour.
+        let prims: Vec<_> = mesh.primitives().filter(|p| p.mode() == gltf::mesh::Mode::Triangles).collect();
+        let untextured = prims.iter().all(|p| p.material().pbr_metallic_roughness().base_color_texture().is_none());
+        let n_parts = prims.len().max(1);
+        let mut palette = Vec::new();
+        for (part, p) in prims.iter().enumerate() {
             let r = p.reader(buf);
             let pos: Vec<[f32; 3]> = r.read_positions().ok_or_else(|| anyhow!("a mesh part without positions"))?.collect();
             let n = pos.len();
             let normals: Vec<[f32; 3]> = r.read_normals().map(|i| i.collect()).unwrap_or_else(|| vec![[0.0, 1.0, 0.0]; n]);
-            let uvs: Vec<[f32; 2]> = r.read_tex_coords(0).map(|i| i.into_f32().collect()).unwrap_or_else(|| vec![[0.0, 0.0]; n]);
+            let uvs: Vec<[f32; 2]> = if untextured {
+                let c = p.material().pbr_metallic_roughness().base_color_factor();
+                palette.extend(c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8));
+                vec![[(part as f32 + 0.5) / n_parts as f32, 0.5]; n]
+            } else {
+                r.read_tex_coords(0).map(|i| i.into_f32().collect()).unwrap_or_else(|| vec![[0.0, 0.0]; n])
+            };
             let joints: Vec<[u16; 4]> = r.read_joints(0).map(|i| i.into_u16().collect()).unwrap_or_else(|| vec![[0; 4]; n]);
             let weights: Vec<[f32; 4]> = r.read_weights(0).map(|i| i.into_f32().collect()).unwrap_or_else(|| vec![[1.0, 0.0, 0.0, 0.0]; n]);
             let base = vertices.len() as u32;
@@ -125,6 +134,11 @@ impl Model {
         }
         if vertices.is_empty() {
             bail!("the mesh has no triangles");
+        }
+        if untextured && !palette.is_empty() {
+            let mut im = Image::gen_image_color(n_parts as u16, 1, macroquad::color::WHITE);
+            im.bytes.copy_from_slice(&palette);
+            texture = Some(im);
         }
         let (joints, inverse_bind) = match mesh_node.skin() {
             Some(skin) => {
@@ -255,6 +269,94 @@ impl Model {
     }
 }
 
+/// Where a held item's model is held and which way its handle runs, guessed from its shape:
+/// along its longest side, the hold point is its thinnest part (a sword's grip, an axe's or
+/// spear's shaft: there the part nearest an end), the handle runs from there toward the farther
+/// end. `indices`: its triangles (widths are measured over them, so long faces without inner
+/// points count). Returns (hold point, direction toward the business end).
+pub fn estimate_grip(points: &[Vec3], indices: &[u16]) -> ([f32; 3], [f32; 3]) {
+    if points.is_empty() {
+        return ([0.0; 3], [0.0, 1.0, 0.0]);
+    }
+    let (lo, hi) = points.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
+    let ext = hi - lo;
+    let k = if ext.x >= ext.y && ext.x >= ext.z { 0 } else if ext.y >= ext.z { 1 } else { 2 };
+    let (a, len) = (lo[k], ext[k].max(1e-6));
+    let mid = (lo + hi) / 2.0;
+    const BINS: usize = 40;
+    let bin = |v: f32| (((v - a) / len * BINS as f32) as usize).min(BINS - 1);
+    let across = |p: &Vec3| {
+        let mut d = *p - mid;
+        d[k] = 0.0;
+        d.length()
+    };
+    // The widest point of anything covering each slice of the length.
+    let mut width = [0.0f32; BINS];
+    let mut covered = [false; BINS];
+    let tris: Vec<[Vec3; 3]> = if indices.len() >= 3 {
+        indices.as_chunks::<3>().0.iter().filter_map(|t| Some([*points.get(t[0] as usize)?, *points.get(t[1] as usize)?, *points.get(t[2] as usize)?])).collect()
+    } else {
+        points.iter().map(|p| [*p; 3]).collect()
+    };
+    for t in &tris {
+        let (b0, b1) = (bin(t.iter().map(|p| p[k]).fold(f32::MAX, f32::min)), bin(t.iter().map(|p| p[k]).fold(f32::MIN, f32::max)));
+        let w = t.iter().map(across).fold(0.0f32, f32::max);
+        for i in b0..=b1 {
+            width[i] = width[i].max(w);
+            covered[i] = true;
+        }
+    }
+    // The thinnest slices (within 10 % of the thinnest), not the outermost tips; of those the
+    // one nearest an end.
+    let inner: Vec<usize> = (1..BINS - 1).filter(|i| covered[*i]).collect();
+    let thin = inner.iter().map(|i| width[*i]).fold(f32::MAX, f32::min);
+    let near_end = |i: &usize| i.min(&(BINS - 1 - i)).to_owned();
+    let g = inner.iter().copied().filter(|i| width[*i] <= thin * 1.1 + 1e-6).min_by_key(near_end).unwrap_or(BINS / 2);
+    let at = a + (g as f32 + 0.5) / BINS as f32 * len;
+    let mut axis = [0.0f32; 3];
+    axis[k] = if g < BINS / 2 { 1.0 } else { -1.0 };
+    let mut grip = mid.to_array();
+    grip[k] = at;
+    (grip, axis)
+}
+
+/// Every animation a model can map a clip to, in the editor's order: the four every character
+/// uses, furniture, then the activities.
+pub const ANIMS: [&str; 13] = ["walk", "idle", "attack", "hurt", "sit", "sleep", "fish", "farm", "craft", "chop", "mine", "sweep", "read"];
+
+/// Clips matched to animations by their names ("Walking_2" -> walk, "Right_Hand_Sword_Slash" ->
+/// attack…): a model imported from Meshy, Mixamo or Blender plays something at once. Each
+/// animation takes the first clip whose name has one of its words; the creator corrects them.
+pub fn guess_clips(names: &[String]) -> Vec<crate::defs::ClipMap> {
+    const WORDS: [(&str, &[&str]); 13] = [
+        ("walk", &["walk"]),
+        ("idle", &["idle", "stand", "breath"]),
+        ("attack", &["attack", "slash", "strike", "swing", "punch", "stab", "thrust"]),
+        ("hurt", &["hit", "hurt", "damage", "react"]),
+        ("sit", &["sit"]),
+        ("sleep", &["sleep", "lying", "lie"]),
+        ("fish", &["fish"]),
+        ("farm", &["farm", "dig", "hoe", "plant"]),
+        ("craft", &["hammer", "craft", "forge", "work"]),
+        ("chop", &["chop", "axe", "wood"]),
+        ("mine", &["mine", "mining", "pickaxe"]),
+        ("sweep", &["sweep", "broom"]),
+        ("read", &["read", "book"]),
+    ];
+    let mut out = Vec::new();
+    for (anim, words) in WORDS {
+        // A plain "walk" beats "walk backward"; the shortest matching name wins.
+        let best = names.iter().filter(|n| {
+            let l = n.to_lowercase();
+            words.iter().any(|w| l.contains(w)) && !(anim == "walk" && (l.contains("back") || l.contains("run")))
+        });
+        if let Some(clip) = best.min_by_key(|n| n.len()) {
+            out.push(crate::defs::ClipMap { anim: anim.to_string(), clip: clip.clone(), fps: if anim == "idle" { 8.0 } else { 12.0 } });
+        }
+    }
+    out
+}
+
 fn read_nodes(doc: &gltf::Document) -> Vec<Node> {
     let mut nodes: Vec<Node> = doc
         .nodes()
@@ -360,7 +462,62 @@ fn read_image(img: &gltf::Image, blob: Option<&[u8]>) -> Result<Image> {
     let bytes = data.get(view.offset()..view.offset() + view.length()).ok_or_else(|| anyhow!("texture outside the file"))?;
     let format = if mime_type.contains("jpeg") || mime_type.contains("jpg") { macroquad::prelude::ImageFormat::Jpeg } else { macroquad::prelude::ImageFormat::Png };
     let im = Image::from_file_with_format(bytes, Some(format)).map_err(|e| anyhow!("texture: {e}"))?;
-    Ok(downsize(&im, TEXTURE_MAX))
+    let mut im = downsize(&im, TEXTURE_MAX);
+    quantize(&mut im, TEXTURE_COLORS);
+    Ok(im)
+}
+
+/// Colours a model's texture is reduced to: the pixel look, and colour features can be picked as
+/// exact shades.
+pub const TEXTURE_COLORS: usize = 32;
+
+/// Reduces an image to at most `n` colours (median cut over the opaque pixels; each pixel takes
+/// the average colour of its box).
+pub fn quantize(im: &mut Image, n: usize) {
+    let px: Vec<[u8; 3]> = im.bytes.as_chunks::<4>().0.iter().filter(|p| p[3] > 0).map(|p| [p[0], p[1], p[2]]).collect();
+    if px.is_empty() {
+        return;
+    }
+    let mut boxes: Vec<Vec<[u8; 3]>> = vec![px];
+    while boxes.len() < n {
+        // Split the box with the widest channel range at its median.
+        let (k, ch, range) = boxes
+            .iter()
+            .enumerate()
+            .map(|(k, b)| {
+                let r = (0..3).map(|c| (c, b.iter().map(|p| p[c]).max().unwrap() - b.iter().map(|p| p[c]).min().unwrap())).max_by_key(|x| x.1).unwrap();
+                (k, r.0, r.1)
+            })
+            .max_by_key(|x| x.2)
+            .unwrap();
+        if range == 0 {
+            break;
+        }
+        let mut b = boxes.swap_remove(k);
+        b.sort_unstable_by_key(|p| p[ch]);
+        let tail = b.split_off(b.len() / 2);
+        boxes.push(b);
+        boxes.push(tail);
+    }
+    let palette: Vec<[u8; 3]> = boxes
+        .iter()
+        .map(|b| {
+            let s = b.iter().fold([0u32; 3], |a, p| [a[0] + p[0] as u32, a[1] + p[1] as u32, a[2] + p[2] as u32]);
+            let n = b.len() as u32;
+            [(s[0] / n) as u8, (s[1] / n) as u8, (s[2] / n) as u8]
+        })
+        .collect();
+    let mut cache = std::collections::HashMap::new();
+    for p in im.bytes.as_chunks_mut::<4>().0 {
+        if p[3] == 0 {
+            continue;
+        }
+        let c = [p[0], p[1], p[2]];
+        let q = *cache.entry(c).or_insert_with(|| {
+            *palette.iter().min_by_key(|q| (0..3).map(|i| (q[i] as i32 - c[i] as i32).pow(2)).sum::<i32>()).unwrap()
+        });
+        p[..3].copy_from_slice(&q);
+    }
 }
 
 /// Box-filters an image down so its longer side is at most `max`.
@@ -423,7 +580,35 @@ mod tests {
         m.skin(&m.pose(Some(c), 1.5), &mut out);
         assert!((out[2].0 - Vec3::new(-s, 1.0 + s, 0.0)).length() < 1e-3);
         assert_eq!(m.node("upper"), Some(2));
-        assert!(m.texture.is_none());
+        // No texture: a palette of its material colours (one part, the default white).
+        assert_eq!(m.texture.as_ref().map(|t| (t.width, t.height, t.bytes.clone())), Some((1, 1, vec![255, 255, 255, 255])));
+    }
+
+    #[test]
+    fn grips_are_estimated_at_the_thinnest_part() {
+        // A "sword" along +Y made of flat boxes (corners only): a pommel at 0, a thin grip to
+        // 0.2, a wide guard, a blade to 1.
+        let quad = |y0: f32, y1: f32, w: f32| [Vec3::new(-w, y0, 0.0), Vec3::new(w, y0, 0.0), Vec3::new(w, y1, 0.0), Vec3::new(-w, y1, 0.0)];
+        let parts = [quad(0.0, 0.03, 0.04), quad(0.03, 0.19, 0.015), quad(0.19, 0.23, 0.11), quad(0.23, 1.0, 0.035)];
+        let points: Vec<Vec3> = parts.iter().flatten().copied().collect();
+        let indices: Vec<u16> = (0..4u16).flat_map(|q| [0, 1, 2, 0, 2, 3].map(|i| q * 4 + i)).collect();
+        let (grip, axis) = estimate_grip(&points, &indices);
+        assert_eq!(axis, [0.0, 1.0, 0.0]);
+        assert!((0.03..0.19).contains(&grip[1]), "{grip:?}");
+        // Upside down: the hold point and direction follow.
+        let flipped: Vec<Vec3> = points.iter().map(|p| Vec3::new(p.x, 1.0 - p.y, p.z)).collect();
+        let (grip, axis) = estimate_grip(&flipped, &indices);
+        assert_eq!(axis, [0.0, -1.0, 0.0]);
+        assert!((0.81..0.97).contains(&grip[1]), "{grip:?}");
+    }
+
+    #[test]
+    fn clips_are_guessed_from_their_names() {
+        let names: Vec<String> = ["Armature|clip0|baselayer", "Walk_Backward", "walking_2", "Casual_Walk", "Idle_02", "Right_Hand_Sword_Slash", "Hit_Reaction", "Chair_Sit_Idle_Male"].map(String::from).to_vec();
+        let g = guess_clips(&names);
+        let of = |a: &str| g.iter().find(|c| c.anim == a).map(|c| c.clip.as_str());
+        assert_eq!((of("walk"), of("idle"), of("attack"), of("hurt"), of("sit")), (Some("walking_2"), Some("Idle_02"), Some("Right_Hand_Sword_Slash"), Some("Hit_Reaction"), Some("Chair_Sit_Idle_Male")));
+        assert_eq!(of("fish"), None);
     }
 
     #[test]
@@ -436,6 +621,15 @@ mod tests {
         let d = downsize(&im, 256);
         assert_eq!((d.width, d.height), (256, 150));
         assert_eq!(&d.bytes[..4], &[255, 0, 0, 255]);
+        // A gradient of 256 greys reduced to 8 colours, still dark to light.
+        let mut g = Image::gen_image_color(256, 1, macroquad::color::BLANK);
+        for x in 0..256u32 {
+            g.set_pixel(x, 0, macroquad::color::Color::from_rgba(x as u8, x as u8, x as u8, 255));
+        }
+        quantize(&mut g, 8);
+        let colors: std::collections::BTreeSet<u8> = g.bytes.chunks(4).map(|p| p[0]).collect();
+        assert_eq!(colors.len(), 8);
+        assert!(g.bytes[0] < 32 && g.bytes[255 * 4] > 224);
         assert!(Model::load(b"not a model").is_err());
     }
 }

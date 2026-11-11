@@ -170,6 +170,21 @@ pub struct EditFramesParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ImportModelParams {
+    /// A `.glb` file on this computer (absolute path): copied into the project's models/.
+    pub path: String,
+    /// Add its clips to this existing model instead of making a new one.
+    #[serde(default)]
+    pub clips_for: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ModelInfoParams {
+    /// The 3D model's id.
+    pub model: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SheetColorsParams {
     /// The sprite sheet's id.
     pub sheet: String,
@@ -695,6 +710,12 @@ with_params {
     /// The exact colours of a sprite sheet's image, most used first, with their pixel counts, the animation rows they appear in (figures) and the colour feature they belong to: pick a part's shades for a figure's colour features (upsert_def sheet `features: [{name, shades, colors}]`).
     #[tool(annotations(read_only_hint = true))]
     sheet_colors: SheetColors(p: SheetColorsParams) => ed.mcp_sheet_colors(p);
+    /// Imports a rigged 3D character model (a .glb from Meshy, Blender, Mixamo…) as a new model (its clips matched to the animations walk / idle / attack / hurt / sit / … by name), or with clips_for adds the file's clips to that model. Characters use a model with upsert_def `appearance: {model}`; model_info shows what it has. Saves.
+    #[tool]
+    import_model: ImportModel(p: ImportModelParams) => ed.mcp_import_model(p);
+    /// A 3D model: triangles, bones, hands, its clips with their length, which clip each animation plays, and its texture's colours (most used first, the shades for colour features: upsert_def model `features: [{name, shades, colors}]`).
+    #[tool(annotations(read_only_hint = true))]
+    model_info: ModelInfo(p: ModelInfoParams) => ed.mcp_model_info(p);
     /// Edits the frames of a sprite sheet's image and a figure's hand grips (4 columns, 16 rows: walk, idle, attack, hurt; facings down, left, right, up): mirror Left rows into Right rows, copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (e.g. split a shade two colour features share), fill empty idle / hurt frames with the standing frame, set_grip / clear_grips / estimate_hands (where held weapons, tools and props are drawn). Grips move with the frames. Writes the PNG and the definition and reloads the art; view_image shows the result.
     #[tool]
     edit_frames: EditFrames(p: EditFramesParams) => ed.mcp_edit_frames(p);

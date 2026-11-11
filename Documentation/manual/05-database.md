@@ -51,6 +51,7 @@ is full, assigns it and opens it for drawing.
 | **Magic** | **Teaches spell**: using it teaches a spell (a scroll that is consumed, a book that isn't) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
 | **Held** | Weapons, left-hand items and tools: how figures hold it (below) |
+| **3D model** | Weapons, left-hand items and tools: the model 3D model characters hold (below) |
 | **On use** | Triggers that run when the player uses the item: heal, give something, run a script ([Events](07-events.md)) |
 
 **Equipment kinds:**
@@ -80,6 +81,15 @@ in the right hand while it is used. The **Held** section says how:
   grip axis; setting it off the picture's length tilts the item, as the fishing rod held 40° up),
   the **size** and the **hand** (*By its kind* or right, left, both). Previews show it in a figure's
   hands facing down, facing right and in a swing.
+
+The **3D model** section gives the item a model (a `.glb`, copied into `models/`) for characters
+made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)): its **length**
+in world pixels, the **hold point** and the direction its **handle** runs toward the blade or head
+(both in the model's own coordinates). **Estimate** finds them from the shape (the thinnest part
+along its longest side is held; the handle runs toward the farther end), **Flip** turns them
+around, and the previews show it in a 3D character's hands. **Render icon** draws the model into
+a 32 x 32 inventory icon (on the `icons_3d` sheet) and makes it the item's icon. Models made of
+plain-coloured materials without textures work too.
 
 A hand's **grip axis** is the line a handle runs through the closed fist. Turned to the left, the
 picture is mirrored across it, so whatever is tilted up stays up in both directions. Two-handed

@@ -19,6 +19,11 @@ pub enum Purpose {
     TilesetImage(String),
     SheetImage(String),
     SoundFile(String),
+    /// A 3D model file (`.glb`): a new model (`id` empty), model `id`'s file, or (`clips`) a file
+    /// with more clips for it.
+    ModelFile { id: String, clips: bool },
+    /// The 3D model (`.glb`) of item `id` (held by 3D model characters).
+    ItemModel(String),
     /// A `.r2dpack` to import into the library or the project.
     ImportPackage { into_library: bool },
     /// Where to write a `.r2dpack` with these assets.
@@ -63,6 +68,8 @@ impl PendingDialog {
                 Purpose::TilesetImage(_) => d.set_title("Choose tileset image").add_filter("Images", &images).pick_file(),
                 Purpose::SheetImage(_) => d.set_title("Choose sprite sheet image").add_filter("Images", &images).pick_file(),
                 Purpose::SoundFile(_) => d.set_title("Choose sound").add_filter("Audio (WAV, OGG)", &["wav", "ogg"]).pick_file(),
+                Purpose::ItemModel(_) => d.set_title("Choose the item's 3D model").add_filter("glTF binary", &["glb"]).pick_file(),
+                Purpose::ModelFile { clips, .. } => d.set_title(if clips { "Choose a file with clips" } else { "Choose a 3D model" }).add_filter("glTF binary", &["glb"]).pick_file(),
                 Purpose::ExportGameFolder => d.set_title("Folder for the exported game").pick_folder(),
                 Purpose::ExportIcon => d.set_title("Icon of the game (PNG, e.g. 256 x 256)").add_filter("PNG image", &["png"]).pick_file(),
                 Purpose::Import(k) => {

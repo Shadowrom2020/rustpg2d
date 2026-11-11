@@ -72,6 +72,22 @@ pub struct PoseReq<'a> {
 /// Size of a bust render (image pixels, square).
 pub const BUST: u32 = 64;
 
+/// What a model plays for a figure animation: (animation, time, once). `now`: the clock in
+/// seconds (idle and extra animations loop on it).
+pub fn anim_req(anim: super::character::Anim, now: f32) -> (&'static str, f32, bool) {
+    use super::character::{Anim, LAYOUT_FRAMES};
+    match anim {
+        Anim::Walk(c) => ("walk", (c as f32 + 0.5) / LAYOUT_FRAMES as f32, true),
+        Anim::Walking(t) => ("walk", t as f32 / 100.0, false),
+        Anim::Idle(_) => ("idle", now, false),
+        // Wind-up, swing, follow-through, recover: points of the clip (strikes sit in its
+        // middle; the player's swing shows the last three).
+        Anim::Attack(k) => ("attack", [0.22, 0.42, 0.58, 0.8][k.min(3) as usize], true),
+        Anim::Hurt => ("hurt", 0.4, true),
+        Anim::Extra(n, _) => (n, now, false),
+    }
+}
+
 /// Where a rendered pose is: its atlas page and rectangle (image pixels), the feet point in it,
 /// the tips of held items (fishing lines start there).
 #[derive(Clone, Debug)]
@@ -140,10 +156,23 @@ struct Cache {
     renders_total: u64,
 }
 
+/// A held item's 3D model: its mesh as it stands in the file, its texture and its length.
+struct ItemMesh {
+    points: Vec<(Vec3, Vec3)>,
+    uvs: Vec<Vec2>,
+    indices: Vec<u16>,
+    image: Option<Image>,
+    texture: RefCell<Option<Texture2D>>,
+    /// The longest side of its bounds (model units).
+    len: f32,
+}
+
 /// The project's models and their rendered poses.
 #[derive(Default)]
 pub struct Models {
     loaded: HashMap<String, Loaded>,
+    /// Held items' models by file.
+    items: HashMap<String, ItemMesh>,
     cache: RefCell<Cache>,
     pub errors: Vec<String>,
 }
@@ -200,7 +229,101 @@ impl Models {
                 }
             }
         }
+        for it in &db.items {
+            let Some(im) = it.model.as_ref().filter(|im| !m.items.contains_key(&im.file)) else { continue };
+            match read(&im.file).map_err(anyhow::Error::from).and_then(|b| Model::load(&b)) {
+                Ok(model) => {
+                    let mut points = Vec::new();
+                    model.skin(&model.pose(None, 0.0), &mut points);
+                    let (lo, hi) = points.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)));
+                    let len = (hi - lo).max_element().max(1e-4);
+                    let uvs = model.vertices.iter().map(|v| v.uv).collect();
+                    m.items.insert(im.file.clone(), ItemMesh { points, uvs, indices: model.indices.clone(), image: model.texture.clone(), texture: RefCell::new(None), len });
+                }
+                Err(e) => {
+                    eprintln!("[models] item {}: {e:#}", it.id);
+                    m.errors.push(format!("item model {} ({}): {e:#}", it.id, im.file));
+                }
+            }
+        }
         m
+    }
+
+    /// Forgets every rendered pose (an item model's marks changed).
+    pub fn clear_poses(&self) {
+        self.cache.borrow_mut().poses.clear();
+    }
+
+    /// An inventory icon of an item's model (`size` pixels square): the model alone, its handle
+    /// pointing up-right like the drawn icons, cel shaded and outlined. Needs a window (GPU).
+    pub fn render_item_icon(&self, spec: &crate::defs::ItemModel, size: u32) -> Option<Image> {
+        let mesh = self.items.get(&spec.file)?;
+        let rot = Quat::from_rotation_arc(Vec3::from(spec.axis).normalize_or(Vec3::Y), vec3(1.0, 1.0, 0.0).normalize());
+        // A quarter turn about the handle shows the blade's face rather than its edge.
+        let rot = Quat::from_axis_angle(vec3(1.0, 1.0, 0.0).normalize(), 0.5) * rot;
+        let pts: Vec<(Vec3, Vec3)> = mesh.points.iter().map(|(p, n)| (rot * (*p - Vec3::from(spec.grip)), rot * *n)).collect();
+        let (lo, hi) = pts.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)));
+        let center = (lo + hi) / 2.0;
+        let span = (hi.x - lo.x).max(hi.y - lo.y) * 1.12;
+        let vertices: Vec<Vertex> = pts.iter().zip(&mesh.uvs).map(|((p, n), uv)| Vertex { position: *p - center, uv: *uv, color: [255; 4], normal: vec4(n.x, n.y, n.z, 0.0) }).collect();
+        let texture = mesh.texture.borrow_mut().get_or_insert_with(|| {
+            let t = mesh.image.as_ref().map_or_else(|| Texture2D::from_rgba8(1, 1, &[200, 200, 200, 255]), Texture2D::from_image);
+            t.set_filter(FilterMode::Nearest);
+            t
+        }).clone();
+        let mut c = self.cache.borrow_mut();
+        let mat = material(&mut c);
+        let scratch = render_target_ex(size, size, RenderTargetParams { sample_count: 1, depth: true });
+        scratch.texture.set_filter(FilterMode::Nearest);
+        let out = render_target_ex(size, size, RenderTargetParams { sample_count: 1, depth: false });
+        let cam = Camera3D {
+            position: vec3(0.0, 0.0, 10.0),
+            target: Vec3::ZERO,
+            up: Vec3::Y,
+            fovy: span,
+            aspect: Some(1.0),
+            projection: Projection::Orthographics,
+            render_target: Some(scratch.clone()),
+            viewport: None,
+            z_near: 0.1,
+            z_far: 50.0,
+        };
+        push_camera_state();
+        set_camera(&cam);
+        clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
+        gl_use_material(&mat);
+        mat.set_uniform("LightDir", vec3(-0.45, 0.75, 0.55).normalize());
+        mat.set_uniform("Shade", 1.0f32);
+        draw_mesh(&Mesh { vertices, indices: mesh.indices.clone(), texture: Some(texture) });
+        gl_use_default_material();
+        let mut cam2 = Camera2D::from_display_rect(Rect::new(0.0, 0.0, size as f32, size as f32));
+        cam2.zoom.y = -cam2.zoom.y;
+        cam2.render_target = Some(out.clone());
+        set_camera(&cam2);
+        clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
+        let dark = Color::new(0.15, 0.10, 0.09, 1.0);
+        let sz = Some(vec2(size as f32, size as f32));
+        for (dx, dy) in [(-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0)] {
+            draw_texture_ex(&scratch.texture, dx, dy, dark, DrawTextureParams { dest_size: sz, flip_y: true, ..Default::default() });
+        }
+        draw_texture_ex(&scratch.texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: sz, flip_y: true, ..Default::default() });
+        pop_camera_state();
+        Some(out.texture.get_texture_data())
+    }
+
+    /// Whether an item model file is loaded.
+    pub fn has_item_model(&self, file: &str) -> bool {
+        self.items.contains_key(file)
+    }
+
+    /// An item model's triangles (indices into its points).
+    pub fn item_indices(&self, file: &str) -> Vec<u16> {
+        self.items.get(file).map(|m| m.indices.clone()).unwrap_or_default()
+    }
+
+    /// An item model's points (as in the file) and longest side, for the editor's estimates.
+    pub fn item_points(&self, file: &str) -> Option<(Vec<Vec3>, f32)> {
+        self.items.get(file).map(|m| (m.points.iter().map(|p| p.0).collect(), m.len))
     }
 
     pub fn has(&self, id: &str) -> bool {
@@ -244,7 +367,7 @@ impl Models {
         }
         c.renders += 1;
         c.renders_total += 1;
-        let cell = render(&mut c, l, db, sheets, req, clip_name.as_deref(), time);
+        let cell = render(&mut c, l, &self.items, db, sheets, req, clip_name.as_deref(), time);
         c.poses.insert(key, cell.clone());
         Some(cell)
     }
@@ -282,6 +405,52 @@ impl Models {
         let dest = vec2(cell.rect.w, cell.rect.h) / PX * size;
         let params = DrawTextureParams { source: Some(cell.rect), dest_size: Some(dest), rotation: angle, ..Default::default() };
         draw_texture_ex(&page.rt.texture, center.x - dest.x / 2.0, center.y - dest.y / 2.0, tint, params);
+    }
+
+    /// What model `id` is made of.
+    pub fn info(&self, id: &str) -> Option<ModelInfo> {
+        let l = self.loaded.get(id)?;
+        let m = &l.model;
+        Some(ModelInfo {
+            vertices: m.vertices.len(),
+            triangles: m.indices.len() / 3,
+            bones: m.joints.iter().map(|&j| m.nodes[j].name.clone()).collect(),
+            clips: m.clips.iter().map(|c| (c.name.clone(), c.duration)).collect(),
+            hands: l.hands.iter().all(Option::is_some),
+            texture: l.texture.as_ref().map(|t| (t.width, t.height)),
+        })
+    }
+
+    /// Model `id`'s texture as loaded (downsized), for picking colour features.
+    pub fn texture_image(&self, id: &str) -> Option<&Image> {
+        self.loaded.get(id)?.texture.as_ref()
+    }
+
+    /// Takes an edited definition (height, clips, colour features…) without reading the files
+    /// again; its poses render anew. False when the model isn't loaded (a new file: reload).
+    pub fn set_def(&mut self, def: &ModelDef) -> bool {
+        let Some(l) = self.loaded.get_mut(&def.id) else { return false };
+        if l.def == *def {
+            return true;
+        }
+        if l.def.file != def.file || l.def.clip_files != def.clip_files {
+            return false;
+        }
+        (l.frame, l.ppu, l.target_y) = layout(def, l.height);
+        l.def = def.clone();
+        l.textures.borrow_mut().clear();
+        self.cache.borrow_mut().poses.retain(|k, _| k.model != def.id);
+        true
+    }
+
+    /// The atlas texture of a rendered pose and the pose's place in it (texture coordinates
+    /// 0..1): the editor shows it in egui without copying.
+    pub fn cell_texture(&self, cell: &Cell) -> Option<(Texture2D, Rect)> {
+        let c = self.cache.borrow();
+        let page = c.pages.get(cell.page)?;
+        let r = cell.rect;
+        let p = PAGE as f32;
+        Some((page.rt.texture.clone(), Rect::new(r.x / p, r.y / p, r.w / p, r.h / p)))
     }
 
     /// Whether model `id` has a clip for animation `anim`.
@@ -343,13 +512,32 @@ fn load_one(def: &ModelDef, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> 
     let hands = [hand("right"), hand("left")];
     let (lo, hi) = model.bounds();
     let height = (hi.y - lo.y).max(1e-3);
-    // The standing figure 2 x height image pixels tall, a frame with room for raised arms and swings.
-    let fig = def.height * PX;
+    let (frame, ppu, target_y) = layout(def, height);
+    let texture = model.texture.clone();
+    Ok(Loaded { def: def.clone(), model, texture, align, hands, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()) })
+}
+
+/// A model's frame (image pixels), pixels per model unit and camera target height: the standing
+/// figure 2 x `def.height` image pixels tall in a frame with room for raised arms and swings.
+fn layout(def: &ModelDef, height: f32) -> ((u32, u32), f32, f32) {
+    let fig = def.height.max(4.0) * PX;
     let ppu = fig / height;
     let frame = (((fig * 1.1) as u32 + 1) & !1, ((fig * 1.3) as u32 + 1) & !1);
     let target_y = (frame.1 as f32 / 2.0 - FEET_MARGIN) / (ppu * ELEVATION.to_radians().cos());
-    let texture = model.texture.clone();
-    Ok(Loaded { def: def.clone(), model, texture, align, hands, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()) })
+    (frame, ppu, target_y)
+}
+
+/// What a loaded model is made of (the editor's Models tab).
+#[derive(Clone, Debug, Default)]
+pub struct ModelInfo {
+    pub vertices: usize,
+    pub triangles: usize,
+    pub bones: Vec<String>,
+    /// Name and seconds of every clip (its own file's and the clip files').
+    pub clips: Vec<(String, f32)>,
+    /// Hand bones found (gear can be held).
+    pub hands: bool,
+    pub texture: Option<(u16, u16)>,
 }
 
 /// The clip of a request, its frame number and the time in it.
@@ -449,7 +637,8 @@ fn texture_for(l: &Loaded, look: &Appearance) -> Option<Texture2D> {
 }
 
 /// Renders one pose into the atlas.
-fn render(c: &mut Cache, l: &Loaded, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq, clip: Option<&str>, time: f32) -> Cell {
+#[allow(clippy::too_many_arguments)]
+fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq, clip: Option<&str>, time: f32) -> Cell {
     let (w, h) = if req.bust { (BUST, BUST) } else { l.frame };
     let clip_ref = clip.and_then(|n| l.model.clip(n));
     let world = l.model.pose(clip_ref, time);
@@ -548,6 +737,41 @@ fn render(c: &mut Cache, l: &Loaded, db: &Database, sheets: &HashMap<String, sup
             },
         };
         let Some(mut anchor) = anchor else { continue };
+        // An item with its own 3D model: its mesh on the hand, the handle along the grip axis.
+        let im = db.item(&layer.id).and_then(|d| d.model.as_ref()).and_then(|m| items.get(&m.file).map(|mesh| (m, mesh)));
+        if let Some((spec, mesh)) = im {
+            let axis = match layer.hand {
+                Hand::Right => hands3[0].map(|h| h.1),
+                Hand::Left => hands3[1].map(|h| h.1),
+                Hand::Both => match (hands3[0], hands3[1]) {
+                    (Some(r), Some(lh)) if (r.0 - lh.0).length() > l.height * 0.08 => {
+                        let d = (r.0 - lh.0).normalize_or_zero();
+                        Some(if d.dot(r.1) >= 0.0 { d } else { -d })
+                    }
+                    (r, lh) => r.or(lh).map(|h| h.1),
+                },
+            };
+            let Some(axis) = axis else { continue };
+            let k = spec.size * PX / l.ppu / mesh.len;
+            let rot = Quat::from_rotation_arc(Vec3::from(spec.axis).normalize_or(Vec3::Y), axis.normalize_or(Vec3::Y));
+            let grip = Vec3::from(spec.grip);
+            let place = |p: Vec3| anchor + rot * ((p - grip) * k);
+            let vertices: Vec<Vertex> = mesh.points.iter().zip(&mesh.uvs).map(|((p, n), uv)| {
+                let n = rot * *n;
+                Vertex { position: place(*p), uv: *uv, color: [255; 4], normal: vec4(n.x, n.y, n.z, 0.0) }
+            }).collect();
+            let texture = mesh.texture.borrow_mut().get_or_insert_with(|| {
+                let t = mesh.image.as_ref().map_or_else(|| Texture2D::from_rgba8(1, 1, &[200, 200, 200, 255]), Texture2D::from_image);
+                t.set_filter(FilterMode::Nearest);
+                t
+            }).clone();
+            mat.set_uniform("Shade", 1.0f32);
+            draw_mesh(&Mesh { vertices, indices: mesh.indices.clone(), texture: Some(texture) });
+            mat.set_uniform("Shade", 0.0f32);
+            let far = mesh.points.iter().map(|p| p.0).max_by(|a, b| (*a - grip).length_squared().total_cmp(&(*b - grip).length_squared())).unwrap_or(grip);
+            tips.push((layer.id.clone(), to_px(place(far))));
+            continue;
+        }
         let mut layer = layer.clone();
         if layer.id == req.gear.carrying {
             // A carried prop is held level in front of the chest, not between the hanging hands.

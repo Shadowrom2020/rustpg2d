@@ -477,34 +477,57 @@ Instructions for every session (people and coding agents) that implements roadma
   follow-through 0.58, recover 0.8). Not yet: model files in asset-library bundles (with the
   editor item); textures of models aren't recoloured until a model has colour features.
 
-- [ ] Models in the editor — `feature/3d-editor`
+- [x] Models in the editor — `feature/3d-editor`
 
   **Goal.** Creators add, check and use models, and give items 3D gear, without editing files.
 
   **Design.**
-  - *Database › Models*: import a `.glb`, which copies it to `models/`, downsizes the texture and
-    reports triangles, bones and clips.
-    - Set the height and the rig; map clips to animations (each clip previewed).
-    - The gear bones are auto-detected.
-    - Colour features are picked on the texture (click the model's colours) with the colours
-      offered.
-    - A turning 3D preview using the engine's renderer in an egui texture.
-  - **Rig templates for unrigged models**:
-    - choose a template; the editor fits its skeleton to the model (scaled to the model's bounds
-      and proportions, adjustable by dragging joints on the preview) and skins it (envelope
-      weights by distance to the bones);
-    - the template's shared clips then animate it;
-    - templates are GLBs of the starter library: skeleton + clips, made once.
-  - The character editor and the creator choose models and colours with the 3D preview.
-  - The item form's **3D model** section: import or generate, set the hold point and handle
-    direction on the preview (click / drag), the bone, the size; preview in a character's hands;
-    **Render icon** makes the inventory icon from the model.
-  - Remove the figure tools listed above.
-  - Agents: `import_model`, `model_info`, `fit_rig`, `upsert_def` for models, `item_model`.
-  - Editor script `model…` commands; `status` prints `model=`.
+  - *Database › 3D models*: **Import model…** copies a `.glb` into `models/` and matches its clips
+    to the animations by name (`model::guess_clips`); *Clip files* add more `.glb` files of the
+    rig (their clips fill animations still without one).
+    - The form: file, clip files, height, *Playable* / *Female*, the model's facts (triangles,
+      bones, hands, clips, texture; a warning above 8000 triangles), the clip per animation with
+      its fps, a turning preview of any mapped animation, the four facings and the portrait.
+    - Colour features are picked from the model's texture, which is reduced to 32 colours when it
+      loads (`model::quantize`: the pixel look, and the shades can be picked exactly), with a
+      preview per offered colour.
+    - Previews render through the engine; egui shows the atlas page directly
+      (`TextureId::User` = its OpenGL texture).
+  - The character editor offers *3D models* cards above the figures; the preview and the colour
+    rows follow the model. The game's character creator offers playable models (and model ids in
+    races' body lists) with their colour rows and a walking 3D preview.
+  - The item form's **3D model** section: the file, its length, the hold point and handle
+    direction (typed, **Estimate**: the thinnest part along the longest side, measured over its
+    triangles; **Flip**), a preview in the first 3D model's hands, **Render icon** (the model drawn
+    into a 32 x 32 icon on the `icons_3d` sheet). Models without textures get a palette of their
+    materials' colours. 3D model characters hold the item's model on the hand bone, its handle
+    along the grip axis (two-handed: through both hands); items without one stay pictures.
+  - Asset library and packages carry models and their files (`library::asset_files`).
+  - Agents: `import_model`, `model_info`; `upsert_def` for models and items' `model`.
+  - Editor script: `modelimport FILE`, `modelclips ID FILE`, `modelfile ID FILE`, `itemmodel ITEM
+    FILE`, `itemicon ITEM`, `charset model ID|-`, `tab models ID`.
 
-  **Verify.** Editor scripts with screenshots of the Models tab, a fitted template rig on an animal,
-  the item form's 3D section, the creator.
+  **Verify.** Editor scripts with screenshots of the Models tab, the colour preview, the character
+  editor, the item form's 3D section and a rendered icon; the creator offering a model; the agent
+  tools through an MCP client; the library round trip as a unit test.
+
+  **Done.** As designed. The rig templates moved into their own item (below), the removal of the
+  figure tools into *The cast in 3D*.
+
+- [ ] Rig templates for animals and creatures — `feature/3d-rig-templates`
+
+  **Goal.** Unrigged models (animals, monsters: Meshy rigs only humanoids) move with shared motions.
+
+  **Design.**
+  - Templates (four-legged, bird, flyer, blob, floating): GLBs of the starter library with a
+    skeleton and the clips walk, idle, attack, hurt, made once in Blender.
+  - The Models tab's *Rig template*: the editor fits the skeleton to the model (scaled to its
+    bounds and proportions, joints adjustable by dragging on the preview) and skins it (envelope
+    weights by distance to the bones); the template's clips then animate it.
+  - Agents: `fit_rig`.
+
+  **Verify.** A Meshy animal (unrigged) fitted to the four-legged template, walking and attacking
+  in the game; unit tests for fitting and skinning.
 
 - [ ] Generate 3D characters and gear with Meshy — `feature/3d-meshy`
 

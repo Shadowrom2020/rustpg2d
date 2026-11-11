@@ -32,6 +32,7 @@ pub enum Tab {
     Recipes,
     Achievements,
     Races,
+    Models,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -50,6 +51,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Recipes => db.recipes.len(),
         Tab::Achievements => db.achievements.len(),
         Tab::Races => db.races.len(),
+        Tab::Models => db.models.len(),
         Tab::Project | Tab::Scripts => 0,
     }
 }
@@ -81,6 +83,7 @@ impl Tab {
             Tab::Recipes => RefKind::Recipe,
             Tab::Achievements => RefKind::Achievement,
             Tab::Races => RefKind::Race,
+            Tab::Models => RefKind::Model,
             Tab::Project | Tab::Scripts => return None,
         })
     }
@@ -101,8 +104,7 @@ impl Tab {
             RefKind::Recipe => Tab::Recipes,
             RefKind::Achievement => Tab::Achievements,
             RefKind::Race => Tab::Races,
-            // Models get their tab with the editor support (0.18 *Models in the editor*).
-            RefKind::Model => return None,
+            RefKind::Model => Tab::Models,
             RefKind::Map => return None,
         })
     }
@@ -209,6 +211,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Recipes => ph::HAMMER,
         Tab::Achievements => ph::TROPHY,
         Tab::Races => ph::USERS_THREE,
+        Tab::Models => ph::CUBE,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
     }
@@ -286,6 +289,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Props, "Props"),
             (Tab::Characters, "Characters"),
             (Tab::Races, "Races"),
+            (Tab::Models, "3D models"),
             (Tab::Tilesets, "Tilesets"),
             (Tab::Sheets, "Sprite sheets"),
             (Tab::Sounds, "Sounds"),
@@ -340,6 +344,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Spells => db.spells.get(i).map(|d| (RefKind::Spell, d.id.clone())),
             Tab::Recipes => db.recipes.get(i).map(|d| (RefKind::Recipe, d.id.clone())),
             Tab::Races => db.races.get(i).map(|d| (RefKind::Race, d.id.clone())),
+            Tab::Models => db.models.get(i).map(|d| (RefKind::Model, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -355,6 +360,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Spells => Some(RefKind::Spell),
                 Tab::Recipes => Some(RefKind::Recipe),
                 Tab::Races => Some(RefKind::Race),
+                Tab::Models => Some(RefKind::Model),
                 _ => None,
             };
             if kind.is_some() {
@@ -474,6 +480,12 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     |ids| rustpg2d_engine::skills::SpellDef::new(&unique("spell", ids), "New spell", "", SpriteRef::default(), 5, 1.0, rustpg2d_engine::skills::SpellEffect::Heal { amount: 4 }),
                     |d| &mut d.id,
                 ),
+                Tab::Models => {
+                    if ui.button(ui::t(ph::UPLOAD_SIMPLE, "Import model…")).on_hover_text("A rigged .glb (Meshy, Blender, Mixamo…): copied into models/, its clips matched to the animations by name").clicked() {
+                        ed.browse_request = Some(Purpose::ModelFile { id: String::new(), clips: false });
+                    }
+                    list_ui(ui, &mut db.models, sel, |d| format!("{}  ({}){}", d.label(), d.id, if d.playable { "  - playable" } else { "" }), |ids| rustpg2d_engine::defs::ModelDef::new(&unique("model", ids), ""), |d| &mut d.id)
+                }
                 Tab::Races => list_ui(ui, &mut db.races, sel, |d| format!("{}  ({}){}", d.name, d.id, if d.playable { "" } else { "  - not playable" }), |ids| rustpg2d_engine::races::RaceDef::fresh(&unique("race", ids)), |d| &mut d.id),
                 Tab::Recipes => {
                     // Listed by what they make.
@@ -629,6 +641,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Races => {
                         if let Some(d) = db.races.get_mut(i) {
                             race_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Models => {
+                        if let Some(d) = db.models.get_mut(i) {
+                            model_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -964,6 +981,8 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     if holdable {
         ui.separator();
         held_ui(ui, d, cx);
+        ui.separator();
+        item_model_ui(ui, d, cx);
     }
     ui.separator();
     ui.heading("On use");
@@ -2091,7 +2110,7 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
 pub const COLOR_PRESETS: [(&str, &[[u8; 3]]); 3] = [("Skin tones", &widgets::SKIN_PRESETS), ("Hair", &widgets::HAIR_PRESETS), ("Cloth", &widgets::CLOTH_PRESETS)];
 
 /// The colours of an image with their pixel counts, most used first.
-type ColorCounts = Vec<([u8; 3], u32)>;
+pub(crate) type ColorCounts = Vec<([u8; 3], u32)>;
 
 thread_local! {
     /// The colours of sheet images: (sheet, image size, sample hash) -> list.
@@ -2121,10 +2140,37 @@ pub fn image_colors(sheet: &str, rgba: &[u8]) -> ColorCounts {
 /// *Colour features* of a figure sheet: parts that can take other colours, picked from the
 /// art's own shades, and the colours each may take (the character creator's swatches).
 fn features_ui(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
-    use rustpg2d_engine::defs::ColorFeature;
     ui.separator();
     ui.heading(format!("Colour features ({})", d.features.len()));
     ui.weak("Parts of the figure that can take other colours (skin, hair, clothing…): pick the art's shades of each part below; characters and the character creator replace them by a chosen colour, keeping light and shadow. A shade the part shares with another part: paint one of them in another shade first (sprite editor: Replace colour).");
+    let image = cx.assets.sheets.get(&d.id).map(|s| image_colors(&d.id, &s.image.bytes)).unwrap_or_default();
+    let sel = features_editor(ui, &d.id, &mut d.features, &image);
+    // Preview: the front idle frame in each offered colour of the selected feature.
+    if let Some(f) = d.features.get(sel).filter(|f| !f.shades.is_empty()) {
+        ui.horizontal_wrapped(|ui| {
+            let n = d.features.len();
+            for c in std::iter::once(None).chain(f.colors.iter().take(10).map(|c| Some(*c))) {
+                let mut colors = vec![None; n];
+                colors[sel] = c;
+                let layer = rustpg2d_engine::render::character::Layer { sheet: d.id.clone(), frame: 16, fallback: 0, colors };
+                let (r, _) = ui.allocate_exact_size(egui::vec2(48.0, 72.0), egui::Sense::hover());
+                ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
+                widgets::paint_character(ui, cx.tex, cx.assets, &[layer], r.shrink(2.0));
+            }
+        });
+    }
+}
+
+/// Colours of an image, most used first (cached per `key`).
+pub(crate) fn image_colors_of(key: &str, rgba: &[u8]) -> ColorCounts {
+    image_colors(key, rgba)
+}
+
+/// The colour features of a figure or a model: pick each part's shades from `image` (its
+/// colours, most used first) and the colours it offers. Returns the selected feature.
+pub(crate) fn features_editor(ui: &mut egui::Ui, key: &str, features: &mut Vec<rustpg2d_engine::defs::ColorFeature>, image: &ColorCounts) -> usize {
+    use rustpg2d_engine::defs::ColorFeature;
+    let d = Features { id: key, features };
     let sel_id = egui::Id::new(("feature_sel", &d.id));
     let mut sel: usize = ui.data_mut(|m| m.get_temp(sel_id).unwrap_or(0));
     let mut remove = None;
@@ -2152,7 +2198,6 @@ fn features_ui(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
         }
     });
     sel = sel.min(d.features.len().saturating_sub(1));
-    let image = cx.assets.sheets.get(&d.id).map(|s| image_colors(&d.id, &s.image.bytes)).unwrap_or_default();
     if let Some(f) = d.features.get_mut(sel) {
         ui.horizontal(|ui| {
             ui.label("Name");
@@ -2223,7 +2268,7 @@ fn features_ui(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
         egui::ScrollArea::vertical().id_salt(("image_colors", &d.id)).max_height(120.0).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(3.0, 3.0);
-                for (c, n) in &image {
+                for (c, n) in image {
                     let on = f.shades.contains(c);
                     let resp = crate::builder::swatch(ui, *c, on).on_hover_text(format!("{n} pixels"));
                     if resp.clicked() {
@@ -2237,21 +2282,14 @@ fn features_ui(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
             });
         });
     }
-    // Preview: the front idle frame in each offered colour of the selected feature.
-    if let Some(f) = d.features.get(sel).filter(|f| !f.shades.is_empty()) {
-        ui.horizontal_wrapped(|ui| {
-            let n = d.features.len();
-            for c in std::iter::once(None).chain(f.colors.iter().take(10).map(|c| Some(*c))) {
-                let mut colors = vec![None; n];
-                colors[sel] = c;
-                let layer = rustpg2d_engine::render::character::Layer { sheet: d.id.clone(), frame: 16, fallback: 0, colors };
-                let (r, _) = ui.allocate_exact_size(egui::vec2(48.0, 72.0), egui::Sense::hover());
-                ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
-                widgets::paint_character(ui, cx.tex, cx.assets, &[layer], r.shrink(2.0));
-            }
-        });
-    }
     ui.data_mut(|m| m.insert_temp(sel_id, sel));
+    sel
+}
+
+/// The colour features being edited and whose they are (`features_editor`).
+struct Features<'a> {
+    id: &'a str,
+    features: &'a mut Vec<rustpg2d_engine::defs::ColorFeature>,
 }
 
 fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
@@ -3580,5 +3618,291 @@ fn languages_form(ed: &mut Editor, ui: &mut egui::Ui) {
     if let Some(code) = export {
         let r = ed.export_translation(&code);
         ed.lang_msg = Some(r.unwrap_or_else(|e| format!("Not exported: {e}")));
+    }
+}
+
+/// A 3D character model: its files, height, the clip each animation plays (with a preview), its
+/// colour features (picked from its texture) and whether players may choose it.
+fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &mut Cx) {
+    use rustpg2d_engine::defs::{Appearance, ClipMap};
+    use rustpg2d_engine::entity::Facing;
+    use rustpg2d_engine::render::model::{Gear, PoseReq};
+    ui.heading("3D model");
+    rename_row(ui, RefKind::Model, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    egui::Grid::new("model").num_columns(2).show(ui, |ui| {
+        ui.label("File");
+        ui.horizontal(|ui| {
+            ui.monospace(if d.file.is_empty() { "(none)" } else { d.file.as_str() });
+            if ui.small_button("Choose…").on_hover_text("A rigged .glb (copied into models/)").clicked() {
+                *cx.browse = Some(Purpose::ModelFile { id: d.id.clone(), clips: false });
+            }
+        });
+        ui.end_row();
+        ui.label("Clip files");
+        ui.vertical(|ui| {
+            let mut drop = None;
+            for (k, f) in d.clip_files.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.monospace(f);
+                    if ui.small_button(ui::t(ph::TRASH, "")).on_hover_text("Stop using this file's clips").clicked() {
+                        drop = Some(k);
+                    }
+                });
+            }
+            if let Some(k) = drop {
+                d.clip_files.remove(k);
+            }
+            if ui.small_button(ui::t(ph::PLUS, "Add…")).on_hover_text("A .glb with more clips of the same rig (Meshy writes animations as separate files)").clicked() {
+                *cx.browse = Some(Purpose::ModelFile { id: d.id.clone(), clips: true });
+            }
+        });
+        ui.end_row();
+        ui.label("Height");
+        ui.add(egui::DragValue::new(&mut d.height).range(8.0..=256.0).suffix(" px")).on_hover_text("Standing height in world pixels (a person: 40; a tile is 32)");
+        ui.end_row();
+        ui.label("Character creator");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut d.playable, "Playable").on_hover_text("Players may choose it in the character creator");
+            ui.checkbox(&mut d.female, "Female").on_hover_text("Offered to female player characters");
+        });
+        ui.end_row();
+    });
+    let info = cx.assets.models.info(&d.id);
+    match &info {
+        Some(i) => {
+            ui.weak(format!(
+                "{} triangles, {} bones, {} clips{}{}",
+                i.triangles,
+                i.bones.len(),
+                i.clips.len(),
+                i.texture.map_or(" - no texture".to_string(), |(w, h)| format!(", texture {w} x {h}")),
+                if i.hands { "" } else { " - no hand bones: it can't hold things" }
+            ));
+            if i.triangles > 8000 {
+                ui.colored_label(egui::Color32::YELLOW, "Many triangles: it renders fine, but files and the web game grow. About 5000 is plenty for a figure this small.");
+            }
+        }
+        None => {
+            let err = cx.assets.models.errors.iter().find(|e| e.contains(&format!("model {}:", d.id))).cloned();
+            ui.colored_label(egui::Color32::LIGHT_RED, err.unwrap_or_else(|| "Not loaded yet: choose a file (or Reload assets).".into()));
+        }
+    }
+    // The renderer takes the edited definition at once.
+    cx.assets.models.set_def(d);
+    // Animations: the clip each plays.
+    let clips: Vec<(String, f32)> = info.as_ref().map(|i| i.clips.clone()).unwrap_or_default();
+    ui.separator();
+    ui.heading("Animations");
+    ui.weak("The clip each animation plays (12 frames a second unless set). Characters without a clip for an animation play idle; walking, idle, attacks and being hit are used by everyone, sitting and sleeping on furniture, the rest by activities.");
+    egui::Grid::new("model_clips").num_columns(3).show(ui, |ui| {
+        for anim in rustpg2d_engine::model::ANIMS {
+            ui.label(anim);
+            let cur = d.clip_of(anim).map(|c| c.clip.clone()).unwrap_or_default();
+            let mut pick = cur.clone();
+            egui::ComboBox::from_id_salt(("model_clip", anim)).width(220.0).selected_text(if pick.is_empty() { "(none: idle)".to_string() } else { pick.clone() }).show_ui(ui, |ui| {
+                ui.selectable_value(&mut pick, String::new(), "(none: idle)");
+                for (c, secs) in &clips {
+                    ui.selectable_value(&mut pick, c.clone(), format!("{c}  ({secs:.1} s)"));
+                }
+            });
+            if pick != cur {
+                d.clips.retain(|c| c.anim != anim);
+                if !pick.is_empty() {
+                    d.clips.push(ClipMap { anim: anim.into(), clip: pick, fps: 12.0 });
+                }
+            }
+            match d.clips.iter_mut().find(|c| c.anim == anim) {
+                Some(c) => {
+                    ui.add(egui::DragValue::new(&mut c.fps).range(1.0..=30.0).suffix(" fps"));
+                }
+                None => {
+                    ui.label("");
+                }
+            }
+            ui.end_row();
+        }
+    });
+    // Preview: turning (or one facing), playing the chosen animation, and the four facings.
+    ui.separator();
+    let pid = egui::Id::new(("model_preview", &d.id));
+    let (mut anim_k, mut facing_k, mut turning): (usize, usize, bool) = ui.data_mut(|m| m.get_temp(pid).unwrap_or((0, 0, true)));
+    let t = macroquad::time::get_time();
+    let facings = [Facing::Down, Facing::Left, Facing::Up, Facing::Right];
+    let facing = if turning { facings[(t / 1.5) as usize % 4] } else { facings[facing_k % 4] };
+    let anim = rustpg2d_engine::model::ANIMS[anim_k % rustpg2d_engine::model::ANIMS.len()];
+    let look = Appearance { model: d.id.clone(), ..Default::default() };
+    let gear = Gear::default();
+    ui.horizontal(|ui| {
+        let (r, _) = ui.allocate_exact_size(egui::vec2(150.0, 180.0), egui::Sense::hover());
+        ui.painter().rect_filled(r, 4.0, egui::Color32::from_gray(40));
+        let req = PoseReq { look: &look, gear: &gear, anim, time: t as f32, once: false, facing, bust: false };
+        if !widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(4.0)) {
+            ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "no model", egui::FontId::default(), egui::Color32::LIGHT_RED);
+        }
+        ui.vertical(|ui| {
+            ui.horizontal_wrapped(|ui| {
+                for (k, a) in rustpg2d_engine::model::ANIMS.iter().enumerate() {
+                    if (k < 4 || d.clip_of(a).is_some()) && ui.selectable_label(anim_k == k, *a).clicked() {
+                        anim_k = k;
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                for (k, label) in [(0, ph::ARROW_DOWN), (1, ph::ARROW_LEFT), (2, ph::ARROW_UP), (3, ph::ARROW_RIGHT)] {
+                    if ui.selectable_label(!turning && facing_k == k, label).clicked() {
+                        facing_k = k;
+                        turning = false;
+                    }
+                }
+                ui.toggle_value(&mut turning, ph::ARROWS_CLOCKWISE).on_hover_text("Turn around");
+            });
+            ui.horizontal(|ui| {
+                for f in facings {
+                    let (r, _) = ui.allocate_exact_size(egui::vec2(48.0, 64.0), egui::Sense::hover());
+                    ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
+                    let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing: f, bust: false };
+                    widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
+                }
+                let (r, _) = ui.allocate_exact_size(egui::vec2(64.0, 64.0), egui::Sense::hover());
+                ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
+                let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: true, facing: Facing::Down, bust: true };
+                widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
+            });
+            ui.weak("The four facings standing, and its portrait (dialogs).");
+        });
+    });
+    ui.data_mut(|m| m.insert_temp(pid, (anim_k, facing_k, turning)));
+    ui.ctx().request_repaint();
+    // Colour features on its texture.
+    ui.separator();
+    ui.heading(format!("Colour features ({})", d.features.len()));
+    ui.weak("Parts that can take other colours (skin, hair, clothing…): pick the shades of each part from the model's texture; characters and the character creator replace them by a chosen colour, keeping light and shadow.");
+    let image = cx.assets.models.texture_image(&d.id).map(|t| image_colors_of(&format!("model:{}", d.id), &t.bytes)).unwrap_or_default();
+    let sel = features_editor(ui, &format!("model:{}", d.id), &mut d.features, &image);
+    if let Some(f) = d.features.get(sel).filter(|f| !f.shades.is_empty()) {
+        cx.assets.models.set_def(d);
+        let f = f.clone();
+        ui.horizontal_wrapped(|ui| {
+            for c in std::iter::once(None).chain(f.colors.iter().take(8).map(|c| Some(*c))) {
+                let mut look = Appearance { model: d.id.clone(), ..Default::default() };
+                if let Some(c) = c {
+                    look.colors.insert(f.name.clone(), c);
+                }
+                let (r, _) = ui.allocate_exact_size(egui::vec2(48.0, 64.0), egui::Sense::hover());
+                ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
+                let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing: Facing::Down, bust: false };
+                widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
+            }
+        });
+    }
+}
+
+thread_local! {
+    /// *Render icon* asked for this item (handled after the form: it needs the whole editor).
+    static ICON_REQUEST: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The item whose icon the form asked to render from its model (once).
+pub fn take_icon_request() -> Option<String> {
+    ICON_REQUEST.with(|r| r.borrow_mut().take())
+}
+
+/// A held item's 3D model (`ItemDef.model`): characters made of 3D models hold it as a model
+/// (others its picture). The file, its length, the hold point and handle direction (estimated,
+/// flipped or typed), and a preview in the hands of the project's first 3D model.
+fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
+    use rustpg2d_engine::defs::Appearance;
+    use rustpg2d_engine::entity::Facing;
+    use rustpg2d_engine::render::model::{Gear, PoseReq};
+    ui.heading("3D model");
+    ui.weak("Characters made of 3D models hold it as a model, its handle along the hand (others hold its picture).");
+    let before = d.model.clone();
+    let Some(m) = &mut d.model else {
+        if ui.button(ui::t(ph::CUBE, "Choose a model…")).on_hover_text("A .glb of the item (copied into models/); where it is held is estimated from its shape").clicked() {
+            *cx.browse = Some(Purpose::ItemModel(d.id.clone()));
+        }
+        return;
+    };
+    let mut remove = false;
+    ui.horizontal(|ui| {
+        ui.monospace(&m.file);
+        if ui.small_button("Choose…").clicked() {
+            *cx.browse = Some(Purpose::ItemModel(d.id.clone()));
+        }
+        if ui.small_button(ui::t(ph::TRASH, "Remove")).clicked() {
+            remove = true;
+        }
+    });
+    if !cx.assets.models.has_item_model(&m.file) {
+        let err = cx.assets.models.errors.iter().find(|e| e.contains(&m.file)).cloned();
+        ui.colored_label(egui::Color32::LIGHT_RED, err.unwrap_or_else(|| "Not loaded (Reload assets).".into()));
+    }
+    egui::Grid::new("item_model").num_columns(2).show(ui, |ui| {
+        ui.label("Length");
+        ui.add(egui::DragValue::new(&mut m.size).range(2.0..=200.0).suffix(" px")).on_hover_text("The whole model's length in world pixels (a sword about 22, a spear 50; a character is about 40 tall)");
+        ui.end_row();
+        ui.label("Hold point");
+        ui.horizontal(|ui| {
+            for (k, n) in ["x", "y", "z"].iter().enumerate() {
+                ui.add(egui::DragValue::new(&mut m.grip[k]).speed(0.005).prefix(format!("{n} ")));
+            }
+        });
+        ui.end_row();
+        ui.label("Handle toward");
+        ui.horizontal(|ui| {
+            for (k, n) in ["x", "y", "z"].iter().enumerate() {
+                ui.add(egui::DragValue::new(&mut m.axis[k]).speed(0.01).range(-1.0..=1.0).prefix(format!("{n} ")));
+            }
+        })
+        .response
+        .on_hover_text("The direction from the hold point toward the blade or head, in the model's own axes");
+        ui.end_row();
+    });
+    ui.horizontal(|ui| {
+        let points = cx.assets.models.item_points(&m.file);
+        if ui.add_enabled(points.is_some(), egui::Button::new(ui::t(ph::MAGIC_WAND, "Estimate"))).on_hover_text("From the shape: the thinner end of its longest side is the handle").clicked() {
+            if let Some((pts, _)) = &points {
+                (m.grip, m.axis) = rustpg2d_engine::model::estimate_grip(pts, &cx.assets.models.item_indices(&m.file));
+            }
+        }
+        if ui.add_enabled(points.is_some(), egui::Button::new(ui::t(ph::IMAGE, "Render icon"))).on_hover_text("Its inventory icon drawn from the model (into the icons_3d sheet)").clicked() {
+            ICON_REQUEST.with(|r| *r.borrow_mut() = Some(d.id.clone()));
+        }
+        if ui.add_enabled(points.is_some(), egui::Button::new(ui::t(ph::ARROWS_DOWN_UP, "Flip"))).on_hover_text("The other end is the handle").clicked() {
+            if let Some((pts, _)) = &points {
+                // The hold point mirrored to the other end along the handle.
+                let axis = macroquad::math::Vec3::from(m.axis).normalize_or(macroquad::math::Vec3::Y);
+                let proj: Vec<f32> = pts.iter().map(|p| p.dot(axis)).collect();
+                let (lo, hi) = proj.iter().fold((f32::MAX, f32::MIN), |(l, h), v| (l.min(*v), h.max(*v)));
+                let g = macroquad::math::Vec3::from(m.grip);
+                let t = g.dot(axis);
+                m.grip = (g + axis * (lo + hi - 2.0 * t)).to_array();
+                m.axis = (-axis).to_array();
+            }
+        }
+    });
+    if d.model != before {
+        cx.assets.models.clear_poses();
+    }
+    // Preview in the hands of the first 3D model (playable ones first).
+    let Some(holder) = cx.db.models.iter().find(|m| m.playable).or(cx.db.models.first()).map(|m| m.id.clone()) else {
+        ui.weak("(no 3D model character to preview it with)");
+        return;
+    };
+    let look = Appearance { model: holder, ..Default::default() };
+    let offhand = d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
+    let gear = if offhand { Gear { offhand: Some(d.id.clone()), ..Default::default() } } else { Gear { weapon: Some(d.id.clone()), ..Default::default() } };
+    ui.horizontal(|ui| {
+        for (facing, anim, time) in [(Facing::Down, "idle", 0.0), (Facing::Right, "idle", 0.0), (Facing::Left, "walk", 0.3), (Facing::Right, "attack", 0.42)] {
+            let (r, _) = ui.allocate_exact_size(egui::vec2(90.0, 110.0), egui::Sense::hover());
+            ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(40));
+            let req = PoseReq { look: &look, gear: &gear, anim, time, once: anim == "attack", facing, bust: false };
+            widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
+        }
+    });
+    if remove {
+        d.model = None;
+        cx.assets.models.clear_poses();
     }
 }

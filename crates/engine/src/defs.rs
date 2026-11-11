@@ -299,6 +299,36 @@ impl Appearance {
     }
 }
 
+/// A held item's 3D model: a `.glb` under `models/`, where the hand holds it and which way its
+/// handle runs (the model's own units and axes), and how long it is in the world.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ItemModel {
+    pub file: String,
+    /// The hold point.
+    #[serde(default)]
+    pub grip: [f32; 3],
+    /// The direction from the hold point toward the business end (the blade, the head):
+    /// it lies on the hand's grip axis.
+    #[serde(default = "item_axis")]
+    pub axis: [f32; 3],
+    /// Length of the whole model in world pixels (a sword about 22, a spear 50).
+    #[serde(default = "item_size")]
+    pub size: f32,
+}
+
+fn item_axis() -> [f32; 3] {
+    [0.0, 1.0, 0.0]
+}
+fn item_size() -> f32 {
+    22.0
+}
+
+impl ItemModel {
+    pub fn new(file: &str) -> ItemModel {
+        ItemModel { file: file.into(), grip: [0.0; 3], axis: item_axis(), size: item_size() }
+    }
+}
+
 /// A 3D character model (`defs/models.ron`): a rigged `.glb` under `models/`, more files with clips
 /// of the same rig, the clip each animation plays, its standing height and its colour features
 /// (shades of its texture).
@@ -573,6 +603,9 @@ pub struct ItemDef {
     /// held at its lower-left end.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub held: Option<crate::hands::HeldSprite>,
+    /// Its 3D model, held by 3D model characters (else they hold its picture).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<ItemModel>,
     /// Using the item teaches this spell (scrolls, spell books); "" = none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub teaches: String,
@@ -609,6 +642,7 @@ impl Default for ItemDef {
             value: 0,
             light: None,
             held: None,
+            model: None,
             teaches: String::new(),
             tool: String::new(),
             use_on: UseTarget::default(),

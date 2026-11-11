@@ -402,6 +402,22 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         "modelimport" => ed.handle_file(files::Purpose::ModelFile { id: String::new(), clips: false }, arg(1).into()),
         "modelclips" => ed.handle_file(files::Purpose::ModelFile { id: arg(1).into(), clips: true }, arg(2).into()),
         "modelfile" => ed.handle_file(files::Purpose::ModelFile { id: arg(1).into(), clips: false }, arg(2).into()),
+        // modelrig ID TEMPLATE|- [TURN]: fit a rig template to an unrigged model · modeljoint ID
+        // JOINT DX DY DZ: move a joint of its fit (parts of the height; adds up)
+        "modelrig" => {
+            let turn = cmd.get(3).and_then(|t| t.parse().ok());
+            println!("[script] {}", ed.fit_rig(arg(1), Some(arg(2)), turn, None).unwrap_or_else(|e| e));
+        }
+        "modeljoint" => {
+            let id = arg(1).to_string();
+            let mut joints = ed.project.db.model(&id).and_then(|m| m.rig.clone()).map(|r| r.joints).unwrap_or_default();
+            let v = [num(3), num(4), num(5)];
+            match joints.iter_mut().find(|j| j.joint == arg(2)) {
+                Some(j) => j.offset = [j.offset[0] + v[0], j.offset[1] + v[1], j.offset[2] + v[2]],
+                None => joints.push(rustpg2d_engine::defs::JointNudge { joint: arg(2).to_string(), offset: v }),
+            }
+            println!("[script] {}", ed.fit_rig(&id, None, None, Some(joints)).unwrap_or_else(|e| e));
+        }
         // itemmodel ITEM FILE: the item's 3D model (where it is held estimated).
         "itemmodel" => ed.handle_file(files::Purpose::ItemModel(arg(1).into()), arg(2).into()),
         // itemicon ITEM: its inventory icon rendered from its 3D model.

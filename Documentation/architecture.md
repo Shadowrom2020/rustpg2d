@@ -205,7 +205,14 @@ editor windows ask macroquad for bigger draw calls (`DRAW_VERTICES`, `DRAW_INDIC
 one mesh. Model textures are reduced to 32 colours when loaded (`model::quantize`), so colour
 features pick exact shades as on figures; models without textures get a palette texel per
 material. Items' 3D models (`ItemDef.model`) load with the character models and are drawn in the
-pose's scene, turned so their handle lies on the hand's grip axis. The editor shows rendered poses
+pose's scene, turned so their handle lies on the hand's grip axis. Unrigged models with a rig
+template (`ModelDef.rig`) are fitted when they load (`Model::fit_rig`): the mesh is turned, the
+template's joints are stretched from the template mesh's bounds over the model's (per axis) plus
+the hand-moved offsets, joint translations are solved down the tree keeping the template's
+rotations (so its clips mean the same), each vertex is bound to the four nearest bones
+(1 / distance⁴) and the clips' translations are rescaled to the height. `Loaded` keeps the
+unfitted mesh and the template, so the editor's joint dragging refits without reading files
+(`set_def`). The editor shows rendered poses
 without copying them: `widgets::paint_model` hands egui the atlas page's OpenGL texture
 (`TextureId::User`, which egui-miniquad draws as a raw GL texture).
 

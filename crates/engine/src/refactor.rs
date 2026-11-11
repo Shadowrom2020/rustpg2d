@@ -428,6 +428,11 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
     for d in &mut db.races {
         r.race(d);
     }
+    for d in &mut db.models {
+        if let Some(rig) = &mut d.rig {
+            r.fix(RefKind::Model, &mut rig.template);
+        }
+    }
     r.fix(RefKind::Character, &mut config.player);
     r.fix(RefKind::Sheet, &mut config.player_portrait.sheet);
     let cc = &mut config.creation;
@@ -483,6 +488,11 @@ fn collector() -> Renamer<'static> {
 
 /// Everything an item definition refers to (icon / projectile sheets, ammo, items and sounds used
 /// by its triggers, ...).
+/// A model's rig template.
+pub fn refs_of_model(d: &crate::defs::ModelDef) -> Vec<(RefKind, String)> {
+    d.rig.iter().filter(|r| !r.template.is_empty()).map(|r| (RefKind::Model, r.template.clone())).collect()
+}
+
 pub fn refs_of_item(d: &crate::defs::ItemDef) -> Vec<(RefKind, String)> {
     let mut d = d.clone();
     let mut r = collector();
@@ -576,6 +586,21 @@ pub fn refs_of_character(d: &crate::defs::CharacterDef) -> Vec<(RefKind, String)
 mod tests {
     use super::*;
     use crate::defs::ItemDef;
+
+    /// A rig template is a dependency of the model using it (library exports carry it) and
+    /// follows renames.
+    #[test]
+    fn rig_templates_travel_and_follow_renames() {
+        use crate::defs::{ModelDef, RigFit};
+        let mut db = Database::default();
+        db.models.push(ModelDef::new("rig_quadruped", "models/rig_quadruped.glb"));
+        db.models.push(ModelDef { rig: Some(RigFit { template: "rig_quadruped".into(), ..Default::default() }), ..ModelDef::new("wolf", "models/wolf.glb") });
+        db.reindex();
+        assert_eq!(db.refs_of(RefKind::Model, "wolf"), vec![(RefKind::Model, "rig_quadruped".to_string())]);
+        let mut config = ProjectConfig::new("t");
+        assert_eq!(rename_in_db(&mut db, &mut config, RefKind::Model, "rig_quadruped", "rig_four_legs"), 1);
+        assert_eq!(db.models[1].rig.as_ref().unwrap().template, "rig_four_legs");
+    }
 
     /// The kinds' files are the defs files in order (`parse_defs` / `save_defs` rely on it).
     #[test]

@@ -190,6 +190,8 @@ fn unique(prefix: &str, ids: &[String]) -> String {
 }
 
 thread_local! {
+    /// A model's rig template changed: its files are read again after the form.
+    static MODEL_RELOAD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// The Database view belongs to the Asset Library window (set each frame by `ui`):
     /// deleting goes through the library's remove confirmation instead of `list_ui`.
     static LIBRARY_MODE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
@@ -658,7 +660,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     _ => {}
                 }
             });
-            if sheet_changed {
+            if sheet_changed || MODEL_RELOAD.with(|r| r.replace(false)) {
                 ed.reload_assets();
             }
             if let Some((sheet, shades)) = features_changed.take() {
@@ -3623,6 +3625,120 @@ fn languages_form(ed: &mut Editor, ui: &mut egui::Ui) {
 
 /// A 3D character model: its files, height, the clip each animation plays (with a preview), its
 /// colour features (picked from its texture) and whether players may choose it.
+/// The *Rig template* section of an unrigged model: the template, the turn, and the fitted
+/// skeleton from the side and the front, its joints dragged to where they belong.
+fn rig_template_ui(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &mut Cx) {
+    use rustpg2d_engine::defs::JointNudge;
+    ui.separator();
+    ui.heading("Rig template");
+    ui.weak("This model has no skeleton of its own (Meshy rigs only people). A rig template lends it one: its bones are stretched over the model, and the template's walk, idle, attack and hurt play. The model must face the front (toward the viewer in the preview's down view): turn it if it walks sideways.");
+    let current = d.rig.as_ref().map(|r| r.template.clone()).unwrap_or_default();
+    let mut pick = current.clone();
+    let templates: Vec<(String, String)> = cx.db.models.iter().filter(|m| m.id != d.id && cx.assets.models.info(&m.id).is_some_and(|i| i.rigged)).map(|m| (m.id.clone(), m.label().to_string())).collect();
+    egui::Grid::new("rig_template").num_columns(2).show(ui, |ui| {
+        ui.label("Template");
+        egui::ComboBox::from_id_salt("rig_template_pick").width(220.0).selected_text(if pick.is_empty() { "(none)".to_string() } else { cx.db.model(&pick).map_or(pick.clone(), |m| m.label().to_string()) }).show_ui(ui, |ui| {
+            ui.selectable_value(&mut pick, String::new(), "(none)");
+            for (id, label) in &templates {
+                ui.selectable_value(&mut pick, id.clone(), label);
+            }
+        });
+        ui.end_row();
+        if let Some(rig) = &mut d.rig {
+            ui.label("Turn");
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(&mut rig.turn).range(-180.0..=180.0).suffix(" deg")).on_hover_text("Turns the model about its up axis before the fit");
+                if ui.small_button(ui::t(ph::ARROW_CLOCKWISE, "90")).on_hover_text("A quarter turn").clicked() {
+                    rig.turn = if rig.turn + 90.0 > 180.0 { rig.turn - 270.0 } else { rig.turn + 90.0 };
+                }
+            });
+            ui.end_row();
+        }
+    });
+    if pick != current {
+        crate::models_tab::choose_template(d, cx.db, &pick);
+        MODEL_RELOAD.with(|r| r.set(true));
+        return;
+    }
+    let Some(rig) = &mut d.rig else { return };
+    let Some(view) = cx.assets.models.rig_view(&d.id) else { return };
+    let height = (view.hi.y - view.lo.y).max(1e-5);
+    let did = egui::Id::new(("rig_drag", &d.id));
+    let mut mirror: bool = ui.data_mut(|m| m.get_temp(did.with("mirror")).unwrap_or(true));
+    let mut dragged: Option<usize> = ui.data_mut(|m| m.get_temp(did));
+    let mut moved: Option<(usize, macroquad::math::Vec3)> = None;
+    ui.horizontal(|ui| {
+        // (horizontal axis of the view as a model axis and its sign, title)
+        for (side, title) in [(true, "Side (front to the left)"), (false, "Front")] {
+            ui.vertical(|ui| {
+                ui.weak(title);
+                let (r, resp) = ui.allocate_exact_size(egui::vec2(240.0, 200.0), egui::Sense::click_and_drag());
+                let p = ui.painter_at(r);
+                p.rect_filled(r, 4.0, egui::Color32::from_gray(32));
+                let across = |v: macroquad::math::Vec3| if side { -v.z } else { v.x };
+                let (a0, a1) = (across(view.lo).min(across(view.hi)), across(view.lo).max(across(view.hi)));
+                let k = ((r.width() - 24.0) / (a1 - a0).max(1e-5)).min((r.height() - 24.0) / height);
+                let mid = (a0 + a1) / 2.0;
+                let to_screen = |v: macroquad::math::Vec3| egui::pos2(r.center().x + (across(v) - mid) * k, r.bottom() - 12.0 - (v.y - view.lo.y) * k);
+                for q in &view.points {
+                    let s = to_screen(*q);
+                    p.rect_filled(egui::Rect::from_center_size(s, egui::vec2(1.5, 1.5)), 0.0, egui::Color32::from_gray(120));
+                }
+                for (_, pos, parent) in &view.joints {
+                    if let Some(pp) = parent {
+                        p.line_segment([to_screen(view.joints[*pp].1), to_screen(*pos)], egui::Stroke::new(1.5f32, egui::Color32::from_rgb(230, 190, 90)));
+                    }
+                }
+                let hover = resp.hover_pos().and_then(|m| view.joints.iter().enumerate().map(|(i, j)| (i, to_screen(j.1).distance(m))).filter(|(_, d)| *d < 9.0).min_by(|a, b| a.1.total_cmp(&b.1)).map(|(i, _)| i));
+                for (i, (_, pos, _)) in view.joints.iter().enumerate() {
+                    let hot = Some(i) == hover || Some(i) == dragged;
+                    p.circle_filled(to_screen(*pos), if hot { 5.0 } else { 3.5 }, if hot { egui::Color32::from_rgb(255, 120, 80) } else { egui::Color32::from_rgb(240, 210, 120) });
+                }
+                if let Some(i) = hover.or(dragged) {
+                    p.text(r.left_top() + egui::vec2(6.0, 4.0), egui::Align2::LEFT_TOP, &view.joints[i].0, egui::FontId::proportional(13.0), egui::Color32::WHITE);
+                }
+                if resp.drag_started() {
+                    dragged = hover;
+                }
+                if let (Some(i), true) = (dragged, resp.dragged()) {
+                    let dlt = resp.drag_delta() / k;
+                    let v = if side { macroquad::math::Vec3::new(0.0, -dlt.y, -dlt.x) } else { macroquad::math::Vec3::new(dlt.x, -dlt.y, 0.0) };
+                    moved = Some((i, v / height));
+                }
+                if resp.drag_stopped() {
+                    dragged = None;
+                }
+            });
+        }
+    });
+    ui.horizontal(|ui| {
+        ui.checkbox(&mut mirror, "Mirror left and right").on_hover_text("Moving a joint ending in _L also moves its _R twin (and back)");
+        if ui.add_enabled(!rig.joints.is_empty(), egui::Button::new(ui::t(ph::ARROW_COUNTER_CLOCKWISE, "Reset joints"))).on_hover_text("Back to the template's joints, stretched over the model").clicked() {
+            rig.joints.clear();
+        }
+        ui.weak("Drag a joint (the dots) to where it belongs.");
+    });
+    if let Some((i, v)) = moved {
+        let mut nudge = |name: &str, v: macroquad::math::Vec3| match rig.joints.iter_mut().find(|j| j.joint == name) {
+            Some(j) => j.offset = (macroquad::math::Vec3::from(j.offset) + v).to_array(),
+            None => rig.joints.push(JointNudge { joint: name.to_string(), offset: v.to_array() }),
+        };
+        let name = view.joints[i].0.clone();
+        nudge(&name, v);
+        let twin = name.strip_suffix("_L").map(|b| format!("{b}_R")).or_else(|| name.strip_suffix("_R").map(|b| format!("{b}_L")));
+        if let Some(t) = twin.filter(|t| mirror && view.joints.iter().any(|j| j.0 == *t)) {
+            nudge(&t, macroquad::math::Vec3::new(-v.x, v.y, v.z));
+        }
+    }
+    ui.data_mut(|m| {
+        m.insert_temp(did.with("mirror"), mirror);
+        match dragged {
+            Some(i) => m.insert_temp(did, i),
+            None => m.remove::<usize>(did),
+        }
+    });
+}
+
 fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &mut Cx) {
     use rustpg2d_engine::defs::{Appearance, ClipMap};
     use rustpg2d_engine::entity::Facing;
@@ -3687,6 +3803,9 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
             let err = cx.assets.models.errors.iter().find(|e| e.contains(&format!("model {}:", d.id))).cloned();
             ui.colored_label(egui::Color32::LIGHT_RED, err.unwrap_or_else(|| "Not loaded yet: choose a file (or Reload assets).".into()));
         }
+    }
+    if info.as_ref().is_some_and(|i| !i.rigged) || d.rig.is_some() {
+        rig_template_ui(ui, d, cx);
     }
     // The renderer takes the edited definition at once.
     cx.assets.models.set_def(d);

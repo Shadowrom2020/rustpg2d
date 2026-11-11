@@ -3,7 +3,8 @@
 The complete-figure character sheets of the example and the starter library (people, races,
 animals, monsters) are drawn by Meshy's image-to-image API from the shipped sheets as style
 references, then converted to the game's 16-row sheet layout here. Nothing in the game or the
-editor depends on these scripts.
+editor depends on these scripts; for single assets the editor has the same pipeline built in
+(*Assets › Generate art…*, `crates/editor/src/art/`).
 
 ## Setup
 

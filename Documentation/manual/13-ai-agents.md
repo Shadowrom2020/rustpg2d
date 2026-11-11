@@ -145,6 +145,27 @@ screenshots as images. The game opens a real window on the person's screen for t
 | `library_add {assets: [{kind, id}]}` | Copies assets with everything they need (sheets, sounds, script functions) into the project. |
 | `library_send {assets: [{kind, id}], replace, drop_script_triggers}` | Sends project assets with everything they need to the library. An id the library has already gets a numbered copy, or with `replace` its definition, files and script functions are updated. `drop_script_triggers` leaves the triggers of items, props and characters that run the project's script functions behind (story scripts stay with the game). The library is `$RUSTPG2D_LIBRARY` or the user's own one. |
 
+### Drawing art
+With a Meshy key in *Edit › Settings… › Meshy*, agents draw art in the project's style the way
+the Art window does ([Art and sound › Generate art](10-art-and-sound.md#generate-art-with-meshy)).
+Pictures cost the person's credits: `generate_art` without `confirm_credits` only names the price,
+so an assistant asks before it spends, and the session's budget holds for agents too. Every job
+also shows in the editor's Art window and status bar.
+
+| Tool | Does |
+|---|---|
+| `art_settings` | Whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, character sizes and attacks, which sheets set the style. |
+| `generate_art {kind, id, description, size, attack, tiles, confirm_credits}` | Starts a job (`character`, `icon`, `prop`, `portrait`, `image`) and returns its number at once; refuses unless `confirm_credits` equals the price, or past the budget. |
+| `art_jobs` | Every job of the session: its pictures and their progress, credits, done or failed, added as which asset. |
+| `art_result {job}` | A finished job as images: the converted art (characters: the 16-row sheet) and Meshy's raw pictures, to judge before adding it. |
+| `art_apply {job, id}` | Adds it to the project: the image, its sprite sheet and a character / item / prop using it. Saves. |
+| `art_redo {job, picture, confirm_credits}` | Draws one picture (`walk`, `attack`, `picture`) again and converts again. |
+
+In a chat this reads like: *"Draw an orc shaman with a skull staff for the swamp camp."* The
+assistant checks `art_settings`, tells you the price (6 credits with an attack), starts the job
+once you agree, watches `art_jobs`, looks at `art_result`, redraws a bad picture if you want, and
+adds it with `art_apply`, then places the new character on a map.
+
 ## Resources and prompts
 
 Resources: `rustpg2d://docs/mcp` (this chapter), `rustpg2d://docs/scripting`

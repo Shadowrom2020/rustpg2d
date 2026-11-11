@@ -300,6 +300,9 @@ pub struct Editor {
     /// Quick search (Ctrl+P) and the Usages window.
     pub search: crate::search::Search,
     pub usages: crate::search::Usages,
+    /// *Generate art* (Meshy): jobs, the Art and Settings windows.
+    pub art: crate::art::ArtState,
+    pub art_settings: crate::art::ArtSettings,
     /// The *Problems* panel (the project check).
     pub problems: crate::problems::Problems,
     /// This editor is the Asset Library window (`--library`): `project` is the library.
@@ -448,6 +451,8 @@ impl Editor {
             search: Default::default(),
             usages: Default::default(),
             problems: crate::problems::Problems::new(),
+            art: Default::default(),
+            art_settings: crate::art::ArtSettings { model: "nano-banana-2-lite".into(), budget: 60, ask: true },
             library_mode: false,
             lib_update: Default::default(),
             lib_window: Default::default(),
@@ -1359,6 +1364,9 @@ impl Editor {
         self.search_windows(ctx);
         self.problems_tick();
         self.problems_window(ctx);
+        self.art_tick();
+        self.art_window(ctx);
+        self.settings_window(ctx);
         if !self.project_open {
             self.status_bar(ctx);
             self.welcome(ctx);
@@ -1581,6 +1589,11 @@ impl Editor {
                         self.problems.open = true;
                         ui.close_menu();
                     }
+                    ui.separator();
+                    if ui.button(ui::t(ph::GEAR, "Settings…")).on_hover_text("Editor settings: the Meshy account for Generate art").clicked() {
+                        self.art.settings_open = true;
+                        ui.close_menu();
+                    }
                 });
                 ui.menu_button("Map", |ui| {
                     if ui.button(ui::t(ph::PLUS, "New map…")).clicked() {
@@ -1613,6 +1626,10 @@ impl Editor {
                     }
                     if ui.button(ui::t(ph::DOWNLOAD_SIMPLE, "Add from library…")).on_hover_text("Copies assets from the shared asset library into this project").clicked() {
                         self.open_add_dialog(None);
+                        ui.close_menu();
+                    }
+                    if ui.button(ui::t(ph::PAINT_BRUSH, "Generate art…")).on_hover_text("Draw a character, an item icon, a prop, a portrait or a picture with your Meshy account, in the project's style").clicked() {
+                        self.art.window.open = true;
                         ui.close_menu();
                     }
                     if ui.button(ui::t(ph::PACKAGE, "Import asset package into project…")).clicked() {

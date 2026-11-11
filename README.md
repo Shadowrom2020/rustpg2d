@@ -82,6 +82,7 @@ for how to use it all.
 
 **Building with AI, if you like**
 - The editor's built-in [AI agent server](Documentation/manual/13-ai-agents.md) lets Claude Code, Cursor and other assistants read your project, build maps, quests and scripts with you, and play-test the result. Every change shows up in the editor at once and can be undone.
+- Generate art with your own [Meshy](https://www.meshy.ai) account: characters with walk and attack animations, item icons, props and portraits in your project's style, from the editor or from your assistant's chat.
 
 ## Meet Emberbrook
 

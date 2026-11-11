@@ -383,6 +383,19 @@ impl Assets {
         true
     }
 
+    /// Draws something held in a hand (`l`: its sprite, its grip point put at `at`, turned by its
+    /// rotation, mirrored top to bottom first when `flip`); `scale` times its world size.
+    pub fn draw_held_sprite(&self, l: &crate::hands::HeldLayer, at: Vec2, scale: f32, tint: Color) -> bool {
+        let Some(s) = self.sheets.get(&l.sprite.sheet) else { return false };
+        let (w, h) = l.sprite.cells();
+        let src = s.region(l.sprite.frame, w, h);
+        let size = s.world_of(src) * scale;
+        let pos = at - vec2(l.grip[0] * size.x, l.grip[1] * size.y);
+        let params = DrawTextureParams { source: Some(inset(src)), dest_size: Some(size), rotation: l.rotation.to_radians(), pivot: Some(at), flip_y: l.flip, ..Default::default() };
+        draw_texture_ex(&s.texture, pos.x, pos.y, tint, params);
+        true
+    }
+
     /// World size of a sprite (one frame if the sheet is unknown: `fallback`).
     pub fn sprite_size(&self, sprite: &SpriteRef, fallback: f32) -> Vec2 {
         let (w, h) = sprite.cells();

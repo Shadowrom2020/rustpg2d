@@ -10,6 +10,7 @@ pub mod effects;
 pub mod entity;
 pub mod events;
 pub mod factions;
+pub mod hands;
 pub mod fog;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;

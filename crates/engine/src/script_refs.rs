@@ -30,6 +30,8 @@ pub enum IdKind {
     /// A crafting recipe.
     Recipe,
     Achievement,
+    /// A prop definition.
+    Prop,
 }
 
 impl IdKind {
@@ -47,6 +49,7 @@ impl IdKind {
             IdKind::Character => "character",
             IdKind::Recipe => "recipe",
             IdKind::Achievement => "achievement",
+            IdKind::Prop => "prop",
         }
     }
     /// The definition kind renamed together with this id kind.
@@ -60,6 +63,7 @@ impl IdKind {
             IdKind::Spell => Some(RefKind::Spell),
             IdKind::Character => Some(RefKind::Character),
             IdKind::Recipe => Some(RefKind::Recipe),
+            IdKind::Prop => Some(RefKind::Prop),
             _ => None,
         }
     }
@@ -494,6 +498,7 @@ pub fn check_script(src: &str, db: &Database, maps: &[String], spawns: &HashMap<
             IdKind::Character => db.character(v).is_some(),
             IdKind::Recipe => db.recipe(v).is_some(),
             IdKind::Achievement => db.achievement(v).is_some(),
+            IdKind::Prop => db.prop(v).is_some(),
         };
         if !known {
             let extra = match kind {

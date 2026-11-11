@@ -192,6 +192,9 @@ pub struct WorldState {
     /// The player's race (`races::RaceDef`; "" = none).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub player_race: String,
+    /// The prop the player carries in both hands ("" = none; `Action::Carry`).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub player_carrying: String,
     /// The player's standing with factions that changed (others start from the attitude table).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub standing: BTreeMap<String, i32>,

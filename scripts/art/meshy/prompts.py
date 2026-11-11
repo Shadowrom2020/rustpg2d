@@ -1,4 +1,11 @@
-"""Prompts for the character sheets (4 x 4 grids: rows front / left / right / back)."""
+"""Prompts for the character sheets (4 x 4 grids: rows front / left / right / back). With
+ART_CAST=noweapon the figures hold nothing (the game draws held items at their hands)."""
+import os
+
+EMPTY_HANDS = os.environ.get("ART_CAST") == "noweapon"
+EMPTY = ("IMPORTANT: the character holds nothing at all: no weapon, no sword, no spear, no bow, no staff, no tool, no shield, "
+         "nothing in the hands and nothing on the back. Both hands are empty and closed into loose fists, as if gripping a "
+         "handle. ")
 
 COMMON = ("Pixel art in exactly the art style of the references (same shading, dark brown outline, proportions, "
           "face style, same figure size and pixel size as in the second reference). "
@@ -23,9 +30,22 @@ ACTIONS = {
 }
 
 
+# The attack motions with empty fists (ART_CAST=noweapon): the game puts the weapon in the hand.
+MOTIONS = {
+    "slash": "The 4 columns are a sword-slash motion with an EMPTY right fist (no sword): 1 the right fist raised to the side ready to strike, 2 the right arm swinging across in the facing direction, 3 follow-through with the right fist low on the other side, 4 back to standing.",
+    "chop": "The 4 columns are an overhead blow with EMPTY fists (no weapon): 1 both fists raised high behind the head, 2 both arms swinging down in front in the facing direction, 3 both fists low in front after the blow, 4 back to standing.",
+    "club": "The 4 columns are a club smash with EMPTY fists (no club): 1 both fists raised high over the head, 2 both arms smashing down in front in the facing direction, 3 both fists down near the feet in front, 4 lifting the arms back up.",
+    "thrust": "The 4 columns are a spear-thrust motion with EMPTY fists (no spear): 1 both fists pulled back at the hip, 2 both arms thrusting forward in the facing direction, 3 both arms fully extended forward, 4 back to standing.",
+    "bow": "The 4 columns are an archery motion with EMPTY hands (no bow, no arrow): 1 raising the left fist forward, 2 the left arm fully extended forward in the facing direction and the right fist pulled back to the cheek, 3 the right hand opening and moving back, 4 lowering both arms.",
+    "cast": "The 4 columns are casting a spell with EMPTY hands (no staff, no effects): 1 the right hand raised high, 2 the right arm thrust forward in the facing direction, palm open, 3 the arm fully extended, 4 back to standing.",
+}
+
+
 def walk(desc):
-    return COMMON + WALK + "The character: " + desc
+    return COMMON + WALK + (EMPTY if EMPTY_HANDS else "") + "The character: " + desc
 
 
 def attack(desc, action):
+    if EMPTY_HANDS:
+        return ATTACK + EMPTY + MOTIONS[action] + " The character: " + desc
     return ATTACK + ACTIONS[action] + " The character: " + desc

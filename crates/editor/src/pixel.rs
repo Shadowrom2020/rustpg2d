@@ -16,11 +16,13 @@ pub enum PxTool {
     Line,
     Rect,
     Picker,
+    /// Figures: places a hand's grip (click), turns it (drag), removes it (right click).
+    Hands,
 }
 
 impl PxTool {
     /// (tool, icon, name, key, help)
-    const ALL: [(PxTool, &'static str, &'static str, &'static str, &'static str); 7] = [
+    const ALL: [(PxTool, &'static str, &'static str, &'static str, &'static str); 8] = [
         (PxTool::Select, ph::SELECTION, "Select frame", "S", "Click a frame to select it (for copy / cut / paste); nothing is drawn"),
         (PxTool::Pencil, ph::PENCIL_SIMPLE, "Pencil", "B", "Click or drag to draw single pixels with the left / right color"),
         (PxTool::Eraser, ph::ERASER, "Eraser", "E", "Click or drag to make pixels transparent"),
@@ -28,6 +30,7 @@ impl PxTool {
         (PxTool::Line, ph::LINE_SEGMENT, "Line", "L", "Drag to draw a straight line"),
         (PxTool::Rect, ph::RECTANGLE, "Rectangle", "R", "Drag to draw a rectangle outline"),
         (PxTool::Picker, ph::EYEDROPPER, "Pick color", "I", "Click a pixel to make its color the left / right color"),
+        (PxTool::Hands, ph::HAND_GRABBING, "Hands", "H", "Figures: click where the chosen hand holds things in a frame, drag to turn it (where a held weapon points), right-click removes it; [ / ] change its size"),
     ];
     pub fn parse(s: &str) -> Option<PxTool> {
         Some(match s {
@@ -38,6 +41,7 @@ impl PxTool {
             "line" => PxTool::Line,
             "rect" => PxTool::Rect,
             "picker" => PxTool::Picker,
+            "hands" => PxTool::Hands,
             _ => return None,
         })
     }
@@ -50,6 +54,9 @@ pub enum Layout {
     Character,
 }
 
+/// An undo step: the image and the hand grips.
+type Snap = (Rgba, Vec<rustpg2d_engine::hands::FrameHands>);
+
 pub struct PixelDoc {
     /// Project-relative path of the image.
     pub rel: String,
@@ -57,8 +64,12 @@ pub struct PixelDoc {
     /// Frame (or tile) size of the grid.
     pub frame: (u32, u32),
     pub layout: Layout,
-    undo: Vec<Rgba>,
-    redo: Vec<Rgba>,
+    /// Figures: the sheet's id and its hand grips (saved into the definition with the image).
+    pub sheet: Option<String>,
+    pub hands: Vec<rustpg2d_engine::hands::FrameHands>,
+    saved_hands: Vec<rustpg2d_engine::hands::FrameHands>,
+    undo: Vec<Snap>,
+    redo: Vec<Snap>,
     /// The image as on disk; the doc is dirty only while `img` differs from it.
     saved: Rgba,
     dirty: bool,
@@ -81,14 +92,14 @@ impl PixelDoc {
     }
     /// Remembers the current image for undo (call before changing it).
     pub fn snapshot(&mut self) {
-        self.undo.push(self.img.clone());
+        self.undo.push((self.img.clone(), self.hands.clone()));
         if self.undo.len() > 100 {
             self.undo.remove(0);
         }
         self.redo.clear();
     }
     pub fn changed(&mut self) {
-        self.dirty = self.img != self.saved;
+        self.dirty = self.img != self.saved || self.hands != self.saved_hands;
         self.tex_dirty = true;
     }
     /// Whether the image differs from the file (undoing back to it makes it clean again).
@@ -97,19 +108,25 @@ impl PixelDoc {
     }
     pub fn mark_saved(&mut self) {
         self.saved = self.img.clone();
+        self.saved_hands = self.hands.clone();
         self.dirty = false;
     }
     pub fn undo(&mut self) {
-        if let Some(prev) = self.undo.pop() {
-            self.redo.push(std::mem::replace(&mut self.img, prev));
+        if let Some((img, hands)) = self.undo.pop() {
+            self.redo.push((std::mem::replace(&mut self.img, img), std::mem::replace(&mut self.hands, hands)));
             self.changed();
         }
     }
     pub fn redo(&mut self) {
-        if let Some(next) = self.redo.pop() {
-            self.undo.push(std::mem::replace(&mut self.img, next));
+        if let Some((img, hands)) = self.redo.pop() {
+            self.undo.push((std::mem::replace(&mut self.img, img), std::mem::replace(&mut self.hands, hands)));
             self.changed();
         }
+    }
+    /// Frame operations on the image and the grips.
+    pub fn frames(&mut self) -> crate::frame_ops::Frames<'_> {
+        let hands = self.sheet.is_some().then_some(&mut self.hands);
+        crate::frame_ops::Frames { img: &mut self.img, frame: self.frame, hands }
     }
     fn texture(&mut self, ctx: &egui::Context) -> TextureHandle {
         let ci = crate::widgets::color_image(ctx, self.img.w as usize, self.img.h as usize, &self.img.px);
@@ -250,8 +267,13 @@ pub struct PixelState {
     /// selected one.
     pub onion: bool,
     pub onion_next: bool,
-    /// A copied row (Copy row).
-    row_clip: Option<Vec<Rgba>>,
+    /// The Hands tool's hand, the items previewed in the hands (weapon, left hand) and the grip
+    /// being turned (frame, hand).
+    pub hand: rustpg2d_engine::hands::Hand,
+    pub preview: [String; 2],
+    grip_drag: Option<(u32, rustpg2d_engine::hands::Hand)>,
+    /// A copied row (Copy row) with its grips.
+    row_clip: Option<(Vec<Rgba>, Vec<Option<rustpg2d_engine::hands::FrameHands>>)>,
 }
 
 /// A frame operation of the sprite editor (buttons and editor script `px…` commands).
@@ -270,6 +292,15 @@ pub enum FrameOp {
     FillStanding,
     /// Replace a colour in the selected frame / its row / the whole sheet.
     Replace { from: [u8; 3], to: [u8; 4], scope: Scope },
+    /// Sets (or removes) a hand's grip in the selected frame.
+    SetGrip { hand: rustpg2d_engine::hands::Hand, grip: Option<rustpg2d_engine::hands::Grip> },
+    /// The selected frame has no grips.
+    ClearGrips,
+    /// Estimates the grips of frames without (`all`: of every frame); the skin shades and the
+    /// sheet's scale (`frame_ops::Frames::estimate_hands`).
+    EstimateHands { all: bool, skin: Vec<[u8; 3]>, scale: u32 },
+    /// Swaps the right and left grips in the selected row (true: in every facing of its animation).
+    SwapHands(bool),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -301,6 +332,9 @@ impl Default for PixelState {
             playing: true,
             onion: false,
             onion_next: false,
+            hand: rustpg2d_engine::hands::Hand::Right,
+            preview: [String::new(), String::new()],
+            grip_drag: None,
             row_clip: None,
         }
     }
@@ -371,8 +405,8 @@ impl PixelState {
         let sel = self.frame()?;
         let anim = self.anim;
         let d = self.doc.as_mut()?;
-        let before = d.img.clone();
-        let mut fr = crate::frame_ops::Frames { img: &mut d.img, frame: d.frame };
+        let before = (d.img.clone(), d.hands.clone());
+        let mut fr = d.frames();
         let cols = fr.cols();
         let row = sel / cols;
         let msg = match &op {
@@ -382,12 +416,13 @@ impl PixelState {
                 Some(format!("Frame {sel} moved by {dx},{dy}"))
             }
             FrameOp::RowCopy => {
-                self.row_clip = Some(fr.row(row));
+                self.row_clip = Some((fr.row(row), fr.row_hands(row)));
                 return Some(format!("Copied row {row}"));
             }
             FrameOp::RowPaste => {
-                let clip = self.row_clip.clone()?;
+                let (clip, hands) = self.row_clip.clone()?;
                 fr.put_row(row, &clip);
+                fr.put_row_hands(row, &hands);
                 Some(format!("Pasted into row {row}"))
             }
             FrameOp::RowClear => {
@@ -402,6 +437,29 @@ impl PixelState {
                 let n = fr.fill_standing();
                 Some(format!("{n} empty idle / hurt frame(s) got the standing frame"))
             }
+            FrameOp::SetGrip { hand, grip } => {
+                let mut h = fr.hands_of(sel).unwrap_or_default();
+                h.set(*hand, *grip);
+                fr.set_hands(sel, Some(h));
+                Some(match grip {
+                    Some(g) => format!("Frame {sel}: {hand:?} hand at {},{} pointing {}°", g.x, g.y, g.angle.round()),
+                    None => format!("Frame {sel}: no {hand:?} hand"),
+                })
+            }
+            FrameOp::ClearGrips => {
+                fr.set_hands(sel, None);
+                Some(format!("Frame {sel} has no grips"))
+            }
+            FrameOp::EstimateHands { all, skin, scale } => {
+                let n = fr.estimate_hands(*all, skin, *scale);
+                Some(format!("Estimated the hands of {n} frame(s)"))
+            }
+            FrameOp::SwapHands(all) => {
+                let rows: Vec<u32> = if *all { (anim * 4..anim * 4 + 4).collect() } else { vec![row] };
+                let frames: Vec<u32> = rows.iter().flat_map(|r| r * cols..(r + 1) * cols).collect();
+                let n = fr.swap_hands(&frames);
+                Some(format!("Swapped the hands of {n} frame(s) in rows {rows:?}"))
+            }
             FrameOp::Replace { from, to, scope } => {
                 let frames: Option<Vec<u32>> = match scope {
                     Scope::Frame => Some(vec![sel]),
@@ -412,7 +470,7 @@ impl PixelState {
                 Some(format!("Replaced {n} pixel(s)"))
             }
         };
-        if d.img != before {
+        if (&d.img, &d.hands) != (&before.0, &before.1) {
             d.undo.push(before);
             if d.undo.len() > 100 {
                 d.undo.remove(0);
@@ -428,7 +486,7 @@ impl PixelState {
         match &self.doc {
             None => "closed".into(),
             Some(d) => format!(
-                "{}:frame{}:{}_{}:{}{}{}:undo{}",
+                "{}:frame{}:{}_{}:{}{}{}:grips{}:undo{}",
                 d.rel,
                 self.sel_frame,
                 crate::frame_ops::ANIMS[self.anim as usize % 4].0,
@@ -436,6 +494,7 @@ impl PixelState {
                 if self.playing { "playing" } else { "paused" },
                 if self.onion { ":onion" } else { "" },
                 if d.is_dirty() { ":dirty" } else { "" },
+                d.hands.len(),
                 d.undo.len()
             ),
         }
@@ -452,6 +511,7 @@ impl PixelState {
                 }
             }
             PxTool::Picker => self.colors[button] = d.img.get(p.0, p.1),
+            PxTool::Hands => {}
             PxTool::Fill => {
                 d.snapshot();
                 d.fill(p.0, p.1, c);
@@ -495,7 +555,15 @@ impl Editor {
         self.px.zoom = (900.0 / img.w as f32).min(700.0 / img.h as f32).floor().clamp(1.0, 24.0);
         self.px.pan = egui::Vec2::ZERO;
         self.px.sel_frame = 0;
-        self.px.doc = Some(PixelDoc { rel: rel.to_string(), saved: img.clone(), img, frame, layout, undo: vec![], redo: vec![], dirty: false, tex: None, tex_dirty: true });
+        // A figure's grips come along (and are saved into its definition).
+        let figure = self.project.db.sheets.iter().find(|s| s.image == rel && s.kind == rustpg2d_engine::defs::SheetKind::Body);
+        let (sheet, hands) = figure.map_or((None, Vec::new()), |s| (Some(s.id.clone()), s.hands.clone()));
+        if sheet.is_some() && self.px.preview.iter().all(String::is_empty) {
+            // Preview a weapon and a left-hand item from the project.
+            let first = |slot| self.project.db.items.iter().find(|i| i.equip_slot() == Some(slot)).map(|i| i.id.clone()).unwrap_or_default();
+            self.px.preview = [first(rustpg2d_engine::defs::EquipSlot::Weapon), first(rustpg2d_engine::defs::EquipSlot::Offhand)];
+        }
+        self.px.doc = Some(PixelDoc { rel: rel.to_string(), saved: img.clone(), img, frame, layout, sheet, saved_hands: hands.clone(), hands, undo: vec![], redo: vec![], dirty: false, tex: None, tex_dirty: true });
         true
     }
 
@@ -575,8 +643,23 @@ impl Editor {
     pub fn save_pixel(&mut self) {
         let Some(d) = &mut self.px.doc else { return };
         let res = d.img.encode().and_then(|b| Ok(std::fs::write(self.project.root.join(&d.rel), b)?));
+        let mut hands_changed = false;
         match res {
             Ok(()) => {
+                if let Some(id) = &d.sheet {
+                    if let Some(s) = self.project.db.sheets.iter_mut().find(|s| &s.id == id) {
+                        if s.hands != d.hands {
+                            s.hands = d.hands.clone();
+                            self.defs_dirty = true;
+                            hands_changed = true;
+                        }
+                    }
+                }
+                if hands_changed {
+                    // The grips live in the sheet's definition.
+                    self.save_defs();
+                }
+                let d = self.px.doc.as_mut().unwrap();
                 d.mark_saved();
                 let rel = d.rel.clone();
                 self.reload_assets();
@@ -657,13 +740,25 @@ impl Editor {
             }
             return;
         }
-        for (k, t) in [(egui::Key::S, PxTool::Select), (egui::Key::B, PxTool::Pencil), (egui::Key::E, PxTool::Eraser), (egui::Key::G, PxTool::Fill), (egui::Key::L, PxTool::Line), (egui::Key::R, PxTool::Rect), (egui::Key::I, PxTool::Picker)] {
+        for (k, t) in [(egui::Key::S, PxTool::Select), (egui::Key::B, PxTool::Pencil), (egui::Key::E, PxTool::Eraser), (egui::Key::G, PxTool::Fill), (egui::Key::L, PxTool::Line), (egui::Key::R, PxTool::Rect), (egui::Key::I, PxTool::Picker), (egui::Key::H, PxTool::Hands)] {
             if pressed(k) {
                 self.px.tool = t;
             }
         }
         if pressed(egui::Key::X) {
             self.px.colors.swap(0, 1);
+        }
+        // [ / ]: the selected frame's grip of the Hands tool's hand gets smaller / bigger.
+        for (k, f) in [(egui::Key::OpenBracket, 0.9), (egui::Key::CloseBracket, 1.1)] {
+            if pressed(k) {
+                let sel = self.px.frame().unwrap_or(0);
+                let hand = self.px.hand;
+                let g = self.px.doc.as_ref().and_then(|d| d.hands.iter().find(|h| h.frame == sel)).and_then(|h| h.get(hand));
+                if let Some(g) = g {
+                    let scale = ((g.scale * f) * 100.0).round() / 100.0;
+                    self.px.frame_op(FrameOp::SetGrip { hand, grip: Some(rustpg2d_engine::hands::Grip { scale, ..g }) });
+                }
+            }
         }
         // Shift+arrows move the selected frame's pixels (lining up feet between frames).
         if shift {
@@ -730,8 +825,9 @@ impl Editor {
         });
 
         ui.separator();
+        let figure = self.px.doc.as_ref().is_some_and(|d| d.sheet.is_some());
         ui.horizontal(|ui| {
-            for (t, icon, name, key, help) in PxTool::ALL {
+            for (t, icon, name, key, help) in PxTool::ALL.into_iter().filter(|t| figure || t.0 != PxTool::Hands) {
                 if ui::tool_button(ui, self.px.tool == t, icon, name, key, help).clicked() {
                     self.px.tool = t;
                 }
@@ -880,6 +976,84 @@ impl Editor {
         ui.ctx().request_repaint();
     }
 
+    /// Figures: the hands (grips) of the selected frame, estimating them, the preview items.
+    fn hands_panel(&mut self, ui: &mut egui::Ui) {
+        use rustpg2d_engine::hands::{Grip, Hand};
+        let Some(d) = &self.px.doc else { return };
+        let Some(sheet) = d.sheet.clone() else { return };
+        ui.separator();
+        ui.label(egui::RichText::new(format!("Hands ({} frames with grips)", d.hands.len())).strong());
+        ui.weak("Where the figure holds its weapon, left-hand item, tools and carried props in each frame: the Hands tool (H) places the chosen hand (click), turns it (drag) and removes it (right click). Frames without grips use their standing frame's.");
+        let sel = self.px.frame().unwrap_or(0);
+        let mut op: Option<FrameOp> = None;
+        ui.horizontal(|ui| {
+            ui.label("Hand");
+            ui.selectable_value(&mut self.px.hand, Hand::Right, "Right (weapon)");
+            ui.selectable_value(&mut self.px.hand, Hand::Left, "Left (shield)");
+        });
+        let d = self.px.doc.as_ref().unwrap();
+        let cur: Option<Grip> = d.hands.iter().find(|h| h.frame == sel).and_then(|h| h.get(self.px.hand));
+        match cur {
+            Some(g) => {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(format!("Frame {sel}: at {},{} pointing {}°", g.x, g.y, g.angle.round()));
+                    let mut front = g.front;
+                    if ui.checkbox(&mut front, "in front of the figure").changed() {
+                        op = Some(FrameOp::SetGrip { hand: self.px.hand, grip: Some(Grip { front, ..g }) });
+                    }
+                    let mut scale = g.scale;
+                    if ui.add(egui::DragValue::new(&mut scale).range(0.2..=4.0).speed(0.02).prefix("size ")).on_hover_text("Bigger hands hold bigger things ([ / ])").changed() {
+                        op = Some(FrameOp::SetGrip { hand: self.px.hand, grip: Some(Grip { scale, ..g }) });
+                    }
+                    if ui.small_button(ui::t(ph::TRASH, "Remove")).clicked() {
+                        op = Some(FrameOp::SetGrip { hand: self.px.hand, grip: None });
+                    }
+                });
+            }
+            None => {
+                ui.weak(format!("Frame {sel} has no {} grip (it uses its standing frame's).", if self.px.hand == Hand::Left { "left" } else { "right" }));
+            }
+        }
+        let db_sheet = self.project.db.sheet(&sheet);
+        let skin: Vec<[u8; 3]> = db_sheet.and_then(|s| s.feature("skin")).map(|f| f.shades.clone()).unwrap_or_default();
+        let scale = db_sheet.map_or(1, |s| s.scale);
+        ui.horizontal_wrapped(|ui| {
+            if ui.button(ui::t(ph::MAGIC_WAND, "Estimate missing")).on_hover_text("Guesses the grips of the frames without from the figure's outline (hands at the sides, near the torso when seen from the side, forward when attacking), snapped to skin-coloured pixels; then correct them").clicked() {
+                op = Some(FrameOp::EstimateHands { all: false, skin: skin.clone(), scale });
+            }
+            if ui.button("Estimate all again").clicked() {
+                op = Some(FrameOp::EstimateHands { all: true, skin: skin.clone(), scale });
+            }
+            if ui.button("Clear frame").clicked() {
+                op = Some(FrameOp::ClearGrips);
+            }
+            if ui.button(ui::t(ph::ARROWS_LEFT_RIGHT, "Swap hands")).on_hover_text("Right and left grips trade places in this row; Shift+click: in every facing of the animation (archers hold the bow in the left hand)").clicked() {
+                op = Some(FrameOp::SwapHands(ui.input(|i| i.modifiers.shift)));
+            }
+        });
+        // Preview items.
+        let items = |slot: rustpg2d_engine::defs::EquipSlot| -> Vec<(String, String)> {
+            std::iter::once((String::new(), "(nothing)".to_string())).chain(self.project.db.items.iter().filter(|i| i.equip_slot() == Some(slot) || (slot == rustpg2d_engine::defs::EquipSlot::Weapon && i.equip_slot() == Some(rustpg2d_engine::defs::EquipSlot::Tool))).map(|i| (i.id.clone(), i.name.clone()))).collect()
+        };
+        for (k, (label, slot)) in [("Preview in the right hand", rustpg2d_engine::defs::EquipSlot::Weapon), ("in the left", rustpg2d_engine::defs::EquipSlot::Offhand)].into_iter().enumerate() {
+            let list = items(slot);
+            let shown = list.iter().find(|(id, _)| *id == self.px.preview[k]).map_or("(nothing)".to_string(), |(_, n)| n.clone());
+            ui.horizontal(|ui| {
+                ui.label(label);
+                egui::ComboBox::from_id_salt(("px_preview", k)).selected_text(shown).show_ui(ui, |ui| {
+                    for (id, name) in &list {
+                        ui.selectable_value(&mut self.px.preview[k], id.clone(), name);
+                    }
+                });
+            });
+        }
+        if let Some(op) = op {
+            if let Some(m) = self.px.frame_op(op) {
+                self.set_status(m);
+            }
+        }
+    }
+
     /// Figures: the animation panel (animation, facing, play / pause / step, frame strip, onion
     /// skin) and the frame and row operations.
     fn animation_panel(&mut self, ui: &mut egui::Ui) {
@@ -956,6 +1130,7 @@ impl Editor {
         });
         ui.ctx().request_repaint();
 
+        self.hands_panel(ui);
         ui.separator();
         ui.label(egui::RichText::new("Frames and rows").strong());
         let mut op: Option<FrameOp> = None;
@@ -1041,7 +1216,38 @@ impl Editor {
         let full = Rect::from_min_size(origin, vec2(cw as f32 * 4.0, ch as f32 * 4.0) * zoom);
         painter.with_clip_rect(img_rect.intersect(avail)).image(checker.id(), full, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
         let tex = d.texture(ui.ctx());
+        // Figures: the preview items in the hands (behind the figure, then in front of it).
+        let held = if d.sheet.is_some() && d.layout == Layout::Character { held_preview(&self.project.db, d, &self.px.preview) } else { Vec::new() };
+        let sheet_scale = d.sheet.as_ref().and_then(|id| self.project.db.sheet(id)).map_or(1.0, |s| s.scale.max(1) as f32);
+        let paint_held = |front: bool| {
+            for (f, l) in held.iter().filter(|(_, l)| l.front == front) {
+                let (fx, fy) = d.frame_origin(*f);
+                let at = origin + vec2(fx as f32 + l.at.0, fy as f32 + l.at.1) * zoom;
+                crate::widgets::paint_rotated(&painter.with_clip_rect(img_rect.intersect(avail)), &self.tex, &self.assets, &l.sprite, at, l.grip, l.rotation, zoom * sheet_scale, l.scale, l.flip);
+            }
+        };
+        paint_held(false);
         painter.image(tex.id(), img_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+        paint_held(true);
+        // The grips: a dot and a line where a held item points (right hand orange, left cyan;
+        // hollow = behind the figure).
+        if d.layout == Layout::Character && (self.px.tool == PxTool::Hands || held.is_empty()) {
+            for h in &d.hands {
+                let (fx, fy) = d.frame_origin(h.frame);
+                for (g, col) in [(h.right, Color32::from_rgb(255, 150, 40)), (h.left, Color32::from_rgb(60, 210, 255))] {
+                    let Some(g) = g else { continue };
+                    let at = origin + vec2(fx as f32 + g.x + 0.5, fy as f32 + g.y + 0.5) * zoom;
+                    let dir = vec2(g.angle.to_radians().cos(), g.angle.to_radians().sin());
+                    let r = (zoom * 1.2).clamp(2.0, 6.0);
+                    painter.line_segment([at, at + dir * r * 3.5 * g.scale], Stroke::new(2.0_f32, col));
+                    if g.front {
+                        painter.circle_filled(at, r, col);
+                    } else {
+                        painter.circle_stroke(at, r, Stroke::new(1.5_f32, col));
+                    }
+                }
+            }
+        }
         // Onion skin: the animation's previous (red) and next (green) frame over the selected one.
         if d.layout == Layout::Character && (self.px.onion || self.px.onion_next) {
             let sel = self.px.sel_frame.min(d.cols() * d.rows() - 1);
@@ -1140,6 +1346,26 @@ impl Editor {
                 let c = if tool == PxTool::Eraser { [0; 4] } else { self.px.colors[b] };
                 match tool {
                     PxTool::Select => {}
+                    PxTool::Hands if d.sheet.is_some() && d.img.in_bounds(p.0, p.1) => {
+                        // Left: place the hand here (turn it by dragging); right: remove it.
+                        let f = d.frame_at(p.0, p.1);
+                        let (fx, fy) = d.frame_origin(f);
+                        let hand = self.px.hand;
+                        let mut h = d.hands.iter().find(|h| h.frame == f).cloned().unwrap_or_default();
+                        let old = h.get(hand);
+                        d.snapshot();
+                        if b == 0 {
+                            let g = rustpg2d_engine::hands::Grip { x: (p.0 - fx) as f32, y: (p.1 - fy) as f32, ..old.unwrap_or(rustpg2d_engine::hands::Grip::new(0.0, 0.0, 90.0)) };
+                            h.set(hand, Some(g));
+                            self.px.grip_drag = Some((f, hand));
+                        } else {
+                            h.set(hand, None);
+                        }
+                        let mut fr = d.frames();
+                        fr.set_hands(f, Some(h));
+                        d.changed();
+                    }
+                    PxTool::Hands => {}
                     PxTool::Picker => self.px.colors[b] = d.img.get(p.0, p.1),
                     PxTool::Fill => {
                         d.snapshot();
@@ -1189,12 +1415,58 @@ impl Editor {
                 self.px.stroke = None;
             }
         }
+        // Turning a grip: it points at the cursor.
+        if let Some((f, hand)) = self.px.grip_drag {
+            if down[0] {
+                if let Some(p) = resp.hover_pos().or(ui.input(|i| i.pointer.latest_pos())) {
+                    let (fx, fy) = d.frame_origin(f);
+                    if let Some(mut h) = d.hands.iter().find(|h| h.frame == f).cloned() {
+                        if let Some(mut g) = h.get(hand) {
+                            let gp = origin + vec2(fx as f32 + g.x + 0.5, fy as f32 + g.y + 0.5) * zoom;
+                            let v = p - gp;
+                            if v.length() > zoom * 2.0 {
+                                g.angle = v.y.atan2(v.x).to_degrees().round();
+                                h.set(hand, Some(g));
+                                d.frames().set_hands(f, Some(h));
+                                d.changed();
+                            }
+                        }
+                    }
+                }
+            } else {
+                self.px.grip_drag = None;
+            }
+        }
         let info = match hover {
             Some(p) if d.img.in_bounds(p.0, p.1) => format!("pixel {},{} · frame {}", p.0, p.1, d.frame_at(p.0, p.1)),
             _ => String::new(),
         };
         painter.text(avail.left_bottom() + vec2(8.0, -8.0), egui::Align2::LEFT_BOTTOM, format!("{info}   wheel: zoom · middle-drag: pan"), egui::FontId::monospace(12.0), Color32::GRAY);
     }
+}
+
+/// The preview items (`preview`: weapon, left-hand item) in the hands of every frame of a figure
+/// (frames without grips use their standing frame's): (frame, layer).
+fn held_preview(db: &rustpg2d_engine::defs::Database, d: &PixelDoc, preview: &[String; 2]) -> Vec<(u32, rustpg2d_engine::hands::HeldLayer)> {
+    use rustpg2d_engine::entity::Facing;
+    use rustpg2d_engine::inventory::ItemStack;
+    if d.hands.is_empty() {
+        return Vec::new();
+    }
+    let eq = rustpg2d_engine::state::Equipment { weapon: (!preview[0].is_empty()).then(|| ItemStack::new(&preview[0], 1)), offhand: (!preview[1].is_empty()).then(|| ItemStack::new(&preview[1], 1)), ..Default::default() };
+    let cols = d.cols();
+    let mut out = Vec::new();
+    for f in 0..cols * d.rows().min(16) {
+        let row = f / cols;
+        let facing = [Facing::Down, Facing::Left, Facing::Right, Facing::Up][(row % 4) as usize];
+        // Only frames with their own grips (empty frames would show items on nothing).
+        let Some(h) = d.hands.iter().find(|h| h.frame == f) else { continue };
+        let grips = (h.right, h.left);
+        for l in rustpg2d_engine::hands::held_with(db, grips, &eq, "", None, facing) {
+            out.push((f, l));
+        }
+    }
+    out
 }
 
 /// Paints frame `f` of the open image `size` pixels on its longer side.

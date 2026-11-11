@@ -5,8 +5,8 @@ in *Database › Characters*, placed on maps with the Entities tool.
 
 ## How characters look
 
-Every character is a **figure**: a complete picture of it, with its clothes, hair and what it
-carries painted in, on a sprite sheet of kind *Character figure* ([Art and sound › Character
+Every character is a **figure**: a complete picture of it, with its clothes and hair painted in,
+on a sprite sheet of kind *Character figure* ([Art and sound › Character
 figures](10-art-and-sound.md#sizes-and-layouts)). One sheet holds all of its animations: **walk**,
 **idle** (breathing while it stands), **attack** (wind-up, swing, follow-through, recover) and
 **hurt** (when hit), each facing down, left, right and up. The game plays them by itself: standing
@@ -22,7 +22,17 @@ elves, the female dwarf and the villagers have skin, hair and (most) clothing fe
 has skin. Two placed villagers wear their own colours.
 
 **Equipment** is real: a character's weapon, armor and clothing count in combat, and an enemy drops
-them when defeated. They aren't drawn over the figure: its art shows what it carries.
+them when defeated. **What it holds is drawn in its hands**: the weapon, the left-hand item (a
+shield, a lantern, a torch), a tool while it works (the fisher's rod, the farmer's hoe) and a prop it
+carries. This needs a figure with **hand marks**: per frame where each hand is and how it is turned
+([Art and sound › Hands](10-art-and-sound.md#hands)). The starter figures of people have them and
+are drawn with empty hands; armour and clothing show only in the art. How each item sits in a hand
+is set in its *Held* section ([Database › Items](05-database.md#items)).
+
+**Carrying props**: the *Carry prop* action and the scripts `carry(target, prop)` /
+`stop_carrying(target)` / `player_carrying()` let the player or a character carry a prop (a crate, a
+basket) in both hands. While carrying, the weapon and left-hand item aren't shown and the player
+can't attack (*Put down what you carry first.*). What the player carries is saved.
 
 ## The character editor
 

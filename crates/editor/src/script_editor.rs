@@ -227,6 +227,7 @@ pub fn candidates(place: &Place, call: Option<&CallAt>, known: &Known, src: &str
                 Some(Arg::Dir) => ["up", "down", "left", "right"].iter().map(|d| c(d, "direction")).collect(),
                 Some(Arg::Character) => db.characters.iter().map(|q| c(&q.id, &q.name)).collect(),
                 Some(Arg::Achievement) => db.achievements.iter().map(|q| c(&q.id, &q.name)).collect(),
+                Some(Arg::Prop) => db.props.iter().map(|q| c(&q.id, &q.name)).collect(),
                 Some(Arg::Faction) => known.factions.iter().map(|f| c(f, "faction")).collect(),
                 Some(Arg::Recipe) => db.recipes.iter().map(|q| c(&q.id, db.item(&q.result).map_or(q.result.as_str(), |d| d.name.as_str()))).collect(),
                 Some(Arg::Station) => {

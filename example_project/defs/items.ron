@@ -151,6 +151,11 @@
         armor: None,
         max_stack: 1,
         value: 40,
+        held: Some((
+            grip: (0.45, 0.5),
+            points: -45.0,
+            scale: 0.9,
+        )),
     ),
     (
         id: "crossbow",
@@ -183,6 +188,11 @@
         armor: None,
         max_stack: 1,
         value: 70,
+        held: Some((
+            grip: (0.3, 0.55),
+            points: 0.0,
+            scale: 0.7,
+        )),
     ),
     (
         id: "bandage",
@@ -338,6 +348,15 @@
         armor: None,
         max_stack: 1,
         value: 35,
+        held: Some((
+            sprite: (
+                sheet: "held",
+                frame: 0,
+            ),
+            grip: (0.5, 0.6),
+            points: -90.0,
+            scale: 1.25,
+        )),
     ),
     (
         id: "axe",
@@ -463,6 +482,11 @@
             intensity: 1.0,
             flicker: false,
         )),
+        held: Some((
+            grip: (0.5, 0.12),
+            points: 0.0,
+            scale: 0.5,
+        )),
     ),
     (
         id: "torch",
@@ -487,6 +511,11 @@
             color: (255, 190, 120),
             intensity: 1.0,
             flicker: true,
+        )),
+        held: Some((
+            grip: (0.25, 0.75),
+            points: 0.0,
+            scale: 0.6,
         )),
     ),
     (
@@ -706,6 +735,15 @@
         armor: None,
         max_stack: 1,
         value: 0,
+        held: Some((
+            sprite: (
+                sheet: "held",
+                frame: 1,
+            ),
+            grip: (0.5, 0.88),
+            points: -50.0,
+            scale: 1.0,
+        )),
         tool: "fishing rod",
     ),
     (
@@ -751,6 +789,11 @@
         armor: None,
         max_stack: 1,
         value: 25,
+        held: Some((
+            grip: (0.78, 0.82),
+            points: -135.0,
+            scale: 0.7,
+        )),
         tool: "pickaxe",
     ),
     (
@@ -1374,6 +1417,11 @@
         )),
         max_stack: 1,
         value: 18,
+        held: Some((
+            grip: (0.5, 0.5),
+            points: 90.0,
+            scale: 0.5,
+        )),
     ),
     (
         id: "letter",
@@ -1693,6 +1741,11 @@
         armor: None,
         max_stack: 1,
         value: 5,
+        held: Some((
+            grip: (0.7, 0.3),
+            points: 135.0,
+            scale: 1.0,
+        )),
         tool: "broom",
     ),
     (
@@ -1709,6 +1762,11 @@
         armor: None,
         max_stack: 1,
         value: 12,
+        held: Some((
+            grip: (0.22, 0.78),
+            points: -45.0,
+            scale: 0.7,
+        )),
         tool: "hoe",
     ),
     (
@@ -2103,6 +2161,11 @@
         armor: None,
         max_stack: 1,
         value: 2,
+        held: Some((
+            grip: (0.45, 0.5),
+            points: -45.0,
+            scale: 0.9,
+        )),
     ),
     (
         id: "woodcutter_axe",

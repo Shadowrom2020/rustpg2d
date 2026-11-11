@@ -25,3 +25,9 @@ SIZE = {
 }
 # Sheets whose first side row faces right (checked by eye after generating).
 SIDE_FACES_RIGHT = set()
+
+# ART_CAST=noweapon: the figures re-rendered with empty hands (cast_noweapon.py).
+import os as _os
+
+if _os.environ.get("ART_CAST") == "noweapon":
+    from cast_noweapon import CAST, SIDE_FACES_RIGHT, SIZE  # noqa: F401,E402

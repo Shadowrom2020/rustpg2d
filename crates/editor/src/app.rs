@@ -724,6 +724,7 @@ impl Editor {
         flags.dedup();
         self.refs = Refs {
             items: self.project.db.items.iter().map(|i| i.id.clone()).collect(),
+            props: self.project.db.props.iter().map(|p| p.id.clone()).collect(),
             maps: self.maps.clone(),
             targets,
             functions: scripts.function_names(),

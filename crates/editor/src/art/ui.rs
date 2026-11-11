@@ -116,9 +116,9 @@ impl Editor {
         self.art.redo(job, picture, &settings, refs)
     }
 
-    /// Adds a finished job's art to the project as `id`: the image and its sprite sheet, and for
-    /// characters a character, for icons an item, for props a prop (unless one exists). Returns
-    /// what was added.
+    /// Adds a finished job's art to the project as `id`: the image and its sprite sheet (people's
+    /// figures with estimated hand marks), and for characters a character, for icons an item, for
+    /// props a prop (unless one exists). Returns what was added.
     pub fn apply_art(&mut self, job: u32, id: &str) -> anyhow::Result<String> {
         if self.library_mode {
             anyhow::bail!("add art to a project, not the library");
@@ -145,7 +145,14 @@ impl Editor {
         let sheet = match j.req.kind {
             ArtKind::Character => {
                 let scale = convert::size_class(&j.req.size).map_or(2, |s| s.scale);
-                SheetDef { kind: SheetKind::Body, scale, ..SheetDef::new(id, &rel, fw, fh) }
+                // People get hand marks estimated from the picture (held weapons, tools, props).
+                let mut hands = Vec::new();
+                if !j.req.animal() {
+                    if let Ok(mut img) = rustpg2d_engine::imageio::Rgba::decode(&png) {
+                        crate::frame_ops::Frames { img: &mut img, frame: (fw, fh), hands: Some(&mut hands) }.estimate_hands(true, &[], scale);
+                    }
+                }
+                SheetDef { kind: SheetKind::Body, scale, hands, ..SheetDef::new(id, &rel, fw, fh) }
             }
             ArtKind::Prop | ArtKind::Portrait => SheetDef { scale: 2, ..SheetDef::new(id, &rel, fw, fh) },
             ArtKind::Icon | ArtKind::Image => SheetDef::new(id, &rel, fw, fh),

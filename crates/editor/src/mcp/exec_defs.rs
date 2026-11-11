@@ -197,17 +197,17 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         ),
         RefKind::Sheet => (
             val(&SheetDef::new(id, "sprites/<file>.png", 32, 32)),
-            "kind: Sprite (props, effects) | Body (a character figure: a complete picture, clothes, hair and what it carries painted in; 4 columns, 16 rows: walk 4 frames, idle 2, attack 4, hurt 1, each block down/left/right/up; fewer rows show the standing frame) | Emotions; frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art, 64x96 frames fill a 32x48 place); female / playable: offered to female players / in the character creator; features: colour features [{name (\"skin\", \"hair\", \"clothing\"…), shades: [[r,g,b]] the art's exact colours of that part (sheet_colors lists them), colors: [[r,g,b]] offered to players}] — characters choose a colour per feature (appearance.colors); tags: named frame ranges [{name, first, last, fps}].",
+            "kind: Sprite (props, effects) | Body (a character figure: a complete picture with clothes and hair, hands empty; 4 columns, 16 rows: walk 4 frames, idle 2, attack 4, hurt 1, each block down/left/right/up; fewer rows show the standing frame) | Emotions; frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art, 64x96 frames fill a 32x48 place); female / playable: offered to female players / in the character creator; features: colour features [{name (\"skin\", \"hair\", \"clothing\"…), shades: [[r,g,b]] the art's exact colours of that part (sheet_colors lists them), colors: [[r,g,b]] offered to players}] — characters choose a colour per feature (appearance.colors); tags: named frame ranges [{name, first, last, fps}]; hands (figures): per frame \"F: R x y angle size f|b | L …\" — the hands' positions in frame pixels, grip axis in degrees (0 right, 90 down), size, in front / behind (edit_frames set_grip / estimate_hands edit them).",
         ),
         RefKind::Item => (
             val(&ItemDef::fresh(id)),
-            "icon: {sheet, frame} of a sprite sheet; weapon: {damage, cooldown, ranged: null | {projectile, speed, range, ammo}, reach, arc, knockback, two_handed, effect}; armor: {slot: Clothing|Head|Body|Offhand, defense, speed} (worn items count in play; figures show what they wear); consumable + on_use triggers (ItemUse owner: UseItem event) = potions; food; teaches: a skill or spell id; tool: Pickaxe|Axe|Hoe|Rod… name used by props' gather; value in coins; crop: {stages: [{sprite, hours}], harvest: loot}.",
+            "icon: {sheet, frame} of a sprite sheet; weapon: {damage, cooldown, ranged: null | {projectile, speed, range, ammo}, reach, arc, knockback, two_handed, effect}; armor: {slot: Clothing|Head|Body|Offhand, defense, speed} (worn items count in play; figures' art shows what they wear); held: how figures with hand marks hold it {sprite (none: the icon), grip: [x, y] hold point as fractions of the picture, points: degrees, the picture's direction that lies on the hand's grip axis (icons -45), scale (0.5), hand: Right|Left|Both (none: by its kind)}; consumable + on_use triggers (ItemUse owner: UseItem event) = potions; food; teaches: a skill or spell id; tool: Pickaxe|Axe|Hoe|Rod… name used by props' gather; value in coins; crop: {stages: [{sprite, hours}], harvest: loot}.",
         ),
         RefKind::Prop => (
             val(&PropDef::fresh(id)),
-            "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot.",
+            "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot; carry: how characters carry it {grip, points, scale} (none: middle of its lower half, horizontal along the hands, 0.6).",
         ),
-        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {body (a Body sheet: its figure), colors: {feature: [r,g,b]} (the figure's colour features; missing = as drawn)}; equipment / inventory: the items it wears and carries (count in play, not drawn); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
+        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {body (a Body sheet: its figure), colors: {feature: [r,g,b]} (the figure's colour features; missing = as drawn)}; equipment / inventory: the items it wears and carries (count in play; weapon, left hand and tools show in figures with hand marks: sheets' `hands`, items' `held`); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
         RefKind::Sound => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0 }), "file: WAV or Ogg Vorbis under the project; volume 0..1. Used by PlaySound / PlayMusic, map music and the project's built-in sounds."),
         RefKind::Quest => (val(&QuestDef { id: id.into(), title: "New quest".into(), description: String::new(), stages: vec!["Find out more".into(), "Done".into()], xp: 0 }), "stages: the journal lines in order (stage 0 is the first after Start); xp on completion. Triggers drive it: Action Quest{quest, op: Start|Advance|SetStage|Complete|Fail, stage}, Cond Quest{quest, check: NotStarted|Active|Completed|Failed|AtStage|StageAtLeast, stage}."),
         RefKind::Structure => (val(&StructureDef { id: id.into(), name: "New structure".into(), category: String::new(), w: 2, h: 2, tilesets: vec![], layers: vec![vec![0; 4], vec![0; 4], vec![0; 4]], collision: vec![0; 4], entities: vec![] }), "layers: one Vec per map layer of w*h tile values (0 = empty; tile = slot << 16 | index with slot into `tilesets`); collision: w*h bytes (0 auto, 1 solid, 2 walkable); entities with positions relative to the top-left. Easier: build it on a map and capture it in the editor (Structures tool)."),
@@ -261,7 +261,10 @@ impl Editor {
         let d = self.project.db.sheet(&p.sheet).ok_or_else(|| format!("\"{}\" is not a sprite sheet.{}", p.sheet, suggestions(&p.sheet, self.project.db.sheets.iter().map(|t| t.id.as_str()))))?.clone();
         let path = self.project.root.join(&d.image);
         let mut img = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| rustpg2d_engine::imageio::Rgba::decode(&b).map_err(|e| format!("{e:#}")))?;
-        let mut f = Frames { img: &mut img, frame: (d.frame_w.max(1), d.frame_h.max(1)) };
+        let figure = d.kind == SheetKind::Body;
+        let mut hands = d.hands.clone();
+        let skin: Vec<[u8; 3]> = d.feature("skin").map(|f| f.shades.clone()).unwrap_or_default();
+        let mut f = Frames { img: &mut img, frame: (d.frame_w.max(1), d.frame_h.max(1)), hands: figure.then_some(&mut hands) };
         let (cols, rows) = (f.cols(), f.rows());
         let need = |v: Option<u32>, what: &str, max: u32| v.filter(|v| *v < max).ok_or(format!("{what} (below {max}) is needed for {}", p.op));
         let msg = match p.op.as_str() {
@@ -308,9 +311,54 @@ impl Editor {
                 format!("Replaced {} pixel(s)", f.replace_color(from, [to[0], to[1], to[2], 255], frames.as_deref()))
             }
             "fill_standing" => format!("{} empty idle / hurt frame(s) got the standing frame", f.fill_standing()),
-            other => return Err(format!("unknown op \"{other}\": mirror_rows, copy_row, clear_row, duplicate, nudge, replace_color or fill_standing")),
+            "set_grip" | "clear_grips" | "estimate_hands" | "swap_hands" if !figure => return Err(format!("{} isn't a character figure (kind Body)", d.id)),
+            "set_grip" => {
+                let k = need(p.frame, "frame", cols * rows)?;
+                let hand = match p.hand.as_deref().unwrap_or("right") {
+                    "left" | "l" => rustpg2d_engine::hands::Hand::Left,
+                    _ => rustpg2d_engine::hands::Hand::Right,
+                };
+                let mut h = f.hands_of(k).unwrap_or_default();
+                let g = rustpg2d_engine::hands::Grip { x: p.x.ok_or("x is needed")?, y: p.y.ok_or("y is needed")?, angle: p.angle.unwrap_or(90.0), scale: p.size.unwrap_or(1.0), front: p.front.unwrap_or(true) };
+                h.set(hand, Some(g));
+                f.set_hands(k, Some(h));
+                format!("Frame {k}: {:?} hand at {},{} pointing {}°", hand, g.x, g.y, g.angle)
+            }
+            "clear_grips" => match p.frame {
+                Some(k) => {
+                    f.set_hands(k, None);
+                    format!("Frame {k} has no grips now")
+                }
+                None => {
+                    for k in 0..cols * rows {
+                        f.set_hands(k, None);
+                    }
+                    "All grips cleared".to_string()
+                }
+            },
+            "estimate_hands" => format!("Estimated the hands of {} frame(s)", f.estimate_hands(p.all.unwrap_or(false), &skin, d.scale)),
+            "swap_hands" => {
+                let rows: Vec<u32> = match (&p.anim, p.row) {
+                    (Some(a), _) => {
+                        let a = anim_index(a).ok_or("anim: walk, idle, attack or hurt")?;
+                        (a * 4..a * 4 + 4).collect()
+                    }
+                    (None, Some(_)) => vec![need(p.row, "row", rows)?],
+                    (None, None) => return Err("swap_hands needs a row or an anim (all its facings)".into()),
+                };
+                let frames: Vec<u32> = rows.iter().flat_map(|r| r * cols..(r + 1) * cols).collect();
+                format!("Swapped the hands of {} frame(s) in rows {rows:?}", f.swap_hands(&frames))
+            }
+            other => return Err(format!("unknown op \"{other}\": mirror_rows, copy_row, clear_row, duplicate, nudge, replace_color, fill_standing, set_grip, clear_grips, estimate_hands or swap_hands")),
         };
         std::fs::write(&path, img.encode().map_err(|e| format!("{e:#}"))?).map_err(|e| e.to_string())?;
+        if figure && hands != d.hands {
+            if let Some(s) = self.project.db.sheets.iter_mut().find(|s| s.id == d.id) {
+                s.hands = hands;
+            }
+            self.defs_dirty = true;
+            self.save_defs();
+        }
         self.reload_assets();
         text(format!("{msg} in {} ({}); the art was reloaded.", d.id, d.image))
     }
@@ -480,6 +528,7 @@ impl Editor {
             RefKind::Character => Some(rustpg2d_engine::script_refs::IdKind::Character),
             RefKind::Recipe => Some(rustpg2d_engine::script_refs::IdKind::Recipe),
             RefKind::Achievement => Some(rustpg2d_engine::script_refs::IdKind::Achievement),
+            RefKind::Prop => Some(rustpg2d_engine::script_refs::IdKind::Prop),
             _ => None,
         };
         if let Some(ik) = id_kind {

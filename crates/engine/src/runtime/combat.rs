@@ -264,6 +264,12 @@ impl Game {
         if !self.combat.enabled() || self.combat.cooldown > 0.0 || self.player_stunned() || self.climbing() {
             return;
         }
+        // Both hands full.
+        if !self.world.player_carrying.is_empty() {
+            self.ui.toast("Put down what you carry first.".into());
+            self.combat.cooldown = 0.5;
+            return;
+        }
         let weapon = self.attack_weapon();
         let damage = weapon.damage;
         if damage <= 0 {
@@ -917,7 +923,8 @@ impl Game {
             let (fw, fh) = self.character_frame_size(&a);
             let scale = ((portrait.w - 4.0) / fw).min((portrait.h - 4.0) / fh);
             let (w, hh) = (fw * scale, fh * scale);
-            self.draw_character_in(&a, Rect::new(portrait.x + (portrait.w - w) / 2.0, portrait.bottom() - 2.0 - hh, w, hh));
+            let held = self.player_held((crate::entity::Facing::Down, super::paperdoll::Anim::Walk(0)));
+            self.draw_character_in(&a, &held, Rect::new(portrait.x + (portrait.w - w) / 2.0, portrait.bottom() - 2.0 - hh, w, hh));
         }
 
         // Name, defense.

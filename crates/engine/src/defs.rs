@@ -182,6 +182,10 @@ pub struct SheetDef {
     /// *Fly* actions and the `tag` option of `effect()` / `fly()`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<SheetTag>,
+    /// Figures: where the hands are in each frame (`hands::FrameHands`, one line per frame); what
+    /// a character holds is drawn there. Frames without an entry use their standing frame's.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hands: Vec<crate::hands::FrameHands>,
 }
 
 /// A named animation of a sprite sheet: frames `first..=last` at `fps`.
@@ -197,7 +201,7 @@ pub struct SheetTag {
 /// tile. The editor's "+ New" value is [`SheetDef::fresh`].
 impl Default for SheetDef {
     fn default() -> Self {
-        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, features: Vec::new(), tags: Vec::new() }
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, features: Vec::new(), tags: Vec::new(), hands: Vec::new() }
     }
 }
 
@@ -487,6 +491,10 @@ pub struct ItemDef {
     /// Gives light while equipped (e.g. a lantern in the left hand) or lying on the ground.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub light: Option<LightSpec>,
+    /// How it looks in a character's hand (weapons, left-hand items, tools); None = its icon,
+    /// held at its lower-left end.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held: Option<crate::hands::HeldSprite>,
     /// Using the item teaches this spell (scrolls, spell books); "" = none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub teaches: String,
@@ -522,6 +530,7 @@ impl Default for ItemDef {
             max_stack: default_max_stack(),
             value: 0,
             light: None,
+            held: None,
             teaches: String::new(),
             tool: String::new(),
             use_on: UseTarget::default(),
@@ -760,6 +769,10 @@ pub struct PropDef {
     /// sight. Solid props that aren't low stop both (trees, statues, stalls).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub low: bool,
+    /// How characters carry it in both hands (*Carry prop*): its hold point and orientation mark
+    /// (None: the middle of its lower half, its horizontal along the hands).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carry: Option<crate::hands::HeldSprite>,
 }
 
 /// The serde defaults (what an entry with only `id`, `name` and `sprite` loads as: not solid,
@@ -783,6 +796,7 @@ impl Default for PropDef {
             regrow: None,
             plot: false,
             low: false,
+            carry: None,
         }
     }
 }
@@ -1024,7 +1038,8 @@ impl Behavior {
     }
 }
 
-/// A character: a figure (`appearance`), what it carries (`equipment`, counted in play, not drawn),
+/// A character: a figure (`appearance`), what it carries (`equipment`, counted in play; held items
+/// show in figures with hand marks, `hands.rs`),
 /// behavior and combat values.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CharacterDef {

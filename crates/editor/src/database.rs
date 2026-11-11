@@ -958,6 +958,11 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     ui.heading("Icon");
     widgets::sprite_field(ui, "item_icon", &mut d.icon, cx.tex, cx.assets, cx.db, false);
     art_buttons(ui, cx, "icon", (1, 1));
+    let holdable = d.weapon.is_some() || !d.tool.is_empty() || d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
+    if holdable {
+        ui.separator();
+        held_ui(ui, d, cx);
+    }
     ui.separator();
     ui.heading("On use");
     ui.weak("Runs when the item is used from the inventory and the entity in front of the player didn't react to it.");
@@ -967,6 +972,146 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
             t.on = TriggerOn::UseItem { item: String::new() };
         }
     }
+}
+
+/// How a weapon, left-hand item or tool looks in a figure's hand (`ItemDef.held`).
+fn held_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
+    use rustpg2d_engine::hands::{Hand, HeldSprite};
+    ui.heading("Held");
+    ui.weak("Figures with hand marks (sprite editor, Hands tool) hold it: its hold point goes on the hand, its orientation mark on the hand's grip axis (the line a handle runs through the fist).");
+    let mut custom = d.held.is_some();
+    if ui.checkbox(&mut custom, "Own marks").on_hover_text("Off: its icon, held at the lower left corner, its blade pointing up-right along the grip axis").changed() {
+        d.held = custom.then(HeldSprite::default);
+    }
+    let by_kind = match &d.weapon {
+        _ if d.armor.is_some() => Hand::Left,
+        Some(w) if w.ranged.is_some() => Hand::Left,
+        Some(w) if w.two_handed => Hand::Both,
+        _ => Hand::Right,
+    };
+    let icon = d.icon.clone();
+    let Some(h) = &mut d.held else { return };
+    marks_ui(ui, "item_held", h, &icon, cx, Some(by_kind));
+}
+
+/// How characters carry a prop in both hands (`PropDef.carry`, *Carry prop*).
+fn carry_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
+    use rustpg2d_engine::hands::HeldSprite;
+    ui.heading("Carried");
+    ui.weak("When a character carries it (the Carry prop action, carry() in scripts) it sits between the hands: its hold point there, its orientation mark along the line through both fists. It never turns upside down.");
+    let mut custom = d.carry.is_some();
+    if ui.checkbox(&mut custom, "Own marks").on_hover_text("Off: held at the middle of its lower half, its horizontal along the hands, at 0.6 of its size").changed() {
+        d.carry = custom.then(HeldSprite::carried);
+    }
+    let sprite = d.sprite.clone();
+    let Some(m) = &mut d.carry else { return };
+    marks_ui(ui, "prop_carry", m, &sprite, cx, None);
+}
+
+/// The marks of something held (`HeldSprite`): its picture (none: `default`), the hold point (click
+/// the picture) and orientation mark (drag from the hold point), size and hand (`by_kind`: an
+/// item's hand when none is chosen; None: both hands, a carried prop), with previews in the hands
+/// of the first figure with hand marks.
+fn marks_ui(ui: &mut egui::Ui, salt: &str, h: &mut rustpg2d_engine::hands::HeldSprite, default: &SpriteRef, cx: &mut Cx, by_kind: Option<rustpg2d_engine::hands::Hand>) {
+    use rustpg2d_engine::hands::{both_hands, grips_of, lay, Hand};
+    ui.label("Picture (none: the icon / the prop's sprite)");
+    widgets::sprite_field(ui, &format!("{salt}_sprite"), &mut h.sprite, cx.tex, cx.assets, cx.db, false);
+    let sprite = if h.sprite.is_empty() { default.clone() } else { h.sprite.clone() };
+    egui::Grid::new((salt, "grid")).num_columns(2).show(ui, |ui| {
+        ui.label("Hold point");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut h.grip[0]).range(0.0..=1.0).speed(0.01).prefix("x "));
+            ui.add(egui::DragValue::new(&mut h.grip[1]).range(0.0..=1.0).speed(0.01).prefix("y "));
+            ui.weak("(click the picture)");
+        });
+        ui.end_row();
+        ui.label("Orientation");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut h.points).range(-180.0..=180.0).suffix(" deg"));
+            ui.weak("(drag from the hold point: the direction that lies on the hand's grip axis)");
+        });
+        ui.end_row();
+        ui.label("Size");
+        ui.add(egui::DragValue::new(&mut h.scale).range(0.1..=4.0).speed(0.02)).on_hover_text("1 = its size in the world; the hand's size multiplies it");
+        ui.end_row();
+        if by_kind.is_some() {
+            ui.label("Hand");
+            let label = |x: Option<Hand>| match x {
+                None => "By its kind",
+                Some(Hand::Right) => "Right",
+                Some(Hand::Left) => "Left",
+                Some(Hand::Both) => "Both",
+            };
+            egui::ComboBox::from_id_salt((salt, "hand")).selected_text(label(h.hand)).show_ui(ui, |ui| {
+                for x in [None, Some(Hand::Right), Some(Hand::Left), Some(Hand::Both)] {
+                    ui.selectable_value(&mut h.hand, x, label(x));
+                }
+            })
+            .response
+            .on_hover_text("By its kind: left-hand items and bows the left, two-handed weapons both, others the right");
+            ui.end_row();
+        }
+    });
+    let hand = by_kind.map_or(Hand::Both, |k| h.hand.unwrap_or(k));
+    ui.horizontal(|ui| {
+        // The picture: a click sets the hold point, a drag the orientation mark.
+        let Some(s) = cx.assets.sheets.get(&sprite.sheet) else {
+            ui.weak("(no picture)");
+            return;
+        };
+        let (cw, ch) = sprite.cells();
+        let src = s.region(sprite.frame, cw, ch);
+        let k = 128.0 / src.w.max(src.h);
+        let (rect, resp) = ui.allocate_exact_size(vec2(src.w * k, src.h * k), Sense::click_and_drag());
+        ui.painter().rect_filled(rect, 2.0, Color32::from_gray(45));
+        widgets::paint_sprite(ui, cx.tex, cx.assets, &sprite, rect);
+        let g = rect.min + vec2(h.grip[0] * rect.width(), h.grip[1] * rect.height());
+        if resp.clicked() {
+            if let Some(p) = resp.interact_pointer_pos() {
+                h.grip = [((p.x - rect.min.x) / rect.width()).clamp(0.0, 1.0), ((p.y - rect.min.y) / rect.height()).clamp(0.0, 1.0)];
+            }
+        } else if resp.dragged() {
+            if let Some(p) = resp.interact_pointer_pos().filter(|p| (*p - g).length() > 4.0) {
+                h.points = (p.y - g.y).atan2(p.x - g.x).to_degrees().round();
+            }
+        }
+        let (sn, cs) = h.points.to_radians().sin_cos();
+        let orange = Color32::from_rgb(255, 160, 40);
+        ui.painter().arrow(g, vec2(cs, sn) * 34.0, egui::Stroke::new(2.0_f32, orange));
+        ui.painter().circle(g, 4.0, orange, egui::Stroke::new(1.0_f32, Color32::BLACK));
+        resp.on_hover_text("Click: where the hand holds it. Drag from there: its orientation mark");
+        // In the hands of the first figure with marks: standing facing down and right, and the
+        // first attack frame facing right.
+        let figure = cx.db.sheets.iter().find(|s| s.playable && !s.hands.is_empty()).or_else(|| cx.db.sheets.iter().find(|s| !s.hands.is_empty()));
+        let Some(fig) = figure else {
+            ui.weak("(no figure with hand marks to preview it)");
+            return;
+        };
+        let px = 2.0;
+        for frame in [0, 4 * 2, 4 * 10 + 1] {
+            let (fw, fh) = (fig.frame_w as f32 / fig.scale as f32, fig.frame_h as f32 / fig.scale as f32);
+            let (rect, _) = ui.allocate_exact_size(vec2(fw, fh) * px, Sense::hover());
+            ui.painter().rect_filled(rect, 2.0, Color32::from_gray(45));
+            // Frames without marks use their facing's standing frame.
+            let (r, l) = grips_of(&fig.hands, frame, (frame / 4 % 4) * 4);
+            let g = match hand {
+                Hand::Right => r,
+                Hand::Left => l,
+                Hand::Both => both_hands(r, l),
+            };
+            let placed = g.map(|g| lay(g.angle, h.grip, h.points, by_kind.is_none()));
+            let draw = |front: bool| {
+                // Carried props are in front of the figure.
+                if let (Some(g), Some((grip, rotation, _, flip))) = (g.filter(|g| front == (by_kind.is_none() || g.front)), placed) {
+                    let at = rect.min + vec2(g.x, g.y) / fig.scale as f32 * px;
+                    widgets::paint_rotated(ui.painter(), cx.tex, cx.assets, &sprite, at, grip, rotation, px, g.scale * h.scale, flip);
+                }
+            };
+            draw(false);
+            widgets::paint_frame(ui, cx.tex, cx.assets, &fig.id, frame, rect);
+            draw(true);
+        }
+    });
 }
 
 /// A character's drawn portrait and its mood portraits.
@@ -1119,6 +1264,8 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     );
     ui.separator();
     prop_states_ui(ui, d, cx);
+    ui.separator();
+    carry_ui(ui, d, cx);
     ui.separator();
     ui.heading("Light");
     ui.weak("Light per state, e.g. a lamp that is lit in its \"lit\" state and dark in \"off\". Placed props can have their own light (map inspector).");

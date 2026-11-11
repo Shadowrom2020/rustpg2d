@@ -46,6 +46,8 @@ pub enum Arg {
     Achievement,
     /// A crafting station (named by recipes).
     Station,
+    /// A prop definition id.
+    Prop,
     /// A faction id (Database \u{203A} Project \u{203A} Factions).
     Faction,
     /// Any text: a zone, order, mood or slot name.
@@ -87,6 +89,9 @@ pub const API: &[ApiFn] = api! {
     "player_name"() "The player's name";
     "player_sex"() "\"male\" or \"female\"";
     "player_race"() "The player's race id (Database \u{203A} Races), \"\" without one";
+    "carry"(target: Target, prop: Prop) "A character (or \"player\") carries a prop in both hands, e.g. carry(\"player\", \"crate\"); while carrying it holds nothing else and the player can't attack (queued)";
+    "stop_carrying"(target: Target) "Puts down what a character carries (queued)";
+    "player_carrying"() "The prop the player carries (\"\" = none)";
     "player_faction"() "The player's faction id (their race's, else the player character's; \"\" without one)";
     "standing"(faction: Faction) "The player's standing with a faction (-100..100; at -20 or below its characters attack the player)";
     "change_standing"(faction: Faction, amount: Num) "Raises (or with a negative amount lowers) the player's standing with a faction; its characters turn hostile or calm down at once (queued)";
@@ -241,6 +246,7 @@ impl Arg {
             Arg::Character => IdKind::Character,
             Arg::Recipe => IdKind::Recipe,
             Arg::Achievement => IdKind::Achievement,
+            Arg::Prop => IdKind::Prop,
             _ => return None,
         })
     }
@@ -332,6 +338,7 @@ mod tests {
             ("can_craft", 0, IdKind::Recipe),
             ("unlock_achievement", 0, IdKind::Achievement),
             ("achievement_unlocked", 0, IdKind::Achievement),
+            ("carry", 1, IdKind::Prop),
         ];
         let derived: std::collections::BTreeSet<(&str, usize, u8)> = api_ids().iter().map(|(f, i, k)| (*f, *i, *k as u8)).collect();
         let wanted: std::collections::BTreeSet<(&str, usize, u8)> = expected.iter().map(|(f, i, k)| (*f, *i, *k as u8)).collect();

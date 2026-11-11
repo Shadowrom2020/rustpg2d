@@ -1,6 +1,6 @@
 //! The character editor: a character's figure (a complete picture: a sheet of kind Body) with a
-//! walking preview, the colours of the figure's colour features, its equipment (counted in play,
-//! not drawn: the art shows what it carries) and carried items. Used inline by the Characters
+//! walking preview, the colours of the figure's colour features, its equipment (counted in play;
+//! weapons, left-hand items and tools show in figures with hand marks) and carried items. Used inline by the Characters
 //! form (project and library), as a window for a placed NPC's own look (`Builder`), and by the
 //! New character window.
 
@@ -196,9 +196,28 @@ fn item_cards(ui: &mut Ui, cx: &Cx, slot: EquipSlot, eq: &Equipment) -> Option<S
     cards(ui, ICON, &entries, Some(&current), &|ui, id, r| !id.is_empty() && cx.db.item(id).is_some_and(|d| widgets::paint_sprite(ui, cx.tex, cx.assets, &d.icon, r)))
 }
 
+/// A figure with what it holds (`eq`: weapon, left hand) in `dest`: the held items behind it, the
+/// figure, the held items in front (figures with hand marks), kept inside `clip`.
+fn paint_holding(ui: &Ui, cx: &Cx, a: &Appearance, eq: &Equipment, (facing, anim): (Facing, character::Anim), dest: Rect, clip: Rect) -> bool {
+    let held = rustpg2d_engine::hands::held(cx.db, &a.body, eq, "", None, facing, anim);
+    let sheet_scale = cx.assets.sheets.get(&a.body).map_or(1.0, |s| s.scale);
+    let fw = cx.assets.sheets.get(&a.body).map_or(1.0, |s| s.world_size().x);
+    let px = dest.width() / fw;
+    let draw = |front: bool| {
+        for l in held.iter().filter(|l| l.front == front) {
+            let at = dest.min + vec2(l.at.0, l.at.1) / sheet_scale * px;
+            widgets::paint_rotated(&ui.painter().with_clip_rect(clip), cx.tex, cx.assets, &l.sprite, at, l.grip, l.rotation, px, l.scale, l.flip);
+        }
+    };
+    draw(false);
+    let ok = paint(ui, cx, &character::figure(cx.db, a, facing, anim), dest);
+    draw(true);
+    ok
+}
+
 /// The animated preview: facing `facing` (or turning) playing the chosen animation, the four
-/// idle directions below.
-fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance) {
+/// idle directions below; with what it holds.
+fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance, eq: &Equipment) {
     let mut st = ui.ctx().data_mut(|d| *d.get_temp_mut_or(id, Preview { facing: Facing::Down, turning: true, anim: 0 }));
     if let Some(k) = PREVIEW_ANIM.with(|a| a.take()) {
         st.anim = k;
@@ -214,7 +233,7 @@ fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance) {
         let (r, _) = ui.allocate_exact_size(vec2((fw * scale).max(120.0), PREVIEW_H + 6.0), Sense::hover());
         ui.painter().rect_filled(r, 4.0, Color32::from_gray(34));
         let dest = Rect::from_min_size(pos2(r.center().x - fw * scale / 2.0, r.max.y - 3.0 - fh * scale), vec2(fw * scale, fh * scale));
-        if !paint(ui, cx, &character::figure(cx.db, a, facing, anim), dest) {
+        if !paint_holding(ui, cx, a, eq, (facing, anim), dest, r) {
             ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "no figure", egui::FontId::default(), Color32::LIGHT_RED);
         }
         ui.horizontal(|ui| {
@@ -236,7 +255,7 @@ fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance) {
         ui.horizontal(|ui| {
             for f in order {
                 let (r, _) = ui.allocate_exact_size(vec2(fw + 2.0, fh + 2.0), Sense::hover());
-                paint(ui, cx, &character::figure(cx.db, a, f, 0), r.shrink(1.0));
+                paint_holding(ui, cx, a, eq, (f, character::Anim::Walk(0)), r.shrink(1.0), r);
             }
         });
     });
@@ -250,7 +269,7 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
     let mut out = Out::default();
     let Parts { appearance: a, equipment: eq, inventory } = p;
     ui.horizontal_top(|ui| {
-        preview(ui, egui::Id::new(("builder_preview", id)), cx, a);
+        preview(ui, egui::Id::new(("builder_preview", id)), cx, a, eq);
         ui.add_space(8.0);
         ui.vertical(|ui| {
             ui.set_min_width(ui.available_width().min(560.0));
@@ -297,7 +316,7 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
                 }
             });
             section(ui, "Equipment", !eq.is_empty(), &mut |ui| {
-                ui.weak("Counts in play (damage, defense, what it drops). The figure's art shows what it carries.");
+                ui.weak("Counts in play (damage, defense, what it drops). Weapons and left-hand items show in the figure's hands when the figure has hand marks (sprite editor, Hands tool); worn armour shows only in its art.");
                 for slot in [EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Head, EquipSlot::Body, EquipSlot::Clothing] {
                     ui.label(match slot {
                         EquipSlot::Body => "Body armor",

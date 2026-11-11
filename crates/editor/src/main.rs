@@ -25,6 +25,7 @@ mod maps;
 mod mcp;
 mod multisel;
 mod models;
+mod models_tab;
 mod new_project;
 mod frame_ops;
 mod pixel;
@@ -144,6 +145,11 @@ async fn main() {
         }
         // AI agents' tool calls (Assets > AI agent server...), like script commands.
         ed.mcp_drain();
+        ed.assets.models.begin_frame();
+        if let Some(id) = database::take_icon_request() {
+            let m = ed.render_item_icon(&id);
+            ed.set_status(m);
+        }
         canvas::inject_mouse(mouse_frames.pop_front().or(HOVER.with(|h| h.get())));
         egui_macroquad::ui(|ctx| ed.ui(ctx));
         ed.update_canvas();
@@ -391,6 +397,17 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 _ => files::Purpose::SoundFile(arg(2).into()),
             };
             ed.handle_file(purpose, arg(3).into());
+        }
+        // 3D models: modelimport FILE (a new model) · modelclips ID FILE (more clips) · modelfile ID FILE
+        "modelimport" => ed.handle_file(files::Purpose::ModelFile { id: String::new(), clips: false }, arg(1).into()),
+        "modelclips" => ed.handle_file(files::Purpose::ModelFile { id: arg(1).into(), clips: true }, arg(2).into()),
+        "modelfile" => ed.handle_file(files::Purpose::ModelFile { id: arg(1).into(), clips: false }, arg(2).into()),
+        // itemmodel ITEM FILE: the item's 3D model (where it is held estimated).
+        "itemmodel" => ed.handle_file(files::Purpose::ItemModel(arg(1).into()), arg(2).into()),
+        // itemicon ITEM: its inventory icon rendered from its 3D model.
+        "itemicon" => {
+            let m = ed.render_item_icon(arg(1));
+            println!("[script] {m}");
         }
         "newproject" => ed.handle_file(files::Purpose::NewProject, arg(1).into()),
         "openproject" => ed.handle_file(files::Purpose::OpenProject, arg(1).into()),
@@ -1182,6 +1199,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "recipes" => Tab::Recipes,
                 "achievements" => Tab::Achievements,
                 "races" => Tab::Races,
+                "models" => Tab::Models,
                 _ => Tab::Items,
             };
             // tab KIND N, or tab KIND ID (sheets, tilesets, items, props, characters).
@@ -1195,6 +1213,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Recipes => db.recipes.iter().position(|d| d.id == arg(2)),
                 Tab::Achievements => db.achievements.iter().position(|d| d.id == arg(2)),
                 Tab::Races => db.races.iter().position(|d| d.id == arg(2)),
+                Tab::Models => db.models.iter().position(|d| d.id == arg(2)),
                 _ => None,
             };
             ed.db.sel = by_id.unwrap_or(num(2) as usize);

@@ -35,7 +35,7 @@ const PACK_VERSION: u32 = 1;
 pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
-pub const KINDS: [RefKind; 11] = [RefKind::Tileset, RefKind::Sheet, RefKind::Sound, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
+pub const KINDS: [RefKind; 12] = [RefKind::Tileset, RefKind::Sheet, RefKind::Sound, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()
@@ -68,6 +68,8 @@ struct Manifest {
     recipes: Vec<crate::crafting::RecipeDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     races: Vec<crate::races::RaceDef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    models: Vec<crate::defs::ModelDef>,
     /// Script functions by name (their whole source text).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     scripts: BTreeMap<String, String>,
@@ -283,18 +285,18 @@ impl Bundle {
             spells: db.spells.iter().filter(|d| has(RefKind::Spell, &d.id)).cloned().collect(),
             recipes: db.recipes.iter().filter(|d| has(RefKind::Recipe, &d.id)).cloned().collect(),
             races: db.races.iter().filter(|d| has(RefKind::Race, &d.id)).cloned().collect(),
+            models: db.models.iter().filter(|d| has(RefKind::Model, &d.id)).cloned().collect(),
             quests: Vec::new(),
             achievements: Vec::new(),
             ..Default::default()
         };
         let mut files = BTreeMap::new();
-        let paths = out.tilesets.iter().map(|d| &d.image).chain(out.sheets.iter().map(|d| &d.image)).chain(out.sounds.iter().map(|d| &d.file));
-        for rel in paths {
-            if rel.is_empty() || files.contains_key(rel) {
+        for rel in asset_files(&out) {
+            if rel.is_empty() || files.contains_key(&rel) {
                 continue;
             }
-            let bytes = std::fs::read(root.join(rel)).with_context(|| format!("reading {rel}"))?;
-            files.insert(rel.clone(), bytes);
+            let bytes = std::fs::read(root.join(&rel)).with_context(|| format!("reading {rel}"))?;
+            files.insert(rel, bytes);
         }
         Ok(Bundle { name: name.to_string(), tile_size, db: out, files, scripts: BTreeMap::new() })
     }
@@ -379,6 +381,7 @@ impl Bundle {
             spells: self.db.spells.clone(),
             recipes: self.db.recipes.clone(),
             races: self.db.races.clone(),
+            models: self.db.models.clone(),
             scripts: self.scripts.clone(),
         };
         let manifest = crate::project::ron_text(&m)?;
@@ -417,10 +420,10 @@ impl Bundle {
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
         }
-        let db = Database { tilesets: m.tilesets, sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, ..Default::default() };
+        let db = Database { tilesets: m.tilesets, sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
-        for rel in b.db.tilesets.iter().map(|d| &d.image).chain(b.db.sheets.iter().map(|d| &d.image)).chain(b.db.sounds.iter().map(|d| &d.file)) {
-            if !rel.is_empty() && !b.files.contains_key(rel) {
+        for rel in asset_files(&b.db) {
+            if !rel.is_empty() && !b.files.contains_key(&rel) {
                 bail!("package is missing {rel}");
             }
         }
@@ -469,7 +472,7 @@ impl Bundle {
         config.tile_size = self.tile_size;
         let mut out = vec![("project.ron".to_string(), crate::project::ron_text(&config)?.into_bytes())];
         let db = &self.db;
-        let defs: [(&str, String); 11] = [
+        let defs: [(&str, String); 12] = [
             ("tilesets", crate::project::ron_text(&db.tilesets)?),
             ("sheets", crate::project::ron_text(&db.sheets)?),
             ("items", crate::project::ron_text(&db.items)?),
@@ -481,6 +484,7 @@ impl Bundle {
             ("spells", crate::project::ron_text(&db.spells)?),
             ("recipes", crate::project::ron_text(&db.recipes)?),
             ("races", crate::project::ron_text(&db.races)?),
+            ("models", crate::project::ron_text(&db.models)?),
         ];
         out.extend(defs.into_iter().map(|(n, t)| (format!("defs/{n}.ron"), t.into_bytes())));
         if !self.scripts.is_empty() {
@@ -723,6 +727,7 @@ impl Bundle {
             RefKind::Tileset => self.db.tileset(&a.1).map(|d| d.image.clone()),
             RefKind::Sheet => self.db.sheet(&a.1).map(|d| d.image.clone()),
             RefKind::Sound => self.db.sounds.iter().find(|d| d.id == a.1).map(|d| d.file.clone()),
+            RefKind::Model => self.db.model(&a.1).map(|d| d.file.clone()),
             _ => None,
         };
         for a in all_assets(&self.db) {
@@ -805,6 +810,10 @@ impl Bundle {
         self.db.tilesets.iter_mut().for_each(|d| fix(&mut d.image));
         self.db.sheets.iter_mut().for_each(|d| fix(&mut d.image));
         self.db.sounds.iter_mut().for_each(|d| fix(&mut d.file));
+        self.db.models.iter_mut().for_each(|d| {
+            fix(&mut d.file);
+            d.clip_files.iter_mut().for_each(&fix);
+        });
 
         // 2. Ids: an id that exists with different content is renamed (and the rename is
         // followed by the bundle's references). Repeat until stable, since a rename can make
@@ -969,7 +978,15 @@ fn new_tiles(old: &[u8], new: &[u8], ts: u32) -> BTreeSet<u32> {
 }
 
 fn files_of(db: &Database) -> BTreeSet<String> {
-    db.tilesets.iter().map(|d| d.image.clone()).chain(db.sheets.iter().map(|d| d.image.clone())).chain(db.sounds.iter().map(|d| d.file.clone())).collect()
+    asset_files(db).into_iter().collect()
+}
+
+/// Every file the assets of `db` use: tileset and sheet images, sound files, model files and
+/// their clip files.
+pub fn asset_files(db: &Database) -> Vec<String> {
+    let images = db.tilesets.iter().map(|d| d.image.clone()).chain(db.sheets.iter().map(|d| d.image.clone()));
+    let models = db.models.iter().flat_map(|d| std::iter::once(d.file.clone()).chain(d.clip_files.iter().cloned()));
+    images.chain(db.sounds.iter().map(|d| d.file.clone())).chain(models).collect()
 }
 
 /// Folder of the shared asset library: `$RUSTPG2D_LIBRARY`, else
@@ -1170,6 +1187,34 @@ mod tests {
         assert_eq!(bow2.weapon.as_ref().unwrap().ranged.as_ref().unwrap().ammo, "arrows_2");
         assert_eq!(r.renamed.len(), 3);
         for p in [root, dest, other] {
+            let _ = std::fs::remove_dir_all(p);
+        }
+    }
+
+    #[test]
+    fn characters_bring_their_models_with_their_files() {
+        let (root, mut db) = source("models");
+        std::fs::create_dir_all(root.join("models")).unwrap();
+        std::fs::write(root.join("models/hero.glb"), b"glb").unwrap();
+        std::fs::write(root.join("models/hero_clips.glb"), b"clips").unwrap();
+        db.models.push(crate::defs::ModelDef { clip_files: vec!["models/hero_clips.glb".into()], ..crate::defs::ModelDef::new("hero_3d", "models/hero.glb") });
+        let mut c = CharacterDef::fresh("knight");
+        c.appearance.model = "hero_3d".into();
+        db.characters.push(c);
+        let b = Bundle::collect(&db, &root, 32, "x", &[(RefKind::Character, "knight".into())]).unwrap();
+        assert!(b.db.model("hero_3d").is_some());
+        assert!(b.files.contains_key("models/hero.glb") && b.files.contains_key("models/hero_clips.glb"));
+        // Through a package and a library folder, into a project.
+        let b = Bundle::from_pack(&b.to_pack().unwrap()).unwrap();
+        let owned = b.to_files().unwrap();
+        let files: Vec<(&str, &[u8])> = owned.iter().map(|(p, d)| (p.as_str(), d.as_slice())).collect();
+        let b = Bundle::from_files(&files).unwrap();
+        assert!(b.db.model("hero_3d").is_some());
+        let dest = tmp("models_dest");
+        let mut d = Database::default();
+        b.merge_into(&mut d, &dest).unwrap();
+        assert!(dest.join("models/hero_clips.glb").exists() && d.model("hero_3d").is_some());
+        for p in [root, dest] {
             let _ = std::fs::remove_dir_all(p);
         }
     }

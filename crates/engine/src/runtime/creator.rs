@@ -119,11 +119,17 @@ impl Game {
         (!races.is_empty()).then(|| races[c.race % races.len()])
     }
 
-    /// Bodies a player of `sex` may choose: the race's (that exist), else the project's default
-    /// body for that sex first, then the other playable bodies of that sex.
+    /// Whether `id` is a look the creator can show: a 3D model or a figure.
+    fn is_look(&self, id: &str) -> bool {
+        self.assets.models.has(id) || self.assets.sheets.contains_key(id)
+    }
+
+    /// Bodies a player of `sex` may choose (3D models or figures): the race's (that exist), else
+    /// the project's default body for that sex first, then the playable models and figures of
+    /// that sex.
     fn creator_bodies(&self, race: Option<&crate::races::RaceDef>, sex: Sex) -> Vec<String> {
         if let Some(r) = race {
-            let v: Vec<String> = r.bodies(sex).iter().filter(|b| self.assets.sheets.contains_key(*b)).cloned().collect();
+            let v: Vec<String> = r.bodies(sex).iter().filter(|b| self.is_look(b)).cloned().collect();
             if !v.is_empty() {
                 return v;
             }
@@ -134,12 +140,14 @@ impl Game {
         if !default.is_empty() {
             v.push(default.to_string());
         }
-        for s in self.project.db.playable_bodies(sex == Sex::Female) {
-            if !v.contains(&s.id) {
-                v.push(s.id.clone());
+        let female = sex == Sex::Female;
+        let models = self.project.db.models.iter().filter(|m| m.playable && m.female == female).map(|m| &m.id);
+        for id in models.chain(self.project.db.playable_bodies(female).into_iter().map(|s| &s.id)) {
+            if !v.contains(id) {
+                v.push(id.clone());
             }
         }
-        v.retain(|b| self.assets.sheets.contains_key(b));
+        v.retain(|b| self.is_look(b));
         v
     }
 
@@ -157,8 +165,12 @@ impl Game {
     /// label).
     fn creator_features(&self, c: &Creator) -> Vec<(usize, String, Vec<[u8; 3]>, String)> {
         let body = self.creator_body(c);
-        let Some(sheet) = self.project.db.sheet(&body) else { return Vec::new() };
-        sheet.features.iter().enumerate().filter(|(_, f)| !f.colors.is_empty()).map(|(k, f)| (k, f.name.clone(), f.colors.clone(), f.label())).collect()
+        let features = match (self.project.db.model(&body), self.project.db.sheet(&body)) {
+            (Some(m), _) => &m.features,
+            (None, Some(s)) => &s.features,
+            _ => return Vec::new(),
+        };
+        features.iter().enumerate().filter(|(_, f)| !f.colors.is_empty()).map(|(k, f)| (k, f.name.clone(), f.colors.clone(), f.label())).collect()
     }
 
     /// The label of a row (feature rows: the feature's name).
@@ -193,10 +205,16 @@ impl Game {
     fn chosen_appearance(&self, c: &Creator) -> Appearance {
         let mut a = self.project.db.character(&self.project.config.player).map(|d| d.appearance.clone()).unwrap_or_default();
         let body = self.creator_body(c);
-        if body != a.body {
-            // Another figure: the player character's colours were chosen for its own.
+        let current = if a.model.is_empty() { &a.body } else { &a.model };
+        if body != *current {
+            // Another look: the player character's colours were chosen for its own.
             a.colors.clear();
-            a.body = body;
+            if self.project.db.model(&body).is_some() {
+                a.model = body;
+            } else {
+                a.model.clear();
+                a.body = body;
+            }
         }
         for (k, name, colors, _) in self.creator_features(c) {
             match c.colors.get(k).copied().unwrap_or(0) {
@@ -430,7 +448,12 @@ impl Game {
                         Row::Race => (race.map_or(String::new(), |r| r.name.clone()), None),
                         Row::Body => {
                             let b = self.creator_body(c);
-                            (self.project.db.sheet(&b).map_or(b.clone(), |s| s.label()), None)
+                            let label = match (self.project.db.model(&b), self.project.db.sheet(&b)) {
+                                (Some(m), _) => m.label().to_string(),
+                                (None, Some(s)) => s.label(),
+                                _ => b.clone(),
+                            };
+                            (label, None)
                         }
                         Row::Feature(f) => {
                             let colors = features.iter().find(|x| x.0 == *f).map(|x| x.2.clone()).unwrap_or_default();
@@ -463,12 +486,26 @@ impl Game {
             let (fw, fh) = self.character_frame_size(&a);
             let big = (190.0 / fh).floor().max(1.0);
             let dest = Rect::new(pr.x + (pr.w - fw * big) / 2.0, pr.y + 6.0, fw * big, fh * big);
-            let layer = self.character_figure(&a, facing, col);
-            self.assets.draw_frame_colored_in(&layer.sheet, self.layer_frame(&layer), dest, &layer.colors);
-            for (k, f) in order.iter().enumerate() {
-                let r = Rect::new(pr.x + 8.0 + k as f32 * 58.0, pr.y + pr.h - 88.0, fw * 1.6, fh * 1.6);
-                let layer = self.character_figure(&a, *f, 0);
-                self.assets.draw_frame_colored_in(&layer.sheet, self.layer_frame(&layer), r, &layer.colors);
+            if self.uses_model(&a) {
+                // A 3D model walks with its clip; standing in the four directions below.
+                let gear = super::paperdoll::Gear::default();
+                if let Some(cell) = self.model_cell(&a, &gear, (facing, super::paperdoll::Anim::Walking((c.time * 100.0) as u32))) {
+                    self.assets.models.draw_in(&cell, dest, WHITE);
+                }
+                for (k, f) in order.iter().enumerate() {
+                    let r = Rect::new(pr.x + 8.0 + k as f32 * 58.0, pr.y + pr.h - 88.0, fw * 1.6, fh * 1.6);
+                    if let Some(cell) = self.model_cell(&a, &gear, (*f, super::paperdoll::Anim::Idle(0))) {
+                        self.assets.models.draw_in(&cell, r, WHITE);
+                    }
+                }
+            } else {
+                let layer = self.character_figure(&a, facing, col);
+                self.assets.draw_frame_colored_in(&layer.sheet, self.layer_frame(&layer), dest, &layer.colors);
+                for (k, f) in order.iter().enumerate() {
+                    let r = Rect::new(pr.x + 8.0 + k as f32 * 58.0, pr.y + pr.h - 88.0, fw * 1.6, fh * 1.6);
+                    let layer = self.character_figure(&a, *f, 0);
+                    self.assets.draw_frame_colored_in(&layer.sheet, self.layer_frame(&layer), r, &layer.colors);
+                }
             }
         }
 

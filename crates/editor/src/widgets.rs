@@ -172,6 +172,24 @@ pub fn paint_frame(ui: &Ui, tex: &Textures, assets: &Assets, sheet: &str, frame:
 }
 
 /// Paints a (possibly multi-cell) sprite into `rect`, keeping its aspect ratio, bottom-centered.
+/// Paints a pose of a 3D model character into `rect` (bottom-centred, its aspect kept): the
+/// engine renders it into its atlas, egui shows that texture directly. False without a model.
+pub fn paint_model(ui: &Ui, assets: &Assets, db: &rustpg2d_engine::defs::Database, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect) -> bool {
+    let Some(cell) = assets.models.pose(db, &assets.sheets, req) else { return false };
+    let Some((tex, uv)) = assets.models.cell_texture(&cell) else { return false };
+    // The atlas page's OpenGL texture: egui-miniquad draws `TextureId::User` ids as raw GL textures.
+    let raw = unsafe { macroquad::window::get_internal_gl().quad_context.texture_raw_id(tex.raw_miniquad_id()) };
+    #[allow(irrefutable_let_patterns)]
+    let macroquad::miniquad::RawId::OpenGl(gl) = raw else { return false };
+    let (w, h) = (uv.w, uv.h);
+    let k = (rect.width() / w).min(rect.height() / h);
+    let size = vec2(w * k, h * k);
+    let dest = Rect::from_min_size(pos2(rect.center().x - size.x / 2.0, rect.max.y - size.y), size);
+    let uv = Rect::from_min_max(pos2(uv.x, uv.y), pos2(uv.x + uv.w, uv.y + uv.h));
+    ui.painter().image(egui::TextureId::User(gl as u64), dest, uv, Color32::WHITE);
+    true
+}
+
 pub fn paint_sprite(ui: &Ui, tex: &Textures, assets: &Assets, sprite: &SpriteRef, rect: Rect) -> bool {
     if let Some(id) = sprite.sheet.strip_prefix(CHAR_PREFIX) {
         return tex.characters.get(id).is_some_and(|l| paint_character(ui, tex, assets, l, rect));

@@ -202,7 +202,12 @@ At most 24 new poses render per frame; `push_camera_state` lets this happen in t
 world pass. The world, windows and portraits draw cells like sprites (`draw`, `draw_in`,
 `draw_part`, `draw_rotated`); busts are their own 64 x 64 close-ups of the head bone. The game and
 editor windows ask macroquad for bigger draw calls (`DRAW_VERTICES`, `DRAW_INDICES`) so a model is
-one mesh.
+one mesh. Model textures are reduced to 32 colours when loaded (`model::quantize`), so colour
+features pick exact shades as on figures; models without textures get a palette texel per
+material. Items' 3D models (`ItemDef.model`) load with the character models and are drawn in the
+pose's scene, turned so their handle lies on the hand's grip axis. The editor shows rendered poses
+without copying them: `widgets::paint_model` hands egui the atlas page's OpenGL texture
+(`TextureId::User`, which egui-miniquad draws as a raw GL texture).
 
 ## 4. The editor (`crates/editor/src/`)
 

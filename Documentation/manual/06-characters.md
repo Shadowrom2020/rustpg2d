@@ -29,33 +29,25 @@ carries. This needs a figure with **hand marks**: per frame where each hand is a
 are drawn with empty hands; armour and clothing show only in the art. How each item sits in a hand
 is set in its *Held* section ([Database › Items](05-database.md#items)).
 
-**3D models** (in development; the editor support follows): a character can be a rigged 3D model
-instead of a figure. The game renders it with its held items in the pixel look (a few light bands,
-a dark outline) and draws it like a figure: walking, idle, attacks, hurt, activities (`fish`,
-`farm`, `craft`, `chop`, `mine`, `sweep`, `read`) and sitting / sleeping play the model's clips;
-dialog portraits show its head close up. For now a model is added by hand: the `.glb` files under
-`models/` and an entry in `defs/models.ron`, then `appearance: (model: "id")` on the character:
+**3D models**: a character can be a rigged 3D model instead of a figure. The game renders it with
+its held items in the pixel look (a few light bands, a dark outline) and draws it like a figure:
+walking, idle, attacks, hurt, activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`,
+`read`) and sitting / sleeping play the model's clips; dialog portraits show its head close up.
 
-```ron
-[
-    (
-        id: "hero",
-        file: "models/hero.glb",              // the rigged model (Meshy, Blender…)
-        clip_files: ["models/hero_clips.glb"], // more files with clips of the same rig
-        height: 40.0,                          // standing height in world pixels
-        clips: [
-            (anim: "walk", clip: "walking_2"),
-            (anim: "idle", clip: "Idle_02", fps: 8.0),
-            (anim: "attack", clip: "Right_Hand_Sword_Slash"),
-            (anim: "hurt", clip: "Hit_Reaction"),
-        ],
-    ),
-]
-```
-
-An animation without a clip plays idle. Clips are drawn at 12 frames a second unless `fps` says
-otherwise; clips that stand turned are straightened by the body's direction, and walking stays in
-place.
+- *Database › 3D models › Import model…* takes a rigged `.glb` (Meshy, Blender, Mixamo…): it is
+  copied into `models/` and its clips are matched to the animations by their names. *Clip files ›
+  Add…* uses the clips of more files of the same rig (Meshy writes animations as separate files).
+- The form sets the **height** (standing, in world pixels: a person is about 40), the **clip each
+  animation plays** (an animation without one plays idle) and its frames per second (12: drawn
+  stepped like pixel animation), *Playable* / *Female* for the character creator, and shows a
+  turning preview, the four facings and the portrait. Clips that stand turned are straightened by
+  the body's direction, and walking stays in place.
+- **Colour features** are picked from the model's texture, which is reduced to 32 colours when it
+  loads, as on figures: the character editor and the creator then offer colour rows.
+- In the **character editor** the *3D models* cards above the figures choose a model; the game's
+  **character creator** offers playable models (races may list model ids in their bodies too).
+- Items can have a **3D model** ([Database › Items](05-database.md#items)): 3D model characters
+  hold it in their hand; items without one are held as their picture.
 
 **Carrying props**: the *Carry prop* action and the scripts `carry(target, prop)` /
 `stop_carrying(target)` / `player_carrying()` let the player or a character carry a prop (a crate, a

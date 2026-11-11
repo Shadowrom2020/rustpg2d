@@ -378,6 +378,53 @@ impl Editor {
     }
 
     /// `sheet_colors`: a sheet's exact colours with counts, rows and features.
+    pub(crate) fn mcp_import_model(&mut self, p: ImportModelParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let path = std::path::PathBuf::from(&p.path);
+        if !path.is_file() {
+            return Err(format!("no file {}", p.path));
+        }
+        if let Some(id) = &p.clips_for {
+            if self.project.db.model(id).is_none() {
+                return Err(format!("no model \"{id}\"{}", suggestions(id, self.project.db.models.iter().map(|m| m.id.as_str()))));
+            }
+        }
+        let rel = crate::files::import_asset(&self.project.root, &path, "models").map_err(|e| format!("{e:#}"))?;
+        let msg = self.use_model_file(p.clips_for.as_deref().unwrap_or(""), p.clips_for.is_some(), &rel);
+        if msg.contains("can't be used") {
+            return Err(msg);
+        }
+        text(msg)
+    }
+
+    pub(crate) fn mcp_model_info(&mut self, p: ModelInfoParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let d = self.project.db.model(&p.model).ok_or_else(|| format!("no model \"{}\"{}", p.model, suggestions(&p.model, self.project.db.models.iter().map(|m| m.id.as_str()))))?.clone();
+        let Some(i) = self.assets.models.info(&d.id) else {
+            let err = self.assets.models.errors.iter().find(|e| e.contains(&format!("model {}:", d.id))).cloned();
+            return Err(err.unwrap_or_else(|| format!("{} isn't loaded (its file {})", d.id, d.file)));
+        };
+        let mut out = vec![
+            format!("{} ({}): {} triangles, {} bones{}, height {} px, file {}{}", d.label(), d.id, i.triangles, i.bones.len(), if i.hands { ", hands" } else { ", no hand bones" }, d.height, d.file, if d.clip_files.is_empty() { String::new() } else { format!(" + {}", d.clip_files.join(", ")) }),
+            format!("clips: {}", i.clips.iter().map(|(n, s)| format!("{n} ({s:.1} s)")).collect::<Vec<_>>().join(", ")),
+            format!("animations: {}", rustpg2d_engine::model::ANIMS.iter().map(|a| format!("{a}={}", d.clip_of(a).map_or("-", |c| c.clip.as_str()))).collect::<Vec<_>>().join(", ")),
+        ];
+        if let Some(t) = self.assets.models.texture_image(&d.id) {
+            let mut n: BTreeMap<[u8; 3], u32> = BTreeMap::new();
+            for px in t.bytes.as_chunks::<4>().0.iter().filter(|p| p[3] > 0) {
+                *n.entry([px[0], px[1], px[2]]).or_default() += 1;
+            }
+            let mut list: Vec<_> = n.into_iter().collect();
+            list.sort_by_key(|x| std::cmp::Reverse(x.1));
+            out.push(format!("texture colours ({}), most used first:", list.len()));
+            for (c, k) in list {
+                let feature = d.features.iter().find(|f| f.shades.contains(&c)).map_or(String::new(), |f| format!("  feature {}", f.name));
+                out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {k} px{feature}", c[0], c[1], c[2], c[0], c[1], c[2]));
+            }
+        }
+        text(out.join("\n"))
+    }
+
     pub(crate) fn mcp_sheet_colors(&mut self, p: SheetColorsParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
         let d = self.project.db.sheet(&p.sheet).ok_or_else(|| format!("\"{}\" is not a sprite sheet.{}", p.sheet, suggestions(&p.sheet, self.project.db.sheets.iter().map(|t| t.id.as_str()))))?.clone();

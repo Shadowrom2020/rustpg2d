@@ -251,7 +251,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 13] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races"];
+pub const DEFS: [&str; 14] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -308,6 +308,7 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         recipes: parse_list(r(10)?, DEFS[10], warn)?,
         achievements: parse_list(r(11)?, DEFS[11], warn)?,
         races: parse_list(r(12)?, DEFS[12], warn)?,
+        models: parse_list(r(13)?, DEFS[13], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
@@ -429,6 +430,9 @@ impl Project {
         }
         if !self.db.races.is_empty() || d(DEFS[12]).exists() {
             write_ron(&d(DEFS[12]), &self.db.races)?;
+        }
+        if !self.db.models.is_empty() || d(DEFS[13]).exists() {
+            write_ron(&d(DEFS[13]), &self.db.models)?;
         }
         Ok(())
     }

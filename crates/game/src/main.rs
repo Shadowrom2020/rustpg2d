@@ -93,7 +93,7 @@ fn preloaded(root: &std::path::Path) -> Option<Project> {
     PRELOADED.lock().unwrap_or_else(|e| e.into_inner()).take().filter(|(r, _)| r == root).map(|(_, p)| p)
 }
 
-fn window_conf() -> Conf {
+fn window_conf() -> macroquad::conf::Conf {
     // The engine build stays readable in the binary: the editor's exports check it.
     std::hint::black_box(rustpg2d_engine::ENGINE_BUILD_TAG);
     rustpg2d_engine::desktop::startup("The game");
@@ -116,13 +116,21 @@ fn window_conf() -> Conf {
     if let Some(p) = project {
         *PRELOADED.lock().unwrap_or_else(|e| e.into_inner()) = Some((root.clone(), p));
     }
-    Conf {
+    let window = Conf {
         window_title: title,
         icon: Some(rustpg2d_engine::icon::window_icon(&icon)),
         window_width: 1280,
         window_height: 720,
         high_dpi: true,
         ..Default::default()
+    };
+    macroquad::conf::Conf {
+        miniquad_conf: window,
+        update_on: None,
+        default_filter_mode: FilterMode::Linear,
+        // 3D character models are drawn as one mesh each (render/model.rs).
+        draw_call_vertex_capacity: rustpg2d_engine::render::model::DRAW_VERTICES,
+        draw_call_index_capacity: rustpg2d_engine::render::model::DRAW_INDICES,
     }
 }
 

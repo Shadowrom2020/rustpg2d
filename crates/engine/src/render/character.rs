@@ -21,12 +21,18 @@ pub const ANIM_ROWS: u32 = 16;
 pub enum Anim {
     /// Walk frame (0 = standing).
     Walk(u32),
+    /// Walking for this many hundredths of a second (figures: 8 frames a second; models play
+    /// their walk clip at that time).
+    Walking(u32),
     /// Standing still: breathing frame 0 / 1.
     Idle(u32),
     /// An attack: 0 wind-up, 1 swing, 2 follow-through, 3 recover.
     Attack(u32),
     /// Just hit.
     Hurt,
+    /// A model's extra animation (`ModelDef::clips`: "fish", "hammer", "sit"…); figures show
+    /// their standing frame (or the walk column `.1` of activity strokes).
+    Extra(&'static str, u32),
 }
 
 impl From<u32> for Anim {
@@ -40,9 +46,11 @@ impl Anim {
     fn block(self) -> (u32, u32) {
         match self {
             Anim::Walk(c) => (0, c % LAYOUT_FRAMES),
+            Anim::Walking(t) => (0, (t * 8 / 100) % LAYOUT_FRAMES),
             Anim::Idle(k) => (4, k % 2),
             Anim::Attack(k) => (8, k.min(3)),
             Anim::Hurt => (12, 0),
+            Anim::Extra(_, c) => (0, c % LAYOUT_FRAMES),
         }
     }
 
@@ -57,10 +65,11 @@ impl Anim {
     /// For `status`: walk / idle / attackN / hurt.
     pub fn name(self) -> String {
         match self {
-            Anim::Walk(_) => "walk".into(),
+            Anim::Walk(_) | Anim::Walking(_) => "walk".into(),
             Anim::Idle(_) => "idle".into(),
             Anim::Attack(k) => format!("attack{}", k.min(3)),
             Anim::Hurt => "hurt".into(),
+            Anim::Extra(n, _) => n.into(),
         }
     }
 }
@@ -125,6 +134,8 @@ mod tests {
     fn animation_rows_fall_back_to_standing() {
         // Facing right (row 2): the walk frame 1, idle, attack and hurt rows below the walk.
         assert_eq!(Anim::Walk(1).frames(Facing::Right), (9, 9));
+        // Walking 0.4 s: 8 frames a second -> column 3 (0.375 s), then on.
+        assert_eq!(Anim::Walking(40).frames(Facing::Right), (11, 11));
         assert_eq!(Anim::Idle(1).frames(Facing::Right), ((4 + 2) * 4 + 1, 8));
         assert_eq!(Anim::Attack(2).frames(Facing::Right), ((8 + 2) * 4 + 2, 8));
         assert_eq!(Anim::Hurt.frames(Facing::Down), (12 * 4, 0));

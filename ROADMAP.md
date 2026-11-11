@@ -420,10 +420,11 @@ Instructions for every session (people and coding agents) that implements roadma
   becomes the gear placement on bones. Hit flashes, tints, fades, sitting and lying (furniture
   poses become clips) work on the image.
 
-- [ ] 3D characters in the engine — `feature/3d-characters`
+- [x] 3D characters in the engine — `feature/3d-characters`
 
   **Goal.** Characters and the player are drawn from models with their gear: walk, idle, attack,
-  hurt and the extra clips, four facings, the 2D look. Sprite figures are gone from the engine.
+  hurt and the extra clips, four facings, the 2D look. Figures keep working next to models until
+  the cast is converted (their removal moved to *The cast in 3D*, so `develop` stays playable).
 
   **Design.**
   - The *Architecture* above, engine side: models, the scene, the cache, the shaders, gear on
@@ -434,16 +435,23 @@ Instructions for every session (people and coding agents) that implements roadma
     a model lacks one).
   - `status`: `models=` (cached poses, pages, renders this second), `anims=` as now, `held=` from
     the scene.
-  - `RUSTPG2D_MODEL_DEBUG=1` draws the bones and frame bounds.
-  - The starter **mannequin** (a rigged, neutral humanoid, made once) is the fallback.
+  - `RUSTPG2D_MODEL_DEBUG=1` shows the first atlas page with the cells and feet points.
+  - Walking characters pass the time walked (`Anim::Walking`), activities and furniture an
+    extra animation (`Anim::Extra`: `fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `read`,
+    `sit`, `sleep`); a model without the clip plays idle, and sitting / lying without a clip crop
+    or turn the idle pose like figures.
+  - Portraits render the model's head close up (64 x 64, the rest pose, facing the front).
+  - Gear: held items without a 3D model are their pictures on quads at the hand bones (hold point
+    and orientation mark on the thumb-side axis, both hands, mirroring as *Visible equipment*),
+    depth-sorted with the body; 3D item models come with the editor item.
 
   **Engine.**
   - New: the `gltf` dependency, `model.rs` (load, skin, clips, align), `render/model.rs`
     (camera, shaders, atlas cache, gear, bust), `defs/models.ron` in `project.rs`.
   - `release.rs` (exports carry `models/`; web: in `data.pack`), `library.rs`, renames in
     `refactor.rs`, `refs_of_*` (a model's file, an item's model).
-  - Removed: the figure parts of `render/character.rs`, `SheetKind::Body`, `SheetDef.hands` /
-    `features` for figures, `hands.rs`' 2D grips.
+  - `RefKind::Model` (renames, references, starter update files), the export check (models and
+    their clip files travel with games).
 
   **Touch points.**
   - `defs.rs` (`Appearance`, `ItemDef.model`, `RaceDef` models);
@@ -459,6 +467,15 @@ Instructions for every session (people and coding agents) that implements roadma
     tip); sitting; carrying a crate; a dialog with a bust portrait.
   - 30 characters on a map: `fps=` / `frame_ms=` on desktop and in the web build (headless
     Brave).
+
+  **Done.** As designed, with figures kept until *The cast in 3D*. Verified on scratch copies with
+  the test hero (Meshy rig and clips): four facings, idle, walking, the slash's frames, sword and
+  shield, the guard's spear, fishing (line from the rod's tip), sitting (cropped idle: the hero has
+  no sit clip), lying in a bed, carrying a crate (held level in front of the chest), a dialog bust;
+  42 characters on the model at 60 fps (0.2 ms drawing, 78 poses cached), the web export at
+  58–60 fps under WebGL. Attack frames sit at fixed points of the clip (wind-up 0.22, swing 0.42,
+  follow-through 0.58, recover 0.8). Not yet: model files in asset-library bundles (with the
+  editor item); textures of models aren't recoloured until a model has colour features.
 
 - [ ] Models in the editor — `feature/3d-editor`
 
@@ -515,7 +532,12 @@ Instructions for every session (people and coding agents) that implements roadma
 
 - [ ] The cast in 3D — `feature/3d-cast`
 
-  **Goal.** The example and the starter library have only 3D characters.
+  **Goal.** The example and the starter library have only 3D characters, and figures are gone.
+
+  **Removal** (moved here from the engine item): the figure parts of `render/character.rs`,
+  `SheetKind::Body`, `SheetDef.hands` / `features` for figures, `hands.rs`' sheet grips, the
+  sprite editor's figure tools, and the starter **mannequin** (a rigged neutral humanoid) as the
+  fallback for characters without a model.
 
   **Design.**
   - **Merged to distinct looks**: one model per look, the rest colour variants. The list is

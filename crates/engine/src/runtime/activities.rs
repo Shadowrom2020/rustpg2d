@@ -110,8 +110,9 @@ impl Game {
             match a.kind {
                 ActivityKind::Fish => {
                     let tool = self.activity_tool(i);
-                    let held = self.character_held(&e.appearance, &e.equipment, &e.carrying, tool.as_deref(), (facing, self.activity_frame(i).unwrap_or(0).into()));
-                    let tip = held.iter().find(|h| Some(&h.id) == tool.as_ref()).and_then(|h| self.held_tip(&e.appearance, e.body.pos, h)).unwrap_or_else(|| rod_tip(e.body.pos, facing, k));
+                    let gear = self.character_gear(&e.equipment, &e.carrying, tool.as_deref());
+                    let pose = (facing, super::paperdoll::Anim::Extra(a.kind.id(), self.activity_frame(i).unwrap_or(0)));
+                    let tip = tool.as_deref().and_then(|t| self.held_tip(&e.appearance, e.body.pos, &gear, pose, t)).unwrap_or_else(|| rod_tip(e.body.pos, facing, k));
                     let bob = e.body.pos + dir * ts * 1.7 + vec2(0.0, (t * 2.5 + seed).sin() * 1.5 * k);
                     draw_line(tip.x, tip.y, bob.x, bob.y, 1.0 * k, Color::new(0.9, 0.9, 0.9, 0.8));
                     draw_circle(bob.x, bob.y, 3.0 * k, Color::new(0.9, 0.15, 0.1, 1.0));

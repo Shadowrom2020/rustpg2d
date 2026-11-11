@@ -63,6 +63,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   empty hands and estimates their marks. Agents: `edit_frames` gains `set_grip`, `clear_grips`,
   `estimate_hands`, `swap_hands`. Editor script `pxgrip`, `pxhands estimate|estimateall|clear|swap`,
   `pxpreview`; `status` prints `held=`.
+- **3D characters (first part)**: a character can be a rigged 3D model instead of a figure
+  (`defs/models.ron`: a `.glb` under `models/`, more files with clips of the same rig, the clip
+  each animation plays, the standing height, colour features of its texture; `appearance.model`).
+  Each pose is rendered once off screen with cel shading, a dark outline and the held items at its
+  hand bones, cached in atlas pages and drawn into the world like a figure frame: walking, idle,
+  attacks, hurt, activities and sitting play the model's clips, portraits are close-up renders of
+  its head. Exports carry the model files. `status` prints `models=`; `RUSTPG2D_MODEL_DEBUG=1`
+  shows the atlas. The editor support, Meshy generation and the cast follow (ROADMAP 0.18.0).
 - **Carrying props**: the *Carry prop* action and `carry(target, prop)`, `stop_carrying(target)`,
   `player_carrying()`: the player or a character carries a prop in both hands (no attacking
   meanwhile; saved for the player).

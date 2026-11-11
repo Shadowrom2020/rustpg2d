@@ -279,14 +279,92 @@ impl SheetKind {
     }
 }
 
-/// Look of a character: its figure (a sheet of kind Body) and the colours chosen for the figure's
-/// colour features (feature name -> colour; a feature not listed keeps the art's colours).
+/// Look of a character: its 3D model (`ModelDef`; "" = its figure `body`, a sheet of kind Body)
+/// and the colours chosen for the colour features (feature name -> colour; a feature not listed
+/// keeps the art's colours).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Appearance {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub model: String,
     pub body: String,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub colors: BTreeMap<String, [u8; 3]>,
+}
+
+impl Appearance {
+    /// Whether it shows anything: a model or a figure.
+    pub fn has_look(&self) -> bool {
+        !self.model.is_empty() || !self.body.is_empty()
+    }
+}
+
+/// A 3D character model (`defs/models.ron`): a rigged `.glb` under `models/`, more files with clips
+/// of the same rig, the clip each animation plays, its standing height and its colour features
+/// (shades of its texture).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ModelDef {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    /// The model file (`models/hero.glb`).
+    pub file: String,
+    /// More `.glb` files whose clips the model plays (Meshy writes animations as separate files).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub clip_files: Vec<String>,
+    /// Standing height in world pixels (a person: 40, two tiles is 64).
+    #[serde(default = "model_height")]
+    pub height: f32,
+    /// Animation name ("walk", "idle", "attack", "hurt", "sit", "fish"...) -> clip.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub clips: Vec<ClipMap>,
+    /// Colour features of its texture (as a figure sheet's).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<ColorFeature>,
+    /// Offered by the character creator; to female players.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub playable: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub female: bool,
+}
+
+fn model_height() -> f32 {
+    40.0
+}
+
+/// The clip an animation of a model plays.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ClipMap {
+    /// "walk", "idle", "attack", "hurt" or an extra ("sit", "sleep", "fish", "hammer", "farm"…).
+    pub anim: String,
+    /// The clip's name in the model's files.
+    pub clip: String,
+    /// Frames per second it is drawn with (stepped, like pixel animation).
+    #[serde(default = "clip_fps")]
+    pub fps: f32,
+}
+
+fn clip_fps() -> f32 {
+    12.0
+}
+
+impl ModelDef {
+    pub fn new(id: &str, file: &str) -> ModelDef {
+        ModelDef { id: id.into(), name: String::new(), file: file.into(), clip_files: Vec::new(), height: model_height(), clips: Vec::new(), features: Vec::new(), playable: false, female: false }
+    }
+
+    /// The clip of animation `anim`.
+    pub fn clip_of(&self, anim: &str) -> Option<&ClipMap> {
+        self.clips.iter().find(|c| c.anim == anim)
+    }
+
+    pub fn label(&self) -> &str {
+        if self.name.is_empty() { &self.id } else { &self.name }
+    }
+
+    pub fn feature(&self, name: &str) -> Option<&ColorFeature> {
+        self.features.iter().find(|f| f.name == name)
+    }
 }
 
 /// A sprite: a block of `w × h` frames (cells) of a sheet, starting at `frame`
@@ -1321,6 +1399,8 @@ pub struct Database {
     pub achievements: Vec<crate::achievements::AchievementDef>,
     /// Races (humans, goblins, elves…; the player picks one in the creator).
     pub races: Vec<crate::races::RaceDef>,
+    /// 3D character models.
+    pub models: Vec<ModelDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1448,6 +1528,10 @@ impl Database {
 
     pub fn race(&self, id: &str) -> Option<&crate::races::RaceDef> {
         self.races.iter().find(|d| d.id == id)
+    }
+
+    pub fn model(&self, id: &str) -> Option<&ModelDef> {
+        self.models.iter().find(|d| d.id == id)
     }
 
     /// A character definition's faction: its own, else its race's ("" = none).
@@ -1621,6 +1705,7 @@ impl_def!(crate::skills::SpellDef, crate::refactor::RefKind::Spell, spells, refs
 impl_def!(crate::crafting::RecipeDef, crate::refactor::RefKind::Recipe, recipes, refs = crate::refactor::refs_of_recipe);
 impl_def!(crate::achievements::AchievementDef, crate::refactor::RefKind::Achievement, achievements);
 impl_def!(crate::races::RaceDef, crate::refactor::RefKind::Race, races, refs = crate::refactor::refs_of_race);
+impl_def!(ModelDef, crate::refactor::RefKind::Model, models);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
@@ -1682,6 +1767,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Race => {
                 type $T = $crate::races::RaceDef;
+                $body
+            }
+            $crate::refactor::RefKind::Model => {
+                type $T = $crate::defs::ModelDef;
                 $body
             }
             $crate::refactor::RefKind::Map => $else,

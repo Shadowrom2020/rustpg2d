@@ -923,8 +923,8 @@ impl Game {
             let (fw, fh) = self.character_frame_size(&a);
             let scale = ((portrait.w - 4.0) / fw).min((portrait.h - 4.0) / fh);
             let (w, hh) = (fw * scale, fh * scale);
-            let held = self.player_held((crate::entity::Facing::Down, super::paperdoll::Anim::Walk(0)));
-            self.draw_character_in(&a, &held, Rect::new(portrait.x + (portrait.w - w) / 2.0, portrait.bottom() - 2.0 - hh, w, hh));
+            let gear = self.player_gear();
+            self.draw_character_in(&a, &gear, Rect::new(portrait.x + (portrait.w - w) / 2.0, portrait.bottom() - 2.0 - hh, w, hh));
         }
 
         // Name, defense.

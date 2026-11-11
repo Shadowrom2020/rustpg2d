@@ -27,12 +27,14 @@ pub enum RefKind {
     Achievement,
     /// Race (`races::RaceDef`).
     Race,
+    /// 3D character model (`defs::ModelDef`).
+    Model,
 }
 
 impl RefKind {
-    /// Every kind: the thirteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
+    /// Every kind: the fourteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
     /// then `Map`.
-    pub const ALL: [RefKind; 14] = [
+    pub const ALL: [RefKind; 15] = [
         RefKind::Tileset,
         RefKind::Sheet,
         RefKind::Item,
@@ -46,10 +48,11 @@ impl RefKind {
         RefKind::Recipe,
         RefKind::Achievement,
         RefKind::Race,
+        RefKind::Model,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 13] = [
+    pub const DEFS: [RefKind; 14] = [
         RefKind::Tileset,
         RefKind::Sheet,
         RefKind::Item,
@@ -63,6 +66,7 @@ impl RefKind {
         RefKind::Recipe,
         RefKind::Achievement,
         RefKind::Race,
+        RefKind::Model,
     ];
 
     /// The kind's word in messages and commands: "tileset", "sheet", …, "map".
@@ -82,6 +86,7 @@ impl RefKind {
             RefKind::Quest => "quest",
             RefKind::Achievement => "achievement",
             RefKind::Race => "race",
+            RefKind::Model => "model",
         }
     }
 
@@ -101,6 +106,7 @@ impl RefKind {
             RefKind::Recipe => "recipes",
             RefKind::Achievement => "achievements",
             RefKind::Race => "races",
+            RefKind::Model => "models",
             RefKind::Map => return None,
         })
     }
@@ -122,6 +128,7 @@ impl RefKind {
             RefKind::Quest => "Quest",
             RefKind::Achievement => "Achievement",
             RefKind::Race => "Race",
+            RefKind::Model => "3D model",
         }
     }
 
@@ -143,6 +150,7 @@ impl RefKind {
             "quest" => RefKind::Quest,
             "achievement" => RefKind::Achievement,
             "race" => RefKind::Race,
+            "model" | "3d model" => RefKind::Model,
             _ => return None,
         })
     }
@@ -217,6 +225,7 @@ impl Renamer<'_> {
     /// The figure sheet of a look.
     fn look(&mut self, a: &mut crate::defs::Appearance) {
         self.fix(RefKind::Sheet, &mut a.body);
+        self.fix(RefKind::Model, &mut a.model);
     }
 
     /// Items worn and carried.
@@ -705,7 +714,7 @@ mod tests {
         use crate::defs::{Appearance, CharacterDef, EquipSlot};
         use crate::inventory::ItemStack;
         let mut c: CharacterDef = ron::from_str(r#"(id: "npc", name: "Npc")"#).unwrap();
-        c.appearance = Appearance { body: "farmer".into(), colors: [("hair".to_string(), [9, 9, 9])].into() };
+        c.appearance = Appearance { body: "farmer".into(), colors: [("hair".to_string(), [9, 9, 9])].into(), ..Default::default() };
         *c.equipment.slot_mut(EquipSlot::Clothing) = Some(ItemStack::new("tunic", 1));
         *c.equipment.slot_mut(EquipSlot::Weapon) = Some(ItemStack::new("sword", 1));
         c.inventory = vec![ItemStack::new("apple", 2)];

@@ -323,7 +323,8 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
         files.insert(format!("scripts/{}", f.file_name().unwrap_or_default().to_string_lossy()));
     }
     let db = &project.db;
-    let assets = db.tilesets.iter().map(|d| (&d.image, "tileset", &d.id)).chain(db.sheets.iter().map(|d| (&d.image, "sprite sheet", &d.id))).chain(db.sounds.iter().map(|d| (&d.file, "sound", &d.id)));
+    let models = db.models.iter().flat_map(|d| std::iter::once(&d.file).chain(d.clip_files.iter()).map(move |f| (f, "3D model", &d.id)));
+    let assets = db.tilesets.iter().map(|d| (&d.image, "tileset", &d.id)).chain(db.sheets.iter().map(|d| (&d.image, "sprite sheet", &d.id))).chain(db.sounds.iter().map(|d| (&d.file, "sound", &d.id))).chain(models);
     for (rel, kind, id) in assets {
         if rel.is_empty() || !root.join(rel).exists() {
             c.warnings.push(format!("The {kind} '{id}' has no file ({rel}); it will be missing in the game."));
@@ -650,7 +651,12 @@ mod tests {
         std::fs::create_dir_all(root.join("saves")).unwrap();
         std::fs::write(root.join("saves/quick.ron"), b"()").unwrap();
         std::fs::write(root.join("sprites/unused.png"), b"x").unwrap();
-        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, ..Default::default() }], ..Default::default() };
+        // A 3D model and a file with more of its clips.
+        std::fs::create_dir_all(root.join("models")).unwrap();
+        std::fs::write(root.join("models/m.glb"), b"glb").unwrap();
+        std::fs::write(root.join("models/m_clips.glb"), b"glb").unwrap();
+        let model = crate::defs::ModelDef { clip_files: vec!["models/m_clips.glb".into()], ..crate::defs::ModelDef::new("m", "models/m.glb") };
+        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, ..Default::default() }], models: vec![model], ..Default::default() };
         let mut p = Project { root: root.clone(), config: ProjectConfig::new("Test"), db };
         p.save_config().unwrap();
         p.save_defs().unwrap();
@@ -672,6 +678,7 @@ mod tests {
         assert!(f.join("test-quest").is_file());
         assert!(f.join("data/project.ron").is_file());
         assert!(f.join("data/maps/start.map").is_file());
+        assert!(f.join("data/models/m.glb").is_file() && f.join("data/models/m_clips.glb").is_file() && f.join("data/defs/models.ron").is_file());
         assert!(f.join("data/sprites/a.png").is_file());
         assert!(f.join("data/lang/de.ron").is_file(), "translations are exported");
         assert!(r.warnings.iter().any(|w| w.contains("'fr'")), "a language without its file is reported");

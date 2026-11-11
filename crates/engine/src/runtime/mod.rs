@@ -2153,7 +2153,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?} held={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2233,7 +2233,8 @@ impl Game {
             self.emotes_status(),
             self.hits_status(),
             self.anims_status(),
-            self.held_status()
+            self.held_status(),
+            self.assets.models.status()
         )
     }
 
@@ -2374,6 +2375,7 @@ impl Game {
     }
 
     pub fn draw(&mut self) {
+        self.assets.models.begin_frame();
         let ts = self.ts();
         let m = &self.loaded.map;
         let bg = m.background;
@@ -2437,8 +2439,8 @@ impl Game {
                     }
                     let anim = self.player_anim();
                     let tint = Self::effect_tint(&self.world.effects).unwrap_or(WHITE);
-                    let held = self.player_held((self.player.facing, anim));
-                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &held, (self.player.facing, anim), self.player.pos, tint));
+                    let gear = self.player_gear();
+                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &gear, (self.player.facing, anim), self.player.pos, tint));
                     if !drawn {
                         let r = self.player.rect();
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
@@ -2503,6 +2505,7 @@ impl Game {
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0., 0., 0., alpha));
         }
         self.draw_hurt_flash();
+        self.assets.models.debug_draw();
         if !self.on_title() {
             if !self.ui_hidden {
                 self.draw_hud();
@@ -2607,17 +2610,18 @@ impl Game {
                 self.draw_on_furniture(&e.appearance, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
                 true
             }
-            (None, Some(_)) => {
+            (None, Some((act, _))) => {
+                // Models play the activity's clip ("fish", "farm"…), figures swing their arms.
                 let col = self.activity_frame(i).unwrap_or(0);
-                let pose = (e.body.facing, col.into());
-                let held = self.character_held(&e.appearance, &e.equipment, &e.carrying, self.activity_tool(i).as_deref(), pose);
-                self.draw_character(&e.appearance, &held, pose, e.body.pos, tint)
+                let pose = (e.body.facing, paperdoll::Anim::Extra(act.kind.id(), col));
+                let gear = self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref());
+                self.draw_character(&e.appearance, &gear, pose, e.body.pos, tint)
             }
             (None, None) => {
                 self.project.db.character(&e.def).is_some() && {
                     let anim = self.npc_anim(i);
-                    let held = self.character_held(&e.appearance, &e.equipment, &e.carrying, None, (e.body.facing, anim));
-                    self.draw_character(&e.appearance, &held, (e.body.facing, anim), e.body.pos, tint)
+                    let gear = self.character_gear(&e.equipment, &e.carrying, None);
+                    self.draw_character(&e.appearance, &gear, (e.body.facing, anim), e.body.pos, tint)
                 }
             }
         }

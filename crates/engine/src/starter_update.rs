@@ -38,6 +38,9 @@ pub fn own_files(db: &Database, a: &AssetRef) -> Vec<String> {
         RefKind::Tileset => db.tileset(&a.1).map(|d| d.image.clone()),
         RefKind::Sheet => db.sheet(&a.1).map(|d| d.image.clone()),
         RefKind::Sound => db.sound(&a.1).map(|d| d.file.clone()),
+        RefKind::Model => {
+            return db.model(&a.1).map(|d| std::iter::once(d.file.clone()).chain(d.clip_files.iter().cloned()).filter(|f| !f.is_empty()).collect()).unwrap_or_default();
+        }
         _ => None,
     };
     f.into_iter().filter(|f| !f.is_empty()).collect()

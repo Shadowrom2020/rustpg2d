@@ -487,8 +487,8 @@ impl Game {
         // The tip of the rod in the hand, else about where a held rod's tip is.
         let tool = self.player_tool_in_use();
         let pose = (self.player.facing, self.player_anim());
-        let held = self.player_held(pose);
-        let tip = self.player_appearance().and_then(|a| held.iter().find(|h| Some(&h.id) == tool.as_ref()).and_then(|h| self.held_tip(&a, self.player.pos, h)));
+        let gear = self.player_gear();
+        let tip = self.player_appearance().zip(tool.as_deref()).and_then(|(a, t)| self.held_tip(&a, self.player.pos, &gear, pose, t));
         tip.unwrap_or_else(|| super::activities::rod_tip(self.player.pos, self.player.facing, self.ts() / 32.0))
     }
 }

@@ -753,7 +753,7 @@ impl Game {
 
     /// A knocked-down companion: lying on its side where it fell, greyed.
     pub(super) fn draw_downed(&self, e: &RtEntity) -> bool {
-        if e.appearance.body.is_empty() {
+        if !e.appearance.has_look() {
             return false;
         }
         let (_, fh) = self.character_frame_size(&e.appearance);

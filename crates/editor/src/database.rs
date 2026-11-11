@@ -1482,6 +1482,10 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             .on_hover_text("What it is (Database \u{E13A} Races): for the 'Race of' condition, scripts and factions. Its size comes from its body (the race that lists it).");
         });
     }
+    if !cx.refs.factions.is_empty() || !d.faction.is_empty() {
+        let race_faction = cx.db.race(&d.race).map(|r| r.faction.clone()).unwrap_or_default();
+        faction_combo(ui, "chr_faction", &mut d.faction, &cx.refs.factions, &race_faction, "Who it sides with (Database \u{E13A} Project \u{E13A} Factions): characters of hostile factions fight each other, and it attacks the player when the player's standing with its faction is -20 or below. Empty = its race's faction.");
+    }
     // The look: assembled in the character builder (body, colors, hair, clothes, gear).
     ui.separator();
     ui.heading("Look & equipment");
@@ -1511,7 +1515,7 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             let old = kind;
             ui.radio_value(&mut kind, 0, "Static");
             ui.radio_value(&mut kind, 1, "Wander");
-            ui.radio_value(&mut kind, 2, "Chase player");
+            ui.radio_value(&mut kind, 2, "Chase foes");
             if kind != old {
                 d.behavior = match kind {
                     0 => Behavior::Static,
@@ -1590,7 +1594,7 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
         ui.end_row();
         ui.label("Hostile");
         ui.checkbox(&mut d.hostile, "attacks the player").on_hover_text(
-            "With a melee weapon (its equipment) it winds up and swings it; unarmed and chasing it crouches and lunges; with a ranged weapon it shoots; otherwise it hurts by touch.",
+            "With a melee weapon (its equipment) it winds up and swings it; unarmed and chasing it crouches and lunges; with a ranged weapon it shoots; otherwise it hurts by touch. With a faction it leaves players alone who are friends of that faction (standing 20 or more); without 'Hostile' it attacks when the player's standing is -20 or below.",
         );
         ui.end_row();
         ui.label("Attack wind-up");
@@ -2165,7 +2169,12 @@ fn sound_form(ui: &mut egui::Ui, d: &mut SoundDef, cx: &mut Cx) {
 }
 
 fn project_ui(ed: &mut Editor, ui: &mut egui::Ui) {
-    egui::ScrollArea::vertical().id_salt("project_scroll").auto_shrink(false).show(ui, |ui| project_form(ed, ui));
+    let mut area = egui::ScrollArea::vertical().id_salt("project_scroll").auto_shrink(false);
+    // Editor script `dbscroll Y` (screenshots of the lower sections).
+    if let Some(y) = ed.db.form_scroll.take() {
+        area = area.vertical_scroll_offset(y);
+    }
+    area.show(ui, |ui| project_form(ed, ui));
 }
 
 fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
@@ -2404,7 +2413,100 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     }
     ui.weak("Dialogs address the player with {player} (name) and {sir|madam} (male|female); conditions have 'Player sex'; scripts have player_name(), player_sex(), is_female(), is_male(), text(\"...\").");
     ui.separator();
+    factions_form(ui, &mut ed.project.config.factions);
+    ui.separator();
     ui.label(format!("Project folder: {}", ed.project.root.display()));
+}
+
+/// A *Faction* field: the project's factions; `inherited` = what "(none)" stands for.
+fn faction_combo(ui: &mut egui::Ui, salt: &str, v: &mut String, factions: &[String], inherited: &str, help: &str) {
+    ui.horizontal(|ui| {
+        ui.label("Faction");
+        let none = if inherited.is_empty() { "(none)".to_string() } else { format!("(its race's: {inherited})") };
+        let label = if v.is_empty() { none.clone() } else if factions.contains(v) { v.clone() } else { format!("{v} (missing)") };
+        egui::ComboBox::from_id_salt(salt).selected_text(label).show_ui(ui, |ui| {
+            ui.selectable_value(v, String::new(), none);
+            for f in factions {
+                ui.selectable_value(v, f.clone(), f);
+            }
+        })
+        .response
+        .on_hover_text(help);
+    });
+}
+
+/// *Factions* in Database › Project: the list (ids are fixed once added: triggers and scripts
+/// name them) and the attitude table, symmetric, every cell cycling hostile / neutral / friendly.
+fn factions_form(ui: &mut egui::Ui, f: &mut rustpg2d_engine::factions::Factions) {
+    use rustpg2d_engine::factions::{Attitude, Faction};
+    ui.heading("Factions");
+    ui.weak("Who is hostile to whom. Characters belong to their own Faction (Database \u{E13A} Characters) or else their race's; characters of hostile factions fight each other. The player starts friendly with their own faction (their race's) and with the others as the table says; at a standing of -20 or below a faction's characters attack the player ('Change standing' action, change_standing() in scripts). 'Hostile' on a character makes it attack the player unless the player is a friend of its faction (standing 20 or more).");
+    let mut remove = None;
+    egui::Grid::new("factions").num_columns(3).striped(true).show(ui, |ui| {
+        for (k, fa) in f.list.iter_mut().enumerate() {
+            ui.monospace(&fa.id).on_hover_text("The id triggers and scripts use (fixed)");
+            ui.add_sized([180.0, 20.0], egui::TextEdit::singleline(&mut fa.name).hint_text("Name"));
+            if crate::ui::icon_button(ui, true, ph::TRASH, "Delete faction", "", "Characters and races that name it no longer belong to a faction").clicked() {
+                remove = Some(k);
+            }
+            ui.end_row();
+        }
+    });
+    if let Some(k) = remove {
+        let id = f.list.remove(k).id;
+        f.relations.retain(|r| r.a != id && r.b != id);
+    }
+    ui.horizontal(|ui| {
+        let key = egui::Id::new("new_faction_id");
+        let mut text: String = ui.data_mut(|d| d.get_temp(key).unwrap_or_default());
+        ui.add(egui::TextEdit::singleline(&mut text).desired_width(140.0).hint_text("new faction id"));
+        let id: String = text.trim().to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect();
+        let ok = !id.is_empty() && f.get(&id).is_none();
+        if ui.add_enabled(ok, egui::Button::new(crate::ui::t(ph::PLUS, "Add faction"))).clicked() {
+            let mut name = id.replace('_', " ");
+            if let Some(c) = name.get_mut(0..1) {
+                c.make_ascii_uppercase();
+            }
+            f.list.push(Faction { id: id.clone(), name });
+            text.clear();
+        }
+        ui.data_mut(|d| d.insert_temp(key, text));
+    });
+    if f.list.len() < 2 {
+        return;
+    }
+    ui.label("Attitudes (click a cell to change it; the table reads both ways):");
+    egui::ScrollArea::horizontal().id_salt("faction_table").show(ui, |ui| {
+        egui::Grid::new("faction_attitudes").num_columns(f.list.len() + 1).spacing([6.0, 4.0]).show(ui, |ui| {
+            ui.label("");
+            for b in &f.list {
+                ui.strong(&b.name);
+            }
+            ui.end_row();
+            let ids: Vec<(String, String)> = f.list.iter().map(|x| (x.id.clone(), x.name.clone())).collect();
+            for (i, (a, an)) in ids.iter().enumerate() {
+                ui.strong(an);
+                for (j, (b, bn)) in ids.iter().enumerate() {
+                    if i == j {
+                        ui.weak("(itself)");
+                        continue;
+                    }
+                    let at = f.attitude(a, b);
+                    let color = match at {
+                        Attitude::Hostile => egui::Color32::from_rgb(220, 90, 80),
+                        Attitude::Neutral => ui.visuals().weak_text_color(),
+                        Attitude::Friendly => egui::Color32::from_rgb(110, 190, 110),
+                    };
+                    let r = ui.add(egui::Button::new(egui::RichText::new(at.label()).color(color)).min_size(egui::vec2(70.0, 0.0)));
+                    if r.on_hover_text(format!("{an} and {bn}: click for the next attitude")).clicked() {
+                        let next = Attitude::ALL[(Attitude::ALL.iter().position(|x| *x == at).unwrap_or(1) + 1) % 3];
+                        f.set_attitude(a, b, next);
+                    }
+                }
+                ui.end_row();
+            }
+        });
+    });
 }
 
 /// A cut-scene function to start from (Scripts tab, *+ Cutscene*).
@@ -2641,6 +2743,7 @@ fn scripts_ui(ed: &mut Editor, ui: &mut egui::Ui) {
             vars: &vars,
             functions: &functions,
             signatures: &signatures,
+            factions: &ed.refs.factions,
         };
         let res = crate::script_editor::show(ui, &mut st.script_text, &mut st.script_ed, &known, &problem_spans);
         if res.changed {
@@ -2959,6 +3062,9 @@ fn race_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mu
     ui.label("Description").on_hover_text("Shown in the character creator under the race.");
     text_box(ui, &mut d.description, 2, "Shown in the character creator");
     ui.checkbox(&mut d.playable, "Playable: offered in the character creator");
+    if !cx.refs.factions.is_empty() || !d.faction.is_empty() {
+        faction_combo(ui, "race_faction", &mut d.faction, &cx.refs.factions, "", "The faction of its characters (those without their own) and of players of this race: they start friendly with it and with its friends, and are attacked by the factions hostile to it.");
+    }
     ui.separator();
     ui.heading("Bodies");
     ui.weak("The creator offers the bodies of the chosen sex; characters with one of these bodies get the race's size. Click a body to add or remove it.");

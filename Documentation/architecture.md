@@ -116,6 +116,13 @@ knockback, speed effects, companion, chase AI, schedule, activity, patrol, then 
 Before that loop, `assign_attack_slots` (`ai.rs`) decides once a frame which group fighters may
 close in on each target (two per target; the rest circle), so the chase AI of each character
 only reads its own `Ai::circling` and needs no knowledge of the others' plans.
+Targets are `Foe::Player`, `Foe::Companion(uid)` and `Foe::Npc(uid)`: factions
+(`factions.rs`, `ProjectConfig::factions`) become a `factions::Table` (faction index per
+`RtEntity::faction`, hostility as a bit matrix) when the game starts, so `npc_foes` / `foes` are
+lookups. `RtEntity::hostile` stays the one flag "hostile to the player" every system reads; it is
+computed by `hostile_to_player` (the *Hostile* box and the player's standing, `WorldState::standing`)
+and recomputed by `refresh_hostility` when a standing or the player's race changes. Projectiles
+remember whether their shooter was hostile to the player and its faction, so they hit only foes.
 Walking characters share `walk_to_tile` (`patrol.rs`): an A* path (`path.rs`, budget per
 waypoint), one tile at a time through `try_move`, with re-planning when blocked and giving up
 after a few seconds. The player moves through `try_move` too: solid tiles, solid entities and the

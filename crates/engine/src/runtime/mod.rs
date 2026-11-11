@@ -27,6 +27,7 @@ mod patrol;
 mod portraits;
 mod schedule;
 mod progression;
+mod factions;
 mod races;
 mod paperdoll;
 mod npc_items;
@@ -209,6 +210,8 @@ struct RtEntity {
     hp: i32,
     max_hp: i32,
     hostile: bool,
+    /// Its faction (index into `Game::factions`).
+    faction: Option<u16>,
     damage: i32,
     invuln: f32,
     flash: f32,
@@ -353,6 +356,8 @@ pub struct Game {
     pub project: Project,
     /// The database as written (`project.db` is it translated into the current language).
     db_original: crate::defs::Database,
+    /// The project's factions by index (who fights whom).
+    factions: crate::factions::Table,
     /// The languages the game offers (code, name) and the current one.
     languages: Vec<(String, String)>,
     lang_code: String,
@@ -499,6 +504,7 @@ impl Game {
         let languages = crate::lang::offered(&project.root, &project.config);
         let mut game = Game {
             db_original: project.db.clone(),
+            factions: crate::factions::Table::new(&project.config.factions),
             lang_code: project.config.language.clone(),
             languages,
             light_pass: None,
@@ -578,6 +584,7 @@ impl Game {
             _ => Arrival::Spawn(game.project.config.start_spawn.clone()),
         };
         game.scripts.set_recipes(game.project.db.recipes.clone(), game.project.db.tool_kinds());
+        game.scripts.set_factions(game.project.config.factions.clone());
         game.load_achievements();
         game.settings = crate::settings::Settings::load(&game.project.config.name);
         // The language: --lang, else the player's choice, else the system's if the game has it.
@@ -649,7 +656,7 @@ impl Game {
             EntityKind::Item => (vec2(ts * 0.75, ts * 0.75), 0.0, false, Behavior::Static),
         };
         let (max_hp, hostile, damage, weapon, defense) = match (kind, self.project.db.character(def)) {
-            (EntityKind::Character, Some(d)) => (d.max_hp.max(0), d.hostile, d.damage.max(0), d.weapon.clone(), d.defense),
+            (EntityKind::Character, Some(d)) => (d.max_hp.max(0), self.hostile_to_player(def), d.damage.max(0), d.weapon.clone(), d.defense),
             _ => (0, false, 0, None, 0),
         };
         let mut rt = RtEntity {
@@ -674,6 +681,7 @@ impl Game {
             hp: max_hp,
             max_hp,
             hostile,
+            faction: if kind == EntityKind::Character { self.factions.index(&self.project.db.faction_of(def)) } else { None },
             damage,
             invuln: 0.0,
             last_hit: 0,
@@ -2141,7 +2149,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2175,6 +2183,7 @@ impl Game {
             },
             format!("{}|{:?}|{}", self.world.player_name, self.world.player_sex, self.player_appearance().map_or("-".to_string(), |a| a.body)),
             self.race_status(),
+            self.factions_status(),
             self.creator_status(),
             self.world.quests.iter().map(|(k, q)| format!("{k}:{}:{:?}", q.stage, q.status)).collect::<Vec<_>>(),
             self.achievements_status(),
@@ -2748,6 +2757,10 @@ impl ActionHost for Game {
                 }
                 Step::Continue
             }
+            Action::ChangeStanding { faction, amount } => {
+                self.change_standing(faction, *amount);
+                Step::Continue
+            }
             Action::HideImage => {
                 self.image = None;
                 Step::Continue
@@ -3083,6 +3096,10 @@ impl ActionHost for Game {
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {
         self.sync_script_player();
         self.scripts.condition(&mut self.world, function, ctx.owner)
+    }
+
+    fn standing(&mut self, faction: &str) -> i32 {
+        Game::standing(self, faction)
     }
 
     fn pose(&mut self, target: &str, ctx: &ActionCtx) -> String {

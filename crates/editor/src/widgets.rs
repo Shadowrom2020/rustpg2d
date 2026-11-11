@@ -671,6 +671,8 @@ pub struct Refs {
     pub spells: Vec<String>,
     /// Race ids (Database › Races).
     pub races: Vec<String>,
+    /// Faction ids (Database › Project › Factions).
+    pub factions: Vec<String>,
     /// Crafting stations named by recipes.
     pub stations: Vec<String>,
     /// Achievement ids.
@@ -1005,6 +1007,17 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                 Cond::PlayerRace { race } => {
                     ui.label("player is a");
                     suggest(ui, &format!("{id}/race"), race, &refs.races, 110.0);
+                }
+                Cond::FactionStanding { faction, op, value } => {
+                    ui.label("standing with");
+                    suggest(ui, &format!("{id}/fac"), faction, &refs.factions, 100.0);
+                    egui::ComboBox::from_id_salt(format!("{id}/facop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {
+                        for o in CmpOp::ALL {
+                            ui.selectable_value(op, o, o.symbol());
+                        }
+                    });
+                    ui.add(egui::DragValue::new(value).range(-100..=100))
+                        .on_hover_text("The player's standing: -100..100; at -20 or below the faction's characters attack the player");
                 }
                 Cond::PlayerSex { sex } => {
                     ui.label("player is");
@@ -1565,6 +1578,13 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         }
         Action::ClearEmote { target } => {
             target_field(ui, id, target, refs);
+        }
+        Action::ChangeStanding { faction, amount } => {
+            labeled(ui, "faction", |ui| suggest(ui, &format!("{id}/fac"), faction, &refs.factions, 120.0));
+            labeled(ui, "by", |ui| {
+                ui.add(egui::DragValue::new(amount).range(-200..=200)).on_hover_text("Negative lowers it");
+            });
+            ui.weak("(the player's standing, -100..100: at -20 or below the faction's characters attack the player; Database › Project › Factions)");
         }
         Action::Mood { target, mood } => {
             target_field(ui, id, target, refs);

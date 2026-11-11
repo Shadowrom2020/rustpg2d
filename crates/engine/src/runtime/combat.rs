@@ -36,6 +36,10 @@ pub(super) struct Projectile {
     effect: Option<crate::effects::EffectSpec>,
     /// A critical shot of the player's (its damage already doubled).
     crit: bool,
+    /// An enemy's shot: it may hit the player and companions (its shooter is hostile to them).
+    at_player: bool,
+    /// The shooter's faction: characters of factions hostile to it are hit too.
+    faction: Option<u16>,
 }
 
 /// Who dealt a hit, for its feedback (hit-stop, the number's color).
@@ -44,6 +48,9 @@ pub(super) struct Blow {
     /// The player's own hit (weapon or spell; not a companion's).
     pub by_player: bool,
     pub crit: bool,
+    /// Another character's hit (not the player's side): a kill gives no experience and isn't
+    /// the player's in the bestiary.
+    pub by_npc: bool,
 }
 
 impl Projectile {
@@ -336,7 +343,7 @@ impl Game {
             }
             let crit = self.roll_crit(weapon.crit);
             let dmg = if crit { damage * 2 } else { damage };
-            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit });
+            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit, ..Default::default() });
         }
     }
 
@@ -364,7 +371,17 @@ impl Game {
             sprite: r.projectile.clone(),
             effect,
             crit: false,
+            at_player: true,
+            faction: None,
         });
+        // Another character's shot: whom it may hit follows from its shooter.
+        if let Some(e) = shooter.filter(|_| !from_player).and_then(|uid| self.loaded.entities.iter().find(|e| e.uid == uid)) {
+            let (hostile, faction) = (e.hostile, e.faction);
+            if let Some(p) = self.projectiles.last_mut() {
+                p.at_player = hostile;
+                p.faction = faction;
+            }
+        }
     }
 
     /// Hostile characters with a ranged weapon shoot when the player is in range and in sight.
@@ -378,13 +395,23 @@ impl Game {
             c.last_pos = Some(self.player.pos);
         }
         let player = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
-        // The player and companions that can be hurt: each shooter aims at the nearest in sight.
-        let mut aims = vec![player];
-        aims.extend(self.companion_targets().into_iter().map(|(_, p)| p));
+        // The player and companions that can be hurt (for shooters hostile to them), and the
+        // character of a hostile faction a shooter goes for: each aims at the nearest in sight.
+        let mut player_side = vec![player];
+        player_side.extend(self.companion_targets().into_iter().map(|(_, p)| p));
         let mut shots = Vec::new();
         for i in 0..self.loaded.entities.len() {
+            if !self.fights(i) {
+                continue;
+            }
+            let mut aims: Vec<Vec2> = if self.loaded.entities[i].hostile { player_side.clone() } else { Vec::new() };
+            if let Some(super::ai::Foe::Npc(uid)) = self.loaded.entities[i].ai.target {
+                if let Some(o) = self.loaded.entities.iter().find(|o| o.uid == uid && o.active && o.hp > 0) {
+                    aims.push(o.body.pos - vec2(0.0, o.body.hitbox.y / 2.0));
+                }
+            }
             let e = &mut self.loaded.entities[i];
-            if !e.active || !e.hostile || e.ai.harmless() || crate::effects::stunned(&e.effects) {
+            if !e.active || e.ai.harmless() || crate::effects::stunned(&e.effects) {
                 continue;
             }
             let Some(w) = &e.weapon else { continue };
@@ -446,7 +473,7 @@ impl Game {
                     });
                     if let Some(t) = target {
                         let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
-                        let blow = Blow { by_player: p.shooter.is_none(), crit: p.crit };
+                        let blow = Blow { by_player: p.shooter.is_none(), crit: p.crit, ..Default::default() };
                         if let Some(fx) = fx {
                             crate::effects::apply(&mut self.loaded.entities[t].effects, &fx);
                         }
@@ -455,39 +482,59 @@ impl Game {
                         break;
                     }
                 } else {
-                    // Companions are hit like the player.
-                    let companion = companions.iter().map(|(c, _)| *c).find(|&c| {
-                        let r = self.loaded.entities[c].body.rect();
-                        self.loaded.entities[c].invuln <= 0.0 && Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8).overlaps(&hit_box)
+                    // Characters of factions hostile to the shooter.
+                    let foe = p.faction.and_then(|f| {
+                        self.loaded.entities.iter().position(|e| {
+                            e.active && e.kind == crate::entity::EntityKind::Character && e.companion.is_none() && e.max_hp > 0 && e.invuln <= 0.0 && Some(e.uid) != p.shooter && self.factions.hostile(Some(f), e.faction) && {
+                                let r = e.body.rect();
+                                Rect::new(r.x, r.y - ts * 0.6, r.w, r.h + ts * 0.6).overlaps(&hit_box)
+                            }
+                        })
                     });
-                    if let Some(c) = companion {
+                    if let Some(t) = foe {
                         let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
                         if let Some(fx) = fx {
-                            crate::effects::apply(&mut self.loaded.entities[c].effects, &fx);
+                            crate::effects::apply(&mut self.loaded.entities[t].effects, &fx);
                         }
-                        self.damage_entity(c, dmg, from, 1.0);
+                        self.npc_hits(t, dmg, from, 1.0);
                         alive = false;
                         break;
                     }
-                    let r = self.player.rect();
-                    let body = Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8);
-                    // A rolling player lets arrows fly past; a raised shield stops them from the front.
-                    if body.overlaps(&hit_box) && !self.rolling() {
-                        let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
-                        match self.guard_against(pos - p.vel.normalize_or_zero() * ts * 2.0) {
-                            super::defense::Guard::Open => {
-                                if self.combat.invuln <= 0.0 {
-                                    if let Some(fx) = fx {
-                                        self.apply_player_effect(&fx);
-                                    }
-                                    self.hurt_player(dmg, from);
-                                }
+                    if p.at_player {
+                        // Companions are hit like the player.
+                        let companion = companions.iter().map(|(c, _)| *c).find(|&c| {
+                            let r = self.loaded.entities[c].body.rect();
+                            self.loaded.entities[c].invuln <= 0.0 && Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8).overlaps(&hit_box)
+                        });
+                        if let Some(c) = companion {
+                            let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                            if let Some(fx) = fx {
+                                crate::effects::apply(&mut self.loaded.entities[c].effects, &fx);
                             }
-                            // (No parry: there is nobody within reach to stun.)
-                            _ => self.blocked(super::defense::Guard::Blocked, from, None),
+                            self.damage_entity(c, dmg, from, 1.0);
+                            alive = false;
+                            break;
                         }
-                        alive = false;
-                        break;
+                        let r = self.player.rect();
+                        let body = Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8);
+                        // A rolling player lets arrows fly past; a raised shield stops them from the front.
+                        if body.overlaps(&hit_box) && !self.rolling() {
+                            let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                            match self.guard_against(pos - p.vel.normalize_or_zero() * ts * 2.0) {
+                                super::defense::Guard::Open => {
+                                    if self.combat.invuln <= 0.0 {
+                                        if let Some(fx) = fx {
+                                            self.apply_player_effect(&fx);
+                                        }
+                                        self.hurt_player(dmg, from);
+                                    }
+                                }
+                                // (No parry: there is nobody within reach to stun.)
+                                _ => self.blocked(super::defense::Guard::Blocked, from, None),
+                            }
+                            alive = false;
+                            break;
+                        }
                     }
                 }
                 // Walls are checked after targets, so characters standing on a solid tile can still be hit.
@@ -562,7 +609,11 @@ impl Game {
             }
         }
         if killed {
-            self.defeat(i);
+            if blow.by_npc {
+                self.defeat_by(i, false, false);
+            } else {
+                self.defeat(i);
+            }
         } else {
             self.audio.play(&self.project.config.sfx.hit);
             self.hp_dropped(i, before);
@@ -589,8 +640,23 @@ impl Game {
         self.defeat_with(i, true);
     }
 
-    /// Defeats character `i`; `xp`: the player gains its experience.
+    /// A character (or companion) hit by a character fighting it: companions as by an enemy,
+    /// others as a blow of another character (no experience for the player).
+    pub(super) fn npc_hits(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32) {
+        if self.loaded.entities[i].companion.is_some() {
+            self.damage_entity(i, dmg, from, knockback);
+        } else {
+            self.strike_entity(i, dmg, from, knockback, Blow { by_npc: true, ..Default::default() });
+        }
+    }
+
     fn defeat_with(&mut self, i: usize, xp: bool) {
+        self.defeat_by(i, xp, true);
+    }
+
+    /// Defeats character `i`; `xp`: the player gains its experience; `bestiary`: it counts as
+    /// the player's.
+    fn defeat_by(&mut self, i: usize, xp: bool, bestiary: bool) {
         if self.loaded.entities[i].companion.is_some() {
             // Companions aren't defeated: they fall (and wait to be healed), or go home.
             self.knock_down(i);
@@ -600,8 +666,8 @@ impl Game {
             let n = self.xp_of(&self.loaded.entities[i].def);
             self.give_xp(n as i64);
         }
-        // The bestiary counts every defeated character kind.
-        if self.loaded.entities[i].kind == crate::entity::EntityKind::Character {
+        // The bestiary counts every character kind the player's side defeated.
+        if bestiary && self.loaded.entities[i].kind == crate::entity::EntityKind::Character {
             let def = self.loaded.entities[i].def.clone();
             *self.world.bestiary.entry(def).or_insert(0) += 1;
         }

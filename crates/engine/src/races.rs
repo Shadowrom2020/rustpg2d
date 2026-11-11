@@ -67,6 +67,9 @@ pub struct RaceDef {
     /// Skill levels a player of this race starts with.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub skills: Vec<RaceSkill>,
+    /// The faction its characters (and a player of the race) belong to ("" = none).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub faction: String,
     /// Size of its characters (1 = as drawn; trolls 1.5): sprite and hitbox.
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub size: f32,
@@ -89,6 +92,7 @@ impl Default for RaceDef {
             speed: 0.0,
             defense: 0,
             skills: Vec::new(),
+            faction: String::new(),
             size: 1.0,
         }
     }

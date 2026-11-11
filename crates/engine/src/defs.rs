@@ -1067,6 +1067,9 @@ pub struct CharacterDef {
     /// Its race (`races::RaceDef`; "" = none): for conditions, scripts and factions.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub race: String,
+    /// Its faction (`ProjectConfig::factions`; "" = its race's).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub faction: String,
     /// Movement speed in pixels per second.
     #[serde(default = "default_speed")]
     pub speed: f32,
@@ -1153,6 +1156,7 @@ impl Default for CharacterDef {
             name: String::new(),
             sheet: String::new(),
             race: String::new(),
+            faction: String::new(),
             speed: default_speed(),
             hitbox: default_box(),
             behavior: default_behavior(),
@@ -1464,6 +1468,15 @@ impl Database {
 
     pub fn race(&self, id: &str) -> Option<&crate::races::RaceDef> {
         self.races.iter().find(|d| d.id == id)
+    }
+
+    /// A character definition's faction: its own, else its race's ("" = none).
+    pub fn faction_of(&self, character: &str) -> String {
+        let Some(c) = self.character(character) else { return String::new() };
+        if !c.faction.is_empty() {
+            return c.faction.clone();
+        }
+        self.race(&c.race).map(|r| r.faction.clone()).unwrap_or_default()
     }
 
     /// The race whose bodies include `body` (the first one).

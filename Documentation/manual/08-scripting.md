@@ -295,6 +295,9 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `player_name()` | The name the player chose. |
 | `player_sex()` | `"male"` or `"female"`. |
 | `player_race()` | The player's race id (*Database › Races*), e.g. `"goblin"`; `""` without one. |
+| `player_faction()` | The player's faction id (*Database › Project › Factions*): their race's, else the player character's; `""` without one. |
+| `standing(faction)` | The player's standing with a faction, -100 to 100. It starts at 100 for the player's own faction, 50 for friendly, 0 for neutral and -50 for hostile factions (the attitude table); at -20 or below the faction's characters attack the player. |
+| `change_standing(faction, amount)` | Raises the standing (a negative amount lowers it); the faction's characters turn hostile or calm down at once. *(queued)* |
 | `is_female()` / `is_male()` | The player character's sex. |
 | `player_hp()` | Current hit points (2 per heart). |
 | `player_max_hp()` | Maximum hit points. |

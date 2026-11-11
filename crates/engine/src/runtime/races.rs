@@ -23,6 +23,8 @@ impl Game {
         self.init_skills(false);
         self.world.player_hp = Some(self.player_max_hp());
         self.refresh_player_size();
+        // The race's faction decides who greets and who attacks.
+        self.refresh_hostility();
     }
 
     /// The player's hitbox at their body's size (the player character's hitbox × the size of the

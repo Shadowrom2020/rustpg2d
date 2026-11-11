@@ -1,12 +1,12 @@
-//! Dialog portraits: the speaker's head and shoulders at the left of the dialog box, drawn
-//! from their figure (in their colours). Nothing to set up per character: the speaker is
+//! Dialog portraits: the speaker's head and shoulders at the left of the dialog box, a close-up
+//! render of their model (in their colours). Nothing to set up per character: the speaker is
 //! found from the dialog's speaker text (`ProjectConfig::dialog_portraits` turns it off).
 
 use macroquad::prelude::*;
 
 use super::Game;
 use crate::defs::{Appearance, SpriteRef};
-use crate::entity::{EntityKind, Facing};
+use crate::entity::EntityKind;
 
 /// Whose portrait a dialog shows.
 #[derive(Clone, Debug, PartialEq)]
@@ -30,9 +30,6 @@ fn names_match(a: &str, b: &str) -> bool {
     let (short, long) = if a.len() <= b.len() { (a, b) } else { (b, a) };
     short.iter().all(|w| long.contains(w))
 }
-
-/// The part of a 32 x 48 character frame a portrait shows: the head and the shoulders.
-const BUST: Rect = Rect { x: 0.125, y: 0.0, w: 0.75, h: 0.56 };
 
 impl Game {
     /// Finds who speaks: `raw` is the dialog's speaker as written ("{self}", "{player}", a
@@ -165,22 +162,11 @@ impl Game {
 
     /// Head and shoulders of a character, scaled into `r` (bottom-aligned, centered).
     pub(super) fn draw_bust(&self, a: &Appearance, r: Rect) {
-        let (fw, fh) = self.character_frame_size(a);
-        if self.uses_model(a) {
-            // A close-up render, square, scaled into the box.
-            if let Some(cell) = self.model_bust(a) {
-                let side = r.w.min(r.h);
-                self.assets.models.draw_in(&cell, Rect::new(r.x + (r.w - side) / 2.0, r.bottom() - side, side, side), WHITE);
-            }
-            return;
+        // A close-up render, square, scaled into the box.
+        if let Some(cell) = self.model_bust(a) {
+            let side = r.w.min(r.h);
+            self.assets.models.draw_in(&cell, Rect::new(r.x + (r.w - side) / 2.0, r.bottom() - side, side, side), WHITE);
         }
-        let part = if (fw, fh) == (32.0, 48.0) { BUST } else { Rect::new(0.0, 0.0, 1.0, 0.6) };
-        let (pw, ph) = (fw * part.w, fh * part.h);
-        let scale = (r.w / pw).min(r.h / ph);
-        let (w, h) = (pw * scale, ph * scale);
-        let dest = Rect::new(r.x + (r.w - w) / 2.0, r.bottom() - h, w, h);
-        let l = self.character_figure(a, Facing::Down, 0);
-        self.assets.draw_frame_part_in(&l.sheet, l.frame, part, dest, &l.colors);
     }
 
     /// Draws the open dialog's portrait (after the dialog box).

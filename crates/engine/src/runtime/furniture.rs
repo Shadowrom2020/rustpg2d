@@ -315,17 +315,17 @@ impl Game {
         let (fw, fh) = self.character_frame_size(&a);
         let k = self.ts() / 32.0;
         let gear = super::paperdoll::Gear::default();
-        let model = self.uses_model(&a);
         let anim = |name: &'static str| super::paperdoll::Anim::Extra(name, 0);
         match pose {
-            // Models with a sitting or sleeping clip play it where they are.
-            Pose::Sit if model && self.assets.models.has_anim(&a.model, "sit") => {
+            // Models with a sitting or sleeping clip play it where they are; others crop or lay
+            // down their standing pose.
+            Pose::Sit if self.has_anim(&a, "sit") => {
                 self.draw_character(&a, &gear, (seat.facing, anim("sit")), seat.pos, tint);
             }
-            Pose::Lie if model && self.assets.models.has_anim(&a.model, "sleep") => {
+            Pose::Lie if self.has_anim(&a, "sleep") => {
                 self.draw_character(&a, &gear, (seat.facing, anim("sleep")), seat.pos, tint);
             }
-            Pose::Sit if model => {
+            Pose::Sit => {
                 let part = Rect::new(0.0, 0.0, 1.0, 0.8);
                 let drop = 6.0 * k;
                 let dest = Rect::new(seat.pos.x - fw / 2.0, seat.pos.y - fh + drop, fw, fh * part.h);
@@ -333,26 +333,12 @@ impl Game {
                     self.assets.models.draw_part(&cell, part, dest, tint);
                 }
             }
-            Pose::Lie if model => {
-                let (angle, head) = lie_turn(seat.facing);
-                if let Some(cell) = self.model_cell(&a, &gear, (Facing::Down, super::paperdoll::Anim::Idle(0))) {
-                    self.assets.models.draw_rotated(&cell, seat.pos + head * fh / 2.0, angle, self.project.db.body_size(&a.body), WHITE);
-                }
-            }
-            Pose::Sit => {
-                // Lower, with the legs out of sight below the seat.
-                let part = Rect::new(0.0, 0.0, 1.0, 0.8);
-                let drop = 6.0 * k;
-                let dest = Rect::new(seat.pos.x - fw / 2.0, seat.pos.y - fh + drop, fw, fh * part.h);
-                let l = self.character_figure(&a, seat.facing, 0);
-                self.assets.draw_frame_part_in(&l.sheet, self.layer_frame(&l), part, dest, &l.colors);
-            }
             Pose::Lie => {
                 // `pos` is where the feet are; the head lies towards `facing`.
                 let (angle, head) = lie_turn(seat.facing);
-                let center = seat.pos + head * fh / 2.0;
-                let l = self.character_figure(&a, Facing::Down, 0);
-                self.assets.draw_frame_colored_rotated(&l.sheet, self.layer_frame(&l), center, angle, &l.colors, WHITE);
+                if let Some(cell) = self.model_cell(&a, &gear, (Facing::Down, super::paperdoll::Anim::Idle(0))) {
+                    self.assets.models.draw_rotated(&cell, seat.pos + head * fh / 2.0, angle, self.look_size(&a), WHITE);
+                }
             }
             Pose::Stand => {
                 self.draw_character(&a, &super::paperdoll::Gear::default(), (seat.facing, 0.into()), seat.pos, tint);

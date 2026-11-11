@@ -69,6 +69,13 @@ pub struct PoseReq<'a> {
     pub bust: bool,
 }
 
+/// The model characters without one of their own are drawn as (a project may have its own).
+pub const MANNEQUIN: &str = "mannequin";
+const BUILTIN: &str = "<engine>/mannequin.glb";
+const BUILTIN_CLIPS: &str = "<engine>/mannequin_clips.glb";
+const MANNEQUIN_GLB: &[u8] = include_bytes!("../../models/mannequin.glb");
+const MANNEQUIN_CLIPS: &[u8] = include_bytes!("../../models/mannequin_clips.glb");
+
 /// Size of a bust render (image pixels, square).
 pub const BUST: u32 = 64;
 
@@ -236,6 +243,22 @@ impl Models {
     /// Loads the models of `db` (files through `read`, relative to the project).
     pub fn load(db: &Database, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> Models {
         let mut m = Models::default();
+        // Characters without a model are drawn as the mannequin: the project's, else the engine's.
+        if db.model(MANNEQUIN).is_none() {
+            let def = ModelDef { clips: crate::model::guess_clips(&crate::model::clip_names(MANNEQUIN_CLIPS).unwrap_or_default()), clip_files: vec![BUILTIN_CLIPS.into()], ..ModelDef::new(MANNEQUIN, BUILTIN) };
+            let builtin = |p: &str| -> std::io::Result<Vec<u8>> {
+                Ok(match p {
+                    BUILTIN => MANNEQUIN_GLB.to_vec(),
+                    _ => MANNEQUIN_CLIPS.to_vec(),
+                })
+            };
+            match load_one(&def, db, &builtin) {
+                Ok(l) => {
+                    m.loaded.insert(MANNEQUIN.into(), l);
+                }
+                Err(e) => eprintln!("[models] the built-in mannequin: {e:#}"),
+            }
+        }
         for def in &db.models {
             match load_one(def, db, read) {
                 Ok(l) => {

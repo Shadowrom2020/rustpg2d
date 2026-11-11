@@ -653,7 +653,7 @@ impl Game {
             },
             // (Bigger races have bigger hitboxes.)
             EntityKind::Character => match self.project.db.character(def) {
-                Some(d) => (vec2(d.hitbox[0], d.hitbox[1]) * self.project.db.body_size(&d.appearance.body), d.speed, true, d.behavior.clone()),
+                Some(d) => (vec2(d.hitbox[0], d.hitbox[1]) * self.look_size(&d.appearance), d.speed, true, d.behavior.clone()),
                 None => (vec2(ts * 0.75, ts * 0.5), 50.0, true, Behavior::Static),
             },
             EntityKind::Item => (vec2(ts * 0.75, ts * 0.75), 0.0, false, Behavior::Static),

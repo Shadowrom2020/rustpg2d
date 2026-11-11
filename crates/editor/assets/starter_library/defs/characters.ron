@@ -1446,7 +1446,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "heroine",
+            model: "heroine",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1473,7 +1474,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "elder_f",
+            model: "elder_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1500,7 +1502,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "merchant",
+            model: "merchant",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1527,7 +1530,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "wizard",
+            model: "wizard",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1554,7 +1558,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "wizard_f",
+            model: "wizard_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1583,7 +1588,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "nomad",
+            model: "nomad",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1612,7 +1618,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "nomad_f",
+            model: "nomad_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1639,7 +1646,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "blacksmith_f",
+            model: "blacksmith_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1671,7 +1679,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "noble_m",
+            model: "noble_m",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1700,7 +1709,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "noble",
+            model: "noble",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1736,7 +1746,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "bandit",
+            model: "bandit",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1775,7 +1786,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "bandit_f",
+            model: "bandit_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1819,7 +1831,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "skeleton",
+            model: "skeleton",
+            body: "",
         ),
         equipment: (
             head: None,
@@ -1859,7 +1872,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "skeleton_f",
+            model: "skeleton_f",
+            body: "",
         ),
         equipment: (
             head: None,
@@ -1922,7 +1936,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "ghost",
+            model: "ghost",
+            body: "",
         ),
     ),
     (

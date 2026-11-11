@@ -9,22 +9,14 @@ pub(super) use crate::render::character::Anim;
 use crate::defs::Appearance;
 use crate::entity::Facing;
 pub(super) use crate::render::model::Gear;
-use crate::render::model::{Cell, PoseReq, MANNEQUIN};
+use crate::render::model::{Cell, PoseReq};
 use crate::state::Equipment;
 
 impl Game {
     /// What a look is drawn as: its model, else the model named like its (old) figure, else the
     /// mannequin.
     pub(super) fn look(&self, a: &Appearance) -> Appearance {
-        let m = &self.assets.models;
-        let model = if m.has(&a.model) {
-            a.model.clone()
-        } else if !a.body.is_empty() && m.has(&a.body) {
-            a.body.clone()
-        } else {
-            MANNEQUIN.to_string()
-        };
-        Appearance { model, ..a.clone() }
+        self.assets.models.look_of(a)
     }
 
     /// Size of a character's race (trolls are bigger): races list their models.

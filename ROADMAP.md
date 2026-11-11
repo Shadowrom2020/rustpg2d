@@ -571,7 +571,7 @@ Instructions for every session (people and coding agents) that implements roadma
   from its icon, played together in the game. The turnaround prompt now also forbids sheaths (Meshy
   hung a scabbard on the belt).
 
-- [ ] The cast in 3D — `feature/3d-cast`
+- [x] The cast in 3D — `feature/3d-cast`
 
   **Goal.** The example and the starter library have only 3D characters, and figures are gone.
 
@@ -599,6 +599,15 @@ Instructions for every session (people and coding agents) that implements roadma
   - The creator choosing race, sex and colours.
   - A play-through of the first quest and the Wilds.
   - The web export's size and frame rate.
+
+  **Done.** No merging: every look of the example and the starter library became its own model (47
+  people, 9 animals, 16 items, the mannequin; about 2,700 credits). Models were made from the
+  figures' front, side and back frames, so they keep the drawn look; animals were fitted to the rig
+  templates. Removal as planned (figures, hand marks, the Hands tool, the 2D Character art kind,
+  the LPC import), with the mannequin built into the engine as the fallback. Model files are
+  compacted (32 MB for the example). Not done: eight facings, the atlas memory budget, a lighting
+  pass against the tiles, and the game icon from the player's model (exports use the player's
+  portrait, else the emblem).
 
 **Open points to settle while building.**
 - The atlas cache's memory budget.

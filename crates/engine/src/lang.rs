@@ -384,7 +384,7 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         add(&r.description);
     }
     // The character creator's colour rows.
-    for f in db.sheets.iter().flat_map(|s| &s.features).filter(|f| !f.colors.is_empty()) {
+    for f in db.models.iter().flat_map(|m| &m.features).filter(|f| !f.colors.is_empty()) {
         add(&f.label());
     }
     // Every trigger of the definitions and the maps, and the lock / container texts of props and

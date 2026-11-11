@@ -14,7 +14,7 @@ the left and the selected definition's form on the right.
 - **+ New**, **Duplicate** and **Delete** manage the list, **Usages** lists every place the
   selected definition is used ([Finding things](02-the-editor.md#finding-things)); **New asset…** starts a wizard that also
   draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** makes a
-  character from an existing figure, a new one to draw, an import or AI generation
+  character from an existing 3D model, an imported one or AI generation
   ([Characters › New characters](06-characters.md#new-characters)).
 - Every definition has an **id** (used by the files, triggers and scripts) and a **name** (shown to
   players). **Rename…** next to the id changes the id everywhere: maps (also those not open),
@@ -50,7 +50,7 @@ is full, assigns it and opens it for drawing.
 | **Seed** | Makes it plantable on farm plots: growth stages with a sprite and hours each, and the harvest ([Farming](09-gameplay.md#farming)) |
 | **Magic** | **Teaches spell**: using it teaches a spell (a scroll that is consumed, a book that isn't) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
-| **Held** | Weapons, left-hand items and tools: how figures hold it (below) |
+| **Held** | Weapons, left-hand items and tools without a 3D model: how their picture is held (below) |
 | **3D model** | Weapons, left-hand items and tools: the model 3D model characters hold (below) |
 | **On use** | Triggers that run when the player uses the item: heal, give something, run a script ([Events](07-events.md)) |
 
@@ -68,10 +68,10 @@ is full, assigns it and opens it for drawing.
 - **Tool**: a *Tool kind* (`rod`, `pickaxe`, `hammer`, `hoe`…) for activities, gathering, fishing
   and crafting recipes. Held in the right hand while used.
 
-Worn items count in play and show only in a figure's art. **Held items are drawn in the hands**
-of figures that have hand marks ([Art and sound › Hands](10-art-and-sound.md#hands)): the weapon in
-the right hand, shields and lights in the left, bows in the left, two-handed weapons in both, a tool
-in the right hand while it is used. The **Held** section says how:
+Worn items count in play and show only in a model's art. **Held items are drawn in the hands**
+of characters: the weapon in the right hand, shields and lights in the left, bows in the left,
+two-handed weapons in both, a tool in the right hand while it is used. Items with a **3D model**
+(below) are held as that model; for the others the **Held** section says how their picture is held:
 
 - without *Own marks* the item's icon is held at its lower left corner, its blade (pointing up-right
   in the icon) along the hand's grip axis, at half its size;
@@ -79,8 +79,7 @@ in the right hand while it is used. The **Held** section says how:
   fishing rod have their own on the starter `held` sheet), the **hold point** (click the picture),
   the **orientation** (drag from the hold point: the direction in the picture that lies on the hand's
   grip axis; setting it off the picture's length tilts the item, as the fishing rod held 40° up),
-  the **size** and the **hand** (*By its kind* or right, left, both). Previews show it in a figure's
-  hands facing down, facing right and in a swing.
+  the **size** and the **hand** (*By its kind* or right, left, both).
 
 The **3D model** section gives the item a model (a `.glb`, copied into `models/`) for characters
 made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)): its **length**
@@ -155,10 +154,7 @@ portraits and parallax images all come from sprite sheets.
 |---|---|
 | **Image**, **Frame size** | The picture and the size of one frame (in image pixels) |
 | **Scale** | 1× normally; 2× (3×, 4×) for high-resolution art: the frames are drawn at half (a third, a quarter) of their pixel size, so 64 × 96 frames fill a 32 × 48 place ([Art and sound › High-resolution sprites](10-art-and-sound.md#high-resolution-sprites)) |
-| **Kind** | *Character figure* (a complete character in the 16-row character layout; the character pickers offer them), *Emotions* (every animation is an emotion shown over heads, [Events › Emotions over heads](07-events.md#emotions-over-heads)) or plain *Sprite* |
-| **Woman** | For figures: offered to female players |
-| **Playable** | For figures: players may choose it in the character creator |
-| **Colour features** | For figures: the parts that can take other colours and the colours offered ([Art and sound › Colour features](10-art-and-sound.md#colour-features)) |
+| **Kind** | *Emotions* (every animation is an emotion shown over heads, [Events › Emotions over heads](07-events.md#emotions-over-heads)) or plain *Sprite* (characters are 3D models: *Database › 3D models*) |
 | **Animations** | Named frame ranges (imported from Aseprite tags, or made here) for the *Effect* and *Fly* actions |
 | **Used by** | Which items, props and characters use the sheet |
 
@@ -196,7 +192,7 @@ These belong to the game systems they drive: [Skills and magic](09-gameplay.md#s
 |---|---|
 | **Project** | Name; start map and start spawn; pixel scale; inventory slots; the clock's **day length** (real minutes per in-game day, default 24; 0 = time stands still) and the hour **new games start at** |
 | **Player character** | The character definition the player is, and the **player portrait** |
-| **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable figures and the default figure per sex (the colour rows come from the figures' colour features) ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
+| **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable models and the default model per sex (the colour rows come from the models' colour features) ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
 | **Dialog portraits** | Show the speaker's portrait in dialogs (on by default) |
 | **Companions at 0 HP** | Knocked down until healed (default), get up after some seconds, or go home ([Companions](06-characters.md#companions)) |
 | **Factions** | The factions and the attitude table between them: who fights whom and how they treat the player ([Characters › Factions](06-characters.md#factions)) |

@@ -12,7 +12,6 @@ pub mod recolor;
 pub mod parallax;
 pub mod weather;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 
 use macroquad::prelude::*;
@@ -91,8 +90,6 @@ pub struct SheetTex {
     pub count: u32,
     /// Image pixels per world pixel (`SheetDef::scale`): frames are drawn at their size divided by it.
     pub scale: f32,
-    /// The shades of the sheet's colour features, in feature order (`SheetDef::features`).
-    pub features: Vec<Vec<[u8; 3]>>,
 }
 
 impl SheetTex {
@@ -124,8 +121,6 @@ pub struct Assets {
     pub tilesets: HashMap<String, TilesetTex>,
     pub sheets: HashMap<String, SheetTex>,
     pub errors: Vec<String>,
-    /// Recoloured copies of figure sheets (colour features), made on first use.
-    recolored: RefCell<HashMap<ColorKey, Texture2D>>,
     /// 3D character models and their rendered poses.
     pub models: model::Models,
 }
@@ -195,7 +190,7 @@ fn average_color(img: &Image, r: Rect) -> Color {
 impl Assets {
     /// No images (tests).
     pub fn empty(tile_size: f32) -> Assets {
-        Assets { tile_size, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), recolored: RefCell::default(), models: model::Models::default() }
+        Assets { tile_size, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), models: model::Models::default() }
     }
 
     /// Loads all tileset and sprite sheet images. Needs a macroquad window.
@@ -258,7 +253,6 @@ impl Assets {
                     columns,
                     count: columns * rows,
                     scale: def.scale.clamp(1, 4) as f32,
-                    features: def.features.iter().map(|f| f.shades.clone()).collect(),
                 },
             );
         }
@@ -267,7 +261,7 @@ impl Assets {
         }
         let models = model::Models::load(&project.db, &|rel| crate::sys::read(&project.path(rel)));
         errors.extend(models.errors.iter().cloned());
-        Assets { tile_size: ts, tilesets, sheets, errors, recolored: RefCell::default(), models }
+        Assets { tile_size: ts, tilesets, sheets, errors, models }
     }
 
     /// Tileset textures for each slot of a map.
@@ -305,77 +299,6 @@ impl Assets {
     pub fn draw_frame(&self, sheet: &str, frame: u32, feet: Vec2, tint: Color) -> bool {
         let Some(s) = self.sheets.get(sheet) else { return false };
         draw_at_feet(&s.texture, s, s.src_rect(frame), feet, tint);
-        true
-    }
-
-    /// Updates a sheet's colour features (the editor's sheet form) and forgets its recoloured
-    /// copies.
-    pub fn set_features(&mut self, sheet: &str, features: Vec<Vec<[u8; 3]>>) {
-        if let Some(s) = self.sheets.get_mut(sheet) {
-            if s.features != features {
-                s.features = features;
-                self.recolored.borrow_mut().retain(|k, _| k.0 != sheet);
-            }
-        }
-    }
-
-    /// A sheet's texture with its colour features in the chosen colours (see [`recolor`]).
-    fn colored(&self, sheet: &str, colors: &Colors) -> Option<(Texture2D, &SheetTex)> {
-        let s = self.sheets.get(sheet)?;
-        if colors.iter().all(Option::is_none) {
-            return Some((s.texture.clone(), s));
-        }
-        let mut cache = self.recolored.borrow_mut();
-        let tex = cache.entry((sheet.to_string(), colors.to_vec())).or_insert_with(|| {
-            let mut img = s.image.clone();
-            let features: Vec<(&[[u8; 3]], [u8; 3])> = s.features.iter().zip(colors).filter_map(|(shades, c)| c.map(|c| (shades.as_slice(), c))).collect();
-            recolor::recolor(&mut img.bytes, &features);
-            texture(&img)
-        });
-        Some((tex.clone(), s))
-    }
-
-    /// Draws a frame of a figure sheet in the chosen feature colours, bottom-center at `feet`.
-    pub fn draw_frame_colored(&self, sheet: &str, frame: u32, feet: Vec2, tint: Color, colors: &Colors) -> bool {
-        let Some((tex, s)) = self.colored(sheet, colors) else { return false };
-        draw_at_feet(&tex, s, s.src_rect(frame), feet, tint);
-        true
-    }
-
-    /// Like [`draw_frame_colored`](Self::draw_frame_colored), `size` times as large (bigger or
-    /// smaller races), still standing at `feet`.
-    pub fn draw_frame_colored_sized(&self, sheet: &str, frame: u32, feet: Vec2, tint: Color, colors: &Colors, size: f32) -> bool {
-        let Some((tex, s)) = self.colored(sheet, colors) else { return false };
-        let src = s.src_rect(frame);
-        let d = s.world_of(src) * size;
-        let pos = vec2((feet.x - d.x / 2.0).round(), (feet.y - d.y).round());
-        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(src)), dest_size: Some(d), ..Default::default() });
-        true
-    }
-
-    /// Like [`draw_frame_colored`](Self::draw_frame_colored), centered at `center` and rotated
-    /// by `angle` radians (clockwise on screen): characters lying in a sideways bed.
-    pub fn draw_frame_colored_rotated(&self, sheet: &str, frame: u32, center: Vec2, angle: f32, colors: &Colors, tint: Color) -> bool {
-        let Some((tex, s)) = self.colored(sheet, colors) else { return false };
-        let size = s.world_size();
-        let pos = vec2((center.x - size.x / 2.0).round(), (center.y - size.y / 2.0).round());
-        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(size), rotation: angle, ..Default::default() });
-        true
-    }
-
-    /// Draws part of a frame (`part`: fractions of the frame, e.g. the top half) into `dest`
-    /// (portraits: head and shoulders).
-    pub fn draw_frame_part_in(&self, sheet: &str, frame: u32, part: Rect, dest: Rect, colors: &Colors) -> bool {
-        let Some((tex, s)) = self.colored(sheet, colors) else { return false };
-        let r = s.src_rect(frame);
-        let src = Rect::new(r.x + part.x * r.w, r.y + part.y * r.h, part.w * r.w, part.h * r.h);
-        draw_texture_ex(&tex, dest.x, dest.y, WHITE, DrawTextureParams { source: Some(inset(src)), dest_size: Some(dest.size()), ..Default::default() });
-        true
-    }
-
-    pub fn draw_frame_colored_in(&self, sheet: &str, frame: u32, dest: Rect, colors: &Colors) -> bool {
-        let Some((tex, s)) = self.colored(sheet, colors) else { return false };
-        draw_texture_ex(&tex, dest.x, dest.y, WHITE, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(dest.size()), ..Default::default() });
         true
     }
 

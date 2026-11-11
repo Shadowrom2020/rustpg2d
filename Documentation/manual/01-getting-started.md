@@ -79,7 +79,7 @@ structures in your own games.
 | **Where** | The folder the project is created in (*Browse…*). It must be empty. |
 | **Player character's sex** | *Player chooses*, *Always male* or *Always female*. |
 | **Character creator** | Whether players create their character (name and look) when a new game starts, and the default name. |
-| **Starter assets** | Copies a starter set from your asset library: a grass tileset, the hero and heroine figures (with skin, hair and clothing colours), a coin, an apple, a potion, a sword, a key, a chest, a sign, a barrel, a well and a boulder. |
+| **Starter assets** | Copies a starter set from your asset library: a grass tileset, the hero's and heroine's 3D models (with skin, hair and clothing colours), a coin, an apple, a potion, a sword, a key, a chest, a sign, a barrel, a well and a boulder. |
 | **First map** | Name and size of the first map. It is filled with grass and has a start point in the middle. |
 | **Pixel scale** | How large the game draws its pixels (1.5 means each pixel of art is 1.5 screen pixels). Tiles are always 32 × 32 pixels of art. |
 | **Inventory slots** | How many stacks the player can carry. |

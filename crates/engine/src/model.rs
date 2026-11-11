@@ -442,7 +442,7 @@ pub fn guess_clips(names: &[String]) -> Vec<crate::defs::ClipMap> {
     const WORDS: [(&str, &[&str]); 13] = [
         ("walk", &["walk"]),
         ("idle", &["idle", "stand", "breath"]),
-        ("attack", &["attack", "slash", "strike", "swing", "punch", "stab", "thrust", "shoot", "spell", "axe_chop", "smash"]),
+        ("attack", &["attack", "slash", "strike", "swing", "punch", "stab", "thrust", "shoot", "spell", "cast", "axe_chop", "smash"]),
         ("hurt", &["hit", "hurt", "damage", "react"]),
         ("sit", &["sit"]),
         ("sleep", &["sleep", "lying", "lie"]),

@@ -159,12 +159,8 @@ change state directly.
 ### Rendering and assets
 
 `render/mod.rs` draws the tiles in view one `draw_texture_ex` each (sparse chunks skip empty
-areas; macroquad batches draws by texture). Characters are figures (`render/character.rs`: one sheet in
-the 16-row character layout, `figure()` = the frame and fallback). A figure's colour features
-(`SheetDef::features`: the art's shades of a part) are recoloured by `recolor.rs` (each shade by its
-brightness relative to the feature's middle shade, exact colour matches) into a copy of the sheet,
-cached per sheet and colour list (`Assets::colored`; `set_features` refreshes the shades when the
-editor edits them). `render/lighting.rs` renders the lights into a
+areas; macroquad batches draws by texture). Characters are 3D models (below); figure sheets of 0.17
+load as plain sprites. `render/lighting.rs` renders the lights into a
 half-resolution target (ambient colour, one additive glow per light in view) and multiplies it
 over the scene. `Assets::load` loads every tileset and sheet up front, computing per-tile average
 colours (the world map) and the solid / ladder flags; a missing image becomes a checkerboard.
@@ -172,21 +168,17 @@ A sheet's `SheetTex` cuts frames in image pixels (`frame_w`, `src_rect`) but eve
 draws them at `world_size()` = image size / `SheetDef::scale`, so high-resolution (2x) sheets
 take the same place as 1x ones; code that needs a sprite's size in the world uses `world_size()`
 or `sprite_size()`, never `frame_w` (the editor's egui previews slice textures with `frame_w`).
-Character frames: `render/character.rs::layers` takes an `Anim` (walk, idle, attack, hurt) and gives
-each layer the frame of that animation's row block plus a `fallback` (its standing frame), which
-the draw uses when the sheet has no such row (`Layer::frame_in`). `paperdoll.rs` picks the animation
-(`player_anim`, `npc_anim`: attack phase, `RtEntity::hurt`, moving, breathing).
-Held items (`hands.rs`): a figure sheet's `hands` mark per frame each hand's position, grip axis,
-size and layer (frames without marks use their facing's standing frame). `hands::held` turns a
-character's equipment (or the tool of its activity, or a carried prop) into `HeldLayer`s: the
-item's `HeldSprite` (picture, hold point, orientation mark) laid onto the hand by `lay` (mirrored
-across the axis when it points left; carried props upright), two-handed things on `both_hands`.
-`paperdoll::draw_character` draws the layers behind, the figure, then the layers in front
-(`Assets::draw_held_sprite` rotates about the hold point); `held_tip` (the farthest opaque pixel)
-places the fishing line. The editor's sprite editor, item / prop forms and character editor
-preview use the same functions.
-3D characters (`model.rs`, `render/model.rs`): a character whose `Appearance.model` names a
-`ModelDef` is drawn from a rigged glTF. `Model::load` keeps the skinned mesh, the node tree, the
+What a character does is an `Anim` (`render/character.rs`: walk, idle, attack, hurt, an extra clip);
+`paperdoll.rs` picks it (`player_anim`, `npc_anim`: attack phase, `RtEntity::hurt`, moving,
+breathing) and `Game::look` / `Models::look_of` say which model draws it: the look's model, else the
+model named like its legacy `body` (a 0.17 figure's id), else the mannequin (built into the engine,
+`models/mannequin*.glb`, unless the project has its own). Held items (`hands.rs`): an item's
+`HeldSprite` (picture, hold point, orientation mark) is laid onto a hand's `Grip` by `lay` (mirrored
+across the axis when it points left; carried props upright), two-handed things on `both_hands`;
+`held_with` turns a character's equipment (or the tool of its activity, or a carried prop) into
+`HeldLayer`s at given grips.
+3D characters (`model.rs`, `render/model.rs`): a character is drawn from the rigged glTF of its
+`ModelDef`. `Model::load` keeps the skinned mesh, the node tree, the
 skin's joints with their inverse bind matrices and the clips (`add_clips` adds those of other files,
 matched by node name); `pose` samples a clip (stepped at the clip's fps by the caller) into world
 matrices and removes the root's horizontal motion; `skin` deforms the mesh on the CPU (macroquad
@@ -203,7 +195,8 @@ world pass. The world, windows and portraits draw cells like sprites (`draw`, `d
 `draw_part`, `draw_rotated`); busts are their own 64 x 64 close-ups of the head bone. The game and
 editor windows ask macroquad for bigger draw calls (`DRAW_VERTICES`, `DRAW_INDICES`) so a model is
 one mesh. Model textures are reduced to 32 colours when loaded (`model::quantize`), so colour
-features pick exact shades as on figures; models without textures get a palette texel per
+features pick exact shades of it (`recolor.rs`: each shade by its brightness relative to the
+feature's middle shade); models without textures get a palette texel per
 material. Items' 3D models (`ItemDef.model`) load with the character models and are drawn in the
 pose's scene, turned so their handle lies on the hand's grip axis. Unrigged models with a rig
 template (`ModelDef.rig`) are fitted when they load (`Model::fit_rig`): the mesh is turned, the

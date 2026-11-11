@@ -82,19 +82,19 @@ crates/engine/src/      library: everything shared by game and editor
                         TILE_SIZE = 32, CharacterCreation / SexChoice
   settings.rs           player options (Options menu): ~/.config/rustpg2d/<game>/settings.ron,
                         RUSTPG2D_SETTINGS_DIR overrides the folder (set it to a scratch dir in tests)
-  render/character.rs   characters are figures: an Appearance = body (a sheet of kind Body, the
-                        16-row character layout: walk, idle, attack, hurt) + colors (feature name
-                        -> colour); figure() = the frame (with the standing fallback) and the
-                        colours of the sheet's colour features (SheetDef.features: the art's
-                        shades of skin / hair / clothing…); render/recolor.rs maps those shades
-                        onto the chosen colour by brightness (exact colour matches; Assets::colored
-                        caches per sheet + colours). SheetDef.playable / female = offered by the
-                        creator (Database::playable_bodies).
-  hands.rs              visible equipment: SheetDef.hands (per frame a Grip per hand: position, grip
-                        axis across the fist, size, front), ItemDef.held / PropDef.carry (HeldSprite:
-                        picture, hold point, orientation mark), held() = the HeldLayers to draw (lay():
-                        mark onto axis, mirrored when the axis points left; both_hands: the line through
-                        both fists); runtime/paperdoll.rs draws them, held_tip = a held item's far end
+  render/character.rs   Anim (what a character does: walk, idle, attack, hurt, extra clips) and the look /
+                        equipment of a placed character. Characters are 3D models: an Appearance =
+                        model (+ the legacy `body`, a 0.17 figure's id = the model that replaced it) +
+                        colors (feature name -> colour); Models::look_of resolves it (model, else the
+                        model named like the body, else the built-in mannequin, models/mannequin*.glb
+                        embedded in the engine); render/recolor.rs maps a model's feature shades onto
+                        the chosen colour by brightness. ModelDef.playable / female = offered by the
+                        creator. Old figure sheets (`kind: Body`) load as plain sprites.
+  hands.rs              held items: a hand's Grip (position, grip axis across the fist, size, front),
+                        ItemDef.held / PropDef.carry (HeldSprite: picture, hold point, orientation
+                        mark), held_with() = the HeldLayers at given grips (lay(): mark onto axis,
+                        mirrored when the axis points left; both_hands: the line through both fists);
+                        render/model.rs puts them on the hand bones, held_tip = a held item's far end
   model.rs              3D character models: Model::load (gltf crate: skinned mesh, nodes, skin, clips,
                         texture downsized), add_clips (more files of the same rig), pose (root motion
                         removed), skin (CPU), facing_of (clip alignment); render/model.rs renders poses
@@ -116,7 +116,7 @@ crates/engine/src/      library: everything shared by game and editor
                         inventory_ui, shop_ui, crafting_ui (Open crafting window), achievements (checks, toasts), minigame (lockpicking, fishing), furniture (sitting, sleeping: PropDef.use_spot), gather (gathering props with a tool, regrowing prop states), farm (farm plots: planting seeds, crops growing, harvest), activities (characters seen fishing / hammering / reading at their spot), crafting_ui also checks RecipeDef.station_state against the station prop (cooking fires), orders (companion orders menu, G / pad LB), companion_ui (a companion's window: gear, bag, the player's inventory), npc_use (characters use the items they carry: potions when critical, cures, buffs; companion ammo), healing ("heal whom?" choice for heal spells / items with ItemDef.use_on, companions' HUD rows, Action::HealCharacter), journal, creator, patrol (routes; walk_to_tile = A* walking shared with schedule = daily routines, stops on other maps = visitors, furniture), companions (follow, fight, carried across maps via WorldState.companions), lights (light sources,
                         clock), skills (skill bonuses, mana, spells, aiming, K screen), fx (Fly /
                         Effect actions: scripted flying sprites and one-shot animations), menu (title/pause/options),
-                        worldmap (M map screen), paperdoll (drawing character figures, player model),
+                        worldmap (M map screen), paperdoll (drawing characters: Game::look, model poses),
                         npc_items (NPC equipment / carried items: combat, drops, saved changes), mouse,
                         spawner, ui (dialogs, toasts), input (+ injection for autoplay)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
@@ -168,16 +168,16 @@ crates/editor/src/      editor binary
                         ui.rs (the window); files.rs EditorSettings = <config>/editor.ron
   app.rs                Editor state, menus, inspector, Pending/close-project logic, play-test
   graph.rs (Events mode: the map's triggers / scripts / maps as a graph; build() = nodes + edges),
-  import/ (File › Import…: tiled.rs .tmx/.tmj → map + tilesets, lpc.rs walk cycle → character
-  sheet, aseprite.rs JSON → sheet + SheetDef.tags; fixtures in crates/editor/tests/fixtures),
+  import/ (File › Import…: tiled.rs .tmx/.tmj → map + tilesets, aseprite.rs JSON → sheet +
+  SheetDef.tags; fixtures in crates/editor/tests/fixtures),
   canvas.rs (map view + tools), doc.rs (map doc + undo; Edit::Group), structures.rs (Structures
   tool, capture, thumbnails), clipboard.rs (region copy / cut / paste), search.rs (Ctrl+P quick search, Find usages, the find_usages agent tool's list), problems.rs (Edit › Problems: the project check, status bar counts, the problems agent tool), terrain.rs (Terrain tool,
   Database › Tilesets › Terrains), database.rs (Database tabs),
   widgets.rs (sprite pickers, trigger/condition/action editors, shop/container/lock UIs),
-  maps.rs (map switching, transitions), builder.rs (character editor: figure cards, colour
-  features, equipment, preview; the New character window with its sources (existing figure, draw
-  a new 16-row sheet, import, AI) and the Customize window; `char…` script commands), models.rs
-  (template chooser: copy a project / library character's figure and colours),
+  maps.rs (map switching, transitions), builder.rs (character editor: model cards, colour
+  features, equipment, preview; the New character window with its sources (existing model, import
+  a model, AI) and the Customize window; `char…` script commands), models.rs
+  (template chooser: copy a project / library character's model and colours),
   script_editor.rs (Rhai editor: highlighting, completion, API table with params/docs),
   ui.rs (icon font, ribbon / tool-button helpers), models_tab.rs (importing 3D models and item
   models, rendering item icons; the form is database::model_form, previews widgets::paint_model),
@@ -196,7 +196,7 @@ example_project/        the example game, plain project files (edit them through
                         AI agent server, see *Example content*)
 scripts/art/rigs/       templates.py: the rig templates (Blender: skeleton, stand-in mesh, Walk / Idle /
                         Attack / Hurt) -> models/rig_*.glb of the example and the starter library
-scripts/art/meshy/      the Meshy pipeline that draws the complete-figure character sheets (README there;
+scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.17 (README there;
                         key in ~/.config/meshy/api_key, work/ is git-ignored)
 ```
 
@@ -330,9 +330,9 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   `libdialogadd`, `libwindow`, `libedit`…; scripted assets: `tolib` / `projexport KIND ID PATH` open the *Script functions* dialog → `scriptpick FN on|off`, `scriptpickok`, `scriptpickcancel`; `libimport` / `projimport PATH` import packages, `libfilter KIND`), structures (`structure ID`, `stplace X Y`,
   `stcapture X Y W H ID`, `stinfo`; structure editor: `stnew`, `stsize W H`, `stlayer N`,
   `sttool stamp|keep|clear|solid|walkable|auto|prop`, `ststamp TS X Y W H`, `stprop ID`,
-  `stpaint X Y`), `hover X Y` (tool previews), terrains (`tool terrain`, `terrain NAME`, `terrainpaint X Y [erase]` = a Terrain-tool click / Shift+click, `terrainedit K [block]` = edit terrain K in Database › Tilesets, `terrainblob TILESET NAME on|off` = its Corners (47 tiles) toggle), `mapweather none|rain|snow|fog [PERCENT]` (the open map's weather), schedules (`scheduleedit on|off` = edit the selected character's daily schedule on the map, `click` adds stops; `stop K hour H|facing up|any|inside on|off|map NAME|-|prop NAME|-|tile X Y`; `status` prints `schedule=`), `viewopt weather on|off` (weather preview), `dbscroll Y` (scroll the Database form, a big Y = the end), `view CX CY ZOOM` / `viewopt zones|grid|collision|weather|parallax on|off` (camera and view toggles for screenshots), imports (`import tiled|lpc|aseprite FILE [ID] [KIND] [scale=N]` print the report, `importdialog`; `actionsheet SHEET` sets the selected entity's last Effect / Fly sheet; `tab KIND ID` also selects by id), Events graph (`mode events`, `graph scope map|selection`, `graph functions map|all`, `graphnode N` select, `graphedit N` toggle a trigger's editors, `graphtext N K TEXT` = edit action K's text in node N, `graphview N` zoom to a node, `graphdump` nodes + edges; `status` prints `graph=nodes,edges`; node indices are those of the last frame), `play [start]` (F5 / F6 play-test; the game inherits the environment, so set `RUSTPG2D_AUTOPLAY` to drive it), Database undo (`dbundo` / `dbredo`; `status` prints `dbundo=undo/redo`), quick search / usages (`search TEXT` prints the hits, `searchpick N` jumps; `usages KIND ID` prints and opens the window, `usagepick N`; `status` prints `search=`, `usages=`, `mode=`, `dbtab=`, `dbsel=`, `script=`), problems (`problems [AREA]` checks the project, prints the list and opens the window, `problempick K` = click entry K of the printed list; `status` prints `problems=errors/warnings`), Generate art (`artwindow`, `artkind KIND` = the window's kind, `settingswindow`, `artgen KIND ID SIZE ATTACK DESCRIPTION…` = start a job with the cost confirmed (3D kinds `model` / `creature` / `gear` take `female`, `from=SHEET` or `-` in the SIZE place; `gear`'s ID is the item), `artjobs`, `artapply JOB [ID]`, `artredo JOB PICTURE`, `artbalance`; `status` prints `art=running/done/failed:credits`; set `RUSTPG2D_MESHY_FAKE=<dir>` with `walk.png` / `attack.png` / `picture.png` (3D: `views.png`, `model.glb`, `rig.glb`, `clips.glb`; the requests 3D steps would send land there as `sent_<step>.json`) to test without spending; real runs: copy the key into the scratch config folder as `meshy.key`), library update (`libupdate` = Assets › Update asset library…, prints the added / updated / edited / retired lists; `libupdatepick edited|retired KIND ID on|off`, `libupdateok`, `libupdatecancel`; `status` prints `libupdate=closed|offered|open:A/U/E/R|done`; test on a scratch library, e.g. an old release's `starter_library/` from `git archive`), multi-select (`selectadd entity N|zone N|named NAME` = Ctrl+click, `boxselect X Y W H` = Ctrl+drag, `movesel DX DY`, `delete`, `duplicate`; `status` prints `multi=N`), clipboard (`region X Y W H` selects tiles, `copy` / `cut` the region or selected entity, `paste X Y` = top-left corner, `paste` arms it for `hover` / `click`, `unpaste`; `status` prints `sel=`, `clipboard=`, `pasting=`), `lighting on|off [HOUR]` (lighting preview), `mapfog on|off` (map's fog of war), `addaction LABEL` (append an action template to the selected entity's trigger), `entequip ITEM` / `entcolor FEATURE RRGGBB|-` (selected NPC's own equipment / feature colour), pixel editor (`px…`; figures: `pxanim walk|idle|attack|hurt down|left|right|up`, `pxplay on|off`, `pxonion on|off [next]`, `pxdup`, `pxnudge DX DY`, `pxrow copy|paste|clear|mirror [all]`, `pxfill standing`, `pxreplace FROM TO frame|row|sheet`, `pxundo`; hand marks: `pxtool hands`, `pxgrip right|left X Y ANGLE [SCALE] [back]` / `pxgrip HAND -`, `pxhands estimate|estimateall|clear|swap [all]`, `pxpreview WEAPON [OFFHAND|-]`; `pxopen` opens a figure's image with the character layout; `status` prints `pixel=`),
+  `stpaint X Y`), `hover X Y` (tool previews), terrains (`tool terrain`, `terrain NAME`, `terrainpaint X Y [erase]` = a Terrain-tool click / Shift+click, `terrainedit K [block]` = edit terrain K in Database › Tilesets, `terrainblob TILESET NAME on|off` = its Corners (47 tiles) toggle), `mapweather none|rain|snow|fog [PERCENT]` (the open map's weather), schedules (`scheduleedit on|off` = edit the selected character's daily schedule on the map, `click` adds stops; `stop K hour H|facing up|any|inside on|off|map NAME|-|prop NAME|-|tile X Y`; `status` prints `schedule=`), `viewopt weather on|off` (weather preview), `dbscroll Y` (scroll the Database form, a big Y = the end), `view CX CY ZOOM` / `viewopt zones|grid|collision|weather|parallax on|off` (camera and view toggles for screenshots), imports (`import tiled|aseprite FILE [ID] [scale=N]` print the report, `importdialog`; `actionsheet SHEET` sets the selected entity's last Effect / Fly sheet; `tab KIND ID` also selects by id), Events graph (`mode events`, `graph scope map|selection`, `graph functions map|all`, `graphnode N` select, `graphedit N` toggle a trigger's editors, `graphtext N K TEXT` = edit action K's text in node N, `graphview N` zoom to a node, `graphdump` nodes + edges; `status` prints `graph=nodes,edges`; node indices are those of the last frame), `play [start]` (F5 / F6 play-test; the game inherits the environment, so set `RUSTPG2D_AUTOPLAY` to drive it), Database undo (`dbundo` / `dbredo`; `status` prints `dbundo=undo/redo`), quick search / usages (`search TEXT` prints the hits, `searchpick N` jumps; `usages KIND ID` prints and opens the window, `usagepick N`; `status` prints `search=`, `usages=`, `mode=`, `dbtab=`, `dbsel=`, `script=`), problems (`problems [AREA]` checks the project, prints the list and opens the window, `problempick K` = click entry K of the printed list; `status` prints `problems=errors/warnings`), Generate art (`artwindow`, `artkind KIND` = the window's kind, `settingswindow`, `artgen KIND ID SIZE ATTACK DESCRIPTION…` = start a job with the cost confirmed (3D kinds `model` / `creature` / `gear` take `female`, `from=SHEET` or `-` in the SIZE place; `gear`'s ID is the item), `artjobs`, `artapply JOB [ID]`, `artredo JOB PICTURE`, `artbalance`; `status` prints `art=running/done/failed:credits`; set `RUSTPG2D_MESHY_FAKE=<dir>` with `walk.png` / `attack.png` / `picture.png` (3D: `views.png`, `model.glb`, `rig.glb`, `clips.glb`; the requests 3D steps would send land there as `sent_<step>.json`) to test without spending; real runs: copy the key into the scratch config folder as `meshy.key`), library update (`libupdate` = Assets › Update asset library…, prints the added / updated / edited / retired lists; `libupdatepick edited|retired KIND ID on|off`, `libupdateok`, `libupdatecancel`; `status` prints `libupdate=closed|offered|open:A/U/E/R|done`; test on a scratch library, e.g. an old release's `starter_library/` from `git archive`), multi-select (`selectadd entity N|zone N|named NAME` = Ctrl+click, `boxselect X Y W H` = Ctrl+drag, `movesel DX DY`, `delete`, `duplicate`; `status` prints `multi=N`), clipboard (`region X Y W H` selects tiles, `copy` / `cut` the region or selected entity, `paste X Y` = top-left corner, `paste` arms it for `hover` / `click`, `unpaste`; `status` prints `sel=`, `clipboard=`, `pasting=`), `lighting on|off [HOUR]` (lighting preview), `mapfog on|off` (map's fog of war), `addaction LABEL` (append an action template to the selected entity's trigger), `entequip ITEM` / `entcolor FEATURE RRGGBB|-` (selected NPC's own equipment / feature colour), pixel editor (`px…`; four-facing sheets: `pxanim walk|idle|attack|hurt down|left|right|up`, `pxplay on|off`, `pxonion on|off [next]`, `pxdup`, `pxnudge DX DY`, `pxrow copy|paste|clear|mirror [all]`, `pxfill standing`, `pxreplace FROM TO frame|row|sheet`, `pxundo`; `pxopen REL FW FH [layout]` opens an image (`layout` = the four-facing rows); `status` prints `pixel=`),
   3D models (`modelimport FILE` = Import model…, `modelclips ID FILE`, `modelfile ID FILE`, `itemmodel ITEM FILE` (hold point estimated), `itemicon ITEM` = Render icon, `modelrig ID TEMPLATE|- [TURN]` / `modeljoint ID JOINT DX DY DZ` (rig templates; offsets in parts of the height), `tab models ID`, `charset model ID|-`),
-  character editor (`charnew [ID NAME]` = New character…, `charcustom` = selected NPC, `charanim walk|idle|attack|hurt` = the previews' animation, `charset body|clothing|head|armor|weapon|offhand|carry|id|name VALUE`, `charset color FEATURE RRGGBB|-`, `charset source existing|draw|import|ai`, `charset size SIZE` / `from SHEET|-` / `female on|off` (Draw) on the open window else the selected character, `charrandom` = random colours, `chartemplate ID` (project or library character), `charcreate` / `charapply`, `charcancel`, `charreset`, `playable SHEET on|off`; `status` prints `builder=`),
+  character editor (`charnew [ID NAME]` = New character…, `charcustom` = selected NPC, `charanim walk|idle|attack|hurt` = the previews' animation, `charset model|clothing|head|armor|weapon|offhand|carry|id|name VALUE` (`model -` = none: the mannequin), `charset color FEATURE RRGGBB|-`, `charset source existing|import|ai`, `charset female on|off` (AI) on the open window else the selected character, `charrandom` = random colours, `chartemplate ID` (project or library character), `charcreate` / `charapply`, `charcancel`, `charreset`, `playable MODEL on|off`; `status` prints `builder=`),
   languages (`langtemplate CODE` = Export translation template, `playlang CODE|-` = play-test language),
   `example` (welcome screen's *Example project*: only in packaged R(ust)PG2D; copies to
   ~/rustpg2d/example_project — set HOME to a scratch dir in tests), export (`exportgame OUT [NAME]` = folder + zip, `exportwin` / `exportmac` / `exportweb` / `exportall OUT [NAME]` = Windows / macOS / web / all four, `exportpkg OUT appimage|flatpak|all [APP_ID]`,
@@ -436,10 +436,11 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   version: after changing the starter library run `cargo run -p rustpg2d-editor --example
   starter_history` (the test `starter_history_covers_the_starter` fails until then).
 - macroquad `Image::export_png` flips vertically.
-- Character figures are complete pictures (layered bodies, hair, outfits and held overlays were
-  removed in 0.17; old sheets of those kinds load as plain sprites). Colour features match exact
-  colours: a shade a part shares with another part (brown hair and boots) must be split first (the
-  example's figures have their head-area hair shades one step off: `+1` in blue). The editor binary
-  embeds the starter library at build time: rebuild before testing *Update asset library*.
+- Characters are 3D models (figures were removed in 0.18; their sheets load as plain sprites). Colour
+  features match exact colours of a model's 32-colour texture: `model_info` tells where each colour
+  sits on the model (0 = feet, 1 = top) to keep the hair's browns apart from the boots'. Meshy files
+  are big: models are compacted on import (`model::compact`, editor script `modelcompact`). The
+  editor binary embeds the starter library at build time: rebuild before testing *Update asset
+  library*.
 - Interaction: E checks the tile in front of the player (also across a counter / solid
   tile for NPCs); right-click walks there first. Place test players accordingly.

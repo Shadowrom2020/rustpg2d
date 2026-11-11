@@ -31,7 +31,7 @@ for how to use it all.
   </tr>
   <tr>
     <td><img src="Documentation/images/game-character.webp" alt="The character window with the hero's gear, stats, inventory and quick bar"></td>
-    <td><img src="Documentation/images/editor-builder.webp" alt="The character editor with figure cards, colour swatches for skin, hair and clothing, and a walking preview"></td>
+    <td><img src="Documentation/images/editor-builder.webp" alt="The character editor with 3D model cards, colour swatches for skin, hair and clothing, and a walking preview"></td>
   </tr>
   <tr>
     <td align="center"><em>Equipment, stats, inventory and quick bar</em></td>
@@ -64,8 +64,8 @@ for how to use it all.
 - A Problems list of everything broken in the project (unknown ids, missing files, broken portals, script errors, untranslated texts), each a click away.
 
 **Characters**
-- Detailed pixel-art characters at twice the classic resolution that walk, breathe, strike and flinch when hit.
-- New characters drawn in the sprite editor, imported (LPC, Aseprite) or generated with AI in your game's style; colour features (skin, hair, clothing) that NPCs and the player's character creator recolour.
+- Characters are 3D models drawn in the pixel look: they walk, strike, flinch, sit, sleep and work, and hold what they carry in their hands.
+- New characters imported (Meshy, Blender, Mixamo) or generated with AI from a description; animals and monsters animated with rig templates; colour features (skin, hair, clothing) that NPCs and the player's character creator recolour.
 - Villagers with daily schedules who sit on benches, sleep in their beds, visit other maps and work at their spot.
 - Enemies that notice you, hunt, flee when hurt and give up when lured too far.
 - Companions who follow you, fight, carry and use their own gear, and take orders.

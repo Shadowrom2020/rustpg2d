@@ -2050,4 +2050,485 @@
             ),
         ],
     ),
+    (
+        id: "elder_f",
+        name: "Elder f",
+        file: "models/elder_f.glb",
+        clip_files: [
+            "models/elder_f_clips.glb",
+        ],
+        height: 38.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_F",
+                fps: 8.0,
+            ),
+        ],
+        female: true,
+    ),
+    (
+        id: "nomad",
+        name: "Nomad",
+        file: "models/nomad.glb",
+        clip_files: [
+            "models/nomad_clips.glb",
+        ],
+        height: 44.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_M",
+                fps: 8.0,
+            ),
+        ],
+    ),
+    (
+        id: "wizard_f",
+        name: "Wizard f",
+        file: "models/wizard_f.glb",
+        clip_files: [
+            "models/wizard_f_clips.glb",
+        ],
+        height: 40.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_F",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "mage_soell_cast",
+                fps: 12.0,
+            ),
+        ],
+        female: true,
+    ),
+    (
+        id: "nomad_f",
+        name: "Nomad f",
+        file: "models/nomad_f.glb",
+        clip_files: [
+            "models/nomad_f_clips.glb",
+        ],
+        height: 40.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_F",
+                fps: 8.0,
+            ),
+        ],
+        female: true,
+    ),
+    (
+        id: "merchant",
+        name: "Merchant",
+        file: "models/merchant.glb",
+        clip_files: [
+            "models/merchant_clips.glb",
+        ],
+        height: 40.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_M",
+                fps: 8.0,
+            ),
+        ],
+    ),
+    (
+        id: "wizard",
+        name: "Wizard",
+        file: "models/wizard.glb",
+        clip_files: [
+            "models/wizard_clips.glb",
+        ],
+        height: 38.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_M",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "mage_soell_cast",
+                fps: 12.0,
+            ),
+        ],
+    ),
+    (
+        id: "noble_m",
+        name: "Noble m",
+        file: "models/noble_m.glb",
+        clip_files: [
+            "models/noble_m_clips.glb",
+        ],
+        height: 40.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_M",
+                fps: 8.0,
+            ),
+        ],
+    ),
+    (
+        id: "blacksmith_f",
+        name: "Blacksmith f",
+        file: "models/blacksmith_f.glb",
+        clip_files: [
+            "models/blacksmith_f_clips.glb",
+        ],
+        height: 38.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_F",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Heavy_Hammer_Swing",
+                fps: 12.0,
+            ),
+            (
+                anim: "craft",
+                clip: "Heavy_Hammer_Swing",
+                fps: 12.0,
+            ),
+        ],
+        female: true,
+    ),
+    (
+        id: "noble",
+        name: "Noble",
+        file: "models/noble.glb",
+        clip_files: [
+            "models/noble_clips.glb",
+        ],
+        height: 38.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_F",
+                fps: 8.0,
+            ),
+        ],
+        female: true,
+    ),
+    (
+        id: "bandit_f",
+        name: "Bandit f",
+        file: "models/bandit_f.glb",
+        clip_files: [
+            "models/bandit_f_clips.glb",
+        ],
+        height: 39.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_F",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Right_Hand_Sword_Slash",
+                fps: 12.0,
+            ),
+        ],
+        female: true,
+    ),
+    (
+        id: "skeleton",
+        name: "Skeleton",
+        file: "models/skeleton.glb",
+        clip_files: [
+            "models/skeleton_clips.glb",
+        ],
+        height: 42.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_M",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Right_Hand_Sword_Slash",
+                fps: 12.0,
+            ),
+        ],
+    ),
+    (
+        id: "bandit",
+        name: "Bandit",
+        file: "models/bandit.glb",
+        clip_files: [
+            "models/bandit_clips.glb",
+        ],
+        height: 40.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_M",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Right_Hand_Sword_Slash",
+                fps: 12.0,
+            ),
+        ],
+    ),
+    (
+        id: "ghost",
+        name: "Ghost",
+        file: "models/ghost.glb",
+        height: 36.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "Walk",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hurt",
+                fps: 12.0,
+            ),
+        ],
+        rig: Some((
+            template: "rig_floating",
+        )),
+    ),
+    (
+        id: "skeleton_f",
+        name: "Skeleton f",
+        file: "models/skeleton_f.glb",
+        clip_files: [
+            "models/skeleton_f_clips.glb",
+        ],
+        height: 42.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "walking_2",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle_02",
+                fps: 8.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hit_Reaction",
+                fps: 12.0,
+            ),
+            (
+                anim: "sit",
+                clip: "Chair_Sit_Idle_F",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Right_Hand_Sword_Slash",
+                fps: 12.0,
+            ),
+        ],
+        female: true,
+    ),
 ]

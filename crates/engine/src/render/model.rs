@@ -371,6 +371,19 @@ impl Models {
         self.loaded.contains_key(id)
     }
 
+    /// What a look is drawn as: its model, else the model named like its (old) figure, else the
+    /// mannequin.
+    pub fn look_of(&self, a: &Appearance) -> Appearance {
+        let model = if self.has(&a.model) {
+            a.model.clone()
+        } else if !a.body.is_empty() && self.has(&a.body) {
+            a.body.clone()
+        } else {
+            MANNEQUIN.to_string()
+        };
+        Appearance { model, ..a.clone() }
+    }
+
     /// A model's frame size in world pixels (as a figure's frame).
     pub fn frame_size(&self, id: &str) -> Option<(f32, f32)> {
         self.loaded.get(id).map(|l| (l.frame.0 as f32 / PX, l.frame.1 as f32 / PX))

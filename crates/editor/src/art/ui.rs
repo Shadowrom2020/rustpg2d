@@ -2,10 +2,10 @@
 //! references the requests use, and adding finished art to the project.
 
 use egui_macroquad::egui::{self, Color32};
-use rustpg2d_engine::defs::{CharacterDef, ItemDef, PropDef, SheetDef, SheetKind, SpriteRef};
+use rustpg2d_engine::defs::{CharacterDef, ItemDef, PropDef, SheetDef, SpriteRef};
 use rustpg2d_engine::imageio::Rgba;
 
-use super::{api_key, convert, meshy, save_key, ArtKind, ArtRequest, Job, References, Stage, ATTACKS};
+use super::{api_key, meshy, save_key, ArtKind, ArtRequest, Job, References, Stage, ATTACKS};
 use crate::app::Editor;
 use crate::ui::{self, ph};
 
@@ -15,7 +15,6 @@ pub struct ArtWindow {
     pub kind: ArtKind,
     pub id: String,
     pub description: String,
-    pub size: String,
     pub attack: String,
     pub tiles: (u32, u32),
     /// Portraits: the character it is for ("" = none).
@@ -26,8 +25,6 @@ pub struct ArtWindow {
     pub extras: Vec<String>,
     /// A job waits for "Draw for N credits" (Ask before spending).
     pub confirm: bool,
-    /// Which sheets set the style (worked out when the window opens).
-    pub refs_from: Option<String>,
     pub message: Option<String>,
     /// Preview textures by job id: (version, texture).
     previews: std::collections::HashMap<u32, (u32, egui::TextureHandle)>,
@@ -35,53 +32,14 @@ pub struct ArtWindow {
 
 impl Default for ArtWindow {
     fn default() -> Self {
-        ArtWindow { open: false, kind: ArtKind::Character, id: String::new(), description: String::new(), size: "person".into(), attack: "none".into(), tiles: (1, 1), portrait_for: String::new(), female: false, from: String::new(), extras: Vec::new(), confirm: false, refs_from: None, message: None, previews: Default::default() }
+        ArtWindow { open: false, kind: ArtKind::Model3d, id: String::new(), description: String::new(), attack: "none".into(), tiles: (1, 1), portrait_for: String::new(), female: false, from: String::new(), extras: Vec::new(), confirm: false, message: None, previews: Default::default() }
     }
 }
 
-/// A sheet of the starter library (embedded in the editor).
-fn starter_file(rel: &str) -> Option<&'static [u8]> {
-    crate::library_ui::STARTER.iter().find(|(p, _)| *p == rel).map(|(_, b)| *b)
-}
-
 impl Editor {
-    /// The pictures art requests refer to: the player character's body and another complete
-    /// figure of the project (else the starter library's hero and villager), the starter guard's
-    /// attack grid, and the project's item icons.
+    /// The pictures art requests refer to: the project's item icons (the style of new icons).
     pub fn art_references(&self) -> References {
         let db = &self.project.db;
-        // People-sized complete figures with all 16 rows.
-        let file = |sheet: &str| -> Option<Vec<u8>> {
-            let d = db.sheet(sheet).filter(|d| d.kind == SheetKind::Body && (d.frame_w, d.frame_h) == (64, 96))?;
-            let bytes = std::fs::read(self.project.root.join(&d.image)).ok()?;
-            let im = Rgba::decode(&bytes).ok()?;
-            (im.h / d.frame_h.max(1) >= 16 && im.w / d.frame_w.max(1) == 4).then_some(bytes)
-        };
-        let player_body = db.character(&self.project.config.player).map(|c| c.appearance.body.clone()).unwrap_or_default();
-        let mut picked: Vec<(String, Vec<u8>)> = Vec::new();
-        if let Some(b) = file(&player_body) {
-            picked.push((player_body.clone(), b));
-        }
-        // The second: a playable body (a hero of the creator), a woman if possible, else another person.
-        let mut others: Vec<&SheetDef> = db.sheets.iter().filter(|s| s.kind == SheetKind::Body && s.id != player_body).collect();
-        others.sort_by_key(|s| (!s.playable, !s.female));
-        for s in others {
-            if picked.len() >= 2 {
-                break;
-            }
-            if let Some(b) = file(&s.id) {
-                picked.push((s.id.clone(), b));
-            }
-        }
-        for (id, rel) in [("hero (library)", "sprites/hero.png"), ("villager_f (library)", "sprites/villager_f.png")] {
-            if picked.len() < 2 {
-                if let Some(b) = starter_file(rel) {
-                    picked.push((id.to_string(), b.to_vec()));
-                }
-            }
-        }
-        let walk = picked.iter().filter_map(|(_, b)| super::grid_ref(b, 0).ok()).collect();
-        let attack = starter_file("sprites/guard.png").and_then(|b| super::grid_ref(b, 8).ok()).unwrap_or_default();
         let icons = db.sheet("items").and_then(|d| {
             let im = Rgba::decode(&std::fs::read(self.project.root.join(&d.image)).ok()?).ok()?;
             let n = (im.w / 32).min(8);
@@ -96,7 +54,7 @@ impl Editor {
             }
             Some(meshy::data_uri(&strip.encode().ok()?))
         });
-        References { walk, attack, icons, from: picked.iter().map(|(id, _)| id.clone()).collect::<Vec<_>>().join(", "), ..Default::default() }
+        References { icons, ..Default::default() }
     }
 
     /// The references of one request: 3D characters from a figure get its front, side and back
@@ -182,17 +140,6 @@ impl Editor {
         std::fs::write(self.project.root.join(&rel), &png)?;
         let (fw, fh) = j.frame;
         let sheet = match j.req.kind {
-            ArtKind::Character => {
-                let scale = convert::size_class(&j.req.size).map_or(2, |s| s.scale);
-                // People get hand marks estimated from the picture (held weapons, tools, props).
-                let mut hands = Vec::new();
-                if !j.req.animal() {
-                    if let Ok(mut img) = rustpg2d_engine::imageio::Rgba::decode(&png) {
-                        crate::frame_ops::Frames { img: &mut img, frame: (fw, fh), hands: Some(&mut hands) }.estimate_hands(true, &[], scale);
-                    }
-                }
-                SheetDef { kind: SheetKind::Body, scale, hands, ..SheetDef::new(id, &rel, fw, fh) }
-            }
             ArtKind::Prop | ArtKind::Portrait => SheetDef { scale: 2, ..SheetDef::new(id, &rel, fw, fh) },
             ArtKind::Icon | ArtKind::Image => SheetDef::new(id, &rel, fw, fh),
             ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d => unreachable!("3D jobs are added by apply_art_3d"),
@@ -203,12 +150,6 @@ impl Editor {
         let name = id.replace('_', " ");
         let name = name[..1].to_uppercase() + &name[1..];
         match j.req.kind {
-            ArtKind::Character if db.character(id).is_none() => {
-                let mut c = CharacterDef { description: j.req.description.trim().to_string(), ..crate::builder::default_character(db, id, &name) };
-                c.appearance.body = id.to_string();
-                db.upsert(c);
-                added.push(format!("character {id}"));
-            }
             ArtKind::Portrait if !j.req.portrait_for.is_empty() => match db.characters.iter_mut().find(|c| c.id == j.req.portrait_for) {
                 Some(c) => {
                     c.portrait = SpriteRef::new(id, 0);
@@ -398,11 +339,7 @@ impl Editor {
             ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
         if !self.art.window.open {
-            self.art.window.refs_from = None;
             return;
-        }
-        if self.art.window.refs_from.is_none() {
-            self.art.window.refs_from = Some(self.art_references().from);
         }
         let mut open = true;
         let mut start = false;
@@ -413,7 +350,6 @@ impl Editor {
         let cost = super::ArtState::cost(&self.req_from_form(), &self.art_settings.model);
         let left = self.art.budget_left(&self.art_settings);
         let has_key = !api_key().is_empty() || std::env::var_os("RUSTPG2D_MESHY_FAKE").is_some();
-        let refs_from = self.art.window.refs_from.clone().unwrap_or_default();
         egui::Window::new(ui::t(ph::PAINT_BRUSH, "Generate art")).id(egui::Id::new("art_window")).open(&mut open).default_width(560.0).default_height(560.0).show(ctx, |ui| {
             if !has_key {
                 ui.horizontal(|ui| {
@@ -427,7 +363,7 @@ impl Editor {
             egui::Grid::new("art_form").num_columns(2).show(ui, |ui| {
                 ui.label("What");
                 ui.vertical(|ui| {
-                    for three_d in [false, true] {
+                    for three_d in [true, false] {
                         ui.horizontal(|ui| {
                             for k in ArtKind::ALL.into_iter().filter(|k| k.is_3d() == three_d) {
                                 ui.selectable_value(&mut w.kind, k, k.label());
@@ -442,22 +378,6 @@ impl Editor {
                 ui.label("Description");
                 ui.add(egui::TextEdit::multiline(&mut w.description).desired_rows(3).desired_width(380.0).hint_text("an orc shaman, grey-green skin, a bone necklace, a ragged red cloak, a staff with a skull"));
                 ui.end_row();
-                if w.kind == ArtKind::Character {
-                    ui.label("Size");
-                    egui::ComboBox::from_id_salt("art_size").selected_text(convert::size_class(&w.size).map_or("?", |s| s.label)).show_ui(ui, |ui| {
-                        for s in convert::SIZES {
-                            ui.selectable_value(&mut w.size, s.id.to_string(), s.label);
-                        }
-                    });
-                    ui.end_row();
-                    ui.label("Attack");
-                    egui::ComboBox::from_id_salt("art_attack").selected_text(ATTACKS.iter().find(|a| a.0 == w.attack).map_or("?", |a| a.1)).show_ui(ui, |ui| {
-                        for (id, label) in ATTACKS {
-                            ui.selectable_value(&mut w.attack, id.to_string(), label);
-                        }
-                    });
-                    ui.end_row();
-                }
                 if w.kind == ArtKind::Model3d {
                     ui.label("Attack");
                     egui::ComboBox::from_id_salt("art_attack3d").selected_text(ATTACKS.iter().find(|a| a.0 == w.attack).map_or("?", |a| a.1)).show_ui(ui, |ui| {
@@ -483,12 +403,12 @@ impl Editor {
                     });
                     ui.end_row();
                     ui.label("From figure");
-                    ui.add(egui::TextEdit::singleline(&mut w.from).hint_text("(draw a turnaround picture)").desired_width(180.0)).on_hover_text("A figure sheet id: its standing frames (front, side, back) become the model, no picture is drawn");
+                    ui.add(egui::TextEdit::singleline(&mut w.from).hint_text("(draw a turnaround picture)").desired_width(180.0)).on_hover_text("A sprite sheet in the four-facing layout (an old figure): its standing frames (front, side, back) become the model, no picture is drawn");
                     ui.end_row();
                 }
                 if w.kind == ArtKind::Creature3d {
                     ui.label("From figure");
-                    ui.add(egui::TextEdit::singleline(&mut w.from).hint_text("(draw a picture)").desired_width(180.0)).on_hover_text("A figure sheet id: its standing frames (front, side, back) become the model, no picture is drawn");
+                    ui.add(egui::TextEdit::singleline(&mut w.from).hint_text("(draw a picture)").desired_width(180.0)).on_hover_text("A sprite sheet in the four-facing layout (an old figure): its standing frames (front, side, back) become the model, no picture is drawn");
                     ui.end_row();
                 }
                 if w.kind == ArtKind::Portrait {
@@ -506,9 +426,6 @@ impl Editor {
                     ui.end_row();
                 }
             });
-            if w.kind == ArtKind::Character {
-                ui.weak(format!("Drawn in the style of: {refs_from}"));
-            }
             match w.kind {
                 ArtKind::Model3d => ui.weak("A turnaround picture, a 3D model of it, a skeleton and animations (walk, idle, the attack, hit, sit). Takes a few minutes."),
                 ArtKind::Creature3d => ui.weak("A picture and a 3D model of it, without a skeleton: give it a rig template to animate it."),
@@ -627,7 +544,7 @@ impl Editor {
 
     fn req_from_form(&self) -> ArtRequest {
         let w = &self.art.window;
-        ArtRequest { kind: w.kind, id: w.id.trim().to_string(), description: w.description.clone(), size: w.size.clone(), attack: w.attack.clone(), tiles: w.tiles, portrait_for: w.portrait_for.trim().to_string(), by_agent: false, female: w.female, from: w.from.trim().to_string(), extras: w.extras.clone() }
+        ArtRequest { kind: w.kind, id: w.id.trim().to_string(), description: w.description.clone(), attack: w.attack.clone(), tiles: w.tiles, portrait_for: w.portrait_for.trim().to_string(), by_agent: false, female: w.female, from: w.from.trim().to_string(), extras: w.extras.clone() }
     }
 }
 
@@ -659,22 +576,9 @@ fn framed(im: &Rgba, x0: u32, y0: u32, w: u32, h: u32, size: u32) -> anyhow::Res
     Ok(meshy::data_uri(&out.encode()?))
 }
 
-/// The result: characters walk, idle, attack and get hit facing down / left; other art whole.
-fn preview(ui: &mut egui::Ui, t: &egui::TextureHandle, j: &Job) {
+/// The result (the picture; 3D jobs: what they were made from).
+fn preview(ui: &mut egui::Ui, t: &egui::TextureHandle, _j: &Job) {
     let size = t.size_vec2();
-    if j.req.kind == ArtKind::Character && j.frame.0 > 0 {
-        let (fw, fh) = (j.frame.0 as f32, j.frame.1 as f32);
-        let time = ui.ctx().input(|i| i.time);
-        ui.ctx().request_repaint_after(std::time::Duration::from_millis(120));
-        ui.horizontal(|ui| {
-            for (row, frames) in [(0u32, 4u32), (1, 4), (4, 2), (9, 4), (12, 1)] {
-                let col = ((time * 6.0) as u32) % frames;
-                let uv = egui::Rect::from_min_size(egui::pos2(col as f32 * fw / size.x, row as f32 * fh / size.y), egui::vec2(fw / size.x, fh / size.y));
-                ui.add(egui::Image::new((t.id(), egui::vec2(fw, fh) * 1.5)).uv(uv));
-            }
-        });
-    } else {
-        let k = (220.0 / size.y).min(400.0 / size.x).min(4.0);
-        ui.add(egui::Image::new((t.id(), size * k)));
-    }
+    let k = (220.0 / size.y).min(400.0 / size.x).min(4.0);
+    ui.add(egui::Image::new((t.id(), size * k)));
 }

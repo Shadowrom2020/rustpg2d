@@ -164,9 +164,8 @@ impl Game {
     /// label).
     fn creator_features(&self, c: &Creator) -> Vec<(usize, String, Vec<[u8; 3]>, String)> {
         let body = self.creator_body(c);
-        let features = match (self.project.db.model(&body), self.project.db.sheet(&body)) {
-            (Some(m), _) => &m.features,
-            (None, Some(s)) => &s.features,
+        let features = match self.project.db.model(&body) {
+            Some(m) => &m.features,
             _ => return Vec::new(),
         };
         features.iter().enumerate().filter(|(_, f)| !f.colors.is_empty()).map(|(k, f)| (k, f.name.clone(), f.colors.clone(), f.label())).collect()

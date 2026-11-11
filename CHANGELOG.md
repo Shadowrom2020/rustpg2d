@@ -6,6 +6,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Breaking
+- **Characters are 3D models; figures are removed.** Every character of the example and the starter
+  library is a rigged 3D model (47 people modelled with Meshy from their figures, 9 animals fitted to
+  rig templates) and 16 holdable items have 3D models. Figure sheets (`kind: Body`), their colour
+  features, playable / female flags and hand marks are gone: old sheets load as plain sprites, and a
+  look naming an old figure plays the model of the same id, else the **mannequin** (built into the
+  engine; projects may have their own). Removed with them: the sprite editor's Hands tool, the 2D
+  *Character* kind of Generate art, the LPC import and Aseprite figure tags, `edit_frames`' grip
+  operations, the editor script `pxgrip` / `pxhands` / `pxpreview` and `charset body|size|from` and
+  `source draw`. Races and the character creator list models; the creator offers playable models.
 - **Layered characters are removed.** Characters are figures: complete pictures (clothes and hair
   painted in, hands empty) on one sheet with walk, idle, attack and hurt rows. Bodies with skin
   and hair reference ramps, hair styles, beards, outfits, armor overlays, female and race cuts are
@@ -85,6 +94,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   four legs, bird, flyer, blob and floating (made by `scripts/art/rigs/templates.py` in Blender).
   Agents get `fit_rig`; editor script `modelrig`, `modeljoint`. `cargo run -p rustpg2d-engine
   --example model_sheet` renders a model's animations in all facings into a contact sheet.
+- **The cast in 3D**: the example's and the starter library's characters are 3D models, their
+  heights from the figures' art, colour features matched from the figures' (by colour and by where a
+  colour sits on the model, `model_info` shows it), work clips for the smith (hammering) and the
+  farmers (picking crops). The editor's map, pickers, character editor, Database forms and the
+  library browser draw characters as their models. Model files are made smaller when imported or
+  generated (`model::compact`: textures as the game uses them, no tangents, byte weights, clip files
+  without the mesh; 237 MB became 32 MB; editor script `modelcompact`). Generate art: 3D characters
+  can get extra clips (`extras`: craft, farm, chop, sleep), 3D creatures can be modelled from a
+  figure, bows and axes use short library clips (Archery Shot, Heavy Hammer Swing). The sprite
+  editor's *Four-facing rows* switch shows the animation panel for any sheet. Characters without a
+  model are a warning in Problems (they show as the mannequin).
 - **3D art with Meshy**: *Generate art* makes a **3D character** (a turnaround picture or a
   figure's standing frames, a model, a skeleton and animations: walk, idle, the chosen attack, hit,
   sitting; about 50 credits), a **3D creature** (a picture and an unrigged model) and an **item's 3D

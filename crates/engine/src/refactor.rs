@@ -222,9 +222,9 @@ impl Renamer<'_> {
         }
     }
 
-    /// The figure sheet of a look.
+    /// The model of a look (and a look of an older version: the model named like its figure).
     fn look(&mut self, a: &mut crate::defs::Appearance) {
-        self.fix(RefKind::Sheet, &mut a.body);
+        self.fix(RefKind::Model, &mut a.body);
         self.fix(RefKind::Model, &mut a.model);
     }
 
@@ -261,8 +261,9 @@ impl Renamer<'_> {
     }
 
     fn race(&mut self, d: &mut crate::races::RaceDef) {
+        // The models the creator offers (named like the figures they replaced).
         for s in d.bodies_male.iter_mut().chain(&mut d.bodies_female) {
-            self.fix(RefKind::Sheet, s);
+            self.fix(RefKind::Model, s);
         }
         for s in &mut d.skills {
             self.fix(RefKind::Skill, &mut s.skill);
@@ -437,7 +438,7 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
     r.fix(RefKind::Sheet, &mut config.player_portrait.sheet);
     let cc = &mut config.creation;
     for s in [&mut cc.body_male, &mut cc.body_female] {
-        r.fix(RefKind::Sheet, s);
+        r.fix(RefKind::Model, s);
     }
     r.fix(RefKind::Map, &mut config.start_map);
     for (_, s) in config.sfx.fields_mut() {
@@ -735,7 +736,7 @@ mod tests {
     }
 
     #[test]
-    fn characters_refer_to_their_figure_and_items() {
+    fn characters_refer_to_their_model_and_items() {
         use crate::defs::{Appearance, CharacterDef, EquipSlot};
         use crate::inventory::ItemStack;
         let mut c: CharacterDef = ron::from_str(r#"(id: "npc", name: "Npc")"#).unwrap();
@@ -744,13 +745,14 @@ mod tests {
         *c.equipment.slot_mut(EquipSlot::Weapon) = Some(ItemStack::new("sword", 1));
         c.inventory = vec![ItemStack::new("apple", 2)];
         let refs = refs_of_character(&c);
-        for want in [(RefKind::Sheet, "farmer"), (RefKind::Item, "tunic"), (RefKind::Item, "sword"), (RefKind::Item, "apple")] {
+        // (An older look's `body` names the model that replaced its figure.)
+        for want in [(RefKind::Model, "farmer"), (RefKind::Item, "tunic"), (RefKind::Item, "sword"), (RefKind::Item, "apple")] {
             assert!(refs.contains(&(want.0, want.1.to_string())), "{want:?} in {refs:?}");
         }
-        // Renames follow into the figure, equipment and carried items.
+        // Renames follow into the model, equipment and carried items.
         let mut db = crate::defs::Database { characters: vec![c], ..Default::default() };
         let mut cfg = crate::project::ProjectConfig::new("x");
-        rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "farmer", "farmer_m");
+        rename_in_db(&mut db, &mut cfg, RefKind::Model, "farmer", "farmer_m");
         rename_in_db(&mut db, &mut cfg, RefKind::Item, "apple", "pear");
         rename_in_db(&mut db, &mut cfg, RefKind::Item, "tunic", "shirt");
         let c = &db.characters[0];

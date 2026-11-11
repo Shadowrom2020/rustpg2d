@@ -37,6 +37,10 @@ pub trait ActionHost {
     fn pose(&mut self, _target: &str, _ctx: &ActionCtx) -> String {
         String::new()
     }
+    /// The player's standing with a faction (the saved one, else where it starts).
+    fn standing(&mut self, faction: &str) -> i32 {
+        self.world().standing.get(faction).copied().unwrap_or(0)
+    }
     /// Called after `GiveItem`: `count` were added, `lost` didn't fit (for messages and sounds).
     fn item_given(&mut self, _item: &str, _count: u32, _lost: u32) {}
 }
@@ -153,6 +157,7 @@ pub fn conditions_met(host: &mut dyn ActionHost, conds: &[Condition], ctx: &Acti
         Cond::Script { function } => host.script_condition(function, ctx) != c.negate,
         Cond::PropState { target, state } => (host.prop_state(target, ctx).as_deref() == Some(state.as_str())) != c.negate,
         Cond::Pose { target, pose } => (host.pose(target, ctx) == *pose) != c.negate,
+        Cond::FactionStanding { faction, op, value } => op.apply(host.standing(faction) as i64, *value) != c.negate,
         _ => c.eval(host.world(), &mut |_| false),
     })
 }

@@ -698,6 +698,7 @@ mod tests {
         dialog_portraits: true,
         auto_emotions: true,
         companion_down: Default::default(),
+        factions: Default::default(),
         player_portrait: Default::default(),
         language: "en".into(),
         languages: vec![],

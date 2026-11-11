@@ -35,6 +35,8 @@ pub(super) enum Foe {
     Player,
     /// A companion (its uid).
     Companion(u32),
+    /// A character of a hostile faction (its uid).
+    Npc(u32),
 }
 
 /// What a chasing character is doing.
@@ -94,7 +96,39 @@ impl Game {
         match foe {
             Foe::Player => Some(self.player.pos),
             Foe::Companion(uid) => self.loaded.entities.iter().find(|e| e.uid == uid && e.active && e.companion.is_some()).map(|e| e.body.pos),
+            Foe::Npc(uid) => self.loaded.entities.iter().find(|e| e.uid == uid && e.active && e.hp > 0).map(|e| e.body.pos),
         }
+    }
+
+    /// Character `i` fights: it is hostile to the player, or goes for a character of a hostile
+    /// faction.
+    pub(super) fn fights(&self, i: usize) -> bool {
+        let e = &self.loaded.entities[i];
+        e.hostile || matches!(e.ai.target, Some(Foe::Npc(_)))
+    }
+
+    /// Characters `i` and `j` are on the same side (the same kind or the same faction).
+    fn kin(&self, i: usize, j: usize) -> bool {
+        let (a, b) = (&self.loaded.entities[i], &self.loaded.entities[j]);
+        a.def == b.def || (a.faction.is_some() && a.faction == b.faction) || (a.faction.is_none() && b.faction.is_none() && a.hostile && b.hostile)
+    }
+
+    /// Living characters of factions hostile to `i`'s (not companions: they are on the player's
+    /// side), with their feet and the middle of their body.
+    pub(super) fn npc_foes(&self, i: usize) -> Vec<(usize, Vec2, Vec2)> {
+        if self.loaded.entities[i].faction.is_none() {
+            return Vec::new();
+        }
+        (0..self.loaded.entities.len())
+            .filter(|&j| {
+                let o = &self.loaded.entities[j];
+                j != i && o.active && o.kind == crate::entity::EntityKind::Character && o.companion.is_none() && o.max_hp > 0 && o.hp > 0 && self.foes(i, j)
+            })
+            .map(|j| {
+                let o = &self.loaded.entities[j];
+                (j, o.body.pos, o.body.pos - vec2(0.0, o.body.hitbox.y / 2.0))
+            })
+            .collect()
     }
 
     /// A group fighter that fights up close (swings or lunges; shooters don't take turns).
@@ -112,7 +146,7 @@ impl Game {
         let mut wanting: Vec<(Foe, usize, f32)> = Vec::new();
         for i in 0..self.loaded.entities.len() {
             let e = &self.loaded.entities[i];
-            if !e.active || !e.hostile || e.ai.aggro <= 0.0 || e.ai.harmless() || !self.group_melee(i) {
+            if !e.active || !self.fights(i) || e.ai.aggro <= 0.0 || e.ai.harmless() || !self.group_melee(i) {
                 continue;
             }
             let Some(foe) = e.ai.target else { continue };
@@ -144,7 +178,7 @@ impl Game {
         let r = SPREAD * self.ts();
         let mut push = Vec2::ZERO;
         for (j, o) in self.loaded.entities.iter().enumerate() {
-            if j == i || !o.active || !o.hostile || o.ai.aggro <= 0.0 {
+            if j == i || !o.active || o.ai.aggro <= 0.0 || chase_of(&o.behavior).is_none() {
                 continue;
             }
             let d = pos - o.body.pos;
@@ -161,11 +195,11 @@ impl Game {
     /// Character `i` noticed `target`: others of its kind within `tiles` come too.
     fn alert_kind(&mut self, i: usize, target: Vec2, tiles: f32) {
         let ts = self.ts();
-        let (def, pos) = (self.loaded.entities[i].def.clone(), self.loaded.entities[i].body.pos);
+        let pos = self.loaded.entities[i].body.pos;
         let near: Vec<usize> = (0..self.loaded.entities.len())
             .filter(|&j| {
                 let o = &self.loaded.entities[j];
-                j != i && o.active && o.hostile && o.def == def && o.ai.aggro <= 0.0 && !o.ai.returning && chase_of(&o.behavior).is_some() && o.body.pos.distance(pos) <= tiles * ts
+                j != i && o.active && self.kin(i, j) && o.companion.is_none() && o.ai.aggro <= 0.0 && !o.ai.returning && chase_of(&o.behavior).is_some() && o.body.pos.distance(pos) <= tiles * ts
             })
             .collect();
         for j in near {
@@ -184,7 +218,7 @@ impl Game {
         (0..ents.len())
             .filter(|&j| {
                 let o = &ents[j];
-                j != i && o.active && o.hostile && !o.ai.harmless() && chase_of(&o.behavior).is_some() && o.hp > 0 && o.body.pos.distance(pos) <= RALLY_RANGE * ts && o.body.pos.distance(threat) > 3.0 * ts
+                j != i && o.active && self.kin(i, j) && o.companion.is_none() && !o.ai.harmless() && chase_of(&o.behavior).is_some() && o.hp > 0 && o.body.pos.distance(pos) <= RALLY_RANGE * ts && o.body.pos.distance(threat) > 3.0 * ts
             })
             .min_by(|&a, &b| ents[a].body.pos.distance(pos).total_cmp(&ents[b].body.pos.distance(pos)))
     }
@@ -228,13 +262,22 @@ impl Game {
         };
         let mut seen: Vec<(Foe, Vec2, Vec2)> = Vec::new();
         let player_mid = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
-        if notices(self.player.pos, player_mid) {
-            seen.push((Foe::Player, self.player.pos, player_mid));
+        // The player and companions only when it is hostile to the player.
+        if e.hostile {
+            if notices(self.player.pos, player_mid) {
+                seen.push((Foe::Player, self.player.pos, player_mid));
+            }
+            for (c, mid) in self.companion_targets() {
+                let feet = self.loaded.entities[c].body.pos;
+                if notices(feet, mid) {
+                    seen.push((Foe::Companion(self.loaded.entities[c].uid), feet, mid));
+                }
+            }
         }
-        for (c, mid) in self.companion_targets() {
-            let feet = self.loaded.entities[c].body.pos;
+        // Characters of hostile factions.
+        for (j, feet, mid) in self.npc_foes(i) {
             if notices(feet, mid) {
-                seen.push((Foe::Companion(self.loaded.entities[c].uid), feet, mid));
+                seen.push((Foe::Npc(self.loaded.entities[j].uid), feet, mid));
             }
         }
         let nearest = seen.into_iter().min_by(|a, b| a.1.distance(pos).total_cmp(&b.1.distance(pos)));

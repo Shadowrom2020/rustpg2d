@@ -287,6 +287,16 @@ impl Editor {
                 if k == RefKind::Character && db.character(&id).is_some_and(|c| c.appearance.body.is_empty()) {
                     out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: "has no body (it would be invisible)".into(), target: target.clone() });
                 }
+                let faction = match k {
+                    RefKind::Character => db.character(&id).map(|d| d.faction.clone()),
+                    RefKind::Race => db.race(&id).map(|d| d.faction.clone()),
+                    _ => None,
+                };
+                // (A project without factions leaves the fields dormant: library characters name theirs.)
+                let factions = &self.project.config.factions;
+                if let Some(f) = faction.filter(|f| !f.is_empty() && !factions.is_empty() && factions.get(f).is_none()) {
+                    out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("belongs to the faction \"{f}\", which isn't in Database › Project › Factions (it has no faction until it is added there)"), target: target.clone() });
+                }
                 if k == RefKind::Quest && db.quest(&id).is_some_and(|q| q.stages.is_empty()) {
                     out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: "has no stages: the journal shows nothing while it is active".into(), target: target.clone() });
                 }

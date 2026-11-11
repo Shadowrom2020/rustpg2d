@@ -63,7 +63,7 @@ definition while every villager looks different.
 | **Character** | Name; **Description** (shown in the bestiary once the player has defeated one); speed in pixels per second; hitbox |
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
 | **Look & equipment** | The builder |
-| **Behavior** | *Static*, *Wander* or *Chase player* (below) |
+| **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
 | **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
 | **Experience** | XP the player gets for defeating it |
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
@@ -79,9 +79,9 @@ definition while every villager looks different.
 |---|---|
 | **Static** | Stands where it was placed (unless it has a patrol route, a schedule or an activity). |
 | **Wander** | Walks around its home spot. |
-| **Chase player** | Hunts the player and companions (below). |
+| **Chase foes** | Hunts the player and companions when hostile to the player, and characters of hostile factions ([Factions](#factions)). |
 
-**Chase player** characters notice the player within their **Sight** (tiles) in a clear line; behind
+**Chase foes** characters notice the player within their **Sight** (tiles) in a clear line; behind
 walls and trees only within half of it. They keep hunting for a few seconds after losing sight,
 walking to where they last saw the player, and slide around obstacles. Per character:
 
@@ -93,7 +93,7 @@ walking to where they last saw the player, and slide around obstacles. Per chara
   player or a companion at a time, the others circle around and wait for their turn; they spread
   out instead of stacking. Turn it off for a lone brute that always attacks.
 - **Alert** (tiles, default 6): on first seeing the player it alerts others of the same
-  definition this close; 0 alerts nobody.
+  definition (or the same faction) this close; 0 alerts nobody.
 
 An *HP below %* trigger lets a character react when it's hurt, e.g. a boss calling for help; scripts
 read any character's HP with `hp_of(target)`. In the example, the goblin archers keep four tiles
@@ -277,12 +277,14 @@ drawn as complete figures. A race has:
   Toughness 2 (6 more HP, +1 defense, 15 % slower, size 1.5);
 - a **size**: characters whose body belongs to the race are drawn that much larger (or smaller)
   and get a hitbox to match (trolls 1.5);
-- **Playable**: offered in the character creator.
+- **Playable**: offered in the character creator. In the example humans, elves and dwarves are
+  playable; goblins, orcs and trolls are races of the world's characters only (their player
+  bonuses stay for projects that make them playable).
 
 With more than one playable race, the creator starts with a **Race** row; changing it switches the
 bodies and looks. The player's race is kept in the save game. The player character's own race
 (*Race* in its form) is the one a game started without the creator has. Other characters name
-their race in the same field (for scripts and, later, factions). The **Player race** condition
+their race in the same field (for scripts and [factions](#factions)). The **Player race** condition
 and `player_race()` tell the player's race.
 
 Outfits and armor fit other body shapes by a **cut**, like the female cut: a body sheet with the
@@ -293,6 +295,41 @@ else the standard one ([Art and sound](10-art-and-sound.md)).
 and `{sir|madam}` the first word for a male player and the second for a female one (any pair works:
 `{brother|sister}`). The **Player sex** condition and the scripts `player_name()`, `player_sex()`,
 `is_female()`, `is_male()` and `text("…")` do the same in logic.
+
+## Factions
+
+Factions decide who fights whom. They are set up in *Database › Project › Factions*: a list of
+factions (an id, fixed once added because triggers and scripts name it, and a name) and an
+**attitude table** where every pair of factions is *hostile*, *neutral* (the default) or
+*friendly*; click a cell to change it, the table reads both ways.
+
+- A character belongs to its own **Faction** (*Database › Characters*), else to its race's
+  (*Database › Races › Faction*). Characters without a faction stay out of it.
+- **Characters of hostile factions fight each other**: chasers (*Chase foes*) notice foes within
+  their sight like they notice the player, close in, swing, lunge and shoot at them; group fighters
+  share the places around a foe and alert their own faction. Arrows of a shooter fly past its
+  friends and the player when it isn't hostile to the player. Characters with 0 max HP (townsfolk)
+  can't be attacked.
+- **The player's standing** with each faction runs from -100 to 100. It starts at 100 with the
+  player's own faction (their race's, else the player character's), 50 with factions friendly to
+  it, 0 with neutral and -50 with hostile ones. At **-20 or below** the faction's characters attack
+  the player. **Hostile** on a character makes it attack the player unless the player is a friend
+  of its faction (standing 20 or more), so marked monsters stay dangerous to everyone else.
+  Without factions in the project, *Hostile* alone decides, as before.
+- The **Change standing** action and `change_standing(faction, amount)` raise or lower a standing
+  (the faction's characters turn hostile or calm down at once); the **Faction standing** condition,
+  `standing(faction)` and `player_faction()` read it. Standings are kept in the save game.
+- *Edit › Problems* warns about characters and races naming a faction the project doesn't have.
+
+In the example, humans, elves, dwarves, goblin tribes, orc clans, bandits, wild beasts and
+monsters are factions. The villagers of Emberbrook are humans (their race's faction, the same as a
+human player's). Humans are friendly with elves and dwarves and hostile to goblins, orcs, bandits,
+beasts and monsters; elves are hostile to goblins and orcs too; goblins and orcs are friends. So
+every playable race (human, elf, dwarf) is welcome in the village, and the town guards chase
+goblins, orcs, bandits, beasts and monsters that come near their post. In the Wilds an elven
+ranger and an orc patrol shoot and fight each other on sight. Dwarves are neutral to goblins and
+orcs, but those are marked *Hostile* and attack anyone who isn't their friend. Bringing the elven
+herbalist two wolf pelts (*Friend of the Elves*) raises the standing with the elves by 40.
 
 ## What characters carry
 

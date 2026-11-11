@@ -169,6 +169,7 @@ These belong to the game systems they drive: [Skills and magic](09-gameplay.md#s
 | **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable bodies, skin colours, hair styles, hair colours and beards offered ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
 | **Dialog portraits** | Show the speaker's portrait in dialogs (on by default) |
 | **Companions at 0 HP** | Knocked down until healed (default), get up after some seconds, or go home ([Companions](06-characters.md#companions)) |
+| **Factions** | The factions and the attitude table between them: who fights whom and how they treat the player ([Characters › Factions](06-characters.md#factions)) |
 | **Skills & magic** | Turn on skills and magic; starting skill points, max mana, mana regeneration |
 | **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana, skill points) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |

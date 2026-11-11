@@ -289,6 +289,8 @@ pub enum Cond {
     Pose { target: TargetName, pose: String },
     /// The player's race (`races::RaceDef`; "" = none chosen).
     PlayerRace { race: String },
+    /// The player's standing with a faction (-100..100) compared with a value.
+    FactionStanding { faction: String, op: CmpOp, value: i64 },
 }
 
 /// Whether `hour` lies in `from..to` (hours 0..24; `from > to` wraps around midnight).
@@ -320,6 +322,7 @@ impl Cond {
             Cond::Defeated { .. } => "Defeated count",
             Cond::Pose { .. } => "Pose (sitting, asleep)",
             Cond::PlayerRace { .. } => "Player race",
+            Cond::FactionStanding { .. } => "Faction standing",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -340,6 +343,7 @@ impl Cond {
             Cond::Defeated { character: String::new(), op: CmpOp::Ge, count: 10 },
             Cond::Pose { target: "self".into(), pose: "lie".into() },
             Cond::PlayerRace { race: String::new() },
+            Cond::FactionStanding { faction: String::new(), op: CmpOp::Le, value: -20 },
         ]
     }
 }
@@ -376,6 +380,8 @@ impl Condition {
             // Needs the running game (see `conditions_met`).
             Cond::Pose { .. } => false,
             Cond::PlayerRace { race } => world.player_race == *race,
+            // The saved standing; the running game adds the starting one (see `conditions_met`).
+            Cond::FactionStanding { faction, op, value } => op.apply(world.standing.get(faction).copied().unwrap_or(0) as i64, *value),
         };
         v != self.negate
     }
@@ -601,6 +607,9 @@ pub enum Action {
     Emote { target: TargetName, emotion: String, #[serde(default)] seconds: f32, #[serde(default)] wait: bool },
     /// Takes a character's emotion away.
     ClearEmote { target: TargetName },
+    /// Changes the player's standing with a faction (`factions.rs`; -100..100, at -20 or below
+    /// its characters attack the player).
+    ChangeStanding { faction: String, amount: i32 },
 }
 
 fn yes() -> bool {
@@ -751,6 +760,7 @@ impl Action {
             Action::TeachSpell { .. } => "Teach spell",
             Action::Emote { .. } => "Show emotion",
             Action::ClearEmote { .. } => "Clear emotion",
+            Action::ChangeStanding { .. } => "Change standing",
         }
     }
 
@@ -827,6 +837,7 @@ impl Action {
             Action::TeachSpell { target: "self".into(), spell: String::new() },
             Action::Emote { target: "self".into(), emotion: "joy".into(), seconds: 0.0, wait: false },
             Action::ClearEmote { target: "self".into() },
+            Action::ChangeStanding { faction: String::new(), amount: 10 },
         ]
     }
 }

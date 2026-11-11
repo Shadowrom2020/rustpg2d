@@ -61,4 +61,13 @@
         ],
         xp: 90,
     ),
+    (
+        id: "elven_trust",
+        title: "Friend of the Elves",
+        description: "The elven herbalist in the Wilds asked for wolf pelts. Help her, and the elves will count you a friend.",
+        stages: [
+            "Bring the elven herbalist in the Wilds two wolf pelts.",
+        ],
+        xp: 50,
+    ),
 ]

@@ -37,6 +37,9 @@ pub struct ProjectConfig {
     /// Time of day a new game starts at (hours, 0..24).
     #[serde(default = "default_start_hour")]
     pub start_hour: f32,
+    /// Factions and their attitudes (who fights whom); empty = only `hostile` decides.
+    #[serde(default, skip_serializing_if = "crate::factions::Factions::is_empty")]
+    pub factions: crate::factions::Factions,
     /// Skills and magic (both off by default).
     #[serde(default)]
     pub skills: crate::skills::SkillSettings,
@@ -193,6 +196,7 @@ impl ProjectConfig {
             creation: CharacterCreation::default(),
             day_minutes: default_day_minutes(),
             start_hour: default_start_hour(),
+            factions: Default::default(),
             skills: Default::default(),
             progression: Default::default(),
             dialog_portraits: true,

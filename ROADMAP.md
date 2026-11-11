@@ -191,7 +191,7 @@ Instructions for every session (people and coding agents) that implements roadma
   confirmation, budget respected, progress, result image, applied asset in play); the key never
   in project files, exports or replies.
 
-- [ ] Factions — `feature/factions`
+- [x] Factions — `feature/factions`
 
   **Goal.** Who is hostile to whom follows from factions: orcs attack elves and humans on sight,
   wolves attack everyone, guards defend the village; the player's race and deeds change how
@@ -212,6 +212,15 @@ Instructions for every session (people and coding agents) that implements roadma
   **Verify.** Autoplay: an orc patrol meets an elf traveller → `status enemies=` shows them
   fighting; the player as an orc walks past an orc camp unharmed; standing changes after a
   quest.
+
+  **Done.** As designed, with two refinements found while building the example: *Hostile*
+  characters spare friends of their faction (standing 20 or more) instead of overriding the
+  faction completely, so library monsters stay dangerous in projects without factions and an
+  orc player is still welcome in the orc camp; a race without a faction leaves its players
+  faction-less. Only humans, elves and dwarves are playable in the example; the villagers belong
+  to the humans' faction. Faction ids are fixed once created (no
+  rename). Library bundles don't carry the project's factions yet: library characters name
+  theirs, which stay dormant until a project defines them.
 
 - [x] Elves, dwarves, orcs and trolls — `feature/race-art`
 

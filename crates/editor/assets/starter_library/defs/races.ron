@@ -19,12 +19,13 @@
                 level: 1,
             ),
         ],
+        faction: "humans",
     ),
     (
         id: "goblin",
         name: "Goblin",
         description: "Small, quick and sharp-eyed. Goblins find coins where others see dirt, but they can\'t take much of a beating.",
-        playable: true,
+        playable: false,
         bodies_male: [
             "goblin",
             "body_goblin",
@@ -41,6 +42,7 @@
                 level: 1,
             ),
         ],
+        faction: "goblins",
     ),
     (
         id: "elf",
@@ -61,6 +63,7 @@
                 level: 1,
             ),
         ],
+        faction: "elves",
     ),
     (
         id: "dwarf",
@@ -86,12 +89,13 @@
                 level: 1,
             ),
         ],
+        faction: "dwarves",
     ),
     (
         id: "orc",
         name: "Orc",
         description: "Big, strong and fierce. Orcs grow up with a blade in hand and don\'t fall easily.",
-        playable: true,
+        playable: false,
         bodies_male: [
             "orc",
         ],
@@ -105,12 +109,13 @@
                 level: 1,
             ),
         ],
+        faction: "orcs",
     ),
     (
         id: "troll",
         name: "Troll",
         description: "Huge, slow and almost impossible to knock down. A troll\'s hide turns blades, and its fists do the rest.",
-        playable: true,
+        playable: false,
         bodies_male: [
             "troll",
         ],

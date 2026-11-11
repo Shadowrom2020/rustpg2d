@@ -3,7 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.16.0 — 2026-11-11
 
 ### Art
 - **Wolves and bats in the Wilds**: a new monster, the wolf (drawn in the new style, with walk and

@@ -208,7 +208,8 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   data — log with `eprintln!` (prefix like `[game]`, `[events]`) and carry on.
 - Don't add dependencies without a good reason. Pinned stack: macroquad 0.4.16 (with
   `features = ["audio"]`), egui-macroquad 0.17.3 (egui 0.31) and with it egui-phosphor 0.9 (each
-  later egui-phosphor needs a newer egui; Dependabot ignores all four), postcard + lz4_flex, ron,
+  later egui-phosphor needs a newer egui; Dependabot ignores all four), image 0.24 and lewton 0.9
+  (macroquad's versions: `image` only turns on the JPEG decoder of macroquad's copy; ignored too), postcard + lz4_flex, ron,
   rhai, rfd, zip 9, png 0.18 (`imageio.rs`; macroquad keeps its own png 0.17 internally).
 - **Compatibility is a hard rule** (maps, defs and save games of older versions must load):
   - New variants of `Action`, `TriggerOn`, `Cond`, `ZoneKind`, `OnUnlock` are **appended**

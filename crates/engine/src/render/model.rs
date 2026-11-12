@@ -3,8 +3,8 @@
 //! colour step), the held items and a carried prop as pictures at its hands, from an orthographic
 //! camera looking down 20°, at the figures' pixel density (2 image pixels per world pixel); then a
 //! dark outline is added while it is copied into an atlas page. The world draws that image like a
-//! sprite, so depth sorting, lights, tints and the UI work as for any picture. Pages fill lazily
-//! and are reused oldest first.
+//! sprite, so depth sorting, lights, tints and the UI work as for any picture. Pages fill lazily;
+//! when all are full, the page drawn from longest ago is cleared and reused.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -25,7 +25,17 @@ pub const ELEVATION: f32 = 20.0;
 /// Feet this many image pixels above a frame's bottom (room for the shadow).
 const FEET_MARGIN: f32 = 4.0;
 const PAGE: u32 = 1024;
-const MAX_PAGES: usize = 8;
+/// Megabytes of one atlas page (RGBA).
+const PAGE_MB: u32 = PAGE * PAGE * 4 / (1024 * 1024);
+/// The pose atlas's size unless the project sets one (`ProjectConfig::model_atlas_mb`).
+pub const DEFAULT_ATLAS_MB: u32 = 32;
+/// The sizes a project may choose (MB).
+pub const ATLAS_MB: std::ops::RangeInclusive<u32> = 8..=128;
+
+/// Pages of an atlas of `mb` megabytes (clamped to [`ATLAS_MB`]).
+pub fn atlas_pages(mb: u32) -> usize {
+    (mb.clamp(*ATLAS_MB.start(), *ATLAS_MB.end()) / PAGE_MB) as usize
+}
 /// Draw-call capacity the game and editor windows ask for: a model is one draw (up to about
 /// 32k vertices and 30k triangles; generated models are kept near 5k triangles).
 pub const DRAW_VERTICES: usize = 32_768;
@@ -108,7 +118,6 @@ pub struct Cell {
     /// The head bone (the base of the head) in the cell, for portraits.
     pub head: Option<Vec2>,
     pub tips: Vec<(String, Vec2)>,
-    used: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -169,6 +178,7 @@ struct Page {
     x: u32,
     y: u32,
     row: u32,
+    /// The frame a pose on it was last drawn (or added).
     stamp: u64,
 }
 
@@ -182,6 +192,19 @@ struct Cache {
     frame: u64,
     renders: u32,
     renders_total: u64,
+    /// Pages the atlas may have (0: the default size).
+    max_pages: usize,
+    /// Full pages cleared for new poses.
+    evictions: u64,
+}
+
+impl Cache {
+    /// A pose is drawn this frame: its page is in use.
+    fn touch(&mut self, cell: &Cell) {
+        if let Some(p) = self.pages.get_mut(cell.page) {
+            p.stamp = self.frame;
+        }
+    }
 }
 
 /// A held item's 3D model: its mesh as it stands in the file, its texture and its length.
@@ -296,6 +319,19 @@ impl Models {
         m
     }
 
+    /// Sets the pose atlas's size in MB (`ProjectConfig::model_atlas_mb`); pages beyond it are
+    /// dropped with their poses.
+    pub fn set_atlas_mb(&self, mb: u32) {
+        let mut c = self.cache.borrow_mut();
+        c.max_pages = atlas_pages(mb);
+        if c.pages.len() > c.max_pages {
+            let keep = c.max_pages;
+            c.pages.truncate(keep);
+            c.poses.retain(|_, cell| cell.page < keep);
+            c.current = c.current.min(keep - 1);
+        }
+    }
+
     /// Forgets every rendered pose (an item model's marks changed).
     pub fn clear_poses(&self) {
         self.cache.borrow_mut().poses.clear();
@@ -401,10 +437,11 @@ impl Models {
         self.loaded.get(id).map(|l| (l.frame.0 as f32 / PX, l.frame.1 as f32 / PX))
     }
 
-    /// Cache numbers for `status`: poses, pages, renders this frame, renders in all.
+    /// Cache numbers for `status`: poses, pages (of the most allowed), renders this frame,
+    /// renders in all, pages cleared for new poses.
     pub fn status(&self) -> String {
         let c = self.cache.borrow();
-        format!("{}/{}p/{}r/{}", c.poses.len(), c.pages.len(), c.renders, c.renders_total)
+        format!("{}/{}/{}p/{}r/{}/{}e", c.poses.len(), c.pages.len(), page_cap(&c), c.renders, c.renders_total, c.evictions)
     }
 
     /// Call once per frame (resets the per-frame render budget).
@@ -422,14 +459,17 @@ impl Models {
         let anim = if req.bust { "@bust" } else { req.anim };
         let key = PoseKey { model: req.look.model.clone(), colors: hash(&req.look.colors), gear: hash(req.gear), anim: anim.to_string(), frame, facing: req.facing as u8 };
         let mut c = self.cache.borrow_mut();
-        let now = c.frame;
-        if let Some(cell) = c.poses.get_mut(&key) {
-            cell.used = now;
-            return Some(cell.clone());
+        if let Some(cell) = c.poses.get(&key).cloned() {
+            c.touch(&cell);
+            return Some(cell);
         }
         if c.renders >= RENDERS_PER_FRAME {
             // Over budget: any frame of the same model, colours and facing, to draw meanwhile.
-            return c.poses.iter().find(|(k, _)| k.model == key.model && k.colors == key.colors && k.facing == key.facing).map(|(_, v)| v.clone());
+            let other = c.poses.iter().find(|(k, _)| k.model == key.model && k.colors == key.colors && k.facing == key.facing).map(|(_, v)| v.clone());
+            if let Some(cell) = &other {
+                c.touch(cell);
+            }
+            return other;
         }
         c.renders += 1;
         c.renders_total += 1;
@@ -740,7 +780,22 @@ fn material(c: &mut Cache) -> Material {
     c.material.clone().unwrap()
 }
 
-/// A page cell of `w x h` pixels (a new page or the oldest one reused when full).
+/// The pages an atlas may have.
+fn page_cap(c: &Cache) -> usize {
+    if c.max_pages == 0 {
+        atlas_pages(DEFAULT_ATLAS_MB)
+    } else {
+        c.max_pages
+    }
+}
+
+/// The page to clear when all are full: the one drawn from longest ago (the first of equals).
+fn pick_page(stamps: &[u64]) -> usize {
+    stamps.iter().enumerate().min_by_key(|(_, s)| **s).map_or(0, |(i, _)| i)
+}
+
+/// A page cell of `w x h` pixels (a new page, or the page drawn from longest ago cleared when
+/// all are full).
 fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
     loop {
         if let Some(p) = c.pages.get_mut(c.current) {
@@ -757,7 +812,7 @@ fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
                 return (c.current, r);
             }
         }
-        if c.pages.len() < MAX_PAGES {
+        if c.pages.len() < page_cap(c) {
             let rt = render_target_ex(PAGE, PAGE, RenderTargetParams { sample_count: 1, depth: false });
             rt.texture.set_filter(FilterMode::Nearest);
             push_camera_state();
@@ -767,8 +822,9 @@ fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
             c.pages.push(Page { rt, x: 0, y: 0, row: 0, stamp: c.frame });
             c.current = c.pages.len() - 1;
         } else {
-            // Reuse the page filled longest ago: its poses render again when needed.
-            let oldest = (0..c.pages.len()).min_by_key(|&i| c.pages[i].stamp).unwrap_or(0);
+            // Reuse the page drawn from longest ago: its poses render again when needed.
+            let oldest = pick_page(&c.pages.iter().map(|p| p.stamp).collect::<Vec<_>>());
+            c.evictions += 1;
             c.poses.retain(|_, cell| cell.page != oldest);
             let p = &mut c.pages[oldest];
             (p.x, p.y, p.row) = (0, 0, 0);
@@ -1006,7 +1062,7 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
     let feet = to_px(Vec3::ZERO) + vec2(1.0, 1.0);
     let head = l.model.node("head").map(|n| to_px(turn.transform_point3(world[n].w_axis.truncate())) + vec2(1.0, 1.0));
     let base = Rect::new(left as f32, top as f32, (w0 + 2) as f32, (h0 + 2) as f32);
-    Cell { page, rect, base, feet, head, tips: tips.into_iter().map(|(id, p)| (id, p + vec2(1.0, 1.0))).collect(), used: c.frame }
+    Cell { page, rect, base, feet, head, tips: tips.into_iter().map(|(id, p)| (id, p + vec2(1.0, 1.0))).collect() }
 }
 
 /// A camera drawing into an atlas page in its texture's own pixels (y down as sampled).
@@ -1058,6 +1114,19 @@ mod tests {
         let glb = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/model_two_bones.glb")).unwrap();
         let def = ModelDef { clips: vec![ClipMap { anim: "walk".into(), clip: "bend".into(), fps: 10.0 }], ..ModelDef::new("m", "models/m.glb") };
         load_one(&def, &Database::default(), &|_| Ok(glb.clone())).unwrap()
+    }
+
+    #[test]
+    fn the_atlas_clears_the_page_drawn_from_longest_ago() {
+        // Page 0 was filled first but its poses are drawn every frame: page 1 goes.
+        assert_eq!(pick_page(&[90, 12, 40]), 1);
+        assert_eq!(pick_page(&[7, 7, 9]), 0);
+        assert_eq!(pick_page(&[]), 0);
+        // Sizes: 4 MB pages, clamped to 8..=128 MB.
+        assert_eq!(atlas_pages(DEFAULT_ATLAS_MB), 8);
+        assert_eq!(atlas_pages(1), 2);
+        assert_eq!(atlas_pages(10_000), 32);
+        assert_eq!(page_cap(&Cache::default()), 8);
     }
 
     #[test]

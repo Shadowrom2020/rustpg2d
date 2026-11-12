@@ -717,7 +717,7 @@ with_params {
     /// Redoes undone edit(s) of the open map.
     #[tool]
     redo: Redo(p: UndoParams) => ed.mcp_undo(p, true), summary = String::new();
-    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, skills, progression, dialog_portraits, …
+    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, skills, progression, dialog_portraits, model_atlas_mb (MB of GPU memory for rendered character poses, 8 to 128), …
     #[tool(annotations(idempotent_hint = true))]
     set_project_config: SetProjectConfig(p: PatchParams) => ed.mcp_set_project_config(p);
     /// A map region as text: one grid per layer with a legend (glyph = tileset#index, terrain name, solid), the collision grid, and the entities and zones there with their uids. At most 80x50 tiles per call.

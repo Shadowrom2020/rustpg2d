@@ -5,6 +5,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Characters
+- **Character pose memory** (*Database › Project*, `model_atlas_mb` in project.ron): the GPU
+  memory for rendered poses of 3D characters, 8 to 128 MB (default 32, as before). Raise it for
+  big casts on screen at once, lower it for small GPUs. `status` prints the most pages and the
+  pages cleared (`models=poses/pages/most p/renders r/total/cleared e`).
+
+### Fixes
+- **Poses in use stay cached**: when the pose atlas was full, the page *filled* longest ago was
+  cleared, even when its poses (the player's walk) were drawn every frame, and they had to be
+  rendered again. Now the page *drawn* from longest ago goes (in a test with the smallest atlas,
+  about 10 % fewer renders while exploring the village).
+
 ### Maintenance
 - **GitHub Flow**: `master` is the only long-lived branch. Features, fixes and Dependabot updates
   merge into it by pull request; a `release/X.Y.Z` pull request (a patch release too) runs the

@@ -67,6 +67,18 @@ pub struct ProjectConfig {
     /// Translations players can choose (codes; each has `lang/<code>.ron`, see `lang`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub languages: Vec<String>,
+    /// GPU memory for the rendered poses of 3D characters, in MB (the pose atlas: pages of 4 MB;
+    /// 8 to 128, see `render::model::atlas_pages`). Big casts on screen at once need more.
+    #[serde(default = "default_atlas_mb", skip_serializing_if = "is_default_atlas_mb")]
+    pub model_atlas_mb: u32,
+}
+
+fn default_atlas_mb() -> u32 {
+    crate::render::model::DEFAULT_ATLAS_MB
+}
+
+fn is_default_atlas_mb(mb: &u32) -> bool {
+    *mb == default_atlas_mb()
 }
 
 fn default_language() -> String {
@@ -195,6 +207,7 @@ impl ProjectConfig {
             player_portrait: Default::default(),
             language: default_language(),
             languages: Vec::new(),
+            model_atlas_mb: default_atlas_mb(),
         }
     }
 }
@@ -518,5 +531,16 @@ mod tests {
         // A whole healthy file parses in one go (nothing reported).
         let ok: Vec<crate::defs::ItemDef> = parse_list(Some(r#"[(id: "a", name: "A", icon: (sheet: "s", frame: 0))]"#.into()), "items", &mut |_| panic!("healthy")).unwrap();
         assert_eq!(ok.len(), 1);
+    }
+
+    /// Projects of earlier versions have no pose atlas size: the default, and saving the default
+    /// leaves project.ron as it was.
+    #[test]
+    fn the_atlas_size_defaults_and_stays_out_of_the_file() {
+        let c: ProjectConfig = ron::from_str(include_str!("../tests/fixtures/project-0.16.0/project.ron")).unwrap();
+        assert_eq!(c.model_atlas_mb, crate::render::model::DEFAULT_ATLAS_MB);
+        assert!(!ron::to_string(&c).unwrap().contains("model_atlas_mb"));
+        let big = ProjectConfig { model_atlas_mb: 64, ..c };
+        assert!(ron::to_string(&big).unwrap().contains("model_atlas_mb:64"));
     }
 }

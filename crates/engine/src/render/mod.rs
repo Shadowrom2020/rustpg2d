@@ -260,6 +260,7 @@ impl Assets {
             eprintln!("[assets] {e}");
         }
         let models = model::Models::load(&project.db, &|rel| crate::sys::read(&project.path(rel)));
+        models.set_atlas_mb(project.config.model_atlas_mb);
         errors.extend(models.errors.iter().cloned());
         Assets { tile_size: ts, tilesets, sheets, errors, models }
     }

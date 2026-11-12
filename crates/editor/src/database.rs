@@ -2459,6 +2459,12 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
         ui.checkbox(&mut c.dialog_portraits, "show the speaker's portrait in dialogs")
             .on_hover_text("Found from the speaker's name: the player (\"{player}\" or the player's name), the trigger's owner ({self}), a character on the map or a character definition with that name. Narration and signs (no matching character) have none.");
         ui.end_row();
+        ui.label("Character pose memory");
+        let atlas = egui::DragValue::new(&mut c.model_atlas_mb).range(rustpg2d_engine::render::model::ATLAS_MB).speed(1.0).suffix(" MB");
+        if ui.add(atlas).on_hover_text("GPU memory for the rendered poses of 3D characters (pages of 4 MB). When it is full, the poses drawn longest ago are rendered again when needed. Raise it for many different characters on screen at once; lower it for small GPUs. Default 32 MB.").changed() {
+            ed.assets.models.set_atlas_mb(c.model_atlas_mb);
+        }
+        ui.end_row();
         ui.label("Automatic emotions");
         ui.checkbox(&mut c.auto_emotions, "characters show emotions by themselves").on_hover_text(
             "Enemies show 'surprise' when they notice the player, 'confused' when they lose them and 'fear' when they flee; sleepers 'sleepy'; companions 'joy' when they learn a spell. Needs those emotions (tags) in an Emotions sprite sheet.",

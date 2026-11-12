@@ -311,6 +311,8 @@ pub struct Editor {
     pub light_pass: Option<rustpg2d_engine::render::lighting::LightPass>,
     /// Weather preview particles.
     pub weather_fx: rustpg2d_engine::render::weather::WeatherFx,
+    /// Chunk textures of the open map's tile layers, for views zoomed far out.
+    pub tile_cache: crate::tile_cache::TileCache,
     pub light_cache: (f64, String, Vec<rustpg2d_engine::render::lighting::Light>),
     /// Main editor: the Asset Library window it started.
     pub lib_window: crate::library_window::LibWindow,
@@ -439,6 +441,7 @@ impl Editor {
             view: ViewOpts { grid: true, collision: false, zones: true, dim_layers: false, minimap: true, lighting: false, hour: 22.0, weather: false, parallax: true },
             light_pass: None,
             weather_fx: Default::default(),
+            tile_cache: Default::default(),
             light_cache: (-1.0, String::new(), Vec::new()),
             status: (String::new(), 0.0),
             notices: Vec::new(),

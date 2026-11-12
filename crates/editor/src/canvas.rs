@@ -839,9 +839,18 @@ impl Editor {
                 WHITE
             }
         };
+        // Zoomed far out, layers draw from chunk textures (`tile_cache`; RUSTPG2D_NO_TILE_CACHE
+        // turns it off, for comparisons).
+        let cached = !overview && self.cam.zoom * ts <= crate::tile_cache::CACHE_AT_PX && std::env::var_os("RUSTPG2D_NO_TILE_CACHE").is_none();
+        let sets_key = crate::tile_cache::sets_key(map, &sets);
+        self.tile_cache.begin(&map.name);
         if !overview {
             for (i, l) in map.layers.iter().enumerate().filter(|(_, l)| l.visible && !l.above_entities) {
-                render::draw_layer(map, l, &sets, ts, view, tint(i));
+                if cached {
+                    self.tile_cache.draw_layer(map, i, &sets, sets_key, ts, view, tint(i));
+                } else {
+                    render::draw_layer(map, l, &sets, ts, view, tint(i));
+                }
             }
             // Fish shadows in fishing spots, as in the game.
             for z in map.zones.iter().filter(|z| matches!(z.kind, ZoneKind::FishingSpot { .. })) {
@@ -880,7 +889,11 @@ impl Editor {
                 if i != self.layer && (self.tool.paints_tiles() || self.tool == Tool::Terrain) {
                     t.a *= 0.6;
                 }
-                render::draw_layer(map, l, &sets, ts, view, t);
+                if cached {
+                    self.tile_cache.draw_layer(map, i, &sets, sets_key, ts, view, t);
+                } else {
+                    render::draw_layer(map, l, &sets, ts, view, t);
+                }
             }
         }
         if self.view.parallax {

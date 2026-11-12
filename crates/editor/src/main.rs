@@ -34,6 +34,7 @@ mod script_editor;
 mod search;
 mod structures;
 mod terrain;
+mod tile_cache;
 mod ui;
 mod wizard;
 mod widgets;
@@ -153,7 +154,9 @@ async fn main() {
         canvas::inject_mouse(mouse_frames.pop_front().or(HOVER.with(|h| h.get())));
         egui_macroquad::ui(|ctx| ed.ui(ctx));
         ed.update_canvas();
+        let drawing = std::time::Instant::now();
         ed.draw_canvas();
+        TIMING.with(|t| t.borrow_mut().frame(get_frame_time(), drawing.elapsed().as_secs_f32()));
         egui_macroquad::draw();
         if let Some(p) = shot.take() {
             get_screen_data().export_png(&p);
@@ -165,6 +168,37 @@ async fn main() {
         }
         next_frame().await;
     }
+}
+
+/// Frame timing for `status` (since the previous `status`): frames, their seconds, the worst
+/// frame and the time spent drawing the map view (CPU).
+#[derive(Default)]
+struct FrameTiming {
+    frames: u32,
+    sum: f32,
+    worst: f32,
+    canvas: f32,
+}
+
+impl FrameTiming {
+    fn frame(&mut self, dt: f32, canvas: f32) {
+        self.frames += 1;
+        self.sum += dt;
+        self.worst = self.worst.max(dt);
+        self.canvas += canvas;
+    }
+
+    /// `fps=N frame_ms=avg/worst canvas_ms=avg`, then starts over.
+    fn take(&mut self) -> String {
+        let n = self.frames.max(1) as f32;
+        let s = format!("fps={:.0} frame_ms={:.1}/{:.1} canvas_ms={:.2}", n / self.sum.max(1e-6), self.sum / n * 1000.0, self.worst * 1000.0, self.canvas / n * 1000.0);
+        *self = FrameTiming::default();
+        s
+    }
+}
+
+thread_local! {
+    static TIMING: std::cell::RefCell<FrameTiming> = std::cell::RefCell::new(FrameTiming::default());
 }
 
 fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Option<String>, mouse: &mut VecDeque<canvas::Mouse>) {
@@ -609,7 +643,10 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] {} tilecache={}/{} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            TIMING.with(|t| t.borrow_mut().take()),
+            ed.tile_cache.len(),
+            ed.tile_cache.builds,
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),

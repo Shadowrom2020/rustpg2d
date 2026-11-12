@@ -47,6 +47,11 @@ impl TilesetTex {
         }
     }
 
+    /// Whether tile `index` is animated (it cycles through other tiles).
+    pub fn is_animated(&self, index: u32) -> bool {
+        matches!(self.anim_of.get(index as usize), Some(Some(_)))
+    }
+
     pub fn set_animations(&mut self, anims: &[TileAnim]) {
         self.anims = anims.to_vec();
         self.anim_of = vec![None; self.count as usize];

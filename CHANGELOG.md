@@ -3,7 +3,10 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.18.0 — 2026-11-12
+
+Characters in 3D, and the peoples of the world (0.17.0 was not released on its own: its races,
+factions, Meshy art and asset library updates ship here).
 
 ### Breaking
 - **Characters are 3D models; figures are removed.** Every character of the example and the starter

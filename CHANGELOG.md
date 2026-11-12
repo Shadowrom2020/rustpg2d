@@ -116,7 +116,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   boxes for *Held as*, *Length*, a *Hold at* slider, *Estimate*, *Turn handle*, *Turn front*, *Flip
   ends* and a big preview (standing, walking or attacking, playing, held by any model); the numbers
   are folded under *Numbers*, the picture settings under *Picture in the hand* while a model is set.
-  Two-handed items are held in the right hand while the fists are apart. Rendered icons show
+  Two-handed items are held in the right hand while the fists are apart. A hand's grip axis is never
+  the one along the forearm (models whose rest pose reaches forward, like the female elf and the
+  troll, held things along their fingers). Rendered icons show
   blades up-right, shields' and lanterns' fronts. The example's and library's items are set up
   anew. Editor script `itemhold ITEM estimate|turnhandle|turnfront|flip|at F|style S|size PX`,
   `itempreview idle|walk|attack [play] [MODEL]`.

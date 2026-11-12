@@ -650,9 +650,14 @@ fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Resul
         let node = model.node(&format!("{side}hand"))?;
         let parent = model.nodes[node].parent;
         let rot = Mat3::from_mat4(rest[node]);
-        // The local axis that points most to the front (+Z) at rest: the thumb side.
+        // The local axis that points most to the front (+Z) at rest: the thumb side. Not one
+        // along the forearm (the fingers' way): a rest pose with the arms reaching forward
+        // would hold things along the fingers.
+        let wrist = rest[node].w_axis.truncate();
+        let fore = parent.map_or(Vec3::ZERO, |p| (wrist - rest[p].w_axis.truncate()).normalize_or_zero());
         let axes = [Vec3::X, -Vec3::X, Vec3::Y, -Vec3::Y, Vec3::Z, -Vec3::Z];
-        let thumb = axes.into_iter().max_by(|a, b| (rot * *a).normalize_or_zero().z.total_cmp(&(rot * *b).normalize_or_zero().z))?;
+        let across = axes.into_iter().filter(|a| (rot * *a).normalize_or_zero().dot(fore).abs() < 0.7);
+        let thumb = across.max_by(|a, b| (rot * *a).normalize_or_zero().z.total_cmp(&(rot * *b).normalize_or_zero().z))?;
         Some(HandBone { node, parent, thumb })
     };
     let hands = [hand("right"), hand("left")];

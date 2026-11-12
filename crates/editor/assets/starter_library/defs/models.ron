@@ -636,7 +636,6 @@
         file: "models/dwarf_f.glb",
         clip_files: [
             "models/dwarf_f_clips.glb",
-            "models/dwarf_f_attack.glb",
         ],
         height: 34.0,
         clips: [
@@ -662,7 +661,7 @@
             ),
             (
                 anim: "attack",
-                clip: "Armature|Heavy_Hammer_Swing|baselayer",
+                clip: "Heavy_Hammer_Swing",
                 fps: 12.0,
             ),
         ],
@@ -670,11 +669,9 @@
             (
                 name: "skin",
                 shades: [
-                    (179, 127, 81),
-                    (194, 141, 99),
-                    (203, 151, 109),
-                    (212, 157, 115),
-                    (230, 172, 130),
+                    (202, 153, 138),
+                    (211, 160, 143),
+                    (215, 166, 148),
                 ],
                 colors: [
                     (246, 208, 176),
@@ -689,10 +686,9 @@
             (
                 name: "hair",
                 shades: [
-                    (121, 42, 19),
-                    (143, 63, 31),
-                    (120, 72, 45),
-                    (127, 55, 28),
+                    (120, 53, 24),
+                    (105, 46, 22),
+                    (110, 75, 56),
                 ],
                 colors: [
                     (30, 22, 18),

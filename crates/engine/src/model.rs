@@ -292,6 +292,13 @@ impl Model {
             (*p, *n) = (rot * *p, rot * *n);
         }
         let bounds = |pts: &[(Vec3, Vec3)]| pts.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)));
+        // Standing on the ground at its middle, as rigged characters do (models made from
+        // pictures have their origin at their centre: half of them would be below the ground).
+        let (lo, hi) = bounds(&pts);
+        let shift = Vec3::new(-(lo.x + hi.x) / 2.0, -lo.y, -(lo.z + hi.z) / 2.0);
+        for (p, _) in &mut pts {
+            *p += shift;
+        }
         let (mlo, mhi) = bounds(&pts);
         let tw = tpl.pose(None, 0.0);
         let mut tp = Vec::new();
@@ -967,6 +974,16 @@ mod tests {
         let turned = m.fit_rig(&tpl, 90.0, &[]).unwrap();
         assert!(turned.vertices[0].pos.x.abs() < 1e-4 && (turned.vertices[0].pos.z + 0.5).abs() < 1e-4, "{:?}", turned.vertices[0].pos);
         assert!(m.fit_rig(&column(), 0.0, &[]).is_err(), "a template needs a skeleton");
+        // A model centred on its middle (as from pictures) stands on the ground once fitted.
+        let mut floating = column();
+        for v in &mut floating.vertices {
+            v.pos += Vec3::new(3.0, -2.0, 1.0);
+        }
+        let fit = floating.fit_rig(&tpl, 0.0, &[]).unwrap();
+        fit.skin(&fit.pose(None, 0.0), &mut out);
+        let lo = out.iter().fold(Vec3::splat(f32::MAX), |lo, (p, _)| lo.min(*p));
+        let hi = out.iter().fold(Vec3::splat(f32::MIN), |hi, (p, _)| hi.max(*p));
+        assert!(lo.y.abs() < 1e-4 && (lo.x + hi.x).abs() < 1e-4 && (lo.z + hi.z).abs() < 1e-4, "{lo:?} .. {hi:?}");
     }
 
     #[test]

@@ -167,11 +167,11 @@ pub fn parse_xml(text: &str) -> Result<El> {
     let mut r = quick_xml::Reader::from_str(text);
     let mut stack: Vec<El> = vec![El::default()];
     let element = |e: &quick_xml::events::BytesStart| -> Result<El> {
-        let mut el = El { name: String::from_utf8_lossy(e.name().as_ref()).into_owned(), ..Default::default() };
+        let mut el = El { name: e.name().as_ref().to_string(), ..Default::default() };
         for a in e.attributes() {
             let a = a.context("bad XML attribute")?;
             let v = a.normalized_value(quick_xml::XmlVersion::Implicit1_0).context("bad XML attribute value")?;
-            el.attrs.insert(String::from_utf8_lossy(a.key.as_ref()).into_owned(), v.into_owned());
+            el.attrs.insert(a.key.as_ref().to_string(), v.into_owned());
         }
         Ok(el)
     };
@@ -186,8 +186,8 @@ pub fn parse_xml(text: &str) -> Result<El> {
                 let el = stack.pop().context("unbalanced XML")?;
                 stack.last_mut().context("unbalanced XML")?.children.push(el);
             }
-            Event::Text(t) => stack.last_mut().unwrap().text.push_str(&t.decode().context("bad XML text")?),
-            Event::CData(t) => stack.last_mut().unwrap().text.push_str(&String::from_utf8_lossy(&t)),
+            Event::Text(t) => stack.last_mut().unwrap().text.push_str(&t.xml_content(quick_xml::XmlVersion::Implicit1_0)),
+            Event::CData(t) => stack.last_mut().unwrap().text.push_str(&t.xml_content(quick_xml::XmlVersion::Implicit1_0)),
             Event::Eof => break,
             _ => {}
         }

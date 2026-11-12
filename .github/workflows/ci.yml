@@ -1,23 +1,21 @@
-# Checks for every pull request into develop / master, and pushes to master (their results on
-# the merge commit satisfy the back-merge pull request into develop). The job names are the
-# required status checks of the branch rulesets (AGENTS.md):
-#   develop: Branch policy, Build, lint, test
-#   master:  Branch policy, Build, lint, test, Version, Packages
+# Checks for every pull request into master (GitHub Flow: feature/*, bugfix/*, dependabot/* and
+# release/X.Y.Z branches all merge into master) and for pushes to master. The job names are the
+# required status checks of master's ruleset (AGENTS.md): Branch policy, Build, lint, test,
+# Version, Packages (a skipped job counts as passed).
 # Version, Windows, macOS, the release builds (builds.yml: every platform at once), Packages
-# (assembles them) and the macOS app (macos-app.yml) only run for pull requests into master
-# (release / hotfix branches) and when started by hand (Actions > CI > Run workflow, any branch:
-# all of them, to try platform or packaging changes before a release). The Release workflow
-# publishes the packages of the merged pull request's run instead of building them again.
+# (assembles them) and the macOS app (macos-app.yml) only run for release/X.Y.Z pull requests and
+# when started by hand (Actions > CI > Run workflow, any branch: all of them, to try platform or
+# packaging changes before a release). Merging a release pull request publishes its packages
+# (release.yml) instead of building them again.
 # Runtime smoke (scripts/ci/smoke.sh: the game and the editor running under Xvfb) runs for every
 # pull request; it is advisory until it has proven itself stable.
 # A push to master whose tree is the merged pull request's (always: master must be up to date
-# before a merge) only reports the checks; the pull request ran them on that very tree. So does
-# the back-merge pull request master -> develop when develop has nothing master lacks.
+# before a merge) only reports the checks; the pull request ran them on that very tree.
 name: CI
 
 on:
   pull_request:
-    branches: [develop, master]
+    branches: [master]
   push:
     branches: [master]
   workflow_dispatch:
@@ -65,22 +63,16 @@ jobs:
         with:
           fetch-depth: 2
       # Nothing new to test: a merge into master with the pull request's tree (master only takes
-      # up-to-date branches), or the back-merge master -> develop while develop has nothing master
-      # lacks (the merge is master's tree, which its release / hotfix pull request tested).
+      # up-to-date branches).
       - name: Already tested?
         id: tested
         shell: bash
         env:
           EVENT: ${{ github.event_name }}
-          HEAD_REF: ${{ github.head_ref }}
-          BASE_REF: ${{ github.base_ref }}
         run: |
           same_tree() { git rev-parse -q --verify HEAD^2 > /dev/null && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse 'HEAD^2^{tree}')" ]; }
           if [ "$EVENT" = push ] && same_tree; then
             echo "the merged pull request tested this tree"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT" = pull_request ] && [ "$HEAD_REF" = master ] && [ "$BASE_REF" = develop ] && same_tree; then
-            echo "back-merge: the result is master's tree, tested by its release / hotfix pull request"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.tested.outputs.skip != 'true'
@@ -123,22 +115,16 @@ jobs:
         with:
           fetch-depth: 2
       # Nothing new to test: a merge into master with the pull request's tree (master only takes
-      # up-to-date branches), or the back-merge master -> develop while develop has nothing master
-      # lacks (the merge is master's tree, which its release / hotfix pull request tested).
+      # up-to-date branches).
       - name: Already tested?
         id: tested
         shell: bash
         env:
           EVENT: ${{ github.event_name }}
-          HEAD_REF: ${{ github.head_ref }}
-          BASE_REF: ${{ github.base_ref }}
         run: |
           same_tree() { git rev-parse -q --verify HEAD^2 > /dev/null && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse 'HEAD^2^{tree}')" ]; }
           if [ "$EVENT" = push ] && same_tree; then
             echo "the merged pull request tested this tree"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT" = pull_request ] && [ "$HEAD_REF" = master ] && [ "$BASE_REF" = develop ] && same_tree; then
-            echo "back-merge: the result is master's tree, tested by its release / hotfix pull request"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.tested.outputs.skip != 'true'
@@ -168,7 +154,7 @@ jobs:
 
   version:
     name: Version
-    if: github.event_name == 'pull_request' && github.base_ref == 'master'
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -177,7 +163,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.99.1
-      - name: Release / hotfix version (SemVer, above the last tag, Cargo.toml, CHANGELOG)
+      - name: Release version (SemVer, above the last tag, Cargo.toml, CHANGELOG)
         env:
           HEAD_REF: ${{ github.head_ref }}
         run: cargo xtask check-version "$HEAD_REF"
@@ -185,7 +171,7 @@ jobs:
   windows:
     name: Windows
     # Native build and tests with MSVC (the downloads cross-compile with MinGW-w64 on Linux).
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'master')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/'))
     runs-on: windows-latest
     env:
       CARGO_PROFILE_DEV_OPT_LEVEL: "0"
@@ -206,7 +192,7 @@ jobs:
     name: macOS
     # Clippy for editor and game and the engine's tests on a Mac (the release builds are in
     # builds.yml).
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'master')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/'))
     runs-on: macos-latest
     env:
       CARGO_PROFILE_DEV_OPT_LEVEL: "0"
@@ -226,7 +212,7 @@ jobs:
 
   builds:
     name: Release builds
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'master')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/'))
     uses: ./.github/workflows/builds.yml
 
   packages:

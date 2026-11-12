@@ -4,9 +4,8 @@
 
 ## Branch
 
-- [ ] `feature/<name>` or `bugfix/<name>` into `develop`
-- [ ] `release/X.Y.Z` into `master` (version bump in Cargo.toml + CHANGELOG section only)
-- [ ] `hotfix/X.Y.Z` into `master` (urgent fix, PATCH bump)
+- [ ] `feature/<name>` or `bugfix/<name>` into `master`
+- [ ] `release/X.Y.Z` into `master` (version bump in Cargo.toml + CHANGELOG section only; merging it publishes the release)
 
 ## How it was tested
 

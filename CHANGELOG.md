@@ -3,6 +3,15 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Maintenance
+- **GitHub Flow**: `master` is the only long-lived branch. Features, fixes and Dependabot updates
+  merge into it by pull request; a `release/X.Y.Z` pull request (a patch release too) runs the
+  platform builds and publishes the release when merged. The `develop` branch, hotfix branches
+  and the back-merge pull request after every release are gone (`check-branch`, CI, the Release
+  workflow, Dependabot, AGENTS.md).
+
 ## 0.18.2 — 2026-11-12
 
 ### Fixes

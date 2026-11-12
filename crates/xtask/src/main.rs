@@ -4,10 +4,10 @@
 //!   downloads (editor, game runners, example project): `rustpg2d-X.Y.Z-x86_64.AppImage`,
 //!   `rustpg2d-X.Y.Z.flatpak`, the Windows zip and the macOS app (see `dist.rs`), plus
 //!   `SHA256SUMS`. Expects `cargo build --release` first (binaries in `target/release`).
-//! - `check-version BRANCH` — a release / hotfix branch (`release/X.Y.Z`, `hotfix/X.Y.Z`) names a
-//!   valid SemVer version above the newest `v*` tag that matches Cargo.toml and the CHANGELOG.
+//! - `check-version BRANCH` — a release branch (`release/X.Y.Z`) names a valid SemVer version
+//!   above the newest `v*` tag that matches Cargo.toml and the CHANGELOG.
 //! - `check-branch HEAD BASE` — the branch model: which branches may open pull requests into
-//!   `develop` and `master` (AGENTS.md).
+//!   `master` (AGENTS.md).
 //! - `release-notes X.Y.Z` — prints that version's CHANGELOG section (the GitHub Release text).
 //!
 //! Without the `dist` feature xtask has no engine dependency, so the checks CI runs on every pull
@@ -172,7 +172,7 @@ fn has_section(changelog: &str, version: &str) -> bool {
     changelog.lines().any(|l| l.strip_prefix("## ").is_some_and(|r| r == version || r.starts_with(&format!("{version} "))))
 }
 
-/// Checks a release / hotfix branch against the repository (see `check_release`).
+/// Checks a release branch against the repository (see `check_release`).
 fn check_version(root: &Path, branch: &str) -> Result<()> {
     let cargo = read(&root.join("Cargo.toml"))?;
     let changelog = read(&root.join("CHANGELOG.md"))?;
@@ -182,21 +182,14 @@ fn check_version(root: &Path, branch: &str) -> Result<()> {
     Ok(())
 }
 
-/// The rules for `release/X.Y.Z` and `hotfix/X.Y.Z`: valid SemVer, above the newest release
-/// (a hotfix only raises PATCH of the newest MAJOR.MINOR), the same as Cargo.toml, a CHANGELOG
-/// section for it and no `## Unreleased` left over.
+/// The rules for `release/X.Y.Z` (a patch release is one too): valid SemVer, above the newest
+/// release, the same as Cargo.toml, a CHANGELOG section for it and no `## Unreleased` left over.
 fn check_release(branch: &str, cargo_version: &str, changelog: &str, latest: Option<&Version>) -> Result<Version> {
-    let (kind, ver) = branch.split_once('/').context("expected release/X.Y.Z or hotfix/X.Y.Z")?;
-    if kind != "release" && kind != "hotfix" {
-        bail!("'{branch}' is not a release/X.Y.Z or hotfix/X.Y.Z branch");
-    }
+    let ver = branch.strip_prefix("release/").with_context(|| format!("'{branch}' is not a release/X.Y.Z branch"))?;
     let v = Version::parse(ver).with_context(|| format!("branch {branch}"))?;
     if let Some(l) = latest {
         if v <= *l {
             bail!("{v} is not above the latest release v{l}");
-        }
-        if kind == "hotfix" && (v.major, v.minor) != (l.major, l.minor) {
-            bail!("a hotfix raises PATCH of the latest release v{l} (e.g. {}.{}.{}); {v} changes MAJOR or MINOR", l.major, l.minor, l.patch + 1);
         }
     }
     if cargo_version != v.to_string() {
@@ -235,19 +228,17 @@ fn release_notes(changelog: &str, version: &str) -> Result<String> {
 
 // ------------------------------------------------------------------ branch policy
 
-/// Which branches may open pull requests into `develop` and `master`. Returns a short verdict.
+/// Which branches may open pull requests into `master` (GitHub Flow: everything goes into
+/// `master`; merging a `release/X.Y.Z` publishes that version). Returns a short verdict.
 fn check_branch(head: &str, base: &str) -> Result<String> {
     let named = |prefix: &str| head.strip_prefix(prefix).is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || "-_./".contains(c)));
     let versioned = |prefix: &str| head.strip_prefix(prefix).is_some_and(|v| Version::parse(v).is_ok());
     let ok = match base {
-        "develop" => named("feature/") || named("bugfix/") || named("dependabot/") || versioned("release/") || versioned("hotfix/") || head == "master",
-        "master" => versioned("release/") || versioned("hotfix/"),
+        "master" => named("feature/") || named("bugfix/") || named("dependabot/") || versioned("release/"),
         _ => true,
     };
     if !ok {
-        bail!(
-            "'{head}' may not be merged into '{base}'. develop takes feature/<name>, bugfix/<name>, release/X.Y.Z, hotfix/X.Y.Z, master (back-merge) and dependabot/*; master takes release/X.Y.Z and hotfix/X.Y.Z only"
-        );
+        bail!("'{head}' may not be merged into '{base}'. master takes feature/<name>, bugfix/<name>, release/X.Y.Z and dependabot/*");
     }
     Ok(format!("ok: {head} -> {base}"))
 }
@@ -317,10 +308,10 @@ mod tests {
         assert!(check_release("feature/x", "0.2.0", log, Some(&latest)).is_err());
         let unreleased = format!("# Changelog\n\n## Unreleased\n\n{}", &log[13..]);
         assert!(check_release("release/0.2.0", "0.2.0", &unreleased, Some(&latest)).unwrap_err().to_string().contains("Unreleased"));
-        // Hotfixes raise PATCH only.
-        let fix = "## 0.1.1 — x\n## 0.2.0 — y\n";
-        assert!(check_release("hotfix/0.1.1", "0.1.1", fix, Some(&latest)).is_ok());
-        assert!(check_release("hotfix/0.2.0", "0.2.0", fix, Some(&latest)).unwrap_err().to_string().contains("PATCH"));
+        // A patch release is a release branch too; hotfix/ branches are gone.
+        let fix = "## 0.1.1 — x\n";
+        assert!(check_release("release/0.1.1", "0.1.1", fix, Some(&latest)).is_ok());
+        assert!(check_release("hotfix/0.1.1", "0.1.1", fix, Some(&latest)).is_err());
         // Pre-releases.
         let rc = "## 0.2.0-rc.1 — z\n";
         assert!(check_release("release/0.2.0-rc.1", "0.2.0-rc.1", rc, Some(&latest)).is_ok());
@@ -340,18 +331,16 @@ mod tests {
     #[test]
     fn branch_policy() {
         for (h, b) in [
-            ("feature/linux-packages", "develop"),
-            ("bugfix/gate-spawn", "develop"),
-            ("dependabot/cargo/rhai-1.28", "develop"),
-            ("release/0.2.0", "develop"),
-            ("master", "develop"),
+            ("feature/linux-packages", "master"),
+            ("bugfix/gate-spawn", "master"),
+            ("dependabot/cargo/rhai-1.28", "master"),
             ("release/0.2.0", "master"),
-            ("hotfix/0.1.1", "master"),
+            ("release/0.2.1", "master"),
             ("anything", "feature/x"),
         ] {
             assert!(check_branch(h, b).is_ok(), "{h} -> {b}");
         }
-        for (h, b) in [("feature/x", "master"), ("develop", "master"), ("bugfix/x", "master"), ("release/next", "master"), ("fix-it", "develop"), ("feature/", "develop"), ("feature/a b", "develop")] {
+        for (h, b) in [("develop", "master"), ("hotfix/0.1.1", "master"), ("release/next", "master"), ("fix-it", "master"), ("feature/", "master"), ("feature/a b", "master")] {
             assert!(check_branch(h, b).is_err(), "{h} -> {b}");
         }
     }

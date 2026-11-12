@@ -24,18 +24,18 @@ before merging, commit messages — are in AGENTS.md and apply in full:
 - Pick sensible defaults instead of asking (Rust changes excepted, see *Content first*), and
   mention them in the summary. Ask only when a
   decision really is the user's (e.g. which of two incompatible behaviours they want).
-- **Branches:** follow AGENTS.md. Before any change: `git branch --show-current` and
-  `git status`. Work on `feature/<name>` or `bugfix/<name>` created from an up-to-date
-  `develop` (`hotfix/X.Y.Z` from `master` for urgent fixes of a release); never commit to
-  `master` or `develop` directly — both are protected on GitHub, so pushes to them are refused
-  and everything goes through pull requests. The user also commits and opens pull requests
-  themselves, so fetch first and expect branches to have moved.
-- **Commit, push, open / merge pull requests only when asked.** "Merge into develop" = push
-  the branch, `gh pr create --base develop`, wait for CI (`gh pr checks --watch`), `gh pr merge
-  --merge`, then `git checkout develop && git pull`. A release = `release/X.Y.Z` (SemVer: MINOR
-  for features, PATCH for fixes) with the version bump + dated CHANGELOG section, PR into
-  `master`, merge; the Release workflow tags, publishes the AppImage / Flatpak and opens the
-  back-merge PR master → develop, which is merged too. Never tag by hand.
+- **Branches:** follow AGENTS.md (GitHub Flow: `master` is the only long-lived branch). Before any
+  change: `git branch --show-current` and `git status`. Work on `feature/<name>` or
+  `bugfix/<name>` created from an up-to-date `master`; never commit to `master` directly — it is
+  protected on GitHub, so pushes to it are refused and everything goes through pull requests. The
+  user also commits and opens pull requests themselves, so fetch first and expect branches to
+  have moved.
+- **Commit, push, open / merge pull requests only when asked.** "Merge" = push the branch,
+  `gh pr create --base master`, wait for CI (`gh pr checks --watch`), `gh pr merge --merge`, then
+  `git checkout master && git pull`. A release = `release/X.Y.Z` from `master` (SemVer: MINOR for
+  features, PATCH for fixes) with the version bump + dated CHANGELOG section, PR into `master`,
+  merge; the Release workflow tags and publishes the AppImage / Flatpak / Windows / macOS
+  downloads. Nothing is merged back. Never tag by hand.
 - The user's own data must not be changed without a backup: their projects (e.g. `~/Test`),
   released games (`~/releases`), the asset library (`~/.local/share/rustpg2d/library`) and
   `example_project/saves/`. Test on copies in the session scratchpad instead.
@@ -151,8 +151,8 @@ crates/packaging/       AppImage (pinned type2 runtime + squashfs via backhand) 
 crates/xtask/           `cargo xtask check-version | check-branch | release-notes` (no engine, builds in
                         seconds) and `cargo xtask-dist` (feature `dist`: toolkit AppImage + Flatpak, Windows
                         zip, macOS app folder + tar to sign on a Mac)
-.github/                workflows/ci.yml (required checks), workflows/release.yml (merge into master =
-                        tag + GitHub Release with the packages of the merged PR's CI run + back-merge PR),
+.github/                workflows/ci.yml (required checks), workflows/release.yml (merging a release PR =
+                        tag + GitHub Release with the packages of the merged PR's CI run),
                         workflows/builds.yml (release builds of every platform in parallel: macOS per
                         architecture, Linux + xtask, web, Windows), workflows/macos-app.yml (codesign +
                         zip of the app the Packages job assembled), both called by ci.yml and release.yml,

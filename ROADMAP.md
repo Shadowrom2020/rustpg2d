@@ -22,9 +22,9 @@ Instructions for every session (people and coding agents) that implements roadma
    When an engine addition is unavoidable, propose the smallest generic one to the user and wait
    for the go-ahead before changing Rust code. Record the outcome in the item's *Engine* line:
    "none (content)" or the agreed addition and why.
-3. **Branch.** `git checkout develop && git pull --ff-only && git checkout -b feature/<item-slug>`
+3. **Branch.** `git checkout master && git pull --ff-only && git checkout -b feature/<item-slug>`
    (the slug is given in the item's heading). One item per branch; a release's items are
-   separate pull requests into `develop`.
+   separate pull requests into `master`.
 4. **Mark it.** Change the item's mark to `[~] feature/<slug>` in the first commit of the branch
    and to `[x]` (version left empty until the release) in the last one. Keep the *Design* block
    true: if the implementation deviates, edit the block so the roadmap matches the code.
@@ -82,12 +82,12 @@ Instructions for every session (people and coding agents) that implements roadma
     *Unreleased* (Gameplay, Editor, Fixes, Documentation, Maintenance), the roadmap mark.
 15. **CI hiccups.** A job that fails within a minute with a download timeout
     (`static.rust-lang.org`) is the runner's network: `gh run rerun <id> --failed`.
-16. **Cutting a release.** `release/X.Y.Z` from develop: version in `Cargo.toml` (the build
+16. **Cutting a release.** `release/X.Y.Z` from master: version in `Cargo.toml` (the build
     updates `Cargo.lock`), `## Unreleased` → `## X.Y.Z — date`, README *Current version*,
     the version's roadmap section removed from this file (the CHANGELOG is its record),
     `starter_history.ron` current (`cargo run -p rustpg2d-editor --example starter_history`; the
-    tests fail otherwise), `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
-    checks, merge the back-merge pull request.
+    tests fail otherwise), `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the
+    checks: the Release workflow tags and publishes it.
 
 ## Backlog (unscheduled ideas)
 

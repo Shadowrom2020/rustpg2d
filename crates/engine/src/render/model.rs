@@ -13,10 +13,10 @@ use std::hash::{Hash, Hasher};
 use macroquad::miniquad::{BlendFactor, BlendState, BlendValue, Equation};
 use macroquad::prelude::*;
 
-use crate::defs::{Appearance, Database, ModelDef};
+use crate::defs::{Appearance, Database, HoldStyle, ModelDef};
 use crate::entity::Facing;
 use crate::hands::{Grip, Hand, HeldLayer};
-use crate::model::Model;
+use crate::model::{hold_rotation, Model};
 
 /// Image pixels per world pixel of rendered characters (as the 2x figures).
 pub const PX: f32 = 2.0;
@@ -190,6 +190,8 @@ struct ItemMesh {
     texture: RefCell<Option<Texture2D>>,
     /// The longest side of its bounds (model units).
     len: f32,
+    /// The spread of its points (for its automatic front).
+    cov: Mat3,
 }
 
 /// The project's models and their rendered poses.
@@ -279,7 +281,8 @@ impl Models {
                     let (lo, hi) = points.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)));
                     let len = (hi - lo).max_element().max(1e-4);
                     let uvs = model.vertices.iter().map(|v| v.uv).collect();
-                    m.items.insert(im.file.clone(), ItemMesh { points, uvs, indices: model.indices.clone(), image: model.texture.clone(), texture: RefCell::new(None), len });
+                    let cov = crate::model::spread(&points.iter().map(|p| p.0).collect::<Vec<_>>()).1;
+                    m.items.insert(im.file.clone(), ItemMesh { points, uvs, indices: model.indices.clone(), image: model.texture.clone(), texture: RefCell::new(None), len, cov });
                 }
                 Err(e) => {
                     eprintln!("[models] item {}: {e:#}", it.id);
@@ -299,9 +302,15 @@ impl Models {
     /// pointing up-right like the drawn icons, cel shaded and outlined. Needs a window (GPU).
     pub fn render_item_icon(&self, spec: &crate::defs::ItemModel, size: u32) -> Option<Image> {
         let mesh = self.items.get(&spec.file)?;
-        let rot = Quat::from_rotation_arc(Vec3::from(spec.axis).normalize_or(Vec3::Y), vec3(1.0, 1.0, 0.0).normalize());
-        // A quarter turn about the handle shows the blade's face rather than its edge.
-        let rot = Quat::from_axis_angle(vec3(1.0, 1.0, 0.0).normalize(), 0.5) * rot;
+        // Weapons and tools point up-right like the drawn icons, their face to the viewer;
+        // lanterns hang, shields show their face.
+        let diag = vec3(1.0, 1.0, 0.0).normalize();
+        let (to_axis, to_front) = match spec.hold {
+            HoldStyle::Grip | HoldStyle::Upright => (diag, vec3(-1.0, 1.0, 0.0).normalize()),
+            HoldStyle::Hang => (-Vec3::Y, Vec3::Z),
+            HoldStyle::Strap => (Vec3::Y, Vec3::Z),
+        };
+        let rot = hold_rotation(Vec3::from(spec.axis), item_front(spec, mesh), to_axis, to_front);
         let pts: Vec<(Vec3, Vec3)> = mesh.points.iter().map(|(p, n)| (rot * (*p - Vec3::from(spec.grip)), rot * *n)).collect();
         let (lo, hi) = pts.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), (p, _)| (lo.min(*p), hi.max(*p)));
         let center = (lo + hi) / 2.0;
@@ -832,8 +841,9 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
     };
     let screen_right = Vec3::X;
     let screen_down = -vec3(0.0, e.cos(), -e.sin());
-    // The hands: grip point (a little past the wrist), grip axis, in model space after the turn.
-    let hand = |hb: &Option<HandBone>| -> Option<(Vec3, Vec3)> {
+    // The hands: grip point (a little past the wrist), grip axis and the forearm's direction
+    // (where the knuckles point), in model space after the turn.
+    let hand = |hb: &Option<HandBone>| -> Option<(Vec3, Vec3, Vec3)> {
         let hb = (*hb)?;
         let m = world[hb.node];
         let wrist = m.w_axis.truncate();
@@ -841,11 +851,11 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         let along = (wrist - elbow).normalize_or_zero();
         let grip = wrist + along * (0.07 * l.height / 1.7);
         let axis = Mat3::from_mat4(m).mul_vec3(hb.thumb).normalize_or_zero();
-        Some((turn.transform_point3(grip), turn.transform_vector3(axis)))
+        Some((turn.transform_point3(grip), turn.transform_vector3(axis), turn.transform_vector3(along)))
     };
     let hands3 = [hand(&l.hands[0]), hand(&l.hands[1])];
-    let grip2 = |h: Option<(Vec3, Vec3)>| {
-        h.map(|(p, a)| {
+    let grip2 = |h: Option<(Vec3, Vec3, Vec3)>| {
+        h.map(|(p, a, _)| {
             let s = to_px(p);
             let d = to_px(p + a * 0.1) - s;
             Grip { x: s.x, y: s.y, angle: d.y.atan2(d.x).to_degrees(), scale: 1.0, front: true }
@@ -870,8 +880,9 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         let anchor = match layer.hand {
             Hand::Right => hands3[0].map(|h| h.0),
             Hand::Left => hands3[1].map(|h| h.0),
+            // Between the fists when both are on it; hanging apart at the sides: the right one.
             Hand::Both => match (hands3[0], hands3[1]) {
-                (Some(a), Some(b)) => Some((a.0 + b.0) / 2.0),
+                (Some(a), Some(b)) if (a.0 - b.0).length() < l.height * 0.3 => Some((a.0 + b.0) / 2.0),
                 (a, b) => a.or(b).map(|h| h.0),
             },
         };
@@ -879,20 +890,34 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         // An item with its own 3D model: its mesh on the hand, the handle along the grip axis.
         let im = db.item(&layer.id).and_then(|d| d.model.as_ref()).and_then(|m| items.get(&m.file).map(|mesh| (m, mesh)));
         if let Some((spec, mesh)) = im {
-            let axis = match layer.hand {
-                Hand::Right => hands3[0].map(|h| h.1),
-                Hand::Left => hands3[1].map(|h| h.1),
-                Hand::Both => match (hands3[0], hands3[1]) {
-                    (Some(r), Some(lh)) if (r.0 - lh.0).length() > l.height * 0.08 => {
-                        let d = (r.0 - lh.0).normalize_or_zero();
-                        Some(if d.dot(r.1) >= 0.0 { d } else { -d })
-                    }
-                    (r, lh) => r.or(lh).map(|h| h.1),
-                },
+            let one = match layer.hand {
+                Hand::Right => hands3[0],
+                Hand::Left => hands3[1],
+                Hand::Both => hands3[0].or(hands3[1]),
             };
-            let Some(axis) = axis else { continue };
+            let Some((_, thumb, along)) = one else { continue };
+            let forward = turn.transform_vector3(Vec3::Z);
+            let (to_axis, to_front) = match spec.hold {
+                HoldStyle::Grip => match (layer.hand, hands3[0], hands3[1]) {
+                    // Two-handed, both fists on it: along the line through them, the right
+                    // hand's way (fists far apart, hanging at the sides: in the right hand).
+                    (Hand::Both, Some(r), Some(lh)) if (l.height * 0.08..l.height * 0.3).contains(&(r.0 - lh.0).length()) => {
+                        let d = (r.0 - lh.0).normalize_or_zero();
+                        (if d.dot(r.1) >= 0.0 { d } else { -d }, r.2)
+                    }
+                    _ => (thumb, along),
+                },
+                // Up, leaning a little with the fist.
+                HoldStyle::Upright => ((Vec3::Y * 2.0 + thumb).normalize_or(Vec3::Y), forward),
+                HoldStyle::Hang => (-Vec3::Y, forward),
+                HoldStyle::Strap => {
+                    // Turned to the front and out to the side of its hand.
+                    let out = vec3(anchor.x, 0.0, anchor.z).normalize_or_zero();
+                    (Vec3::Y, (forward + out * 0.7).normalize_or(forward))
+                }
+            };
             let k = spec.size * PX / l.ppu / mesh.len;
-            let rot = Quat::from_rotation_arc(Vec3::from(spec.axis).normalize_or(Vec3::Y), axis.normalize_or(Vec3::Y));
+            let rot = hold_rotation(Vec3::from(spec.axis), item_front(spec, mesh), to_axis, to_front);
             let grip = Vec3::from(spec.grip);
             let place = |p: Vec3| anchor + rot * ((p - grip) * k);
             let vertices: Vec<Vertex> = mesh.points.iter().zip(&mesh.uvs).map(|((p, n), uv)| {
@@ -946,6 +971,15 @@ fn page_camera(rt: &RenderTarget) -> Camera2D {
     cam.zoom.y = -cam.zoom.y;
     cam.render_target = Some(rt.clone());
     cam
+}
+
+/// An item model's front: its own, else the wider side across its handle.
+fn item_front(spec: &crate::defs::ItemModel, mesh: &ItemMesh) -> Vec3 {
+    if spec.front != [0.0; 3] {
+        Vec3::from(spec.front)
+    } else {
+        Vec3::from(crate::model::auto_front(spec.axis, mesh.cov))
+    }
 }
 
 /// A held picture as a quad facing the camera at `anchor` (the hold point), turned and mirrored

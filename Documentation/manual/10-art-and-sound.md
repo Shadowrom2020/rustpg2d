@@ -115,8 +115,9 @@ The 3D kinds:
   from a figure's three views (*From figure*, 30). Meshy rigs only people, so it is added as a 3D
   model without a character; a rig template animates it.
 - **Item 3D model**: the **Id** is an existing item; Meshy models it from the item's icon (the
-  description, if any, guides the colours; 30 credits). *Add to project* gives the item the model
-  with its hold point estimated: check it in the item's *3D model* section.
+  description, if any, guides the colours; 30 credits). *Add to project* gives the item the model,
+  held as its kind says (hold style, length, hold point estimated): check it in the preview of the
+  item's *3D model* section.
 
 *Draw* shows the cost first; a picture then takes about a minute, a 3D step one to three. The result
 is previewed; **Redo …** draws a picture again if Meshy got something wrong (a missing staff, a wrong

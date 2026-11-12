@@ -82,13 +82,27 @@ two-handed weapons in both, a tool in the right hand while it is used. Items wit
   the **size** and the **hand** (*By its kind* or right, left, both).
 
 The **3D model** section gives the item a model (a `.glb`, copied into `models/`) for characters
-made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)): its **length**
-in world pixels, the **hold point** and the direction its **handle** runs toward the blade or head
-(both in the model's own coordinates). **Estimate** finds them from the shape (the thinnest part
-along its longest side is held; the handle runs toward the farther end), **Flip** turns them
-around, and the previews show it in a 3D character's hands. **Render icon** draws the model into
-a 32 x 32 inventory icon (on the `icons_3d` sheet) and makes it the item's icon. Models made of
-plain-coloured materials without textures work too.
+made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)). Choosing one
+sets everything from the item's kind and the model's shape; then check the big **preview** (four
+facings, *Standing*, *Walking* or *Attacking*, *Play* to animate it, *held by* any character model)
+and correct it with the buttons:
+
+| Setting | What it does |
+|---|---|
+| **Held as** | *Grip*: in the fist, the handle through it and the item's front (a blade's edge, an axe's head, a bow's back) where the knuckles point; swords, axes, tools, bows. Two-handed items lie along both fists when they are together, else in the right hand. *Upright*: held up, the handle pointing up whatever the arm does (torches, staffs). *Hang*: hanging from the hand by its top (lanterns, buckets). *Strap*: on the forearm, its face turned out and forward, its top up (shields). Changing it estimates the item again. |
+| **Length** | The whole model's length in world pixels (a character is about 40 tall: a sword 24, a spear 44). |
+| **Hold at** | Where along its length the hand holds it, from the handle's end to the far end. |
+| **Estimate** | Hold point, handle and front guessed from the shape again: along the model's length (also when it lies diagonally, like an icon) a thin stretch at one end is the handle (when both ends are thin, the shorter: a sword's grip rather than its blade), held 40 % along it; the front is where its head sticks out, else its wider side. By kind, bows are held upright at their middle, shields at the middle of their back, lanterns at their top. |
+| **Turn handle** | The handle runs along the model's next main direction (its length, width, thickness, both ways): press until it lies in the hand. |
+| **Turn front** | A quarter turn about the handle: the edge, the head or the shield's face points another way. |
+| **Flip ends** | The other end is the handle. |
+| **Render icon** | Draws the model into a 32 x 32 inventory icon (on the `icons_3d` sheet) and makes it the item's icon: weapons and tools point up-right with their face to the viewer, shields and lanterns show their front. |
+
+**Numbers** shows the values behind the buttons in the model's own coordinates: the hold point, the
+direction from it toward the far end, and the front (`0 0 0`: the wider side across the handle).
+Models made of plain-coloured materials without textures work too. While an item has a model, the
+picture settings below are folded away as **Picture in the hand** (they are used only without a
+model).
 
 A hand's **grip axis** is the line a handle runs through the closed fist. Turned to the left, the
 picture is mirrored across it, so whatever is tilted up stays up in both directions. Two-handed

@@ -3,7 +3,11 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.19.0 — 2026-11-12
+
+Lighter characters: the pose atlas keeps what is drawn, characters turn diagonally, games get
+their player's face as icon, big maps stay smooth zoomed out in the editor, and the editor's
+forms are tested by clicks.
 
 ### Characters
 - **Eight facings**: 3D characters walking along a diagonal are drawn turned halfway between two

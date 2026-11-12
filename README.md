@@ -16,7 +16,7 @@ world, fill it with villagers, monsters and quests, and export a finished game f
 Linux and the browser with one click. Free and open source under the MIT license; the games you
 make are yours.
 
-Current version: **0.18.2** — see the [CHANGELOG](CHANGELOG.md) for what changed, the
+Current version: **0.19.0** — see the [CHANGELOG](CHANGELOG.md) for what changed, the
 [ROADMAP](ROADMAP.md) for what's planned, and the **[Creator's Manual](Documentation/manual/README.md)**
 for how to use it all.
 

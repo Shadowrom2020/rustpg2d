@@ -80,7 +80,7 @@ pub struct TilesetParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GenerateArtParams {
-    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) or "gear" (the 3D model of the existing item `id`, made from its icon); pictures: "icon", "prop", "portrait" or "image".
+    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) or "gear" (the 3D model of the existing item `id`: with a description from a clean picture drawn first, its icon as the reference; without one from the icon); pictures: "icon", "prop", "portrait" or "image".
     pub kind: String,
     /// Id the asset will get (letters, digits, _).
     pub id: String,

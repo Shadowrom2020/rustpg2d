@@ -123,20 +123,36 @@ pub fn paint_model(ui: &Ui, assets: &Assets, db: &rustpg2d_engine::defs::Databas
     paint_pose(ui, &assets.models, db, &assets.sheets, req, rect)
 }
 
+/// [`paint_model`] with all of the pose in the box, held items too (the item form's preview).
+pub fn paint_model_whole(ui: &Ui, assets: &Assets, db: &rustpg2d_engine::defs::Database, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect) -> bool {
+    paint_pose_fit(ui, &assets.models, db, &assets.sheets, req, rect, true)
+}
+
 /// [`paint_model`] with any set of models (the asset library's own).
 pub fn paint_pose(ui: &Ui, models: &rustpg2d_engine::render::model::Models, db: &rustpg2d_engine::defs::Database, sheets: &HashMap<String, rustpg2d_engine::render::SheetTex>, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect) -> bool {
+    paint_pose_fit(ui, models, db, sheets, req, rect, false)
+}
+
+/// Paints a pose into `rect`: its standard frame fits the box (`whole`: all of it, held items
+/// sticking out included).
+fn paint_pose_fit(ui: &Ui, models: &rustpg2d_engine::render::model::Models, db: &rustpg2d_engine::defs::Database, sheets: &HashMap<String, rustpg2d_engine::render::SheetTex>, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect, whole: bool) -> bool {
     let Some(cell) = models.pose(db, sheets, req) else { return false };
-    let Some((tex, uv)) = models.cell_texture(&cell) else { return false };
+    let Some((tex, uv, base)) = models.cell_texture(&cell) else { return false };
+    let base = if whole { macroquad::prelude::Rect::new(0.0, 0.0, 1.0, 1.0) } else { base };
     // The atlas page's OpenGL texture: egui-miniquad draws `TextureId::User` ids as raw GL textures.
     let raw = unsafe { macroquad::window::get_internal_gl().quad_context.texture_raw_id(tex.raw_miniquad_id()) };
     #[allow(irrefutable_let_patterns)]
     let macroquad::miniquad::RawId::OpenGl(gl) = raw else { return false };
-    let (w, h) = (uv.w, uv.h);
+    // The standard frame fits the box (bottom-centred); held items sticking out of it reach past
+    // the box, clipped to the box and its surroundings by the panel.
+    let (w, h) = (uv.w * base.w, uv.h * base.h);
     let k = (rect.width() / w).min(rect.height() / h);
     let size = vec2(w * k, h * k);
-    let dest = Rect::from_min_size(pos2(rect.center().x - size.x / 2.0, rect.max.y - size.y), size);
+    let frame = Rect::from_min_size(pos2(rect.center().x - size.x / 2.0, rect.max.y - size.y), size);
+    let whole = vec2(uv.w * k, uv.h * k);
+    let dest = Rect::from_min_size(pos2(frame.min.x - base.x * whole.x, frame.min.y - base.y * whole.y), whole);
     let uv = Rect::from_min_max(pos2(uv.x, uv.y), pos2(uv.x + uv.w, uv.y + uv.h));
-    ui.painter().image(egui::TextureId::User(gl as u64), dest, uv, Color32::WHITE);
+    ui.painter().with_clip_rect(rect.expand(rect.width() * 0.25).intersect(ui.clip_rect())).image(egui::TextureId::User(gl as u64), dest, uv, Color32::WHITE);
     true
 }
 

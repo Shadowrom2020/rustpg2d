@@ -101,6 +101,9 @@ pub fn anim_req(anim: super::character::Anim, now: f32) -> (&'static str, f32, b
 pub struct Cell {
     page: usize,
     rect: Rect,
+    /// The standard frame inside the cell (cell pixels): the cell is bigger where held items
+    /// or limbs stick out of it. Boxes in the UI show this part at their size.
+    base: Rect,
     pub feet: Vec2,
     /// The head bone (the base of the head) in the cell, for portraits.
     pub head: Option<Vec2>,
@@ -448,14 +451,16 @@ impl Models {
     pub fn draw_in(&self, cell: &Cell, dest: Rect, tint: Color) {
         let c = self.cache.borrow();
         let Some(page) = c.pages.get(cell.page) else { return };
-        draw_texture_ex(&page.rt.texture, dest.x, dest.y, tint, DrawTextureParams { source: Some(cell.rect), dest_size: Some(dest.size()), ..Default::default() });
+        let (kx, ky) = (dest.w / cell.base.w, dest.h / cell.base.h);
+        let at = vec2(dest.x - cell.base.x * kx, dest.y - cell.base.y * ky);
+        draw_texture_ex(&page.rt.texture, at.x, at.y, tint, DrawTextureParams { source: Some(cell.rect), dest_size: Some(vec2(cell.rect.w * kx, cell.rect.h * ky)), ..Default::default() });
     }
 
     /// Draws part `part` (fractions of the frame: x, y, w, h) of a rendered pose into `dest`.
     pub fn draw_part(&self, cell: &Cell, part: Rect, dest: Rect, tint: Color) {
         let c = self.cache.borrow();
         let Some(page) = c.pages.get(cell.page) else { return };
-        let r = cell.rect;
+        let r = Rect::new(cell.rect.x + cell.base.x, cell.rect.y + cell.base.y, cell.base.w, cell.base.h);
         let src = Rect::new(r.x + part.x * r.w, r.y + part.y * r.h, part.w * r.w, part.h * r.h);
         draw_texture_ex(&page.rt.texture, dest.x, dest.y, tint, DrawTextureParams { source: Some(src), dest_size: Some(dest.size()), ..Default::default() });
     }
@@ -465,9 +470,11 @@ impl Models {
     pub fn draw_rotated(&self, cell: &Cell, center: Vec2, angle: f32, size: f32, tint: Color) {
         let c = self.cache.borrow();
         let Some(page) = c.pages.get(cell.page) else { return };
+        // The standard frame's middle at `center`, turned about it.
         let dest = vec2(cell.rect.w, cell.rect.h) / PX * size;
-        let params = DrawTextureParams { source: Some(cell.rect), dest_size: Some(dest), rotation: angle, ..Default::default() };
-        draw_texture_ex(&page.rt.texture, center.x - dest.x / 2.0, center.y - dest.y / 2.0, tint, params);
+        let mid = vec2(cell.base.x + cell.base.w / 2.0, cell.base.y + cell.base.h / 2.0) / PX * size;
+        let params = DrawTextureParams { source: Some(cell.rect), dest_size: Some(dest), rotation: angle, pivot: Some(center), ..Default::default() };
+        draw_texture_ex(&page.rt.texture, center.x - mid.x, center.y - mid.y, tint, params);
     }
 
     /// What model `id` is made of.
@@ -569,14 +576,16 @@ impl Models {
         true
     }
 
-    /// The atlas texture of a rendered pose and the pose's place in it (texture coordinates
-    /// 0..1): the editor shows it in egui without copying.
-    pub fn cell_texture(&self, cell: &Cell) -> Option<(Texture2D, Rect)> {
+    /// The atlas texture of a rendered pose, the pose's place in it (texture coordinates 0..1)
+    /// and the standard frame's place in the pose (fractions of it): the editor shows it in egui
+    /// without copying.
+    pub fn cell_texture(&self, cell: &Cell) -> Option<(Texture2D, Rect, Rect)> {
         let c = self.cache.borrow();
         let page = c.pages.get(cell.page)?;
         let r = cell.rect;
         let p = PAGE as f32;
-        Some((page.rt.texture.clone(), Rect::new(r.x / p, r.y / p, r.w / p, r.h / p)))
+        let b = cell.base;
+        Some((page.rt.texture.clone(), Rect::new(r.x / p, r.y / p, r.w / p, r.h / p), Rect::new(b.x / r.w, b.y / r.h, b.w / r.w, b.h / r.h)))
     }
 
     /// Whether model `id` has a clip for animation `anim`.
@@ -810,37 +819,35 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         (true, None) => vec3(0.0, l.height * 0.85, 0.0),
         _ => vec3(0.0, l.target_y, 0.0),
     };
-    let span = if req.bust { l.height * 0.42 } else { h as f32 / l.ppu };
     let back = vec3(0.0, e.sin(), e.cos());
-    let scratch = c
-        .scratch
-        .entry((w, h))
-        .or_insert_with(|| {
-            let rt = render_target_ex(w, h, RenderTargetParams { sample_count: 1, depth: true });
-            rt.texture.set_filter(FilterMode::Nearest);
-            rt
-        })
-        .clone();
-    let cam = Camera3D {
-        position: target + back * 50.0,
-        target,
-        up: Vec3::Y,
-        fovy: span,
-        aspect: Some(w as f32 / h as f32),
-        projection: Projection::Orthographics,
-        render_target: Some(scratch.clone()),
-        viewport: None,
-        z_near: 0.1,
-        z_far: 100.0,
-    };
-    let view = cam.matrix();
-    // Model point -> frame pixel (y down).
-    let to_px = |p: Vec3| {
-        let q = view.project_point3(p);
-        vec2((q.x + 1.0) / 2.0 * w as f32, (1.0 - q.y) / 2.0 * h as f32)
-    };
     let screen_right = Vec3::X;
     let screen_down = -vec3(0.0, e.cos(), -e.sin());
+    // The camera for a frame of `fw` x `fh` pixels whose middle is `shift` pixels off the
+    // standard frame's: model point -> frame pixel (y down).
+    let camera = |fw: u32, fh: u32, shift: Vec2| {
+        let target = target + screen_right * (shift.x / l.ppu) + screen_down * (shift.y / l.ppu);
+        let span = if req.bust { l.height * 0.42 } else { fh as f32 / l.ppu };
+        Camera3D {
+            position: target + back * 50.0,
+            target,
+            up: Vec3::Y,
+            fovy: span,
+            aspect: Some(fw as f32 / fh as f32),
+            projection: Projection::Orthographics,
+            render_target: None,
+            viewport: None,
+            z_near: 0.1,
+            z_far: 100.0,
+        }
+    };
+    let projector = |cam: &Camera3D, fw: u32, fh: u32| {
+        let view = cam.matrix();
+        move |p: Vec3| {
+            let q = view.project_point3(p);
+            vec2((q.x + 1.0) / 2.0 * fw as f32, (1.0 - q.y) / 2.0 * fh as f32)
+        }
+    };
+    let to_px0 = projector(&camera(w, h, Vec2::ZERO), w, h);
     // The hands: grip point (a little past the wrist), grip axis and the forearm's direction
     // (where the knuckles point), in model space after the turn.
     let hand = |hb: &Option<HandBone>| -> Option<(Vec3, Vec3, Vec3)> {
@@ -856,26 +863,17 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
     let hands3 = [hand(&l.hands[0]), hand(&l.hands[1])];
     let grip2 = |h: Option<(Vec3, Vec3, Vec3)>| {
         h.map(|(p, a, _)| {
-            let s = to_px(p);
-            let d = to_px(p + a * 0.1) - s;
+            let s = to_px0(p);
+            let d = to_px0(p + a * 0.1) - s;
             Grip { x: s.x, y: s.y, angle: d.y.atan2(d.x).to_degrees(), scale: 1.0, front: true }
         })
     };
     let (gr, gl) = (grip2(hands3[0]), grip2(hands3[1]));
     let eq = req.gear.equipment();
     let layers = if req.bust { Vec::new() } else { crate::hands::held_with(db, (gr, gl), &eq, &req.gear.carrying, None, req.facing) };
-    let mat = material(c);
-    push_camera_state();
-    set_camera(&cam);
-    clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
-    gl_use_material(&mat);
-    let light = vec3(-0.45, 0.75, 0.55).normalize();
-    mat.set_uniform("LightDir", light);
-    mat.set_uniform("Shade", 1.0f32);
-    draw_mesh(&Mesh { vertices, indices: l.model.indices.clone(), texture: texture_for(l, req.look) });
-    // Held items and a carried prop: their pictures at the hands, facing the camera, unshaded.
-    mat.set_uniform("Shade", 0.0f32);
-    let mut tips = Vec::new();
+    // Held items and a carried prop, placed (not drawn yet): item models shaded on the hand,
+    // pictures facing the camera; with their far tips.
+    let mut held: Vec<(Mesh, bool, String, Vec3)> = Vec::new();
     for layer in &layers {
         let anchor = match layer.hand {
             Hand::Right => hands3[0].map(|h| h.0),
@@ -929,11 +927,8 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
                 t.set_filter(FilterMode::Nearest);
                 t
             }).clone();
-            mat.set_uniform("Shade", 1.0f32);
-            draw_mesh(&Mesh { vertices, indices: mesh.indices.clone(), texture: Some(texture) });
-            mat.set_uniform("Shade", 0.0f32);
             let far = mesh.points.iter().map(|p| p.0).max_by(|a, b| (*a - grip).length_squared().total_cmp(&(*b - grip).length_squared())).unwrap_or(grip);
-            tips.push((layer.id.clone(), to_px(place(far))));
+            held.push((Mesh { vertices, indices: mesh.indices.clone(), texture: Some(texture) }, true, layer.id.clone(), place(far)));
             continue;
         }
         let mut layer = layer.clone();
@@ -943,9 +938,52 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
             (layer.rotation, layer.flip) = (0.0, false);
         }
         if let Some((mesh, tip)) = held_quad(&layer, anchor, sheets, l.ppu, screen_right, screen_down) {
-            draw_mesh(&mesh);
-            tips.push((layer.id.clone(), to_px(tip)));
+            held.push((mesh, false, layer.id.clone(), tip));
         }
+    }
+    // The frame: the standard one, grown by whatever sticks out of it (a spear, a swung arm),
+    // in steps of 8 pixels and at most one and a half figures each way.
+    let (left, right, top, bottom) = if req.bust {
+        (0, 0, 0, 0)
+    } else {
+        let (mut lo, mut hi) = (vec2(0.0, 0.0), vec2(w as f32, h as f32));
+        let points = vertices.iter().map(|v| v.position).chain(held.iter().flat_map(|(m, ..)| m.vertices.iter().map(|v| v.position)));
+        for p in points {
+            let s = to_px0(p);
+            (lo, hi) = (lo.min(s), hi.max(s));
+        }
+        let cap = l.def.height.max(4.0) * PX * 1.5;
+        let grow = |d: f32| if d <= 0.0 { 0 } else { (((d + 2.0).min(cap) / 8.0).ceil() * 8.0) as u32 };
+        (grow(-lo.x), grow(hi.x - w as f32), grow(-lo.y), grow(hi.y - h as f32))
+    };
+    let (w0, h0) = (w, h);
+    let (w, h) = (w0 + left + right, h0 + top + bottom);
+    let shift = vec2((right as f32 - left as f32) / 2.0, (bottom as f32 - top as f32) / 2.0);
+    let scratch = c
+        .scratch
+        .entry((w, h))
+        .or_insert_with(|| {
+            let rt = render_target_ex(w, h, RenderTargetParams { sample_count: 1, depth: true });
+            rt.texture.set_filter(FilterMode::Nearest);
+            rt
+        })
+        .clone();
+    let cam = Camera3D { render_target: Some(scratch.clone()), ..camera(w, h, shift) };
+    let to_px = projector(&cam, w, h);
+    let mat = material(c);
+    push_camera_state();
+    set_camera(&cam);
+    clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
+    gl_use_material(&mat);
+    let light = vec3(-0.45, 0.75, 0.55).normalize();
+    mat.set_uniform("LightDir", light);
+    mat.set_uniform("Shade", 1.0f32);
+    draw_mesh(&Mesh { vertices, indices: l.model.indices.clone(), texture: texture_for(l, req.look) });
+    let mut tips = Vec::new();
+    for (mesh, shaded, id, tip) in &held {
+        mat.set_uniform("Shade", if *shaded { 1.0f32 } else { 0.0 });
+        draw_mesh(mesh);
+        tips.push((id.clone(), to_px(*tip)));
     }
     gl_use_default_material();
     // Into the atlas, with a dark outline: the picture four times shifted by a pixel in a dark
@@ -962,7 +1000,8 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
     pop_camera_state();
     let feet = to_px(Vec3::ZERO) + vec2(1.0, 1.0);
     let head = l.model.node("head").map(|n| to_px(turn.transform_point3(world[n].w_axis.truncate())) + vec2(1.0, 1.0));
-    Cell { page, rect, feet, head, tips: tips.into_iter().map(|(id, p)| (id, p + vec2(1.0, 1.0))).collect(), used: c.frame }
+    let base = Rect::new(left as f32, top as f32, (w0 + 2) as f32, (h0 + 2) as f32);
+    Cell { page, rect, base, feet, head, tips: tips.into_iter().map(|(id, p)| (id, p + vec2(1.0, 1.0))).collect(), used: c.frame }
 }
 
 /// A camera drawing into an atlas page in its texture's own pixels (y down as sampled).

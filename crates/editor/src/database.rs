@@ -4000,7 +4000,7 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
                 let (r, _) = ui.allocate_exact_size(egui::vec2(170.0, 200.0), egui::Sense::hover());
                 ui.painter().rect_filled(r, 3.0, egui::Color32::from_rgb(58, 74, 52));
                 let req = PoseReq { look: &look, gear: &gear, anim, time, once: anim == "attack", facing, bust: false };
-                widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(4.0));
+                widgets::paint_model_whole(ui, cx.assets, cx.db, &req, r.shrink(4.0));
             }
         });
     }

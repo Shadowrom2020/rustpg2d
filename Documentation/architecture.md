@@ -182,7 +182,10 @@ builds each hand's frame (grip point, thumb-side grip axis, forearm direction) a
 (*Grip*: grip axis and forearm; *Upright*: up and the facing; *Hang*: down and the facing; *Strap*:
 up and the facing turned outward). `model::estimate_hold` guesses grip, handle and front from the
 mesh along its `main_axes` (the tightest rectangle in its main plane), with slice widths from
-triangles clipped to each slice.
+triangles clipped to each slice. A pose's frame is the model's standard frame grown by whatever
+sticks out of it (a spear, a swung arm; in steps of 8 px): `Cell::base` is the standard frame inside
+the cell, so map drawing (anchored at the feet) is unchanged and UI boxes (`draw_in`, `draw_part`,
+the editor's `paint_pose`) show the standard frame at their size, held items reaching past it.
 3D characters (`model.rs`, `render/model.rs`): a character is drawn from the rigged glTF of its
 `ModelDef`. `Model::load` keeps the skinned mesh, the node tree, the
 skin's joints with their inverse bind matrices and the clips (`add_clips` adds those of other files,

@@ -538,16 +538,19 @@ pub fn estimate_grip(points: &[Vec3], indices: &[u16]) -> ([f32; 3], [f32; 3]) {
     sorted.sort_by(f32::total_cmp);
     let reference = sorted.get(sorted.len() / 4).copied().unwrap_or(0.0);
     let is_thin = |i: usize| covered[i] && width[i] <= reference * 1.3 + 1e-6;
-    // The run of thin slices from one end (it may start a slice or two in: a pommel, a cap; one
+    // The run of thin slices from one end (it may start a few slices in: a pommel, a cap; one
     // wider slice between thin ones doesn't end it): (start, length) in slices from that end.
     let run = |from_end: bool| -> Option<(usize, usize)> {
         let at = |k: usize| if from_end { BINS - 1 - k } else { k };
-        let start = (0..3).find(|k| is_thin(at(*k)))?;
-        let mut end = start;
-        while end < BINS && (is_thin(at(end)) || (end + 1 < BINS && end > start && is_thin(at(end + 1)))) {
-            end += 1;
-        }
-        Some((start, end - start))
+        let from = |start: usize| {
+            let mut end = start;
+            while end < BINS && (is_thin(at(end)) || (end + 1 < BINS && end > start && is_thin(at(end + 1)))) {
+                end += 1;
+            }
+            (start, end - start)
+        };
+        // Starting within the first tenth (behind a pommel or cap): the longest such run.
+        (0..BINS / 10).filter(|k| is_thin(at(*k))).map(from).max_by_key(|r| r.1)
     };
     // A handle is at least a tenth of the length (shorter thin ends are a head's corner cut off
     // by the slices, a blade's tip).

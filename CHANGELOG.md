@@ -120,6 +120,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   blades up-right, shields' and lanterns' fronts. The example's and library's items are set up
   anew. Editor script `itemhold ITEM estimate|turnhandle|turnfront|flip|at F|style S|size PX`,
   `itempreview idle|walk|attack [play] [MODEL]`.
+- **Nothing held is cut off**: a pose's frame grows by whatever sticks out of the standard frame
+  (a spear, a swung arm); boxes in the UI keep showing the character at its size.
+- **Item models from a drawn picture**: *Generate art › Item 3D model* with a description first
+  draws a clean picture of the item (its icon as the reference) and models that (33 credits)
+  instead of modelling the 32 px icon. The example's and library's 16 held items are remade this
+  way, slender instead of bulky, with icons rendered from the new models.
 - **3D art with Meshy**: *Generate art* makes a **3D character** (a turnaround picture or a
   figure's standing frames, a model, a skeleton and animations: walk, idle, the chosen attack, hit,
   sitting; about 50 credits), a **3D creature** (a picture and an unrigged model) and an **item's 3D

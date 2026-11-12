@@ -74,6 +74,9 @@ pub struct LibState {
     tex: HashMap<String, Tex>,
     /// The library's 3D models (loaded on first use: character thumbnails).
     models: std::cell::RefCell<Option<rustpg2d_engine::render::model::Models>>,
+    /// The folder they are read from: the shown store's (the library, or in the Asset Library
+    /// window the project it edits).
+    models_root: Option<std::path::PathBuf>,
     pub tex_dirty: bool,
     pub filter: Option<RefKind>,
     pub search: String,
@@ -117,7 +120,16 @@ impl LibState {
     }
 
     /// Thumbnail textures of a store's tilesets and sprite sheets (rebuilt when `tex_dirty`).
+    /// Called every frame with the store on show: loads its pictures when they changed, and starts
+    /// the frame of its models (they render a few thumbnails a frame, more in the next ones).
     pub(crate) fn textures_of(&mut self, ctx: &egui::Context, store: &Project) {
+        if self.models_root.as_deref() != Some(store.root.as_path()) {
+            self.models_root = Some(store.root.clone());
+            *self.models.borrow_mut() = None;
+        }
+        if let Some(m) = self.models.borrow().as_ref() {
+            m.begin_frame();
+        }
         if !self.tex_dirty {
             return;
         }
@@ -138,15 +150,15 @@ impl LibState {
         self.lib.as_ref().is_some_and(|lib| self.paint_character_in(ui, &lib.db, id, facing, rect))
     }
 
-    /// Paints a character of `db` (its model, rendered from the library's files) into `rect`,
+    /// Paints a character of `db` (its model, rendered from the shown store's files) into `rect`,
     /// standing facing `facing`.
     fn paint_character_in(&self, ui: &egui::Ui, db: &Database, id: &str, facing: rustpg2d_engine::entity::Facing, rect: Rect) -> bool {
         use rustpg2d_engine::render::model::{Gear, Models, PoseReq};
         let Some(d) = db.character(id) else { return false };
         let mut m = self.models.borrow_mut();
         if m.is_none() {
-            let Some(lib) = self.lib.as_ref() else { return false };
-            *m = Some(Models::load(&lib.db, &|rel| std::fs::read(lib.path(rel))));
+            let Some(root) = self.models_root.as_ref() else { return false };
+            *m = Some(Models::load(db, &|rel| std::fs::read(root.join(rel))));
         }
         let Some(models) = m.as_ref() else { return false };
         let a = models.look_of(&d.appearance);

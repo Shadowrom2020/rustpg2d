@@ -12,6 +12,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   and the back-merge pull request after every release are gone (`check-branch`, CI, the Release
   workflow, Dependabot, AGENTS.md).
 
+### Documentation
+- **Caveats and performance characteristics** (`Documentation/architecture.md`) describe the 3D
+  characters: models loaded at start, the pose atlas and its render budget, recoloured textures;
+  the roadmap plans 0.19.0 (*Lighter characters*) from that review.
+
 ## 0.18.2 — 2026-11-12
 
 ### Fixes

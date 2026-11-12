@@ -163,6 +163,15 @@ fn missing_runner(platform: Platform) -> String {
 }
 
 impl Editor {
+    /// The head and shoulders of the project's player character, rendered for the game's icon
+    /// (None without a player character or a model to draw).
+    pub fn model_icon(&self) -> Option<rustpg2d_engine::imageio::Rgba> {
+        let def = self.project.db.character(&self.project.config.player)?;
+        let img = self.assets.models.bust_image(&self.project.db, &self.assets.sheets, &def.appearance)?;
+        let rgba = rustpg2d_engine::imageio::Rgba { w: img.width as u32, h: img.height as u32, px: img.bytes };
+        rustpg2d_engine::icon::fit_icon(&rgba)
+    }
+
     pub fn open_export(&mut self) {
         let out = self.project.root.canonicalize().ok().and_then(|r| r.parent().map(|p| p.join("releases"))).unwrap_or_else(|| PathBuf::from("releases"));
         let name = self.project.config.name.clone();
@@ -198,18 +207,14 @@ impl Editor {
         let mut linux_folder = None;
         let mut warnings = Vec::new();
         let mut debug = false;
-        // The macOS app's icon (the packages read it again below).
-        let mac_icon = match platforms.contains(&Platform::MacOS).then(|| package::icon(&self.project, &opts.icon)) {
-            Some(Err(e)) => {
-                lines.push(format!("macOS app without an icon: {e:#}"));
-                None
-            }
-            Some(Ok(i)) => Some(i),
-            None => None,
-        };
+        // The game's icon: the packages, the macOS app and (as icon.png in the data) the game's
+        // window show it.
+        let icon = package::icon(&self.project, &opts.icon, &|| self.model_icon());
+        if let Err(e) = &icon {
+            lines.push(format!("Exported without an icon: {e:#}"));
+        }
         for (p, (bin, dbg)) in platforms.iter().zip(&bins) {
-            let icon = if *p == Platform::MacOS { mac_icon.as_deref() } else { None };
-            let r = release::export(&self.project, name, *p, bin, out_dir, opts.zip, icon).map_err(|e| format!("{}: {e:#}", p.label()))?;
+            let r = release::export(&self.project, name, *p, bin, out_dir, opts.zip, icon.as_deref().ok()).map_err(|e| format!("{}: {e:#}", p.label()))?;
             lines.push(format!("{} export: {} ({} files, {:.1} MB)", p.label(), r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0));
             if let Some(a) = &r.archive {
                 lines.push(format!("Archive: {}", a.display()));
@@ -234,17 +239,17 @@ impl Editor {
             let r = release::Exported { folder: folder.clone(), archive: None, files: 0, bytes: 0, warnings: vec![] };
             let slug = release::slug(name);
             let size = |p: &std::path::Path| std::fs::metadata(p).map_or(0.0, |m| m.len() as f64 / 1_048_576.0);
-            match package::icon(&self.project, &opts.icon) {
+            match &icon {
                 Err(e) => msg += &format!("\nNo packages: {e:#}"),
                 Ok(icon) => {
                     if opts.appimage {
-                        match package::appimage(&r.folder, &slug, name.trim(), &icon, out_dir) {
+                        match package::appimage(&r.folder, &slug, name.trim(), icon, out_dir) {
                             Ok(p) => msg += &format!("\nAppImage: {} ({:.1} MB)", p.display(), size(&p)),
                             Err(e) => msg += &format!("\nAppImage failed: {e:#}"),
                         }
                     }
                     if opts.flatpak {
-                        match package::flatpak(&r.folder, &slug, name.trim(), opts.app_id.trim(), &opts.runtime, &icon, out_dir) {
+                        match package::flatpak(&r.folder, &slug, name.trim(), opts.app_id.trim(), &opts.runtime, icon, out_dir) {
                             Ok(p) => msg += &format!("\nFlatpak: {} ({:.1} MB; install with: flatpak install --user {})", p.display(), size(&p), p.display()),
                             Err(e) => msg += &format!("\nFlatpak failed: {e:#}"),
                         }
@@ -336,7 +341,7 @@ impl Editor {
                 if d.opts.appimage || d.opts.flatpak || d.opts.macos {
                     ui.label("Icon");
                     ui.horizontal(|ui| {
-                        ui.add(egui::TextEdit::singleline(&mut d.opts.icon).hint_text("the player character").desired_width(200.0));
+                        ui.add(egui::TextEdit::singleline(&mut d.opts.icon).hint_text("the player's portrait or 3D model").desired_width(200.0));
                         if ui.button("Browse…").clicked() {
                             self.browse_request = Some(Purpose::ExportIcon);
                         }

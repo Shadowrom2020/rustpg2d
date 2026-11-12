@@ -41,7 +41,11 @@ Two optional packages, built from the bundle:
   **runtime** in the dialog; keep the app id the same for updates, or players' saves stay with the
   old app. The game gets a window, sound and devices (the GPU and gamepads), nothing else.
 
-Both get a desktop entry and an **icon**: the player character, drawn large, or a PNG you pick.
+Both get a desktop entry and an **icon**: a PNG you pick under *Icon*, else the player's portrait
+drawn large, else the head and shoulders of the player character's 3D model, else R(ust)PG2D's
+emblem. Every export (Linux, Windows, macOS) also puts that icon into the game's data as `icon.png`,
+so the game's own window shows it in the title bar and taskbar. An `icon.png` you put next to
+`project.ron` yourself is the game's icon too (it comes before the portrait).
 
 ## Windows
 
@@ -54,7 +58,7 @@ the game says so in a message box.
 ## macOS
 
 The bundle is an application, `<Game Name>.app`, for macOS 11 or newer on Apple Silicon and Intel. Its
-icon is the one chosen under *Icon*, else the player character. Players unzip it, drag it into
+icon is the same as the packages' (see above). Players unzip it, drag it into
 *Applications* and open it. Save games go to `~/Library/Application Support/<game-name>/saves`.
 
 The export signs the app ad hoc (it passes `codesign --verify`), but it isn't signed with an Apple

@@ -384,7 +384,8 @@ fn check_runner(bytes: &[u8], runner: &Path, rebuild: &str) -> Result<()> {
 /// `<slug>-windows/`), using `game_binary` (R(ust)PG2D's game runner for that platform) as the
 /// executable; with `zip`, also `out_dir/<slug>-linux.zip` / `<slug>-windows.zip`. An earlier
 /// export in the same place is replaced; any other existing folder of that name is left alone
-/// (error).
+/// (error). `icon` (a PNG) goes into the data as `icon.png` (the game window's icon) and, for
+/// macOS, into the app as its icon.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &Path, out_dir: &Path, zip: bool, icon: Option<&[u8]>) -> Result<Exported> {
     let (files, check) = check(project);
@@ -439,6 +440,12 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     let mut cfg = project.config.clone();
     cfg.name = name.trim().to_string();
     crate::project::write_ron(&data.join("project.ron"), &cfg)?;
+    // The icon the packages got, for the game's window (`icon::hero_icon` reads it first).
+    let mut extra = 3;
+    if let Some(i) = icon {
+        std::fs::write(data.join(crate::icon::ICON_FILE), i)?;
+        extra += 1;
+    }
     let exe_rel = platform.exe(name, &slug);
     let exe = folder.join(&exe_rel);
     std::fs::create_dir_all(exe.parent().unwrap())?;
@@ -450,7 +457,6 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755))?;
     }
-    let mut extra = 3;
     if platform == Platform::MacOS {
         let contents = folder.join(app_bundle(name, &slug)).join("Contents");
         let icns = icon.map(icns).transpose()?;
@@ -748,6 +754,9 @@ mod tests {
         let app = m.join("Test Quest.app/Contents");
         assert!(app.join("MacOS/test-quest").is_file() && app.join("Resources/data/maps/start.map").is_file());
         assert_eq!(Project::load(&app.join("Resources/data")).unwrap().config.name, "Test: Quest");
+        // The icon is in the data too: the game window shows it (hero_icon reads it first).
+        assert_eq!(std::fs::read(app.join("Resources/data/icon.png")).unwrap(), icon);
+        assert_eq!(crate::icon::hero_icon(&Project::load(&app.join("Resources/data")).unwrap()).map(|i| (i.w, i.h)), Some((20, 32)));
         let plist = std::fs::read_to_string(app.join("Info.plist")).unwrap();
         assert!(plist.contains("<string>test-quest</string>") && plist.contains("<string>Test: Quest</string>") && plist.contains("test-quest.icns"), "{plist}");
         let icns = std::fs::read(app.join("Resources/test-quest.icns")).unwrap();

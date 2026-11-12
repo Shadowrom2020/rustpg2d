@@ -480,6 +480,31 @@ impl Models {
 
     /// The rendered pose (rendering it now when needed and the frame's budget allows).
     pub fn pose(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq) -> Option<Cell> {
+        self.pose_with(db, sheets, req, true)
+    }
+
+    /// The head and shoulders of a look as an image ([`BUST`] pixels square, rendered now
+    /// whatever the frame's budget; read back from the GPU, so call it once, e.g. when exporting).
+    pub fn bust_image(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, look: &Appearance) -> Option<Image> {
+        let look = self.look_of(look);
+        let req = PoseReq { look: &look, gear: &Gear::default(), anim: "idle", time: 0.0, once: true, facing: Facing::Down, turn: 0, bust: true };
+        let cell = self.pose_with(db, sheets, &req, false)?;
+        let c = self.cache.borrow();
+        let page = c.pages.get(cell.page)?;
+        let all = page.rt.texture.get_texture_data();
+        let r = cell.rect;
+        let mut out = Image::gen_image_color(r.w as u16, r.h as u16, Color::new(0.0, 0.0, 0.0, 0.0));
+        // (Atlas pages are drawn with a plain 2D camera: rows come back top first.)
+        for y in 0..r.h as u32 {
+            for x in 0..r.w as u32 {
+                out.set_pixel(x, y, all.get_pixel(r.x as u32 + x, r.y as u32 + y));
+            }
+        }
+        Some(out)
+    }
+
+    /// [`Self::pose`], within the frame's render budget or (`budget` false) rendering now.
+    fn pose_with(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq, budget: bool) -> Option<Cell> {
         let l = self.loaded.get(&req.look.model)?;
         // Busts use the rest pose: the head straight, facing the front.
         let (clip_name, frame, time) = if req.bust { (None, 0, 0.0) } else { clip_frame(l, req) };
@@ -490,7 +515,7 @@ impl Models {
             c.touch(&cell);
             return Some(cell);
         }
-        if c.renders >= RENDERS_PER_FRAME {
+        if budget && c.renders >= RENDERS_PER_FRAME {
             // Over budget: any frame of the same model, colours and facing, to draw meanwhile.
             let other = c.poses.iter().find(|(k, _)| k.model == key.model && k.colors == key.colors && k.facing == key.facing).map(|(_, v)| v.clone());
             if let Some(cell) = &other {

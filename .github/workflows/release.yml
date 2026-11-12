@@ -1,7 +1,8 @@
-# A merge into master is a release (AGENTS.md): tag the merge commit vX.Y.Z (the version in
-# Cargo.toml, checked by CI before the merge), publish a GitHub Release with the CHANGELOG section
-# and the downloads (AppImage, Flatpak, Windows zip, macOS app), and open the pull request that
-# merges master back into develop.
+# Every push to master runs this; a version in Cargo.toml without its tag is a release (the merge
+# of a release/X.Y.Z pull request, AGENTS.md): tag the merge commit vX.Y.Z (checked by CI before
+# the merge) and publish a GitHub Release with the CHANGELOG section and the downloads (AppImage,
+# Flatpak, Windows zip, macOS app). Other merges (features, fixes) find their version already
+# tagged and do nothing.
 # The downloads are the ones CI built for the merged pull request: master only takes up-to-date
 # branches, so the merge commit has exactly the tree that pull request's run built and tested.
 #   version -> reuse (finds that run and its artifacts) -> publish        (about a minute)
@@ -18,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       from_commit:
-        description: "Head commit of a pull request into master whose CI packages to fetch (try the reuse path)"
+        description: "Head commit of a release pull request whose CI packages to fetch (try the reuse path)"
         required: false
         default: ""
 
@@ -28,7 +29,6 @@ concurrency:
 
 permissions:
   contents: write
-  pull-requests: write
   # Artifacts of the pull request's CI run.
   actions: read
 
@@ -104,7 +104,7 @@ jobs:
           echo "the downloads of CI run $run (pull request head $head)"
           echo "run_id=$run" >> "$GITHUB_OUTPUT"
 
-  # Fallback: build the downloads here (as CI does for pull requests into master).
+  # Fallback: build the downloads here (as CI does for release pull requests).
   builds:
     needs: [version, reuse]
     if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.reuse.outputs.run-id == '' }}
@@ -178,18 +178,3 @@ jobs:
           if [ "$PRE" = "true" ]; then flags+=(--prerelease); fi
           gh release create "v$V" dist/*.AppImage dist/*.flatpak dist/*-windows-x86_64.zip dist/*-macos.zip dist/SHA256SUMS \
             --title "R(ust)PG2D $V" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag "${flags[@]}"
-      - name: Back-merge pull request (master into develop)
-        if: github.event_name == 'push' && needs.version.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          V: ${{ needs.version.outputs.version }}
-        run: |
-          git fetch -q origin develop
-          if [ "$(git rev-list --count origin/develop..HEAD)" -eq 0 ]; then
-            echo "develop already contains this release"
-          elif [ -n "$(gh pr list --base develop --head master --state open --json number --jq '.[].number')" ]; then
-            echo "a back-merge pull request is already open"
-          else
-            gh pr create --base develop --head master --title "Merge v$V back into develop" \
-              --body "Brings the version bump and the release / hotfix changes of v$V back into develop (AGENTS.md: finishing a release). Merge with a merge commit."
-          fi

@@ -1,10 +1,9 @@
-# Monthly dependency updates as pull requests into develop (allowed by the branch policy as
+# Monthly dependency updates as pull requests into master (allowed by the branch policy as
 # dependabot/*). Minor and patch updates come grouped in one pull request per ecosystem.
 version: 2
 updates:
   - package-ecosystem: cargo
     directory: /
-    target-branch: develop
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
@@ -21,7 +20,6 @@ updates:
       - dependency-name: egui-phosphor
   - package-ecosystem: github-actions
     directory: /
-    target-branch: develop
     schedule:
       interval: monthly
     groups:

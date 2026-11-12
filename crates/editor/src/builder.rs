@@ -58,7 +58,7 @@ pub fn model_cards_of(ui: &mut Ui, cx: &Cx, ids: &[String], none: Option<&str>, 
             return false;
         }
         let a = Appearance { model: id.clone(), colors: if *id == base.model { base.colors.clone() } else { Default::default() }, ..base.clone() };
-        let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: false, facing: Facing::Down, bust: false };
+        let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: false, facing: Facing::Down, turn: 0, bust: false };
         widgets::paint_model(ui, cx.assets, cx.db, &req, r)
     })
 }
@@ -205,7 +205,7 @@ fn paint_holding(ui: &Ui, cx: &Cx, a: &Appearance, eq: &Equipment, (facing, anim
     let a = cx.assets.models.look_of(a);
     let gear = rustpg2d_engine::render::model::Gear::of(eq, "", None);
     let (name, time, once) = rustpg2d_engine::render::model::anim_req(anim, macroquad::time::get_time() as f32);
-    let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: name, time, once, facing, bust: false };
+    let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: name, time, once, facing, turn: 0, bust: false };
     widgets::paint_model(ui, cx.assets, cx.db, &req, dest)
 }
 

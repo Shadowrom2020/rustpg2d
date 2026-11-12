@@ -1216,7 +1216,7 @@ impl Editor {
     /// Draws a character standing with the bottom-center at `feet` (map view, macroquad).
     pub fn draw_char(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>, facing: rustpg2d_engine::entity::Facing, feet: Vec2, tint: macroquad::color::Color) -> bool {
         let Some((a, gear)) = self.char_look(def, inst) else { return false };
-        let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, bust: false };
+        let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
         let Some(cell) = self.assets.models.pose(&self.project.db, &self.assets.sheets, &req) else { return false };
         self.assets.models.draw(&cell, feet, self.project.db.body_size(&a.model), tint);
         true

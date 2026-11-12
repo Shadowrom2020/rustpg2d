@@ -7,7 +7,9 @@ in *Database › Characters*, placed on maps with the Entities tool.
 
 Every character is a **3D model** (*Database › 3D models*): a rigged model with its animation clips.
 The game renders it with what it holds in the pixel look (a few light bands, a dark outline) and
-draws it into the world as a picture, facing down, left, right or up. It plays its clips by itself:
+draws it into the world as a picture, facing down, left, right or up; while it walks along a
+diagonal it is drawn turned halfway between two of them (*Eight facings* in *Database › Project*,
+on by default). It plays its clips by itself:
 **walk**, **idle** (standing), its **attack**, **hurt** (when hit), **sit** and **sleep** on
 furniture and the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `read`); a model
 without a clip for one of them plays idle (sitting and lying without a clip show the standing pose,

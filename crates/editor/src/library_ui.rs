@@ -163,7 +163,7 @@ impl LibState {
         let Some(models) = m.as_ref() else { return false };
         let a = models.look_of(&d.appearance);
         let gear = Gear::default();
-        let req = PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, bust: false };
+        let req = PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
         crate::widgets::paint_pose(ui, models, db, &HashMap::new(), &req, rect)
     }
 

@@ -2465,6 +2465,10 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
             ed.assets.models.set_atlas_mb(c.model_atlas_mb);
         }
         ui.end_row();
+        ui.label("Eight facings");
+        ui.checkbox(&mut c.eight_facings, "characters walking diagonally turn diagonally")
+            .on_hover_text("3D characters are drawn turned halfway between two facings while they walk along a diagonal. Off: they show the four facings only (fewer poses to render).");
+        ui.end_row();
         ui.label("Automatic emotions");
         ui.checkbox(&mut c.auto_emotions, "characters show emotions by themselves").on_hover_text(
             "Enemies show 'surprise' when they notice the player, 'confused' when they lose them and 'fear' when they flee; sleepers 'sleepy'; companions 'joy' when they learn a spell. Needs those emotions (tags) in an Emotions sprite sheet.",
@@ -3786,7 +3790,7 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
     ui.horizontal(|ui| {
         let (r, _) = ui.allocate_exact_size(egui::vec2(150.0, 180.0), egui::Sense::hover());
         ui.painter().rect_filled(r, 4.0, egui::Color32::from_gray(40));
-        let req = PoseReq { look: &look, gear: &gear, anim, time: t as f32, once: false, facing, bust: false };
+        let req = PoseReq { look: &look, gear: &gear, anim, time: t as f32, once: false, facing, turn: 0, bust: false };
         if !widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(4.0)) {
             ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "no model", egui::FontId::default(), egui::Color32::LIGHT_RED);
         }
@@ -3811,12 +3815,12 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
                 for f in facings {
                     let (r, _) = ui.allocate_exact_size(egui::vec2(48.0, 64.0), egui::Sense::hover());
                     ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
-                    let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing: f, bust: false };
+                    let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing: f, turn: 0, bust: false };
                     widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
                 }
                 let (r, _) = ui.allocate_exact_size(egui::vec2(64.0, 64.0), egui::Sense::hover());
                 ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
-                let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: true, facing: Facing::Down, bust: true };
+                let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: true, facing: Facing::Down, turn: 0, bust: true };
                 widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
             });
             ui.weak("The four facings standing, and its portrait (dialogs).");
@@ -3841,7 +3845,7 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
                 }
                 let (r, _) = ui.allocate_exact_size(egui::vec2(48.0, 64.0), egui::Sense::hover());
                 ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
-                let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing: Facing::Down, bust: false };
+                let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing: Facing::Down, turn: 0, bust: false };
                 widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
             }
         });
@@ -4005,7 +4009,7 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
             for facing in [Facing::Down, Facing::Left, Facing::Right, Facing::Up] {
                 let (r, _) = ui.allocate_exact_size(egui::vec2(170.0, 200.0), egui::Sense::hover());
                 ui.painter().rect_filled(r, 3.0, egui::Color32::from_rgb(58, 74, 52));
-                let req = PoseReq { look: &look, gear: &gear, anim, time, once: anim == "attack", facing, bust: false };
+                let req = PoseReq { look: &look, gear: &gear, anim, time, once: anim == "attack", facing, turn: 0, bust: false };
                 widgets::paint_model_whole(ui, cx.assets, cx.db, &req, r.shrink(4.0));
             }
         });

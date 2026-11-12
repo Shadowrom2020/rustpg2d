@@ -26,16 +26,30 @@ impl Game {
 
     /// The rendered pose of a character (None: not rendered yet, or no model at all).
     pub(super) fn model_cell(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim)) -> Option<Cell> {
+        self.model_cell_turned(a, gear, pose, 0)
+    }
+
+    /// [`Self::model_cell`] turned a further eighth (`turn`: -1, 0, 1; see `diagonal_turn`).
+    pub(super) fn model_cell_turned(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim), turn: i8) -> Option<Cell> {
         let a = &self.look(a);
         let (anim, time, once) = crate::render::model::anim_req(pose.1, macroquad::time::get_time() as f32);
-        let req = PoseReq { look: a, gear, anim, time, once, facing: pose.0, bust: false };
+        let req = PoseReq { look: a, gear, anim, time, once, facing: pose.0, turn, bust: false };
         self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
+    }
+
+    /// How far a walker is drawn turned from its facing: an eighth towards the diagonal it walks
+    /// along (`ProjectConfig::eight_facings`), else none.
+    pub(super) fn walk_turn(&self, body: &super::Body, anim: Anim) -> i8 {
+        if !self.project.config.eight_facings || !body.moving || !matches!(anim, Anim::Walking(_)) {
+            return 0;
+        }
+        crate::render::model::diagonal_turn(body.facing, body.heading)
     }
 
     /// A character's portrait render (head and shoulders, front).
     pub(super) fn model_bust(&self, a: &Appearance) -> Option<Cell> {
         let a = &self.look(a);
-        let req = PoseReq { look: a, gear: &Gear::default(), anim: "idle", time: 0.0, once: true, facing: Facing::Down, bust: true };
+        let req = PoseReq { look: a, gear: &Gear::default(), anim: "idle", time: 0.0, once: true, facing: Facing::Down, turn: 0, bust: true };
         self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
     }
 
@@ -47,7 +61,12 @@ impl Game {
     /// Draws a character with its bottom-center at `feet`. Returns false if nothing could be
     /// drawn (not rendered yet). `pose` = facing and what it does (walk frame, idle, attack, hurt).
     pub(super) fn draw_character(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim), feet: Vec2, tint: Color) -> bool {
-        let Some(cell) = self.model_cell(a, gear, pose) else { return false };
+        self.draw_character_turned(a, gear, pose, 0, feet, tint)
+    }
+
+    /// [`Self::draw_character`] turned a further eighth (see [`Self::walk_turn`]).
+    pub(super) fn draw_character_turned(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim), turn: i8, feet: Vec2, tint: Color) -> bool {
+        let Some(cell) = self.model_cell_turned(a, gear, pose, turn) else { return false };
         self.assets.models.draw(&cell, feet, self.look_size(a), tint);
         true
     }
@@ -112,10 +131,17 @@ impl Game {
     /// `anims=` for `status`: the player's and every nearby character's animation.
     pub(super) fn anims_status(&self) -> Vec<String> {
         let ts = self.ts();
-        let mut out = vec![format!("player:{}", self.player_anim().name())];
+        // A diagonal walker's direction follows its animation: "walk@se".
+        let dir = |body: &super::Body, anim: Anim| match self.walk_turn(body, anim) {
+            0 => String::new(),
+            t => format!("@{}", crate::render::model::compass(body.facing, t)),
+        };
+        let anim = self.player_anim();
+        let mut out = vec![format!("player:{}{}", anim.name(), dir(&self.player, anim))];
         for (i, e) in self.loaded.entities.iter().enumerate() {
             if e.active && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) < 8.0 * ts && e.npc_seat.is_none() {
-                out.push(format!("{}:{}", if e.name.is_empty() { &e.def } else { &e.name }, self.npc_anim(i).name()));
+                let anim = self.npc_anim(i);
+                out.push(format!("{}:{}{}", if e.name.is_empty() { &e.def } else { &e.name }, anim.name(), dir(&e.body, anim)));
             }
         }
         out

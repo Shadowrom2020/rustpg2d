@@ -92,7 +92,7 @@ impl Textures {
 /// `rect`, bottom-centred. False when it isn't rendered (yet).
 pub fn paint_character(ui: &Ui, assets: &Assets, a: &rustpg2d_engine::defs::Appearance, facing: Facing, rect: Rect) -> bool {
     let gear = rustpg2d_engine::render::model::Gear::default();
-    let req = rustpg2d_engine::render::model::PoseReq { look: a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, bust: false };
+    let req = rustpg2d_engine::render::model::PoseReq { look: a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
     paint_pose(ui, &assets.models, empty_db(), &assets.sheets, &req, rect)
 }
 

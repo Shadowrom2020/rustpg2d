@@ -186,7 +186,7 @@ so it comes after the atlas).
   after map enter; a map change to a map with new characters, shot right after arrival (nobody
   missing); the character editor and the library window still show models.
 
-- [ ] Eight facings when drawn — `feature/eight-facings`
+- [x] Eight facings when drawn — `feature/eight-facings`
 
   **Goal.** Characters walking diagonally are drawn turned diagonally (3D models can be drawn at
   any angle).
@@ -199,6 +199,16 @@ so it comes after the atlas).
   direction.
 
   **Engine.** Agreed with the plan for 0.19.0.
+
+  **Decided while building.** `PoseReq` keeps its four-way `facing` and gains `turn` (-1, 0, 1
+  eighths; `diagonal_turn` picks it from the facing and the heading, so a character walking
+  backwards keeps its facing), instead of a `dir` 0 to 7: the editor previews and every other
+  caller just pass 0. The heading is measured centrally: `Body::track_heading` at the start of
+  each update takes the last frame's step (jumps of two tiles or more don't count), so none of
+  the places that move characters changed. Only the walk animation turns (attacks and activities
+  keep the facing). `eight_facings` is left out of project.ron while on. Verified: the player on
+  all four diagonals (`anims=` `walk@se`, `@sw`, `@nw`, `@ne`, shots), villagers on their morning
+  routes (Tomas `walk@ne`, shot), the option off (`walk` only, the editor's checkbox).
 
   **Touch points.** `render/model.rs` (`PoseReq`, `PoseKey`, `facing_yaw`), `runtime/paperdoll.rs`
   (`model_cell`, the player's and NPCs' poses), `runtime/creator.rs` (preview), the editor's

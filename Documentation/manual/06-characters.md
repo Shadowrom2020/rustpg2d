@@ -197,6 +197,8 @@ bench in the afternoon and sleeps in the elder's guest bed at night.
 
 ## Activities
 
+![The fisher at the pond, with his rod, line and bobber](../images/game-fishing.webp)
+
 Characters can be seen **doing** something: *fishing, hoeing, hammering, chopping wood, mining,
 sweeping* or *reading*, at a schedule stop or all day where they're placed (inspector › *Activity*),
 with an optional tool in the hand. They stay at their spot, work in place with small effects (the

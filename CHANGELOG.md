@@ -3,6 +3,21 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.18.2 — 2026-11-12
+
+### Fixes
+- **Characters in the Asset Library window**: its character cards showed "?" instead of the
+  characters (the window read 3D models only from a library the main editor had loaded), and the
+  *Add from library* dialog stopped drawing them after the first two dozen (its renderer's
+  per-frame budget was never renewed). Both draw every character now.
+
+### Documentation
+- **Screenshots of the 3D cast**: the README banner and table and 16 pictures of the Creator's
+  Manual (dialog, market by day and night, combat with the bandit chief, character window, shop,
+  crafting, skills, spells, the map editor, lighting preview, daily schedule, character form, item
+  form with its hold preview, pixel editor, the Asset Library window with its characters) show the 3D characters and the
+  new item models; a new one shows the fisher at work.
+
 ## 0.18.1 — 2026-11-12
 
 ### Fixes

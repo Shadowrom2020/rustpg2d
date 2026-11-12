@@ -16,7 +16,7 @@ world, fill it with villagers, monsters and quests, and export a finished game f
 Linux and the browser with one click. Free and open source under the MIT license; the games you
 make are yours.
 
-Current version: **0.18.1** — see the [CHANGELOG](CHANGELOG.md) for what changed, the
+Current version: **0.18.2** — see the [CHANGELOG](CHANGELOG.md) for what changed, the
 [ROADMAP](ROADMAP.md) for what's planned, and the **[Creator's Manual](Documentation/manual/README.md)**
 for how to use it all.
 
@@ -35,10 +35,18 @@ for how to use it all.
   </tr>
   <tr>
     <td align="center"><em>Equipment, stats, inventory and quick bar</em></td>
-    <td align="center"><em>Characters from real art, in the colours you pick</em></td>
+    <td align="center"><em>3D characters in the pixel look, in the colours you pick</em></td>
   </tr>
   <tr>
-    <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night, lit by street lamps"></td>
+    <td><img src="Documentation/images/game-fishing.webp" alt="The fisher on the jetty with his rod and line, fish in the pond, the hero with sword and shield on the shore"></td>
+    <td><img src="Documentation/images/editor-item.webp" alt="The item form: the battle axe's 3D model, held in the fist, with a big preview of the hero walking with it"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Villagers at work, with the tools in their hands</em></td>
+    <td align="center"><em>Items held in the hands: pick how, check it in the preview</em></td>
+  </tr>
+  <tr>
+    <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night: the hero with a lantern, the guard on his round with his spear, a street lamp"></td>
     <td><img src="Documentation/images/editor-events.webp" alt="The Events view: a forest map's triggers, scripts and map links as a graph"></td>
   </tr>
   <tr>
@@ -95,7 +103,7 @@ also in the editor's asset library for your own games.
 
 <table>
   <tr>
-    <td><img src="Documentation/images/game-combat.webp" alt="The hero fights a slime in Whisperwood"></td>
+    <td><img src="Documentation/images/game-combat.webp" alt="The hero fights the bandit chief in Whisperwood"></td>
     <td><img src="Documentation/images/game-shop.webp" alt="Tilda's shop window with her wares and the player's items"></td>
     <td><img src="Documentation/images/game-map.webp" alt="The map screen of the village with its exits labelled"></td>
   </tr>

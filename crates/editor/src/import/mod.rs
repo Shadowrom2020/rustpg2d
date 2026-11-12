@@ -1,18 +1,17 @@
 //! File › Import…: bring existing assets in. Tiled maps (`.tmx` / `.tmj`) become maps with
-//! their tilesets, LPC character sheets become character-layout sheets (bodies, hair,
-//! clothing…), Aseprite exports become sprite sheets with named animations. Imports never
+//! their tilesets, Aseprite exports become sprite sheets with named animations (3D models are
+//! imported in Database › 3D models). Imports never
 //! overwrite: files and ids get a free name. The result (what was imported, what was left out)
 //! is shown in a window.
 
 pub mod aseprite;
-pub mod lpc;
 pub mod tiled;
 
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use egui_macroquad::egui;
-use rustpg2d_engine::defs::{SheetDef, SheetKind};
+use rustpg2d_engine::defs::SheetDef;
 use rustpg2d_engine::imageio::Rgba;
 
 use crate::app::Editor;
@@ -24,30 +23,26 @@ pub const TS: u32 = rustpg2d_engine::project::TILE_SIZE;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ImportKind {
     Tiled,
-    Lpc,
     Aseprite,
 }
 
 impl ImportKind {
-    pub const ALL: [ImportKind; 3] = [ImportKind::Tiled, ImportKind::Lpc, ImportKind::Aseprite];
+    pub const ALL: [ImportKind; 2] = [ImportKind::Tiled, ImportKind::Aseprite];
     pub fn label(self) -> &'static str {
         match self {
             ImportKind::Tiled => "Tiled map",
-            ImportKind::Lpc => "LPC character sheet",
             ImportKind::Aseprite => "Aseprite sprite sheet",
         }
     }
     pub fn help(self) -> &'static str {
         match self {
             ImportKind::Tiled => "A .tmx or .tmj map (orthogonal, not infinite). Its tilesets are added (scaled to 32 px tiles), tile layers become layers (names with \"over\" / \"above\" draw above characters), a layer named \"collision\" marks solid tiles, tiles with a \"solid\" property block, rectangles of object layers become trigger zones and points named spawn:NAME spawn points. The map is saved and opened.",
-            ImportKind::Lpc => "A Universal LPC Spritesheet (64×64 frames, 13 wide, 21+ rows) or a 4-row LPC walk cycle. The walk animation becomes a character sheet (rows down, left, right, up; 4 frames); the other animations are left out. Colors stay as they are (no skin / hair recoloring).",
             ImportKind::Aseprite => "The JSON exported with Aseprite's File › Export Sprite Sheet (array or hash), next to its PNG. Frames are packed into a grid; tags become named animations offered by the Effect / Fly actions and effect(…, #{ tag: \"name\" }).",
         }
     }
     fn filter(self) -> (&'static str, &'static [&'static str]) {
         match self {
             ImportKind::Tiled => ("Tiled map", &["tmx", "tmj", "json"]),
-            ImportKind::Lpc => ("PNG image", &["png"]),
             ImportKind::Aseprite => ("Aseprite JSON", &["json"]),
         }
     }
@@ -63,15 +58,13 @@ pub struct ImportDialog {
     pub kind: ImportKind,
     /// Map name / sheet id ("" = from the file name).
     pub id: String,
-    pub sheet_kind: SheetKind,
-    pub female: bool,
     /// The new sheet's scale (`SheetDef::scale`: 2 = high-resolution art).
     pub scale: u32,
 }
 
 impl Default for ImportDialog {
     fn default() -> Self {
-        ImportDialog { kind: ImportKind::Tiled, id: String::new(), sheet_kind: SheetKind::Body, female: false, scale: 1 }
+        ImportDialog { kind: ImportKind::Tiled, id: String::new(), scale: 1 }
     }
 }
 
@@ -111,8 +104,8 @@ fn stem(path: &Path) -> String {
 
 impl Editor {
     /// Imports `path`; `id` = map name / sheet id ("" = from the file name). Returns the report.
-    /// `scale`: the new sheet's `SheetDef::scale` (LPC, Aseprite).
-    pub fn run_import(&mut self, kind: ImportKind, path: &Path, id: &str, sheet_kind: SheetKind, female: bool, scale: u32) -> Result<String> {
+    /// `scale`: the new sheet's `SheetDef::scale` (Aseprite).
+    pub fn run_import(&mut self, kind: ImportKind, path: &Path, id: &str, scale: u32) -> Result<String> {
         let scale = scale.clamp(1, 4);
         if !self.project_open {
             bail!("open a project first");
@@ -136,22 +129,6 @@ impl Editor {
                 self.mode = crate::app::Mode::Map;
                 msg
             }
-            ImportKind::Lpc => {
-                let img = Rgba::decode(&std::fs::read(path).with_context(|| format!("reading {}", path.display()))?)?;
-                let (sheet, note) = lpc::convert(&img)?;
-                let id = unique_id(&base, |c| self.project.db.sheet(c).is_some());
-                let rel = write_new(&root, "sprites", &id, "png", &sheet.encode()?)?;
-                self.project.db.sheets.push(SheetDef { kind: sheet_kind, female: female && sheet_kind == SheetKind::Body, scale, ..SheetDef::new(&id, &rel, lpc::FRAME, lpc::FRAME) });
-                self.after_import();
-                let mut msg = format!("Imported LPC sheet '{id}' as {} ({rel}: {} rows of 4 frames, 64×64).", sheet_kind.label(), sheet.h / lpc::FRAME);
-                if sheet_kind == SheetKind::Body {
-                    msg += " Give it to a character in Database › Characters (Figure), and mark its skin, hair or clothing as colour features in Database › Sprite sheets.";
-                }
-                if !note.is_empty() {
-                    msg += &format!(" Note: {note}.");
-                }
-                msg
-            }
             ImportKind::Aseprite => {
                 let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
                 let parsed = aseprite::parse(&text)?;
@@ -159,18 +136,6 @@ impl Editor {
                 let image = if parsed.image.is_empty() { path.with_extension("png") } else { dir.join(&parsed.image) };
                 let img = Rgba::decode(&std::fs::read(&image).with_context(|| format!("reading the sheet image {}", image.display()))?)?;
                 let id = unique_id(&base, |c| self.project.db.sheet(c).is_some());
-                // Tags named after the character animations (walk_down, attack_left…): a figure.
-                if let Some((sheet, rows)) = aseprite::character_layout(&parsed, &img) {
-                    let rel = write_new(&root, "sprites", &id, "png", &sheet.encode()?)?;
-                    self.project.db.sheets.push(SheetDef { kind: SheetKind::Body, female, scale, ..SheetDef::new(&id, &rel, parsed.frame_w, parsed.frame_h) });
-                    self.after_import();
-                    return Ok(format!(
-                        "Imported '{id}' as a character figure ({rel}: {}×{} frames; from the tags: {}). Give it to a character in Database › Characters (Figure).",
-                        parsed.frame_w,
-                        parsed.frame_h,
-                        rows.join(", ")
-                    ));
-                }
                 let (sheet, tags, notes) = aseprite::build(&parsed, &img);
                 let rel = write_new(&root, "sprites", &id, "png", &sheet.encode()?)?;
                 let names: Vec<String> = tags.iter().map(|t| t.name.clone()).collect();
@@ -201,7 +166,7 @@ impl Editor {
     /// Runs an import and shows its result.
     pub fn import_and_report(&mut self, kind: ImportKind, path: &Path) {
         let d = self.import.take().unwrap_or_default();
-        let r = self.run_import(kind, path, &d.id, d.sheet_kind, d.female, d.scale);
+        let r = self.run_import(kind, path, &d.id, d.scale);
         let text = match &r {
             Ok(m) => m.clone(),
             Err(e) => format!("Import failed: {e:#}"),
@@ -227,11 +192,6 @@ impl Editor {
                     ui.label(if d.kind == ImportKind::Tiled { "Map name" } else { "Sheet id" });
                     ui.add(egui::TextEdit::singleline(&mut d.id).hint_text("from the file name").desired_width(200.0));
                     ui.end_row();
-                    if d.kind != ImportKind::Tiled {
-                        ui.label("Character");
-                        ui.checkbox(&mut d.female, "a woman (offered to female players when playable)").on_hover_text("LPC sheets and Aseprite sheets with tags named walk_down, idle_left, attack_right, hurt_up… become character figures");
-                        ui.end_row();
-                    }
                     if d.kind != ImportKind::Tiled {
                         ui.label("Scale");
                         ui.horizontal(|ui| {

@@ -100,9 +100,9 @@ const STARTER: [(RefKind, &str); 12] = [
     (RefKind::Prop, "boulder"),
 ];
 
-/// What the character creator offers with the starter assets: the hero and heroine figures
+/// What the character creator offers with the starter assets: the hero's and heroine's 3D models
 /// (with their colour features: skin, hair, clothing).
-const CREATOR_SHEETS: [&str; 2] = ["hero", "heroine"];
+const CREATOR_MODELS: [&str; 2] = ["hero", "heroine"];
 
 impl Editor {
     /// Opens the wizard (after the current project's unsaved work was settled).
@@ -131,7 +131,7 @@ impl Editor {
             match &self.lib.lib {
                 Some(lib) => {
                     let mut want: Vec<AssetRef> = STARTER.iter().map(|(k, id)| (*k, id.to_string())).collect();
-                    want.extend(CREATOR_SHEETS.iter().map(|s| (RefKind::Sheet, s.to_string())));
+                    want.extend(CREATOR_MODELS.iter().map(|s| (RefKind::Model, s.to_string())));
                     want.retain(|a| rustpg2d_engine::library::exists(&lib.db, a));
                     let mut b = Bundle::collect(&lib.db, &lib.root, TILE_SIZE, "starter", &want)?;
                     b.rescale(TILE_SIZE)?;
@@ -150,7 +150,7 @@ impl Editor {
             c.player = "hero".into();
         }
         // Player character, the creator's choices and the (possibly fixed) sex.
-        let have: Vec<String> = project.db.sheets.iter().map(|s| s.id.clone()).collect();
+        let have: Vec<String> = project.db.models.iter().map(|m| m.id.clone()).collect();
         let has = |id: &str| have.iter().any(|s| s == id);
         c.creation = CharacterCreation {
             enabled: w.creator,
@@ -162,7 +162,8 @@ impl Editor {
         if w.sex == SexChoice::Female {
             if let Some(h) = project.db.characters.iter_mut().find(|d| d.id == "hero") {
                 if has("heroine") {
-                    h.appearance.body = "heroine".into();
+                    h.appearance.model = "heroine".into();
+                    h.appearance.body.clear();
                     h.appearance.colors.clear();
                 }
                 h.name = "Heroine".into();

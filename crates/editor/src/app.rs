@@ -1203,21 +1203,29 @@ impl Editor {
         }
     }
 
-    /// The figure of a character definition, or of a placed character with its own look.
-    pub fn char_layers(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>, facing: rustpg2d_engine::entity::Facing, col: u32) -> Vec<rustpg2d_engine::render::character::Layer> {
+    /// The look and gear of a character definition, or of a placed character with its own: as
+    /// the game draws it (its model, else the mannequin).
+    pub fn char_look(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>) -> Option<(rustpg2d_engine::defs::Appearance, rustpg2d_engine::render::model::Gear)> {
         use rustpg2d_engine::render::character;
-        let Some(d) = self.project.db.character(def) else { return Vec::new() };
-        vec![character::figure(&self.project.db, character::appearance_of(d, inst), facing, col)]
+        let d = self.project.db.character(def)?;
+        let a = self.assets.models.look_of(character::appearance_of(d, inst));
+        let gear = rustpg2d_engine::render::model::Gear::of(character::equipment_of(d, inst), "", None);
+        Some((a, gear))
     }
 
-    /// Draws character layers with the bottom-center at `feet` (map view, macroquad).
-    pub fn draw_char_layers(&self, layers: &[rustpg2d_engine::render::character::Layer], feet: Vec2, tint: macroquad::color::Color) -> bool {
-        let mut any = false;
-        for l in layers {
-            let frame = self.assets.sheets.get(&l.sheet).map_or(l.fallback, |s| l.frame_in(s.count));
-            any |= self.assets.draw_frame_colored(&l.sheet, frame, feet, tint, &l.colors);
-        }
-        any
+    /// Draws a character standing with the bottom-center at `feet` (map view, macroquad).
+    pub fn draw_char(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>, facing: rustpg2d_engine::entity::Facing, feet: Vec2, tint: macroquad::color::Color) -> bool {
+        let Some((a, gear)) = self.char_look(def, inst) else { return false };
+        let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, bust: false };
+        let Some(cell) = self.assets.models.pose(&self.project.db, &self.assets.sheets, &req) else { return false };
+        self.assets.models.draw(&cell, feet, self.project.db.body_size(&a.model), tint);
+        true
+    }
+
+    /// A character's size on the map (world pixels).
+    pub fn char_size(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>) -> macroquad::math::Vec2 {
+        let ts = self.ts();
+        self.char_look(def, inst).and_then(|(a, _)| self.assets.models.frame_size(&a.model)).map_or(macroquad::math::vec2(ts, ts * 1.5), |(w, h)| macroquad::math::vec2(w, h))
     }
 
     /// Width of an entity definition's sprite in whole tiles (for snapping).
@@ -1402,7 +1410,7 @@ impl Editor {
             return;
         }
         self.status_bar(ctx);
-        self.tex.set_characters(&self.project.db);
+        self.tex.set_characters(&self.project.db, &self.assets);
         match self.mode {
             Mode::Map => {
                 egui::SidePanel::left("left").resizable(true).default_width(290.0).show(ctx, |ui| {
@@ -2497,7 +2505,7 @@ impl Editor {
                     let own = e.appearance.is_some() || e.equipment.is_some() || e.inventory.is_some();
                     egui::CollapsingHeader::new(ui::t(ph::USER, "Look & equipment")).default_open(true).show(ui, |ui| {
                         use rustpg2d_engine::render::character;
-                        widgets::character_preview(ui, &self.tex, &self.assets, db, character::appearance_of(d, Some(e)));
+                        widgets::character_preview(ui, &self.assets, character::appearance_of(d, Some(e)));
                         let mut what = Vec::new();
                         if e.appearance.is_some() {
                             what.push("look");
@@ -2514,7 +2522,7 @@ impl Editor {
                             ui.weak("The definition's look, equipment and carried items.");
                         }
                         ui.horizontal(|ui| {
-                            if ui.button(ui::t(ph::USER, "Customize this one…")).on_hover_text("Give just this placed character its own figure, colours, gear and carried items").clicked() {
+                            if ui.button(ui::t(ph::USER, "Customize this one…")).on_hover_text("Give just this placed character its own model, colours, gear and carried items").clicked() {
                                 customize = Some(e.uid);
                             }
                             if own && ui.button("Use the definition's").on_hover_text("Drop this one's own look, equipment and carried items").clicked() {

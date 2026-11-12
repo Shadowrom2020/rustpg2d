@@ -3,13 +3,14 @@
 //! models and rig templates without a project.
 //!
 //! `cargo run -p rustpg2d-engine --example model_sheet -- OUT.png MODEL.glb [--clips FILE.glb]…
-//! [--template TEMPLATE.glb [--turn DEGREES]] [--height PIXELS] [--anims walk,idle,…]`
+//! [--template TEMPLATE.glb [--turn DEGREES]] [--height PIXELS] [--anims walk,idle,…] [--facing left]
+//! [--moments N]`
 use std::collections::HashMap;
 
 use macroquad::prelude::*;
 use rustpg2d_engine::defs::{Appearance, Database, ModelDef, RigFit};
 use rustpg2d_engine::entity::Facing;
-use rustpg2d_engine::model::{guess_clips, Model};
+use rustpg2d_engine::model::guess_clips;
 use rustpg2d_engine::render::model::{Gear, Models, PoseReq};
 
 fn conf() -> macroquad::conf::Conf {
@@ -23,7 +24,7 @@ fn conf() -> macroquad::conf::Conf {
 }
 
 fn clip_names(path: &str) -> Vec<String> {
-    std::fs::read(path).ok().and_then(|b| Model::load(&b).ok()).map(|m| m.clips.iter().map(|c| c.name.clone()).collect()).unwrap_or_default()
+    std::fs::read(path).ok().and_then(|b| rustpg2d_engine::model::clip_names(&b).ok()).unwrap_or_default()
 }
 
 #[macroquad::main(conf)]
@@ -55,8 +56,15 @@ async fn main() {
         eprintln!("{e}");
     }
     let anims: Vec<String> = opt("--anims").unwrap_or_else(|| "walk,idle,attack,hurt".into()).split(',').map(String::from).collect();
-    let facings = [Facing::Down, Facing::Left, Facing::Right, Facing::Up];
-    const MOMENTS: usize = 4;
+    // `--facing left` and `--moments N`: one facing, N moments (looking through a long clip).
+    let facings: Vec<Facing> = match opt("--facing").as_deref() {
+        Some("down") => vec![Facing::Down],
+        Some("left") => vec![Facing::Left],
+        Some("right") => vec![Facing::Right],
+        Some("up") => vec![Facing::Up],
+        _ => vec![Facing::Down, Facing::Left, Facing::Right, Facing::Up],
+    };
+    let moments: usize = opt("--moments").and_then(|m| m.parse().ok()).unwrap_or(4);
     let look = Appearance { model: "m".into(), ..Default::default() };
     let gear = Gear::default();
     let sheets = HashMap::new();
@@ -68,10 +76,10 @@ async fn main() {
         let mut placed = Vec::new();
         for (r, anim) in anims.iter().enumerate() {
             for (fi, f) in facings.iter().enumerate() {
-                for m in 0..MOMENTS {
-                    let req = PoseReq { look: &look, gear: &gear, anim, time: (m as f32 + 0.5) / MOMENTS as f32, once: true, facing: *f, bust: false };
+                for m in 0..moments {
+                    let req = PoseReq { look: &look, gear: &gear, anim, time: (m as f32 + 0.5) / moments as f32, once: true, facing: *f, bust: false };
                     if let Some(cell) = models.pose(&db, &sheets, &req) {
-                        placed.push((cell, vec2(((fi * MOMENTS + m) as f32 + 0.5) * cw, r as f32 * ch + 16.0 + ch - 12.0)));
+                        placed.push((cell, vec2(((fi * moments + m) as f32 + 0.5) * cw, r as f32 * ch + 16.0 + ch - 12.0)));
                     }
                 }
             }
@@ -87,11 +95,11 @@ async fn main() {
         let cells = placed.len();
         // The renderer makes a few dozen poses a frame and stands in cached ones for the rest:
         // after enough frames every pose is its own. Read the screen before it is presented.
-        let needed = anims.len() * facings.len() * MOMENTS;
+        let needed = anims.len() * facings.len() * moments;
         if cells == needed {
             done += 1;
             if done >= needed / rustpg2d_engine::render::model::RENDERS_PER_FRAME as usize + 3 {
-                let w = (facings.len() * MOMENTS) as u32 * cw as u32;
+                let w = (facings.len() * moments) as u32 * cw as u32;
                 let h = anims.len() as u32 * ch as u32 + 16;
                 let shot = get_screen_data();
                 let mut im = Image::gen_image_color(w as u16, h as u16, BLANK);

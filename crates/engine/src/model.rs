@@ -442,12 +442,12 @@ pub fn guess_clips(names: &[String]) -> Vec<crate::defs::ClipMap> {
     const WORDS: [(&str, &[&str]); 13] = [
         ("walk", &["walk"]),
         ("idle", &["idle", "stand", "breath"]),
-        ("attack", &["attack", "slash", "strike", "swing", "punch", "stab", "thrust"]),
+        ("attack", &["attack", "slash", "strike", "swing", "punch", "stab", "thrust", "shoot", "spell", "cast", "axe_chop", "smash"]),
         ("hurt", &["hit", "hurt", "damage", "react"]),
         ("sit", &["sit"]),
         ("sleep", &["sleep", "lying", "lie"]),
         ("fish", &["fish"]),
-        ("farm", &["farm", "dig", "hoe", "plant"]),
+        ("farm", &["farm", "dig", "hoe", "plant", "bend_over", "pick_fruit"]),
         ("craft", &["hammer", "craft", "forge", "work"]),
         ("chop", &["chop", "axe", "wood"]),
         ("mine", &["mine", "mining", "pickaxe"]),
@@ -576,6 +576,240 @@ fn read_image(img: &gltf::Image, blob: Option<&[u8]>) -> Result<Image> {
     let mut im = downsize(&im, TEXTURE_MAX);
     quantize(&mut im, TEXTURE_COLORS);
     Ok(im)
+}
+
+/// The names of a `.glb`'s animation clips (also of a file with clips only).
+pub fn clip_names(glb: &[u8]) -> Result<Vec<String>> {
+    let g = gltf::Gltf::from_slice(glb).context("not a glTF binary")?;
+    Ok(g.document.animations().enumerate().map(|(k, a)| a.name().map_or_else(|| format!("clip{k}"), str::to_string)).collect())
+}
+
+/// A smaller copy of a model file: textures downsized to [`TEXTURE_MAX`] and reduced to
+/// [`TEXTURE_COLORS`] colours (as they are when loaded), stored as PNG; without `keep_mesh` (a
+/// file used only for its clips) also without meshes, skins and materials. Data nothing uses any
+/// more leaves the binary chunk. Meshy writes 2048-pixel textures and repeats the mesh in every
+/// animation file: a figure's two files shrink from about 7 MB to well under 1 MB.
+pub fn compact(glb: &[u8], keep_mesh: bool) -> Result<Vec<u8>> {
+    use gltf::json::validation::USize64;
+    use gltf::json::Index;
+    let g = gltf::Gltf::from_slice(glb).context("not a glTF binary")?;
+    let blob: Vec<u8> = g.blob.clone().unwrap_or_default();
+    let mut root = g.document.into_json();
+    if !keep_mesh {
+        root.meshes.clear();
+        root.skins.clear();
+        root.materials.clear();
+        root.textures.clear();
+        root.images.clear();
+        root.samplers.clear();
+        for n in &mut root.nodes {
+            n.mesh = None;
+            n.skin = None;
+        }
+    }
+    // Tangents aren't drawn (cel shading has no normal maps).
+    use gltf::json::validation::Checked;
+    for m in &mut root.meshes {
+        for p in &mut m.primitives {
+            p.attributes.retain(|k, _| !matches!(k, Checked::Valid(gltf::json::mesh::Semantic::Tangents)));
+        }
+    }
+    // The accessors something still reads.
+    let mut used = vec![false; root.accessors.len()];
+    let mut mark = |i: Index<gltf::json::Accessor>| {
+        if let Some(u) = used.get_mut(i.value()) {
+            *u = true;
+        }
+    };
+    for m in &root.meshes {
+        for p in &m.primitives {
+            p.attributes.values().for_each(|a| mark(*a));
+            if let Some(i) = p.indices {
+                mark(i);
+            }
+            for t in p.targets.iter().flatten() {
+                [t.positions, t.normals, t.tangents].into_iter().flatten().for_each(&mut mark);
+            }
+        }
+    }
+    for sk in &root.skins {
+        if let Some(i) = sk.inverse_bind_matrices {
+            mark(i);
+        }
+    }
+    for a in &root.animations {
+        for s in &a.samplers {
+            mark(s.input);
+            mark(s.output);
+        }
+    }
+    // Accessors nothing reads go, and the references to the others are renumbered.
+    let mut acc_map = vec![u32::MAX; used.len()];
+    let mut n = 0u32;
+    for (k, u) in used.iter().enumerate() {
+        if *u {
+            acc_map[k] = n;
+            n += 1;
+        }
+    }
+    let re = |i: &mut Index<gltf::json::Accessor>| *i = Index::new(acc_map[i.value()]);
+    let mut k = 0;
+    root.accessors.retain(|_| {
+        k += 1;
+        used[k - 1]
+    });
+    for m in &mut root.meshes {
+        for p in &mut m.primitives {
+            p.attributes.values_mut().for_each(re);
+            if let Some(i) = &mut p.indices {
+                re(i);
+            }
+            for t in p.targets.iter_mut().flatten() {
+                [&mut t.positions, &mut t.normals, &mut t.tangents].into_iter().flatten().for_each(re);
+            }
+        }
+    }
+    for sk in &mut root.skins {
+        if let Some(i) = &mut sk.inverse_bind_matrices {
+            re(i);
+        }
+    }
+    for a in &mut root.animations {
+        for s in &mut a.samplers {
+            re(&mut s.input);
+            re(&mut s.output);
+        }
+    }
+    // Textures, downsized.
+    let view_bytes = |v: &gltf::json::buffer::View| -> Result<Vec<u8>> {
+        let off = v.byte_offset.map_or(0, |o| o.0 as usize);
+        blob.get(off..off + v.byte_length.0 as usize).map(<[u8]>::to_vec).ok_or_else(|| anyhow!("data outside the file"))
+    };
+    let mut new_views: Vec<(Option<usize>, Vec<u8>)> = Vec::new(); // (old view, bytes)
+    let mut image_view = Vec::new();
+    for im in &root.images {
+        let Some(v) = im.buffer_view else {
+            image_view.push(None);
+            continue;
+        };
+        let bytes = view_bytes(&root.buffer_views[v.value()])?;
+        let small = Image::from_file_with_format(&bytes, None).map_err(|e| anyhow!("texture: {e}")).map(|i| {
+            let mut i = downsize(&i, TEXTURE_MAX);
+            quantize(&mut i, TEXTURE_COLORS);
+            crate::imageio::Rgba { w: i.width as u32, h: i.height as u32, px: i.bytes }.encode()
+        });
+        let png = small.and_then(|r| r).unwrap_or(bytes);
+        image_view.push(Some(new_views.len()));
+        new_views.push((None, png));
+    }
+    // Float skin weights become normalized bytes (the loader sums them to one again).
+    let mut weight_views: Vec<(usize, usize)> = Vec::new(); // (accessor, new view)
+    let weights: Vec<usize> = root.meshes.iter().flat_map(|m| m.primitives.iter()).filter_map(|p| p.attributes.get(&Checked::Valid(gltf::json::mesh::Semantic::Weights(0))).map(|a| a.value())).collect();
+    for a in weights {
+        let acc = &root.accessors[a];
+        let (Some(v), Checked::Valid(gltf::json::accessor::GenericComponentType(gltf::json::accessor::ComponentType::F32))) = (acc.buffer_view, &acc.component_type) else { continue };
+        if acc.sparse.is_some() || weight_views.iter().any(|w| w.0 == a) {
+            continue;
+        }
+        let view = &root.buffer_views[v.value()];
+        let data = view_bytes(view)?;
+        let (stride, start, count) = (view.byte_stride.map_or(16, |s| s.0), acc.byte_offset.map_or(0, |o| o.0 as usize), acc.count.0 as usize);
+        let mut out = Vec::with_capacity(count * 4);
+        for k in 0..count {
+            let at = start + k * stride;
+            let w: Vec<f32> = (0..4).map(|c| data.get(at + c * 4..at + c * 4 + 4).map_or(0.0, |b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))).collect();
+            out.extend(w.iter().map(|x| (x.clamp(0.0, 1.0) * 255.0).round() as u8));
+        }
+        weight_views.push((a, new_views.len()));
+        new_views.push((None, out));
+    }
+    // The views still read, each once, in their old order.
+    let mut keep = vec![false; root.buffer_views.len()];
+    for (k, a) in root.accessors.iter().enumerate() {
+        if weight_views.iter().any(|w| w.0 == k) {
+            continue;
+        }
+        if let Some(v) = a.buffer_view {
+            keep[v.value()] = true;
+        }
+        if let Some(sp) = &a.sparse {
+            keep[sp.indices.buffer_view.value()] = true;
+            keep[sp.values.buffer_view.value()] = true;
+        }
+    }
+    let mut remap = vec![usize::MAX; root.buffer_views.len()];
+    for (k, _) in keep.iter().enumerate().filter(|(_, k)| **k) {
+        remap[k] = new_views.len();
+        new_views.push((Some(k), view_bytes(&root.buffer_views[k])?));
+    }
+    let mut bin = Vec::new();
+    let mut views = Vec::new();
+    for (old, bytes) in &new_views {
+        while bin.len() % 4 != 0 {
+            bin.push(0);
+        }
+        let mut v = match old {
+            Some(k) => root.buffer_views[*k].clone(),
+            None => gltf::json::buffer::View { buffer: Index::new(0), byte_length: USize64(0), byte_offset: None, byte_stride: None, target: None, extensions: None, extras: Default::default(), name: None },
+        };
+        v.buffer = Index::new(0);
+        v.byte_offset = Some(USize64(bin.len() as u64));
+        v.byte_length = USize64(bytes.len() as u64);
+        bin.extend_from_slice(bytes);
+        views.push(v);
+    }
+    for (k, a) in root.accessors.iter_mut().enumerate() {
+        if let Some(&(_, nv)) = weight_views.iter().find(|w| w.0 == k) {
+            a.buffer_view = Some(Index::new(nv as u32));
+            a.byte_offset = None;
+            a.component_type = Checked::Valid(gltf::json::accessor::GenericComponentType(gltf::json::accessor::ComponentType::U8));
+            a.normalized = true;
+            (a.min, a.max) = (None, None);
+            continue;
+        }
+        if let Some(v) = a.buffer_view {
+            a.buffer_view = Some(Index::new(remap[v.value()] as u32));
+        }
+        if let Some(sp) = &mut a.sparse {
+            sp.indices.buffer_view = Index::new(remap[sp.indices.buffer_view.value()] as u32);
+            sp.values.buffer_view = Index::new(remap[sp.values.buffer_view.value()] as u32);
+        }
+    }
+    for (im, v) in root.images.iter_mut().zip(&image_view) {
+        if let Some(v) = v {
+            im.buffer_view = Some(Index::new(*v as u32));
+            im.mime_type = Some(gltf::json::image::MimeType("image/png".into()));
+            im.uri = None;
+        }
+    }
+    root.buffer_views = views;
+    root.buffers.truncate(1);
+    if let Some(b) = root.buffers.first_mut() {
+        b.byte_length = USize64(bin.len() as u64);
+        b.uri = None;
+    }
+    // GLB: header, JSON chunk (padded with spaces), BIN chunk (padded with zeros).
+    let mut json = root.to_vec().map_err(|e| anyhow!("writing the model: {e}"))?;
+    while json.len() % 4 != 0 {
+        json.push(b' ');
+    }
+    while bin.len() % 4 != 0 {
+        bin.push(0);
+    }
+    let total = 12 + 8 + json.len() + if bin.is_empty() { 0 } else { 8 + bin.len() };
+    let mut out = Vec::with_capacity(total);
+    out.extend_from_slice(b"glTF");
+    out.extend_from_slice(&2u32.to_le_bytes());
+    out.extend_from_slice(&(total as u32).to_le_bytes());
+    out.extend_from_slice(&(json.len() as u32).to_le_bytes());
+    out.extend_from_slice(b"JSON");
+    out.extend_from_slice(&json);
+    if !bin.is_empty() {
+        out.extend_from_slice(&(bin.len() as u32).to_le_bytes());
+        out.extend_from_slice(b"BIN\0");
+        out.extend_from_slice(&bin);
+    }
+    Ok(out)
 }
 
 /// Colours a model's texture is reduced to: the pixel look, and colour features can be picked as
@@ -736,6 +970,27 @@ mod tests {
     }
 
     #[test]
+    fn compacted_models_load_the_same() {
+        let glb = fixture();
+        let small = compact(&glb, true).unwrap();
+        let (a, b) = (Model::load(&glb).unwrap(), Model::load(&small).unwrap());
+        assert_eq!((a.vertices.len(), a.indices.clone(), a.joints.clone(), a.clips.len()), (b.vertices.len(), b.indices.clone(), b.joints.clone(), b.clips.len()));
+        assert_eq!(a.vertices, b.vertices);
+        // Clips only: the animation still plays on the full model.
+        let clips = compact(&glb, false).unwrap();
+        assert!(clips.len() < glb.len(), "{} < {}", clips.len(), glb.len());
+        assert_eq!(clip_names(&clips).unwrap(), vec!["bend".to_string()]);
+        assert!(Model::load(&clips).is_err(), "a clips-only file is no model");
+        let mut c = Model::load(&glb).unwrap();
+        c.clips.clear();
+        assert_eq!(c.add_clips(&clips).unwrap(), 1);
+        let mut out = Vec::new();
+        c.skin(&c.pose(c.clip("bend"), 0.5), &mut out);
+        let s = std::f32::consts::FRAC_1_SQRT_2;
+        assert!((out[2].0 - Vec3::new(-s, 1.0 + s, 0.0)).length() < 1e-3, "{:?}", out[2]);
+    }
+
+    #[test]
     fn grips_are_estimated_at_the_thinnest_part() {
         // A "sword" along +Y made of flat boxes (corners only): a pommel at 0, a thin grip to
         // 0.2, a wide guard, a blade to 1.
@@ -760,6 +1015,11 @@ mod tests {
         let of = |a: &str| g.iter().find(|c| c.anim == a).map(|c| c.clip.as_str());
         assert_eq!((of("walk"), of("idle"), of("attack"), of("hurt"), of("sit")), (Some("walking_2"), Some("Idle_02"), Some("Right_Hand_Sword_Slash"), Some("Hit_Reaction"), Some("Chair_Sit_Idle_Male")));
         assert_eq!(of("fish"), None);
+        // Bows, spells and axes attack too (an axe chop is also the chopping activity).
+        let g = guess_clips(&["Walking_2", "Draw_and_Shoot_from_Back"].map(String::from));
+        assert_eq!(g.iter().find(|c| c.anim == "attack").map(|c| c.clip.as_str()), Some("Draw_and_Shoot_from_Back"));
+        let g = guess_clips(&["Charged_Axe_Chop".to_string()]);
+        assert_eq!(g.iter().filter(|c| c.clip == "Charged_Axe_Chop").map(|c| c.anim.as_str()).collect::<Vec<_>>(), vec!["attack", "chop"]);
     }
 
     #[test]

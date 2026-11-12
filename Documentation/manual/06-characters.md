@@ -5,45 +5,34 @@ in *Database › Characters*, placed on maps with the Entities tool.
 
 ## How characters look
 
-Every character is a **figure**: a complete picture of it, with its clothes and hair painted in,
-on a sprite sheet of kind *Character figure* ([Art and sound › Character
-figures](10-art-and-sound.md#sizes-and-layouts)). One sheet holds all of its animations: **walk**,
-**idle** (breathing while it stands), **attack** (wind-up, swing, follow-through, recover) and
-**hurt** (when hit), each facing down, left, right and up. The game plays them by itself: standing
-characters breathe, enemies' wind-ups and swings and the player's swing show the attack frames, a
-hit shows the hurt frame. A sheet without some of these rows shows the standing frame instead.
+Every character is a **3D model** (*Database › 3D models*): a rigged model with its animation clips.
+The game renders it with what it holds in the pixel look (a few light bands, a dark outline) and
+draws it into the world as a picture, facing down, left, right or up. It plays its clips by itself:
+**walk**, **idle** (standing), its **attack**, **hurt** (when hit), **sit** and **sleep** on
+furniture and the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `read`); a model
+without a clip for one of them plays idle (sitting and lying without a clip show the standing pose,
+cropped or laid down). Dialog portraits show its head close up. A character without a model of its
+own shows as the **mannequin** (a plain wooden figure; the engine has one built in).
 
-**Colour features**: parts of a figure that can take other colours, such as its skin, hair or
-clothing (*Database › Sprite sheets › Colour features*). A feature is made of the art's own shades
-of that part. A character that chooses a colour for it gets those shades replaced by the chosen
-colour, each as much darker or lighter as it was, so light and shadow stay. Each feature lists the
-colours it offers: the character creator's swatches. In the example the hero, the heroine, the
-elves, the female dwarf and the villagers have skin, hair and (most) clothing features; the dwarf
-has skin. Two placed villagers wear their own colours.
-
-**Equipment** is real: a character's weapon, armor and clothing count in combat, and an enemy drops
-them when defeated. **What it holds is drawn in its hands**: the weapon, the left-hand item (a
-shield, a lantern, a torch), a tool while it works (the fisher's rod, the farmer's hoe) and a prop it
-carries. This needs a figure with **hand marks**: per frame where each hand is and how it is turned
-([Art and sound › Hands](10-art-and-sound.md#hands)). The starter figures of people have them and
-are drawn with empty hands; armour and clothing show only in the art. How each item sits in a hand
-is set in its *Held* section ([Database › Items](05-database.md#items)).
-
-**3D models**: a character can be a rigged 3D model instead of a figure. The game renders it with
-its held items in the pixel look (a few light bands, a dark outline) and draws it like a figure:
-walking, idle, attacks, hurt, activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`,
-`read`) and sitting / sleeping play the model's clips; dialog portraits show its head close up.
+The example's and the starter library's cast were modelled with Meshy from the hand-drawn figures
+of earlier versions: 47 people and 9 animals, and 16 items' 3D models.
 
 - *Database › 3D models › Import model…* takes a rigged `.glb` (Meshy, Blender, Mixamo…): it is
-  copied into `models/` and its clips are matched to the animations by their names. *Clip files ›
-  Add…* uses the clips of more files of the same rig (Meshy writes animations as separate files).
+  copied into `models/` (made smaller: textures as the game uses them, clip files without their
+  mesh) and its clips are matched to the animations by their names. *Clip files › Add…* uses the
+  clips of more files of the same rig (Meshy writes animations as separate files).
 - The form sets the **height** (standing, in world pixels: a person is about 40), the **clip each
   animation plays** (an animation without one plays idle) and its frames per second (12: drawn
   stepped like pixel animation), *Playable* / *Female* for the character creator, and shows a
   turning preview, the four facings and the portrait. Clips that stand turned are straightened by
   the body's direction, and walking stays in place.
-- **Colour features** are picked from the model's texture, which is reduced to 32 colours when it
-  loads, as on figures: the character editor and the creator then offer colour rows.
+- **Colour features** are parts of a model that can take other colours, such as its skin, hair or
+  clothing. A feature is made of the shades of its texture (reduced to 32 colours when it loads)
+  that belong to that part; a character that chooses a colour for it gets those shades replaced by
+  the chosen colour, each as much darker or lighter as it was, so light and shadow stay. Each
+  feature lists the colours it offers: the character creator's swatches. In the example the
+  playable models and the villagers have skin, hair and clothing; two placed villagers wear their
+  own colours.
 - **Animals and creatures** without a skeleton of their own (Meshy rigs only people; a 3D creature
   from *Generate art* is unrigged) get a **rig template** in the model's form: *Template* picks a
   rigged model whose skeleton is stretched over this one and whose walk, idle, attack and hurt it
@@ -56,10 +45,13 @@ walking, idle, attacks, hurt, activities (`fish`, `farm`, `craft`, `chop`, `mine
   out when it loads.
 - **Generate art** makes 3D characters, creatures and items' models with Meshy ([Art and sound ›
   Generate art](10-art-and-sound.md#generate-art-with-meshy)).
-- In the **character editor** the *3D models* cards above the figures choose a model; the game's
-  **character creator** offers playable models (races may list model ids in their bodies too).
-- Items can have a **3D model** ([Database › Items](05-database.md#items)): 3D model characters
-  hold it in their hand; items without one are held as their picture.
+
+**Equipment** is real: a character's weapon, armor and clothing count in combat, and an enemy drops
+them when defeated. **What it holds is in its hands**: the weapon, the left-hand item (a shield, a
+lantern, a torch), a tool while it works (the fisher's rod, the farmer's hoe) and a prop it carries,
+each at the hand bone with the handle across the fist. Items with a **3D model**
+([Database › Items](05-database.md#items)) are held as that model, others as their picture (*Held*
+section: hold point and orientation). Worn armour and clothing show only in the model's art.
 
 **Carrying props**: the *Carry prop* action and the scripts `carry(target, prop)` /
 `stop_carrying(target)` / `player_carrying()` let the player or a character carry a prop (a crate, a
@@ -74,14 +66,14 @@ can't attack (*Put down what you carry first.*). What the player carries is save
 **preview** that walks, breathes, attacks or flinches (*Walk*, *Idle*, *Attack*, *Hurt*; facing
 buttons, *turn around*, and the four standing directions); on the right:
 
-- **Figure**: cards of the project's figures; *Playable* lets players choose it in the creator;
-- **Colours**: for each colour feature of the figure, *As drawn*, the feature's colours and any
+- **Model**: cards of the project's 3D models; *Playable* lets players choose it in the creator;
+- **Colours**: for each colour feature of the model, *As made*, the feature's colours and any
   other colour;
 - **Equipment**: weapon, left hand, head, body armor and clothing (they count in play);
 - **Carried items**.
 
-**Random colours** picks an offered colour for each feature. **Start from…** copies the figure and
-colours of any character in the project or the asset library (a library character's sheets are
+**Random colours** picks an offered colour for each feature. **Start from…** copies the model and
+colours of any character in the project or the asset library (a library character's model is
 copied into the project first).
 
 **Placed characters with their own look**: select one on the map; *Look & equipment* in the
@@ -92,23 +84,17 @@ definition while every villager wears other colours.
 ## New characters
 
 **New character…** (in the Characters tab, or *Assets › New asset… › Character*) asks for an id
-and a name and where the figure comes from:
+and a name and where the model comes from:
 
-- **Existing figure**: one of the project's figures (or one added from the asset library), with
+- **Existing model**: one of the project's models (or one added from the asset library), with
   the character editor to choose its colours and equipment;
-- **Draw a new figure**: a new sheet in the character layout of a size (person, small person, big,
-  huge, small animal, large animal, flying creature), blank or a copy of a figure of the same size
-  to paint over (its colour features come along). *Create* adds the sheet and the character and
-  opens the sheet in the sprite editor to draw;
-- **Import**: an LPC character sheet (its walk, slash and hurt rows become walk, idle, attack and
-  hurt) or an Aseprite export whose tags are named after the animations (`walk_down`,
-  `idle_left`, `attack_right`, `hurt_up`…; see [Art and sound](10-art-and-sound.md)). Then choose
-  the new figure under *Existing figure*;
+- **Import a model**: a rigged `.glb` (Meshy, Blender, Mixamo…), imported like *Database › 3D
+  models › Import model…*; then choose it under *Existing model*;
 - **Generate with AI**: opens [Generate art](10-art-and-sound.md#generate-art-with-meshy) for a
-  character with this id; *Add to project* creates the character with a person's speed and hitbox.
+  3D character with this id (*a woman* picks the women's clips); *Add to project* creates the
+  model and the character with a person's speed and hitbox.
 
-Then mark the figure's colour features (*Database › Sprite sheets*) and set the character's
-behaviour and combat values in the form.
+Then set the character's behaviour and combat values in the form.
 
 ## The character form
 
@@ -116,7 +102,7 @@ behaviour and combat values in the form.
 |---|---|
 | **Character** | Name; **Description** (shown in the bestiary once the player has defeated one); speed in pixels per second; hitbox |
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
-| **Look & equipment** | The character editor: figure, colours, equipment, carried items |
+| **Look & equipment** | The character editor: model, colours, equipment, carried items |
 | **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
 | **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
 | **Experience** | XP the player gets for defeating it |
@@ -304,37 +290,37 @@ its look and equipment are what a new game starts with.
 The **character creator** (*Database › Project › Character creator*, *Show the character creator…*)
 lets players create their hero after *New game*: a **name** (with a default), **Male / Female** (or
 fixed, if the project says *Always male* / *Always female*), a **race** when the project has several
-playable races ([Races](#races)), a **body** (a figure) among the race's figures of that sex
-(without races: the project's default figure for that sex and the other figures of that sex marked
+playable races ([Races](#races)), a **look** (a model) among the race's models of that sex
+(without races: the project's default model for that sex and the other models of that sex marked
 *Playable*; the row shows only when there is a choice), and a **colour row for each colour feature**
-of that figure that offers colours (*Skin*, *Hair*, *Clothing*…: *As drawn* or one of the
+of that model that offers colours (*Skin*, *Hair*, *Clothing*…: *As made* or one of the
 feature's colours). The example offers humans (the hero, the heroine), elves and dwarves with
 skin, hair and clothing colours. An animated preview walks through all four directions. Name, sex,
-figure and colours are kept in save games. Play-tests skip the creator and use the default name.
+model and colours are kept in save games. Play-tests skip the creator and use the default name.
 
 ## Races
 
 Races are definitions of their own (*Database › Races*): humans, goblins, elves, dwarves, orcs and
-trolls in the example and the starter library, each with a male and a female figure (trolls one).
+trolls in the example and the starter library, each with a male and a female model (trolls one).
 A race has:
 
 - a **name** and **description** (the creator shows it under the preview);
-- **bodies** (figures) for men and women. The creator offers the race's figures of the chosen sex
-  with their colour features; without any, the project's *Character creation* figures;
+- **models** for men and women. The creator offers the race's models of the chosen sex with their
+  colour features; without any, the project's playable models;
 - for **a player of this race**: extra **max HP** (negative: fewer), **speed** in percent,
   **defense**, and **starting skills**, skill levels a new game begins with. In the example a
   human starts with Haggling 1 and 2 more HP; a goblin with Scavenging 1, 2 fewer HP and 10 %
   more speed; an elf with Archery 1 (5 % faster, 1 HP less); a dwarf with Mining 1 and Smithing 1
   (3 more HP, +1 defense, 10 % slower); an orc with Swordsmanship 1 (2 more HP); a troll with
   Toughness 2 (6 more HP, +1 defense, 15 % slower, size 1.5);
-- a **size**: characters whose body belongs to the race are drawn that much larger (or smaller)
+- a **size**: characters whose model belongs to the race are drawn that much larger (or smaller)
   and get a hitbox to match (trolls 1.5);
 - **Playable**: offered in the character creator. In the example humans, elves and dwarves are
   playable; goblins, orcs and trolls are races of the world's characters only (their player
   bonuses stay for projects that make them playable).
 
 With more than one playable race, the creator starts with a **Race** row; changing it switches the
-figures and their colour rows. The player's race is kept in the save game. The player character's own race
+models and their colour rows. The player's race is kept in the save game. The player character's own race
 (*Race* in its form) is the one a game started without the creator has. Other characters name
 their race in the same field (for scripts and [factions](#factions)). The **Player race** condition
 and `player_race()` tell the player's race.

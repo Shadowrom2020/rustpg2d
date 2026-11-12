@@ -31,14 +31,14 @@ impl Game {
     /// race their body belongs to).
     pub(super) fn refresh_player_size(&mut self) {
         let base = self.project.db.character(&self.project.config.player).map_or(vec2(self.ts() * 0.75, self.ts() * 0.5), |c| vec2(c.hitbox[0], c.hitbox[1]));
-        let size = self.player_appearance().map_or(1.0, |a| self.project.db.body_size(&a.body));
+        let size = self.player_appearance().map_or(1.0, |a| self.look_size(&a));
         self.player.hitbox = base * size;
     }
 
     /// `race=` for `status`: the player's race and its effect ("-" without one).
     pub(super) fn race_status(&self) -> String {
         match self.player_race() {
-            Some(r) => format!("{}(hp{:+},speed{:+}%,def{:+},size{})", r.id, r.max_hp, r.speed, r.defense, self.player_appearance().map_or(1.0, |a| self.project.db.body_size(&a.body))),
+            Some(r) => format!("{}(hp{:+},speed{:+}%,def{:+},size{})", r.id, r.max_hp, r.speed, r.defense, self.player_appearance().map_or(1.0, |a| self.look_size(&a))),
             None => "-".into(),
         }
     }

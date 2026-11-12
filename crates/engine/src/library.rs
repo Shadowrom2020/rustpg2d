@@ -599,16 +599,6 @@ impl Bundle {
             let lights: Vec<_> = n.lights.iter().filter(|l| tiles.contains(&l.tile) && !o.lights.iter().any(|x| x.tile == l.tile)).cloned().collect();
             o.lights.extend(lights);
         }
-        // Body sheets the newer set marks playable get the flag when they are otherwise the
-        // same (the flag was added later; an edited sheet stays as it is).
-        for n in self.db.sheets.iter().filter(|n| n.playable) {
-            if let Some(o) = db.sheets.iter_mut().find(|o| o.id == n.id && !o.playable) {
-                if (SheetDef { playable: true, ..o.clone() }) == *n {
-                    o.playable = true;
-                    upgraded.push((RefKind::Sheet, n.id.clone()));
-                }
-            }
-        }
         // Tilesets the newer set gives auto-tiling terrains get them (with the solid flags and
         // animations of the terrain tiles) when they have none yet and use the same (or an
         // upgraded) image.
@@ -1450,15 +1440,6 @@ mod tests {
         let pack2 = Bundle::collect(&db2, &root, 16, "starter", &all_assets(&db2)).unwrap().to_files().unwrap();
         let lib = open_library(&dir, Some(&borrowed(&pack2))).unwrap();
         assert!(lib.db.sheet("extra").is_some(), "new sheet added");
-        // A newer set marking a body playable flags the library's (otherwise unchanged) copy.
-        let mut db3 = db2.clone();
-        for s in &mut db3.sheets {
-            s.playable = s.id == "extra";
-        }
-        let pack3 = Bundle::collect(&db3, &root, 16, "starter", &all_assets(&db3)).unwrap().to_files().unwrap();
-        let lib = open_library(&dir, Some(&borrowed(&pack3))).unwrap();
-        assert!(lib.db.sheet("extra").unwrap().playable, "playable flag added");
-        assert!(!lib.db.sheet("items").unwrap().playable);
         // A newer set whose "items" image only grew (frames added on the right) upgrades it;
         // one that changed existing pixels doesn't.
         let old = Rgba::decode(&std::fs::read(dir.join("sprites/items.png")).unwrap()).unwrap();

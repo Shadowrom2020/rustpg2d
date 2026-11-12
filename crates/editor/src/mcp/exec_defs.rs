@@ -53,10 +53,8 @@ macro_rules! def_facts {
 def_facts!(TilesetDef, |d| format!("image {}; {} solid tiles; terrains [{}]; {} animations", d.image, d.solid.len(), d.terrains.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", "), d.animations.len()));
 def_facts!(SheetDef, |d| {
     let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
-    let female = if d.female { "; female" } else { "" };
-    let features = if d.features.is_empty() { String::new() } else { format!("; colour features [{}]", d.features.iter().map(|f| format!("{} ({} shades, {} colours)", f.name, f.shades.len(), f.colors.len())).collect::<Vec<_>>().join(", ")) };
     let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
-    format!("image {}; {}x{} px frames{scale}; {:?}{female}{features}{tags}", d.image, d.frame_w, d.frame_h, d.kind)
+    format!("image {}; {}x{} px frames{scale}; {:?}{tags}", d.image, d.frame_w, d.frame_h, d.kind)
 });
 def_facts!(ItemDef, |d| {
     let mut f = vec![format!("\"{}\"", d.name)];
@@ -207,7 +205,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         ),
         RefKind::Sheet => (
             val(&SheetDef::new(id, "sprites/<file>.png", 32, 32)),
-            "kind: Sprite (props, effects) | Body (a character figure: a complete picture with clothes and hair, hands empty; 4 columns, 16 rows: walk 4 frames, idle 2, attack 4, hurt 1, each block down/left/right/up; fewer rows show the standing frame) | Emotions; frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art, 64x96 frames fill a 32x48 place); female / playable: offered to female players / in the character creator; features: colour features [{name (\"skin\", \"hair\", \"clothing\"…), shades: [[r,g,b]] the art's exact colours of that part (sheet_colors lists them), colors: [[r,g,b]] offered to players}] — characters choose a colour per feature (appearance.colors); tags: named frame ranges [{name, first, last, fps}]; hands (figures): per frame \"F: R x y angle size f|b | L …\" — the hands' positions in frame pixels, grip axis in degrees (0 right, 90 down), size, in front / behind (edit_frames set_grip / estimate_hands edit them).",
+            "kind: Sprite (props, effects) | Emotions (icons over heads; its tags are the emotions); frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art); tags: named frame ranges [{name, first, last, fps}].",
         ),
         RefKind::Item => (
             val(&ItemDef::fresh(id)),
@@ -217,7 +215,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
             val(&PropDef::fresh(id)),
             "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot; carry: how characters carry it {grip, points, scale} (none: middle of its lower half, horizontal along the hands, 0.6).",
         ),
-        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {body (a Body sheet: its figure), colors: {feature: [r,g,b]} (the figure's colour features; missing = as drawn)}; equipment / inventory: the items it wears and carries (count in play; weapon, left hand and tools show in figures with hand marks: sheets' `hands`, items' `held`); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
+        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {model (a 3D model id; none: the mannequin), colors: {feature: [r,g,b]} (the model's colour features; missing = as made)}; equipment / inventory: the items it wears and carries (count in play; weapon, left hand and tools show in its hands: items' `model` or `held` picture); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
         RefKind::Sound => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0 }), "file: WAV or Ogg Vorbis under the project; volume 0..1. Used by PlaySound / PlayMusic, map music and the project's built-in sounds."),
         RefKind::Quest => (val(&QuestDef { id: id.into(), title: "New quest".into(), description: String::new(), stages: vec!["Find out more".into(), "Done".into()], xp: 0 }), "stages: the journal lines in order (stage 0 is the first after Start); xp on completion. Triggers drive it: Action Quest{quest, op: Start|Advance|SetStage|Complete|Fail, stage}, Cond Quest{quest, check: NotStarted|Active|Completed|Failed|AtStage|StageAtLeast, stage}."),
         RefKind::Structure => (val(&StructureDef { id: id.into(), name: "New structure".into(), category: String::new(), w: 2, h: 2, tilesets: vec![], layers: vec![vec![0; 4], vec![0; 4], vec![0; 4]], collision: vec![0; 4], entities: vec![] }), "layers: one Vec per map layer of w*h tile values (0 = empty; tile = slot << 16 | index with slot into `tilesets`); collision: w*h bytes (0 auto, 1 solid, 2 walkable); entities with positions relative to the top-left. Easier: build it on a map and capture it in the editor (Structures tool)."),
@@ -225,7 +223,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Spell => (val(&SpellDef::new(id, "New spell", "", icon.clone(), 5, 1.0, SpellEffect::Heal { amount: 5 })), "effect: {Heal:{amount}} | {Bolt:{damage, projectile (sheet), speed, range}} | {Blast:{..}} | {Light:{..}} | {Script:{function}}; mana cost; cooldown s; skill + level required to learn (empty skill = none). Items with teaches = this id teach it."),
         RefKind::Recipe => (val(&RecipeDef::new(id, "<item id>", 1, vec![], "")), "result + count from ingredients [{item, count}]; station: a prop id the player must use (empty = anywhere, craftable from the inventory), station_state: the state it must be in (a lit fire); skill + level required; tools: item ids that must be in the inventory; quality: [{level, result}] better results at higher skill."),
         RefKind::Achievement => (val(&AchievementDef { id: id.into(), name: "New achievement".into(), description: String::new(), icon, hidden: false, conditions: vec![] }), "conditions: checked while playing (same shapes as trigger conditions: Quest, Flag, Var, Defeated, Level, HasItem, …); hidden: shown as ??? until unlocked; also unlocked by the UnlockAchievement action / unlock_achievement()."),
-        RefKind::Race => (val(&rustpg2d_engine::races::RaceDef::fresh(id)), "bodies_male / bodies_female: figure sheet ids (the creator offers them with a colour row per colour feature, and they get the race's size); max_hp / defense: added for a player of this race, speed: percent; skills: [{skill, level}] starting levels; size: 1 = as drawn (trolls 1.5: bigger sprite and hitbox); playable: offered in the creator. Characters name their race in `race`."),
+        RefKind::Race => (val(&rustpg2d_engine::races::RaceDef::fresh(id)), "bodies_male / bodies_female: model ids (the creator offers them with a colour row per colour feature, and they get the race's size); max_hp / defense: added for a player of this race, speed: percent; skills: [{skill, level}] starting levels; size: 1 = as drawn (trolls 1.5: bigger sprite and hitbox); playable: offered in the creator. Characters name their race in `race`."),
         RefKind::Model => (
             val(&rustpg2d_engine::defs::ModelDef::new(id, "models/<file>.glb")),
             "file: a rigged .glb under models/ (Meshy, Blender…); clip_files: more .glb files with clips of the same rig; height: standing height in world px (40 = a person); clips: [{anim: walk|idle|attack|hurt|sit|sleep|fish|farm|craft|chop|mine|sweep|read, clip: the clip's name in the files, fps (12)}]; features: colour features of its texture (as a figure sheet's); playable / female: offered in the character creator. Characters use it with appearance.model.",
@@ -275,10 +273,7 @@ impl Editor {
         let d = self.project.db.sheet(&p.sheet).ok_or_else(|| format!("\"{}\" is not a sprite sheet.{}", p.sheet, suggestions(&p.sheet, self.project.db.sheets.iter().map(|t| t.id.as_str()))))?.clone();
         let path = self.project.root.join(&d.image);
         let mut img = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| rustpg2d_engine::imageio::Rgba::decode(&b).map_err(|e| format!("{e:#}")))?;
-        let figure = d.kind == SheetKind::Body;
-        let mut hands = d.hands.clone();
-        let skin: Vec<[u8; 3]> = d.feature("skin").map(|f| f.shades.clone()).unwrap_or_default();
-        let mut f = Frames { img: &mut img, frame: (d.frame_w.max(1), d.frame_h.max(1)), hands: figure.then_some(&mut hands) };
+        let mut f = Frames { img: &mut img, frame: (d.frame_w.max(1), d.frame_h.max(1)) };
         let (cols, rows) = (f.cols(), f.rows());
         let need = |v: Option<u32>, what: &str, max: u32| v.filter(|v| *v < max).ok_or(format!("{what} (below {max}) is needed for {}", p.op));
         let msg = match p.op.as_str() {
@@ -325,54 +320,9 @@ impl Editor {
                 format!("Replaced {} pixel(s)", f.replace_color(from, [to[0], to[1], to[2], 255], frames.as_deref()))
             }
             "fill_standing" => format!("{} empty idle / hurt frame(s) got the standing frame", f.fill_standing()),
-            "set_grip" | "clear_grips" | "estimate_hands" | "swap_hands" if !figure => return Err(format!("{} isn't a character figure (kind Body)", d.id)),
-            "set_grip" => {
-                let k = need(p.frame, "frame", cols * rows)?;
-                let hand = match p.hand.as_deref().unwrap_or("right") {
-                    "left" | "l" => rustpg2d_engine::hands::Hand::Left,
-                    _ => rustpg2d_engine::hands::Hand::Right,
-                };
-                let mut h = f.hands_of(k).unwrap_or_default();
-                let g = rustpg2d_engine::hands::Grip { x: p.x.ok_or("x is needed")?, y: p.y.ok_or("y is needed")?, angle: p.angle.unwrap_or(90.0), scale: p.size.unwrap_or(1.0), front: p.front.unwrap_or(true) };
-                h.set(hand, Some(g));
-                f.set_hands(k, Some(h));
-                format!("Frame {k}: {:?} hand at {},{} pointing {}°", hand, g.x, g.y, g.angle)
-            }
-            "clear_grips" => match p.frame {
-                Some(k) => {
-                    f.set_hands(k, None);
-                    format!("Frame {k} has no grips now")
-                }
-                None => {
-                    for k in 0..cols * rows {
-                        f.set_hands(k, None);
-                    }
-                    "All grips cleared".to_string()
-                }
-            },
-            "estimate_hands" => format!("Estimated the hands of {} frame(s)", f.estimate_hands(p.all.unwrap_or(false), &skin, d.scale)),
-            "swap_hands" => {
-                let rows: Vec<u32> = match (&p.anim, p.row) {
-                    (Some(a), _) => {
-                        let a = anim_index(a).ok_or("anim: walk, idle, attack or hurt")?;
-                        (a * 4..a * 4 + 4).collect()
-                    }
-                    (None, Some(_)) => vec![need(p.row, "row", rows)?],
-                    (None, None) => return Err("swap_hands needs a row or an anim (all its facings)".into()),
-                };
-                let frames: Vec<u32> = rows.iter().flat_map(|r| r * cols..(r + 1) * cols).collect();
-                format!("Swapped the hands of {} frame(s) in rows {rows:?}", f.swap_hands(&frames))
-            }
-            other => return Err(format!("unknown op \"{other}\": mirror_rows, copy_row, clear_row, duplicate, nudge, replace_color, fill_standing, set_grip, clear_grips, estimate_hands or swap_hands")),
+            other => return Err(format!("unknown op \"{other}\": mirror_rows, copy_row, clear_row, duplicate, nudge, replace_color or fill_standing")),
         };
         std::fs::write(&path, img.encode().map_err(|e| format!("{e:#}"))?).map_err(|e| e.to_string())?;
-        if figure && hands != d.hands {
-            if let Some(s) = self.project.db.sheets.iter_mut().find(|s| s.id == d.id) {
-                s.hands = hands;
-            }
-            self.defs_dirty = true;
-            self.save_defs();
-        }
         self.reload_assets();
         text(format!("{msg} in {} ({}); the art was reloaded.", d.id, d.image))
     }
@@ -421,10 +371,12 @@ impl Editor {
             }
             let mut list: Vec<_> = n.into_iter().collect();
             list.sort_by_key(|x| std::cmp::Reverse(x.1));
-            out.push(format!("texture colours ({}), most used first:", list.len()));
+            out.push(format!("texture colours ({}), most used first, with where they are on the model (0 = feet, 1 = top):", list.len()));
+            let at = self.assets.models.texture_heights(&d.id);
             for (c, k) in list {
                 let feature = d.features.iter().find(|f| f.shades.contains(&c)).map_or(String::new(), |f| format!("  feature {}", f.name));
-                out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {k} px{feature}", c[0], c[1], c[2], c[0], c[1], c[2]));
+                let place = at.get(&c).map_or(String::new(), |(h, _)| format!("  at {h:.2}"));
+                out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {k} px{place}{feature}", c[0], c[1], c[2], c[0], c[1], c[2]));
             }
         }
         text(out.join("\n"))
@@ -442,27 +394,15 @@ impl Editor {
         self.mcp_need_project()?;
         let d = self.project.db.sheet(&p.sheet).ok_or_else(|| format!("\"{}\" is not a sprite sheet.{}", p.sheet, suggestions(&p.sheet, self.project.db.sheets.iter().map(|t| t.id.as_str()))))?.clone();
         let tex = self.assets.sheets.get(&d.id).ok_or("its image isn't loaded")?;
-        let (w, fh) = (tex.image.width as usize, d.frame_h.max(1) as usize);
-        const ROWS: [&str; 4] = ["walk", "idle", "attack", "hurt"];
-        let mut info: BTreeMap<[u8; 3], (u32, std::collections::BTreeSet<&str>)> = BTreeMap::new();
-        for (k, px) in tex.image.bytes.as_chunks::<4>().0.iter().enumerate() {
-            if px[3] == 0 {
-                continue;
-            }
-            let y = k / w;
-            let e = info.entry([px[0], px[1], px[2]]).or_default();
-            e.0 += 1;
-            if d.kind == SheetKind::Body {
-                e.1.insert(ROWS.get(y / fh / 4).copied().unwrap_or("more"));
-            }
+        let mut info: BTreeMap<[u8; 3], u32> = BTreeMap::new();
+        for px in tex.image.bytes.as_chunks::<4>().0.iter().filter(|p| p[3] > 0) {
+            *info.entry([px[0], px[1], px[2]]).or_default() += 1;
         }
         let mut list: Vec<_> = info.into_iter().collect();
-        list.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
-        let mut out = vec![format!("{} colours in {} ({:?}); most used first. Colour features: {}", list.len(), d.image, d.kind, if d.features.is_empty() { "none".to_string() } else { d.features.iter().map(|f| f.name.clone()).collect::<Vec<_>>().join(", ") })];
-        for (c, (n, rows)) in list.iter().take(160) {
-            let feature = d.features.iter().find(|f| f.shades.contains(c)).map_or(String::new(), |f| format!("  feature {}", f.name));
-            let rows = if rows.is_empty() { String::new() } else { format!("  rows {}", rows.iter().copied().collect::<Vec<_>>().join(",")) };
-            out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {n} px{rows}{feature}", c[0], c[1], c[2], c[0], c[1], c[2]));
+        list.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        let mut out = vec![format!("{} colours in {} ({:?}); most used first.", list.len(), d.image, d.kind)];
+        for (c, n) in list.iter().take(160) {
+            out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {n} px", c[0], c[1], c[2], c[0], c[1], c[2]));
         }
         if list.len() > 160 {
             out.push(format!("… and {} rarer colours", list.len() - 160));

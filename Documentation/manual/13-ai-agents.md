@@ -74,11 +74,11 @@ bats and a chest".
 | `get_object {map, uid}` | An entity or zone as JSON. |
 | `tileset_legend {tileset}` | Columns and tile count (index = row · columns + column), solid tiles, animations, light tiles, terrains. |
 | `view_image {kind, id, grid}` | The PNG of a tileset or sprite sheet, with cell borders drawn in (small images are shown enlarged). |
-| `edit_frames {sheet, op, anim, frame, row, to_row, dx, dy, from, to, scope, hand, x, y, angle, size, front, all}` | Frame operations on a sheet's image, for animating figures: `mirror_rows` (Right rows = the mirrored Left rows; of `anim` or all), `copy_row` / `clear_row`, `duplicate` (a frame into the next column), `nudge` (move a frame's pixels), `replace_color` (`from` → `to` in a `frame`, `row` or the whole `sheet`), `fill_standing` (empty idle / hurt frames get the standing frame). Hand marks of figures ([Art › Hands](10-art-and-sound.md#hands)): `set_grip` (`frame`, `hand` right / left, `x`, `y` in the frame's pixels, `angle` = the grip axis in degrees, 0 right, 90 down; `size`, `front`), `clear_grips` (a `frame`'s, or all), `estimate_hands` (frames without marks, `all` for every frame), `swap_hands` (right and left trade places in a `row`, or in every facing of an `anim`). The operations keep marks in step with the pixels. Writes the PNG (and the sheet's marks) and reloads the art. |
+| `edit_frames {sheet, op, anim, frame, row, to_row, dx, dy, from, to, scope}` | Frame operations on a sheet's image: `mirror_rows` (four-facing sheets: Right rows = the mirrored Left rows; of `anim` or all), `copy_row` / `clear_row`, `duplicate` (a frame into the next column), `nudge` (move a frame's pixels), `replace_color` (`from` → `to` in a `frame`, `row` or the whole `sheet`), `fill_standing` (four-facing sheets: empty idle / hurt frames get the standing frame). Writes the PNG and reloads the art. |
 | `import_model {path, clips_for}` | Imports a rigged 3D character model (`.glb` from Meshy, Blender, Mixamo…) into `models/` as a new model, its clips matched to the animations by name; with `clips_for`, adds the file's clips to that model. Characters then use it with `upsert_def` `appearance: {model}`. Saves. |
 | `model_info {model}` | A 3D model: triangles, bones, hands, its clips with their lengths, the clip each animation plays, its rig template, and its texture's colours (the shades for colour features: `upsert_def` model `features`). |
 | `fit_rig {model, template, turn, joints}` | Animates an unrigged model (an animal, a monster) with a rig template (`rig_quadruped`, `rig_bird`, `rig_flyer`, `rig_blob`, `rig_floating` or any rigged model; `-` removes it): its skeleton is stretched over the model and its walk, idle, attack and hurt play. `turn` (degrees) makes the model face the front first; `joints` (`[{joint, offset}]`, offsets in parts of the height, x right, y up, z front) moves single joints. Returns the fitted joints. Saves. |
-| `sheet_colors {sheet}` | The exact colours of a sprite sheet's image, most used first, with pixel counts, the animation rows they appear in (figures) and the colour feature they belong to: the shades to put into a figure's colour features (`upsert_def` sheet `features`). |
+| `sheet_colors {sheet}` | The exact colours of a sprite sheet's image, most used first, with pixel counts (for `edit_frames` `replace_color`). |
 | `screenshot_map {map, x, y, w, h, zoom, grid, collision, zones}` | A PNG of the region as the editor draws it. |
 | `screenshot_editor` | A PNG of the whole editor window. |
 
@@ -160,16 +160,16 @@ also shows in the editor's Art window and status bar.
 | Tool | Does |
 |---|---|
 | `art_settings` | Whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, character sizes and attacks, which sheets set the style. |
-| `generate_art {kind, id, description, size, attack, tiles, portrait_for, female, from, confirm_credits}` | Starts a job (`character`, `icon`, `prop`, `portrait`, `image`; `portrait_for`: the character whose dialog portrait it becomes; 3D: `model` = a rigged and animated 3D character, `female` for a woman, `from` = a figure sheet to model instead of drawing a turnaround picture; `creature` = an unrigged model; `gear` = the 3D model of the item `id` from its icon) and returns its number at once; refuses unless `confirm_credits` equals the price (the refusal lists the steps' prices), or past the budget. |
+| `generate_art {kind, id, description, attack, tiles, portrait_for, female, from, extras, confirm_credits}` | Starts a job (3D: `model` = a rigged and animated 3D character, `female` for a woman, `extras` for work clips (`craft`, `farm`, `chop`, `sleep`), `from` = a sheet in the four-facing layout (an old figure) to model instead of drawing a turnaround picture; `creature` = an unrigged model (also `from`; animate it with `fit_rig`); `gear` = the 3D model of the item `id` from its icon; pictures: `icon`, `prop`, `portrait`, `image`, `portrait_for`: the character whose dialog portrait it becomes) and returns its number at once; refuses unless `confirm_credits` equals the price (the refusal lists the steps' prices), or past the budget. |
 | `art_jobs` | Every job of the session: its pictures and their progress, credits, done or failed, added as which asset. |
 | `art_result {job}` | A finished job as images: the converted art (characters: the 16-row sheet) and Meshy's raw pictures, to judge before adding it. |
-| `art_apply {job, id}` | Adds it to the project: the image, its sprite sheet and a character / item / prop using it; people's figures (drawn with empty hands) get estimated hand marks (check them with `view_image` and fix them with `edit_frames`). 3D jobs: the files under `models/`, the 3D model and a character using it, or the item's model (check it with `model_info`). Saves. |
+| `art_apply {job, id}` | Adds it to the project: the image, its sprite sheet and an item / prop using it; 3D jobs: the files under `models/` (made smaller), the 3D model and a character using it, or the item's model (check it with `model_info`). Saves. |
 | `art_redo {job, picture, confirm_credits}` | Draws one picture (`walk`, `attack`, `picture`) again and converts again; in 3D jobs (`views`, `model`, `rig`, `clips`) makes that step and the steps after it again. |
 
-In a chat this reads like: *"Draw an orc shaman with a skull staff for the swamp camp."* The
-assistant checks `art_settings`, tells you the price (6 credits with an attack), starts the job
-once you agree, watches `art_jobs`, looks at `art_result`, redraws a bad picture if you want, and
-adds it with `art_apply`, then places the new character on a map.
+In a chat this reads like: *"Make an orc shaman with a skull staff for the swamp camp."* The
+assistant checks `art_settings`, tells you the price (about 50 credits for a 3D character with a
+spell attack), starts the job once you agree, watches `art_jobs`, looks at `art_result`, redoes a
+bad step if you want, and adds it with `art_apply`, then places the new character on a map.
 
 ## Resources and prompts
 

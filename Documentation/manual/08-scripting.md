@@ -295,7 +295,7 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `player_name()` | The name the player chose. |
 | `player_sex()` | `"male"` or `"female"`. |
 | `player_race()` | The player's race id (*Database › Races*), e.g. `"goblin"`; `""` without one. |
-| `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")`: drawn at the figure's hands; while carrying it holds nothing else and the player can't attack. *(queued)* |
+| `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")`: drawn in the character's hands; while carrying it holds nothing else and the player can't attack. *(queued)* |
 | `stop_carrying(target)` | Puts down what a character carries. *(queued)* |
 | `player_carrying()` | The prop the player carries (`""` = none). |
 | `player_faction()` | The player's faction id (*Database › Project › Factions*): their race's, else the player character's; `""` without one. |
@@ -419,8 +419,8 @@ triggers.
 ### Equipment and carried items of characters
 
 Every humanoid character has equipment (Clothing, Head, Body, Weapon, Left hand) and carried items.
-What NPCs wear and hold counts in combat (an equipped weapon replaces the definition's; their
-figures show what they carry), and everything they wear and carry is dropped when they are defeated.
+What NPCs wear and hold counts in combat (an equipped weapon replaces the definition's; they
+hold it in their hands), and everything they wear and carry is dropped when they are defeated.
 Changes are saved with the game.
 
 | Function | Description |

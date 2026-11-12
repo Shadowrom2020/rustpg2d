@@ -69,6 +69,13 @@ pub struct PoseReq<'a> {
     pub bust: bool,
 }
 
+/// The model characters without one of their own are drawn as (a project may have its own).
+pub const MANNEQUIN: &str = "mannequin";
+const BUILTIN: &str = "<engine>/mannequin.glb";
+const BUILTIN_CLIPS: &str = "<engine>/mannequin_clips.glb";
+const MANNEQUIN_GLB: &[u8] = include_bytes!("../../models/mannequin.glb");
+const MANNEQUIN_CLIPS: &[u8] = include_bytes!("../../models/mannequin_clips.glb");
+
 /// Size of a bust render (image pixels, square).
 pub const BUST: u32 = 64;
 
@@ -236,6 +243,22 @@ impl Models {
     /// Loads the models of `db` (files through `read`, relative to the project).
     pub fn load(db: &Database, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> Models {
         let mut m = Models::default();
+        // Characters without a model are drawn as the mannequin: the project's, else the engine's.
+        if db.model(MANNEQUIN).is_none() {
+            let def = ModelDef { clips: crate::model::guess_clips(&crate::model::clip_names(MANNEQUIN_CLIPS).unwrap_or_default()), clip_files: vec![BUILTIN_CLIPS.into()], ..ModelDef::new(MANNEQUIN, BUILTIN) };
+            let builtin = |p: &str| -> std::io::Result<Vec<u8>> {
+                Ok(match p {
+                    BUILTIN => MANNEQUIN_GLB.to_vec(),
+                    _ => MANNEQUIN_CLIPS.to_vec(),
+                })
+            };
+            match load_one(&def, db, &builtin) {
+                Ok(l) => {
+                    m.loaded.insert(MANNEQUIN.into(), l);
+                }
+                Err(e) => eprintln!("[models] the built-in mannequin: {e:#}"),
+            }
+        }
         for def in &db.models {
             match load_one(def, db, read) {
                 Ok(l) => {
@@ -348,6 +371,19 @@ impl Models {
         self.loaded.contains_key(id)
     }
 
+    /// What a look is drawn as: its model, else the model named like its (old) figure, else the
+    /// mannequin.
+    pub fn look_of(&self, a: &Appearance) -> Appearance {
+        let model = if self.has(&a.model) {
+            a.model.clone()
+        } else if !a.body.is_empty() && self.has(&a.body) {
+            a.body.clone()
+        } else {
+            MANNEQUIN.to_string()
+        };
+        Appearance { model, ..a.clone() }
+    }
+
     /// A model's frame size in world pixels (as a figure's frame).
     pub fn frame_size(&self, id: &str) -> Option<(f32, f32)> {
         self.loaded.get(id).map(|l| (l.frame.0 as f32 / PX, l.frame.1 as f32 / PX))
@@ -438,6 +474,38 @@ impl Models {
             texture: l.texture.as_ref().map(|t| (t.width, t.height)),
             rigged: l.fitted.is_none() && m.joints.len() >= 2,
         })
+    }
+
+    /// Where each colour of model `id`'s texture is on the model at rest: colour -> (average
+    /// height, 0 = the feet .. 1 = the top; the number of triangles showing it). Telling the
+    /// shades of hair from the same browns of boots, for colour features.
+    pub fn texture_heights(&self, id: &str) -> HashMap<[u8; 3], (f32, u32)> {
+        let mut out: HashMap<[u8; 3], (f32, u32)> = HashMap::new();
+        let Some(l) = self.loaded.get(id) else { return out };
+        let (Some(t), m) = (&l.texture, &l.model) else { return out };
+        let mut pts = Vec::new();
+        m.skin(&m.pose(None, 0.0), &mut pts);
+        let (lo, hi) = pts.iter().fold((f32::MAX, f32::MIN), |(lo, hi), (p, _)| (lo.min(p.y), hi.max(p.y)));
+        let h = (hi - lo).max(1e-5);
+        let (w, th) = (t.width as f32, t.height as f32);
+        for tri in m.indices.as_chunks::<3>().0 {
+            let [Some(a), Some(b), Some(c)] = tri.map(|i| m.vertices.get(i as usize)) else { continue };
+            let uv = (a.uv + b.uv + c.uv) / 3.0;
+            let (x, y) = (((uv.x.rem_euclid(1.0)) * w) as u32, ((uv.y.rem_euclid(1.0)) * th) as u32);
+            let k = ((y.min(t.height as u32 - 1) * t.width as u32 + x.min(t.width as u32 - 1)) * 4) as usize;
+            let Some(px) = t.bytes.get(k..k + 4) else { continue };
+            if px[3] == 0 {
+                continue;
+            }
+            let at = tri.iter().filter_map(|&i| pts.get(i as usize)).map(|(p, _)| (p.y - lo) / h).sum::<f32>() / 3.0;
+            let e = out.entry([px[0], px[1], px[2]]).or_default();
+            e.0 += at;
+            e.1 += 1;
+        }
+        for e in out.values_mut() {
+            e.0 /= e.1.max(1) as f32;
+        }
+        out
     }
 
     /// Model `id` at rest with its joints (a fitted rig template's: the editor drags them).

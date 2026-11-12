@@ -314,7 +314,7 @@ impl Editor {
         for e in &d.entities {
             let feet = mvec2(ox as f32 * ts + e.x, oy as f32 * ts + e.y);
             if e.kind == EntityKind::Character {
-                self.draw_char_layers(&self.char_layers(&e.def, Some(e), e.facing, 0), feet, tint);
+                self.draw_char(&e.def, Some(e), e.facing, feet, tint);
             } else if let Some(s) = entity_sprite(&self.project.db, e) {
                 self.assets.draw_sprite(&s, 0, feet, tint);
             }

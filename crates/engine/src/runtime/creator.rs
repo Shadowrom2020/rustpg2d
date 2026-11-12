@@ -1,7 +1,7 @@
 //! Character creator, shown after "New game" when the project enables it: the player types a
-//! name, picks a race (when the project has several playable races), male / female, a figure (the
+//! name, picks a race (when the project has several playable races), male / female, a model (the
 //! race's figures of that sex; without races the project's default figure for that sex and the
-//! other playable figures of that sex) and a colour for each colour feature of the figure that
+//! other playable models of that sex) and a colour for each colour feature of the model that
 //! offers colours (skin, hair, clothing...: `defs::ColorFeature`).
 //!
 //! Keyboard: typing edits the name (Backspace deletes), Up/Down select a row, Left/Right
@@ -119,14 +119,13 @@ impl Game {
         (!races.is_empty()).then(|| races[c.race % races.len()])
     }
 
-    /// Whether `id` is a look the creator can show: a 3D model or a figure.
+    /// Whether `id` is a look the creator can show: a loaded 3D model.
     fn is_look(&self, id: &str) -> bool {
-        self.assets.models.has(id) || self.assets.sheets.contains_key(id)
+        self.assets.models.has(id)
     }
 
-    /// Bodies a player of `sex` may choose (3D models or figures): the race's (that exist), else
-    /// the project's default body for that sex first, then the playable models and figures of
-    /// that sex.
+    /// Models a player of `sex` may choose: the race's (that exist), else the project's default
+    /// for that sex first, then the playable models of that sex.
     fn creator_bodies(&self, race: Option<&crate::races::RaceDef>, sex: Sex) -> Vec<String> {
         if let Some(r) = race {
             let v: Vec<String> = r.bodies(sex).iter().filter(|b| self.is_look(b)).cloned().collect();
@@ -142,7 +141,7 @@ impl Game {
         }
         let female = sex == Sex::Female;
         let models = self.project.db.models.iter().filter(|m| m.playable && m.female == female).map(|m| &m.id);
-        for id in models.chain(self.project.db.playable_bodies(female).into_iter().map(|s| &s.id)) {
+        for id in models {
             if !v.contains(id) {
                 v.push(id.clone());
             }
@@ -155,7 +154,7 @@ impl Game {
     fn creator_body(&self, c: &Creator) -> String {
         let bodies = self.creator_bodies(self.creator_race(c), c.sex);
         if bodies.is_empty() {
-            self.project.db.character(&self.project.config.player).map(|d| d.appearance.body.clone()).unwrap_or_default()
+            self.project.db.character(&self.project.config.player).map(|d| self.look(&d.appearance).model).unwrap_or_default()
         } else {
             bodies[c.body[c.sex as usize] % bodies.len()].clone()
         }
@@ -165,9 +164,8 @@ impl Game {
     /// label).
     fn creator_features(&self, c: &Creator) -> Vec<(usize, String, Vec<[u8; 3]>, String)> {
         let body = self.creator_body(c);
-        let features = match (self.project.db.model(&body), self.project.db.sheet(&body)) {
-            (Some(m), _) => &m.features,
-            (None, Some(s)) => &s.features,
+        let features = match self.project.db.model(&body) {
+            Some(m) => &m.features,
             _ => return Vec::new(),
         };
         features.iter().enumerate().filter(|(_, f)| !f.colors.is_empty()).map(|(k, f)| (k, f.name.clone(), f.colors.clone(), f.label())).collect()
@@ -205,17 +203,13 @@ impl Game {
     fn chosen_appearance(&self, c: &Creator) -> Appearance {
         let mut a = self.project.db.character(&self.project.config.player).map(|d| d.appearance.clone()).unwrap_or_default();
         let body = self.creator_body(c);
-        let current = if a.model.is_empty() { &a.body } else { &a.model };
-        if body != *current {
+        let current = self.look(&a).model;
+        if body != current {
             // Another look: the player character's colours were chosen for its own.
             a.colors.clear();
-            if self.project.db.model(&body).is_some() {
-                a.model = body;
-            } else {
-                a.model.clear();
-                a.body = body;
-            }
         }
+        a.model = body;
+        a.body.clear();
         for (k, name, colors, _) in self.creator_features(c) {
             match c.colors.get(k).copied().unwrap_or(0) {
                 0 => {}
@@ -482,29 +476,18 @@ impl Game {
         {
             let order = [crate::entity::Facing::Down, crate::entity::Facing::Left, crate::entity::Facing::Up, crate::entity::Facing::Right];
             let facing = order[(c.time / 1.5) as usize % 4];
-            let col = (c.time * 8.0) as u32 % super::paperdoll::LAYOUT_FRAMES;
             let (fw, fh) = self.character_frame_size(&a);
             let big = (190.0 / fh).floor().max(1.0);
             let dest = Rect::new(pr.x + (pr.w - fw * big) / 2.0, pr.y + 6.0, fw * big, fh * big);
-            if self.uses_model(&a) {
-                // A 3D model walks with its clip; standing in the four directions below.
-                let gear = super::paperdoll::Gear::default();
-                if let Some(cell) = self.model_cell(&a, &gear, (facing, super::paperdoll::Anim::Walking((c.time * 100.0) as u32))) {
-                    self.assets.models.draw_in(&cell, dest, WHITE);
-                }
-                for (k, f) in order.iter().enumerate() {
-                    let r = Rect::new(pr.x + 8.0 + k as f32 * 58.0, pr.y + pr.h - 88.0, fw * 1.6, fh * 1.6);
-                    if let Some(cell) = self.model_cell(&a, &gear, (*f, super::paperdoll::Anim::Idle(0))) {
-                        self.assets.models.draw_in(&cell, r, WHITE);
-                    }
-                }
-            } else {
-                let layer = self.character_figure(&a, facing, col);
-                self.assets.draw_frame_colored_in(&layer.sheet, self.layer_frame(&layer), dest, &layer.colors);
-                for (k, f) in order.iter().enumerate() {
-                    let r = Rect::new(pr.x + 8.0 + k as f32 * 58.0, pr.y + pr.h - 88.0, fw * 1.6, fh * 1.6);
-                    let layer = self.character_figure(&a, *f, 0);
-                    self.assets.draw_frame_colored_in(&layer.sheet, self.layer_frame(&layer), r, &layer.colors);
+            // The model walks with its clip; standing in the four directions below.
+            let gear = super::paperdoll::Gear::default();
+            if let Some(cell) = self.model_cell(&a, &gear, (facing, super::paperdoll::Anim::Walking((c.time * 100.0) as u32))) {
+                self.assets.models.draw_in(&cell, dest, WHITE);
+            }
+            for (k, f) in order.iter().enumerate() {
+                let r = Rect::new(pr.x + 8.0 + k as f32 * 58.0, pr.y + pr.h - 88.0, fw * 1.6, fh * 1.6);
+                if let Some(cell) = self.model_cell(&a, &gear, (*f, super::paperdoll::Anim::Idle(0))) {
+                    self.assets.models.draw_in(&cell, r, WHITE);
                 }
             }
         }

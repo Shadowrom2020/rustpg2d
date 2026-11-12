@@ -1,40 +1,30 @@
-//! Icons of games and of R(ust)PG2D: the player character drawn large ([`hero_icon`]), a
+//! Icons of games and of R(ust)PG2D: the player's portrait drawn large ([`hero_icon`]), a
 //! fallback emblem, and window icons made from them (the title bar and taskbar).
 
-use crate::entity::Facing;
 use crate::imageio::Rgba;
 use crate::project::Project;
-use crate::render::{character, recolor};
 
 /// Size of the package icons (pixels, square).
 pub const ICON: u32 = 256;
 
-/// The player character facing the viewer (its figure in its feature colours), enlarged with
-/// sharp pixels onto a 256 x 256 transparent square.
+/// The player's portrait picture (`ProjectConfig::player_portrait`), enlarged with sharp pixels
+/// onto a 256 x 256 transparent square; None without one.
 pub fn hero_icon(project: &Project) -> Option<Rgba> {
     let db = &project.db;
-    let d = db.character(&project.config.player)?;
+    let sprite = &project.config.player_portrait;
+    let sheet = db.sheet(&sprite.sheet)?;
+    let img = std::fs::read(project.path(&sheet.image)).ok().and_then(|b| Rgba::decode(&b).ok())?;
+    let (fw, fh) = (sheet.frame_w.max(1), sheet.frame_h.max(1));
+    let (cw, ch) = sprite.cells();
+    let cols = (img.w / fw).max(1);
+    let (fx, fy) = ((sprite.frame % cols * fw) as i32, (sprite.frame / cols * fh) as i32);
     let mut canvas: Option<Rgba> = None;
-    for l in [character::figure(db, &d.appearance, Facing::Down, 0)] {
-        let Some(sheet) = db.sheet(&l.sheet) else { continue };
-        let Ok(img) = std::fs::read(project.path(&sheet.image)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
-        let (fw, fh) = (sheet.frame_w.max(1), sheet.frame_h.max(1));
-        let cols = (img.w / fw).max(1);
-        let (fx, fy) = ((l.frame % cols * fw) as i32, (l.frame / cols * fh) as i32);
-        let mut frame = Rgba::new(fw, fh);
-        for y in 0..fh as i32 {
-            for x in 0..fw as i32 {
-                frame.set(x, y, img.get(fx + x, fy + y));
-            }
-        }
-        let features: Vec<(&[[u8; 3]], [u8; 3])> = sheet.features.iter().zip(&l.colors).filter_map(|(f, c)| c.map(|c| (f.shades.as_slice(), c))).collect();
-        recolor::recolor(&mut frame.px, &features);
-        let c = canvas.get_or_insert_with(|| Rgba::new(fw, fh));
-        // (Standing on the ground, centered.)
-        let (ox, oy) = ((c.w as i32 - fw as i32) / 2, c.h as i32 - fh as i32);
-        for y in 0..fh as i32 {
-            for x in 0..fw as i32 {
-                over(c, ox + x, oy + y, frame.get(x, y));
+    {
+        let (w, h) = (fw * cw, fh * ch);
+        let c = canvas.get_or_insert_with(|| Rgba::new(w, h));
+        for y in 0..h as i32 {
+            for x in 0..w as i32 {
+                c.set(x, y, img.get(fx + x, fy + y));
             }
         }
     }
@@ -87,18 +77,6 @@ pub fn emblem() -> Rgba {
     img
 }
 
-/// Alpha-composites `c` over the pixel at x, y.
-fn over(img: &mut Rgba, x: i32, y: i32, c: [u8; 4]) {
-    if c[3] == 0 {
-        return;
-    }
-    let d = img.get(x, y);
-    let a = c[3] as f32 / 255.0;
-    let da = d[3] as f32 / 255.0 * (1.0 - a);
-    let oa = a + da;
-    let mix = |s: u8, t: u8| ((s as f32 * a + t as f32 * da) / oa).round() as u8;
-    img.set(x, y, [mix(c[0], d[0]), mix(c[1], d[1]), mix(c[2], d[2]), (oa * 255.0).round() as u8]);
-}
 
 /// A window icon (16, 32 and 64 px) from a square image: each pixel averages the area it covers
 /// (alpha-weighted, so transparent pixels don't darken the edges).

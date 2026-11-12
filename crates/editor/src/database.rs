@@ -381,7 +381,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 ed.open_file_dialog(Purpose::ExportPackage { from_library: false, assets: vec![a] });
             }
         }
-        if ui.button(ui::t(ph::USER, "New character…")).on_hover_text("A new character from an existing figure, a new one to draw, an import or AI generation").clicked() {
+        if ui.button(ui::t(ph::USER, "New character…")).on_hover_text("A new character from an existing 3D model, an imported one or one generated with AI").clicked() {
             ed.open_builder(crate::builder::Target::New);
         }
         if ui.button(ui::t(ph::SPARKLE, "New asset…")).on_hover_text("A prop, item, tileset, sprite sheet or structure (a wizard asks the details)").clicked() {
@@ -533,7 +533,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         let mut embed: Option<(String, (u32, u32), bool)> = None;
         // A sheet's frame size or scale changed: its textures are cut / drawn anew.
         let mut sheet_changed = false;
-        let mut features_changed: Option<(String, Vec<Vec<[u8; 3]>>)> = None;
         egui::CentralPanel::default().show_inside(ui, |ui| {
             // Sprite sheets: a compact form on top, the pixel editor below it.
             let art_tab = matches!(tab, Tab::Items | Tab::Props | Tab::Characters) && ed.db.art_open;
@@ -600,14 +599,9 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Sheets => {
                         if let Some(d) = db.sheets.get_mut(i) {
                             let before = (d.frame_w, d.frame_h, d.scale);
-                            let features_before = d.features.clone();
                             sheet_form(ui, d, &mut cx);
                             sheet_changed = before != (d.frame_w, d.frame_h, d.scale);
-                            if d.features != features_before {
-                                features_changed = Some((d.id.clone(), d.features.iter().map(|f| f.shades.clone()).collect::<Vec<_>>()));
-                            }
-                            let character = d.kind == SheetKind::Body;
-                            embed = Some((d.image.clone(), (d.frame_w, d.frame_h), character));
+                            embed = Some((d.image.clone(), (d.frame_w, d.frame_h), false));
                         }
                     }
                     Tab::Sounds => {
@@ -662,10 +656,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             });
             if sheet_changed || MODEL_RELOAD.with(|r| r.replace(false)) {
                 ed.reload_assets();
-            }
-            if let Some((sheet, shades)) = features_changed.take() {
-                ed.assets.set_features(&sheet, shades);
-                ed.tex.forget_colored(&sheet);
             }
             if let Some((rel, frame, character)) = embed.take() {
                 ui.separator();
@@ -909,7 +899,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         ui.radio_value(&mut kind, 2, "Helmet");
         ui.radio_value(&mut kind, 3, "Body armor");
         ui.radio_value(&mut kind, 4, "Left hand").on_hover_text("A shield (defense) or a light (lantern, torch: set its light below). Not usable together with a two-handed weapon.");
-        ui.radio_value(&mut kind, 5, "Clothing").on_hover_text("An outfit (defense, speed); the figure's art shows what a character wears.");
+        ui.radio_value(&mut kind, 5, "Clothing").on_hover_text("An outfit (defense, speed); the model's art shows what a character wears.");
         ui.radio_value(&mut kind, 6, "Tool").on_hover_text("Goes into the Tool slot (a fishing rod, later pickaxes, hoes...): held in the right hand while it is used. Activities ask for it, e.g. a fishing spot's 'Needs item'.");
     });
     if kind != old {
@@ -947,7 +937,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
             }
             ui.end_row();
         });
-        ui.weak("Worn items count in play (defense, speed); a character's figure shows what it wears.");
+        ui.weak("Worn items count in play (defense, speed); a character's model shows what it wears.");
     }
     if !d.tool.is_empty() {
         ui.horizontal(|ui| {
@@ -1001,7 +991,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
 fn held_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     use rustpg2d_engine::hands::{Hand, HeldSprite};
     ui.heading("Held");
-    ui.weak("Figures with hand marks (sprite editor, Hands tool) hold it: its hold point goes on the hand, its orientation mark on the hand's grip axis (the line a handle runs through the fist).");
+    ui.weak("3D characters hold this picture at their hand bone (items with a 3D model hold that instead): its hold point goes on the hand, its orientation mark on the hand's grip axis (the line a handle runs through the fist).");
     let mut custom = d.held.is_some();
     if ui.checkbox(&mut custom, "Own marks").on_hover_text("Off: its icon, held at the lower left corner, its blade pointing up-right along the grip axis").changed() {
         d.held = custom.then(HeldSprite::default);
@@ -1036,7 +1026,7 @@ fn carry_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
 /// item's hand when none is chosen; None: both hands, a carried prop), with previews in the hands
 /// of the first figure with hand marks.
 fn marks_ui(ui: &mut egui::Ui, salt: &str, h: &mut rustpg2d_engine::hands::HeldSprite, default: &SpriteRef, cx: &mut Cx, by_kind: Option<rustpg2d_engine::hands::Hand>) {
-    use rustpg2d_engine::hands::{both_hands, grips_of, lay, Hand};
+    use rustpg2d_engine::hands::Hand;
     ui.label("Picture (none: the icon / the prop's sprite)");
     widgets::sprite_field(ui, &format!("{salt}_sprite"), &mut h.sprite, cx.tex, cx.assets, cx.db, false);
     let sprite = if h.sprite.is_empty() { default.clone() } else { h.sprite.clone() };
@@ -1075,7 +1065,6 @@ fn marks_ui(ui: &mut egui::Ui, salt: &str, h: &mut rustpg2d_engine::hands::HeldS
             ui.end_row();
         }
     });
-    let hand = by_kind.map_or(Hand::Both, |k| h.hand.unwrap_or(k));
     ui.horizontal(|ui| {
         // The picture: a click sets the hold point, a drag the orientation mark.
         let Some(s) = cx.assets.sheets.get(&sprite.sheet) else {
@@ -1103,37 +1092,7 @@ fn marks_ui(ui: &mut egui::Ui, salt: &str, h: &mut rustpg2d_engine::hands::HeldS
         ui.painter().arrow(g, vec2(cs, sn) * 34.0, egui::Stroke::new(2.0_f32, orange));
         ui.painter().circle(g, 4.0, orange, egui::Stroke::new(1.0_f32, Color32::BLACK));
         resp.on_hover_text("Click: where the hand holds it. Drag from there: its orientation mark");
-        // In the hands of the first figure with marks: standing facing down and right, and the
-        // first attack frame facing right.
-        let figure = cx.db.sheets.iter().find(|s| s.playable && !s.hands.is_empty()).or_else(|| cx.db.sheets.iter().find(|s| !s.hands.is_empty()));
-        let Some(fig) = figure else {
-            ui.weak("(no figure with hand marks to preview it)");
-            return;
-        };
-        let px = 2.0;
-        for frame in [0, 4 * 2, 4 * 10 + 1] {
-            let (fw, fh) = (fig.frame_w as f32 / fig.scale as f32, fig.frame_h as f32 / fig.scale as f32);
-            let (rect, _) = ui.allocate_exact_size(vec2(fw, fh) * px, Sense::hover());
-            ui.painter().rect_filled(rect, 2.0, Color32::from_gray(45));
-            // Frames without marks use their facing's standing frame.
-            let (r, l) = grips_of(&fig.hands, frame, (frame / 4 % 4) * 4);
-            let g = match hand {
-                Hand::Right => r,
-                Hand::Left => l,
-                Hand::Both => both_hands(r, l),
-            };
-            let placed = g.map(|g| lay(g.angle, h.grip, h.points, by_kind.is_none()));
-            let draw = |front: bool| {
-                // Carried props are in front of the figure.
-                if let (Some(g), Some((grip, rotation, _, flip))) = (g.filter(|g| front == (by_kind.is_none() || g.front)), placed) {
-                    let at = rect.min + vec2(g.x, g.y) / fig.scale as f32 * px;
-                    widgets::paint_rotated(ui.painter(), cx.tex, cx.assets, &sprite, at, grip, rotation, px, g.scale * h.scale, flip);
-                }
-            };
-            draw(false);
-            widgets::paint_frame(ui, cx.tex, cx.assets, &fig.id, frame, rect);
-            draw(true);
-        }
+        ui.weak("3D characters hold it at their hand bone: see it in Database › 3D models (the preview) or in a play test.");
     });
 }
 
@@ -1627,7 +1586,7 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     ui.separator();
     ui.heading("Look & equipment");
     ui.allocate_ui(egui::vec2(ui.available_width().min(1100.0), 0.0), |ui| {
-        ui.add(egui::Label::new(egui::RichText::new("A figure (a complete picture of the character) in the colours of its colour features, its equipment (counts in play; the figure shows what it carries) and carried items. An equipped weapon replaces the one under Combat. (The player character: what a new game starts with.)").weak()).wrap());
+        ui.add(egui::Label::new(egui::RichText::new("Its 3D model in the colours of its colour features, its equipment (counts in play; weapons, left-hand items and tools show in its hands) and carried items. An equipped weapon replaces the one under Combat. (The player character: what a new game starts with.)").weak()).wrap());
     });
     {
         let bcx = crate::builder::Cx { db: cx.db, tex: cx.tex, assets: cx.assets };
@@ -2139,30 +2098,6 @@ pub fn image_colors(sheet: &str, rgba: &[u8]) -> ColorCounts {
     })
 }
 
-/// *Colour features* of a figure sheet: parts that can take other colours, picked from the
-/// art's own shades, and the colours each may take (the character creator's swatches).
-fn features_ui(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
-    ui.separator();
-    ui.heading(format!("Colour features ({})", d.features.len()));
-    ui.weak("Parts of the figure that can take other colours (skin, hair, clothing…): pick the art's shades of each part below; characters and the character creator replace them by a chosen colour, keeping light and shadow. A shade the part shares with another part: paint one of them in another shade first (sprite editor: Replace colour).");
-    let image = cx.assets.sheets.get(&d.id).map(|s| image_colors(&d.id, &s.image.bytes)).unwrap_or_default();
-    let sel = features_editor(ui, &d.id, &mut d.features, &image);
-    // Preview: the front idle frame in each offered colour of the selected feature.
-    if let Some(f) = d.features.get(sel).filter(|f| !f.shades.is_empty()) {
-        ui.horizontal_wrapped(|ui| {
-            let n = d.features.len();
-            for c in std::iter::once(None).chain(f.colors.iter().take(10).map(|c| Some(*c))) {
-                let mut colors = vec![None; n];
-                colors[sel] = c;
-                let layer = rustpg2d_engine::render::character::Layer { sheet: d.id.clone(), frame: 16, fallback: 0, colors };
-                let (r, _) = ui.allocate_exact_size(egui::vec2(48.0, 72.0), egui::Sense::hover());
-                ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
-                widgets::paint_character(ui, cx.tex, cx.assets, &[layer], r.shrink(2.0));
-            }
-        });
-    }
-}
-
 /// Colours of an image, most used first (cached per `key`).
 pub(crate) fn image_colors_of(key: &str, rgba: &[u8]) -> ColorCounts {
     image_colors(key, rgba)
@@ -2307,22 +2242,13 @@ fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
                 }
             })
             .response
-            .on_hover_text("Character figure: a complete picture of a character (clothes, hair and what it carries painted in) in the character layout: 4 columns, 16 rows (walk, idle, attack, hurt; facing down, left, right, up). Emotions: icons over heads. Sprite: anything else.");
+            .on_hover_text("Emotions: icons over heads. Sprite: anything else (characters are 3D models: Database › 3D models).");
         ui.end_row();
-        if d.kind == SheetKind::Body {
-            ui.label("Woman");
-            ui.checkbox(&mut d.female, "offered to female players").on_hover_text("The character creator offers the playable figures of the chosen sex");
-            ui.end_row();
-            ui.label("Playable");
-            ui.checkbox(&mut d.playable, "players may choose it in the character creator").on_hover_text("People yes, a slime or a ghost usually not. The creator offers the playable figures of the chosen sex, with a colour row for each colour feature that offers colours.");
-            ui.end_row();
-        }
         ui.label("Image");
         ui.horizontal(|ui| {
             ui.text_edit_singleline(&mut d.image);
             if ui.button("\u{E3B4} Edit pixels").on_hover_text("Open the image in the pixel editor").clicked() {
-                let character = d.kind == SheetKind::Body;
-                *cx.paint = Some((d.image.clone(), (d.frame_w, d.frame_h), character, 0));
+                *cx.paint = Some((d.image.clone(), (d.frame_w, d.frame_h), false, 0));
             }
             if ui.button("Browse…").clicked() {
                 *cx.browse = Some(Purpose::SheetImage(d.id.clone()));
@@ -2350,9 +2276,6 @@ fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
         ui.weak(format!("In the world: {}\u{00D7}{} px per frame", d.frame_w as f32 / k as f32, d.frame_h as f32 / k as f32));
         ui.end_row();
     });
-    if d.kind == SheetKind::Body {
-        features_ui(ui, d, cx);
-    }
     // Named animations (from Aseprite tags, or added here): Effect / Fly actions and
     // effect(…, #{ tag }) play them by name; on an Emotions sheet each one is an emotion.
     if d.kind == rustpg2d_engine::defs::SheetKind::Emotions {
@@ -2637,7 +2560,7 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     ui.heading("Character creator");
     let cc = &mut c.creation;
     ui.checkbox(&mut cc.enabled, "Show the character creator when a new game starts")
-        .on_hover_text("The player types a name, chooses male / female, a race and figure when there is a choice, and a colour for each colour feature of the figure. Play-tests from the editor skip it and use the default name.");
+        .on_hover_text("The player types a name, chooses male / female, a race and model when there is a choice, and a colour for each colour feature of the model. Play-tests from the editor skip it and use the default name.");
     ui.horizontal(|ui| {
         ui.label("Player character's sex");
         egui::ComboBox::from_id_salt("creation_sex").selected_text(cc.sex.label()).show_ui(ui, |ui| {
@@ -2654,30 +2577,29 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
         ui.label("Default name");
         ui.add(egui::TextEdit::singleline(&mut cc.default_name).hint_text("(player character's name)").desired_width(160.0));
     });
-    // The player's figures (the colour rows come from each figure's colour features).
+    // The player's models (the colour rows come from each model's colour features).
     {
         let bcx = crate::builder::Cx { db: &ed.project.db, tex: &ed.tex, assets: &ed.assets };
         let base: Appearance = Appearance::default();
-        let bodies: Vec<String> = ed.project.db.sheets.iter().filter(|s| s.kind == SheetKind::Body).map(|s| s.id.clone()).collect();
-        ui.label(format!("Playable figures (click to switch on / off; {} = playable): players choose among those of their sex (races list their own).", ph::GAME_CONTROLLER));
-        if let Some(b) = crate::builder::body_cards(ui, &bcx, &bodies, None, &base, "") {
-            let on = !ed.project.db.sheet(&b).is_some_and(|s| s.playable);
+        ui.label(format!("Playable models (click to switch on / off; {} = playable): players choose among those of their sex (races list their own).", ph::GAME_CONTROLLER));
+        if let Some(b) = crate::builder::model_cards(ui, &bcx, &base, "") {
+            let on = !ed.project.db.model(&b).is_some_and(|m| m.playable);
             crate::builder::request_playable(&b, on);
         }
-        ui.label("Default figure for each sex (shown first; empty = the player character's own figure):");
+        ui.label("Default model for each sex (shown first; empty = the player character's own):");
         for (label, female, v) in [("Male", false, &mut cc.body_male), ("Female", true, &mut cc.body_female)] {
-            let ids: Vec<String> = ed.project.db.playable_bodies(female).iter().map(|s| s.id.clone()).collect();
+            let ids: Vec<String> = ed.project.db.models.iter().filter(|m| m.playable && m.female == female).map(|m| m.id.clone()).collect();
             ui.horizontal_top(|ui| {
                 ui.label(label);
-                if let Some(p) = crate::builder::body_cards(ui, &bcx, &ids, Some("Own figure"), &base, v) {
+                if let Some(p) = crate::builder::model_cards_of(ui, &bcx, &ids, Some("Own model"), &base, v) {
                     *v = p;
                 }
             });
             if !v.is_empty() && !ids.contains(v) {
-                ui.colored_label(Color32::YELLOW, format!("The default {} figure '{v}' isn't marked playable (it is still offered).", label.to_lowercase()));
+                ui.colored_label(Color32::YELLOW, format!("The default {} model '{v}' isn't marked playable (it is still offered).", label.to_lowercase()));
             }
         }
-        ui.weak("The creator shows a colour row for each colour feature of the chosen figure that offers colours (Database \u{E13A} Sprite sheets \u{E13A} Colour features).");
+        ui.weak("The creator shows a colour row for each colour feature of the chosen model that offers colours (Database \u{E13A} 3D models \u{E13A} Colour features).");
         ui.weak("New games give the player the player character's equipment (Database \u{E13A} Characters).");
     }
     ui.weak("Dialogs address the player with {player} (name) and {sir|madam} (male|female); conditions have 'Player sex'; scripts have player_name(), player_sex(), is_female(), is_male(), text(\"...\").");
@@ -3299,15 +3221,14 @@ fn race_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mu
         faction_combo(ui, "race_faction", &mut d.faction, &cx.refs.factions, "", "The faction of its characters (those without their own) and of players of this race: they start friendly with it and with its friends, and are attacked by the factions hostile to it.");
     }
     ui.separator();
-    ui.heading("Bodies");
-    ui.weak("The creator offers the bodies of the chosen sex; characters with one of these bodies get the race's size. Click a body to add or remove it.");
+    ui.heading("Models");
+    ui.weak("The creator offers the models of the chosen sex; characters with one of these models get the race's size. Click a model to add or remove it.");
     {
         let bcx = crate::builder::Cx { db: cx.db, tex: cx.tex, assets: cx.assets };
-        let bodies: Vec<String> = cx.db.sheets.iter().filter(|s| s.kind == SheetKind::Body).map(|s| s.id.clone()).collect();
         for (label, list) in [("Men", &mut d.bodies_male), ("Women", &mut d.bodies_female)] {
-            ui.label(format!("{label}: {}", if list.is_empty() { "(none: the project's Character creation bodies)".to_string() } else { list.join(", ") }));
+            ui.label(format!("{label}: {}", if list.is_empty() { "(none: the project's playable models)".to_string() } else { list.join(", ") }));
             let base = Appearance::default();
-            if let Some(b) = crate::builder::body_cards(ui, &bcx, &bodies, None, &base, "") {
+            if let Some(b) = crate::builder::model_cards(ui, &bcx, &base, "") {
                 if list.contains(&b) {
                     list.retain(|x| *x != b);
                 } else {
@@ -3796,7 +3717,7 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
                 if i.hands { "" } else { " - no hand bones: it can't hold things" }
             ));
             if i.triangles > 8000 {
-                ui.colored_label(egui::Color32::YELLOW, "Many triangles: it renders fine, but files and the web game grow. About 5000 is plenty for a figure this small.");
+                ui.colored_label(egui::Color32::YELLOW, "Many triangles: it renders fine, but files and the web game grow. About 5000 is plenty for a character this small.");
             }
         }
         None => {

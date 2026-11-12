@@ -72,9 +72,8 @@ pub struct LibState {
     pub lib: Option<Project>,
     pub error: Option<String>,
     tex: HashMap<String, Tex>,
-    /// Sheet images (for recoloured figures) and their recoloured textures.
-    raw: HashMap<String, Rgba>,
-    colored: std::cell::RefCell<HashMap<rustpg2d_engine::render::ColorKey, Tex>>,
+    /// The library's 3D models (loaded on first use: character thumbnails).
+    models: std::cell::RefCell<Option<rustpg2d_engine::render::model::Models>>,
     pub tex_dirty: bool,
     pub filter: Option<RefKind>,
     pub search: String,
@@ -124,17 +123,13 @@ impl LibState {
         }
         self.tex_dirty = false;
         self.tex.clear();
-        self.raw.clear();
-        self.colored.borrow_mut().clear();
+        *self.models.borrow_mut() = None;
         let images = store.db.tilesets.iter().map(|t| (format!("ts:{}", t.id), &t.image)).chain(store.db.sheets.iter().map(|s| (format!("sh:{}", s.id), &s.image)));
         for (key, rel) in images {
             let Ok(img) = std::fs::read(store.root.join(rel)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
             let ci = crate::widgets::color_image(ctx, img.w as usize, img.h as usize, &img.px);
             let handle = ctx.load_texture(format!("lib:{key}"), ci, egui::TextureOptions::NEAREST);
             self.tex.insert(key.clone(), Tex { handle, w: img.w as f32, h: img.h as f32 });
-            if key.starts_with("sh:") {
-                self.raw.insert(key, img);
-            }
         }
     }
 
@@ -143,44 +138,21 @@ impl LibState {
         self.lib.as_ref().is_some_and(|lib| self.paint_character_in(ui, &lib.db, id, facing, rect))
     }
 
-    /// Paints a character of `db` (its layers) into `rect`, idle frame facing `facing`.
+    /// Paints a character of `db` (its model, rendered from the library's files) into `rect`,
+    /// standing facing `facing`.
     fn paint_character_in(&self, ui: &egui::Ui, db: &Database, id: &str, facing: rustpg2d_engine::entity::Facing, rect: Rect) -> bool {
-        use rustpg2d_engine::render::character;
+        use rustpg2d_engine::render::model::{Gear, Models, PoseReq};
         let Some(d) = db.character(id) else { return false };
-        let layers = [character::figure(db, &d.appearance, facing, 0)];
-        let Some(base) = layers.iter().find_map(|l| db.sheet(&l.sheet)) else { return false };
-        let (fw, fh) = (base.frame_w.max(1) as f32, base.frame_h.max(1) as f32);
-        let scale = (rect.width() / fw).min(rect.height() / fh);
-        let size = vec2(fw * scale, fh * scale);
-        let dest = Rect::from_min_size(pos2(rect.center().x - size.x / 2.0, rect.max.y - size.y), size);
-        let mut any = false;
-        for l in &layers {
-            let Some(s) = db.sheet(&l.sheet) else { continue };
-            let key = format!("sh:{}", l.sheet);
-            let colored = l.colors.iter().any(Option::is_some);
-            let mut cache = self.colored.borrow_mut();
-            let t = if colored {
-                let Some(img) = self.raw.get(&key) else { continue };
-                cache.entry((l.sheet.clone(), l.colors.clone())).or_insert_with(|| {
-                    let mut px = img.px.clone();
-                    let features: Vec<(&[[u8; 3]], [u8; 3])> = s.features.iter().zip(&l.colors).filter_map(|(f, c)| c.map(|c| (f.shades.as_slice(), c))).collect();
-                    rustpg2d_engine::render::recolor::recolor(&mut px, &features);
-                    let ci = crate::widgets::color_image(ui.ctx(), img.w as usize, img.h as usize, &px);
-                    let handle = ui.ctx().load_texture(format!("libc:{key}:{:?}", l.colors), ci, egui::TextureOptions::NEAREST);
-                    Tex { handle, w: img.w as f32, h: img.h as f32 }
-                })
-            } else {
-                let Some(t) = self.tex.get(&key) else { continue };
-                t
-            };
-            let (sw, sh) = (s.frame_w.max(1) as f32, s.frame_h.max(1) as f32);
-            let cols = (t.w / sw).floor().max(1.0) as u32;
-            let (x, y) = ((l.frame % cols) as f32 * sw, (l.frame / cols) as f32 * sh);
-            let uv = Rect::from_min_max(pos2(x / t.w, y / t.h), pos2((x + sw) / t.w, (y + sh) / t.h));
-            ui.painter().image(t.handle.id(), dest, uv, Color32::WHITE);
-            any = true;
+        let mut m = self.models.borrow_mut();
+        if m.is_none() {
+            let Some(lib) = self.lib.as_ref() else { return false };
+            *m = Some(Models::load(&lib.db, &|rel| std::fs::read(lib.path(rel))));
         }
-        any
+        let Some(models) = m.as_ref() else { return false };
+        let a = models.look_of(&d.appearance);
+        let gear = Gear::default();
+        let req = PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, bust: false };
+        crate::widgets::paint_pose(ui, models, db, &HashMap::new(), &req, rect)
     }
 
     fn paint_sprite_in(&self, ui: &egui::Ui, db: &Database, sprite: &SpriteRef, rect: Rect) -> bool {
@@ -904,7 +876,11 @@ mod tests {
         for a in library::script_asset_refs(b.scripts.values().map(String::as_str)) {
             assert!(library::exists(&b.db, &a), "a starter script uses the {} {}, which the library lacks", kind_label(a.0), a.1);
         }
-        assert!(b.db.tilesets.len() >= 5 && b.db.sheets.len() > 60, "{} tilesets, {} sheets", b.db.tilesets.len(), b.db.sheets.len());
+        assert!(b.db.tilesets.len() >= 5 && b.db.sheets.len() > 15 && b.db.models.len() > 60, "{} tilesets, {} sheets, {} models", b.db.tilesets.len(), b.db.sheets.len(), b.db.models.len());
+        // Every character is a model (none falls back to the mannequin).
+        for c in &b.db.characters {
+            assert!(b.db.model(&c.appearance.model).is_some(), "character {} has no model", c.id);
+        }
     }
 
     /// Everything the example project has (but its quests, achievements and story scripts) is in

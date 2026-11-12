@@ -80,15 +80,13 @@ pub struct TilesetParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GenerateArtParams {
-    /// "character", "icon", "prop", "portrait" or "image" (pictures); "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature) or "gear" (the 3D model of the existing item `id`, made from its icon).
+    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) or "gear" (the 3D model of the existing item `id`, made from its icon); pictures: "icon", "prop", "portrait" or "image".
     pub kind: String,
     /// Id the asset will get (letters, digits, _).
     pub id: String,
     /// What it looks like: build, colours, clothes, what it holds (characters), the object (icons, props).
     pub description: String,
-    /// Characters: "person", "small", "big", "huge", "animal", "beast" or "flying" (default person).
-    pub size: Option<String>,
-    /// Characters: "none", "slash", "chop", "thrust", "bow", "club", "cast" or "bite" (default none).
+    /// 3D characters: "none", "slash", "chop", "thrust", "bow", "club" or "cast" (default none).
     pub attack: Option<String>,
     /// Props: width and height in tiles (1-4, default 1 x 1).
     pub tiles: Option<[u32; 2]>,
@@ -96,7 +94,9 @@ pub struct GenerateArtParams {
     pub portrait_for: Option<String>,
     /// 3D characters ("model"): a woman (her sitting clip; the model is marked as a woman's).
     pub female: Option<bool>,
-    /// 3D characters ("model"): a figure sheet id whose standing frames (front, side, back) are modelled, instead of drawing a turnaround picture first.
+    /// 3D characters ("model"): extra animations, 3 credits each: "craft" (working at an anvil), "farm" (bending to pick crops), "chop" (chopping wood), "sleep" (lying in a bed).
+    pub extras: Option<Vec<String>>,
+    /// 3D characters and creatures ("model", "creature"): a figure sheet id whose standing frames (front, side, back) are modelled, instead of drawing a turnaround picture first.
     pub from: Option<String>,
     /// Must equal the cost in credits that art_settings / a refused call names: the creator's money.
     pub confirm_credits: Option<u32>,

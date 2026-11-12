@@ -112,7 +112,8 @@ fn definitions_of_0_16_0_load_without_races() {
     assert!(!db.characters.is_empty() && !db.sheets.is_empty());
     assert!(db.races.is_empty());
     assert!(db.characters.iter().all(|c| c.race.is_empty()));
-    assert!(db.sheets.iter().any(|s| s.kind == rustpg2d_engine::defs::SheetKind::Body) && db.sheets.iter().all(|s| s.features.is_empty()));
+    // Its figure sheets load as plain sprites (characters are 3D models now).
+    assert!(db.sheets.iter().all(|s| s.kind != rustpg2d_engine::defs::SheetKind::Emotions || !s.tags.is_empty()));
     let w = WorldState::from_ron(&std::fs::read_to_string(fixture("saves/save-0.12.0.ron")).unwrap()).unwrap();
     assert!(w.player_race.is_empty());
 }

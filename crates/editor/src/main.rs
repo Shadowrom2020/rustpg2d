@@ -368,23 +368,13 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // inherits the environment, so RUSTPG2D_AUTOPLAY can drive the play-test
         "play" => ed.play(arg(1) != "start"),
         // Same code paths as the file dialogs, without the dialog.
-        // import tiled FILE [NAME] · import lpc FILE [ID] [body|sprite] ·
-        // import aseprite FILE [ID]: the File › Import… imports (result printed and shown)
-        "import" if matches!(arg(1), "tiled" | "lpc" | "aseprite") => {
+        // import tiled FILE [NAME] · import aseprite FILE [ID] [scale=N]: the File › Import…
+        // imports (result printed and shown)
+        "import" if matches!(arg(1), "tiled" | "aseprite") => {
             use import::ImportKind;
-            use rustpg2d_engine::defs::SheetKind;
-            let kind = match arg(1) {
-                "tiled" => ImportKind::Tiled,
-                "lpc" => ImportKind::Lpc,
-                _ => ImportKind::Aseprite,
-            };
-            let sheet_kind = match arg(4) {
-                "sprite" => SheetKind::Sprite,
-                _ => SheetKind::Body,
-            };
-            // (import KIND FILE [ID] [SHEETKIND] [scale=N])
+            let kind = if arg(1) == "tiled" { ImportKind::Tiled } else { ImportKind::Aseprite };
             let scale = cmd.iter().find_map(|a| a.strip_prefix("scale=")).and_then(|v| v.parse().ok()).unwrap_or(1);
-            ed.import = Some(import::ImportDialog { kind, id: arg(3).to_string(), sheet_kind, female: false, scale });
+            ed.import = Some(import::ImportDialog { kind, id: arg(3).to_string(), scale });
             ed.import_and_report(kind, std::path::Path::new(arg(2)));
             println!("[import] {}", ed.import_report.as_ref().map_or(String::new(), |r| r.1.clone()));
         }
@@ -418,6 +408,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
             println!("[script] {}", ed.fit_rig(&id, None, None, Some(joints)).unwrap_or_else(|e| e));
         }
+        // modelcompact: every model file of the project smaller (textures, clip files' meshes)
+        "modelcompact" => println!("[script] {}", ed.compact_models()),
         // itemmodel ITEM FILE: the item's 3D model (where it is held estimated).
         "itemmodel" => ed.handle_file(files::Purpose::ItemModel(arg(1).into()), arg(2).into()),
         // itemicon ITEM: its inventory icon rendered from its 3D model.
@@ -1050,7 +1042,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                     // 3D characters take their options in the SIZE place: female / male, from=SHEET (comma separated).
                     let opts: Vec<&str> = arg(3).split(',').collect();
                     let from = opts.iter().find_map(|o| o.strip_prefix("from=")).unwrap_or("").to_string();
-                    let req = art::ArtRequest { kind, id: arg(2).to_string(), size: arg(3).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from };
+                    let req = art::ArtRequest { kind, id: arg(2).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from, extras: opts.iter().filter(|o| art::EXTRAS.contains(o)).map(|o| o.to_string()).collect() };
                     match ed.start_art(req) {
                         Ok(id) => println!("[art] started job {id}"),
                         Err(e) => println!("[art] refused: {e:#}"),
@@ -1115,10 +1107,9 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
         }
         // Pixel editor: pxopen REL FW FH · pxtool NAME · pxcolor RRGGBB · pxat X Y [right] · pxsave
-        // pxopen REL FW FH: a figure's image opens with the character layout
+        // pxopen REL FW FH [layout]: `layout` labels the rows of the four-facing layout
         "pxopen" => {
-            let figure = ed.project.db.sheets.iter().any(|s| s.image == arg(1) && s.kind == rustpg2d_engine::defs::SheetKind::Body);
-            ed.open_pixel(arg(1), (num(2) as u32, num(3) as u32), if figure { pixel::Layout::Character } else { pixel::Layout::Plain });
+            ed.open_pixel(arg(1), (num(2) as u32, num(3) as u32), if arg(4) == "layout" { pixel::Layout::Character } else { pixel::Layout::Plain });
         }
         "pxtool" => {
             if let Some(t) = pixel::PxTool::parse(arg(1)) {
@@ -1135,7 +1126,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // pxframe N: select frame N · pxclip copy|cut|paste|mirror (Ctrl+C / X / V)
         "pxframe" => ed.px.sel_frame = num(1) as u32,
         "pxclip" => ed.frame_clipboard(arg(1)),
-        // Figures: pxanim walk|idle|attack|hurt down|left|right|up · pxplay on|off · pxonion on|off
+        // Four-facing sheets: pxanim walk|idle|attack|hurt down|left|right|up · pxplay on|off · pxonion on|off
         // [next] · pxdup · pxnudge DX DY · pxrow copy|paste|clear|mirror [all] · pxfill standing ·
         // pxreplace FROM TO frame|row|sheet (RRGGBB colours) · pxundo; `status` prints `pixel=`
         "pxanim" => match (frame_ops::anim_index(arg(1)), frame_ops::dir_index(arg(2))) {
@@ -1143,32 +1134,6 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             _ => println!("[script] pxanim: walk|idle|attack|hurt down|left|right|up"),
         },
         "pxplay" => ed.px.playing = arg(1) != "off",
-        // pxgrip right|left X Y ANGLE [SCALE] [front|back] (the selected frame) · pxgrip right|left -
-        // removes it · pxhands estimate|estimateall|clear · pxpreview WEAPON [LEFTHANDITEM|-]
-        "pxgrip" => {
-            let hand = if arg(1).starts_with('l') { rustpg2d_engine::hands::Hand::Left } else { rustpg2d_engine::hands::Hand::Right };
-            let grip = (arg(2) != "-").then(|| rustpg2d_engine::hands::Grip { x: num(2), y: num(3), angle: num(4), scale: if arg(5).is_empty() || arg(5).parse::<f32>().is_err() { 1.0 } else { num(5) }, front: !cmd.iter().any(|a| *a == "back") });
-            match ed.px.frame_op(pixel::FrameOp::SetGrip { hand, grip }) {
-                Some(m) => println!("[script] {m}"),
-                None => println!("[script] pxgrip: nothing open"),
-            }
-        }
-        "pxhands" => {
-            let sheet = ed.px.doc.as_ref().and_then(|d| d.sheet.clone()).and_then(|id| ed.project.db.sheet(&id).cloned());
-            let op = match arg(1) {
-                "clear" => Some(pixel::FrameOp::ClearGrips),
-                "swap" => Some(pixel::FrameOp::SwapHands(arg(2) == "all")),
-                "estimate" | "estimateall" => sheet.map(|s| pixel::FrameOp::EstimateHands { all: arg(1) == "estimateall", skin: s.feature("skin").map(|f| f.shades.clone()).unwrap_or_default(), scale: s.scale }),
-                _ => None,
-            };
-            match op.and_then(|op| ed.px.frame_op(op)) {
-                Some(m) => println!("[script] {m}"),
-                None => println!("[script] pxhands: open a figure (estimate|estimateall|clear|swap [all])"),
-            }
-        }
-        "pxpreview" => {
-            ed.px.preview = [arg(1).to_string(), if arg(2) == "-" { String::new() } else { arg(2).to_string() }];
-        }
         "pxundo" => {
             if let Some(d) = &mut ed.px.doc {
                 d.undo();

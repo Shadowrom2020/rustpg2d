@@ -1,7 +1,7 @@
 //! The agent server's `art_*` tools: Generate art for AI agents, with the creator's money
 //! guarded (the price must be confirmed per call, the session budget holds).
 
-use super::{api_key, convert, meshy, ArtKind, ArtRequest, Stage, ATTACKS};
+use super::{api_key, meshy, ArtKind, ArtRequest, Stage, ATTACKS};
 use crate::app::Editor;
 use crate::mcp::exec::{text, Reply};
 use crate::mcp::tools::{ArtApplyParams, ArtJobParams, ArtRedoParams, GenerateArtParams};
@@ -12,39 +12,36 @@ impl Editor {
         let has = !api_key().is_empty() || std::env::var_os("RUSTPG2D_MESHY_FAKE").is_some();
         let spent = *self.art.spent.lock().unwrap();
         text(format!(
-            "Meshy key: {}. Model: {} ({} credits a picture). Session budget: {} credits, {} used, {} left. A character costs {} credits (twice that with an attack), anything else {}. 3D: a model {} credits, a rig {}, each animation clip {} (a 3D character = turnaround picture + model + rig + 4-5 clips, about {} credits; a creature = picture + model; an item's model = model).\nCharacter sizes: {}.\nAttacks: {}.\nCharacters are drawn in the style of: {}.",
+            "Meshy key: {}. Model: {} ({} credits a picture: icons, props, portraits, pictures). Session budget: {} credits, {} used, {} left. 3D: a model {} credits, a rig {}, each animation clip {} (a 3D character = turnaround picture + model + rig + 4-5 clips, about {} credits; a creature = picture + model; an item's model = model).\nAttacks of 3D characters: {}.\nExtra animations: {}.",
             if has { "set" } else { "not set (the person enters it in Edit › Settings… › Meshy)" },
             s.model,
             meshy::model_cost(&s.model),
             s.budget,
             spent,
             s.budget.saturating_sub(spent),
-            meshy::model_cost(&s.model),
-            meshy::model_cost(&s.model),
             super::COST_MODEL,
             super::COST_RIG,
             super::COST_CLIP,
             meshy::model_cost(&s.model) + super::COST_MODEL + super::COST_RIG + 5 * super::COST_CLIP,
-            convert::SIZES.iter().map(|z| format!("{} ({})", z.id, z.label)).collect::<Vec<_>>().join(", "),
             ATTACKS.iter().map(|a| format!("{} ({})", a.0, a.1)).collect::<Vec<_>>().join(", "),
-            self.art_references().from
+            super::EXTRAS.join(", ")
         ))
     }
 
     pub(crate) fn mcp_generate_art(&mut self, p: GenerateArtParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
-        let kind = ArtKind::parse(&p.kind).ok_or_else(|| format!("kind \"{}\" must be character, icon, prop, portrait, image, model, creature or gear", p.kind))?;
+        let kind = ArtKind::parse(&p.kind).ok_or_else(|| format!("kind \"{}\" must be model, creature, gear, icon, prop, portrait or image", p.kind))?;
         let tiles = p.tiles.unwrap_or([1, 1]);
         let req = ArtRequest {
             kind,
             id: p.id.trim().to_string(),
             description: p.description,
-            size: p.size.unwrap_or_else(|| "person".into()),
             attack: p.attack.unwrap_or_else(|| "none".into()),
             tiles: (tiles[0], tiles[1]),
             portrait_for: p.portrait_for.unwrap_or_default(),
             by_agent: true,
             female: p.female.unwrap_or(false),
+            extras: p.extras.unwrap_or_default(),
             from: p.from.unwrap_or_default(),
         };
         req.check().map_err(|e| format!("{e:#}"))?;
@@ -88,9 +85,6 @@ impl Editor {
             let k = if im.w.max(im.h) <= 256 { 3 } else { 1 };
             images.push(if k > 1 { im.resized(im.w * k, im.h * k).encode().map_err(|e| e.to_string())? } else { png.clone() });
             note += &format!("\nResult: {}x{} px, frames {}x{}", im.w, im.h, j.frame.0, j.frame.1);
-            if j.req.kind == ArtKind::Character {
-                note += " (rows: 0-3 walk, 4-7 idle, 8-11 attack, 12-15 hurt; facings down, left, right, up).";
-            }
         }
         if j.req.kind.is_3d() {
             let files: Vec<String> = j.made.files.iter().map(|(f, b)| format!("{f} ({} KB)", b.len() / 1024)).collect();

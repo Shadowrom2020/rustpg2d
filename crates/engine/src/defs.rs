@@ -165,27 +165,13 @@ pub struct SheetDef {
     /// 32 x 48 place). Positions, hitboxes and tiles stay in world pixels.
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub scale: u32,
-    /// What the sheet is for (character figures are offered by the character pickers).
+    /// What the sheet is for (emotion icons over heads, or anything else).
     #[serde(default, skip_serializing_if = "SheetKind::is_sprite")]
     pub kind: SheetKind,
-    /// Figures: a woman (the creator offers it to female players).
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub female: bool,
-    /// Figures: players may choose it in the character creator (people yes, a slime no).
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub playable: bool,
-    /// Figures: parts that can take other colours (skin, hair, clothing...), by the art's own
-    /// shades (see [`ColorFeature`]).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub features: Vec<ColorFeature>,
     /// Named frame ranges (animations), e.g. from an Aseprite export: offered by the *Effect* /
     /// *Fly* actions and the `tag` option of `effect()` / `fly()`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<SheetTag>,
-    /// Figures: where the hands are in each frame (`hands::FrameHands`, one line per frame); what
-    /// a character holds is drawn there. Frames without an entry use their standing frame's.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hands: Vec<crate::hands::FrameHands>,
 }
 
 /// A named animation of a sprite sheet: frames `first..=last` at `fps`.
@@ -201,7 +187,7 @@ pub struct SheetTag {
 /// tile. The editor's "+ New" value is [`SheetDef::fresh`].
 impl Default for SheetDef {
     fn default() -> Self {
-        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, features: Vec::new(), tags: Vec::new(), hands: Vec::new() }
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, tags: Vec::new() }
     }
 }
 
@@ -220,13 +206,9 @@ impl SheetDef {
         let mut c = s.chars();
         c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
     }
-
-    pub fn feature(&self, name: &str) -> Option<&ColorFeature> {
-        self.features.iter().find(|f| f.name == name)
-    }
 }
 
-/// A part of a figure that can take another colour: the art's own `shades` of it (exact colours,
+/// A part of a model that can take another colour: the art's own `shades` of it (exact colours,
 /// darkest to lightest or in any order) are replaced by the chosen colour, each as much darker or
 /// lighter as it was than the feature's middle shade.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -251,26 +233,21 @@ impl ColorFeature {
 /// Role of a sprite sheet.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SheetKind {
-    /// Anything else: props, items, effects. (Sheets of the layered characters removed in 0.17,
-    /// hair, beards, outfits, armor and held items, load as plain sprites.)
+    /// Anything else: props, items, effects. (Sheets of the characters of earlier versions,
+    /// layered parts and the 0.17 figures, load as plain sprites: characters are 3D models.)
     #[default]
-    #[serde(alias = "Hair", alias = "Beard", alias = "Outfit", alias = "Armor", alias = "Held")]
+    #[serde(alias = "Hair", alias = "Beard", alias = "Outfit", alias = "Armor", alias = "Held", alias = "Body")]
     Sprite,
-    /// A character figure, drawn complete (clothes, hair and what it holds painted in), in the
-    /// character layout: 4 columns, 16 rows (walk, idle, attack, hurt; facings down, left, right,
-    /// up). Any frame size.
-    Body,
     /// Emotion icons shown over characters' heads: every tag (named frame range) is an emotion
     /// (`emote(target, "joy")`, the *Show emotion* action).
     Emotions,
 }
 
 impl SheetKind {
-    pub const ALL: [SheetKind; 3] = [SheetKind::Sprite, SheetKind::Body, SheetKind::Emotions];
+    pub const ALL: [SheetKind; 2] = [SheetKind::Sprite, SheetKind::Emotions];
     pub fn label(self) -> &'static str {
         match self {
             SheetKind::Sprite => "Sprite",
-            SheetKind::Body => "Character figure",
             SheetKind::Emotions => "Emotions (icons over heads)",
         }
     }
@@ -1664,16 +1641,6 @@ impl Database {
         for d in &mut self.props {
             d.upgrade_states();
         }
-    }
-
-    /// Is `sheet` a woman's figure?
-    pub fn female_body(&self, sheet: &str) -> bool {
-        self.sheet(sheet).is_some_and(|s| s.female)
-    }
-
-    /// Bodies players may choose for a character of sex `female` (in sheet order).
-    pub fn playable_bodies(&self, female: bool) -> Vec<&SheetDef> {
-        self.sheets.iter().filter(|s| s.kind == SheetKind::Body && s.playable && s.female == female).collect()
     }
 
     /// Converts a placed prop's legacy frame offsets (start frame, lock, container) to the

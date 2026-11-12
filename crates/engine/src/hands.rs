@@ -6,11 +6,10 @@
 //! the hand's axis. Two-handed things run through both fists. Items use their own held picture or
 //! their inventory icon; characters also carry props in both hands (`PropDef.carry`).
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use crate::defs::{Database, SpriteRef};
 use crate::entity::Facing;
-use crate::render::character::Anim;
 use crate::state::Equipment;
 
 /// Which hand holds an item.
@@ -49,88 +48,6 @@ impl Grip {
     /// The grip mirrored in a frame `width` pixels wide (Left rows -> Right rows).
     pub fn mirrored(&self, width: f32) -> Grip {
         Grip { x: width - 1.0 - self.x, angle: 180.0 - self.angle, ..*self }
-    }
-
-    fn fmt(&self, tag: char) -> String {
-        let num = |v: f32| {
-            let s = format!("{:.2}", v);
-            s.trim_end_matches('0').trim_end_matches('.').to_string()
-        };
-        format!("{tag} {} {} {} {} {}", num(self.x), num(self.y), num(self.angle), num(self.scale), if self.front { 'f' } else { 'b' })
-    }
-
-    fn parse(s: &str) -> Option<(char, Grip)> {
-        let mut it = s.split_whitespace();
-        let tag = it.next()?.chars().next()?;
-        let mut n = || it.next().and_then(|v| v.parse::<f32>().ok());
-        let (x, y, angle) = (n()?, n()?, n()?);
-        let scale = n().unwrap_or(1.0);
-        let front = s.split_whitespace().nth(5).is_none_or(|v| v != "b");
-        Some((tag, Grip { x, y, angle, scale, front }))
-    }
-}
-
-/// The hands of one frame. Stored as a line like `"12: R 41 58 -40 1 f | L 22 57 220 1 b"`.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct FrameHands {
-    pub frame: u32,
-    pub right: Option<Grip>,
-    pub left: Option<Grip>,
-}
-
-impl FrameHands {
-    pub fn to_line(&self) -> String {
-        let hands: Vec<String> = [self.right.map(|g| g.fmt('R')), self.left.map(|g| g.fmt('L'))].into_iter().flatten().collect();
-        format!("{}: {}", self.frame, hands.join(" | "))
-    }
-
-    pub fn from_line(s: &str) -> Option<FrameHands> {
-        let (frame, rest) = s.split_once(':')?;
-        let mut out = FrameHands { frame: frame.trim().parse().ok()?, ..Default::default() };
-        for part in rest.split('|').map(str::trim).filter(|p| !p.is_empty()) {
-            match Grip::parse(part)? {
-                ('R', g) => out.right = Some(g),
-                ('L', g) => out.left = Some(g),
-                _ => return None,
-            }
-        }
-        Some(out)
-    }
-
-    pub fn get(&self, hand: Hand) -> Option<Grip> {
-        match hand {
-            Hand::Left => self.left,
-            _ => self.right,
-        }
-    }
-
-    pub fn set(&mut self, hand: Hand, g: Option<Grip>) {
-        match hand {
-            Hand::Left => self.left = g,
-            _ => self.right = g,
-        }
-    }
-}
-
-impl Serialize for FrameHands {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_str(&self.to_line())
-    }
-}
-
-impl<'de> Deserialize<'de> for FrameHands {
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(d)?;
-        FrameHands::from_line(&s).ok_or_else(|| serde::de::Error::custom(format!("not a frame's hands: {s:?} (e.g. \"12: R 41 58 -40 1 f | L 22 57 220 1 b\")")))
-    }
-}
-
-/// The hands of `frame` in `hands` (sorted or not), else those of `fallback`.
-pub fn grips_of(hands: &[FrameHands], frame: u32, fallback: u32) -> (Option<Grip>, Option<Grip>) {
-    let find = |f: u32| hands.iter().find(|h| h.frame == f);
-    match find(frame).or_else(|| find(fallback)) {
-        Some(h) => (h.right, h.left),
-        None => (None, None),
     }
 }
 
@@ -200,14 +117,6 @@ pub struct HeldLayer {
     pub hand: Hand,
     /// Drawn mirrored top to bottom (the hand's axis points left, see [`lay`]).
     pub flip: bool,
-}
-
-/// The items a figure holds this frame: `tool` in the right hand instead of the weapon (while it
-/// is used), a carried prop in both hands instead of anything else.
-pub fn held(db: &Database, body: &str, eq: &Equipment, carrying: &str, tool: Option<&str>, facing: Facing, anim: Anim) -> Vec<HeldLayer> {
-    let Some(sheet) = db.sheet(body).filter(|s| !s.hands.is_empty()) else { return Vec::new() };
-    let (frame, fallback) = anim.frames(facing);
-    held_with(db, grips_of(&sheet.hands, frame, fallback), eq, carrying, tool, facing)
 }
 
 /// Fists closer than this (image pixels) hold a two-handed thing along the right hand's axis.
@@ -299,79 +208,51 @@ pub fn held_with(db: &Database, (right, left): (Option<Grip>, Option<Grip>), eq:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::defs::{ItemDef, SheetDef, SheetKind, Weapon};
+    use crate::defs::{ItemDef, Weapon};
     use crate::inventory::ItemStack;
-
-    #[test]
-    fn frame_hands_round_trip_as_one_line() {
-        let h = FrameHands { frame: 12, right: Some(Grip { x: 41.0, y: 58.5, angle: -40.0, scale: 1.0, front: true }), left: Some(Grip { x: 22.0, y: 57.0, angle: 220.0, scale: 1.25, front: false }) };
-        assert_eq!(h.to_line(), "12: R 41 58.5 -40 1 f | L 22 57 220 1.25 b");
-        assert_eq!(FrameHands::from_line(&h.to_line()), Some(h.clone()));
-        let ron = ron::to_string(&vec![h.clone()]).unwrap();
-        assert_eq!(ron::from_str::<Vec<FrameHands>>(&ron).unwrap(), vec![h]);
-        assert_eq!(FrameHands::from_line("3: L 1 2 90").unwrap().left.unwrap().scale, 1.0, "scale and front are optional");
-        assert!(ron::from_str::<Vec<FrameHands>>("[\"oops\"]").is_err());
-        let m = Grip::new(10.0, 5.0, -45.0).mirrored(64.0);
-        assert_eq!((m.x, m.angle), (53.0, 225.0));
-    }
 
     fn db() -> Database {
         let mut db = Database::default();
-        let hands = vec![
-            FrameHands { frame: 0, right: Some(Grip::new(40.0, 60.0, 90.0)), left: Some(Grip { front: false, ..Grip::new(24.0, 60.0, 90.0) }) },
-            FrameHands { frame: 37, right: Some(Grip::new(50.0, 30.0, -60.0)), left: None },
-        ];
-        db.sheets.push(SheetDef { kind: SheetKind::Body, hands, ..SheetDef::new("hero", "hero.png", 64, 96) });
         let item = |id: &str| ItemDef { id: id.into(), name: id.into(), icon: SpriteRef::new("items", 1), ..Default::default() };
         db.items.push(ItemDef { weapon: Some(Weapon::melee(2, 0.4)), ..item("sword") });
         let mut bow = ItemDef { weapon: Some(Weapon::melee(1, 0.5)), ..item("bow") };
         bow.weapon.as_mut().unwrap().ranged = Some(crate::defs::Ranged { projectile: SpriteRef::new("items", 2), speed: 100.0, range: 6.0, ammo: String::new() });
         db.items.push(bow);
         db.items.push(item("shield"));
+        db.items.push(ItemDef { weapon: Some(Weapon { two_handed: true, ..Weapon::melee(2, 0.5) }), held: Some(HeldSprite { points: -90.0, ..Default::default() }), ..item("spear") });
         db.props.push(crate::defs::PropDef { id: "crate".into(), sprite: SpriteRef::new("props", 3), ..crate::defs::PropDef::fresh("crate") });
         db
     }
 
-    fn item_of(id: &str) -> ItemDef {
-        ItemDef { id: id.into(), name: id.into(), icon: SpriteRef::new("items", 1), ..Default::default() }
-    }
-
     #[test]
-    fn items_go_into_their_hands_with_the_standing_fallback() {
+    fn items_go_into_their_hands() {
         let db = db();
+        let (r, l) = (Some(Grip::new(40.0, 60.0, 90.0)), Some(Grip { front: false, ..Grip::new(24.0, 60.0, 90.0) }));
         let eq = Equipment { weapon: Some(ItemStack::new("sword", 1)), offhand: Some(ItemStack::new("shield", 1)), ..Default::default() };
-        // Idle facing down (frame 16) has no grips: the standing frame 0's.
-        let l = held(&db, "hero", &eq, "", None, Facing::Down, Anim::Idle(0));
-        assert_eq!(l.len(), 2);
-        assert_eq!((l[0].id.as_str(), l[0].at, l[0].rotation, l[0].hand), ("sword", (40.0, 60.0), 135.0, Hand::Right));
-        assert_eq!((l[1].id.as_str(), l[1].hand, l[1].front), ("shield", Hand::Left, false));
-        // Attack facing left, frame 1 = frame (8 + 1) * 4 + 1 = 37: its own grip, no left hand there.
-        let l = held(&db, "hero", &eq, "", None, Facing::Left, Anim::Attack(1));
-        assert_eq!((l.len(), l[0].at), (1, (50.0, 30.0)));
+        let h = held_with(&db, (r, l), &eq, "", None, Facing::Down);
+        assert_eq!(h.len(), 2);
+        assert_eq!((h[0].id.as_str(), h[0].at, h[0].rotation, h[0].hand), ("sword", (40.0, 60.0), 135.0, Hand::Right));
+        assert_eq!((h[1].id.as_str(), h[1].hand, h[1].front), ("shield", Hand::Left, false));
         // A bow goes into the left hand; a tool replaces the weapon; a carried prop replaces all.
         let bow = Equipment { weapon: Some(ItemStack::new("bow", 1)), ..Default::default() };
-        assert_eq!(held(&db, "hero", &bow, "", None, Facing::Down, Anim::Walk(0))[0].hand, Hand::Left);
-        assert_eq!(held(&db, "hero", &eq, "", Some("bow"), Facing::Down, Anim::Walk(0))[0].id, "bow");
-        let c = held(&db, "hero", &eq, "crate", None, Facing::Down, Anim::Walk(0));
+        assert_eq!(held_with(&db, (r, l), &bow, "", None, Facing::Down)[0].hand, Hand::Left);
+        assert_eq!(held_with(&db, (r, l), &eq, "", Some("bow"), Facing::Down)[0].id, "bow");
+        let c = held_with(&db, (r, l), &eq, "crate", None, Facing::Down);
         assert_eq!((c.len(), c[0].id.as_str(), c[0].at, c[0].rotation), (1, "crate", (32.0, 60.0), 0.0));
-        // A figure without hands holds nothing visible.
-        let mut db2 = db.clone();
-        db2.sheets[0].hands.clear();
-        assert!(held(&db2, "hero", &eq, "", None, Facing::Down, Anim::Walk(0)).is_empty());
+        // No hands, nothing held.
+        assert!(held_with(&db, (None, None), &eq, "", None, Facing::Down).is_empty());
         // Two-handed: the axis through both fists, pointing the right hand's way; a spear marked
         // pointing up in its picture (-90) lies on it.
-        let mut db3 = db.clone();
-        db3.items.push(ItemDef { weapon: Some(Weapon { two_handed: true, ..Weapon::melee(2, 0.5) }), held: Some(HeldSprite { points: -90.0, ..Default::default() }), ..item_of("spear") });
-        db3.sheets[0].hands.push(FrameHands { frame: 4, right: Some(Grip::new(30.0, 40.0, -80.0)), left: Some(Grip::new(30.0, 60.0, 100.0)) });
         let spear = Equipment { weapon: Some(ItemStack::new("spear", 1)), ..Default::default() };
-        let l = held(&db3, "hero", &spear, "", None, Facing::Left, Anim::Walk(0));
-        assert_eq!((l[0].hand, l[0].at, l[0].rotation), (Hand::Both, (30.0, 50.0), 0.0));
+        let h = held_with(&db, (Some(Grip::new(30.0, 40.0, -80.0)), Some(Grip::new(30.0, 60.0, 100.0))), &spear, "", None, Facing::Left);
+        assert_eq!((h[0].hand, h[0].at, h[0].rotation), (Hand::Both, (30.0, 50.0), 0.0));
         // Fists close together: the right hand's axis. A carried prop never turns upside down.
         assert_eq!(both_hands(Some(Grip::new(30.0, 40.0, 180.0)), Some(Grip::new(32.0, 41.0, 0.0))).unwrap().angle, 180.0);
-        db3.sheets[0].hands.push(FrameHands { frame: 8, right: Some(Grip::new(30.0, 60.0, 180.0)), left: None });
-        let c = held(&db3, "hero", &eq, "crate", None, Facing::Right, Anim::Walk(0));
+        let c = held_with(&db, (Some(Grip::new(30.0, 60.0, 180.0)), None), &eq, "crate", None, Facing::Right);
         assert_eq!(c[0].rotation, 0.0);
         assert_eq!((turn(-90.0, 90.0), turn(10.0, -45.0)), (180.0, 55.0));
+        let m = Grip::new(10.0, 5.0, -45.0).mirrored(64.0);
+        assert_eq!((m.x, m.angle), (53.0, 225.0));
         // An axis pointing left mirrors the picture across its mark: a rod marked 40 degrees below
         // its shaft points up-right facing right and up-left facing left.
         let (_, r, p, flip) = lay(0.0, [0.5, 0.9], -50.0, false);

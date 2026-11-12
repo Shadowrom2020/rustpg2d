@@ -6,6 +6,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Characters
+- **Eight facings**: 3D characters walking along a diagonal are drawn turned halfway between two
+  facings, the player and characters on their routes alike. The facing itself stays four-way
+  (interaction, maps and saves are unchanged). *Eight facings* in *Database › Project* (on by
+  default) turns it off; `status` `anims=` prints the direction (`walk@se`).
 - **Character pose memory** (*Database › Project*, `model_atlas_mb` in project.ron): the GPU
   memory for rendered poses of 3D characters, 8 to 128 MB (default 32, as before). Raise it for
   big casts on screen at once, lower it for small GPUs. `status` prints the most pages and the

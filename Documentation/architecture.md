@@ -295,11 +295,14 @@ Known properties of the current implementation (see the CHANGELOG for what each 
     the cast (in 0.18.2 the example's models took 0.22 s and 38 MB natively, 0.45 s in a browser).
     The web game downloads `data.pack` whole and uncompressed before it starts: the models are 29
     of the example's 46 MB.
-  - A pose (model, colours, gear, animation frame at the clip's fps, facing) is skinned on the CPU
+  - A pose (model, colours, gear, animation frame at the clip's fps, facing and `turn`) is skinned on the CPU
     and rendered off screen once, then kept in an atlas of 1024 x 1024 pages (4 MB each), as many
     as `ProjectConfig::model_atlas_mb` allows (8 to 128 MB, default 32 = 8 pages). At most
     `RENDERS_PER_FRAME` (24) poses render per frame; over that, a character shows another cached
     frame of the same model and facing meanwhile.
+  - Walkers on a diagonal are drawn turned an eighth from their four-way `Facing` (`PoseReq::turn`,
+    from `Body::heading`, the last frame's step; `ProjectConfig::eight_facings`): their walk poses
+    double, the facing itself (interaction, maps, saves) stays four-way.
   - Every pose drawn stamps its page; when all pages are full, the page drawn from longest ago is
     cleared and its poses render again when needed. In 0.18.2 the example's village filled 8
     pages after about four minutes of walking; even with 2 pages (8 MB) a frame stayed at 16.7 ms.

@@ -148,6 +148,10 @@ struct Body {
     anim: f32,
     /// Scripted movement target (ignores collision).
     move_target: Option<Vec2>,
+    /// The direction it last moved in (unit vector; for drawing it turned diagonally) and where
+    /// it stood when the frame's update began.
+    heading: Vec2,
+    step_from: Vec2,
 }
 
 impl Body {
@@ -155,6 +159,16 @@ impl Body {
     /// second, up to 8 frames a cycle), so the timer keeps its precision in long sessions.
     fn animate(&mut self, dt: f32) {
         self.anim = (self.anim + dt) % 60.0;
+    }
+
+    /// Notes the last frame's step as the heading (jumps of two tiles or more, such as
+    /// teleports, don't count) and starts measuring the next one.
+    fn track_heading(&mut self) {
+        let d = self.pos - self.step_from;
+        if d.length_squared() > 1e-4 && d.length() < 64.0 {
+            self.heading = d.normalize();
+        }
+        self.step_from = self.pos;
     }
 
     fn rect_at(&self, p: Vec2) -> Rect {
@@ -503,6 +517,8 @@ impl Game {
             moving: false,
             anim: 0.0,
             move_target: None,
+            heading: Vec2::ZERO,
+            step_from: Vec2::ZERO,
         };
         let languages = crate::lang::offered(&project.root, &project.config);
         let mut game = Game {
@@ -667,7 +683,7 @@ impl Game {
             kind,
             def: def.to_string(),
             name: name.to_string(),
-            body: Body { pos, facing, hitbox, speed, moving: false, anim: 0.0, move_target: None },
+            body: Body { pos, facing, hitbox, speed, moving: false, anim: 0.0, move_target: None, heading: Vec2::ZERO, step_from: pos },
             home: pos,
             active,
             hidden: false,
@@ -1409,6 +1425,10 @@ impl Game {
 
     pub fn update(&mut self, dt: f32) {
         self.rebuild_occupancy();
+        self.player.track_heading();
+        for e in &mut self.loaded.entities {
+            e.body.track_heading();
+        }
         self.update_juice(dt);
         self.after_thumbnail();
         // Esc opens the pause menu (unless a window or dialog uses Esc); it pauses everything.
@@ -2440,7 +2460,7 @@ impl Game {
                     let anim = self.player_anim();
                     let tint = Self::effect_tint(&self.world.effects).unwrap_or(WHITE);
                     let gear = self.player_gear();
-                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &gear, (self.player.facing, anim), self.player.pos, tint));
+                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character_turned(&a, &gear, (self.player.facing, anim), self.walk_turn(&self.player, anim), self.player.pos, tint));
                     if !drawn {
                         let r = self.player.rect();
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
@@ -2621,7 +2641,7 @@ impl Game {
                 self.project.db.character(&e.def).is_some() && {
                     let anim = self.npc_anim(i);
                     let gear = self.character_gear(&e.equipment, &e.carrying, None);
-                    self.draw_character(&e.appearance, &gear, (e.body.facing, anim), e.body.pos, tint)
+                    self.draw_character_turned(&e.appearance, &gear, (e.body.facing, anim), self.walk_turn(&e.body, anim), e.body.pos, tint)
                 }
             }
         }

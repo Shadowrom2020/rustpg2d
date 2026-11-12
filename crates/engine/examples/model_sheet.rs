@@ -77,7 +77,7 @@ async fn main() {
         for (r, anim) in anims.iter().enumerate() {
             for (fi, f) in facings.iter().enumerate() {
                 for m in 0..moments {
-                    let req = PoseReq { look: &look, gear: &gear, anim, time: (m as f32 + 0.5) / moments as f32, once: true, facing: *f, bust: false };
+                    let req = PoseReq { look: &look, gear: &gear, anim, time: (m as f32 + 0.5) / moments as f32, once: true, facing: *f, turn: 0, bust: false };
                     if let Some(cell) = models.pose(&db, &sheets, &req) {
                         placed.push((cell, vec2(((fi * moments + m) as f32 + 0.5) * cw, r as f32 * ch + 16.0 + ch - 12.0)));
                     }

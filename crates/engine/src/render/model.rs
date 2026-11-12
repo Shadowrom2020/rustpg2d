@@ -75,8 +75,34 @@ pub struct PoseReq<'a> {
     pub time: f32,
     pub once: bool,
     pub facing: Facing,
+    /// Turned a further 45° from `facing` (-1, 0, 1; positive turns as from down towards right):
+    /// characters walking diagonally ([`diagonal_turn`]).
+    pub turn: i8,
     /// A portrait: the head and shoulders close up ([`BUST`] pixels square, the rest pose).
     pub bust: bool,
+}
+
+/// The extra turn of a character that faces `facing` and moves along `heading` (screen
+/// pixels): -1 or 1 when the heading is one of the four diagonals next to the facing, else 0.
+pub fn diagonal_turn(facing: Facing, heading: Vec2) -> i8 {
+    if heading.length_squared() < 1e-6 {
+        return 0;
+    }
+    // Eighths of a turn, as `facing_yaw` counts them: 0 down, 2 right, 4 up, -2 left.
+    let k = (heading.x.atan2(heading.y) / std::f32::consts::FRAC_PI_4).round() as i32;
+    let f = (facing_yaw(facing) / std::f32::consts::FRAC_PI_4).round() as i32;
+    let d = (k - f).rem_euclid(8);
+    match d {
+        1 => 1,
+        7 => -1,
+        _ => 0,
+    }
+}
+
+/// The compass direction a pose shows (for `status`): `s`, `se`, `e`, `ne`, `n`, `nw`, `w`, `sw`.
+pub fn compass(facing: Facing, turn: i8) -> &'static str {
+    let f = (facing_yaw(facing) / std::f32::consts::FRAC_PI_4).round() as i32;
+    ["s", "se", "e", "ne", "n", "nw", "w", "sw"][(f + turn as i32).rem_euclid(8) as usize]
 }
 
 /// The model characters without one of their own are drawn as (a project may have its own).
@@ -128,6 +154,7 @@ struct PoseKey {
     anim: String,
     frame: u32,
     facing: u8,
+    turn: i8,
 }
 
 /// A hand bone and the local axis of its thumb side (the grip axis).
@@ -457,7 +484,7 @@ impl Models {
         // Busts use the rest pose: the head straight, facing the front.
         let (clip_name, frame, time) = if req.bust { (None, 0, 0.0) } else { clip_frame(l, req) };
         let anim = if req.bust { "@bust" } else { req.anim };
-        let key = PoseKey { model: req.look.model.clone(), colors: hash(&req.look.colors), gear: hash(req.gear), anim: anim.to_string(), frame, facing: req.facing as u8 };
+        let key = PoseKey { model: req.look.model.clone(), colors: hash(&req.look.colors), gear: hash(req.gear), anim: anim.to_string(), frame, facing: req.facing as u8, turn: if req.bust { 0 } else { req.turn } };
         let mut c = self.cache.borrow_mut();
         if let Some(cell) = c.poses.get(&key).cloned() {
             c.touch(&cell);
@@ -862,7 +889,8 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
     let world = l.model.pose(clip_ref, time);
     let mut skinned = Vec::new();
     l.model.skin(&world, &mut skinned);
-    let yaw = facing_yaw(req.facing) + clip.and_then(|n| l.align.get(n)).copied().unwrap_or(0.0);
+    let extra = if req.bust { 0.0 } else { req.turn as f32 * std::f32::consts::FRAC_PI_4 };
+    let yaw = facing_yaw(req.facing) + extra + clip.and_then(|n| l.align.get(n)).copied().unwrap_or(0.0);
     let turn = Mat4::from_rotation_y(yaw);
     let vertices: Vec<Vertex> = skinned
         .iter()
@@ -1117,6 +1145,24 @@ mod tests {
     }
 
     #[test]
+    fn diagonal_walkers_turn_by_an_eighth() {
+        // Facing right (the side wins at 45°) or down, walking down-right: halfway between.
+        assert_eq!(diagonal_turn(Facing::Right, vec2(1.0, 1.0)), -1);
+        assert_eq!(diagonal_turn(Facing::Down, vec2(1.0, 1.0)), 1);
+        assert_eq!(compass(Facing::Right, -1), "se");
+        assert_eq!(compass(Facing::Down, 1), "se");
+        // Up-left, from both sides; straight lines and standing still don't turn.
+        assert_eq!(compass(Facing::Up, diagonal_turn(Facing::Up, vec2(-1.0, -1.0))), "nw");
+        assert_eq!(compass(Facing::Left, diagonal_turn(Facing::Left, vec2(-1.0, -1.0))), "nw");
+        assert_eq!(diagonal_turn(Facing::Left, vec2(-1.0, 0.0)), 0);
+        assert_eq!(diagonal_turn(Facing::Down, Vec2::ZERO), 0);
+        // Walking backwards (facing up, moving down-left) keeps the facing.
+        assert_eq!(diagonal_turn(Facing::Up, vec2(-1.0, 1.0)), 0);
+        // Nearly straight: the nearest eighth is the facing itself.
+        assert_eq!(diagonal_turn(Facing::Right, vec2(1.0, 0.2)), 0);
+    }
+
+    #[test]
     fn the_atlas_clears_the_page_drawn_from_longest_ago() {
         // Page 0 was filled first but its poses are drawn every frame: page 1 goes.
         assert_eq!(pick_page(&[90, 12, 40]), 1);
@@ -1137,7 +1183,7 @@ mod tests {
         assert!(l.frame.0 >= 88 && l.frame.1 >= 104 && l.frame.0.is_multiple_of(2));
         let look = Appearance { model: "m".into(), ..Default::default() };
         let gear = Gear::default();
-        let req = |anim, time, once| PoseReq { look: &look, gear: &gear, anim, time, once, facing: Facing::Down, bust: false };
+        let req = |anim, time, once| PoseReq { look: &look, gear: &gear, anim, time, once, facing: Facing::Down, turn: 0, bust: false };
         // 1 s at 10 fps: 10 frames; looping time, one-shot fraction; unknown animations play
         // idle, else the first clip.
         assert_eq!(clip_frame(&l, &req("walk", 0.35, false)), (Some("bend".into()), 3, 0.3));

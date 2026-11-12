@@ -71,6 +71,14 @@ pub struct ProjectConfig {
     /// 8 to 128, see `render::model::atlas_pages`). Big casts on screen at once need more.
     #[serde(default = "default_atlas_mb", skip_serializing_if = "is_default_atlas_mb")]
     pub model_atlas_mb: u32,
+    /// Characters walking diagonally are drawn turned diagonally (on by default; off: the four
+    /// facings only).
+    #[serde(default = "yes", skip_serializing_if = "is_yes")]
+    pub eight_facings: bool,
+}
+
+fn is_yes(b: &bool) -> bool {
+    *b
 }
 
 fn default_atlas_mb() -> u32 {
@@ -208,6 +216,7 @@ impl ProjectConfig {
             language: default_language(),
             languages: Vec::new(),
             model_atlas_mb: default_atlas_mb(),
+            eight_facings: true,
         }
     }
 }
@@ -533,13 +542,15 @@ mod tests {
         assert_eq!(ok.len(), 1);
     }
 
-    /// Projects of earlier versions have no pose atlas size: the default, and saving the default
-    /// leaves project.ron as it was.
+    /// Projects of earlier versions have no pose atlas size and no eight facings setting: the
+    /// defaults, and saving the defaults leaves project.ron as it was.
     #[test]
     fn the_atlas_size_defaults_and_stays_out_of_the_file() {
         let c: ProjectConfig = ron::from_str(include_str!("../tests/fixtures/project-0.16.0/project.ron")).unwrap();
         assert_eq!(c.model_atlas_mb, crate::render::model::DEFAULT_ATLAS_MB);
         assert!(!ron::to_string(&c).unwrap().contains("model_atlas_mb"));
+        assert!(c.eight_facings);
+        assert!(!ron::to_string(&c).unwrap().contains("eight_facings"));
         let big = ProjectConfig { model_atlas_mb: 64, ..c };
         assert!(ron::to_string(&big).unwrap().contains("model_atlas_mb:64"));
     }

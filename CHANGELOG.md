@@ -15,6 +15,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   big casts on screen at once, lower it for small GPUs. `status` prints the most pages and the
   pages cleared (`models=poses/pages/most p/renders r/total/cleared e`).
 
+### Releasing games
+- **The player's 3D model as the game's icon**: a game without a player portrait (and no icon
+  picked in *Export game*) used R(ust)PG2D's emblem; now the export renders the head and
+  shoulders of the player character's model for the AppImage, Flatpak and macOS app icons. Every
+  export also writes the icon as `icon.png` into the game's data, so the game's window shows the
+  same icon (the custom icon included, which only the packages showed before).
+
 ### Fixes
 - **Poses in use stay cached**: when the pose atlas was full, the page *filled* longest ago was
   cleared, even when its poses (the player's walk) were drawn every frame, and they had to be

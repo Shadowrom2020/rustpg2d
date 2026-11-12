@@ -136,7 +136,10 @@ crates/engine/src/      library: everything shared by game and editor
                         data.pack + localStorage (web/rustpg2d.js plugin); use it, not std::fs, in game code
   web/                  index.html, mq_js_bundle.js (macroquad's loader, vendored), rustpg2d.js (plugin)
   desktop.rs            Windows start-up of game and editor (attach console, panic message box);
-                        icon.rs = window icons, hero_icon / emblem (also the packages' icons)
+                        icon.rs = window icons, hero_icon (icon.png, else the player portrait) /
+                        fit_icon / emblem (also the packages' icons; exports write the icon as
+                        icon.png, the editor renders the player model's bust when there is no
+                        portrait: Editor::model_icon)
   paths.rs              per-user folders per platform (XDG / %APPDATA%, %LOCALAPPDATA%, %USERPROFILE% /
                         ~/Library/Application Support, ~/Library/Caches)
   legacy.rs             the old name rust2d: adopt() copies a folder / file from the old location

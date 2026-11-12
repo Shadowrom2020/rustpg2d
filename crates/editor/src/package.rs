@@ -23,8 +23,10 @@ pub fn default_app_id(slug: &str) -> String {
     format!("org.rustpg2d.{s}")
 }
 
-/// The game's icon: a PNG chosen by the creator (any size) or the player character.
-pub fn icon(project: &Project, custom: &str) -> Result<Vec<u8>> {
+/// The game's icon: a PNG chosen by the creator (any size), else the project's `icon.png` or
+/// the player's portrait (`hero_icon`), else `model` (the player model's head and shoulders,
+/// rendered by the editor), else R(ust)PG2D's emblem.
+pub fn icon(project: &Project, custom: &str, model: &dyn Fn() -> Option<Rgba>) -> Result<Vec<u8>> {
     if !custom.trim().is_empty() {
         let p = PathBuf::from(custom.trim());
         let p = if p.is_absolute() { p } else { project.root.join(p) };
@@ -32,7 +34,7 @@ pub fn icon(project: &Project, custom: &str) -> Result<Vec<u8>> {
         Rgba::decode(&bytes).with_context(|| format!("the icon {} isn't a PNG image", p.display()))?;
         return Ok(bytes);
     }
-    rustpg2d_packaging::hero_icon(project).unwrap_or_else(rustpg2d_packaging::emblem).encode()
+    rustpg2d_packaging::hero_icon(project).or_else(model).unwrap_or_else(rustpg2d_packaging::emblem).encode()
 }
 
 /// The package contents of an exported game.
@@ -94,16 +96,23 @@ mod tests {
         std::fs::create_dir_all(&tmp).unwrap();
         let p = Project { root: tmp.clone(), config: ProjectConfig::new("Test"), db: Database::default() };
         // No player character: the emblem.
-        let png = icon(&p, "").unwrap();
+        let png = icon(&p, "", &|| None).unwrap();
         let img = Rgba::decode(&png).unwrap();
         assert_eq!((img.w, img.h), (rustpg2d_packaging::ICON, rustpg2d_packaging::ICON));
+        // The player model's head and shoulders when the editor could render it.
+        let mut bust = Rgba::new(8, 8);
+        bust.set(3, 3, [200, 100, 50, 255]);
+        let png = icon(&p, "", &|| Some(bust.clone())).unwrap();
+        assert_eq!(Rgba::decode(&png).unwrap().get(3, 3), [200, 100, 50, 255]);
         // A picture of the creator's choice is used as it is (relative to the project).
         let own = Rgba::new(64, 64).encode().unwrap();
         std::fs::write(tmp.join("icon.png"), &own).unwrap();
-        assert_eq!(icon(&p, "icon.png").unwrap(), own);
+        assert_eq!(icon(&p, "icon.png", &|| None).unwrap(), own);
+        // The project's icon.png (an export's) comes before the model.
+        assert_eq!(Rgba::decode(&icon(&p, "", &|| Some(bust.clone())).unwrap()).unwrap().w, 64);
         std::fs::write(tmp.join("bad.png"), b"not a png").unwrap();
-        assert!(icon(&p, "bad.png").is_err());
-        assert!(icon(&p, "missing.png").is_err());
+        assert!(icon(&p, "bad.png", &|| None).is_err());
+        assert!(icon(&p, "missing.png", &|| None).is_err());
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

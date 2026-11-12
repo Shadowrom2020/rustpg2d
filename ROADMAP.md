@@ -218,7 +218,7 @@ so it comes after the atlas).
   of the player and a patrolling character turned diagonally; the atlas stays within its budget;
   with the option off, four facings.
 
-- [ ] Game icon from the player's model — `feature/model-icon`
+- [x] Game icon from the player's model — `feature/model-icon`
 
   **Goal.** A game without a player portrait gets its player's head and shoulders as window and
   package icon instead of the R(ust)PG2D emblem.
@@ -230,6 +230,18 @@ so it comes after the atlas).
   packages and `cargo xtask-dist` all go through it. The export dialog shows the icon it will use.
 
   **Engine.** Agreed with the plan for 0.19.0.
+
+  **Decided while building.** `hero_icon` reads `icon.png` first, then the portrait (a creator's
+  own `icon.png` beside `project.ron` counts as the game's icon); `fit_icon` (trim and enlarge,
+  shrinking pictures too big for 256 px) is shared with the portrait. The editor picks one icon per
+  export (custom, `hero_icon`, `Editor::model_icon`, emblem) and passes it to every platform:
+  `release::export` writes it as `icon.png` into the data, so the custom icon now reaches the
+  game window too. The bust renders outside the frame's budget (`Models::bust_image`, read back
+  from its atlas page: rows top first). The export dialog shows no picture of the icon; its *Icon*
+  field's hint says "the player's portrait or 3D model". R(ust)PG2D's own packages (`xtask-dist`)
+  keep the emblem: the example has neither a portrait nor an `icon.png`. Verified: export of the
+  example with an AppImage (the AppImage's icon is the data's `icon.png`, the hero's bust), the
+  exported game starts; tests for the icon order and the exported `icon.png`.
 
   **Touch points.** `engine/src/icon.rs`, editor `export.rs` and `package.rs`, `release.rs` (the
   exported files), the manual's export chapter.

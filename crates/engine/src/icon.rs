@@ -1,5 +1,6 @@
-//! Icons of games and of R(ust)PG2D: the player's portrait drawn large ([`hero_icon`]), a
-//! fallback emblem, and window icons made from them (the title bar and taskbar).
+//! Icons of games and of R(ust)PG2D: the game's icon file or the player's portrait drawn large
+//! ([`hero_icon`]), a fallback emblem, and window icons made from them (the title bar and
+//! taskbar).
 
 use crate::imageio::Rgba;
 use crate::project::Project;
@@ -7,9 +8,18 @@ use crate::project::Project;
 /// Size of the package icons (pixels, square).
 pub const ICON: u32 = 256;
 
-/// The player's portrait picture (`ProjectConfig::player_portrait`), enlarged with sharp pixels
-/// onto a 256 x 256 transparent square; None without one.
+/// The game's own icon file: exports write the icon their packages got (a custom one, the
+/// player's portrait or the player model's head and shoulders) as `icon.png` beside
+/// `project.ron`, so the game window shows the same.
+pub const ICON_FILE: &str = "icon.png";
+
+/// A game's icon: its `icon.png` (any size), else the player's portrait picture
+/// (`ProjectConfig::player_portrait`) enlarged with sharp pixels onto a 256 x 256 transparent
+/// square; None without either.
 pub fn hero_icon(project: &Project) -> Option<Rgba> {
+    if let Some(i) = std::fs::read(project.path(ICON_FILE)).ok().and_then(|b| Rgba::decode(&b).ok()).filter(|i| i.w > 0 && i.h > 0) {
+        return Some(i);
+    }
     let db = &project.db;
     let sprite = &project.config.player_portrait;
     let sheet = db.sheet(&sprite.sheet)?;
@@ -28,12 +38,37 @@ pub fn hero_icon(project: &Project) -> Option<Rgba> {
             }
         }
     }
-    let c = canvas?;
+    fit_icon(&canvas?)
+}
+
+/// A picture trimmed to its drawn pixels and enlarged with sharp pixels (a whole factor) onto a
+/// 256 x 256 transparent square; None when nothing is drawn.
+pub fn fit_icon(c: &Rgba) -> Option<Rgba> {
     // Trim to the drawn pixels.
     let opaque: Vec<(i32, i32)> = (0..c.h as i32).flat_map(|y| (0..c.w as i32).map(move |x| (x, y))).filter(|&(x, y)| c.get(x, y)[3] > 0).collect();
     let (x0, x1) = (opaque.iter().map(|p| p.0).min()?, opaque.iter().map(|p| p.0).max()?);
     let (y0, y1) = (opaque.iter().map(|p| p.1).min()?, opaque.iter().map(|p| p.1).max()?);
     let (w, h) = ((x1 - x0 + 1) as u32, (y1 - y0 + 1) as u32);
+    if w.max(h) > ICON - 16 {
+        // Too big to enlarge: the whole picture shrunk onto the square instead.
+        let k = (ICON - 16) as f32 / w.max(h) as f32;
+        let (sw, sh) = (((w as f32 * k) as u32).max(1), ((h as f32 * k) as u32).max(1));
+        let mut crop = Rgba::new(w, h);
+        for y in 0..h as i32 {
+            for x in 0..w as i32 {
+                crop.set(x, y, c.get(x0 + x, y0 + y));
+            }
+        }
+        let small = crop.resized(sw, sh);
+        let mut out = Rgba::new(ICON, ICON);
+        let (ox, oy) = ((ICON - sw) as i32 / 2, (ICON - sh) as i32 / 2);
+        for y in 0..sh as i32 {
+            for x in 0..sw as i32 {
+                out.set(ox + x, oy + y, small.get(x, y));
+            }
+        }
+        return Some(out);
+    }
     let scale = ((ICON - 16) / w.max(h)).max(1);
     let mut out = Rgba::new(ICON, ICON);
     let (ox, oy) = ((ICON - w * scale) as i32 / 2, (ICON - h * scale) as i32 / 2);

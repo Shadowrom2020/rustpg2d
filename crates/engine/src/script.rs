@@ -35,6 +35,8 @@ struct Ctx {
     recipes: Vec<crate::crafting::RecipeDef>,
     /// Ids of the player's unlocked achievements (`achievement_unlocked`).
     achievements: std::collections::BTreeSet<String>,
+    /// The project's factions (`standing()` where the save holds none).
+    factions: crate::factions::Factions,
 }
 
 /// What scripts can read about the player besides the world state (the game updates it every
@@ -52,6 +54,8 @@ pub struct PlayerInfo {
     pub pose: String,
     /// The night is passing (the Sleep action).
     pub sleeping: bool,
+    /// The player's faction (their race's, else the player character's; "" = none).
+    pub faction: String,
 }
 
 pub struct ScriptHost {
@@ -94,6 +98,10 @@ impl ScriptHost {
         let mut c = self.ctx.borrow_mut();
         c.recipes = recipes;
         c.tool_kinds = tool_kinds;
+    }
+
+    pub fn set_factions(&mut self, factions: crate::factions::Factions) {
+        self.ctx.borrow_mut().factions = factions;
     }
 
     pub fn set_player(&mut self, info: PlayerInfo) {
@@ -487,6 +495,13 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("set_hour", with!(ctx, |c, h: f64| c.actions.push(Action::SetTime { hour: h as f32 })));
     engine.register_fn("set_hour", with!(ctx, |c, h: i64| c.actions.push(Action::SetTime { hour: h as f32 })));
     engine.register_fn("player_sex", with!(ctx, |c| c.world.player_sex.key().to_string()));
+    engine.register_fn("player_race", with!(ctx, |c| c.world.player_race.clone()));
+    engine.register_fn("player_faction", with!(ctx, |c| c.player.faction.clone()));
+    engine.register_fn("carry", with!(ctx, |c, t: &str, prop: &str| c.actions.push(Action::Carry { target: t.into(), prop: prop.into() })));
+    engine.register_fn("stop_carrying", with!(ctx, |c, t: &str| c.actions.push(Action::Carry { target: t.into(), prop: String::new() })));
+    engine.register_fn("player_carrying", with!(ctx, |c| c.world.player_carrying.clone()));
+    engine.register_fn("standing", with!(ctx, |c, f: &str| c.world.standing.get(f).copied().unwrap_or_else(|| c.factions.base_standing(&c.player.faction, f)) as i64));
+    engine.register_fn("change_standing", with!(ctx, |c, f: &str, amount: i64| c.actions.push(Action::ChangeStanding { faction: f.into(), amount: amount as i32 })));
     engine.register_fn("is_female", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Female));
     engine.register_fn("is_male", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Male));
     // Placeholders like in dialog texts: "{player}", "{sir|madam}", "{var}".

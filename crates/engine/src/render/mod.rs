@@ -7,11 +7,11 @@
 pub mod character;
 pub mod fish;
 pub mod lighting;
+pub mod model;
 pub mod recolor;
 pub mod parallax;
 pub mod weather;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 
 use macroquad::prelude::*;
@@ -121,12 +121,15 @@ pub struct Assets {
     pub tilesets: HashMap<String, TilesetTex>,
     pub sheets: HashMap<String, SheetTex>,
     pub errors: Vec<String>,
-    /// Recolored copies of body / hair sheets (layered characters), made on first use.
-    recolored: RefCell<HashMap<ColorKey, Texture2D>>,
+    /// 3D character models and their rendered poses.
+    pub models: model::Models,
 }
 
-/// A sheet with optional skin / hair recoloring (cache key).
-pub type ColorKey = (String, Option<[u8; 3]>, Option<[u8; 3]>);
+/// The colours chosen for a sheet's colour features, in feature order (`None` = as drawn).
+pub type Colors = [Option<[u8; 3]>];
+
+/// A sheet with its features' colours (cache key).
+pub type ColorKey = (String, Vec<Option<[u8; 3]>>);
 
 /// Magenta/black checkerboard used when an image is missing.
 fn placeholder(w: u16, h: u16) -> Image {
@@ -187,7 +190,7 @@ fn average_color(img: &Image, r: Rect) -> Color {
 impl Assets {
     /// No images (tests).
     pub fn empty(tile_size: f32) -> Assets {
-        Assets { tile_size, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), recolored: RefCell::default() }
+        Assets { tile_size, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), models: model::Models::default() }
     }
 
     /// Loads all tileset and sprite sheet images. Needs a macroquad window.
@@ -256,7 +259,9 @@ impl Assets {
         for e in &errors {
             eprintln!("[assets] {e}");
         }
-        Assets { tile_size: ts, tilesets, sheets, errors, recolored: RefCell::default() }
+        let models = model::Models::load(&project.db, &|rel| crate::sys::read(&project.path(rel)));
+        errors.extend(models.errors.iter().cloned());
+        Assets { tile_size: ts, tilesets, sheets, errors, models }
     }
 
     /// Tileset textures for each slot of a map.
@@ -297,60 +302,25 @@ impl Assets {
         true
     }
 
-    /// A sheet's texture with skin / hair reference colors replaced (see [`recolor`]).
-    fn colored(&self, sheet: &str, skin: Option<[u8; 3]>, hair: Option<[u8; 3]>) -> Option<(Texture2D, &SheetTex)> {
-        let s = self.sheets.get(sheet)?;
-        if skin.is_none() && hair.is_none() {
-            return Some((s.texture.clone(), s));
-        }
-        let mut cache = self.recolored.borrow_mut();
-        let tex = cache.entry((sheet.to_string(), skin, hair)).or_insert_with(|| {
-            let mut img = s.image.clone();
-            recolor::recolor(&mut img.bytes, skin, hair);
-            texture(&img)
-        });
-        Some((tex.clone(), s))
-    }
-
-    /// Draws a frame of a body / hair sheet recolored with `skin` / `hair`, bottom-center at `feet`.
-    pub fn draw_frame_colored(&self, sheet: &str, frame: u32, feet: Vec2, tint: Color, skin: Option<[u8; 3]>, hair: Option<[u8; 3]>) -> bool {
-        let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
-        draw_at_feet(&tex, s, s.src_rect(frame), feet, tint);
-        true
-    }
-
-    /// Like [`draw_frame_colored`](Self::draw_frame_colored), centered at `center` and rotated
-    /// by `angle` radians (clockwise on screen): characters lying in a sideways bed.
-    pub fn draw_frame_colored_rotated(&self, sheet: &str, frame: u32, center: Vec2, angle: f32, (skin, hair): (Option<[u8; 3]>, Option<[u8; 3]>), tint: Color) -> bool {
-        let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
-        let size = s.world_size();
-        let pos = vec2((center.x - size.x / 2.0).round(), (center.y - size.y / 2.0).round());
-        draw_texture_ex(&tex, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(size), rotation: angle, ..Default::default() });
-        true
-    }
-
-    /// Draws part of a frame (`part`: fractions of the frame, e.g. the top half) into `dest`
-    /// (portraits: head and shoulders).
-    pub fn draw_frame_part_in(&self, sheet: &str, frame: u32, part: Rect, dest: Rect, skin: Option<[u8; 3]>, hair: Option<[u8; 3]>) -> bool {
-        let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
-        let r = s.src_rect(frame);
-        let src = Rect::new(r.x + part.x * r.w, r.y + part.y * r.h, part.w * r.w, part.h * r.h);
-        draw_texture_ex(&tex, dest.x, dest.y, WHITE, DrawTextureParams { source: Some(inset(src)), dest_size: Some(dest.size()), ..Default::default() });
-        true
-    }
-
-    pub fn draw_frame_colored_in(&self, sheet: &str, frame: u32, dest: Rect, skin: Option<[u8; 3]>, hair: Option<[u8; 3]>) -> bool {
-        let Some((tex, s)) = self.colored(sheet, skin, hair) else { return false };
-        draw_texture_ex(&tex, dest.x, dest.y, WHITE, DrawTextureParams { source: Some(inset(s.src_rect(frame))), dest_size: Some(dest.size()), ..Default::default() });
-        true
-    }
-
     /// Draws a (possibly multi-cell) sprite with its bottom-center at `feet`.
     /// `extra_frame` shifts the top-left cell (prop states such as an open gate).
     pub fn draw_sprite(&self, sprite: &SpriteRef, extra_frame: u32, feet: Vec2, tint: Color) -> bool {
         let Some(s) = self.sheets.get(&sprite.sheet) else { return false };
         let (w, h) = sprite.cells();
         draw_at_feet(&s.texture, s, s.region(sprite.frame + extra_frame, w, h), feet, tint);
+        true
+    }
+
+    /// Draws something held in a hand (`l`: its sprite, its grip point put at `at`, turned by its
+    /// rotation, mirrored top to bottom first when `flip`); `scale` times its world size.
+    pub fn draw_held_sprite(&self, l: &crate::hands::HeldLayer, at: Vec2, scale: f32, tint: Color) -> bool {
+        let Some(s) = self.sheets.get(&l.sprite.sheet) else { return false };
+        let (w, h) = l.sprite.cells();
+        let src = s.region(l.sprite.frame, w, h);
+        let size = s.world_of(src) * scale;
+        let pos = at - vec2(l.grip[0] * size.x, l.grip[1] * size.y);
+        let params = DrawTextureParams { source: Some(inset(src)), dest_size: Some(size), rotation: l.rotation.to_radians(), pivot: Some(at), flip_y: l.flip, ..Default::default() };
+        draw_texture_ex(&s.texture, pos.x, pos.y, tint, params);
         true
     }
 

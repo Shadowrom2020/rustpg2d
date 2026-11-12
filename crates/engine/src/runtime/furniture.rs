@@ -296,16 +296,16 @@ impl Game {
 
     /// Draws the player using furniture (instead of the normal drawing). Returns false when the
     /// player isn't seated.
-    pub(super) fn draw_seated_player(&self, eq: &crate::state::Equipment, tint: Color) -> bool {
+    pub(super) fn draw_seated_player(&self, tint: Color) -> bool {
         let Some(seat) = &self.seat else { return false };
         let Some(a) = self.player_appearance() else { return false };
-        self.draw_on_furniture(&a, eq, (seat.pose, seat.pos, seat.facing), (&seat.cover, seat.prop_feet), tint);
+        self.draw_on_furniture(&a, (seat.pose, seat.pos, seat.facing), (&seat.cover, seat.prop_feet), tint);
         true
     }
 
     /// Draws a character using furniture: `pose` with the feet at `pos` facing `facing`, then
     /// what the furniture draws over its user (`cover` at the prop's feet).
-    pub(super) fn draw_on_furniture(&self, a: &crate::defs::Appearance, eq: &crate::state::Equipment, (pose, pos, facing): (Pose, Vec2, Facing), (cover, prop_feet): (&SpriteRef, Vec2), tint: Color) {
+    pub(super) fn draw_on_furniture(&self, a: &crate::defs::Appearance, (pose, pos, facing): (Pose, Vec2, Facing), (cover, prop_feet): (&SpriteRef, Vec2), tint: Color) {
         struct S {
             pos: Vec2,
             facing: Facing,
@@ -314,31 +314,34 @@ impl Game {
         let a = a.clone();
         let (fw, fh) = self.character_frame_size(&a);
         let k = self.ts() / 32.0;
+        let gear = super::paperdoll::Gear::default();
+        let anim = |name: &'static str| super::paperdoll::Anim::Extra(name, 0);
         match pose {
+            // Models with a sitting or sleeping clip play it where they are; others crop or lay
+            // down their standing pose.
+            Pose::Sit if self.has_anim(&a, "sit") => {
+                self.draw_character(&a, &gear, (seat.facing, anim("sit")), seat.pos, tint);
+            }
+            Pose::Lie if self.has_anim(&a, "sleep") => {
+                self.draw_character(&a, &gear, (seat.facing, anim("sleep")), seat.pos, tint);
+            }
             Pose::Sit => {
-                // Lower, with the legs out of sight below the seat.
                 let part = Rect::new(0.0, 0.0, 1.0, 0.8);
                 let drop = 6.0 * k;
                 let dest = Rect::new(seat.pos.x - fw / 2.0, seat.pos.y - fh + drop, fw, fh * part.h);
-                for l in self.character_layers(&a, eq, seat.facing, 0, false) {
-                    self.assets.draw_frame_part_in(&l.sheet, self.layer_frame(&l), part, dest, l.skin, l.hair);
+                if let Some(cell) = self.model_cell(&a, &gear, (seat.facing, super::paperdoll::Anim::Idle(0))) {
+                    self.assets.models.draw_part(&cell, part, dest, tint);
                 }
             }
             Pose::Lie => {
                 // `pos` is where the feet are; the head lies towards `facing`.
-                let (angle, head) = match seat.facing {
-                    Facing::Up => (0.0, vec2(0.0, -1.0)),
-                    Facing::Left => (-std::f32::consts::FRAC_PI_2, vec2(-1.0, 0.0)),
-                    Facing::Right => (std::f32::consts::FRAC_PI_2, vec2(1.0, 0.0)),
-                    Facing::Down => (std::f32::consts::PI, vec2(0.0, 1.0)),
-                };
-                let center = seat.pos + head * fh / 2.0;
-                for l in self.character_layers(&a, eq, Facing::Down, 0, false) {
-                    self.assets.draw_frame_colored_rotated(&l.sheet, self.layer_frame(&l), center, angle, (l.skin, l.hair), WHITE);
+                let (angle, head) = lie_turn(seat.facing);
+                if let Some(cell) = self.model_cell(&a, &gear, (Facing::Down, super::paperdoll::Anim::Idle(0))) {
+                    self.assets.models.draw_rotated(&cell, seat.pos + head * fh / 2.0, angle, self.look_size(&a), WHITE);
                 }
             }
             Pose::Stand => {
-                self.draw_character(&a, eq, (seat.facing, 0.into()), seat.pos, tint, false);
+                self.draw_character(&a, &super::paperdoll::Gear::default(), (seat.facing, 0.into()), seat.pos, tint);
             }
         }
         if !cover.sheet.is_empty() {
@@ -395,5 +398,15 @@ impl Game {
             Some(Pose::Stand) => "stand",
             None => "",
         }
+    }
+}
+
+/// A lying figure's turn (radians) and where its head lies from its feet, for a bed's facing.
+fn lie_turn(facing: Facing) -> (f32, Vec2) {
+    match facing {
+        Facing::Up => (0.0, vec2(0.0, -1.0)),
+        Facing::Left => (-std::f32::consts::FRAC_PI_2, vec2(-1.0, 0.0)),
+        Facing::Right => (std::f32::consts::FRAC_PI_2, vec2(1.0, 0.0)),
+        Facing::Down => (std::f32::consts::PI, vec2(0.0, 1.0)),
     }
 }

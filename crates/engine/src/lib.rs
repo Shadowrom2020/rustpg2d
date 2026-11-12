@@ -9,6 +9,8 @@ pub mod desktop;
 pub mod effects;
 pub mod entity;
 pub mod events;
+pub mod factions;
+pub mod hands;
 pub mod fog;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;
@@ -26,11 +28,13 @@ pub mod macsign;
 pub mod map;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod migrate;
+pub mod model;
 pub mod path;
 pub mod paths;
 pub mod progression;
 pub mod project;
 pub mod quest;
+pub mod races;
 pub mod refactor;
 pub mod release;
 pub mod render;
@@ -40,6 +44,8 @@ pub mod script_api;
 pub mod script_refs;
 pub mod settings;
 pub mod skills;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod starter_update;
 pub mod state;
 pub mod sys;
 pub mod structure;

@@ -105,10 +105,13 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
       - if: steps.tested.outputs.skip != 'true'
         run: cargo clippy --locked --target wasm32-unknown-unknown -p rustpg2d-game -- -D warnings
-      # Game and editor also compile for Windows (no linking: no cross compiler needed; the
-      # Windows job tests them natively).
+      # Game and editor also compile for Windows (no linking; the Windows job tests them
+      # natively). The editor's TLS library (ring, for Generate art) compiles C: the MinGW C
+      # compiler is needed even for a check.
       - if: steps.tested.outputs.skip != 'true'
         run: rustup target add x86_64-pc-windows-gnu
+      - if: steps.tested.outputs.skip != 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends gcc-mingw-w64-x86-64
       - if: steps.tested.outputs.skip != 'true'
         run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -p rustpg2d-editor -- -D warnings
 

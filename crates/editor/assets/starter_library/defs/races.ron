@@ -1,0 +1,132 @@
+[
+    (
+        id: "human",
+        name: "Human",
+        description: "Adaptable folk of the villages and towns: hardy, and good at striking a bargain.",
+        playable: true,
+        bodies_male: [
+            "hero",
+        ],
+        bodies_female: [
+            "heroine",
+        ],
+        max_hp: 2,
+        skills: [
+            (
+                skill: "haggling",
+                level: 1,
+            ),
+        ],
+        faction: "humans",
+    ),
+    (
+        id: "goblin",
+        name: "Goblin",
+        description: "Small, quick and sharp-eyed. Goblins find coins where others see dirt, but they can\'t take much of a beating.",
+        playable: false,
+        bodies_male: [
+            "goblin",
+        ],
+        bodies_female: [
+            "goblin_scout",
+        ],
+        max_hp: -2,
+        speed: 10.0,
+        skills: [
+            (
+                skill: "scavenging",
+                level: 1,
+            ),
+        ],
+        faction: "goblins",
+    ),
+    (
+        id: "elf",
+        name: "Elf",
+        description: "Tall, keen-eyed folk of the old forests. Elves are quick and fine archers, though not as sturdy as others.",
+        playable: true,
+        bodies_male: [
+            "elf",
+        ],
+        bodies_female: [
+            "elf_f",
+        ],
+        max_hp: -1,
+        speed: 5.0,
+        skills: [
+            (
+                skill: "archery",
+                level: 1,
+            ),
+        ],
+        faction: "elves",
+    ),
+    (
+        id: "dwarf",
+        name: "Dwarf",
+        description: "Short, broad and stubborn as rock. Dwarves are born miners and smiths and take a beating well, but they are slow on their feet.",
+        playable: true,
+        bodies_male: [
+            "dwarf",
+        ],
+        bodies_female: [
+            "dwarf_f",
+        ],
+        max_hp: 3,
+        speed: -10.0,
+        defense: 1,
+        skills: [
+            (
+                skill: "mining",
+                level: 1,
+            ),
+            (
+                skill: "smithing",
+                level: 1,
+            ),
+        ],
+        faction: "dwarves",
+    ),
+    (
+        id: "orc",
+        name: "Orc",
+        description: "Big, strong and fierce. Orcs grow up with a blade in hand and don\'t fall easily.",
+        playable: false,
+        bodies_male: [
+            "orc",
+        ],
+        bodies_female: [
+            "orc_f",
+        ],
+        max_hp: 2,
+        skills: [
+            (
+                skill: "swordsmanship",
+                level: 1,
+            ),
+        ],
+        faction: "orcs",
+    ),
+    (
+        id: "troll",
+        name: "Troll",
+        description: "Huge, slow and almost impossible to knock down. A troll\'s hide turns blades, and its fists do the rest.",
+        playable: false,
+        bodies_male: [
+            "troll",
+        ],
+        bodies_female: [
+            "troll",
+        ],
+        max_hp: 6,
+        speed: -15.0,
+        defense: 1,
+        skills: [
+            (
+                skill: "toughness",
+                level: 2,
+            ),
+        ],
+        size: 1.5,
+    ),
+]

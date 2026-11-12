@@ -27,6 +27,8 @@ mod patrol;
 mod portraits;
 mod schedule;
 mod progression;
+mod factions;
+mod races;
 mod paperdoll;
 mod npc_items;
 mod occupancy;
@@ -208,6 +210,11 @@ struct RtEntity {
     hp: i32,
     max_hp: i32,
     hostile: bool,
+    /// The prop it carries in both hands ("" = none; `Action::Carry`, saved with the entity's
+    /// state).
+    carrying: String,
+    /// Its faction (index into `Game::factions`).
+    faction: Option<u16>,
     damage: i32,
     invuln: f32,
     flash: f32,
@@ -352,6 +359,8 @@ pub struct Game {
     pub project: Project,
     /// The database as written (`project.db` is it translated into the current language).
     db_original: crate::defs::Database,
+    /// The project's factions by index (who fights whom).
+    factions: crate::factions::Table,
     /// The languages the game offers (code, name) and the current one.
     languages: Vec<(String, String)>,
     lang_code: String,
@@ -498,6 +507,7 @@ impl Game {
         let languages = crate::lang::offered(&project.root, &project.config);
         let mut game = Game {
             db_original: project.db.clone(),
+            factions: crate::factions::Table::new(&project.config.factions),
             lang_code: project.config.language.clone(),
             languages,
             light_pass: None,
@@ -577,6 +587,7 @@ impl Game {
             _ => Arrival::Spawn(game.project.config.start_spawn.clone()),
         };
         game.scripts.set_recipes(game.project.db.recipes.clone(), game.project.db.tool_kinds());
+        game.scripts.set_factions(game.project.config.factions.clone());
         game.load_achievements();
         game.settings = crate::settings::Settings::load(&game.project.config.name);
         // The language: --lang, else the player's choice, else the system's if the game has it.
@@ -640,14 +651,15 @@ impl Game {
                 Some(d) => (vec2(d.hitbox[0], d.hitbox[1]), 0.0, d.solid, Behavior::Static),
                 None => (vec2(ts, ts), 0.0, false, Behavior::Static),
             },
+            // (Bigger races have bigger hitboxes.)
             EntityKind::Character => match self.project.db.character(def) {
-                Some(d) => (vec2(d.hitbox[0], d.hitbox[1]), d.speed, true, d.behavior.clone()),
+                Some(d) => (vec2(d.hitbox[0], d.hitbox[1]) * self.look_size(&d.appearance), d.speed, true, d.behavior.clone()),
                 None => (vec2(ts * 0.75, ts * 0.5), 50.0, true, Behavior::Static),
             },
             EntityKind::Item => (vec2(ts * 0.75, ts * 0.75), 0.0, false, Behavior::Static),
         };
         let (max_hp, hostile, damage, weapon, defense) = match (kind, self.project.db.character(def)) {
-            (EntityKind::Character, Some(d)) => (d.max_hp.max(0), d.hostile, d.damage.max(0), d.weapon.clone(), d.defense),
+            (EntityKind::Character, Some(d)) => (d.max_hp.max(0), self.hostile_to_player(def), d.damage.max(0), d.weapon.clone(), d.defense),
             _ => (0, false, 0, None, 0),
         };
         let mut rt = RtEntity {
@@ -672,6 +684,8 @@ impl Game {
             hp: max_hp,
             max_hp,
             hostile,
+            carrying: String::new(),
+            faction: if kind == EntityKind::Character { self.factions.index(&self.project.db.faction_of(def)) } else { None },
             damage,
             invuln: 0.0,
             last_hit: 0,
@@ -1928,6 +1942,13 @@ impl Game {
             inv.set_limits(limits.clone());
         }
         self.dress_player();
+        // A new game is the player character's race (the creator may choose another).
+        let fresh = self.world.play_time == 0.0 && self.world.current_map.is_empty();
+        let race = self.project.db.character(&self.project.config.player).map(|d| d.race.clone()).unwrap_or_default();
+        if fresh && self.world.player_race.is_empty() && !race.is_empty() {
+            self.begin_as_race(&race);
+        }
+        self.refresh_player_size();
     }
 
     /// The player definition's equipment and carried items: a new game starts with them; a save
@@ -2132,7 +2153,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2165,6 +2186,8 @@ impl Game {
                 here.map(|e| format!("{}x{}@{},{}", e.def, e.count, (e.body.pos.x / ts).floor(), ((e.body.pos.y - 1.0) / ts).floor())).collect::<Vec<_>>()
             },
             format!("{}|{:?}|{}", self.world.player_name, self.world.player_sex, self.player_appearance().map_or("-".to_string(), |a| a.body)),
+            self.race_status(),
+            self.factions_status(),
             self.creator_status(),
             self.world.quests.iter().map(|(k, q)| format!("{k}:{}:{:?}", q.stage, q.status)).collect::<Vec<_>>(),
             self.achievements_status(),
@@ -2209,7 +2232,9 @@ impl Game {
             self.defense_status(),
             self.emotes_status(),
             self.hits_status(),
-            self.anims_status()
+            self.anims_status(),
+            self.held_status(),
+            self.assets.models.status()
         )
     }
 
@@ -2350,6 +2375,7 @@ impl Game {
     }
 
     pub fn draw(&mut self) {
+        self.assets.models.begin_frame();
         let ts = self.ts();
         let m = &self.loaded.map;
         let bg = m.background;
@@ -2412,12 +2438,9 @@ impl Game {
                         continue;
                     }
                     let anim = self.player_anim();
-                    let eq = self.player_equipment_drawn();
-                    // During a melee swing the weapon is drawn along the swing instead (unless
-                    // its held sheet has attack frames: then it swings in the hand).
-                    let swinging = self.combat.swing > 0.0 && !self.weapon_animates(&eq);
                     let tint = Self::effect_tint(&self.world.effects).unwrap_or(WHITE);
-                    let drawn = self.draw_seated_player(&eq, tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &eq, (self.player.facing, anim), self.player.pos, tint, swinging));
+                    let gear = self.player_gear();
+                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character(&a, &gear, (self.player.facing, anim), self.player.pos, tint));
                     if !drawn {
                         let r = self.player.rect();
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
@@ -2482,6 +2505,7 @@ impl Game {
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0., 0., 0., alpha));
         }
         self.draw_hurt_flash();
+        self.assets.models.debug_draw();
         if !self.on_title() {
             if !self.ui_hidden {
                 self.draw_hud();
@@ -2583,18 +2607,21 @@ impl Game {
         let e = &self.loaded.entities[i];
         match (&e.npc_seat, self.current_activity(i)) {
             (Some(s), _) => {
-                self.draw_on_furniture(&e.appearance, &e.equipment, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
+                self.draw_on_furniture(&e.appearance, (s.pose, s.pos, s.facing), (&s.cover, s.prop_feet), tint);
                 true
             }
-            (None, Some(_)) => {
-                let eq = self.activity_equipment(i).unwrap_or_else(|| e.equipment.clone());
+            (None, Some((act, _))) => {
+                // Models play the activity's clip ("fish", "farm"…), figures swing their arms.
                 let col = self.activity_frame(i).unwrap_or(0);
-                self.draw_character(&e.appearance, &eq, (e.body.facing, col.into()), e.body.pos, tint, false)
+                let pose = (e.body.facing, paperdoll::Anim::Extra(act.kind.id(), col));
+                let gear = self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref());
+                self.draw_character(&e.appearance, &gear, pose, e.body.pos, tint)
             }
             (None, None) => {
                 self.project.db.character(&e.def).is_some() && {
                     let anim = self.npc_anim(i);
-                    self.draw_character(&e.appearance, &e.equipment, (e.body.facing, anim), e.body.pos, tint, false)
+                    let gear = self.character_gear(&e.equipment, &e.carrying, None);
+                    self.draw_character(&e.appearance, &gear, (e.body.facing, anim), e.body.pos, tint)
                 }
             }
         }
@@ -2736,6 +2763,18 @@ impl ActionHost for Game {
                 if let Some(who) = self.emote_target(target, ctx.owner) {
                     self.clear_emote(who);
                 }
+                Step::Continue
+            }
+            Action::Carry { target, prop } => {
+                if target.eq_ignore_ascii_case("player") {
+                    self.world.player_carrying = prop.clone();
+                } else if let Some(i) = self.entity_index(target, ctx.owner) {
+                    self.loaded.entities[i].carrying = prop.clone();
+                }
+                Step::Continue
+            }
+            Action::ChangeStanding { faction, amount } => {
+                self.change_standing(faction, *amount);
                 Step::Continue
             }
             Action::HideImage => {
@@ -3073,6 +3112,10 @@ impl ActionHost for Game {
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {
         self.sync_script_player();
         self.scripts.condition(&mut self.world, function, ctx.owner)
+    }
+
+    fn standing(&mut self, faction: &str) -> i32 {
+        Game::standing(self, faction)
     }
 
     fn pose(&mut self, target: &str, ctx: &ActionCtx) -> String {

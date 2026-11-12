@@ -181,6 +181,8 @@ pub struct Known<'a> {
     pub functions: &'a [String],
     /// The project's script functions with their parameter names (signature hints).
     pub signatures: &'a [(String, Vec<String>)],
+    /// Faction ids (Database › Project › Factions).
+    pub factions: &'a [String],
 }
 
 /// The kind of the argument a call expects at `arg` (its first overload that has one).
@@ -225,6 +227,8 @@ pub fn candidates(place: &Place, call: Option<&CallAt>, known: &Known, src: &str
                 Some(Arg::Dir) => ["up", "down", "left", "right"].iter().map(|d| c(d, "direction")).collect(),
                 Some(Arg::Character) => db.characters.iter().map(|q| c(&q.id, &q.name)).collect(),
                 Some(Arg::Achievement) => db.achievements.iter().map(|q| c(&q.id, &q.name)).collect(),
+                Some(Arg::Prop) => db.props.iter().map(|q| c(&q.id, &q.name)).collect(),
+                Some(Arg::Faction) => known.factions.iter().map(|f| c(f, "faction")).collect(),
                 Some(Arg::Recipe) => db.recipes.iter().map(|q| c(&q.id, db.item(&q.result).map_or(q.result.as_str(), |d| d.name.as_str()))).collect(),
                 Some(Arg::Station) => {
                     let mut v: Vec<String> = db.recipes.iter().map(|r| r.station.clone()).filter(|s| !s.is_empty()).collect();
@@ -645,7 +649,7 @@ mod tests {
         let none: Vec<String> = Vec::new();
         let funcs = vec!["guard_talk".to_string()];
         let sigs = vec![("guard_talk".to_string(), vec!["who".to_string(), "times".to_string()])];
-        let known = Known { db: &db, maps: &maps, spawns: &spawns, targets: &none, flags: &none, vars: &none, functions: &funcs, signatures: &sigs };
+        let known = Known { db: &db, maps: &maps, spawns: &spawns, targets: &none, flags: &none, vars: &none, functions: &funcs, signatures: &sigs, factions: &none };
         let get = |src: &str| {
             let (p, c) = analyze(src);
             candidates(&p, c.as_ref(), &known, src, false).into_iter().map(|c| c.insert).collect::<Vec<_>>()

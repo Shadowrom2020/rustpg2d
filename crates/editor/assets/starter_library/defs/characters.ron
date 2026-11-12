@@ -2,6 +2,7 @@
     (
         id: "hero",
         name: "Hero",
+        race: "human",
         speed: 140.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -13,11 +14,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "hero",
-            skin: (242, 196, 155),
-            hair: "hair_short",
-            hair_color: (93, 58, 26),
-            beard: "",
+            model: "hero",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -33,6 +31,7 @@
     (
         id: "elder",
         name: "Elder",
+        race: "human",
         speed: 80.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -44,11 +43,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "elder",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (222, 222, 222),
-            beard: "beard_full",
+            model: "elder",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -74,6 +70,7 @@
     (
         id: "villager",
         name: "Villager",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Wander(
@@ -87,11 +84,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "villager",
-            skin: (198, 138, 94),
-            hair: "hair_short",
-            hair_color: (192, 57, 43),
-            beard: "",
+            model: "villager",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -113,22 +107,27 @@
     (
         id: "guard",
         name: "Town Guard",
+        race: "human",
         speed: 80.0,
         hitbox: (20.0, 12.0),
-        behavior: Static,
+        behavior: Chase(
+            sight: 6.0,
+            leash: 8.0,
+            flee_below: 0.0,
+            keep_distance: 0.0,
+            group: true,
+            alert: 6.0,
+        ),
         max_hp: 8,
-        damage: 0,
+        damage: 2,
         hostile: false,
         weapon: None,
         defense: 0,
         triggers: [],
         shop: None,
         appearance: (
-            body: "guard",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (58, 42, 30),
-            beard: "",
+            model: "guard",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -152,6 +151,7 @@
     (
         id: "slime",
         name: "Slime",
+        faction: "monsters",
         speed: 64.0,
         hitbox: (24.0, 12.0),
         behavior: Chase(
@@ -191,16 +191,14 @@
             ),
         ],
         appearance: (
-            body: "slime",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "slime",
+            body: "",
         ),
     ),
     (
         id: "goblin",
         name: "Goblin Archer",
+        race: "goblin",
         speed: 76.0,
         hitbox: (20.0, 12.0),
         behavior: Chase(
@@ -252,11 +250,8 @@
             ),
         ],
         appearance: (
-            body: "goblin",
-            skin: (124, 179, 66),
-            hair: "hair_short",
-            hair_color: (51, 105, 30),
-            beard: "",
+            model: "goblin",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -275,6 +270,7 @@
     (
         id: "goblin_f",
         name: "Goblin Scout",
+        race: "goblin",
         speed: 84.0,
         hitbox: (20.0, 12.0),
         behavior: Chase(
@@ -326,11 +322,8 @@
             ),
         ],
         appearance: (
-            body: "goblin_scout",
-            skin: (139, 195, 74),
-            hair: "hair_ponytail",
-            hair_color: (42, 74, 20),
-            beard: "",
+            model: "goblin_scout",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -349,6 +342,8 @@
     (
         id: "bandit_chief",
         name: "Bandit Chief",
+        race: "human",
+        faction: "bandits",
         speed: 80.0,
         hitbox: (20.0, 12.0),
         behavior: Chase(
@@ -389,11 +384,8 @@
             ),
         ],
         appearance: (
-            body: "bandit_chief",
-            skin: (208, 144, 104),
-            hair: "hair_long",
-            hair_color: (30, 22, 18),
-            beard: "beard_full",
+            model: "bandit_chief",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -418,6 +410,8 @@
     (
         id: "outlaw",
         name: "Outlaw",
+        race: "human",
+        faction: "bandits",
         speed: 92.0,
         hitbox: (20.0, 12.0),
         behavior: Chase(
@@ -446,11 +440,8 @@
             ),
         ],
         appearance: (
-            body: "outlaw",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (122, 74, 34),
-            beard: "",
+            model: "outlaw",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -472,6 +463,7 @@
     (
         id: "merchant_f",
         name: "Merchant (female)",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -502,11 +494,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "merchant_f",
-            skin: (232, 184, 138),
-            hair: "hair_long",
-            hair_color: (58, 36, 24),
-            beard: "",
+            model: "merchant_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -522,6 +511,7 @@
     (
         id: "baker",
         name: "Baker",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -530,18 +520,7 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [
-            (
-                on: Interact,
-                conditions: [],
-                actions: [
-                    RunScript(
-                        function: "restock_baking",
-                    ),
-                ],
-                once: false,
-            ),
-        ],
+        triggers: [],
         shop: Some((
             title: "",
             currency: "coin",
@@ -569,11 +548,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "baker",
-            skin: (242, 196, 155),
-            hair: "hair_short",
-            hair_color: (122, 74, 34),
-            beard: "beard_full",
+            model: "baker",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -593,6 +569,7 @@
     (
         id: "innkeeper",
         name: "Innkeeper",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -647,11 +624,8 @@
             open_on_talk: false,
         )),
         appearance: (
-            body: "innkeeper",
-            skin: (242, 196, 155),
-            hair: "hair_ponytail",
-            hair_color: (208, 90, 36),
-            beard: "",
+            model: "innkeeper",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -671,6 +645,7 @@
     (
         id: "herbalist",
         name: "Herbalist",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -725,11 +700,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "herbalist",
-            skin: (141, 90, 59),
-            hair: "hair_long",
-            hair_color: (42, 30, 20),
-            beard: "",
+            model: "herbalist",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -749,6 +721,7 @@
     (
         id: "priest",
         name: "Priest",
+        race: "human",
         speed: 60.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -760,11 +733,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "priest",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (122, 122, 122),
-            beard: "beard_goatee",
+            model: "priest",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -784,6 +754,7 @@
     (
         id: "miller",
         name: "Miller",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -820,11 +791,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "miller",
-            skin: (208, 144, 104),
-            hair: "hair_short",
-            hair_color: (170, 154, 122),
-            beard: "",
+            model: "miller",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -844,6 +812,7 @@
     (
         id: "fisher",
         name: "Fisher",
+        race: "human",
         speed: 60.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -852,18 +821,7 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [
-            (
-                on: Interact,
-                conditions: [],
-                actions: [
-                    RunScript(
-                        function: "restock_catch",
-                    ),
-                ],
-                once: false,
-            ),
-        ],
+        triggers: [],
         shop: Some((
             title: "",
             currency: "coin",
@@ -891,11 +849,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "fisher",
-            skin: (232, 184, 138),
-            hair: "hair_short",
-            hair_color: (189, 189, 196),
-            beard: "beard_full",
+            model: "fisher",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -915,6 +870,7 @@
     (
         id: "town_crier",
         name: "Town Crier",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -926,11 +882,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "town_crier",
-            skin: (242, 196, 155),
-            hair: "hair_short",
-            hair_color: (58, 42, 30),
-            beard: "",
+            model: "town_crier",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -946,6 +899,7 @@
     (
         id: "blacksmith",
         name: "Blacksmith",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Static,
@@ -1012,11 +966,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "blacksmith",
-            skin: (198, 138, 94),
-            hair: "hair_short",
-            hair_color: (30, 22, 18),
-            beard: "beard_full",
+            model: "blacksmith",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1039,6 +990,7 @@
     (
         id: "farmer",
         name: "Farmer",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Wander(
@@ -1052,11 +1004,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "farmer",
-            skin: (217, 160, 102),
-            hair: "hair_short",
-            hair_color: (138, 90, 46),
-            beard: "",
+            model: "farmer",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1075,6 +1024,7 @@
     (
         id: "farmer_f",
         name: "Farmer (female)",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Wander(
@@ -1143,11 +1093,8 @@
             open_on_talk: true,
         )),
         appearance: (
-            body: "farmer_f",
-            skin: (224, 168, 120),
-            hair: "hair_ponytail",
-            hair_color: (216, 160, 64),
-            beard: "",
+            model: "farmer_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1163,6 +1110,7 @@
     (
         id: "villager_f",
         name: "Villager (female)",
+        race: "human",
         speed: 70.0,
         hitbox: (20.0, 12.0),
         behavior: Wander(
@@ -1176,11 +1124,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "villager_f",
-            skin: (198, 138, 94),
-            hair: "hair_long",
-            hair_color: (192, 57, 43),
-            beard: "",
+            model: "villager_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1196,22 +1141,27 @@
     (
         id: "guard_f",
         name: "Town Guard (female)",
+        race: "human",
         speed: 80.0,
         hitbox: (20.0, 12.0),
-        behavior: Static,
+        behavior: Chase(
+            sight: 6.0,
+            leash: 8.0,
+            flee_below: 0.0,
+            keep_distance: 0.0,
+            group: true,
+            alert: 6.0,
+        ),
         max_hp: 8,
-        damage: 0,
+        damage: 2,
         hostile: false,
         weapon: None,
         defense: 0,
         triggers: [],
         shop: None,
         appearance: (
-            body: "guard_f",
-            skin: (216, 160, 112),
-            hair: "hair_ponytail",
-            hair_color: (176, 106, 42),
-            beard: "",
+            model: "guard_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1233,6 +1183,7 @@
     (
         id: "child_boy",
         name: "Boy",
+        race: "human",
         speed: 96.0,
         hitbox: (16.0, 10.0),
         behavior: Wander(
@@ -1246,16 +1197,14 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "child_boy",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "child_boy",
+            body: "",
         ),
     ),
     (
         id: "child_girl",
         name: "Girl",
+        race: "human",
         speed: 96.0,
         hitbox: (16.0, 10.0),
         behavior: Wander(
@@ -1269,11 +1218,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "child_girl",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "child_girl",
+            body: "",
         ),
     ),
     (
@@ -1307,11 +1253,8 @@
         ],
         shop: None,
         appearance: (
-            body: "chicken",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "chicken",
+            body: "",
         ),
     ),
     (
@@ -1345,11 +1288,8 @@
         ],
         shop: None,
         appearance: (
-            body: "dog",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "dog",
+            body: "",
         ),
     ),
     (
@@ -1383,11 +1323,8 @@
         ],
         shop: None,
         appearance: (
-            body: "cat",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "cat",
+            body: "",
         ),
     ),
     (
@@ -1421,11 +1358,8 @@
         ],
         shop: None,
         appearance: (
-            body: "cat_ginger",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "cat",
+            body: "",
         ),
     ),
     (
@@ -1459,11 +1393,8 @@
         ],
         shop: None,
         appearance: (
-            body: "sheep",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "sheep",
+            body: "",
         ),
     ),
     (
@@ -1497,11 +1428,8 @@
         ],
         shop: None,
         appearance: (
-            body: "cow",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "cow",
+            body: "",
         ),
     ),
     (
@@ -1518,11 +1446,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "heroine",
-            skin: (242, 196, 155),
-            hair: "hair_long",
-            hair_color: (122, 74, 34),
-            beard: "",
+            model: "heroine",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1549,11 +1474,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "elder_f",
-            skin: (232, 184, 138),
-            hair: "hair_long",
-            hair_color: (222, 222, 222),
-            beard: "",
+            model: "elder_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1580,11 +1502,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "merchant",
-            skin: (242, 196, 155),
-            hair: "hair_short",
-            hair_color: (107, 74, 42),
-            beard: "",
+            model: "merchant",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1611,11 +1530,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "wizard",
-            skin: (232, 192, 160),
-            hair: "hair_short",
-            hair_color: (232, 232, 240),
-            beard: "beard_full",
+            model: "wizard",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1642,11 +1558,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "wizard_f",
-            skin: (242, 208, 184),
-            hair: "hair_long",
-            hair_color: (42, 26, 58),
-            beard: "",
+            model: "wizard_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1675,11 +1588,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "nomad",
-            skin: (181, 121, 76),
-            hair: "hair_short",
-            hair_color: (42, 30, 20),
-            beard: "",
+            model: "nomad",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1708,11 +1618,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "nomad_f",
-            skin: (181, 121, 76),
-            hair: "hair_long",
-            hair_color: (26, 18, 12),
-            beard: "",
+            model: "nomad_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1739,11 +1646,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "blacksmith_f",
-            skin: (208, 144, 104),
-            hair: "hair_long",
-            hair_color: (90, 42, 20),
-            beard: "",
+            model: "blacksmith_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1752,7 +1656,10 @@
             )),
             head: None,
             body: None,
-            weapon: None,
+            weapon: Some((
+                item: "hammer",
+                count: 1,
+            )),
             offhand: None,
         ),
     ),
@@ -1772,11 +1679,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "noble_m",
-            skin: (246, 208, 176),
-            hair: "hair_short",
-            hair_color: (106, 64, 32),
-            beard: "",
+            model: "noble_m",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1805,11 +1709,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "noble",
-            skin: (246, 208, 176),
-            hair: "hair_long",
-            hair_color: (232, 192, 96),
-            beard: "",
+            model: "noble",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1845,11 +1746,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "bandit",
-            skin: (216, 160, 112),
-            hair: "hair_short",
-            hair_color: (42, 30, 20),
-            beard: "",
+            model: "bandit",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1858,7 +1756,10 @@
             )),
             head: None,
             body: None,
-            weapon: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
             offhand: None,
         ),
     ),
@@ -1885,11 +1786,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "bandit_f",
-            skin: (232, 184, 138),
-            hair: "hair_long",
-            hair_color: (138, 42, 26),
-            beard: "",
+            model: "bandit_f",
+            body: "",
         ),
         equipment: (
             clothing: Some((
@@ -1898,7 +1796,10 @@
             )),
             head: None,
             body: None,
-            weapon: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
             offhand: None,
         ),
     ),
@@ -1930,11 +1831,17 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "skeleton",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "skeleton",
+            body: "",
+        ),
+        equipment: (
+            head: None,
+            body: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
+            offhand: None,
         ),
     ),
     (
@@ -1965,16 +1872,23 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "skeleton_f",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "skeleton_f",
+            body: "",
+        ),
+        equipment: (
+            head: None,
+            body: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
+            offhand: None,
         ),
     ),
     (
         id: "bat",
         name: "Bat",
+        faction: "wild",
         speed: 130.0,
         hitbox: (14.0, 8.0),
         behavior: Chase(
@@ -1995,11 +1909,8 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "bat",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "bat",
+            body: "",
         ),
     ),
     (
@@ -2025,16 +1936,14 @@
         triggers: [],
         shop: None,
         appearance: (
-            body: "ghost",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "ghost",
+            body: "",
         ),
     ),
     (
         id: "wolf",
         name: "Wolf",
+        faction: "wild",
         speed: 105.0,
         hitbox: (26.0, 12.0),
         behavior: Chase(
@@ -2069,11 +1978,452 @@
             ),
         ],
         appearance: (
-            body: "wolf",
-            skin: (232, 184, 138),
-            hair: "",
-            hair_color: (92, 60, 34),
-            beard: "",
+            model: "wolf",
+            body: "",
+        ),
+    ),
+    (
+        id: "elf",
+        name: "Elf",
+        race: "elf",
+        speed: 120.0,
+        hitbox: (24.0, 16.0),
+        behavior: Wander(
+            radius: 3.0,
+        ),
+        max_hp: 0,
+        damage: 0,
+        hostile: false,
+        weapon: None,
+        defense: 0,
+        description: "An elf of the old forests, far from home.",
+        triggers: [],
+        shop: None,
+        appearance: (
+            model: "elf",
+            body: "",
+        ),
+    ),
+    (
+        id: "elf_f",
+        name: "Elf",
+        race: "elf",
+        speed: 120.0,
+        hitbox: (24.0, 16.0),
+        behavior: Wander(
+            radius: 3.0,
+        ),
+        max_hp: 0,
+        damage: 0,
+        hostile: false,
+        weapon: None,
+        defense: 0,
+        description: "An elf of the old forests, far from home.",
+        triggers: [],
+        shop: None,
+        appearance: (
+            model: "elf_f",
+            body: "",
+        ),
+    ),
+    (
+        id: "dwarf",
+        name: "Dwarf",
+        race: "dwarf",
+        speed: 60.0,
+        hitbox: (24.0, 16.0),
+        behavior: Static,
+        max_hp: 0,
+        damage: 0,
+        hostile: false,
+        weapon: None,
+        defense: 0,
+        description: "A dwarf from the mountain halls.",
+        triggers: [],
+        shop: None,
+        appearance: (
+            model: "dwarf",
+            body: "",
+        ),
+    ),
+    (
+        id: "dwarf_f",
+        name: "Dwarf",
+        race: "dwarf",
+        speed: 60.0,
+        hitbox: (24.0, 16.0),
+        behavior: Static,
+        max_hp: 0,
+        damage: 0,
+        hostile: false,
+        weapon: None,
+        defense: 0,
+        description: "A dwarf from the mountain halls.",
+        triggers: [],
+        shop: None,
+        appearance: (
+            model: "dwarf_f",
+            body: "",
+        ),
+    ),
+    (
+        id: "orc",
+        name: "Orc Warrior",
+        race: "orc",
+        speed: 85.0,
+        hitbox: (22.0, 12.0),
+        behavior: Chase(
+            sight: 6.0,
+            leash: 12.0,
+            flee_below: 0.15,
+            keep_distance: 0.0,
+            group: true,
+            alert: 8.0,
+        ),
+        max_hp: 8,
+        damage: 2,
+        hostile: true,
+        weapon: None,
+        defense: 0,
+        xp: 15,
+        description: "Orc raiders camp in the Wilds. They fight in packs and call the whole camp when they see you.",
+        triggers: [],
+        shop: None,
+        loot: [
+            (
+                item: "coin",
+                chance: 60.0,
+                min: 2,
+                max: 5,
+            ),
+            (
+                item: "iron_ore",
+                chance: 20.0,
+                min: 1,
+                max: 1,
+            ),
+        ],
+        appearance: (
+            model: "orc",
+            body: "",
+        ),
+        equipment: (
+            head: None,
+            body: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
+            offhand: None,
+        ),
+    ),
+    (
+        id: "orc_f",
+        name: "Orc Warrior",
+        race: "orc",
+        speed: 88.0,
+        hitbox: (22.0, 12.0),
+        behavior: Chase(
+            sight: 6.0,
+            leash: 12.0,
+            flee_below: 0.15,
+            keep_distance: 0.0,
+            group: true,
+            alert: 8.0,
+        ),
+        max_hp: 7,
+        damage: 2,
+        hostile: true,
+        weapon: None,
+        defense: 0,
+        xp: 15,
+        description: "Orc raiders camp in the Wilds. They fight in packs and call the whole camp when they see you.",
+        triggers: [],
+        shop: None,
+        loot: [
+            (
+                item: "coin",
+                chance: 60.0,
+                min: 2,
+                max: 5,
+            ),
+            (
+                item: "potion",
+                chance: 15.0,
+                min: 1,
+                max: 1,
+            ),
+        ],
+        appearance: (
+            model: "orc_f",
+            body: "",
+        ),
+        equipment: (
+            head: None,
+            body: None,
+            weapon: Some((
+                item: "sword",
+                count: 1,
+            )),
+            offhand: None,
+        ),
+    ),
+    (
+        id: "orc_chief",
+        name: "Orc Chief",
+        race: "orc",
+        speed: 80.0,
+        hitbox: (24.0, 12.0),
+        behavior: Chase(
+            sight: 6.0,
+            leash: 9.0,
+            flee_below: 0.0,
+            keep_distance: 0.0,
+            group: true,
+            alert: 10.0,
+        ),
+        max_hp: 24,
+        damage: 3,
+        hostile: true,
+        weapon: None,
+        defense: 0,
+        xp: 70,
+        windup: 0.6,
+        description: "The chief of the orc camp in the Wilds: a huge axe, heavy armour and a temper to match.",
+        triggers: [],
+        shop: None,
+        loot: [
+            (
+                item: "coin",
+                chance: 100.0,
+                min: 20,
+                max: 40,
+            ),
+            (
+                item: "potion",
+                chance: 100.0,
+                min: 1,
+                max: 1,
+            ),
+            (
+                item: "fine_iron_sword",
+                chance: 50.0,
+                min: 1,
+                max: 1,
+            ),
+        ],
+        appearance: (
+            model: "orc_chief",
+            body: "",
+        ),
+        equipment: (
+            head: None,
+            body: None,
+            weapon: Some((
+                item: "axe",
+                count: 1,
+            )),
+            offhand: None,
+        ),
+    ),
+    (
+        id: "troll",
+        name: "Troll",
+        race: "troll",
+        faction: "monsters",
+        speed: 55.0,
+        hitbox: (22.0, 12.0),
+        behavior: Chase(
+            sight: 5.0,
+            leash: 6.0,
+            flee_below: 0.0,
+            keep_distance: 0.0,
+            group: false,
+            alert: 0.0,
+        ),
+        max_hp: 45,
+        damage: 4,
+        hostile: true,
+        weapon: None,
+        defense: 0,
+        xp: 100,
+        windup: 0.9,
+        description: "A bridge troll of the Wilds. Nobody crosses its bridge without paying - or fighting.",
+        triggers: [],
+        shop: None,
+        loot: [
+            (
+                item: "coin",
+                chance: 100.0,
+                min: 30,
+                max: 60,
+            ),
+            (
+                item: "elixir_strength",
+                chance: 100.0,
+                min: 1,
+                max: 1,
+            ),
+        ],
+        appearance: (
+            model: "troll",
+            body: "",
+        ),
+    ),
+    (
+        id: "dwarf_merchant",
+        name: "Dwarf Trader",
+        race: "dwarf",
+        speed: 60.0,
+        hitbox: (24.0, 16.0),
+        behavior: Static,
+        max_hp: 0,
+        damage: 0,
+        hostile: false,
+        weapon: None,
+        defense: 0,
+        description: "A dwarf trader who sells ore and tools at the old mine.",
+        triggers: [],
+        shop: Some((
+            title: "",
+            currency: "coin",
+            items: [
+                (
+                    item: "copper_ore",
+                    count: 6,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "iron_ore",
+                    count: 4,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "silver_ore",
+                    count: 2,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "pickaxe",
+                    count: 1,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "hammer",
+                    count: 1,
+                    unlimited: false,
+                    price: 0,
+                ),
+            ],
+            sell_rate: 50,
+            open_on_talk: true,
+        )),
+        appearance: (
+            model: "dwarf_merchant",
+            body: "",
+        ),
+    ),
+    (
+        id: "elf_herbalist",
+        name: "Elven Herbalist",
+        race: "elf",
+        speed: 65.0,
+        hitbox: (24.0, 16.0),
+        behavior: Static,
+        max_hp: 0,
+        damage: 0,
+        hostile: false,
+        weapon: None,
+        defense: 0,
+        description: "An elven herbalist who wanders the Wilds, gathering herbs and selling remedies.",
+        triggers: [],
+        shop: Some((
+            title: "",
+            currency: "coin",
+            items: [
+                (
+                    item: "herb",
+                    count: 8,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "potion",
+                    count: 3,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "mana_potion",
+                    count: 2,
+                    unlimited: false,
+                    price: 0,
+                ),
+            ],
+            sell_rate: 50,
+            open_on_talk: true,
+        )),
+        appearance: (
+            model: "elf_herbalist",
+            body: "",
+        ),
+    ),
+    (
+        id: "elf_ranger",
+        name: "Elven Ranger",
+        race: "elf",
+        speed: 95.0,
+        hitbox: (24.0, 16.0),
+        behavior: Chase(
+            sight: 6.0,
+            leash: 10.0,
+            flee_below: 0.25,
+            keep_distance: 4.0,
+            group: false,
+            alert: 0.0,
+        ),
+        max_hp: 12,
+        damage: 2,
+        hostile: false,
+        weapon: Some((
+            damage: 2,
+            cooldown: 1.4,
+            ranged: Some((
+                projectile: (
+                    sheet: "items",
+                    frame: 9,
+                ),
+                speed: 320.0,
+                range: 6.0,
+                ammo: "",
+            )),
+            reach: 1.0,
+            arc: 60.0,
+            knockback: 1.0,
+            two_handed: true,
+            crit: 0.1,
+        )),
+        defense: 0,
+        xp: 20,
+        description: "An elven ranger who watches the orc camp in the Wilds. Elves and orcs shoot each other on sight.",
+        triggers: [],
+        shop: None,
+        appearance: (
+            model: "elf",
+            body: "",
+        ),
+        equipment: (
+            head: None,
+            body: None,
+            weapon: Some((
+                item: "bow",
+                count: 1,
+            )),
+            offhand: None,
         ),
     ),
 ]

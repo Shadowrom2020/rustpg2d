@@ -8,16 +8,39 @@ once, use it in every game.
 
 The first time the editor opens the library, it fills it with the **starter set**: all of the example
 game's art (the village's buildings and some 60 props, its villagers, children and animals in both
-sexes, outfits, goods, recipes, sounds and music, 17 structures) plus **desert, mountain, city and
+sexes, goods, recipes, sounds and music, 17 structures) plus **desert, mountain, city and
 dungeon tilesets** (with animated water, waterfalls and lava), more characters (hero, elder, wizard
-and sorceress, nomads, nobles, bandits, skeletons, a wolf, a bat and a ghost, every humanoid in a male and a
+and sorceress, nomads, nobles, bandits, skeletons, elves, dwarves, orcs (and their chief), a troll, a dwarf
+trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the example; every humanoid in a male and a
 female version) and more structures (town houses, city walls, dungeon rooms). The starter library
 also includes the scripted Fireball spell and Scavenging skill with their script functions.
 
 When a newer editor brings more starter assets, the library adds the ones it doesn't have yet the
-next time it's opened. Existing assets, including your edits, are never changed. To get the newest
-version of something you never edited, back up and delete the library folder; the editor recreates
-it from the starter set.
+next time it's opened. Changed assets (redrawn art, new animations, better values) wait for you:
+
+### Updating the library
+
+*Assets › Update asset library…* (in the Asset Library window: *File › Update from the starter
+set…*) compares your library with the starter set of this R(ust)PG2D version. A banner offers it
+when a new version brings changes. The window lists:
+
+- **New**: assets your library doesn't have; they are added.
+- **Updated**: newer versions of assets you never changed; they are replaced (definition,
+  picture or sound, and the script functions they need).
+- **Changed by you and in the starter set**: assets you edited that the new version changed too.
+  Your version stays unless you tick it.
+- **No longer in the starter set**: assets earlier versions had and this one dropped. Ticked ones
+  are deleted (with pictures nothing else uses). Assets you changed start unticked; one that
+  other assets in your library still use can't be deleted (*used by …*).
+
+*Update* first copies the whole library folder to `library.bak-YYYYMMDD-HHMMSS` next to it, then
+applies your choices and shows what it did. Script functions in `scripts/library.rhai` you changed
+yourself are kept. Your projects aren't touched: they keep the assets they took from the library
+until you add the new versions again (*Add from library*).
+
+How it tells your edits from older starter versions: the editor knows every version of every
+starter asset it ever shipped (`crates/editor/assets/starter_history.ron`); an asset that matches
+one of them was never changed by you.
 
 The library lives in `~/.local/share/rustpg2d/library` (Windows: `%LOCALAPPDATA%\rustpg2d\library`;
 macOS: `~/Library/Application Support/rustpg2d`). `RUSTPG2D_LIBRARY` moves it.
@@ -31,7 +54,7 @@ library…* (all kinds). The dialog shows the library's assets as cards with thu
 - Click cards to pick one or more (*Pick all shown*, search). Assets the project already has are
   marked *in project*, and a line lists what the picks bring along.
 - **Add N to project** (or a double-click) copies them in, **with everything they need**: their
-  sprite sheets, ammunition, keys, overlay sheets, sounds used by their triggers, and script
+  sprite sheets, ammunition, keys, sounds used by their triggers, and script
   functions.
 - Assets already in the project with identical content are reused. An id or file name taken by
   something different gets a `_2` suffix, and all references follow.

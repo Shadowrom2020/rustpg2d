@@ -114,7 +114,7 @@ impl Game {
     /// before a script runs (not every frame: it clones every character's name).
     pub(super) fn sync_script_player(&mut self) {
         let ts = self.ts();
-        let info = crate::script::PlayerInfo { x: self.player.pos.x / ts, y: self.player.pos.y / ts, max_hp: self.player_max_hp(), facing: self.player.facing, weather: self.weather(), pose: self.pose_name().into(), sleeping: self.sleeping() };
+        let info = crate::script::PlayerInfo { x: self.player.pos.x / ts, y: self.player.pos.y / ts, max_hp: self.player_max_hp(), facing: self.player.facing, weather: self.weather(), pose: self.pose_name().into(), sleeping: self.sleeping(), faction: self.player_faction() };
         self.scripts.set_player(info);
         let chars = self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0).map(|e| (e.uid, e.name.clone(), e.hp)).collect();
         self.scripts.set_characters(chars);

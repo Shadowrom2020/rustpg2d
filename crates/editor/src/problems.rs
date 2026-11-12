@@ -181,8 +181,6 @@ fn entity_refs(e: &rustpg2d_engine::entity::EntityInstance) -> Vec<(RefKind, Str
         c.appearance = a.clone();
     } else {
         c.appearance.body.clear();
-        c.appearance.hair.clear();
-        c.appearance.beard.clear();
     }
     if let Some(eq) = &e.equipment {
         c.equipment = eq.clone();
@@ -284,8 +282,23 @@ impl Editor {
                         out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: if f.is_empty() { "has no file".into() } else { format!("its file {f} is missing") }, target: target.clone() });
                     }
                 }
-                if k == RefKind::Character && db.character(&id).is_some_and(|c| c.appearance.body.is_empty()) {
-                    out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: "has no body (it would be invisible)".into(), target: target.clone() });
+                if let Some(a) = db.character(&id).filter(|_| k == RefKind::Character).map(|c| &c.appearance) {
+                    // Characters are 3D models; without one (or with an old figure's name) the mannequin stands in.
+                    if !a.model.is_empty() && db.model(&a.model).is_none() {
+                        out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: format!("its 3D model {} doesn't exist", a.model), target: target.clone() });
+                    } else if a.model.is_empty() && db.model(&a.body).is_none() {
+                        out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: "has no 3D model (it shows as the mannequin)".into(), target: target.clone() });
+                    }
+                }
+                let faction = match k {
+                    RefKind::Character => db.character(&id).map(|d| d.faction.clone()),
+                    RefKind::Race => db.race(&id).map(|d| d.faction.clone()),
+                    _ => None,
+                };
+                // (A project without factions leaves the fields dormant: library characters name theirs.)
+                let factions = &self.project.config.factions;
+                if let Some(f) = faction.filter(|f| !f.is_empty() && !factions.is_empty() && factions.get(f).is_none()) {
+                    out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("belongs to the faction \"{f}\", which isn't in Database › Project › Factions (it has no faction until it is added there)"), target: target.clone() });
                 }
                 if k == RefKind::Quest && db.quest(&id).is_some_and(|q| q.stages.is_empty()) {
                     out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: "has no stages: the journal shows nothing while it is active".into(), target: target.clone() });

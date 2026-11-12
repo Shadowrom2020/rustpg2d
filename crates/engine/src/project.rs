@@ -37,6 +37,9 @@ pub struct ProjectConfig {
     /// Time of day a new game starts at (hours, 0..24).
     #[serde(default = "default_start_hour")]
     pub start_hour: f32,
+    /// Factions and their attitudes (who fights whom); empty = only `hostile` decides.
+    #[serde(default, skip_serializing_if = "crate::factions::Factions::is_empty")]
+    pub factions: crate::factions::Factions,
     /// Skills and magic (both off by default).
     #[serde(default)]
     pub skills: crate::skills::SkillSettings,
@@ -114,22 +117,12 @@ pub struct CharacterCreation {
     /// character definition's name.
     #[serde(default)]
     pub default_name: String,
-    /// The body sheets of a male / female player ("" = the player character's own body). The
-    /// player picks skin, hair style, hair color and (men) a beard from the lists below.
+    /// The figure of a male / female player ("" = the player character's own figure). The
+    /// creator offers a colour row for each of the figure's colour features.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub body_male: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub body_female: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub skin_colors: Vec<[u8; 3]>,
-    /// Hair sheets ("" = no hair).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hair_styles: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hair_colors: Vec<[u8; 3]>,
-    /// Beard sheets offered to male players ("" = no beard).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub beards: Vec<String>,
 }
 
 impl CharacterCreation {
@@ -193,6 +186,7 @@ impl ProjectConfig {
             creation: CharacterCreation::default(),
             day_minutes: default_day_minutes(),
             start_hour: default_start_hour(),
+            factions: Default::default(),
             skills: Default::default(),
             progression: Default::default(),
             dialog_portraits: true,
@@ -257,7 +251,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 12] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements"];
+pub const DEFS: [&str; 14] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -313,10 +307,11 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         spells: parse_list(r(9)?, DEFS[9], warn)?,
         recipes: parse_list(r(10)?, DEFS[10], warn)?,
         achievements: parse_list(r(11)?, DEFS[11], warn)?,
+        races: parse_list(r(12)?, DEFS[12], warn)?,
+        models: parse_list(r(13)?, DEFS[13], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
-    db.upgrade_characters();
     db.reindex();
     Ok(db)
 }
@@ -432,6 +427,12 @@ impl Project {
         }
         if !self.db.achievements.is_empty() || d(DEFS[11]).exists() {
             write_ron(&d(DEFS[11]), &self.db.achievements)?;
+        }
+        if !self.db.races.is_empty() || d(DEFS[12]).exists() {
+            write_ron(&d(DEFS[12]), &self.db.races)?;
+        }
+        if !self.db.models.is_empty() || d(DEFS[13]).exists() {
+            write_ron(&d(DEFS[13]), &self.db.models)?;
         }
         Ok(())
     }

@@ -72,9 +72,8 @@ pub struct LibState {
     pub lib: Option<Project>,
     pub error: Option<String>,
     tex: HashMap<String, Tex>,
-    /// Sheet images (for recolored layered characters) and their recolored textures.
-    raw: HashMap<String, Rgba>,
-    colored: std::cell::RefCell<HashMap<rustpg2d_engine::render::ColorKey, Tex>>,
+    /// The library's 3D models (loaded on first use: character thumbnails).
+    models: std::cell::RefCell<Option<rustpg2d_engine::render::model::Models>>,
     pub tex_dirty: bool,
     pub filter: Option<RefKind>,
     pub search: String,
@@ -124,17 +123,13 @@ impl LibState {
         }
         self.tex_dirty = false;
         self.tex.clear();
-        self.raw.clear();
-        self.colored.borrow_mut().clear();
+        *self.models.borrow_mut() = None;
         let images = store.db.tilesets.iter().map(|t| (format!("ts:{}", t.id), &t.image)).chain(store.db.sheets.iter().map(|s| (format!("sh:{}", s.id), &s.image)));
         for (key, rel) in images {
             let Ok(img) = std::fs::read(store.root.join(rel)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
             let ci = crate::widgets::color_image(ctx, img.w as usize, img.h as usize, &img.px);
             let handle = ctx.load_texture(format!("lib:{key}"), ci, egui::TextureOptions::NEAREST);
             self.tex.insert(key.clone(), Tex { handle, w: img.w as f32, h: img.h as f32 });
-            if key.starts_with("sh:") {
-                self.raw.insert(key, img);
-            }
         }
     }
 
@@ -143,43 +138,21 @@ impl LibState {
         self.lib.as_ref().is_some_and(|lib| self.paint_character_in(ui, &lib.db, id, facing, rect))
     }
 
-    /// Paints a character of `db` (its layers) into `rect`, idle frame facing `facing`.
+    /// Paints a character of `db` (its model, rendered from the library's files) into `rect`,
+    /// standing facing `facing`.
     fn paint_character_in(&self, ui: &egui::Ui, db: &Database, id: &str, facing: rustpg2d_engine::entity::Facing, rect: Rect) -> bool {
-        use rustpg2d_engine::render::character;
+        use rustpg2d_engine::render::model::{Gear, Models, PoseReq};
         let Some(d) = db.character(id) else { return false };
-        let layers = character::layers(db, &d.appearance, &d.equipment, facing, 0, false);
-        let Some(base) = layers.iter().find_map(|l| db.sheet(&l.sheet)) else { return false };
-        let (fw, fh) = (base.frame_w.max(1) as f32, base.frame_h.max(1) as f32);
-        let scale = (rect.width() / fw).min(rect.height() / fh);
-        let size = vec2(fw * scale, fh * scale);
-        let dest = Rect::from_min_size(pos2(rect.center().x - size.x / 2.0, rect.max.y - size.y), size);
-        let mut any = false;
-        for l in &layers {
-            let Some(s) = db.sheet(&l.sheet) else { continue };
-            let key = format!("sh:{}", l.sheet);
-            let colored = l.skin.is_some() || l.hair.is_some();
-            let mut cache = self.colored.borrow_mut();
-            let t = if colored {
-                let Some(img) = self.raw.get(&key) else { continue };
-                cache.entry((l.sheet.clone(), l.skin, l.hair)).or_insert_with(|| {
-                    let mut px = img.px.clone();
-                    rustpg2d_engine::render::recolor::recolor(&mut px, l.skin, l.hair);
-                    let ci = crate::widgets::color_image(ui.ctx(), img.w as usize, img.h as usize, &px);
-                    let handle = ui.ctx().load_texture(format!("libc:{key}:{:?}:{:?}", l.skin, l.hair), ci, egui::TextureOptions::NEAREST);
-                    Tex { handle, w: img.w as f32, h: img.h as f32 }
-                })
-            } else {
-                let Some(t) = self.tex.get(&key) else { continue };
-                t
-            };
-            let (sw, sh) = (s.frame_w.max(1) as f32, s.frame_h.max(1) as f32);
-            let cols = (t.w / sw).floor().max(1.0) as u32;
-            let (x, y) = ((l.frame % cols) as f32 * sw, (l.frame / cols) as f32 * sh);
-            let uv = Rect::from_min_max(pos2(x / t.w, y / t.h), pos2((x + sw) / t.w, (y + sh) / t.h));
-            ui.painter().image(t.handle.id(), dest, uv, Color32::WHITE);
-            any = true;
+        let mut m = self.models.borrow_mut();
+        if m.is_none() {
+            let Some(lib) = self.lib.as_ref() else { return false };
+            *m = Some(Models::load(&lib.db, &|rel| std::fs::read(lib.path(rel))));
         }
-        any
+        let Some(models) = m.as_ref() else { return false };
+        let a = models.look_of(&d.appearance);
+        let gear = Gear::default();
+        let req = PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, bust: false };
+        crate::widgets::paint_pose(ui, models, db, &HashMap::new(), &req, rect)
     }
 
     fn paint_sprite_in(&self, ui: &egui::Ui, db: &Database, sprite: &SpriteRef, rect: Rect) -> bool {
@@ -215,6 +188,8 @@ impl LibState {
             RefKind::Spell => db.spell(&a.1).map(|d| d.icon.clone()).filter(|i| !i.sheet.is_empty()),
             // A recipe shows what it makes.
             RefKind::Recipe => db.recipe(&a.1).and_then(|r| db.item(&r.result)).map(|d| d.icon.clone()),
+            // A race shows its first body.
+            RefKind::Race => db.race(&a.1).and_then(|r| r.bodies_male.first().or(r.bodies_female.first())).map(|b| SpriteRef::new(b, 0)),
             _ => None,
         };
         let drawn = match (a.0, sprite) {
@@ -279,6 +254,7 @@ fn name_of(db: &Database, a: &AssetRef) -> String {
         RefKind::Skill => db.skill(&a.1).map(|d| d.name.clone()),
         RefKind::Spell => db.spell(&a.1).map(|d| d.name.clone()),
         RefKind::Recipe => db.recipe(&a.1).and_then(|r| db.item(&r.result)).map(|d| format!("{} (recipe)", d.name)),
+        RefKind::Race => db.race(&a.1).map(|d| format!("{} (race)", d.name)),
         _ => None,
     }
     .unwrap_or_else(|| a.1.clone())
@@ -900,7 +876,11 @@ mod tests {
         for a in library::script_asset_refs(b.scripts.values().map(String::as_str)) {
             assert!(library::exists(&b.db, &a), "a starter script uses the {} {}, which the library lacks", kind_label(a.0), a.1);
         }
-        assert!(b.db.tilesets.len() >= 5 && b.db.sheets.len() > 100, "{} tilesets, {} sheets", b.db.tilesets.len(), b.db.sheets.len());
+        assert!(b.db.tilesets.len() >= 5 && b.db.sheets.len() > 15 && b.db.models.len() > 60, "{} tilesets, {} sheets, {} models", b.db.tilesets.len(), b.db.sheets.len(), b.db.models.len());
+        // Every character is a model (none falls back to the mannequin).
+        for c in &b.db.characters {
+            assert!(b.db.model(&c.appearance.model).is_some(), "character {} has no model", c.id);
+        }
     }
 
     /// Everything the example project has (but its quests, achievements and story scripts) is in

@@ -79,6 +79,52 @@ pub struct TilesetParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GenerateArtParams {
+    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) or "gear" (the 3D model of the existing item `id`: with a description from a clean picture drawn first, its icon as the reference; without one from the icon); pictures: "icon", "prop", "portrait" or "image".
+    pub kind: String,
+    /// Id the asset will get (letters, digits, _).
+    pub id: String,
+    /// What it looks like: build, colours, clothes, what it holds (characters), the object (icons, props).
+    pub description: String,
+    /// 3D characters: "none", "slash", "chop", "thrust", "bow", "club" or "cast" (default none).
+    pub attack: Option<String>,
+    /// Props: width and height in tiles (1-4, default 1 x 1).
+    pub tiles: Option<[u32; 2]>,
+    /// Portraits: the character id whose dialog portrait it becomes when applied.
+    pub portrait_for: Option<String>,
+    /// 3D characters ("model"): a woman (her sitting clip; the model is marked as a woman's).
+    pub female: Option<bool>,
+    /// 3D characters ("model"): extra animations, 3 credits each: "craft" (working at an anvil), "farm" (bending to pick crops), "chop" (chopping wood), "sleep" (lying in a bed).
+    pub extras: Option<Vec<String>>,
+    /// 3D characters and creatures ("model", "creature"): a figure sheet id whose standing frames (front, side, back) are modelled, instead of drawing a turnaround picture first.
+    pub from: Option<String>,
+    /// Must equal the cost in credits that art_settings / a refused call names: the creator's money.
+    pub confirm_credits: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtJobParams {
+    /// The job number (art_jobs lists them).
+    pub job: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtApplyParams {
+    pub job: u32,
+    /// Id of the new asset (default: the job's id).
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtRedoParams {
+    pub job: u32,
+    /// "walk", "attack" or "picture"; in 3D jobs "views", "model", "rig" or "clips" (the steps after it are made again too).
+    pub picture: String,
+    /// Must equal the cost a refused call names (one picture; in 3D jobs the step and the steps after it).
+    pub confirm_credits: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ViewImageParams {
     /// "tileset" or "sheet".
     pub kind: String,
@@ -86,6 +132,87 @@ pub struct ViewImageParams {
     pub id: String,
     /// Draw cell borders and tile / frame indices over the image (default true).
     pub grid: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct EditFramesParams {
+    /// The sprite sheet's id.
+    pub sheet: String,
+    /// "mirror_rows" (Right rows = mirrored Left rows), "copy_row", "clear_row", "duplicate"
+    /// (a frame into the next column), "nudge" (move a frame's pixels), "replace_color",
+    /// "fill_standing" (empty idle / hurt frames get the standing walk frame); figures: "set_grip",
+    /// "clear_grips" (a frame's, or all), "estimate_hands", "swap_hands" (right and left grips trade
+    /// places in a row, or in every facing of an anim).
+    pub op: String,
+    /// mirror_rows / swap_hands: the animation ("walk", "idle", "attack", "hurt"); mirror_rows: omitted = all.
+    pub anim: Option<String>,
+    /// duplicate / nudge / replace_color (scope "frame"): the frame (row * columns + column).
+    pub frame: Option<u32>,
+    /// copy_row: the source row; clear_row / replace_color (scope "row") / swap_hands: the row.
+    pub row: Option<u32>,
+    /// copy_row: the target row.
+    pub to_row: Option<u32>,
+    /// nudge: pixels right / down (negative: left / up).
+    pub dx: Option<i32>,
+    pub dy: Option<i32>,
+    /// replace_color: the colour to replace and the new one, [r, g, b].
+    pub from: Option<[u8; 3]>,
+    pub to: Option<[u8; 3]>,
+    /// replace_color: "frame", "row" or "sheet" (default).
+    pub scope: Option<String>,
+    /// set_grip: "right" or "left"; the grip in the frame's image pixels, the direction a held
+    /// item points (degrees: 0 right, 90 down, -90 up), its size (default 1) and whether it is in
+    /// front of the figure (default true).
+    pub hand: Option<String>,
+    pub x: Option<f32>,
+    pub y: Option<f32>,
+    pub angle: Option<f32>,
+    pub size: Option<f32>,
+    pub front: Option<bool>,
+    /// estimate_hands: estimate every frame again (default: only frames without grips).
+    pub all: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ImportModelParams {
+    /// A `.glb` file on this computer (absolute path): copied into the project's models/.
+    pub path: String,
+    /// Add its clips to this existing model instead of making a new one.
+    #[serde(default)]
+    pub clips_for: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ModelInfoParams {
+    /// The 3D model's id.
+    pub model: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct FitRigParams {
+    /// The unrigged 3D model (an animal, a monster).
+    pub model: String,
+    /// A rigged model whose skeleton and clips it takes: the starter library's rig_quadruped, rig_bird, rig_flyer, rig_blob, rig_floating, or any rigged model; "-" removes the template. Omit to keep it.
+    #[serde(default)]
+    pub template: Option<String>,
+    /// Turns the model about its up axis first (degrees) so it faces the front like the template. Omit to keep.
+    #[serde(default)]
+    pub turn: Option<f32>,
+    /// Joints moved after the fit (replaces the list): offsets in parts of the model's height, x right, y up, z front. Omit to keep.
+    #[serde(default)]
+    pub joints: Option<Vec<JointNudgeParam>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct JointNudgeParam {
+    pub joint: String,
+    pub offset: [f32; 3],
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct SheetColorsParams {
+    /// The sprite sheet's id.
+    pub sheet: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
@@ -301,7 +428,7 @@ pub struct RenameParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ListDefsParams {
-    /// "tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes" or "achievements".
+    /// "tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements" or "races".
     pub kind: String,
     /// Only ids / names containing this text.
     pub filter: Option<String>,
@@ -576,6 +703,12 @@ plain(ed) {
     /// The project's script files with the functions each defines.
     #[tool(annotations(read_only_hint = true))]
     list_scripts: ListScripts => ed.mcp_list_scripts();
+    /// Generate art with the creator's Meshy account: whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, the sizes and attacks for characters, the prices of 3D steps.
+    #[tool(annotations(read_only_hint = true))]
+    art_settings: ArtSettings => ed.mcp_art_settings();
+    /// Every art job of this session: pictures and their progress, credits spent, finished or failed, added as which asset.
+    #[tool(annotations(read_only_hint = true))]
+    art_jobs: ArtJobs => ed.mcp_art_jobs();
 }
 with_params {
     /// Undoes the last edit(s) of the open map (yours or the person's). The map is then unsaved: call save.
@@ -599,6 +732,33 @@ with_params {
     /// The image of a tileset or sprite sheet (PNG), with cell borders and indices drawn in by default.
     #[tool(annotations(read_only_hint = true))]
     view_image: ViewImage(p: ViewImageParams) => ed.mcp_view_image(p);
+    /// The exact colours of a sprite sheet's image, most used first, with their pixel counts, the animation rows they appear in (figures) and the colour feature they belong to: pick a part's shades for a figure's colour features (upsert_def sheet `features: [{name, shades, colors}]`).
+    #[tool(annotations(read_only_hint = true))]
+    sheet_colors: SheetColors(p: SheetColorsParams) => ed.mcp_sheet_colors(p);
+    /// Imports a rigged 3D character model (a .glb from Meshy, Blender, Mixamo…) as a new model (its clips matched to the animations walk / idle / attack / hurt / sit / … by name), or with clips_for adds the file's clips to that model. Characters use a model with upsert_def `appearance: {model}`; model_info shows what it has. Saves.
+    #[tool]
+    import_model: ImportModel(p: ImportModelParams) => ed.mcp_import_model(p);
+    /// A 3D model: triangles, bones, hands, its clips with their length, which clip each animation plays, and its texture's colours (most used first, the shades for colour features: upsert_def model `features: [{name, shades, colors}]`).
+    #[tool(annotations(read_only_hint = true))]
+    model_info: ModelInfo(p: ModelInfoParams) => ed.mcp_model_info(p);
+    /// Animates an unrigged model (an animal, a monster: Meshy rigs only people) with a rig template: the template's skeleton is stretched over the model and its walk, idle, attack and hurt clips play. Also turns the model to face the front and moves single joints. Returns the fitted joints; check the result with a play test or the Models tab. Saves.
+    #[tool]
+    fit_rig: FitRig(p: FitRigParams) => ed.mcp_fit_rig(p);
+    /// Edits the frames of a sprite sheet's image and a figure's hand grips (4 columns, 16 rows: walk, idle, attack, hurt; facings down, left, right, up): mirror Left rows into Right rows, copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (e.g. split a shade two colour features share), fill empty idle / hurt frames with the standing frame, set_grip / clear_grips / estimate_hands (where held weapons, tools and props are drawn). Grips move with the frames. Writes the PNG and the definition and reloads the art; view_image shows the result.
+    #[tool]
+    edit_frames: EditFrames(p: EditFramesParams) => ed.mcp_edit_frames(p);
+    /// Starts drawing art with Meshy (characters in the project's style: a walk grid, plus an attack grid; icons, props, portraits, painted images; 3D: a rigged and animated 3D character, an unrigged creature model, an existing item's 3D model from its icon): returns the job number at once. Costs credits: call without confirm_credits first to learn the price, ask the person, then call with confirm_credits = that price. Watch it with art_jobs, look at it with art_result, add it with art_apply.
+    #[tool]
+    generate_art: GenerateArt(p: GenerateArtParams) => ed.mcp_generate_art(p);
+    /// A finished art job's result as an image (characters: the 16-row sheet; walk / idle / attack / hurt rows) to judge before adding it; the raw Meshy pictures too.
+    #[tool(annotations(read_only_hint = true))]
+    art_result: ArtResult(p: ArtJobParams) => ed.mcp_art_result(p);
+    /// Adds a finished art job to the project: the image and its sprite sheet, and a character / item / prop using it (if none has that id); 3D jobs: the model files (models/), the 3D model and a character using it, or the item's 3D model. Saves.
+    #[tool]
+    art_apply: ArtApply(p: ArtApplyParams) => ed.mcp_art_apply(p);
+    /// Draws one picture of a finished job again (a bad frame, the wrong look) and converts it again; costs one picture (confirm_credits). In 3D jobs it makes a step again with the steps after it.
+    #[tool]
+    art_redo: ArtRedo(p: ArtRedoParams) => ed.mcp_art_redo(p);
     /// A rendered picture (PNG) of a map region as the editor draws it, optionally with grid, collision overlay and zones.
     #[tool(annotations(read_only_hint = true))]
     screenshot_map: ScreenshotMap(p: ScreenshotParams) => ed.mcp_screenshot_map(p).map(Reply::Shot);

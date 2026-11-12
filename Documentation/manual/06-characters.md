@@ -5,56 +5,96 @@ in *Database › Characters*, placed on maps with the Entities tool.
 
 ## How characters look
 
-Every character is a **body** dressed in layers:
+Every character is a **3D model** (*Database › 3D models*): a rigged model with its animation clips.
+The game renders it with what it holds in the pixel look (a few light bands, a dark outline) and
+draws it into the world as a picture, facing down, left, right or up. It plays its clips by itself:
+**walk**, **idle** (standing), its **attack**, **hurt** (when hit), **sit** and **sleep** on
+furniture and the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `read`); a model
+without a clip for one of them plays idle (sitting and lying without a clip show the standing pose,
+cropped or laid down). Dialog portraits show its head close up. A character without a model of its
+own shows as the **mannequin** (a plain wooden figure; the engine has one built in).
 
-- the **body**: people in underwear (male, female, goblin, female goblin), or a whole creature for
-  monsters and animals (slimes, wolves, skeletons, bats, chickens);
-- **skin colour**, **hair style**, **hair colour** and, for men, a **beard**;
-- **clothing**: an outfit, with a fitted female cut on female bodies;
-- **armor** over it: a helmet, body armor;
-- what's **in their hands**: a weapon, a shield, a lantern or a tool, drawn per facing and walk
-  frame; a melee swing shows the weapon sweeping.
+The example's and the starter library's cast were modelled with Meshy from the hand-drawn figures
+of earlier versions: 47 people and 9 animals, and 16 items' 3D models.
 
-Everything a character wears is real equipment: it counts in combat, and an enemy drops it when
-defeated.
+- *Database › 3D models › Import model…* takes a rigged `.glb` (Meshy, Blender, Mixamo…): it is
+  copied into `models/` (made smaller: textures as the game uses them, clip files without their
+  mesh) and its clips are matched to the animations by their names. *Clip files › Add…* uses the
+  clips of more files of the same rig (Meshy writes animations as separate files).
+- The form sets the **height** (standing, in world pixels: a person is about 40), the **clip each
+  animation plays** (an animation without one plays idle) and its frames per second (12: drawn
+  stepped like pixel animation), *Playable* / *Female* for the character creator, and shows a
+  turning preview, the four facings and the portrait. Clips that stand turned are straightened by
+  the body's direction, and walking stays in place.
+- **Colour features** are parts of a model that can take other colours, such as its skin, hair or
+  clothing. A feature is made of the shades of its texture (reduced to 32 colours when it loads)
+  that belong to that part; a character that chooses a colour for it gets those shades replaced by
+  the chosen colour, each as much darker or lighter as it was, so light and shadow stay. Each
+  feature lists the colours it offers: the character creator's swatches. In the example the
+  playable models and the villagers have skin, hair and clothing; two placed villagers wear their
+  own colours.
+- **Animals and creatures** without a skeleton of their own (Meshy rigs only people; a 3D creature
+  from *Generate art* is unrigged) get a **rig template** in the model's form: *Template* picks a
+  rigged model whose skeleton is stretched over this one and whose walk, idle, attack and hurt it
+  plays. The starter library has five, made for it: **four legs** (wolves, dogs, boars, deer),
+  **bird** (standing birds), **flyer** (bats, birds in flight), **blob** (slimes) and **floating**
+  (ghosts, wisps). *Turn* makes the model face the front first (the down view shows its face). The
+  side and front views show the fitted skeleton over the model: drag a joint (a dot) to where it
+  belongs, a leg into its leg or the head into the head; *Mirror left and right* moves the other
+  side's twin along, *Reset joints* starts over. The model keeps its own file; the fit is worked
+  out when it loads.
+- **Generate art** makes 3D characters, creatures and items' models with Meshy ([Art and sound ›
+  Generate art](10-art-and-sound.md#generate-art-with-meshy)).
 
-**Complete figures**: a body sheet marked *Complete figure* is a whole character with clothes, hair
-and what it holds painted in. Nothing is drawn over it (no outfit, armor, hair, beard or held
-items) and it isn't recoloured; its equipment still counts, it just isn't shown. The example's
-people, animals and monsters are complete figures (one sheet per character); the layered bodies,
-hair styles and outfits stay in the asset library for characters you assemble yourself.
+**Equipment** is real: a character's weapon, armor and clothing count in combat, and an enemy drops
+them when defeated. **What it holds is in its hands**: the weapon, the left-hand item (a shield, a
+lantern, a torch), a tool while it works (the fisher's rod, the farmer's hoe) and a prop it carries,
+each at the hand bone. Items with a **3D model** ([Database › Items](05-database.md#items)) are
+held as that model by their hold style (in the fist with the handle across it, upright, hanging or
+strapped to the forearm), others as their picture (*Held* section: hold point and orientation). Worn armour and clothing show only in the model's art.
 
-**Animations**: besides walking, a character sheet can have rows for **idle** (breathing while it
-stands), **attack** (wind-up, swing, follow-through, recover) and **hurt** (when hit); see [Art and
-sound › Character sheets](10-art-and-sound.md#sizes-and-layouts). The game plays them by itself:
-standing characters breathe, enemies' wind-ups and swings and the player's swing show the attack
-frames, a hit shows the hurt frame. A sheet without these rows (or a layer that lacks them) shows
-its standing frame instead.
+**Carrying props**: the *Carry prop* action and the scripts `carry(target, prop)` /
+`stop_carrying(target)` / `player_carrying()` let the player or a character carry a prop (a crate, a
+basket) in both hands. While carrying, the weapon and left-hand item aren't shown and the player
+can't attack (*Put down what you carry first.*). What the player carries is saved.
 
-## The character builder
+## The character editor
 
-![The character builder](../images/editor-builder.webp)
+![The character editor](../images/editor-builder.webp)
 
-*Database › Characters › Look & equipment* assembles a character visually. On the left is a
+*Database › Characters* shows the character editor under the form's first rows. On the left is a
 **preview** that walks, breathes, attacks or flinches (*Walk*, *Idle*, *Attack*, *Hurt*; facing
-buttons, *turn around*, and the four standing directions); on the right rows of clickable **cards**:
+buttons, *turn around*, and the four standing directions); on the right:
 
-- **Body** (sprite sheets of kind *Character body*), **Skin** swatches (presets or any colour),
-  **Hair** style cards, **Hair colour** swatches, **Beard** cards;
-- **Clothing** (items of kind *Clothing*, shown worn), **Armor & hands** (*Head*, *Body armor*,
-  *Weapon*, *Left hand*) and **Carried items**.
+- **Model**: cards of the project's 3D models; *Playable* lets players choose it in the creator;
+- **Colours**: for each colour feature of the model, *As made*, the feature's colours and any
+  other colour;
+- **Equipment**: weapon, left hand, head, body armor and clothing (they count in play);
+- **Carried items**.
 
-**Randomize** rolls hair, colours, beard and clothing for the body. **Start from…** copies the look
-and equipment of any character in the project or the asset library (a library character's sheets
-and items are copied into the project first).
-
-**New character…** (in the Characters tab) opens the builder as a window with an id and a name;
-*Create* adds the character, then set its behaviour and combat values in the form.
+**Random colours** picks an offered colour for each feature. **Start from…** copies the model and
+colours of any character in the project or the asset library (a library character's model is
+copied into the project first).
 
 **Placed characters with their own look**: select one on the map; *Look & equipment* in the
-inspector shows what it wears. **Customize this one…** opens the builder for that one character only
+inspector shows it. **Customize this one…** opens the character editor for that one character only
 (*Apply*), and *Use the definition's* drops the changes. A whole village can share one *villager*
-definition while every villager looks different.
+definition while every villager wears other colours.
+
+## New characters
+
+**New character…** (in the Characters tab, or *Assets › New asset… › Character*) asks for an id
+and a name and where the model comes from:
+
+- **Existing model**: one of the project's models (or one added from the asset library), with
+  the character editor to choose its colours and equipment;
+- **Import a model**: a rigged `.glb` (Meshy, Blender, Mixamo…), imported like *Database › 3D
+  models › Import model…*; then choose it under *Existing model*;
+- **Generate with AI**: opens [Generate art](10-art-and-sound.md#generate-art-with-meshy) for a
+  3D character with this id (*a woman* picks the women's clips); *Add to project* creates the
+  model and the character with a person's speed and hitbox.
+
+Then set the character's behaviour and combat values in the form.
 
 ## The character form
 
@@ -62,8 +102,8 @@ definition while every villager looks different.
 |---|---|
 | **Character** | Name; **Description** (shown in the bestiary once the player has defeated one); speed in pixels per second; hitbox |
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
-| **Look & equipment** | The builder |
-| **Behavior** | *Static*, *Wander* or *Chase player* (below) |
+| **Look & equipment** | The character editor: model, colours, equipment, carried items |
+| **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
 | **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
 | **Experience** | XP the player gets for defeating it |
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
@@ -79,9 +119,9 @@ definition while every villager looks different.
 |---|---|
 | **Static** | Stands where it was placed (unless it has a patrol route, a schedule or an activity). |
 | **Wander** | Walks around its home spot. |
-| **Chase player** | Hunts the player and companions (below). |
+| **Chase foes** | Hunts the player and companions when hostile to the player, and characters of hostile factions ([Factions](#factions)). |
 
-**Chase player** characters notice the player within their **Sight** (tiles) in a clear line; behind
+**Chase foes** characters notice the player within their **Sight** (tiles) in a clear line; behind
 walls and trees only within half of it. They keep hunting for a few seconds after losing sight,
 walking to where they last saw the player, and slide around obstacles. Per character:
 
@@ -93,7 +133,7 @@ walking to where they last saw the player, and slide around obstacles. Per chara
   player or a companion at a time, the others circle around and wait for their turn; they spread
   out instead of stacking. Turn it off for a lone brute that always attacks.
 - **Alert** (tiles, default 6): on first seeing the player it alerts others of the same
-  definition this close; 0 alerts nobody.
+  definition (or the same faction) this close; 0 alerts nobody.
 
 An *HP below %* trigger lets a character react when it's hurt, e.g. a boss calling for help; scripts
 read any character's HP with `hp_of(target)`. In the example, the goblin archers keep four tiles
@@ -249,22 +289,85 @@ its look and equipment are what a new game starts with.
 
 The **character creator** (*Database › Project › Character creator*, *Show the character creator…*)
 lets players create their hero after *New game*: a **name** (with a default), **Male / Female** (or
-fixed, if the project says *Always male* / *Always female*), a **body** among the bodies of that sex
-marked *Playable* (e.g. human or goblin), and **skin colour, hair style, hair colour** and, for men, a
-**beard**, from the lists you set (a list left empty has no row). A playable **complete figure** is a
-pre-made hero: the creator names it after the character that wears it and hides the skin, hair
-and beard rows for it. The example offers the hero, the heroine, a goblin and a goblin scout. An animated preview walks through
-all four directions. Name, sex and look are kept in save games. Play-tests skip the creator and use
-the default name.
+fixed, if the project says *Always male* / *Always female*), a **race** when the project has several
+playable races ([Races](#races)), a **look** (a model) among the race's models of that sex
+(without races: the project's default model for that sex and the other models of that sex marked
+*Playable*; the row shows only when there is a choice), and a **colour row for each colour feature**
+of that model that offers colours (*Skin*, *Hair*, *Clothing*…: *As made* or one of the
+feature's colours). The example offers humans (the hero, the heroine), elves and dwarves with
+skin, hair and clothing colours. An animated preview walks through all four directions. Name, sex,
+model and colours are kept in save games. Play-tests skip the creator and use the default name.
+
+## Races
+
+Races are definitions of their own (*Database › Races*): humans, goblins, elves, dwarves, orcs and
+trolls in the example and the starter library, each with a male and a female model (trolls one).
+A race has:
+
+- a **name** and **description** (the creator shows it under the preview);
+- **models** for men and women. The creator offers the race's models of the chosen sex with their
+  colour features; without any, the project's playable models;
+- for **a player of this race**: extra **max HP** (negative: fewer), **speed** in percent,
+  **defense**, and **starting skills**, skill levels a new game begins with. In the example a
+  human starts with Haggling 1 and 2 more HP; a goblin with Scavenging 1, 2 fewer HP and 10 %
+  more speed; an elf with Archery 1 (5 % faster, 1 HP less); a dwarf with Mining 1 and Smithing 1
+  (3 more HP, +1 defense, 10 % slower); an orc with Swordsmanship 1 (2 more HP); a troll with
+  Toughness 2 (6 more HP, +1 defense, 15 % slower, size 1.5);
+- a **size**: characters whose model belongs to the race are drawn that much larger (or smaller)
+  and get a hitbox to match (trolls 1.5);
+- **Playable**: offered in the character creator. In the example humans, elves and dwarves are
+  playable; goblins, orcs and trolls are races of the world's characters only (their player
+  bonuses stay for projects that make them playable).
+
+With more than one playable race, the creator starts with a **Race** row; changing it switches the
+models and their colour rows. The player's race is kept in the save game. The player character's own race
+(*Race* in its form) is the one a game started without the creator has. Other characters name
+their race in the same field (for scripts and [factions](#factions)). The **Player race** condition
+and `player_race()` tell the player's race.
 
 **Addressing the player**: in dialog, choice and quest texts, `{player}` becomes the player's name
 and `{sir|madam}` the first word for a male player and the second for a female one (any pair works:
 `{brother|sister}`). The **Player sex** condition and the scripts `player_name()`, `player_sex()`,
 `is_female()`, `is_male()` and `text("…")` do the same in logic.
 
+## Factions
+
+Factions decide who fights whom. They are set up in *Database › Project › Factions*: a list of
+factions (an id, fixed once added because triggers and scripts name it, and a name) and an
+**attitude table** where every pair of factions is *hostile*, *neutral* (the default) or
+*friendly*; click a cell to change it, the table reads both ways.
+
+- A character belongs to its own **Faction** (*Database › Characters*), else to its race's
+  (*Database › Races › Faction*). Characters without a faction stay out of it.
+- **Characters of hostile factions fight each other**: chasers (*Chase foes*) notice foes within
+  their sight like they notice the player, close in, swing, lunge and shoot at them; group fighters
+  share the places around a foe and alert their own faction. Arrows of a shooter fly past its
+  friends and the player when it isn't hostile to the player. Characters with 0 max HP (townsfolk)
+  can't be attacked.
+- **The player's standing** with each faction runs from -100 to 100. It starts at 100 with the
+  player's own faction (their race's, else the player character's), 50 with factions friendly to
+  it, 0 with neutral and -50 with hostile ones. At **-20 or below** the faction's characters attack
+  the player. **Hostile** on a character makes it attack the player unless the player is a friend
+  of its faction (standing 20 or more), so marked monsters stay dangerous to everyone else.
+  Without factions in the project, *Hostile* alone decides, as before.
+- The **Change standing** action and `change_standing(faction, amount)` raise or lower a standing
+  (the faction's characters turn hostile or calm down at once); the **Faction standing** condition,
+  `standing(faction)` and `player_faction()` read it. Standings are kept in the save game.
+- *Edit › Problems* warns about characters and races naming a faction the project doesn't have.
+
+In the example, humans, elves, dwarves, goblin tribes, orc clans, bandits, wild beasts and
+monsters are factions. The villagers of Emberbrook are humans (their race's faction, the same as a
+human player's). Humans are friendly with elves and dwarves and hostile to goblins, orcs, bandits,
+beasts and monsters; elves are hostile to goblins and orcs too; goblins and orcs are friends. So
+every playable race (human, elf, dwarf) is welcome in the village, and the town guards chase
+goblins, orcs, bandits, beasts and monsters that come near their post. In the Wilds an elven
+ranger and an orc patrol shoot and fight each other on sight. Dwarves are neutral to goblins and
+orcs, but those are marked *Hostile* and attack anyone who isn't their friend. Bringing the elven
+herbalist two wolf pelts (*Friend of the Elves*) raises the standing with the elves by 40.
+
 ## What characters carry
 
-Characters have equipment and carried items too, set in the builder for the definition or for one
+Characters have equipment and carried items too, set in the character editor for the definition or for one
 placed character. They use their equipped weapon and their armor's defense in combat, use the items
 they carry, and drop everything when defeated. The *Equip item*, *Unequip slot*, *Give item to
 character* and *Take item from character* actions and the scripts `equip`, `unequip`,

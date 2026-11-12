@@ -6,6 +6,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod app;
+mod art;
 mod builder;
 mod canvas;
 mod clipboard;
@@ -18,12 +19,15 @@ mod files;
 mod graph;
 mod import;
 mod library_ui;
+mod library_update;
 mod library_window;
 mod maps;
 mod mcp;
 mod multisel;
 mod models;
+mod models_tab;
 mod new_project;
+mod frame_ops;
 mod pixel;
 mod problems;
 mod script_editor;
@@ -51,10 +55,10 @@ fn library_arg() -> Option<std::path::PathBuf> {
     Some(args.get(i + 1).filter(|a| !a.starts_with("--")).map_or_else(rustpg2d_engine::library::library_dir, std::path::PathBuf::from))
 }
 
-fn window_conf() -> Conf {
+fn window_conf() -> macroquad::conf::Conf {
     rustpg2d_engine::desktop::startup("The R(ust)PG2D editor");
     let library = library_arg().is_some();
-    Conf {
+    let window = Conf {
         icon: Some(rustpg2d_engine::icon::window_icon(&rustpg2d_engine::icon::emblem())),
         window_title: if library { "R(ust)PG2D – Asset Library" } else { "R(ust)PG2D editor" }.to_owned(),
         window_width: if library { 1300 } else { 1600 },
@@ -62,6 +66,14 @@ fn window_conf() -> Conf {
         high_dpi: true,
         window_resizable: true,
         ..Default::default()
+    };
+    macroquad::conf::Conf {
+        miniquad_conf: window,
+        update_on: None,
+        default_filter_mode: FilterMode::Linear,
+        // 3D character models are drawn as one mesh each (render/model.rs).
+        draw_call_vertex_capacity: rustpg2d_engine::render::model::DRAW_VERTICES,
+        draw_call_index_capacity: rustpg2d_engine::render::model::DRAW_INDICES,
     }
 }
 
@@ -107,6 +119,7 @@ async fn main() {
     let settings = files::load_settings();
     ed.mcp.port = settings.mcp_port;
     ed.mcp.autostart = settings.mcp_autostart;
+    ed.art_settings = art::ArtSettings { model: settings.meshy_model.clone(), budget: settings.meshy_budget, ask: settings.meshy_ask };
     ed.mcp_autostart();
     egui_macroquad::cfg(|ctx| {
         ctx.options_mut(|o| o.line_scroll_speed = WHEEL_POINTS_PER_UNIT * EMQ_WHEEL_DIVISOR);
@@ -132,6 +145,11 @@ async fn main() {
         }
         // AI agents' tool calls (Assets > AI agent server...), like script commands.
         ed.mcp_drain();
+        ed.assets.models.begin_frame();
+        if let Some(id) = database::take_icon_request() {
+            let m = ed.render_item_icon(&id);
+            ed.set_status(m);
+        }
         canvas::inject_mouse(mouse_frames.pop_front().or(HOVER.with(|h| h.get())));
         egui_macroquad::ui(|ctx| ed.ui(ctx));
         ed.update_canvas();
@@ -350,27 +368,13 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // inherits the environment, so RUSTPG2D_AUTOPLAY can drive the play-test
         "play" => ed.play(arg(1) != "start"),
         // Same code paths as the file dialogs, without the dialog.
-        // import tiled FILE [NAME] · import lpc FILE [ID] [body|hair|beard|outfit|armor|held] ·
-        // import aseprite FILE [ID]: the File › Import… imports (result printed and shown)
-        "import" if matches!(arg(1), "tiled" | "lpc" | "aseprite") => {
+        // import tiled FILE [NAME] · import aseprite FILE [ID] [scale=N]: the File › Import…
+        // imports (result printed and shown)
+        "import" if matches!(arg(1), "tiled" | "aseprite") => {
             use import::ImportKind;
-            use rustpg2d_engine::defs::SheetKind;
-            let kind = match arg(1) {
-                "tiled" => ImportKind::Tiled,
-                "lpc" => ImportKind::Lpc,
-                _ => ImportKind::Aseprite,
-            };
-            let sheet_kind = match arg(4) {
-                "hair" => SheetKind::Hair,
-                "beard" => SheetKind::Beard,
-                "outfit" => SheetKind::Outfit,
-                "armor" => SheetKind::Armor,
-                "held" => SheetKind::Held,
-                _ => SheetKind::Body,
-            };
-            // (import KIND FILE [ID] [SHEETKIND] [scale=N])
+            let kind = if arg(1) == "tiled" { ImportKind::Tiled } else { ImportKind::Aseprite };
             let scale = cmd.iter().find_map(|a| a.strip_prefix("scale=")).and_then(|v| v.parse().ok()).unwrap_or(1);
-            ed.import = Some(import::ImportDialog { kind, id: arg(3).to_string(), sheet_kind, female: false, scale });
+            ed.import = Some(import::ImportDialog { kind, id: arg(3).to_string(), scale });
             ed.import_and_report(kind, std::path::Path::new(arg(2)));
             println!("[import] {}", ed.import_report.as_ref().map_or(String::new(), |r| r.1.clone()));
         }
@@ -383,6 +387,43 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 _ => files::Purpose::SoundFile(arg(2).into()),
             };
             ed.handle_file(purpose, arg(3).into());
+        }
+        // 3D models: modelimport FILE (a new model) · modelclips ID FILE (more clips) · modelfile ID FILE
+        "modelimport" => ed.handle_file(files::Purpose::ModelFile { id: String::new(), clips: false }, arg(1).into()),
+        "modelclips" => ed.handle_file(files::Purpose::ModelFile { id: arg(1).into(), clips: true }, arg(2).into()),
+        "modelfile" => ed.handle_file(files::Purpose::ModelFile { id: arg(1).into(), clips: false }, arg(2).into()),
+        // modelrig ID TEMPLATE|- [TURN]: fit a rig template to an unrigged model · modeljoint ID
+        // JOINT DX DY DZ: move a joint of its fit (parts of the height; adds up)
+        "modelrig" => {
+            let turn = cmd.get(3).and_then(|t| t.parse().ok());
+            println!("[script] {}", ed.fit_rig(arg(1), Some(arg(2)), turn, None).unwrap_or_else(|e| e));
+        }
+        "modeljoint" => {
+            let id = arg(1).to_string();
+            let mut joints = ed.project.db.model(&id).and_then(|m| m.rig.clone()).map(|r| r.joints).unwrap_or_default();
+            let v = [num(3), num(4), num(5)];
+            match joints.iter_mut().find(|j| j.joint == arg(2)) {
+                Some(j) => j.offset = [j.offset[0] + v[0], j.offset[1] + v[1], j.offset[2] + v[2]],
+                None => joints.push(rustpg2d_engine::defs::JointNudge { joint: arg(2).to_string(), offset: v }),
+            }
+            println!("[script] {}", ed.fit_rig(&id, None, None, Some(joints)).unwrap_or_else(|e| e));
+        }
+        // modelcompact: every model file of the project smaller (textures, clip files' meshes)
+        "modelcompact" => println!("[script] {}", ed.compact_models()),
+        // itemmodel ITEM FILE: the item's 3D model (where it is held estimated).
+        "itemmodel" => ed.handle_file(files::Purpose::ItemModel(arg(1).into()), arg(2).into()),
+        // itemicon ITEM: its inventory icon rendered from its 3D model.
+        "itemicon" => {
+            let m = ed.render_item_icon(arg(1));
+            println!("[script] {m}");
+        }
+        // itemhold ITEM estimate|turnhandle|turnfront|flip|at FRACTION|style grip|upright|hang|strap|size PX:
+        // the item form's 3D model controls.
+        "itemhold" => println!("[script] {}", ed.item_hold(arg(1), arg(2), arg(3))),
+        // itempreview idle|walk|attack [play] [MODEL]: the item form's preview.
+        "itempreview" => {
+            let play = arg(2) == "play";
+            database::set_hold_preview(arg(1), play, if play { arg(3) } else { arg(2) });
         }
         "newproject" => ed.handle_file(files::Purpose::NewProject, arg(1).into()),
         "openproject" => ed.handle_file(files::Purpose::OpenProject, arg(1).into()),
@@ -421,9 +462,10 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.art_action(database::ArtAction::NewFrame { cells }, tab);
             println!("[script] {}", ed.status.0);
         }
-        // Character builder: charnew [ID] · charcustom (selected placed NPC) · charset KEY VALUE
-        // (body|hair|beard|skin|haircolor|clothing|head|armor|weapon|offhand|carry ITEMxN|
-        // random|id|name; on the open builder, else the selected character) · charrandom ·
+        // Character editor: charnew [ID NAME] (New character…) · charcustom (selected placed NPC) ·
+        // charset KEY VALUE (body|color FEATURE RRGGBB|-|clothing|head|armor|weapon|offhand|
+        // carry ITEMxN|random|id|name|source existing|draw|import|ai|size SIZE|from SHEET|-|
+        // female on|off; on the open window, else the selected character) · charrandom ·
         // chartemplate ID (project or library character) · charcreate / charapply · charcancel ·
         // charreset (selected NPC uses the definition's look)
         "charnew" => {
@@ -567,7 +609,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -595,6 +637,9 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.search.status(),
             ed.usages.status(),
             ed.problems.status(),
+            ed.lib_update.status(),
+            ed.art.status(),
+            ed.px.status(),
             ed.mode,
             ed.db.tab,
             ed.db.sel,
@@ -952,6 +997,90 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 ed.jump_to(&t);
             }
         }
+        // libupdate: Assets › Update asset library… (prints the lists) · libupdatepick edited|retired KIND ID on|off · libupdateok · libupdatecancel
+        "libupdate" => {
+            ed.open_library_update();
+            let u = &ed.lib_update;
+            if let Some(e) = &u.error {
+                println!("[libupdate] error: {e}");
+            }
+            if let Some(p) = &u.plan {
+                let ids = |v: &[rustpg2d_engine::library::AssetRef]| v.iter().map(|a| format!("{}:{}", a.0.name(), a.1)).collect::<Vec<_>>().join(" ");
+                println!("[libupdate] added: {}", ids(&p.added));
+                println!("[libupdate] updated: {}", ids(&p.updated));
+                println!("[libupdate] edited: {}", ids(&p.edited));
+                for r in &p.retired {
+                    println!("[libupdate] retired: {}:{} untouched={} used_by={:?} delete={}", r.asset.0.name(), r.asset.1, r.untouched, r.used_by, u.delete.contains(&r.asset));
+                }
+                println!("[libupdate] {}", p.counts());
+            }
+        }
+        "libupdatepick" => match rustpg2d_engine::refactor::RefKind::parse(arg(2)) {
+            Some(kind) => {
+                let a = (kind, arg(3).to_string());
+                let set = if arg(1) == "retired" { &mut ed.lib_update.delete } else { &mut ed.lib_update.take };
+                if arg(4) == "off" {
+                    set.remove(&a);
+                } else {
+                    set.insert(a);
+                }
+            }
+            None => eprintln!("[script] libupdatepick: unknown kind {:?}", arg(2)),
+        },
+        "libupdateok" => {
+            ed.apply_library_update();
+            println!("[libupdate] {}", ed.lib_update.report.clone().or_else(|| ed.lib_update.error.clone()).unwrap_or_default());
+        }
+        "libupdatecancel" => ed.lib_update.open = false,
+        // Generate art: artwindow / settingswindow open the windows · artgen KIND ID SIZE ATTACK DESCRIPTION… starts a
+        // job (the cost confirmed) · artkind KIND = the window's kind · artjobs prints them · artapply JOB [ID] · artredo JOB PICTURE · status prints art=
+        "artwindow" => ed.art.window.open = true,
+        "artkind" => match art::ArtKind::parse(arg(1)) {
+            Some(k) => {
+                ed.art.window.open = true;
+                ed.art.window.kind = k;
+            }
+            None => println!("[art] unknown kind {:?}", arg(1)),
+        },
+        "settingswindow" => ed.art.settings_open = true,
+        "artgen" => {
+            let kind = art::ArtKind::parse(arg(1));
+            match kind {
+                Some(kind) => {
+                    // 3D characters take their options in the SIZE place: female / male, from=SHEET (comma separated).
+                    let opts: Vec<&str> = arg(3).split(',').collect();
+                    let from = opts.iter().find_map(|o| o.strip_prefix("from=")).unwrap_or("").to_string();
+                    let req = art::ArtRequest { kind, id: arg(2).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from, extras: opts.iter().filter(|o| art::EXTRAS.contains(o)).map(|o| o.to_string()).collect() };
+                    match ed.start_art(req) {
+                        Ok(id) => println!("[art] started job {id}"),
+                        Err(e) => println!("[art] refused: {e:#}"),
+                    }
+                }
+                None => println!("[art] unknown kind {:?}", arg(1)),
+            }
+        }
+        // artbalance: Edit › Settings › Meshy › Test key (prints the balance, never the key)
+        "artbalance" => match art::meshy::balance(&art::api_key()) {
+            Ok(b) => println!("[art] balance {b}"),
+            Err(e) => println!("[art] balance failed: {e:#}"),
+        },
+        "artjobs" => {
+            for j in &ed.art.jobs {
+                println!("[art] {}", j.lock().unwrap().line());
+            }
+        }
+        "artapply" => {
+            let job = num(1) as u32;
+            let id = if arg(2).is_empty() { ed.art.job(job).map(|j| j.lock().unwrap().req.id.clone()).unwrap_or_default() } else { arg(2).to_string() };
+            match ed.apply_art(job, &id) {
+                Ok(m) => println!("[art] {m}"),
+                Err(e) => println!("[art] apply refused: {e:#}"),
+            }
+        }
+        "artredo" => match ed.redo_art(num(1) as u32, arg(2)) {
+            Ok(()) => println!("[art] redrawing"),
+            Err(e) => println!("[art] redo refused: {e:#}"),
+        },
         // problems [AREA]: check the project, print the list (opens the Problems window) · problempick K: click entry K
         "problems" => {
             ed.refresh_problems();
@@ -986,7 +1115,10 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
         }
         // Pixel editor: pxopen REL FW FH · pxtool NAME · pxcolor RRGGBB · pxat X Y [right] · pxsave
-        "pxopen" => ed.open_pixel(arg(1), (num(2) as u32, num(3) as u32), pixel::Layout::Plain),
+        // pxopen REL FW FH [layout]: `layout` labels the rows of the four-facing layout
+        "pxopen" => {
+            ed.open_pixel(arg(1), (num(2) as u32, num(3) as u32), if arg(4) == "layout" { pixel::Layout::Character } else { pixel::Layout::Plain });
+        }
         "pxtool" => {
             if let Some(t) = pixel::PxTool::parse(arg(1)) {
                 ed.px.tool = t;
@@ -1002,6 +1134,51 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // pxframe N: select frame N · pxclip copy|cut|paste|mirror (Ctrl+C / X / V)
         "pxframe" => ed.px.sel_frame = num(1) as u32,
         "pxclip" => ed.frame_clipboard(arg(1)),
+        // Four-facing sheets: pxanim walk|idle|attack|hurt down|left|right|up · pxplay on|off · pxonion on|off
+        // [next] · pxdup · pxnudge DX DY · pxrow copy|paste|clear|mirror [all] · pxfill standing ·
+        // pxreplace FROM TO frame|row|sheet (RRGGBB colours) · pxundo; `status` prints `pixel=`
+        "pxanim" => match (frame_ops::anim_index(arg(1)), frame_ops::dir_index(arg(2))) {
+            (Some(a), Some(d)) => ed.px.show_anim(a, d),
+            _ => println!("[script] pxanim: walk|idle|attack|hurt down|left|right|up"),
+        },
+        "pxplay" => ed.px.playing = arg(1) != "off",
+        "pxundo" => {
+            if let Some(d) = &mut ed.px.doc {
+                d.undo();
+            }
+        }
+        "pxonion" => {
+            ed.px.onion = arg(1) != "off";
+            ed.px.onion_next = ed.px.onion && arg(2) == "next";
+        }
+        "pxdup" | "pxnudge" | "pxrow" | "pxfill" | "pxreplace" => {
+            let rgb = |v: &str| u32::from_str_radix(v.trim_start_matches('#'), 16).ok().map(|v| [(v >> 16) as u8, (v >> 8) as u8, v as u8]);
+            let op = match (arg(0), arg(1)) {
+                ("pxdup", _) => Some(pixel::FrameOp::Duplicate),
+                ("pxnudge", _) => Some(pixel::FrameOp::Nudge(num(1) as i32, num(2) as i32)),
+                ("pxrow", "copy") => Some(pixel::FrameOp::RowCopy),
+                ("pxrow", "paste") => Some(pixel::FrameOp::RowPaste),
+                ("pxrow", "clear") => Some(pixel::FrameOp::RowClear),
+                ("pxrow", "mirror") => Some(pixel::FrameOp::Mirror(arg(2) == "all")),
+                ("pxfill", _) => Some(pixel::FrameOp::FillStanding),
+                ("pxreplace", _) => match (rgb(arg(1)), rgb(arg(2))) {
+                    (Some(from), Some(to)) => {
+                        let scope = match arg(3) {
+                            "frame" => pixel::Scope::Frame,
+                            "row" => pixel::Scope::Row,
+                            _ => pixel::Scope::Sheet,
+                        };
+                        Some(pixel::FrameOp::Replace { from, to: [to[0], to[1], to[2], 255], scope })
+                    }
+                    _ => None,
+                },
+                _ => None,
+            };
+            match op.and_then(|op| ed.px.frame_op(op)) {
+                Some(m) => println!("[script] {m}"),
+                None => println!("[script] {}: nothing done", arg(0)),
+            }
+        }
         // dbscroll Y: scrolls the Database form to Y px (a large number = the end)
         "dbscroll" => ed.db.form_scroll = Some(num(1)),
         "tab" => {
@@ -1020,6 +1197,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "spells" => Tab::Spells,
                 "recipes" => Tab::Recipes,
                 "achievements" => Tab::Achievements,
+                "races" => Tab::Races,
+                "models" => Tab::Models,
                 _ => Tab::Items,
             };
             // tab KIND N, or tab KIND ID (sheets, tilesets, items, props, characters).
@@ -1032,6 +1211,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Characters => db.characters.iter().position(|d| d.id == arg(2)),
                 Tab::Recipes => db.recipes.iter().position(|d| d.id == arg(2)),
                 Tab::Achievements => db.achievements.iter().position(|d| d.id == arg(2)),
+                Tab::Races => db.races.iter().position(|d| d.id == arg(2)),
+                Tab::Models => db.models.iter().position(|d| d.id == arg(2)),
                 _ => None,
             };
             ed.db.sel = by_id.unwrap_or(num(2) as usize);
@@ -1148,8 +1329,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
         }
         // entequip ITEM: the selected NPC wears / holds ITEM (its own equipment, in the item's slot)
-        // entskin RRGGBB: the selected NPC gets its own look with that skin color
-        "entequip" | "entskin" => {
+        // entcolor FEATURE RRGGBB|-: the selected NPC gets its own look with that feature colour
+        "entequip" | "entcolor" => {
             if let (Selection::Entity(uid), Some(doc)) = (ed.sel, ed.doc.as_mut()) {
                 let before = doc::Objects::of(&doc.map);
                 let db = &ed.project.db;
@@ -1160,9 +1341,17 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                             let eq = e.equipment.get_or_insert_with(|| d.equipment.clone());
                             *eq.slot_mut(slot) = Some(rustpg2d_engine::inventory::ItemStack::new(arg(1), 1));
                         }
-                    } else if let (Ok(v), Some(d)) = (u32::from_str_radix(arg(1), 16), &def) {
+                    } else if let Some(d) = &def {
+                        // entcolor FEATURE RRGGBB|-
                         let a = e.appearance.get_or_insert_with(|| d.appearance.clone());
-                        a.skin = [(v >> 16) as u8, (v >> 8) as u8, v as u8];
+                        match u32::from_str_radix(arg(2), 16) {
+                            Ok(v) => {
+                                a.colors.insert(arg(1).to_string(), [(v >> 16) as u8, (v >> 8) as u8, v as u8]);
+                            }
+                            Err(_) => {
+                                a.colors.remove(arg(1));
+                            }
+                        }
                     }
                 }
                 doc.record_objects(before, "inspector");

@@ -19,6 +19,11 @@ pub enum Purpose {
     TilesetImage(String),
     SheetImage(String),
     SoundFile(String),
+    /// A 3D model file (`.glb`): a new model (`id` empty), model `id`'s file, or (`clips`) a file
+    /// with more clips for it.
+    ModelFile { id: String, clips: bool },
+    /// The 3D model (`.glb`) of item `id` (held by 3D model characters).
+    ItemModel(String),
     /// A `.r2dpack` to import into the library or the project.
     ImportPackage { into_library: bool },
     /// Where to write a `.r2dpack` with these assets.
@@ -63,6 +68,8 @@ impl PendingDialog {
                 Purpose::TilesetImage(_) => d.set_title("Choose tileset image").add_filter("Images", &images).pick_file(),
                 Purpose::SheetImage(_) => d.set_title("Choose sprite sheet image").add_filter("Images", &images).pick_file(),
                 Purpose::SoundFile(_) => d.set_title("Choose sound").add_filter("Audio (WAV, OGG)", &["wav", "ogg"]).pick_file(),
+                Purpose::ItemModel(_) => d.set_title("Choose the item's 3D model").add_filter("glTF binary", &["glb"]).pick_file(),
+                Purpose::ModelFile { clips, .. } => d.set_title(if clips { "Choose a file with clips" } else { "Choose a 3D model" }).add_filter("glTF binary", &["glb"]).pick_file(),
                 Purpose::ExportGameFolder => d.set_title("Folder for the exported game").pick_folder(),
                 Purpose::ExportIcon => d.set_title("Icon of the game (PNG, e.g. 256 x 256)").add_filter("PNG image", &["png"]).pick_file(),
                 Purpose::Import(k) => {
@@ -166,18 +173,25 @@ pub(crate) fn config_dir() -> Option<PathBuf> {
     Some(dir)
 }
 
-/// The editor's own settings (`<config dir>/editor.ron`): the AI agent server's choices.
+/// The editor's own settings (`<config dir>/editor.ron`): the AI agent server's choices and the
+/// Meshy art settings (the API key is kept apart, in `meshy.key`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct EditorSettings {
     /// Start the agent server when the editor starts.
     pub mcp_autostart: bool,
     pub mcp_port: u16,
+    /// Meshy model for Generate art.
+    pub meshy_model: String,
+    /// Credits a session may spend on art.
+    pub meshy_budget: u32,
+    /// The Art window asks before each spend.
+    pub meshy_ask: bool,
 }
 
 impl Default for EditorSettings {
     fn default() -> Self {
-        EditorSettings { mcp_autostart: false, mcp_port: crate::mcp::DEFAULT_PORT }
+        EditorSettings { mcp_autostart: false, mcp_port: crate::mcp::DEFAULT_PORT, meshy_model: "nano-banana-2-lite".into(), meshy_budget: 60, meshy_ask: true }
     }
 }
 

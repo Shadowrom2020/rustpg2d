@@ -3,46 +3,27 @@
 ## Sizes and layouts
 
 - **Tiles** are always 32 × 32 pixels. Tilesets are images of tiles in a grid.
-- **Characters** are usually 32 × 48 pixels per frame (64 × 96 on 2× sheets). A **character sheet**
-  has 4 rows (facing down, left, right, up) × 4 walk frames; the first column is the standing pose.
-  It may continue with 12 more rows of the same order: **idle** (rows 5–8, 2 frames: breathing),
-  **attack** (rows 9–12, 4 frames: wind-up, swing, follow-through, recover) and **hurt** (rows 13–16,
-  1 frame). The game plays them when they are there and shows the standing frame otherwise. Bodies,
-  hair, beards, outfits, armor and held items all use this layout, so the layers line up. A body
-  marked **Complete figure** has everything painted in and is drawn alone ([Characters](06-characters.md#how-characters-look)).
+- **Characters** are 3D models, not sprite sheets ([Characters](06-characters.md#how-characters-look)).
 - **Item icons** are 32 × 32. **Props** use one frame, or a block of several frames for big props.
 - **Portraits** can be any size (64 × 64 works well).
-- The starter library's characters (people, animals, monsters and every layer they wear) are
-  **2× sheets**: 64 × 96 image pixels per frame for people, drawn in the 32 × 48 place
-  ([High-resolution sprites](#high-resolution-sprites)). Your own 1× layers still fit them.
 - Keep images at most 2048 pixels wide and high; the editor shrinks bigger ones for display.
 
 ### High-resolution sprites
 
 A sprite sheet can carry more detail than its place in the world: its **Scale** (*Database ›
 Sprite sheets*) says how many image pixels make one world pixel. At **2×** a character frame is
-drawn 64 × 96 pixels in the image and fills the same 32 × 48 place as a 1× character, with twice
-the detail; item icons are 64 × 64, and so on (3× and 4× work the same way). Sheets of different
-scales mix freely: a 2× body wears 1× hair and outfits, and they line up. Positions, hitboxes and
-tiles stay in world pixels, and tilesets are always 1×.
+drawn 64 × 64 pixels in the image and fills the same 32 × 32 place as a 1× sprite, with twice
+the detail; item icons are 64 × 64, and so on (3× and 4× work the same way). Positions, hitboxes
+and tiles stay in world pixels, and tilesets are always 1×.
 
 The game draws the world magnified (the project's *Scale* times the player's *Zoom*), so a 2× sheet
 shows all its detail at a magnification of 2 or more; at less it is sampled down. The frame size
 on the form is in image pixels; the form shows the size in the world below it. The pixel editor
 works on the image's own pixels, and the sheet and frame pickers show 2× frames at the same size
-as 1× ones. A 2× body must still use the skin and hair reference shades below.
+as 1× ones.
 
 Positions of entities are their **feet** (bottom centre), which is how characters stand on tiles
 and sort in front of and behind each other.
-
-### Drawing layered characters
-
-The starter bodies are drawn with reference shades that the game recolours: skin in **magenta**
-shades (recoloured to the chosen skin colour) and hair in **cyan** shades (the chosen hair colour).
-To draw your own body or hair style, start from a copy of a starter sheet (`body_male.png`,
-`hair_short.png`) and keep those shades. Outfits and armor draw an outline only where they stick out
-past the body. An outfit has a **female cut** (`outfit_X_f` next to `outfit_X`) for female bodies,
-and held items follow the hand positions of the walk animation.
 
 ## The pixel editor
 
@@ -58,12 +39,31 @@ prop and character forms open it.
 
 - The left and right mouse buttons draw with two colours (X swaps them). The palette shows a default
   set and the colours used in the image.
-- Mouse wheel zooms, middle-drag pans; the pixel grid and the frame grid can be shown (character
-  sheets label their rows *Down / Left / Right / Up*).
+- Mouse wheel zooms, middle-drag pans; the pixel grid and the frame grid can be shown.
 - **Frames**: click one to select it, **Ctrl+C** copies it, **Ctrl+X** cuts it (copies and clears),
   **Ctrl+V** replaces the selected frame with the copy. Buttons do the same, plus *Paste mirrored*,
   *Flip* and *Clear*. *Canvas … Resize* adds frames.
 - A live preview shows the selected frame and its row as an animation.
+
+**Four-facing sheets**: with **Four-facing rows** on, the rows are labelled (blocks of walk, idle,
+attack and hurt, each facing down, left, right and up: 4 columns, 16 rows) and an **animation
+panel** replaces the row preview:
+
+- pick the **animation** (*Walk* 4 frames, *Idle* 2, *Attack* 4, *Hurt* 1) and the **facing**; it
+  plays at the chosen speed, *Pause* / *Next frame* step through it, and the **frame strip** below
+  selects a frame of it;
+- **Onion skin** shows the animation's previous frame (red) and, with *and the next*, the next
+  frame (green) faintly over the selected one, to draw the next pose in line;
+- **Duplicate →** copies the frame into the next column; the arrows (or **Shift+arrow keys**) move
+  the frame's pixels by one, e.g. to line up the feet;
+- **Copy row** / **Paste row** / **Clear row** work on the selected frame's row;
+- **Mirror Left → Right** makes the animation's Right row the mirrored Left row (*all animations*
+  for every animation);
+- **Fill idle & hurt** gives empty idle and hurt frames the standing walk frame of their facing;
+- **Replace colour** turns the right colour (pick it with the picker's right click) into the left
+  colour in the frame, its row or the sheet.
+
+Every operation is one undo step.
 - **Ctrl+S** saves the PNG and updates it everywhere; Ctrl+Z / Ctrl+Y undo and redo.
 
 ## New assets
@@ -72,11 +72,66 @@ prop and character forms open it.
 (size in tiles), an **item**, a **tileset**, a **sprite sheet** or a **structure**. Draw a new image,
 start from a copy of an existing one, or reuse a frame of an existing sheet. New images open in the
 pixel editor, and the definitions get sensible hitboxes and speeds. Characters are made with **New
-character…** (the character builder).
+character…**: from an existing 3D model, an imported one or AI generation ([Characters › New
+characters](06-characters.md#new-characters)).
 
 In the forms, **+ New blank icon** (items) and **+ New blank frame for this state** (props) find an
-empty frame on the sheet, or add a row when it's full, and open it for drawing. Characters have
-**+ New sheet**: a blank 4 × 4 walking sheet or a copy of another character's.
+empty frame on the sheet, or add a row when it's full, and open it for drawing.
+
+## Generate art with Meshy
+
+*Assets › Generate art…* draws new art with your own [Meshy](https://www.meshy.ai) account. Enter
+your API key once in *Edit › Settings… › Meshy* (it is kept for your user only, apart from
+projects, and never shown to AI agents); *Test key* shows your credits. The settings also pick
+the model (the cheapest, *Nano Banana 2 Lite*, costs 3 credits a picture), a **budget per
+session** (Generate art stops when the session has spent it) and *Ask before spending*.
+
+In the window, choose what to make, give it an id and describe it. The first row makes **3D art**
+(characters are 3D models; see [Characters › How characters look](06-characters.md#how-characters-look)):
+
+- **Item icon**: 32 × 32, in the style of your *items* sheet's icons.
+- **Prop**: 1 to 4 tiles wide and high, standing on its bottom edge.
+- **Portrait**: head and shoulders for dialogs, 128 × 128 at 2×; *For character* makes it that
+  character's dialog portrait when added.
+- **Painted image**: a picture for *Show image* (up to 1024 pixels).
+
+The second row makes pictures: the item icons, props, portraits and painted images above.
+
+The 3D kinds:
+
+- **3D character**: a person, modelled, rigged and animated. Meshy first draws a turnaround picture
+  (front, side and back in an A-pose with empty hands, no weapons; 3 credits), or, with **From
+  figure** set to a sheet in the four-facing layout (an old figure), uses its standing frames
+  instead. Then it builds a 3D model from the
+  three views (30), gives it a skeleton (5) and animations from its library (3 each): walking,
+  standing, the chosen attack (sword slash, overhead blow, spear thrust, bow shot, club smash,
+  spell cast), a hit reaction and sitting on a chair (*a woman* picks the women's sitting clip).
+  **Extra animations** add clips for work (3 credits each): *craft* (hammering at an anvil),
+  *farm* (bending to pick crops), *chop* and *sleep*; fishing, sweeping and reading have no clip in
+  Meshy's library and play idle with the tool in hand. About 50 credits; each step takes one to three minutes. *Add to project* writes `models/<id>.glb`
+  and `models/<id>_clips.glb`, adds the 3D model with its clips mapped to the animations and a
+  character using it. Pick its colour features in *Database › 3D models* afterwards.
+- **3D creature**: an animal or monster: a picture and an unrigged model of it (33 credits), or
+  from a figure's three views (*From figure*, 30). Meshy rigs only people, so it is added as a 3D
+  model without a character; a rig template animates it.
+- **Item 3D model**: the **Id** is an existing item. With a **description** Meshy first draws a
+  clean picture of it (the icon as the reference: same colours and parts, in proper proportions;
+  long things upright, handle at the bottom) and models that (33 credits); without one it models
+  the icon itself (30 credits; a 32 px icon gives a bulky model). *Add to project* gives the item the model,
+  held as its kind says (hold style, length, hold point estimated): check it in the preview of the
+  item's *3D model* section.
+
+*Draw* shows the cost first; a picture then takes about a minute, a 3D step one to three. The result
+is previewed; **Redo …** draws a picture again if Meshy got something wrong (a missing staff, a wrong
+colour; in 3D jobs it makes that step again with the steps after it, e.g. a new rig needs new
+clips), and **Add to project** writes the image and its sprite sheet, plus an item (icons) or a prop
+(props) with that id when there is none yet; 3D jobs write their model files (made smaller: textures
+as the game uses them, clip files without the mesh). **Edit in sprite editor** then
+opens the new sheet to touch it up. The status bar tells when a
+job is ready and what it cost. Agents can do all of this from a chat ([AI agents](13-ai-agents.md#drawing-art)).
+
+The rig templates are made by `scripts/art/rigs/templates.py` (Blender). The scripts the 2D art of
+earlier versions was drawn with are in `scripts/art/meshy/`.
 
 ## Importing
 
@@ -96,16 +151,11 @@ base64 or compressed tile data):
 
 Flips, rotations, image layers and tile objects are dropped and counted.
 
-**LPC character sheets** (a Universal LPC Spritesheet with 64 × 64 frames, or a 4-row LPC walk
-cycle): the walk animation becomes a sheet in R(ust)PG2D's layout, as a body, hair, beard, outfit,
-armor or held-item sheet (the dialog asks). Other animations are left out, and colours aren't
-recoloured.
+**Aseprite sprite sheets** (the JSON of *File › Export Sprite Sheet*, next to its PNG): the frames
+are packed into a grid and the tags become the sheet's **animations**, which the *Effect*
+and *Fly* actions offer and scripts play with `effect(sheet, x, y, #{ tag: "explode" })`.
 
-**Aseprite sprite sheets** (the JSON of *File › Export Sprite Sheet*, next to its PNG): the frames are
-packed into a grid and the tags become the sheet's **animations**, which the *Effect* and *Fly*
-actions offer and scripts play with `effect(sheet, x, y, #{ tag: "explode" })`.
-
-For LPC and Aseprite imports the dialog also asks for the **Scale** of the new sheet (2× for art
+For Aseprite imports the dialog also asks for the **Scale** of the new sheet (2× for art
 drawn at twice the resolution; see [High-resolution sprites](#high-resolution-sprites)).
 
 ## Sounds and music

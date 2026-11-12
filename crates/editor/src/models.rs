@@ -87,10 +87,8 @@ impl Editor {
                 for (kind, old, new) in &report.renamed {
                     match kind {
                         RefKind::Sheet => {
-                            for s in [&mut a.body, &mut a.hair, &mut a.beard] {
-                                if s == old {
-                                    *s = new.clone();
-                                }
+                            if &a.body == old {
+                                a.body = new.clone();
                             }
                         }
                         RefKind::Item => {
@@ -165,7 +163,7 @@ impl Editor {
                         Some(ModelPick::Project(s)) => format!("Project: {}", self.project.db.character(s).map_or(s.clone(), |c| c.name.clone())),
                         Some(ModelPick::Library(c)) => format!("Library: {} (its sheets and items are copied into the project)", self.lib_char_name(c)),
                     });
-                    ui.weak("Copies the body, colors, hair, beard and equipment; the target's other settings stay.");
+                    ui.weak("Copies the model, colours and equipment; the target's other settings stay.");
                     ui.horizontal(|ui| {
                         if ui.add_enabled(st.pick.is_some(), egui::Button::new("\u{E182} Use this look")).clicked() {
                             done = Some(true);
@@ -189,8 +187,8 @@ impl Editor {
             let q = st.search.to_lowercase();
             let gender_ok = |db: &rustpg2d_engine::defs::Database, c: &CharacterDef| match st.gender {
                 Gender::All => true,
-                Gender::Male => !db.female_body(&c.appearance.body),
-                Gender::Female => db.female_body(&c.appearance.body),
+                Gender::Male => !db.model(&c.appearance.model).is_some_and(|m| m.female),
+                Gender::Female => db.model(&c.appearance.model).is_some_and(|m| m.female),
             };
             // (pick, label, tooltip)
             let entries: Vec<(ModelPick, String, String)> = if st.library {
@@ -298,8 +296,9 @@ impl Editor {
         let facing = [rustpg2d_engine::entity::Facing::Down, rustpg2d_engine::entity::Facing::Left, rustpg2d_engine::entity::Facing::Right, rustpg2d_engine::entity::Facing::Up][row as usize % 4];
         match pick {
             ModelPick::Project(id) => {
-                let layers = self.char_layers(id, None, facing, 0);
-                widgets::paint_character(ui, &self.tex, &self.assets, &layers, rect);
+                if let Some((a, _)) = self.char_look(id, None) {
+                    widgets::paint_character(ui, &self.assets, &a, facing, rect);
+                }
             }
             ModelPick::Library(c) => {
                 self.lib.paint_character(ui, c, facing, rect);

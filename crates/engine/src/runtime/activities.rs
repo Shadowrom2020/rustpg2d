@@ -78,14 +78,10 @@ impl Game {
         true
     }
 
-    /// The equipment character `i` is drawn with: its activity's tool in the hand.
-    pub(super) fn activity_equipment(&self, i: usize) -> Option<crate::state::Equipment> {
+    /// The tool character `i` holds while working at its activity (instead of its weapon).
+    pub(super) fn activity_tool(&self, i: usize) -> Option<String> {
         let (a, _) = self.current_activity(i)?;
-        let mut eq = self.loaded.entities[i].equipment.clone();
-        if !a.tool.is_empty() {
-            eq.weapon = Some(crate::inventory::ItemStack::new(&a.tool, 1));
-        }
-        Some(eq)
+        (!a.tool.is_empty()).then(|| a.tool.clone())
     }
 
     /// The walk column character `i` is drawn with while working (strokes swing the arms).
@@ -113,7 +109,10 @@ impl Game {
             let front = if facing == Facing::Up && a.kind == ActivityKind::Craft { e.body.pos - vec2(0.0, 50.0 * k) } else { e.body.pos + dir * ts * 0.75 - vec2(0.0, 4.0 * k) };
             match a.kind {
                 ActivityKind::Fish => {
-                    let tip = rod_tip(e.body.pos, facing, k);
+                    let tool = self.activity_tool(i);
+                    let gear = self.character_gear(&e.equipment, &e.carrying, tool.as_deref());
+                    let pose = (facing, super::paperdoll::Anim::Extra(a.kind.id(), self.activity_frame(i).unwrap_or(0)));
+                    let tip = tool.as_deref().and_then(|t| self.held_tip(&e.appearance, e.body.pos, &gear, pose, t)).unwrap_or_else(|| rod_tip(e.body.pos, facing, k));
                     let bob = e.body.pos + dir * ts * 1.7 + vec2(0.0, (t * 2.5 + seed).sin() * 1.5 * k);
                     draw_line(tip.x, tip.y, bob.x, bob.y, 1.0 * k, Color::new(0.9, 0.9, 0.9, 0.8));
                     draw_circle(bob.x, bob.y, 3.0 * k, Color::new(0.9, 0.15, 0.1, 1.0));

@@ -419,14 +419,15 @@ impl Game {
         let x = r.x + LIST_W + 26.0;
         let w = r.x + r.w - PAD - x;
         let top = r.y + 58.0;
-        // Portrait: the definition's look, as dressed.
+        // Portrait: the definition's figure.
         let plate = Rect::new(x, top, 110.0, 140.0);
         draw_rectangle(plate.x, plate.y, plate.w, plate.h, Color::new(0.0, 0.0, 0.0, 0.4));
         draw_rectangle_lines(plate.x, plate.y, plate.w, plate.h, 1.5, Color::new(0.55, 0.45, 0.22, 1.0));
         let (fw, fh) = self.character_frame_size(&d.appearance);
         let scale = ((plate.w - 10.0) / fw).min((plate.h - 10.0) / fh).floor().max(1.0);
         let (pw, ph) = (fw * scale, fh * scale);
-        self.draw_character_in(&d.appearance, &d.equipment, Rect::new(plate.x + (plate.w - pw) / 2.0, plate.bottom() - 5.0 - ph, pw, ph));
+        let gear = self.character_gear(&d.equipment, "", None);
+        self.draw_character_in(&d.appearance, &gear, Rect::new(plate.x + (plate.w - pw) / 2.0, plate.bottom() - 5.0 - ph, pw, ph));
 
         // Name and numbers beside the portrait.
         let sx = plate.right() + 18.0;

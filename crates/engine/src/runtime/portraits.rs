@@ -1,13 +1,12 @@
-//! Dialog portraits: the speaker's head and shoulders at the left of the dialog box, drawn
-//! from their layered model (as dressed now). Nothing to set up per character: the speaker is
+//! Dialog portraits: the speaker's head and shoulders at the left of the dialog box, a close-up
+//! render of their model (in their colours). Nothing to set up per character: the speaker is
 //! found from the dialog's speaker text (`ProjectConfig::dialog_portraits` turns it off).
 
 use macroquad::prelude::*;
 
 use super::Game;
 use crate::defs::{Appearance, SpriteRef};
-use crate::entity::{EntityKind, Facing};
-use crate::state::Equipment;
+use crate::entity::EntityKind;
 
 /// Whose portrait a dialog shows.
 #[derive(Clone, Debug, PartialEq)]
@@ -31,9 +30,6 @@ fn names_match(a: &str, b: &str) -> bool {
     let (short, long) = if a.len() <= b.len() { (a, b) } else { (b, a) };
     short.iter().all(|w| long.contains(w))
 }
-
-/// The part of a 32 x 48 character frame a portrait shows: the head and the shoulders.
-const BUST: Rect = Rect { x: 0.125, y: 0.0, w: 0.75, h: 0.56 };
 
 impl Game {
     /// Finds who speaks: `raw` is the dialog's speaker as written ("{self}", "{player}", a
@@ -71,7 +67,7 @@ impl Game {
         if let Some(e) = near {
             return Some(Speaker::Entity(e.uid));
         }
-        db.characters.iter().find(|d| names_match(&d.name, name) && !d.appearance.body.is_empty()).map(|d| Speaker::Def(d.id.clone()))
+        db.characters.iter().find(|d| names_match(&d.name, name) && d.appearance.has_look()).map(|d| Speaker::Def(d.id.clone()))
     }
 
     /// Shows the portrait of whoever `raw` / `shown` names in the dialog just opened.
@@ -120,8 +116,8 @@ impl Game {
                 return;
             }
         }
-        if let Some((a, eq)) = self.speaker_look(&s) {
-            self.draw_bust(&a, &eq, r);
+        if let Some(a) = self.speaker_look(&s) {
+            self.draw_bust(&a, r);
         }
     }
 
@@ -152,28 +148,24 @@ impl Game {
         }
     }
 
-    /// The look and gear a portrait shows.
-    fn speaker_look(&self, s: &Speaker) -> Option<(Appearance, Equipment)> {
+    /// The look a portrait shows.
+    fn speaker_look(&self, s: &Speaker) -> Option<Appearance> {
         match s {
-            Speaker::Player => Some((self.player_appearance()?, self.world.equipment.clone())),
+            Speaker::Player => self.player_appearance(),
             Speaker::Entity(uid) => {
                 let e = self.loaded.entities.iter().find(|e| e.uid == *uid)?;
-                (!e.appearance.body.is_empty()).then(|| (e.appearance.clone(), e.equipment.clone()))
+                e.appearance.has_look().then(|| e.appearance.clone())
             }
-            Speaker::Def(id) => self.project.db.character(id).map(|d| (d.appearance.clone(), d.equipment.clone())),
+            Speaker::Def(id) => self.project.db.character(id).map(|d| d.appearance.clone()),
         }
     }
 
     /// Head and shoulders of a character, scaled into `r` (bottom-aligned, centered).
-    pub(super) fn draw_bust(&self, a: &Appearance, eq: &Equipment, r: Rect) {
-        let (fw, fh) = self.character_frame_size(a);
-        let part = if (fw, fh) == (32.0, 48.0) { BUST } else { Rect::new(0.0, 0.0, 1.0, 0.6) };
-        let (pw, ph) = (fw * part.w, fh * part.h);
-        let scale = (r.w / pw).min(r.h / ph);
-        let (w, h) = (pw * scale, ph * scale);
-        let dest = Rect::new(r.x + (r.w - w) / 2.0, r.bottom() - h, w, h);
-        for l in self.character_layers(a, eq, Facing::Down, 0, false) {
-            self.assets.draw_frame_part_in(&l.sheet, l.frame, part, dest, l.skin, l.hair);
+    pub(super) fn draw_bust(&self, a: &Appearance, r: Rect) {
+        // A close-up render, square, scaled into the box.
+        if let Some(cell) = self.model_bust(a) {
+            let side = r.w.min(r.h);
+            self.assets.models.draw_in(&cell, Rect::new(r.x + (r.w - side) / 2.0, r.bottom() - side, side, side), WHITE);
         }
     }
 
@@ -182,10 +174,9 @@ impl Game {
         let (Some(r), Some(s)) = (self.ui.portrait_rect, &self.portrait) else { return };
         draw_rectangle(r.x, r.y, r.w, r.h, Color::new(0.0, 0.0, 0.0, 0.45));
         let drawn = self.portrait_image(s).is_some_and(|p| self.assets.draw_sprite_fit(&p, Rect::new(r.x + 3.0, r.y + 3.0, r.w - 6.0, r.h - 6.0)));
-        if let Some((a, eq)) = self.speaker_look(s).filter(|_| !drawn) {
-            // Head and shoulders, scaled to the square (weapons are left out: they'd poke in).
-            let eq = Equipment { weapon: None, offhand: None, tool: None, ..eq };
-            self.draw_bust(&a, &eq, Rect::new(r.x + 4.0, r.y + 4.0, r.w - 8.0, r.h - 4.0));
+        if let Some(a) = self.speaker_look(s).filter(|_| !drawn) {
+            // Head and shoulders, scaled to the square.
+            self.draw_bust(&a, Rect::new(r.x + 4.0, r.y + 4.0, r.w - 8.0, r.h - 4.0));
         }
         draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, Color::new(0.85, 0.72, 0.38, 1.0));
     }

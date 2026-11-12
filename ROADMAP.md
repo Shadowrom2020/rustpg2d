@@ -85,75 +85,20 @@ Instructions for every session (people and coding agents) that implements roadma
 16. **Cutting a release.** `release/X.Y.Z` from develop: version in `Cargo.toml` (the build
     updates `Cargo.lock`), `## Unreleased` → `## X.Y.Z — date`, README *Current version*,
     the version's roadmap section removed from this file (the CHANGELOG is its record),
-    `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
+    `starter_history.ron` current (`cargo run -p rustpg2d-editor --example starter_history`; the
+    tests fail otherwise), `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the four
     checks, merge the back-merge pull request.
-
-## 0.17.0 — Peoples of the world
-
-- [ ] Races — `feature/races`
-
-  **Goal.** Races are a definition type: humans, goblins, elves, dwarves, orcs and trolls, each
-  with its own bodies, looks, strengths and a faction. The player picks one in the character
-  creator; NPCs and enemies belong to one.
-
-  **Design.** `defs/races.ron`, `RaceDef`: id, name, description; bodies (male / female sheet;
-  one for races without a choice); allowed hair and beards and the skin / hair colour ranges the
-  creator offers; stat changes (max HP, speed in %, defense); starting skill levels (dwarves
-  Mining 1 and Smithing 1, elves Archery 1, orcs Swordsmanship 1, trolls Toughness 2, goblins
-  Scavenging 1); size (trolls 1.5× with bigger hitbox); a default faction; `playable`.
-  `CharacterDef.race` (serde default "" = no race, the body decides as today);
-  `WorldState.player_race`. Outfits and armor fit other body shapes by a *cut* like the female
-  one: `SheetDef.cut` on bodies (`"dwarf"`, `"troll"`), and an overlay looks for
-  `<overlay>_<cut>` (and `_<cut>_f`) before the plain one, so one item serves every race whose
-  cut exists. Script / conditions: `player_race()`, a *Player race* condition.
-
-  **Engine.** Proposed (needs the go-ahead): the definition type (+ Database tab, refs, library,
-  release export), the creator page, the cut lookup, the condition and script function.
-
-  **Verify.** Unit tests (defaults, an old save without a race, overlay lookup by cut). Autoplay:
-  the creator with each race (`status creator=`), stats and skills applied, a dwarf wearing the
-  tunic's dwarf cut; shots of all races side by side.
-
-- [ ] Factions — `feature/factions`
-
-  **Goal.** Who is hostile to whom follows from factions: orcs attack elves and humans on sight,
-  wolves attack everyone, guards defend the village; the player's race and deeds change how
-  factions treat them.
-
-  **Design.** Project setting *Factions* (names) with an attitude table (hostile / neutral /
-  friendly) between factions, and the player's standing per faction (`WorldState`, starting
-  from their race's faction, changed by the *Change standing* action / `change_standing()`).
-  A character is hostile to the player when its faction is hostile to the player's standing
-  (`hostile: true` stays as an override for simple projects). Characters of hostile factions
-  fight each other with 0.15's AI (attack slots, alerting); guards join fights near them.
-  Condition *Faction standing*.
-
-  **Engine.** Proposed (needs the go-ahead): faction settings and table, standing in the save,
-  NPC-vs-NPC targeting in `ai.rs` (the companions' targeting generalised), action + condition +
-  script functions.
-
-  **Verify.** Autoplay: an orc patrol meets an elf traveller → `status enemies=` shows them
-  fighting; the player as an orc walks past an orc camp unharmed; standing changes after a
-  quest.
-
-- [ ] Elves, dwarves, orcs and trolls — `feature/race-art`
-
-  **Goal.** The new races in the example and the starter library, in the 2× style.
-
-  **Design.** Bodies (♂/♀ for elves, dwarves, orcs; one troll body), their outfit / armor cuts
-  where the human ones don't fit (dwarves, trolls), race hair and beards (dwarf braids, elf
-  hair), portraits.
-
-  **Engine.** None (content).
-
-  **Example.** A dwarf merchant at the mine (ores and tools), an elven herbalist travelling the
-  wilds (schedule), an orc camp in the wilds (enemies, a chief, loot), a troll guarding a bridge
-  in the wilds (a mini-boss with *HP below* triggers), German texts; races and art to the starter
-  library.
-
-  **Verify.** Autoplay through each new place; shots; the starter-library test.
 
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
   ad-hoc signed; documented). Packaging work: needs the user's go-ahead.
+- Eight facings for characters: 3D models can be drawn turned to any angle, so diagonal walking
+  could show diagonal facings (`entity::Facing` has four; the pose cache key, `facing_yaw`,
+  movement and the editor's facing pickers would need the four diagonals, saves keep loading).
+- A memory budget for the pose atlas: rendered poses live in 1024 px atlas pages that are
+  reused by age (`render/model.rs`, `alloc`); a cap in MB and a status line of pages in use would
+  keep big casts on small GPUs in check.
+- The game's icon from the player's 3D model: `icon.rs` draws `hero_icon` from the project's
+  player portrait; without one, a bust render of the player's model (`Models::pose` with `bust`)
+  could be the window and package icon.

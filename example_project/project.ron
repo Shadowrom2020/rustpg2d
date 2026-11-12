@@ -23,36 +23,122 @@
         default_name: "Alex",
         body_male: "hero",
         body_female: "heroine",
-        skin_colors: [
-            (242, 196, 155),
-            (232, 184, 138),
-            (208, 144, 104),
-            (141, 90, 59),
-            (90, 58, 36),
-            (124, 179, 66),
-        ],
-        hair_styles: [
-            "hair_short",
-            "hair_long",
-            "hair_ponytail",
-            "",
-        ],
-        hair_colors: [
-            (93, 58, 26),
-            (224, 192, 96),
-            (30, 22, 18),
-            (122, 74, 34),
-            (211, 84, 0),
-            (222, 222, 222),
-        ],
-        beards: [
-            "",
-            "beard_full",
-            "beard_goatee",
-        ],
     ),
     day_minutes: 24.0,
     start_hour: 8.0,
+    factions: (
+        list: [
+            (
+                id: "humans",
+                name: "Humans",
+            ),
+            (
+                id: "elves",
+                name: "Elves",
+            ),
+            (
+                id: "dwarves",
+                name: "Dwarves",
+            ),
+            (
+                id: "goblins",
+                name: "Goblin tribes",
+            ),
+            (
+                id: "orcs",
+                name: "Orc clans",
+            ),
+            (
+                id: "bandits",
+                name: "Bandits",
+            ),
+            (
+                id: "wild",
+                name: "Wild beasts",
+            ),
+            (
+                id: "monsters",
+                name: "Monsters",
+            ),
+        ],
+        relations: [
+            (
+                a: "humans",
+                b: "elves",
+                attitude: Friendly,
+            ),
+            (
+                a: "humans",
+                b: "dwarves",
+                attitude: Friendly,
+            ),
+            (
+                a: "humans",
+                b: "goblins",
+                attitude: Hostile,
+            ),
+            (
+                a: "humans",
+                b: "orcs",
+                attitude: Hostile,
+            ),
+            (
+                a: "humans",
+                b: "bandits",
+                attitude: Hostile,
+            ),
+            (
+                a: "humans",
+                b: "wild",
+                attitude: Hostile,
+            ),
+            (
+                a: "humans",
+                b: "monsters",
+                attitude: Hostile,
+            ),
+            (
+                a: "elves",
+                b: "orcs",
+                attitude: Hostile,
+            ),
+            (
+                a: "elves",
+                b: "goblins",
+                attitude: Hostile,
+            ),
+            (
+                a: "elves",
+                b: "bandits",
+                attitude: Hostile,
+            ),
+            (
+                a: "elves",
+                b: "wild",
+                attitude: Hostile,
+            ),
+            (
+                a: "elves",
+                b: "monsters",
+                attitude: Hostile,
+            ),
+            (
+                a: "dwarves",
+                b: "bandits",
+                attitude: Hostile,
+            ),
+            (
+                a: "dwarves",
+                b: "monsters",
+                attitude: Hostile,
+            ),
+            (
+                a: "goblins",
+                b: "orcs",
+                attitude: Friendly,
+            ),
+        ],
+    ),
     skills: (
         enabled: true,
         magic: true,

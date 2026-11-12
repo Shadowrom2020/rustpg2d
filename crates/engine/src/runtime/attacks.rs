@@ -107,14 +107,25 @@ impl Game {
         e.weapon.as_ref().filter(|w| w.ranged.is_none()).map(|w| w.reach.max(0.5) * self.ts())
     }
 
-    /// The player and the companions that can be hurt: (None = player / Some(companion), feet,
-    /// middle of the body, radius).
-    fn attack_targets(&self) -> Vec<(Option<usize>, Vec2, Vec2, f32)> {
-        let p = &self.player;
-        let mut out = vec![(None, p.pos, p.pos - vec2(0.0, p.hitbox.y / 2.0), p.hitbox.x.max(p.hitbox.y) / 2.0)];
-        for (c, mid) in self.companion_targets() {
-            let e = &self.loaded.entities[c];
-            out.push((Some(c), e.body.pos, mid, e.body.hitbox.x.max(e.body.hitbox.y) / 2.0));
+    /// Whom character `i` can hit: the player and the companions that can be hurt (when it is
+    /// hostile to the player), and the character of a hostile faction it goes for: (None = player /
+    /// Some(character), feet, middle of the body, radius).
+    fn attack_targets(&self, i: usize) -> Vec<(Option<usize>, Vec2, Vec2, f32)> {
+        let mut out = Vec::new();
+        let me = &self.loaded.entities[i];
+        if me.hostile {
+            let p = &self.player;
+            out.push((None, p.pos, p.pos - vec2(0.0, p.hitbox.y / 2.0), p.hitbox.x.max(p.hitbox.y) / 2.0));
+            for (c, mid) in self.companion_targets() {
+                let e = &self.loaded.entities[c];
+                out.push((Some(c), e.body.pos, mid, e.body.hitbox.x.max(e.body.hitbox.y) / 2.0));
+            }
+        }
+        if let Some(super::ai::Foe::Npc(uid)) = me.ai.target {
+            if let Some(j) = self.loaded.entities.iter().position(|e| e.uid == uid && e.active && e.hp > 0) {
+                let e = &self.loaded.entities[j];
+                out.push((Some(j), e.body.pos, e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0), e.body.hitbox.x.max(e.body.hitbox.y) / 2.0));
+            }
         }
         out
     }
@@ -134,7 +145,9 @@ impl Game {
                 }
                 continue;
             }
-            let ready = e.active && e.hostile && !e.ai.harmless() && !crate::effects::stunned(&e.effects) && self.game_over.is_none();
+            let ready = e.active && !e.ai.harmless() && !crate::effects::stunned(&e.effects) && self.game_over.is_none();
+            let ready = ready && self.fights(i);
+            let e = &mut self.loaded.entities[i];
             if !ready {
                 e.attack = None;
                 continue;
@@ -207,7 +220,7 @@ impl Game {
             _ => LUNGE_RANGE * ts,
         };
         let target = self
-            .attack_targets()
+            .attack_targets(i)
             .into_iter()
             .map(|(_, _, mid, r)| (mid, (mid - center).length() - r))
             .filter(|(mid, d)| *d <= reach && self.line_clear(center, *mid))
@@ -231,7 +244,7 @@ impl Game {
         let damage = crate::effects::scale_damage(&e.effects, w.damage.max(1));
         let from = e.body.pos;
         self.audio.play(&self.project.config.sfx.attack);
-        for (who, _, mid, r) in self.attack_targets() {
+        for (who, _, mid, r) in self.attack_targets(i) {
             let to = mid - center;
             if !(to.length() < ts * 0.5 || (to.length() - r <= reach && to.angle_between(dir).abs() <= arc)) {
                 continue;
@@ -251,7 +264,7 @@ impl Game {
                     if let Some(fx) = &w.effect {
                         crate::effects::apply(&mut self.loaded.entities[c].effects, fx);
                     }
-                    self.damage_entity(c, damage, from, w.knockback);
+                    self.npc_hits(c, damage, from, w.knockback);
                 }
             }
         }
@@ -276,8 +289,8 @@ impl Game {
                 }
                 g => self.blocked(g, from, Some(i)),
             }
-        } else if let Some(c) = self.companion_targets().into_iter().map(|(c, _)| c).find(|&c| self.loaded.entities[c].invuln <= 0.0 && self.loaded.entities[c].body.rect().overlaps(&me)) {
-            self.damage_entity(c, dmg, from, 1.0);
+        } else if let Some(c) = self.attack_targets(i).into_iter().filter_map(|t| t.0).find(|&c| self.loaded.entities[c].invuln <= 0.0 && self.loaded.entities[c].body.rect().overlaps(&me)) {
+            self.npc_hits(c, dmg, from, 1.0);
         } else {
             return;
         }
@@ -309,8 +322,8 @@ impl Game {
             let Some(a) = e.attack else { continue };
             let center = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0);
             let base = a.dir.y.atan2(a.dir.x);
-            // (A weapon whose held sheet has attack rows swings in the hand instead.)
-            let icon = if self.weapon_animates(&e.equipment) || self.figure_animates(&e.appearance) { None } else { e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone()) };
+            // (A figure with attack rows swings its painted weapon instead.)
+            let icon = if self.figure_animates(&e.appearance) { None } else { e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone()) };
             match (a.kind, a.phase) {
                 (Kind::Strike, Phase::Windup) => {
                     // Where the swing will land, filling up; the weapon raised behind the head.

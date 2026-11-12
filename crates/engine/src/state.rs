@@ -189,6 +189,15 @@ pub struct WorldState {
     pub player_name: String,
     #[serde(default)]
     pub player_sex: Sex,
+    /// The player's race (`races::RaceDef`; "" = none).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub player_race: String,
+    /// The prop the player carries in both hands ("" = none; `Action::Carry`).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub player_carrying: String,
+    /// The player's standing with factions that changed (others start from the attitude table).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub standing: BTreeMap<String, i32>,
     /// map -> items the player dropped there (they stay until picked up again).
     #[serde(default)]
     pub dropped: BTreeMap<String, Vec<DroppedItem>>,
@@ -209,7 +218,7 @@ pub struct WorldState {
     /// Fog of war: explored tiles per map (only maps with fog of war).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub explored: BTreeMap<String, crate::fog::Explored>,
-    /// The look chosen in the character creator (layered models).
+    /// The look chosen in the character creator (figure and colours).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub player_appearance: Option<crate::defs::Appearance>,
     /// NPCs whose equipment or carried items changed (scripts, actions): map -> uid -> items.

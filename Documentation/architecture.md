@@ -40,7 +40,7 @@ debug builds play at full speed; CI's test job overrides it to 0 for speed.
 ## 2. Data model
 
 **Project** = a folder: `project.ron` (`ProjectConfig`: name, player, inventory size, skills,
-languages, …), `defs/*.ron` (twelve lists, `project::DEFS`), `maps/*.map`, `sprites/`, `tilesets/`,
+languages, …), `defs/*.ron` (thirteen lists, `project::DEFS`, the last being races), `maps/*.map`, `sprites/`, `tilesets/`,
 `sounds/`, `scripts/*.rhai`, `lang/<code>.ron`, and the ignored `saves/`. `Project::load` reads it
 all into `Database` (`defs.rs`), one `Vec` per kind, referenced by string ids everywhere
 (`refactor.rs` knows every reference for renames and library exports: `refs_of_*`).
@@ -64,7 +64,13 @@ can change lives here; nothing else is persisted.
 `~/.local/share/rustpg2d/library` (`RUSTPG2D_LIBRARY` overrides). The editor's starter set is the
 committed folder `crates/editor/assets/starter_library/`, embedded by `crates/editor/build.rs` and
 applied to a library when its `starter.stamp` (rules version + hash of the files) differs: new ids
-are added, images the new set only extends are replaced, structures wait for their tileset art.
+are added, images the new set only extends are replaced, structures wait for their tileset art,
+and `starter.pending` is left for the editor to offer *Update asset library*
+(`starter_update.rs`): it compares the library with the starter set using
+`crates/editor/assets/starter_history.ron` (fingerprints of every definition, file and script
+function any starter set shipped, written by `cargo run -p rustpg2d-editor --example
+starter_history` from git; a test keeps it current), replaces untouched assets, asks about edited
+and retired ones, and backs the library folder up first.
 `.r2dpack` files are zip bundles of assets with a manifest, for sharing between projects.
 
 **Translations** (`lang.rs`): `lang/<code>.ron` with `texts` (content: dialogs, names, quest texts,
@@ -110,6 +116,13 @@ knockback, speed effects, companion, chase AI, schedule, activity, patrol, then 
 Before that loop, `assign_attack_slots` (`ai.rs`) decides once a frame which group fighters may
 close in on each target (two per target; the rest circle), so the chase AI of each character
 only reads its own `Ai::circling` and needs no knowledge of the others' plans.
+Targets are `Foe::Player`, `Foe::Companion(uid)` and `Foe::Npc(uid)`: factions
+(`factions.rs`, `ProjectConfig::factions`) become a `factions::Table` (faction index per
+`RtEntity::faction`, hostility as a bit matrix) when the game starts, so `npc_foes` / `foes` are
+lookups. `RtEntity::hostile` stays the one flag "hostile to the player" every system reads; it is
+computed by `hostile_to_player` (the *Hostile* box and the player's standing, `WorldState::standing`)
+and recomputed by `refresh_hostility` when a standing or the player's race changes. Projectiles
+remember whether their shooter was hostile to the player and its faction, so they hit only foes.
 Walking characters share `walk_to_tile` (`patrol.rs`): an A* path (`path.rs`, budget per
 waypoint), one tile at a time through `try_move`, with re-planning when blocked and giving up
 after a few seconds. The player moves through `try_move` too: solid tiles, solid entities and the
@@ -146,9 +159,8 @@ change state directly.
 ### Rendering and assets
 
 `render/mod.rs` draws the tiles in view one `draw_texture_ex` each (sparse chunks skip empty
-areas; macroquad batches draws by texture). Characters are layered (`render/character.rs`): body,
-clothing, armor, hair, beard, held items, each recolored from reference ramps (`recolor.rs`) and
-cached per sheet, skin and hair colour. `render/lighting.rs` renders the lights into a
+areas; macroquad batches draws by texture). Characters are 3D models (below); figure sheets of 0.17
+load as plain sprites. `render/lighting.rs` renders the lights into a
 half-resolution target (ambient colour, one additive glow per light in view) and multiplies it
 over the scene. `Assets::load` loads every tileset and sheet up front, computing per-tile average
 colours (the world map) and the solid / ladder flags; a missing image becomes a checkerboard.
@@ -156,11 +168,55 @@ A sheet's `SheetTex` cuts frames in image pixels (`frame_w`, `src_rect`) but eve
 draws them at `world_size()` = image size / `SheetDef::scale`, so high-resolution (2x) sheets
 take the same place as 1x ones; code that needs a sprite's size in the world uses `world_size()`
 or `sprite_size()`, never `frame_w` (the editor's egui previews slice textures with `frame_w`).
-Character frames: `render/character.rs::layers` takes an `Anim` (walk, idle, attack, hurt) and gives
-each layer the frame of that animation's row block plus a `fallback` (its standing frame), which
-the draw uses when the sheet has no such row (`Layer::frame_in`). `paperdoll.rs` picks the animation
-(`player_anim`, `npc_anim`: attack phase, `RtEntity::hurt`, moving, breathing). A body with
-`SheetDef::complete` is drawn alone (no other layers, not recoloured).
+What a character does is an `Anim` (`render/character.rs`: walk, idle, attack, hurt, an extra clip);
+`paperdoll.rs` picks it (`player_anim`, `npc_anim`: attack phase, `RtEntity::hurt`, moving,
+breathing) and `Game::look` / `Models::look_of` say which model draws it: the look's model, else the
+model named like its legacy `body` (a 0.17 figure's id), else the mannequin (built into the engine,
+`models/mannequin*.glb`, unless the project has its own). Held items (`hands.rs`): an item's
+`HeldSprite` (picture, hold point, orientation mark) is laid onto a hand's `Grip` by `lay` (mirrored
+across the axis when it points left; carried props upright), two-handed things on `both_hands`;
+`held_with` turns a character's equipment (or the tool of its activity, or a carried prop) into
+`HeldLayer`s at given grips. An item with a 3D model (`ItemModel`) is drawn as that mesh instead: `render/model.rs`
+builds each hand's frame (grip point, thumb-side grip axis, forearm direction) and
+`model::hold_rotation` turns the item's handle direction and front onto it by its `HoldStyle`
+(*Grip*: grip axis and forearm; *Upright*: up and the facing; *Hang*: down and the facing; *Strap*:
+up and the facing turned outward). `model::estimate_hold` guesses grip, handle and front from the
+mesh along its `main_axes` (the tightest rectangle in its main plane), with slice widths from
+triangles clipped to each slice. A pose's frame is the model's standard frame grown by whatever
+sticks out of it (a spear, a swung arm; in steps of 8 px): `Cell::base` is the standard frame inside
+the cell, so map drawing (anchored at the feet) is unchanged and UI boxes (`draw_in`, `draw_part`,
+the editor's `paint_pose`) show the standard frame at their size, held items reaching past it.
+3D characters (`model.rs`, `render/model.rs`): a character is drawn from the rigged glTF of its
+`ModelDef`. `Model::load` keeps the skinned mesh, the node tree, the
+skin's joints with their inverse bind matrices and the clips (`add_clips` adds those of other files,
+matched by node name); `pose` samples a clip (stepped at the clip's fps by the caller) into world
+matrices and removes the root's horizontal motion; `skin` deforms the mesh on the CPU (macroquad
+uploads vertices on every draw anyway). `render::model::Models` renders a pose
+(`PoseReq`: look, `Gear`, animation, time, facing) once: the mesh turned to the facing plus the
+clip's alignment (`facing_of`: square to the hips and shoulders), into a scratch render target with
+depth through an orthographic `Camera3D` 20° above, with the cel shader (GLSL 100: light bands, a
+colour step; `Vertex::normal` carries the normals); held items are quads at the hand bones (the
+grip axis is the hand bone's thumb-side axis, found in the rest pose) laid out by `hands::held_with`;
+then the picture is copied with a 1-pixel dark outline into an atlas page (1024², shelf-packed, the
+oldest of 8 pages reused) and its `Cell` cached by (model, colours, gear, animation, frame, facing).
+At most 24 new poses render per frame; `push_camera_state` lets this happen in the middle of the
+world pass. The world, windows and portraits draw cells like sprites (`draw`, `draw_in`,
+`draw_part`, `draw_rotated`); busts are their own 64 x 64 close-ups of the head bone. The game and
+editor windows ask macroquad for bigger draw calls (`DRAW_VERTICES`, `DRAW_INDICES`) so a model is
+one mesh. Model textures are reduced to 32 colours when loaded (`model::quantize`), so colour
+features pick exact shades of it (`recolor.rs`: each shade by its brightness relative to the
+feature's middle shade); models without textures get a palette texel per
+material. Items' 3D models (`ItemDef.model`) load with the character models and are drawn in the
+pose's scene, turned so their handle lies on the hand's grip axis. Unrigged models with a rig
+template (`ModelDef.rig`) are fitted when they load (`Model::fit_rig`): the mesh is turned, the
+template's joints are stretched from the template mesh's bounds over the model's (per axis) plus
+the hand-moved offsets, joint translations are solved down the tree keeping the template's
+rotations (so its clips mean the same), each vertex is bound to the four nearest bones
+(1 / distance⁴) and the clips' translations are rescaled to the height. `Loaded` keeps the
+unfitted mesh and the template, so the editor's joint dragging refits without reading files
+(`set_def`). The editor shows rendered poses
+without copying them: `widgets::paint_model` hands egui the atlas page's OpenGL texture
+(`TextureId::User`, which egui-miniquad draws as a raw GL texture).
 
 ## 4. The editor (`crates/editor/src/`)
 
@@ -196,8 +252,10 @@ means per format:
   version is bumped with a reader for the old one.
 - **Saves**: `WorldState` fields all default; unknown fields are ignored, so a newer save loads in
   an older game minus what it does not know.
-- **Libraries**: existing libraries only gain new ids from a changed starter set (images that are
-  pure extensions are replaced); bump `STARTER_RULES` when the way starter sets are applied changes.
+- **Libraries**: existing libraries only gain new ids from a changed starter set on their own
+  (images that are pure extensions are replaced); changed assets arrive through *Update asset
+  library*. Bump `STARTER_RULES` when the way starter sets are applied changes, and regenerate
+  `starter_history.ron` whenever the starter set changes (the test says so).
 - **Script API**: functions are never removed or change meaning within a major version; a new one
   is registered in `script.rs` and described once in the `API` table of `script_api.rs` (parameter
   kinds: `Arg::Id` for ids, `Arg::Line` for a line players read, `Arg::Text` for other words),

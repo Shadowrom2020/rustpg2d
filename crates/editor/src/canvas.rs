@@ -108,9 +108,8 @@ impl Editor {
         };
         let size = sprite.map_or(vec2(ts, ts), |s| {
             if e.kind == EntityKind::Character {
-                // Characters: one frame of their (base) sheet.
-                let layers = self.char_layers(&e.def, Some(e), e.facing, 0);
-                layers.iter().find_map(|l| self.assets.sheets.get(&l.sheet)).map_or(vec2(ts, ts), |t| { let w = t.world_size(); vec2(w.x, w.y) })
+                // Characters: the frame of their model's pose.
+                self.char_size(&e.def, Some(e))
             } else {
                 self.assets.sprite_size(&s, ts)
             }
@@ -865,7 +864,7 @@ impl Editor {
                 let db = &self.project.db;
                 let drawn = match e.kind {
                     EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_sprite(d.state_look(d.state_index(&e.state).unwrap_or(0)).0, e.frame, pos, col)),
-                    EntityKind::Character => self.draw_char_layers(&self.char_layers(&e.def, Some(e), e.facing, 0), pos, col),
+                    EntityKind::Character => self.draw_char(&e.def, Some(e), e.facing, pos, col),
                     EntityKind::Item => db.item(&e.def).is_some_and(|d| self.assets.draw_sprite(&d.icon, 0, pos, col)),
                 };
                 if !drawn {
@@ -1104,7 +1103,7 @@ impl Editor {
                     if self.entity_at(self.hover_world).is_none() {
                         let ghost = Color::new(1.0, 1.0, 1.0, 0.5);
                         if self.place_kind == EntityKind::Character {
-                            self.draw_char_layers(&self.char_layers(&self.place_def, None, rustpg2d_engine::entity::Facing::Down, 0), p, ghost);
+                            self.draw_char(&self.place_def, None, rustpg2d_engine::entity::Facing::Down, p, ghost);
                         } else if let Some(s) = self.def_sprite(self.place_kind, &self.place_def) {
                             self.assets.draw_sprite(&s, 0, p, ghost);
                         }

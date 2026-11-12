@@ -19,7 +19,7 @@ interest you.
 7. [Events](07-events.md): triggers, conditions and actions, cut-scenes, the Events graph
 8. [Scripting](08-scripting.md): Rhai scripts, the script editor, live reload, the console, and every script function with recipes
 9. [Gameplay systems](09-gameplay.md): combat, levels, skills and magic, status effects, inventory, crafting, farming, fishing, lockpicking, furniture, time of day, achievements
-10. [Art and sound](10-art-and-sound.md): sprite sheets, the pixel editor, new assets, importing from Tiled, LPC and Aseprite, sounds and music
+10. [Art and sound](10-art-and-sound.md): sprite sheets, the pixel editor, new assets, importing from Tiled and Aseprite, sounds and music
 11. [The asset library](11-asset-library.md): shared assets, the Asset Library window, packages, scripted assets
 12. [Languages](12-languages.md): translating a game
 13. [AI agents](13-ai-agents.md): letting an AI assistant work in the editor, and every tool it gets

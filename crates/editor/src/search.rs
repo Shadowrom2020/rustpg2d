@@ -315,6 +315,7 @@ impl Editor {
             RefKind::Spell,
             RefKind::Recipe,
             RefKind::Achievement,
+            RefKind::Race,
             RefKind::Structure,
             RefKind::Sheet,
             RefKind::Tileset,
@@ -447,6 +448,7 @@ impl Editor {
             RefKind::Character => Some(rustpg2d_engine::script_refs::IdKind::Character),
             RefKind::Recipe => Some(rustpg2d_engine::script_refs::IdKind::Recipe),
             RefKind::Achievement => Some(rustpg2d_engine::script_refs::IdKind::Achievement),
+            RefKind::Prop => Some(rustpg2d_engine::script_refs::IdKind::Prop),
             RefKind::Map => Some(rustpg2d_engine::script_refs::IdKind::Map),
             _ => None,
         };

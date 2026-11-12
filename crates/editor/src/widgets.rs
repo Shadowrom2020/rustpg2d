@@ -15,10 +15,9 @@ use rustpg2d_engine::render::Assets;
 pub struct Textures {
     pub tilesets: HashMap<String, TextureHandle>,
     pub sheets: HashMap<String, TextureHandle>,
-    /// Idle front layers of layered character definitions (painted for `@char:` sprites).
-    pub characters: HashMap<String, Vec<rustpg2d_engine::render::character::Layer>>,
-    /// Recolored body / hair sheets of layered characters, made on first use.
-    colored: std::cell::RefCell<HashMap<rustpg2d_engine::render::ColorKey, TextureHandle>>,
+    /// The looks of the character definitions as drawn (their models; painted for `@char:`
+    /// sprites).
+    pub characters: HashMap<String, rustpg2d_engine::defs::Appearance>,
 }
 
 /// An egui image of RGBA pixels, shrunk by a whole factor (nearest neighbour) when a side is
@@ -42,7 +41,7 @@ pub fn activity_ui(ui: &mut Ui, id: &str, act: &mut Option<rustpg2d_engine::enti
     .response
     .on_hover_text("Seen doing it there: it stays put facing its way and works in place (fishing line, sparks, soil...). Only the look: nothing is produced.");
     if let Some(a) = act {
-        // The item in its hand (shown if it has a held sprite), e.g. fishing_rod; empty = none.
+        // The tool it works with, e.g. fishing_rod; empty = none.
         suggest(ui, &format!("{id}/tool"), &mut a.tool, items, 76.0);
     }
 }
@@ -75,59 +74,35 @@ impl Textures {
         Textures {
             tilesets: assets.tilesets.iter().map(|(id, t)| (id.clone(), load(&format!("ts:{id}"), &t.image))).collect(),
             sheets: assets.sheets.iter().map(|(id, s)| (id.clone(), load(&format!("sh:{id}"), &s.image))).collect(),
-            colored: Default::default(),
             characters: HashMap::new(),
         }
     }
 
-    /// Refreshes the layers of the character definitions (cheap; every frame, so previews
-    /// follow edits at once).
-    pub fn set_characters(&mut self, db: &rustpg2d_engine::defs::Database) {
-        use rustpg2d_engine::render::character;
+    /// Refreshes the looks of the character definitions (cheap; every frame, so previews follow
+    /// edits at once).
+    pub fn set_characters(&mut self, db: &rustpg2d_engine::defs::Database, assets: &Assets) {
         self.characters.clear();
         for d in &db.characters {
-            self.characters.insert(d.id.clone(), character::layers(db, &d.appearance, &d.equipment, Facing::Down, 0, false));
+            self.characters.insert(d.id.clone(), assets.models.look_of(&d.appearance));
         }
-    }
-
-    /// A sheet's texture with skin / hair recolored (layered characters).
-    pub fn colored(&self, ctx: &egui::Context, assets: &Assets, sheet: &str, skin: Option<[u8; 3]>, hair: Option<[u8; 3]>) -> Option<egui::TextureId> {
-        if skin.is_none() && hair.is_none() {
-            return self.sheets.get(sheet).map(|t| t.id());
-        }
-        let img = &assets.sheets.get(sheet)?.image;
-        let mut cache = self.colored.borrow_mut();
-        let t = cache.entry((sheet.to_string(), skin, hair)).or_insert_with(|| {
-            let mut px = img.bytes.clone();
-            rustpg2d_engine::render::recolor::recolor(&mut px, skin, hair);
-            let ci = color_image(ctx, img.width as usize, img.height as usize, &px);
-            ctx.load_texture(format!("shc:{sheet}:{skin:?}:{hair:?}"), ci, egui::TextureOptions::NEAREST)
-        });
-        Some(t.id())
     }
 }
 
-/// Paints a character's layers (see `render::character::layers`) into `rect`, keeping the
-/// aspect ratio, bottom-centered. False if none of its sheets exist.
-pub fn paint_character(ui: &Ui, tex: &Textures, assets: &Assets, layers: &[rustpg2d_engine::render::character::Layer], rect: Rect) -> bool {
-    let Some(base) = layers.iter().find_map(|l| assets.sheets.get(&l.sheet)) else { return false };
-    let (fw, fh) = (base.frame_w, base.frame_h);
-    let scale = (rect.width() / fw).min(rect.height() / fh);
-    let size = vec2(fw * scale, fh * scale);
-    let dest = Rect::from_min_size(pos2(rect.center().x - size.x / 2.0, rect.max.y - size.y), size);
-    let mut any = false;
-    for l in layers {
-        let (Some(s), Some(id)) = (assets.sheets.get(&l.sheet), tex.colored(ui.ctx(), assets, &l.sheet, l.skin, l.hair)) else { continue };
-        let src = s.src_rect(l.frame_in(s.count));
-        let (w, h) = (s.image.width as f32, s.image.height as f32);
-        let uv = Rect::from_min_max(pos2(src.x / w, src.y / h), pos2((src.x + src.w) / w, (src.y + src.h) / h));
-        ui.painter().image(id, dest, uv, Color32::WHITE);
-        any = true;
-    }
-    any
+/// Paints a character (`a`, resolved with `Models::look_of`) standing facing `facing` into
+/// `rect`, bottom-centred. False when it isn't rendered (yet).
+pub fn paint_character(ui: &Ui, assets: &Assets, a: &rustpg2d_engine::defs::Appearance, facing: Facing, rect: Rect) -> bool {
+    let gear = rustpg2d_engine::render::model::Gear::default();
+    let req = rustpg2d_engine::render::model::PoseReq { look: a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, bust: false };
+    paint_pose(ui, &assets.models, empty_db(), &assets.sheets, &req, rect)
 }
 
-/// Sheet name prefix of a layered character's thumbnail sprite (see [`character_sprite`]).
+/// An empty database (poses without gear need none).
+pub fn empty_db() -> &'static rustpg2d_engine::defs::Database {
+    static DB: std::sync::OnceLock<rustpg2d_engine::defs::Database> = std::sync::OnceLock::new();
+    DB.get_or_init(Default::default)
+}
+
+/// Sheet name prefix of a character's thumbnail sprite (see [`character_sprite`]).
 pub const CHAR_PREFIX: &str = "@char:";
 
 /// The thumbnail sprite of a character definition: a `@char:` marker that [`paint_sprite`]
@@ -142,9 +117,48 @@ pub fn paint_frame(ui: &Ui, tex: &Textures, assets: &Assets, sheet: &str, frame:
 }
 
 /// Paints a (possibly multi-cell) sprite into `rect`, keeping its aspect ratio, bottom-centered.
+/// Paints a pose of a 3D model character into `rect` (bottom-centred, its aspect kept): the
+/// engine renders it into its atlas, egui shows that texture directly. False without a model.
+pub fn paint_model(ui: &Ui, assets: &Assets, db: &rustpg2d_engine::defs::Database, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect) -> bool {
+    paint_pose(ui, &assets.models, db, &assets.sheets, req, rect)
+}
+
+/// [`paint_model`] with all of the pose in the box, held items too (the item form's preview).
+pub fn paint_model_whole(ui: &Ui, assets: &Assets, db: &rustpg2d_engine::defs::Database, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect) -> bool {
+    paint_pose_fit(ui, &assets.models, db, &assets.sheets, req, rect, true)
+}
+
+/// [`paint_model`] with any set of models (the asset library's own).
+pub fn paint_pose(ui: &Ui, models: &rustpg2d_engine::render::model::Models, db: &rustpg2d_engine::defs::Database, sheets: &HashMap<String, rustpg2d_engine::render::SheetTex>, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect) -> bool {
+    paint_pose_fit(ui, models, db, sheets, req, rect, false)
+}
+
+/// Paints a pose into `rect`: its standard frame fits the box (`whole`: all of it, held items
+/// sticking out included).
+fn paint_pose_fit(ui: &Ui, models: &rustpg2d_engine::render::model::Models, db: &rustpg2d_engine::defs::Database, sheets: &HashMap<String, rustpg2d_engine::render::SheetTex>, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect, whole: bool) -> bool {
+    let Some(cell) = models.pose(db, sheets, req) else { return false };
+    let Some((tex, uv, base)) = models.cell_texture(&cell) else { return false };
+    let base = if whole { macroquad::prelude::Rect::new(0.0, 0.0, 1.0, 1.0) } else { base };
+    // The atlas page's OpenGL texture: egui-miniquad draws `TextureId::User` ids as raw GL textures.
+    let raw = unsafe { macroquad::window::get_internal_gl().quad_context.texture_raw_id(tex.raw_miniquad_id()) };
+    #[allow(irrefutable_let_patterns)]
+    let macroquad::miniquad::RawId::OpenGl(gl) = raw else { return false };
+    // The standard frame fits the box (bottom-centred); held items sticking out of it reach past
+    // the box, clipped to the box and its surroundings by the panel.
+    let (w, h) = (uv.w * base.w, uv.h * base.h);
+    let k = (rect.width() / w).min(rect.height() / h);
+    let size = vec2(w * k, h * k);
+    let frame = Rect::from_min_size(pos2(rect.center().x - size.x / 2.0, rect.max.y - size.y), size);
+    let whole = vec2(uv.w * k, uv.h * k);
+    let dest = Rect::from_min_size(pos2(frame.min.x - base.x * whole.x, frame.min.y - base.y * whole.y), whole);
+    let uv = Rect::from_min_max(pos2(uv.x, uv.y), pos2(uv.x + uv.w, uv.y + uv.h));
+    ui.painter().with_clip_rect(rect.expand(rect.width() * 0.25).intersect(ui.clip_rect())).image(egui::TextureId::User(gl as u64), dest, uv, Color32::WHITE);
+    true
+}
+
 pub fn paint_sprite(ui: &Ui, tex: &Textures, assets: &Assets, sprite: &SpriteRef, rect: Rect) -> bool {
     if let Some(id) = sprite.sheet.strip_prefix(CHAR_PREFIX) {
-        return tex.characters.get(id).is_some_and(|l| paint_character(ui, tex, assets, l, rect));
+        return tex.characters.get(id).is_some_and(|a| paint_character(ui, assets, a, Facing::Down, rect));
     }
     let (Some(t), Some(s)) = (tex.sheets.get(&sprite.sheet), assets.sheets.get(&sprite.sheet)) else { return false };
     let (cw, ch) = sprite.cells();
@@ -172,20 +186,6 @@ pub fn sprite_thumb(ui: &mut Ui, tex: &Textures, assets: &Assets, sprite: &Sprit
     }
     let (w, h) = sprite.cells();
     resp.on_hover_text(format!("frame {} ({w}×{h} cells)", sprite.frame))
-}
-
-/// A frame thumbnail as a widget.
-pub fn frame_thumb(ui: &mut Ui, tex: &Textures, assets: &Assets, sheet: &str, frame: u32, size: f32, selected: bool) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
-    let bg = if selected { Color32::from_rgb(70, 90, 140) } else { Color32::from_gray(40) };
-    ui.painter().rect_filled(rect, 2.0, bg);
-    if !paint_frame(ui, tex, assets, sheet, frame, rect.shrink(2.0)) {
-        ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, "?", egui::FontId::default(), Color32::RED);
-    }
-    if resp.hovered() {
-        ui.painter().rect_stroke(rect, 2.0, Stroke::new(1.0_f32, Color32::WHITE), StrokeKind::Inside);
-    }
-    resp.on_hover_text(format!("frame {frame}"))
 }
 
 /// Sheet combo + frame grid.
@@ -642,6 +642,8 @@ pub fn region_picker(ui: &mut Ui, id: &str, sprite: &mut SpriteRef, tex: &Textur
 #[derive(Default, Clone)]
 pub struct Refs {
     pub items: Vec<String>,
+    /// Prop definition ids.
+    pub props: Vec<String>,
     pub maps: Vec<String>,
     /// "self", "player" and entity names on the current map.
     pub targets: Vec<String>,
@@ -669,6 +671,10 @@ pub struct Refs {
     pub quest_stages: HashMap<String, Vec<String>>,
     pub skills: Vec<String>,
     pub spells: Vec<String>,
+    /// Race ids (Database › Races).
+    pub races: Vec<String>,
+    /// Faction ids (Database › Project › Factions).
+    pub factions: Vec<String>,
     /// Crafting stations named by recipes.
     pub stations: Vec<String>,
     /// Achievement ids.
@@ -999,6 +1005,21 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     ui.label("to");
                     ui.add(egui::DragValue::new(to).range(0.0..=24.0).speed(0.25).suffix(" h"))
                         .on_hover_text("Hours 0–24; e.g. 20 to 6 = at night (wraps around midnight)");
+                }
+                Cond::PlayerRace { race } => {
+                    ui.label("player is a");
+                    suggest(ui, &format!("{id}/race"), race, &refs.races, 110.0);
+                }
+                Cond::FactionStanding { faction, op, value } => {
+                    ui.label("standing with");
+                    suggest(ui, &format!("{id}/fac"), faction, &refs.factions, 100.0);
+                    egui::ComboBox::from_id_salt(format!("{id}/facop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {
+                        for o in CmpOp::ALL {
+                            ui.selectable_value(op, o, o.symbol());
+                        }
+                    });
+                    ui.add(egui::DragValue::new(value).range(-100..=100))
+                        .on_hover_text("The player's standing: -100..100; at -20 or below the faction's characters attack the player");
                 }
                 Cond::PlayerSex { sex } => {
                     ui.label("player is");
@@ -1560,6 +1581,18 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         Action::ClearEmote { target } => {
             target_field(ui, id, target, refs);
         }
+        Action::Carry { target, prop } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "prop", |ui| suggest(ui, &format!("{id}/carry"), prop, &refs.props, 120.0));
+            ui.weak("(carried in both hands, drawn in the character's hands; empty = puts it down. While carrying it holds nothing else and the player can't attack)");
+        }
+        Action::ChangeStanding { faction, amount } => {
+            labeled(ui, "faction", |ui| suggest(ui, &format!("{id}/fac"), faction, &refs.factions, 120.0));
+            labeled(ui, "by", |ui| {
+                ui.add(egui::DragValue::new(amount).range(-200..=200)).on_hover_text("Negative lowers it");
+            });
+            ui.weak("(the player's standing, -100..100: at -20 or below the faction's characters attack the player; Database › Project › Factions)");
+        }
         Action::Mood { target, mood } => {
             target_field(ui, id, target, refs);
             labeled(ui, "mood", |ui| {
@@ -1977,11 +2010,11 @@ pub fn light_ui(ui: &mut Ui, id: &str, l: &mut Option<rustpg2d_engine::defs::Lig
     *l != before
 }
 
-// ------------------------------------------------------------------ layered characters
+// ------------------------------------------------------------------ characters
 
-/// Skin tones offered as one-click presets.
+/// Skin tones offered as one-click presets (colour features).
 pub const SKIN_PRESETS: [[u8; 3]; 8] = [[0xf6, 0xd0, 0xb0], [0xf2, 0xc4, 0x9b], [0xe8, 0xb8, 0x8a], [0xd0, 0x90, 0x68], [0xb5, 0x79, 0x4c], [0x8d, 0x5a, 0x3b], [0x5a, 0x3a, 0x24], [0x7c, 0xb3, 0x42]];
-/// Hair colors offered as presets.
+/// Hair colours offered as presets (colour features).
 pub const HAIR_PRESETS: [[u8; 3]; 10] = [
     [0x1e, 0x16, 0x12],
     [0x3a, 0x24, 0x18],
@@ -1993,6 +2026,20 @@ pub const HAIR_PRESETS: [[u8; 3]; 10] = [
     [0xde, 0xde, 0xde],
     [0x3b, 0x3b, 0x9e],
     [0x2e, 0x8b, 0x57],
+];
+
+/// Clothing colours offered as presets (colour features).
+pub const CLOTH_PRESETS: [[u8; 3]; 10] = [
+    [0x2f, 0x4f, 0x8f],
+    [0x8f, 0x2f, 0x2f],
+    [0x2f, 0x6f, 0x3f],
+    [0x6f, 0x4f, 0x2f],
+    [0x5f, 0x2f, 0x6f],
+    [0xc8, 0xa0, 0x30],
+    [0x30, 0x30, 0x38],
+    [0xd8, 0xd0, 0xc0],
+    [0x2f, 0x7f, 0x8f],
+    [0xb0, 0x5a, 0x20],
 ];
 
 /// List editor of carried items (count + item).
@@ -2017,14 +2064,13 @@ pub fn carried_ui(ui: &mut Ui, id: &str, inv: &mut Vec<ItemStack>, items: &[Stri
 }
 
 /// The four directions of a character, side by side (idle frames).
-pub fn character_preview(ui: &mut Ui, tex: &Textures, assets: &Assets, db: &rustpg2d_engine::defs::Database, a: &rustpg2d_engine::defs::Appearance, eq: &rustpg2d_engine::state::Equipment) {
-    use rustpg2d_engine::render::character;
+pub fn character_preview(ui: &mut Ui, assets: &Assets, a: &rustpg2d_engine::defs::Appearance) {
+    let a = assets.models.look_of(a);
     ui.horizontal(|ui| {
         for f in [Facing::Down, Facing::Left, Facing::Up, Facing::Right] {
             let (rect, _) = ui.allocate_exact_size(vec2(64.0, 96.0), Sense::hover());
             ui.painter().rect_filled(rect, 3.0, Color32::from_gray(36));
-            let layers = character::layers(db, a, eq, f, 0, false);
-            if !paint_character(ui, tex, assets, &layers, rect.shrink(2.0)) {
+            if !paint_character(ui, assets, &a, f, rect.shrink(2.0)) {
                 ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, "?", egui::FontId::default(), Color32::RED);
             }
         }

@@ -3,6 +3,206 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## 0.18.0 — 2026-11-12
+
+Characters in 3D, and the peoples of the world (0.17.0 was not released on its own: its races,
+factions, Meshy art and asset library updates ship here).
+
+### Breaking
+- **Characters are 3D models; figures are removed.** Every character of the example and the starter
+  library is a rigged 3D model (47 people modelled with Meshy from their figures, 9 animals fitted to
+  rig templates) and 16 holdable items have 3D models. Figure sheets (`kind: Body`), their colour
+  features, playable / female flags and hand marks are gone: old sheets load as plain sprites, and a
+  look naming an old figure plays the model of the same id, else the **mannequin** (built into the
+  engine; projects may have their own). Removed with them: the sprite editor's Hands tool, the 2D
+  *Character* kind of Generate art, the LPC import and Aseprite figure tags, `edit_frames`' grip
+  operations, the editor script `pxgrip` / `pxhands` / `pxpreview` and `charset body|size|from` and
+  `source draw`. Races and the character creator list models; the creator offers playable models.
+- **Layered characters are removed.** Characters are figures: complete pictures (clothes and hair
+  painted in, hands empty) on one sheet with walk, idle, attack and hurt rows. Bodies with skin
+  and hair reference ramps, hair styles, beards, outfits, armor overlays, female and race cuts are
+  gone; worn armour and clothing show only in a figure's art (they still count in play), and held
+  items are drawn at the figures' hand marks (*Characters*).
+  Projects, asset libraries and save games of earlier versions load: sheets of the removed kinds
+  become plain sprites, layered characters keep only their body (a layered body shows its
+  reference colours), and saved player looks keep only the body. *Update asset library* offers the
+  layered and `_classic` sheets of the starter set for deletion. The character creator's skin, hair
+  and beard lists, the races' looks, items' *Held sprite* and armor's overlay sheets are removed;
+  the editor script `entskin` is now `entcolor`, and `charset` takes `color FEATURE RRGGBB`.
+
+### Characters
+- **Colour features** (*Database › Sprite sheets › Colour features*): mark the parts of a figure
+  that can take other colours (skin, hair, clothing, eyes, …) by clicking the art's own shades, and
+  the colours each offers; a preview shows the figure in every colour. Characters choose a colour
+  per feature (the character editor, a placed NPC's own look, `entcolor`); the game keeps light and
+  shadow. The **character creator** shows a colour row for each feature of the chosen figure. In
+  the example and the starter library: the hero, the heroine, the elves, the female dwarf and the
+  villagers (skin, hair, clothing) and the dwarf (skin); two villagers wear their own colours.
+- **The character editor** replaces the character builder: figure cards, colour swatches per
+  feature, *Random colours*, equipment and carried items, the animated preview.
+- **New character…** starts from an existing figure, a **new figure sheet to draw** (blank or a copy
+  of a figure of the same size, opened in the sprite editor), an **import** or **AI generation**.
+  LPC imports now bring the attack (slash) and hurt rows along and always become figures; Aseprite
+  exports with tags named after the animations (`walk_down`, `attack_left`, …) become figures.
+  AI-generated characters get a person's speed and hitbox, portraits can be made for a character
+  (*For character*, `portrait_for`), and finished art opens in the sprite editor with *Edit in
+  sprite editor*. Agents get `sheet_colors` (a sheet's exact colours, where they appear, their
+  feature).
+- *Update asset library*: retired assets that only replaced assets used can be deleted in the same
+  update.
+- **Animating figures in the sprite editor**: figure sheets always open with their 16 labelled
+  rows and an animation panel (walk, idle, attack, hurt per facing; play / pause / next frame, a
+  frame strip), **onion skin** (the previous and next frame over the selected one), *Duplicate*,
+  moving a frame's pixels (arrows, Shift+arrow keys), copy / paste / clear a row, *Mirror Left to
+  Right* (one animation or all), *Fill idle & hurt* from the standing frames and *Replace colour*
+  in a frame, row or sheet; every operation is one undo step. Agents get `edit_frames`. Editor
+  script `pxanim`, `pxplay`, `pxonion`, `pxdup`, `pxnudge`, `pxrow`, `pxfill`, `pxreplace`,
+  `pxundo`; `status` prints `pixel=`.
+- **Visible equipment: what characters hold is drawn in their hands.** Figure sheets mark per
+  frame where the hands are and how they are turned (a position, the grip axis a handle runs
+  through the fist, a size, in front of or behind the figure; frames without marks use the standing
+  frame). The weapon, the left-hand item (shields, lanterns, torches), bows in the left hand,
+  two-handed weapons along the line through both fists, a tool while it is used (the fisher's rod,
+  with the line from its tip; the farmer's hoe) and carried props are drawn there, in the game, the
+  character window and the character editor's preview. Items have a **Held** section: an own
+  picture or the icon, the **hold point** (click) and **orientation mark** (drag) that lie on the
+  hand, the size and the hand, with previews in a figure's hands; a picture held to the left is
+  mirrored across its axis, so a raised rod stays raised. Props have a **Carried** section.
+- **The Hands tool** of the sprite editor (H): place, turn, resize and remove the marks,
+  **Estimate** them from the outline (walking hands hold things forward through the fist; in
+  attacks the raised or swung fist, its axis across the arm), **Swap hands** (archers), preview
+  items in the hands; frame operations keep the marks in step. *Generate art* draws people with
+  empty hands and estimates their marks. Agents: `edit_frames` gains `set_grip`, `clear_grips`,
+  `estimate_hands`, `swap_hands`. Editor script `pxgrip`, `pxhands estimate|estimateall|clear|swap`,
+  `pxpreview`; `status` prints `held=`.
+- **3D characters (first part)**: a character can be a rigged 3D model instead of a figure
+  (`defs/models.ron`: a `.glb` under `models/`, more files with clips of the same rig, the clip
+  each animation plays, the standing height, colour features of its texture; `appearance.model`).
+  Each pose is rendered once off screen with cel shading, a dark outline and the held items at its
+  hand bones, cached in atlas pages and drawn into the world like a figure frame: walking, idle,
+  attacks, hurt, activities and sitting play the model's clips, portraits are close-up renders of
+  its head. Exports carry the model files. `status` prints `models=`; `RUSTPG2D_MODEL_DEBUG=1`
+  shows the atlas. The editor support, Meshy generation and the cast follow (ROADMAP 0.18.0).
+- **3D models in the editor**: *Database › 3D models* imports `.glb` models (clips matched to
+  the animations by name, more clip files), with a turning preview, the clip per animation, and
+  colour features picked from the texture (reduced to 32 colours when loaded). The character
+  editor and the game's character creator offer models. Items get a *3D model* section (the hold
+  point and handle direction estimated from the shape, *Flip*, length, *Render icon*): 3D model
+  characters hold it on their hand bone. The asset library carries models. Agents get
+  `import_model` and `model_info`.
+- **Rig templates** for animals and creatures (Meshy rigs only people): *Database › 3D models ›
+  Rig template* stretches a rigged model's skeleton over an unrigged model, binds it to the bones
+  and plays the template's clips; *Turn* and draggable joints in a side and a front view fix the
+  fit. The starter library and the example have five templates with walk, idle, attack and hurt:
+  four legs, bird, flyer, blob and floating (made by `scripts/art/rigs/templates.py` in Blender).
+  Agents get `fit_rig`; editor script `modelrig`, `modeljoint`. `cargo run -p rustpg2d-engine
+  --example model_sheet` renders a model's animations in all facings into a contact sheet.
+- **The cast in 3D**: the example's and the starter library's characters are 3D models, their
+  heights from the figures' art, colour features matched from the figures' (by colour and by where a
+  colour sits on the model, `model_info` shows it), work clips for the smith (hammering) and the
+  farmers (picking crops). The editor's map, pickers, character editor, Database forms and the
+  library browser draw characters as their models. Model files are made smaller when imported or
+  generated (`model::compact`: textures as the game uses them, no tangents, byte weights, clip files
+  without the mesh; 237 MB became 32 MB; editor script `modelcompact`). Generate art: 3D characters
+  can get extra clips (`extras`: craft, farm, chop, sleep), 3D creatures can be modelled from a
+  figure, bows and axes use short library clips (Archery Shot, Heavy Hammer Swing). The sprite
+  editor's *Four-facing rows* switch shows the animation panel for any sheet. Characters without a
+  model are a warning in Problems (they show as the mannequin).
+- **Holding item models, made simple**: an item's 3D model has a **hold style**, *Grip* (in the
+  fist: swords, axes, tools, bows), *Upright* (torches: pointing up whatever the arm does), *Hang*
+  (lanterns: hanging from the hand) or *Strap* (shields: on the forearm, the face out), and a
+  **front** (a blade's edge, an axe's head, a shield's face) that points where the knuckles do, so
+  items no longer spin around their handle. The estimate measures along the model's own length
+  (models lying diagonally like their icon), takes a thin run at an end as the handle (the shorter
+  one when both ends are thin: a sword's grip, not its blade) and sets style and length by the
+  item's kind (bows upright at the middle, two-handed weapons 44 px). The item form drops the x/y/z
+  boxes for *Held as*, *Length*, a *Hold at* slider, *Estimate*, *Turn handle*, *Turn front*, *Flip
+  ends* and a big preview (standing, walking or attacking, playing, held by any model); the numbers
+  are folded under *Numbers*, the picture settings under *Picture in the hand* while a model is set.
+  Two-handed items are held in the right hand while the fists are apart. A hand's grip axis is never
+  the one along the forearm (models whose rest pose reaches forward, like the female elf and the
+  troll, held things along their fingers). The bandit chief is remade (Meshy had put his right arm's bones
+  backward). Rendered icons show
+  blades up-right, shields' and lanterns' fronts. The example's and library's items are set up
+  anew. Editor script `itemhold ITEM estimate|turnhandle|turnfront|flip|at F|style S|size PX`,
+  `itempreview idle|walk|attack [play] [MODEL]`.
+- **Nothing held is cut off**: a pose's frame grows by whatever sticks out of the standard frame
+  (a spear, a swung arm); boxes in the UI keep showing the character at its size.
+- **Item models from a drawn picture**: *Generate art › Item 3D model* with a description first
+  draws a clean picture of the item (its icon as the reference) and models that (33 credits)
+  instead of modelling the 32 px icon. The example's and library's 16 held items are remade this
+  way, slender instead of bulky, with icons rendered from the new models.
+- **3D art with Meshy**: *Generate art* makes a **3D character** (a turnaround picture or a
+  figure's standing frames, a model, a skeleton and animations: walk, idle, the chosen attack, hit,
+  sitting; about 50 credits), a **3D creature** (a picture and an unrigged model) and an **item's 3D
+  model** from its icon. *Add to project* writes the files under `models/` and adds the model with
+  its clips and a character, or gives the item its model. Redoing a step makes the steps after it
+  again. Agents: `generate_art` kinds `model`, `creature`, `gear` (`female`, `from`); editor script
+  `artkind`, `artgen model ID female,from=SHEET ATTACK …`.
+- **Carrying props**: the *Carry prop* action and `carry(target, prop)`, `stop_carrying(target)`,
+  `player_carrying()`: the player or a character carries a prop in both hands (no attacking
+  meanwhile; saved for the player).
+
+### Editor
+- **Generate art** (*Assets › Generate art…*) with your own Meshy account (API key, model, a
+  credit budget per session and *Ask before spending* in the new *Edit › Settings…*): characters
+  in the project's style (a walk grid with your figures as references, then an attack; converted
+  into a figure sheet with walk, idle, attack and hurt rows), item icons in the
+  style of your icons, props, portraits and painted images. The cost is shown first; results are
+  previewed, single pictures can be redrawn, *Add to project* writes the image, its sheet and a
+  character / item / prop. Agents get `art_settings`, `generate_art` (the price must be confirmed),
+  `art_jobs`, `art_result`, `art_apply`, `art_redo`. The key stays in `meshy.key` next to the
+  editor settings, never in projects or agent replies. Editor script `artwindow`, `settingswindow`,
+  `artgen`, `artjobs`, `artapply`, `artredo`, `artbalance`; `status` prints `art=`;
+  `RUSTPG2D_MESHY_FAKE` replaces Meshy by stored pictures for tests.
+
+### Art
+- **Elves, dwarves, orcs and trolls**: ten new characters drawn with Meshy in the 2x style (elf,
+  dwarf and orc men and women, a troll, the orc chief, a dwarf trader, an elven herbalist), with
+  walk, idle, attack (bow shots, axe and hammer blows, sword slashes, club smashes) and hit frames.
+  Elves and dwarves are playable in the example's creator (goblins, orcs and trolls are not). In the example: a dwarf trader in the old
+  mine sells ore and tools, an elven herbalist wanders the Wilds by the hour, an orc camp with a
+  chief (beating him stops the camp's reinforcements) and a troll guarding a new bridge (a
+  mini-boss that rages at half health). The Meshy pipeline that draws them is in
+  `scripts/art/meshy/`.
+- **26 figures redrawn with empty hands** (hero, heroine, guards, goblins, bandits, outlaw,
+  skeletons, fisher, town crier, farmer, blacksmith, wizards, elves, dwarves, orcs, the orc chief and
+  the troll), with hand marks; their colour features re-picked (`scripts/art/features.py`). Their
+  weapons are now their equipment (bandits and skeletons gain swords, the blacksmith a hammer), the
+  starter items have held settings, and a new `held` sheet holds a thin spear and fishing rod.
+
+### Gameplay
+- **Factions** (*Database › Project › Factions*): factions with an attitude table (hostile, neutral,
+  friendly). Characters belong to their own *Faction* or their race's; characters of hostile
+  factions fight each other (chasing, attack slots, alerting their faction, arrows that only hit
+  foes). The player has a standing with every faction (-100 to 100, kept in the save), starting
+  from their race's faction: at -20 or below a faction attacks them, and *Hostile* characters spare
+  friends of their faction (standing 20 or more). New *Change standing* action, *Faction
+  standing* condition, `standing()`, `change_standing()`, `player_faction()`; `status` prints
+  `factions=`. Projects without factions behave as before. In the example and the starter
+  library: humans (the villagers and the human player), elves, dwarves, goblin tribes, orc clans,
+  bandits, wild beasts and monsters; town guards defend their post; an elven ranger and an orc
+  patrol fight in the Wilds; the elven herbalist's new quest *Friend of the Elves* raises the
+  standing with the elves. The example's creator offers humans, elves and dwarves only. The behaviour *Chase player* is now called
+  *Chase foes*.
+- **Races** (*Database › Races*): humans and goblins in the example and the starter library. A race
+  has its bodies per sex, the looks the creator offers, extra max HP, speed and defense and
+  starting skills for a player of that race, and a size (bigger or smaller characters with a
+  hitbox to match). The character creator starts with a *Race* row for the playable races (in
+  the example human: Haggling 1, +2 HP; elf and dwarf see *Art*). Characters name their race; the *Player race*
+  condition and `player_race()` tell the player's.
+
+### Editor
+- **Update asset library** (*Assets › Update asset library…*, the Asset Library window's *File*
+  menu, or the banner a new version shows): brings the starter set of this version into your
+  asset library. New assets are added, assets you never changed are replaced with their newer
+  version, assets you changed that the starter set changed too are listed for you to tick, and
+  assets the starter set dropped are offered for deletion (not those still in use). The library
+  folder is backed up first; your own script functions stay. The editor knows every starter asset
+  version it ever shipped (`starter_history.ron`), so it tells your edits from older versions.
+  Editor script `libupdate`, `libupdatepick`, `libupdateok`, `libupdatecancel`; `status` prints
+  `libupdate=`.
+
 ## 0.16.0 — 2026-11-11
 
 ### Art

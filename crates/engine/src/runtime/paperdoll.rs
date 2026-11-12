@@ -1,45 +1,74 @@
-//! Drawing characters: a layered model (body + hair, recolored skin / hair) with clothing,
-//! armor and the items in their hands on top (see [`character::layers`] for the order).
+//! Drawing characters: every character is a 3D model rendered with its gear into an image
+//! (`render/model.rs`). [`Game::look`] says which: the character's model; a look of an older
+//! project that names a figure plays the model of the same id; anything else is the mannequin.
 
 use macroquad::prelude::*;
 
 use super::Game;
-pub(super) use crate::render::character::{self, Anim, Layer, ANIM_ROWS, LAYOUT_FRAMES};
+pub(super) use crate::render::character::Anim;
 use crate::defs::Appearance;
 use crate::entity::Facing;
+pub(super) use crate::render::model::Gear;
+use crate::render::model::{Cell, PoseReq};
 use crate::state::Equipment;
 
 impl Game {
-    /// The layers of a character in drawing order (see [`character::layers`]).
-    pub(super) fn character_layers(&self, a: &Appearance, eq: &Equipment, facing: Facing, anim: impl Into<Anim>, hide_weapon: bool) -> Vec<Layer> {
-        character::layers(&self.project.db, a, eq, facing, anim, hide_weapon)
+    /// What a look is drawn as: its model, else the model named like its (old) figure, else the
+    /// mannequin.
+    pub(super) fn look(&self, a: &Appearance) -> Appearance {
+        self.assets.models.look_of(a)
     }
 
-    /// The frame of a layer its sheet has (the standing frame when it lacks the animation's row).
-    pub(super) fn layer_frame(&self, l: &Layer) -> u32 {
-        self.assets.sheets.get(&l.sheet).map_or(l.fallback, |s| l.frame_in(s.count))
+    /// Size of a character's race (trolls are bigger): races list their models.
+    pub(super) fn look_size(&self, a: &Appearance) -> f32 {
+        self.project.db.body_size(&self.look(a).model)
+    }
+
+    /// The rendered pose of a character (None: not rendered yet, or no model at all).
+    pub(super) fn model_cell(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim)) -> Option<Cell> {
+        let a = &self.look(a);
+        let (anim, time, once) = crate::render::model::anim_req(pose.1, macroquad::time::get_time() as f32);
+        let req = PoseReq { look: a, gear, anim, time, once, facing: pose.0, bust: false };
+        self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
+    }
+
+    /// A character's portrait render (head and shoulders, front).
+    pub(super) fn model_bust(&self, a: &Appearance) -> Option<Cell> {
+        let a = &self.look(a);
+        let req = PoseReq { look: a, gear: &Gear::default(), anim: "idle", time: 0.0, once: true, facing: Facing::Down, bust: true };
+        self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
+    }
+
+    /// Whether a character's model has a clip for `anim` ("sit", "attack"…).
+    pub(super) fn has_anim(&self, a: &Appearance, anim: &str) -> bool {
+        self.assets.models.has_anim(&self.look(a).model, anim)
     }
 
     /// Draws a character with its bottom-center at `feet`. Returns false if nothing could be
-    /// drawn (missing sheets). `pose` = facing and what it does (walk frame, idle, attack, hurt).
-    pub(super) fn draw_character(&self, a: &Appearance, eq: &Equipment, pose: (Facing, Anim), feet: Vec2, tint: Color, hide_weapon: bool) -> bool {
-        let mut any = false;
-        for l in self.character_layers(a, eq, pose.0, pose.1, hide_weapon) {
-            any |= self.assets.draw_frame_colored(&l.sheet, self.layer_frame(&l), feet, tint, l.skin, l.hair);
-        }
-        any
+    /// drawn (not rendered yet). `pose` = facing and what it does (walk frame, idle, attack, hurt).
+    pub(super) fn draw_character(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim), feet: Vec2, tint: Color) -> bool {
+        let Some(cell) = self.model_cell(a, gear, pose) else { return false };
+        self.assets.models.draw(&cell, feet, self.look_size(a), tint);
+        true
     }
 
-    /// A complete figure with attack rows: its painted swing replaces the weapon's swing sprite.
+    /// What a character holds: its weapon (or the tool it uses), its left-hand item, a carried prop.
+    pub(super) fn character_gear(&self, eq: &Equipment, carrying: &str, tool: Option<&str>) -> Gear {
+        Gear::of(eq, carrying, tool)
+    }
+
+    /// The far end of held item `item` (the tip of a fishing rod) of a character standing at
+    /// `feet`, in the world.
+    pub(super) fn held_tip(&self, a: &Appearance, feet: Vec2, gear: &Gear, pose: (Facing, Anim), item: &str) -> Option<Vec2> {
+        let cell = self.model_cell(a, gear, pose)?;
+        let size = self.look_size(a);
+        cell.tips.iter().find(|(id, _)| id == item).map(|(_, p)| feet + (*p - cell.feet) / crate::render::model::PX * size)
+    }
+
+    /// Whether a character swings its own attack (its model has an attack clip) instead of the
+    /// weapon's swing sprite.
     pub(super) fn figure_animates(&self, a: &Appearance) -> bool {
-        self.project.db.complete_body(&a.body) && self.assets.sheets.get(&a.body).is_some_and(|s| s.count >= ANIM_ROWS * LAYOUT_FRAMES)
-    }
-
-    /// The weapon in `eq` has a held sheet with attack rows (it swings in the hand: no separate
-    /// swing sprite).
-    pub(super) fn weapon_animates(&self, eq: &Equipment) -> bool {
-        let held = eq.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map(|d| d.held.clone()).unwrap_or_default();
-        self.assets.sheets.get(&held).is_some_and(|s| s.count >= ANIM_ROWS * LAYOUT_FRAMES)
+        self.has_anim(a, "attack")
     }
 
     /// Breathing frame (0 / 1) of a character standing still; `seed` keeps neighbours apart.
@@ -58,7 +87,7 @@ impl Game {
             return Anim::Hurt;
         }
         if self.player.moving {
-            Anim::Walk((self.player.anim * 8.0) as u32 % LAYOUT_FRAMES)
+            Anim::Walking((self.player.anim * 100.0) as u32)
         } else {
             Anim::Idle(Self::breath(0))
         }
@@ -74,7 +103,7 @@ impl Game {
             return Anim::Hurt;
         }
         if e.body.moving {
-            Anim::Walk((e.body.anim * 8.0) as u32 % LAYOUT_FRAMES)
+            Anim::Walking((e.body.anim * 100.0) as u32)
         } else {
             Anim::Idle(Self::breath(e.uid))
         }
@@ -92,16 +121,45 @@ impl Game {
         out
     }
 
-    /// Draws a character's front idle frame scaled into `dest` (portraits, the creator).
-    pub(super) fn draw_character_in(&self, a: &Appearance, eq: &Equipment, dest: Rect) {
-        for l in self.character_layers(a, eq, Facing::Down, 0, false) {
-            self.assets.draw_frame_colored_in(&l.sheet, self.layer_frame(&l), dest, l.skin, l.hair);
+    /// `held=` for `status`: what the player and the characters within 8 tiles hold, as
+    /// `who:item@hand` (`R`, `L`, `B` = both; `/back` behind a figure).
+    pub(super) fn held_status(&self) -> Vec<String> {
+        let line = |who: &str, _a: &Appearance, gear: &Gear, pose: (Facing, Anim)| -> Vec<String> {
+            let g = Some(crate::hands::Grip::new(0.0, 0.0, 0.0));
+            let held = crate::hands::held_with(&self.project.db, (g, g), &gear.equipment(), &gear.carrying, None, pose.0);
+            held.into_iter().map(|h| format!("{who}:{}@{}{}", h.id, &format!("{:?}", h.hand)[..1], if h.front { "" } else { "/back" })).collect()
+        };
+        let mut out = match self.player_appearance() {
+            Some(a) => line("player", &a, &self.player_gear(), (self.player.facing, self.player_anim())),
+            None => Vec::new(),
+        };
+        let ts = self.ts();
+        for (i, e) in self.loaded.entities.iter().enumerate() {
+            if e.active && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) < 8.0 * ts {
+                let who = if e.name.is_empty() { &e.def } else { &e.name };
+                let gear = self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref());
+                out.extend(line(who, &e.appearance, &gear, (e.body.facing, self.npc_anim(i))));
+            }
+        }
+        out
+    }
+
+    /// Draws a character's front idle frame scaled into `dest` (the creator, windows), with what
+    /// it holds.
+    pub(super) fn draw_character_in(&self, a: &Appearance, gear: &Gear, dest: Rect) {
+        if let Some(cell) = self.model_cell(a, gear, (Facing::Down, Anim::Idle(0))) {
+            self.assets.models.draw_in(&cell, dest, WHITE);
         }
     }
 
-    /// World size of a model's body frame (32 x 48 if the sheet is missing).
+    /// What the player holds (fishing: the rod instead of the weapon; carrying a prop).
+    pub(super) fn player_gear(&self) -> Gear {
+        self.character_gear(&self.world.equipment, &self.world.player_carrying, self.player_tool_in_use().as_deref())
+    }
+
+    /// World size of a character's frame (32 x 48 without any model).
     pub(super) fn character_frame_size(&self, a: &Appearance) -> (f32, f32) {
-        self.assets.sheets.get(&a.body).map_or((32.0, 48.0), |t| t.world_size().into())
+        self.assets.models.frame_size(&self.look(a).model).unwrap_or((32.0, 48.0))
     }
 
     /// The player's model: the creator's choice, else the player definition's.

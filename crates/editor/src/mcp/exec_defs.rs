@@ -51,7 +51,11 @@ macro_rules! def_facts {
 }
 
 def_facts!(TilesetDef, |d| format!("image {}; {} solid tiles; terrains [{}]; {} animations", d.image, d.solid.len(), d.terrains.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", "), d.animations.len()));
-def_facts!(SheetDef, |d| format!("image {}; {}x{} px frames{}; {:?}{}{}", d.image, d.frame_w, d.frame_h, if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() }, d.kind, if d.female { "; female cut" } else { "" }, if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) }));
+def_facts!(SheetDef, |d| {
+    let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
+    let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
+    format!("image {}; {}x{} px frames{scale}; {:?}{tags}", d.image, d.frame_w, d.frame_h, d.kind)
+});
 def_facts!(ItemDef, |d| {
     let mut f = vec![format!("\"{}\"", d.name)];
     if let Some(w) = &d.weapon {
@@ -118,6 +122,28 @@ def_facts!(SkillDef, |d| format!("\"{}\"; max level {}; {:?}", d.name, d.max_lev
 def_facts!(SpellDef, |d| format!("\"{}\"; mana {}; cooldown {}; needs {} level {}; {:?}", d.name, d.mana, d.cooldown, d.skill, d.level, d.effect));
 def_facts!(RecipeDef, |d| format!("makes {} x{} from [{}]{}{}", d.result, d.count, d.ingredients.iter().map(|i| format!("{} x{}", i.item, i.count)).collect::<Vec<_>>().join(", "), if d.station.is_empty() { String::new() } else { format!(" at {}", d.station) }, if d.skill.is_empty() { String::new() } else { format!("; {} level {}", d.skill, d.level) }));
 def_facts!(AchievementDef, |d| format!("\"{}\"; {}{} conditions", d.name, if d.hidden { "hidden; " } else { "" }, d.conditions.len()));
+def_facts!(rustpg2d_engine::defs::ModelDef, |d| format!(
+    "\"{}\" {}{}; height {} px; clips [{}]; {} colour features{}",
+    d.label(),
+    d.file,
+    if d.clip_files.is_empty() { String::new() } else { format!(" + {} clip file(s)", d.clip_files.len()) },
+    d.height,
+    d.clips.iter().map(|c| format!("{}={}", c.anim, c.clip)).collect::<Vec<_>>().join(", "),
+    d.features.len(),
+    if d.playable { "; playable" } else { "" }
+));
+def_facts!(rustpg2d_engine::races::RaceDef, |d| format!(
+    "\"{}\"{}; bodies [{}] / [{}]; hp {:+}, speed {:+}%, defense {:+}; skills [{}]{}",
+    d.name,
+    if d.playable { "; playable" } else { "" },
+    d.bodies_male.join(", "),
+    d.bodies_female.join(", "),
+    d.max_hp,
+    d.speed,
+    d.defense,
+    d.skills.iter().map(|s| format!("{} {}", s.skill, s.level)).collect::<Vec<_>>().join(", "),
+    if d.size != 1.0 { format!("; size {}", d.size) } else { String::new() }
+));
 
 /// Calls a generic function on the definition list of `kind` (a kind from `parse_def_kind`).
 macro_rules! on_defs {
@@ -179,17 +205,17 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         ),
         RefKind::Sheet => (
             val(&SheetDef::new(id, "sprites/<file>.png", 32, 32)),
-            "kind: Sprite (props, effects) | Body | Hair | Beard | Outfit | Armor | Held (layered characters: 4 rows down/left/right/up, 4 frames); frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art, 64x96 frames fill a 32x48 place); complete: a Body that is a complete figure (clothes, hair, held items painted in; nothing drawn over it, not recoloured); character sheets may have 16 rows (walk, idle 2 frames, attack 4, hurt 1; each block down/left/right/up); tags: named frame ranges [{name, first, last, fps}].",
+            "kind: Sprite (props, effects) | Emotions (icons over heads; its tags are the emotions); frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art); tags: named frame ranges [{name, first, last, fps}].",
         ),
         RefKind::Item => (
             val(&ItemDef::fresh(id)),
-            "icon: {sheet, frame} of a sprite sheet; weapon: {damage, cooldown, ranged: null | {projectile, speed, range, ammo}, reach, arc, knockback, two_handed, effect}; armor: {slot: Head|Body|Hands|Feet|OffHand|Ring, defense, speed, overlay (sheet), overlay_f}; consumable + on_use triggers (ItemUse owner: UseItem event) = potions; food; teaches: a skill or spell id; tool: Pickaxe|Axe|Hoe|Rod… name used by props' gather; held: a Held sheet drawn in the hand; value in coins; crop: {stages: [{sprite, hours}], harvest: loot}.",
+            "icon: {sheet, frame} of a sprite sheet; weapon: {damage, cooldown, ranged: null | {projectile, speed, range, ammo}, reach, arc, knockback, two_handed, effect}; armor: {slot: Clothing|Head|Body|Offhand, defense, speed} (worn items count in play; figures' art shows what they wear); held: how figures with hand marks hold it {sprite (none: the icon), grip: [x, y] hold point as fractions of the picture, points: degrees, the picture's direction that lies on the hand's grip axis (icons -45), scale (0.5), hand: Right|Left|Both (none: by its kind)}; consumable + on_use triggers (ItemUse owner: UseItem event) = potions; food; teaches: a skill or spell id; tool: Pickaxe|Axe|Hoe|Rod… name used by props' gather; value in coins; crop: {stages: [{sprite, hours}], harvest: loot}.",
         ),
         RefKind::Prop => (
             val(&PropDef::fresh(id)),
-            "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot.",
+            "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot; carry: how characters carry it {grip, points, scale} (none: middle of its lower half, horizontal along the hands, 0.6).",
         ),
-        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {body (a Body sheet), skin, hair (sheet), hair_color, beard}; equipment / inventory: the items it wears and carries; behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
+        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {model (a 3D model id; none: the mannequin), colors: {feature: [r,g,b]} (the model's colour features; missing = as made)}; equipment / inventory: the items it wears and carries (count in play; weapon, left hand and tools show in its hands: items' `model` or `held` picture); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
         RefKind::Sound => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0 }), "file: WAV or Ogg Vorbis under the project; volume 0..1. Used by PlaySound / PlayMusic, map music and the project's built-in sounds."),
         RefKind::Quest => (val(&QuestDef { id: id.into(), title: "New quest".into(), description: String::new(), stages: vec!["Find out more".into(), "Done".into()], xp: 0 }), "stages: the journal lines in order (stage 0 is the first after Start); xp on completion. Triggers drive it: Action Quest{quest, op: Start|Advance|SetStage|Complete|Fail, stage}, Cond Quest{quest, check: NotStarted|Active|Completed|Failed|AtStage|StageAtLeast, stage}."),
         RefKind::Structure => (val(&StructureDef { id: id.into(), name: "New structure".into(), category: String::new(), w: 2, h: 2, tilesets: vec![], layers: vec![vec![0; 4], vec![0; 4], vec![0; 4]], collision: vec![0; 4], entities: vec![] }), "layers: one Vec per map layer of w*h tile values (0 = empty; tile = slot << 16 | index with slot into `tilesets`); collision: w*h bytes (0 auto, 1 solid, 2 walkable); entities with positions relative to the top-left. Easier: build it on a map and capture it in the editor (Structures tool)."),
@@ -197,6 +223,11 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Spell => (val(&SpellDef::new(id, "New spell", "", icon.clone(), 5, 1.0, SpellEffect::Heal { amount: 5 })), "effect: {Heal:{amount}} | {Bolt:{damage, projectile (sheet), speed, range}} | {Blast:{..}} | {Light:{..}} | {Script:{function}}; mana cost; cooldown s; skill + level required to learn (empty skill = none). Items with teaches = this id teach it."),
         RefKind::Recipe => (val(&RecipeDef::new(id, "<item id>", 1, vec![], "")), "result + count from ingredients [{item, count}]; station: a prop id the player must use (empty = anywhere, craftable from the inventory), station_state: the state it must be in (a lit fire); skill + level required; tools: item ids that must be in the inventory; quality: [{level, result}] better results at higher skill."),
         RefKind::Achievement => (val(&AchievementDef { id: id.into(), name: "New achievement".into(), description: String::new(), icon, hidden: false, conditions: vec![] }), "conditions: checked while playing (same shapes as trigger conditions: Quest, Flag, Var, Defeated, Level, HasItem, …); hidden: shown as ??? until unlocked; also unlocked by the UnlockAchievement action / unlock_achievement()."),
+        RefKind::Race => (val(&rustpg2d_engine::races::RaceDef::fresh(id)), "bodies_male / bodies_female: model ids (the creator offers them with a colour row per colour feature, and they get the race's size); max_hp / defense: added for a player of this race, speed: percent; skills: [{skill, level}] starting levels; size: 1 = as drawn (trolls 1.5: bigger sprite and hitbox); playable: offered in the creator. Characters name their race in `race`."),
+        RefKind::Model => (
+            val(&rustpg2d_engine::defs::ModelDef::new(id, "models/<file>.glb")),
+            "file: a rigged .glb under models/ (Meshy, Blender…); clip_files: more .glb files with clips of the same rig; height: standing height in world px (40 = a person); clips: [{anim: walk|idle|attack|hurt|sit|sleep|fish|farm|craft|chop|mine|sweep|read, clip: the clip's name in the files, fps (12)}]; features: colour features of its texture (as a figure sheet's); playable / female: offered in the character creator. Characters use it with appearance.model.",
+        ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
     }
 }
@@ -233,6 +264,150 @@ impl Editor {
             Some(v) => text(json_str(&v)),
             None => Err(format!("no {} \"{}\".{}", kind.name(), p.id, suggestions(&p.id, self.def_ids(kind).iter().map(String::as_str)))),
         }
+    }
+
+    /// `edit_frames`: frame operations on a sheet's image (see `frame_ops`).
+    pub(crate) fn mcp_edit_frames(&mut self, p: EditFramesParams) -> Result<Reply, String> {
+        use crate::frame_ops::{anim_index, Frames};
+        self.mcp_need_project()?;
+        let d = self.project.db.sheet(&p.sheet).ok_or_else(|| format!("\"{}\" is not a sprite sheet.{}", p.sheet, suggestions(&p.sheet, self.project.db.sheets.iter().map(|t| t.id.as_str()))))?.clone();
+        let path = self.project.root.join(&d.image);
+        let mut img = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| rustpg2d_engine::imageio::Rgba::decode(&b).map_err(|e| format!("{e:#}")))?;
+        let mut f = Frames { img: &mut img, frame: (d.frame_w.max(1), d.frame_h.max(1)) };
+        let (cols, rows) = (f.cols(), f.rows());
+        let need = |v: Option<u32>, what: &str, max: u32| v.filter(|v| *v < max).ok_or(format!("{what} (below {max}) is needed for {}", p.op));
+        let msg = match p.op.as_str() {
+            "mirror_rows" => {
+                let anim = match &p.anim {
+                    Some(a) => Some(anim_index(a).ok_or("anim: walk, idle, attack or hurt")?),
+                    None => None,
+                };
+                format!("Right rows {:?} are now the mirrored Left rows", f.mirror_left_to_right(anim))
+            }
+            "copy_row" => {
+                let (from, to) = (need(p.row, "row", rows)?, need(p.to_row, "to_row", rows)?);
+                let frames = f.row(from);
+                f.put_row(to, &frames);
+                format!("Row {from} copied to row {to}")
+            }
+            "clear_row" => {
+                let r = need(p.row, "row", rows)?;
+                f.clear_row(r);
+                format!("Row {r} cleared")
+            }
+            "duplicate" => {
+                let k = need(p.frame, "frame", cols * rows)?;
+                if !f.duplicate(k) {
+                    return Err(format!("frame {k} is in the last column"));
+                }
+                format!("Frame {k} copied into frame {}", k + 1)
+            }
+            "nudge" => {
+                let k = need(p.frame, "frame", cols * rows)?;
+                f.nudge(k, p.dx.unwrap_or(0), p.dy.unwrap_or(0));
+                format!("Frame {k} moved by {},{}", p.dx.unwrap_or(0), p.dy.unwrap_or(0))
+            }
+            "replace_color" => {
+                let (from, to) = (p.from.ok_or("from: [r, g, b] is needed")?, p.to.ok_or("to: [r, g, b] is needed")?);
+                let frames: Option<Vec<u32>> = match p.scope.as_deref().unwrap_or("sheet") {
+                    "frame" => Some(vec![need(p.frame, "frame", cols * rows)?]),
+                    "row" => {
+                        let r = need(p.row, "row", rows)?;
+                        Some((r * cols..(r + 1) * cols).collect())
+                    }
+                    _ => None,
+                };
+                format!("Replaced {} pixel(s)", f.replace_color(from, [to[0], to[1], to[2], 255], frames.as_deref()))
+            }
+            "fill_standing" => format!("{} empty idle / hurt frame(s) got the standing frame", f.fill_standing()),
+            other => return Err(format!("unknown op \"{other}\": mirror_rows, copy_row, clear_row, duplicate, nudge, replace_color or fill_standing")),
+        };
+        std::fs::write(&path, img.encode().map_err(|e| format!("{e:#}"))?).map_err(|e| e.to_string())?;
+        self.reload_assets();
+        text(format!("{msg} in {} ({}); the art was reloaded.", d.id, d.image))
+    }
+
+    /// `sheet_colors`: a sheet's exact colours with counts, rows and features.
+    pub(crate) fn mcp_import_model(&mut self, p: ImportModelParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let path = std::path::PathBuf::from(&p.path);
+        if !path.is_file() {
+            return Err(format!("no file {}", p.path));
+        }
+        if let Some(id) = &p.clips_for {
+            if self.project.db.model(id).is_none() {
+                return Err(format!("no model \"{id}\"{}", suggestions(id, self.project.db.models.iter().map(|m| m.id.as_str()))));
+            }
+        }
+        let rel = crate::files::import_asset(&self.project.root, &path, "models").map_err(|e| format!("{e:#}"))?;
+        let msg = self.use_model_file(p.clips_for.as_deref().unwrap_or(""), p.clips_for.is_some(), &rel);
+        if msg.contains("can't be used") {
+            return Err(msg);
+        }
+        text(msg)
+    }
+
+    pub(crate) fn mcp_model_info(&mut self, p: ModelInfoParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let d = self.project.db.model(&p.model).ok_or_else(|| format!("no model \"{}\"{}", p.model, suggestions(&p.model, self.project.db.models.iter().map(|m| m.id.as_str()))))?.clone();
+        let Some(i) = self.assets.models.info(&d.id) else {
+            let err = self.assets.models.errors.iter().find(|e| e.contains(&format!("model {}:", d.id))).cloned();
+            return Err(err.unwrap_or_else(|| format!("{} isn't loaded (its file {})", d.id, d.file)));
+        };
+        let mut out = vec![
+            format!("{} ({}): {} triangles, {} bones{}, height {} px, file {}{}", d.label(), d.id, i.triangles, i.bones.len(), if i.hands { ", hands" } else { ", no hand bones" }, d.height, d.file, if d.clip_files.is_empty() { String::new() } else { format!(" + {}", d.clip_files.join(", ")) }),
+            format!("clips: {}", i.clips.iter().map(|(n, s)| format!("{n} ({s:.1} s)")).collect::<Vec<_>>().join(", ")),
+            format!("animations: {}", rustpg2d_engine::model::ANIMS.iter().map(|a| format!("{a}={}", d.clip_of(a).map_or("-", |c| c.clip.as_str()))).collect::<Vec<_>>().join(", ")),
+        ];
+        match &d.rig {
+            Some(r) => out.push(format!("rig template: {} (turned {} deg, {} joint(s) moved: fit_rig)", r.template, r.turn, r.joints.len())),
+            None if !i.rigged => out.push("no skeleton of its own: give it a rig template with fit_rig (rig_quadruped, rig_bird, rig_flyer, rig_blob, rig_floating)".into()),
+            None => {}
+        }
+        if let Some(t) = self.assets.models.texture_image(&d.id) {
+            let mut n: BTreeMap<[u8; 3], u32> = BTreeMap::new();
+            for px in t.bytes.as_chunks::<4>().0.iter().filter(|p| p[3] > 0) {
+                *n.entry([px[0], px[1], px[2]]).or_default() += 1;
+            }
+            let mut list: Vec<_> = n.into_iter().collect();
+            list.sort_by_key(|x| std::cmp::Reverse(x.1));
+            out.push(format!("texture colours ({}), most used first, with where they are on the model (0 = feet, 1 = top):", list.len()));
+            let at = self.assets.models.texture_heights(&d.id);
+            for (c, k) in list {
+                let feature = d.features.iter().find(|f| f.shades.contains(&c)).map_or(String::new(), |f| format!("  feature {}", f.name));
+                let place = at.get(&c).map_or(String::new(), |(h, _)| format!("  at {h:.2}"));
+                out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {k} px{place}{feature}", c[0], c[1], c[2], c[0], c[1], c[2]));
+            }
+        }
+        text(out.join("\n"))
+    }
+
+    pub(crate) fn mcp_fit_rig(&mut self, p: FitRigParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let joints = p.joints.map(|j| j.into_iter().map(|j| rustpg2d_engine::defs::JointNudge { joint: j.joint, offset: j.offset }).collect());
+        let msg = self.fit_rig(&p.model, p.template.as_deref(), p.turn, joints)?;
+        self.watch_resnapshot();
+        text(msg)
+    }
+
+    pub(crate) fn mcp_sheet_colors(&mut self, p: SheetColorsParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let d = self.project.db.sheet(&p.sheet).ok_or_else(|| format!("\"{}\" is not a sprite sheet.{}", p.sheet, suggestions(&p.sheet, self.project.db.sheets.iter().map(|t| t.id.as_str()))))?.clone();
+        let tex = self.assets.sheets.get(&d.id).ok_or("its image isn't loaded")?;
+        let mut info: BTreeMap<[u8; 3], u32> = BTreeMap::new();
+        for px in tex.image.bytes.as_chunks::<4>().0.iter().filter(|p| p[3] > 0) {
+            *info.entry([px[0], px[1], px[2]]).or_default() += 1;
+        }
+        let mut list: Vec<_> = info.into_iter().collect();
+        list.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        let mut out = vec![format!("{} colours in {} ({:?}); most used first.", list.len(), d.image, d.kind)];
+        for (c, n) in list.iter().take(160) {
+            out.push(format!("[{}, {}, {}] #{:02x}{:02x}{:02x}  {n} px", c[0], c[1], c[2], c[0], c[1], c[2]));
+        }
+        if list.len() > 160 {
+            out.push(format!("… and {} rarer colours", list.len() - 160));
+        }
+        text(out.join("\n"))
     }
 
     pub(crate) fn mcp_def_template(&mut self, p: DefTemplateParams) -> Result<Reply, String> {
@@ -367,6 +542,7 @@ impl Editor {
             RefKind::Character => Some(rustpg2d_engine::script_refs::IdKind::Character),
             RefKind::Recipe => Some(rustpg2d_engine::script_refs::IdKind::Recipe),
             RefKind::Achievement => Some(rustpg2d_engine::script_refs::IdKind::Achievement),
+            RefKind::Prop => Some(rustpg2d_engine::script_refs::IdKind::Prop),
             _ => None,
         };
         if let Some(ik) = id_kind {

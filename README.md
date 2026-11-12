@@ -16,7 +16,7 @@ world, fill it with villagers, monsters and quests, and export a finished game f
 Linux and the browser with one click. Free and open source under the MIT license; the games you
 make are yours.
 
-Current version: **0.16.0** — see the [CHANGELOG](CHANGELOG.md) for what changed, the
+Current version: **0.18.0** — see the [CHANGELOG](CHANGELOG.md) for what changed, the
 [ROADMAP](ROADMAP.md) for what's planned, and the **[Creator's Manual](Documentation/manual/README.md)**
 for how to use it all.
 
@@ -31,11 +31,11 @@ for how to use it all.
   </tr>
   <tr>
     <td><img src="Documentation/images/game-character.webp" alt="The character window with the hero's gear, stats, inventory and quick bar"></td>
-    <td><img src="Documentation/images/editor-builder.webp" alt="The character builder with body, skin, hair and clothing cards and a walking preview"></td>
+    <td><img src="Documentation/images/editor-builder.webp" alt="The character editor with 3D model cards, colour swatches for skin, hair and clothing, and a walking preview"></td>
   </tr>
   <tr>
-    <td align="center"><em>Equipment you can see on every character, inventory, quick bar</em></td>
-    <td align="center"><em>Assemble characters visually with the character builder</em></td>
+    <td align="center"><em>Equipment, stats, inventory and quick bar</em></td>
+    <td align="center"><em>Characters from real art, in the colours you pick</em></td>
   </tr>
   <tr>
     <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night, lit by street lamps"></td>
@@ -64,8 +64,8 @@ for how to use it all.
 - A Problems list of everything broken in the project (unknown ids, missing files, broken portals, script errors, untranslated texts), each a click away.
 
 **Characters**
-- Detailed pixel-art characters at twice the classic resolution that walk, breathe, strike and flinch when hit; use them as ready-made figures or mix and match bodies, hair and gear.
-- Layered characters: a body, skin and hair colours, hair style, beard, clothing, and every weapon, shield, lantern or tool shown in their hands.
+- Characters are 3D models drawn in the pixel look: they walk, strike, flinch, sit, sleep and work, and hold what they carry in their hands.
+- New characters imported (Meshy, Blender, Mixamo) or generated with AI from a description; animals and monsters animated with rig templates; colour features (skin, hair, clothing) that NPCs and the player's character creator recolour.
 - Villagers with daily schedules who sit on benches, sleep in their beds, visit other maps and work at their spot.
 - Enemies that notice you, hunt, flee when hurt and give up when lured too far.
 - Companions who follow you, fight, carry and use their own gear, and take orders.
@@ -82,6 +82,7 @@ for how to use it all.
 
 **Building with AI, if you like**
 - The editor's built-in [AI agent server](Documentation/manual/13-ai-agents.md) lets Claude Code, Cursor and other assistants read your project, build maps, quests and scripts with you, and play-test the result. Every change shows up in the editor at once and can be undone.
+- Generate art with your own [Meshy](https://www.meshy.ai) account: characters with walk and attack animations, item icons, props and portraits in your project's style, from the editor or from your assistant's chat.
 
 ## Meet Emberbrook
 

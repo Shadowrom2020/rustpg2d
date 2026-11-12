@@ -49,12 +49,13 @@ impl Game {
     }
 
     pub(super) fn player_defense(&self) -> i32 {
-        self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + self.skill_defense() + crate::effects::defense_bonus(&self.world.effects)
+        self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + self.skill_defense() + crate::effects::defense_bonus(&self.world.effects) + self.player_race().map_or(0, |r| r.defense)
     }
 
     /// Movement speed factor from armor (heavy armor slows down).
     pub(super) fn speed_factor(&self) -> f32 {
-        let base = ((1.0 + self.armor_pieces().map(|a| a.speed).sum::<f32>()) * self.skill_speed_factor()).clamp(0.3, 2.0);
+        let race = self.player_race().map_or(1.0, |r| r.speed_factor());
+        let base = ((1.0 + self.armor_pieces().map(|a| a.speed).sum::<f32>()) * self.skill_speed_factor() * race).clamp(0.3, 2.0);
         base * crate::effects::speed_factor(&self.world.effects)
     }
 
@@ -182,14 +183,13 @@ impl Game {
         }
     }
 
-    /// Draws worn armor over the player sprite (same frame layout as the player sheet).
-    /// Draws the player's idle front frame with what they wear, scaled into `dest` (character
-    /// sheet portrait).
+    /// Draws the player's idle front frame scaled into `dest` (character sheet portrait).
     pub(super) fn draw_portrait(&self, dest: Rect) {
         let Some(a) = self.player_appearance() else { return };
         let (fw, fh) = self.character_frame_size(&a);
         let scale = (dest.w / fw).min(dest.h / fh).floor().max(1.0);
         let (w, h) = (fw * scale, fh * scale);
-        self.draw_character_in(&a, &self.world.equipment, Rect::new(dest.x + (dest.w - w) / 2.0, dest.y + dest.h - h, w, h));
+        let gear = self.player_gear();
+        self.draw_character_in(&a, &gear, Rect::new(dest.x + (dest.w - w) / 2.0, dest.y + dest.h - h, w, h));
     }
 }

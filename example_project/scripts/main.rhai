@@ -312,3 +312,31 @@ fn restock_catch() {
 fn restock_baking() {
     restock_from_activity(SELF, "apple_pie", 2, 6);
 }
+
+// The elven herbalist in the Wilds asks for wolf pelts. Handing them in raises the player's
+// standing with the elves (change_standing): standing(faction) runs from -100 to 100, and at -20
+// or below a faction's characters attack the player. The first greeting changes for players the
+// elves don't trust (standing("elves") at -20 or below).
+fn herbalist_talk() {
+    let q = "elven_trust";
+    if quest_done(q) {
+        say("Elven Herbalist", "Welcome back, friend of the elves. Have a look at my herbs.");
+    } else if quest_active(q) {
+        if item_count("wolf_pelt") >= 2 {
+            take_item("wolf_pelt", 2);
+            say("Elven Herbalist", "Two fine pelts! The wolves will trouble my herb grounds less now. Thank you, {player}.");
+            complete_quest(q);
+            change_standing("elves", 40);
+            say("Elven Herbalist", "I will tell the rangers about you. My people will know you as a friend.");
+        } else {
+            say("Elven Herbalist", "Two wolf pelts, {player}. The wolves roam all over the Wilds.");
+        }
+    } else {
+        if standing("elves") <= -20 {
+            say("Elven Herbalist", "You are no friend of my people, {player}. Still, a healer turns nobody away.");
+        }
+        say("Elven Herbalist", "The wolves keep digging up my herb grounds. Bring me two of their pelts, and the elves will count you a friend.");
+        start_quest(q);
+    }
+    open_shop("self");
+}

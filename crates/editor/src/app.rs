@@ -232,6 +232,8 @@ pub struct Editor {
     /// False on the welcome screen: `project` is then an empty placeholder.
     pub project_open: bool,
     pub lib: crate::library_ui::LibState,
+    /// *Update asset library* (window and banner).
+    pub lib_update: crate::library_update::LibUpdate,
     pub px: crate::pixel::PixelState,
     pub wizard: Option<crate::wizard::Wizard>,
     pub export: Option<crate::export::ExportDialog>,
@@ -298,6 +300,9 @@ pub struct Editor {
     /// Quick search (Ctrl+P) and the Usages window.
     pub search: crate::search::Search,
     pub usages: crate::search::Usages,
+    /// *Generate art* (Meshy): jobs, the Art and Settings windows.
+    pub art: crate::art::ArtState,
+    pub art_settings: crate::art::ArtSettings,
     /// The *Problems* panel (the project check).
     pub problems: crate::problems::Problems,
     /// This editor is the Asset Library window (`--library`): `project` is the library.
@@ -446,7 +451,10 @@ impl Editor {
             search: Default::default(),
             usages: Default::default(),
             problems: crate::problems::Problems::new(),
+            art: Default::default(),
+            art_settings: crate::art::ArtSettings { model: "nano-banana-2-lite".into(), budget: 60, ask: true },
             library_mode: false,
+            lib_update: Default::default(),
             lib_window: Default::default(),
             lib_stamp: None,
             lib_check: 0.0,
@@ -716,6 +724,7 @@ impl Editor {
         flags.dedup();
         self.refs = Refs {
             items: self.project.db.items.iter().map(|i| i.id.clone()).collect(),
+            props: self.project.db.props.iter().map(|p| p.id.clone()).collect(),
             maps: self.maps.clone(),
             targets,
             functions: scripts.function_names(),
@@ -738,6 +747,8 @@ impl Editor {
             quests: self.project.db.quests.iter().map(|q| q.id.clone()).collect(),
             quest_stages: self.project.db.quests.iter().map(|q| (q.id.clone(), q.stages.clone())).collect(),
             skills: self.project.db.skills.iter().map(|q| q.id.clone()).collect(),
+            races: self.project.db.races.iter().map(|r| r.id.clone()).collect(),
+            factions: self.project.config.factions.list.iter().map(|f| f.id.clone()).collect(),
             spells: self.project.db.spells.iter().map(|q| q.id.clone()).collect(),
             achievements: self.project.db.achievements.iter().map(|a| a.id.clone()).collect(),
             stations: {
@@ -1088,6 +1099,28 @@ impl Editor {
                     w.parent = path.display().to_string();
                 }
             }
+            P::ItemModel(ref id) => {
+                let rel = match import("models") {
+                    Ok(rel) => rel,
+                    Err(e) => {
+                        self.set_status(format!("Import failed: {e:#}"));
+                        return;
+                    }
+                };
+                let msg = self.use_item_model(id, &rel);
+                self.set_status(msg);
+            }
+            P::ModelFile { ref id, clips } => {
+                let rel = match import("models") {
+                    Ok(rel) => rel,
+                    Err(e) => {
+                        self.set_status(format!("Import failed: {e:#}"));
+                        return;
+                    }
+                };
+                let msg = self.use_model_file(id, clips, &rel);
+                self.set_status(msg);
+            }
             P::TilesetImage(ref id) | P::SheetImage(ref id) | P::SoundFile(ref id) => {
                 let id = id.clone();
                 let sub = match purpose {
@@ -1159,8 +1192,8 @@ impl Editor {
         rustpg2d_engine::grid::snap_feet(world, tiles_wide, ts)
     }
 
-    /// Sprite of an entity definition (props / items; characters use their idle frame, layered
-    /// ones a `@char:` marker that `widgets::paint_sprite` paints from their layers).
+    /// Sprite of an entity definition (props / items; characters a `@char:` marker that
+    /// `widgets::paint_sprite` paints from their figure).
     pub fn def_sprite(&self, kind: EntityKind, def: &str) -> Option<rustpg2d_engine::defs::SpriteRef> {
         let db = &self.project.db;
         match kind {
@@ -1170,21 +1203,29 @@ impl Editor {
         }
     }
 
-    /// Layers of a character definition, or of a placed character with its own look / items.
-    pub fn char_layers(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>, facing: rustpg2d_engine::entity::Facing, col: u32) -> Vec<rustpg2d_engine::render::character::Layer> {
+    /// The look and gear of a character definition, or of a placed character with its own: as
+    /// the game draws it (its model, else the mannequin).
+    pub fn char_look(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>) -> Option<(rustpg2d_engine::defs::Appearance, rustpg2d_engine::render::model::Gear)> {
         use rustpg2d_engine::render::character;
-        let Some(d) = self.project.db.character(def) else { return Vec::new() };
-        character::layers(&self.project.db, character::appearance_of(d, inst), character::equipment_of(d, inst), facing, col, false)
+        let d = self.project.db.character(def)?;
+        let a = self.assets.models.look_of(character::appearance_of(d, inst));
+        let gear = rustpg2d_engine::render::model::Gear::of(character::equipment_of(d, inst), "", None);
+        Some((a, gear))
     }
 
-    /// Draws character layers with the bottom-center at `feet` (map view, macroquad).
-    pub fn draw_char_layers(&self, layers: &[rustpg2d_engine::render::character::Layer], feet: Vec2, tint: macroquad::color::Color) -> bool {
-        let mut any = false;
-        for l in layers {
-            let frame = self.assets.sheets.get(&l.sheet).map_or(l.fallback, |s| l.frame_in(s.count));
-            any |= self.assets.draw_frame_colored(&l.sheet, frame, feet, tint, l.skin, l.hair);
-        }
-        any
+    /// Draws a character standing with the bottom-center at `feet` (map view, macroquad).
+    pub fn draw_char(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>, facing: rustpg2d_engine::entity::Facing, feet: Vec2, tint: macroquad::color::Color) -> bool {
+        let Some((a, gear)) = self.char_look(def, inst) else { return false };
+        let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, bust: false };
+        let Some(cell) = self.assets.models.pose(&self.project.db, &self.assets.sheets, &req) else { return false };
+        self.assets.models.draw(&cell, feet, self.project.db.body_size(&a.model), tint);
+        true
+    }
+
+    /// A character's size on the map (world pixels).
+    pub fn char_size(&self, def: &str, inst: Option<&rustpg2d_engine::entity::EntityInstance>) -> macroquad::math::Vec2 {
+        let ts = self.ts();
+        self.char_look(def, inst).and_then(|(a, _)| self.assets.models.frame_size(&a.model)).map_or(macroquad::math::vec2(ts, ts * 1.5), |(w, h)| macroquad::math::vec2(w, h))
     }
 
     /// Width of an entity definition's sprite in whole tiles (for snapping).
@@ -1332,8 +1373,10 @@ impl Editor {
             self.tex = Textures::build(ctx, &self.assets);
             self.tex_dirty = false;
         }
+        self.check_library_update();
         if self.library_mode {
             self.library_menu_bar(ctx);
+            self.library_update_banner(ctx);
             self.watch_library();
             if self.mode == Mode::Map {
                 self.mode = Mode::Library;
@@ -1346,11 +1389,16 @@ impl Editor {
             self.watch_project();
             self.watch_banner(ctx);
             self.notice_banner(ctx);
+            self.library_update_banner(ctx);
         }
+        self.library_update_window(ctx);
         self.mcp_window(ctx);
         self.search_windows(ctx);
         self.problems_tick();
         self.problems_window(ctx);
+        self.art_tick();
+        self.art_window(ctx);
+        self.settings_window(ctx);
         if !self.project_open {
             self.status_bar(ctx);
             self.welcome(ctx);
@@ -1362,7 +1410,7 @@ impl Editor {
             return;
         }
         self.status_bar(ctx);
-        self.tex.set_characters(&self.project.db);
+        self.tex.set_characters(&self.project.db, &self.assets);
         match self.mode {
             Mode::Map => {
                 egui::SidePanel::left("left").resizable(true).default_width(290.0).show(ctx, |ui| {
@@ -1573,6 +1621,11 @@ impl Editor {
                         self.problems.open = true;
                         ui.close_menu();
                     }
+                    ui.separator();
+                    if ui.button(ui::t(ph::GEAR, "Settings…")).on_hover_text("Editor settings: the Meshy account for Generate art").clicked() {
+                        self.art.settings_open = true;
+                        ui.close_menu();
+                    }
                 });
                 ui.menu_button("Map", |ui| {
                     if ui.button(ui::t(ph::PLUS, "New map…")).clicked() {
@@ -1607,6 +1660,10 @@ impl Editor {
                         self.open_add_dialog(None);
                         ui.close_menu();
                     }
+                    if ui.button(ui::t(ph::PAINT_BRUSH, "Generate art…")).on_hover_text("Draw a character, an item icon, a prop, a portrait or a picture with your Meshy account, in the project's style").clicked() {
+                        self.art.window.open = true;
+                        ui.close_menu();
+                    }
                     if ui.button(ui::t(ph::PACKAGE, "Import asset package into project…")).clicked() {
                         self.open_file_dialog(files::Purpose::ImportPackage { into_library: false });
                         ui.close_menu();
@@ -1614,6 +1671,10 @@ impl Editor {
                     ui.separator();
                     if ui.button(ui::t(ph::BOOKS, "Asset Library window…")).on_hover_text("Opens the shared asset library in its own window: edit, create, import and export library assets").clicked() {
                         self.open_library_window();
+                        ui.close_menu();
+                    }
+                    if ui.button(ui::t(ph::ARROWS_CLOCKWISE, "Update asset library…")).on_hover_text("Brings this version's starter assets into your asset library: adds new ones, replaces the ones you never changed, asks about the rest").clicked() {
+                        self.open_library_update();
                         ui.close_menu();
                     }
                     if ui.button(ui::t(ph::ROBOT, "AI agent server…")).on_hover_text("Lets AI agents (Claude Code, Cursor, …) read and build this project live through the Model Context Protocol").clicked() {
@@ -2444,7 +2505,7 @@ impl Editor {
                     let own = e.appearance.is_some() || e.equipment.is_some() || e.inventory.is_some();
                     egui::CollapsingHeader::new(ui::t(ph::USER, "Look & equipment")).default_open(true).show(ui, |ui| {
                         use rustpg2d_engine::render::character;
-                        widgets::character_preview(ui, &self.tex, &self.assets, db, character::appearance_of(d, Some(e)), character::equipment_of(d, Some(e)));
+                        widgets::character_preview(ui, &self.assets, character::appearance_of(d, Some(e)));
                         let mut what = Vec::new();
                         if e.appearance.is_some() {
                             what.push("look");
@@ -2461,7 +2522,7 @@ impl Editor {
                             ui.weak("The definition's look, equipment and carried items.");
                         }
                         ui.horizontal(|ui| {
-                            if ui.button(ui::t(ph::USER, "Customize this one…")).on_hover_text("Give just this placed character its own body, colors, hair, clothes, gear and carried items").clicked() {
+                            if ui.button(ui::t(ph::USER, "Customize this one…")).on_hover_text("Give just this placed character its own model, colours, gear and carried items").clicked() {
                                 customize = Some(e.uid);
                             }
                             if own && ui.button("Use the definition's").on_hover_text("Drop this one's own look, equipment and carried items").clicked() {

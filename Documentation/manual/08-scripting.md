@@ -294,6 +294,13 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 |---|---|
 | `player_name()` | The name the player chose. |
 | `player_sex()` | `"male"` or `"female"`. |
+| `player_race()` | The player's race id (*Database › Races*), e.g. `"goblin"`; `""` without one. |
+| `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")`: drawn in the character's hands; while carrying it holds nothing else and the player can't attack. *(queued)* |
+| `stop_carrying(target)` | Puts down what a character carries. *(queued)* |
+| `player_carrying()` | The prop the player carries (`""` = none). |
+| `player_faction()` | The player's faction id (*Database › Project › Factions*): their race's, else the player character's; `""` without one. |
+| `standing(faction)` | The player's standing with a faction, -100 to 100. It starts at 100 for the player's own faction, 50 for friendly, 0 for neutral and -50 for hostile factions (the attitude table); at -20 or below the faction's characters attack the player. |
+| `change_standing(faction, amount)` | Raises the standing (a negative amount lowers it); the faction's characters turn hostile or calm down at once. *(queued)* |
 | `is_female()` / `is_male()` | The player character's sex. |
 | `player_hp()` | Current hit points (2 per heart). |
 | `player_max_hp()` | Maximum hit points. |
@@ -412,8 +419,8 @@ triggers.
 ### Equipment and carried items of characters
 
 Every humanoid character has equipment (Clothing, Head, Body, Weapon, Left hand) and carried items.
-What NPCs wear and hold is visible on layered models, counts in combat (an equipped weapon
-replaces the definition's), and everything they wear and carry is dropped when they are defeated.
+What NPCs wear and hold counts in combat (an equipped weapon replaces the definition's; they
+hold it in their hands), and everything they wear and carry is dropped when they are defeated.
 Changes are saved with the game.
 
 | Function | Description |

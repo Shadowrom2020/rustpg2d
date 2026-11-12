@@ -3,7 +3,7 @@
 The **Database** tab holds every kind of thing in your game. A map places copies of them; the
 Database says what they are.
 
-![The Database: the elder's character form](../images/editor-character.webp)
+![The Database: the villager's character form](../images/editor-character.webp)
 
 ## Working with definitions
 
@@ -13,8 +13,9 @@ the left and the selected definition's form on the right.
 
 - **+ New**, **Duplicate** and **Delete** manage the list, **Usages** lists every place the
   selected definition is used ([Finding things](02-the-editor.md#finding-things)); **New asset…** starts a wizard that also
-  draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** opens the
-  character builder.
+  draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** makes a
+  character from an existing 3D model, an imported one or AI generation
+  ([Characters › New characters](06-characters.md#new-characters)).
 - Every definition has an **id** (used by the files, triggers and scripts) and a **name** (shown to
   players). **Rename…** next to the id changes the id everywhere: maps (also those not open),
   triggers, other definitions, the project settings and the scripts (only the exact arguments of
@@ -43,12 +44,14 @@ is full, assigns it and opens it for drawing.
 | Section | Settings |
 |---|---|
 | **Basics** | Name, description, **Stack size** (how many fit in one inventory slot), **Value** (the default shop price), **Consumed when used**, **Food** (healing that the *Cooking* skill improves) |
-| **Icon** | The inventory picture; **Held sprite**: how it looks in a character's hand (a sheet of kind *Held item*) |
+| **Icon** | The inventory picture |
 | **Use on** | *Player* (the default), *Player or companion* (asks whom to heal when a companion is around) or *Companions* |
 | **Equipment** | *None, Weapon, Helmet, Body armor, Left hand, Clothing* or *Tool* (below) |
 | **Seed** | Makes it plantable on farm plots: growth stages with a sprite and hours each, and the harvest ([Farming](09-gameplay.md#farming)) |
 | **Magic** | **Teaches spell**: using it teaches a spell (a scroll that is consumed, a book that isn't) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
+| **Held** | Weapons, left-hand items and tools without a 3D model: how their picture is held (below) |
+| **3D model** | Weapons, left-hand items and tools: the model 3D model characters hold (below) |
 | **On use** | Triggers that run when the player uses the item: heal, give something, run a script ([Events](07-events.md)) |
 
 **Equipment kinds:**
@@ -58,12 +61,52 @@ is full, assigns it and opens it for drawing.
   shield or a light. A weapon can apply a status effect **on hit**. **Critical hits**: the chance
   (5 % by default) that a hit of the player's with it is critical: double damage and a big yellow
   number (enemies don't hit critically).
-- **Helmet**, **Body armor**: defense, a speed change (heavy armor slows), and an overlay sprite
-  sheet drawn over the wearer.
+- **Helmet**, **Body armor**: defense and a speed change (heavy armor slows).
 - **Left hand**: shields (defense) or lights (a lantern, a torch: give the item a *Light*).
-- **Clothing**: outfits shown on the body, with a **Female cut** sheet for female bodies.
+- **Clothing**: outfits (defense, speed).
+
 - **Tool**: a *Tool kind* (`rod`, `pickaxe`, `hammer`, `hoe`…) for activities, gathering, fishing
   and crafting recipes. Held in the right hand while used.
+
+Worn items count in play and show only in a model's art. **Held items are drawn in the hands**
+of characters: the weapon in the right hand, shields and lights in the left, bows in the left,
+two-handed weapons in both, a tool in the right hand while it is used. Items with a **3D model**
+(below) are held as that model; for the others the **Held** section says how their picture is held:
+
+- without *Own marks* the item's icon is held at its lower left corner, its blade (pointing up-right
+  in the icon) along the hand's grip axis, at half its size;
+- with **Own marks**: an own **picture** (none: the icon; long thin things such as the spear and the
+  fishing rod have their own on the starter `held` sheet), the **hold point** (click the picture),
+  the **orientation** (drag from the hold point: the direction in the picture that lies on the hand's
+  grip axis; setting it off the picture's length tilts the item, as the fishing rod held 40° up),
+  the **size** and the **hand** (*By its kind* or right, left, both).
+
+The **3D model** section gives the item a model (a `.glb`, copied into `models/`) for characters
+made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)). Choosing one
+sets everything from the item's kind and the model's shape; then check the big **preview** (four
+facings, *Standing*, *Walking* or *Attacking*, *Play* to animate it, *held by* any character model)
+and correct it with the buttons:
+
+| Setting | What it does |
+|---|---|
+| **Held as** | *Grip*: in the fist, the handle through it and the item's front (a blade's edge, an axe's head, a bow's back) where the knuckles point; swords, axes, tools, bows. Two-handed items lie along both fists when they are together, else in the right hand. *Upright*: held up, the handle pointing up whatever the arm does (torches, staffs). *Hang*: hanging from the hand by its top (lanterns, buckets). *Strap*: on the forearm, its face turned out and forward, its top up (shields). Changing it estimates the item again. |
+| **Length** | The whole model's length in world pixels (a character is about 40 tall: a sword 24, a spear 44). |
+| **Hold at** | Where along its length the hand holds it, from the handle's end to the far end. |
+| **Estimate** | Hold point, handle and front guessed from the shape again: along the model's length (also when it lies diagonally, like an icon) a thin stretch at one end is the handle (when both ends are thin, the shorter: a sword's grip rather than its blade), held 40 % along it; the front is where its head sticks out, else its wider side. By kind, bows are held upright at their middle, shields at the middle of their back, lanterns at their top. |
+| **Turn handle** | The handle runs along the model's next main direction (its length, width, thickness, both ways): press until it lies in the hand. |
+| **Turn front** | A quarter turn about the handle: the edge, the head or the shield's face points another way. |
+| **Flip ends** | The other end is the handle. |
+| **Render icon** | Draws the model into a 32 x 32 inventory icon (on the `icons_3d` sheet) and makes it the item's icon: weapons and tools point up-right with their face to the viewer, shields and lanterns show their front. |
+
+**Numbers** shows the values behind the buttons in the model's own coordinates: the hold point, the
+direction from it toward the far end, and the front (`0 0 0`: the wider side across the handle).
+Models made of plain-coloured materials without textures work too. While an item has a model, the
+picture settings below are folded away as **Picture in the hand** (they are used only without a
+model).
+
+A hand's **grip axis** is the line a handle runs through the closed fist. Turned to the left, the
+picture is mirrored across it, so whatever is tilted up stays up in both directions. Two-handed
+things run along the line through both fists.
 
 ![An item form with an On use trigger that runs a script](../images/editor-item.webp)
 
@@ -80,6 +123,7 @@ is full, assigns it and opens it for drawing.
 | **Gathering** | Mined or picked with a tool ([Gathering and mining](09-gameplay.md#gathering-and-mining)). |
 | **Farm plot** | Takes seeds ([Farming](09-gameplay.md#farming)). |
 | **Light** | A light per state: a lamp lit in *lit* and dark in *off*. |
+| **Carried** | How characters carry it in both hands (the *Carry prop* action, `carry()`): without *Own marks* at the middle of its lower half, its horizontal along the hands, at 0.6 of its size; *Own marks* set the hold point, orientation and size like an item's *Held* section. A carried prop never turns upside down. |
 | **Triggers** | Triggers every copy of the prop runs ([Events](07-events.md)). |
 
 The *Set prop state* action and `set_state(target, "name")` switch states during the game, the
@@ -96,6 +140,12 @@ can pick a lock instead ([Lockpicking](09-gameplay.md#lockpicking)).
 
 Characters have the most settings: look and equipment, behaviour, combat values, loot, a shop, a
 portrait and moods. They have their own chapter: [Characters](06-characters.md).
+
+## Races
+
+Humans, goblins, elves…: each race's bodies, the looks the creator offers, what a player of the
+race gets (max HP, speed, defense, starting skills) and its size. See
+[Characters › Races](06-characters.md#races).
 
 ## Tilesets
 
@@ -118,10 +168,7 @@ portraits and parallax images all come from sprite sheets.
 |---|---|
 | **Image**, **Frame size** | The picture and the size of one frame (in image pixels) |
 | **Scale** | 1× normally; 2× (3×, 4×) for high-resolution art: the frames are drawn at half (a third, a quarter) of their pixel size, so 64 × 96 frames fill a 32 × 48 place ([Art and sound › High-resolution sprites](10-art-and-sound.md#high-resolution-sprites)) |
-| **Kind** | *Character body, Hair, Beard, Outfit, Armor, Held item, Emotions* or plain. The character builder offers sheets by kind; every animation of an *Emotions* sheet is an emotion shown over heads ([Events › Emotions over heads](07-events.md#emotions-over-heads)) |
-| **Female body** | For bodies: outfits use their female cut on it |
-| **Playable** | For bodies: players may choose it in the character creator |
-| **Complete figure** | For bodies: clothes, hair and held items are painted in; nothing is drawn over it and it isn't recoloured |
+| **Kind** | *Emotions* (every animation is an emotion shown over heads, [Events › Emotions over heads](07-events.md#emotions-over-heads)) or plain *Sprite* (characters are 3D models: *Database › 3D models*) |
 | **Animations** | Named frame ranges (imported from Aseprite tags, or made here) for the *Effect* and *Fly* actions |
 | **Used by** | Which items, props and characters use the sheet |
 
@@ -159,9 +206,10 @@ These belong to the game systems they drive: [Skills and magic](09-gameplay.md#s
 |---|---|
 | **Project** | Name; start map and start spawn; pixel scale; inventory slots; the clock's **day length** (real minutes per in-game day, default 24; 0 = time stands still) and the hour **new games start at** |
 | **Player character** | The character definition the player is, and the **player portrait** |
-| **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable bodies, skin colours, hair styles, hair colours and beards offered ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
+| **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable models and the default model per sex (the colour rows come from the models' colour features) ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
 | **Dialog portraits** | Show the speaker's portrait in dialogs (on by default) |
 | **Companions at 0 HP** | Knocked down until healed (default), get up after some seconds, or go home ([Companions](06-characters.md#companions)) |
+| **Factions** | The factions and the attitude table between them: who fights whom and how they treat the player ([Characters › Factions](06-characters.md#factions)) |
 | **Skills & magic** | Turn on skills and magic; starting skill points, max mana, mana regeneration |
 | **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana, skill points) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |

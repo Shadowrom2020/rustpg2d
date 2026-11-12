@@ -1,6 +1,7 @@
 //! Content definitions edited in the editor and stored as RON in `defs/`.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::entity::EntityKind;
 use crate::events::{Condition, Trigger};
@@ -164,19 +165,9 @@ pub struct SheetDef {
     /// 32 x 48 place). Positions, hitboxes and tiles stay in world pixels.
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub scale: u32,
-    /// What the sheet is for (offered by the matching pickers: bodies, hair styles, ...).
+    /// What the sheet is for (emotion icons over heads, or anything else).
     #[serde(default, skip_serializing_if = "SheetKind::is_sprite")]
     pub kind: SheetKind,
-    /// Bodies: a woman's body, which wears the female cut of outfits (`Armor::overlay_f`).
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub female: bool,
-    /// Bodies: players may choose it in the character creator (people yes, a slime no).
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub playable: bool,
-    /// Bodies: a complete figure (clothes, hair and what it holds painted in): nothing is drawn
-    /// over it (no outfit, armor, hair, beard or held items) and it isn't recoloured.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub complete: bool,
     /// Named frame ranges (animations), e.g. from an Aseprite export: offered by the *Effect* /
     /// *Fly* actions and the `tag` option of `effect()` / `fly()`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -196,7 +187,7 @@ pub struct SheetTag {
 /// tile. The editor's "+ New" value is [`SheetDef::fresh`].
 impl Default for SheetDef {
     fn default() -> Self {
-        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, female: false, playable: false, complete: false, tags: Vec::new() }
+        SheetDef { id: String::new(), image: String::new(), frame_w: crate::project::TILE_SIZE, frame_h: crate::project::TILE_SIZE, scale: 1, kind: SheetKind::Sprite, tags: Vec::new() }
     }
 }
 
@@ -209,59 +200,54 @@ impl SheetDef {
     pub fn fresh(id: &str) -> Self {
         Self::new(id, "sprites/new.png", crate::project::TILE_SIZE, crate::project::TILE_SIZE)
     }
-    /// "hair_short" -> "Short", "body_goblin_female" -> "Goblin female": the id without the kind's
-    /// prefix, for pickers.
+    /// "goblin_scout" -> "Goblin scout": the id as a label, for pickers.
     pub fn label(&self) -> String {
-        let prefix = match self.kind {
-            SheetKind::Body => "body_",
-            SheetKind::Hair => "hair_",
-            SheetKind::Beard => "beard_",
-            SheetKind::Outfit => "outfit_",
-            SheetKind::Armor => "ov_",
-            SheetKind::Held => "held_",
-            SheetKind::Sprite | SheetKind::Emotions => "",
-        };
-        let s = self.id.strip_prefix(prefix).unwrap_or(&self.id).replace('_', " ");
+        let s = self.id.replace('_', " ");
         let mut c = s.chars();
         c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
     }
 }
 
-/// Role of a sprite sheet. Layered character models combine sheets in the character layout
-/// (4 walk frames per row, rows = facings): a body, hair / beard, an outfit, armor and held items.
+/// A part of a model that can take another colour: the art's own `shades` of it (exact colours,
+/// darkest to lightest or in any order) are replaced by the chosen colour, each as much darker or
+/// lighter as it was than the feature's middle shade.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ColorFeature {
+    /// "skin", "hair", "clothing"...: characters and the creator name the feature.
+    pub name: String,
+    pub shades: Vec<[u8; 3]>,
+    /// The colours offered (the character creator's swatches; empty = the editor offers any).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub colors: Vec<[u8; 3]>,
+}
+
+impl ColorFeature {
+    /// "hair_colour" -> "Hair colour": the creator's row label (translatable content).
+    pub fn label(&self) -> String {
+        let s = self.name.replace('_', " ");
+        let mut c = s.chars();
+        c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+    }
+}
+
+/// Role of a sprite sheet.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SheetKind {
-    /// Anything else: props, items, effects.
+    /// Anything else: props, items, effects. (Sheets of the characters of earlier versions,
+    /// layered parts and the 0.17 figures, load as plain sprites: characters are 3D models.)
     #[default]
+    #[serde(alias = "Hair", alias = "Beard", alias = "Outfit", alias = "Armor", alias = "Held", alias = "Body")]
     Sprite,
-    /// A character's body (people: in underwear, skin pixels in the magenta reference ramp;
-    /// monsters: the whole creature). Any frame size; 4 walk frames per row, rows = facings.
-    Body,
-    /// A hair style; hair pixels use the cyan reference ramp.
-    Hair,
-    Beard,
-    /// Clothing drawn over a body (items in the Clothing slot).
-    Outfit,
-    /// Armor drawn over clothing (head / body armor items).
-    Armor,
-    /// An item held in a hand (weapons, shields, lights).
-    Held,
     /// Emotion icons shown over characters' heads: every tag (named frame range) is an emotion
     /// (`emote(target, "joy")`, the *Show emotion* action).
     Emotions,
 }
 
 impl SheetKind {
-    pub const ALL: [SheetKind; 8] = [SheetKind::Sprite, SheetKind::Body, SheetKind::Hair, SheetKind::Beard, SheetKind::Outfit, SheetKind::Armor, SheetKind::Held, SheetKind::Emotions];
+    pub const ALL: [SheetKind; 2] = [SheetKind::Sprite, SheetKind::Emotions];
     pub fn label(self) -> &'static str {
         match self {
             SheetKind::Sprite => "Sprite",
-            SheetKind::Body => "Character body",
-            SheetKind::Hair => "Hair style",
-            SheetKind::Beard => "Beard",
-            SheetKind::Outfit => "Outfit (clothing)",
-            SheetKind::Armor => "Armor overlay",
-            SheetKind::Held => "Held item",
             SheetKind::Emotions => "Emotions (icons over heads)",
         }
     }
@@ -270,21 +256,201 @@ impl SheetKind {
     }
 }
 
-/// Look of a layered character model: a body sheet with skin and hair colors (sheets of kind
-/// Body / Hair / Beard; "" = none). What it wears comes from its equipment.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Look of a character: its 3D model (`ModelDef`; "" = its figure `body`, a sheet of kind Body)
+/// and the colours chosen for the colour features (feature name -> colour; a feature not listed
+/// keeps the art's colours).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Appearance {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub model: String,
     pub body: String,
-    pub skin: [u8; 3],
-    pub hair: String,
-    pub hair_color: [u8; 3],
-    pub beard: String,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub colors: BTreeMap<String, [u8; 3]>,
 }
 
-impl Default for Appearance {
-    fn default() -> Self {
-        Appearance { body: String::new(), skin: [232, 184, 138], hair: String::new(), hair_color: [92, 60, 34], beard: String::new() }
+impl Appearance {
+    /// Whether it shows anything: a model or a figure.
+    pub fn has_look(&self) -> bool {
+        !self.model.is_empty() || !self.body.is_empty()
+    }
+}
+
+/// A held item's 3D model: a `.glb` under `models/`, where the hand holds it, which way its
+/// handle runs and which side is its front (the model's own units and axes), how it is held and
+/// how long it is in the world.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ItemModel {
+    pub file: String,
+    /// The hold point.
+    #[serde(default)]
+    pub grip: [f32; 3],
+    /// The direction from the hold point toward the business end (the blade, the head; a
+    /// lantern's body, a shield's top): it lies on the hand's grip axis (see [`HoldStyle`]).
+    #[serde(default = "item_axis")]
+    pub axis: [f32; 3],
+    /// Length of the whole model in world pixels (a sword about 22, a spear 50).
+    #[serde(default = "item_size")]
+    pub size: f32,
+    /// Its front, across the handle: the edge of a blade, the head of an axe or pickaxe, a bow's
+    /// back, a shield's face. It points where the hand's knuckles do (a shield: away from the
+    /// body). Zero: the wider side across the handle ([`crate::model::auto_front`]).
+    #[serde(default, skip_serializing_if = "is_zero3")]
+    pub front: [f32; 3],
+    /// How it is held.
+    #[serde(default, skip_serializing_if = "HoldStyle::is_grip")]
+    pub hold: HoldStyle,
+}
+
+/// How a held item model sits in the hand.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HoldStyle {
+    /// In the fist, its handle along the grip axis and its front where the knuckles point
+    /// (swords, axes, tools, bows; two-handed: along the line through both fists).
+    #[default]
+    Grip,
+    /// Held up at the hand, its handle pointing up whatever the arm does (torches, staffs).
+    Upright,
+    /// Hanging from the hand, its handle above it (lanterns, buckets).
+    Hang,
+    /// On the forearm, its face turned away from the body and its top up (shields).
+    Strap,
+}
+
+impl HoldStyle {
+    pub const ALL: [HoldStyle; 4] = [HoldStyle::Grip, HoldStyle::Upright, HoldStyle::Hang, HoldStyle::Strap];
+    fn is_grip(&self) -> bool {
+        *self == HoldStyle::Grip
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            HoldStyle::Grip => "Grip",
+            HoldStyle::Upright => "Upright",
+            HoldStyle::Hang => "Hang",
+            HoldStyle::Strap => "Strap",
+        }
+    }
+}
+
+fn is_zero3(v: &[f32; 3]) -> bool {
+    *v == [0.0; 3]
+}
+
+fn item_axis() -> [f32; 3] {
+    [0.0, 1.0, 0.0]
+}
+fn item_size() -> f32 {
+    22.0
+}
+
+impl ItemModel {
+    pub fn new(file: &str) -> ItemModel {
+        ItemModel { file: file.into(), grip: [0.0; 3], axis: item_axis(), size: item_size(), front: [0.0; 3], hold: HoldStyle::Grip }
+    }
+}
+
+/// A 3D character model (`defs/models.ron`): a rigged `.glb` under `models/`, more files with clips
+/// of the same rig, the clip each animation plays, its standing height and its colour features
+/// (shades of its texture).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ModelDef {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    /// The model file (`models/hero.glb`).
+    pub file: String,
+    /// More `.glb` files whose clips the model plays (Meshy writes animations as separate files).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub clip_files: Vec<String>,
+    /// Standing height in world pixels (a person: 40, two tiles is 64).
+    #[serde(default = "model_height")]
+    pub height: f32,
+    /// Animation name ("walk", "idle", "attack", "hurt", "sit", "fish"...) -> clip.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub clips: Vec<ClipMap>,
+    /// Colour features of its texture (as a figure sheet's).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<ColorFeature>,
+    /// Offered by the character creator; to female players.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub playable: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub female: bool,
+    /// An unrigged model (an animal, a monster) animated by a rig template: another model's
+    /// skeleton fitted to it, and that model's clips.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rig: Option<RigFit>,
+}
+
+/// A rig template fitted to an unrigged model ([`crate::model::Model::fit_rig`]): the template's
+/// skeleton is stretched over the model's bounds, then single joints are moved.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct RigFit {
+    /// The rigged model (an id) whose skeleton and clips it takes.
+    pub template: String,
+    /// Turns the model about the up axis first (degrees), so it faces the front (+Z, toward the
+    /// viewer) like the template.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub turn: f32,
+    /// Joints moved after the fit.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub joints: Vec<JointNudge>,
+}
+
+/// A joint of a fitted rig template moved by hand.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct JointNudge {
+    /// The joint's name in the template.
+    pub joint: String,
+    /// How far, in parts of the model's height (x right, y up, z front).
+    pub offset: [f32; 3],
+}
+
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
+}
+
+fn model_height() -> f32 {
+    40.0
+}
+
+/// The clip an animation of a model plays.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ClipMap {
+    /// "walk", "idle", "attack", "hurt" or an extra ("sit", "sleep", "fish", "hammer", "farm"…).
+    pub anim: String,
+    /// The clip's name in the model's files.
+    pub clip: String,
+    /// Frames per second it is drawn with (stepped, like pixel animation).
+    #[serde(default = "clip_fps")]
+    pub fps: f32,
+}
+
+fn clip_fps() -> f32 {
+    12.0
+}
+
+impl ModelDef {
+    pub fn new(id: &str, file: &str) -> ModelDef {
+        ModelDef { id: id.into(), name: String::new(), file: file.into(), clip_files: Vec::new(), height: model_height(), clips: Vec::new(), features: Vec::new(), playable: false, female: false, rig: None }
+    }
+
+    /// The clip of animation `anim`.
+    pub fn clip_of(&self, anim: &str) -> Option<&ClipMap> {
+        self.clips.iter().find(|c| c.anim == anim)
+    }
+
+    /// The template's nudges as (joint, offset).
+    pub fn nudges(&self) -> Vec<(String, [f32; 3])> {
+        self.rig.as_ref().map_or_else(Vec::new, |r| r.joints.iter().map(|j| (j.joint.clone(), j.offset)).collect())
+    }
+
+    pub fn label(&self) -> &str {
+        if self.name.is_empty() { &self.id } else { &self.name }
+    }
+
+    pub fn feature(&self, name: &str) -> Option<&ColorFeature> {
+        self.features.iter().find(|f| f.name == name)
     }
 }
 
@@ -391,7 +557,7 @@ pub enum EquipSlot {
     Weapon,
     /// Left hand: a shield or a light (not while holding a two-handed weapon).
     Offhand,
-    /// An outfit: changes how a layered character looks (armor is worn over it).
+    /// Clothing (its defense and speed; the figure's art shows what it wears).
     Clothing,
     /// A tool used for an activity (a fishing rod, later pickaxes, hoes, …): held in the
     /// right hand while it is being used, the weapon otherwise.
@@ -435,24 +601,6 @@ pub struct Armor {
     /// Movement speed change, e.g. -0.1 = 10% slower.
     #[serde(default)]
     pub speed: f32,
-    /// Sprite sheet drawn over the character (character layout): the outfit of clothing, the
-    /// armor of head / body pieces; "" = none.
-    #[serde(default)]
-    pub overlay: String,
-    /// The female cut: drawn instead of `overlay` on a female body sheet ("" = `overlay`).
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub overlay_f: String,
-}
-
-impl Armor {
-    /// The overlay sheet worn on a female (`female`) or other body ("" = none).
-    pub fn overlay_for(&self, female: bool) -> &str {
-        if female && !self.overlay_f.is_empty() {
-            &self.overlay_f
-        } else {
-            &self.overlay
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -508,13 +656,16 @@ pub struct ItemDef {
     /// Gives light while equipped (e.g. a lantern in the left hand) or lying on the ground.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub light: Option<LightSpec>,
+    /// How it looks in a character's hand (weapons, left-hand items, tools); None = its icon,
+    /// held at its lower-left end.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held: Option<crate::hands::HeldSprite>,
+    /// Its 3D model, held by 3D model characters (else they hold its picture).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<ItemModel>,
     /// Using the item teaches this spell (scrolls, spell books); "" = none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub teaches: String,
-    /// Sheet (character layout) drawn in the character's hand while the item is in the Weapon
-    /// or left-hand slot, or a tool while it is used; "" = not visible.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub held: String,
     /// What kind of tool it is ("fishing rod", "pickaxe", …; "" = no tool): tools go into the
     /// Tool slot and are what activities ask for (a fishing spot needs a fishing rod).
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -547,8 +698,9 @@ impl Default for ItemDef {
             max_stack: default_max_stack(),
             value: 0,
             light: None,
+            held: None,
+            model: None,
             teaches: String::new(),
-            held: String::new(),
             tool: String::new(),
             use_on: UseTarget::default(),
             crop: None,
@@ -558,6 +710,26 @@ impl Default for ItemDef {
 }
 
 impl ItemDef {
+    /// How its 3D model is held, how long it is (world pixels) and, when its shape can't tell,
+    /// how far along its length it is held, by its kind, for a model of this size (`ext`: its
+    /// length, width and thickness, [`crate::model::extents`]): shields on the forearm, lights upright (long ones, torches) or hanging
+    /// (lanterns), bows upright at their middle, weapons and tools in the fist; two-handed
+    /// weapons about a character's height (40), bows 30, one-handed weapons and tools 24.
+    pub fn hold_by_kind(&self, ext: [f32; 3]) -> (HoldStyle, f32, Option<f32>) {
+        let mut e = ext;
+        e.sort_by(|a, b| b.total_cmp(a));
+        let long = e[0] > e[1].max(1e-6) * 2.2;
+        let offhand = self.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
+        match &self.weapon {
+            _ if offhand && self.light.is_some() => if long { (HoldStyle::Upright, 16.0, None) } else { (HoldStyle::Hang, 12.0, None) },
+            _ if offhand => (HoldStyle::Strap, 18.0, None),
+            Some(w) if w.ranged.is_some() && e[0] > e[1].max(1e-6) * 1.6 => (HoldStyle::Upright, 30.0, Some(0.5)),
+            Some(w) if w.ranged.is_some() => (HoldStyle::Grip, 24.0, None),
+            Some(w) if w.two_handed => (HoldStyle::Grip, 44.0, None),
+            _ => (HoldStyle::Grip, 24.0, None),
+        }
+    }
+
     /// A new item as the editor creates it.
     pub fn fresh(id: &str) -> Self {
         ItemDef { id: id.into(), name: "New item".into(), ..Default::default() }
@@ -786,6 +958,10 @@ pub struct PropDef {
     /// sight. Solid props that aren't low stop both (trees, statues, stalls).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub low: bool,
+    /// How characters carry it in both hands (*Carry prop*): its hold point and orientation mark
+    /// (None: the middle of its lower half, its horizontal along the hands).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carry: Option<crate::hands::HeldSprite>,
 }
 
 /// The serde defaults (what an entry with only `id`, `name` and `sprite` loads as: not solid,
@@ -809,6 +985,7 @@ impl Default for PropDef {
             regrow: None,
             plot: false,
             low: false,
+            carry: None,
         }
     }
 }
@@ -1050,15 +1227,19 @@ impl Behavior {
     }
 }
 
-/// A character: a layered model (`appearance` + `equipment`) with behavior and combat values.
+/// A character: a figure (`appearance`), what it carries (`equipment`, counted in play; held items
+/// show in figures with hand marks, `hands.rs`),
+/// behavior and combat values.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CharacterDef {
     pub id: String,
     pub name: String,
-    /// Legacy: the pre-drawn sheet of old projects; becomes the body on load
-    /// (`Database::upgrade_characters`).
+    /// Its race (`races::RaceDef`; "" = none): for conditions, scripts and factions.
     #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub sheet: String,
+    pub race: String,
+    /// Its faction (`ProjectConfig::factions`; "" = its race's).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub faction: String,
     /// Movement speed in pixels per second.
     #[serde(default = "default_speed")]
     pub speed: f32,
@@ -1143,7 +1324,8 @@ impl Default for CharacterDef {
         CharacterDef {
             id: String::new(),
             name: String::new(),
-            sheet: String::new(),
+            race: String::new(),
+            faction: String::new(),
             speed: default_speed(),
             hitbox: default_box(),
             behavior: default_behavior(),
@@ -1326,6 +1508,10 @@ pub struct Database {
     pub recipes: Vec<crate::crafting::RecipeDef>,
     /// Achievements (the game's; unlocks are the player's, see `achievements::Progress`).
     pub achievements: Vec<crate::achievements::AchievementDef>,
+    /// Races (humans, goblins, elves…; the player picks one in the creator).
+    pub races: Vec<crate::races::RaceDef>,
+    /// 3D character models.
+    pub models: Vec<ModelDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1450,6 +1636,33 @@ impl Database {
     pub fn recipe(&self, id: &str) -> Option<&crate::crafting::RecipeDef> {
         self.recipes.iter().find(|d| d.id == id)
     }
+
+    pub fn race(&self, id: &str) -> Option<&crate::races::RaceDef> {
+        self.races.iter().find(|d| d.id == id)
+    }
+
+    pub fn model(&self, id: &str) -> Option<&ModelDef> {
+        self.models.iter().find(|d| d.id == id)
+    }
+
+    /// A character definition's faction: its own, else its race's ("" = none).
+    pub fn faction_of(&self, character: &str) -> String {
+        let Some(c) = self.character(character) else { return String::new() };
+        if !c.faction.is_empty() {
+            return c.faction.clone();
+        }
+        self.race(&c.race).map(|r| r.faction.clone()).unwrap_or_default()
+    }
+
+    /// The race whose bodies include `body` (the first one).
+    pub fn race_of_body(&self, body: &str) -> Option<&crate::races::RaceDef> {
+        (!body.is_empty()).then(|| self.races.iter().find(|r| r.bodies_male.iter().chain(&r.bodies_female).any(|b| b == body))).flatten()
+    }
+
+    /// Size of characters with this body (its race's; 1 without one).
+    pub fn body_size(&self, body: &str) -> f32 {
+        self.race_of_body(body).map_or(1.0, |r| r.size.clamp(0.25, 4.0))
+    }
     /// Recipes of a crafting station, in definition order.
     pub fn recipes_at<'a>(&'a self, station: &'a str) -> impl Iterator<Item = &'a crate::crafting::RecipeDef> + 'a {
         self.recipes.iter().filter(move |r| r.station == station)
@@ -1491,36 +1704,6 @@ impl Database {
         for d in &mut self.props {
             d.upgrade_states();
         }
-    }
-
-    /// Old projects: a character's pre-drawn `sheet` becomes the body of its model (the sheet
-    /// has no reference-ramp pixels, so nothing is recolored).
-    pub fn upgrade_characters(&mut self) {
-        for d in &mut self.characters {
-            if d.appearance.body.is_empty() && !d.sheet.is_empty() {
-                d.appearance.body = std::mem::take(&mut d.sheet);
-                if let Some(s) = self.sheets.iter_mut().find(|s| s.id == d.appearance.body) {
-                    s.kind = SheetKind::Body;
-                }
-            } else {
-                d.sheet.clear();
-            }
-        }
-    }
-
-    /// Is `sheet` a female body?
-    pub fn female_body(&self, sheet: &str) -> bool {
-        self.sheet(sheet).is_some_and(|s| s.female)
-    }
-
-    /// The body sheet is a complete figure ([`SheetDef::complete`]).
-    pub fn complete_body(&self, sheet: &str) -> bool {
-        self.sheet(sheet).is_some_and(|s| s.complete)
-    }
-
-    /// Bodies players may choose for a character of sex `female` (in sheet order).
-    pub fn playable_bodies(&self, female: bool) -> Vec<&SheetDef> {
-        self.sheets.iter().filter(|s| s.kind == SheetKind::Body && s.playable && s.female == female).collect()
     }
 
     /// Converts a placed prop's legacy frame offsets (start frame, lock, container) to the
@@ -1622,6 +1805,8 @@ impl_def!(crate::skills::SkillDef, crate::refactor::RefKind::Skill, skills, refs
 impl_def!(crate::skills::SpellDef, crate::refactor::RefKind::Spell, spells, refs = crate::refactor::refs_of_spell);
 impl_def!(crate::crafting::RecipeDef, crate::refactor::RefKind::Recipe, recipes, refs = crate::refactor::refs_of_recipe);
 impl_def!(crate::achievements::AchievementDef, crate::refactor::RefKind::Achievement, achievements);
+impl_def!(crate::races::RaceDef, crate::refactor::RefKind::Race, races, refs = crate::refactor::refs_of_race);
+impl_def!(ModelDef, crate::refactor::RefKind::Model, models, refs = crate::refactor::refs_of_model);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
@@ -1679,6 +1864,14 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Achievement => {
                 type $T = $crate::achievements::AchievementDef;
+                $body
+            }
+            $crate::refactor::RefKind::Race => {
+                type $T = $crate::races::RaceDef;
+                $body
+            }
+            $crate::refactor::RefKind::Model => {
+                type $T = $crate::defs::ModelDef;
                 $body
             }
             $crate::refactor::RefKind::Map => $else,
@@ -1963,7 +2156,7 @@ mod tests {
         let mut item: ItemDef = ron::from_str(r#"(id: "cap", name: "Cap", icon: (sheet: "items", frame: 0))"#).unwrap();
         assert_eq!(item.equip_slot(), None);
         assert_eq!(item.max_stack, crate::inventory::DEFAULT_STACK);
-        item.armor = Some(Armor { slot: EquipSlot::Head, defense: 1, speed: 0.0, overlay: String::new(), overlay_f: String::new() });
+        item.armor = Some(Armor { slot: EquipSlot::Head, defense: 1, speed: 0.0 });
         assert_eq!(item.equip_slot(), Some(EquipSlot::Head));
         item.weapon = Some(Weapon::melee(1, 0.3));
         assert_eq!(item.equip_slot(), Some(EquipSlot::Weapon));

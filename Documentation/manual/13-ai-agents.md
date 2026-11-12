@@ -74,6 +74,11 @@ bats and a chest".
 | `get_object {map, uid}` | An entity or zone as JSON. |
 | `tileset_legend {tileset}` | Columns and tile count (index = row · columns + column), solid tiles, animations, light tiles, terrains. |
 | `view_image {kind, id, grid}` | The PNG of a tileset or sprite sheet, with cell borders drawn in (small images are shown enlarged). |
+| `edit_frames {sheet, op, anim, frame, row, to_row, dx, dy, from, to, scope}` | Frame operations on a sheet's image: `mirror_rows` (four-facing sheets: Right rows = the mirrored Left rows; of `anim` or all), `copy_row` / `clear_row`, `duplicate` (a frame into the next column), `nudge` (move a frame's pixels), `replace_color` (`from` → `to` in a `frame`, `row` or the whole `sheet`), `fill_standing` (four-facing sheets: empty idle / hurt frames get the standing frame). Writes the PNG and reloads the art. |
+| `import_model {path, clips_for}` | Imports a rigged 3D character model (`.glb` from Meshy, Blender, Mixamo…) into `models/` as a new model, its clips matched to the animations by name; with `clips_for`, adds the file's clips to that model. Characters then use it with `upsert_def` `appearance: {model}`. Saves. |
+| `model_info {model}` | A 3D model: triangles, bones, hands, its clips with their lengths, the clip each animation plays, its rig template, and its texture's colours (the shades for colour features: `upsert_def` model `features`). |
+| `fit_rig {model, template, turn, joints}` | Animates an unrigged model (an animal, a monster) with a rig template (`rig_quadruped`, `rig_bird`, `rig_flyer`, `rig_blob`, `rig_floating` or any rigged model; `-` removes it): its skeleton is stretched over the model and its walk, idle, attack and hurt play. `turn` (degrees) makes the model face the front first; `joints` (`[{joint, offset}]`, offsets in parts of the height, x right, y up, z front) moves single joints. Returns the fitted joints. Saves. |
+| `sheet_colors {sheet}` | The exact colours of a sprite sheet's image, most used first, with pixel counts (for `edit_frames` `replace_color`). |
 | `screenshot_map {map, x, y, w, h, zoom, grid, collision, zones}` | A PNG of the region as the editor draws it. |
 | `screenshot_editor` | A PNG of the whole editor window. |
 
@@ -103,7 +108,7 @@ bats and a chest".
 ### Definitions
 | Tool | Does |
 |---|---|
-| `list_defs {kind, filter, offset}` | `tilesets`, `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `skills`, `spells`, `recipes`, `achievements`: id and key facts per line. |
+| `list_defs {kind, filter, offset}` | `tilesets`, `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `skills`, `spells`, `recipes`, `achievements`, `races`: id and key facts per line. |
 | `get_def {kind, id}` | JSON. |
 | `def_template {kind, id}` | A complete new definition to fill in, with notes on the fields. |
 | `upsert_def {kind, def, merge}` | Create or replace (or merge fields into) a definition; checks referenced ids, image / sound files and the definition's own triggers; tilesets, sheets and sounds reload the editor's textures. |
@@ -144,6 +149,27 @@ screenshots as images. The game opens a real window on the person's screen for t
 | `library_info {kind, id}` | One asset as JSON with its dependencies. |
 | `library_add {assets: [{kind, id}]}` | Copies assets with everything they need (sheets, sounds, script functions) into the project. |
 | `library_send {assets: [{kind, id}], replace, drop_script_triggers}` | Sends project assets with everything they need to the library. An id the library has already gets a numbered copy, or with `replace` its definition, files and script functions are updated. `drop_script_triggers` leaves the triggers of items, props and characters that run the project's script functions behind (story scripts stay with the game). The library is `$RUSTPG2D_LIBRARY` or the user's own one. |
+
+### Drawing art
+With a Meshy key in *Edit › Settings… › Meshy*, agents draw art in the project's style the way
+the Art window does ([Art and sound › Generate art](10-art-and-sound.md#generate-art-with-meshy)).
+Pictures cost the person's credits: `generate_art` without `confirm_credits` only names the price,
+so an assistant asks before it spends, and the session's budget holds for agents too. Every job
+also shows in the editor's Art window and status bar.
+
+| Tool | Does |
+|---|---|
+| `art_settings` | Whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, character sizes and attacks, which sheets set the style. |
+| `generate_art {kind, id, description, attack, tiles, portrait_for, female, from, extras, confirm_credits}` | Starts a job (3D: `model` = a rigged and animated 3D character, `female` for a woman, `extras` for work clips (`craft`, `farm`, `chop`, `sleep`), `from` = a sheet in the four-facing layout (an old figure) to model instead of drawing a turnaround picture; `creature` = an unrigged model (also `from`; animate it with `fit_rig`); `gear` = the 3D model of the item `id`: with a `description` from a clean picture drawn first (its icon as the reference), else from its icon; pictures: `icon`, `prop`, `portrait`, `image`, `portrait_for`: the character whose dialog portrait it becomes) and returns its number at once; refuses unless `confirm_credits` equals the price (the refusal lists the steps' prices), or past the budget. |
+| `art_jobs` | Every job of the session: its pictures and their progress, credits, done or failed, added as which asset. |
+| `art_result {job}` | A finished job as images: the converted art (characters: the 16-row sheet) and Meshy's raw pictures, to judge before adding it. |
+| `art_apply {job, id}` | Adds it to the project: the image, its sprite sheet and an item / prop using it; 3D jobs: the files under `models/` (made smaller), the 3D model and a character using it, or the item's model (check it with `model_info`). Saves. |
+| `art_redo {job, picture, confirm_credits}` | Draws one picture (`walk`, `attack`, `picture`) again and converts again; in 3D jobs (`views`, `model`, `rig`, `clips`) makes that step and the steps after it again. |
+
+In a chat this reads like: *"Make an orc shaman with a skull staff for the swamp camp."* The
+assistant checks `art_settings`, tells you the price (about 50 credits for a 3D character with a
+spell attack), starts the job once you agree, watches `art_jobs`, looks at `art_result`, redoes a
+bad step if you want, and adds it with `art_apply`, then places the new character on a map.
 
 ## Resources and prompts
 

@@ -54,6 +54,8 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Prop state** | A prop is in a state (*open*, *lit*…) |
 | **Quest** | Not started, active, completed, failed, at a stage, at a stage or later |
 | **Player sex** | Male or female |
+| **Player race** | The player's race (*Database › Races*), e.g. goblin |
+| **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
 | **Skill level**, **Knows spell**, **Player level** | Character progress |
 | **Player has effect** | Poisoned, slowed… |
@@ -73,11 +75,16 @@ across map changes and in save games.
   option's number (0, 1, 2…) goes into a variable that later conditions check.
 - **Set mood**: the portrait mood a character shows ([Characters](06-characters.md#dialog-portraits-and-moods)).
 - **Show emotion** / **Clear emotion**: an icon over a character's head (below).
+- **Carry prop**: a character (or the player) carries a prop in both hands (empty = puts it
+  down); while carrying it holds nothing else and the player can't attack.
 
 **Game state**
 - **Set flag**, **Set variable** (= or +=), **Give item**, **Take item**, **Heal player** (negative
   hurts), **Heal character**, **Give experience**, **Quest** (start, advance, set stage, complete,
   fail), **Unlock achievement**, **Autosave**.
+- **Change standing**: raises or lowers the player's standing with a faction (*Database ›
+  Project › Factions*); at -20 or below its characters attack the player, above it they calm
+  down at once.
 - **If / Else**: conditions and two action lists, for branches inside one trigger.
 - **Emit event**: raises a custom event for other triggers. **Run script**: calls a script function.
 

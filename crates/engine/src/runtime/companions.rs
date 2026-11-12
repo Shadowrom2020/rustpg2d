@@ -753,7 +753,7 @@ impl Game {
 
     /// A knocked-down companion: lying on its side where it fell, greyed.
     pub(super) fn draw_downed(&self, e: &RtEntity) -> bool {
-        if e.appearance.body.is_empty() {
+        if !e.appearance.has_look() {
             return false;
         }
         let (_, fh) = self.character_frame_size(&e.appearance);
@@ -761,9 +761,12 @@ impl Game {
         draw_ellipse(e.body.pos.x, e.body.pos.y - 2.0 * u, fh * 0.45, 4.0 * u, 0.0, Color::new(0.0, 0.0, 0.0, 0.3));
         let center = e.body.pos - vec2(0.0, 6.0 * u);
         let grey = Color::new(0.62, 0.62, 0.7, 1.0);
-        for l in self.character_layers(&e.appearance, &e.equipment, Facing::Down, 0, true) {
-            self.assets.draw_frame_colored_rotated(&l.sheet, l.frame, center, -std::f32::consts::FRAC_PI_2, (l.skin, l.hair), grey);
+        match self.model_cell(&e.appearance, &super::paperdoll::Gear::default(), (Facing::Down, super::paperdoll::Anim::Idle(0))) {
+            Some(cell) => {
+                self.assets.models.draw_rotated(&cell, center, -std::f32::consts::FRAC_PI_2, self.look_size(&e.appearance), grey);
+                true
+            }
+            None => false,
         }
-        true
     }
 }

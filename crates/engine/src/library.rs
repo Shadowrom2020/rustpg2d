@@ -648,6 +648,18 @@ impl Bundle {
                 }
             }
         }
+        // Files the target's own assets use but lacks (0.18.0 left items' 3D models out of
+        // libraries): written from the set when it has them; nothing on disk is replaced.
+        let mut restored = Vec::new();
+        for rel in asset_files(db) {
+            let p = root.join(&rel);
+            let Some(bytes) = self.files.get(&rel).filter(|_| safe_rel(&rel) && !p.exists()) else { continue };
+            if let Some(dir) = p.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+            std::fs::write(&p, bytes).with_context(|| format!("writing {rel}"))?;
+            restored.push(rel);
+        }
         // New structures place tiles by index: they need the tilesets as the set has them. A
         // tileset the target has with other art (not upgraded above) would get wrong tiles.
         let other_art: BTreeSet<String> = self
@@ -690,6 +702,7 @@ impl Bundle {
         let mut report = self.merge_into(db, root)?;
         report.upgraded = upgraded;
         report.skipped = skipped;
+        report.files.extend(restored);
         Ok(report)
     }
 
@@ -972,11 +985,12 @@ fn files_of(db: &Database) -> BTreeSet<String> {
 }
 
 /// Every file the assets of `db` use: tileset and sheet images, sound files, model files and
-/// their clip files.
+/// their clip files, and items' 3D models.
 pub fn asset_files(db: &Database) -> Vec<String> {
     let images = db.tilesets.iter().map(|d| d.image.clone()).chain(db.sheets.iter().map(|d| d.image.clone()));
     let models = db.models.iter().flat_map(|d| std::iter::once(d.file.clone()).chain(d.clip_files.iter().cloned()));
-    images.chain(db.sounds.iter().map(|d| d.file.clone())).chain(models).collect()
+    let items = db.items.iter().filter_map(|d| d.model.as_ref().map(|m| m.file.clone()));
+    images.chain(db.sounds.iter().map(|d| d.file.clone())).chain(models).chain(items).collect()
 }
 
 /// Folder of the shared asset library: `$RUSTPG2D_LIBRARY`, else
@@ -1046,8 +1060,9 @@ const STARTER_STAMP: &str = "starter.stamp";
 /// sheet, so existing libraries keep their art until they are rebuilt; 7: an image of the
 /// same size that only fills empty cells is an upgrade too, and the new tiles bring their
 /// solid / ladder / light / animation flags; 8: tilesets and props get the low flags; 9: a
-/// changed starter set also leaves `starter.pending`, so the editor offers *Update asset library*).
-const STARTER_RULES: u32 = 9;
+/// changed starter set also leaves `starter.pending`, so the editor offers *Update asset library*;
+/// 10: files the library's assets use but lacks are added (0.18.0 left items' 3D models out).
+const STARTER_RULES: u32 = 10;
 
 /// 64-bit FNV-1a hash of every path and content (a cheap fingerprint of the starter set that
 /// only changes when the files do).
@@ -1177,6 +1192,24 @@ mod tests {
         assert_eq!(bow2.weapon.as_ref().unwrap().ranged.as_ref().unwrap().ammo, "arrows_2");
         assert_eq!(r.renamed.len(), 3);
         for p in [root, dest, other] {
+            let _ = std::fs::remove_dir_all(p);
+        }
+    }
+
+    #[test]
+    fn items_bring_their_models_and_libraries_get_missing_ones() {
+        let (root, mut db) = source("item_models");
+        std::fs::create_dir_all(root.join("models")).unwrap();
+        std::fs::write(root.join("models/sword.glb"), b"glb").unwrap();
+        db.items.push(crate::defs::ItemDef { model: Some(crate::defs::ItemModel::new("models/sword.glb")), ..crate::defs::ItemDef::fresh("sword") });
+        let b = Bundle::collect(&db, &root, 32, "x", &[(RefKind::Item, "sword".into())]).unwrap();
+        assert!(b.files.contains_key("models/sword.glb"), "an item carries its 3D model");
+        // A library that has the item but not its file (made by 0.18.0) gets the file.
+        let dest = tmp("item_models_dest");
+        let mut d = Database { items: b.db.items.clone(), ..Default::default() };
+        let r = b.add_missing(&mut d, &dest).unwrap();
+        assert!(dest.join("models/sword.glb").exists() && r.files.contains(&"models/sword.glb".to_string()));
+        for p in [root, dest] {
             let _ = std::fs::remove_dir_all(p);
         }
     }

@@ -12,6 +12,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   form with its hold preview, pixel editor, Asset Library window) show the 3D characters and the
   new item models; a new one shows the fisher at work.
 
+## 0.18.1 — 2026-11-12
+
+### Fixes
+- **Items' 3D models travel with exported games and the asset library.** 0.18.0 left the model
+  files of items out of game exports (held items showed as their pictures), asset library packages
+  and the starter library: exports and packages carry them now, and an asset library made by
+  0.18.0 gets the missing files the next time the editor opens it.
+
 ## 0.18.0 — 2026-11-12
 
 Characters in 3D, and the peoples of the world (0.17.0 was not released on its own: its races,

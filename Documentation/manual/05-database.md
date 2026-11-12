@@ -108,7 +108,7 @@ A hand's **grip axis** is the line a handle runs through the closed fist. Turned
 picture is mirrored across it, so whatever is tilted up stays up in both directions. Two-handed
 things run along the line through both fists.
 
-![An item form with an On use trigger that runs a script](../images/editor-item.webp)
+![An item form: the battle axe's 3D model, how it is held, and the preview](../images/editor-item.webp)
 
 ## Props
 

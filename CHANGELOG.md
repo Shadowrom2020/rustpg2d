@@ -3,6 +3,15 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Documentation
+- **Screenshots of the 3D cast**: the README banner and table and 16 pictures of the Creator's
+  Manual (dialog, market by day and night, combat with the bandit chief, character window, shop,
+  crafting, skills, spells, the map editor, lighting preview, daily schedule, character form, item
+  form with its hold preview, pixel editor, Asset Library window) show the 3D characters and the
+  new item models; a new one shows the fisher at work.
+
 ## 0.18.0 — 2026-11-12
 
 Characters in 3D, and the peoples of the world (0.17.0 was not released on its own: its races,

@@ -5,7 +5,7 @@ it with content; most systems are set up in the Database and driven by triggers.
 
 ## Health and combat
 
-![A fight with a slime in Whisperwood](../images/game-combat.webp)
+![A fight with the bandit chief in Whisperwood](../images/game-combat.webp)
 
 The **status frame** at the top left shows a small portrait of the hero as dressed, the name, the
 **hearts** (one heart = 2 HP), the mana and experience bars, the defense and the ammunition of an

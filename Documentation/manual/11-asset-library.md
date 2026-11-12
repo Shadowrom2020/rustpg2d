@@ -67,7 +67,7 @@ used as last saved.
 
 ## The Asset Library window
 
-![The Asset Library window](../images/editor-library.webp)
+![The Asset Library window with its items](../images/editor-library.webp)
 
 The **Asset Library** tab (or *Assets › Asset Library window…*) opens the library in **its own
 window**, a second editor working on the library. It has three views:

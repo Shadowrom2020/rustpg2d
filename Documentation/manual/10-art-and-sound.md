@@ -27,7 +27,7 @@ and sort in front of and behind each other.
 
 ## The pixel editor
 
-![The pixel editor](../images/editor-pixel.webp)
+![The pixel editor with the dialog portraits](../images/editor-pixel.webp)
 
 The **Pixel editor** tab, *Edit pixels* on a sprite sheet or tileset, and *Edit art* in the item,
 prop and character forms open it.

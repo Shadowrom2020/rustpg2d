@@ -3,7 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.18.2 — 2026-11-12
 
 ### Fixes
 - **Characters in the Asset Library window**: its character cards showed "?" instead of the

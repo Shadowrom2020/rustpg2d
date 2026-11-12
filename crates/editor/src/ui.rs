@@ -25,8 +25,31 @@ pub fn keys(s: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
+thread_local! {
+    /// The editor runs without a window (the UI tests): no macroquad input or clock.
+    static HEADLESS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Marks this thread's editor as running without a window (`Editor::headless`).
+#[cfg(test)]
+pub fn set_headless() {
+    HEADLESS.with(|h| h.set(true));
+}
+
+/// Seconds since the start, from macroquad's clock (headless: from the process's).
+pub fn now() -> f64 {
+    if HEADLESS.with(|h| h.get()) {
+        static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+        return START.get_or_init(std::time::Instant::now).elapsed().as_secs_f64();
+    }
+    macroquad::time::get_time()
+}
+
 /// The command modifier of the editor's own shortcuts is held: Ctrl, on macOS Cmd (or Ctrl).
 pub fn command_down() -> bool {
+    if HEADLESS.with(|h| h.get()) {
+        return false;
+    }
     use macroquad::input::{is_key_down, KeyCode};
     is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl) || (cfg!(target_os = "macos") && (is_key_down(KeyCode::LeftSuper) || is_key_down(KeyCode::RightSuper)))
 }

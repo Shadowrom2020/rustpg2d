@@ -204,7 +204,7 @@ fn item_cards(ui: &mut Ui, cx: &Cx, slot: EquipSlot, eq: &Equipment) -> Option<S
 fn paint_holding(ui: &Ui, cx: &Cx, a: &Appearance, eq: &Equipment, (facing, anim): (Facing, character::Anim), dest: Rect) -> bool {
     let a = cx.assets.models.look_of(a);
     let gear = rustpg2d_engine::render::model::Gear::of(eq, "", None);
-    let (name, time, once) = rustpg2d_engine::render::model::anim_req(anim, macroquad::time::get_time() as f32);
+    let (name, time, once) = rustpg2d_engine::render::model::anim_req(anim, crate::ui::now() as f32);
     let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: name, time, once, facing, turn: 0, bust: false };
     widgets::paint_model(ui, cx.assets, cx.db, &req, dest)
 }
@@ -226,7 +226,7 @@ fn preview(ui: &mut Ui, id: egui::Id, cx: &Cx, a: &Appearance, eq: &Equipment) {
     if let Some(k) = PREVIEW_ANIM.with(|a| a.take()) {
         st.anim = k;
     }
-    let t = macroquad::time::get_time();
+    let t = crate::ui::now();
     let order = [Facing::Down, Facing::Left, Facing::Up, Facing::Right];
     let facing = if st.turning { order[(t / 1.5) as usize % 4] } else { st.facing };
     let anim = preview_anim(st.anim, t);
@@ -347,7 +347,7 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
 /// A random offered colour for each colour feature of the model that offers colours.
 pub fn random_colors(a: &mut Appearance, db: &Database) {
     use macroquad::rand::{gen_range, srand};
-    srand((macroquad::time::get_time() * 1000.0) as u64 ^ a.model.len() as u64);
+    srand((crate::ui::now() * 1000.0) as u64 ^ a.model.len() as u64);
     for f in look_features(db, a).iter().filter(|f| !f.colors.is_empty()) {
         a.colors.insert(f.name.clone(), f.colors[gen_range(0, f.colors.len())]);
     }

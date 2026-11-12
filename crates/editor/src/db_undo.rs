@@ -129,7 +129,7 @@ impl Editor {
             return;
         }
         let focus = ctx.memory(|m| m.focused());
-        let now = macroquad::time::get_time();
+        let now = crate::ui::now();
         let root = self.project.root.clone();
         self.db_hist.observe(&root, &self.project.db, &self.project.config, focus, now);
         if self.mode == crate::app::Mode::Database && !ctx.wants_keyboard_input() {

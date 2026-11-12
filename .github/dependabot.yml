@@ -18,6 +18,8 @@ updates:
       - dependency-name: egui-macroquad
       - dependency-name: egui
       - dependency-name: egui-phosphor
+      # The editor's UI tests: each egui_kittest release needs the egui of the same version.
+      - dependency-name: egui_kittest
       # Shared with macroquad: `image` only turns on the JPEG decoder of macroquad's image 0.24,
       # `lewton` is the Ogg decoder macroquad uses. A newer version would be a second, unused
       # (image: JPEG textures stop loading) or duplicate crate; they move with macroquad.

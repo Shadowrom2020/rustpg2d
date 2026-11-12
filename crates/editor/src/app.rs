@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use egui_macroquad::egui::{self, pos2, vec2, Color32, Sense, Stroke, StrokeKind};
-use macroquad::prelude::{get_time, Vec2};
+use macroquad::prelude::Vec2;
 use rustpg2d_engine::entity::{EntityInstance, EntityKind, Facing};
 use rustpg2d_engine::map::{Edge, EdgeLink, Map, Respawn, Tile, Zone, ZoneKind, MAX_MAP_SIZE};
 use rustpg2d_engine::audio::Audio;
@@ -393,6 +393,22 @@ impl Editor {
     pub(crate) fn with_project(project: Project, project_open: bool) -> Self {
         let assets = Assets::load(&project);
         let audio = Audio::load(&project);
+        Self::with_parts(project, project_open, assets, audio)
+    }
+
+    /// An editor on `project` without a window (the UI tests): no textures, sounds or models
+    /// (sprite previews stay empty), and the few macroquad calls of the forms switched off
+    /// (`ui::set_headless`).
+    #[cfg(test)]
+    pub(crate) fn headless(project: Project) -> Self {
+        crate::ui::set_headless();
+        let assets = Assets { tile_size: rustpg2d_engine::project::TILE_SIZE as f32, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), models: Default::default() };
+        let mut ed = Self::with_parts(project, true, assets, Audio::silent());
+        ed.mode = Mode::Database;
+        ed
+    }
+
+    fn with_parts(project: Project, project_open: bool, assets: Assets, audio: Audio) -> Self {
         let maps = project.list_maps();
         let brush_ts = project.db.tilesets.first().map(|t| t.id.clone()).unwrap_or_default();
         Editor {
@@ -558,7 +574,7 @@ impl Editor {
     pub fn set_status(&mut self, s: impl Into<String>) {
         let s = s.into();
         println!("[editor] {s}");
-        self.status = (s, get_time());
+        self.status = (s, crate::ui::now());
     }
 
     // ------------------------------------------------------------ files
@@ -1860,7 +1876,7 @@ impl Editor {
                     ui.separator();
                     ui.colored_label(Color32::YELLOW, "File dialog open…");
                 }
-                if get_time() - self.status.1 < 6.0 {
+                if crate::ui::now() - self.status.1 < 6.0 {
                     ui.separator();
                     ui.label(&self.status.0);
                 }

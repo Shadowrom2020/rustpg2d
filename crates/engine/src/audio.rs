@@ -125,6 +125,26 @@ pub async fn preload(project: &Project, mut progress: impl FnMut(usize, usize)) 
 }
 
 impl Audio {
+    /// No sounds and muted: for an editor without a window (its UI tests).
+    pub fn silent() -> Audio {
+        Audio {
+            sounds: HashMap::new(),
+            files: HashMap::new(),
+            loops: HashMap::new(),
+            prepared: Prepared::default(),
+            music: None,
+            preview: None,
+            errors: Vec::new(),
+            enabled: false,
+            effects: 1.0,
+            music_vol: 1.0,
+            rain: None,
+            rain_vol: 0.0,
+            ambience: 1.0,
+            recent: Default::default(),
+        }
+    }
+
     /// Loads all sounds of the project. Needs a macroquad window.
     pub fn load(project: &Project) -> Audio {
         let mut sounds = HashMap::new();

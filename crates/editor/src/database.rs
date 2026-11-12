@@ -1837,7 +1837,7 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
         let (w, h) = (ts.image.width as f32, ts.image.height as f32);
         egui::Rect::from_min_max(pos2(c as f32 * tile / w, r as f32 * tile / h), pos2((c + 1) as f32 * tile / w, (r + 1) as f32 * tile / h))
     };
-    let now = macroquad::time::get_time();
+    let now = crate::ui::now();
     for (k, a) in d.animations.iter_mut().enumerate() {
         ui.horizontal(|ui| {
             ui.radio_value(cx.anim_target, Some(k), "");
@@ -3781,7 +3781,7 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
     ui.separator();
     let pid = egui::Id::new(("model_preview", &d.id));
     let (mut anim_k, mut facing_k, mut turning): (usize, usize, bool) = ui.data_mut(|m| m.get_temp(pid).unwrap_or((0, 0, true)));
-    let t = macroquad::time::get_time();
+    let t = crate::ui::now();
     let facings = [Facing::Down, Facing::Left, Facing::Up, Facing::Right];
     let facing = if turning { facings[(t / 1.5) as usize % 4] } else { facings[facing_k % 4] };
     let anim = rustpg2d_engine::model::ANIMS[anim_k % rustpg2d_engine::model::ANIMS.len()];

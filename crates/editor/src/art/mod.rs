@@ -160,6 +160,8 @@ impl ArtRequest {
             ArtKind::Model3d => vec!["views", "model", "rig", "clips"],
             ArtKind::Creature3d if !self.from.is_empty() => vec!["model"],
             ArtKind::Creature3d => vec!["views", "model"],
+            // Described: a clean picture first (models made from the 32 px icon come out bulky).
+            ArtKind::Gear3d if !self.description.trim().is_empty() => vec!["views", "model"],
             ArtKind::Gear3d => vec!["model"],
             _ => vec!["picture"],
         }
@@ -221,7 +223,13 @@ impl ArtRequest {
                 aspect: "1:1".into(),
                 background: false,
             },
-            ArtKind::Gear3d => meshy::Request::FromText { prompt: desc.to_string(), aspect: "1:1".into(), background: false },
+            ArtKind::Gear3d => {
+                let prompt = format!("A single item for a 3D model, drawn as a clean illustration: the whole object with its full shape visible, centred and filling the image (long things such as weapons and tools standing upright with the handle or grip at the bottom, seen from the side), true to real proportions (slender shafts and handles, not chunky), stylized fantasy RPG prop, clean shapes, soft shading, plain white background, no hands, no text, no shadows: {desc}");
+                match &refs.icon {
+                    Some(icon) => meshy::Request::FromImages { prompt: format!("{prompt}. The reference is the item's small pixel-art icon: keep its colours and parts, but draw it detailed and in proper proportions."), refs: vec![icon.clone()], aspect: "1:1".into() },
+                    None => meshy::Request::FromText { prompt, aspect: "1:1".into(), background: false },
+                }
+            }
             ArtKind::Portrait => meshy::Request::FromText { prompt: format!("Painted fantasy RPG character portrait, head and shoulders, facing the viewer, soft painterly shading, centred, plain flat background, no text: {desc}"), aspect: "1:1".into(), background: false },
             ArtKind::Image => meshy::Request::FromText { prompt: format!("Painted fantasy RPG illustration, detailed, rich colours, no text: {desc}"), aspect: "3:4".into(), background: true },
         }
@@ -489,8 +497,15 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
             ("image-to-3d", serde_json::json!({ "image_url": meshy::data_uri(&png), "should_texture": true, "should_remesh": true, "target_polycount": 6000 }))
         }
         ("model", _) => {
-            let icon = refs.icon.clone().ok_or_else(|| anyhow!("the item has no icon to model it from"))?;
-            ("image-to-3d", serde_json::json!({ "image_url": icon, "should_texture": true, "should_remesh": true, "target_polycount": 1500, "texture_prompt": req.description.trim() }))
+            // From the picture drawn first, else from the icon.
+            let drawn = job.lock().unwrap().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone());
+            match drawn {
+                Some(png) => ("image-to-3d", serde_json::json!({ "image_url": meshy::data_uri(&png), "should_texture": true, "should_remesh": true, "target_polycount": 4000, "texture_prompt": req.description.trim() })),
+                None => {
+                    let icon = refs.icon.clone().ok_or_else(|| anyhow!("the item has no icon to model it from"))?;
+                    ("image-to-3d", serde_json::json!({ "image_url": icon, "should_texture": true, "should_remesh": true, "target_polycount": 1500, "texture_prompt": req.description.trim() }))
+                }
+            }
         }
         ("rig", _) => ("rigging", serde_json::json!({ "input_task_id": task_of("model").ok_or_else(|| anyhow!("no model to rig"))?, "height_meters": 1.7 })),
         _ => ("animations", serde_json::json!({ "rig_task_id": task_of("rig").ok_or_else(|| anyhow!("no rig to animate"))?, "action_ids": clip_actions(&req.attack, req.female, &req.extras) })),
@@ -770,7 +785,11 @@ mod tests {
         assert_eq!(from.pictures(), vec!["model", "rig", "clips"]);
         assert_eq!(req(ArtKind::Creature3d, "none").pictures(), vec!["views", "model"]);
         assert_eq!(ArtRequest { from: "wolf".into(), ..req(ArtKind::Creature3d, "none") }.pictures(), vec!["model"]);
-        assert_eq!(ArtState::cost(&req(ArtKind::Gear3d, "none"), "nano-banana-2-lite"), COST_MODEL);
+        assert_eq!(ArtState::cost(&ArtRequest { description: String::new(), ..req(ArtKind::Gear3d, "none") }, "nano-banana-2-lite"), COST_MODEL);
+        // Described: a picture first, then the model from it.
+        let described = ArtRequest { description: "a slender iron spear".into(), ..req(ArtKind::Gear3d, "none") };
+        assert_eq!(described.pictures(), vec!["views", "model"]);
+        assert_eq!(ArtState::cost(&described, "nano-banana-2-lite"), 3 + COST_MODEL);
         let job = Job { id: 1, req: r.clone(), model: "nano-banana-2-lite".into(), cost: 0, pictures: r.pictures().into_iter().map(|name| Picture { name, task: None, status: String::new(), progress: 0, png: None, credits: 0 }).collect(), stage: Stage::Done, result: None, frame: (0, 0), applied: None, version: 0, told: false, made: Made3d::default() };
         assert_eq!(ArtState::redo_steps(&job, "rig"), vec!["rig", "clips"], "a new rig needs new clips");
         assert_eq!(ArtState::redo_cost(&job, "rig"), COST_RIG + 5 * COST_CLIP);

@@ -105,6 +105,30 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   figure, bows and axes use short library clips (Archery Shot, Heavy Hammer Swing). The sprite
   editor's *Four-facing rows* switch shows the animation panel for any sheet. Characters without a
   model are a warning in Problems (they show as the mannequin).
+- **Holding item models, made simple**: an item's 3D model has a **hold style**, *Grip* (in the
+  fist: swords, axes, tools, bows), *Upright* (torches: pointing up whatever the arm does), *Hang*
+  (lanterns: hanging from the hand) or *Strap* (shields: on the forearm, the face out), and a
+  **front** (a blade's edge, an axe's head, a shield's face) that points where the knuckles do, so
+  items no longer spin around their handle. The estimate measures along the model's own length
+  (models lying diagonally like their icon), takes a thin run at an end as the handle (the shorter
+  one when both ends are thin: a sword's grip, not its blade) and sets style and length by the
+  item's kind (bows upright at the middle, two-handed weapons 44 px). The item form drops the x/y/z
+  boxes for *Held as*, *Length*, a *Hold at* slider, *Estimate*, *Turn handle*, *Turn front*, *Flip
+  ends* and a big preview (standing, walking or attacking, playing, held by any model); the numbers
+  are folded under *Numbers*, the picture settings under *Picture in the hand* while a model is set.
+  Two-handed items are held in the right hand while the fists are apart. A hand's grip axis is never
+  the one along the forearm (models whose rest pose reaches forward, like the female elf and the
+  troll, held things along their fingers). The bandit chief is remade (Meshy had put his right arm's bones
+  backward). Rendered icons show
+  blades up-right, shields' and lanterns' fronts. The example's and library's items are set up
+  anew. Editor script `itemhold ITEM estimate|turnhandle|turnfront|flip|at F|style S|size PX`,
+  `itempreview idle|walk|attack [play] [MODEL]`.
+- **Nothing held is cut off**: a pose's frame grows by whatever sticks out of the standard frame
+  (a spear, a swung arm); boxes in the UI keep showing the character at its size.
+- **Item models from a drawn picture**: *Generate art › Item 3D model* with a description first
+  draws a clean picture of the item (its icon as the reference) and models that (33 credits)
+  instead of modelling the 32 px icon. The example's and library's 16 held items are remade this
+  way, slender instead of bulky, with icons rendered from the new models.
 - **3D art with Meshy**: *Generate art* makes a **3D character** (a turnaround picture or a
   figure's standing frames, a model, a skeleton and animations: walk, idle, the chosen attack, hit,
   sitting; about 50 credits), a **3D creature** (a picture and an unrigged model) and an **item's 3D

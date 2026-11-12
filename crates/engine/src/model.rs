@@ -387,55 +387,304 @@ fn segment_distance(p: Vec3, a: Vec3, b: Vec3) -> f32 {
     (p - (a + ab * t)).length()
 }
 
+/// Snaps a direction to the nearest of the model's axes when it is within about 8 degrees of it
+/// (models made upright give clean numbers), else returns it normalized.
+pub fn snap_dir(v: Vec3) -> Vec3 {
+    let v = v.normalize_or(Vec3::Y);
+    let k = (0..3).max_by(|i, j| v[*i].abs().total_cmp(&v[*j].abs())).unwrap_or(1);
+    if v[k].abs() > 0.99 {
+        let mut s = Vec3::ZERO;
+        s[k] = v[k].signum();
+        s
+    } else {
+        v
+    }
+}
+
+/// The spread of a set of points: their centre and covariance.
+pub fn spread(points: &[Vec3]) -> (Vec3, macroquad::math::Mat3) {
+    use macroquad::math::Mat3;
+    if points.is_empty() {
+        return (Vec3::ZERO, Mat3::IDENTITY);
+    }
+    let c = points.iter().fold(Vec3::ZERO, |s, p| s + *p) / points.len() as f32;
+    let mut m = [[0.0f32; 3]; 3];
+    for p in points {
+        let d = *p - c;
+        for (i, row) in m.iter_mut().enumerate() {
+            for (j, v) in row.iter_mut().enumerate() {
+                *v += d[i] * d[j];
+            }
+        }
+    }
+    (c, Mat3::from_cols_array_2d(&m) * (1.0 / points.len() as f32))
+}
+
+/// The direction in which a covariance spreads most, square to `not` (zero: any direction).
+fn widest(cov: macroquad::math::Mat3, not: Vec3) -> Vec3 {
+    let not = not.normalize_or_zero();
+    let keep = |v: Vec3| v - not * v.dot(not);
+    let mut best = Vec3::ZERO;
+    // Power iteration from a few starts (one of them isn't square to the answer).
+    for start in [Vec3::new(1.0, 0.7, 0.3), Vec3::new(0.2, 1.0, 0.6), Vec3::new(0.5, 0.3, 1.0)] {
+        let mut v = keep(start).normalize_or_zero();
+        for _ in 0..64 {
+            v = keep(cov * v).normalize_or_zero();
+        }
+        if v.dot(cov * v) > best.dot(cov * best) + 1e-9 {
+            best = v;
+        }
+    }
+    best
+}
+
+/// An item model's main directions, longest first: its length, its width across that, and its
+/// thickness (snapped to the model's axes when close). Length and width are the sides of the
+/// tightest rectangle around it in the plane it spreads in most (an axe's head doesn't tilt
+/// them away from its handle; a sword lying diagonally like its icon is measured along the
+/// diagonal).
+pub fn main_axes(points: &[Vec3]) -> [Vec3; 3] {
+    let (_, cov) = spread(points);
+    let e1 = widest(cov, Vec3::ZERO).normalize_or(Vec3::Y);
+    let e2 = widest(cov, e1);
+    let e2 = if e2 == Vec3::ZERO { e1.any_orthonormal_vector() } else { (e2 - e1 * e2.dot(e1)).normalize_or(e1.any_orthonormal_vector()) };
+    let n = e1.cross(e2);
+    let range = |d: Vec3| {
+        let (l, h) = points.iter().map(|p| p.dot(d)).fold((f32::MAX, f32::MIN), |(l, h), v| (l.min(v), h.max(v)));
+        (h - l).max(0.0)
+    };
+    // Half-degree steps over half a turn.
+    let mut best = (f32::MAX, e1, e2);
+    for k in 0..360 {
+        let th = (k as f32 * 0.5).to_radians();
+        let d = e1 * th.cos() + e2 * th.sin();
+        let w = n.cross(d);
+        let (ld, lw) = (range(d), range(w));
+        if ld * lw < best.0 - 1e-9 {
+            best = if ld >= lw { (ld * lw, d, w) } else { (ld * lw, w, d) };
+        }
+    }
+    let a = snap_dir(best.1);
+    let b = snap_dir(best.2 - a * best.2.dot(a));
+    let b = (b - a * b.dot(a)).normalize_or(a.any_orthonormal_vector());
+    [a, b, a.cross(b)]
+}
+
+/// An item model's size along its [`main_axes`]: length, width, thickness.
+pub fn extents(points: &[Vec3]) -> [f32; 3] {
+    main_axes(points).map(|d| {
+        let (l, h) = points.iter().map(|p| p.dot(d)).fold((f32::MAX, f32::MIN), |(l, h), v| (l.min(v), h.max(v)));
+        (h - l).max(0.0)
+    })
+}
+
 /// Where a held item's model is held and which way its handle runs, guessed from its shape:
-/// along its longest side, the hold point is its thinnest part (a sword's grip, an axe's or
-/// spear's shaft: there the part nearest an end), the handle runs from there toward the farther
-/// end. `indices`: its triangles (widths are measured over them, so long faces without inner
-/// points count). Returns (hold point, direction toward the business end).
+/// along its length (its main direction, also when it lies diagonally like an icon), the handle
+/// is a thin stretch at one end (an axe's or spear's shaft; at both ends the shorter one, a
+/// sword's grip rather than its blade), held 40 % along it; it runs from there toward the far
+/// end. `indices`: its triangles (widths
+/// are measured over them, so long faces without inner points count). Returns (hold point,
+/// direction toward the business end).
 pub fn estimate_grip(points: &[Vec3], indices: &[u16]) -> ([f32; 3], [f32; 3]) {
     if points.is_empty() {
         return ([0.0; 3], [0.0, 1.0, 0.0]);
     }
-    let (lo, hi) = points.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
-    let ext = hi - lo;
-    let k = if ext.x >= ext.y && ext.x >= ext.z { 0 } else if ext.y >= ext.z { 1 } else { 2 };
-    let (a, len) = (lo[k], ext[k].max(1e-6));
-    let mid = (lo + hi) / 2.0;
+    let [u, v1, v2] = main_axes(points);
+    let (a, b) = points.iter().map(|p| p.dot(u)).fold((f32::MAX, f32::MIN), |(l, h), v| (l.min(v), h.max(v)));
+    let len = (b - a).max(1e-6);
+    let (c, _) = spread(points);
     const BINS: usize = 40;
     let bin = |v: f32| (((v - a) / len * BINS as f32) as usize).min(BINS - 1);
-    let across = |p: &Vec3| {
-        let mut d = *p - mid;
-        d[k] = 0.0;
-        d.length()
-    };
-    // The widest point of anything covering each slice of the length.
-    let mut width = [0.0f32; BINS];
+    // Each slice of the length: the extent of what is in it across, both ways (min, max along
+    // the width, then the thickness).
+    let mut span = [[f32::MAX, f32::MIN, f32::MAX, f32::MIN]; BINS];
     let mut covered = [false; BINS];
+    let mut take = |i: usize, p: Vec3| {
+        let (x, y) = (p.dot(v1), p.dot(v2));
+        let s = &mut span[i];
+        *s = [s[0].min(x), s[1].max(x), s[2].min(y), s[3].max(y)];
+        covered[i] = true;
+    };
     let tris: Vec<[Vec3; 3]> = if indices.len() >= 3 {
         indices.as_chunks::<3>().0.iter().filter_map(|t| Some([*points.get(t[0] as usize)?, *points.get(t[1] as usize)?, *points.get(t[2] as usize)?])).collect()
     } else {
         points.iter().map(|p| [*p; 3]).collect()
     };
     for t in &tris {
-        let (b0, b1) = (bin(t.iter().map(|p| p[k]).fold(f32::MAX, f32::min)), bin(t.iter().map(|p| p[k]).fold(f32::MIN, f32::max)));
-        let w = t.iter().map(across).fold(0.0f32, f32::max);
+        let s = t.map(|p| p.dot(u));
+        let (b0, b1) = (bin(s.iter().copied().fold(f32::MAX, f32::min)), bin(s.iter().copied().fold(f32::MIN, f32::max)));
         for i in b0..=b1 {
-            width[i] = width[i].max(w);
-            covered[i] = true;
+            // The part of the triangle in this slice: its corners inside and where its edges
+            // cross the slice's two sides (a long triangle from a sword's guard to its tip is
+            // only as wide as the guard near the guard).
+            let (lo, hi) = (a + i as f32 / BINS as f32 * len, a + (i + 1) as f32 / BINS as f32 * len);
+            for k in 0..3 {
+                let (p, q, sp, sq) = (t[k], t[(k + 1) % 3], s[k], s[(k + 1) % 3]);
+                if (lo..=hi).contains(&sp) {
+                    take(i, p);
+                }
+                for side in [lo, hi] {
+                    if (sp - side) * (sq - side) < 0.0 {
+                        take(i, p + (q - p) * ((side - sp) / (sq - sp)));
+                    }
+                }
+            }
         }
     }
-    // The thinnest slices (within 10 % of the thinnest), not the outermost tips; of those the
-    // one nearest an end.
-    let inner: Vec<usize> = (1..BINS - 1).filter(|i| covered[*i]).collect();
-    let thin = inner.iter().map(|i| width[*i]).fold(f32::MAX, f32::min);
-    let near_end = |i: &usize| i.min(&(BINS - 1 - i)).to_owned();
-    let g = inner.iter().copied().filter(|i| width[*i] <= thin * 1.1 + 1e-6).min_by_key(near_end).unwrap_or(BINS / 2);
-    let at = a + (g as f32 + 0.5) / BINS as f32 * len;
-    let mut axis = [0.0f32; 3];
-    axis[k] = if g < BINS / 2 { 1.0 } else { -1.0 };
-    let mut grip = mid.to_array();
-    grip[k] = at;
-    (grip, axis)
+    let width: Vec<f32> = span.iter().map(|s| (s[1] - s[0]).max(s[3] - s[2]).max(0.0)).collect();
+    // Thin slices: not much wider than most of the thin ones (a quarter of all slices are at
+    // most the reference width), so a stray sliver of the mesh doesn't set the scale.
+    let mut sorted: Vec<f32> = (0..BINS).filter(|i| covered[*i]).map(|i| width[i]).collect();
+    sorted.sort_by(f32::total_cmp);
+    let reference = sorted.get(sorted.len() / 4).copied().unwrap_or(0.0);
+    let is_thin = |i: usize| covered[i] && width[i] <= reference * 1.3 + 1e-6;
+    // The run of thin slices from one end (it may start a few slices in: a pommel, a cap; one
+    // wider slice between thin ones doesn't end it): (start, length) in slices from that end.
+    let run = |from_end: bool| -> Option<(usize, usize)> {
+        let at = |k: usize| if from_end { BINS - 1 - k } else { k };
+        let from = |start: usize| {
+            let mut end = start;
+            while end < BINS && (is_thin(at(end)) || (end + 1 < BINS && end > start && is_thin(at(end + 1)))) {
+                end += 1;
+            }
+            (start, end - start)
+        };
+        // Starting within the first tenth (behind a pommel or cap): the longest such run.
+        (0..BINS / 10).filter(|k| is_thin(at(*k))).map(from).max_by_key(|r| r.1)
+    };
+    // A handle is at least a tenth of the length (shorter thin ends are a head's corner cut off
+    // by the slices, a blade's tip).
+    let runs = [run(false), run(true)].map(|r| r.filter(|(_, n)| *n >= BINS / 10));
+    // The handle: a thin run at one end (an axe's shaft, a torch's stick); at both ends the
+    // shorter one (a sword's grip, not its blade). Held 40 % along it from the end.
+    let pick = match runs {
+        [Some(a), Some(b)] => Some(if a.1 <= b.1 { (false, a) } else { (true, b) }),
+        [Some(a), None] => Some((false, a)),
+        [None, Some(b)] => Some((true, b)),
+        [None, None] => None,
+    };
+    let (at, from_end) = match pick {
+        Some((from_end, (start, n))) => {
+            let k = (start as f32 + 0.4 * n as f32 + 0.5) / BINS as f32 * len;
+            (if from_end { b - k } else { a + k }, from_end)
+        }
+        None => {
+            // No handle to see: the thinnest slice nearest an end.
+            let inner: Vec<usize> = (1..BINS - 1).filter(|i| covered[*i]).collect();
+            let thin = inner.iter().map(|i| width[*i]).fold(f32::MAX, f32::min);
+            let near_end = |i: &usize| i.min(&(BINS - 1 - i)).to_owned();
+            let g = inner.iter().copied().filter(|i| width[*i] <= thin * 1.1 + 1e-6).min_by_key(near_end).unwrap_or(BINS / 2);
+            (a + (g as f32 + 0.5) / BINS as f32 * len, g >= BINS / 2)
+        }
+    };
+    let axis = if from_end { -u } else { u };
+    ((c + u * (at - c.dot(u))).to_array(), axis.to_array())
+}
+
+/// The front of an item model whose `front` isn't set: across the handle (`axis`), the way the
+/// model spreads most (a blade's edge, an axe's head; a shield's top). `cov`: [`spread`] of
+/// its points.
+pub fn auto_front(axis: [f32; 3], cov: macroquad::math::Mat3) -> [f32; 3] {
+    let a = Vec3::from(axis).normalize_or(Vec3::Y);
+    let f = widest(cov, a);
+    let f = if f == Vec3::ZERO { a.any_orthonormal_vector() } else { f };
+    snap_dir(f - a * f.dot(a)).to_array()
+}
+
+/// The rotation that puts an item model into a hand: its handle direction `axis` onto `to_axis`
+/// and its `front` onto `to_front` (each front made square to its axis). A front along the
+/// axis is replaced by any square direction.
+pub fn hold_rotation(axis: Vec3, front: Vec3, to_axis: Vec3, to_front: Vec3) -> Quat {
+    let frame = |a: Vec3, f: Vec3| -> Option<macroquad::math::Mat3> {
+        let a = a.try_normalize()?;
+        let f = (f - a * f.dot(a)).try_normalize().unwrap_or_else(|| a.any_orthonormal_vector());
+        Some(macroquad::math::Mat3::from_cols(a, f, a.cross(f)))
+    };
+    match (frame(axis, front), frame(to_axis, to_front)) {
+        (Some(from), Some(to)) => Quat::from_mat3(&(to * from.transpose())).normalize(),
+        _ => Quat::IDENTITY,
+    }
+}
+
+/// Where and how an item model is held, estimated from its shape for a hold style: the hold
+/// point, the handle direction and the front (see [`crate::defs::ItemModel`]).
+/// - Grip / Upright: the thinner end of its longest side is the handle ([`estimate_grip`]); the
+///   front is the side its far half leans to (an axe's head), else its wider side.
+/// - Hang: held at the top, the body below it (models stand +Y up), the front +Z.
+/// - Strap: held at the middle of its back; the thinnest side is the face, the side its middle
+///   bulges to (a boss, a dome) the front; the top +Y (else +Z).
+pub fn estimate_hold(points: &[Vec3], indices: &[u16], hold: crate::defs::HoldStyle) -> ([f32; 3], [f32; 3], [f32; 3]) {
+    use crate::defs::HoldStyle;
+    if points.is_empty() {
+        return ([0.0; 3], [0.0, 1.0, 0.0], [0.0; 3]);
+    }
+    let axes = main_axes(points);
+    let (_, cov) = spread(points);
+    // Extent and middle along a direction.
+    let range = |d: Vec3| points.iter().map(|p| p.dot(d)).fold((f32::MAX, f32::MIN), |(l, h), v| (l.min(v), h.max(v)));
+    let middle = axes.iter().fold(Vec3::ZERO, |s, d| {
+        let (l, h) = range(*d);
+        s + *d * ((l + h) / 2.0)
+    });
+    match hold {
+        HoldStyle::Hang => {
+            let (_, top) = range(Vec3::Y);
+            ([middle.x, top, middle.z], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0])
+        }
+        HoldStyle::Strap => {
+            let t = axes[2];
+            // Its top: the main direction nearer up.
+            let up = if axes[0].y.abs() >= axes[1].y.abs() { axes[0] } else { axes[1] };
+            let up = if up.y < 0.0 { -up } else { up };
+            // The middle of the face (a quarter of its size around the centre): which way it
+            // reaches further from the centre plane.
+            let (l0, h0) = range(axes[0]);
+            let r = (h0 - l0) * 0.25;
+            let (fwd, back) = points
+                .iter()
+                .filter(|p| {
+                    let d = **p - middle;
+                    (d - t * d.dot(t)).length() <= r
+                })
+                .fold((0.0f32, 0.0f32), |(f, b), p| (f.max((*p - middle).dot(t)), b.max(-(*p - middle).dot(t))));
+            let face = if fwd >= back { t } else { -t };
+            let (tl, th) = range(t);
+            (snap_v(middle - face * ((th - tl) / 2.0)), snap_dir(up).to_array(), snap_dir(face).to_array())
+        }
+        HoldStyle::Grip | HoldStyle::Upright => {
+            let (grip, axis) = estimate_grip(points, indices);
+            let (g, a) = (Vec3::from(grip), Vec3::from(axis));
+            let (l, h) = range(a);
+            let len = (h - l).max(1e-6);
+            // On the handle: the middle of what is near the hold point along the length (not the
+            // middle of the bounds, off to the side of an axe's handle).
+            let near: Vec<&Vec3> = points.iter().filter(|p| ((**p - g).dot(a)).abs() <= len * 0.06).collect();
+            let g = if near.is_empty() {
+                g
+            } else {
+                let c = near.iter().fold(Vec3::ZERO, |s, p| s + **p) / near.len() as f32;
+                c - a * (c - g).dot(a)
+            };
+            let far = points.iter().map(|p| (*p - g).dot(a)).fold(0.0f32, f32::max);
+            // The far half's centre, off the handle's line: an axe's head, a pickaxe's point.
+            let (sum, n) = points.iter().filter(|p| (**p - g).dot(a) > far * 0.5).fold((Vec3::ZERO, 0), |(s, n), p| (s + *p, n + 1));
+            let off = if n > 0 { sum / n as f32 - g } else { Vec3::ZERO };
+            let off = off - a * off.dot(a);
+            let front = if off.length() > len * 0.04 {
+                // Along whichever of its other main directions the head sticks out.
+                let d = axes.iter().filter(|d| d.dot(a).abs() < 0.5).max_by(|x, y| off.dot(**x).abs().total_cmp(&off.dot(**y).abs())).copied().unwrap_or(off);
+                snap_dir(d * off.dot(d).signum()).to_array()
+            } else {
+                auto_front(axis, cov)
+            };
+            (snap_v(g), axis, front)
+        }
+    }
+}
+
+/// A point with its tiny components (rounding noise) set to zero.
+fn snap_v(v: Vec3) -> [f32; 3] {
+    v.to_array().map(|c| if c.abs() < 1e-5 { 0.0 } else { c })
 }
 
 /// Every animation a model can map a clip to, in the editor's order: the four every character
@@ -1023,6 +1272,42 @@ mod tests {
         let (grip, axis) = estimate_grip(&flipped, &indices);
         assert_eq!(axis, [0.0, -1.0, 0.0]);
         assert!((0.81..0.97).contains(&grip[1]), "{grip:?}");
+    }
+
+    #[test]
+    fn items_are_turned_by_handle_and_front() {
+        use crate::defs::HoldStyle;
+        // An "axe" along +Y: a thin handle to 0.7, a head sticking out to +X at the top.
+        let quad = |x0: f32, x1: f32, y0: f32, y1: f32| [Vec3::new(x0, y0, -0.02), Vec3::new(x1, y0, -0.02), Vec3::new(x1, y1, 0.02), Vec3::new(x0, y1, 0.02)];
+        let parts = [quad(-0.02, 0.02, 0.0, 0.7), quad(-0.02, 0.35, 0.7, 1.0)];
+        let points: Vec<Vec3> = parts.iter().flatten().copied().collect();
+        let indices: Vec<u16> = (0..2u16).flat_map(|q| [0, 1, 2, 0, 2, 3].map(|i| q * 4 + i)).collect();
+        let (grip, axis, front) = estimate_hold(&points, &indices, HoldStyle::Grip);
+        assert_eq!((axis, front), ([0.0, 1.0, 0.0], [1.0, 0.0, 0.0]), "{grip:?}");
+        assert!(grip[1] < 0.7);
+        // Into a hand whose grip axis is +Z and knuckles point -X: the head goes there too.
+        let r = hold_rotation(Vec3::from(axis), Vec3::from(front), Vec3::Z, -Vec3::X);
+        assert!((r * Vec3::Y - Vec3::Z).length() < 1e-4 && (r * Vec3::X + Vec3::X).length() < 1e-4);
+        // A front along the handle still gives a rotation.
+        let r = hold_rotation(Vec3::Y, Vec3::Y, Vec3::X, Vec3::Z);
+        assert!((r * Vec3::Y - Vec3::X).length() < 1e-4);
+        // Without a front: the wider side across the handle.
+        let slab = [Vec3::new(-0.1, 0.0, -0.4), Vec3::new(0.1, 1.0, 0.4), Vec3::new(-0.1, 1.0, 0.4), Vec3::new(0.1, 0.0, -0.4), Vec3::new(0.1, 0.0, 0.4), Vec3::new(-0.1, 1.0, -0.4)];
+        assert_eq!(auto_front([0.0, -1.0, 0.0], spread(&slab).1), [0.0, 0.0, 1.0]);
+        // A "sword" lying diagonally (like its icon) is held along the diagonal.
+        let d = Vec3::new(1.0, 1.0, 0.0).normalize();
+        let w = Vec3::new(-1.0, 1.0, 0.0).normalize();
+        let diag: Vec<Vec3> = points.iter().map(|p| d * p.y + w * p.x + Vec3::Z * p.z).collect();
+        let (_, a) = estimate_grip(&diag, &indices);
+        assert!((Vec3::from(a) - d).length() < 0.05, "{a:?}");
+        // A lantern hangs from its top; a shield (thin along Z, a boss to -Z) is held at its back.
+        let (g, a, _) = estimate_hold(&points, &indices, HoldStyle::Hang);
+        assert_eq!((g[1], a), (1.0, [0.0, -1.0, 0.0]));
+        let mut shield: Vec<Vec3> = [(-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)].iter().map(|(x, y)| Vec3::new(*x, *y, 0.0)).collect();
+        shield.push(Vec3::new(0.0, 0.0, -0.1));
+        let (g, a, f) = estimate_hold(&shield, &[], HoldStyle::Strap);
+        assert_eq!((a, f), ([0.0, 1.0, 0.0], [0.0, 0.0, -1.0]));
+        assert!(g[2].abs() < 1e-6, "the back, away from the boss: {g:?}");
     }
 
     #[test]

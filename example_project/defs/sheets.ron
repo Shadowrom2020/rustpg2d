@@ -207,4 +207,10 @@
         frame_h: 80,
         scale: 2,
     ),
+    (
+        id: "icons_3d",
+        image: "sprites/icons_3d.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

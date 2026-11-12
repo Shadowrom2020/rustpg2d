@@ -1011,7 +1011,6 @@
         file: "models/bandit_chief.glb",
         clip_files: [
             "models/bandit_chief_clips.glb",
-            "models/bandit_chief_attack.glb",
         ],
         height: 40.0,
         clips: [
@@ -1037,7 +1036,7 @@
             ),
             (
                 anim: "attack",
-                clip: "Armature|Heavy_Hammer_Swing|baselayer",
+                clip: "Heavy_Hammer_Swing",
                 fps: 12.0,
             ),
         ],

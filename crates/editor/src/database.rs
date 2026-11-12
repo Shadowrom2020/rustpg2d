@@ -972,9 +972,13 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     let holdable = d.weapon.is_some() || !d.tool.is_empty() || d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
     if holdable {
         ui.separator();
-        held_ui(ui, d, cx);
-        ui.separator();
         item_model_ui(ui, d, cx);
+        ui.separator();
+        if d.model.is_some() {
+            egui::CollapsingHeader::new("Picture in the hand (used without a 3D model)").id_salt("item_held_picture").show(ui, |ui| held_ui(ui, d, cx));
+        } else {
+            held_ui(ui, d, cx);
+        }
     }
     ui.separator();
     ui.heading("On use");
@@ -3848,22 +3852,39 @@ pub fn take_icon_request() -> Option<String> {
     ICON_REQUEST.with(|r| r.borrow_mut().take())
 }
 
-/// A held item's 3D model (`ItemDef.model`): characters made of 3D models hold it as a model
-/// (others its picture). The file, its length, the hold point and handle direction (estimated,
-/// flipped or typed), and a preview in the hands of the project's first 3D model.
+thread_local! {
+    /// The item form's preview: animation, playing, the model holding it ("" = the first
+    /// playable one).
+    static HOLD_PREVIEW: std::cell::RefCell<(&'static str, bool, String)> = const { std::cell::RefCell::new(("idle", false, String::new())) };
+}
+
+/// Sets the item form's preview (`itempreview` script command): `anim` idle / walk / attack,
+/// playing or still, held by `model` ("" = the first playable model).
+pub fn set_hold_preview(anim: &str, play: bool, model: &str) {
+    let anim = ["idle", "walk", "attack"].into_iter().find(|a| *a == anim).unwrap_or("idle");
+    HOLD_PREVIEW.with(|p| *p.borrow_mut() = (anim, play, model.to_string()));
+}
+
+/// A held item's 3D model (`ItemDef.model`): the file, how it is held (style, length, how far
+/// along), buttons that turn it, and a big preview in a character's hands; the numbers behind
+/// them folded away.
 fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
-    use rustpg2d_engine::defs::Appearance;
+    use crate::models_tab::{hold_fraction, hold_op, HoldOp};
+    use rustpg2d_engine::defs::{Appearance, HoldStyle};
     use rustpg2d_engine::entity::Facing;
     use rustpg2d_engine::render::model::{Gear, PoseReq};
     ui.heading("3D model");
-    ui.weak("Characters made of 3D models hold it as a model, its handle along the hand (others hold its picture).");
     let before = d.model.clone();
+    // The item without its model: what its kind says about holding it.
+    let kind = ItemDef { model: None, on_use: Vec::new(), ..d.clone() };
     let Some(m) = &mut d.model else {
-        if ui.button(ui::t(ph::CUBE, "Choose a model…")).on_hover_text("A .glb of the item (copied into models/); where it is held is estimated from its shape").clicked() {
+        ui.weak("Characters hold the item's 3D model; without one, its picture (below).");
+        if ui.button(ui::t(ph::CUBE, "Choose a model…")).on_hover_text("A .glb of the item (copied into models/); how it is held is set from the item's kind and its shape").clicked() {
             *cx.browse = Some(Purpose::ItemModel(d.id.clone()));
         }
         return;
     };
+    ui.weak("Pick how it is held, then turn it with the buttons until it sits right in the preview.");
     let mut remove = false;
     ui.horizontal(|ui| {
         ui.monospace(&m.file);
@@ -3874,75 +3895,133 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
             remove = true;
         }
     });
-    if !cx.assets.models.has_item_model(&m.file) {
+    let points = cx.assets.models.item_points(&m.file);
+    if points.is_none() {
         let err = cx.assets.models.errors.iter().find(|e| e.contains(&m.file)).cloned();
         ui.colored_label(egui::Color32::LIGHT_RED, err.unwrap_or_else(|| "Not loaded (Reload assets).".into()));
     }
+    let pts = points.map(|p| p.0).unwrap_or_default();
+    let indices = cx.assets.models.item_indices(&m.file);
+    let mut op = None;
+    let style_help = |s: HoldStyle| match s {
+        HoldStyle::Grip => "In the fist: the handle through it, the front (blade's edge, axe head) where the knuckles point. Swords, axes, tools, bows; two-handed along both fists.",
+        HoldStyle::Upright => "Held up, the handle pointing up whatever the arm does: torches, staffs.",
+        HoldStyle::Hang => "Hanging from the hand by its top: lanterns, buckets.",
+        HoldStyle::Strap => "On the forearm, its face turned out and forward, its top up: shields.",
+    };
     egui::Grid::new("item_model").num_columns(2).show(ui, |ui| {
-        ui.label("Length");
-        ui.add(egui::DragValue::new(&mut m.size).range(2.0..=200.0).suffix(" px")).on_hover_text("The whole model's length in world pixels (a sword about 22, a spear 50; a character is about 40 tall)");
-        ui.end_row();
-        ui.label("Hold point");
+        ui.label("Held as");
         ui.horizontal(|ui| {
-            for (k, n) in ["x", "y", "z"].iter().enumerate() {
-                ui.add(egui::DragValue::new(&mut m.grip[k]).speed(0.005).prefix(format!("{n} ")));
+            for s in HoldStyle::ALL {
+                if ui.selectable_label(m.hold == s, s.label()).on_hover_text(style_help(s)).clicked() && m.hold != s {
+                    op = Some(HoldOp::Style(s));
+                }
             }
         });
         ui.end_row();
-        ui.label("Handle toward");
+        ui.label("Length");
+        ui.add(egui::Slider::new(&mut m.size, 4.0..=80.0).suffix(" px").step_by(1.0))
+            .on_hover_text("Its whole length in the world: a character is about 40 tall (a dagger 14, a sword 24, a spear 44)");
+        ui.end_row();
+        ui.label("Hold at");
         ui.horizontal(|ui| {
-            for (k, n) in ["x", "y", "z"].iter().enumerate() {
-                ui.add(egui::DragValue::new(&mut m.axis[k]).speed(0.01).range(-1.0..=1.0).prefix(format!("{n} ")));
+            let (mut t, _, _) = hold_fraction(m, &pts);
+            ui.weak("handle end");
+            if ui.add(egui::Slider::new(&mut t, 0.0..=1.0).show_value(false)).on_hover_text("Where along its length the hand holds it").changed() {
+                op = Some(HoldOp::At(t));
             }
-        })
-        .response
-        .on_hover_text("The direction from the hold point toward the blade or head, in the model's own axes");
+            ui.weak(if m.hold == HoldStyle::Hang { "bottom" } else { "far end" });
+        });
         ui.end_row();
     });
-    ui.horizontal(|ui| {
-        let points = cx.assets.models.item_points(&m.file);
-        if ui.add_enabled(points.is_some(), egui::Button::new(ui::t(ph::MAGIC_WAND, "Estimate"))).on_hover_text("From the shape: the thinner end of its longest side is the handle").clicked() {
-            if let Some((pts, _)) = &points {
-                (m.grip, m.axis) = rustpg2d_engine::model::estimate_grip(pts, &cx.assets.models.item_indices(&m.file));
+    ui.horizontal_wrapped(|ui| {
+        let on = !pts.is_empty();
+        let mut button = |ui: &mut egui::Ui, icon: &str, text: &str, tip: &str, o: HoldOp| {
+            if ui.add_enabled(on, egui::Button::new(ui::t(icon, text))).on_hover_text(tip).clicked() {
+                op = Some(o);
             }
-        }
-        if ui.add_enabled(points.is_some(), egui::Button::new(ui::t(ph::IMAGE, "Render icon"))).on_hover_text("Its inventory icon drawn from the model (into the icons_3d sheet)").clicked() {
+        };
+        button(ui, ph::MAGIC_WAND, "Estimate", "Hold point, handle and front guessed from its shape again (for this way of holding)", HoldOp::Estimate);
+        button(ui, ph::ARROW_CLOCKWISE, "Turn handle", "The handle runs along the model's next axis: press until it lies in the hand", HoldOp::TurnHandle);
+        button(ui, ph::ARROWS_CLOCKWISE, "Turn front", "A quarter turn about the handle: the blade's edge, the axe head or the shield's face points another way", HoldOp::TurnFront);
+        button(ui, ph::ARROWS_DOWN_UP, "Flip ends", "The other end is the handle", HoldOp::Flip);
+        if ui.add_enabled(on, egui::Button::new(ui::t(ph::IMAGE, "Render icon"))).on_hover_text("Its inventory icon drawn from the model (into the icons_3d sheet)").clicked() {
             ICON_REQUEST.with(|r| *r.borrow_mut() = Some(d.id.clone()));
         }
-        if ui.add_enabled(points.is_some(), egui::Button::new(ui::t(ph::ARROWS_DOWN_UP, "Flip"))).on_hover_text("The other end is the handle").clicked() {
-            if let Some((pts, _)) = &points {
-                // The hold point mirrored to the other end along the handle.
-                let axis = macroquad::math::Vec3::from(m.axis).normalize_or(macroquad::math::Vec3::Y);
-                let proj: Vec<f32> = pts.iter().map(|p| p.dot(axis)).collect();
-                let (lo, hi) = proj.iter().fold((f32::MAX, f32::MIN), |(l, h), v| (l.min(*v), h.max(*v)));
-                let g = macroquad::math::Vec3::from(m.grip);
-                let t = g.dot(axis);
-                m.grip = (g + axis * (lo + hi - 2.0 * t)).to_array();
-                m.axis = (-axis).to_array();
-            }
-        }
     });
-    if d.model != before {
-        cx.assets.models.clear_poses();
+    if let Some(o) = op {
+        let at = crate::models_tab::kind_at(&kind, &pts);
+        hold_op(m, &o, &pts, &indices, at);
     }
-    // Preview in the hands of the first 3D model (playable ones first).
-    let Some(holder) = cx.db.models.iter().find(|m| m.playable).or(cx.db.models.first()).map(|m| m.id.clone()) else {
-        ui.weak("(no 3D model character to preview it with)");
-        return;
-    };
-    let look = Appearance { model: holder, ..Default::default() };
-    let offhand = d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
-    let gear = if offhand { Gear { offhand: Some(d.id.clone()), ..Default::default() } } else { Gear { weapon: Some(d.id.clone()), ..Default::default() } };
-    ui.horizontal(|ui| {
-        for (facing, anim, time) in [(Facing::Down, "idle", 0.0), (Facing::Right, "idle", 0.0), (Facing::Left, "walk", 0.3), (Facing::Right, "attack", 0.42)] {
-            let (r, _) = ui.allocate_exact_size(egui::vec2(90.0, 110.0), egui::Sense::hover());
-            ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(40));
-            let req = PoseReq { look: &look, gear: &gear, anim, time, once: anim == "attack", facing, bust: false };
-            widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
+    // The preview: four facings, an animation, the model holding it.
+    let (mut anim, mut play, mut holder) = HOLD_PREVIEW.with(|p| p.borrow().clone());
+    let models: Vec<(String, String)> = cx.db.models.iter().filter(|m| m.playable).chain(cx.db.models.iter().filter(|m| !m.playable)).filter(|m| m.rig.is_some() || cx.assets.models.has(&m.id)).map(|m| (m.id.clone(), m.name.clone())).collect();
+    if !models.iter().any(|(id, _)| *id == holder) {
+        holder = models.first().map(|m| m.0.clone()).unwrap_or_default();
+    }
+    if holder.is_empty() {
+        ui.weak("(no 3D character model to preview it with)");
+    } else {
+        ui.horizontal(|ui| {
+            ui.label("Preview");
+            for a in ["idle", "walk", "attack"] {
+                ui.selectable_value(&mut anim, a, match a {
+                    "idle" => "Standing",
+                    "walk" => "Walking",
+                    _ => "Attacking",
+                });
+            }
+            ui.checkbox(&mut play, "Play");
+            ui.label("held by");
+            let name = models.iter().find(|m| m.0 == holder).map(|m| m.1.clone()).unwrap_or_default();
+            egui::ComboBox::from_id_salt("item_hold_by").selected_text(name).height(300.0).show_ui(ui, |ui| {
+                for (id, name) in &models {
+                    ui.selectable_value(&mut holder, id.clone(), name);
+                }
+            });
+        });
+        HOLD_PREVIEW.with(|p| *p.borrow_mut() = (anim, play, holder.clone()));
+        let look = Appearance { model: holder, ..Default::default() };
+        let offhand = d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
+        let gear = if offhand { Gear { offhand: Some(d.id.clone()), ..Default::default() } } else { Gear { weapon: Some(d.id.clone()), ..Default::default() } };
+        let clock = ui.input(|i| i.time) as f32;
+        let time = match (play, anim) {
+            (true, "attack") => (clock * 0.9).fract(),
+            (true, _) => clock,
+            (false, "attack") => 0.42,
+            (false, "walk") => 0.3,
+            _ => 0.0,
+        };
+        if play {
+            ui.ctx().request_repaint();
         }
+        ui.horizontal(|ui| {
+            for facing in [Facing::Down, Facing::Left, Facing::Right, Facing::Up] {
+                let (r, _) = ui.allocate_exact_size(egui::vec2(170.0, 200.0), egui::Sense::hover());
+                ui.painter().rect_filled(r, 3.0, egui::Color32::from_rgb(58, 74, 52));
+                let req = PoseReq { look: &look, gear: &gear, anim, time, once: anim == "attack", facing, bust: false };
+                widgets::paint_model_whole(ui, cx.assets, cx.db, &req, r.shrink(4.0));
+            }
+        });
+    }
+    egui::CollapsingHeader::new("Numbers").id_salt("item_model_numbers").show(ui, |ui| {
+        ui.weak("In the model's own axes: the hold point, the direction from it toward the far end, and the front (0 0 0: the wider side across the handle).");
+        egui::Grid::new("item_model_numbers_grid").num_columns(2).show(ui, |ui| {
+            for (label, v, speed) in [("Hold point", &mut m.grip, 0.005), ("Handle toward", &mut m.axis, 0.01), ("Front", &mut m.front, 0.01)] {
+                ui.label(label);
+                ui.horizontal(|ui| {
+                    for (k, n) in ["x", "y", "z"].iter().enumerate() {
+                        ui.add(egui::DragValue::new(&mut v[k]).speed(speed).prefix(format!("{n} ")));
+                    }
+                });
+                ui.end_row();
+            }
+        });
     });
     if remove {
         d.model = None;
+    }
+    if d.model != before {
         cx.assets.models.clear_poses();
     }
 }

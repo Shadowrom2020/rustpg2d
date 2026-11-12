@@ -49,9 +49,9 @@ of earlier versions: 47 people and 9 animals, and 16 items' 3D models.
 **Equipment** is real: a character's weapon, armor and clothing count in combat, and an enemy drops
 them when defeated. **What it holds is in its hands**: the weapon, the left-hand item (a shield, a
 lantern, a torch), a tool while it works (the fisher's rod, the farmer's hoe) and a prop it carries,
-each at the hand bone with the handle across the fist. Items with a **3D model**
-([Database › Items](05-database.md#items)) are held as that model, others as their picture (*Held*
-section: hold point and orientation). Worn armour and clothing show only in the model's art.
+each at the hand bone. Items with a **3D model** ([Database › Items](05-database.md#items)) are
+held as that model by their hold style (in the fist with the handle across it, upright, hanging or
+strapped to the forearm), others as their picture (*Held* section: hold point and orientation). Worn armour and clothing show only in the model's art.
 
 **Carrying props**: the *Carry prop* action and the scripts `carry(target, prop)` /
 `stop_carrying(target)` / `player_carrying()` let the player or a character carry a prop (a crate, a

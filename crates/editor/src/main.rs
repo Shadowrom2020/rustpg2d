@@ -417,6 +417,14 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             let m = ed.render_item_icon(arg(1));
             println!("[script] {m}");
         }
+        // itemhold ITEM estimate|turnhandle|turnfront|flip|at FRACTION|style grip|upright|hang|strap|size PX:
+        // the item form's 3D model controls.
+        "itemhold" => println!("[script] {}", ed.item_hold(arg(1), arg(2), arg(3))),
+        // itempreview idle|walk|attack [play] [MODEL]: the item form's preview.
+        "itempreview" => {
+            let play = arg(2) == "play";
+            database::set_hold_preview(arg(1), play, if play { arg(3) } else { arg(2) });
+        }
         "newproject" => ed.handle_file(files::Purpose::NewProject, arg(1).into()),
         "openproject" => ed.handle_file(files::Purpose::OpenProject, arg(1).into()),
         "closeproject" => ed.request(Pending::CloseProject),

@@ -114,9 +114,12 @@ The 3D kinds:
 - **3D creature**: an animal or monster: a picture and an unrigged model of it (33 credits), or
   from a figure's three views (*From figure*, 30). Meshy rigs only people, so it is added as a 3D
   model without a character; a rig template animates it.
-- **Item 3D model**: the **Id** is an existing item; Meshy models it from the item's icon (the
-  description, if any, guides the colours; 30 credits). *Add to project* gives the item the model
-  with its hold point estimated: check it in the item's *3D model* section.
+- **Item 3D model**: the **Id** is an existing item. With a **description** Meshy first draws a
+  clean picture of it (the icon as the reference: same colours and parts, in proper proportions;
+  long things upright, handle at the bottom) and models that (33 credits); without one it models
+  the icon itself (30 credits; a 32 px icon gives a bulky model). *Add to project* gives the item the model,
+  held as its kind says (hold style, length, hold point estimated): check it in the preview of the
+  item's *3D model* section.
 
 *Draw* shows the cost first; a picture then takes about a minute, a 3D step one to three. The result
 is previewed; **Redo …** draws a picture again if Meshy got something wrong (a missing staff, a wrong

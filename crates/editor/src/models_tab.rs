@@ -3,6 +3,7 @@
 //! `database::model_form`.
 
 use rustpg2d_engine::defs::{Database, JointNudge, ModelDef, RigFit};
+use macroquad::math::Vec3;
 use rustpg2d_engine::model::{guess_clips, Model};
 
 use crate::app::Editor;
@@ -196,10 +197,13 @@ impl Editor {
         let mut pts = Vec::new();
         model.skin(&model.pose(None, 0.0), &mut pts);
         let points: Vec<_> = pts.into_iter().map(|p| p.0).collect();
-        let (grip, axis) = rustpg2d_engine::model::estimate_grip(&points, &model.indices);
         let Some(item) = self.project.db.items.iter_mut().find(|d| d.id == id) else { return format!("No item {id}") };
-        let size = item.model.as_ref().map_or(22.0, |m| m.size);
-        item.model = Some(rustpg2d_engine::defs::ItemModel { file: rel.to_string(), grip, axis, size });
+        // A new model is held by the item's kind; a replaced one keeps its style and length.
+        let (kind_hold, kind_size, at) = item.hold_by_kind(rustpg2d_engine::model::extents(&points));
+        let (hold, size) = item.model.as_ref().map_or((kind_hold, kind_size), |m| (m.hold, m.size));
+        let mut m = rustpg2d_engine::defs::ItemModel { hold, size, ..rustpg2d_engine::defs::ItemModel::new(rel) };
+        hold_op(&mut m, &HoldOp::Estimate, &points, &model.indices, at);
+        item.model = Some(m);
         self.defs_dirty = true;
         self.save_defs();
         self.reload_assets();
@@ -259,5 +263,148 @@ impl Editor {
         self.save_defs();
         self.reload_assets();
         format!("{id}'s icon is rendered from its model (icons_3d frame {k})")
+    }
+}
+
+/// A change to how an item model is held: the item form's buttons and the `itemhold` script
+/// command.
+#[derive(Clone, Debug, PartialEq)]
+pub enum HoldOp {
+    /// Hold point, handle and front estimated from its shape for its hold style.
+    Estimate,
+    /// The handle runs along the next of the model's main directions (its length, width,
+    /// thickness, each both ways), held as far along it as before.
+    TurnHandle,
+    /// The front turned a quarter about the handle.
+    TurnFront,
+    /// The other end is the handle.
+    Flip,
+    /// Held this far along its length (0 = the handle's end, 1 = the far end).
+    At(f32),
+    /// Another hold style (estimated again for it).
+    Style(rustpg2d_engine::defs::HoldStyle),
+}
+
+/// How far along its length (from the handle's end) an item model is held, and its extent
+/// along the handle: `(fraction, min, max)` of the points projected on the axis.
+pub fn hold_fraction(m: &rustpg2d_engine::defs::ItemModel, pts: &[Vec3]) -> (f32, f32, f32) {
+    let a = Vec3::from(m.axis).normalize_or(Vec3::Y);
+    let (lo, hi) = pts.iter().map(|p| p.dot(a)).fold((f32::MAX, f32::MIN), |(l, h), v| (l.min(v), h.max(v)));
+    if lo > hi {
+        return (0.0, 0.0, 0.0);
+    }
+    (((Vec3::from(m.grip).dot(a) - lo) / (hi - lo).max(1e-6)).clamp(0.0, 1.0), lo, hi)
+}
+
+/// The front an item model shows: its own, else the automatic one.
+pub fn front_of(m: &rustpg2d_engine::defs::ItemModel, pts: &[Vec3]) -> Vec3 {
+    if m.front != [0.0; 3] {
+        return Vec3::from(m.front);
+    }
+    Vec3::from(rustpg2d_engine::model::auto_front(m.axis, rustpg2d_engine::model::spread(pts).1))
+}
+
+/// How far along its length an item is held by its kind when its shape can't tell (bows: the
+/// middle; [`rustpg2d_engine::defs::ItemDef::hold_by_kind`]), for these model points.
+pub fn kind_at(d: &rustpg2d_engine::defs::ItemDef, pts: &[Vec3]) -> Option<f32> {
+    d.hold_by_kind(rustpg2d_engine::model::extents(pts)).2
+}
+
+/// Applies `op` to an item model with these points and triangles; estimates hold it `at` this
+/// far along when given (the item's kind says so, [`kind_at`]).
+pub fn hold_op(m: &mut rustpg2d_engine::defs::ItemModel, op: &HoldOp, pts: &[Vec3], indices: &[u16], at: Option<f32>) {
+    use rustpg2d_engine::model::estimate_hold;
+    // Rounded to an axis when it is one (no -0.0000001 noise in the file).
+    let snap = |v: Vec3| {
+        let v = v.normalize_or(Vec3::Y);
+        v.to_array().map(|c| if c.abs() < 1e-4 { 0.0 } else if (c.abs() - 1.0).abs() < 1e-4 { c.signum() } else { c })
+    };
+    match op {
+        HoldOp::Estimate | HoldOp::Style(_) => {
+            if let HoldOp::Style(s) = op {
+                m.hold = *s;
+            }
+            (m.grip, m.axis, m.front) = estimate_hold(pts, indices, m.hold);
+            if let Some(t) = at {
+                hold_op(m, &HoldOp::At(t), pts, indices, None);
+            }
+        }
+        HoldOp::TurnHandle => {
+            // The model's main directions (its length first) and their opposites.
+            let [d0, d1, d2] = rustpg2d_engine::model::main_axes(pts);
+            let dirs = [d0, -d0, d1, -d1, d2, -d2];
+            let a = Vec3::from(m.axis).normalize_or(Vec3::Y);
+            let now = dirs.iter().position(|d| d.dot(a) > 0.999);
+            let next = dirs[now.map_or(0, |i| (i + 1) % dirs.len())];
+            let (t, _, _) = hold_fraction(m, pts);
+            let front = front_of(m, pts);
+            m.axis = snap(next);
+            if m.hold != rustpg2d_engine::defs::HoldStyle::Strap {
+                // On the line through the middle, as far along as before.
+                let mid = rustpg2d_engine::model::spread(pts).0;
+                let (_, plo, phi) = hold_fraction(m, pts);
+                m.grip = (mid - next * mid.dot(next) + next * (plo + t * (phi - plo))).to_array();
+            }
+            // A front along the new handle can't be: the automatic one.
+            m.front = if front.dot(next).abs() > 0.9 { [0.0; 3] } else { snap(front - next * front.dot(next)) };
+        }
+        HoldOp::TurnFront => {
+            let a = Vec3::from(m.axis).normalize_or(Vec3::Y);
+            let f = front_of(m, pts);
+            m.front = snap(macroquad::math::Quat::from_axis_angle(a, std::f32::consts::FRAC_PI_2) * f);
+        }
+        HoldOp::Flip => {
+            let a = Vec3::from(m.axis).normalize_or(Vec3::Y);
+            let (_, lo, hi) = hold_fraction(m, pts);
+            let g = Vec3::from(m.grip);
+            m.grip = (g + a * (lo + hi - 2.0 * g.dot(a))).to_array();
+            m.axis = snap(-a);
+        }
+        HoldOp::At(t) => {
+            let a = Vec3::from(m.axis).normalize_or(Vec3::Y);
+            let (now, lo, hi) = hold_fraction(m, pts);
+            m.grip = (Vec3::from(m.grip) + a * ((t.clamp(0.0, 1.0) - now) * (hi - lo))).to_array();
+        }
+    }
+}
+
+impl Editor {
+    /// `itemhold ITEM OP [ARG]`: what the item form's buttons do (`estimate`, `turnhandle`,
+    /// `turnfront`, `flip`, `at FRACTION`, `style grip|upright|hang|strap`, `size PX`), saved.
+    pub fn item_hold(&mut self, id: &str, op: &str, arg: &str) -> String {
+        use rustpg2d_engine::defs::HoldStyle;
+        let Some(file) = self.project.db.item(id).and_then(|d| d.model.as_ref()).map(|m| m.file.clone()) else { return format!("{id} has no 3D model") };
+        let Some((pts, _)) = self.assets.models.item_points(&file) else { return format!("{file} isn't loaded") };
+        let indices = self.assets.models.item_indices(&file);
+        let op = match op {
+            "estimate" => HoldOp::Estimate,
+            "turnhandle" => HoldOp::TurnHandle,
+            "turnfront" => HoldOp::TurnFront,
+            "flip" => HoldOp::Flip,
+            "at" => HoldOp::At(arg.parse().unwrap_or(0.1)),
+            "style" => match HoldStyle::ALL.iter().find(|s| s.label().eq_ignore_ascii_case(arg)) {
+                Some(s) => HoldOp::Style(*s),
+                None => return format!("No hold style {arg} (grip, upright, hang, strap)"),
+            },
+            "size" => {
+                let Some(m) = self.project.db.items.iter_mut().find(|d| d.id == id).and_then(|d| d.model.as_mut()) else { return String::new() };
+                m.size = arg.parse().unwrap_or(m.size);
+                return self.item_hold_saved(id);
+            }
+            _ => return format!("itemhold: unknown {op}"),
+        };
+        let Some(d) = self.project.db.items.iter_mut().find(|d| d.id == id) else { return String::new() };
+        let at = kind_at(d, &pts);
+        let Some(m) = d.model.as_mut() else { return String::new() };
+        hold_op(m, &op, &pts, &indices, at);
+        self.item_hold_saved(id)
+    }
+
+    fn item_hold_saved(&mut self, id: &str) -> String {
+        self.defs_dirty = true;
+        self.save_defs();
+        self.assets.models.clear_poses();
+        let m = self.project.db.item(id).and_then(|d| d.model.clone());
+        m.map_or_else(String::new, |m| format!("{id}: {} grip {:?} axis {:?} front {:?} size {}", m.hold.label(), m.grip, m.axis, m.front, m.size))
     }
 }

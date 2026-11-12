@@ -276,21 +276,64 @@ impl Appearance {
     }
 }
 
-/// A held item's 3D model: a `.glb` under `models/`, where the hand holds it and which way its
-/// handle runs (the model's own units and axes), and how long it is in the world.
+/// A held item's 3D model: a `.glb` under `models/`, where the hand holds it, which way its
+/// handle runs and which side is its front (the model's own units and axes), how it is held and
+/// how long it is in the world.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ItemModel {
     pub file: String,
     /// The hold point.
     #[serde(default)]
     pub grip: [f32; 3],
-    /// The direction from the hold point toward the business end (the blade, the head):
-    /// it lies on the hand's grip axis.
+    /// The direction from the hold point toward the business end (the blade, the head; a
+    /// lantern's body, a shield's top): it lies on the hand's grip axis (see [`HoldStyle`]).
     #[serde(default = "item_axis")]
     pub axis: [f32; 3],
     /// Length of the whole model in world pixels (a sword about 22, a spear 50).
     #[serde(default = "item_size")]
     pub size: f32,
+    /// Its front, across the handle: the edge of a blade, the head of an axe or pickaxe, a bow's
+    /// back, a shield's face. It points where the hand's knuckles do (a shield: away from the
+    /// body). Zero: the wider side across the handle ([`crate::model::auto_front`]).
+    #[serde(default, skip_serializing_if = "is_zero3")]
+    pub front: [f32; 3],
+    /// How it is held.
+    #[serde(default, skip_serializing_if = "HoldStyle::is_grip")]
+    pub hold: HoldStyle,
+}
+
+/// How a held item model sits in the hand.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HoldStyle {
+    /// In the fist, its handle along the grip axis and its front where the knuckles point
+    /// (swords, axes, tools, bows; two-handed: along the line through both fists).
+    #[default]
+    Grip,
+    /// Held up at the hand, its handle pointing up whatever the arm does (torches, staffs).
+    Upright,
+    /// Hanging from the hand, its handle above it (lanterns, buckets).
+    Hang,
+    /// On the forearm, its face turned away from the body and its top up (shields).
+    Strap,
+}
+
+impl HoldStyle {
+    pub const ALL: [HoldStyle; 4] = [HoldStyle::Grip, HoldStyle::Upright, HoldStyle::Hang, HoldStyle::Strap];
+    fn is_grip(&self) -> bool {
+        *self == HoldStyle::Grip
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            HoldStyle::Grip => "Grip",
+            HoldStyle::Upright => "Upright",
+            HoldStyle::Hang => "Hang",
+            HoldStyle::Strap => "Strap",
+        }
+    }
+}
+
+fn is_zero3(v: &[f32; 3]) -> bool {
+    *v == [0.0; 3]
 }
 
 fn item_axis() -> [f32; 3] {
@@ -302,7 +345,7 @@ fn item_size() -> f32 {
 
 impl ItemModel {
     pub fn new(file: &str) -> ItemModel {
-        ItemModel { file: file.into(), grip: [0.0; 3], axis: item_axis(), size: item_size() }
+        ItemModel { file: file.into(), grip: [0.0; 3], axis: item_axis(), size: item_size(), front: [0.0; 3], hold: HoldStyle::Grip }
     }
 }
 
@@ -667,6 +710,26 @@ impl Default for ItemDef {
 }
 
 impl ItemDef {
+    /// How its 3D model is held, how long it is (world pixels) and, when its shape can't tell,
+    /// how far along its length it is held, by its kind, for a model of this size (`ext`: its
+    /// length, width and thickness, [`crate::model::extents`]): shields on the forearm, lights upright (long ones, torches) or hanging
+    /// (lanterns), bows upright at their middle, weapons and tools in the fist; two-handed
+    /// weapons about a character's height (40), bows 30, one-handed weapons and tools 24.
+    pub fn hold_by_kind(&self, ext: [f32; 3]) -> (HoldStyle, f32, Option<f32>) {
+        let mut e = ext;
+        e.sort_by(|a, b| b.total_cmp(a));
+        let long = e[0] > e[1].max(1e-6) * 2.2;
+        let offhand = self.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
+        match &self.weapon {
+            _ if offhand && self.light.is_some() => if long { (HoldStyle::Upright, 16.0, None) } else { (HoldStyle::Hang, 12.0, None) },
+            _ if offhand => (HoldStyle::Strap, 18.0, None),
+            Some(w) if w.ranged.is_some() && e[0] > e[1].max(1e-6) * 1.6 => (HoldStyle::Upright, 30.0, Some(0.5)),
+            Some(w) if w.ranged.is_some() => (HoldStyle::Grip, 24.0, None),
+            Some(w) if w.two_handed => (HoldStyle::Grip, 44.0, None),
+            _ => (HoldStyle::Grip, 24.0, None),
+        }
+    }
+
     /// A new item as the editor creates it.
     pub fn fresh(id: &str) -> Self {
         ItemDef { id: id.into(), name: "New item".into(), ..Default::default() }

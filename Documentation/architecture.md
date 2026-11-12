@@ -331,8 +331,10 @@ Known properties of the current implementation (see the CHANGELOG for what each 
 - Files are written whole or not at all (`sys::write`: temporary file + rename). A definition
   entry or a map object that can't be read is left out with a log line, and the editor backs the
   file up before it could save without it.
-- The editor's egui UI has no automated click tests; editor script commands call the same
-  functions instead. The game and the editor do run in CI (`scripts/ci/smoke.sh`).
+- The editor's forms have click and typing tests without a window (`editor/src/ui_tests.rs`:
+  `egui_kittest` on `Editor::headless`, no textures, sounds or models); the map canvas and the
+  other windows are tested through editor script commands that call the same functions. The game
+  and the editor run in CI (`scripts/ci/smoke.sh`).
 - A game binary older than the engine cannot read new map data; the editor compares
   `rustpg2d-game --engine-build` with its own fingerprint (the engine sources plus the versions
   of the crates that define the file formats) before a play-test. Every runner also carries the

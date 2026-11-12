@@ -37,6 +37,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   about 10 % fewer renders while exploring the village).
 
 ### Maintenance
+- **Editor UI tests**: `cargo test` clicks and types in the editor's forms without a window
+  (`egui_kittest` on a headless editor): an item's name, its Food tick and Ctrl+Z, a character's
+  race and speed, the project's *Eight facings* and *Character pose memory*, each checked in the
+  saved files. A form that stops saving a field fails them.
 - **GitHub Flow**: `master` is the only long-lived branch. Features, fixes and Dependabot updates
   merge into it by pull request; a `release/X.Y.Z` pull request (a patch release too) runs the
   platform builds and publishes the release when merged. The `develop` branch, hotfix branches

@@ -290,7 +290,7 @@ so it comes after the atlas).
   screenshots zoomed out before and after an edit, with undo (the cache follows); an animated
   water tile still moves zoomed out.
 
-- [ ] Editor UI tests with `egui_kittest` — `feature/editor-ui-tests`
+- [x] Editor UI tests with `egui_kittest` — `feature/editor-ui-tests`
 
   **Goal.** The editor's forms are tested by real clicks and typing, headless in CI, instead of
   only through script commands that call the same functions. This replaces the throwaway patched
@@ -308,6 +308,20 @@ so it comes after the atlas).
   smoke* job; record which one was taken.
 
   **Engine.** Agreed for 0.19.0 (editor and the engine's `Assets`: a mode without textures).
+
+  **Decided while building.** The headless editor was the cheap way, not the Xvfb fallback:
+  `Editor::headless` builds `Assets` from their public fields (empty, so no engine mode was
+  needed) and takes `Audio::silent()` (the one engine addition); `ui::set_headless` switches off
+  the few macroquad calls on the form paths (the Ctrl check, the clock: `ui::now()` replaces
+  `get_time()` in the status line, Database undo, the tileset, model and character previews).
+  The editor is a binary crate, so the tests are a module, `editor/src/ui_tests.rs`, not
+  `crates/editor/tests/`. egui's accessibility tree is flat and gives combo boxes no text, so a
+  field is found on its label's line (`beside`); the character preview keeps repainting, so the
+  tests step a fixed number of frames. Tests: an item (typing in the name, the Food tick, Ctrl+Z
+  twice, saving), a character (race chooser, speed typed), project settings (Eight facings,
+  Character pose memory typed), each read back from the saved files; 0.1 s for all three.
+  Checked: the Food tick bound to a copy makes the item test fail. `egui_kittest` is pinned to
+  0.31.1 and ignored by Dependabot with egui.
 
   **Touch points.** `crates/editor/Cargo.toml` (dev-dependency), `editor/src/app.rs`
   (`Editor::headless`), `render/mod.rs` (`Assets` without textures), `editor/src/database.rs` and

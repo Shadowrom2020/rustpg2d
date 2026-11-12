@@ -211,7 +211,8 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   data — log with `eprintln!` (prefix like `[game]`, `[events]`) and carry on.
 - Don't add dependencies without a good reason. Pinned stack: macroquad 0.4.16 (with
   `features = ["audio"]`), egui-macroquad 0.17.3 (egui 0.31) and with it egui-phosphor 0.9 (each
-  later egui-phosphor needs a newer egui; Dependabot ignores all four), image 0.24 and lewton 0.9
+  later egui-phosphor needs a newer egui; Dependabot ignores all four, and egui_kittest 0.31.1, the
+  editor's UI tests, with them), image 0.24 and lewton 0.9
   (macroquad's versions: `image` only turns on the JPEG decoder of macroquad's copy; ignored too), postcard + lz4_flex, ron,
   rhai, rfd, zip 9, png 0.18 (`imageio.rs`; macroquad keeps its own png 0.17 internally).
 - **Compatibility is a hard rule** (maps, defs and save games of older versions must load):
@@ -355,8 +356,16 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
 - **Asset Library window:** run `rustpg2d-editor --library` (with `RUSTPG2D_LIBRARY=<scratch>/lib`)
   and a script directly; `libwindow` from the main editor passes `RUSTPG2D_LIBRARY_SCRIPT` to the
   child as its script.
+- **Editor UI tests** (`crates/editor/src/ui_tests.rs`, part of `cargo test`): `egui_kittest`
+  drives the Database view of `Editor::headless` (a copy of the example's definitions; no
+  textures, sounds or models, `ui::set_headless` switches off macroquad's input and clock: use
+  `ui::now()`, not `get_time()`, in editor UI code) through egui's AccessKit tree: `get_by_label`,
+  text fields by role and value, `beside(label, …)` for the field on a label's line (the tree is
+  flat), `type_text`, `press_key_modifiers(COMMAND, Z)` for undo, `step` (the character preview
+  keeps repainting), then `save_all` and reload. Add a test there for new form behaviour.
 - The editor script cannot click egui widgets; script commands call the same functions
-  instead. For **real egui clicks/typing**, build a throwaway copy of the workspace in the
+  instead. For **real egui clicks/typing** in what the headless editor can't show (the map
+  canvas, textures, windows outside the Database view), build a throwaway copy of the workspace in the
   scratchpad with a patched egui-macroquad (`[patch.crates-io]`) that exposes
   `inject_mouse` / `inject_text`, plus `eclick X Y` / `etype` commands — never patch the real
   repository. Add `ekey NAME [ctrl]` (egui key events) the same way for keyboard tests; after

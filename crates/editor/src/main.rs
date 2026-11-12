@@ -35,6 +35,8 @@ mod search;
 mod structures;
 mod terrain;
 mod tile_cache;
+#[cfg(test)]
+mod ui_tests;
 mod ui;
 mod wizard;
 mod widgets;

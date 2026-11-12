@@ -120,7 +120,9 @@ pull request's head commit fetches and checks that pull request's packages; it n
 publishes).
 
 Dependabot opens monthly grouped updates (cargo, GitHub Actions) against `master`; macroquad,
-egui-macroquad, egui and egui-phosphor are pinned and updated by hand.
+egui-macroquad, egui and egui-phosphor are pinned and updated by hand, and so are `image` and
+`lewton`, which share macroquad's versions (`image` only turns on the JPEG decoder of macroquad's
+copy).
 
 `cargo xtask` (crates/xtask) runs the same tasks locally: `check-version BRANCH`,
 `check-branch HEAD BASE`, `release-notes X.Y.Z` (no engine: builds in seconds), and

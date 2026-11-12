@@ -1131,16 +1131,19 @@
         ),
         "model:bandit_chief": (
             defs: [
+                2676176328434344135,
                 6699036159372700179,
             ],
             files: {
                 "models/bandit_chief.glb": [
+                    14026425376880328839,
                     14791049200061134551,
                 ],
                 "models/bandit_chief_attack.glb": [
                     7127233463209239525,
                 ],
                 "models/bandit_chief_clips.glb": [
+                    8815612900344376186,
                     13421773740979454690,
                 ],
             },

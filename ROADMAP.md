@@ -152,7 +152,7 @@ so it comes after the atlas).
   `RUSTPG2D_MODEL_DEBUG=1`): evictions counted while the player's poses stay cached (renders
   steady while walking back and forth); shots.
 
-- [ ] Models load when first drawn — `feature/lazy-models`
+- [x] Models load when first drawn — `feature/lazy-models` (closed as documentation)
 
   **Goal.** Games start faster and use less memory: a model is read when a character needs it,
   not every model of the project at start (the example has 34 MB of GLB).
@@ -173,6 +173,11 @@ so it comes after the atlas).
   45.7 MB against 16.8 MB (`data.pack` 39 MB, uncompressed): over a real connection the
   download, not the parsing, is what players wait for. Textures are only 2 MB of the 33 MB of
   GLB; meshes and clips are the rest (gzip makes them about 38 % smaller).
+
+  **Decided while building.** Closed as documentation, by the rule above: loading every model
+  costs 0.22 s natively (see *Measured*), under the 0.3 s mark, and parsing is not what web
+  players wait for, the download is. The architecture caveats keep the numbers; "the web game
+  downloads models on demand" went to *Backlog* (the maintainer's choice).
 
   **Touch points.** `render/model.rs` (`loaded` loaded on demand), `render/mod.rs`, the runtime's
   map enter, editor `library_ui.rs` (`models_root`, `begin_frame`), architecture caveats.
@@ -282,3 +287,10 @@ so it comes after the atlas).
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
   ad-hoc signed; documented). Packaging work: needs the user's go-ahead.
+- The web game downloads models on demand. It fetches `data.pack` whole and uncompressed before
+  it starts, and in the example the 3D models are 29 of its 46 MB (0.18.2). The models could
+  instead be separate files, fetched on map enter (the player's model and those of the map's
+  characters) and when a character first needs one; `data.pack` would keep everything else.
+  This touches the web file layer (`sys.rs` web, `web/rustpg2d.js`), `release::export_web` and
+  model loading (`render/model.rs`, which parses every model at start today; natively that costs
+  only 0.22 s, so desktop stays as it is).

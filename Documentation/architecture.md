@@ -278,13 +278,33 @@ means per format:
 
 Known properties of the current implementation (see the CHANGELOG for what each release changed):
 
-- Tiles are drawn one quad each, every frame; there is no mesh cache. Large views at high zoom-out
-  cost proportionally more. Entities outside the view (with a margin for tall sprites) are
-  skipped.
-- Text uses macroquad's default font: Latin-1 glyphs only, measured per draw.
+- Tiles are drawn one quad each, every frame; there is no mesh cache (macroquad batches the quads,
+  and a game view is a few thousand of them). Chunks that were never painted are skipped. Large
+  views at high zoom-out cost proportionally more; above `OVERVIEW_THRESHOLD` visible tiles (60,000,
+  the editor zoomed far out) a map is drawn as its `Overview`, one pixel per tile. Entities outside
+  the view (with a margin for tall sprites) are skipped.
+- Text uses macroquad's default font: Latin-1 glyphs only, measured per draw. The runtime's
+  `draw_text` / `measure_text` (`runtime/text.rs`) look every string up in the language's runtime
+  texts first (`lang::tr_ui`, a hash lookup; English copies nothing).
 - The hot definition lookups (`db.item(id)`, `prop`, `character`, `sheet`, `tileset`) go through
   an id index that verifies its hits and falls back to a scan, so an index left stale by an
   in-place edit is slower, never wrong; `Database::reindex` refreshes it.
+- Characters are 3D models drawn as pictures (`render/model.rs`):
+  - Every model of the project is read and parsed when the assets load (`Models::load`), before the
+    title screen; the example's models are about 34 MB of GLB. Start-up time and memory grow with
+    the cast (in 0.18.2 the example's models took 0.22 s and 38 MB natively, 0.45 s in a browser).
+    The web game downloads `data.pack` whole and uncompressed before it starts: the models are 29
+    of the example's 46 MB.
+  - A pose (model, colours, gear, animation frame at the clip's fps, facing) is skinned on the CPU
+    and rendered off screen once, then kept in an atlas of up to `MAX_PAGES` (8) pages of 1024 x
+    1024 (32 MB of GPU memory). At most `RENDERS_PER_FRAME` (24) poses render per frame; over that,
+    a character shows another cached frame of the same model and facing meanwhile.
+  - When all pages are full, the page filled longest ago is cleared and its poses render again
+    when needed. Use is not considered yet (`Cell.used` is recorded but not read), so in a crowded
+    scene poses drawn every frame can be cleared and rendered again.
+  - Recoloured model textures (one per model and colour set, `Loaded::textures`) are never evicted:
+    bounded by the looks actually drawn. `status` prints `models=` poses / pages / renders this
+    frame / renders in all; `RUSTPG2D_MODEL_DEBUG=1` shows the atlas.
 - Pathfinding (`path.rs`) runs on the tile grid with a node budget per search and tells "no
   route" from "out of budget"; walkers (`patrol.rs::walk_to_tile`, shared by patrols, schedules,
   companions and chasers walking home) re-plan once per blockage and give up after four seconds.
@@ -303,7 +323,6 @@ Known properties of the current implementation (see the CHANGELOG for what each 
 - Files are written whole or not at all (`sys::write`: temporary file + rename). A definition
   entry or a map object that can't be read is left out with a log line, and the editor backs the
   file up before it could save without it.
-- The recolored-character cache is never evicted (bounded by the sheets × colours actually used).
 - The editor's egui UI has no automated click tests; editor script commands call the same
   functions instead. The game and the editor do run in CI (`scripts/ci/smoke.sh`).
 - A game binary older than the engine cannot read new map data; the editor compares

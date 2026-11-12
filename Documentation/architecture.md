@@ -296,15 +296,16 @@ Known properties of the current implementation (see the CHANGELOG for what each 
     The web game downloads `data.pack` whole and uncompressed before it starts: the models are 29
     of the example's 46 MB.
   - A pose (model, colours, gear, animation frame at the clip's fps, facing) is skinned on the CPU
-    and rendered off screen once, then kept in an atlas of up to `MAX_PAGES` (8) pages of 1024 x
-    1024 (32 MB of GPU memory). At most `RENDERS_PER_FRAME` (24) poses render per frame; over that,
-    a character shows another cached frame of the same model and facing meanwhile.
-  - When all pages are full, the page filled longest ago is cleared and its poses render again
-    when needed. Use is not considered yet (`Cell.used` is recorded but not read), so in a crowded
-    scene poses drawn every frame can be cleared and rendered again.
+    and rendered off screen once, then kept in an atlas of 1024 x 1024 pages (4 MB each), as many
+    as `ProjectConfig::model_atlas_mb` allows (8 to 128 MB, default 32 = 8 pages). At most
+    `RENDERS_PER_FRAME` (24) poses render per frame; over that, a character shows another cached
+    frame of the same model and facing meanwhile.
+  - Every pose drawn stamps its page; when all pages are full, the page drawn from longest ago is
+    cleared and its poses render again when needed. In 0.18.2 the example's village filled 8
+    pages after about four minutes of walking; even with 2 pages (8 MB) a frame stayed at 16.7 ms.
   - Recoloured model textures (one per model and colour set, `Loaded::textures`) are never evicted:
-    bounded by the looks actually drawn. `status` prints `models=` poses / pages / renders this
-    frame / renders in all; `RUSTPG2D_MODEL_DEBUG=1` shows the atlas.
+    bounded by the looks actually drawn. `status` prints `models=` poses / pages / most pages /
+    renders this frame / renders in all / pages cleared; `RUSTPG2D_MODEL_DEBUG=1` shows the atlas.
 - Pathfinding (`path.rs`) runs on the tile grid with a node budget per search and tells "no
   route" from "out of budget"; walkers (`patrol.rs::walk_to_tile`, shared by patrols, schedules,
   companions and chasers walking home) re-plan once per blockage and give up after four seconds.

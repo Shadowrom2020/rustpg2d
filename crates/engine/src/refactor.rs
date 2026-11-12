@@ -725,6 +725,7 @@ mod tests {
         player_portrait: Default::default(),
         language: "en".into(),
         languages: vec![],
+        model_atlas_mb: 32,
         };
         cfg.sfx.pickup = "blip".into();
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "items", "icons"), 1);

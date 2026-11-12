@@ -113,7 +113,7 @@ so it comes after the atlas).
   **Verify.** Read through; every claim checked against the code (`render/mod.rs` `draw_layer`,
   `runtime/text.rs`, `render/model.rs` `alloc` / `pose`, `path.rs`, `patrol.rs`, `sys.rs`).
 
-- [ ] Pose atlas by use — `feature/pose-atlas`
+- [x] Pose atlas by use — `feature/pose-atlas`
 
   **Goal.** Poses drawn every frame stay cached in crowded scenes, and a project can set how much
   GPU memory the atlas may take (small GPUs, big casts).
@@ -133,6 +133,14 @@ so it comes after the atlas).
   (vsync) with the worst under 24 ms and drawing at 0.2 to 0.7 ms, so a render costs little:
   this item is about keeping the right poses in long sessions and big casts, not frame time
   today.
+
+  **Decided while building.** `status` prints `models=poses/pages/most p/renders r/total/cleared
+  e` (the most pages next to the pages, in the existing style). `Models::set_atlas_mb` applies the
+  size when the assets load and when the editor's field changes; a smaller size drops the pages
+  beyond it. `ProjectConfig::model_atlas_mb` is left out of project.ron while it is the default,
+  so existing projects don't change. A/B in the village with 8 MB (2 pages) and the same walk:
+  938 renders and 7 pages cleared, against 1041 and 8 with the old order; walking back and forth
+  afterwards rendered nothing new with either. The gain is real but small at this cast size.
 
   **Touch points.** `render/model.rs` (`Page.stamp`, `alloc`, `pose`, `stats`, `MAX_PAGES`),
   `render/mod.rs` (the `Models::load` call), `project.rs`, editor `database.rs` (project form),

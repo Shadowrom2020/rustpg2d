@@ -16,7 +16,7 @@ png = "0.18"
 # Portable math functions (glibc_compat.rs).
 libm = "0.2"
 # Decodes music (Ogg Vorbis) to make its loops gapless (audio.rs); macroquad already uses it.
-lewton = "0.9"
+lewton = "0.10"
 # 3D character models (model.rs): glTF binary files from Meshy, Blender and other tools.
 gltf = { version = "1", default-features = false, features = ["utils", "names"] }
 # JPEG textures of models: turns on the jpeg decoder of the image crate macroquad already uses.

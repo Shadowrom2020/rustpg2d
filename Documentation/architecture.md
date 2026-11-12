@@ -278,11 +278,15 @@ means per format:
 
 Known properties of the current implementation (see the CHANGELOG for what each release changed):
 
-- Tiles are drawn one quad each, every frame; there is no mesh cache (macroquad batches the quads,
-  and a game view is a few thousand of them). Chunks that were never painted are skipped. Large
-  views at high zoom-out cost proportionally more; above `OVERVIEW_THRESHOLD` visible tiles (60,000,
-  the editor zoomed far out) a map is drawn as its `Overview`, one pixel per tile. Entities outside
-  the view (with a margin for tall sprites) are skipped.
+- Tiles are drawn one quad each, every frame, in the game (macroquad batches the quads, and a game
+  view is a few thousand of them). Chunks that were never painted are skipped. The editor zoomed
+  far out (a tile 8 screen pixels or less) draws each 32 x 32 chunk of a layer from a texture
+  rendered once at 8 px per tile (`editor/src/tile_cache.rs`: known by a hash of its tiles and the
+  tilesets' textures, so every change shows; animated tiles drawn per tile on top; at most 320
+  textures, 80 MB). On a 256 x 256 map with four full layers that took the map view from 17.7 ms
+  to 1.3 ms a frame at 16 % zoom. Above `OVERVIEW_THRESHOLD` visible tiles (60,000) a map is
+  drawn as its `Overview`, one pixel per tile. Entities outside the view (with a margin for tall
+  sprites) are skipped.
 - Text uses macroquad's default font: Latin-1 glyphs only, measured per draw. The runtime's
   `draw_text` / `measure_text` (`runtime/text.rs`) look every string up in the language's runtime
   texts first (`lang::tr_ui`, a hash lookup; English copies nothing).

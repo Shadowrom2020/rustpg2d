@@ -165,6 +165,15 @@ impl TileLayer {
     pub fn chunk_allocated(&self, x: u32, y: u32) -> bool {
         self.chunks[self.locate(x, y).0].is_some()
     }
+
+    /// The tiles of chunk (`cx`, `cy`), row by row (`CHUNK_SIZE` wide); None while it is empty
+    /// or outside the layer.
+    pub fn chunk_tiles(&self, cx: u32, cy: u32) -> Option<&[Tile]> {
+        if cx >= self.chunks_w || cy >= self.chunks_h {
+            return None;
+        }
+        self.chunks[(cy * self.chunks_w + cx) as usize].as_deref().map(|c| &c.tiles[..])
+    }
 }
 
 /// Per-tile collision override painted in the editor.

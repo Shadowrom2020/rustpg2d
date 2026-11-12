@@ -15,6 +15,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   big casts on screen at once, lower it for small GPUs. `status` prints the most pages and the
   pages cleared (`models=poses/pages/most p/renders r/total/cleared e`).
 
+### Editor
+- **Big maps stay smooth zoomed out**: zoomed far out, the map view draws each 32 x 32 block of
+  a tile layer from a picture rendered once, instead of every tile in every frame. On a 256 x 256
+  map with four full layers the map view took 17.7 ms a frame at 16 % zoom (the editor fell to
+  55 fps), now 1.3 ms; at 25 % 9.4 ms, now 0.9 ms, and the picture is the same. Painting, undo,
+  terrains, pasting and tileset edits show at once; animated tiles keep moving. The editor's
+  `status` prints frame timing (`fps=`, `frame_ms=`, `canvas_ms=`) and `tilecache=`.
+
 ### Releasing games
 - **The player's 3D model as the game's icon**: a game without a player portrait (and no icon
   picked in *Export game*) used R(ust)PG2D's emblem; now the export renders the head and

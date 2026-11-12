@@ -250,7 +250,7 @@ so it comes after the atlas).
   the icon taken out of the AppImage (its `.DirIcon`) and looked at; the game window's icon in a
   native run.
 
-- [ ] Editor: cached tile chunks when zoomed out — `feature/tile-chunks`
+- [x] Editor: cached tile chunks when zoomed out — `feature/tile-chunks`
 
   **Goal.** The editor stays smooth zoomed out on big maps. Tiles are drawn one quad each, every
   frame (`render/mod.rs` `draw_layer`): in the game that is a few thousand quads, but the editor
@@ -269,6 +269,19 @@ so it comes after the atlas).
 
   **Engine.** Agreed for 0.19.0 (editor; a helper in `render/mod.rs` that draws one chunk of a
   layer, shared by the cache).
+
+  **Decided while building.** Measured first (release build; the editor's `status` gained
+  `fps= frame_ms= canvas_ms=`): the village zoomed out 0.7 ms; the 256 x 256 map with four full
+  layers 0.65 ms at 100 %, 2.7 ms at 50 %, 9.3 ms at 25 % and 17 ms at 16 % (55 fps), over the
+  16 ms mark, so the cache was built. Chunks are known by a hash of their tiles and the tilesets'
+  textures (`tile_cache::chunk_key`, `sets_key`) instead of dirty marks from `doc.rs`: every way a
+  map changes shows without hooks, for about the cost of reading the visible tiles once. The cache
+  is used when a tile appears 8 screen pixels or smaller (textures of 8 px per tile, 256 x 256 per
+  chunk; at 25 % the picture is pixel-identical to per-tile drawing), at most 320 textures (80 MB),
+  the one drawn longest ago goes; a chunk that finds no room is drawn per tile. Engine additions:
+  `TileLayer::chunk_tiles`, `TilesetTex::is_animated`; the drawing stays in the editor.
+  `RUSTPG2D_NO_TILE_CACHE=1` turns it off for comparisons. Result: 17.7 ms to 1.3 ms at 16 %, 9.4
+  to 0.9 ms at 25 %; painting a terrain while zoomed out and undoing it show at once (shots).
 
   **Touch points.** `editor/src/canvas.rs` (the layer loop), `editor/src/doc.rs` (dirty chunks),
   `render/mod.rs`, architecture caveats (tiles).

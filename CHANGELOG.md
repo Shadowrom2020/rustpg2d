@@ -23,6 +23,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).
 
 ### Example project
+- **Fast travel by signposts** (starter library content: the *Signpost* prop and its script):
+  pressing E at a signpost marks it found and offers the other signposts found so far; the trip
+  takes hours on the clock, and the roads are too dark at night. Signposts in the village square,
+  the Whisperwood clearing, at the old mine and in the Wilds (English and German).
 - **Emberbrook sounds like a place**: birds over the village, the forest and the Wilds, the stream
   rushing along its banks, wind in the Wilds, drips in the mine, the tavern's murmur, and steps on
   grass, dirt, stone, wood and snow. The ten sounds (synthesized, `scripts/sounds/make_sounds.py`)

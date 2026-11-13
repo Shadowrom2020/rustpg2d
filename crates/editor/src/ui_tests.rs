@@ -86,6 +86,21 @@ fn undo(h: &mut Harness<'static, Editor>) {
 }
 
 #[test]
+fn footstep_picks_give_and_take_a_tiles_sound() {
+    use rustpg2d_engine::defs::TilesetDef;
+    let mut d = TilesetDef::new("t", "t.png");
+    crate::database::set_tile_step(&mut d, 6, "step_wood");
+    crate::database::set_tile_step(&mut d, 18, "step_wood");
+    assert_eq!(d.step_of(6), Some("step_wood"));
+    // Another sound moves the tile; the same sound again takes it away; empty groups go.
+    crate::database::set_tile_step(&mut d, 6, "step_stone");
+    assert_eq!((d.step_of(6), d.steps.len()), (Some("step_stone"), 2));
+    crate::database::set_tile_step(&mut d, 6, "step_stone");
+    crate::database::set_tile_step(&mut d, 18, "step_wood");
+    assert!(d.steps.is_empty());
+}
+
+#[test]
 fn item_form_edits_save_and_undo() {
     let root = example_copy("item");
     let db = Project::load(&root).unwrap().db;

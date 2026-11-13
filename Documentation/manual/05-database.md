@@ -156,6 +156,7 @@ race gets (max HP, speed, defense, starting skills) and its size. See
 | **Light tiles** | Tiles that glow (windows, lamps): a list, or *Pick light tiles in the grid*. A bulb marks them |
 | **Ladder tiles** | *Pick ladder tiles in the grid*; a green ladder icon marks them |
 | **Low tiles** | *Pick low tiles in the grid*: solid tiles that stop walking but not shots or sight (fences, rocks, water, tables; [Maps › Low and high obstacles](03-maps.md#low-and-high-obstacles)). They are drawn yellow instead of red, with an arrow mark |
+| **Footsteps** | *Pick footstep tiles in the grid* with a sound chosen next to it: a click gives a tile that step sound or takes it away; footprints mark them. For floors that aren't terrains (wooden floors indoors); a terrain's own **Footsteps** sound (in its row under *Terrains*) covers its tiles ([Art and sound › Soundscapes](10-art-and-sound.md#soundscapes-and-footsteps)) |
 | **Animations** | Add an animation, then click tiles in the image to append its frames (water, lava, waterfalls) |
 | **Terrains** | Auto-tiling terrains ([Maps › Terrains](03-maps.md#defining-a-terrain)) |
 

@@ -35,7 +35,7 @@ const PACK_VERSION: u32 = 1;
 pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
-pub const KINDS: [RefKind; 12] = [RefKind::Tileset, RefKind::Sheet, RefKind::Sound, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
+pub const KINDS: [RefKind; 12] = [RefKind::Sound, RefKind::Tileset, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()

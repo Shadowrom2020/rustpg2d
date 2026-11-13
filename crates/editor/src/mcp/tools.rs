@@ -359,7 +359,7 @@ pub struct UpdateParams {
 pub struct AddZoneParams {
     pub map: Option<String>,
     pub name: String,
-    /// ZoneKind JSON: "Spawn", "Trigger", {"Portal":{"target_map":..,"target_spawn":..}}, {"Spawner":{"character":..,"count":..,"respawn":"Never"|"OnEnter"|{"After":{"seconds":..}}}}, {"Transition":{"target_map":..,"target_zone":..}}, {"FishingSpot":{"rod":..}}.
+    /// ZoneKind JSON: "Spawn", "Trigger", {"Portal":{"target_map":..,"target_spawn":..}}, {"Spawner":{"character":..,"count":..,"respawn":"Never"|"OnEnter"|{"After":{"seconds":..}}}}, {"Transition":{"target_map":..,"target_zone":..}}, {"FishingSpot":{"rod":..}}, {"Ambience":{"sound":..,"volume":0.6,"fade":4.0}} (a looping sound, full inside, fading out over `fade` tiles).
     pub kind: Value,
     pub x: u32,
     pub y: u32,

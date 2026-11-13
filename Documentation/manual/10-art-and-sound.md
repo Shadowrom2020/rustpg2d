@@ -173,6 +173,27 @@ a file into `sounds/`.
   hits, dialogs, doors. The rain has its own built-in sound.
 - Players set the volume of music, effects and ambience in *Options*.
 
+## Soundscapes and footsteps
+
+How a place sounds comes from two things, both without events or scripts:
+
+- **Ambience zones** (*Map › Zone › Ambience*, [Objects and zones](04-objects-and-zones.md)): a
+  looping sound, full inside the zone and fading out around it. A zone over the whole map gives
+  it a constant background (birds outdoors, a tavern's murmur indoors); a narrow zone with a few
+  tiles of fade follows a river. Loops play without a gap, like music.
+- **Footsteps**: a terrain's **Footsteps** sound (*Database › Tilesets › Terrains*) covers all its
+  tiles; single tiles get one with *Pick footstep tiles in the grid* (floors, bridges). Where layers
+  overlap, the topmost layer under the characters with a footstep sound decides, so a wooden bridge
+  over a stream sounds of wood. A step falls where a foot lands in the walk animation (two per walk
+  cycle, quicker when running); characters within six tiles step too, quieter the farther away
+  they are, and every step's loudness varies a little.
+
+The starter library has ambience loops (`amb_birds`, `amb_river`, `amb_tavern`, `amb_wind`,
+`amb_drips`) and footsteps (`step_grass`, `step_dirt`, `step_stone`, `step_wood`, `step_snow`),
+already set on the `terrain` and `dungeon` tilesets' terrains and floors. In the example, birds sing
+over the village, the forest and the Wilds, the stream rushes along its banks, the wind blows in the
+Wilds, water drips in the mine and the tavern murmurs.
+
 ## Emotion icons
 
 Emotions are animations of a sprite sheet of the kind **Emotions** (*Database › Sprite sheets ›

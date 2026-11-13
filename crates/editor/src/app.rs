@@ -3103,6 +3103,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
             ZoneKind::Spawner { .. } => 3,
             ZoneKind::Transition { .. } => 4,
             ZoneKind::FishingSpot { .. } => 5,
+            ZoneKind::Ambience { .. } => 6,
         };
         let old = k;
         ui.vertical(|ui| {
@@ -3115,6 +3116,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
                 ui.radio_value(&mut k, 2, "Trigger");
                 ui.radio_value(&mut k, 3, "Enemy spawner");
                 ui.radio_value(&mut k, 5, "Fishing spot");
+                ui.radio_value(&mut k, 6, "Ambience");
             });
         });
         if k != old {
@@ -3124,6 +3126,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
                 2 => ZoneKind::Trigger,
                 4 => ZoneKind::Transition { target_map: String::new(), target_zone: String::new() },
                 5 => ZoneKind::FishingSpot { rod: String::new() },
+                6 => ZoneKind::Ambience { sound: String::new(), volume: 0.6, fade: 4.0 },
                 _ => default_spawner(refs),
             };
         }
@@ -3217,6 +3220,17 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
             }
             ui.end_row();
         }
+        if let ZoneKind::Ambience { sound, volume, fade } = &mut z.kind {
+            ui.label("Sound");
+            widgets::suggest(ui, "amb_sound", sound, &refs.sounds, 130.0);
+            ui.end_row();
+            ui.label("Volume");
+            ui.add(egui::Slider::new(volume, 0.0..=1.0).step_by(0.05)).on_hover_text("How loud it is inside the zone (times the sound's own volume and the player's Ambience option)");
+            ui.end_row();
+            ui.label("Fades over");
+            ui.add(egui::DragValue::new(fade).range(0.0..=30.0).speed(0.1).suffix(" tiles")).on_hover_text("Heard this far around the zone, fading out; 0 = only inside");
+            ui.end_row();
+        }
         if let ZoneKind::FishingSpot { rod } = &mut z.kind {
             ui.label("Needs item");
             ui.horizontal(|ui| {
@@ -3270,6 +3284,9 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
         }
         ZoneKind::Spawner { .. } => {
             ui.weak("Invisible in the game. Characters appear on random walkable tiles inside the zone (never right next to the player). Their 'Defeated' triggers come from the character definition.");
+        }
+        ZoneKind::Ambience { .. } => {
+            ui.weak("Invisible in the game: a looping sound heard here, full inside the zone and fading out around it (birds over a meadow, a river along its banks, a tavern's murmur over the whole room). Zones with the same sound play it once, at the loudest. The player's Ambience volume option applies.");
         }
         ZoneKind::FishingSpot { .. } => {
             ui.weak("Draw it over the water where the fish are. Facing it from the shore (up to 3 tiles away), the player presses E to cast: the bobber lands on the zone, then wait for the bite, strike, and hold E to reel in without breaking the line. Fish shadows glide through the zone now and then to show players where to fish. The catch comes from the table below (chances are weights: every fish landed gives one entry).");

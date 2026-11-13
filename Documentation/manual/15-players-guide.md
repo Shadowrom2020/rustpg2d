@@ -111,7 +111,7 @@ place is named under the list (*R2 is also Switch weapon*).
 | Fullscreen | On / off |
 | Zoom | 75–250 % on top of the game's own pixel scale |
 | Show FPS | On / off |
-| Master, Music, Effects, Ambience volume | In 10 % steps (ambience = sounds like the rain) |
+| Master, Music, Effects, Ambience volume | In 10 % steps (ambience = the rain and the sounds of places: birds, rivers, a tavern's murmur) |
 | Text speed | Slow, Normal, Fast, Instant |
 | Shake & flash | The screen shake and red flash when hurt, shakes from explosions, and the short pause when a blow lands |
 | Damage numbers | On / off: the numbers that rise from hits |

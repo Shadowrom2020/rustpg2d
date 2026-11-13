@@ -104,4 +104,54 @@
         file: "sounds/music_tavern.ogg",
         volume: 0.5,
     ),
+    (
+        id: "amb_birds",
+        file: "sounds/amb_birds.ogg",
+        volume: 0.7,
+    ),
+    (
+        id: "amb_river",
+        file: "sounds/amb_river.ogg",
+        volume: 0.7,
+    ),
+    (
+        id: "amb_tavern",
+        file: "sounds/amb_tavern.ogg",
+        volume: 0.7,
+    ),
+    (
+        id: "amb_wind",
+        file: "sounds/amb_wind.ogg",
+        volume: 0.7,
+    ),
+    (
+        id: "amb_drips",
+        file: "sounds/amb_drips.ogg",
+        volume: 0.7,
+    ),
+    (
+        id: "step_grass",
+        file: "sounds/step_grass.wav",
+        volume: 0.35,
+    ),
+    (
+        id: "step_dirt",
+        file: "sounds/step_dirt.wav",
+        volume: 0.35,
+    ),
+    (
+        id: "step_stone",
+        file: "sounds/step_stone.wav",
+        volume: 0.35,
+    ),
+    (
+        id: "step_wood",
+        file: "sounds/step_wood.wav",
+        volume: 0.35,
+    ),
+    (
+        id: "step_snow",
+        file: "sounds/step_snow.wav",
+        volume: 0.35,
+    ),
 ]

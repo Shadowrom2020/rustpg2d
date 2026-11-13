@@ -46,6 +46,7 @@ pub mod glyphs;
 mod attacks;
 mod defense;
 mod barks;
+mod soundscape;
 mod emotions;
 mod mouse;
 mod spawner;
@@ -153,6 +154,8 @@ struct Body {
     /// it stood when the frame's update began.
     heading: Vec2,
     step_from: Vec2,
+    /// The half walk cycle of the last footstep (`soundscape.rs`).
+    step_half: u32,
 }
 
 impl Body {
@@ -524,6 +527,7 @@ impl Game {
             move_target: None,
             heading: Vec2::ZERO,
             step_from: Vec2::ZERO,
+            step_half: 0,
         };
         let languages = crate::lang::offered(&project.root, &project.config);
         let mut game = Game {
@@ -690,7 +694,7 @@ impl Game {
             kind,
             def: def.to_string(),
             name: name.to_string(),
-            body: Body { pos, facing, hitbox, speed, moving: false, anim: 0.0, move_target: None, heading: Vec2::ZERO, step_from: pos },
+            body: Body { pos, facing, hitbox, speed, moving: false, anim: 0.0, move_target: None, heading: Vec2::ZERO, step_from: pos, step_half: 0 },
             home: pos,
             active,
             hidden: false,
@@ -1437,6 +1441,8 @@ impl Game {
         for e in &mut self.loaded.entities {
             e.body.track_heading();
         }
+        self.footsteps();
+        self.update_soundscape(dt);
         self.update_juice(dt);
         self.after_thumbnail();
         // Esc opens the pause menu (unless a window or dialog uses Esc); it pauses everything.
@@ -2182,7 +2188,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} barks={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} barks={:?} ambience={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2261,6 +2267,7 @@ impl Game {
             self.defense_status(),
             self.emotes_status(),
             self.barks_status(),
+            self.audio.ambient_status(),
             self.hits_status(),
             self.anims_status(),
             self.held_status(),

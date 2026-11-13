@@ -22,6 +22,9 @@ pub enum ZoneKind {
     /// (the fishing minigame); fish shadows mark it. The zone's loot table is the catch
     /// (chances are weights: one catch per fish landed). `rod`: item needed ("" = none).
     FishingSpot { rod: String },
+    /// A looping sound heard here: at `volume` (0..1) inside the zone, fading to nothing
+    /// `fade` tiles away from it (birds over a meadow, a river, a tavern's murmur).
+    Ambience { sound: String, volume: f32, fade: f32 },
 }
 
 /// When defeated spawner characters come back.
@@ -54,6 +57,7 @@ impl ZoneKind {
             ZoneKind::Spawner { .. } => "Spawner",
             ZoneKind::Transition { .. } => "Map transition",
             ZoneKind::FishingSpot { .. } => "Fishing spot",
+            ZoneKind::Ambience { .. } => "Ambience",
         }
     }
 }

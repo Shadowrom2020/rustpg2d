@@ -137,7 +137,7 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   **Verify.** Autoplay past villagers at their stops (`barks=`), a shot of two bubbles at once,
   a German play (`--lang de`), the lines in the translation template.
 
-- [ ] Soundscapes and footsteps — `feature/soundscapes`
+- [x] Soundscapes and footsteps — `feature/soundscapes`
 
   **Goal.** Places sound like what they are: birds in the meadow, the river near water, the
   tavern's murmur, wind in the Wilds, fading as the player walks between them; and steps sound
@@ -152,6 +152,20 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   **Engine.** Proposed: `ZoneKind::Ambience { sound, volume, fade }` (appended); a `step` sound on
   `Terrain` and per tile on `TilesetDef` (serde default); step timing from the walk clip; looping
   and mixing through `audio.rs` (the rain loop's code).
+
+  **Decided while building.** Agreed as proposed. Steps fall on every half cycle of the walk animation
+  (`Models::cycle_seconds`, `Body::step_half`): two per cycle, in time with the drawn feet and
+  quicker when running. (A first version stepped every half tile walked: about ten steps a
+  second, "a machine gun" in play; the step sounds were also softened then, and each step's
+  loudness varies by up to 20 %.) A terrain's step covers only its own
+  tiles, not its base tile (often another ground, e.g. grass under a path); plain tiles (grass,
+  floors) get `TilesetDef::steps`. Ambience loops use the music's gapless loops; the loudness
+  follows the zones also when muted (for `status`). `KINDS` puts sounds before tilesets (a tileset
+  now depends on sounds). The ten sounds are synthesized (`scripts/sounds/make_sounds.py`: loops
+  as Ogg, steps as WAV). Verified: walking across the village's stream (`ambience=` river 0.11 to
+  0.50 and back, steps dirt / wood / stone in `sounds=`), the tavern (murmur, wooden floor), the
+  mine (drips, stone); the editor's zone inspector and footprints in the tileset grid (shots);
+  tests for the fading, the step lookup and the pick toggling.
 
   **Touch points.** `map/mod.rs`, `map/io.rs` (Meta), `audio.rs`, `runtime/mod.rs` (zones, steps),
   `defs.rs` / `autotile.rs`, editor zone inspector and tileset / terrain forms, manual 03 / 10.

@@ -94,6 +94,9 @@ pub struct Terrain {
     /// neighbours (inner corners). Empty = a 16-tile terrain.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blob: Vec<Option<u32>>,
+    /// Footstep sound of its tiles (sound id; "" = none).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub step: String,
 }
 
 impl Terrain {

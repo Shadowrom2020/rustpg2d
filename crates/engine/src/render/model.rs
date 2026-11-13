@@ -681,6 +681,16 @@ impl Models {
     }
 
     /// Whether model `id` has a clip for animation `anim`.
+    /// How long one loop of a model's animation lasts as it plays (seconds; its clip at the
+    /// mapped fps). None without the model or a clip for it.
+    pub fn cycle_seconds(&self, id: &str, anim: &str) -> Option<f32> {
+        let l = self.loaded.get(id)?;
+        let map = l.def.clip_of(anim)?;
+        let clip = l.model.clip(&map.clip)?;
+        let fps = map.fps.max(1.0);
+        Some(((clip.duration * fps).round()).max(1.0) / fps)
+    }
+
     pub fn has_anim(&self, id: &str, anim: &str) -> bool {
         self.loaded.get(id).is_some_and(|l| l.def.clip_of(anim).is_some_and(|c| l.model.clip(&c.clip).is_some()))
     }

@@ -768,6 +768,11 @@ impl Editor {
                     return Err(format!("fishing rod item \"{rod}\" doesn't exist"));
                 }
             }
+            ZoneKind::Ambience { sound, .. } => {
+                if self.project.db.sounds.iter().all(|s| s.id != *sound) {
+                    return Err(format!("ambience sound \"{sound}\" doesn't exist.{}", suggestions(sound, self.project.db.sounds.iter().map(|s| s.id.as_str()))));
+                }
+            }
             ZoneKind::Spawn | ZoneKind::Trigger => {}
         }
         let triggers: Vec<Trigger> = match triggers {

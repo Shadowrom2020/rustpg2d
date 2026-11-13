@@ -1240,6 +1240,7 @@ fn zone_color(k: &ZoneKind) -> Color {
         ZoneKind::Trigger => Color::new(1.0, 0.65, 0.2, 1.0),
         ZoneKind::Spawner { .. } => Color::new(1.0, 0.25, 0.3, 1.0),
         ZoneKind::FishingSpot { .. } => Color::new(0.2, 0.55, 1.0, 1.0),
+        ZoneKind::Ambience { .. } => Color::new(0.45, 0.9, 0.55, 1.0),
     }
 }
 

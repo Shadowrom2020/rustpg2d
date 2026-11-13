@@ -53,7 +53,7 @@ fn paint_mask(p: &egui::Painter, r: Rect, mask: usize) {
 
 /// The *Terrains* section of the Tilesets form. Clicks into the tile grid below it are
 /// handled by `grid_click` while `pick` is set.
-pub fn terrains_form(ui: &mut egui::Ui, d: &mut TilesetDef, tex: TextureId, ts: &TilesetTex, tile_px: f32, pick: &mut Option<TerrainPick>) {
+pub fn terrains_form(ui: &mut egui::Ui, d: &mut TilesetDef, tex: TextureId, ts: &TilesetTex, tile_px: f32, pick: &mut Option<TerrainPick>, sounds: &[String]) {
     ui.heading("Terrains (auto-tiling)");
     ui.weak(
         "A terrain has 16 tiles, one for each combination of neighbours that are the same terrain (north, east, south, west: the yellow arms). \
@@ -108,6 +108,10 @@ pub fn terrains_form(ui: &mut egui::Ui, d: &mut TilesetDef, tex: TextureId, ts: 
                     }
                 });
             }
+            ui.horizontal(|ui| {
+                ui.label("Footsteps").on_hover_text("The sound of a step on this terrain's tiles (grass, stone, snow...); empty = silent");
+                crate::widgets::suggest(ui, "terrain_step", &mut d.terrains[k].step, sounds, 120.0);
+            });
             let t = &mut d.terrains[k];
             let p = pick.as_mut().unwrap();
             let mut blob = t.is_blob();

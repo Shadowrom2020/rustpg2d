@@ -34,22 +34,15 @@ pub const ENGINE_LICENSE: &str = include_str!("../../../LICENSE");
 /// Its file name in exports and game packages.
 pub const ENGINE_LICENSE_FILE: &str = "rustpg2d-LICENSE.txt";
 
-/// Start of a web game's `data.pack`.
-const WEB_PACK_MAGIC: &[u8; 8] = b"R2DWEB1\0";
-
-/// A web game's `data.pack`: every file of the game in one download (relative paths and
-/// contents, postcard after a magic header). The files are mostly compressed already (PNG, Ogg,
-/// maps); web servers compress the rest on the way.
+/// A game's `data.pack` (the format of [`crate::pack`]): every file of the game in one file. The
+/// files are mostly compressed already (PNG, Ogg, maps); web servers compress the rest on the way.
 pub fn web_pack(files: &[(String, Vec<u8>)]) -> Result<Vec<u8>> {
-    let mut out = WEB_PACK_MAGIC.to_vec();
-    out.extend(postcard::to_stdvec(files).context("packing the game files")?);
-    Ok(out)
+    crate::pack::write(files)
 }
 
-/// The files of a `data.pack` (see [`web_pack`]).
+/// The files of a `data.pack`, all in memory (the web game).
 pub fn read_web_pack(bytes: &[u8]) -> Result<Vec<(String, Vec<u8>)>> {
-    let body = bytes.strip_prefix(WEB_PACK_MAGIC.as_slice()).context("not an R(ust)PG2D data.pack (or from another version)")?;
-    postcard::from_bytes(body).context("reading data.pack")
+    crate::pack::read_all(bytes)
 }
 
 /// The platform an exported game runs on.
@@ -140,12 +133,13 @@ impl Platform {
 
     /// The README of a bundle.
     #[cfg(not(target_arch = "wasm32"))]
-    fn readme(self, name: &str, slug: &str) -> String {
+    fn readme(self, name: &str, slug: &str, packed: bool) -> String {
         let saves = self.saves_hint(slug);
+        let data = if packed { "data.pack" } else { "the data folder" };
         let how = match self {
-            Platform::Linux => format!("Run ./{slug} to play (Linux, x86_64).\nThe game data is in data/; save games are kept in {saves}."),
+            Platform::Linux => format!("Run ./{slug} to play (Linux, x86_64).\nThe game data is in {data}; save games are kept in {saves}."),
             Platform::Windows => format!(
-                "Double-click {slug}.exe to play (Windows 10 or newer, 64-bit).\nThe game data is in the data folder; save games are kept in {saves}.\nWindows may warn that the publisher is unknown (the game isn't signed): choose \"More info\", then \"Run anyway\"."
+                "Double-click {slug}.exe to play (Windows 10 or newer, 64-bit).\nThe game data is in {data}; save games are kept in {saves}.\nWindows may warn that the publisher is unknown (the game isn't signed): choose \"More info\", then \"Run anyway\"."
             ),
             Platform::MacOS => {
                 let app = app_bundle(name, slug);
@@ -256,11 +250,34 @@ pub fn slug(name: &str) -> String {
 }
 
 /// The project bundled with the running executable, if any: `data/` next to it, or in a macOS
-/// application bundle `Contents/Resources/data` (the executable is in `Contents/MacOS`).
+/// application bundle `Contents/Resources/data` (the executable is in `Contents/MacOS`); else
+/// `data.pack` in one of those places, mounted in `sys` as that `data` folder.
 pub fn bundled_root() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
-    [dir.join(DATA_DIR), dir.join("..").join("Resources").join(DATA_DIR)].into_iter().find(|d| d.join("project.ron").exists())
+    let places = [dir.to_path_buf(), dir.join("..").join("Resources")];
+    if let Some(d) = places.iter().map(|p| p.join(DATA_DIR)).find(|d| d.join("project.ron").exists()) {
+        return Some(d);
+    }
+    // A packed game: its files are served from data.pack as if they were in the data folder.
+    // (The web game reads its pack in main.rs.)
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let place = places.iter().find(|p| p.join(crate::pack::PACK_FILE).is_file())?;
+        match crate::pack::Pack::open(&place.join(crate::pack::PACK_FILE)) {
+            Ok(pack) => {
+                let root = place.join(DATA_DIR);
+                crate::sys::mount_pack(root.clone(), pack);
+                Some(root)
+            }
+            Err(e) => {
+                eprintln!("[game] {e:#}");
+                None
+            }
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    None
 }
 
 /// Where a released game keeps its save games: `$XDG_DATA_HOME/<slug>/saves` (default
@@ -385,9 +402,11 @@ fn check_runner(bytes: &[u8], runner: &Path, rebuild: &str) -> Result<()> {
 /// executable; with `zip`, also `out_dir/<slug>-linux.zip` / `<slug>-windows.zip`. An earlier
 /// export in the same place is replaced; any other existing folder of that name is left alone
 /// (error). `icon` (a PNG) goes into the data as `icon.png` (the game window's icon) and, for
-/// macOS, into the app as its icon.
+/// macOS, into the app as its icon. With `pack`, the game's files go into one `data.pack`
+/// instead of a `data` folder.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &Path, out_dir: &Path, zip: bool, icon: Option<&[u8]>) -> Result<Exported> {
+#[allow(clippy::too_many_arguments)]
+pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &Path, out_dir: &Path, zip: bool, icon: Option<&[u8]>, pack: bool) -> Result<Exported> {
     let (files, check) = check(project);
     if !check.errors.is_empty() {
         bail!("{}", check.errors.join("\n"));
@@ -420,8 +439,8 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     }
     if folder.exists() {
         // Only an earlier export is replaced (any app name: the game may have been renamed).
-        let earlier = folder.join(DATA_DIR).join("project.ron").exists()
-            || std::fs::read_dir(&folder).into_iter().flatten().flatten().any(|e| e.path().extension().is_some_and(|x| x == "app") && e.path().join("Contents/Resources").join(DATA_DIR).join("project.ron").exists());
+        let game_in = |p: &Path| p.join(DATA_DIR).join("project.ron").exists() || p.join(crate::pack::PACK_FILE).is_file();
+        let earlier = game_in(&folder) || std::fs::read_dir(&folder).into_iter().flatten().flatten().any(|e| e.path().extension().is_some_and(|x| x == "app") && game_in(&e.path().join("Contents/Resources")));
         if !earlier {
             bail!("{} already exists and is not an earlier export; choose another folder or name", folder.display());
         }
@@ -429,22 +448,40 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     }
     let data = folder.join(platform.data(name, &slug));
     let mut bytes = 0u64;
-    for rel in &files {
-        let (src, dst) = (project.root.join(rel), data.join(rel));
-        std::fs::create_dir_all(dst.parent().unwrap())?;
-        std::fs::copy(&src, &dst).with_context(|| format!("copying {rel}"))?;
-        // (Sizes from the files: `copy`'s return value is 0 under Wine.)
-        bytes += std::fs::metadata(&dst).map_or(0, |m| m.len());
-    }
     // The bundled project carries the chosen name (window title, save folder).
     let mut cfg = project.config.clone();
     cfg.name = name.trim().to_string();
-    crate::project::write_ron(&data.join("project.ron"), &cfg)?;
-    // The icon the packages got, for the game's window (`icon::hero_icon` reads it first).
     let mut extra = 3;
-    if let Some(i) = icon {
-        std::fs::write(data.join(crate::icon::ICON_FILE), i)?;
-        extra += 1;
+    if pack {
+        // One data.pack beside where the data folder would be (macOS: in the app's Resources).
+        let mut packed = Vec::with_capacity(files.len() + 2);
+        for rel in files.iter().filter(|r| *r != "project.ron") {
+            packed.push((rel.clone(), std::fs::read(project.root.join(rel)).with_context(|| format!("reading {rel}"))?));
+        }
+        packed.push(("project.ron".to_string(), crate::project::ron_text(&cfg)?.into_bytes()));
+        // The icon the packages got, for the game's window (`icon::hero_icon` reads it first).
+        if let Some(i) = icon {
+            packed.push((crate::icon::ICON_FILE.to_string(), i.to_vec()));
+        }
+        let dest = data.parent().expect("the data folder has a parent").join(crate::pack::PACK_FILE);
+        std::fs::create_dir_all(dest.parent().unwrap())?;
+        let bytes_out = crate::pack::write(&packed)?;
+        std::fs::write(&dest, &bytes_out).with_context(|| format!("writing {}", dest.display()))?;
+        bytes += bytes_out.len() as u64;
+    } else {
+        for rel in &files {
+            let (src, dst) = (project.root.join(rel), data.join(rel));
+            std::fs::create_dir_all(dst.parent().unwrap())?;
+            std::fs::copy(&src, &dst).with_context(|| format!("copying {rel}"))?;
+            // (Sizes from the files: `copy`'s return value is 0 under Wine.)
+            bytes += std::fs::metadata(&dst).map_or(0, |m| m.len());
+        }
+        crate::project::write_ron(&data.join("project.ron"), &cfg)?;
+        // The icon the packages got, for the game's window (`icon::hero_icon` reads it first).
+        if let Some(i) = icon {
+            std::fs::write(data.join(crate::icon::ICON_FILE), i)?;
+            extra += 1;
+        }
     }
     let exe_rel = platform.exe(name, &slug);
     let exe = folder.join(&exe_rel);
@@ -470,7 +507,7 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
         crate::macsign::sign_app(&folder.join(app_bundle(name, &slug)), &bundle_id(&slug), &slug).context("signing the macOS app")?;
         extra += 3;
     }
-    std::fs::write(folder.join("README.txt"), platform.readme(name.trim(), &slug))?;
+    std::fs::write(folder.join("README.txt"), platform.readme(name.trim(), &slug, pack))?;
     std::fs::write(folder.join(ENGINE_LICENSE_FILE), ENGINE_LICENSE)?;
     let archive = if zip { Some(write_zip(&folder, &slug, &exe_rel, &out_dir.join(platform.archive(&slug)))?) } else { None };
     Ok(Exported { folder, archive, files: files.len() + extra, bytes, warnings: check.warnings })
@@ -682,7 +719,7 @@ mod tests {
         let bin = tmp.join("rustpg2d-game");
         std::fs::write(&bin, tagged(b"#!/bin/sh\n")).unwrap();
         let out = tmp.join("out");
-        let r = export(&p, "Test Quest", Platform::Linux, &bin, &out, true, None).unwrap();
+        let r = export(&p, "Test Quest", Platform::Linux, &bin, &out, true, None, false).unwrap();
         let f = out.join("test-quest");
         assert!(f.join("test-quest").is_file());
         assert!(f.join("data/project.ron").is_file());
@@ -704,10 +741,22 @@ mod tests {
         let exe = za.by_name("test-quest/test-quest").unwrap();
         assert_eq!(exe.unix_mode().map(|m| m & 0o777), Some(0o755));
         drop(exe);
+        // Packed: one data.pack instead of the data folder, with every file (the chosen name and the
+        // icon too); exporting packed over a loose export replaces it.
+        let icon_png = crate::imageio::Rgba::new(4, 4).encode().unwrap();
+        export(&p, "Test Quest", Platform::Linux, &bin, &out, false, Some(&icon_png), true).unwrap();
+        assert!(!f.join("data").exists() && f.join(crate::pack::PACK_FILE).is_file() && f.join("test-quest").is_file());
+        let packed = crate::pack::Pack::open(&f.join(crate::pack::PACK_FILE)).unwrap();
+        for rel in ["maps/start.map", "models/sword.glb", "sprites/a.png", "lang/de.ron", crate::icon::ICON_FILE] {
+            assert!(packed.read(rel).is_some(), "{rel} is in the pack");
+        }
+        let cfg: ProjectConfig = ron::from_str(&String::from_utf8(packed.read("project.ron").unwrap().unwrap()).unwrap()).unwrap();
+        assert_eq!(cfg.name, "Test Quest");
+        assert!(packed.read("sprites/unused.png").is_none(), "only used files");
         // Exporting again replaces the earlier export; a foreign folder is refused.
-        export(&p, "Test Quest", Platform::Linux, &bin, &out, false, None).unwrap();
+        export(&p, "Test Quest", Platform::Linux, &bin, &out, false, None, false).unwrap();
         std::fs::create_dir_all(out.join("other")).unwrap();
-        assert!(export(&p, "Other", Platform::Linux, &bin, &out, false, None).is_err());
+        assert!(export(&p, "Other", Platform::Linux, &bin, &out, false, None, false).is_err());
         // The web version: one pack with the game's files, the page and the loader.
         let wasm = tmp.join("rustpg2d-game.wasm");
         std::fs::write(&wasm, tagged(b"\0asm\x01\0\0\0")).unwrap();
@@ -729,12 +778,12 @@ mod tests {
         assert!(za.by_name("index.html").is_ok(), "itch.io wants index.html at the zip's root");
         assert!(read_web_pack(b"junk").is_err());
         // Never into the project itself.
-        assert!(export(&p, "Test Quest", Platform::Linux, &bin, &root, false, None).is_err());
+        assert!(export(&p, "Test Quest", Platform::Linux, &bin, &root, false, None, false).is_err());
         // Windows: needs a Windows program; its own folder, exe, zip and README next to Linux's.
-        assert!(export(&p, "Test Quest", Platform::Windows, &bin, &out, false, None).is_err(), "not an exe");
+        assert!(export(&p, "Test Quest", Platform::Windows, &bin, &out, false, None, false).is_err(), "not an exe");
         let win = tmp.join("rustpg2d-game.exe");
         std::fs::write(&win, tagged(b"MZ\x90\0fake")).unwrap();
-        let r = export(&p, "Test Quest", Platform::Windows, &win, &out, true, None).unwrap();
+        let r = export(&p, "Test Quest", Platform::Windows, &win, &out, true, None, false).unwrap();
         let w = out.join("test-quest-windows");
         assert_eq!(r.folder, w);
         assert!(w.join("test-quest.exe").is_file() && w.join("data/maps/start.map").is_file());
@@ -744,11 +793,11 @@ mod tests {
         let mut za = zip::ZipArchive::new(std::fs::File::open(out.join("test-quest-windows.zip")).unwrap()).unwrap();
         assert!(za.by_name("test-quest/test-quest.exe").is_ok() && za.by_name("test-quest/data/project.ron").is_ok());
         // macOS: an application bundle named after the game, data in Contents/Resources, an icon.
-        assert!(export(&p, "Test Quest", Platform::MacOS, &win, &out, false, None).is_err(), "not a Mach-O program");
+        assert!(export(&p, "Test Quest", Platform::MacOS, &win, &out, false, None, false).is_err(), "not a Mach-O program");
         let mac = tmp.join("rustpg2d-game-macos");
         std::fs::write(&mac, tagged(&crate::macsign::tests::tiny_macho(true))).unwrap();
         let icon = crate::imageio::Rgba::new(20, 32).encode().unwrap();
-        let r = export(&p, "Test: Quest", Platform::MacOS, &mac, &out, true, Some(&icon)).unwrap();
+        let r = export(&p, "Test: Quest", Platform::MacOS, &mac, &out, true, Some(&icon), false).unwrap();
         let m = out.join("test-quest-macos");
         assert_eq!(r.folder, m);
         let app = m.join("Test Quest.app/Contents");
@@ -770,7 +819,13 @@ mod tests {
         assert!(exe.last_modified().is_some_and(|t| t.year() >= 2025), "dated, not 1980");
         drop(exe);
         // Renamed game: the earlier bundle (other app name) is still recognised and replaced.
-        export(&p, "Test Quest!", Platform::MacOS, &mac, &out, false, None).unwrap();
+        export(&p, "Test Quest!", Platform::MacOS, &mac, &out, false, None, false).unwrap();
+        // Packed, the app keeps data.pack in its Resources, sealed with the rest.
+        export(&p, "Test Quest!", Platform::MacOS, &mac, &out, false, None, true).unwrap();
+        let res = m.join("Test Quest!.app/Contents/Resources");
+        assert!(res.join(crate::pack::PACK_FILE).is_file() && !res.join(DATA_DIR).exists());
+        assert!(std::fs::read_to_string(m.join("Test Quest!.app/Contents/_CodeSignature/CodeResources")).unwrap().contains("<key>Resources/data.pack</key>"));
+        export(&p, "Test Quest!", Platform::MacOS, &mac, &out, false, None, false).unwrap();
         assert!(!m.join("Test Quest.app").exists() && m.join("Test Quest!.app/Contents/MacOS/test-quest").is_file());
         assert!(!m.join("Test Quest!.app/Contents/Resources/test-quest.icns").exists() && !std::fs::read_to_string(m.join("Test Quest!.app/Contents/Info.plist")).unwrap().contains("icns"));
         assert_eq!(app_bundle("../a/b", "x"), "ab.app");

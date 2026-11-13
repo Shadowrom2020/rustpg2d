@@ -11,8 +11,8 @@ folders are never touched.
 ## What you get
 
 ```
-releases/<game-name>/                   Linux: the game, its data/ folder, README.txt, rustpg2d-LICENSE.txt
-releases/<game-name>-windows/           Windows: <game-name>.exe, data\, README.txt, the license
+releases/<game-name>/                   Linux: the game, data.pack, README.txt, rustpg2d-LICENSE.txt
+releases/<game-name>-windows/           Windows: <game-name>.exe, data.pack, README.txt, the license
 releases/<game-name>-macos/             macOS: <Game Name>.app, README.txt, the license
 releases/<game-name>-web/               Web: index.html and its files
 releases/<game-name>-linux.zip          (optional, to share; also -windows, -macos, -web)
@@ -23,6 +23,20 @@ releases/<game-name>.flatpak            (optional, Linux package)
 Each bundle holds only the images and sounds the game uses, never the project's save games. The game
 executable is the R(ust)PG2D game runner; it runs the data next to it and titles its window with the
 game's name.
+
+### One data file
+
+The game's files (maps, definitions, scripts, translations, images, sounds, models) are packed into
+one file, **`data.pack`**, next to the game (in a macOS app: in `Contents/Resources`). The game reads
+the pack's table of contents when it starts and each file from the pack when it needs it, so a big
+game starts as fast as from a folder. The pack is scrambled: a text or image editor shows noise
+instead of your dialogs and art. That keeps casual eyes out, but it is not protection: anyone
+who knows R(ust)PG2D's format can unpack it.
+
+To ship the files loose, untick **Pack the game's files into one file** in the export dialog: the game
+then gets a `data` folder (in a macOS app `Contents/Resources/data`), as exports before 0.20 did.
+Players can look into it and change files, e.g. to translate the game themselves. The web export is
+always packed. A game finds either one; if both are there, the `data` folder wins.
 
 ## Linux
 

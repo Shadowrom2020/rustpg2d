@@ -59,7 +59,13 @@ fn game_spec(folder: &Path, slug: &str, name: &str, app_id: &str, runtime: &str,
         icon: icon.to_vec(),
         license: String::new(),
     };
-    spec.add_dir(&folder.join(DATA_DIR), &format!("{lib}/{DATA_DIR}"), &|_| false)?;
+    // The game's files: its data.pack, or the data folder of a loose export.
+    let pack = folder.join(rustpg2d_engine::pack::PACK_FILE);
+    if pack.is_file() {
+        spec.files.push(Entry { dest: format!("{lib}/{}", rustpg2d_engine::pack::PACK_FILE), src: Source::Path(pack), exec: false });
+    } else {
+        spec.add_dir(&folder.join(DATA_DIR), &format!("{lib}/{DATA_DIR}"), &|_| false)?;
+    }
     Ok(spec)
 }
 

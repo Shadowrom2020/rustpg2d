@@ -85,7 +85,7 @@ for how to use it all.
 - Keyboard, mouse and gamepad, named save games with pictures, autosave.
 
 **Shipping**
-- Export a standalone game for **Windows, macOS, Linux and the web** from the editor on any of these systems.
+- Export a standalone game for **Windows, macOS, Linux and the web** from the editor on any of these systems; its files ship packed in one data file.
 - The web export writes a zip ready to upload to **itch.io** as an HTML game; Linux games also as AppImage and Flatpak.
 
 **Building with AI, if you like**

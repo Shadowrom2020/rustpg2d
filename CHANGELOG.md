@@ -29,6 +29,16 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   leading there, and the map screen pins the spots with the quest's title. *Options › Quest
   markers* switches them off; `status` prints `markers=`.
 
+### Publishing
+- **Games ship as one data file**: *Export game* packs the game's maps, definitions, scripts,
+  translations, images, sounds and models into `data.pack` next to the game (in a macOS app: in
+  `Contents/Resources`) instead of a `data` folder. The game reads the pack's table of contents at
+  start and each file when it needs it. The pack is scrambled so that a text or image editor shows
+  noise (not protection). *Pack the game's files into one file* in the export dialog (on by default)
+  can be unticked for a loose `data` folder; games exported loose before keep working. The web
+  export uses the same pack format. Editor scripts: `exportgame` and the other export commands take a
+  last word `loose`.
+
 ### Editor
 - The zone inspector's *Ambience* kind (sound, volume, fade), a **Footsteps** sound per terrain and
   *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).

@@ -30,6 +30,7 @@ pub mod map;
 pub mod migrate;
 pub mod model;
 pub mod path;
+pub mod pack;
 pub mod paths;
 pub mod progression;
 pub mod project;

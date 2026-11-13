@@ -126,15 +126,18 @@ crates/engine/src/      library: everything shared by game and editor
   library.rs            asset library + .r2dpack bundles; refactor.rs = id renames / refs_of_*;
                         starter_update.rs = Update asset library (StarterHistory, plan, apply, backup)
   migrate.rs            converts old 16 px projects; release.rs = standalone game export (Platform:
-                        Linux / Windows / MacOS = <Name>.app, data in Contents/Resources; export_web);
+                        Linux / Windows / MacOS = <Name>.app, data in Contents/Resources; export_web;
+                        packed = data.pack, else a loose data folder; bundled_root mounts the pack);
+                        pack.rs = the data.pack format (scrambled index + files; Pack reads by seek);
                         macsign.rs = ad-hoc signing of exported macOS apps (CodeResources + code
                         directories, no Mac needed); hash.rs = SHA-256 / SHA-1 / Base64
   lang.rs               languages: lang/<code>.ron (texts = content, ui = runtime texts; built-in German in
                         engine/lang/de.ron), tr (content, used by expand_text + translate_db), tr_ui (runtime
                         texts, `{}` templates), content_texts / template (translation templates);
                         runtime/text.rs = the draw_text / measure_text the runtime imports (translating)
-  sys.rs                the game's file / clock access: native std::fs, web = in-memory files from
-                        data.pack + localStorage (web/rustpg2d.js plugin); use it, not std::fs, in game code
+  sys.rs                the game's file / clock access: native std::fs (+ a mounted data.pack), web =
+                        in-memory files from data.pack + localStorage (web/rustpg2d.js plugin); use it,
+                        not std::fs, in game code
   web/                  index.html, mq_js_bundle.js (macroquad's loader, vendored), rustpg2d.js (plugin)
   desktop.rs            Windows start-up of game and editor (attach console, panic message box);
                         icon.rs = window icons, hero_icon (icon.png, else the player portrait) /
@@ -341,7 +344,7 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   character editor (`charnew [ID NAME]` = New character…, `charcustom` = selected NPC, `charanim walk|idle|attack|hurt` = the previews' animation, `charset model|clothing|head|armor|weapon|offhand|carry|id|name VALUE` (`model -` = none: the mannequin), `charset color FEATURE RRGGBB|-`, `charset source existing|import|ai`, `charset female on|off` (AI) on the open window else the selected character, `charrandom` = random colours, `chartemplate ID` (project or library character), `charcreate` / `charapply`, `charcancel`, `charreset`, `playable MODEL on|off`; `status` prints `builder=`),
   languages (`langtemplate CODE` = Export translation template, `playlang CODE|-` = play-test language),
   `example` (welcome screen's *Example project*: only in packaged R(ust)PG2D; copies to
-  ~/rustpg2d/example_project — set HOME to a scratch dir in tests), export (`exportgame OUT [NAME]` = folder + zip, `exportwin` / `exportmac` / `exportweb` / `exportall OUT [NAME]` = Windows / macOS / web / all four, `exportpkg OUT appimage|flatpak|all [APP_ID]`,
+  ~/rustpg2d/example_project — set HOME to a scratch dir in tests), export (`exportgame OUT [NAME]` = folder + zip, `exportwin` / `exportmac` / `exportweb` / `exportall OUT [NAME]` = Windows / macOS / web / all four (a last word `loose` = a data folder instead of data.pack), `exportpkg OUT appimage|flatpak|all [APP_ID]`,
   `exportdialog [appimage] [flatpak]`; test packages on scratch output: the AppImage runs directly,
   a Flatpak goes into `FLATPAK_USER_DIR=<scratch>` with `flatpak install --user --no-deps --bundle`
   and `flatpak run --user --runtime=org.freedesktop.Sdk//25.08 …`; remove the `~/.var/app/<id>`

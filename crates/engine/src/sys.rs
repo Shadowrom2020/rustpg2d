@@ -7,10 +7,21 @@
 //!   the browser's `localStorage` (via `web/rustpg2d.js`), from where [`web::mount`] restores it
 //!   next time. Paths are the same relative paths as natively (`data/maps/village.map`).
 //!
+//! - **Packed games**: an exported game's `data.pack` ([`crate::pack`]) is mounted natively with
+//!   [`mount_pack`]: files below the game's data folder are read from the pack (the folder needn't
+//!   exist); everything else (save games, settings) is the file system as usual.
+//!
 //! The editor keeps using `std::fs` directly; this is for code the game runs.
 
 use std::io;
 use std::path::{Path, PathBuf};
+
+/// Serves a game pack's files under `root` (the game's data folder, e.g. `<game>/data`, which
+/// needn't exist): reads, `exists` and `files_in` below it come from the pack. Once per run.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn mount_pack(root: PathBuf, pack: crate::pack::Pack) {
+    let _ = imp::PACK.set((root, pack));
+}
 
 /// Reads a whole file.
 pub fn read(path: &Path) -> io::Result<Vec<u8>> {
@@ -65,7 +76,24 @@ mod imp {
     use std::io;
     use std::path::{Path, PathBuf};
 
+    /// A mounted game pack and the folder its files stand for (`super::mount_pack`).
+    pub(super) static PACK: std::sync::OnceLock<(PathBuf, crate::pack::Pack)> = std::sync::OnceLock::new();
+
+    /// The mounted pack and `path`'s name in it, if `path` lies below the pack's folder.
+    fn in_pack(path: &Path) -> Option<(&'static crate::pack::Pack, String)> {
+        let (root, pack) = PACK.get()?;
+        let rel = path.strip_prefix(root).ok()?;
+        let key = rel.components().filter_map(|c| match c {
+            std::path::Component::Normal(s) => Some(s.to_string_lossy().into_owned()),
+            _ => None,
+        }).collect::<Vec<_>>().join("/");
+        Some((pack, key))
+    }
+
     pub fn read(path: &Path) -> io::Result<Vec<u8>> {
+        if let Some(r) = in_pack(path).and_then(|(p, k)| p.read(&k)) {
+            return r;
+        }
         std::fs::read(path)
     }
 
@@ -91,10 +119,20 @@ mod imp {
     }
 
     pub fn exists(path: &Path) -> bool {
-        path.exists()
+        in_pack(path).is_some_and(|(p, k)| p.exists(&k)) || path.exists()
     }
 
     pub fn files_in(dir: &Path) -> io::Result<Vec<PathBuf>> {
+        if let Some((pack, key)) = in_pack(dir) {
+            let root = &PACK.get().expect("mounted").0;
+            let mut out: Vec<PathBuf> = pack.files_in(&key).into_iter().map(|k| root.join(k)).collect();
+            // (Files written there since, if the folder exists.)
+            if let Ok(rd) = std::fs::read_dir(dir) {
+                let extra: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.is_file() && !out.contains(p)).collect();
+                out.extend(extra);
+            }
+            return Ok(out);
+        }
         Ok(std::fs::read_dir(dir)?.flatten().map(|e| e.path()).filter(|p| p.is_file()).collect())
     }
 

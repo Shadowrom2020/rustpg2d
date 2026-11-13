@@ -327,6 +327,9 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
     // emote(target, "joy"[, #{ seconds, wait }]) / clear_emote(target): an emotion over the head.
     engine.register_fn("emote", with!(ctx, |c, t: &str, e: &str| c.actions.push(Action::Emote { target: t.into(), emotion: e.into(), seconds: 0.0, wait: false })));
+    engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: 0.0 })));
+    engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str, seconds: f64| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: seconds as f32 })));
+    engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str, seconds: i64| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: seconds as f32 })));
     engine.register_fn("emote", with!(ctx, |c, t: &str, e: &str, opts: rhai::Map| {
         let seconds = opts.get("seconds").and_then(|v| v.as_float().ok().or_else(|| v.as_int().ok().map(|i| i as f64))).unwrap_or(0.0) as f32;
         let wait = opts.get("wait").and_then(|v| v.as_bool().ok()).unwrap_or(false);

@@ -613,6 +613,9 @@ pub enum Action {
     /// A character (or "player") carries a prop in both hands ("" = puts it down); while carrying
     /// it holds nothing else and the player can't attack.
     Carry { target: TargetName, prop: String },
+    /// A short line in a speech bubble over a character's head (`player` too) that doesn't stop
+    /// play: one of `lines` at random, not the one it said last. `seconds` 0 = by the length.
+    Bark { target: TargetName, lines: Vec<String>, #[serde(default)] seconds: f32 },
 }
 
 fn yes() -> bool {
@@ -765,6 +768,7 @@ impl Action {
             Action::ClearEmote { .. } => "Clear emotion",
             Action::ChangeStanding { .. } => "Change standing",
             Action::Carry { .. } => "Carry prop",
+            Action::Bark { .. } => "Bark (speech bubble)",
         }
     }
 
@@ -843,6 +847,7 @@ impl Action {
             Action::ClearEmote { target: "self".into() },
             Action::ChangeStanding { faction: String::new(), amount: 10 },
             Action::Carry { target: "player".into(), prop: String::new() },
+            Action::Bark { target: "self".into(), lines: vec!["Fine weather today!".into()], seconds: 0.0 },
         ]
     }
 }

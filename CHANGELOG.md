@@ -3,6 +3,21 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Gameplay
+- **NPC barks**: the *Bark (speech bubble)* action and `bark(who, text)` show a short line in a
+  speech bubble over a character's head that doesn't stop play: one of several lines at random,
+  never the same twice in a row, translated and with placeholders like dialogs, staying 2 to 7 s
+  by its length. A character more than 12 tiles from the player, or away on its routine, says
+  nothing. `status` prints `barks=`.
+
+### Example project
+- **Emberbrook talks**: the crier calls the news in the square, the night watch calls the hours,
+  Tomas sells apples at the market (and grumbles when it rains), Finn shushes you at the pier, the
+  elder looks up from his book, and the baker, the smith and the innkeeper greet you as you come in
+  (English and German).
+
 ## 0.19.0 — 2026-11-12
 
 Lighter characters: the pose atlas keeps what is drawn, characters turn diagonally, games get

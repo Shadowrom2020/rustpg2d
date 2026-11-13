@@ -1581,6 +1581,18 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         Action::ClearEmote { target } => {
             target_field(ui, id, target, refs);
         }
+        Action::Bark { target, lines, seconds } => {
+            target_field(ui, id, target, refs);
+            ui.label("lines (one per line; one of them at random, not the last one said)");
+            let mut text = lines.join("\n");
+            if ui.add(egui::TextEdit::multiline(&mut text).desired_rows(3).desired_width(320.0).hint_text("Fresh bread!\nWarm rolls, still warm!")).changed() {
+                *lines = text.split('\n').map(str::to_string).collect();
+            }
+            labeled(ui, "seconds", |ui| {
+                ui.add(egui::DragValue::new(seconds).range(0.0..=30.0).speed(0.1)).on_hover_text("0 = by its length (2 to 7 s)");
+            });
+            ui.weak("(a speech bubble over the head that doesn't stop play; {player} and other placeholders work)");
+        }
         Action::Carry { target, prop } => {
             target_field(ui, id, target, refs);
             labeled(ui, "prop", |ui| suggest(ui, &format!("{id}/carry"), prop, &refs.props, 120.0));

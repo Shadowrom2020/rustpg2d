@@ -45,6 +45,7 @@ pub mod input;
 pub mod glyphs;
 mod attacks;
 mod defense;
+mod barks;
 mod emotions;
 mod mouse;
 mod spawner;
@@ -215,6 +216,8 @@ struct RtEntity {
     attack: Option<attacks::Attack>,
     /// The emotion shown over its head (`emotions.rs`; not saved).
     emote: Option<Box<emotions::Emote>>,
+    /// A line it is saying (`barks.rs`).
+    bark: Option<Box<barks::Bark>>,
     /// Its definition's wind-up (`CharacterDef::windup`; 0 = the standard one).
     windup: f32,
     behavior: Behavior,
@@ -417,6 +420,8 @@ pub struct Game {
     image: Option<image::ImageView>,
     /// The emotion over the player's head.
     player_emote: Option<emotions::Emote>,
+    player_bark: Option<barks::Bark>,
+    last_barks: barks::LastBarks,
     /// Whose portrait the open dialog shows.
     portrait: Option<portraits::Speaker>,
     /// The furniture the player uses, the sleep sequence, and the bed a Sleep action lies in.
@@ -561,6 +566,8 @@ impl Game {
             minigame: None,
             image: None,
             player_emote: None,
+            player_bark: None,
+            last_barks: Default::default(),
             portrait: None,
             seat: None,
             leaving: None,
@@ -693,6 +700,7 @@ impl Game {
             low,
             attack: None,
             emote: None,
+            bark: None,
             windup: self.project.db.character(def).filter(|_| kind == EntityKind::Character).map_or(0.0, |d| d.windup.max(0.0)),
             behavior,
             wander_timer: rand::gen_range(0.5, 2.0),
@@ -1594,6 +1602,7 @@ impl Game {
         self.update_entities(dt, frozen);
         self.update_combat(dt, frozen, consumed);
         self.update_emotes(dt);
+        self.update_barks(dt);
         if !frozen {
             self.update_projectiles(dt);
             self.update_spawners(dt);
@@ -2173,7 +2182,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} barks={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2251,6 +2260,7 @@ impl Game {
             self.attacks_status(),
             self.defense_status(),
             self.emotes_status(),
+            self.barks_status(),
             self.hits_status(),
             self.anims_status(),
             self.held_status(),
@@ -2514,6 +2524,7 @@ impl Game {
 
         set_default_camera();
         if !self.on_title() {
+            self.draw_barks(&cam);
             self.draw_damage_numbers(&cam);
         }
         let alpha = match &self.fade {
@@ -2765,6 +2776,13 @@ impl ActionHost for Game {
                 } else {
                     Step::Continue
                 }
+            }
+            Action::Bark { target, lines, seconds } => {
+                // (A character who isn't here, e.g. elsewhere on its daily routine, says nothing.)
+                if let Some(who) = self.emote_target(target, ctx.owner) {
+                    self.start_bark(who, lines, *seconds);
+                }
+                Step::Continue
             }
             Action::Emote { target, emotion, seconds, wait } => {
                 match self.emote_target(target, ctx.owner) {

@@ -340,3 +340,8 @@ fn herbalist_talk() {
     }
     open_shop("self");
 }
+
+// Barks: Tomas grumbles about the weather (a Script condition of the village's 10 o'clock trigger).
+fn is_raining() {
+    weather() == "rain"
+}

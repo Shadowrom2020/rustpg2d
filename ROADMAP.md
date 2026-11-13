@@ -97,7 +97,7 @@ connect the maps, and the dark hides a careful player. Build order as listed (th
 fast travel early; seasons and stealth last, they are the biggest). Each *Engine* line is a
 proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Content first*).
 
-- [ ] NPC barks — `feature/barks`
+- [x] NPC barks — `feature/barks`
 
   **Goal.** Short lines in a speech bubble over a character's head that need no dialog box and
   don't stop play ("Fresh bread!", "Cold tonight..."), so the village talks while the player walks
@@ -114,6 +114,18 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   **Engine.** Proposed: an `Action::Bark { target, lines, seconds }` (appended) and a script
   function `bark(who, text)`; drawing next to the emotion bubbles; `status` field; `de.ron` needs
   nothing (lines are content texts).
+
+  **Decided while building.** Agreed as proposed (`Action::Bark { target, lines, seconds }`,
+  `bark(who, text[, seconds])`). The bubble is drawn in screen space like the damage numbers
+  (`runtime/barks.rs`; wrapped at about 5.5 tiles, above an emotion icon when one shows), not as a
+  sprite. A character more than 12 tiles from the player says nothing, and a missing target is
+  silent (characters away on their routines are normal), so zone and hour triggers need no
+  checks. No proximity trigger was added: the example uses *Hour* map triggers (the crier at
+  9:30, 11:00, 15:30, 17:30 while he stands in the square; Dagny at 22:00 and midnight), *Trigger*
+  zones by daily stops (market, well, pier, the elder's spot), *Map enter* indoors (bakery, smithy,
+  tavern) and a Script condition `is_raining()` for Tomas at 10:00. Verified: each of those in
+  autoplay (`barks=`), the German lines (`--lang de`), the far and dry cases silent, the editor's
+  action form (shot).
 
   **Touch points.** `events/mod.rs` (variant, label, template), `runtime/mod.rs` (execute),
   `runtime/emotions.rs` (drawing), `script.rs` + `script_api.rs` (`Arg::Line`), `widgets.rs`

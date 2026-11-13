@@ -295,6 +295,25 @@ of day* action, the *Time of day* condition, the *Time reached* event and the sc
 `is_night()` and `set_hour(h)` use it. How dark night gets is a map setting
 ([Maps › Lighting](03-maps.md#lighting)).
 
+## Fast travel by signposts
+
+The starter library's **Signpost** prop is a fast-travel point: pressing E at it marks it found and
+offers the other signposts the player has found, each with the hours the trip takes on the roads
+(the clock moves on by that much; *Stay here* cancels). The roads are too dark to travel between
+21:00 and 5:00, and a trip that would end after midnight waits for the next day.
+
+Set it up as content, no events needed:
+
+1. Place a *Signpost* prop and a *Spawn* zone on the tile in front of it (where travellers arrive).
+2. List it in the script function `signposts()` (the starter library adds it to
+   `scripts/library.rhai` with the prop): an `id`, its `name` (in `text("…")`, so it is
+   translated), its `map`, the tile `x` / `y` of the prop, the spawn `arrive_at` and `hours`, how far
+   along the roads it lies (a trip takes the difference, at least one hour).
+
+The prop's own *Interact* trigger runs `signpost_menu()`; it finds the signpost the player stands
+at by map and position, so placed signposts need no triggers of their own. In the example there are
+signposts in the village square, the Whisperwood clearing, at the old mine and in the Wilds.
+
 ## Quests, journal, bestiary and dialog log
 
 The **journal** (J) has three tabs:

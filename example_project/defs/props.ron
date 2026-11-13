@@ -1189,7 +1189,18 @@
         default_state: "default",
         states: [],
         hitbox: (10.0, 8.0),
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "signpost_menu",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         container: None,
         lock: None,
         low: true,

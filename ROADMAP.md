@@ -176,7 +176,7 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   **Verify.** Autoplay walking from the meadow to the river (`ambience=` volumes rising and
   falling), steps on each ground (`sounds=`), muted runs still report them.
 
-- [ ] Fast travel by signposts — `feature/fast-travel`
+- [x] Fast travel by signposts — `feature/fast-travel`
 
   **Goal.** Signposts the player has found take them to the other signposts they found, for some
   time on the clock, so the larger world stays quick to cross.
@@ -187,6 +187,15 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   the choice from the flags, so a creator places signposts and names them, nothing else.
 
   **Engine.** None (content): props, flags, `choice`, *Set time*, *Teleport*.
+
+  **Decided while building.** Content only, as planned, with one change: scripts can't tell
+  which entity they run on (`SELF` is only a uid), so instead of a flag per placed signpost the
+  prop's own *Interact* trigger runs `signpost_menu()`, which finds the signpost by `current_map()`
+  and `player_x()` / `player_y()` in the list `signposts()` (id, name in `text()` so it is
+  translated, map, tile, arrival spawn, hours along the roads). Placed signposts need no triggers.
+  *Set time* doesn't count days, so travel stops at night (21:00-5:00) and a trip may not end
+  after midnight. Verified: village to Whisperwood (10:03 to 12:06, arriving at its spawn), to the
+  Wilds (5 h), a first visit, at night, too late to arrive, German; shots of the choice.
 
   **Touch points.** `example_project/` (props, maps, script), the starter library
   (`library_send`), manual 09 (library content).

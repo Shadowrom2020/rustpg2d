@@ -89,6 +89,184 @@ Instructions for every session (people and coding agents) that implements roadma
     tests fail otherwise), `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the
     checks: the Release workflow tags and publishes it.
 
+## 0.20.0 — A Living Village
+
+Emberbrook should feel inhabited: villagers talk in passing, the world sounds like where you
+stand, friendships grow with gifts, the year turns, armor shows on the 3D characters, signposts
+connect the maps, and the dark hides a careful player. Build order as listed (the content-only
+fast travel early; seasons and stealth last, they are the biggest). Each *Engine* line is a
+proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Content first*).
+
+- [ ] NPC barks — `feature/barks`
+
+  **Goal.** Short lines in a speech bubble over a character's head that need no dialog box and
+  don't stop play ("Fresh bread!", "Cold tonight..."), so the village talks while the player walks
+  through it.
+
+  **Design.** A bark is a line shown above a character for a few seconds (longer for longer
+  lines), drawn like the emotion bubbles (`runtime/emotions.rs`), in the game font, wrapped, one per
+  character at a time, fading out. Lines go through `expand_text` and translation like dialogs.
+  Triggers decide when: schedule stops (a stop's arrival), the player coming near (a *Trigger*
+  zone or a character's own proximity), the hour, the weather. A character can have a list of
+  lines and say one at random, not the same one twice in a row. `status` prints `barks=`
+  who:text while shown.
+
+  **Engine.** Proposed: an `Action::Bark { target, lines, seconds }` (appended) and a script
+  function `bark(who, text)`; drawing next to the emotion bubbles; `status` field; `de.ron` needs
+  nothing (lines are content texts).
+
+  **Touch points.** `events/mod.rs` (variant, label, template), `runtime/mod.rs` (execute),
+  `runtime/emotions.rs` (drawing), `script.rs` + `script_api.rs` (`Arg::Line`), `widgets.rs`
+  (action fields), manual 07 / 08.
+
+  **Example.** Bark lines for the baker (dawn), the smith (at the anvil), the night watch, the
+  tavern regulars, children; weather lines when it rains. German translations.
+
+  **Verify.** Autoplay past villagers at their stops (`barks=`), a shot of two bubbles at once,
+  a German play (`--lang de`), the lines in the translation template.
+
+- [ ] Soundscapes and footsteps — `feature/soundscapes`
+
+  **Goal.** Places sound like what they are: birds in the meadow, the river near water, the
+  tavern's murmur, wind in the Wilds, fading as the player walks between them; and steps sound
+  like the ground (grass, stone, wood, snow).
+
+  **Design.** An *Ambience* zone: a looping sound, its volume and a fade distance (louder towards
+  the zone's middle); several zones mix; the existing *ambience* volume option applies (as the
+  rain loop does). Footsteps: a terrain or a tileset's tiles name a step sound; the player (and
+  nearby characters, quieter) play it on the walk clip's contact frames. `status` prints
+  `ambience=` sound:volume and the last steps in `sounds=`.
+
+  **Engine.** Proposed: `ZoneKind::Ambience { sound, volume, fade }` (appended); a `step` sound on
+  `Terrain` and per tile on `TilesetDef` (serde default); step timing from the walk clip; looping
+  and mixing through `audio.rs` (the rain loop's code).
+
+  **Touch points.** `map/mod.rs`, `map/io.rs` (Meta), `audio.rs`, `runtime/mod.rs` (zones, steps),
+  `defs.rs` / `autotile.rs`, editor zone inspector and tileset / terrain forms, manual 03 / 10.
+
+  **Example.** Meadow birds, the river along the stream, the tavern and the mine's drips; steps on
+  grass, stone, wood and snow (new sounds, made like the existing ones).
+
+  **Verify.** Autoplay walking from the meadow to the river (`ambience=` volumes rising and
+  falling), steps on each ground (`sounds=`), muted runs still report them.
+
+- [ ] Fast travel by signposts — `feature/fast-travel`
+
+  **Goal.** Signposts the player has found take them to the other signposts they found, for some
+  time on the clock, so the larger world stays quick to cross.
+
+  **Design.** Content only: a *Signpost* prop whose *Interact* trigger marks it found (a flag per
+  signpost) and opens a choice of the found ones (with travel hours shown); choosing one sets
+  the time forward and teleports to the signpost's spawn. One library script function builds
+  the choice from the flags, so a creator places signposts and names them, nothing else.
+
+  **Engine.** None (content): props, flags, `choice`, *Set time*, *Teleport*.
+
+  **Touch points.** `example_project/` (props, maps, script), the starter library
+  (`library_send`), manual 09 (library content).
+
+  **Example.** Signposts in the village square, Whisperwood, the mine and the Wilds.
+
+  **Verify.** Autoplay: find two signposts, travel between them (`map=`, the clock moved), an
+  unfound one isn't offered.
+
+- [ ] Relationships and gifts — `feature/friendship`
+
+  **Goal.** Villagers like the player more for kindness and gifts: favourite and disliked
+  gifts, friendship that opens new dialog lines and small rewards.
+
+  **Design.** Mostly content: a friendship variable per character (0-10 hearts), raised by
+  talking once a day and by gifts (*Use item* on a character already exists: liked +2, loved +3,
+  disliked -1, once a day), dialog lines and rewards behind friendship conditions, one library
+  script for the bookkeeping so a creator only lists likes and dislikes. The open question is
+  where players see the hearts: in dialogs only (content), or a *People* page in the journal
+  (engine).
+
+  **Engine.** None for the core; proposed, optional: a journal *People* page that shows a
+  character's variable as hearts (ask).
+
+  **Touch points.** Example characters' triggers, a library script, `lang/de.ron`; for the
+  optional page `runtime/journal.rs`.
+
+  **Example.** Likes and dislikes for every villager, a heart-level reward each (a recipe, a
+  discount, a gift back).
+
+  **Verify.** Autoplay giving gifts (`vars=` friendship), the daily limit across `settime +24`,
+  a dialog line that appears at a heart level.
+
+- [ ] Visible helmets, hats, backpacks and quivers — `feature/worn-items`
+
+  **Goal.** Equipped head items and things carried on the back show on the 3D characters, as
+  held items already do.
+
+  **Design.** An item model gets two more places besides the hands: the *head* bone (helmets,
+  hats, hoods) and the *back* (backpacks, quivers, a sword on the back). The item form's 3D
+  model section chooses the place; the hold estimate gets a head and a back fit (size from the
+  head bone's span, the back from the shoulders). Head items with a model replace the colour
+  feature they cover (hair under a helmet) when the model says so. The bust (portraits, icons)
+  shows head items.
+
+  **Engine.** Proposed: `HoldStyle::Head` and `HoldStyle::Back` (appended), `Gear` with the head
+  item and the back item, placing them in `render/model.rs` like held items.
+
+  **Touch points.** `defs.rs` (`HoldStyle`, `ItemModel`), `model.rs` (estimates),
+  `render/model.rs` (`Gear`, placing), `runtime/paperdoll.rs` / `equipment.rs`, editor
+  `models_tab.rs` / `database.rs` (item form), manual 05 / 06.
+
+  **Example.** Models for the iron helmet, a straw hat, a hood, a backpack and a quiver (Meshy,
+  about 33 credits each: ask before spending); the guards wear helmets.
+
+  **Verify.** Autoplay equipping a helmet (`held=` shows head / back), shots in four facings and
+  walking, the bust with a helmet, characters without the bones (animals) ignore them.
+
+- [ ] Seasons — `feature/seasons`
+
+  **Goal.** The year turns: spring, summer, autumn and winter change how outdoor maps look,
+  what grows and the weather.
+
+  **Design.** A year of N days (project setting, default 28 per season), the season from the
+  day count (`WorldState.day`). Tiles get season variants (a tileset maps tile -> autumn /
+  winter tile, like animated tiles map to frames), so painted maps change without repainting;
+  props can show a state per season (bare trees). Crops list the seasons they grow in (out of
+  season they wither). The weather's chances per season (snow in winter). Conditions and a
+  script function for the season, so schedules and dialogs can differ.
+
+  **Engine.** Proposed: `ProjectConfig.season_days`, `TilesetDef.seasons` (tile variants),
+  `Crop.seasons`, a *Season is* condition and `season()`, weather chances per season, `status`
+  `season=`.
+
+  **Touch points.** `project.rs`, `defs.rs`, `render/mod.rs` (`display_index` with the season),
+  `runtime/farm.rs`, `runtime/weather.rs`, `events/mod.rs` (`Cond`, appended), `script.rs`,
+  editor tileset form, manual 05 / 09.
+
+  **Example.** Autumn and winter tiles for grass, trees and paths; crops by season; a snowy
+  winter village.
+
+  **Verify.** Autoplay with `settime +H` across seasons (`season=`, shots of the village in each),
+  a crop withering out of season, snow only in winter.
+
+- [ ] Stealth — `feature/stealth`
+
+  **Goal.** A careful player can sneak: crouching makes them harder to notice, darkness and
+  cover hide them, and a sneak attack hits harder.
+
+  **Design.** A sneak key (and pad button) toggles crouching: slower walk, a crouch clip (or the
+  walk lowered). Enemy noticing (`ai.rs`: sight range, half through walls) is scaled by sneaking
+  (x0.5) and by the light at the player (the light map's brightness: dark = x0.4), never below
+  a minimum near range. An attack on an enemy that hasn't noticed the player does double damage
+  (a skill can raise it). `status` prints `sneak=` and per enemy whether it noticed.
+
+  **Engine.** Proposed: sneak state and input, light level sampling at the player, the sight
+  scale in `ai.rs`, the sneak attack bonus in `combat.rs`, a sneak clip in `ModelDef.clips`.
+
+  **Touch points.** `runtime/input.rs`, `runtime/ai.rs`, `runtime/lights.rs` /
+  `render/lighting.rs`, `runtime/combat.rs`, `settings.rs` (key binding), manual 09 / 15.
+
+  **Example.** The bandit camp at night as a stealth approach; a *Sneaking* skill.
+
+  **Verify.** Autoplay approaching an enemy standing / sneaking / sneaking at night (distance at
+  which it notices), a sneak attack's damage (`numbers=`), the pad button.
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
@@ -100,3 +278,17 @@ Instructions for every session (people and coding agents) that implements roadma
   This touches the web file layer (`sys.rs` web, `web/rustpg2d.js`), `release::export_web` and
   model loading (`render/model.rs`, which parses every model at start today; natively that costs
   only 0.22 s, so desktop stays as it is).
+- Quest markers: a quest stage names its target (character, prop or zone); an arrow at the
+  screen's edge and a pin on the world map (`worldmap.rs`), switchable in the options.
+- Swimming and boats: a *swim* tile flag (like ladders): slow, no weapons, a swim clip; a
+  rowboat prop to cross lakes.
+- Dungeons generated from structures (a theme for 0.21.0): a dungeon map kind that stitches
+  captured rooms and corridors (`structure.rs`) into a new layout per visit, with enemies,
+  chests and loot from tables.
+- Mounts: riding a horse (two models in one pose: the rider seated on the mount's back bone),
+  faster on roads.
+- Player housing: items that place furniture props in a house the player owns, kept in the save.
+- Photo mode: freeze the game, move the camera freely, no HUD, save a picture.
+- New Game+: start again from a finished save, keeping level and items.
+- Accessibility: bigger text, captions for sound effects, a high-contrast HUD, hold instead of
+  repeated presses.

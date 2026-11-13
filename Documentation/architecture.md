@@ -73,6 +73,15 @@ starter_history` from git; a test keeps it current), replaces untouched assets, 
 and retired ones, and backs the library folder up first.
 `.r2dpack` files are zip bundles of assets with a manifest, for sharing between projects.
 
+**Exported games** (`release.rs`) carry the project's files as `data.pack` (`pack.rs`), or loose in
+a `data` folder when the export dialog says so. The pack is a header, a postcard index (path,
+offset, length) and the files, XOR-scrambled with a position-keyed SplitMix64 stream (against
+casual eyes, not protection). Natively `release::bundled_root` opens it, reads only the index and
+mounts it in `sys` as the `data` folder: `sys::read` / `exists` / `files_in` serve paths under it
+from the pack (reading a file by seeking) and fall back to the disk, so the rest of the engine
+doesn't know whether a game is packed. The web game downloads the same format whole
+(`release::read_web_pack`) into `sys`'s in-memory files.
+
 **Translations** (`lang.rs`): `lang/<code>.ron` with `texts` (content: dialogs, names, quest texts,
 collected by `content_texts`) and `ui` (runtime strings; English is the key). The game swaps the
 `Database` for a translated copy (`translate_db`).
@@ -250,6 +259,9 @@ means per format:
 - **postcard** (map `Core`, `TileLayer`, `Chunk`): positional and without defaults. **These
   structs are frozen**: a new layer or chunk property goes into the RON `Meta`, or the format
   version is bumped with a reader for the old one.
+- **Game packs** (`data.pack`): the 8-byte magic `R2DPAK1\0` carries the version; a game refuses
+  a pack with another magic, which is fine because a pack is only ever read by the runner it was
+  exported with (the export checks `ENGINE_BUILD_TAG`).
 - **Saves**: `WorldState` fields all default; unknown fields are ignored, so a newer save loads in
   an older game minus what it does not know.
 - **Libraries**: existing libraries only gain new ids from a changed starter set on their own

@@ -92,8 +92,8 @@ Instructions for every session (people and coding agents) that implements roadma
 ## 0.20.0 — A Living Village
 
 Emberbrook should feel inhabited: villagers talk in passing, the world sounds like where you
-stand, friendships grow with gifts, the year turns, quests show where they lead, signposts
-connect the maps, and the dark hides a careful player. Build order as listed (the content-only
+stand, friendships grow with gifts, quests show where they lead, signposts connect the maps, and
+exported games ship as one tidy pack. Build order as listed (the content-only
 fast travel early; seasons and stealth last, they are the biggest). Each *Engine* line is a
 proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Content first*).
 
@@ -274,53 +274,49 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   when it is off screen, a target on another map shown at the door, the world map's pin, the
   option off; `markers=`.
 
-- [ ] Seasons — `feature/seasons`
+- [x] Game files in one pack — `feature/game-pack`
 
-  **Goal.** The year turns: spring, summer, autumn and winter change how outdoor maps look,
-  what grows and the weather.
+  **Goal.** An exported game ships its files (definitions, maps, scripts, images, sounds, models,
+  translations) as one file next to the program instead of a `data` folder with hundreds of
+  files: tidier downloads, nothing to delete or edit by accident.
 
-  **Design.** A year of N days (project setting, default 28 per season), the season from the
-  day count (`WorldState.day`). Tiles get season variants (a tileset maps tile -> autumn /
-  winter tile, like animated tiles map to frames), so painted maps change without repainting;
-  props can show a state per season (bare trees). Crops list the seasons they grow in (out of
-  season they wither). The weather's chances per season (snow in winter). Conditions and a
-  script function for the season, so schedules and dialogs can differ.
+  **Design.** *Export game* writes `data.pack`: a header, an index (relative path, offset, length)
+  and the files one after another, uncompressed (images, sounds, models and maps are compressed
+  already). The game opens it at start, reads only the index, and reads a file from its offset
+  when asked (no whole-pack load). Everything the game reads goes through `sys`, which serves the
+  pack's files where it would read `data/…`; save games, settings and achievements are written
+  to the player's folders as before. A game folder with a `data` folder (older exports, editor
+  play-tests) keeps working. The web export uses the same format for its download. The export
+  dialog can still write loose files (*Pack the game's files*, on by default) for creators who
+  want to look inside.
 
-  **Engine.** Proposed: `ProjectConfig.season_days`, `TilesetDef.seasons` (tile variants),
-  `Crop.seasons`, a *Season is* condition and `season()`, weather chances per season, `status`
-  `season=`.
+  **Engine.** Proposed (ask before building): the pack format (`release.rs`), mounting it in
+  `sys.rs` natively (read, exists, files in a folder), the runner finding `data.pack` next to
+  itself (and in a macOS app's Resources), the window icon read through `sys`, export writing it
+  (Linux / Windows / macOS folders and zips, AppImage, Flatpak, web).
 
-  **Touch points.** `project.rs`, `defs.rs`, `render/mod.rs` (`display_index` with the season),
-  `runtime/farm.rs`, `runtime/weather.rs`, `events/mod.rs` (`Cond`, appended), `script.rs`,
-  editor tileset form, manual 05 / 09.
+  **Decided while building.** Agreed, with a scramble: index and files are XORed with a
+  position-keyed SplitMix64 stream, so a text or image editor shows noise (documented as no
+  protection). The format lives in its own `pack.rs` (`write`, `read_all` for the web, `Pack` =
+  index in memory, files read by seek); the magic `R2DPAK1\0` carries the version.
+  `release::bundled_root` prefers a `data` folder, else opens `data.pack` and mounts it in `sys`
+  as that folder, so nothing else in the engine knows whether a game is packed; `sys::files_in`
+  merges the pack's listing with the disk's. The web export's own pack format was replaced by this
+  one. Editor scripts: the export commands take a last word `loose`. The AppImage and Flatpak take
+  `data.pack` as one file. Verified: the example exported packed (one 45 MB `data.pack`) plays with its
+  intro, models, a crafted save loaded and quick-saved, the forest map, German, footsteps and
+  ambience; the AppImage, the Flatpak and the Windows export (Wine); a loose export; a packed export over a loose one (the old folder is
+  replaced whole); the web export in headless Brave; unit tests for the format and the packed
+  Linux and macOS exports (Resources/data.pack, listed in CodeResources).
 
-  **Example.** Autumn and winter tiles for grass, trees and paths; crops by season; a snowy
-  winter village.
+  **Touch points.** `sys.rs`, `release.rs` (`export`, `export_web`, file list), `icon.rs`,
+  `crates/game/src/main.rs` (finding the data), editor `export.rs` / `package.rs` (packages, the
+  option), `xtask` dist if it packs the example, manual 14, architecture.
 
-  **Verify.** Autoplay with `settime +H` across seasons (`season=`, shots of the village in each),
-  a crop withering out of season, snow only in winter.
-
-- [ ] Stealth — `feature/stealth`
-
-  **Goal.** A careful player can sneak: crouching makes them harder to notice, darkness and
-  cover hide them, and a sneak attack hits harder.
-
-  **Design.** A sneak key (and pad button) toggles crouching: slower walk, a crouch clip (or the
-  walk lowered). Enemy noticing (`ai.rs`: sight range, half through walls) is scaled by sneaking
-  (x0.5) and by the light at the player (the light map's brightness: dark = x0.4), never below
-  a minimum near range. An attack on an enemy that hasn't noticed the player does double damage
-  (a skill can raise it). `status` prints `sneak=` and per enemy whether it noticed.
-
-  **Engine.** Proposed: sneak state and input, light level sampling at the player, the sight
-  scale in `ai.rs`, the sneak attack bonus in `combat.rs`, a sneak clip in `ModelDef.clips`.
-
-  **Touch points.** `runtime/input.rs`, `runtime/ai.rs`, `runtime/lights.rs` /
-  `render/lighting.rs`, `runtime/combat.rs`, `settings.rs` (key binding), manual 09 / 15.
-
-  **Example.** The bandit camp at night as a stealth approach; a *Sneaking* skill.
-
-  **Verify.** Autoplay approaching an enemy standing / sneaking / sneaking at night (distance at
-  which it notices), a sneak attack's damage (`numbers=`), the pad button.
+  **Verify.** Export the example for Linux, Windows (Wine) and the web: the folder holds the program,
+  `data.pack`, README and license; the game plays (maps, sounds, models, translations, a save and a
+  load); an AppImage and a macOS app (zip structure, signing) built from it; an export with loose
+  files still runs; a unit test round-trips the pack.
 
 ## Backlog (unscheduled ideas)
 
@@ -337,8 +333,6 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   back bones of the 3D characters (`HoldStyle::Head` / `Back`, `Gear` with head and back items,
   placed in `render/model.rs` like held items); needs new Meshy item models (about 33 credits each,
   ask first). The full design block is in git history (ROADMAP.md, 0.20.0).
-- Swimming and boats: a *swim* tile flag (like ladders): slow, no weapons, a swim clip; a
-  rowboat prop to cross lakes.
 - Dungeons generated from structures (a theme for 0.21.0): a dungeon map kind that stitches
   captured rooms and corridors (`structure.rs`) into a new layout per visit, with enemies,
   chests and loot from tables.
@@ -349,3 +343,9 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
 - New Game+: start again from a finished save, keeping level and items.
 - Accessibility: bigger text, captions for sound effects, a high-contrast HUD, hold instead of
   repeated presses.
+- Seasons (moved from 0.20.0): a year of N days, tile variants per season (autumn / winter tiles
+  without repainting), crops by season, snow in winter, a *Season is* condition and `season()`.
+  The full design block is in git history (ROADMAP.md, 0.20.0).
+- Stealth (moved from 0.20.0): a sneak key, enemies notice later when sneaking and in the dark
+  (light level at the player in `ai.rs` sight), double damage on unaware enemies. Full design in
+  git history (ROADMAP.md, 0.20.0).

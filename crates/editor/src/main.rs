@@ -564,9 +564,13 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // exportgame OUT_DIR [NAME]  /  exportdialog
         // exportpkg OUT_DIR appimage|flatpak|all [APP_ID]: the folder plus Linux packages
         // exportgame OUT [NAME] (Linux) · exportwin (Windows) · exportmac (macOS) · exportweb (web)
-        // · exportall (all four); all with zips
+        // · exportall (all four); all with zips; a last word `loose` exports a data folder instead
+        // of data.pack
         "exportgame" | "exportpkg" | "exportwin" | "exportmac" | "exportweb" | "exportall" => {
-            let mut opts = export::ExportOpts { zip: arg(0) != "exportpkg", ..Default::default() };
+            let loose = cmd.last().is_some_and(|w| w == "loose");
+            let cmd: Vec<String> = cmd.iter().filter(|w| !(loose && *w == "loose")).cloned().collect();
+            let arg = |k: usize| cmd.get(k).map_or("", |s| s.as_str());
+            let mut opts = export::ExportOpts { zip: arg(0) != "exportpkg", pack: !loose, ..Default::default() };
             if arg(0) == "exportwin" {
                 (opts.linux, opts.windows) = (false, true);
             } else if arg(0) == "exportmac" {

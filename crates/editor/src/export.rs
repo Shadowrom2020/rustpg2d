@@ -42,6 +42,8 @@ pub struct ExportOpts {
     pub runtime: String,
     /// Icon PNG of the packages and the macOS app ("" = the player character).
     pub icon: String,
+    /// The game's files in one `data.pack` (else a `data` folder of loose files).
+    pub pack: bool,
 }
 
 impl ExportOpts {
@@ -72,6 +74,7 @@ impl Default for ExportOpts {
             app_id: String::new(),
             runtime: package::FLATPAK_RUNTIMES[0].into(),
             icon: String::new(),
+            pack: true,
         }
     }
 }
@@ -214,7 +217,7 @@ impl Editor {
             lines.push(format!("Exported without an icon: {e:#}"));
         }
         for (p, (bin, dbg)) in platforms.iter().zip(&bins) {
-            let r = release::export(&self.project, name, *p, bin, out_dir, opts.zip, icon.as_deref().ok()).map_err(|e| format!("{}: {e:#}", p.label()))?;
+            let r = release::export(&self.project, name, *p, bin, out_dir, opts.zip, icon.as_deref().ok(), opts.pack).map_err(|e| format!("{}: {e:#}", p.label()))?;
             lines.push(format!("{} export: {} ({} files, {:.1} MB)", p.label(), r.folder.display(), r.files, r.bytes as f64 / 1_048_576.0));
             if let Some(a) = &r.archive {
                 lines.push(format!("Archive: {}", a.display()));
@@ -300,6 +303,9 @@ impl Editor {
                 ui.end_row();
                 ui.label("");
                 ui.checkbox(&mut d.opts.zip, "Also create a .zip to share (one per platform)");
+                ui.checkbox(&mut d.opts.pack, "Pack the game's files into one file (data.pack)").on_hover_text(
+                    "The maps, definitions, scripts, pictures, sounds and models in one data.pack next to the program instead of a data folder with every file: a tidy download, nothing to delete or change by accident. (It keeps casual eyes out, it is not protection.) Off: a data folder of plain files, e.g. for players who want to mod the game. The web version is always packed.",
+                );
                 ui.end_row();
                 if !d.opts.linux || Platform::host() != Platform::Linux {
                     d.opts.appimage = false;

@@ -17,13 +17,13 @@ pub const ICON_FILE: &str = "icon.png";
 /// (`ProjectConfig::player_portrait`) enlarged with sharp pixels onto a 256 x 256 transparent
 /// square; None without either.
 pub fn hero_icon(project: &Project) -> Option<Rgba> {
-    if let Some(i) = std::fs::read(project.path(ICON_FILE)).ok().and_then(|b| Rgba::decode(&b).ok()).filter(|i| i.w > 0 && i.h > 0) {
+    if let Some(i) = crate::sys::read(&project.path(ICON_FILE)).ok().and_then(|b| Rgba::decode(&b).ok()).filter(|i| i.w > 0 && i.h > 0) {
         return Some(i);
     }
     let db = &project.db;
     let sprite = &project.config.player_portrait;
     let sheet = db.sheet(&sprite.sheet)?;
-    let img = std::fs::read(project.path(&sheet.image)).ok().and_then(|b| Rgba::decode(&b).ok())?;
+    let img = crate::sys::read(&project.path(&sheet.image)).ok().and_then(|b| Rgba::decode(&b).ok())?;
     let (fw, fh) = (sheet.frame_w.max(1), sheet.frame_h.max(1));
     let (cw, ch) = sprite.cells();
     let cols = (img.w / fw).max(1);

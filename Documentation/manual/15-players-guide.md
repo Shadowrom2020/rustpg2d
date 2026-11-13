@@ -19,7 +19,7 @@ These are the default keys; players change them in *Options › Controls*.
 | C / I | The character window: character sheet and inventory |
 | K / L | The character window's *Skills* and *Spells* tabs (if the game has them) |
 | Tab | Next tab of the open window |
-| J | Journal: *Quests*, *Bestiary*, *Dialogs* |
+| J | Journal: *Quests*, *Bestiary*, *Dialogs*, *People* (the villagers you made friends with, in hearts) |
 | M | The map screen |
 | G | Companion orders (with companions along) |
 | H | Hide or show the interface |

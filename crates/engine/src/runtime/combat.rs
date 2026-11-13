@@ -1031,14 +1031,14 @@ impl Game {
 }
 
 /// The right half of a heart (drawn in the empty color to show half hearts).
-fn draw_heart_right_half(x: f32, y: f32, s: f32, c: Color) {
+pub(super) fn draw_heart_right_half(x: f32, y: f32, s: f32, c: Color) {
     let r = s * 0.28;
     draw_circle(x + s * 0.7, y + s * 0.32, r, c);
     draw_rectangle(x + s * 0.5, y + s * 0.15, s * 0.2, s * 0.3, c);
     draw_triangle(vec2(x + s * 0.5, y + s * 0.42), vec2(x + s * 0.96, y + s * 0.42), vec2(x + s * 0.5, y + s * 0.92), c);
 }
 
-fn draw_heart(x: f32, y: f32, s: f32, c: Color) {
+pub(super) fn draw_heart(x: f32, y: f32, s: f32, c: Color) {
     let r = s * 0.28;
     draw_circle(x + s * 0.3, y + s * 0.32, r, c);
     draw_circle(x + s * 0.7, y + s * 0.32, r, c);

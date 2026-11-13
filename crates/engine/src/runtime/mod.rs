@@ -614,6 +614,7 @@ impl Game {
             _ => Arrival::Spawn(game.project.config.start_spawn.clone()),
         };
         game.scripts.set_recipes(game.project.db.recipes.clone(), game.project.db.tool_kinds());
+        game.scripts.set_consumables(game.project.db.items.iter().filter(|d| d.consumable).map(|d| d.id.clone()).collect());
         game.scripts.set_factions(game.project.config.factions.clone());
         game.load_achievements();
         game.settings = crate::settings::Settings::load(&game.project.config.name);
@@ -1289,7 +1290,11 @@ impl Game {
             if trigger.once && self.world.fired.contains(&key) {
                 continue;
             }
-            let ctx = ActionCtx { owner };
+            let item = match ev {
+                GameEvent::UseItem { item } => item.clone(),
+                _ => String::new(),
+            };
+            let ctx = ActionCtx { owner, item };
             if !conditions_met(self, &trigger.conditions, &ctx) {
                 continue;
             }
@@ -2188,7 +2193,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} barks={:?} ambience={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} barks={:?} ambience={:?} friends={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2268,6 +2273,7 @@ impl Game {
             self.emotes_status(),
             self.barks_status(),
             self.audio.ambient_status(),
+            self.friends_status(),
             self.hits_status(),
             self.anims_status(),
             self.held_status(),
@@ -3132,6 +3138,7 @@ impl ActionHost for Game {
             }
             Action::RunScript { function } => {
                 self.sync_script_player();
+                self.script_event(ctx);
                 let actions = self.scripts.call(&mut self.world, function, ctx.owner);
                 Step::Insert(actions.into_iter().map(|a| (a, ctx.clone())).collect())
             }
@@ -3156,6 +3163,7 @@ impl ActionHost for Game {
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {
         self.sync_script_player();
+        self.script_event(ctx);
         self.scripts.condition(&mut self.world, function, ctx.owner)
     }
 

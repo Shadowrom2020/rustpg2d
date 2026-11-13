@@ -102,7 +102,7 @@ impl Game {
             self.ui.toast("Someone is using it.".into());
             return;
         }
-        if !spot.conditions.is_empty() && !conditions_met(self, &spot.conditions, &ActionCtx { owner: Some(uid) }) {
+        if !spot.conditions.is_empty() && !conditions_met(self, &spot.conditions, &ActionCtx { owner: Some(uid), ..Default::default() }) {
             let msg = if spot.refuse_text.is_empty() { "You can't use that now.".to_string() } else { self.world.expand_text(&spot.refuse_text) };
             self.ui.toast(msg);
             return;
@@ -123,7 +123,7 @@ impl Game {
                 then: vec![Action::Sleep { hours }],
                 otherwise: vec![],
             };
-            self.runner.push(&[ask, then], &ActionCtx { owner: Some(uid) });
+            self.runner.push(&[ask, then], &ActionCtx { owner: Some(uid), ..Default::default() });
             return;
         }
         self.take_seat(uid, &spot, feet);

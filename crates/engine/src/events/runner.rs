@@ -10,6 +10,9 @@ use crate::state::WorldState;
 pub struct ActionCtx {
     /// Entity uid that owns the trigger (`"self"` in targets).
     pub owner: Option<u32>,
+    /// The item of the *Use item* event that fired the trigger ("" for other events;
+    /// `used_item()` in scripts).
+    pub item: String,
 }
 
 /// Result of a host executing an action.

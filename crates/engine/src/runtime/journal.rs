@@ -1,7 +1,9 @@
 //! The journal (J) with two tabs. *Quests*: active quests first, then finished ones; the
 //! selected quest shows its description and the objectives reached so far. *Bestiary*: every
 //! kind of character the player has defeated, with a portrait, the description and its stats.
-//! *Dialogs*: the last dialog lines of the game (newest at the bottom), scrollable.
+//! *Dialogs*: the last dialog lines of the game (newest at the bottom), scrollable. *People*:
+//! the characters the player made friends with (variables `friend_<name>`, 0 to 100 points:
+//! ten hearts), friendliest first.
 //! Up/Down or click select, Tab / Left / Right or a click on a tab switch, J / Esc close.
 
 use macroquad::prelude::*;
@@ -24,15 +26,17 @@ pub(super) enum JournalTab {
     Quests,
     Bestiary,
     Dialogs,
+    People,
 }
 
 impl JournalTab {
-    const ALL: [JournalTab; 3] = [JournalTab::Quests, JournalTab::Bestiary, JournalTab::Dialogs];
+    const ALL: [JournalTab; 4] = [JournalTab::Quests, JournalTab::Bestiary, JournalTab::Dialogs, JournalTab::People];
     fn label(self) -> &'static str {
         match self {
             JournalTab::Quests => "Quests",
             JournalTab::Bestiary => "Bestiary",
             JournalTab::Dialogs => "Dialogs",
+            JournalTab::People => "People",
         }
     }
     /// The next (`step` 1) or previous (`step` -1) tab, wrapping around.
@@ -70,11 +74,26 @@ fn rect() -> Rect {
     Rect::new(((sw - W) / 2.0).max(4.0).round(), ((sh - H) / 2.0).max(4.0).round(), W, H)
 }
 
+/// Variables that hold a character's friendship: `friend_<name>`.
+pub(super) const FRIEND_PREFIX: &str = "friend_";
+
+/// "tomas" -> "Tomas", "old_finn" -> "Old Finn".
+fn display_name(name: &str) -> String {
+    name.split('_')
+        .filter(|w| !w.is_empty())
+        .map(|w| {
+            let mut c = w.chars();
+            c.next().map_or(String::new(), |f| f.to_uppercase().collect::<String>() + c.as_str())
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// Header rows are `None`, quests `Some(id)`.
 type Entry = (Option<String>, String);
 
 /// The tabs at the top of the journal.
-fn tab_rects(r: Rect) -> [(JournalTab, Rect); 3] {
+fn tab_rects(r: Rect) -> [(JournalTab, Rect); 4] {
     let w = 120.0;
     JournalTab::ALL.map(|t| {
         let k = JournalTab::ALL.iter().position(|x| *x == t).unwrap() as f32;
@@ -286,6 +305,7 @@ impl Game {
         match self.journal.tab {
             JournalTab::Bestiary => return self.draw_bestiary(r),
             JournalTab::Dialogs => return self.draw_dialog_log(r),
+            JournalTab::People => return self.draw_people(r),
             JournalTab::Quests => {}
         }
 
@@ -494,6 +514,49 @@ impl Game {
     }
 
     /// The dialog log tab: who said what, newest at the bottom, from the scroll position up.
+    /// The characters the player is friends with: (name as shown, points 0..100), friendliest
+    /// first.
+    pub(super) fn friends(&self) -> Vec<(String, i64)> {
+        let mut v: Vec<(String, i64)> = self.world.vars.iter().filter_map(|(k, &p)| k.strip_prefix(FRIEND_PREFIX).filter(|n| !n.is_empty()).map(|n| (display_name(n), p.clamp(0, 100)))).collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// `friends=` for `status`: name:points.
+    pub(super) fn friends_status(&self) -> Vec<String> {
+        self.friends().into_iter().map(|(n, p)| format!("{n}:{p}")).collect()
+    }
+
+    /// The People page: two columns of names with ten hearts each (10 points a heart).
+    fn draw_people(&self, r: Rect) {
+        let friends = self.friends();
+        if friends.is_empty() {
+            draw_text("No friends yet. Talk to people, help them, bring them gifts they like.", r.x + PAD, r.y + 80.0, 22.0, LIGHTGRAY);
+            return;
+        }
+        let col_w = (r.w - PAD * 3.0) / 2.0;
+        let rows = ((r.h - 56.0 - 44.0) / ROW).floor().max(1.0) as usize;
+        let (heart, gap) = (15.0, 3.0);
+        let (full, empty) = (Color::new(0.9, 0.25, 0.3, 1.0), Color::new(0.3, 0.27, 0.27, 1.0));
+        for (k, (name, points)) in friends.iter().enumerate().take(rows * 2) {
+            let (col, row) = (k / rows, k % rows);
+            let x = r.x + PAD + col as f32 * (col_w + PAD);
+            let y = r.y + 56.0 + row as f32 * ROW;
+            draw_rectangle(x, y, col_w, ROW - 4.0, Color::new(0.0, 0.0, 0.0, 0.25));
+            let label: String = name.chars().take(18).collect();
+            draw_text(&label, x + 8.0, y + 21.0, 20.0, WHITE);
+            let hx = x + col_w - 10.0 * (heart + gap) - 6.0;
+            for h in 0..10 {
+                let at = hx + h as f32 * (heart + gap);
+                let filled = points - h * 10;
+                super::combat::draw_heart(at, y + 7.0, heart, if filled >= 5 { full } else { empty });
+                if (5..10).contains(&filled) {
+                    super::combat::draw_heart_right_half(at, y + 7.0, heart, empty);
+                }
+            }
+        }
+    }
+
     fn draw_dialog_log(&self, r: Rect) {
         let log = &self.world.dialog_log;
         if log.is_empty() {

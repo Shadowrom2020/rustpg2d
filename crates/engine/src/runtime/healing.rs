@@ -220,7 +220,7 @@ impl Game {
         }
         for (a, _) in actions {
             let a = redirect_heals(a);
-            self.runner.push(&[a], &ActionCtx { owner: Some(uid) });
+            self.runner.push(&[a], &ActionCtx { owner: Some(uid), ..Default::default() });
         }
         if self.project.db.item(item).is_some_and(|d| d.consumable) {
             self.world.take_item(item, 1);

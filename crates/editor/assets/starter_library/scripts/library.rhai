@@ -153,3 +153,109 @@ fn signposts() {
         #{ id: "wilds", name: text("The Wilds"), map: "wilds", x: 510.0, y: 511.0, arrive_at: "signpost_wilds", hours: 5 },
     ]
 }
+
+// Adds friendship points (0 to 100); true when the character now counts the player a friend for
+// the first time (five hearts).
+fn friend_add(name, points) {
+    let key = "friend_" + name;
+    let v = get_var(key) + points;
+    if v < 0 { v = 0; }
+    if v > 100 { v = 100; }
+    set_var(key, v);
+    if v >= 50 && !flag("friend_reward_" + name) {
+        set_flag("friend_reward_" + name, true);
+        return true;
+    }
+    false
+}
+
+// A character definition's 'Interact' trigger: the first chat of the day counts a little.
+fn friend_chat() {
+    let name = self_name();
+    if !(name in friend_tastes()) { return; }
+    let key = "chat_day_" + name;
+    if get_var(key) == day() + 1 { return; }
+    set_var(key, day() + 1);
+    if friend_add(name, 2) {
+        say(friend_speaker(), "You're a true friend, {player}. Here, I want you to have this.");
+        friend_reward(name);
+    }
+}
+
+// The reward at five hearts (the line is said by the caller: helpers don't see SELF).
+fn friend_reward(name) {
+    give_item(friend_tastes()[name].reward, 1);
+}
+
+// The character's name as a speaker: "tomas" -> "Tomas" (a definition's name would be "Villager").
+fn friend_speaker() {
+    let n = self_name();
+    if n.len() == 0 { return ""; }
+    n.sub_string(0, 1).to_upper() + n.sub_string(1)
+}
+
+// Condition of the gift trigger: does this character take gifts?
+fn friend_takes_gifts() {
+    self_name() in friend_tastes()
+}
+
+// ---- Friendship and gifts ----------------------------------------------------------------
+// Villagers like the player more for a chat a day and for gifts (an item used on them). Their
+// friendship is the variable friend_<name> (0 to 100 points; the journal's People page shows ten
+// hearts). Everyone who takes gifts has an entry here, by their name on the map: the gifts they
+// love, like and dislike (anything else is still a kind thought) and what they give back once
+// they count the player a friend (five hearts).
+fn friend_tastes() {
+    #{
+        tomas: #{ loved: ["pumpkin"], liked: ["apple", "carrot", "cheese"], disliked: ["old_boot", "goblin_rags"], reward: "apple_pie" },
+        ida: #{ loved: ["honey"], liked: ["bread", "milk", "moonpetal"], disliked: ["old_boot", "wolf_pelt"], reward: "tunic_green" },
+        bram: #{ loved: ["honey"], liked: ["flour", "egg", "milk", "wheat"], disliked: ["mushroom", "old_boot"], reward: "festival_bread" },
+        brom: #{ loved: ["ruby"], liked: ["iron_ore", "coal", "silver_ore", "ale"], disliked: ["herb", "moonpetal"], reward: "iron_ingot" },
+        wren: #{ loved: ["moonpetal"], liked: ["herb", "feverleaf", "bitterroot", "mushroom"], disliked: ["ale", "wolf_pelt"], reward: "potion" },
+        finn: #{ loved: ["ale"], liked: ["bread", "carrot_soup", "cheese"], disliked: ["trout", "old_boot"], reward: "grilled_trout" },
+        greta: #{ loved: ["cheese"], liked: ["egg", "honey", "pumpkin"], disliked: ["old_boot", "goblin_rags"], reward: "pumpkin_stew" },
+        elder: #{ loved: ["apple_pie"], liked: ["honey", "milk", "scroll_light"], disliked: ["ale"], reward: "scroll_light" },
+        oswin: #{ loved: ["ale"], liked: ["bread", "apple", "cheese"], disliked: ["old_boot"], reward: "bread" },
+        dagny: #{ loved: ["grilled_trout"], liked: ["bread", "ale", "cheese"], disliked: ["moonpetal"], reward: "bandage" },
+        jorun: #{ loved: ["wheat"], liked: ["bread", "ale", "apple"], disliked: ["mushroom"], reward: "flour" },
+        beth: #{ loved: ["carrot_seeds"], liked: ["egg", "milk", "pumpkin_seeds"], disliked: ["wolf_pelt"], reward: "pumpkin_seeds" },
+        hal: #{ loved: ["pumpkin_stew"], liked: ["carrot", "apple", "ale"], disliked: ["old_boot"], reward: "wheat_seeds" },
+        ansel: #{ loved: ["festival_bread"], liked: ["honey", "bread", "herb"], disliked: ["ale"], reward: "scroll_heal" },
+    }
+}
+
+// A character definition's 'Use item' trigger (any item, if friend_takes_gifts()): one gift a day.
+fn give_gift() {
+    let name = self_name();
+    let item = used_item();
+    let t = friend_tastes()[name];
+    let key = "gift_day_" + name;
+    if get_var(key) == day() + 1 {
+        // The game took a consumable already: give it back.
+        if is_consumable(item) { give_item(item, 1); }
+        say(friend_speaker(), "That's kind, but one gift a day is plenty!");
+        return;
+    }
+    set_var(key, day() + 1);
+    if !is_consumable(item) { take_item(item, 1); }
+    let points = 3;
+    if item in t.loved {
+        points = 15;
+        say(friend_speaker(), "Oh! I love this! Thank you so much, {player}!");
+        emote("self", "love");
+    } else if item in t.liked {
+        points = 8;
+        say(friend_speaker(), "How kind of you. Thank you!");
+        emote("self", "joy");
+    } else if item in t.disliked {
+        points = -8;
+        say(friend_speaker(), "Er... thanks, I suppose.");
+        emote("self", "annoyed");
+    } else {
+        say(friend_speaker(), "For me? Thank you.");
+    }
+    if friend_add(name, points) {
+        say(friend_speaker(), "You're a true friend, {player}. Here, I want you to have this.");
+        friend_reward(name);
+    }
+}

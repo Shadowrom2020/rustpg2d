@@ -37,6 +37,11 @@ struct Ctx {
     achievements: std::collections::BTreeSet<String>,
     /// The project's factions (`standing()` where the save holds none).
     factions: crate::factions::Factions,
+    /// Consumable item ids (`is_consumable`).
+    consumables: std::collections::BTreeSet<String>,
+    /// The trigger's event: the used item and the owner's name (`used_item()`, `self_name()`).
+    used_item: String,
+    self_name: String,
 }
 
 /// What scripts can read about the player besides the world state (the game updates it every
@@ -98,6 +103,18 @@ impl ScriptHost {
         let mut c = self.ctx.borrow_mut();
         c.recipes = recipes;
         c.tool_kinds = tool_kinds;
+    }
+
+    /// The project's consumable items, for `is_consumable(id)`.
+    pub fn set_consumables(&mut self, ids: std::collections::BTreeSet<String>) {
+        self.ctx.borrow_mut().consumables = ids;
+    }
+
+    /// The event of the next call: the used item ("" = none) and the owner's name.
+    pub fn set_event(&mut self, item: &str, owner_name: &str) {
+        let mut c = self.ctx.borrow_mut();
+        c.used_item = item.to_string();
+        c.self_name = owner_name.to_string();
     }
 
     pub fn set_factions(&mut self, factions: crate::factions::Factions) {
@@ -327,6 +344,9 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
     // emote(target, "joy"[, #{ seconds, wait }]) / clear_emote(target): an emotion over the head.
     engine.register_fn("emote", with!(ctx, |c, t: &str, e: &str| c.actions.push(Action::Emote { target: t.into(), emotion: e.into(), seconds: 0.0, wait: false })));
+    engine.register_fn("used_item", with!(ctx, |c| c.used_item.clone()));
+    engine.register_fn("self_name", with!(ctx, |c| c.self_name.clone()));
+    engine.register_fn("is_consumable", with!(ctx, |c, item: &str| c.consumables.contains(item)));
     engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: 0.0 })));
     engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str, seconds: f64| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: seconds as f32 })));
     engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str, seconds: i64| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: seconds as f32 })));
@@ -984,6 +1004,20 @@ mod tests {
         assert_eq!(host.call(&mut WorldState::default(), "rest", None), vec![Action::Sleep { hours: 8.0 }, Action::Sleep { hours: 2.5 }]);
         host.set_player(PlayerInfo { pose: "sit".into(), ..Default::default() });
         assert_eq!(host.call(&mut WorldState::default(), "rest", None), vec![Action::Sleep { hours: 2.5 }]);
+    }
+
+    #[test]
+    fn event_api_tells_the_item_and_the_owner() {
+        let mut host = ScriptHost::new();
+        host.load_source(r#"fn gift() { if is_consumable(used_item()) { set_var(self_name() + "_" + used_item(), 1); } else { set_var("kept", 1); } }"#).unwrap();
+        host.set_consumables(["bread".to_string()].into_iter().collect());
+        let mut w = WorldState::default();
+        host.set_event("bread", "tomas");
+        host.call(&mut w, "gift", Some(7));
+        assert_eq!(w.var("tomas_bread"), 1);
+        host.set_event("old_boot", "tomas");
+        host.call(&mut w, "gift", Some(7));
+        assert_eq!(w.var("kept"), 1);
     }
 
     #[test]

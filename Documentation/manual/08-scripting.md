@@ -321,6 +321,8 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `emote(target, emotion)` | Shows an emotion over a character's head for 2.5 s: a small animated icon that follows it. `emotion` is an animation of a sprite sheet of the kind *Emotions* (the starter set: `surprise`, `confused`, `anger`, `joy`, `love`, `embarrassed`, `sad`, `fear`, `sleepy`, `thinking`, `idea`, `music`, `sweat`, `annoyed`). `target`: `"player"`, `SELF` / `"self"`, a placed character's name, or a character's display name. *(queued)* |
 | `emote(target, emotion, options)` | Like `emote()`; options `#{ seconds: 4 }` (below 0: until `clear_emote`), `wait: true` (the following actions wait until it is over), e.g. `emote("guard", "surprise", #{ wait: true, seconds: 1.2 });` *(queued)* |
 | `clear_emote(target)` | Takes the character's emotion away. *(queued)* |
+| `bark(target, text)` | A short line in a speech bubble over a character's head (`"player"` too) that doesn't stop play, e.g. `bark(SELF, "Fresh bread!");`. It stays for 2 to 7 s by its length; placeholders work and the line is translated like dialogs. *(queued)* |
+| `bark(target, text, seconds)` | Like `bark()`, for `seconds`. *(queued)* |
 | `mood(target, mood)` | A character's portrait shows that mood (its definition's mood portrait) from now on, until changed or the running event is over; `""` = its usual portrait. `target`: a character on the map, or a character definition's id or name. *(queued)* |
 | `choice(text, options, var)` | Asks a question with answers `["Yes", "No"]`; the chosen index (0 = first) goes into variable `var`. *(queued, blocks)* |
 | `wait(seconds)` | Pauses the queue. *(queued, blocks)* |

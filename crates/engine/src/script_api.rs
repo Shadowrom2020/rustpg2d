@@ -188,6 +188,8 @@ pub const API: &[ApiFn] = api! {
     "emote"(target: Target, emotion: Text) "Shows an emotion over a character's head (\"player\" too) for 2.5 s: a tag of an Emotions sprite sheet (\"surprise\", \"joy\", \"sleepy\", ...) (queued)";
     "emote"(target: Target, emotion: Text, options: Opts) "Like emote(); options #{ seconds: 4 (below 0: until clear_emote), wait: true (the script's next actions wait until it is over) } (queued)";
     "clear_emote"(target: Target) "Takes a character's emotion away (queued)";
+    "bark"(target: Target, text: Line) "A short line in a speech bubble over a character's head (\"player\" too) that doesn't stop play; it stays by its length (queued)";
+    "bark"(target: Target, text: Line, seconds: Num) "Like bark(), for `seconds` (queued)";
     "mood"(target: Target, mood: Text) "A character's portrait shows that mood (its definition's mood portrait) until changed or the event ends; \"\" = its usual one (queued)";
     "open_companion"(target: Target) "Opens a companion's window (its gear and bag next to the player's inventory) once the event is over (queued)";
     "is_staying"(name: Text) "Whether a companion was told to wait where it is";

@@ -332,6 +332,7 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
                 options.iter().for_each(|o| add(o));
             }
             Action::OpenCrafting { title, .. } => add(title),
+            Action::Bark { lines, .. } => lines.iter().for_each(|l| add(l)),
             _ => {}
         });
     }

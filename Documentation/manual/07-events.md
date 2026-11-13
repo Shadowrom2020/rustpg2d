@@ -75,6 +75,7 @@ across map changes and in save games.
   option's number (0, 1, 2…) goes into a variable that later conditions check.
 - **Set mood**: the portrait mood a character shows ([Characters](06-characters.md#dialog-portraits-and-moods)).
 - **Show emotion** / **Clear emotion**: an icon over a character's head (below).
+- **Bark (speech bubble)**: a short line over a character's head that doesn't stop play (below).
 - **Carry prop**: a character (or the player) carries a prop in both hands (empty = puts it
   down); while carrying it holds nothing else and the player can't attack.
 
@@ -186,6 +187,30 @@ surprised when they notice the player, confused when they lose them and afraid w
 sleepers snore; companions are happy when they learn a spell. In the example, the guard is surprised
 to see you arrive, Tilda is glad to meet you, Elder Rowan dozes, thinks before he tells you about the
 lights and is happy when you return, and Pip is relieved when the remedy works.
+
+### Barks: lines in passing
+
+**Bark (speech bubble)** shows a short line in a speech bubble over a character (or the player):
+"Fresh bread!", "Cold tonight...". Unlike a *Dialog* it opens no dialog box and doesn't stop the
+player or the event; the bubble follows the character, pops up and fades out.
+
+| Setting | Effect |
+|---|---|
+| **target** | `self`, `player`, a placed character's name |
+| **lines** | One line per row: one of them is said, at random, never the same one twice in a row. Placeholders (`{player}`, `{sir\|madam}`) work, and the lines are translated like dialogs |
+| **seconds** | 0 = by the line's length (2 to 7 s) |
+
+When a character barks is up to the trigger: an *Hour* map trigger (the baker calling out at dawn),
+a *Trigger* zone the player walks through (the stalls of a market), an *If* on the weather or a
+variable. A character says one line at a time; a new bark replaces the old one. A character more
+than 12 tiles from the player, or not on the map (away on its daily routine), says nothing. In scripts:
+`bark("Tilda", "Fresh bread!")`.
+
+In the example, Oswin the crier calls the news in the square in the morning and afternoon, Dagny
+calls the hours on her night rounds, Tomas offers apples at the market (and grumbles when it rains),
+Finn shushes you at the pier, the elder looks up from his book, and Bram, Brom and Greta greet you
+in the bakery, the smithy and the tavern: *Hour* map triggers, *Trigger* zones by their stops and
+*Map enter* triggers indoors.
 
 ### A picture when you first meet someone
 

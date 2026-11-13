@@ -188,6 +188,11 @@ A quest has an id, a **title**, a **description** (shown in the journal), an **e
 and **stages**, one objective each. Write `{name}` in a stage to show the value of variable `name`,
 e.g. "Defeat slimes in Whisperwood ({pest_slimes}/5)".
 
+Each stage can **lead to** a place: a map and the name of a placed character, prop or zone on it
+(name it in its inspector). While the stage is current, a **quest marker** shows the way
+([Gameplay › Quest markers](09-gameplay.md#quest-markers)). Leave it empty for stages without one
+place ("ask around the village").
+
 Triggers drive quests with the **Quest** action (*start*, *advance to the next stage*, *set stage*,
 *complete*, *fail*) and check them with the **Quest** condition (*not started*, *active*,
 *completed*, *failed*, *active at stage*, *at stage or later*). The player gets a message for every

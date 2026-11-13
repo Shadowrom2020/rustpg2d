@@ -9,6 +9,20 @@
             "Return to Elder Rowan.",
         ],
         xp: 80,
+        targets: [
+            (
+                map: "house",
+                name: "gate_key_chest",
+            ),
+            (
+                map: "forest",
+                name: "shrine",
+            ),
+            (
+                map: "village",
+                name: "elder",
+            ),
+        ],
     ),
     (
         id: "pest_control",
@@ -19,6 +33,16 @@
             "Return to Tilda\'s shop for the reward.",
         ],
         xp: 40,
+        targets: [
+            (
+                map: "forest",
+                name: "slime_den",
+            ),
+            (
+                map: "shop",
+                name: "tilda",
+            ),
+        ],
     ),
     (
         id: "lost_cat",
@@ -30,6 +54,20 @@
             "Bring Mira the good news.",
         ],
         xp: 30,
+        targets: [
+            (
+                map: "",
+                name: "",
+            ),
+            (
+                map: "mill",
+                name: "biscuit",
+            ),
+            (
+                map: "village",
+                name: "mira",
+            ),
+        ],
     ),
     (
         id: "festival_bread",
@@ -40,6 +78,16 @@
             "Bake a Festival Loaf at Bram\'s oven (two flour, an egg, a jar of honey) and bring it to Bram.",
         ],
         xp: 60,
+        targets: [
+            (
+                map: "forest",
+                name: "raided_cart",
+            ),
+            (
+                map: "bakery",
+                name: "bram",
+            ),
+        ],
     ),
     (
         id: "herbal_remedy",
@@ -50,6 +98,16 @@
             "Brew the Herbal Remedy at Wren\'s alchemy table and bring it to Pip.",
         ],
         xp: 70,
+        targets: [
+            (
+                map: "apothecary",
+                name: "wren",
+            ),
+            (
+                map: "home_mira",
+                name: "pip_sick",
+            ),
+        ],
     ),
     (
         id: "tavern_rumours",
@@ -60,6 +118,16 @@
             "Find Halvar\'s silver locket in the old mine and bring it to Brom.",
         ],
         xp: 90,
+        targets: [
+            (
+                map: "smithy",
+                name: "brom",
+            ),
+            (
+                map: "mine",
+                name: "halvar_locket",
+            ),
+        ],
     ),
     (
         id: "elven_trust",
@@ -69,5 +137,11 @@
             "Bring the elven herbalist in the Wilds two wolf pelts.",
         ],
         xp: 50,
+        targets: [
+            (
+                map: "wilds",
+                name: "wild_herbalist",
+            ),
+        ],
     ),
 ]

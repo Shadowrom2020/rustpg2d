@@ -23,11 +23,20 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   triggers that serve many characters: `used_item()` (the item a *Use item* trigger reacted to),
   `self_name()` (the trigger's placed character or prop) and `is_consumable(item)`.
 
+- **Quest markers**: a quest stage can lead to a placed character, prop or zone on a map (*Database ›
+  Quests*, *leads to*). While it is current a golden marker bobs over the target, an arrow at the
+  screen's edge points to it when it is off screen, a target on another map is shown at the exit
+  leading there, and the map screen pins the spots with the quest's title. *Options › Quest
+  markers* switches them off; `status` prints `markers=`.
+
 ### Editor
 - The zone inspector's *Ambience* kind (sound, volume, fade), a **Footsteps** sound per terrain and
   *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).
 
 ### Example project
+- **Quest markers** for every stage of the example's quests with one place to go (the chest in the
+  elder's house, the shrine, the slime den, Tilda, the mill's cat, the raided cart, Bram, Wren, Pip,
+  Brom, Halvar's locket, the elven herbalist).
 - **Emberbrook's friends** (starter library content on the villager definitions): a chat a day
   and gifts raise friendship; fourteen villagers have gifts they love, like and dislike and give
   something back at five hearts (English and German). The baker's and the fisher's daily restocking

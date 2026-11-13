@@ -46,6 +46,7 @@ pub mod glyphs;
 mod attacks;
 mod defense;
 mod barks;
+mod markers;
 mod soundscape;
 mod emotions;
 mod mouse;
@@ -2193,7 +2194,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} barks={:?} ambience={:?} friends={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2274,6 +2275,7 @@ impl Game {
             self.barks_status(),
             self.audio.ambient_status(),
             self.friends_status(),
+            self.markers_status(),
             self.hits_status(),
             self.anims_status(),
             self.held_status(),
@@ -2538,6 +2540,7 @@ impl Game {
         set_default_camera();
         if !self.on_title() {
             self.draw_barks(&cam);
+            self.draw_quest_markers(&cam);
             self.draw_damage_numbers(&cam);
         }
         let alpha = match &self.fade {

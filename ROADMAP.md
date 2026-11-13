@@ -92,7 +92,7 @@ Instructions for every session (people and coding agents) that implements roadma
 ## 0.20.0 — A Living Village
 
 Emberbrook should feel inhabited: villagers talk in passing, the world sounds like where you
-stand, friendships grow with gifts, the year turns, armor shows on the 3D characters, signposts
+stand, friendships grow with gifts, the year turns, quests show where they lead, signposts
 connect the maps, and the dark hides a careful player. Build order as listed (the content-only
 fast travel early; seasons and stealth last, they are the biggest). Each *Engine* line is a
 proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Content first*).
@@ -240,30 +240,39 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   **Verify.** Autoplay giving gifts (`vars=` friendship), the daily limit across `settime +24`,
   a dialog line that appears at a heart level.
 
-- [ ] Visible helmets, hats, backpacks and quivers — `feature/worn-items`
+- [x] Quest markers — `feature/quest-markers`
 
-  **Goal.** Equipped head items and things carried on the back show on the 3D characters, as
-  held items already do.
+  **Goal.** Players see where the current step of a quest leads: a marker over the target in the
+  world, an arrow at the screen's edge when it is off screen, a pin on the world map.
 
-  **Design.** An item model gets two more places besides the hands: the *head* bone (helmets,
-  hats, hoods) and the *back* (backpacks, quivers, a sword on the back). The item form's 3D
-  model section chooses the place; the hold estimate gets a head and a back fit (size from the
-  head bone's span, the back from the shoulders). Head items with a model replace the colour
-  feature they cover (hair under a helmet) when the model says so. The bust (portraits, icons)
-  shows head items.
+  **Design.** A quest stage may name its target: a map and the name of a placed character, prop
+  or zone there (`QuestDef.targets`, one per stage, serde default; older quests load as they are).
+  Every active quest whose current stage has a target shows a bobbing marker over the target when
+  it is on screen, an arrow at the screen's edge pointing to it otherwise; a target on another map
+  is shown at the portal or transition leading there (when the current map has one). The world map
+  (M) pins the same spots. Players switch markers off in *Options*. `status` prints `markers=`.
 
-  **Engine.** Proposed: `HoldStyle::Head` and `HoldStyle::Back` (appended), `Gear` with the head
-  item and the back item, placing them in `render/model.rs` like held items.
+  **Engine.** Proposed: `QuestDef.targets`, the markers in the HUD and on the world map, an option
+  in `Settings`, the quest form's target fields.
 
-  **Touch points.** `defs.rs` (`HoldStyle`, `ItemModel`), `model.rs` (estimates),
-  `render/model.rs` (`Gear`, placing), `runtime/paperdoll.rs` / `equipment.rs`, editor
-  `models_tab.rs` / `database.rs` (item form), manual 05 / 06.
+  **Decided while building.** Agreed as proposed, for every active quest. `QuestDef.targets`
+  (`QuestTarget { map, name }`, one per stage). A target on this map is a placed entity (marker over
+  a character's head by its model's standing height, over a prop's top) or a zone (its middle); on
+  another map, the nearest portal, transition or map edge leading there. Hidden during cut-scenes
+  and on the title. The map screen's labels sit above the pins (exit labels are below exits).
+  Example: three unnamed props got names (`gate_key_chest`, `raided_cart`, `halvar_locket`; saves
+  go by uid). Verified: the elder, the house door, the east edge to the forest, the off-screen
+  arrow, the map pins of two quests, the option off (shots, `markers=`); a UI test for the form.
 
-  **Example.** Models for the iron helmet, a straw hat, a hood, a backpack and a quiver (Meshy,
-  about 33 credits each: ask before spending); the guards wear helmets.
+  **Touch points.** `quest.rs`, `runtime/journal.rs` / a new `runtime/markers.rs`,
+  `runtime/worldmap.rs`, `runtime/menu.rs` + `settings.rs`, editor `database.rs` (quest form),
+  `refactor.rs` (map renames), manual 09 / 15.
 
-  **Verify.** Autoplay equipping a helmet (`held=` shows head / back), shots in four facings and
-  walking, the bust with a helmet, characters without the bones (animals) ignore them.
+  **Example.** Targets for the example's six quests' stages.
+
+  **Verify.** Autoplay with a quest at a stage: the marker over its target (shot), the edge arrow
+  when it is off screen, a target on another map shown at the door, the world map's pin, the
+  option off; `markers=`.
 
 - [ ] Seasons — `feature/seasons`
 
@@ -324,8 +333,10 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   This touches the web file layer (`sys.rs` web, `web/rustpg2d.js`), `release::export_web` and
   model loading (`render/model.rs`, which parses every model at start today; natively that costs
   only 0.22 s, so desktop stays as it is).
-- Quest markers: a quest stage names its target (character, prop or zone); an arrow at the
-  screen's edge and a pin on the world map (`worldmap.rs`), switchable in the options.
+- Visible helmets, hats, backpacks and quivers (moved from 0.20.0): item models on the head and
+  back bones of the 3D characters (`HoldStyle::Head` / `Back`, `Gear` with head and back items,
+  placed in `render/model.rs` like held items); needs new Meshy item models (about 33 credits each,
+  ask first). The full design block is in git history (ROADMAP.md, 0.20.0).
 - Swimming and boats: a *swim* tile flag (like ladders): slow, no weapons, a swim clip; a
   rowboat prop to cross lakes.
 - Dungeons generated from structures (a theme for 0.21.0): a dungeon map kind that stitches

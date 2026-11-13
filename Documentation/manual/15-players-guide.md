@@ -115,6 +115,7 @@ place is named under the list (*R2 is also Switch weapon*).
 | Text speed | Slow, Normal, Fast, Instant |
 | Shake & flash | The screen shake and red flash when hurt, shakes from explosions, and the short pause when a blow lands |
 | Damage numbers | On / off: the numbers that rise from hits |
+| Quest markers | On / off: markers over quest targets, arrows at the screen's edge and pins on the map |
 | Language | The game's languages |
 | Controls… | Every action with its keys: Enter, then a key, adds one (up to three per action); Del clears; *Reset to defaults* |
 

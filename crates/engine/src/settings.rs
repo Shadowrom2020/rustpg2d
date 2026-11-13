@@ -26,6 +26,8 @@ pub struct Settings {
     pub screen_effects: bool,
     /// Damage numbers rising from hits.
     pub damage_numbers: bool,
+    /// Quest markers: over a quest's target, at the screen's edge, on the world map.
+    pub quest_markers: bool,
     /// Keys the player changed (Options › Controls): action id -> key names; other actions keep
     /// their default keys.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
@@ -44,7 +46,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, damage_numbers: true, keys: Default::default(), pad: Default::default(), pad_style: "auto".into(), language: None }
+        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, damage_numbers: true, quest_markers: true, keys: Default::default(), pad: Default::default(), pad_style: "auto".into(), language: None }
     }
 }
 

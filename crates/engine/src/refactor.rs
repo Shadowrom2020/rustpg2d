@@ -429,6 +429,11 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
     for d in &mut db.races {
         r.race(d);
     }
+    for q in &mut db.quests {
+        for t in &mut q.targets {
+            r.fix(RefKind::Map, &mut t.map);
+        }
+    }
     for d in &mut db.tilesets {
         for t in &mut d.terrains {
             r.fix(RefKind::Sound, &mut t.step);

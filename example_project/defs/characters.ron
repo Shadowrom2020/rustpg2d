@@ -40,7 +40,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: None,
         appearance: (
             model: "elder",
@@ -81,7 +111,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: None,
         appearance: (
             model: "villager",
@@ -542,6 +602,35 @@
                 ],
                 once: false,
             ),
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
         ],
         shop: Some((
             title: "",
@@ -600,7 +689,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: Some((
             title: "",
             currency: "coin",
@@ -676,7 +795,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: Some((
             title: "",
             currency: "coin",
@@ -752,7 +901,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: None,
         appearance: (
             model: "priest",
@@ -785,7 +964,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: Some((
             title: "",
             currency: "coin",
@@ -854,6 +1063,35 @@
                 ],
                 once: false,
             ),
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
         ],
         shop: Some((
             title: "",
@@ -912,7 +1150,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: None,
         appearance: (
             model: "town_crier",
@@ -941,7 +1209,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: Some((
             title: "",
             currency: "coin",
@@ -1034,7 +1332,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: None,
         appearance: (
             model: "farmer",
@@ -1068,7 +1396,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: Some((
             title: "",
             currency: "coin",
@@ -1154,7 +1512,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: None,
         appearance: (
             model: "villager_f",
@@ -1190,7 +1578,37 @@
         hostile: false,
         weapon: None,
         defense: 0,
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "friend_chat",
+                    ),
+                ],
+                once: false,
+            ),
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [
+                    (
+                        cond: Script(
+                            function: "friend_takes_gifts",
+                        ),
+                        negate: false,
+                    ),
+                ],
+                actions: [
+                    RunScript(
+                        function: "give_gift",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         shop: None,
         appearance: (
             model: "guard_f",

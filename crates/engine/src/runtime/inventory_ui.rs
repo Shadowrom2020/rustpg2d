@@ -245,7 +245,7 @@ impl Game {
         let Some(spec) = self.loaded.map.entity(uid).and_then(|e| self.project.db.container_of(e)).cloned() else {
             return;
         };
-        let ctx = crate::events::runner::ActionCtx { owner: Some(uid) };
+        let ctx = crate::events::runner::ActionCtx { owner: Some(uid), ..Default::default() };
         if !crate::events::runner::conditions_met(self, &spec.conditions, &ctx) {
             let msg = if spec.locked_text.is_empty() { "It's locked.".to_string() } else { crate::lang::tr(&spec.locked_text) };
             self.ui.toast(msg);

@@ -205,7 +205,7 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   **Verify.** Autoplay: find two signposts, travel between them (`map=`, the clock moved), an
   unfound one isn't offered.
 
-- [ ] Relationships and gifts — `feature/friendship`
+- [x] Relationships and gifts — `feature/friendship`
 
   **Goal.** Villagers like the player more for kindness and gifts: favourite and disliked
   gifts, friendship that opens new dialog lines and small rewards.
@@ -219,6 +219,17 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
 
   **Engine.** None for the core; proposed, optional: a journal *People* page that shows a
   character's variable as hearts (ask).
+
+  **Decided while building.** Two engine additions, agreed: the journal *People* page (variables
+  `friend_<name>` as ten hearts, `status` `friends=`) and three script functions, because content
+  alone couldn't tell which item was given or to whom: `used_item()` (`ActionCtx::item`),
+  `self_name()` and `is_consumable(item)` (the game takes a consumable item when a *Use item*
+  trigger reacts, so the script must not take it twice and hands a second gift of the day back).
+  Points 0 to 100: chat +2 a day, loved +15, liked +8, other +3, disliked -8, a reward at 50. The
+  gift trigger's Script condition `friend_takes_gifts()` keeps items of characters without tastes.
+  Helper functions don't see `SELF`, and `{self}` gives the definition's name ("Villager"), so
+  replies name the speaker from `self_name()`. Verified: a loved gift with the reward, a second gift
+  handed back, a disliked non-consumable gift taken (German), the People page (shot); a script test.
 
   **Touch points.** Example characters' triggers, a library script, `lang/de.ron`; for the
   optional page `runtime/journal.rs`.

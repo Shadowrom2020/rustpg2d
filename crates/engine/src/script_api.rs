@@ -188,6 +188,9 @@ pub const API: &[ApiFn] = api! {
     "emote"(target: Target, emotion: Text) "Shows an emotion over a character's head (\"player\" too) for 2.5 s: a tag of an Emotions sprite sheet (\"surprise\", \"joy\", \"sleepy\", ...) (queued)";
     "emote"(target: Target, emotion: Text, options: Opts) "Like emote(); options #{ seconds: 4 (below 0: until clear_emote), wait: true (the script's next actions wait until it is over) } (queued)";
     "clear_emote"(target: Target) "Takes a character's emotion away (queued)";
+    "used_item"() "The item the player used on the trigger's owner (its 'Use item' trigger; \"\" for other events), e.g. for gifts";
+    "self_name"() "The name of the placed character or prop whose trigger runs the script (\"\" if it has none)";
+    "is_consumable"(item: Item) "Whether an item is used up when used (the game already took one when a 'Use item' trigger reacted to it)";
     "bark"(target: Target, text: Line) "A short line in a speech bubble over a character's head (\"player\" too) that doesn't stop play; it stays by its length (queued)";
     "bark"(target: Target, text: Line, seconds: Num) "Like bark(), for `seconds` (queued)";
     "mood"(target: Target, mood: Text) "A character's portrait shows that mood (its definition's mood portrait) until changed or the event ends; \"\" = its usual one (queued)";
@@ -305,6 +308,7 @@ mod tests {
             ("take_item", 0, IdKind::Item),
             ("has_item", 0, IdKind::Item),
             ("item_count", 0, IdKind::Item),
+            ("is_consumable", 0, IdKind::Item),
             ("teleport", 0, IdKind::Map),
             ("set_map_weather", 0, IdKind::Map),
             ("teleport", 1, IdKind::Spawn),

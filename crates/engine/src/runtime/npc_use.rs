@@ -98,7 +98,7 @@ impl Game {
         let actions = self.collect(&GameEvent::UseItem { item: item.to_string() }, &Source::Item(item.to_string()));
         for (a, _) in actions {
             if let Some(a) = silent(super::healing::redirect_heals(a)) {
-                self.runner.push(&[a], &ActionCtx { owner: Some(uid) });
+                self.runner.push(&[a], &ActionCtx { owner: Some(uid), ..Default::default() });
             }
         }
         let consumable = self.project.db.item(item).is_some_and(|d| d.consumable);

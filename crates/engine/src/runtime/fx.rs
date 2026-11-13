@@ -128,6 +128,13 @@ impl Game {
         self.scripts.set_casters(casters);
     }
 
+    /// What a script call may ask about its trigger: the used item (`used_item()`) and the
+    /// owner's name (`self_name()`).
+    pub(super) fn script_event(&mut self, ctx: &crate::events::runner::ActionCtx) {
+        let name = ctx.owner.and_then(|u| self.loaded.entities.iter().find(|e| e.uid == u)).map_or(String::new(), |e| e.name.clone());
+        self.scripts.set_event(&ctx.item, &name);
+    }
+
     /// Runs a script function and queues its actions (automated play-throughs).
     pub fn run_script(&mut self, function: &str) {
         self.sync_script_player();

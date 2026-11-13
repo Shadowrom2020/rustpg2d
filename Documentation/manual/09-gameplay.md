@@ -314,6 +314,29 @@ The prop's own *Interact* trigger runs `signpost_menu()`; it finds the signpost 
 at by map and position, so placed signposts need no triggers of their own. In the example there are
 signposts in the village square, the Whisperwood clearing, at the old mine and in the Wilds.
 
+## Friendship and gifts
+
+Villagers like the player more for a chat each day and for gifts. Friendship is the variable
+`friend_<name>` of a placed character (0 to 100 points; `friend_tomas` for *tomas*), and the
+journal's **People** page shows everyone with friendship points in ten hearts (half hearts from
+five points), friendliest first. Any event or script can raise it (`add_var("friend_tomas", 10)`
+for a quest well done) or check it in conditions.
+
+The starter library's villagers (and the example's) come with friendship as content:
+
+- **A chat a day**: the first time each day the player talks to them, +2.
+- **Gifts**: use an item on them (the quick bar or the inventory while facing them): a gift they
+  love +15, like +8, anything else +3, a gift they dislike -8, each with a reply and an emotion.
+  One gift a day: a second one is handed back.
+- **Five hearts**: they give the player something once ("You're a true friend...").
+
+What each villager loves, likes, dislikes and gives back is one list in the script function
+`friend_tastes()` (by their names on the map); the villager definitions' *Interact* and *Use item*
+triggers run `friend_chat()` and `give_gift()`. Characters not in the list take no gifts (their
+*Use item* trigger's condition, `friend_takes_gifts()`, says no, so the item isn't used up). The
+scripts use `used_item()`, `self_name()` and `is_consumable(item)`
+([Scripting](08-scripting.md)).
+
 ## Quests, journal, bestiary and dialog log
 
 The **journal** (J) has three tabs:

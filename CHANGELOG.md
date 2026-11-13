@@ -18,11 +18,20 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   characters decides, so a bridge sounds of wood). Steps fall where the feet land in the walk animation (two per
   cycle), for the player and, quieter, characters within six tiles. `status` prints `ambience=`.
 
+- **Friendship and gifts**: the journal's new **People** page shows the characters the player is
+  friends with in ten hearts (variables `friend_<name>`, 0 to 100). New script functions for
+  triggers that serve many characters: `used_item()` (the item a *Use item* trigger reacted to),
+  `self_name()` (the trigger's placed character or prop) and `is_consumable(item)`.
+
 ### Editor
 - The zone inspector's *Ambience* kind (sound, volume, fade), a **Footsteps** sound per terrain and
   *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).
 
 ### Example project
+- **Emberbrook's friends** (starter library content on the villager definitions): a chat a day
+  and gifts raise friendship; fourteen villagers have gifts they love, like and dislike and give
+  something back at five hearts (English and German). The baker's and the fisher's daily restocking
+  triggers are back in the library's versions too.
 - **Fast travel by signposts** (starter library content: the *Signpost* prop and its script):
   pressing E at a signpost marks it found and offers the other signposts found so far; the trip
   takes hours on the clock, and the roads are too dark at night. Signposts in the village square,

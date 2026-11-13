@@ -34,6 +34,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).
 
 ### Example project
+- *The Strange Lights* moves on to "open the east gate" as soon as the player leaves the elder's
+  house with the gate key (a village *Map enter* trigger), not only when the gate is unlocked, so
+  its quest marker leads to the gate instead of back to the emptied chest.
 - **Quest markers** for every stage of the example's quests with one place to go (the chest in the
   elder's house, the shrine, the slime den, Tilda, the mill's cat, the raided cart, Bram, Wren, Pip,
   Brom, Halvar's locket, the elven herbalist).

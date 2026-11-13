@@ -12,7 +12,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   by its length. A character more than 12 tiles from the player, or away on its routine, says
   nothing. `status` prints `barks=`.
 
+- **Soundscapes and footsteps**: an *Ambience* zone plays a looping sound, full inside the zone and
+  fading out around it (several mix; the player's *Ambience volume* applies); steps sound like the
+  ground: a footstep sound per terrain, and per tile for floors (the topmost layer under the
+  characters decides, so a bridge sounds of wood). Steps fall where the feet land in the walk animation (two per
+  cycle), for the player and, quieter, characters within six tiles. `status` prints `ambience=`.
+
+### Editor
+- The zone inspector's *Ambience* kind (sound, volume, fade), a **Footsteps** sound per terrain and
+  *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).
+
 ### Example project
+- **Emberbrook sounds like a place**: birds over the village, the forest and the Wilds, the stream
+  rushing along its banks, wind in the Wilds, drips in the mine, the tavern's murmur, and steps on
+  grass, dirt, stone, wood and snow. The ten sounds (synthesized, `scripts/sounds/make_sounds.py`)
+  and the tilesets' footsteps are in the starter library.
 - **Emberbrook talks**: the crier calls the news in the square, the night watch calls the hours,
   Tomas sells apples at the market (and grumbles when it rains), Finn shushes you at the pier, the
   elder looks up from his book, and the baker, the smith and the innkeeper greet you as you come in

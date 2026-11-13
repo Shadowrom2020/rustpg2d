@@ -397,6 +397,11 @@ impl Editor {
                             out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("needs the rod \"{rod}\", which isn't an item"), target: target.clone() });
                         }
                     }
+                    ZoneKind::Ambience { sound, .. } => {
+                        if !db.has(RefKind::Sound, sound) {
+                            out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("plays the ambience sound \"{sound}\", which doesn't exist"), target: target.clone() });
+                        }
+                    }
                     ZoneKind::Spawn | ZoneKind::Trigger => {}
                 }
                 let mut refs = rustpg2d_engine::refactor::refs_of_triggers(&z.triggers);

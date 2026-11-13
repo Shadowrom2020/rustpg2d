@@ -34,6 +34,16 @@ pub struct TilesetDef {
     /// their edge tiles. Editor-only; games just show the painted tiles.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub terrains: Vec<crate::autotile::Terrain>,
+    /// Footstep sounds of single tiles (floors that aren't terrains); before the terrains'.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub steps: Vec<TileSteps>,
+}
+
+/// Tiles that sound like `sound` when walked on.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TileSteps {
+    pub sound: String,
+    pub tiles: Vec<u32>,
 }
 
 /// A light source: a soft circle of light around a tile, prop, character or carried item.
@@ -89,7 +99,7 @@ pub struct TileLight {
 /// value is [`TilesetDef::fresh`].
 impl Default for TilesetDef {
     fn default() -> Self {
-        TilesetDef { id: String::new(), image: String::new(), solid: vec![], ladder: vec![], low: vec![], animations: vec![], lights: vec![], terrains: vec![] }
+        TilesetDef { id: String::new(), image: String::new(), solid: vec![], ladder: vec![], low: vec![], animations: vec![], lights: vec![], terrains: vec![], steps: vec![] }
     }
 }
 
@@ -101,6 +111,13 @@ impl TilesetDef {
     /// A new tileset as the editor creates it.
     pub fn fresh(id: &str) -> Self {
         Self::new(id, "tilesets/new.png")
+    }
+
+    /// The footstep sound of a tile: its own (`steps`), else that of a terrain it belongs to.
+    pub fn step_of(&self, tile: u32) -> Option<&str> {
+        let own = self.steps.iter().find(|s| s.tiles.contains(&tile)).map(|s| s.sound.as_str());
+        // (A terrain's base tile is what erasing it leaves, often another ground: not its own.)
+        own.or_else(|| self.terrains.iter().find(|t| !t.step.is_empty() && t.contains(tile)).map(|t| t.step.as_str())).filter(|s| !s.is_empty())
     }
 
     pub fn light_of(&self, tile: u32) -> Option<&LightSpec> {
@@ -1793,7 +1810,7 @@ macro_rules! impl_def {
     };
 }
 
-impl_def!(TilesetDef, crate::refactor::RefKind::Tileset, tilesets);
+impl_def!(TilesetDef, crate::refactor::RefKind::Tileset, tilesets, refs = crate::refactor::refs_of_tileset);
 impl_def!(SheetDef, crate::refactor::RefKind::Sheet, sheets);
 impl_def!(ItemDef, crate::refactor::RefKind::Item, items, refs = crate::refactor::refs_of_item);
 impl_def!(PropDef, crate::refactor::RefKind::Prop, props, refs = crate::refactor::refs_of_prop);

@@ -429,6 +429,14 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
     for d in &mut db.races {
         r.race(d);
     }
+    for d in &mut db.tilesets {
+        for t in &mut d.terrains {
+            r.fix(RefKind::Sound, &mut t.step);
+        }
+        for s in &mut d.steps {
+            r.fix(RefKind::Sound, &mut s.sound);
+        }
+    }
     for d in &mut db.models {
         if let Some(rig) = &mut d.rig {
             r.fix(RefKind::Model, &mut rig.template);
@@ -466,6 +474,7 @@ pub fn rename_in_map(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usiz
             ZoneKind::Portal { target_map, .. } | ZoneKind::Transition { target_map, .. } => r.fix(RefKind::Map, target_map),
             ZoneKind::Spawner { character, .. } => r.fix(RefKind::Character, character),
             ZoneKind::FishingSpot { rod } => r.fix(RefKind::Item, rod),
+            ZoneKind::Ambience { sound, .. } => r.fix(RefKind::Sound, sound),
             _ => {}
         }
         r.triggers(&mut z.triggers);
@@ -490,6 +499,13 @@ fn collector() -> Renamer<'static> {
 /// Everything an item definition refers to (icon / projectile sheets, ammo, items and sounds used
 /// by its triggers, ...).
 /// A model's rig template.
+/// The sounds a tileset's footsteps use.
+pub fn refs_of_tileset(d: &crate::defs::TilesetDef) -> Vec<(RefKind, String)> {
+    let mut out: Vec<(RefKind, String)> = d.terrains.iter().map(|t| &t.step).chain(d.steps.iter().map(|s| &s.sound)).filter(|s| !s.is_empty()).map(|s| (RefKind::Sound, s.clone())).collect();
+    out.dedup();
+    out
+}
+
 pub fn refs_of_model(d: &crate::defs::ModelDef) -> Vec<(RefKind, String)> {
     d.rig.iter().filter(|r| !r.template.is_empty()).map(|r| (RefKind::Model, r.template.clone())).collect()
 }

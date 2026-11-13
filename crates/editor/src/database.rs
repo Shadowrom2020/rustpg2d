@@ -148,6 +148,10 @@ pub struct DbState {
     pub tile_ladder_pick: bool,
     /// Tilesets tab: clicks on the tile grid toggle low tiles (shots fly over them).
     pub tile_low_pick: bool,
+    /// Tilesets tab: clicks on the tile grid give tiles the footstep sound `tile_step_sound`
+    /// (or take it away).
+    pub tile_step_pick: bool,
+    pub tile_step_sound: String,
     /// Editor script `dbscroll Y`: scroll the definition form there once.
     pub form_scroll: Option<f32>,
     /// Tilesets tab: the terrain whose tiles clicks into the grid assign.
@@ -181,6 +185,8 @@ struct Cx<'a> {
     tile_light_pick: &'a mut bool,
     tile_ladder_pick: &'a mut bool,
     tile_low_pick: &'a mut bool,
+    tile_step_pick: &'a mut bool,
+    tile_step_sound: &'a mut String,
     terrain_pick: &'a mut Option<crate::terrain::TerrainPick>,
 }
 
@@ -567,6 +573,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     tile_light_pick: &mut ed.db.tile_light_pick,
                     tile_ladder_pick: &mut ed.db.tile_ladder_pick,
                     tile_low_pick: &mut ed.db.tile_low_pick,
+                    tile_step_pick: &mut ed.db.tile_step_pick,
+                    tile_step_sound: &mut ed.db.tile_step_sound,
                     terrain_pick: &mut ed.db.terrain_pick,
                 };
                 let i = ed.db.sel;
@@ -1937,16 +1945,37 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
             ui.weak(format!("{} low tile(s)", d.low.len()));
         }
     });
+    ui.horizontal(|ui| {
+        if ui
+            .selectable_label(*cx.tile_step_pick, ui::t(ui::ph::FOOTPRINTS, "Pick footstep tiles in the grid"))
+            .on_hover_text("While on, clicking a tile below gives it the footstep sound chosen here, or takes it away. For floors that aren't terrains (wooden floors indoors); a terrain's own Footsteps sound covers its tiles. The topmost layer under the characters with a footstep sound decides, so a bridge over water sounds of wood.")
+            .clicked()
+        {
+            *cx.tile_step_pick = !*cx.tile_step_pick;
+            *cx.tile_low_pick = false;
+            *cx.tile_ladder_pick = false;
+            *cx.tile_light_pick = false;
+            *cx.anim_target = None;
+            *cx.terrain_pick = None;
+        }
+        ui.label("sound");
+        widgets::suggest(ui, "tile_step_sound", cx.tile_step_sound, &cx.refs.sounds, 120.0);
+        let n: usize = d.steps.iter().map(|s| s.tiles.len()).sum();
+        if n > 0 {
+            ui.weak(format!("{n} tile(s) with footsteps"));
+        }
+    });
 
     // ---- terrains
     ui.separator();
     let before = *cx.terrain_pick;
-    crate::terrain::terrains_form(ui, d, t.id(), ts, tile, cx.terrain_pick);
+    crate::terrain::terrains_form(ui, d, t.id(), ts, tile, cx.terrain_pick, &cx.refs.sounds);
     if cx.terrain_pick.is_some() && before.is_none() {
         *cx.anim_target = None;
         *cx.tile_light_pick = false;
         *cx.tile_ladder_pick = false;
         *cx.tile_low_pick = false;
+        *cx.tile_step_pick = false;
     }
 
     // ---- tile grid
@@ -1955,6 +1984,9 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
     match (*cx.anim_target, *cx.tile_light_pick) {
         _ if *cx.tile_ladder_pick && editing_terrain.is_none() && cx.anim_target.is_none() => ui.label("Click tiles to mark or unmark ladders (green rungs = ladder)."),
         _ if *cx.tile_low_pick && editing_terrain.is_none() && cx.anim_target.is_none() => ui.label("Click tiles to mark or unmark them as low (yellow = solid but low: shots fly over it)."),
+        _ if *cx.tile_step_pick && editing_terrain.is_none() && cx.anim_target.is_none() => {
+            ui.label(format!("Click tiles to give them the footstep sound \"{}\" or take it away (footprints = a footstep sound of its own).", cx.tile_step_sound))
+        }
         _ if editing_terrain.is_some() => {
             let (p, name) = editing_terrain.clone().unwrap();
             let blob = d.terrains.get(p.terrain).is_some_and(|t| t.is_blob());
@@ -1999,6 +2031,9 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
             if editing_terrain.as_ref().is_some_and(|(p, _)| d.terrains[p.terrain].contains(i) || d.terrains[p.terrain].base == Some(i)) {
                 p.rect_stroke(r.shrink(2.0), 0.0, Stroke::new(2.0_f32, Color32::from_rgb(90, 220, 255)), StrokeKind::Inside);
             }
+            if d.steps.iter().any(|s| s.tiles.contains(&i)) {
+                p.text(r.center_bottom() + vec2(0.0, -2.0), egui::Align2::CENTER_BOTTOM, ui::ph::FOOTPRINTS, egui::FontId::proportional(14.0), Color32::from_rgb(230, 200, 150));
+            }
             if d.ladder.contains(&i) {
                 p.text(r.left_bottom() + vec2(2.0, -2.0), egui::Align2::LEFT_BOTTOM, ui::ph::LADDER_SIMPLE, egui::FontId::proportional(16.0), Color32::from_rgb(120, 230, 120));
             }
@@ -2029,6 +2064,7 @@ fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
                                 d.ladder.sort();
                             }
                         },
+                        None if *cx.tile_step_pick => set_tile_step(d, i, cx.tile_step_sound),
                         None if *cx.tile_low_pick => {
                             match d.low.iter().position(|&l| l == i) {
                                 Some(k) => {
@@ -2231,6 +2267,25 @@ pub(crate) fn features_editor(ui: &mut egui::Ui, key: &str, features: &mut Vec<r
 struct Features<'a> {
     id: &'a str,
     features: &'a mut Vec<rustpg2d_engine::defs::ColorFeature>,
+}
+
+/// A click on tile `i` in the footstep pick mode: it gets `sound`, or loses it when it has it
+/// already (a tile has one footstep sound; empty groups go).
+pub(crate) fn set_tile_step(d: &mut TilesetDef, i: u32, sound: &str) {
+    let had = d.steps.iter().any(|s| s.sound == sound && s.tiles.contains(&i));
+    for s in &mut d.steps {
+        s.tiles.retain(|&t| t != i);
+    }
+    if !had && !sound.trim().is_empty() {
+        match d.steps.iter_mut().find(|s| s.sound == sound) {
+            Some(s) => {
+                s.tiles.push(i);
+                s.tiles.sort();
+            }
+            None => d.steps.push(rustpg2d_engine::defs::TileSteps { sound: sound.trim().to_string(), tiles: vec![i] }),
+        }
+    }
+    d.steps.retain(|s| !s.tiles.is_empty());
 }
 
 fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {

@@ -89,6 +89,9 @@ pub struct Audio {
     /// Player options (0..1): effects and music volume, master already applied.
     effects: f32,
     music_vol: f32,
+    /// Ambience loops playing (sound id -> its loudness now, 0..1 before the sound's own volume
+    /// and the ambience option; `set_ambient` moves it towards the wanted one).
+    ambient: HashMap<String, f32>,
     /// The built-in rain loop (made on first use) and its volume (0 = stopped).
     rain: Option<Sound>,
     rain_vol: f32,
@@ -138,6 +141,7 @@ impl Audio {
             enabled: false,
             effects: 1.0,
             music_vol: 1.0,
+            ambient: HashMap::new(),
             rain: None,
             rain_vol: 0.0,
             ambience: 1.0,
@@ -207,6 +211,7 @@ impl Audio {
             enabled,
             effects: 1.0,
             music_vol: 1.0,
+            ambient: HashMap::new(),
             rain: None,
             rain_vol: 0.0,
             ambience: 1.0,
@@ -358,9 +363,93 @@ impl Audio {
         self.music.as_deref()
     }
 
-    /// The player's ambience volume (Options › Ambience volume), also for the playing rain.
+    /// Plays a sound effect once at `gain` (0..1) of its volume: footsteps of characters
+    /// farther away.
+    pub fn play_at(&self, id: &str, gain: f32) {
+        if gain <= 0.0 {
+            return;
+        }
+        if !id.is_empty() {
+            let mut r = self.recent.borrow_mut();
+            if r.len() >= 6 {
+                r.pop_front();
+            }
+            r.push_back(id.to_string());
+        }
+        if !self.enabled {
+            return;
+        }
+        if let Some((s, vol)) = self.sounds.get(id) {
+            play_sound(s, PlaySoundParams { looped: false, volume: *vol * self.effects * gain.min(1.0) });
+        }
+    }
+
+    /// The looping sound of `id` (its gapless loop if one was made).
+    fn loop_sound(&self, id: &str) -> Option<(&Sound, f32)> {
+        let (orig, vol) = self.sounds.get(id)?;
+        let s = match self.loops.get(id) {
+            Some(Loop::Stretched(s)) => s,
+            _ => orig,
+        };
+        Some((s, *vol))
+    }
+
+    /// Moves the ambience loops towards `wanted` (sound id -> loudness 0..1) over `dt` seconds:
+    /// loops fade in and out over half a second, start when wanted and stop once silent.
+    pub fn set_ambient(&mut self, wanted: &HashMap<String, f32>, dt: f32) {
+        const RATE: f32 = 2.0; // full loudness per second
+        let mut ids: Vec<String> = self.ambient.keys().chain(wanted.keys()).cloned().collect();
+        ids.sort();
+        ids.dedup();
+        // (Muted, the loudness still follows the zones, for `status`; nothing plays.)
+        let play = self.enabled;
+        for id in ids {
+            if !self.sounds.contains_key(&id) {
+                continue;
+            }
+            let goal = wanted.get(&id).copied().unwrap_or(0.0).clamp(0.0, 1.0);
+            let now = self.ambient.get(&id).copied();
+            let next = match now {
+                Some(v) => v + (goal - v).clamp(-RATE * dt, RATE * dt),
+                None if goal > 0.0 => 0.0,
+                None => continue,
+            };
+            if now.is_none() && play {
+                self.gapless(&id);
+                if let Some((s, vol)) = self.loop_sound(&id) {
+                    play_sound(s, PlaySoundParams { looped: true, volume: next * vol * self.ambience });
+                }
+            }
+            if next <= 0.0 && goal <= 0.0 {
+                if let Some((s, _)) = self.loop_sound(&id).filter(|_| play) {
+                    stop_sound(s);
+                }
+                self.ambient.remove(&id);
+                continue;
+            }
+            if let Some((s, vol)) = self.loop_sound(&id).filter(|_| play) {
+                set_sound_volume(s, next * vol * self.ambience);
+            }
+            self.ambient.insert(id, next);
+        }
+    }
+
+    /// `status()`: the ambience loops playing and their loudness (`id:0.42`).
+    pub fn ambient_status(&self) -> Vec<String> {
+        let mut v: Vec<String> = self.ambient.iter().map(|(id, l)| format!("{id}:{l:.2}")).collect();
+        v.sort();
+        v
+    }
+
+    /// The player's ambience volume (Options › Ambience volume), also for the playing rain and
+    /// the ambience loops.
     pub fn set_ambience_volume(&mut self, v: f32) {
         self.ambience = v.clamp(0.0, 1.0);
+        for (id, l) in &self.ambient {
+            if let Some((s, vol)) = self.loop_sound(id) {
+                set_sound_volume(s, l * vol * self.ambience);
+            }
+        }
         if let (Some(s), true) = (&self.rain, self.rain_vol > 0.0) {
             set_sound_volume(s, self.rain_vol * self.ambience);
         }

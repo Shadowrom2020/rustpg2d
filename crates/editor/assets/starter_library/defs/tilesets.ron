@@ -453,6 +453,7 @@
                     Some(195),
                     Some(2),
                 ],
+                step: "step_dirt",
             ),
             (
                 name: "Pond",
@@ -564,6 +565,7 @@
                     Some(307),
                     Some(4),
                 ],
+                step: "step_dirt",
             ),
             (
                 name: "Shore",
@@ -677,6 +679,7 @@
                     Some(419),
                     Some(24),
                 ],
+                step: "step_grass",
             ),
             (
                 name: "Snowfield",
@@ -731,6 +734,7 @@
                     Some(426),
                     Some(31),
                 ],
+                step: "step_snow",
             ),
             (
                 name: "Forest path",
@@ -788,6 +792,7 @@
                     Some(531),
                     Some(532),
                 ],
+                step: "step_dirt",
             ),
             (
                 name: "Stream",
@@ -899,6 +904,7 @@
                     Some(643),
                     Some(5),
                 ],
+                step: "step_stone",
             ),
             (
                 name: "Rug",
@@ -1011,6 +1017,7 @@
                     Some(755),
                     Some(35),
                 ],
+                step: "step_stone",
             ),
             (
                 name: "Farmland",
@@ -1065,6 +1072,7 @@
                     Some(762),
                     Some(36),
                 ],
+                step: "step_dirt",
             ),
             (
                 name: "Meadow",
@@ -1119,6 +1127,7 @@
                     Some(867),
                     Some(37),
                 ],
+                step: "step_grass",
             ),
             (
                 name: "Carpet",
@@ -1172,6 +1181,45 @@
                     Some(873),
                     Some(874),
                     Some(38),
+                ],
+            ),
+        ],
+        steps: [
+            (
+                sound: "step_grass",
+                tiles: [
+                    0,
+                    1,
+                    17,
+                ],
+            ),
+            (
+                sound: "step_dirt",
+                tiles: [
+                    2,
+                    4,
+                ],
+            ),
+            (
+                sound: "step_stone",
+                tiles: [
+                    5,
+                    39,
+                ],
+            ),
+            (
+                sound: "step_wood",
+                tiles: [
+                    6,
+                    18,
+                    44,
+                    45,
+                ],
+            ),
+            (
+                sound: "step_snow",
+                tiles: [
+                    31,
                 ],
             ),
         ],
@@ -1448,6 +1496,7 @@
                     Some(75),
                     Some(4),
                 ],
+                step: "step_dirt",
             ),
             (
                 name: "Chasm",
@@ -1555,6 +1604,26 @@
                     Some(186),
                     Some(187),
                     Some(188),
+                ],
+            ),
+        ],
+        steps: [
+            (
+                sound: "step_stone",
+                tiles: [
+                    0,
+                    1,
+                    2,
+                    17,
+                    19,
+                    20,
+                    21,
+                ],
+            ),
+            (
+                sound: "step_dirt",
+                tiles: [
+                    4,
                 ],
             ),
         ],

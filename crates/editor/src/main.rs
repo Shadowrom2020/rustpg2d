@@ -341,11 +341,15 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
         }
         // terrainedit K [block]: Database › Tilesets: edit terrain K of the selected tileset
-        // tilepick low|ladder|light|off: the Tilesets tab's grid pick mode
+        // tilepick low|ladder|light|step SOUND|off: the Tilesets tab's grid pick mode
         "tilepick" => {
             ed.db.tile_low_pick = arg(1) == "low";
             ed.db.tile_ladder_pick = arg(1) == "ladder";
             ed.db.tile_light_pick = arg(1) == "light";
+            ed.db.tile_step_pick = arg(1) == "step";
+            if arg(1) == "step" {
+                ed.db.tile_step_sound = arg(2).to_string();
+            }
         }
         "terrainedit" => ed.db.terrain_pick = Some(terrain::TerrainPick { terrain: num(1) as usize, slot: 0, block: arg(2) == "block" }),
         // terrainblob TILESET NAME on|off: the terrain's Corners (47 tiles) toggle

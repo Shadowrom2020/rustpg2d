@@ -524,7 +524,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     &mut db.quests,
                     sel,
                     |d| format!("{}  ({})", d.title, d.id),
-                    |ids| rustpg2d_engine::quest::QuestDef { id: unique("quest", ids), title: "New quest".into(), description: String::new(), stages: vec!["First objective".into()], xp: 0 },
+                    |ids| rustpg2d_engine::quest::QuestDef { id: unique("quest", ids), title: "New quest".into(), description: String::new(), stages: vec!["First objective".into()], xp: 0, targets: vec![] },
                     |d| &mut d.id,
                 ),
                 _ => false,
@@ -1763,7 +1763,7 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     widgets::triggers_ui(ui, &format!("chr/{}", d.id), &mut d.triggers, cx.refs, rustpg2d_engine::events::TriggerOwner::Character);
 }
 
-fn quest_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::quest::QuestDef, _cx: &mut Cx) {
+fn quest_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::quest::QuestDef, cx: &mut Cx) {
     ui.heading("Quest");
     egui::Grid::new("quest").num_columns(2).show(ui, |ui| {
         ui.label("Id");
@@ -1785,8 +1785,11 @@ fn quest_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::quest::QuestDef, _cx: 
     ui.weak("One objective per stage. The journal shows the objectives reached so far: earlier ones ticked, the current one open. \
              Triggers move the quest on with the Quest action (start, advance to the next stage, set stage, complete, fail) \
              and check it with the Quest condition; scripts use start_quest / advance_quest / set_quest_stage / complete_quest / fail_quest \
-             and quest_stage / quest_active / quest_done. Write {name} to show the value of variable 'name', e.g. \"Defeat slimes ({slimes}/5)\".");
+             and quest_stage / quest_active / quest_done. Write {name} to show the value of variable 'name', e.g. \"Defeat slimes ({slimes}/5)\". \
+             Each stage can lead somewhere: a map and the name of a placed character, prop or zone there get a quest marker while the stage is current.");
     let n = d.stages.len();
+    // One target per stage (empty = no marker); trailing empty ones aren't saved.
+    d.targets.resize(n, Default::default());
     let mut swap = None;
     let mut remove = None;
     for (k, s) in d.stages.iter_mut().enumerate() {
@@ -1803,15 +1806,27 @@ fn quest_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::quest::QuestDef, _cx: 
                 remove = Some(k);
             }
         });
+        let t = &mut d.targets[k];
+        ui.horizontal(|ui| {
+            ui.add_space(14.0);
+            ui.weak("leads to").on_hover_text("Its quest marker: over this character, prop or zone (by its name on the map) while the stage is current; on other maps at the exit leading there");
+            widgets::suggest(ui, &format!("qt_map{k}"), &mut t.map, &cx.refs.maps, 110.0);
+            ui.add(egui::TextEdit::singleline(&mut t.name).desired_width(140.0).hint_text("name on the map"));
+        });
     }
     if let Some(k) = swap {
         d.stages.swap(k, k + 1);
+        d.targets.swap(k, k + 1);
     }
     if let Some(k) = remove {
         d.stages.remove(k);
+        d.targets.remove(k);
     }
     if ui.button("+ Stage").clicked() {
         d.stages.push(String::new());
+    }
+    while d.targets.last().is_some_and(|t| t.map.is_empty() && t.name.is_empty()) {
+        d.targets.pop();
     }
 }
 

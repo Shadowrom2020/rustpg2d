@@ -436,6 +436,9 @@ impl Game {
             }
         }
 
+        // Where the active quests lead.
+        self.draw_quest_pins(v, |t| self.map_to_screen(t));
+
         // The player: a pulsing marker with an arrow pointing where they face.
         let pp = self.map_to_screen(self.player.pos / self.ts() - vec2(0.0, 0.3));
         if v.contains(pp) {

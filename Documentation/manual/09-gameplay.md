@@ -339,7 +339,7 @@ scripts use `used_item()`, `self_name()` and `is_consumable(item)`
 
 ## Quests, journal, bestiary and dialog log
 
-The **journal** (J) has three tabs:
+The **journal** (J) has four tabs:
 
 - **Quests**: active quests (newest first) and finished ones, with the description and the objectives
   reached so far ([The Database › Quests](05-database.md#quests)).
@@ -348,6 +348,22 @@ The **journal** (J) has three tabs:
   `defeated_count("slime")` make "defeat ten slimes" quests without a script.
 - **Dialogs**: the last 1000 lines of every conversation, with the options the player picked, so
   nothing said is lost.
+- **People**: the characters the player is friends with ([Friendship and gifts](#friendship-and-gifts)).
+
+### Quest markers
+
+A quest stage that leads somewhere (*Database › Quests*, *leads to*) shows the way while it is
+current, for every active quest:
+
+- a golden marker bobs over the target (a character's head, a prop, the middle of a zone) when it
+  is on screen, and an arrow at the screen's edge points to it when it isn't;
+- a target on another map is shown at the exit leading there (a door, a map transition or a map
+  edge) on the current map;
+- the map screen (M) pins the same spots with the quest's title.
+
+Players switch them off in *Options › Quest markers*. In the example every quest stage with one place
+to go has a marker: the chest in the elder's house, the shrine, the slime den, Tilda, the mill's cat,
+the raided cart, Bram, Wren, Pip, Brom, Halvar's locket and the elven herbalist in the Wilds.
 
 ## Achievements
 

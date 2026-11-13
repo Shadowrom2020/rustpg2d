@@ -58,6 +58,8 @@ enum Opt {
     ScreenEffects,
     /// Damage numbers over hits.
     DamageNumbers,
+    /// Quest markers over targets, at the screen's edge and on the map.
+    QuestMarkers,
     /// The game's language (its own and its translations).
     Language,
     /// How gamepad buttons are shown (Auto / Xbox / PlayStation / Nintendo).
@@ -68,7 +70,7 @@ enum Opt {
     Back,
 }
 
-const OPTS: [Opt; 15] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::DamageNumbers, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back];
+const OPTS: [Opt; 16] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::DamageNumbers, Opt::QuestMarkers, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back];
 
 struct SaveInfo {
     slot: String,
@@ -602,6 +604,7 @@ impl Game {
             Opt::TextSpeed => "Text speed",
             Opt::ScreenEffects => "Shake & flash",
             Opt::DamageNumbers => "Damage numbers",
+            Opt::QuestMarkers => "Quest markers",
             Opt::Language => "Language",
             Opt::ButtonStyle => "Button style",
             Opt::Controls => "Controls...",
@@ -620,6 +623,7 @@ impl Game {
             Opt::ShowFps => on(s.show_fps),
             Opt::ScreenEffects => on(s.screen_effects),
             Opt::DamageNumbers => on(s.damage_numbers),
+            Opt::QuestMarkers => on(s.quest_markers),
             Opt::Master => pct(s.master_volume),
             Opt::Music => pct(s.music_volume),
             Opt::Effects => pct(s.effects_volume),
@@ -646,6 +650,7 @@ impl Game {
             Opt::ShowFps => s.show_fps = !s.show_fps,
             Opt::ScreenEffects => s.screen_effects = !s.screen_effects,
             Opt::DamageNumbers => s.damage_numbers = !s.damage_numbers,
+            Opt::QuestMarkers => s.quest_markers = !s.quest_markers,
             Opt::Zoom => s.zoom = step(&ZOOMS, s.zoom),
             Opt::Master => s.master_volume = step(&VOLUMES, s.master_volume),
             Opt::Music => s.music_volume = step(&VOLUMES, s.music_volume),

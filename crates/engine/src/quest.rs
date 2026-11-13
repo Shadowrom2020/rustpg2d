@@ -20,6 +20,32 @@ pub struct QuestDef {
     /// Experience given when the quest is completed (with experience and levels on).
     #[serde(default, skip_serializing_if = "is_zero")]
     pub xp: u32,
+    /// Where each stage leads (by index; missing or empty = no quest marker for that stage).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub targets: Vec<QuestTarget>,
+}
+
+/// Where a quest stage leads, for its quest marker: a placed character, prop or zone by name on a
+/// map.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct QuestTarget {
+    #[serde(default)]
+    pub map: String,
+    #[serde(default)]
+    pub name: String,
+}
+
+impl QuestTarget {
+    pub fn is_empty(&self) -> bool {
+        self.map.trim().is_empty() || self.name.trim().is_empty()
+    }
+}
+
+impl QuestDef {
+    /// The target of stage `stage`, if it has one.
+    pub fn target_of(&self, stage: u32) -> Option<&QuestTarget> {
+        self.targets.get(stage as usize).filter(|t| !t.is_empty())
+    }
 }
 
 fn is_zero(n: &u32) -> bool {

@@ -101,6 +101,27 @@ fn footstep_picks_give_and_take_a_tiles_sound() {
 }
 
 #[test]
+fn quest_stage_targets_are_edited_and_saved() {
+    let root = example_copy("quest");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.quests.iter().position(|q| q.id == "strange_lights").expect("the example's first quest");
+    assert_eq!(db.quests[k].targets[2].name, "elder");
+    let mut h = harness(&root, Tab::Quests, k);
+    step(&mut h);
+    // Stage 2 leads to the elder: point it at his bed instead.
+    field(&h, "elder").type_text("_bed");
+    step(&mut h);
+    unfocus(&mut h);
+    assert_eq!(h.state().project.db.quests[k].targets[2].name, "elder_bed");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    assert_eq!((saved.quests[k].targets[2].map.as_str(), saved.quests[k].targets[2].name.as_str()), ("village", "elder_bed"));
+    // The other stages keep theirs.
+    assert_eq!(saved.quests[k].targets[0].name, "gate_key_chest");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn item_form_edits_save_and_undo() {
     let root = example_copy("item");
     let db = Project::load(&root).unwrap().db;

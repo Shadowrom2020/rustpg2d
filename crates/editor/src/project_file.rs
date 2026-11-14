@@ -446,8 +446,9 @@ mod tests {
         pack::pack_dir(&folder, &file).unwrap();
         std::fs::write(pf.work.join("scripts/mine.rhai"), "fn z() {}").unwrap();
         pf.sync_now().unwrap();
+        // (Compared in canonical form: Windows' temp folder may come as an 8.3 short name.)
         let copy = base.join("My Game (changed 1).r2dproject");
-        assert!(pf.path == copy && is_project_file(&copy));
+        assert!(is_project_file(&copy) && pf.path == canonical(&copy));
         assert!(!pack::read_all(&std::fs::read(&file).unwrap()).unwrap().iter().any(|(p, _)| p == "scripts/mine.rhai"));
         // Opening the changed file again sets the old working copy aside and unpacks afresh.
         drop(pf);

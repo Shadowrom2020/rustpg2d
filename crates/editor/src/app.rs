@@ -429,7 +429,7 @@ impl Editor {
     /// The folder holding the project file (or the project folder).
     pub fn project_parent(&self) -> Option<PathBuf> {
         let loc = self.project_location();
-        let loc = loc.canonicalize().unwrap_or(loc);
+        let loc = crate::project_file::canonical(&loc);
         loc.parent().map(Path::to_path_buf)
     }
 

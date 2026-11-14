@@ -259,7 +259,7 @@ pub fn recent_projects() -> Vec<PathBuf> {
 /// Takes a project off the recent list (a folder that was converted into a project file).
 pub fn forget_recent(path: &Path) {
     let Some(dir) = config_dir() else { return };
-    let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let path = crate::project_file::canonical(path);
     let mut list = recent_projects();
     let before = list.len();
     list.retain(|p| *p != path);
@@ -273,7 +273,7 @@ pub fn forget_recent(path: &Path) {
 /// Puts a project at the top of the recent list.
 pub fn remember_recent(root: &Path) {
     let Some(dir) = config_dir() else { return };
-    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let root = crate::project_file::canonical(root);
     let mut list = recent_projects();
     list.retain(|p| *p != root);
     list.insert(0, root);

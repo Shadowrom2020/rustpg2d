@@ -27,6 +27,22 @@ const RECORD: &str = ".r2dwork";
 /// Seconds between checks of the working copy.
 const CHECK_EVERY: f64 = 2.0;
 
+/// `path` made absolute with links resolved, as people write it: on Windows without the `\\?\`
+/// prefix `canonicalize` adds (`C:\Games\…`, `\\server\share\…`), so it compares with paths built
+/// by hand and reads well in the status bar and the recent list. Unchanged when it can't be resolved.
+pub fn canonical(path: &Path) -> PathBuf {
+    let Ok(c) = path.canonicalize() else { return path.to_path_buf() };
+    let s = c.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    match s.strip_prefix(r"\\?\") {
+        // A drive path (C:\…); other verbatim paths need the prefix.
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => c,
+    }
+}
+
 /// Whether project folders open as they are (`RUSTPG2D_FOLDER_PROJECTS=1`), not converted.
 pub fn folders_allowed() -> bool {
     std::env::var("RUSTPG2D_FOLDER_PROJECTS").is_ok_and(|v| !v.is_empty() && v != "0")
@@ -57,7 +73,7 @@ fn work_base() -> PathBuf {
 
 /// The working copy of the project file `path`: named after it, plus a hash of its full path.
 fn work_dir_for(path: &Path) -> PathBuf {
-    let full = path.canonicalize().unwrap_or_else(|_| std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf()));
+    let full = if path.exists() { canonical(path) } else { std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf()) };
     let hash = rustpg2d_engine::hash::hex(&rustpg2d_engine::hash::sha256(full.to_string_lossy().as_bytes())[..8]);
     let stem: String = path.file_stem().map_or("project".into(), |s| s.to_string_lossy().into_owned()).chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
     work_base().join(format!("{stem}-{hash}"))
@@ -159,7 +175,7 @@ impl ProjectFile {
         if !is_project_file(path) {
             bail!("{} is not an R(ust)PG2D project file", path.display());
         }
-        let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let path = canonical(path);
         let work = work_dir_for(&path);
         let mut note = None;
         let loaded = Record::load(&work);
@@ -209,7 +225,7 @@ impl ProjectFile {
         }
         let dir = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
         std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
-        let path = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()).join(path.file_name().context("no file name")?);
+        let path = canonical(dir).join(path.file_name().context("no file name")?);
         let work = work_dir_for(&path);
         if work.exists() {
             let aside = work.with_file_name(format!("{}-set-aside-{}", work.file_name().unwrap_or_default().to_string_lossy(), now_secs()));
@@ -440,6 +456,16 @@ mod tests {
         // Converting again keeps the existing file.
         assert!(!ProjectFile::convert_folder(&folder).unwrap().1);
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn canonical_paths_have_no_verbatim_prefix() {
+        let dir = std::env::temp_dir();
+        let c = canonical(&dir);
+        assert!(c.is_absolute() && !c.to_string_lossy().starts_with(r"\\?\"));
+        // A path that doesn't exist stays as it was.
+        let missing = Path::new("no/such/folder");
+        assert_eq!(canonical(missing), missing);
     }
 
     #[test]

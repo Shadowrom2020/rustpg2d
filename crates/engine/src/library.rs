@@ -816,6 +816,7 @@ impl Bundle {
         self.db.models.iter_mut().for_each(|d| {
             fix(&mut d.file);
             d.clip_files.iter_mut().for_each(&fix);
+            d.shared_clips.iter_mut().for_each(&fix);
         });
 
         // 2. Ids: an id that exists with different content is renamed (and the rename is
@@ -988,7 +989,7 @@ fn files_of(db: &Database) -> BTreeSet<String> {
 /// their clip files, and items' 3D models.
 pub fn asset_files(db: &Database) -> Vec<String> {
     let images = db.tilesets.iter().map(|d| d.image.clone()).chain(db.sheets.iter().map(|d| d.image.clone()));
-    let models = db.models.iter().flat_map(|d| std::iter::once(d.file.clone()).chain(d.clip_files.iter().cloned()));
+    let models = db.models.iter().flat_map(|d| std::iter::once(d.file.clone()).chain(d.clip_paths().cloned()));
     let items = db.items.iter().filter_map(|d| d.model.as_ref().map(|m| m.file.clone()));
     images.chain(db.sounds.iter().map(|d| d.file.clone())).chain(models).chain(items).collect()
 }

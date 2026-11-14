@@ -48,7 +48,45 @@ of earlier versions: 47 people and 9 animals, and 16 items' 3D models.
   side's twin along, *Reset joints* starts over. The model keeps its own file; the fit is worked
   out when it loads.
 - **Generate art** makes 3D characters, creatures and items' models with Meshy ([Art and sound ›
-  Generate art](10-art-and-sound.md#generate-art-with-meshy)).
+  Generate art](10-art-and-sound.md#generate-art-with-meshy)), and adds clips to a model.
+
+### Weapon animations
+
+What a character does with its hands depends on what it holds: a spear thrusts, a bow is drawn, a
+shield is raised. **Items name animations** (*Database › Items › Animations*: what is played
+*attacking*, *standing*, *walking* and *blocking* with it) and **models map the names to clips**
+(the *Weapons* rows of the model's *Animations*). The standard names:
+
+| Kind | Names |
+|---|---|
+| Attacks | `attack_1h` (slash), `attack_2h` (overhead blow), `attack_thrust` (spear), `attack_bow`, `attack_crossbow`, `attack_cast` (spell), `attack_unarmed` (a punch: bare hands) |
+| Standing | `idle_1h` (a guard stance), `idle_2h`, `idle_bow`, `idle_spear` |
+| Blocking | `block_shield`, `block_weapon` (a parry), `block_2h` |
+
+An item's empty names are **estimated** from its kind: bows shoot (`attack_bow`, standing
+`idle_bow`; crossbows `attack_crossbow`), long two-handed weapons thrust (`attack_thrust`,
+`idle_spear`), other two-handed ones swing overhead (`attack_2h`, `idle_2h`), other weapons slash
+(`attack_1h`, `idle_1h`, parrying with `block_weapon`), shields block (`block_shield`; a lantern or
+torch in the left hand doesn't). The attack and walk come from the weapon, standing from the weapon
+and else the left-hand item, blocking from the left-hand item and else the weapon; a model without
+the named clip plays its plain animation (`attack`, `idle`, `walk`), so items and models can be
+added in any order.
+
+Attacks and blocks have a **hit point** (*hit* beside the frames per second): where in the clip the
+blow lands or the guard is up (0.42 when not set). An enemy winds up to it and swings from there;
+the player's blow lands at once, so the wind-up is hurried and the hit point comes a quarter into
+the strike; a raised shield holds the block clip at its hit point.
+
+**Clips are shared between models**: *Shared clips › Copy clips* in a model's form (pick a model)
+plays the other model's animations from its clip files, fitted to this model's bones when it loads
+(same bone names, as all of Meshy's rigs have): the hand and shoulder angles and the body's
+proportions are this model's own. Animations the model maps already keep their clips. *Generate art
+› 3D model clips* buys more clips for a model from Meshy's animation library. In the example the
+hero has the ten weapon animations (`attack_2h`, `attack_thrust`, `attack_bow`, `attack_cast`,
+`attack_unarmed`, `idle_1h`, `idle_2h`, `idle_bow`, `block_shield`, `block_weapon`), and every other
+person of the example and the starter library shares them: a guard with a sword and shield stands in
+a guard stance and raises the shield, an archer draws the bow; one-handed attacks use each model's
+own slash.
 
 **Equipment** is real: a character's weapon, armor and clothing count in combat, and an enemy drops
 them when defeated. **What it holds is in its hands**: the weapon, the left-hand item (a shield, a

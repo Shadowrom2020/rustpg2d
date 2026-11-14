@@ -23,6 +23,15 @@ pub enum Anim {
     Hurt,
     /// An extra animation (`ModelDef::clips`: "fish", "craft", "sit"…) and a step of it.
     Extra(&'static str, u32),
+    /// Winding up an attack: thousandths of the way to the clip's hit point.
+    Windup(u16),
+    /// Swinging: thousandths of the way from the hit point to the clip's end.
+    Swing(u16),
+    /// The player's strike (no wind-up: the blow lands on the key press): thousandths of the way
+    /// from halfway to the hit point to the clip's end.
+    Strike(u16),
+    /// Raising a shield or a parry: thousandths of the way to the clip's hit point, where it holds.
+    Block(u16),
 }
 
 impl From<u32> for Anim {
@@ -40,6 +49,10 @@ impl Anim {
             Anim::Attack(k) => format!("attack{}", k.min(3)),
             Anim::Hurt => "hurt".into(),
             Anim::Extra(n, _) => n.into(),
+            Anim::Windup(_) => "windup".into(),
+            Anim::Swing(_) => "swing".into(),
+            Anim::Strike(_) => "strike".into(),
+            Anim::Block(_) => "block".into(),
         }
     }
 }

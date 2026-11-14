@@ -397,6 +397,10 @@ pub struct ModelDef {
     /// More `.glb` files whose clips the model plays (Meshy writes animations as separate files).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub clip_files: Vec<String>,
+    /// Clip files rigged on another model (same bone names): they are fitted to this model's
+    /// bones when it loads (`Model::add_clips_retargeted`), so one file serves many models.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shared_clips: Vec<String>,
     /// Standing height in world pixels (a person: 40, two tiles is 64).
     #[serde(default = "model_height")]
     pub height: f32,
@@ -459,6 +463,20 @@ pub struct ClipMap {
     /// Frames per second it is drawn with (stepped, like pixel animation).
     #[serde(default = "clip_fps")]
     pub fps: f32,
+    /// Attacks: where in the clip (0..1) the blow lands, a shot is loosed or a block is up; None =
+    /// [`DEFAULT_HIT`]. The attack plays up to it during the wind-up and on from it in the swing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hit: Option<f32>,
+}
+
+/// Where a clip's blow lands when its [`ClipMap::hit`] isn't set (fraction of the clip).
+pub const DEFAULT_HIT: f32 = 0.42;
+
+impl ClipMap {
+    /// [`ClipMap::hit`], else [`DEFAULT_HIT`], kept inside the clip.
+    pub fn hit_point(&self) -> f32 {
+        self.hit.unwrap_or(DEFAULT_HIT).clamp(0.05, 0.95)
+    }
 }
 
 fn clip_fps() -> f32 {
@@ -467,7 +485,12 @@ fn clip_fps() -> f32 {
 
 impl ModelDef {
     pub fn new(id: &str, file: &str) -> ModelDef {
-        ModelDef { id: id.into(), name: String::new(), file: file.into(), clip_files: Vec::new(), height: model_height(), clips: Vec::new(), features: Vec::new(), playable: false, female: false, rig: None }
+        ModelDef { id: id.into(), name: String::new(), file: file.into(), clip_files: Vec::new(), shared_clips: Vec::new(), height: model_height(), clips: Vec::new(), features: Vec::new(), playable: false, female: false, rig: None }
+    }
+
+    /// Every clip file it reads: its own and the shared ones.
+    pub fn clip_paths(&self) -> impl Iterator<Item = &String> {
+        self.clip_files.iter().chain(self.shared_clips.iter())
     }
 
     /// The clip of animation `anim`.
@@ -715,6 +738,77 @@ pub struct ItemDef {
     /// Food: its *on use* healing gets the player's *Food* skill bonus.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub food: bool,
+    /// The animations a character plays with it in hand (weapons, shields): names that models map
+    /// to clips. Empty ones are estimated from the weapon ([`ItemAnims::estimate`]).
+    #[serde(default, skip_serializing_if = "ItemAnims::is_empty")]
+    pub anims: ItemAnims,
+}
+
+/// Animation names of an item (`ItemDef::anims`); "" = by its kind ([`ItemAnims::estimate`]),
+/// and a model without the named clip plays its plain one (`attack`, `idle`, `walk`).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ItemAnims {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub attack: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub idle: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub walk: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub block: String,
+}
+
+/// The standard animation names the editor offers (models map them to clips): attacks, idles,
+/// blocks.
+pub const STANDARD_ANIMS: [&str; 14] = [
+    "attack_1h",
+    "attack_2h",
+    "attack_thrust",
+    "attack_bow",
+    "attack_crossbow",
+    "attack_cast",
+    "attack_unarmed",
+    "idle_1h",
+    "idle_2h",
+    "idle_bow",
+    "idle_spear",
+    "block_shield",
+    "block_weapon",
+    "block_2h",
+];
+
+impl ItemAnims {
+    pub fn is_empty(&self) -> bool {
+        self.attack.is_empty() && self.idle.is_empty() && self.walk.is_empty() && self.block.is_empty()
+    }
+
+    /// The animations an item has by its kind: a ranged weapon shoots (`attack_crossbow` when its
+    /// id or name says crossbow, else `attack_bow`, idling `idle_bow`), a two-handed one with a
+    /// long reach thrusts (`attack_thrust`, `idle_spear`), another two-handed one swings overhead
+    /// (`attack_2h`, `idle_2h`, parrying `block_2h`), other weapons slash (`attack_1h`, `idle_1h`,
+    /// `block_weapon`); a shield (armor with defense in the left hand) blocks (`block_shield`).
+    pub fn estimate(item: &ItemDef) -> ItemAnims {
+        let named = |w: &str| item.id.to_lowercase().contains(w) || item.name.to_lowercase().contains(w);
+        let (attack, idle, block) = match &item.weapon {
+            Some(w) if w.ranged.is_some() => (if named("crossbow") { "attack_crossbow" } else { "attack_bow" }, "idle_bow", ""),
+            Some(w) if w.two_handed && w.reach > 1.4 => ("attack_thrust", "idle_spear", "block_2h"),
+            Some(w) if w.two_handed => ("attack_2h", "idle_2h", "block_2h"),
+            Some(_) => ("attack_1h", "idle_1h", "block_weapon"),
+            // A shield: armor with defense worn in the left hand (lanterns and torches have none).
+            None if item.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand && a.defense > 0) => ("", "", "block_shield"),
+            None => ("", "", ""),
+        };
+        ItemAnims { attack: attack.into(), idle: idle.into(), walk: String::new(), block: block.into() }
+    }
+
+    /// The item's own names, the estimated ones filling the empty ones.
+    pub fn of(item: &ItemDef) -> ItemAnims {
+        let e = Self::estimate(item);
+        let a = &item.anims;
+        let pick = |own: &String, est: String| if own.is_empty() { est } else { own.clone() };
+        ItemAnims { attack: pick(&a.attack, e.attack), idle: pick(&a.idle, e.idle), walk: pick(&a.walk, e.walk), block: pick(&a.block, e.block) }
+    }
 }
 
 /// The serde defaults (what an entry with only `id`, `name` and `icon` loads as). The editor's
@@ -740,6 +834,7 @@ impl Default for ItemDef {
             use_on: UseTarget::default(),
             crop: None,
             food: false,
+            anims: ItemAnims::default(),
         }
     }
 }
@@ -2016,6 +2111,49 @@ impl Database {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn items_name_their_animations_or_go_by_their_kind() {
+        let item = |w: &str| ron::from_str::<ItemDef>(&format!("(id: \"x\", name: \"X\", icon: (sheet: \"s\", frame: 0), {w})")).unwrap();
+        let weapon = |extra: &str| item(&format!("weapon: Some((damage: 2, cooldown: 0.5, arc: 60.0, knockback: 1.0{extra}))"));
+        // Older files have no `anims`: estimated by the kind of weapon.
+        let sword = weapon(", reach: 1.0");
+        assert!(sword.anims.is_empty());
+        assert_eq!(ItemAnims::of(&sword), ItemAnims { attack: "attack_1h".into(), idle: "idle_1h".into(), walk: String::new(), block: "block_weapon".into() });
+        let spear = weapon(", reach: 1.9, two_handed: true");
+        assert_eq!((ItemAnims::of(&spear).attack.as_str(), ItemAnims::of(&spear).idle.as_str()), ("attack_thrust", "idle_spear"));
+        assert_eq!(ItemAnims::of(&weapon(", reach: 1.0, two_handed: true")).attack, "attack_2h");
+        let bow = weapon(", reach: 1.0, ranged: Some((projectile: (sheet: \"s\", frame: 1), speed: 400.0, range: 8.0, ammo: \"arrows\"))");
+        assert_eq!((ItemAnims::of(&bow).attack.as_str(), ItemAnims::of(&bow).idle.as_str()), ("attack_bow", "idle_bow"));
+        let crossbow = ItemDef { name: "Heavy Crossbow".into(), ..bow.clone() };
+        assert_eq!(ItemAnims::of(&crossbow).attack, "attack_crossbow");
+        // A shield blocks; a lantern in the left hand (no defense) doesn't.
+        assert_eq!(ItemAnims::of(&item("armor: Some((slot: Offhand, defense: 1))")).block, "block_shield");
+        assert!(ItemAnims::of(&item("armor: Some((slot: Offhand))")).is_empty());
+        // Own names win, the empty ones are estimated; only the given ones are written.
+        let own = ItemDef { anims: ItemAnims { attack: "attack_2h".into(), ..Default::default() }, ..sword };
+        assert_eq!((ItemAnims::of(&own).attack.as_str(), ItemAnims::of(&own).idle.as_str()), ("attack_2h", "idle_1h"));
+        let text = ron::to_string(&own).unwrap();
+        assert!(text.contains("anims:(attack:\"attack_2h\")"), "{text}");
+        assert_eq!(ron::from_str::<ItemDef>(&text).unwrap().anims, own.anims);
+        assert!(!ron::to_string(&bow).unwrap().contains("anims"));
+    }
+
+    #[test]
+    fn clip_hit_points_are_optional() {
+        let old: ClipMap = ron::from_str(r#"(anim: "attack", clip: "Slash", fps: 12.0)"#).unwrap();
+        assert_eq!((old.hit, old.hit_point()), (None, DEFAULT_HIT));
+        assert!(!ron::to_string(&old).unwrap().contains("hit"));
+        let late = ClipMap { hit: Some(0.84), ..old.clone() };
+        assert_eq!(ron::from_str::<ClipMap>(&ron::to_string(&late).unwrap()).unwrap().hit, Some(0.84));
+        // Kept inside the clip.
+        assert_eq!(ClipMap { hit: Some(1.5), ..old }.hit_point(), 0.95);
+        // Shared clip files load from older files as none, and count as the model's files.
+        let m: ModelDef = ron::from_str(r#"(id: "m", file: "models/m.glb", clip_files: ["models/a.glb"])"#).unwrap();
+        assert!(m.shared_clips.is_empty());
+        let m = ModelDef { shared_clips: vec!["models/b.glb".into()], ..m };
+        assert_eq!(m.clip_paths().collect::<Vec<_>>(), vec!["models/a.glb", "models/b.glb"]);
+    }
 
     #[test]
     fn old_chase_behavior_loads() {

@@ -172,6 +172,73 @@ impl Model {
         Ok(n)
     }
 
+    /// Adds the clips of a `.glb` rigged on another model with the same bone names, fitted to this
+    /// model's bones: every rotation key becomes key · inverse(its rest there) · rest here (the
+    /// clip's rest pose is this model's), translation keys take this model's bone offsets (its own
+    /// proportions), and the hips move by the clip's offsets scaled to this model's hip height.
+    /// Returns how many were added; clips named like one the model has are left out (its own come
+    /// first).
+    pub fn add_clips_retargeted(&mut self, glb: &[u8]) -> Result<usize> {
+        let g = gltf::Gltf::from_slice(glb).context("not a glTF binary")?;
+        let src: Vec<(String, Vec3, Quat)> = g
+            .document
+            .nodes()
+            .map(|n| {
+                let (t, r, _) = n.transform().decomposed();
+                (n.name().unwrap_or("").to_string(), Vec3::from(t), Quat::from_array(r).normalize())
+            })
+            .collect();
+        let map = |i: usize| self.nodes.iter().position(|n| !n.name.is_empty() && n.name == src[i].0);
+        // The clip's rest per node of this model (the last source node of that name).
+        let mut rest: Vec<Option<(Vec3, Quat)>> = vec![None; self.nodes.len()];
+        for (i, s) in src.iter().enumerate() {
+            if let Some(j) = map(i) {
+                rest[j] = Some((s.1, s.2));
+            }
+        }
+        let root = self.root_joint();
+        let mut clips = read_clips(&g.document, g.blob.as_deref(), &map);
+        for c in &mut clips {
+            for tr in &mut c.tracks {
+                let Some((st, sr)) = rest[tr.node] else { continue };
+                let (dt, dr) = (self.nodes[tr.node].t, self.nodes[tr.node].r);
+                match tr.path {
+                    Path::Rotation => {
+                        let fix = sr.inverse() * dr;
+                        for v in &mut tr.values {
+                            let q = (Quat::from_xyzw(v[0], v[1], v[2], v[3]) * fix).normalize();
+                            *v = [q.x, q.y, q.z, q.w];
+                        }
+                    }
+                    Path::Translation if Some(tr.node) == root => {
+                        let k = if st.length() > 1e-6 { dt.length() / st.length() } else { 1.0 };
+                        for v in &mut tr.values {
+                            let p = dt + (Vec3::new(v[0], v[1], v[2]) - st) * k;
+                            *v = [p.x, p.y, p.z, 0.0];
+                        }
+                    }
+                    Path::Translation => tr.values.fill([dt.x, dt.y, dt.z, 0.0]),
+                    Path::Scale => {}
+                }
+            }
+        }
+        clips.retain(|c| self.clip(&c.name).is_none());
+        let n = clips.len();
+        self.clips.extend(clips);
+        Ok(n)
+    }
+
+    /// How many of the nodes clip file `glb` animates this model has (by name), of how many: a
+    /// clip shared from another model needs its bones.
+    pub fn bones_matched(&self, glb: &[u8]) -> Result<(usize, usize)> {
+        let g = gltf::Gltf::from_slice(glb).context("not a glTF binary")?;
+        let mut animated: Vec<String> = g.document.animations().flat_map(|a| a.channels().map(|c| c.target().node().name().unwrap_or("").to_string()).collect::<Vec<_>>()).collect();
+        animated.sort();
+        animated.dedup();
+        let matched = animated.iter().filter(|n| !n.is_empty() && self.nodes.iter().any(|m| m.name == **n)).count();
+        Ok((matched, animated.len()))
+    }
+
     pub fn clip(&self, name: &str) -> Option<&Clip> {
         self.clips.iter().find(|c| c.name == name)
     }
@@ -691,6 +758,17 @@ fn snap_v(v: Vec3) -> [f32; 3] {
 /// uses, furniture, then the activities.
 pub const ANIMS: [&str; 13] = ["walk", "idle", "attack", "hurt", "sit", "sleep", "fish", "farm", "craft", "chop", "mine", "sweep", "read"];
 
+/// Every animation name the editor offers: [`ANIMS`], sneaking and the weapon animations items
+/// name ([`crate::defs::STANDARD_ANIMS`]).
+pub fn all_anims() -> impl Iterator<Item = &'static str> {
+    ANIMS.into_iter().chain(["sneak"]).chain(crate::defs::STANDARD_ANIMS)
+}
+
+/// Whether animation `anim` has a blow (attacks) or a guard (blocks) whose moment a hit point marks.
+pub fn has_hit(anim: &str) -> bool {
+    anim.starts_with("attack") || anim.starts_with("block")
+}
+
 /// Clips matched to animations by their names ("Walking_2" -> walk, "Right_Hand_Sword_Slash" ->
 /// attack…): a model imported from Meshy, Mixamo or Blender plays something at once. Each
 /// animation takes the first clip whose name has one of its words; the creator corrects them.
@@ -718,7 +796,7 @@ pub fn guess_clips(names: &[String]) -> Vec<crate::defs::ClipMap> {
             words.iter().any(|w| l.contains(w)) && !(anim == "walk" && (l.contains("back") || l.contains("run")))
         });
         if let Some(clip) = best.min_by_key(|n| n.len()) {
-            out.push(crate::defs::ClipMap { anim: anim.to_string(), clip: clip.clone(), fps: if anim == "idle" { 8.0 } else { 12.0 } });
+            out.push(crate::defs::ClipMap { anim: anim.to_string(), clip: clip.clone(), fps: if anim == "idle" { 8.0 } else { 12.0 }, hit: None });
         }
     }
     out
@@ -1322,6 +1400,40 @@ mod tests {
         assert_eq!(g.iter().find(|c| c.anim == "attack").map(|c| c.clip.as_str()), Some("Draw_and_Shoot_from_Back"));
         let g = guess_clips(&["Charged_Axe_Chop".to_string()]);
         assert_eq!(g.iter().filter(|c| c.clip == "Charged_Axe_Chop").map(|c| c.anim.as_str()).collect::<Vec<_>>(), vec!["attack", "chop"]);
+    }
+
+    #[test]
+    fn clips_of_another_rig_are_fitted_to_this_ones_bones() {
+        let glb = fixture();
+        let src = Model::load(&glb).unwrap();
+        let upper = src.node("upper").unwrap();
+        // The same bones resting another way, and longer: the clip's rest becomes this rest.
+        let mut m = Model::load(&glb).unwrap();
+        m.clips.clear();
+        let twist = Quat::from_rotation_y(0.6);
+        m.nodes[upper].r = src.nodes[upper].r * twist;
+        m.nodes[upper].t = src.nodes[upper].t * 1.5;
+        assert_eq!(m.bones_matched(&glb).unwrap().0, m.bones_matched(&glb).unwrap().1);
+        assert_eq!(m.add_clips_retargeted(&glb).unwrap(), 1);
+        let c = m.clip("bend").unwrap();
+        let (rest, start, half) = (m.pose(None, 0.0), m.pose(Some(c), 0.0), m.pose(Some(c), 0.5));
+        let rot = |w: &[Mat4]| Quat::from_mat4(&w[upper]).normalize();
+        let pos = |w: &[Mat4]| w[upper].w_axis.truncate();
+        // At the clip's start (its rest pose) the bone rests as this model's does, where this model has it.
+        assert!(rot(&start).angle_between(rot(&rest)) < 1e-3);
+        assert!((pos(&start) - pos(&rest)).length() < 1e-3);
+        // Halfway it has turned 45 degrees about Z on top of this model's own rest.
+        let src_half = src.pose(src.clip("bend"), 0.5);
+        let turned = (rot(&src_half) * Quat::from_mat4(&src.pose(None, 0.0)[upper]).normalize().inverse()).normalize();
+        assert!((rot(&half)).angle_between((turned * rot(&rest)).normalize()) < 1e-3);
+        // A clip named like one the model has is left out: its own come first.
+        let mut own = Model::load(&glb).unwrap();
+        assert_eq!(own.add_clips_retargeted(&glb).unwrap(), 0);
+        assert_eq!(own.clips.len(), 1);
+        // Bones it lacks don't count.
+        own.nodes[upper].name = "arm".into();
+        let (hit, of) = own.bones_matched(&glb).unwrap();
+        assert!(hit < of, "{hit} of {of}");
     }
 
     #[test]

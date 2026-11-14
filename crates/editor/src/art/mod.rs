@@ -40,14 +40,17 @@ pub enum ArtKind {
     Creature3d,
     /// The 3D model of an existing item (`id`), from its icon.
     Gear3d,
+    /// More clips for an existing rigged 3D model (`id`): its file rigged again by Meshy, the
+    /// chosen animations ([`CLIP_CHOICES`], [`EXTRAS`]) as a shared clip file.
+    Clips3d,
 }
 
 impl ArtKind {
-    pub const ALL: [ArtKind; 7] = [ArtKind::Icon, ArtKind::Prop, ArtKind::Portrait, ArtKind::Image, ArtKind::Model3d, ArtKind::Creature3d, ArtKind::Gear3d];
+    pub const ALL: [ArtKind; 8] = [ArtKind::Icon, ArtKind::Prop, ArtKind::Portrait, ArtKind::Image, ArtKind::Model3d, ArtKind::Creature3d, ArtKind::Gear3d, ArtKind::Clips3d];
 
     /// A 3D job (models, not pictures).
     pub fn is_3d(self) -> bool {
-        matches!(self, ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d)
+        matches!(self, ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d)
     }
 
     pub fn name(self) -> &'static str {
@@ -59,6 +62,7 @@ impl ArtKind {
             ArtKind::Model3d => "model",
             ArtKind::Creature3d => "creature",
             ArtKind::Gear3d => "gear",
+            ArtKind::Clips3d => "clips",
         }
     }
 
@@ -71,6 +75,7 @@ impl ArtKind {
             ArtKind::Model3d => "3D character",
             ArtKind::Creature3d => "3D creature",
             ArtKind::Gear3d => "Item 3D model",
+            ArtKind::Clips3d => "3D model clips",
         }
     }
 
@@ -120,6 +125,33 @@ pub struct ArtRequest {
 /// Meshy's library (they play idle with the tool in hand).
 pub const EXTRAS: [&str; 4] = ["craft", "farm", "chop", "sleep"];
 
+/// Animations the clips kind adds to a model (Meshy library actions): the weapon animations items
+/// name and sneaking. (name, action, the clip's name in Meshy's file without `_` and in lower
+/// case, frames a second, hit point).
+pub const CLIP_CHOICES: [(&str, u32, &str, f32, Option<f32>); 12] = [
+    ("attack_1h", 219, "righthandswordslash", 12.0, None),
+    ("attack_2h", 128, "heavyhammerswing", 12.0, Some(0.84)),
+    ("attack_thrust", 240, "thrustslash", 12.0, Some(0.29)),
+    ("attack_bow", 224, "archeryshot", 12.0, Some(0.6)),
+    ("attack_cast", 129, "magesoellcast", 12.0, Some(0.55)),
+    ("attack_unarmed", 192, "rightjabfromguard", 12.0, Some(0.33)),
+    ("idle_1h", 89, "combatstance", 8.0, None),
+    ("idle_2h", 85, "axestance", 8.0, None),
+    ("idle_bow", 258, "crouchlookaroundbow", 8.0, None),
+    ("block_shield", 138, "block1", 12.0, Some(0.15)),
+    ("block_weapon", 147, "swordparry", 12.0, Some(0.3)),
+    ("sneak", 559, "sneakywalk", 12.0, None),
+];
+
+/// The actions of a clips request's animations (`CLIP_CHOICES`, `EXTRAS`).
+pub fn clips_actions(extras: &[String], female: bool) -> Vec<u32> {
+    let mut ids: Vec<u32> = extras.iter().filter_map(|e| CLIP_CHOICES.iter().find(|c| c.0 == e).map(|c| c.1)).collect();
+    ids.extend(clip_actions("none", female, extras).into_iter().filter(|a| !clip_actions("none", female, &[]).contains(a)));
+    let mut seen = std::collections::HashSet::new();
+    ids.retain(|i| seen.insert(*i));
+    ids
+}
+
 /// Credits of the 3D steps (Meshy's prices; what a task really consumed is shown when it ends).
 pub const COST_MODEL: u32 = 30;
 pub const COST_RIG: u32 = 5;
@@ -163,6 +195,7 @@ impl ArtRequest {
             // Described: a clean picture first (models made from the 32 px icon come out bulky).
             ArtKind::Gear3d if !self.description.trim().is_empty() => vec!["views", "model"],
             ArtKind::Gear3d => vec!["model"],
+            ArtKind::Clips3d => vec!["rig", "clips"],
             _ => vec!["picture"],
         }
     }
@@ -172,12 +205,22 @@ impl ArtRequest {
         match name {
             "model" => COST_MODEL,
             "rig" => COST_RIG,
+            "clips" if self.kind == ArtKind::Clips3d => COST_CLIP * clips_actions(&self.extras, self.female).len() as u32,
             "clips" => COST_CLIP * clip_actions(&self.attack, self.female, &self.extras).len() as u32,
             _ => picture_cost,
         }
     }
 
     pub fn check(&self) -> Result<()> {
+        if self.kind == ArtKind::Clips3d {
+            if let Some(e) = self.extras.iter().find(|e| !EXTRAS.contains(&e.as_str()) && !CLIP_CHOICES.iter().any(|c| c.0 == e.as_str())) {
+                return Err(anyhow!("unknown animation \"{e}\": {}, {}", CLIP_CHOICES.map(|c| c.0).join(", "), EXTRAS.join(", ")));
+            }
+            if self.extras.is_empty() {
+                return Err(anyhow!("choose the animations to add"));
+            }
+            return Ok(());
+        }
         if self.description.trim().len() < 8 && self.kind != ArtKind::Gear3d {
             return Err(anyhow!("describe it in a few words (what it looks like, what it wears or holds)"));
         }
@@ -230,6 +273,8 @@ impl ArtRequest {
                     None => meshy::Request::FromText { prompt, aspect: "1:1".into(), background: false },
                 }
             }
+            // (No picture: rigged from the model's file.)
+            ArtKind::Clips3d => meshy::Request::FromText { prompt: String::new(), aspect: "1:1".into(), background: false },
             ArtKind::Portrait => meshy::Request::FromText { prompt: format!("Painted fantasy RPG character portrait, head and shoulders, facing the viewer, soft painterly shading, centred, plain flat background, no text: {desc}"), aspect: "1:1".into(), background: false },
             ArtKind::Image => meshy::Request::FromText { prompt: format!("Painted fantasy RPG illustration, detailed, rich colours, no text: {desc}"), aspect: "3:4".into(), background: true },
         }
@@ -245,6 +290,8 @@ pub struct References {
     pub views: Vec<String>,
     /// Item 3D models: the item's icon, enlarged (PNG data URI).
     pub icon: Option<String>,
+    /// Clips for a model: its model file (a GLB data URI) to rig again.
+    pub model: Option<String>,
 }
 
 /// A job's progress.
@@ -507,6 +554,8 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
                 }
             }
         }
+        ("rig", ArtKind::Clips3d) => ("rigging", serde_json::json!({ "model_url": refs.model.clone().ok_or_else(|| anyhow!("the model's file is missing"))?, "height_meters": 1.7 })),
+        ("clips", ArtKind::Clips3d) => ("animations", serde_json::json!({ "rig_task_id": task_of("rig").ok_or_else(|| anyhow!("no rig to animate"))?, "action_ids": clips_actions(&req.extras, req.female) })),
         ("rig", _) => ("rigging", serde_json::json!({ "input_task_id": task_of("model").ok_or_else(|| anyhow!("no model to rig"))?, "height_meters": 1.7 })),
         _ => ("animations", serde_json::json!({ "rig_task_id": task_of("rig").ok_or_else(|| anyhow!("no rig to animate"))?, "action_ids": clip_actions(&req.attack, req.female, &req.extras) })),
     };
@@ -577,7 +626,7 @@ fn convert_job(job: &Arc<Mutex<Job>>) -> Result<()> {
             (p, f)
         }
         // 3D jobs: the picture they were made from (the files are kept in `made`).
-        ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d => {
+        ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d => {
             let p = decode("views").or_else(|_| Rgba::decode(&placeholder_png()))?;
             let p = convert::shrink(&p, 512);
             let f = (p.w, p.h);

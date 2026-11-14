@@ -17,6 +17,8 @@ pub(super) const STRIKE_WINDUP: f32 = 0.4;
 const LUNGE_WINDUP: f32 = 0.3;
 /// How long a swing is drawn.
 const SWING_TIME: f32 = 0.18;
+/// Seconds of the recovery the attack clip still plays on (its follow-through).
+const FOLLOW_THROUGH: f32 = 0.35;
 /// The hop of a lunge: its time and speed (tiles per second).
 const LUNGE_TIME: f32 = 0.25;
 const LUNGE_SPEED: f32 = 7.5;
@@ -56,15 +58,29 @@ pub(super) struct Attack {
 }
 
 impl Attack {
-    /// The animation frame it shows: wind-up, the swing in two halves, then the first moment of
-    /// recovery (a lunge's hop too); afterwards the character stands as usual.
-    pub fn anim(&self) -> Option<super::paperdoll::Anim> {
+    /// The animation it shows: the clip up to its hit point over the wind-up (`windup` seconds),
+    /// then on to its end over the swing and the first [`FOLLOW_THROUGH`] seconds of recovery (a
+    /// lunge's hop too); afterwards the character stands as usual.
+    pub fn anim(&self, windup: f32) -> Option<super::paperdoll::Anim> {
         use super::paperdoll::Anim;
+        let k = |x: f32| (x.clamp(0.0, 1.0) * 1000.0) as u16;
+        let swing = SWING_TIME + FOLLOW_THROUGH;
         match self.phase {
-            Phase::Windup => Some(Anim::Attack(0)),
-            Phase::Swing => Some(Anim::Attack(if self.t < SWING_TIME / 2.0 { 1 } else { 2 })),
-            Phase::Recover if self.t < 0.2 => Some(Anim::Attack(3)),
+            Phase::Windup => Some(Anim::Windup(k(self.t / windup.max(0.05)))),
+            Phase::Swing => Some(Anim::Swing(k(self.t / swing))),
+            Phase::Recover if self.t < FOLLOW_THROUGH => Some(Anim::Swing(k((SWING_TIME + self.t) / swing))),
             Phase::Recover => None,
+        }
+    }
+
+    /// Seconds a wind-up of this kind lasts for a character whose own is `own` (0 = standard).
+    pub fn windup_time(&self, own: f32) -> f32 {
+        if own > 0.0 {
+            own
+        } else if self.kind == Kind::Lunge {
+            LUNGE_WINDUP
+        } else {
+            STRIKE_WINDUP
         }
     }
 

@@ -76,6 +76,13 @@ impl Editor {
                 // Standing facing down, left and up (the character layout's idle rows).
                 refs.views = [4, 5, 7].iter().map(|row| framed(&im, 0, row * fh, fw, fh, 640)).collect::<anyhow::Result<_>>()?;
             }
+            ArtKind::Clips3d => {
+                let m = db.model(&req.id).ok_or_else(|| anyhow::anyhow!("no 3D model \"{}\" to add clips to", req.id))?;
+                if m.rig.is_some() || !self.assets.models.info(&m.id).is_some_and(|i| i.rigged) {
+                    anyhow::bail!("{} has no skeleton of its own (Meshy rigs people): give it a rig template", req.id);
+                }
+                refs.model = Some(meshy::data_uri_of(&std::fs::read(self.project.root.join(&m.file))?, "application/octet-stream"));
+            }
             ArtKind::Gear3d => {
                 let item = db.item(&req.id).ok_or_else(|| anyhow::anyhow!("no item \"{}\" to make a 3D model of", req.id))?;
                 let (im, fw, fh) = sheet_image(&item.icon.sheet).map_err(|_| anyhow::anyhow!("item \"{}\" has no icon to model it from", req.id))?;
@@ -95,7 +102,11 @@ impl Editor {
     }
 
     /// Starts a job for a request (the cost confirmed by the caller).
-    pub fn start_art(&mut self, req: ArtRequest) -> anyhow::Result<u32> {
+    pub fn start_art(&mut self, mut req: ArtRequest) -> anyhow::Result<u32> {
+        if req.kind == ArtKind::Clips3d {
+            // The women's clips (picking crops) for a woman's model.
+            req.female = self.project.db.model(&req.id).is_some_and(|m| m.female);
+        }
         let refs = self.art_references_for(&req)?;
         let settings = self.art_settings.clone();
         let id = self.art.start(req, &settings, refs)?;
@@ -142,7 +153,7 @@ impl Editor {
         let sheet = match j.req.kind {
             ArtKind::Prop | ArtKind::Portrait => SheetDef { scale: 2, ..SheetDef::new(id, &rel, fw, fh) },
             ArtKind::Icon | ArtKind::Image => SheetDef::new(id, &rel, fw, fh),
-            ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d => unreachable!("3D jobs are added by apply_art_3d"),
+            ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d => unreachable!("3D jobs are added by apply_art_3d"),
         };
         let mut added = vec![format!("sprite sheet {id} ({rel})")];
         let db = &mut self.project.db;
@@ -203,6 +214,16 @@ impl Editor {
             ArtKind::Gear3d => {
                 let rel = write(self, id, &file("model.glb")?)?;
                 added.push(self.use_item_model(&j.req.id, &rel));
+            }
+            ArtKind::Clips3d => {
+                let model = j.req.id.clone();
+                if self.project.db.model(&model).is_none() {
+                    anyhow::bail!("the 3D model \"{model}\" is gone");
+                }
+                let rel = write(self, &format!("{model}_clips"), &file("clips.glb")?)?;
+                let bytes = self.compact_file(&rel, false)?;
+                let names = rustpg2d_engine::model::clip_names(&bytes)?;
+                added.push(self.add_shared_clips(&model, &rel, &names, &j.req.extras));
             }
             kind => {
                 if self.project.db.model(id).is_some() {
@@ -373,7 +394,11 @@ impl Editor {
                 });
                 ui.end_row();
                 ui.label("Id");
-                ui.add(egui::TextEdit::singleline(&mut w.id).hint_text(if w.kind == ArtKind::Gear3d { "an item id: iron_sword" } else { "orc_shaman" }).desired_width(180.0));
+                ui.add(egui::TextEdit::singleline(&mut w.id).hint_text(match w.kind {
+                    ArtKind::Gear3d => "an item id: iron_sword",
+                    ArtKind::Clips3d => "a 3D model id: hero",
+                    _ => "orc_shaman",
+                }).desired_width(180.0));
                 ui.end_row();
                 ui.label("Description");
                 ui.add(egui::TextEdit::multiline(&mut w.description).desired_rows(3).desired_width(380.0).hint_text("an orc shaman, grey-green skin, a bone necklace, a ragged red cloak, a staff with a skull"));
@@ -406,6 +431,22 @@ impl Editor {
                     ui.add(egui::TextEdit::singleline(&mut w.from).hint_text("(draw a turnaround picture)").desired_width(180.0)).on_hover_text("A sprite sheet in the four-facing layout (an old figure): its standing frames (front, side, back) become the model, no picture is drawn");
                     ui.end_row();
                 }
+                if w.kind == ArtKind::Clips3d {
+                    ui.label("Animations");
+                    ui.horizontal_wrapped(|ui| {
+                        ui.set_max_width(380.0);
+                        for e in super::CLIP_CHOICES.iter().map(|c| c.0).chain(super::EXTRAS) {
+                            let mut on = w.extras.iter().any(|x| x == e);
+                            if ui.checkbox(&mut on, e).on_hover_text("3 credits: a clip from Meshy's animation library, mapped to this name").changed() {
+                                w.extras.retain(|x| x != e);
+                                if on {
+                                    w.extras.push(e.to_string());
+                                }
+                            }
+                        }
+                    });
+                    ui.end_row();
+                }
                 if w.kind == ArtKind::Creature3d {
                     ui.label("From figure");
                     ui.add(egui::TextEdit::singleline(&mut w.from).hint_text("(draw a picture)").desired_width(180.0)).on_hover_text("A sprite sheet in the four-facing layout (an old figure): its standing frames (front, side, back) become the model, no picture is drawn");
@@ -430,6 +471,7 @@ impl Editor {
                 ArtKind::Model3d => ui.weak("A turnaround picture, a 3D model of it, a skeleton and animations (walk, idle, the attack, hit, sit). Takes a few minutes."),
                 ArtKind::Creature3d => ui.weak("A picture and a 3D model of it, without a skeleton: give it a rig template to animate it."),
                 ArtKind::Gear3d => ui.weak("A 3D model of the item from its icon (the description, if any, guides the colours). It is held in hands of 3D characters."),
+                ArtKind::Clips3d => ui.weak("More animations for the rigged 3D model with this id (no description needed): its file is rigged again (5 credits) and the clips are fitted to its own skeleton. Other models with the same bones can then share them (Database › 3D models › Copy clips)."),
                 _ => ui.label(""),
             };
             ui.horizontal(|ui| {

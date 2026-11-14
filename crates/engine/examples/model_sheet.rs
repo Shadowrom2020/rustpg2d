@@ -4,7 +4,8 @@
 //!
 //! `cargo run -p rustpg2d-engine --example model_sheet -- OUT.png MODEL.glb [--clips FILE.glb]…
 //! [--template TEMPLATE.glb [--turn DEGREES]] [--height PIXELS] [--anims walk,idle,…] [--facing left]
-//! [--moments N]`
+//! [--moments N] [--clip ANIM=CLIP]…` (`--clip` maps an animation name to a clip by its name in the
+//! files, for clips the standard names don't find, e.g. `--clip attack_2h=Armature|Heavy_Hammer_Swing|baselayer`)
 use std::collections::HashMap;
 
 use macroquad::prelude::*;
@@ -48,6 +49,12 @@ async fn main() {
             names.extend(clip_names(f));
         }
         def.clips = guess_clips(&names);
+    }
+    for w in args.windows(2).filter(|w| w[0] == "--clip") {
+        if let Some((anim, clip)) = w[1].split_once('=') {
+            def.clips.retain(|c| c.anim != anim);
+            def.clips.push(rustpg2d_engine::defs::ClipMap { anim: anim.into(), clip: clip.into(), fps: 12.0, hit: None });
+        }
     }
     db.models.push(def);
     db.reindex();

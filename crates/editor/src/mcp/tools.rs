@@ -80,7 +80,7 @@ pub struct TilesetParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GenerateArtParams {
-    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) or "gear" (the 3D model of the existing item `id`: with a description from a clean picture drawn first, its icon as the reference; without one from the icon); pictures: "icon", "prop", "portrait" or "image".
+    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) "gear" (the 3D model of the existing item `id`: with a description from a clean picture drawn first, its icon as the reference; without one from the icon) or "clips" (more animations, `extras`, for the existing rigged 3D model `id`: its file rigged again, the clips fitted to its skeleton; no description needed); pictures: "icon", "prop", "portrait" or "image".
     pub kind: String,
     /// Id the asset will get (letters, digits, _).
     pub id: String,
@@ -94,7 +94,7 @@ pub struct GenerateArtParams {
     pub portrait_for: Option<String>,
     /// 3D characters ("model"): a woman (her sitting clip; the model is marked as a woman's).
     pub female: Option<bool>,
-    /// 3D characters ("model"): extra animations, 3 credits each: "craft" (working at an anvil), "farm" (bending to pick crops), "chop" (chopping wood), "sleep" (lying in a bed).
+    /// 3D characters ("model"): extra animations, 3 credits each: "craft" (working at an anvil), "farm" (bending to pick crops), "chop" (chopping wood), "sleep" (lying in a bed). "clips": the animations to add, these or the weapon animations "attack_1h", "attack_2h", "attack_thrust", "attack_bow", "attack_cast", "attack_unarmed", "idle_1h", "idle_2h", "idle_bow", "block_shield", "block_weapon" and "sneak".
     pub extras: Option<Vec<String>>,
     /// 3D characters and creatures ("model", "creature"): a figure sheet id whose standing frames (front, side, back) are modelled, instead of drawing a turnaround picture first.
     pub from: Option<String>,
@@ -201,6 +201,20 @@ pub struct FitRigParams {
     /// Joints moved after the fit (replaces the list): offsets in parts of the model's height, x right, y up, z front. Omit to keep.
     #[serde(default)]
     pub joints: Option<Vec<JointNudgeParam>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ShareClipsParams {
+    /// The rigged model that gets the animations.
+    pub model: String,
+    /// The rigged model whose animations it takes (same bone names, e.g. both rigged by Meshy).
+    pub from: String,
+    /// The animations to copy (e.g. "attack_2h", "block_shield"); omit for every animation whose clip is in one of `from`'s clip files.
+    #[serde(default)]
+    pub anims: Vec<String>,
+    /// Also replace animations `model` maps already (default: they keep their clips).
+    #[serde(default)]
+    pub replace: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -744,6 +758,9 @@ with_params {
     /// Animates an unrigged model (an animal, a monster: Meshy rigs only people) with a rig template: the template's skeleton is stretched over the model and its walk, idle, attack and hurt clips play. Also turns the model to face the front and moves single joints. Returns the fitted joints; check the result with a play test or the Models tab. Saves.
     #[tool]
     fit_rig: FitRig(p: FitRigParams) => ed.mcp_fit_rig(p);
+    /// Lets a rigged model play another rigged model's animations (same bone names, e.g. clips bought for one Meshy figure): the clip files they come from become the model's shared clips, fitted to its bones when it loads, and the animations are mapped with the same clips and hit points. Typical: the weapon animations (attack_1h, attack_2h, attack_thrust, attack_bow, attack_crossbow, attack_cast, attack_unarmed, idle_1h, idle_2h, idle_bow, idle_spear, block_shield, block_weapon, block_2h) that items name (upsert_def item `anims: {attack, idle, walk, block}`, empty = estimated from the weapon). Saves.
+    #[tool]
+    share_model_clips: ShareModelClips(p: ShareClipsParams) => ed.mcp_share_clips(p);
     /// Edits the frames of a sprite sheet's image and a figure's hand grips (4 columns, 16 rows: walk, idle, attack, hurt; facings down, left, right, up): mirror Left rows into Right rows, copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (e.g. split a shade two colour features share), fill empty idle / hurt frames with the standing frame, set_grip / clear_grips / estimate_hands (where held weapons, tools and props are drawn). Grips move with the frames. Writes the PNG and the definition and reloads the art; view_image shows the result.
     #[tool]
     edit_frames: EditFrames(p: EditFramesParams) => ed.mcp_edit_frames(p);

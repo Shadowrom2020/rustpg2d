@@ -144,12 +144,15 @@ Exported games never have the console.
 
 ## Files and folders
 
-*File › New project…* and *Open project…* use your desktop's file dialogs. Fields that take an
-image or a sound have a *Browse…* button; a file from outside the project is copied into the
-project's `tilesets/`, `sprites/` or `sounds/` folder.
+*File › New project…*, *Open project…* and *Open project folder…* use your desktop's file dialogs.
+Fields that take an image or a sound have a *Browse…* button; a file from outside the project is
+copied into the project's `tilesets/`, `sprites/` or `sounds/` folder.
 
-A project folder looks like this. You rarely need to touch the files directly; the editor writes
-them.
+A project is one file, `<name>.r2dproject` (see [Getting started › Projects are one
+file](01-getting-started.md#projects-are-one-file)). *Database › Project* shows where it is and
+where its working copy is: the files the editor works on while the project is open, laid out like
+this. You rarely need to touch them directly; the editor writes them, and the project file follows
+within two seconds.
 
 ```
 project.ron           the game's name, start map and spawn, pixel scale, player character and settings
@@ -163,12 +166,15 @@ lang/<code>.ron       translations
 saves/                save games of play-tests (never exported)
 ```
 
-All text files are plain RON and can be kept in version control.
+All text files are plain RON. To keep a project in version control as files, develop it as a
+folder: with the environment variable `RUSTPG2D_FOLDER_PROJECTS=1` the editor opens project
+folders as they are instead of converting them (that is how the example game is kept in
+R(ust)PG2D's own repository).
 
 ### Files changed outside the editor
 
-The editor watches the project's files. When something else changes them (another program, an AI
-agent, a `git pull`), it reloads them by itself if you have no unsaved edits to them; otherwise a
+The editor watches the project's files (in a project file's working copy). When something else
+changes them (another program, an AI agent, a `git pull` in a folder project), it reloads them by itself if you have no unsaved edits to them; otherwise a
 banner asks whether to *Reload* or *Keep mine*.
 
 ### Files the editor can only read in part

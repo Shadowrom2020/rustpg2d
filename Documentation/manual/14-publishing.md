@@ -10,6 +10,8 @@ folders are never touched.
 
 ## What you get
 
+The export dialog suggests a `releases` folder beside the project file.
+
 ```
 releases/<game-name>/                   Linux: the game, data.pack, README.txt, rustpg2d-LICENSE.txt
 releases/<game-name>-windows/           Windows: <game-name>.exe, data.pack, README.txt, the license

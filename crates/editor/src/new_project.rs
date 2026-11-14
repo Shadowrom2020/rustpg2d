@@ -15,9 +15,9 @@ use crate::app::Editor;
 #[derive(Clone)]
 pub struct NewProjectWizard {
     pub name: String,
-    /// Folder the project folder is created in.
+    /// Folder the project file is created in.
     pub parent: String,
-    /// Project folder name (follows the game name until edited).
+    /// Project file name without `.r2dproject` (follows the game name until edited).
     pub folder: String,
     pub folder_edited: bool,
     pub sex: SexChoice,
@@ -53,8 +53,9 @@ impl NewProjectWizard {
         }
     }
 
-    pub fn dir(&self) -> PathBuf {
-        PathBuf::from(self.parent.trim()).join(self.folder.trim())
+    /// The project file to create.
+    pub fn file(&self) -> PathBuf {
+        PathBuf::from(self.parent.trim()).join(format!("{}.{}", self.folder.trim(), crate::project_file::EXT))
     }
 
     /// Why the project can't be created yet (None = ready).
@@ -66,19 +67,15 @@ impl NewProjectWizard {
             return Some("Choose where to create the project.".into());
         }
         if self.folder.contains(['/', '\\']) {
-            return Some("The folder name can't contain slashes.".into());
+            return Some("The file name can't contain slashes.".into());
         }
         let map_ok = !self.map_name.is_empty() && self.map_name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-');
         if !map_ok {
             return Some("Map names may use letters, digits, '_' and '-'.".into());
         }
-        let dir = self.dir();
-        if dir.join("project.ron").exists() {
-            return Some(format!("{} already contains a project.", dir.display()));
-        }
-        let busy = std::fs::read_dir(&dir).map(|mut it| it.any(|e| e.is_ok_and(|e| !e.file_name().to_string_lossy().starts_with('.')))).unwrap_or(false);
-        if busy {
-            return Some(format!("{} exists and is not empty.", dir.display()));
+        let file = self.file();
+        if file.exists() {
+            return Some(format!("{} already exists.", file.display()));
         }
         None
     }
@@ -107,8 +104,8 @@ const CREATOR_MODELS: [&str; 2] = ["hero", "heroine"];
 impl Editor {
     /// Opens the wizard (after the current project's unsaved work was settled).
     pub fn open_new_project_wizard(&mut self) {
-        let parent = match self.project.root.parent() {
-            Some(p) if self.project_open => p.to_path_buf(),
+        let parent = match self.project_parent() {
+            Some(p) if self.project_open => p,
             _ => rustpg2d_engine::paths::home().unwrap_or_default(),
         };
         self.new_project = Some(NewProjectWizard::new(parent));
@@ -120,7 +117,8 @@ impl Editor {
         if let Some(p) = w.problem() {
             bail!(p);
         }
-        let dir = w.dir();
+        let mut pf = crate::project_file::ProjectFile::create(&w.file())?;
+        let dir = pf.work.clone();
         crate::files::create_project(&dir)?;
         let mut project = Project::load(&dir)?;
         let mut notes = Vec::new();
@@ -189,13 +187,15 @@ impl Editor {
         project.save_map(&map)?;
         project.save_config()?;
         project.save_defs()?;
+        pf.sync_now()?;
+        let file = pf.path.clone();
         self.new_project = None;
         // Opening replaces the whole editor state, closing the old project.
         self.close_project();
-        self.switch_project(dir.clone());
+        self.switch_project(file.clone());
         let extra = if notes.is_empty() { String::new() } else { format!(" ({})", notes.join(", ")) };
         self.set_status(format!("Created \"{}\"{extra}. Paint the map, then F5 to play.", self.project.config.name));
-        Ok(dir)
+        Ok(file)
     }
 
     pub fn new_project_window(&mut self, ctx: &egui::Context) {
@@ -217,13 +217,13 @@ impl Editor {
                     browse = ui.button("Browse…").clicked();
                 });
                 ui.end_row();
-                ui.label("Folder name");
+                ui.label("File name");
                 if ui.add(egui::TextEdit::singleline(&mut w.folder).desired_width(200.0)).changed() {
                     w.folder_edited = true;
                 }
                 ui.end_row();
                 ui.label("");
-                ui.weak(w.dir().display().to_string());
+                ui.weak(w.file().display().to_string());
                 ui.end_row();
             });
             ui.separator();

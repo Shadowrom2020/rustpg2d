@@ -194,7 +194,12 @@ crates/editor/src/      editor binary
   Settings windows, agent.rs the art_* agent tools), library_window.rs (`--library`: the editor in library mode on the asset
   library, opened as its own process), pixel.rs (pixel editor), wizard.rs (new asset),
   export.rs (release export dialog), package.rs (a game's AppSpec for crates/packaging; icon),
-  files.rs (file dialogs, create_project, recent list, bundled example of packaged R(ust)PG2D)
+  files.rs (file dialogs, create_project / create_project_file, recent list, bundled example of
+  packaged R(ust)PG2D = packed into ~/rustpg2d/example_project.r2dproject),
+  project_file.rs (projects are one file, <name>.r2dproject = the data.pack format: a working copy
+  in <data>/rustpg2d/work (`<RUSTPG2D_EDITOR_CONFIG>/work` in tests), packed again on a thread
+  when it changed, `.r2dwork` record, recovery, "(changed N)" copies; folders are converted on
+  open unless RUSTPG2D_FOLDER_PROJECTS=1)
 crates/editor/assets/starter_library/
                         the editor's starter asset library: a library folder (project.ron, defs/,
                         sprites/, tilesets/, sounds/, scripts/library.rhai), embedded by
@@ -291,7 +296,8 @@ itself is still built as content on top of it. The checklist below is for that c
   files (the generator that once wrote them was removed in 0.11.0), and the place where new
   features are built (*Content route*). Edit them with the editor
   and its AI agent server (`Documentation/manual/13-ai-agents.md`): start
-  `RUSTPG2D_LIBRARY=crates/editor/assets/starter_library target/debug/rustpg2d-editor example_project`
+  `RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_LIBRARY=crates/editor/assets/starter_library target/debug/rustpg2d-editor example_project`
+  (without `RUSTPG2D_FOLDER_PROJECTS=1` the editor converts the folder into a project file and edits that instead)
   with `RUSTPG2D_EDITOR_SCRIPT="mcp on PORT; wait 3600; quit"` (plus scratch `RUSTPG2D_SETTINGS_DIR` /
   `RUSTPG2D_EDITOR_CONFIG`) and drive it with an MCP client (as `crates/editor/examples/mcp_smoke.rs`
   does). Writes save at once into the real files, so work on a branch. New art / sounds:
@@ -319,7 +325,9 @@ cargo build --release --workspace  # keep release binaries current too (export, 
 
 Use the session scratchpad for everything temporary: copy `example_project` (minus `saves/`)
 there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<scratch>/settings` (the game's Options menu saves there), and for the editor
-`RUSTPG2D_EDITOR_CONFIG=<scratch>/cfg RUSTPG2D_LIBRARY=<scratch>/lib`.
+`RUSTPG2D_EDITOR_CONFIG=<scratch>/cfg RUSTPG2D_LIBRARY=<scratch>/lib` (project files' working copies then go to
+`<scratch>/cfg/work`). The editor converts a project folder it opens into `<folder>.r2dproject` beside it: fine for a scratch
+copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
 
 - **Smoke run:** `scripts/ci/smoke.sh` (after `cargo build -p rustpg2d-game -p rustpg2d-editor`
   and `cargo build -p rustpg2d-editor --example mcp_smoke`) runs the game and the editor on a scratch
@@ -351,6 +359,8 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
   folder a test run creates; older distros: the AppImage in `debian:bookworm-slim` via docker with
   the X11 socket, `--ipc=host`, `LIBGL_ALWAYS_SOFTWARE=1`, `--appimage-extract-and-run`),
   sounds (`sndplay [ID]` / `sndstop [ID]` = the Sounds form's Play / Stop, default the selected sound; `status` prints `preview=` and `music=`),
+  project files (`openproject FILE|DIR`, `openfolder DIR`, `newproject FILE`, `packnow` = write the project file now,
+  `packtick` = one two-second check; `status` prints `projectfile=PATH:saved|pending|writing|error:N` or `-`),
   AI agent server (`mcp on [PORT]` / `mcp off`, `mcpwindow`; `status` prints `mcp=off|127.0.0.1:PORT calls=N` and
   `watch=clean|changed:<files>`; `watchanswer reload|keep` answers the changed-on-disk banner; drive the server with
   `crates/editor/examples/mcp_smoke.rs` or a small Streamable-HTTP client — POST JSON-RPC with `Accept: application/json,

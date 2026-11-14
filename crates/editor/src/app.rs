@@ -1,7 +1,7 @@
 //! Editor state and egui panels.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use egui_macroquad::egui::{self, pos2, vec2, Color32, Sense, Stroke, StrokeKind};
 use macroquad::prelude::Vec2;
@@ -349,6 +349,9 @@ pub struct Editor {
     /// The AI agent server (Assets › AI agent server…) and the project file watcher.
     pub mcp: crate::mcp::McpState,
     pub watch: crate::mcp::watcher::Watch,
+    /// The project file the open project came from (its working copy is `project.root`);
+    /// None for a project folder (`RUSTPG2D_FOLDER_PROJECTS`) and the library window.
+    pub project_file: Option<crate::project_file::ProjectFile>,
 }
 
 impl Editor {
@@ -376,12 +379,88 @@ impl Editor {
         if !ed.assets.errors.is_empty() {
             ed.set_status(format!("{} asset error(s), see terminal", ed.assets.errors.len()));
         }
-        files::remember_recent(&root);
         if let Some(c) = converted {
             println!("[editor] {}", c.summary());
             ed.set_status(c.summary());
         }
         Ok(ed)
+    }
+
+    /// An editor with the project file or folder at `path` open. A folder is converted into a
+    /// project file beside it first (the folder is left as it was), unless folders are allowed
+    /// (`RUSTPG2D_FOLDER_PROJECTS`).
+    pub fn open_path(path: PathBuf) -> anyhow::Result<Self> {
+        use crate::project_file::{folders_allowed, ProjectFile};
+        if path.is_dir() {
+            if !path.join("project.ron").is_file() {
+                anyhow::bail!("{} is not an R(ust)PG2D project (no project.ron)", path.display());
+            }
+            if folders_allowed() {
+                let ed = Editor::new(path.clone())?;
+                files::remember_recent(&path);
+                return Ok(ed);
+            }
+            let (file, made) = ProjectFile::convert_folder(&path)?;
+            let mut ed = Self::open_path(file.clone())?;
+            files::forget_recent(&path);
+            let msg = if made {
+                format!("Converted the project folder {} into the project file {} (the folder is left as it was)", path.display(), file.display())
+            } else {
+                format!("{} was converted before: opened its project file {}", path.display(), file.display())
+            };
+            ed.set_status(msg);
+            return Ok(ed);
+        }
+        let mut pf = ProjectFile::open(&path)?;
+        let mut ed = Editor::new(pf.work.clone())?;
+        files::remember_recent(&pf.path);
+        if let Some(n) = pf.note.take() {
+            ed.set_status(n);
+        }
+        ed.project_file = Some(pf);
+        Ok(ed)
+    }
+
+    /// Where the project is for the person: its project file, else its folder.
+    pub fn project_location(&self) -> PathBuf {
+        self.project_file.as_ref().map_or_else(|| self.project.root.clone(), |pf| pf.path.clone())
+    }
+
+    /// The folder holding the project file (or the project folder).
+    pub fn project_parent(&self) -> Option<PathBuf> {
+        let loc = self.project_location();
+        let loc = loc.canonicalize().unwrap_or(loc);
+        loc.parent().map(Path::to_path_buf)
+    }
+
+    /// Writes the project file now if its working copy changed: before the project is closed
+    /// or the editor quits.
+    pub fn finish_project_file(&mut self) {
+        let Some(pf) = &mut self.project_file else { return };
+        let res = pf.sync_now();
+        let note = pf.note.take();
+        if note.is_some() {
+            // The work went to a separate copy: list it with the recent projects.
+            files::remember_recent(&pf.path);
+        }
+        if let Err(e) = res {
+            self.set_status(format!("Writing the project file failed: {e:#}"));
+        } else if let Some(n) = note {
+            self.set_status(n);
+        }
+    }
+
+    /// Every frame: writes the project file (on a thread) when the working copy changed.
+    pub fn project_file_tick(&mut self) {
+        let Some(pf) = &mut self.project_file else { return };
+        let was_error = pf.error.is_some();
+        pf.tick(macroquad::time::get_time());
+        if let Some(n) = pf.note.take() {
+            files::remember_recent(&pf.path);
+            self.set_status(n);
+        } else if let Some(e) = pf.error.clone().filter(|_| !was_error) {
+            self.set_status(e);
+        }
     }
 
     /// The welcome screen: no project open.
@@ -502,12 +581,14 @@ impl Editor {
             browse_request: None,
             mcp: Default::default(),
             watch: Default::default(),
+            project_file: None,
             project,
         }
     }
 
     /// Closes the project (after unsaved changes were handled) and shows the welcome screen.
     pub fn close_project(&mut self) {
+        self.finish_project_file();
         self.audio.stop_music();
         let rect = self.canvas_rect;
         let mcp = std::mem::take(&mut self.mcp);
@@ -637,6 +718,7 @@ impl Editor {
             Ok(()) => {
                 doc.mark_saved();
                 let name = doc.map.name.clone();
+                self.watch_note(&self.project.map_path(&name));
                 if !self.maps.contains(&name) {
                     self.maps.push(name.clone());
                     self.maps.sort();
@@ -676,6 +758,9 @@ impl Editor {
         }
         if self.px.is_dirty() {
             self.save_pixel();
+        }
+        if let Some(pf) = &mut self.project_file {
+            pf.check_soon();
         }
     }
 
@@ -977,6 +1062,7 @@ impl Editor {
         let (file, unused) = rustpg2d_engine::lang::template(&self.project, &code, existing);
         let path = self.project.root.join("lang").join(format!("{code}.ron"));
         rustpg2d_engine::project::write_ron(&path, &file).map_err(|e| format!("{e:#}"))?;
+        self.watch_note(&path);
         let open = file.texts.values().filter(|v| v.is_empty()).count();
         let mut msg = format!("lang/{code}.ron: {} texts, {open} not translated yet", file.texts.len());
         if !unused.is_empty() {
@@ -1052,18 +1138,19 @@ impl Editor {
     /// Replaces the editor state with another project.
     pub fn switch_project(&mut self, root: PathBuf) {
         // (Callers go through `request`, so unsaved changes were saved or discarded.)
-        if !root.join("project.ron").exists() {
-            self.set_status(format!("{} is not an R(ust)PG2D project (no project.ron)", root.display()));
-            return;
-        }
-        match Editor::new(root.clone()) {
+        // The current project file is complete before another one opens (it may be the same).
+        self.finish_project_file();
+        match Editor::open_path(root.clone()) {
             Ok(mut e) => {
                 self.audio.stop_music();
                 e.canvas_rect = self.canvas_rect;
                 e.mcp = std::mem::take(&mut self.mcp);
                 *self = e;
                 self.fit_view();
-                self.set_status(format!("Opened project {}", root.display()));
+                // (A conversion or recovery note from opening stays.)
+                if self.status.0.is_empty() {
+                    self.set_status(format!("Opened project {}", self.project_location().display()));
+                }
             }
             Err(e) => self.set_status(format!("Could not open project: {e:#}")),
         }
@@ -1076,8 +1163,8 @@ impl Editor {
         }
         let start = match purpose {
             files::Purpose::NewProjectParent => self.new_project.as_ref().map(|w| PathBuf::from(w.parent.trim())).filter(|p| p.is_dir()),
-            files::Purpose::OpenProject | files::Purpose::NewProject => match self.project.root.parent() {
-                Some(p) if self.project_open => Some(p.to_path_buf()),
+            files::Purpose::OpenProject | files::Purpose::OpenProjectFolder | files::Purpose::NewProject => match self.project_parent() {
+                Some(p) if self.project_open => Some(p),
                 _ => rustpg2d_engine::paths::home(),
             },
             _ => Some(self.project.root.clone()),
@@ -1111,7 +1198,7 @@ impl Editor {
                 }
             }
             P::Import(kind) => self.import_and_report(kind, &path),
-            P::OpenProject => self.request(Pending::OpenProject(path)),
+            P::OpenProject | P::OpenProjectFolder => self.request(Pending::OpenProject(path)),
             P::NewProject => self.request(Pending::NewProject(path)),
             P::NewProjectParent => {
                 if let Some(w) = &mut self.new_project {
@@ -1406,6 +1493,7 @@ impl Editor {
         } else {
             self.menu_bar(ctx);
             self.watch_project();
+            self.project_file_tick();
             self.watch_banner(ctx);
             self.notice_banner(ctx);
             self.library_update_banner(ctx);
@@ -1487,19 +1575,27 @@ impl Editor {
                 ui.heading(egui::RichText::new("R(ust)PG2D editor").size(34.0));
                 ui.label("Maps, characters, props, items and events for top-down RPGs.");
                 ui.add_space(24.0);
-                if ui.add_sized([260.0, 36.0], egui::Button::new("\u{E6A2} New project…")).on_hover_text("Choose an empty folder for the project").clicked() {
+                if ui.add_sized([260.0, 36.0], egui::Button::new("\u{E6A2} New project…")).on_hover_text("Name the game and choose where its project file goes").clicked() {
                     self.request(Pending::NewProject(PathBuf::new()));
                 }
                 ui.add_space(6.0);
-                if ui.add_sized([260.0, 36.0], egui::Button::new("\u{E256} Open project…")).on_hover_text("Choose a folder containing project.ron").clicked() {
+                if ui.add_sized([260.0, 36.0], egui::Button::new("\u{E256} Open project…")).on_hover_text("Choose a project file (.r2dproject)").clicked() {
                     self.open_file_dialog(files::Purpose::OpenProject);
+                }
+                ui.add_space(6.0);
+                if ui
+                    .add_sized([260.0, 36.0], egui::Button::new(ui::t(ph::FOLDER_OPEN, "Open project folder…")))
+                    .on_hover_text("A project folder (with project.ron) from an older R(ust)PG2D: it is converted into a project file beside it; the folder is left as it was")
+                    .clicked()
+                {
+                    self.open_file_dialog(files::Purpose::OpenProjectFolder);
                 }
                 // Packaged R(ust)PG2D (AppImage / Flatpak): the example game, copied out to be editable.
                 if files::bundled_example().is_some() {
                     ui.add_space(6.0);
                     if ui
                         .add_sized([260.0, 36.0], egui::Button::new(ui::t(ph::GAME_CONTROLLER, "Example project")))
-                        .on_hover_text("Opens the example game; the first time it is copied to ~/rustpg2d/example_project")
+                        .on_hover_text("Opens the example game; the first time it is copied to ~/rustpg2d/example_project.r2dproject")
                         .clicked()
                     {
                         self.open_example();
@@ -1535,6 +1631,10 @@ impl Editor {
                             self.open_file_dialog(files::Purpose::OpenProject);
                             ui.close_menu();
                         }
+                        if ui.button("Open project folder…").on_hover_text("Converts a project folder into a project file beside it").clicked() {
+                            self.open_file_dialog(files::Purpose::OpenProjectFolder);
+                            ui.close_menu();
+                        }
                         ui.separator();
                         if ui.button("Quit").clicked() {
                             self.request(Pending::Quit);
@@ -1556,6 +1656,10 @@ impl Editor {
                     }
                     if ui.button(ui::t(ph::FOLDER_OPEN, "Open project…")).clicked() {
                         self.open_file_dialog(files::Purpose::OpenProject);
+                        ui.close_menu();
+                    }
+                    if ui.button(ui::t(ph::FOLDER_OPEN, "Open project folder…")).on_hover_text("Converts a project folder into a project file beside it").clicked() {
+                        self.open_file_dialog(files::Purpose::OpenProjectFolder);
                         ui.close_menu();
                     }
                     if ui.button(ui::t(ph::X, "Close project")).clicked() {
@@ -1928,11 +2032,11 @@ impl Editor {
             Pending::OpenProject(dir) => self.switch_project(dir),
             // Unsaved work is settled at this point; now the wizard asks for name, place and settings.
             Pending::NewProject(dir) if dir.as_os_str().is_empty() => self.open_new_project_wizard(),
-            Pending::NewProject(dir) => match files::create_project(&dir) {
-                Ok(()) => {
+            Pending::NewProject(path) => match files::create_project_file(&path) {
+                Ok(file) => {
                     // Opening replaces the whole editor state, closing the old project.
                     self.close_project();
-                    self.switch_project(dir);
+                    self.switch_project(file);
                     self.set_status("New project created. Add art with Assets \u{E13A} Add from library (or Database \u{E13A} Tilesets), then paint a map.");
                 }
                 Err(e) => self.set_status(format!("Could not create project: {e:#}")),

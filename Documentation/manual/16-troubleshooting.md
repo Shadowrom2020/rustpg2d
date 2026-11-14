@@ -23,6 +23,20 @@ by a newer version). The editor left it out and backed the file up next to itsel
 Another program (or an AI agent) changed project files while you had unsaved edits to them. Choose
 *Reload* to take the new files or *Keep mine* to keep your edits.
 
+**The status bar says changes were recovered, or work was set aside.**
+*Recovered changes made after … was last written*: the editor stopped (a crash, a power cut) right
+after you saved, before it wrote the project file; your saved work was in its working copy and is
+in the project file again. *The project file changed since it was last open here; the work there
+was set aside in …*: the project file was replaced (e.g. by an older copy) while it was closed,
+and its last working copy held changes the file doesn't have. Nothing is deleted: the named folder
+holds those files; open it with *Open project folder…* to get them into a project file of their
+own. See [Getting started › Projects are one file](01-getting-started.md#projects-are-one-file).
+
+**A project file "(changed 1)" appeared beside mine.**
+Something else changed the project file while the editor had it open (another editor on the same
+file, a sync tool), so the editor saved your work as that copy instead of overwriting the other
+change. Open both and keep the one you want.
+
 **The export refuses a game runner "built from another engine".**
 In a source build, the runner for that platform is older than the editor; a game exported with it
 might not read your maps. Rebuild it with the command the message names (e.g.

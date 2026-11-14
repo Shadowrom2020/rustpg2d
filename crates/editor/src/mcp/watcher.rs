@@ -1,8 +1,10 @@
 //! The project file watcher: agents (and other programs) may change `project.ron`, `defs/*.ron`,
 //! `maps/*.map`, `scripts/*.rhai` and `lang/*.ron` on disk while the editor is open. Once a
 //! second the files' modification times and sizes are compared with the last snapshot; clean
-//! documents reload at once, unsaved ones make a banner ask (Reload / Keep mine). The editor's
-//! own saves re-snapshot, so it never reacts to itself.
+//! documents reload at once, unsaved ones make a banner ask (Reload / Keep mine). The editor
+//! never reacts to itself: its saves note the files they wrote ([`Editor::watch_note`]), agent
+//! writes re-snapshot, and a changed open map or script that holds exactly what the editor has is
+//! taken as it is (the editor's other writes).
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -87,6 +89,21 @@ impl Editor {
         self.watch.ready = true;
     }
 
+    /// The editor itself wrote `path`: its new state is no change from disk.
+    pub fn watch_note(&mut self, path: &std::path::Path) {
+        if !self.watch.ready {
+            return;
+        }
+        match std::fs::metadata(path) {
+            Ok(m) if m.is_file() => {
+                self.watch.stamps.insert(path.to_path_buf(), (m.modified().unwrap_or(SystemTime::UNIX_EPOCH), m.len()));
+            }
+            _ => {
+                self.watch.stamps.remove(path);
+            }
+        }
+    }
+
     /// Called every frame (with a project open): checks once a second.
     pub fn watch_project(&mut self) {
         if !self.project_open || self.library_mode {
@@ -164,11 +181,20 @@ impl Editor {
                     }
                 }
                 Changed::Map(name) if Some(&name) == open_map.as_ref() => {
+                    let path = self.project.map_path(&name);
+                    // The file holds the map as the editor has it (the editor wrote it): nothing
+                    // to reload (reloading would also drop the map's undo history).
+                    let same = self.doc.as_ref().is_some_and(|d| {
+                        std::fs::read(&path).ok().zip(rustpg2d_engine::map::io::encode(&d.map).ok()).is_some_and(|(disk, mine)| disk == mine)
+                    });
+                    if same {
+                        continue;
+                    }
                     if self.doc.as_ref().is_some_and(|d| d.is_dirty()) && !force {
                         blocked.push(format!("maps/{name}.map"));
                         continue;
                     }
-                    if self.project.map_path(&name).exists() {
+                    if path.exists() {
                         let (sel, layer) = (self.sel, self.layer);
                         self.open_map(&name);
                         self.sel = sel;
@@ -182,7 +208,8 @@ impl Editor {
                 }
                 Changed::Map(_) => map_list = true,
                 Changed::Script(p) => {
-                    if self.db.script_file.as_ref() == Some(&p) {
+                    let same = std::fs::read_to_string(&p).is_ok_and(|t| t == self.db.script_text);
+                    if self.db.script_file.as_ref() == Some(&p) && !same {
                         if self.db.script_dirty && !force {
                             blocked.push(format!("scripts/{}", p.file_name().unwrap_or_default().to_string_lossy()));
                             continue;

@@ -176,7 +176,8 @@ impl Editor {
     }
 
     pub fn open_export(&mut self) {
-        let out = self.project.root.canonicalize().ok().and_then(|r| r.parent().map(|p| p.join("releases"))).unwrap_or_else(|| PathBuf::from("releases"));
+        // Beside the project file (or folder), never in its working copy.
+        let out = self.project_parent().map(|p| p.join("releases")).unwrap_or_else(|| PathBuf::from("releases"));
         let name = self.project.config.name.clone();
         let opts = ExportOpts { zip: true, app_id: package::default_app_id(&release::slug(&name)), ..Default::default() };
         self.export = Some(ExportDialog {

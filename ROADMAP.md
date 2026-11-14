@@ -92,9 +92,9 @@ Instructions for every session (people and coding agents) that implements roadma
 ## 0.20.0 — A Living Village
 
 Emberbrook should feel inhabited: villagers talk in passing, the world sounds like where you
-stand, friendships grow with gifts, quests show where they lead, signposts connect the maps, and
-exported games ship as one tidy pack. Build order as listed (the content-only
-fast travel early; seasons and stealth last, they are the biggest). Each *Engine* line is a
+stand, friendships grow with gifts, quests show where they lead, signposts connect the maps,
+exported games ship as one tidy pack, and careful players can sneak. Build order as listed (the
+content-only fast travel early; stealth last, it is the biggest). Each *Engine* line is a
 proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Content first*).
 
 - [x] NPC barks — `feature/barks`
@@ -307,7 +307,8 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   intro, models, a crafted save loaded and quick-saved, the forest map, German, footsteps and
   ambience; the AppImage, the Flatpak and the Windows export (Wine); a loose export; a packed export over a loose one (the old folder is
   replaced whole); the web export in headless Brave; unit tests for the format and the packed
-  Linux and macOS exports (Resources/data.pack, listed in CodeResources).
+  Linux and macOS exports (Resources/data.pack, listed in CodeResources); on the test Mac
+  (with the next item): the packed macOS app passes `codesign --verify --deep --strict` and plays.
 
   **Touch points.** `sys.rs`, `release.rs` (`export`, `export_web`, file list), `icon.rs`,
   `crates/game/src/main.rs` (finding the data), editor `export.rs` / `package.rs` (packages, the
@@ -317,6 +318,79 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   `data.pack`, README and license; the game plays (maps, sounds, models, translations, a save and a
   load); an AppImage and a macOS app (zip structure, signing) built from it; an export with loose
   files still runs; a unit test round-trips the pack.
+
+- [x] Projects in one file — `feature/project-pack`
+
+  **Goal.** A project is one file, `<name>.r2dproject`, in the same format as an exported game's
+  `data.pack`: easy to keep, copy and back up, nothing to break by moving a file inside it.
+
+  **Design.** The editor opens a project file by unpacking it into a working copy in the cache
+  folder (reused when it is still current, so big projects open fast), and everything (forms,
+  play-tests, the agent server, imports, exports) works on that copy as before. Whenever the
+  working copy changes (checked every two seconds, after a save, before closing or quitting) the
+  editor writes the project file again, to a temporary file that is then renamed, so a crash never
+  leaves half a file; work done after the last pack is recovered on the next open. Packs only:
+  opening a project folder converts it into `<folder>.r2dproject` beside it (the folder is left as
+  it was); new projects and the packaged editor's example are project files. If the project file
+  changed elsewhere while it was open, the editor saves its work as a separate copy instead of
+  overwriting. Development switch: `RUSTPG2D_FOLDER_PROJECTS=1` opens folders directly (the
+  repository's `example_project/` stays plain files: diffs, tests, the starter library check).
+
+  **Engine.** Approved: pack and unpack folders in `pack.rs` (hidden files left out, paths checked
+  on unpacking), faster scrambling (same bytes).
+
+  **Decided while building.** Asked: the working copy (not editing inside the pack), packs only
+  (folders converted when opened), the repository's example stays a folder. The working copy lives
+  in the user data folder, not the cache (macOS may clear caches while it holds unpacked work). The
+  record notes a finished temporary pack as `pending` before the rename, so a kill between rename
+  and record still finds the copy current (found by a kill test). Project files are named
+  `.r2dproject` (like `.r2dpack` packages); conflict copies `<name> (changed N).r2dproject`. The
+  packaged example is packed on first use from the bundled folder (not at build time: same result,
+  no build step). Hidden files stay out of packs (`.git` of a converted folder). Agents learn the
+  working copy's folder from `project_info`. Verified: conversion (folder untouched), saving (the
+  file follows within two seconds), reopening (copy reused), killed editors (recovered, and the
+  file written just before the kill), a touched project file (a "(changed 1)" copy, the original
+  untouched), the wizard and `newproject`, a play-test, an export (default folder beside the file)
+  and the game from it, the packaged example copy twice, the Mac editor (conversion, save and undo, a play-test,
+  the wizard, a killed editor recovered), the smoke script (conversion, the agent
+  server on the project file), an earlier `data.pack` read by the new runner; unit tests for
+  folders, the keystream, recovery and conflicts. Fixed on the way (older than this item): the editor's map
+  save reloaded the map through the file watcher a second later and lost its undo history; the
+  editor's saves now note the files they write, and an open map or script whose file holds what
+  the editor has isn't reloaded.
+
+  **Touch points.** `pack.rs`, editor `project_file.rs` (new: working copy, record, packing on a
+  thread, recovery, conflicts), `app.rs` (opening, switching, closing, quitting, File menu *Open
+  project folder…*), `files.rs` (dialogs, recent list, example copy), `new_project.rs`, `export.rs`
+  (releases next to the project file), `main.rs` (argument, `status`, script commands),
+  `scripts/ci/smoke.sh`, manual 01 / 02 / 14 / 16, CLAUDE.md, architecture.
+
+  **Verify.** Editor scripts on scratch copies: open a converted folder (pack written, folder
+  untouched), edit and save (the pack changes), reopen (working copy reused), a crash (killed
+  editor) recovered, a changed pack while open (conflict copy), a new project from the wizard,
+  play-test and export from a project file, the example copy; unit tests for pack / unpack.
+
+- [ ] Stealth — `feature/stealth`
+
+  **Goal.** A careful player can sneak: crouching makes them harder to notice, darkness and
+  cover hide them, and a sneak attack hits harder.
+
+  **Design.** A sneak key (and pad button) toggles crouching: slower walk, a crouch clip (or the
+  walk lowered). Enemy noticing (`ai.rs`: sight range, half through walls) is scaled by sneaking
+  (x0.5) and by the light at the player (the light map's brightness: dark = x0.4), never below
+  a minimum near range. An attack on an enemy that hasn't noticed the player does double damage
+  (a skill can raise it). `status` prints `sneak=` and per enemy whether it noticed.
+
+  **Engine.** Proposed: sneak state and input, light level sampling at the player, the sight
+  scale in `ai.rs`, the sneak attack bonus in `combat.rs`, a sneak clip in `ModelDef.clips`.
+
+  **Touch points.** `runtime/input.rs`, `runtime/ai.rs`, `runtime/lights.rs` /
+  `render/lighting.rs`, `runtime/combat.rs`, `settings.rs` (key binding), manual 09 / 15.
+
+  **Example.** The bandits' camp in south-east Whisperwood at night as a stealth approach; a *Sneaking* skill.
+
+  **Verify.** Autoplay approaching an enemy standing / sneaking / sneaking at night (distance at
+  which it notices), a sneak attack's damage (`numbers=`), the pad button.
 
 ## Backlog (unscheduled ideas)
 
@@ -346,6 +420,3 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
 - Seasons (moved from 0.20.0): a year of N days, tile variants per season (autumn / winter tiles
   without repainting), crops by season, snow in winter, a *Season is* condition and `season()`.
   The full design block is in git history (ROADMAP.md, 0.20.0).
-- Stealth (moved from 0.20.0): a sneak key, enemies notice later when sneaking and in the dark
-  (light level at the player in `ai.rs` sight), double damage on unaware enemies. Full design in
-  git history (ROADMAP.md, 0.20.0).

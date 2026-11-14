@@ -1,5 +1,8 @@
 /target
 example_project/saves/
+# Opening the example without RUSTPG2D_FOLDER_PROJECTS=1 converts it into a project file beside it.
+/example_project.r2dproject
+/.example_project.r2dproject.writing
 example_project/saves-backup-*/
 /dist
 /crates/editor/assets/starter_library/starter.stamp

@@ -141,7 +141,10 @@ impl Editor {
         }
         let cfg = &self.project.config;
         let db = &self.project.db;
-        let mut s = format!("Project \"{}\" at {} (engine build {})\n", cfg.name, self.project.root.display(), rustpg2d_engine::ENGINE_BUILD);
+        let mut s = format!("Project \"{}\" at {} (engine build {})\n", cfg.name, self.project_location().display(), rustpg2d_engine::ENGINE_BUILD);
+        if let Some(pf) = &self.project_file {
+            s += &format!("Its files (the working copy the editor writes into the project file whenever they change): {}\n", pf.work.display());
+        }
         s += &format!(
             "Start: map \"{}\", spawn \"{}\"; player character: \"{}\"; language: {}{}; day length {} min, start hour {}\n",
             cfg.start_map,

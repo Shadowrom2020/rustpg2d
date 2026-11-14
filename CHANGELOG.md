@@ -3,7 +3,11 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.20.0 — 2026-11-14
+
+A living village: villagers talk in passing and become friends, the world sounds like where you
+stand, quests show where they lead, signposts connect the maps, careful players sneak, games ship as
+one data file and projects are one file. The hero, the elves and the villager woman are new.
 
 ### Gameplay
 - **Stealth**: Left Ctrl or V (gamepad: left stick click, which no longer hides the interface)

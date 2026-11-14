@@ -515,6 +515,7 @@ save. Scripts can add autosaves at important moments, e.g. after a boss fight or
 |---|---|
 | `hour()` | Time of day in hours, `0` to `24` (`13.5` = half past one in the afternoon). |
 | `is_night()` | Whether it is night (dark on outdoor maps). |
+| `is_sneaking()` | Whether the player is sneaking (the sneak key: Left Ctrl, V or the left stick click). |
 | `set_hour(hour)` | Sets the time of day, e.g. `set_hour(22)`. *(queued)* |
 | `day()` | The in-game day: `0` on the first day; midnight and sleeping move it on. For things that happen once a day (see the recipe *A stall that sells what was made*). |
 

@@ -6,6 +6,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 ## Unreleased
 
 ### Gameplay
+- **Stealth**: Left Ctrl or V (gamepad: left stick click, which no longer hides the interface)
+  toggles **sneaking**: half speed, soft steps, *Sneaking* under the hearts. Hostile characters notice
+  the player within their sight times 0.4 (dark) to 1 (lit) by the light at the player (the map's
+  lighting and clock, light sources near them, their own lantern), half that while sneaking, behind
+  walls half again, within three quarters of a tile always. A hit on an enemy that hasn't noticed
+  anyone is a **sneak attack**: double damage, shown like a critical hit. New skill effect *Sneak
+  attack* (+ % per level), script function `is_sneaking()`, a model's **sneak** clip (else the walk,
+  slowed); `status` prints `sneak=`.
+
 - **NPC barks**: the *Bark (speech bubble)* action and `bark(who, text)` show a short line in a
   speech bubble over a character's head that doesn't stop play: one of several lines at random,
   never the same twice in a row, translated and with placeholders like dialogs, staying 2 to 7 s
@@ -66,6 +75,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).
 
 ### Example project
+- **Sneaking**: the *Sneaking* skill (+25 % sneak attack damage per level; also in the starter
+  library with its hood icon), a creeping walk for every playable model (Meshy's *Sneaky Walk*),
+  and a sign on the way to the bandits' camp in Whisperwood that hints at a night approach (English
+  and German).
 - **New hero and elves**: the hero, the elf man and the elf woman are new chibi 3D models in the
   style of the cast (made with *Generate art*), rigged again: their arms no longer turn the palms
   forward while walking. The hero looks more heroic, with short hair. Ids, names, heights, clips and

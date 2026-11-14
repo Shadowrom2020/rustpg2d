@@ -100,6 +100,7 @@ pub const API: &[ApiFn] = api! {
     "hour"() "Time of day in hours (0..24, e.g. 13.5 = half past one in the afternoon)";
     "day"() "The in-game day (0 on the first day; sleeping and midnight move it on), e.g. for things that happen once a day";
     "is_night"() "Whether it is night (dark outdoors)";
+    "is_sneaking"() "Whether the player is sneaking (the sneak key: Left Ctrl, V or the left stick)";
     "set_hour"(hour: Num) "Sets the time of day, e.g. set_hour(22) (queued)";
     "skill"(skill: Skill) "The player's level in a skill (0 = none)";
     "skill_points"() "Unspent skill points";

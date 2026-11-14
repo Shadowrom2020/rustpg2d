@@ -164,4 +164,17 @@
             percent: 20.0,
         ),
     ),
+    (
+        id: "sneaking",
+        name: "Sneaking",
+        description: "Strike from the shadows: hits on enemies that have not noticed you do double damage, and more with every level. Sneak with Ctrl (or V, or the left stick).",
+        icon: (
+            sheet: "skill_icons",
+            frame: 0,
+        ),
+        max_level: 5,
+        effect: SneakAttack(
+            percent: 25.0,
+        ),
+    ),
 ]

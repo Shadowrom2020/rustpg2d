@@ -176,6 +176,7 @@
         file: "models/hero.glb",
         clip_files: [
             "models/hero_clips.glb",
+            "models/hero_sneak.glb",
         ],
         height: 40.0,
         clips: [
@@ -202,6 +203,11 @@
             (
                 anim: "attack",
                 clip: "Right_Hand_Sword_Slash",
+                fps: 12.0,
+            ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
                 fps: 12.0,
             ),
         ],
@@ -271,6 +277,7 @@
         file: "models/heroine.glb",
         clip_files: [
             "models/heroine_clips.glb",
+            "models/heroine_sneak.glb",
         ],
         height: 38.0,
         clips: [
@@ -297,6 +304,11 @@
             (
                 anim: "attack",
                 clip: "Right_Hand_Sword_Slash",
+                fps: 12.0,
+            ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
                 fps: 12.0,
             ),
         ],
@@ -376,6 +388,7 @@
         file: "models/elf.glb",
         clip_files: [
             "models/elf_clips.glb",
+            "models/elf_sneak.glb",
         ],
         height: 43.0,
         clips: [
@@ -402,6 +415,11 @@
             (
                 anim: "attack",
                 clip: "Right_Hand_Sword_Slash",
+                fps: 12.0,
+            ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
                 fps: 12.0,
             ),
         ],
@@ -470,6 +488,7 @@
         file: "models/elf_f.glb",
         clip_files: [
             "models/elf_f_clips.glb",
+            "models/elf_f_sneak.glb",
         ],
         height: 42.0,
         clips: [
@@ -496,6 +515,11 @@
             (
                 anim: "attack",
                 clip: "Right_Hand_Sword_Slash",
+                fps: 12.0,
+            ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
                 fps: 12.0,
             ),
         ],
@@ -570,6 +594,7 @@
         clip_files: [
             "models/dwarf_clips.glb",
             "models/dwarf_attack.glb",
+            "models/dwarf_sneak.glb",
         ],
         height: 34.0,
         clips: [
@@ -596,6 +621,11 @@
             (
                 anim: "attack",
                 clip: "Armature|Heavy_Hammer_Swing|baselayer",
+                fps: 12.0,
+            ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
                 fps: 12.0,
             ),
         ],
@@ -625,6 +655,7 @@
         file: "models/dwarf_f.glb",
         clip_files: [
             "models/dwarf_f_clips.glb",
+            "models/dwarf_f_sneak.glb",
         ],
         height: 34.0,
         clips: [
@@ -651,6 +682,11 @@
             (
                 anim: "attack",
                 clip: "Heavy_Hammer_Swing",
+                fps: 12.0,
+            ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
                 fps: 12.0,
             ),
         ],
@@ -702,6 +738,7 @@
         file: "models/orc.glb",
         clip_files: [
             "models/orc_clips.glb",
+            "models/orc_sneak.glb",
         ],
         height: 44.0,
         clips: [
@@ -730,6 +767,11 @@
                 clip: "Right_Hand_Sword_Slash",
                 fps: 12.0,
             ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
+                fps: 12.0,
+            ),
         ],
         playable: true,
     ),
@@ -739,6 +781,7 @@
         file: "models/orc_f.glb",
         clip_files: [
             "models/orc_f_clips.glb",
+            "models/orc_f_sneak.glb",
         ],
         height: 40.0,
         clips: [
@@ -767,6 +810,11 @@
                 clip: "Right_Hand_Sword_Slash",
                 fps: 12.0,
             ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
+                fps: 12.0,
+            ),
         ],
         playable: true,
         female: true,
@@ -778,6 +826,7 @@
         clip_files: [
             "models/goblin_scout_clips.glb",
             "models/goblin_scout_attack.glb",
+            "models/goblin_scout_sneak.glb",
         ],
         height: 42.0,
         clips: [
@@ -806,6 +855,11 @@
                 clip: "Armature|Archery_Shot|baselayer",
                 fps: 12.0,
             ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
+                fps: 12.0,
+            ),
         ],
         playable: true,
         female: true,
@@ -817,6 +871,7 @@
         clip_files: [
             "models/goblin_clips.glb",
             "models/goblin_attack.glb",
+            "models/goblin_sneak.glb",
         ],
         height: 36.0,
         clips: [
@@ -845,6 +900,11 @@
                 clip: "Armature|Archery_Shot|baselayer",
                 fps: 12.0,
             ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
+                fps: 12.0,
+            ),
         ],
         playable: true,
     ),
@@ -854,6 +914,7 @@
         file: "models/troll.glb",
         clip_files: [
             "models/troll_clips.glb",
+            "models/troll_sneak.glb",
         ],
         height: 41.0,
         clips: [
@@ -880,6 +941,11 @@
             (
                 anim: "attack",
                 clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "sneak",
+                clip: "Armature|Sneaky_Walk|baselayer",
                 fps: 12.0,
             ),
         ],
@@ -2612,7 +2678,8 @@
             ),
         ],
         playable: true,
-    ),    (
+    ),
+    (
         id: "elf_realistic",
         name: "Elf (realistic)",
         file: "models/elf_realistic.glb",
@@ -2708,7 +2775,8 @@
             ),
         ],
         playable: true,
-    ),    (
+    ),
+    (
         id: "elf_f_realistic",
         name: "Elf woman (realistic)",
         file: "models/elf_f_realistic.glb",

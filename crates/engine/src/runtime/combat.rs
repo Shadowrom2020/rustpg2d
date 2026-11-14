@@ -77,6 +77,8 @@ pub(super) struct PlayerCombat {
     pub roll: Option<(Vec2, f32)>,
     /// Seconds until the next roll.
     pub dodge_cd: f32,
+    /// Sneaking (`stealth.rs`).
+    pub sneak: bool,
     /// The player's smoothed velocity (px/s) and last position, for shooters leading their aim.
     vel: Vec2,
     last_pos: Option<Vec2>,
@@ -100,6 +102,7 @@ impl PlayerCombat {
             block: None,
             roll: None,
             dodge_cd: 0.0,
+            sneak: false,
             vel: Vec2::ZERO,
             last_pos: None,
             swing_dir: vec2(0.0, 1.0),
@@ -221,6 +224,7 @@ impl Game {
             self.cycle_weapon();
         }
         self.update_defense(dt, key_consumed);
+        self.update_sneak(key_consumed);
         if !key_consumed && self.combat.cooldown <= 0.0 && !self.blocking() && !self.rolling() && input::act_pressed(input::Act::Attack) {
             self.order = None;
             self.attack_at(None);
@@ -348,8 +352,8 @@ impl Game {
                 crate::effects::apply(&mut self.loaded.entities[i].effects, fx);
             }
             let crit = self.roll_crit(weapon.crit);
-            let dmg = if crit { damage * 2 } else { damage };
-            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit, ..Default::default() });
+            let (dmg, sneak) = self.sneak_attack(i, if crit { damage * 2 } else { damage });
+            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit: crit || sneak, ..Default::default() });
         }
     }
 
@@ -478,8 +482,13 @@ impl Game {
                         }
                     });
                     if let Some(t) = target {
-                        let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
-                        let blow = Blow { by_player: p.shooter.is_none(), crit: p.crit, ..Default::default() };
+                        let (mut dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                        let mut blow = Blow { by_player: p.shooter.is_none(), crit: p.crit, ..Default::default() };
+                        // The player's own shot (not a companion's) at an enemy that hasn't noticed them.
+                        if blow.by_player {
+                            let (d, sneak) = self.sneak_attack(t, dmg);
+                            (dmg, blow.crit) = (d, blow.crit || sneak);
+                        }
                         if let Some(fx) = fx {
                             crate::effects::apply(&mut self.loaded.entities[t].effects, &fx);
                         }
@@ -904,6 +913,11 @@ impl Game {
         }
         let frame = Rect::new(x0, y0, tx + col_w + PAD + 2.0 - x0, h.max(portrait.h) + 2.0 * PAD);
         self.hud_bottom.set(frame.bottom());
+        // "Sneaking" under the panel (companions' rows go below it).
+        if self.sneaking() {
+            self.draw_sneak_hint(frame.x + 4.0, frame.bottom() + 18.0);
+            self.hud_bottom.set(frame.bottom() + 24.0);
+        }
 
         // Frame: dark backing, a gold border with an inner line and corner studs.
         let gold = Color::new(0.85, 0.72, 0.38, 1.0);

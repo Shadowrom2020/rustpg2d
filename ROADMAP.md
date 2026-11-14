@@ -370,7 +370,7 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
   editor) recovered, a changed pack while open (conflict copy), a new project from the wizard,
   play-test and export from a project file, the example copy; unit tests for pack / unpack.
 
-- [ ] Stealth — `feature/stealth`
+- [x] Stealth — `feature/stealth`
 
   **Goal.** A careful player can sneak: crouching makes them harder to notice, darkness and
   cover hide them, and a sneak attack hits harder.
@@ -383,6 +383,25 @@ proposal: agree it with the maintainer before changing Rust code (CLAUDE.md, *Co
 
   **Engine.** Proposed: sneak state and input, light level sampling at the player, the sight
   scale in `ai.rs`, the sneak attack bonus in `combat.rs`, a sneak clip in `ModelDef.clips`.
+
+  **Decided while building.** Agreed as proposed, with the *Sneak attack* skill effect (+ % of the
+  hit per level on top of double damage). Keys: Left Ctrl and V; pad: the left stick click, which
+  *Hide interface* gave up (H stays). Look: a model's `sneak` clip, else the walk at half speed; the
+  hero and both elves got Meshy's *Sneaky Walk* from their rigs of the same day (9 credits). Meshy
+  deletes rigs after three days, so the other eight playable models were rigged again from their
+  uploaded model files (`model_url`, 5 credits each) for the clip (3 each); the new rigs differ a
+  little (up to 41° at one goblin's foot), so each clip was retargeted onto the model's old rig
+  (rotation keys times inverse new rest times old rest, the old bone offsets) before importing. The light at the player is computed on the
+  CPU (ambient by the map's lighting and clock + light sources by distance and intensity), not read
+  from the GPU light map, and applies whether sneaking or not. The always-notice range is 0.75 tiles
+  (bumping into them), not 1.5: a melee strike reaches about a tile, so a larger range would make
+  sneak attacks impossible (found in the scripted test). Sneak attacks count for enemies with *Chase*
+  behaviour that aren't hunting or fleeing; they show as critical hits. Steps are softer while
+  sneaking. Code in `runtime/stealth.rs`. Example: the *Sneaking* skill with a new hood icon
+  (`skill_icons` sheet), a warning sign on the way to the bandits' camp. Verified: noticing distance
+  of the bandit chief by day (6 tiles = his sight), sneaking by day (1), at night (2 without sneaking,
+  never while sneaking past); an unaware slime takes 2 from a bow shot (`2!`), an aware one 1; the
+  hero's sneak clip, the HUD hint and the left stick toggle (shots), the sign (shot).
 
   **Touch points.** `runtime/input.rs`, `runtime/ai.rs`, `runtime/lights.rs` /
   `render/lighting.rs`, `runtime/combat.rs`, `settings.rs` (key binding), manual 09 / 15.

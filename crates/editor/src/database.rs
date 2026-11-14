@@ -3265,7 +3265,7 @@ fn skill_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SkillDef, cx: 
     }
     egui::Grid::new("skill_effect").num_columns(2).show(ui, |ui| match &mut d.effect {
         SkillEffect::None | SkillEffect::Lockpick => {}
-        SkillEffect::MeleeDamage { percent } | SkillEffect::RangedDamage { percent } | SkillEffect::SpellDamage { percent } | SkillEffect::Speed { percent } | SkillEffect::Haggle { percent } | SkillEffect::FoodBonus { percent } => {
+        SkillEffect::MeleeDamage { percent } | SkillEffect::RangedDamage { percent } | SkillEffect::SpellDamage { percent } | SkillEffect::Speed { percent } | SkillEffect::Haggle { percent } | SkillEffect::FoodBonus { percent } | SkillEffect::SneakAttack { percent } => {
             ui.label("Per level");
             ui.add(egui::DragValue::new(percent).range(0.0..=100.0).speed(0.5).suffix(" %"));
             ui.end_row();

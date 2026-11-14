@@ -91,7 +91,9 @@ impl Game {
         let cycle = self.player_appearance().map_or(DEFAULT_CYCLE, |a| self.walk_cycle(&a));
         if landed(&mut self.player, cycle) {
             if let Some(s) = self.step_sound(self.player.pos) {
-                self.audio.play_at(&s, rand::gen_range(0.8, 1.0));
+                // Sneaking steps are soft.
+                let soft = if self.sneaking() { 0.35 } else { 1.0 };
+                self.audio.play_at(&s, rand::gen_range(0.8, 1.0) * soft);
             }
         }
         let (me, ts) = (self.player.pos, self.ts());

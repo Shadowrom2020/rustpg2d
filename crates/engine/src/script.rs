@@ -61,6 +61,8 @@ pub struct PlayerInfo {
     pub sleeping: bool,
     /// The player's faction (their race's, else the player character's; "" = none).
     pub faction: String,
+    /// Sneaking (`is_sneaking()`).
+    pub sneaking: bool,
 }
 
 pub struct ScriptHost {
@@ -515,6 +517,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         damage: num(&d).round() as i32
     })));
     engine.register_fn("is_night", with!(ctx, |c| crate::render::lighting::is_night(c.world.hour)));
+    engine.register_fn("is_sneaking", with!(ctx, |c| c.player.sneaking));
     engine.register_fn("set_hour", with!(ctx, |c, h: f64| c.actions.push(Action::SetTime { hour: h as f32 })));
     engine.register_fn("set_hour", with!(ctx, |c, h: i64| c.actions.push(Action::SetTime { hour: h as f32 })));
     engine.register_fn("player_sex", with!(ctx, |c| c.world.player_sex.key().to_string()));

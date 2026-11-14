@@ -256,15 +256,18 @@ impl Game {
         let eye = pos - vec2(0.0, e.body.hitbox.y / 2.0 + 2.0);
         // Noticed within sight; behind walls and trees only when closer than half of it. The
         // player and companions that can be hurt: it goes for the nearest it notices.
-        let notices = |feet: Vec2, mid: Vec2| {
+        let notices_within = |feet: Vec2, mid: Vec2, range: f32| {
             let d = feet.distance(pos);
-            d <= sight * ts && (d <= sight * ts * 0.5 || self.line_clear(eye, mid))
+            d <= range && (d <= range * 0.5 || self.line_clear(eye, mid))
         };
+        let notices = |feet: Vec2, mid: Vec2| notices_within(feet, mid, sight * ts);
         let mut seen: Vec<(Foe, Vec2, Vec2)> = Vec::new();
         let player_mid = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
-        // The player and companions only when it is hostile to the player.
+        // The player and companions only when it is hostile to the player. The player is
+        // noticed later while sneaking and in the dark (`stealth.rs`).
         if e.hostile {
-            if notices(self.player.pos, player_mid) {
+            let near = self.player.pos.distance(pos) <= super::stealth::NEAR_NOTICE.min(sight) * ts;
+            if near || notices_within(self.player.pos, player_mid, self.player_sight(sight)) {
                 seen.push((Foe::Player, self.player.pos, player_mid));
             }
             for (c, mid) in self.companion_targets() {

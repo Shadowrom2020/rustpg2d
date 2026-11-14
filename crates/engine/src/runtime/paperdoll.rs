@@ -107,6 +107,10 @@ impl Game {
             return Anim::Hurt;
         }
         if self.player.moving {
+            // Sneaking: the model's sneak clip, else the (slowed) walk.
+            if self.sneaking() && self.player_appearance().is_some_and(|a| self.has_anim(&a, "sneak")) {
+                return Anim::Extra("sneak", 0);
+            }
             Anim::Walking((self.player.anim * 100.0) as u32)
         } else {
             Anim::Idle(Self::breath(0))

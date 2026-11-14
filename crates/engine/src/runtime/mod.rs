@@ -48,6 +48,7 @@ mod defense;
 mod barks;
 mod markers;
 mod soundscape;
+mod stealth;
 mod emotions;
 mod mouse;
 mod spawner;
@@ -1691,10 +1692,6 @@ impl Game {
             dir.y += 1.0;
         }
         let mut run = if input::act_down(Act::Run) { 1.8 } else { 1.0 };
-        // Behind a raised shield: half speed.
-        if self.blocking() {
-            run = 0.5;
-        }
         if dir != Vec2::ZERO {
             // Keyboard movement cancels click-to-move.
             self.order = None;
@@ -1704,6 +1701,13 @@ impl Game {
             if self.fade_active() {
                 return; // the order triggered a transition
             }
+        }
+        // Behind a raised shield or sneaking: half speed, by keys and by click alike (sneaking
+        // doesn't run).
+        if self.blocking() {
+            run = 0.5;
+        } else if self.sneaking() {
+            run = stealth::SNEAK_SPEED;
         }
         // On a ladder: only up and down, slower, facing the ladder; drawn towards its middle.
         let climbing = self.climbing();
@@ -2195,7 +2199,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2272,6 +2276,7 @@ impl Game {
             glyphs::style().id(),
             self.attacks_status(),
             self.defense_status(),
+            self.sneak_status(),
             self.emotes_status(),
             self.barks_status(),
             self.audio.ambient_status(),

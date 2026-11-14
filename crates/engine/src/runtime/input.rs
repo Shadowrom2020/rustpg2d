@@ -553,12 +553,14 @@ pub enum Act {
     Block,
     /// A quick roll.
     Dodge,
+    /// Sneaking on / off (`stealth.rs`).
+    Sneak,
 }
 
 impl Act {
     pub const QUICK: [Act; 8] = [Act::Quick1, Act::Quick2, Act::Quick3, Act::Quick4, Act::Quick5, Act::Quick6, Act::Quick7, Act::Quick8];
 
-    pub const ALL: [Act; 38] = [
+    pub const ALL: [Act; 39] = [
         Act::Up,
         Act::Down,
         Act::Left,
@@ -568,6 +570,7 @@ impl Act {
         Act::Attack,
         Act::Block,
         Act::Dodge,
+        Act::Sneak,
         Act::SwitchWeapon,
         Act::Character,
         Act::Skills,
@@ -640,6 +643,7 @@ impl Act {
             Act::Command => "command",
             Act::Block => "block",
             Act::Dodge => "dodge",
+            Act::Sneak => "sneak",
         }
     }
 
@@ -688,6 +692,7 @@ impl Act {
             Act::Command => "Companion orders",
             Act::Block => "Block (hold, with a shield)",
             Act::Dodge => "Dodge roll",
+            Act::Sneak => "Sneak (on / off)",
         }
     }
 
@@ -727,6 +732,7 @@ impl Act {
             Act::Confirm => &[K::E, K::Enter],
             Act::Block => &[K::F],
             Act::Dodge => &[K::Space],
+            Act::Sneak => &[K::LeftControl, K::V],
             Act::Cancel | Act::Pause => &[K::Escape],
             Act::Attack => &[K::X],
             Act::SwitchWeapon => &[K::Q],
@@ -782,7 +788,8 @@ impl Act {
             Act::PrevTab => &[Pad::Lb],
             Act::Map => &[Pad::Select],
             Act::Journal => &[Pad::RStick],
-            Act::HideUi => &[Pad::LStick],
+            // (Hide interface has no button: the left stick sneaks, as in most games.)
+            Act::Sneak => &[Pad::LStick],
             Act::TakeAll => &[Pad::West],
             Act::ZoomIn => &[Pad::Rb],
             Act::ZoomOut => &[Pad::Lb],
@@ -999,6 +1006,9 @@ mod tests {
     fn actions_keep_the_old_keys() {
         assert_eq!(Act::Confirm.default_keys(), &[KeyCode::E, KeyCode::Enter]);
         assert_eq!((Act::Block.default_keys(), Act::Dodge.default_keys()), (&[KeyCode::F][..], &[KeyCode::Space][..]));
+        // Sneaking: Left Ctrl / V and the left stick (which no longer hides the interface).
+        assert_eq!((Act::Sneak.default_keys(), Act::Sneak.default_pad()), (&[KeyCode::LeftControl, KeyCode::V][..], &[Pad::LStick][..]));
+        assert!(Act::HideUi.default_pad().is_empty() && Act::from_id("sneak") == Some(Act::Sneak));
         // The gamepad's defaults don't clash either (B as Back only cancels aiming in play).
         for a in Act::ALL.into_iter().filter(|a| a.pad_rebindable()) {
             for p in a.default_pad() {

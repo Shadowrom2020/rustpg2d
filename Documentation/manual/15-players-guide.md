@@ -14,6 +14,7 @@ These are the default keys; players change them in *Options › Controls*.
 | X | Attack in the facing direction |
 | F (hold) | Block with a shield (see below) |
 | Space | Dodge roll |
+| Left Ctrl / V | Sneak on / off (see below) |
 | Q | Switch weapon (bare hands, then the weapons you own) |
 | 1–8, or a click on a quick bar slot | Use that item or spell |
 | C / I | The character window: character sheet and inventory |
@@ -53,6 +54,14 @@ little. Raise the shield just before a blow lands (the last moment of the enemy'
 **parry**: the attacker is stunned for a second. Without a shield, F only tells you that you need
 one.
 
+**Sneak**: Left Ctrl or V (gamepad: left stick click) switches sneaking on and off; *Sneaking*
+shows under your hearts. You walk at half speed and quietly, and enemies notice you only within half
+their sight, less still in the dark (at night, in dark places, away from torches and lamps; your own
+lantern or light spell gives you away). One you bump into notices you anyway. A blow or an arrow
+that hits an enemy who hasn't noticed you is a **sneak attack**: double damage, shown like a
+critical hit, more with the *Sneaking* skill. Fighting doesn't end sneaking; enemies who hunt you
+lose track of you sooner while you sneak.
+
 **Dodge**: Space (gamepad: B) rolls you about three tiles in the direction you are moving (or
 facing). Nothing touches you while you roll, so you can roll away from a blow or straight through
 it. Then you need a second before the next roll: the small blue dot after your hearts lights up
@@ -78,7 +87,7 @@ the first button press makes the pad known to the page.
 | Start | Pause menu |
 | Select | Map |
 | Right stick click | Journal |
-| Left stick click | Hide or show the interface |
+| Left stick click | Sneak on / off (Hide interface has no button; H on the keyboard) |
 
 **Hints follow your hands.** The help lines at the bottom of windows and menus name the keys while
 you play with the keyboard and mouse, and show your controller's buttons as soon as you press one

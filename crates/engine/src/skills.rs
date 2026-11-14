@@ -65,10 +65,13 @@ pub enum SkillEffect {
     Gather { tool: String, percent: f32 },
     /// Food (items marked food) heals percent more per level.
     FoodBonus { percent: f32 },
+    /// Sneak attacks (hits on enemies that haven't noticed the player) do percent more of the hit's
+    /// damage per level on top of the double damage.
+    SneakAttack { percent: f32 },
 }
 
 impl SkillEffect {
-    pub const LABELS: [(&'static str, &'static str); 13] = [
+    pub const LABELS: [(&'static str, &'static str); 14] = [
         ("None", "No built-in effect (for scripts and conditions)"),
         ("Melee damage", "Melee weapons and bare hands: damage + % per level"),
         ("Ranged damage", "Bows and crossbows: damage + % per level"),
@@ -82,6 +85,7 @@ impl SkillEffect {
         ("Script", "Calls a script function with the level"),
         ("Gathering", "Gathering with a tool (mining with a pickaxe, ...): % fewer hits per level"),
         ("Food", "Food (items marked as food) heals % more per level"),
+        ("Sneak attack", "Hits on enemies that haven't noticed the player: + % of the hit per level (on top of double damage)"),
     ];
     pub fn index(&self) -> usize {
         match self {
@@ -98,6 +102,7 @@ impl SkillEffect {
             SkillEffect::Script { .. } => 10,
             SkillEffect::Gather { .. } => 11,
             SkillEffect::FoodBonus { .. } => 12,
+            SkillEffect::SneakAttack { .. } => 13,
         }
     }
     pub fn template(i: usize) -> SkillEffect {
@@ -114,6 +119,7 @@ impl SkillEffect {
             10 => SkillEffect::Script { function: String::new() },
             11 => SkillEffect::Gather { tool: String::new(), percent: 15.0 },
             12 => SkillEffect::FoodBonus { percent: 25.0 },
+            13 => SkillEffect::SneakAttack { percent: 25.0 },
             _ => SkillEffect::None,
         }
     }
@@ -163,6 +169,7 @@ impl SkillDef {
             SkillEffect::ManaRegen { per_second } => format!("+{:.2} mana/s", per_second * l),
             SkillEffect::Script { function } => format!("{function}({level})"),
             SkillEffect::FoodBonus { percent } => format!("food heals {:.0}% more", percent * l),
+            SkillEffect::SneakAttack { percent } => format!("sneak attacks {:.0}% stronger", percent * l),
             SkillEffect::Gather { tool, percent } => format!("{:.0}% fewer hits{}", (percent * l).min(80.0), if tool.is_empty() { String::new() } else { format!(" with a {tool}") }),
         }
     }
@@ -254,6 +261,20 @@ pub const SPELL_PREFIX: &str = "spell:";
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sneak_attack_effect_reads_writes_and_has_its_form_index() {
+        let e: SkillEffect = ron::from_str("SneakAttack(percent: 25.0)").unwrap();
+        assert_eq!(e, SkillEffect::SneakAttack { percent: 25.0 });
+        assert_eq!(SkillEffect::template(e.index()), e);
+        assert_eq!(e.label(), "Sneak attack");
+        let d = SkillDef::new("sneaking", "Sneaking", "", SpriteRef::default(), 5, e);
+        assert_eq!(d.effect_text(2), "sneak attacks 50% stronger");
+        // Every label has its template and back.
+        for k in 1..SkillEffect::LABELS.len() {
+            assert_eq!(SkillEffect::template(k).index(), k);
+        }
+    }
 
     #[test]
     fn effect_templates_round_trip() {

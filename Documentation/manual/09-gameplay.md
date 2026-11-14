@@ -51,6 +51,17 @@ equipped bow or crossbow.
   tall prop in the way) step sideways along it until they have one, and aim a little ahead of a
   player who keeps walking. **Badly hurt** enemies run to an ally out of the fight instead of
   just away, tell it (it joins the hunt), catch their breath for three seconds and come back.
+- **Sneaking** (Left Ctrl / V, gamepad left stick click; [Player's guide](15-players-guide.md#defending-yourself)):
+  the player walks at half speed and quietly, and a hostile character notices them within half of
+  its *Sight*, times 0.4 (dark) to 1 (lit) by the light at the player: the map's lighting by the
+  clock plus the light sources around them, their own lantern included. That applies sneaking or
+  not (at night everyone is harder to see); behind walls the usual half of that, and within three
+  quarters of a tile always. A hit on a chasing enemy that hasn't noticed anyone (and isn't fleeing)
+  is a **sneak attack**: double damage, shown like a critical hit, plus the *Sneak attack* skill
+  effect. Models play their **sneak** clip while sneaking (*Database › 3D models*; every playable
+  model of the example has a creeping walk), others their walk, slowed. Scripts ask `is_sneaking()`;
+  `status` prints `sneak=on|off:light…:sight10=…` (how far a 10-tile enemy would notice the player).
+  In the example a sign on the way to the bandits' camp in Whisperwood hints at a night approach.
 - **Blocking and dodging**: the player blocks with a shield (frontal hits do no damage; a block
   raised right before a blow parries it and stuns the attacker) and dodges with a roll that nothing
   touches ([Player's guide › Defending yourself](15-players-guide.md#defending-yourself)).
@@ -107,6 +118,7 @@ level:
 | *Haggle* | Better merchant prices by % |
 | *Mana*, *Mana regen* | More max mana, faster regeneration |
 | *Food* | Food heals more |
+| *Sneak attack* | Sneak attacks do + % of the hit more (on top of double damage); the example's *Sneaking* skill: +25 % per level |
 | *Gathering* (with a tool kind) | Fewer hits to mine or gather |
 | *None* | Nothing by itself; for conditions and scripts |
 | *Script* | Calls a script function `name(level)` when the level changes, so a script can do anything |

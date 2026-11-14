@@ -11,8 +11,8 @@ draws it into the world as a picture, facing down, left, right or up; while it w
 diagonal it is drawn turned halfway between two of them (*Eight facings* in *Database › Project*,
 on by default). It plays its clips by itself:
 **walk**, **idle** (standing), its **attack**, **hurt** (when hit), **sit** and **sleep** on
-furniture and the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `read`); a model
-without a clip for one of them plays idle (sitting and lying without a clip show the standing pose,
+furniture, the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `read`) and **sneak**
+(the player sneaking; without it the walk, slowed); a model without a clip for one of them plays idle (sitting and lying without a clip show the standing pose,
 cropped or laid down). Dialog portraits show its head close up. A character without a model of its
 own shows as the **mannequin** (a plain wooden figure; the engine has one built in).
 

@@ -126,7 +126,7 @@ All of them need a graphics driver with OpenGL 3 (a virtual machine needs 3D acc
 
 1. Start the editor and choose **Example project** on the welcome screen to look around, or
    **New project…** to start your own.
-2. The wizard asks for a name, a folder and a few settings, and opens a first map with a start
+2. The wizard asks for a name, where to keep the project file and a few settings, and opens a first map with a start
    point. Press **F5** to play it right away.
 3. Paint ground with the **Brush** or a **Terrain**, place a house with the **Structures** tool,
    and put a character on the map with the **Entities** tool.
@@ -157,7 +157,7 @@ toolchain (Visual Studio Build Tools); on macOS the Xcode command line tools
 ```sh
 cargo build --workspace                           # the game runner and the editor
 cargo run -p rustpg2d-editor                      # the editor (welcome screen)
-cargo run -p rustpg2d-editor -- example_project   # the editor on the example
+RUSTPG2D_FOLDER_PROJECTS=1 cargo run -p rustpg2d-editor -- example_project   # the editor on the example folder
 cargo run -p rustpg2d-game                        # play the example
 cargo build --release --workspace                 # release builds, used by exports
 ```

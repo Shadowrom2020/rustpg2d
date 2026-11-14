@@ -32,14 +32,34 @@ The asset library folder can be moved by setting the environment variable `RUSTP
 Started without a project, the editor shows its welcome screen:
 
 - **New project…** starts the new-project wizard (below).
-- **Open project…** opens a project folder.
+- **Open project…** opens a project file (`.r2dproject`).
+- **Open project folder…** opens a project folder made by R(ust)PG2D before 0.20 and converts it
+  (see *Projects are one file* below).
 - **Recent projects** reopens one with a click.
-- **Example project** copies the bundled example game to `~/rustpg2d/example_project`
-  (Windows: `%USERPROFILE%\rustpg2d\example_project`) and opens it. Your copy is yours to change;
-  choosing *Example project* again later opens it.
+- **Example project** copies the bundled example game to `~/rustpg2d/example_project.r2dproject`
+  (Windows: `%USERPROFILE%\rustpg2d\example_project.r2dproject`) and opens it. Your copy is yours
+  to change; choosing *Example project* again later opens it.
 
-You can also start the editor with a project folder as its argument:
-`rustpg2d-editor path/to/project`.
+You can also start the editor with a project file (or folder) as its argument:
+`rustpg2d-editor path/to/my-game.r2dproject`.
+
+## Projects are one file
+
+A project is a single file, `<name>.r2dproject`: copy it, mail it or back it up like any document.
+While it is open, the editor works on an unpacked copy of it (in `~/.local/share/rustpg2d/work`,
+on Windows `%APPDATA%\rustpg2d\work`, on macOS `~/Library/Application Support/rustpg2d/work`) and
+writes the project file again whenever something was saved there: within two seconds of a save,
+and before the project closes or the editor quits. The file is replaced in one step, so a crash
+never leaves half a file, and work saved shortly before a crash is recovered the next time the
+project opens.
+
+A project folder from an older R(ust)PG2D is converted when you open it: the editor writes
+`<folder>.r2dproject` beside it and opens that. The folder itself is left as it was; delete it once
+you no longer need it. Opening the folder again opens the project file made from it.
+
+If the project file is changed by something else while it is open (another editor, a sync tool),
+the editor doesn't overwrite it: it saves your work as `<name> (changed 1).r2dproject` beside it
+and says so in the status bar.
 
 ## The example project: Emberbrook
 
@@ -75,8 +95,8 @@ structures in your own games.
 
 | Setting | What it does |
 |---|---|
-| **Game name** | The game's name, shown in its window title. The project folder name follows it (e.g. `knight-tales`) and can be changed. |
-| **Where** | The folder the project is created in (*Browse…*). It must be empty. |
+| **Game name** | The game's name, shown in its window title. The project file's name follows it (e.g. `knight-tales.r2dproject`) and can be changed. |
+| **Where** | The folder the project file is created in (*Browse…*). |
 | **Player character's sex** | *Player chooses*, *Always male* or *Always female*. |
 | **Character creator** | Whether players create their character (name and look) when a new game starts, and the default name. |
 | **Starter assets** | Copies a starter set from your asset library: a grass tileset, the hero's and heroine's 3D models (with skin, hair and clothing colours), a coin, an apple, a potion, a sword, a key, a chest, a sign, a barrel, a well and a boulder. |

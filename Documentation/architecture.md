@@ -234,6 +234,24 @@ groups), the view, the tools (`canvas.rs`), the Database forms (`database.rs`), 
 structures, the character builder, imports and exports. Script commands (`RUSTPG2D_EDITOR_SCRIPT`,
 `main.rs`) call the same functions the UI calls, which is how the editor is tested.
 
+**Project files** (`project_file.rs`): a project is one `<name>.r2dproject` in the `data.pack`
+format. The editor never works inside it: `ProjectFile::open` unpacks it into a working copy
+(`<data>/rustpg2d/work/<stem>-<hash of the path>`) and `Editor::open_path` opens that folder as
+`project.root`, so the forms, the agent server, play-tests, imports and exports all keep working
+on plain files. A `.r2dwork` record in the working copy holds the file's size and mtime and a
+fingerprint of the copy's files (paths, sizes, mtimes) at the last unpack or pack; it decides at
+open whether the copy can be reused (also recovering work saved after the last pack) or must be
+unpacked afresh (an unpacked copy of another state is renamed aside, never deleted). Every two
+seconds (and right after *Save all*) the fingerprint is compared and, when it differs, a thread
+packs the copy into a temporary file and renames it over the project file; the record notes the
+temporary file as `pending` before the rename (a rename keeps size and mtime), so an editor stopped
+between the two steps still recognises the file. A project file whose size or mtime changed
+behind the editor's back isn't overwritten: the work goes to `<name> (changed N).r2dproject`.
+Closing, switching projects and quitting pack synchronously. Project folders are converted on
+open (`<folder>.r2dproject` beside them); `RUSTPG2D_FOLDER_PROJECTS=1` opens them as they are,
+which the repository's `example_project/`, the smoke script's MCP part and editing the example
+through the agent server rely on.
+
 The **AI agent server** (`mcp/`) is an MCP server (rmcp, Streamable HTTP on `127.0.0.1:7743`) on a
 tokio thread. Tool calls are queued to the main thread and executed between frames (`mcp_drain`:
 up to 40 calls or 8 ms per frame), so a tool sees the editor's state like a user action; every
@@ -259,9 +277,11 @@ means per format:
 - **postcard** (map `Core`, `TileLayer`, `Chunk`): positional and without defaults. **These
   structs are frozen**: a new layer or chunk property goes into the RON `Meta`, or the format
   version is bumped with a reader for the old one.
-- **Game packs** (`data.pack`): the 8-byte magic `R2DPAK1\0` carries the version; a game refuses
+- **Game packs** (`data.pack`, and project files `.r2dproject`): the 8-byte magic `R2DPAK1\0` carries the version; a game refuses
   a pack with another magic, which is fine because a pack is only ever read by the runner it was
-  exported with (the export checks `ENGINE_BUILD_TAG`).
+  exported with (the export checks `ENGINE_BUILD_TAG`). Project files are read by later editors:
+  the format (and the keystream, pinned by a test) must not change without a new magic and a
+  reader for the old one.
 - **Saves**: `WorldState` fields all default; unknown fields are ignored, so a newer save loads in
   an older game minus what it does not know.
 - **Libraries**: existing libraries only gain new ids from a changed starter set on their own

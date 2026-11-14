@@ -11,7 +11,11 @@ use rustpg2d_engine::project::{Project, ProjectConfig};
 /// What a file dialog was opened for.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Purpose {
+    /// A project file (`.r2dproject`).
     OpenProject,
+    /// A project folder (converted into a project file when opened).
+    OpenProjectFolder,
+    /// Where to create a new project file.
     NewProject,
     /// Folder the new project wizard creates the project in.
     NewProjectParent,
@@ -62,8 +66,9 @@ impl PendingDialog {
             }
             let images = ["png", "jpg", "jpeg", "bmp", "gif", "tga"];
             let result = match p {
-                Purpose::OpenProject => d.set_title("Open R(ust)PG2D project (folder containing project.ron)").pick_folder(),
-                Purpose::NewProject => d.set_title("Choose an empty folder for the new project").pick_folder(),
+                Purpose::OpenProject => d.set_title("Open R(ust)PG2D project").add_filter("R(ust)PG2D project", &[crate::project_file::EXT]).pick_file(),
+                Purpose::OpenProjectFolder => d.set_title("Open a project folder (folder containing project.ron)").pick_folder(),
+                Purpose::NewProject => d.set_title("New project file").add_filter("R(ust)PG2D project", &[crate::project_file::EXT]).set_file_name(format!("my-game.{}", crate::project_file::EXT)).save_file(),
                 Purpose::NewProjectParent => d.set_title("Where to create the new project").pick_folder(),
                 Purpose::TilesetImage(_) => d.set_title("Choose tileset image").add_filter("Images", &images).pick_file(),
                 Purpose::SheetImage(_) => d.set_title("Choose sprite sheet image").add_filter("Images", &images).pick_file(),
@@ -157,6 +162,21 @@ pub fn create_project(dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Creates a project file at `path` (`.r2dproject` is added when missing) with an empty project
+/// (see [`create_project`]) named after the file. Returns the file's path.
+pub fn create_project_file(path: &Path) -> Result<PathBuf> {
+    let ext = crate::project_file::EXT;
+    let path = if path.extension().is_some_and(|e| e == ext) { path.to_path_buf() } else { path.with_file_name(format!("{}.{ext}", path.file_name().context("no file name")?.to_string_lossy())) };
+    let mut pf = crate::project_file::ProjectFile::create(&path)?;
+    create_project(&pf.work)?;
+    // The working copy's folder name isn't the game's.
+    let mut p = Project::load(&pf.work)?;
+    p.config.name = path.file_stem().map_or("New project".into(), |n| n.to_string_lossy().into_owned());
+    p.save_config()?;
+    pf.sync_now()?;
+    Ok(pf.path.clone())
+}
+
 // ---------------------------------------------------------------- recent projects
 
 const RECENT_MAX: usize = 8;
@@ -233,7 +253,21 @@ pub fn back_up_once(path: &Path) -> Option<PathBuf> {
 pub fn recent_projects() -> Vec<PathBuf> {
     let Some(file) = config_dir().map(|d| d.join("recent.ron")) else { return Vec::new() };
     let list: Vec<PathBuf> = std::fs::read_to_string(file).ok().and_then(|s| ron::from_str(&s).ok()).unwrap_or_default();
-    list.into_iter().filter(|p| p.join("project.ron").exists()).collect()
+    list.into_iter().filter(|p| p.join("project.ron").exists() || crate::project_file::is_project_file(p)).collect()
+}
+
+/// Takes a project off the recent list (a folder that was converted into a project file).
+pub fn forget_recent(path: &Path) {
+    let Some(dir) = config_dir() else { return };
+    let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let mut list = recent_projects();
+    let before = list.len();
+    list.retain(|p| *p != path);
+    if list.len() != before {
+        if let Ok(s) = rustpg2d_engine::project::ron_text(&list) {
+            let _ = rustpg2d_engine::sys::write(&dir.join("recent.ron"), s.as_bytes());
+        }
+    }
 }
 
 /// Puts a project at the top of the recent list.
@@ -263,41 +297,29 @@ pub fn bundled_example() -> Option<PathBuf> {
     [Some(dir.join("example_project")), packaged, Some(mac_app)].into_iter().flatten().find(|p| p.join("project.ron").is_file())
 }
 
-/// A writable copy of the bundled example in `~/rustpg2d/example_project` (Windows:
-/// `%USERPROFILE%\rustpg2d\example_project`; made on first use; an existing copy - maybe
-/// edited - is opened as it is).
+/// The user's own copy of the bundled example: the project file
+/// `~/rustpg2d/example_project.r2dproject` (Windows: `%USERPROFILE%\rustpg2d\…`), packed from
+/// the bundled folder on first use. A folder copy made by an older R(ust)PG2D (maybe edited) is
+/// returned instead: opening it converts it into that same project file.
 pub fn example_copy() -> Result<PathBuf> {
     let src = bundled_example().context("this R(ust)PG2D has no bundled example project")?;
     let home = rustpg2d_engine::paths::home().context("no home folder (HOME / USERPROFILE is not set)")?;
-    let dst = home.join("rustpg2d").join("example_project");
+    let folder = home.join("rustpg2d").join("example_project");
+    let file = crate::project_file::converted_name(&folder);
+    if crate::project_file::is_project_file(&file) {
+        return Ok(file);
+    }
+    if folder.join("project.ron").exists() {
+        return Ok(folder);
+    }
     // A copy made before the rename (rust2d) is opened where it is: it may hold the user's edits.
     let old = home.join(rustpg2d_engine::legacy::OLD_NAME).join("example_project");
-    if !dst.join("project.ron").exists() && old.join("project.ron").exists() {
+    if old.join("project.ron").exists() {
         return Ok(old);
     }
-    if !dst.join("project.ron").exists() {
-        copy_tree(&src, &dst).with_context(|| format!("copying the example project to {}", dst.display()))?;
-    }
-    Ok(dst)
-}
-
-fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(to)?;
-    for e in std::fs::read_dir(from)?.flatten() {
-        let (src, dst) = (e.path(), to.join(e.file_name()));
-        if src.is_dir() {
-            copy_tree(&src, &dst)?;
-        } else {
-            std::fs::copy(&src, &dst)?;
-            // Files in the AppImage / Flatpak are read-only: the copy belongs to the user.
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&dst, std::fs::Permissions::from_mode(0o644))?;
-            }
-        }
-    }
-    Ok(())
+    std::fs::create_dir_all(home.join("rustpg2d"))?;
+    rustpg2d_engine::pack::pack_dir(&src, &file).with_context(|| format!("copying the example project to {}", file.display()))?;
+    Ok(file)
 }
 
 #[cfg(test)]

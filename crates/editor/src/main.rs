@@ -29,6 +29,7 @@ mod models_tab;
 mod new_project;
 mod frame_ops;
 mod pixel;
+mod project_file;
 mod problems;
 mod script_editor;
 mod search;
@@ -111,7 +112,7 @@ async fn main() {
             ed.set_status(format!("Cannot open the asset library at {}: {e:#}", dir.display()));
             ed
         }),
-        (None, Some(root)) => Editor::new(root.clone().into()).unwrap_or_else(|e| {
+        (None, Some(root)) => Editor::open_path(root.clone().into()).unwrap_or_else(|e| {
             let mut ed = Editor::empty();
             ed.set_status(format!("Cannot open project '{root}': {e:#}"));
             ed
@@ -165,6 +166,7 @@ async fn main() {
         }
         ed.mcp_capture_shots();
         if ed.quit {
+            ed.finish_project_file();
             ed.mcp.stop();
             break;
         }
@@ -467,6 +469,17 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         }
         "newproject" => ed.handle_file(files::Purpose::NewProject, arg(1).into()),
         "openproject" => ed.handle_file(files::Purpose::OpenProject, arg(1).into()),
+        // openfolder DIR: File › Open project folder… (converted into DIR.r2dproject unless RUSTPG2D_FOLDER_PROJECTS=1)
+        "openfolder" => ed.handle_file(files::Purpose::OpenProjectFolder, arg(1).into()),
+        // packnow: writes the project file now if its working copy changed (as closing does)
+        "packnow" => ed.finish_project_file(),
+        // packtick: one check of the working copy as every two seconds (starts a pack on a thread)
+        "packtick" => {
+            if let Some(pf) = &mut ed.project_file {
+                pf.check_soon();
+            }
+            ed.project_file_tick();
+        }
         "closeproject" => ed.request(Pending::CloseProject),
         // Maps: linkarea X Y W H · linknext TARGET · goto MAP [ZONE] · mapnext · zones
         "linkarea" => ed.link_area((num(1) as u32, num(2) as u32, num(3) as u32, num(4) as u32)),
@@ -602,13 +615,15 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         },
         // playlang CODE|-: the play-test language
         "playlang" => ed.play_lang = if arg(1) == "-" { String::new() } else { arg(1).to_string() },
-        // exportdialog [appimage] [flatpak] [windows] [macos] [web]: opens File → Export game with those packages ticked
+        // exportdialog [appimage] [flatpak] [windows] [macos] [web]: opens File → Export game with those packages ticked (prints its folder)
         // example: the welcome screen's "Example project" (packaged R(ust)PG2D only)
         "example" => ed.open_example(),
         // browse open|folder|icon: opens that file dialog like its button (a person answers it)
         "browse" => {
             ed.browse_request = Some(match arg(1) {
                 "folder" => files::Purpose::ExportGameFolder,
+                "projectfolder" => files::Purpose::OpenProjectFolder,
+                "new" => files::Purpose::NewProject,
                 "icon" => files::Purpose::ExportIcon,
                 _ => files::Purpose::OpenProject,
             })
@@ -625,6 +640,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 }
                 d.opts.appimage = cmd.iter().any(|a| a == "appimage");
                 d.opts.flatpak = cmd.iter().any(|a| a == "flatpak");
+                println!("[script] export folder: {}", d.out);
             }
         }
         // pending save|discard|cancel: answers the "Unsaved changes" question
@@ -653,7 +669,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} tilecache={}/{} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] {} tilecache={}/{} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             ed.tile_cache.len(),
             ed.tile_cache.builds,
@@ -680,6 +696,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.graph.counts.1,
             ed.mcp.status(),
             ed.watch.status(),
+            ed.project_file.as_ref().map_or("-".to_string(), |pf| pf.status()),
             ed.notices.len(),
             ed.search.status(),
             ed.usages.status(),

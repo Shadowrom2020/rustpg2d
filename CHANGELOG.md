@@ -40,6 +40,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   last word `loose`.
 
 ### Editor
+- **Projects are one file**: a project is a single `<name>.r2dproject` (the same format as an
+  exported game's `data.pack`). The editor works on an unpacked copy of it and writes the file again
+  within two seconds of every save and before closing or quitting, replacing it in one step; work
+  saved just before a crash is recovered when the project opens again, and a project file changed
+  by something else while open is never overwritten (your work goes to a "(changed 1)" copy).
+  New projects (the wizard asks for a file name) and the *Example project* copy are project files.
+  **Project folders are converted** when opened (*File › Open project folder…*, the recent list, the
+  command line): the editor writes `<folder>.r2dproject` beside the folder and leaves the folder as it
+  was. `RUSTPG2D_FOLDER_PROJECTS=1` opens folders as they are (for projects kept in version control).
+  The export dialog suggests `releases` beside the project file; *Database › Project* shows the
+  project file and its working copy. Editor scripts: `openfolder`, `packnow`, `packtick`; `status`
+  prints `projectfile=`.
+- Fixed: saving a map made the editor reload it from disk a second later ("Changed on disk,
+  reloaded: the open map"), which also emptied its undo history. The editor's own saves of maps,
+  scripts and translation templates no longer count as changes on disk.
 - The zone inspector's *Ambience* kind (sound, volume, fade), a **Footsteps** sound per terrain and
   *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).
 

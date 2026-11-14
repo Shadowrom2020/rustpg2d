@@ -181,7 +181,9 @@ height, connect_to)` — step-by-step instructions over the tools above.
 
 ## Files changed on disk
 
-Agents (and other programs) may also write the project's files directly. The editor checks
+Agents (and other programs) may also write the project's files directly: in the working copy of
+the open project file, whose folder `project_info` names (the editor writes the project file again
+within two seconds of a change). The editor checks
 `project.ron`, `defs/*.ron`, `maps/*.map`, `scripts/*.rhai` and `lang/*.ron` once a second:
 when a changed file has no unsaved edits in the editor, it is reloaded with a status note
 (definitions, the open map, the open script, the map list). When it has, a yellow banner asks

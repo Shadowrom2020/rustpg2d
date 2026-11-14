@@ -2690,7 +2690,15 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     ui.separator();
     factions_form(ui, &mut ed.project.config.factions);
     ui.separator();
-    ui.label(format!("Project folder: {}", ed.project.root.display()));
+    match &ed.project_file {
+        Some(pf) => {
+            ui.label(format!("Project file: {}", pf.path.display()));
+            ui.weak(format!("Working copy: {}", pf.work.display())).on_hover_text("The editor works on these files and writes the project file again whenever they change");
+        }
+        None => {
+            ui.label(format!("Project folder: {}", ed.project.root.display()));
+        }
+    }
 }
 
 /// A *Faction* field: the project's factions; `inherited` = what "(none)" stands for.
@@ -2828,6 +2836,7 @@ impl Editor {
         if let Some(f) = self.db.script_file.clone() {
             match std::fs::write(&f, &self.db.script_text) {
                 Ok(()) => {
+                    self.watch_note(&f);
                     self.db.script_dirty = false;
                     self.db.script_saved = self.db.script_text.clone();
                     self.problems.stale = true;

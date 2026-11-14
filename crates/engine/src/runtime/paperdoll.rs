@@ -19,9 +19,10 @@ impl Game {
         self.assets.models.look_of(a)
     }
 
-    /// Size of a character's race (trolls are bigger): races list their models.
+    /// Size of a character: its race's (trolls are bigger; races list their models) times its own
+    /// (the definition's *Size*).
     pub(super) fn look_size(&self, a: &Appearance) -> f32 {
-        self.project.db.body_size(&self.look(a).model)
+        self.project.db.body_size(&self.look(a).model) * a.scale()
     }
 
     /// The rendered pose of a character (None: not rendered yet, or no model at all).
@@ -190,9 +191,11 @@ impl Game {
 
     /// The player's model: the creator's choice, else the player definition's.
     pub(super) fn player_appearance(&self) -> Option<Appearance> {
+        let def = self.project.db.character(&self.project.config.player);
         if let Some(a) = &self.world.player_appearance {
-            return Some(a.clone());
+            // (The creator chooses model and colours; the size is the player character's.)
+            return Some(Appearance { size: def.map_or(0, |d| d.appearance.size), ..a.clone() });
         }
-        self.project.db.character(&self.project.config.player).map(|d| d.appearance.clone())
+        def.map(|d| d.appearance.clone())
     }
 }

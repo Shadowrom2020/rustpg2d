@@ -830,7 +830,8 @@ impl Game {
             rt.patrol = e.patrol.clone().map(patrol::Patrol::new);
             // Look and items: the placed NPC's own, then what changed in this game.
             if let Some(a) = &e.appearance {
-                rt.appearance = a.clone();
+                // (Its own looks; the size stays the definition's.)
+                rt.appearance = crate::defs::Appearance { size: rt.appearance.size, ..a.clone() };
             }
             if let Some(eq) = &e.equipment {
                 rt.equipment = eq.clone();

@@ -40,6 +40,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   last word `loose`.
 
 ### Editor
+- **Size of a character** (*Database › Characters*, *Size* in percent): how big a character is drawn
+  compared with its 3D model's height, times its race's size: the figure, what it holds and its
+  hitbox. Placed characters of the definition get it, the player that of the player character.
+- **Default colour of a colour feature** (*Database › 3D models*, colour features: *Default colour*):
+  the colour a part takes when a character chose none, also the character creator's first choice
+  (*As drawn*, now with its swatch). For art whose own colours don't suit it. Agents set it with
+  `upsert_def` (`features: [{…, default}]`).
 - **Projects are one file**: a project is a single `<name>.r2dproject` (the same format as an
   exported game's `data.pack`). The editor works on an unpacked copy of it and writes the file again
   within two seconds of every save and before closing or quitting, replacing it in one step; work
@@ -59,6 +66,19 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Pick footstep tiles in the grid* in *Database › Tilesets* (footprints mark them).
 
 ### Example project
+- **New hero and elves**: the hero, the elf man and the elf woman are new chibi 3D models in the
+  style of the cast (made with *Generate art*), rigged again: their arms no longer turn the palms
+  forward while walking. The hero looks more heroic, with short hair. Ids, names, heights, clips and
+  the colour features' offered colours are the old ones (starter library too); the hero's boots got
+  their own brown so that a hair colour doesn't dye them.
+- **The villager woman** is a new chibi 3D model too (red hair, green dress), rigged again: her
+  palms no longer face forward while walking.
+- **Relaxed idle**: standing characters no longer hold the right arm bent forward as if ready to
+  strike; both arms hang relaxed (the idle clip's right arm now mirrors the left). Every humanoid of
+  the example and the starter library, and the built-in mannequin. A held weapon rests low at the hip.
+- **Realistic figures in the starter library**: *Hero (realistic)*, *Elf (realistic)* and *Elf woman
+  (realistic)* (`hero_realistic`, `elf_realistic`, `elf_f_realistic`: models and characters), slimmer
+  and more lifelike than the example's cast, drawn at 115 % (*Size*).
 - *The Strange Lights* moves on to "open the east gate" as soon as the player leaves the elder's
   house with the gate key (a village *Map enter* trigger), not only when the gate is unlocked, so
   its quest marker leads to the gate instead of back to the emptied chest.

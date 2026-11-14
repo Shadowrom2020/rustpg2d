@@ -12,7 +12,9 @@ sexes, goods, recipes, sounds and music, 17 structures) plus **desert, mountain,
 dungeon tilesets** (with animated water, waterfalls and lava), more characters (hero, elder, wizard
 and sorceress, nomads, nobles, bandits, skeletons, elves, dwarves, orcs (and their chief), a troll, a dwarf
 trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the example; every humanoid in a male and a
-female version) and more structures (town houses, city walls, dungeon rooms). The starter library
+female version), three **realistic** figures in another style than the example's chibi cast (*Hero
+(realistic)*, *Elf (realistic)*, *Elf woman (realistic)*, drawn at 115 %) and more structures (town
+houses, city walls, dungeon rooms). The starter library
 also includes the scripted Fireball spell and Scavenging skill with their script functions.
 
 When a newer editor brings more starter assets, the library adds the ones it doesn't have yet the

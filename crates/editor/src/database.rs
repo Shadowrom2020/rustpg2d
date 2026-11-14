@@ -1613,6 +1613,14 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
         ui.label("Speed (px/s)");
         ui.add(egui::DragValue::new(&mut d.speed).range(1.0..=500.0));
         ui.end_row();
+        ui.label("Size").on_hover_text(
+            "How big it is drawn, in percent of its 3D model's height (times its race's size): the figure, what it holds and its hitbox. Placed characters of this definition and, for the player character, the player get it.",
+        );
+        let mut pct = if d.appearance.size == 0 { 100 } else { d.appearance.size };
+        if ui.add(egui::DragValue::new(&mut pct).range(25..=400).suffix(" %")).changed() {
+            d.appearance.size = if pct == 100 { 0 } else { pct };
+        }
+        ui.end_row();
         ui.label("Behavior");
         ui.horizontal(|ui| {
             let mut kind = match d.behavior {
@@ -2180,12 +2188,12 @@ pub(crate) fn features_editor(ui: &mut egui::Ui, key: &str, features: &mut Vec<r
                     "clothing" => widgets::CLOTH_PRESETS.to_vec(),
                     _ => Vec::new(),
                 };
-                d.features.push(ColorFeature { name: name.into(), shades: Vec::new(), colors });
+                d.features.push(ColorFeature { name: name.into(), shades: Vec::new(), colors, default: None });
                 sel = d.features.len() - 1;
             }
         }
         if ui.button(ui::t(ui::ph::PLUS, "Other")).clicked() {
-            d.features.push(ColorFeature { name: format!("part_{}", d.features.len() + 1), shades: Vec::new(), colors: Vec::new() });
+            d.features.push(ColorFeature { name: format!("part_{}", d.features.len() + 1), shades: Vec::new(), colors: Vec::new(), default: None });
             sel = d.features.len() - 1;
         }
     });
@@ -2196,6 +2204,30 @@ pub(crate) fn features_editor(ui: &mut egui::Ui, key: &str, features: &mut Vec<r
             ui.add(egui::TextEdit::singleline(&mut f.name).desired_width(120.0)).on_hover_text("What characters, scripts and the creator call it (\"skin\", \"hair\"…)");
             if ui.small_button(ui::t(ui::ph::TRASH, "Remove")).clicked() {
                 remove = Some(sel);
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Default colour").on_hover_text(
+                "The colour this part takes when a character (or the player in the creator's first choice, As drawn) chose none. Without one the art's own colours show: set one when they don't suit it.",
+            );
+            match &mut f.default {
+                Some(c) => {
+                    ui.color_edit_button_srgb(c);
+                    for o in f.colors.clone() {
+                        if crate::builder::swatch(ui, o, *c == o).on_hover_text("Use this offered colour").clicked() {
+                            *c = o;
+                        }
+                    }
+                    if ui.small_button(ui::t(ui::ph::X, "As drawn")).on_hover_text("No default: the art's own colours").clicked() {
+                        f.default = None;
+                    }
+                }
+                None => {
+                    ui.weak("as drawn");
+                    if ui.small_button(ui::t(ui::ph::PLUS, "Set")).clicked() {
+                        f.default = Some(f.colors.first().copied().or_else(|| f.shades.get(f.shades.len() / 2).copied()).unwrap_or([200, 160, 120]));
+                    }
+                }
             }
         });
         ui.label(format!("Its shades ({}): click a colour of the image below to add or remove it", f.shades.len()));

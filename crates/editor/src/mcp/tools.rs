@@ -738,7 +738,7 @@ with_params {
     /// Imports a rigged 3D character model (a .glb from Meshy, Blender, Mixamo…) as a new model (its clips matched to the animations walk / idle / attack / hurt / sit / … by name), or with clips_for adds the file's clips to that model. Characters use a model with upsert_def `appearance: {model}`; model_info shows what it has. Saves.
     #[tool]
     import_model: ImportModel(p: ImportModelParams) => ed.mcp_import_model(p);
-    /// A 3D model: triangles, bones, hands, its clips with their length, which clip each animation plays, and its texture's colours (most used first, the shades for colour features: upsert_def model `features: [{name, shades, colors}]`).
+    /// A 3D model: triangles, bones, hands, its clips with their length, which clip each animation plays, and its texture's colours (most used first, the shades for colour features: upsert_def model `features: [{name, shades, colors, default}]`; `default` = the colour a look without one gets).
     #[tool(annotations(read_only_hint = true))]
     model_info: ModelInfo(p: ModelInfoParams) => ed.mcp_model_info(p);
     /// Animates an unrigged model (an animal, a monster: Meshy rigs only people) with a rig template: the template's skeleton is stretched over the model and its walk, idle, attack and hurt clips play. Also turns the model to face the front and moves single joints. Returns the fitted joints; check the result with a play test or the Models tab. Saves.

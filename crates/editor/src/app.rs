@@ -1324,7 +1324,9 @@ impl Editor {
         let Some((a, gear)) = self.char_look(def, inst) else { return false };
         let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
         let Some(cell) = self.assets.models.pose(&self.project.db, &self.assets.sheets, &req) else { return false };
-        self.assets.models.draw(&cell, feet, self.project.db.body_size(&a.model), tint);
+        // (The race's size times the definition's own.)
+        let own = self.project.db.character(def).map_or(1.0, |d| d.appearance.scale());
+        self.assets.models.draw(&cell, feet, self.project.db.body_size(&a.model) * own, tint);
         true
     }
 

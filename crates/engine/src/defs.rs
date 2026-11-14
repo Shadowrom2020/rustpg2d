@@ -236,6 +236,10 @@ pub struct ColorFeature {
     /// The colours offered (the character creator's swatches; empty = the editor offers any).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub colors: Vec<[u8; 3]>,
+    /// The colour the feature takes when a look chose none (the creator's *As drawn*, characters
+    /// without colours); None = the art's own shades. For art whose own colours don't suit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<[u8; 3]>,
 }
 
 impl ColorFeature {
@@ -284,9 +288,23 @@ pub struct Appearance {
     pub body: String,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub colors: BTreeMap<String, [u8; 3]>,
+    /// The character's size in percent of its model (0 = 100), times its race's size: the drawn
+    /// figure, what it holds and its hitbox. Set on the character definition (*Size*); placed
+    /// characters and the player (the player character's definition) take it from there.
+    #[serde(skip_serializing_if = "is_zero_u16")]
+    pub size: u16,
+}
+
+fn is_zero_u16(v: &u16) -> bool {
+    *v == 0
 }
 
 impl Appearance {
+    /// The size as a factor (1 = as the model is).
+    pub fn scale(&self) -> f32 {
+        if self.size == 0 { 1.0 } else { (self.size as f32 / 100.0).clamp(0.25, 4.0) }
+    }
+
     /// Whether it shows anything: a model or a figure.
     pub fn has_look(&self) -> bool {
         !self.model.is_empty() || !self.body.is_empty()

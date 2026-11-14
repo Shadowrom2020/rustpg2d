@@ -452,7 +452,7 @@ impl Game {
                         Row::Feature(f) => {
                             let colors = features.iter().find(|x| x.0 == *f).map(|x| x.2.clone()).unwrap_or_default();
                             match c.colors.get(*f).copied().unwrap_or(0) {
-                                0 => ("As drawn".to_string(), None),
+                                0 => ("As drawn".to_string(), self.project.db.model(&self.creator_body(c)).and_then(|m| m.features.get(*f)).and_then(|x| x.default)),
                                 n => (format!("{}/{}", (n - 1) % colors.len().max(1) + 1, colors.len()), colors.get((n - 1) % colors.len().max(1)).copied()),
                             }
                         }

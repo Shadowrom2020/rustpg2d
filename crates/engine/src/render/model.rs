@@ -899,6 +899,12 @@ fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
     }
 }
 
+/// The colour features of `def` that `look` recolours, with their colours: the look's own
+/// colour, else the feature's default.
+fn feature_colors<'a>(def: &'a ModelDef, look: &Appearance) -> Vec<(&'a [[u8; 3]], [u8; 3])> {
+    def.features.iter().filter_map(|f| look.colors.get(&f.name).or(f.default.as_ref()).map(|c| (f.shades.as_slice(), *c))).collect()
+}
+
 /// The texture of `l` in the colours of `look` (its colour features recoloured).
 fn texture_for(l: &Loaded, look: &Appearance) -> Option<Texture2D> {
     let key = hash(&look.colors);
@@ -906,7 +912,7 @@ fn texture_for(l: &Loaded, look: &Appearance) -> Option<Texture2D> {
         return Some(t.clone());
     }
     let mut img = l.texture.clone()?;
-    let features: Vec<(&[[u8; 3]], [u8; 3])> = l.def.features.iter().filter_map(|f| look.colors.get(&f.name).map(|c| (f.shades.as_slice(), *c))).collect();
+    let features = feature_colors(&l.def, look);
     if !features.is_empty() {
         super::recolor::recolor(&mut img.bytes, &features);
     }
@@ -1177,6 +1183,38 @@ mod tests {
         let glb = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/model_two_bones.glb")).unwrap();
         let def = ModelDef { clips: vec![ClipMap { anim: "walk".into(), clip: "bend".into(), fps: 10.0 }], ..ModelDef::new("m", "models/m.glb") };
         load_one(&def, &Database::default(), &|_| Ok(glb.clone())).unwrap()
+    }
+
+    #[test]
+    fn a_looks_size_is_a_percentage_and_optional_in_files() {
+        let old: Appearance = ron::from_str(r#"(model: "hero", body: "")"#).unwrap();
+        assert_eq!((old.size, old.scale()), (0, 1.0));
+        assert!(!ron::to_string(&old).unwrap().contains("size"));
+        let big = Appearance { size: 115, ..old.clone() };
+        assert!((big.scale() - 1.15).abs() < 1e-6);
+        assert_eq!(ron::from_str::<Appearance>(&ron::to_string(&big).unwrap()).unwrap().size, 115);
+        // Out of range sizes are kept sane.
+        assert_eq!(Appearance { size: 5, ..old }.scale(), 0.25);
+    }
+
+    #[test]
+    fn a_feature_without_a_chosen_colour_takes_its_default() {
+        use crate::defs::ColorFeature;
+        let skin = ColorFeature { name: "skin".into(), shades: vec![[195, 152, 90]], colors: vec![], default: Some([194, 152, 120]) };
+        let hair = ColorFeature { name: "hair".into(), shades: vec![[249, 187, 47]], colors: vec![], default: None };
+        let def = ModelDef { features: vec![skin, hair], ..ModelDef::new("m", "models/m.glb") };
+        // No colours chosen: the skin takes its default, the hair stays as drawn.
+        let none = Appearance::default();
+        assert_eq!(feature_colors(&def, &none), vec![(&[[195u8, 152, 90]][..], [194, 152, 120])]);
+        // A chosen colour wins over the default.
+        let mut look = Appearance::default();
+        look.colors.insert("skin".into(), [90, 58, 36]);
+        look.colors.insert("hair".into(), [30, 22, 18]);
+        assert_eq!(feature_colors(&def, &look), vec![(&[[195u8, 152, 90]][..], [90, 58, 36]), (&[[249u8, 187, 47]][..], [30, 22, 18])]);
+        // Files without the field load (None), and None isn't written.
+        let f: ColorFeature = ron::from_str(r#"(name: "skin", shades: [(1, 2, 3)])"#).unwrap();
+        assert_eq!(f.default, None);
+        assert!(!ron::to_string(&f).unwrap().contains("default"));
     }
 
     #[test]

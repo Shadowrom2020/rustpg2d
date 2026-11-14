@@ -32,7 +32,9 @@ of earlier versions: 47 people and 9 animals, and 16 items' 3D models.
   clothing. A feature is made of the shades of its texture (reduced to 32 colours when it loads)
   that belong to that part; a character that chooses a colour for it gets those shades replaced by
   the chosen colour, each as much darker or lighter as it was, so light and shadow stay. Each
-  feature lists the colours it offers: the character creator's swatches. In the example the
+  feature lists the colours it offers: the character creator's swatches. A **default colour**
+  (*Set* beside *Default colour*) is the colour the part takes when a character chose none, and
+  what the creator's first choice shows: for art whose own colours don't suit it. In the example the
   playable models and the villagers have skin, hair and clothing; two placed villagers wear their
   own colours.
 - **Animals and creatures** without a skeleton of their own (Meshy rigs only people; a 3D creature
@@ -102,7 +104,7 @@ Then set the character's behaviour and combat values in the form.
 
 | Section | Settings |
 |---|---|
-| **Character** | Name; **Description** (shown in the bestiary once the player has defeated one); speed in pixels per second; hitbox |
+| **Character** | Name; **Description** (shown in the bestiary once the player has defeated one); speed in pixels per second; **Size** (in percent of its 3D model's height, times its race's size: the figure, what it holds and its hitbox; every placed character of the definition, and the player when it is the player character, gets it; the starter library's realistic hero and elves are 115 %); hitbox |
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
 | **Look & equipment** | The character editor: model, colours, equipment, carried items |
 | **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
@@ -297,8 +299,8 @@ fixed, if the project says *Always male* / *Always female*), a **race** when the
 playable races ([Races](#races)), a **look** (a model) among the race's models of that sex
 (without races: the project's default model for that sex and the other models of that sex marked
 *Playable*; the row shows only when there is a choice), and a **colour row for each colour feature**
-of that model that offers colours (*Skin*, *Hair*, *Clothing*…: *As made* or one of the
-feature's colours). The example offers humans (the hero, the heroine), elves and dwarves with
+of that model that offers colours (*Skin*, *Hair*, *Clothing*…: *As made*, the model's own
+colours or the feature's default colour, or one of the feature's colours). The example offers humans (the hero, the heroine), elves and dwarves with
 skin, hair and clothing colours. An animated preview walks through all four directions. Name, sex,
 model and colours are kept in save games. Play-tests skip the creator and use the default name.
 

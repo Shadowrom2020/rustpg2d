@@ -188,6 +188,27 @@ fn character_form_takes_a_race_and_a_speed() {
 }
 
 #[test]
+fn character_size_is_typed_in_percent() {
+    let root = example_copy("char_size");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.characters.iter().position(|c| c.id == "villager").expect("the example's villager");
+    assert_eq!(db.characters[k].appearance.size, 0);
+    let mut h = harness(&root, Tab::Characters, k);
+    step(&mut h);
+    // Shown as 100 %: type 120.
+    beside(&h, "Size", |n| n.role() == Role::SpinButton && n.value().as_deref() == Some("100 %")).click();
+    step(&mut h);
+    h.get_by(|n| n.is_focused()).type_text("120");
+    step(&mut h);
+    h.press_key(egui::Key::Enter);
+    step(&mut h);
+    assert_eq!(h.state().project.db.characters[k].appearance.size, 120);
+    h.state_mut().save_all();
+    assert_eq!(Project::load(&root).unwrap().db.characters[k].appearance.size, 120);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn project_settings_tick_and_number() {
     let root = example_copy("project");
     let config = Project::load(&root).unwrap().config;
@@ -212,5 +233,32 @@ fn project_settings_tick_and_number() {
     h.state_mut().save_all();
     let saved = Project::load(&root).unwrap().config;
     assert_eq!((saved.eight_facings, saved.model_atlas_mb), (!config.eight_facings, 64));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn colour_feature_default_is_set_and_cleared() {
+    let root = example_copy("feature_default");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.models.iter().position(|m| m.id == "elf_f").expect("the example's elf woman");
+    let skin = |db: &rustpg2d_engine::defs::Database| db.models[k].features.iter().find(|f| f.name == "skin").unwrap().clone();
+    assert_eq!(skin(&db).default, None);
+    let mut h = harness(&root, Tab::Models, k);
+    step(&mut h);
+    // The skin feature (its tab in the features row), then "Set": the first colour it offers.
+    h.get_by_label("skin").click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.ends_with("Set")) && n.role() == Role::Button).click();
+    step(&mut h);
+    let first = skin(&db).colors[0];
+    assert_eq!(skin(&h.state().project.db).default, Some(first));
+    h.state_mut().save_all();
+    assert_eq!(skin(&Project::load(&root).unwrap().db).default, Some(first));
+    // "As drawn": no default again.
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.ends_with("As drawn")) && n.role() == Role::Button).click();
+    step(&mut h);
+    assert_eq!(skin(&h.state().project.db).default, None);
+    h.state_mut().save_all();
+    assert_eq!(skin(&Project::load(&root).unwrap().db).default, None);
     let _ = std::fs::remove_dir_all(&root);
 }

@@ -166,7 +166,8 @@ pub fn feature_colors_ui(ui: &mut Ui, f: &ColorFeature, a: &mut Appearance) -> b
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
         ui.label(f.label());
-        if ui.selectable_label(current.is_none(), "As drawn").on_hover_text("The art's own colours").clicked() && current.is_some() {
+        let drawn = if f.default.is_some() { "The model's default colour" } else { "The art's own colours" };
+        if ui.selectable_label(current.is_none(), "As drawn").on_hover_text(drawn).clicked() && current.is_some() {
             a.colors.remove(&f.name);
             changed = true;
         }

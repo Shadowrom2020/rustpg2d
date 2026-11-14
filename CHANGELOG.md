@@ -3,6 +3,43 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Gameplay
+- **Weapon animations**: characters fight and stand the way their weapon asks: a spear thrusts, a
+  bow is drawn, a two-handed weapon swings overhead, bare hands punch, a sword-and-shield fighter
+  waits in a guard stance and raises the shield to block. Items name the animations (`attack_1h`,
+  `attack_2h`, `attack_thrust`, `attack_bow`, `attack_crossbow`, `attack_cast`, `attack_unarmed`,
+  `idle_1h`, `idle_2h`, `idle_bow`, `idle_spear`, `block_shield`, `block_weapon`, `block_2h`),
+  estimated from the weapon when not set, and 3D models map them to clips; a model without the clip
+  plays its plain animation. Each attack and block clip has a **hit point** (where the blow lands):
+  enemies wind up to it and swing from it, the player's blow (still dealt at once) lands a quarter
+  into the strike. `status` `anims=` names the chosen animation (`player:strike>attack_thrust`).
+- The example's hero has nine new clips from Meshy's library, and every person of the example and
+  the starter library shares them.
+
+### Editor
+- **Items › Animations**: what characters play attacking, standing, walking and blocking with the
+  item, the estimate beside each empty field with how many models have it; *Estimate animations*.
+  The 3D model preview plays them and has *Blocking*.
+- **3D models**: the *Weapons* rows of *Animations* with a **hit** point per attack and block;
+  *Sneak* is listed too. **Shared clips › Copy clips** plays another model's clip files fitted to
+  this model's bones (same bone names, as Meshy's rigs have), so clips bought once serve every
+  model (script `modelshareclips`).
+- **Generate art › 3D model clips**: buys weapon animations (or sneak, craft, farm, chop, sleep) for
+  an existing rigged model; its file is rigged again, the clips become a shared clip file.
+- **Problems** reports items naming an animation no model has, model animations whose clip is
+  missing, and missing model or clip files.
+- Held 3D items no longer point back into the forearm when a clip turns the fist over.
+
+### AI agents
+- New tool `share_model_clips {model, from, anims, replace}`; `generate_art` takes kind `clips`;
+  `model_info` lists shared clips and the weapon animations with their hit points; the item and
+  model templates of `def_template` describe `anims`, `shared_clips` and `hit`.
+
+### Tools
+- `model_sheet --clip ANIM=CLIP` renders another animation name's clip.
+
 ## 0.20.0 — 2026-11-14
 
 A living village: villagers talk in passing and become friends, the world sounds like where you

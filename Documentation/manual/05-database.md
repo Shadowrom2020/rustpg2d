@@ -52,6 +52,7 @@ is full, assigns it and opens it for drawing.
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
 | **Held** | Weapons, left-hand items and tools without a 3D model: how their picture is held (below) |
 | **3D model** | Weapons, left-hand items and tools: the model 3D model characters hold (below) |
+| **Animations** | Weapons and left-hand items: the animations characters play attacking, standing, walking and blocking with it (`attack_2h`, `idle_bow`, `block_shield`…); empty = estimated from its kind, shown beside the field with how many models have each ([Characters › Weapon animations](06-characters.md#weapon-animations)). *Estimate animations* empties them again |
 | **On use** | Triggers that run when the player uses the item: heal, give something, run a script ([Events](07-events.md)) |
 
 **Equipment kinds:**
@@ -84,7 +85,7 @@ two-handed weapons in both, a tool in the right hand while it is used. Items wit
 The **3D model** section gives the item a model (a `.glb`, copied into `models/`) for characters
 made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)). Choosing one
 sets everything from the item's kind and the model's shape; then check the big **preview** (four
-facings, *Standing*, *Walking* or *Attacking*, *Play* to animate it, *held by* any character model)
+facings, *Standing*, *Walking*, *Attacking* or *Blocking* with the item's animations, *Play* to animate it, *held by* any character model)
 and correct it with the buttons:
 
 | Setting | What it does |

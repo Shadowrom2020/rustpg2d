@@ -13,7 +13,7 @@ use std::hash::{Hash, Hasher};
 use macroquad::miniquad::{BlendFactor, BlendState, BlendValue, Equation};
 use macroquad::prelude::*;
 
-use crate::defs::{Appearance, Database, HoldStyle, ModelDef};
+use crate::defs::{Appearance, ClipMap, Database, HoldStyle, ModelDef, DEFAULT_HIT};
 use crate::entity::Facing;
 use crate::hands::{Grip, Hand, HeldLayer};
 use crate::model::{hold_rotation, Model};
@@ -128,7 +128,49 @@ pub fn anim_req(anim: super::character::Anim, now: f32) -> (&'static str, f32, b
         Anim::Attack(k) => ("attack", [0.22, 0.42, 0.58, 0.8][k.min(3) as usize], true),
         Anim::Hurt => ("hurt", 0.4, true),
         Anim::Extra(n, _) => (n, now, false),
+        // (Without a model's hit point; `Models::clip_req` places them by it.)
+        Anim::Windup(p) => ("attack", DEFAULT_HIT * p as f32 / 1000.0, true),
+        Anim::Swing(p) => ("attack", DEFAULT_HIT + (1.0 - DEFAULT_HIT) * p as f32 / 1000.0, true),
+        Anim::Strike(p) => ("attack", strike_time(DEFAULT_HIT, p), true),
+        Anim::Block(p) => ("block", DEFAULT_HIT * p as f32 / 1000.0, true),
     }
+}
+
+/// A grip axis that doesn't run back into the forearm (`along` = wrist from the elbow): a
+/// clip's fist turned over in a thrust would otherwise point a spear at the wearer's elbow.
+fn out_of_fist(axis: Vec3, along: Vec3) -> Vec3 {
+    if axis.dot(along) < -0.5 {
+        -axis
+    } else {
+        axis
+    }
+}
+
+/// The player's strike (`k` per mille of it) in a clip whose blow lands at `hit`: the damage is
+/// dealt at once, so the wind-up (from 60 % of it) is hurried through the first quarter and the
+/// blow lands there; the rest of the clip follows.
+fn strike_time(hit: f32, k: u16) -> f32 {
+    const LAND: f32 = 0.25;
+    let p = k.min(1000) as f32 / 1000.0;
+    if p < LAND {
+        hit * (0.6 + 0.4 * p / LAND)
+    } else {
+        hit + (1.0 - hit) * (p - LAND) / (1.0 - LAND)
+    }
+}
+
+/// The animation name an item names for a base animation (`attack`, `idle`, `walk`, `block`).
+fn item_anim(db: &Database, item: Option<&String>, base: &str) -> Option<String> {
+    let d = db.item(item?)?;
+    let a = crate::defs::ItemAnims::of(d);
+    let name = match base {
+        "attack" => a.attack,
+        "idle" => a.idle,
+        "walk" => a.walk,
+        "block" => a.block,
+        _ => String::new(),
+    };
+    (!name.is_empty()).then_some(name)
 }
 
 /// Where a rendered pose is: its atlas page and rectangle (image pixels), the feet point in it,
@@ -644,7 +686,7 @@ impl Models {
         if l.def == effective(def, l.fitted.as_deref()) {
             return true;
         }
-        if l.def.file != def.file || l.def.clip_files != def.clip_files {
+        if l.def.file != def.file || l.def.clip_files != def.clip_files || l.def.shared_clips != def.shared_clips {
             return false;
         }
         if l.def.rig != def.rig {
@@ -691,6 +733,62 @@ impl Models {
         Some(((clip.duration * fps).round()).max(1.0) / fps)
     }
 
+    /// The clip mapping of model `id`'s animation `anim`, if the model has that clip.
+    pub fn clip_map(&self, id: &str, anim: &str) -> Option<&ClipMap> {
+        self.loaded.get(id).and_then(|l| l.def.clip_of(anim).filter(|c| l.model.clip(&c.clip).is_some()))
+    }
+
+    /// The animation a character with `gear` plays for `base` ("attack", "idle", "walk", "block"):
+    /// the weapon's (or bare hands' `attack_unarmed`), for idle and block the left-hand item's
+    /// next, as far as model `id` has the clip; else the plain one (`block` without a clip:
+    /// `idle`).
+    pub fn anim_for(&self, db: &Database, id: &str, gear: &Gear, base: &str) -> String {
+        let has = |n: &str| self.clip_map(id, n).is_some();
+        let mut wanted: Vec<String> = Vec::new();
+        match base {
+            "attack" => {
+                wanted.extend(item_anim(db, gear.weapon.as_ref(), base));
+                if gear.weapon.is_none() {
+                    wanted.push("attack_unarmed".into());
+                }
+            }
+            "idle" | "block" => {
+                // A shield blocks before the weapon parries; standing, the weapon shows first.
+                let (first, second) = if base == "block" { (&gear.offhand, &gear.weapon) } else { (&gear.weapon, &gear.offhand) };
+                wanted.extend(item_anim(db, first.as_ref(), base));
+                wanted.extend(item_anim(db, second.as_ref(), base));
+            }
+            "walk" => wanted.extend(item_anim(db, gear.weapon.as_ref(), base)),
+            _ => {}
+        }
+        wanted.into_iter().find(|n| has(n)).unwrap_or_else(|| if base == "block" { "idle".into() } else { base.into() })
+    }
+
+    /// What model `look.model` plays for `anim` holding `gear`: (animation name, time, once). Like
+    /// [`anim_req`], with the animation chosen by the gear ([`Models::anim_for`]) and attacks and
+    /// blocks placed by the clip's hit point.
+    pub fn clip_req(&self, db: &Database, look: &Appearance, gear: &Gear, anim: super::character::Anim, now: f32) -> (String, f32, bool) {
+        use super::character::Anim;
+        let (base, time, once) = anim_req(anim, now);
+        let id = look.model.as_str();
+        let name = match base {
+            "attack" | "idle" | "walk" | "block" => self.anim_for(db, id, gear, base),
+            other => return (other.to_string(), time, once),
+        };
+        let hit = self.clip_map(id, &name).map_or(DEFAULT_HIT, |c| c.hit_point());
+        let p = |k: u16| k.min(1000) as f32 / 1000.0;
+        let time = match anim {
+            Anim::Windup(k) | Anim::Block(k) => hit * p(k),
+            Anim::Swing(k) => hit + (1.0 - hit) * p(k),
+            Anim::Strike(k) => strike_time(hit, k),
+            // Blocking without a block clip: standing (idle loops on the clock).
+            _ if base == "block" => now,
+            _ => time,
+        };
+        let once = once && !(base == "block" && name == "idle");
+        (name, time, once)
+    }
+
     pub fn has_anim(&self, id: &str, anim: &str) -> bool {
         self.loaded.get(id).is_some_and(|l| l.def.clip_of(anim).is_some_and(|c| l.model.clip(&c.clip).is_some()))
     }
@@ -730,6 +828,9 @@ fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Resul
         let mut model = Model::load(&read(&def.file).with_context(|| format!("reading {}", def.file))?)?;
         for f in &def.clip_files {
             model.add_clips(&read(f).with_context(|| format!("reading {f}"))?)?;
+        }
+        for f in &def.shared_clips {
+            model.add_clips_retargeted(&read(f).with_context(|| format!("reading {f}"))?)?;
         }
         Ok(model)
     };
@@ -1031,9 +1132,9 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
                     // hand's way (fists far apart, hanging at the sides: in the right hand).
                     (Hand::Both, Some(r), Some(lh)) if (l.height * 0.08..l.height * 0.3).contains(&(r.0 - lh.0).length()) => {
                         let d = (r.0 - lh.0).normalize_or_zero();
-                        (if d.dot(r.1) >= 0.0 { d } else { -d }, r.2)
+                        (out_of_fist(if d.dot(r.1) >= 0.0 { d } else { -d }, r.2), r.2)
                     }
-                    _ => (thumb, along),
+                    _ => (out_of_fist(thumb, along), along),
                 },
                 // Up, leaning a little with the fist.
                 HoldStyle::Upright => ((Vec3::Y * 2.0 + thumb).normalize_or(Vec3::Y), forward),
@@ -1181,7 +1282,7 @@ mod tests {
 
     fn loaded() -> Loaded {
         let glb = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/model_two_bones.glb")).unwrap();
-        let def = ModelDef { clips: vec![ClipMap { anim: "walk".into(), clip: "bend".into(), fps: 10.0 }], ..ModelDef::new("m", "models/m.glb") };
+        let def = ModelDef { clips: vec![ClipMap { anim: "walk".into(), clip: "bend".into(), fps: 10.0, hit: None }], ..ModelDef::new("m", "models/m.glb") };
         load_one(&def, &Database::default(), &|_| Ok(glb.clone())).unwrap()
     }
 

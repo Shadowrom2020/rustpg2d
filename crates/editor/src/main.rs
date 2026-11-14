@@ -150,6 +150,10 @@ async fn main() {
         // AI agents' tool calls (Assets > AI agent server...), like script commands.
         ed.mcp_drain();
         ed.assets.models.begin_frame();
+        if let Some((target, source)) = database::take_share_request() {
+            let m = ed.share_clips(&target, &source, &[], false).unwrap_or_else(|e| e);
+            ed.set_status(m);
+        }
         if let Some(id) = database::take_icon_request() {
             let m = ed.render_item_icon(&id);
             ed.set_status(m);
@@ -433,6 +437,13 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // 3D models: modelimport FILE (a new model) · modelclips ID FILE (more clips) · modelfile ID FILE
         "modelimport" => ed.handle_file(files::Purpose::ModelFile { id: String::new(), clips: false }, arg(1).into()),
         "modelclips" => ed.handle_file(files::Purpose::ModelFile { id: arg(1).into(), clips: true }, arg(2).into()),
+        // modelshareclips TARGET SOURCE [ANIM…] [replace]: Copy clips from (shared clip files)
+        "modelshareclips" => {
+            let rest: Vec<String> = cmd.iter().skip(3).map(|s| s.to_string()).collect();
+            let replace = rest.iter().any(|a| a == "replace");
+            let anims: Vec<String> = rest.into_iter().filter(|a| a != "replace").collect();
+            println!("[script] {}", ed.share_clips(arg(1), arg(2), &anims, replace).unwrap_or_else(|e| e));
+        }
         "modelfile" => ed.handle_file(files::Purpose::ModelFile { id: arg(1).into(), clips: false }, arg(2).into()),
         // modelrig ID TEMPLATE|- [TURN]: fit a rig template to an unrigged model · modeljoint ID
         // JOINT DX DY DZ: move a joint of its fit (parts of the height; adds up)
@@ -1111,10 +1122,10 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             let kind = art::ArtKind::parse(arg(1));
             match kind {
                 Some(kind) => {
-                    // 3D characters take their options in the SIZE place: female / male, from=SHEET (comma separated).
+                    // 3D characters take their options in the SIZE place: female / male, from=SHEET, extra animations (clips: the ones to add), comma separated.
                     let opts: Vec<&str> = arg(3).split(',').collect();
                     let from = opts.iter().find_map(|o| o.strip_prefix("from=")).unwrap_or("").to_string();
-                    let req = art::ArtRequest { kind, id: arg(2).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from, extras: opts.iter().filter(|o| art::EXTRAS.contains(o)).map(|o| o.to_string()).collect() };
+                    let req = art::ArtRequest { kind, id: arg(2).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from, extras: opts.iter().filter(|o| art::EXTRAS.contains(o) || art::CLIP_CHOICES.iter().any(|c| c.0 == **o)).map(|o| o.to_string()).collect() };
                     match ed.start_art(req) {
                         Ok(id) => println!("[art] started job {id}"),
                         Err(e) => println!("[art] refused: {e:#}"),

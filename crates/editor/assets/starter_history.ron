@@ -1134,9 +1134,41 @@
         ),
         "model:baker": (
             defs: [
+                4969377674651474103,
                 9728169282297780500,
+                13564028252595259729,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/baker.glb": [
                     16405265323820989653,
                 ],
@@ -1148,9 +1180,41 @@
         ),
         "model:bandit": (
             defs: [
+                8864243234284299482,
+                11859233037116983790,
                 11892390250422617575,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/bandit.glb": [
                     539917842062722457,
                 ],
@@ -1162,10 +1226,42 @@
         ),
         "model:bandit_chief": (
             defs: [
+                1790866215808532818,
                 2676176328434344135,
                 6699036159372700179,
+                9029141955901603972,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/bandit_chief.glb": [
                     14026425376880328839,
                     14791049200061134551,
@@ -1182,9 +1278,41 @@
         ),
         "model:bandit_f": (
             defs: [
+                5344336036872308382,
                 8504611958564845597,
+                10676730590571859312,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/bandit_f.glb": [
                     10406091047030518862,
                 ],
@@ -1207,8 +1335,40 @@
         "model:blacksmith": (
             defs: [
                 1966713027684396643,
+                5060774413262438222,
+                14432886903862159774,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/blacksmith.glb": [
                     15539904837875631460,
                 ],
@@ -1220,9 +1380,41 @@
         ),
         "model:blacksmith_f": (
             defs: [
+                4148710691882221321,
+                10238125371365395575,
                 16945416013999156586,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/blacksmith_f.glb": [
                     12246239318680314134,
                 ],
@@ -1255,8 +1447,40 @@
         "model:child_boy": (
             defs: [
                 1404094050489151875,
+                16259540038619274474,
+                17942251036616993878,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/child_boy.glb": [
                     1233735799416546007,
                     9008178532496941696,
@@ -1271,8 +1495,40 @@
         "model:child_girl": (
             defs: [
                 116997611485956930,
+                5262015693274518929,
+                12619218952662449085,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/child_girl.glb": [
                     7902448072091552485,
                 ],
@@ -1305,9 +1561,41 @@
         "model:dwarf": (
             defs: [
                 2489684520567074831,
+                6911598387656153857,
+                13962642280429993239,
                 15174322663833951194,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/dwarf.glb": [
                     11170685868919633368,
                 ],
@@ -1325,11 +1613,43 @@
         ),
         "model:dwarf_f": (
             defs: [
+                499108936286499869,
                 879534278144563794,
                 1259843321120400338,
                 2019980339135381340,
+                13146562197306336207,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/dwarf_f.glb": [
                     5919682010861945341,
                     9197187788498721585,
@@ -1350,8 +1670,40 @@
         "model:dwarf_merchant": (
             defs: [
                 3098485633576092344,
+                6055686603046351311,
+                6314473237771998771,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/dwarf_merchant.glb": [
                     12949094569606165303,
                 ],
@@ -1363,9 +1715,41 @@
         ),
         "model:elder": (
             defs: [
+                1061640128959562677,
                 4852503257345258760,
+                15455711635379083947,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/elder.glb": [
                     11853019044016507739,
                 ],
@@ -1377,9 +1761,41 @@
         ),
         "model:elder_f": (
             defs: [
+                6174010785453087569,
+                10128774518483108769,
                 12538825948162991626,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/elder_f.glb": [
                     15702047567190469994,
                 ],
@@ -1391,11 +1807,43 @@
         ),
         "model:elf": (
             defs: [
+                745827824917085999,
                 3153153074798316974,
                 7038770363978577854,
                 8564049600907803733,
+                17969997879250909923,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/elf.glb": [
                     6572195881102096583,
                     13998438066525336717,
@@ -1413,9 +1861,41 @@
             defs: [
                 2427489227579561239,
                 4968899309258934057,
+                7090424797299848658,
                 8401412617327014268,
+                10848744761885090174,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/elf_f.glb": [
                     6885911917218911819,
                     17645921973962922906,
@@ -1432,8 +1912,40 @@
         "model:elf_f_realistic": (
             defs: [
                 15349119037886132022,
+                15696751145146121909,
+                17635709040747431111,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/elf_f_realistic.glb": [
                     2636672833903865188,
                 ],
@@ -1444,9 +1956,41 @@
         ),
         "model:elf_herbalist": (
             defs: [
+                58386248011508625,
+                9427717288025365217,
                 17060921804597485778,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/elf_herbalist.glb": [
                     6154839911315150579,
                 ],
@@ -1459,8 +2003,40 @@
         "model:elf_realistic": (
             defs: [
                 2417461310619969902,
+                3245272319279329439,
+                11628478938811555967,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/elf_realistic.glb": [
                     8768563345492033079,
                 ],
@@ -1471,9 +2047,41 @@
         ),
         "model:farmer": (
             defs: [
+                474517743101071424,
+                5323234241608871180,
                 9076259418851355993,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/farmer.glb": [
                     11201413020377372617,
                 ],
@@ -1485,9 +2093,41 @@
         ),
         "model:farmer_f": (
             defs: [
+                4313292745972626780,
                 5178603248847225441,
+                15080117669983405844,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/farmer_f.glb": [
                     12938240536343064358,
                 ],
@@ -1499,9 +2139,41 @@
         ),
         "model:fisher": (
             defs: [
+                859234136396522714,
+                5145132859995722360,
                 11766362699705102727,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/fisher.glb": [
                     7201951376028147829,
                 ],
@@ -1523,10 +2195,42 @@
         ),
         "model:goblin": (
             defs: [
+                1118720002859386299,
+                9164506291444159381,
                 9699538481671543448,
                 14022973047428493548,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/goblin.glb": [
                     2227115976462902164,
                 ],
@@ -1544,10 +2248,42 @@
         ),
         "model:goblin_scout": (
             defs: [
+                487861010411336932,
+                15710054807313578560,
                 16095259829682355017,
                 17085455493678827628,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/goblin_scout.glb": [
                     3660736007733241356,
                 ],
@@ -1565,9 +2301,41 @@
         ),
         "model:guard": (
             defs: [
+                3284563074411939672,
+                16762073731460123924,
                 18218681666345871109,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/guard.glb": [
                     8841910563768213553,
                 ],
@@ -1580,8 +2348,40 @@
         "model:guard_f": (
             defs: [
                 1337323644438730170,
+                5173009879751751041,
+                13819795830375023119,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/guard_f.glb": [
                     7533651330838248540,
                 ],
@@ -1594,8 +2394,40 @@
         "model:herbalist": (
             defs: [
                 7176304107521609136,
+                7609247155710400527,
+                13623919340139331881,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/herbalist.glb": [
                     4174485451379214433,
                 ],
@@ -1608,10 +2440,42 @@
         "model:hero": (
             defs: [
                 1962567968425893326,
+                4038184589586136626,
+                7565331601259662516,
                 12577727776325004684,
                 15439061899617540661,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/hero.glb": [
                     6549839687145438815,
                     7978321078589228095,
@@ -1627,9 +2491,41 @@
         ),
         "model:hero_realistic": (
             defs: [
+                3906632247258530589,
                 6870823883967293586,
+                15333786175449089281,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/hero_realistic.glb": [
                     7063284015233796632,
                 ],
@@ -1641,9 +2537,41 @@
         "model:heroine": (
             defs: [
                 753055912309829408,
+                9699647637860816660,
+                14076096469421110054,
                 17720436524361036225,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/heroine.glb": [
                     14044516350426097749,
                 ],
@@ -1659,8 +2587,40 @@
         "model:innkeeper": (
             defs: [
                 7937780146511788360,
+                8386433220059357169,
+                10666154482698469351,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/innkeeper.glb": [
                     7981252443241935739,
                 ],
@@ -1673,8 +2633,40 @@
         "model:mannequin": (
             defs: [
                 4031284481901544102,
+                4032252960126718505,
+                17142914143804892939,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/mannequin.glb": [
                     13928099946692734833,
                 ],
@@ -1686,9 +2678,41 @@
         ),
         "model:merchant": (
             defs: [
+                3231473122307761866,
+                8240350897098937736,
                 8906597947900309175,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/merchant.glb": [
                     2721294158341320477,
                 ],
@@ -1701,8 +2725,40 @@
         "model:merchant_f": (
             defs: [
                 2868912221855010197,
+                7560737164807734260,
+                11509546099706766104,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/merchant_f.glb": [
                     4262520356995809562,
                 ],
@@ -1715,8 +2771,40 @@
         "model:miller": (
             defs: [
                 4756548368411326391,
+                10095574939136024200,
+                10234287542818335178,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/miller.glb": [
                     17429058260378325026,
                 ],
@@ -1729,8 +2817,40 @@
         "model:noble": (
             defs: [
                 1531719144641752363,
+                9849125401034836440,
+                16940468393568621934,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/noble.glb": [
                     17886384959769049201,
                 ],
@@ -1743,8 +2863,40 @@
         "model:noble_m": (
             defs: [
                 6617072242112631558,
+                16619749082852009713,
+                17741034670979280753,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/noble_m.glb": [
                     17261397046680501331,
                 ],
@@ -1757,8 +2909,40 @@
         "model:nomad": (
             defs: [
                 10308915587772922923,
+                15844040785315821556,
+                16986589934734455558,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/nomad.glb": [
                     3655134868604877638,
                 ],
@@ -1771,8 +2955,40 @@
         "model:nomad_f": (
             defs: [
                 5515200055349756829,
+                6487026242044824776,
+                9179056034180798276,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/nomad_f.glb": [
                     17560801140575249008,
                 ],
@@ -1784,10 +3000,42 @@
         ),
         "model:orc": (
             defs: [
+                7955045494834981007,
                 8223679273655009535,
                 13374234658757463270,
+                13855367579357348309,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/orc.glb": [
                     5989790890612465775,
                 ],
@@ -1802,9 +3050,41 @@
         ),
         "model:orc_chief": (
             defs: [
+                7441810675904136006,
                 12079090578498592973,
+                15571184262872986756,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/orc_chief.glb": [
                     1526050762774125321,
                 ],
@@ -1820,9 +3100,41 @@
         "model:orc_f": (
             defs: [
                 8054662933898501445,
+                9473985814702569456,
                 15149750469627559481,
+                16060558534620230642,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/orc_f.glb": [
                     12604647201897477198,
                 ],
@@ -1837,9 +3149,41 @@
         ),
         "model:outlaw": (
             defs: [
+                5828641705244943810,
                 6301052849093372335,
+                9702581102473514854,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/outlaw.glb": [
                     13177657863993821747,
                 ],
@@ -1851,9 +3195,41 @@
         ),
         "model:priest": (
             defs: [
+                2349650134704769390,
+                3582026652468191676,
                 11598252805625753835,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/priest.glb": [
                     13293141177745145119,
                 ],
@@ -1930,9 +3306,41 @@
         ),
         "model:skeleton": (
             defs: [
+                417927775586113004,
+                6185751608345845452,
                 16245540226661208753,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/skeleton.glb": [
                     817801535675753780,
                 ],
@@ -1944,9 +3352,41 @@
         ),
         "model:skeleton_f": (
             defs: [
+                5339101819252563986,
+                10840194886516082720,
                 17382894741544544599,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/skeleton_f.glb": [
                     7563213810806750362,
                 ],
@@ -1968,9 +3408,41 @@
         ),
         "model:town_crier": (
             defs: [
+                376130617157386595,
+                11295687785875110307,
                 14306771959672132224,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/town_crier.glb": [
                     9771828563331327186,
                 ],
@@ -1983,9 +3455,41 @@
         "model:troll": (
             defs: [
                 2815113302698846818,
+                10362074488785533445,
                 13306456792907979772,
+                14973040274353426385,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/troll.glb": [
                     14903790927261821326,
                 ],
@@ -2001,8 +3505,40 @@
         "model:villager": (
             defs: [
                 4665963446906969211,
+                5139117852497192322,
+                7153881730706407880,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/villager.glb": [
                     1062802905446853605,
                 ],
@@ -2016,8 +3552,40 @@
             defs: [
                 10855700035503990718,
                 15039540270952303896,
+                17172948339138938805,
+                18405828661001550649,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/villager_f.glb": [
                     9586692676927385607,
                     13019005103931285045,
@@ -2030,9 +3598,41 @@
         ),
         "model:wizard": (
             defs: [
+                1266673435149758857,
+                3265995395589741063,
                 8075727050359259292,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/wizard.glb": [
                     6960256089989166146,
                 ],
@@ -2045,8 +3645,40 @@
         "model:wizard_f": (
             defs: [
                 1625161314678529633,
+                12974407003436092620,
+                16659176494871045332,
             ],
             files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/anim_idle_bow.glb": [
+                    14878042099145158477,
+                ],
                 "models/wizard_f.glb": [
                     6798635434658992164,
                 ],

@@ -156,6 +156,35 @@ fn item_form_edits_save_and_undo() {
 }
 
 #[test]
+fn item_animations_are_named_estimated_and_saved() {
+    let root = example_copy("item_anims");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "spear").expect("the example's spear");
+    assert!(db.items[k].anims.is_empty(), "the example's spear goes by the estimate");
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    // The estimate shows beside the empty fields: a long two-handed weapon thrusts.
+    h.get_by_label_contains("attack_thrust (estimated)");
+    beside(&h, "Attacking with it", |n| n.role() == Role::TextInput).type_text("attack_2h");
+    step(&mut h);
+    unfocus(&mut h);
+    let item = |h: &Harness<'static, Editor>| h.state().project.db.items[k].clone();
+    assert_eq!(item(&h).anims.attack, "attack_2h");
+    assert_eq!(item(&h).anims.idle, "", "the others stay estimated");
+    // Estimate empties the names again; typed once more and saved, the file has it.
+    h.get_by_label_contains("Estimate animations").click();
+    step(&mut h);
+    assert!(item(&h).anims.is_empty());
+    beside(&h, "Blocking with it", |n| n.role() == Role::TextInput).type_text("block_weapon");
+    step(&mut h);
+    unfocus(&mut h);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.items[k].anims.clone();
+    assert_eq!((saved.attack.as_str(), saved.block.as_str()), ("", "block_weapon"));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn character_form_takes_a_race_and_a_speed() {
     let root = example_copy("character");
     let db = Project::load(&root).unwrap().db;

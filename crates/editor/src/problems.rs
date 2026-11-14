@@ -290,6 +290,28 @@ impl Editor {
                         out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: "has no 3D model (it shows as the mannequin)".into(), target: target.clone() });
                     }
                 }
+                if let Some(m) = db.model(&id).filter(|_| k == RefKind::Model) {
+                    for f in std::iter::once(&m.file).chain(m.clip_paths()) {
+                        if f.is_empty() || !self.project.root.join(f).is_file() {
+                            out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: if f.is_empty() { "has no file".into() } else { format!("its file {f} is missing") }, target: target.clone() });
+                        }
+                    }
+                    // Mapped clips its files don't have (a clip file removed, a clip renamed).
+                    if let Some(info) = self.assets.models.info(&id).filter(|_| m.rig.is_none()) {
+                        for c in m.clips.iter().filter(|c| !info.clips.iter().any(|(n, _)| *n == c.clip)) {
+                            out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("its animation {} plays the clip {}, which none of its files has", c.anim, c.clip), target: target.clone() });
+                        }
+                    }
+                }
+                if let Some(item) = db.item(&id).filter(|_| k == RefKind::Item) {
+                    // Animation names no model maps: characters play their plain animation.
+                    let a = &item.anims;
+                    for name in [&a.attack, &a.idle, &a.walk, &a.block].into_iter().filter(|n| !n.is_empty()) {
+                        if !db.models.iter().any(|m| m.clip_of(name).is_some()) {
+                            out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("names the animation {name}, which no 3D model has (characters play their plain one)"), target: target.clone() });
+                        }
+                    }
+                }
                 let faction = match k {
                     RefKind::Character => db.character(&id).map(|d| d.faction.clone()),
                     RefKind::Race => db.race(&id).map(|d| d.faction.clone()),

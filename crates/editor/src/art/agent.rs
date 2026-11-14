@@ -12,7 +12,7 @@ impl Editor {
         let has = !api_key().is_empty() || std::env::var_os("RUSTPG2D_MESHY_FAKE").is_some();
         let spent = *self.art.spent.lock().unwrap();
         text(format!(
-            "Meshy key: {}. Model: {} ({} credits a picture: icons, props, portraits, pictures). Session budget: {} credits, {} used, {} left. 3D: a model {} credits, a rig {}, each animation clip {} (a 3D character = turnaround picture + model + rig + 4-5 clips, about {} credits; a creature = picture + model; an item's model = model).\nAttacks of 3D characters: {}.\nExtra animations: {}.",
+            "Meshy key: {}. Model: {} ({} credits a picture: icons, props, portraits, pictures). Session budget: {} credits, {} used, {} left. 3D: a model {} credits, a rig {}, each animation clip {} (a 3D character = turnaround picture + model + rig + 4-5 clips, about {} credits; a creature = picture + model; an item's model = model).\nAttacks of 3D characters: {}.\nExtra animations: {}.\nClips for an existing rigged model (kind clips: a rig {} + {} per clip): {}.",
             if has { "set" } else { "not set (the person enters it in Edit › Settings… › Meshy)" },
             s.model,
             meshy::model_cost(&s.model),
@@ -24,13 +24,16 @@ impl Editor {
             super::COST_CLIP,
             meshy::model_cost(&s.model) + super::COST_MODEL + super::COST_RIG + 5 * super::COST_CLIP,
             ATTACKS.iter().map(|a| format!("{} ({})", a.0, a.1)).collect::<Vec<_>>().join(", "),
-            super::EXTRAS.join(", ")
+            super::EXTRAS.join(", "),
+            super::COST_RIG,
+            super::COST_CLIP,
+            super::CLIP_CHOICES.iter().map(|c| c.0).chain(super::EXTRAS).collect::<Vec<_>>().join(", ")
         ))
     }
 
     pub(crate) fn mcp_generate_art(&mut self, p: GenerateArtParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
-        let kind = ArtKind::parse(&p.kind).ok_or_else(|| format!("kind \"{}\" must be model, creature, gear, icon, prop, portrait or image", p.kind))?;
+        let kind = ArtKind::parse(&p.kind).ok_or_else(|| format!("kind \"{}\" must be model, creature, gear, clips, icon, prop, portrait or image", p.kind))?;
         let tiles = p.tiles.unwrap_or([1, 1]);
         let req = ArtRequest {
             kind,

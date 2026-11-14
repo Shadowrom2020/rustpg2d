@@ -209,7 +209,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         ),
         RefKind::Item => (
             val(&ItemDef::fresh(id)),
-            "icon: {sheet, frame} of a sprite sheet; weapon: {damage, cooldown, ranged: null | {projectile, speed, range, ammo}, reach, arc, knockback, two_handed, effect}; armor: {slot: Clothing|Head|Body|Offhand, defense, speed} (worn items count in play; figures' art shows what they wear); held: how figures with hand marks hold it {sprite (none: the icon), grip: [x, y] hold point as fractions of the picture, points: degrees, the picture's direction that lies on the hand's grip axis (icons -45), scale (0.5), hand: Right|Left|Both (none: by its kind)}; consumable + on_use triggers (ItemUse owner: UseItem event) = potions; food; teaches: a skill or spell id; tool: Pickaxe|Axe|Hoe|Rod… name used by props' gather; value in coins; crop: {stages: [{sprite, hours}], harvest: loot}.",
+            "icon: {sheet, frame} of a sprite sheet; weapon: {damage, cooldown, ranged: null | {projectile, speed, range, ammo}, reach, arc, knockback, two_handed, effect}; armor: {slot: Clothing|Head|Body|Offhand, defense, speed} (worn items count in play; figures' art shows what they wear); held: how figures with hand marks hold it {sprite (none: the icon), grip: [x, y] hold point as fractions of the picture, points: degrees, the picture's direction that lies on the hand's grip axis (icons -45), scale (0.5), hand: Right|Left|Both (none: by its kind)}; consumable + on_use triggers (ItemUse owner: UseItem event) = potions; food; teaches: a skill or spell id; tool: Pickaxe|Axe|Hoe|Rod… name used by props' gather; value in coins; crop: {stages: [{sprite, hours}], harvest: loot}; anims: {attack, idle, walk, block} = the animations 3D characters play holding it (weapons, shields), names models map (attack_1h|attack_2h|attack_thrust|attack_bow|attack_crossbow|attack_cast|attack_unarmed, idle_1h|idle_2h|idle_bow|idle_spear, block_shield|block_weapon|block_2h); empty = estimated from the weapon, a model without the clip plays its plain one.",
         ),
         RefKind::Prop => (
             val(&PropDef::fresh(id)),
@@ -226,7 +226,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Race => (val(&rustpg2d_engine::races::RaceDef::fresh(id)), "bodies_male / bodies_female: model ids (the creator offers them with a colour row per colour feature, and they get the race's size); max_hp / defense: added for a player of this race, speed: percent; skills: [{skill, level}] starting levels; size: 1 = as drawn (trolls 1.5: bigger sprite and hitbox); playable: offered in the creator. Characters name their race in `race`."),
         RefKind::Model => (
             val(&rustpg2d_engine::defs::ModelDef::new(id, "models/<file>.glb")),
-            "file: a rigged .glb under models/ (Meshy, Blender…); clip_files: more .glb files with clips of the same rig; height: standing height in world px (40 = a person); clips: [{anim: walk|idle|attack|hurt|sit|sleep|fish|farm|craft|chop|mine|sweep|read, clip: the clip's name in the files, fps (12)}]; features: colour features of its texture (as a figure sheet's); playable / female: offered in the character creator. Characters use it with appearance.model.",
+            "file: a rigged .glb under models/ (Meshy, Blender…); clip_files: more .glb files with clips of the same rig; shared_clips: clip files of another model with the same bone names, fitted to this one's bones (share_model_clips sets them); height: standing height in world px (40 = a person); clips: [{anim: walk|idle|attack|hurt|sit|sleep|fish|farm|craft|chop|mine|sweep|read|sneak or a weapon animation (attack_1h, attack_2h, attack_thrust, attack_bow, attack_crossbow, attack_cast, attack_unarmed, idle_1h, idle_2h, idle_bow, idle_spear, block_shield, block_weapon, block_2h), clip: the clip's name in the files, fps (12), hit: 0..1 where an attack's blow lands / a block's guard is up (0.42)}]; features: colour features of its texture (as a figure sheet's); playable / female: offered in the character creator. Characters use it with appearance.model.",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
     }
@@ -355,10 +355,28 @@ impl Editor {
             return Err(err.unwrap_or_else(|| format!("{} isn't loaded (its file {})", d.id, d.file)));
         };
         let mut out = vec![
-            format!("{} ({}): {} triangles, {} bones{}, height {} px, file {}{}", d.label(), d.id, i.triangles, i.bones.len(), if i.hands { ", hands" } else { ", no hand bones" }, d.height, d.file, if d.clip_files.is_empty() { String::new() } else { format!(" + {}", d.clip_files.join(", ")) }),
+            format!(
+                "{} ({}): {} triangles, {} bones{}, height {} px, file {}{}{}",
+                d.label(),
+                d.id,
+                i.triangles,
+                i.bones.len(),
+                if i.hands { ", hands" } else { ", no hand bones" },
+                d.height,
+                d.file,
+                if d.clip_files.is_empty() { String::new() } else { format!(" + {}", d.clip_files.join(", ")) },
+                if d.shared_clips.is_empty() { String::new() } else { format!(", shared clips (share_model_clips): {}", d.shared_clips.join(", ")) }
+            ),
             format!("clips: {}", i.clips.iter().map(|(n, s)| format!("{n} ({s:.1} s)")).collect::<Vec<_>>().join(", ")),
             format!("animations: {}", rustpg2d_engine::model::ANIMS.iter().map(|a| format!("{a}={}", d.clip_of(a).map_or("-", |c| c.clip.as_str()))).collect::<Vec<_>>().join(", ")),
         ];
+        let more: Vec<String> = rustpg2d_engine::model::all_anims()
+            .skip(rustpg2d_engine::model::ANIMS.len())
+            .filter_map(|a| d.clip_of(a).map(|c| format!("{a}={}{}", c.clip, if rustpg2d_engine::model::has_hit(a) { format!(" (hit {:.2})", c.hit_point()) } else { String::new() })))
+            .collect();
+        if !more.is_empty() {
+            out.push(format!("sneaking and weapon animations: {}", more.join(", ")));
+        }
         match &d.rig {
             Some(r) => out.push(format!("rig template: {} (turned {} deg, {} joint(s) moved: fit_rig)", r.template, r.turn, r.joints.len())),
             None if !i.rigged => out.push("no skeleton of its own: give it a rig template with fit_rig (rig_quadruped, rig_bird, rig_flyer, rig_blob, rig_floating)".into()),
@@ -386,6 +404,13 @@ impl Editor {
         self.mcp_need_project()?;
         let joints = p.joints.map(|j| j.into_iter().map(|j| rustpg2d_engine::defs::JointNudge { joint: j.joint, offset: j.offset }).collect());
         let msg = self.fit_rig(&p.model, p.template.as_deref(), p.turn, joints)?;
+        self.watch_resnapshot();
+        text(msg)
+    }
+
+    pub(crate) fn mcp_share_clips(&mut self, p: ShareClipsParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let msg = self.share_clips(&p.model, &p.from, &p.anims, p.replace)?;
         self.watch_resnapshot();
         text(msg)
     }

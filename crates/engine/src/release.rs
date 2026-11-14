@@ -340,7 +340,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
         files.insert(format!("scripts/{}", f.file_name().unwrap_or_default().to_string_lossy()));
     }
     let db = &project.db;
-    let models = db.models.iter().flat_map(|d| std::iter::once(&d.file).chain(d.clip_files.iter()).map(move |f| (f, "3D model", &d.id)));
+    let models = db.models.iter().flat_map(|d| std::iter::once(&d.file).chain(d.clip_paths()).map(move |f| (f, "3D model", &d.id)));
     let item_models = db.items.iter().filter_map(|d| d.model.as_ref().map(|m| (&m.file, "item's 3D model", &d.id)));
     let assets = db.tilesets.iter().map(|d| (&d.image, "tileset", &d.id)).chain(db.sheets.iter().map(|d| (&d.image, "sprite sheet", &d.id))).chain(db.sounds.iter().map(|d| (&d.file, "sound", &d.id))).chain(models).chain(item_models);
     for (rel, kind, id) in assets {

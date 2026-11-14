@@ -12,6 +12,9 @@ pub(super) use crate::render::model::Gear;
 use crate::render::model::{Cell, PoseReq};
 use crate::state::Equipment;
 
+/// Seconds a block takes to come up (then it holds).
+const BLOCK_RAISE: f32 = 0.2;
+
 impl Game {
     /// What a look is drawn as: its model, else the model named like its (old) figure, else the
     /// mannequin.
@@ -33,8 +36,8 @@ impl Game {
     /// [`Self::model_cell`] turned a further eighth (`turn`: -1, 0, 1; see `diagonal_turn`).
     pub(super) fn model_cell_turned(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim), turn: i8) -> Option<Cell> {
         let a = &self.look(a);
-        let (anim, time, once) = crate::render::model::anim_req(pose.1, macroquad::time::get_time() as f32);
-        let req = PoseReq { look: a, gear, anim, time, once, facing: pose.0, turn, bust: false };
+        let (anim, time, once) = self.assets.models.clip_req(&self.project.db, a, gear, pose.1, macroquad::time::get_time() as f32);
+        let req = PoseReq { look: a, gear, anim: &anim, time, once, facing: pose.0, turn, bust: false };
         self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
     }
 
@@ -96,12 +99,16 @@ impl Game {
         ((macroquad::time::get_time() * 1.25 + (seed % 97) as f64 * 0.37) as u32) % 2
     }
 
-    /// What the player's frame shows: a swing, being hurt, walking or breathing.
+    /// What the player shows: a strike, blocking, being hurt, sneaking, walking or breathing.
     pub(super) fn player_anim(&self) -> Anim {
         let c = &self.combat;
-        if c.swing > 0.0 {
-            let p = 1.0 - c.swing / super::combat::SWING_TIME;
-            return Anim::Attack(if p < 0.34 { 1 } else if p < 0.67 { 2 } else { 3 });
+        if c.strike > 0.0 {
+            let p = 1.0 - c.strike / c.strike_len.max(0.05);
+            return Anim::Strike((p.clamp(0.0, 1.0) * 1000.0) as u16);
+        }
+        // Behind a raised shield: the block clip up to its hit point, held there.
+        if let Some(t) = c.block {
+            return Anim::Block(((t / BLOCK_RAISE).min(1.0) * 1000.0) as u16);
         }
         if c.invuln > super::combat::HURT_INVULN - 0.25 {
             return Anim::Hurt;
@@ -120,7 +127,7 @@ impl Game {
     /// What character `i`'s frame shows: its attack, being hurt, walking or breathing.
     pub(super) fn npc_anim(&self, i: usize) -> Anim {
         let e = &self.loaded.entities[i];
-        if let Some(a) = e.attack.and_then(|a| a.anim()) {
+        if let Some(a) = e.attack.and_then(|a| a.anim(a.windup_time(e.windup))) {
             return a;
         }
         if e.hurt > 0.0 {
@@ -141,12 +148,21 @@ impl Game {
             0 => String::new(),
             t => format!("@{}", crate::render::model::compass(body.facing, t)),
         };
+        // The animation the clip comes from when the equipment chose one ("strike>attack_2h").
+        let chosen = |a: &Appearance, gear: &Gear, anim: Anim| {
+            let look = self.look(a);
+            let (name, _, _) = self.assets.models.clip_req(&self.project.db, &look, gear, anim, 0.0);
+            let base = crate::render::model::anim_req(anim, 0.0).0;
+            if name != base && matches!(base, "attack" | "idle" | "walk" | "block") { format!(">{name}") } else { String::new() }
+        };
         let anim = self.player_anim();
-        let mut out = vec![format!("player:{}{}", anim.name(), dir(&self.player, anim))];
+        let me = self.player_appearance().map_or(String::new(), |a| chosen(&a, &self.player_gear(), anim));
+        let mut out = vec![format!("player:{}{}{}", anim.name(), me, dir(&self.player, anim))];
         for (i, e) in self.loaded.entities.iter().enumerate() {
             if e.active && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) < 8.0 * ts && e.npc_seat.is_none() {
                 let anim = self.npc_anim(i);
-                out.push(format!("{}:{}{}", if e.name.is_empty() { &e.def } else { &e.name }, anim.name(), dir(&e.body, anim)));
+                let gear = self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref());
+                out.push(format!("{}:{}{}{}", if e.name.is_empty() { &e.def } else { &e.name }, anim.name(), chosen(&e.appearance, &gear, anim), dir(&e.body, anim)));
             }
         }
         out

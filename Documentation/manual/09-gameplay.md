@@ -42,6 +42,10 @@ equipped bow or crossbow.
   - **Archers** shoot; other hostile characters (traps, creatures that don't chase) hurt by touch.
   - They attack companions as well as the player. *Attack wind-up* on the character's form changes
     the wind-up (a slow, heavy brute; a quick assassin).
+  - **What they hold shows how they fight**: characters play the animations of their weapon and
+    shield ([Characters › Weapon animations](06-characters.md#weapon-animations)): a guard stance with
+    a sword, a thrust with a spear, a drawn bow, an overhead blow with a two-handed weapon, a punch
+    with bare hands, a raised shield while blocking. The player's strikes too.
 - **Groups fight like groups** (*Group* on the character's form, on by default): at most two
   enemies close in on the player (or on one companion) at a time; the others **circle** at about
   two and a half tiles, facing their target, and step in when one of the two falls or falls

@@ -2,7 +2,7 @@
 //! animations by name), extra clip files, replacing a model's file. The form is
 //! `database::model_form`.
 
-use rustpg2d_engine::defs::{Database, JointNudge, ModelDef, RigFit};
+use rustpg2d_engine::defs::{ClipMap, Database, JointNudge, ModelDef, RigFit};
 use macroquad::math::Vec3;
 use rustpg2d_engine::model::{guess_clips, Model};
 
@@ -67,6 +67,105 @@ impl Editor {
         let after: u64 = files.iter().map(|(f, _)| size(f)).sum();
         self.reload_assets();
         format!("{} model files: {} KB -> {} KB", files.len(), before / 1024, after / 1024)
+    }
+
+    /// Shares animations of model `source` with model `target` (Database › 3D models › *Copy clips
+    /// from*): the clip files they come from become `target`'s shared clips (fitted to its bones
+    /// when it loads, `Model::add_clips_retargeted`) and the animations are mapped like the
+    /// source's, hit points included. `anims` empty = every animation whose clip is in one of the
+    /// source's clip files (clips in its model file can't be shared); animations `target` maps
+    /// already are kept unless `replace`. Saves; returns what it did.
+    pub fn share_clips(&mut self, target: &str, source: &str, anims: &[String], replace: bool) -> Result<String, String> {
+        let db = &self.project.db;
+        if target == source {
+            return Err("a model can't copy clips from itself".into());
+        }
+        let src = db.model(source).ok_or_else(|| format!("no model \"{source}\""))?.clone();
+        let mut d = db.model(target).ok_or_else(|| format!("no model \"{target}\""))?.clone();
+        if d.rig.is_some() || !self.assets.models.info(target).is_some_and(|i| i.rigged) {
+            return Err(format!("{target} has no skeleton of its own: it plays its rig template's clips"));
+        }
+        let read = |rel: &str| std::fs::read(self.project.root.join(rel)).map_err(|e| format!("{rel}: {e}"));
+        let model = Model::load(&read(&d.file)?).map_err(|e| format!("{}: {e:#}", d.file))?;
+        // The source's clip files: their clips, and whether the target has their bones.
+        let mut files: Vec<(String, Vec<String>, bool)> = Vec::new();
+        for f in src.clip_paths() {
+            let bytes = read(f)?;
+            let names = rustpg2d_engine::model::clip_names(&bytes).map_err(|e| format!("{f}: {e:#}"))?;
+            let (hit, of) = model.bones_matched(&bytes).map_err(|e| format!("{f}: {e:#}"))?;
+            files.push((f.clone(), names, of > 0 && hit * 10 >= of * 9));
+        }
+        let (mut added, mut kept, mut missing) = (Vec::new(), Vec::new(), Vec::new());
+        for c in &src.clips {
+            if !anims.is_empty() && !anims.contains(&c.anim) {
+                continue;
+            }
+            let Some((file, _, fits)) = files.iter().find(|(_, names, _)| names.contains(&c.clip)) else {
+                if !anims.is_empty() {
+                    missing.push(format!("{} (in {source}'s own model file)", c.anim));
+                }
+                continue;
+            };
+            if !fits {
+                missing.push(format!("{} ({target} lacks the bones of {file})", c.anim));
+                continue;
+            }
+            if d.clip_of(&c.anim).is_some() && !replace {
+                kept.push(c.anim.clone());
+                continue;
+            }
+            if !d.clip_paths().any(|p| p == file) {
+                d.shared_clips.push(file.clone());
+            }
+            d.clips.retain(|o| o.anim != c.anim);
+            d.clips.push(c.clone());
+            added.push(c.anim.clone());
+        }
+        for a in anims.iter().filter(|a| !src.clips.iter().any(|c| c.anim == **a)) {
+            missing.push(format!("{a} ({source} has none)"));
+        }
+        if let Some(m) = self.project.db.models.iter_mut().find(|m| m.id == target) {
+            *m = d;
+        }
+        self.defs_dirty = true;
+        self.save_defs();
+        self.reload_assets();
+        let mut msg = if added.is_empty() { format!("{target} took no animations from {source}") } else { format!("{target} plays {source}'s {}", added.join(", ")) };
+        if !kept.is_empty() {
+            msg += &format!("; kept its own {}", kept.join(", "));
+        }
+        if !missing.is_empty() {
+            msg += &format!("; not copied: {}", missing.join(", "));
+        }
+        Ok(msg)
+    }
+
+    /// Adds clip file `rel` (clips `names`, rigged again by Meshy for model `id`) to the model's
+    /// shared clips (fitted to its own bones) and maps the animations `anims` asked for to its
+    /// clips (*Generate art › 3D model clips*). Saves; returns what it did.
+    pub fn add_shared_clips(&mut self, id: &str, rel: &str, names: &[String], anims: &[String]) -> String {
+        let squash = |n: &str| n.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_lowercase();
+        let Some(d) = self.project.db.models.iter_mut().find(|m| m.id == id) else { return format!("No model {id}") };
+        if !d.shared_clips.iter().any(|f| f == rel) {
+            d.shared_clips.push(rel.to_string());
+        }
+        let mut mapped = Vec::new();
+        for a in anims {
+            let clip = match crate::art::CLIP_CHOICES.iter().find(|c| c.0 == a) {
+                // The shortest name holding it: Block1, not Block10.
+                Some(c) => names.iter().filter(|n| squash(n).contains(c.2)).min_by_key(|n| n.len()).map(|n| ClipMap { anim: a.clone(), clip: n.clone(), fps: c.3, hit: c.4 }),
+                None => guess_clips(names).into_iter().find(|c| c.anim == *a),
+            };
+            if let Some(c) = clip {
+                d.clips.retain(|o| o.anim != c.anim);
+                d.clips.push(c);
+                mapped.push(a.clone());
+            }
+        }
+        self.defs_dirty = true;
+        self.save_defs();
+        self.reload_assets();
+        format!("{id} plays the {} clip(s) of {rel} (fitted to its bones){}", names.len(), if mapped.is_empty() { String::new() } else { format!(": {}", mapped.join(", ")) })
     }
 
     /// Fits rig template `template` (None: keep, "" or "-": none) to model `id`, with `turn`

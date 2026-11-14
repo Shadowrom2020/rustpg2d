@@ -988,6 +988,10 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
             held_ui(ui, d, cx);
         }
     }
+    if d.weapon.is_some() || d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand) {
+        ui.separator();
+        item_anims_ui(ui, d, cx);
+    }
     ui.separator();
     ui.heading("On use");
     ui.weak("Runs when the item is used from the inventory and the entity in front of the player didn't react to it.");
@@ -3820,6 +3824,41 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
             }
         });
         ui.end_row();
+        ui.label("Shared clips");
+        ui.vertical(|ui| {
+            let mut drop = None;
+            for (k, f) in d.shared_clips.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.monospace(f);
+                    if ui.small_button(ui::t(ph::TRASH, "")).on_hover_text("Stop using this file's clips").clicked() {
+                        drop = Some(k);
+                    }
+                });
+            }
+            if let Some(k) = drop {
+                d.shared_clips.remove(k);
+            }
+            // Copy clips from another rigged model with the same bone names.
+            let did = egui::Id::new(("share_from", &d.id));
+            let mut from: String = ui.data_mut(|m| m.get_temp(did).unwrap_or_default());
+            let sources: Vec<(String, String)> = cx.db.models.iter().filter(|m| m.id != d.id && m.rig.is_none() && m.clip_paths().next().is_some() && cx.assets.models.has(&m.id)).map(|m| (m.id.clone(), m.name.clone())).collect();
+            ui.horizontal(|ui| {
+                let shown = sources.iter().find(|m| m.0 == from).map_or("(a model)".to_string(), |m| m.1.clone());
+                egui::ComboBox::from_id_salt(("share_from_combo", &d.id)).selected_text(shown).height(300.0).show_ui(ui, |ui| {
+                    for (id, name) in &sources {
+                        ui.selectable_value(&mut from, id.clone(), name);
+                    }
+                });
+                if ui.add_enabled(!from.is_empty() && d.rig.is_none(), egui::Button::new(ui::t(ph::COPY, "Copy clips")))
+                    .on_hover_text("Plays the other model's animations from its clip files, fitted to this model's bones (same bone names, e.g. two Meshy rigs); animations this model has keep their clips")
+                    .clicked()
+                {
+                    SHARE_REQUEST.with(|r| *r.borrow_mut() = Some((d.id.clone(), from.clone())));
+                }
+            });
+            ui.data_mut(|m| m.insert_temp(did, from));
+        });
+        ui.end_row();
         ui.label("Height");
         ui.add(egui::DragValue::new(&mut d.height).range(8.0..=256.0).suffix(" px")).on_hover_text("Standing height in world pixels (a person: 40; a tile is 32)");
         ui.end_row();
@@ -3859,9 +3898,13 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
     let clips: Vec<(String, f32)> = info.as_ref().map(|i| i.clips.clone()).unwrap_or_default();
     ui.separator();
     ui.heading("Animations");
-    ui.weak("The clip each animation plays (12 frames a second unless set). Characters without a clip for an animation play idle; walking, idle, attacks and being hit are used by everyone, sitting and sleeping on furniture, the rest by activities.");
-    egui::Grid::new("model_clips").num_columns(3).show(ui, |ui| {
-        for anim in rustpg2d_engine::model::ANIMS {
+    ui.weak("The clip each animation plays (12 frames a second unless set). Characters without a clip for an animation play idle; walking, idle, attacks and being hit are used by everyone, sitting and sleeping on furniture, the rest by activities. The weapon animations (attack_1h…) are played holding items that name them (Database › Items › Animations), else the plain ones; Hit is where in the clip the blow lands or the guard is up.");
+    egui::Grid::new("model_clips").num_columns(4).show(ui, |ui| {
+        for anim in rustpg2d_engine::model::all_anims() {
+            if anim == rustpg2d_engine::defs::STANDARD_ANIMS[0] {
+                ui.strong("Weapons");
+                ui.end_row();
+            }
             ui.label(anim);
             let cur = d.clip_of(anim).map(|c| c.clip.clone()).unwrap_or_default();
             let mut pick = cur.clone();
@@ -3874,14 +3917,23 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
             if pick != cur {
                 d.clips.retain(|c| c.anim != anim);
                 if !pick.is_empty() {
-                    d.clips.push(ClipMap { anim: anim.into(), clip: pick, fps: 12.0 });
+                    d.clips.push(ClipMap { anim: anim.into(), clip: pick, fps: 12.0, hit: None });
                 }
             }
             match d.clips.iter_mut().find(|c| c.anim == anim) {
                 Some(c) => {
                     ui.add(egui::DragValue::new(&mut c.fps).range(1.0..=30.0).suffix(" fps"));
+                    if rustpg2d_engine::model::has_hit(anim) {
+                        let mut hit = c.hit_point();
+                        if ui.add(egui::DragValue::new(&mut hit).range(0.05..=0.95).speed(0.01).prefix("hit ")).on_hover_text("Where in the clip (0 = start, 1 = end) the blow lands, or the guard is up").changed() {
+                            c.hit = Some(hit);
+                        }
+                    } else {
+                        ui.label("");
+                    }
                 }
                 None => {
+                    ui.label("");
                     ui.label("");
                 }
             }
@@ -3895,7 +3947,8 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
     let t = crate::ui::now();
     let facings = [Facing::Down, Facing::Left, Facing::Up, Facing::Right];
     let facing = if turning { facings[(t / 1.5) as usize % 4] } else { facings[facing_k % 4] };
-    let anim = rustpg2d_engine::model::ANIMS[anim_k % rustpg2d_engine::model::ANIMS.len()];
+    let all: Vec<&str> = rustpg2d_engine::model::all_anims().collect();
+    let anim = all[anim_k % all.len()];
     let look = Appearance { model: d.id.clone(), ..Default::default() };
     let gear = Gear::default();
     ui.horizontal(|ui| {
@@ -3907,7 +3960,7 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
         }
         ui.vertical(|ui| {
             ui.horizontal_wrapped(|ui| {
-                for (k, a) in rustpg2d_engine::model::ANIMS.iter().enumerate() {
+                for (k, a) in all.iter().enumerate() {
                     if (k < 4 || d.clip_of(a).is_some()) && ui.selectable_label(anim_k == k, *a).clicked() {
                         anim_k = k;
                     }
@@ -3964,6 +4017,16 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
 }
 
 thread_local! {
+    /// *Copy clips* asked for: (target model, source model) (handled after the form: it reads files).
+    static SHARE_REQUEST: std::cell::RefCell<Option<(String, String)>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The models whose clips the model form asked to share (once).
+pub fn take_share_request() -> Option<(String, String)> {
+    SHARE_REQUEST.with(|r| r.borrow_mut().take())
+}
+
+thread_local! {
     /// *Render icon* asked for this item (handled after the form: it needs the whole editor).
     static ICON_REQUEST: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
 }
@@ -3979,11 +4042,47 @@ thread_local! {
     static HOLD_PREVIEW: std::cell::RefCell<(&'static str, bool, String)> = const { std::cell::RefCell::new(("idle", false, String::new())) };
 }
 
-/// Sets the item form's preview (`itempreview` script command): `anim` idle / walk / attack,
+/// Sets the item form's preview (`itempreview` script command): `anim` idle / walk / attack / block,
 /// playing or still, held by `model` ("" = the first playable model).
 pub fn set_hold_preview(anim: &str, play: bool, model: &str) {
-    let anim = ["idle", "walk", "attack"].into_iter().find(|a| *a == anim).unwrap_or("idle");
+    let anim = ["idle", "walk", "attack", "block"].into_iter().find(|a| *a == anim).unwrap_or("idle");
     HOLD_PREVIEW.with(|p| *p.borrow_mut() = (anim, play, model.to_string()));
+}
+
+/// The animations characters play with the item in hand (`ItemDef.anims`): a name per motion
+/// (empty = estimated from the weapon), and how many 3D models have a clip for it.
+fn item_anims_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
+    ui.heading("Animations");
+    ui.weak("What characters play holding it: names that 3D models map to clips (Database › 3D models › Animations). Empty = estimated from the weapon; a model without the named clip plays its plain one.");
+    let est = ItemAnims::estimate(d);
+    let rigged: Vec<String> = cx.db.models.iter().filter(|m| cx.assets.models.has(&m.id) && m.rig.is_none()).map(|m| m.id.clone()).collect();
+    let names: Vec<String> = rustpg2d_engine::model::all_anims().map(str::to_string).collect();
+    egui::Grid::new("item_anims").num_columns(3).show(ui, |ui| {
+        let rows: [(&str, &str, &mut String, &str); 4] = [
+            ("Attacking with it", "attack", &mut d.anims.attack, &est.attack),
+            ("Standing with it", "idle", &mut d.anims.idle, &est.idle),
+            ("Walking with it", "walk", &mut d.anims.walk, &est.walk),
+            ("Blocking with it", "block", &mut d.anims.block, &est.block),
+        ];
+        for (label, base, field, guess) in rows {
+            ui.label(label);
+            let options: Vec<String> = names.iter().filter(|n| n.starts_with(base)).cloned().collect();
+            widgets::suggest(ui, &format!("item_anim_{base}"), field, &options, 130.0);
+            let name = if field.is_empty() { guess.to_string() } else { field.clone() };
+            if name.is_empty() {
+                ui.weak(format!("(plain {base})"));
+            } else {
+                let have: Vec<&String> = rigged.iter().filter(|m| cx.assets.models.has_anim(m, &name)).collect();
+                let text = format!("{}{} models of {} have it", if field.is_empty() { format!("{name} (estimated): ") } else { String::new() }, have.len(), rigged.len());
+                let tip = if have.is_empty() { "None: they play their plain animation".to_string() } else { have.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ") };
+                ui.weak(text).on_hover_text(tip);
+            }
+            ui.end_row();
+        }
+    });
+    if ui.add_enabled(!d.anims.is_empty(), egui::Button::new(ui::t(ph::MAGIC_WAND, "Estimate animations"))).on_hover_text("Back to the names estimated from the weapon (all fields empty)").clicked() {
+        d.anims = ItemAnims::default();
+    }
 }
 
 /// A held item's 3D model (`ItemDef.model`): the file, how it is held (style, length, how far
@@ -4085,10 +4184,11 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     } else {
         ui.horizontal(|ui| {
             ui.label("Preview");
-            for a in ["idle", "walk", "attack"] {
+            for a in ["idle", "walk", "attack", "block"] {
                 ui.selectable_value(&mut anim, a, match a {
                     "idle" => "Standing",
                     "walk" => "Walking",
+                    "block" => "Blocking",
                     _ => "Attacking",
                 });
             }
@@ -4105,12 +4205,16 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         let look = Appearance { model: holder, ..Default::default() };
         let offhand = d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
         let gear = if offhand { Gear { offhand: Some(d.id.clone()), ..Default::default() } } else { Gear { weapon: Some(d.id.clone()), ..Default::default() } };
+        // The clip its animations name for this model (`Models::anim_for`), at its blow.
+        let clip = cx.assets.models.anim_for(cx.db, &look.model, &gear, anim);
+        let hit = cx.assets.models.clip_map(&look.model, &clip).map_or(rustpg2d_engine::defs::DEFAULT_HIT, |c| c.hit_point());
+        let once = matches!(anim, "attack" | "block") && clip != "idle";
         let clock = ui.input(|i| i.time) as f32;
-        let time = match (play, anim) {
-            (true, "attack") => (clock * 0.9).fract(),
-            (true, _) => clock,
-            (false, "attack") => 0.42,
-            (false, "walk") => 0.3,
+        let time = match (play, once) {
+            (true, true) => (clock * 0.9).fract(),
+            (true, false) => clock,
+            (false, true) => hit,
+            (false, false) if anim == "walk" => 0.3,
             _ => 0.0,
         };
         if play {
@@ -4120,7 +4224,7 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
             for facing in [Facing::Down, Facing::Left, Facing::Right, Facing::Up] {
                 let (r, _) = ui.allocate_exact_size(egui::vec2(170.0, 200.0), egui::Sense::hover());
                 ui.painter().rect_filled(r, 3.0, egui::Color32::from_rgb(58, 74, 52));
-                let req = PoseReq { look: &look, gear: &gear, anim, time, once: anim == "attack", facing, turn: 0, bust: false };
+                let req = PoseReq { look: &look, gear: &gear, anim: &clip, time, once, facing, turn: 0, bust: false };
                 widgets::paint_model_whole(ui, cx.assets, cx.db, &req, r.shrink(4.0));
             }
         });

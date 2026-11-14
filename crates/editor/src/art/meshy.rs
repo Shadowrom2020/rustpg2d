@@ -101,7 +101,12 @@ pub fn download(url: &str) -> Result<Vec<u8>> {
 
 /// A PNG as a data URI (reference pictures).
 pub fn data_uri(png: &[u8]) -> String {
-    format!("data:image/png;base64,{}", rustpg2d_engine::hash::base64(png))
+    data_uri_of(png, "image/png")
+}
+
+/// A file as a data URI of type `mime` (a model to rig: "application/octet-stream").
+pub fn data_uri_of(bytes: &[u8], mime: &str) -> String {
+    format!("data:{mime};base64,{}", rustpg2d_engine::hash::base64(bytes))
 }
 
 /// Starts a 3D task (`path`: "multi-image-to-3d", "image-to-3d", "rigging" or "animations") with

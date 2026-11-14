@@ -89,6 +89,128 @@ Instructions for every session (people and coding agents) that implements roadma
     tests fail otherwise), `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the
     checks: the Release workflow tags and publishes it.
 
+## 0.21.0 — Weapons in Hand
+
+Fighting should look like the weapon in the hand: a sword slashes, an axe comes down overhead, a
+spear thrusts, a bow draws and looses, a crossbow aims and fires, a shield comes up to block, and a
+character standing ready holds its weapon like one. Each item says which animations it uses; each
+model maps those animation names to its clips. Each *Engine* line is a proposal: agree it with the
+maintainer before changing Rust code (CLAUDE.md, *Content first*).
+
+- [x] Weapon animations — `feature/weapon-anims`
+
+  **Goal.** Attack, block and idle animations follow the equipped weapon (and the shield in the
+  left hand) instead of one attack clip per model for every weapon. A creator picks the animations
+  on the item; models carry clips for the standard names; characters without a fitting clip keep
+  today's behaviour.
+
+  **Design.**
+  - *Animation names, not clips, on items.* `ItemDef` gets `anims` (serde default, left out of the
+    file when empty): `attack`, `idle`, `block` (and `walk`, optional), each an animation name.
+    A model maps names to its clips as it already does (`ModelDef.clips`: `anim` → `clip`, like
+    `sit`, `fish`, `sneak`), so one item works with every model that has those names, and each
+    model keeps its own retargeted clips.
+  - *A standard vocabulary* the editor offers (free names stay possible): `attack_1h` (sword, mace:
+    a one-handed slash), `attack_2h` (axe, hammer, two-handed sword: overhead), `attack_thrust`
+    (spear, dagger), `attack_bow`, `attack_crossbow`, `attack_cast` (staff, wand; spells),
+    `attack_unarmed` (fists); `idle_1h`, `idle_2h`, `idle_bow`, `idle_spear`; `block_shield`,
+    `block_weapon` (a parry with the weapon), `block_2h`.
+  - *Which animation plays* (`paperdoll.rs`, `attacks.rs`, `defense.rs`): attacking, the weapon's
+    `attack`, else the model's `attack`; bare hands `attack_unarmed`, else `attack`. Standing, the
+    weapon's `idle`, else the left-hand item's (a shield's), else `idle`; walking, the weapon's
+    `walk` if it has one, else `walk`. Blocking (the player's raised shield), the shield's `block`,
+    else the weapon's, else today's pose. Every step falls back to what the model has, so models
+    without the new clips look as they do now. NPCs use their own equipment the same way.
+  - *Timing.* Clips land their blow at different moments. `ClipMap` gets an optional `hit` (0..1,
+    where in the clip the blow lands; default 0.42 = today's swing point), and the attack plays
+    through the clip continuously, wind-up up to `hit` while the enemy winds up and the swing after
+    it, instead of today's four fixed points (`anim_req`). Ranged attacks release the shot at `hit`.
+  - *Defaults from the weapon* (the item form's *Estimate*, and items without `anims`): ranged →
+    `attack_bow` (an id or name containing "crossbow" → `attack_crossbow`); two-handed with a reach
+    over 1.4 tiles → `attack_thrust`; two-handed → `attack_2h`; other melee → `attack_1h`; a shield
+    (left-hand item held with *Strap*) → `block_shield`. An item without `anims` uses these at run
+    time, so existing projects get the new animations as soon as their models have the clips.
+  - *Getting the clips.* Meshy's animation library has them (catalogue: `GET
+    /openapi/v1/animations/library`, 678 actions): one-handed *Right-hand Sword Slash* (219),
+    *Left Slash* (97), *Charged Slash* (242); two-handed *Heavy Hammer Swing* (128), *Charged Axe
+    Chop* (237); *Thrust Slash* (240); *Archery Shot* (224–227); spell casts (125–137); blocks
+    *Block1–10* (138–146), *Sword Parry* (147), *Two-handed Parry* (149); punches (191–214); idles
+    *Combat Idle* (89), *Axe Stance* (85), *Crouch Look Around Bow* (258); *Spear Walk* (560). No
+    crossbow clip: an archery or *Run and Shoot* (98) clip held level, or a hold pose. Final picks
+    after looking at the previews (`preview_url` GIFs) with the user.
+  - *Clips without buying them per model.* All Meshy humanoid rigs share the same bone names, so a
+    clip bought once on a reference model can be retargeted onto every other model: rotation keys
+    times inverse(source rest) times target rest, the target's bone offsets (the method that fitted
+    the sneak clips in 0.20.0). The editor gets *Copy clips from another model…* (Database › 3D
+    models, a script command and an agent tool) that writes the retargeted clip file and maps the
+    names. Body types far from the reference (troll, goblins, chibi vs realistic) are checked in
+    renders and get their own purchase when the copy looks wrong (re-rig from the uploaded model,
+    5 credits, then 3 per clip). *Generate art* gains *Add clips to a model* (library actions by
+    name, re-rigging when the model's rig task expired) so this needs no hand-written scripts.
+
+  **Engine.** Agreed (all of it, Generate art included): `ItemDef.anims` (`ItemAnims`), `ClipMap.hit`, the
+  animation choice by equipment and the continuous attack playback in the runtime (`paperdoll.rs`,
+  `attacks.rs`, `combat.rs`, `defense.rs`, `render/model.rs` `anim_req`), clip retargeting in
+  `model.rs` (a function shared by the editor's copy tool and the art pipeline), the editor's item
+  form section and model tools, `status` `anims=` naming the clip that plays.
+
+  **Decided while building.**
+  - *The player's blows and shots stay instant* (damage on the key press, as before): the strike
+    (`Anim::Strike`, `PlayerCombat.strike` for the weapon's cooldown, 0.3 to 0.6 s) hurries through
+    the wind-up and lands the clip's hit point a quarter into it (`render/model.rs` `strike_time`),
+    then plays the rest. Enemies wind up to the hit point (`Anim::Windup`) and swing from it
+    (`Anim::Swing`, with a short follow-through); a raised shield plays the block clip up to its hit
+    point in 0.2 s and holds it (`Anim::Block`). Blocking without a block clip shows idle.
+  - *Copying clips writes no new files*: `ModelDef.shared_clips` lists another model's clip files,
+    fitted to this model's bones when it loads (`Model::add_clips_retargeted`); a clip named like
+    one the model has is left out, so its own come first. *Copy clips* (form), `modelshareclips`
+    (script) and `share_model_clips` (agent tool) add the files and map the names
+    (`Editor::share_clips`); animations a model maps already are kept unless replaced.
+  - *Shields* are estimated from armor in the left hand with defense > 0 (lanterns and torches have
+    none), not from the *Strap* hold style.
+  - *A held item never points back into the forearm*: a clip's fist rolled over in a thrust made the
+    spear point at the elbow; the grip axis is flipped then (`out_of_fist`).
+  - *Clips bought*: ten on the hero (30 credits), nine kept: `attack_2h` (Heavy Hammer Swing, hit 0.84),
+    `attack_thrust` (Thrust Slash, 0.29), `attack_bow` (Archery Shot, 0.6), `attack_cast` (0.55),
+    `attack_unarmed` (Right Jab from Guard, 0.33), `idle_1h` (Combat Stance), `idle_2h` (Axe Stance),
+    `block_shield` (Block1, 0.15),
+    `block_weapon` (Sword Parry, 0.3). `idle_bow` (Crouch Look Around Bow) was dropped: a crouched
+    watch made archers look as if they sneaked, so bows stand in the plain idle. `attack_1h`,
+    `attack_crossbow`, `idle_spear` and `block_2h` weren't bought: models play their plain clips there (their own slash). Every other person of the
+    example (34 models) and the starter library (16 more, the realistic figures included) shares
+    them; renders of the heroine, elf, dwarf, goblin, troll, guard, villager and mannequin looked
+    right, so no body type got its own purchase.
+  - *The example's items keep no `anims`*: the estimates already give the spear its thrust, the bows
+    their draw and the shield its block; the battle axe is one-handed in the example (its slash).
+  - *Generate art › 3D model clips* (`ArtKind::Clips3d`, agent kind `clips`): always re-rigs the
+    model's file (`model_url`, 5 credits) and adds the clips as a shared clip file, mapped by
+    `CLIP_CHOICES` (weapon names and `sneak`; `craft`, `farm`, `chop`, `sleep` too).
+  - *Problems* warns about an item naming an animation that no model maps, and about a model's
+    animation whose clip none of its files has (also missing model and clip files).
+
+  **Touch points.** `defs.rs` (`ItemDef`, `ClipMap`, `Default` / `fresh`), `render/model.rs`
+  (`anim_req`, `PoseReq`), `render/character.rs` (`Anim`), `runtime/paperdoll.rs`
+  (`player_anim`), `runtime/attacks.rs` (NPC wind-up, swing, recover), `runtime/combat.rs` (the
+  player's swing and shot timing), `runtime/defense.rs` (blocking), `model.rs` (retarget), editor
+  `database.rs` (item form *Animations*: name pickers, *Estimate*, the 3D preview playing them;
+  model form clip names), `models_tab.rs` / `art/` (copy clips, add clips), `problems.rs` (an item
+  naming an animation that a model wielding it lacks), agent tools, `refactor.rs` (none: names are
+  not ids), manual 05 (items), 06 (models), 09 (combat), 13 (tools), CHANGELOG.
+
+  **Example.** The example's weapons get their animations: swords → `attack_1h` / `idle_1h`;
+  axes, hammer → `attack_2h` / `idle_2h`; spear → `attack_thrust` / `idle_spear`; bows → `attack_bow`
+  / `idle_bow`; crossbow → `attack_crossbow`; the wooden shield → `block_shield`; bare hands →
+  `attack_unarmed`. Clips for the playable models and the armed NPCs (guards, outlaws, bandit chief,
+  orcs, goblins, troll): bought once on a reference model each body type needs, copied to the rest;
+  the credits asked before each purchase. Starter library too.
+
+  **Verify.** Model sheets of a model with each attack clip; in the game the player with sword,
+  axe, spear, bow, crossbow and bare hands (shots of the swing at wind-up, blow and recovery;
+  `anims=` names the clip), blocking with the shield, standing with each weapon; an NPC guard's
+  spear thrust and an outlaw's slash timed with their wind-up (the red zone); a model without the
+  new clips still attacks as before; a copied clip on a body far from the reference (troll); the
+  item form (UI test: pick an animation, *Estimate*, save); old item files load (no `anims`).
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
@@ -104,7 +226,7 @@ Instructions for every session (people and coding agents) that implements roadma
   back bones of the 3D characters (`HoldStyle::Head` / `Back`, `Gear` with head and back items,
   placed in `render/model.rs` like held items); needs new Meshy item models (about 33 credits each,
   ask first). The full design block is in git history (ROADMAP.md, 0.20.0).
-- Dungeons generated from structures (a theme for 0.21.0): a dungeon map kind that stitches
+- Dungeons generated from structures (a theme for a later release): a dungeon map kind that stitches
   captured rooms and corridors (`structure.rs`) into a new layout per visit, with enemies,
   chests and loot from tables.
 - Mounts: riding a horse (two models in one pose: the rider seated on the mount's back bone),

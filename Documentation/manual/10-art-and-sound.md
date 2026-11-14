@@ -120,6 +120,13 @@ The 3D kinds:
   the icon itself (30 credits; a 32 px icon gives a bulky model). *Add to project* gives the item the model,
   held as its kind says (hold style, length, hold point estimated): check it in the preview of the
   item's *3D model* section.
+- **3D model clips**: more animations for a rigged 3D model of the project (the **Id**; no
+  description): tick the **weapon animations** (`attack_1h` … `block_weapon`, mapped to those names
+  with their hit points) or `sneak`, `craft`, `farm`, `chop`, `sleep`. Meshy rigs the model's file
+  again (5 credits: its old rig expires after three days) and makes the clips (3 each); *Add to
+  project* writes `models/<id>_clips.glb` as one of the model's *shared clips*, fitted to its own
+  skeleton when it loads. Other models can then share them (*Copy clips*, [Characters › Weapon
+  animations](06-characters.md#weapon-animations)).
 
 *Draw* shows the cost first; a picture then takes about a minute, a 3D step one to three. The result
 is previewed; **Redo …** draws a picture again if Meshy got something wrong (a missing staff, a wrong

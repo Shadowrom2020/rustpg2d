@@ -79,6 +79,10 @@ pub(super) struct PlayerCombat {
     pub dodge_cd: f32,
     /// Sneaking (`stealth.rs`).
     pub sneak: bool,
+    /// The attack animation: seconds left of it, and how long it lasts (the weapon's cooldown,
+    /// 0.3 to 0.6 s; melee and shots alike).
+    pub strike: f32,
+    pub strike_len: f32,
     /// The player's smoothed velocity (px/s) and last position, for shooters leading their aim.
     vel: Vec2,
     last_pos: Option<Vec2>,
@@ -103,6 +107,8 @@ impl PlayerCombat {
             roll: None,
             dodge_cd: 0.0,
             sneak: false,
+            strike: 0.0,
+            strike_len: 0.5,
             vel: Vec2::ZERO,
             last_pos: None,
             swing_dir: vec2(0.0, 1.0),
@@ -200,6 +206,7 @@ impl Game {
         let c = &mut self.combat;
         c.cooldown = (c.cooldown - dt).max(0.0);
         c.swing = (c.swing - dt).max(0.0);
+        c.strike = (c.strike - dt).max(0.0);
         c.invuln = (c.invuln - dt).max(0.0);
         for e in &mut self.loaded.entities {
             e.invuln = (e.invuln - dt).max(0.0);
@@ -296,6 +303,7 @@ impl Game {
                 None => Vec2::from(self.player.facing.dir()),
             };
             self.combat.cooldown = cooldown;
+            self.start_strike(cooldown);
             self.audio.play(&self.project.config.sfx.attack);
             let crit = self.roll_crit(weapon.crit);
             self.shoot(origin, dir, &r, if crit { damage * 2 } else { damage }, true, None, weapon.effect);
@@ -316,6 +324,7 @@ impl Game {
         let reach = weapon.reach.max(0.3) * ts;
         let arc = weapon.arc.clamp(5.0, 180.0).to_radians();
         self.combat.cooldown = cooldown;
+        self.start_strike(cooldown);
         self.combat.swing = SWING_TIME;
         self.combat.swing_dir = dir;
         self.combat.swing_reach = reach;
@@ -787,6 +796,12 @@ impl Game {
     }
 
     // ------------------------------------------------------------ drawing
+
+    /// Starts the player's attack animation for a weapon with `cooldown` seconds between attacks.
+    fn start_strike(&mut self, cooldown: f32) {
+        let len = cooldown.clamp(0.3, 0.6);
+        (self.combat.strike, self.combat.strike_len) = (len, len);
+    }
 
     /// World-space combat visuals: sword swing, enemy health bars, defeat puffs.
     pub(super) fn draw_combat_world(&self) {

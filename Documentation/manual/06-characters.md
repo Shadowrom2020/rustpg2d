@@ -82,8 +82,8 @@ plays the other model's animations from its clip files, fitted to this model's b
 (same bone names, as all of Meshy's rigs have): the hand and shoulder angles and the body's
 proportions are this model's own. Animations the model maps already keep their clips. *Generate art
 › 3D model clips* buys more clips for a model from Meshy's animation library. In the example the
-hero has the ten weapon animations (`attack_2h`, `attack_thrust`, `attack_bow`, `attack_cast`,
-`attack_unarmed`, `idle_1h`, `idle_2h`, `idle_bow`, `block_shield`, `block_weapon`), and every other
+hero has nine weapon animations (`attack_2h`, `attack_thrust`, `attack_bow`, `attack_cast`,
+`attack_unarmed`, `idle_1h`, `idle_2h`, `block_shield`, `block_weapon`), and every other
 person of the example and the starter library shares them: a guard with a sword and shield stands in
 a guard stance and raises the shield, an archer draws the bow; one-handed attacks use each model's
 own slash.

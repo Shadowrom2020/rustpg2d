@@ -170,12 +170,13 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
     none), not from the *Strap* hold style.
   - *A held item never points back into the forearm*: a clip's fist rolled over in a thrust made the
     spear point at the elbow; the grip axis is flipped then (`out_of_fist`).
-  - *Clips bought*: ten on the hero (30 credits): `attack_2h` (Heavy Hammer Swing, hit 0.84),
+  - *Clips bought*: ten on the hero (30 credits), nine kept: `attack_2h` (Heavy Hammer Swing, hit 0.84),
     `attack_thrust` (Thrust Slash, 0.29), `attack_bow` (Archery Shot, 0.6), `attack_cast` (0.55),
     `attack_unarmed` (Right Jab from Guard, 0.33), `idle_1h` (Combat Stance), `idle_2h` (Axe Stance),
-    `idle_bow` (Crouch Look Around Bow: a crouched watch), `block_shield` (Block1, 0.15),
-    `block_weapon` (Sword Parry, 0.3). `attack_1h`, `attack_crossbow`, `idle_spear` and `block_2h`
-    weren't bought: models play their plain clips there (their own slash). Every other person of the
+    `block_shield` (Block1, 0.15),
+    `block_weapon` (Sword Parry, 0.3). `idle_bow` (Crouch Look Around Bow) was dropped: a crouched
+    watch made archers look as if they sneaked, so bows stand in the plain idle. `attack_1h`,
+    `attack_crossbow`, `idle_spear` and `block_2h` weren't bought: models play their plain clips there (their own slash). Every other person of the
     example (34 models) and the starter library (16 more, the realistic figures included) shares
     them; renders of the heroine, elf, dwarf, goblin, troll, guard, villager and mannequin looked
     right, so no body type got its own purchase.

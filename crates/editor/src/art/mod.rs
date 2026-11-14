@@ -128,7 +128,7 @@ pub const EXTRAS: [&str; 4] = ["craft", "farm", "chop", "sleep"];
 /// Animations the clips kind adds to a model (Meshy library actions): the weapon animations items
 /// name and sneaking. (name, action, the clip's name in Meshy's file without `_` and in lower
 /// case, frames a second, hit point).
-pub const CLIP_CHOICES: [(&str, u32, &str, f32, Option<f32>); 12] = [
+pub const CLIP_CHOICES: [(&str, u32, &str, f32, Option<f32>); 11] = [
     ("attack_1h", 219, "righthandswordslash", 12.0, None),
     ("attack_2h", 128, "heavyhammerswing", 12.0, Some(0.84)),
     ("attack_thrust", 240, "thrustslash", 12.0, Some(0.29)),
@@ -137,7 +137,6 @@ pub const CLIP_CHOICES: [(&str, u32, &str, f32, Option<f32>); 12] = [
     ("attack_unarmed", 192, "rightjabfromguard", 12.0, Some(0.33)),
     ("idle_1h", 89, "combatstance", 8.0, None),
     ("idle_2h", 85, "axestance", 8.0, None),
-    ("idle_bow", 258, "crouchlookaroundbow", 8.0, None),
     ("block_shield", 138, "block1", 12.0, Some(0.15)),
     ("block_weapon", 147, "swordparry", 12.0, Some(0.3)),
     ("sneak", 559, "sneakywalk", 12.0, None),

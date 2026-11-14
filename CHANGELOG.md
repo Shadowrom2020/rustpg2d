@@ -15,7 +15,7 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   plays its plain animation. Each attack and block clip has a **hit point** (where the blow lands):
   enemies wind up to it and swing from it, the player's blow (still dealt at once) lands a quarter
   into the strike. `status` `anims=` names the chosen animation (`player:strike>attack_thrust`).
-- The example's hero has ten new clips from Meshy's library, and every person of the example and
+- The example's hero has nine new clips from Meshy's library, and every person of the example and
   the starter library shares them.
 
 ### Editor

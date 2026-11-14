@@ -186,7 +186,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -282,11 +281,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         features: [
             (
@@ -366,7 +360,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 38.0,
         clips: [
@@ -451,11 +444,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
         features: [
@@ -546,7 +534,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 43.0,
         clips: [
@@ -632,11 +619,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         features: [
             (
@@ -715,7 +697,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 42.0,
         clips: [
@@ -800,11 +781,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
         features: [
@@ -890,7 +866,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 34.0,
         clips: [
@@ -976,11 +951,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         features: [
             (
@@ -1020,7 +990,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 34.0,
         clips: [
@@ -1106,11 +1075,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         features: [
             (
@@ -1172,7 +1136,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 44.0,
         clips: [
@@ -1258,11 +1221,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         playable: true,
     ),
@@ -1284,7 +1242,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -1370,11 +1327,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         playable: true,
         female: true,
@@ -1398,7 +1350,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 42.0,
         clips: [
@@ -1484,11 +1435,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         playable: true,
         female: true,
@@ -1512,7 +1458,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 36.0,
         clips: [
@@ -1598,11 +1543,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         playable: true,
     ),
@@ -1624,7 +1564,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 41.0,
         clips: [
@@ -1710,11 +1649,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         playable: true,
     ),
@@ -1735,7 +1669,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 39.0,
         clips: [
@@ -1816,11 +1749,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -1840,7 +1768,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 38.0,
         clips: [
@@ -1921,11 +1848,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         female: true,
     ),
@@ -1946,7 +1868,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -2027,11 +1948,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -2051,7 +1967,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -2132,11 +2047,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -2156,7 +2066,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 41.0,
         clips: [
@@ -2232,11 +2141,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -2256,7 +2160,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -2331,11 +2234,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
         features: [
@@ -2423,7 +2321,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 39.0,
         clips: [
@@ -2498,11 +2395,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
         features: [
@@ -2590,7 +2482,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 42.0,
         clips: [
@@ -2671,11 +2562,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -2695,7 +2581,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 39.0,
         clips: [
@@ -2771,11 +2656,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         female: true,
     ),
@@ -2796,7 +2676,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -2872,11 +2751,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         female: true,
     ),
@@ -2897,7 +2771,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 41.0,
         clips: [
@@ -2973,11 +2846,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -2997,7 +2865,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -3073,11 +2940,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         female: true,
     ),
@@ -3098,7 +2960,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -3173,11 +3034,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
     ),
@@ -3198,7 +3054,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -3273,11 +3128,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
     ),
@@ -3298,7 +3148,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -3374,11 +3223,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -3398,7 +3242,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 42.0,
         clips: [
@@ -3474,11 +3317,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -3498,7 +3336,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 42.0,
         clips: [
@@ -3584,11 +3421,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -3608,7 +3440,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 42.0,
         clips: [
@@ -3689,11 +3520,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -3713,7 +3539,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -3794,11 +3619,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         female: true,
     ),
@@ -3819,7 +3639,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 36.0,
         clips: [
@@ -3895,11 +3714,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
     ),
     (
@@ -3919,7 +3733,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 32.0,
         clips: [
@@ -3995,11 +3808,6 @@
                 fps: 12.0,
                 hit: Some(0.55),
             ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
-            ),
         ],
         female: true,
     ),
@@ -4051,7 +3859,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 35.0,
         clips: [
@@ -4126,11 +3933,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
     ),
@@ -4213,7 +4015,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 41.0,
         clips: [
@@ -4288,11 +4089,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
         female: true,
@@ -4438,7 +4234,6 @@
             "models/anim_idle_2h.glb",
             "models/anim_attack_unarmed.glb",
             "models/anim_attack_cast.glb",
-            "models/anim_idle_bow.glb",
         ],
         height: 40.0,
         clips: [
@@ -4518,11 +4313,6 @@
                 clip: "Armature|mage_soell_cast|baselayer",
                 fps: 12.0,
                 hit: Some(0.55),
-            ),
-            (
-                anim: "idle_bow",
-                clip: "Armature|CrouchLookAroundBow|baselayer",
-                fps: 8.0,
             ),
         ],
     ),

@@ -94,7 +94,7 @@ pub struct GenerateArtParams {
     pub portrait_for: Option<String>,
     /// 3D characters ("model"): a woman (her sitting clip; the model is marked as a woman's).
     pub female: Option<bool>,
-    /// 3D characters ("model"): extra animations, 3 credits each: "craft" (working at an anvil), "farm" (bending to pick crops), "chop" (chopping wood), "sleep" (lying in a bed). "clips": the animations to add, these or the weapon animations "attack_1h", "attack_2h", "attack_thrust", "attack_bow", "attack_cast", "attack_unarmed", "idle_1h", "idle_2h", "idle_bow", "block_shield", "block_weapon" and "sneak".
+    /// 3D characters ("model"): extra animations, 3 credits each: "craft" (working at an anvil), "farm" (bending to pick crops), "chop" (chopping wood), "sleep" (lying in a bed). "clips": the animations to add, these or the weapon animations "attack_1h", "attack_2h", "attack_thrust", "attack_bow", "attack_cast", "attack_unarmed", "idle_1h", "idle_2h", "block_shield", "block_weapon" and "sneak".
     pub extras: Option<Vec<String>>,
     /// 3D characters and creatures ("model", "creature"): a figure sheet id whose standing frames (front, side, back) are modelled, instead of drawing a turnaround picture first.
     pub from: Option<String>,

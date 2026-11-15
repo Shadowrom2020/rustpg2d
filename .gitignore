@@ -12,3 +12,4 @@ example_project/saves-backup-*/
 /scripts/art/meshy/work/
 /scripts/art/meshy/work_*/
 __pycache__/
+releases/

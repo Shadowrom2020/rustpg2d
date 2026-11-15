@@ -55,7 +55,8 @@ Two optional packages, built from the bundle:
   `flatpak install --user <game>.flatpak` and start it from the app menu. Building it needs the
   `flatpak` command on your machine. Set the **app id** (default `org.rustpg2d.<game>`) and the
   **runtime** in the dialog; keep the app id the same for updates, or players' saves stay with the
-  old app. The game gets a window, sound and devices (the GPU and gamepads), nothing else.
+  old app. The game gets a window, sound, devices (the GPU and gamepads) and the player's Pictures
+folder (photo mode's pictures), nothing else.
 
 Both get a desktop entry and an **icon**: a PNG you pick under *Icon*, else the player's portrait
 drawn large, else the head and shoulders of the player character's 3D model, else R(ust)PG2D's

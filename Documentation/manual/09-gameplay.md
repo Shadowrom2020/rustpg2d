@@ -412,6 +412,14 @@ each, *Reset achievements*).
 - Save games keep the world: flags, variables, inventories, quests, every entity's state, containers,
   shops, dropped items, companions, explored areas, the time and the weather.
 
+## Photo mode
+
+P (or *Photo mode* in the pause menu) freezes the world and hides the HUD; the player moves the
+camera, zooms (0.5× to 3×), may hide themselves and show another hour's light, and takes pictures
+of the world alone (PNG, into the Pictures folder; a download in the web game). The controls are in
+the [Player's guide](15-players-guide.md#photo-mode). Not during cut-scenes, dialogs, open windows
+or on the title screen.
+
 ## The map screen
 
 M (or the map button) shows the current map from above with the player's marker and the exits

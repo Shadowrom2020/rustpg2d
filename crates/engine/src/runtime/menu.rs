@@ -115,6 +115,8 @@ enum Row {
     Continue,
     Exit,
     Resume,
+    /// Photo mode (`photo.rs`).
+    Photo,
     SaveMenu,
     LoadMenu,
     SaveQuit,
@@ -259,6 +261,7 @@ impl Game {
             Page::Main => {
                 let mut v = vec![
                     (Row::Resume, "Resume".into(), String::new()),
+                    (Row::Photo, "Photo mode".into(), "Move the camera freely and take pictures".into()),
                     (Row::SaveMenu, "Save game".into(), String::new()),
                     (Row::LoadMenu, "Load game".into(), String::new()),
                     (Row::OptionsMenu, "Options".into(), "Graphics, sound and text".into()),
@@ -510,6 +513,10 @@ impl Game {
             },
             (_, Row::Exit) => self.menu.quit = true,
             (_, Row::Resume) => self.menu.open = false,
+            (_, Row::Photo) => {
+                self.menu.open = false;
+                self.start_photo();
+            }
             (_, Row::SaveMenu) => {
                 if self.runner.busy() {
                     self.menu.message = Some("You can't save in the middle of an event.".into());

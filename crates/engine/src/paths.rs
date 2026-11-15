@@ -56,6 +56,37 @@ pub fn saves_base() -> Option<PathBuf> {
     }
 }
 
+/// The user's pictures folder: Linux's `XDG_PICTURES_DIR` (`user-dirs.dirs`, translated names such
+/// as `~/Bilder` included), else `~/Pictures`; Windows `%USERPROFILE%\Pictures`; macOS
+/// `~/Pictures`. None when there is no home.
+pub fn pictures() -> Option<PathBuf> {
+    let home = home()?;
+    if cfg!(all(unix, not(target_os = "macos"))) {
+        if let Some(dir) = var("XDG_PICTURES_DIR") {
+            return Some(dir);
+        }
+        // (Inside a Flatpak the config folder is the app's own: the home's file is read too.)
+        let read = |dir: Option<PathBuf>| dir.and_then(|c| std::fs::read_to_string(c.join("user-dirs.dirs")).ok());
+        let dirs = read(config_base()).or_else(|| read(Some(home.join(".config")))).unwrap_or_default();
+        if let Some(dir) = user_dir(&dirs, "XDG_PICTURES_DIR", &home) {
+            return Some(dir);
+        }
+    }
+    Some(home.join("Pictures"))
+}
+
+/// A folder of `user-dirs.dirs` (`XDG_PICTURES_DIR="$HOME/Bilder"`), `$HOME` expanded.
+fn user_dir(file: &str, key: &str, home: &std::path::Path) -> Option<PathBuf> {
+    let line = file.lines().map(str::trim).find(|l| l.starts_with(key) && l[key.len()..].trim_start().starts_with('='))?;
+    let value = line.split_once('=')?.1.trim().trim_matches('"');
+    let path = match value.strip_prefix("$HOME") {
+        Some(rest) => home.join(rest.trim_start_matches('/')),
+        None => PathBuf::from(value),
+    };
+    // (A folder set to the home itself means "none".)
+    (path != home && path.is_absolute()).then_some(path)
+}
+
 /// Downloads that can be fetched again (the AppImage runtime).
 pub fn cache_base() -> Option<PathBuf> {
     if cfg!(target_os = "macos") {

@@ -241,6 +241,30 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
   facings and while walking and fighting; taking it off with full extra slots refuses, with room
   packs; save and load keep it; an NPC wearing one; the item form (UI test); old saves load.
 
+- [x] Photo mode — `feature/photo-mode`
+
+  **Goal.** Freeze the game, move the camera freely, no HUD, save a picture (from the backlog).
+
+  **Design.** P (`Act::Photo`, rebindable) or the pause menu's *Photo mode* (gamepads) enters it
+  (not on the title screen, in cut-scenes, dialogs or windows). Nothing updates; the camera moves
+  (keys / stick / mouse drag), zooms 0.5× to 3× (wheel, + / −, LB / RB); H / Y hides the player,
+  [ / ] / LT / RT show another hour's light (the clock comes back on leaving). E / Enter / Space / A
+  grabs the world drawn so far (no hint bar) as a PNG; Esc / P / B leaves.
+
+  **Decided while building.** Pictures go to the Pictures folder (`paths::pictures`: Linux reads
+  `XDG_PICTURES_DIR` / `user-dirs.dirs`, also the home's inside a Flatpak) under the game's name,
+  else a `photos` folder beside the saves; `RUSTPG2D_PHOTOS_DIR` overrides (tests). Exported
+  Flatpaks get `--filesystem=xdg-pictures:create`. The web game downloads the picture
+  (`rustpg2d_download` in web/rustpg2d.js, plugin version 3). Animated tiles and breathing go on
+  (they follow the clock of the frame); characters, weather, effects and the game clock stand still.
+
+  **Engine.** Agreed: `runtime/photo.rs`, `Act::Photo`, the camera and drawing hooks, the pause menu
+  row, `sys::give_player`, `paths::pictures`, the web plugin's download.
+
+  **Verify.** Scripted: P, move, zoom, hour, hide, picture (file checked: no hint, player hidden),
+  leave (clock back), pause menu entry, pad B, the world frozen (clock and characters), German
+  hint bar, unwritable Pictures folder (fallback), the web game in headless Brave (download call).
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
@@ -262,7 +286,6 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
 - Mounts: riding a horse (two models in one pose: the rider seated on the mount's back bone),
   faster on roads.
 - Player housing: items that place furniture props in a house the player owns, kept in the save.
-- Photo mode: freeze the game, move the camera freely, no HUD, save a picture.
 - New Game+: start again from a finished save, keeping level and items.
 - Accessibility: bigger text, captions for sound effects, a high-contrast HUD, hold instead of
   repeated presses.

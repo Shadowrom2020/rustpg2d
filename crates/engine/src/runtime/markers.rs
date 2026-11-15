@@ -47,16 +47,22 @@ impl Game {
         for (id, p) in quests {
             let Some(def) = self.project.db.quests.iter().find(|q| q.id == *id) else { continue };
             let title = self.world.expand_text(&def.title);
-            // A Talk step: over the character it waits for, when it is here.
+            // A Talk step: over the character it waits for, when it is here; while its conditions
+            // don't hold yet (the loaf isn't baked), at what to fetch or make first instead.
+            let mut target = def.target_of(p.stage);
             if let Some(who) = def.talk_to(p.stage) {
-                if let Some(e) = self.loaded.entities.iter().find(|e| e.active && e.kind == EntityKind::Character && (e.name == who || e.def == who)) {
-                    let look = self.look(&e.appearance);
-                    let h = self.project.db.model(&look.model).map_or(ts * 1.4, |m| m.height) * self.look_size(&e.appearance);
-                    out.push(Marker { quest: id.clone(), title, pos: e.body.pos - vec2(0.0, h + ts * 0.25), via: None });
-                    continue;
+                if self.talk_ready.contains(id) {
+                    if let Some(e) = self.loaded.entities.iter().find(|e| e.active && e.kind == EntityKind::Character && (e.name == who || e.def == who)) {
+                        let look = self.look(&e.appearance);
+                        let h = self.project.db.model(&look.model).map_or(ts * 1.4, |m| m.height) * self.look_size(&e.appearance);
+                        out.push(Marker { quest: id.clone(), title, pos: e.body.pos - vec2(0.0, h + ts * 0.25), via: None });
+                        continue;
+                    }
+                } else {
+                    target = def.step(p.stage).map(|s| &s.first_to).filter(|t| !t.is_empty());
                 }
             }
-            let Some(t) = def.target_of(p.stage) else { continue };
+            let Some(t) = target else { continue };
             let (map, name) = (t.map.trim(), t.name.trim());
             if map == m.name {
                 // The target here: a placed entity (over its head), else a zone (its middle).
@@ -75,15 +81,17 @@ impl Game {
                     out.push(Marker { quest: id.clone(), title, pos, via: None });
                 }
             } else {
-                // Elsewhere: the nearest exit leading to its map.
+                // Elsewhere: the nearest exit leading to its map, else to the first map on the
+                // way there (two maps away: the village's gate to the forest for the mine).
                 let me = self.player.pos;
+                let way = self.marker_hops.get(map).map_or(map, String::as_str);
                 let exits = m.zones.iter().filter_map(|z| match &z.kind {
-                    ZoneKind::Portal { target_map, .. } | ZoneKind::Transition { target_map, .. } if target_map == map => Some(z.pixel_rect(ts).center()),
+                    ZoneKind::Portal { target_map, .. } | ZoneKind::Transition { target_map, .. } if target_map == way => Some(z.pixel_rect(ts).center()),
                     _ => None,
                 });
                 let edges = crate::map::Edge::ALL.into_iter().filter_map(|e| {
                     let link = m.edges.get(e)?;
-                    (link.target_map == map).then(|| m.edges.strip_rect(e, m.width, m.height, ts)).flatten().map(|r| r.center())
+                    (link.target_map == way).then(|| m.edges.strip_rect(e, m.width, m.height, ts)).flatten().map(|r| r.center())
                 });
                 if let Some(pos) = exits.chain(edges).min_by(|a, b| a.distance(me).total_cmp(&b.distance(me))) {
                     out.push(Marker { quest: id.clone(), title, pos, via: Some(map.to_string()) });

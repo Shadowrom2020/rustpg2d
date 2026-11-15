@@ -405,8 +405,11 @@ current, for every active quest:
   edge) on the current map;
 - the map screen (M) pins the same spots with the quest's title.
 
-A step that waits for a talk with someone marks that character when it is on the map. A character
-with a quest to offer right now has a golden **!** over its head (talking to it offers the quest).
+A step that waits for a talk with someone marks that character when it is on the map, but while
+the player still has to fetch or make something first (the flour, the festival loaf) the marker
+points there instead. A target two or more maps away is shown at the exit on the way to it (from
+the bakery, the door to the village for the forest's cart). A character with a quest to offer
+right now has a golden **!** over its head (talking to it offers the quest).
 
 Players switch them off in *Options › Gameplay › Quest markers*. In the example every quest stage with one place
 to go has a marker: the chest in the elder's house, the shrine, the slime den, Tilda, the mill's cat,

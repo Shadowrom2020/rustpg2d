@@ -364,7 +364,7 @@ impl Renamer<'_> {
 
     /// A quest's markers and what the quest editor describes: giver, conditions, steps, rewards.
     fn quest(&mut self, q: &mut crate::quest::QuestDef) {
-        for t in &mut q.targets {
+        for t in q.targets.iter_mut().chain(q.objects.iter_mut()) {
             self.fix(RefKind::Map, &mut t.map);
         }
         // (Givers and talk characters may be placed names, not definitions: renamed with a
@@ -387,6 +387,7 @@ impl Renamer<'_> {
             }
             self.actions(&mut s.on_start);
             self.actions(&mut s.on_done);
+            self.fix(RefKind::Map, &mut s.first_to.map);
         }
         for i in &mut q.rewards.items {
             self.fix(RefKind::Item, &mut i.item);

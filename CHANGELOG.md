@@ -23,6 +23,16 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   the elder has a **follow-up**, *An Offering for the Shrine*: a step runs a script at the shrine,
   and the reward, the starter library's new script function `quest_thanks()`, makes the giver like
   the player more (every given quest of the example rewards that too).
+- **Quest markers follow the quest's logic**: a talk step whose conditions don't hold yet (bring
+  the flour, the baked loaf, the remedy, the locket) leads to what to fetch or make first (*Until
+  then, leads to*: the raided cart, the oven, Wren's alchemy table, the mine) and to the character
+  once they do; a target several maps away gets its marker at the exit on the way there (from the
+  tavern or the bakery, the door; from the village, the forest for the mine). The example's quests
+  lead this way, and the elder's follow-up points to the village beehive.
+- **Quest objects**: placed items, props and characters listed in a quest (map + name) are hidden
+  until it is started and appear once while it is active (taken items stay taken). In the example
+  the raided cart and its flour sacks (*Bread for the Festival*) and Halvar's locket (*Rumours at
+  the Tavern*) can no longer be found before the quest.
 - AI agents: `def_template quests` shows the new fields, the `design_quest` prompt builds quests this
   way, and `get_map` prints a map's own triggers (`triggers: true`).
 

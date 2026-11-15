@@ -155,6 +155,45 @@ impl Game {
         acts.into_iter().map(|a| (a, ctx.clone())).collect()
     }
 
+    /// The quests' objects on this map (`QuestDef::objects`): hidden before their quest is
+    /// started; shown once while it is active (recorded in `fired`, so items taken afterwards
+    /// stay taken and props changed stay changed); never shown, they stay hidden once it ended.
+    pub(super) fn apply_quest_objects(&mut self) {
+        let map = self.loaded.map.name.clone();
+        if !self.project.db.quests.iter().any(|q| q.objects.iter().any(|o| o.map.trim() == map)) {
+            return;
+        }
+        let quests = self.project.db.quests.clone();
+        let mut changed = false;
+        for q in &quests {
+            for o in q.objects.iter().filter(|o| o.map.trim() == map && !o.name.trim().is_empty()) {
+                let name = o.name.trim();
+                let key = format!("quest_object/{}/{map}/{name}", q.id);
+                if self.world.fired.contains(&key) {
+                    continue;
+                }
+                let show = self.world.quest(&q.id).is_some_and(|p| p.status == QuestStatus::Active);
+                for i in 0..self.loaded.entities.len() {
+                    let e = &mut self.loaded.entities[i];
+                    if e.name != name || e.active == show {
+                        continue;
+                    }
+                    e.active = show;
+                    e.hidden = !show;
+                    e.away = false;
+                    self.persist(i);
+                    changed = true;
+                }
+                if show {
+                    self.world.fired.insert(key);
+                }
+            }
+        }
+        if changed {
+            self.rebuild_occupancy();
+        }
+    }
+
     /// The characters on this map with a quest to offer now (entity uid, quest id), for the
     /// `!` markers and `status`.
     pub(super) fn quest_offers(&mut self) -> Vec<(u32, String)> {
@@ -181,6 +220,85 @@ impl Game {
         }
         self.offer_check_timer = 0.5;
         self.offer_cache = self.quest_offers();
+        // Talk steps whose conditions hold (their markers lead to the character, the others to
+        // what to fetch first).
+        let quests = self.project.db.quests.clone();
+        let mut ready = Vec::new();
+        for q in &quests {
+            let Some(p) = self.world.quest(&q.id).filter(|p| p.status == QuestStatus::Active).cloned() else { continue };
+            if let Some(StepGoal::Talk { when, .. }) = q.step(p.stage).map(|s| &s.done) {
+                let when = when.clone();
+                if conditions_met(self, &when, &ActionCtx::default()) {
+                    ready.push(q.id.clone());
+                }
+            }
+        }
+        self.talk_ready = ready;
+        self.refresh_marker_hops();
+    }
+
+    /// The maps a map's exits (portals, transitions, edges) lead to; read once per map.
+    fn links_of(&mut self, name: &str) -> Vec<String> {
+        fn links(m: &crate::map::Map) -> Vec<String> {
+            let zones = m.zones.iter().filter_map(|z| match &z.kind {
+                crate::map::ZoneKind::Portal { target_map, .. } | crate::map::ZoneKind::Transition { target_map, .. } => Some(target_map.clone()),
+                _ => None,
+            });
+            let edges = crate::map::Edge::ALL.into_iter().filter_map(|e| m.edges.get(e).map(|l| l.target_map.clone()));
+            let mut v: Vec<String> = zones.chain(edges).filter(|t| !t.is_empty()).collect();
+            v.sort();
+            v.dedup();
+            v
+        }
+        if name == self.loaded.map.name {
+            return links(&self.loaded.map);
+        }
+        if let Some(v) = self.map_links.get(name) {
+            return v.clone();
+        }
+        let v = match self.cache.iter().find(|m| m.name == name) {
+            Some(m) => links(m),
+            None => self.project.load_map(name).map(|m| links(&m)).unwrap_or_default(),
+        };
+        self.map_links.insert(name.to_string(), v.clone());
+        v
+    }
+
+    /// For every map an active quest leads to and this map has no exit to: the first map on the
+    /// shortest way there (its exit gets the marker).
+    fn refresh_marker_hops(&mut self) {
+        let here = self.loaded.map.name.clone();
+        let mut wanted: Vec<String> = Vec::new();
+        for q in &self.project.db.quests {
+            let Some(p) = self.world.quest(&q.id).filter(|p| p.status == QuestStatus::Active) else { continue };
+            let first = q.step(p.stage).map(|s| &s.first_to).filter(|t| !t.is_empty());
+            for t in q.target_of(p.stage).into_iter().chain(first) {
+                let m = t.map.trim().to_string();
+                if !m.is_empty() && m != here && !wanted.contains(&m) {
+                    wanted.push(m);
+                }
+            }
+        }
+        let direct = self.links_of(&here);
+        self.marker_hops.clear();
+        for goal in wanted.into_iter().filter(|g| !direct.contains(g)) {
+            // Breadth first over the maps, remembering the first hop of each path.
+            let mut seen: Vec<String> = vec![here.clone()];
+            let mut queue: std::collections::VecDeque<(String, String)> = direct.iter().map(|d| (d.clone(), d.clone())).collect();
+            seen.extend(direct.iter().cloned());
+            while let Some((map, hop)) = queue.pop_front() {
+                if map == goal {
+                    self.marker_hops.insert(goal.clone(), hop);
+                    break;
+                }
+                for next in self.links_of(&map) {
+                    if !seen.contains(&next) && seen.len() < 256 {
+                        seen.push(next.clone());
+                        queue.push_back((next, hop.clone()));
+                    }
+                }
+            }
+        }
     }
 
     /// `offers=` for `status`: quest@giver for every quest a character here offers now.

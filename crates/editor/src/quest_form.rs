@@ -30,7 +30,29 @@ pub fn quest_form(ui: &mut egui::Ui, d: &mut QuestDef, refs: &Refs, db: &Databas
 
     section(ui, "Giver and offer", true, |ui| giver_ui(ui, d, refs));
     section(ui, &format!("Steps ({})", d.stages.len()), true, |ui| steps_ui(ui, d, refs));
+    section(ui, &format!("Quest objects ({})", d.objects.len()), true, |ui| objects_ui(ui, d, refs));
     section(ui, "Rewards", true, |ui| rewards_ui(ui, d, refs));
+}
+
+/// Placed things that belong to the quest: hidden until it is started.
+fn objects_ui(ui: &mut egui::Ui, d: &mut QuestDef, refs: &Refs) {
+    ui.weak("Placed items, props and characters (a map and their name there) that only exist for this quest: hidden until it is started, then there once while it is active (taken items stay taken). A cart, the things to bring back, a lost locket.");
+    let mut remove = None;
+    for (k, o) in d.objects.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            widgets::suggest(ui, &format!("qo_map{k}"), &mut o.map, &refs.maps, 110.0);
+            ui.add(egui::TextEdit::singleline(&mut o.name).desired_width(160.0).hint_text("name on the map"));
+            if ui.small_button(ph::TRASH).on_hover_text("Remove").clicked() {
+                remove = Some(k);
+            }
+        });
+    }
+    if let Some(k) = remove {
+        d.objects.remove(k);
+    }
+    if ui.button(ui::t(ph::PLUS, "Object")).clicked() {
+        d.objects.push(Default::default());
+    }
 }
 
 /// A collapsible section of the form.
@@ -150,6 +172,7 @@ fn steps_ui(ui: &mut egui::Ui, d: &mut QuestDef, refs: &Refs) {
             });
             ui.add(egui::TextEdit::multiline(&mut d.stages[k]).desired_rows(1).desired_width(480.0).hint_text("The objective in the journal, e.g. Defeat slimes ({pest_slimes}/5)"));
             let s = &mut d.steps[k];
+            let first_to = &mut s.first_to;
             ui.horizontal(|ui| {
                 ui.label("Done when");
                 egui::ComboBox::from_id_salt(("step_goal", k)).selected_text(s.done.label()).width(260.0).show_ui(ui, |ui| {
@@ -177,6 +200,13 @@ fn steps_ui(ui: &mut egui::Ui, d: &mut QuestDef, refs: &Refs) {
                             lines_ui(ui, &format!("step_lines{k}"), lines, "What they say", "+ Line");
                             ui.weak("Only when (e.g. Has item, for a hand-in; take it with a Take item action when the step is done):");
                             widgets::conditions_ui(ui, &format!("step_when{k}"), when, refs);
+                            if !when.is_empty() {
+                                ui.horizontal(|ui| {
+                                    ui.label("Until then, leads to").on_hover_text("While these conditions don't hold, the quest marker points here instead of to the character: what to fetch or make first (the cart with the flour, the oven). Empty: no marker until then.");
+                                    widgets::suggest(ui, &format!("qf_map{k}"), &mut first_to.map, &refs.maps, 110.0);
+                                    ui.add(egui::TextEdit::singleline(&mut first_to.name).desired_width(140.0).hint_text("name on the map"));
+                                });
+                            }
                         });
                     });
                 }

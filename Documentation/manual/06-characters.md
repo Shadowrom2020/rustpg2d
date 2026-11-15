@@ -68,7 +68,10 @@ An item's empty names are **estimated** from its kind: bows shoot (`attack_bow`,
 `idle_spear`), other two-handed ones swing overhead (`attack_2h`, `idle_2h`), other weapons slash
 (`attack_1h`, `idle_1h`, parrying with `block_weapon`), shields block (`block_shield`; a lantern or
 torch in the left hand doesn't). The attack and walk come from the weapon, standing from the weapon
-and else the left-hand item, blocking from the left-hand item and else the weapon; a model without
+and else the left-hand item, blocking from the left-hand item and else the weapon. **Only in
+combat**: out of it characters stand and walk relaxed (the plain `idle` and `walk`), and a one-handed
+melee weapon with a 3D model hangs at the left hip; two-handed and ranged weapons, shields and tools
+stay in the hands ([Gameplay › Health and combat](09-gameplay.md#health-and-combat)). A model without
 the named clip plays its plain animation (`attack`, `idle`, `walk`), so items and models can be
 added in any order.
 

@@ -161,7 +161,7 @@ impl Game {
         for (i, e) in self.loaded.entities.iter().enumerate() {
             if e.active && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) < 8.0 * ts && e.npc_seat.is_none() {
                 let anim = self.npc_anim(i);
-                let gear = self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref());
+                let gear = Gear { ready: self.npc_in_combat(i), ..self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref()) };
                 out.push(format!("{}:{}{}{}", if e.name.is_empty() { &e.def } else { &e.name }, anim.name(), chosen(&e.appearance, &gear, anim), dir(&e.body, anim)));
             }
         }
@@ -169,13 +169,16 @@ impl Game {
     }
 
     /// `held=` for `status`: what the player and the characters within 8 tiles hold, as
-    /// `who:item@hand` (`R`, `L`, `B` = both; `/back` behind a figure), and a backpack as
-    /// `who:item@back`.
+    /// `who:item@hand` (`R`, `L`, `B` = both; `/back` behind a figure), a sheathed weapon as
+    /// `who:item@hip` and a backpack as `who:item@back`.
     pub(super) fn held_status(&self) -> Vec<String> {
         let line = |who: &str, _a: &Appearance, gear: &Gear, pose: (Facing, Anim)| -> Vec<String> {
             let g = Some(crate::hands::Grip::new(0.0, 0.0, 0.0));
             let held = crate::hands::held_with(&self.project.db, (g, g), &gear.equipment(), &gear.carrying, None, pose.0);
-            let mut out: Vec<String> = held.into_iter().map(|h| format!("{who}:{}@{}{}", h.id, &format!("{:?}", h.hand)[..1], if h.front { "" } else { "/back" })).collect();
+            // (Out of combat a one-handed weapon hangs at the hip: `@hip`.)
+            let action = matches!(pose.1, Anim::Strike(_) | Anim::Windup(_) | Anim::Swing(_) | Anim::Block(_) | Anim::Attack(_));
+            let hip = if action { None } else { crate::render::model::sheathed(&self.project.db, gear, "idle") };
+            let mut out: Vec<String> = held.into_iter().map(|h| if Some(h.id.as_str()) == hip { format!("{who}:{}@hip", h.id) } else { format!("{who}:{}@{}{}", h.id, &format!("{:?}", h.hand)[..1], if h.front { "" } else { "/back" }) }).collect();
             out.extend(gear.back.as_ref().map(|b| format!("{who}:{b}@back")));
             out
         };
@@ -187,7 +190,7 @@ impl Game {
         for (i, e) in self.loaded.entities.iter().enumerate() {
             if e.active && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) < 8.0 * ts {
                 let who = if e.name.is_empty() { &e.def } else { &e.name };
-                let gear = self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref());
+                let gear = Gear { ready: self.npc_in_combat(i), ..self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref()) };
                 out.extend(line(who, &e.appearance, &gear, (e.body.facing, self.npc_anim(i))));
             }
         }
@@ -204,7 +207,7 @@ impl Game {
 
     /// What the player holds (fishing: the rod instead of the weapon; carrying a prop).
     pub(super) fn player_gear(&self) -> Gear {
-        self.character_gear(&self.world.equipment, &self.world.player_carrying, self.player_tool_in_use().as_deref())
+        Gear { ready: self.player_in_combat(), ..self.character_gear(&self.world.equipment, &self.world.player_carrying, self.player_tool_in_use().as_deref()) }
     }
 
     /// World size of a character's frame (32 x 48 without any model).

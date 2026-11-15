@@ -52,8 +52,8 @@ pub(super) struct Link {
     pub order: crate::state::Order,
     /// Told to stay: where it waits (world pixels).
     pub post: Option<Vec2>,
-    /// It fought in its last step (`status()`).
-    fighting: bool,
+    /// It fought in its last step (`status()`, its battle stance).
+    pub fighting: bool,
     /// It already said it is out of ammunition.
     out_of_ammo: bool,
     /// Mana for the spells it learned, and seconds until each can be cast again.

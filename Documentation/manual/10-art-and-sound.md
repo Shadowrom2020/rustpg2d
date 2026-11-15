@@ -177,7 +177,11 @@ a file into `sounds/`.
   action switches it. The engine prepares music so the loop point is seamless; a track whose length
   is a multiple of 4096 samples at 44.1 kHz plays exactly as it is.
 - **Game sounds** (*Database › Project*) are the sounds the game plays by itself: pickups, attacks,
-  hits, dialogs, doors. The rain has its own built-in sound.
+  hits, dialogs, doors, and the **battle music** while enemies engage the player (crossfaded in and
+  out over 0.8 s; a map may choose another or none). The rain has its own built-in sound.
+- The example's four tracks (*Market Day*, *Whisperwood*, *The Copper Kettle* and the battle music
+  *Steel in the Woods*) are composed in a note notation and rendered by a small synthesizer:
+  `scripts/sounds/music/` (`cargo run --release -- OUT_DIR [ID…]` in that folder).
 - Players set the volume of music, effects and ambience in *Options*.
 
 ## Soundscapes and footsteps

@@ -7011,6 +7011,16 @@
                 ],
             },
         ),
+        "sound:music_battle": (
+            defs: [
+                17960982460714843496,
+            ],
+            files: {
+                "sounds/music_battle.ogg": [
+                    4593409367597945233,
+                ],
+            },
+        ),
         "sound:music_forest": (
             defs: [
                 2451811687679010858,

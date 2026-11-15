@@ -31,6 +31,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   (`<Pictures>/<game>/`, else beside the save games; the web game offers a download). Exported
   Flatpaks may write to the Pictures folder. `status` prints `photo=`.
 
+- **Battle stance and battle music**: characters stand upright and relaxed out of combat, a
+  one-handed weapon at the left hip, and take their weapon's stance with it in the hand when a fight
+  starts (hunting, attacking, a companion fighting; the player when engaged, striking, blocking or
+  hurt; four seconds after the last). Enemies engaging the player crossfade the music to the project's
+  **Battle music** (a map can choose another or none) and back afterwards. The example has a new
+  track, *Steel in the Woods* (`music_battle`), composed with the old example music's synthesizer,
+  now in `scripts/sounds/music/` with all four tracks. `status` prints `battle=`, `music_fade=` and
+  `@hip` in `held=`; muted games follow the music for `status` too.
+
 ### Events and scripts
 - New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with
   *Chase* behaviour runs to where another character (or the player) is, following them for 15 s,

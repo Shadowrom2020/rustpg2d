@@ -31,6 +31,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   (`<Pictures>/<game>/`, else beside the save games; the web game offers a download). Exported
   Flatpaks may write to the Pictures folder. `status` prints `photo=`.
 
+- **Character window**: the equipment slots sit around a bigger figure of the player where things
+  are worn (head and body armor, right hand and tool on the left as the figure faces you; backpack,
+  clothing and left hand on the right; a two-handed weapon shows faded in the left hand). Arrows and
+  the d-pad move between them by position; item names and numbers are in the details line.
+
 ### Events and scripts
 - New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with
   *Chase* behaviour runs to where another character (or the player) is, following them for 15 s,

@@ -166,8 +166,11 @@ spell*, *Add mana*, *Damage around player*, *Light around player*.
 ![The character window](../images/game-character.webp)
 
 - The **inventory** has as many slots as *Database › Project › Inventory slots* says; each item has
-  a stack size. The character window (C or I) shows it next to the equipment slots (clothing, head,
-  body, weapon, left hand, tool, backpack), a portrait in the current gear and live stats.
+  a stack size. The character window (C or I) shows it next to the character sheet: the player's
+  figure in the current gear with the equipment slots around it where things are worn (head, body
+  armor, right hand and tool on the left, as the figure faces you; backpack, clothing and left hand
+  on the right; a two-handed weapon shows faded in the left hand too), and live stats below. A
+  selected or hovered slot's item is described in the line at the bottom.
 - **Backpacks** go into the *Backpack* slot and show on the character's back; while worn the
   inventory has the backpack's extra slots (*Extra inventory slots* on the item). Taking one off, or
   changing it for a smaller one, moves what lies in the slots that go away into free slots; when

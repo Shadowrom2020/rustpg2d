@@ -3,6 +3,18 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Editor
+- **Repository mode** for working on R(ust)PG2D itself: started with a checkout of the repository as
+  its current folder, the editor opens `example_project/` directly (as a folder) and uses the
+  repository's starter library as its asset library, so *Send to library*, the Asset Library
+  window and `library_send` change the repository's files; a *Repository* badge in the status bar
+  shows it. A project argument opens that project instead, `RUSTPG2D_LIBRARY` picks another
+  library, `RUSTPG2D_REPO=0` turns the mode off. The starter library's own folder never gets the
+  built-in starter set applied (assets deleted there stay deleted). Editor script `status` prints
+  `repo=` and `library=`.
+
 ## 0.21.0 — 2026-11-15
 
 ### Breaking

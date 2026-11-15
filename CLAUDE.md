@@ -200,6 +200,7 @@ crates/editor/src/      editor binary
   a model, AI) and the Customize window; `char…` script commands), models.rs
   (template chooser: copy a project / library character's model and colours),
   script_editor.rs (Rhai editor: highlighting, completion, API table with params/docs),
+  repo_mode.rs (repository mode: started in a checkout, the editor works on example_project and the starter library),
   ui.rs (icon font, ribbon / tool-button helpers), models_tab.rs (importing 3D models and item
   models, rendering item icons; the form is database::model_form, previews widgets::paint_model),
   new_project.rs (wizard), library_ui.rs (library Browse view, "Add from library" dialog,
@@ -314,8 +315,8 @@ itself is still built as content on top of it. The checklist below is for that c
   files (the generator that once wrote them was removed in 0.11.0), and the place where new
   features are built (*Content route*). Edit them with the editor
   and its AI agent server (`Documentation/manual/13-ai-agents.md`): start
-  `RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_LIBRARY=crates/editor/assets/starter_library target/debug/rustpg2d-editor example_project`
-  (without `RUSTPG2D_FOLDER_PROJECTS=1` the editor converts the folder into a project file and edits that instead)
+  `target/debug/rustpg2d-editor` from the repository root (**repository mode**, `repo_mode.rs`: no project
+  argument = `example_project/` as a folder, the starter library as the asset library)
   with `RUSTPG2D_EDITOR_SCRIPT="mcp on PORT; wait 3600; quit"` (plus scratch `RUSTPG2D_SETTINGS_DIR` /
   `RUSTPG2D_EDITOR_CONFIG`) and drive it with an MCP client (as `crates/editor/examples/mcp_smoke.rs`
   does). Writes save at once into the real files, so work on a branch. New art / sounds:
@@ -340,6 +341,11 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace
 cargo build --release --workspace  # keep release binaries current too (export, user runs)
 ```
+
+**Repository mode:** an editor started with the repository root as its current folder and no
+project argument opens the real `example_project/`, and without `RUSTPG2D_LIBRARY` its library is
+the real starter library. Test runs always pass a scratch project and set `RUSTPG2D_LIBRARY` (or
+`RUSTPG2D_REPO=0`); editor script `status` prints `repo=off|on[:starter]` and `library=`.
 
 Use the session scratchpad for everything temporary: copy `example_project` (minus `saves/`)
 there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<scratch>/settings` (the game's Options menu saves there), and for the editor

@@ -75,7 +75,8 @@ impl Editor {
         if self.library_mode {
             library::open_library(&self.project.root, None)
         } else {
-            library::open_library(&library::library_dir(), Some(crate::library_ui::STARTER))
+            let dir = library::library_dir();
+            library::open_library(&dir, crate::library_ui::starter_for(&dir))
         }
     }
 
@@ -148,7 +149,7 @@ impl Editor {
         }
         if !self.library_mode {
             // Opening applies a changed starter set (new ids) and leaves the pending mark.
-            let _ = library::open_library(&root, Some(crate::library_ui::STARTER));
+            let _ = library::open_library(&root, crate::library_ui::starter_for(&root));
         }
         if !su::pending(&root) {
             return;

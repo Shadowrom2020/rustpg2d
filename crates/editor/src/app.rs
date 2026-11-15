@@ -341,7 +341,8 @@ impl Editor {
         // restoring library art that was shrunken for them.
         let mut converted = None;
         if rustpg2d_engine::migrate::stored_tile_size(&root)? != rustpg2d_engine::project::TILE_SIZE {
-            let lib = rustpg2d_engine::library::open_library(&rustpg2d_engine::library::library_dir(), Some(crate::library_ui::STARTER)).ok();
+            let dir = rustpg2d_engine::library::library_dir();
+            let lib = rustpg2d_engine::library::open_library(&dir, crate::library_ui::starter_for(&dir)).ok();
             converted = rustpg2d_engine::migrate::upgrade(&root, lib.as_ref())?;
         }
         // Projects from before painted maps: tiles become ground and decorations (with a backup).
@@ -384,7 +385,8 @@ impl Editor {
             if !path.join("project.ron").is_file() {
                 anyhow::bail!("{} is not an R(ust)PG2D project (no project.ron)", path.display());
             }
-            if folders_allowed() {
+            // (The repository's example project stays a folder, as git keeps it.)
+            if folders_allowed() || crate::repo_mode::is_example(&path) {
                 let ed = Editor::new(path.clone(), None)?;
                 files::remember_recent(&path);
                 return Ok(ed);
@@ -1912,6 +1914,18 @@ impl Editor {
     fn status_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
             ui.horizontal(|ui| {
+                if let Some(root) = crate::repo_mode::root() {
+                    let library = rustpg2d_engine::library::library_dir();
+                    let tip = format!(
+                        "Repository mode: the editor was started in the checkout {}.\n\nProject: {}\nAsset library: {}{}\n\nAfter changing the starter library, run `cargo run -p rustpg2d-editor --example starter_history`. Set RUSTPG2D_REPO=0 to turn the mode off.",
+                        root.display(),
+                        if self.project_open { self.project.root.display().to_string() } else { "-".into() },
+                        library.display(),
+                        if crate::repo_mode::library_is_starter() { " (the starter library: Send to library changes the repository)" } else { " (RUSTPG2D_LIBRARY)" },
+                    );
+                    ui.label(egui::RichText::new(ui::t(ph::GIT_BRANCH, "Repository")).color(Color32::from_rgb(120, 190, 240))).on_hover_text(tip);
+                    ui.separator();
+                }
                 if let (Some(doc), Some((x, y))) = (&self.doc, self.hover_tile) {
                     ui.monospace(format!("tile {x},{y}"));
                     if doc.map.in_bounds(x, y) {

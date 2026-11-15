@@ -167,6 +167,17 @@ folder: with the environment variable `RUSTPG2D_FOLDER_PROJECTS=1` the editor op
 folders as they are instead of converting them (that is how the example game is kept in
 R(ust)PG2D's own repository).
 
+**Repository mode** (for working on R(ust)PG2D itself): the editor started with a checkout of the
+R(ust)PG2D repository as its current folder (e.g. `cargo run -p rustpg2d-editor` in the
+repository) opens the repository's `example_project/` directly, as a folder, and uses the starter
+library (`crates/editor/assets/starter_library/`) as its asset library: *Send to library*, the
+Asset Library window and the agent server's `library_send` change the repository's files. A
+**Repository** badge at the left of the status bar says so (its tooltip names the project and the
+library). A project given on the command line opens instead of the example; `RUSTPG2D_LIBRARY`
+still picks another library, and `RUSTPG2D_REPO=0` turns the mode off. The starter library isn't
+filled from the editor's built-in starter set in this mode, so assets deleted there stay deleted;
+after changing it, run `cargo run -p rustpg2d-editor --example starter_history`.
+
 ### Files changed outside the editor
 
 The editor watches the project's files (in a project file's working copy). When something else

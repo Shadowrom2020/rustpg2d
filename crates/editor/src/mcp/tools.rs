@@ -83,6 +83,9 @@ pub struct PaintGroundParams {
     pub lines: Option<Vec<GroundLine>>,
     /// Filled polygons, each a list of [x, y] points in tiles (fields, plazas, lakes).
     pub polygons: Option<Vec<Vec<[f32; 2]>>>,
+    /// Filled rectangles [x, y, w, h] in tiles (floors, carpets, fields; fractions allowed down to
+    /// the 8 px cells).
+    pub rects: Option<Vec<[f32; 4]>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -781,7 +784,7 @@ with_params {
     /// Creates a map (optionally its ground filled with a material), saves it and opens it in the editor.
     #[tool]
     create_map: CreateMap(p: CreateMapParams) => ed.mcp_create_map(p);
-    /// Paints the map's ground with a material (8 px cells; natural edges where materials meet): round dabs, strokes through points with a width (roads, streams) and filled polygons, in tiles. One undo step.
+    /// Paints the map's ground with a material (8 px cells; natural edges where materials meet, straight ones for materials with a Straight edge): round dabs, strokes through points with a width (roads, streams), filled polygons and rectangles, in tiles. One undo step.
     #[tool]
     paint_ground: PaintGround(p: PaintGroundParams) => ed.mcp_paint_ground(p);
     /// Fills the connected area of the same ground material (or of no ground) at a point with a material. One undo step.

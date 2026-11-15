@@ -3184,8 +3184,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_10",
-        name: "Terrain tile 10",
+        id: "red_brick_wall",
+        name: "Red brick wall",
         sprite: (
             sheet: "terrain_tiles",
             frame: 10,
@@ -3200,8 +3200,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_28",
-        name: "Terrain tile 28",
+        id: "red_roof_tiles",
+        name: "Red roof tiles",
         sprite: (
             sheet: "terrain_tiles",
             frame: 28,
@@ -3216,8 +3216,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_9",
-        name: "Terrain tile 9",
+        id: "plaster_panel",
+        name: "Plaster panel",
         sprite: (
             sheet: "terrain_tiles",
             frame: 9,
@@ -3232,8 +3232,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_19",
-        name: "Terrain tile 19",
+        id: "plaster_window",
+        name: "Window",
         sprite: (
             sheet: "terrain_tiles",
             frame: 19,
@@ -3254,8 +3254,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_11",
-        name: "Terrain tile 11",
+        id: "wooden_door",
+        name: "Wooden door",
         sprite: (
             sheet: "terrain_tiles",
             frame: 11,
@@ -3270,8 +3270,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_8",
-        name: "Terrain tile 8",
+        id: "grey_stone_wall",
+        name: "Grey stone wall",
         sprite: (
             sheet: "terrain_tiles",
             frame: 8,
@@ -3286,8 +3286,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_16",
-        name: "Terrain tile 16",
+        id: "fence_section",
+        name: "Fence section",
         sprite: (
             sheet: "terrain_tiles",
             frame: 16,
@@ -3303,8 +3303,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_7",
-        name: "Terrain tile 7",
+        id: "black_void",
+        name: "Black void",
         sprite: (
             sheet: "terrain_tiles",
             frame: 7,
@@ -3319,8 +3319,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_22",
-        name: "Terrain tile 22",
+        id: "blue_bed",
+        name: "Blue bed",
         sprite: (
             sheet: "terrain_tiles",
             frame: 22,
@@ -3336,8 +3336,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_23",
-        name: "Terrain tile 23",
+        id: "bookshelf",
+        name: "Bookshelf",
         sprite: (
             sheet: "terrain_tiles",
             frame: 23,
@@ -3352,8 +3352,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_34",
-        name: "Terrain tile 34",
+        id: "blue_door",
+        name: "Blue door",
         sprite: (
             sheet: "terrain_tiles",
             frame: 34,
@@ -3368,8 +3368,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_21",
-        name: "Terrain tile 21",
+        id: "small_table",
+        name: "Small table",
         sprite: (
             sheet: "terrain_tiles",
             frame: 21,
@@ -3385,8 +3385,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_12",
-        name: "Terrain tile 12",
+        id: "oak_trunk",
+        name: "Oak trunk",
         sprite: (
             sheet: "terrain_tiles",
             frame: 12,
@@ -3401,8 +3401,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_13",
-        name: "Terrain tile 13",
+        id: "oak_crown",
+        name: "Oak crown",
         sprite: (
             sheet: "terrain_tiles",
             frame: 13,
@@ -3417,8 +3417,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_29",
-        name: "Terrain tile 29",
+        id: "pine_trunk",
+        name: "Pine trunk",
         sprite: (
             sheet: "terrain_tiles",
             frame: 29,
@@ -3433,8 +3433,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_30",
-        name: "Terrain tile 30",
+        id: "small_pine",
+        name: "Small pine",
         sprite: (
             sheet: "terrain_tiles",
             frame: 30,
@@ -3449,8 +3449,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_15",
-        name: "Terrain tile 15",
+        id: "small_rock",
+        name: "Small rock",
         sprite: (
             sheet: "terrain_tiles",
             frame: 15,
@@ -3466,8 +3466,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_14",
-        name: "Terrain tile 14",
+        id: "berry_bush",
+        name: "Berry bush",
         sprite: (
             sheet: "terrain_tiles",
             frame: 14,
@@ -3483,8 +3483,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_25",
-        name: "Terrain tile 25",
+        id: "toadstools",
+        name: "Toadstools",
         sprite: (
             sheet: "terrain_tiles",
             frame: 25,
@@ -3500,8 +3500,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_48",
-        name: "Terrain tile 48",
+        id: "slate_roof",
+        name: "Slate roof",
         sprite: (
             sheet: "terrain_tiles",
             frame: 48,
@@ -3516,8 +3516,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_53",
-        name: "Terrain tile 53",
+        id: "slate_chimney",
+        name: "Slate chimney",
         sprite: (
             sheet: "terrain_tiles",
             frame: 53,
@@ -3532,8 +3532,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_49",
-        name: "Terrain tile 49",
+        id: "slate_roof_eave",
+        name: "Slate roof eave",
         sprite: (
             sheet: "terrain_tiles",
             frame: 49,
@@ -3548,8 +3548,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_60",
-        name: "Terrain tile 60",
+        id: "timber_frame",
+        name: "Timber frame",
         sprite: (
             sheet: "terrain_tiles",
             frame: 60,
@@ -3564,8 +3564,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_52",
-        name: "Terrain tile 52",
+        id: "brick_chimney",
+        name: "Brick chimney",
         sprite: (
             sheet: "terrain_tiles",
             frame: 52,
@@ -3580,8 +3580,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_54",
-        name: "Terrain tile 54",
+        id: "light_stone_wall",
+        name: "Light stone wall",
         sprite: (
             sheet: "terrain_tiles",
             frame: 54,
@@ -3596,8 +3596,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_55",
-        name: "Terrain tile 55",
+        id: "lit_window",
+        name: "Lit window",
         sprite: (
             sheet: "terrain_tiles",
             frame: 55,
@@ -3612,8 +3612,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_56",
-        name: "Terrain tile 56",
+        id: "arched_door",
+        name: "Arched door",
         sprite: (
             sheet: "terrain_tiles",
             frame: 56,
@@ -3628,8 +3628,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_57",
-        name: "Terrain tile 57",
+        id: "stained_glass_window",
+        name: "Stained-glass window",
         sprite: (
             sheet: "terrain_tiles",
             frame: 57,
@@ -3644,8 +3644,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_50",
-        name: "Terrain tile 50",
+        id: "thatch_roof",
+        name: "Thatch roof",
         sprite: (
             sheet: "terrain_tiles",
             frame: 50,
@@ -3660,8 +3660,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_51",
-        name: "Terrain tile 51",
+        id: "thatch_roof_eave",
+        name: "Thatch roof eave",
         sprite: (
             sheet: "terrain_tiles",
             frame: 51,
@@ -3676,8 +3676,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_41",
-        name: "Terrain tile 41",
+        id: "wooden_post",
+        name: "Wooden post",
         sprite: (
             sheet: "terrain_tiles",
             frame: 41,
@@ -3693,8 +3693,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_40",
-        name: "Terrain tile 40",
+        id: "tall_fence_post",
+        name: "Tall fence post",
         sprite: (
             sheet: "terrain_tiles",
             frame: 40,
@@ -3710,8 +3710,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_42",
-        name: "Terrain tile 42",
+        id: "stone_chimney",
+        name: "Stone chimney",
         sprite: (
             sheet: "terrain_tiles",
             frame: 42,
@@ -3726,8 +3726,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_58",
-        name: "Terrain tile 58",
+        id: "counter",
+        name: "Counter",
         sprite: (
             sheet: "terrain_tiles",
             frame: 58,
@@ -3743,8 +3743,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_16",
-        name: "City tile 16",
+        id: "blue_slate_roof",
+        name: "Blue slate roof",
         sprite: (
             sheet: "city_tiles",
             frame: 16,
@@ -3759,8 +3759,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_17",
-        name: "City tile 17",
+        id: "blue_slate_roof_edge",
+        name: "Blue slate roof edge",
         sprite: (
             sheet: "city_tiles",
             frame: 17,
@@ -3775,8 +3775,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_9",
-        name: "City tile 9",
+        id: "pale_plaster_wall",
+        name: "Pale plaster wall",
         sprite: (
             sheet: "city_tiles",
             frame: 9,
@@ -3791,8 +3791,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_14",
-        name: "City tile 14",
+        id: "flower_box_window",
+        name: "Window with flower box",
         sprite: (
             sheet: "city_tiles",
             frame: 14,
@@ -3807,8 +3807,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_13",
-        name: "City tile 13",
+        id: "oval_window",
+        name: "Oval window",
         sprite: (
             sheet: "city_tiles",
             frame: 13,
@@ -3823,8 +3823,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_15",
-        name: "City tile 15",
+        id: "wall_lantern",
+        name: "Wall lantern",
         sprite: (
             sheet: "city_tiles",
             frame: 15,
@@ -3845,8 +3845,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_12",
-        name: "City tile 12",
+        id: "purple_arched_door",
+        name: "Purple arched door",
         sprite: (
             sheet: "city_tiles",
             frame: 12,
@@ -3861,8 +3861,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_18",
-        name: "City tile 18",
+        id: "orange_tile_roof",
+        name: "Orange tile roof",
         sprite: (
             sheet: "city_tiles",
             frame: 18,
@@ -3877,8 +3877,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_19",
-        name: "City tile 19",
+        id: "orange_tile_roof_edge",
+        name: "Orange tile roof edge",
         sprite: (
             sheet: "city_tiles",
             frame: 19,
@@ -3893,8 +3893,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_8",
-        name: "City tile 8",
+        id: "city_brick_wall",
+        name: "City brick wall",
         sprite: (
             sheet: "city_tiles",
             frame: 8,
@@ -3909,8 +3909,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_11",
-        name: "City tile 11",
+        id: "shop_window",
+        name: "Shop window",
         sprite: (
             sheet: "city_tiles",
             frame: 11,
@@ -3925,8 +3925,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_10",
-        name: "City tile 10",
+        id: "stone_block_wall",
+        name: "Stone block wall",
         sprite: (
             sheet: "city_tiles",
             frame: 10,
@@ -3941,8 +3941,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_31",
-        name: "City tile 31",
+        id: "drain_grate",
+        name: "Drain grate",
         sprite: (
             sheet: "city_tiles",
             frame: 31,
@@ -3957,8 +3957,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_21",
-        name: "City tile 21",
+        id: "iron_railing",
+        name: "Iron railing",
         sprite: (
             sheet: "city_tiles",
             frame: 21,
@@ -3973,8 +3973,8 @@
         snap: 32,
     ),
     (
-        id: "city_tile_22",
-        name: "City tile 22",
+        id: "lawn_patch",
+        name: "Lawn patch",
         sprite: (
             sheet: "city_tiles",
             frame: 22,
@@ -3989,8 +3989,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_16",
-        name: "Dungeon tile 16",
+        id: "dungeon_void",
+        name: "Dungeon void",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 16,
@@ -4005,8 +4005,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_8",
-        name: "Dungeon tile 8",
+        id: "dungeon_wall",
+        name: "Dungeon wall",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 8,
@@ -4021,8 +4021,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_10",
-        name: "Dungeon tile 10",
+        id: "dungeon_torch",
+        name: "Dungeon torch",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 10,
@@ -4043,8 +4043,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_6",
-        name: "Dungeon tile 6",
+        id: "dungeon_door",
+        name: "Dungeon door",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 6,
@@ -4059,8 +4059,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_22",
-        name: "Dungeon tile 22",
+        id: "candle_ledge",
+        name: "Candle ledge",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 22,
@@ -4076,8 +4076,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_15",
-        name: "Dungeon tile 15",
+        id: "stone_pillar",
+        name: "Stone pillar",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 15,
@@ -4092,8 +4092,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_18",
-        name: "Dungeon tile 18",
+        id: "cobweb",
+        name: "Cobweb",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 18,
@@ -4108,8 +4108,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_9",
-        name: "Dungeon tile 9",
+        id: "dark_dungeon_wall",
+        name: "Dark dungeon wall",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 9,
@@ -4124,8 +4124,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_11",
-        name: "Dungeon tile 11",
+        id: "chained_wall",
+        name: "Wall with chains",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 11,
@@ -4140,8 +4140,8 @@
         snap: 32,
     ),
     (
-        id: "dungeon_tile_14",
-        name: "Dungeon tile 14",
+        id: "prison_bars",
+        name: "Prison bars",
         sprite: (
             sheet: "dungeon_tiles",
             frame: 14,
@@ -4156,8 +4156,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_66",
-        name: "Terrain tile 66",
+        id: "low_rail",
+        name: "Low rail",
         sprite: (
             sheet: "terrain_tiles",
             frame: 66,
@@ -4173,8 +4173,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_67",
-        name: "Terrain tile 67",
+        id: "low_rail_end",
+        name: "Low rail end",
         sprite: (
             sheet: "terrain_tiles",
             frame: 67,
@@ -4190,8 +4190,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_68",
-        name: "Terrain tile 68",
+        id: "rail_posts_left",
+        name: "Railing posts (left)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 68,
@@ -4207,8 +4207,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_69",
-        name: "Terrain tile 69",
+        id: "rail_posts_right",
+        name: "Railing posts (right)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 69,
@@ -4224,8 +4224,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_72",
-        name: "Terrain tile 72",
+        id: "deck_with_ladder",
+        name: "Deck with ladder",
         sprite: (
             sheet: "terrain_tiles",
             frame: 72,
@@ -4240,8 +4240,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_73",
-        name: "Terrain tile 73",
+        id: "wooden_deck",
+        name: "Wooden deck",
         sprite: (
             sheet: "terrain_tiles",
             frame: 73,
@@ -4256,8 +4256,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_76",
-        name: "Terrain tile 76",
+        id: "ladder",
+        name: "Ladder",
         sprite: (
             sheet: "terrain_tiles",
             frame: 76,
@@ -4273,8 +4273,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_77",
-        name: "Terrain tile 77",
+        id: "cross_brace",
+        name: "Cross brace",
         sprite: (
             sheet: "terrain_tiles",
             frame: 77,
@@ -4289,8 +4289,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_78",
-        name: "Terrain tile 78",
+        id: "ladder_post",
+        name: "Ladder with post",
         sprite: (
             sheet: "terrain_tiles",
             frame: 78,
@@ -4306,8 +4306,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_79",
-        name: "Terrain tile 79",
+        id: "cross_brace_post",
+        name: "Cross brace with post",
         sprite: (
             sheet: "terrain_tiles",
             frame: 79,
@@ -4322,8 +4322,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_64",
-        name: "Terrain tile 64",
+        id: "roof_slope_left",
+        name: "Roof slope (left)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 64,
@@ -4338,8 +4338,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_65",
-        name: "Terrain tile 65",
+        id: "roof_slope_right",
+        name: "Roof slope (right)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 65,
@@ -4354,8 +4354,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_70",
-        name: "Terrain tile 70",
+        id: "post_left",
+        name: "Post (left)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 70,
@@ -4370,8 +4370,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_71",
-        name: "Terrain tile 71",
+        id: "post_right",
+        name: "Post (right)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 71,
@@ -4386,8 +4386,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_74",
-        name: "Terrain tile 74",
+        id: "railing_left",
+        name: "Railing (left)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 74,
@@ -4402,8 +4402,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_75",
-        name: "Terrain tile 75",
+        id: "railing_right",
+        name: "Railing (right)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 75,
@@ -4418,8 +4418,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_27",
-        name: "Terrain tile 27",
+        id: "dark_stone_wall",
+        name: "Dark stone wall",
         sprite: (
             sheet: "terrain_tiles",
             frame: 27,
@@ -4434,8 +4434,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_26",
-        name: "Terrain tile 26",
+        id: "cave_entrance",
+        name: "Cave entrance",
         sprite: (
             sheet: "terrain_tiles",
             frame: 26,
@@ -4450,8 +4450,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_46",
-        name: "Terrain tile 46",
+        id: "fence_end_left",
+        name: "Fence end (left)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 46,
@@ -4467,8 +4467,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_47",
-        name: "Terrain tile 47",
+        id: "fence_end_right",
+        name: "Fence end (right)",
         sprite: (
             sheet: "terrain_tiles",
             frame: 47,
@@ -4484,8 +4484,8 @@
         snap: 32,
     ),
     (
-        id: "terrain_tile_43",
-        name: "Terrain tile 43",
+        id: "hedge",
+        name: "Hedge",
         sprite: (
             sheet: "terrain_tiles",
             frame: 43,
@@ -4498,5 +4498,266 @@
         container: None,
         lock: None,
         snap: 32,
+    ),
+    (
+        id: "cottage_red_small",
+        name: "Small red-roofed cottage",
+        sprite: (
+            sheet: "cottage_red_small",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (160.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "cottage_red",
+        name: "Red-roofed cottage",
+        sprite: (
+            sheet: "cottage_red",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (224.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "hall_timber",
+        name: "Timber-framed hall",
+        sprite: (
+            sheet: "hall_timber",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (352.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "house_red",
+        name: "Red-roofed house",
+        sprite: (
+            sheet: "house_red",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (224.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "house_stone",
+        name: "Stone house",
+        sprite: (
+            sheet: "house_stone",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (224.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "chapel_building",
+        name: "Chapel",
+        sprite: (
+            sheet: "chapel_building",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (288.0, 224.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "farmhouse_thatched",
+        name: "Thatched farmhouse",
+        sprite: (
+            sheet: "farmhouse_thatched",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (224.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "cottage_stone_thatched",
+        name: "Thatched stone cottage",
+        sprite: (
+            sheet: "cottage_stone_thatched",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (160.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "house_red_small",
+        name: "Small red-roofed house",
+        sprite: (
+            sheet: "house_red_small",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (192.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "cottage_thatched",
+        name: "Thatched cottage",
+        sprite: (
+            sheet: "cottage_thatched",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (160.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "house_stone_small",
+        name: "Small stone house",
+        sprite: (
+            sheet: "house_stone_small",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (160.0, 160.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "window_glow",
+        name: "Window glow",
+        sprite: (
+            sheet: "glow",
+            frame: 0,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [],
+        hitbox: (24.0, 16.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        light: Some((
+            radius: 1.8,
+            color: (255, 205, 130),
+            intensity: 0.7,
+            flicker: false,
+        )),
+    ),
+    (
+        id: "carpet_runner",
+        name: "Carpet runner",
+        sprite: (
+            sheet: "carpet_runner",
+            frame: 0,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [],
+        hitbox: (64.0, 16.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "carpet_runner_long",
+        name: "Long carpet runner",
+        sprite: (
+            sheet: "carpet_runner_long",
+            frame: 0,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [],
+        hitbox: (64.0, 16.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "rug_small",
+        name: "Small rug",
+        sprite: (
+            sheet: "rug_small",
+            frame: 0,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [],
+        hitbox: (64.0, 16.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "rug_patterned",
+        name: "Patterned rug",
+        sprite: (
+            sheet: "rug_patterned",
+            frame: 0,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [],
+        hitbox: (128.0, 16.0),
+        triggers: [],
+        container: None,
+        lock: None,
+    ),
+    (
+        id: "rug_wide",
+        name: "Wide rug",
+        sprite: (
+            sheet: "rug_wide",
+            frame: 0,
+        ),
+        solid: false,
+        default_state: "default",
+        states: [],
+        hitbox: (160.0, 16.0),
+        triggers: [],
+        container: None,
+        lock: None,
     ),
 ]

@@ -163,14 +163,32 @@ Ground materials painted on maps ([Maps › Painted ground](03-maps.md#painted-g
 | Setting | Meaning |
 |---|---|
 | **Texture** | A seamless picture under the project (up to 256 × 256 px, sizes in steps of 8), repeated over the ground |
-| **Edge** | *Crisp*: a hard edge in steps of the art's pixels; *Soft*: a fade into the neighbour |
+| **Edge** | *Crisp*: a hard edge in steps of the art's pixels; *Soft*: a fade into the neighbour; *Straight*: exactly along the 8 px cells, square corners (floors, carpets, plazas; the converted tile materials) |
 | **Raggedness** | How far noise moves the edge, 0–4 px (0 = smooth curves along the painted cells) |
 | **Edge pixel** | The step size of a crisp edge (the texture's pixel size in world pixels: 1, 2 or 4) |
 | **Priority** | Where two materials meet, the higher one is drawn over the other |
-| **Rim** | A fringe of a colour and width drawn just outside the edge (sand round water) |
+| **Rim** | A fringe of a colour and width drawn just outside the edge (sand round water); on a *Straight* material a border up to 4 px (the carpet's gold edge) |
 | **Walking** | *Walkable*; *Solid* (blocks walking, shots and sight: cliffs, a void); *Low* (blocks walking only: water, a chasm) |
 | **Footsteps** | The sound of each step on it |
 | **Flow** | The texture drifts this many pixels per second (flowing water) |
+| **Animation** | How many **frames** the texture holds side by side (each one seamless; together up to 256 × 256 px) and how many are shown **per second**: rippling water, bubbling lava. Works together with *Flow* |
+
+Beside the settings a **preview** draws the material as on a map: a round and a square patch of it on
+a neighbour material (*Preview next to*; grass by default), with its edge, raggedness, rim, priority
+and flow. *Swap* puts the neighbour inside it instead, to see both sides of the edge. The preview
+follows every change at once, also strokes in the texture not saved yet.
+
+**Drawing the texture**: the pixel editor sits under the form with the texture open as one seamless
+picture. Copies of it are drawn around it (*Show copies around it*), and the pencil, line, rectangle
+and fill wrap across its edges, so a stroke leaving the picture on one side comes back on the other
+and the seams can be painted away where you see them. *Size* resizes it in steps of 8 px (growing
+repeats the picture). *Save* (Ctrl+S) writes the PNG and the maps show it. An **animated** material
+shows one frame at a time, with its copies: the strip of frames beside the tools picks the frame to
+draw (Copy / Paste carries one over to start the next), and a small preview plays them tiled.
+Raising *Animation* adds copies of the last frame to the texture (lowering it removes frames at
+the end): draw the differences, then save. A material without a
+texture gets one with **Draw a new one** (`materials/<id>.png`) and a size to start from (16 to 128 px,
+filled with the left colour).
 
 ## Scatter sets
 

@@ -5,6 +5,8 @@ example_project/saves/
 /.example_project.r2dproject.writing
 example_project/saves-backup-*/
 /dist
+# Release builds made locally (e.g. the web game exported from the example).
+/release/
 /crates/editor/assets/starter_library/starter.stamp
 /crates/editor/assets/starter_library/starter.pending
 /scripts/art/meshy/work/

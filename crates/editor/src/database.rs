@@ -148,6 +148,8 @@ pub struct DbState {
     pub form_scroll: Option<f32>,
     /// The structure editor (Structures tab).
     pub st_edit: crate::structures::StructEdit,
+    /// The material form's preview (Materials tab).
+    pub mat_preview: crate::material_preview::MaterialPreview,
 }
 
 /// Everything the definition forms need besides the definition itself.
@@ -171,6 +173,9 @@ struct Cx<'a> {
     /// Art actions handled after the form (they need the whole editor).
     art: &'a mut Option<ArtAction>,
     st_edit: &'a mut crate::structures::StructEdit,
+    mat_preview: &'a mut crate::material_preview::MaterialPreview,
+    /// The picture open in the pixel editor: (path, pixels, change counter).
+    drawing: Option<(&'a str, &'a rustpg2d_engine::imageio::Rgba, u64)>,
 }
 
 /// An id not yet used in `ids`, based on `prefix`.
@@ -527,14 +532,19 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             ed.db.rename = RenameUi::default();
         }
         let db_snapshot = ed.project.db.clone();
-        let mut embed: Option<(String, (u32, u32), bool)> = None;
+        let mut embed: Option<(String, (u32, u32), crate::pixel::Layout)> = None;
         // A sheet's frame size or scale changed: its textures are cut / drawn anew.
         let mut sheet_changed = false;
+        // A material's animation frames changed: (texture, old count, new count).
+        let mut refit: Option<(String, u32, u32)> = None;
         egui::CentralPanel::default().show_inside(ui, |ui| {
             // Sprite sheets: a compact form on top, the pixel editor below it.
             let art_tab = matches!(tab, Tab::Items | Tab::Props | Tab::Characters) && ed.db.art_open;
             let form_height = if tab == Tab::Sheets {
                 210.0
+            } else if tab == Tab::Materials && ed.project.db.materials.get(ed.db.sel).is_some_and(|m| !m.texture.is_empty()) {
+                // The texture is drawn under the form.
+                (ui.available_height() * 0.5).max(300.0)
             } else if art_tab {
                 (ui.available_height() * 0.45).max(220.0)
             } else {
@@ -560,6 +570,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     art_open: &mut ed.db.art_open,
                     art: &mut art,
                     st_edit: &mut ed.db.st_edit,
+                    mat_preview: &mut ed.db.mat_preview,
+                    drawing: ed.px.doc.as_ref().map(|d| (d.rel.as_str(), &d.img, d.version)),
                 };
                 let i = ed.db.sel;
                 let db = &mut ed.project.db;
@@ -588,7 +600,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                             let before = (d.frame_w, d.frame_h, d.scale);
                             sheet_form(ui, d, &mut cx);
                             sheet_changed = before != (d.frame_w, d.frame_h, d.scale);
-                            embed = Some((d.image.clone(), (d.frame_w, d.frame_h), false));
+                            embed = Some((d.image.clone(), (d.frame_w, d.frame_h), crate::pixel::Layout::Plain));
                         }
                     }
                     Tab::Sounds => {
@@ -633,7 +645,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     }
                     Tab::Materials => {
                         if let Some(d) = db.materials.get_mut(i) {
+                            let frames = d.frames;
                             material_form(ui, d, &mut cx);
+                            if d.frames != frames {
+                                refit = Some((d.texture.clone(), frames.max(1) as u32, d.frames.max(1) as u32));
+                            }
+                            if !d.texture.is_empty() {
+                                embed = Some((d.texture.clone(), (4096, 4096), crate::pixel::Layout::Seamless(d.frames.max(1) as u32)));
+                            }
                         }
                     }
                     Tab::Scatter => {
@@ -654,10 +673,12 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             if sheet_changed || MODEL_RELOAD.with(|r| r.replace(false)) {
                 ed.reload_assets();
             }
-            if let Some((rel, frame, character)) = embed.take() {
+            if let Some((rel, old, new)) = refit.take() {
+                ed.px.refit_frames(&rel, old, new);
+            }
+            if let Some((rel, frame, layout)) = embed.take() {
                 ui.separator();
                 let h = ui.available_height().max(260.0);
-                let layout = if character { crate::pixel::Layout::Character } else { crate::pixel::Layout::Plain };
                 ed.pixel_embedded(ui, &rel, frame, layout, h);
             }
             // Items / props / characters: their art under the form.
@@ -2317,61 +2338,82 @@ fn material_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::ground::MaterialDef
     ui.heading("Material");
     rename_row(ui, RefKind::Material, &d.id, cx.rename);
     name_row(ui, &mut d.name);
-    egui::Grid::new("material").num_columns(2).show(ui, |ui| {
-        ui.label("Texture").on_hover_text("A seamless picture (PNG, up to 256 x 256 px, sizes in steps of 8) repeated over the ground painted with this material.");
-        ui.horizontal(|ui| {
-            ui.add(egui::TextEdit::singleline(&mut d.texture).hint_text("materials/grass.png").desired_width(220.0));
-            if ui.button("Browse…").on_hover_text("Pick a PNG: files from elsewhere are copied into materials/").clicked() {
-                *cx.browse = Some(Purpose::MaterialTexture(d.id.clone()));
-            }
+    // The fields, and beside them the preview (below them in a narrow window).
+    ui.horizontal_wrapped(|ui| {
+        ui.vertical(|ui| {
+            egui::Grid::new("material").num_columns(2).show(ui, |ui| {
+                ui.label("Texture").on_hover_text("A seamless picture (PNG, up to 256 x 256 px, sizes in steps of 8) repeated over the ground painted with this material.");
+                ui.horizontal(|ui| {
+                    ui.add(egui::TextEdit::singleline(&mut d.texture).hint_text("materials/grass.png").desired_width(220.0));
+                    if ui.button("Browse…").on_hover_text("Pick a PNG: files from elsewhere are copied into materials/").clicked() {
+                        *cx.browse = Some(Purpose::MaterialTexture(d.id.clone()));
+                    }
+                    if d.texture.is_empty() && ui.button(ui::t(ph::PAINT_BRUSH, "Draw a new one")).on_hover_text("A new texture, materials/<id>.png, drawn below").clicked() {
+                        d.texture = format!("materials/{}.png", d.id);
+                    }
+                });
+                ui.end_row();
+                ui.label("Edge").on_hover_text("Crisp: a hard edge in steps of the art's pixels, made ragged by noise (pixel art). Soft: a fade into the neighbour. Straight: exactly along the 8 px cells, with square corners (floors, carpets, plazas); its rim is a border.");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut d.edge, Edge::Crisp, "Crisp");
+                    ui.selectable_value(&mut d.edge, Edge::Soft, "Soft");
+                    ui.selectable_value(&mut d.edge, Edge::Straight, "Straight");
+                });
+                ui.end_row();
+                let shaped = d.edge != Edge::Straight;
+                ui.label("Raggedness").on_hover_text("How far noise moves the edge, in pixels (0 = smooth curves along the painted cells).");
+                ui.add_enabled(shaped, egui::Slider::new(&mut d.edge_noise, 0.0..=4.0).suffix(" px"));
+                ui.end_row();
+                ui.label("Edge pixel").on_hover_text("The step size of a crisp edge: the size of the texture's pixels in world pixels (1, 2 or 4).");
+                ui.add_enabled(shaped, egui::Slider::new(&mut d.edge_pixel, 1..=4).suffix(" px"));
+                ui.end_row();
+                ui.label("Priority").on_hover_text("Where two materials meet, the one with the higher priority is drawn over the other (its edge shape wins). Water over sand over grass, for example.");
+                ui.add(egui::Slider::new(&mut d.priority, 0..=255));
+                ui.end_row();
+                ui.label("Rim").on_hover_text("A fringe drawn just outside the material's edge: a sandy band round a pond, a dark outline round a hole.");
+                ui.horizontal(|ui| {
+                    let mut on = d.rim.is_some();
+                    if ui.checkbox(&mut on, "").changed() {
+                        d.rim = on.then_some(Rim { color: [200, 180, 120], width: 3 });
+                    }
+                    if let Some(r) = &mut d.rim {
+                        ui.color_edit_button_srgb(&mut r.color);
+                        ui.add(egui::Slider::new(&mut r.width, 1..=8).suffix(" px"));
+                    }
+                });
+                ui.end_row();
+                ui.label("Walking").on_hover_text("Walkable; Solid blocks walking, shots and sight (a cliff); Low blocks walking only, shots fly over it (water).");
+                egui::ComboBox::from_id_salt("material_walk").selected_text(d.walk.label()).show_ui(ui, |ui| {
+                    for w in Walk::ALL {
+                        ui.selectable_value(&mut d.walk, w, w.label());
+                    }
+                });
+                ui.end_row();
+                ui.label("Footsteps").on_hover_text("Sound played for each step on it (empty: none).");
+                widgets::suggest(ui, "material_step", &mut d.step, &cx.refs.sounds, 200.0);
+                ui.end_row();
+                ui.label("Flow").on_hover_text("The texture drifts this many pixels per second (flowing water; 0 = still).");
+                ui.horizontal(|ui| {
+                    ui.add(egui::DragValue::new(&mut d.scroll[0]).speed(0.5).prefix("x "));
+                    ui.add(egui::DragValue::new(&mut d.scroll[1]).speed(0.5).prefix("y "));
+                });
+                ui.end_row();
+                ui.label("Animation").on_hover_text("Animation frames: the texture holds this many frames side by side (each one seamless), shown one after the other. Together they fit in 256 x 256 px. Changing the number adds copies of the last frame to the texture below (or removes frames at the end): draw the differences, then Save.");
+                ui.horizontal(|ui| {
+                    let before = d.frames;
+                    ui.add(egui::DragValue::new(&mut d.frames).range(1..=32).suffix(if before == 1 { " frame" } else { " frames" }));
+                    if before == 1 && d.frames > 1 && d.fps == 0.0 {
+                        d.fps = 4.0;
+                    }
+                    ui.add_enabled(d.frames > 1, egui::DragValue::new(&mut d.fps).range(0.0..=25.0).speed(0.1).fixed_decimals(1).suffix(" per second"));
+                });
+                ui.end_row();
+            });
         });
-        ui.end_row();
-        ui.label("Edge").on_hover_text("Crisp: a hard edge in steps of the art's pixels, made ragged by noise (pixel art). Soft: a fade into the neighbour.");
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut d.edge, Edge::Crisp, "Crisp");
-            ui.selectable_value(&mut d.edge, Edge::Soft, "Soft");
-        });
-        ui.end_row();
-        ui.label("Raggedness").on_hover_text("How far noise moves the edge, in pixels (0 = smooth curves along the painted cells).");
-        ui.add(egui::Slider::new(&mut d.edge_noise, 0.0..=4.0).suffix(" px"));
-        ui.end_row();
-        ui.label("Edge pixel").on_hover_text("The step size of a crisp edge: the size of the texture's pixels in world pixels (1, 2 or 4).");
-        ui.add(egui::Slider::new(&mut d.edge_pixel, 1..=4).suffix(" px"));
-        ui.end_row();
-        ui.label("Priority").on_hover_text("Where two materials meet, the one with the higher priority is drawn over the other (its edge shape wins). Water over sand over grass, for example.");
-        ui.add(egui::Slider::new(&mut d.priority, 0..=255));
-        ui.end_row();
-        ui.label("Rim").on_hover_text("A fringe drawn just outside the material's edge: a sandy band round a pond, a dark outline round a hole.");
-        ui.horizontal(|ui| {
-            let mut on = d.rim.is_some();
-            if ui.checkbox(&mut on, "").changed() {
-                d.rim = on.then_some(Rim { color: [200, 180, 120], width: 3 });
-            }
-            if let Some(r) = &mut d.rim {
-                ui.color_edit_button_srgb(&mut r.color);
-                ui.add(egui::Slider::new(&mut r.width, 1..=8).suffix(" px"));
-            }
-        });
-        ui.end_row();
-        ui.label("Walking").on_hover_text("Walkable; Solid blocks walking, shots and sight (a cliff); Low blocks walking only, shots fly over it (water).");
-        egui::ComboBox::from_id_salt("material_walk").selected_text(d.walk.label()).show_ui(ui, |ui| {
-            for w in Walk::ALL {
-                ui.selectable_value(&mut d.walk, w, w.label());
-            }
-        });
-        ui.end_row();
-        ui.label("Footsteps").on_hover_text("Sound played for each step on it (empty: none).");
-        widgets::suggest(ui, "material_step", &mut d.step, &cx.refs.sounds, 200.0);
-        ui.end_row();
-        ui.label("Flow").on_hover_text("The texture drifts this many pixels per second (flowing water; 0 = still).");
-        ui.horizontal(|ui| {
-            ui.add(egui::DragValue::new(&mut d.scroll[0]).speed(0.5).prefix("x "));
-            ui.add(egui::DragValue::new(&mut d.scroll[1]).speed(0.5).prefix("y "));
-        });
-        ui.end_row();
+        ui.add_space(16.0);
+        ui.vertical(|ui| cx.mat_preview.ui(ui, d, cx.db, cx.assets, cx.drawing));
     });
-    ui.separator();
-    ui.weak("Paint it on maps with the Ground tool. Use \u{E036} Reload assets after changing the texture file.");
+    ui.weak("Paint it on maps with the Ground tool. Draw the texture below: its copies show where the edges meet, and drawing wraps across them. Save draws it on the maps.");
 }
 
 fn project_ui(ed: &mut Editor, ui: &mut egui::Ui) {
@@ -2995,7 +3037,8 @@ impl Editor {
             ArtAction::NewFrame { cells } => {
                 let cur = match tab {
                     Tab::Items => self.project.db.items.get(i).map(|d| d.icon.clone()),
-                    Tab::Props => self.project.db.props.get(i).map(|d| d.state_look(self.db.state_sel.min(d.states.len())).0.clone()),
+                    Tab::Props => self.project.db.props.get(i).map(|d| d.state_look(self.db.state_sel.min(d.states.len())).0
+                            .clone()),
                     Tab::Characters => self.project.db.characters.get(i).map(|d| d.portrait.clone()),
                     _ => None,
                 };

@@ -36,6 +36,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   decorations; *New asset…* makes a **ground material** (a texture drawn in the pixel editor) instead
   of a tileset; a new project starts with grass, dirt, sand, water, cobblestone, flagstones and
   wooden floor, the *Forest* and *Rocks* scatter sets and a stone wall and a fence.
+- **The example is repainted** on its converted maps (uids, quests and triggers kept): every
+  building is one picture (eleven new building props: *Small red-roofed cottage*, *Red-roofed
+  cottage*, *Red-roofed house*, *Small red-roofed house*, *Timber-framed hall*, *Stone house*,
+  *Small stone house*, *Thatched cottage*, *Thatched stone cottage*, *Thatched farmhouse*,
+  *Chapel*; lit windows keep their glow with *Window glow* lights), the forests are tree props
+  (shifted and mirrored at random, big ones among them; the old tree tiles stay blocked so paths
+  don't change), fences, walls, rocks and furniture are drawn in front of or behind characters,
+  road, river and shore corners are rounded, and the rugs and carpet runners are decorations with
+  their borders again. The structures follow; the new props are in the starter library.
 
 ### Gameplay
 - **Weapon animations**: characters fight and stand the way their weapon asks: a spear thrusts, a
@@ -97,10 +106,31 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   library brings 17 materials made from the terrain tiles. Map files are format version 3 (older
   maps convert, see *Breaking*). Editor script `ground`, `gpaint`, `gline`, `gfill`, `newmap … blank`;
   `status` prints `ground=`.
-- **Ground tool** (P, the ribbon's *Paint* group): material swatches, a round **Brush**, a
-  **Line** for roads and streams, **Fill**; [ ] change the size, Shift erases, right-click picks the
+- **Ground tool** (P, the ribbon's *Paint* group): material cards with names (the map's first,
+  their swatches repeating the texture as on the map, a search box), a round or square **Brush**, a **Line** for roads and streams, a **Rectangle**
+  (floors, carpets), **Fill**, and *Snap to tiles* for rectangles, squares and line ends; [ ] change the size, Shift erases, right-click picks the
   material, one undo step per stroke. AI agents: `paint_ground` (circles, strokes with a width,
-  polygons), `fill_ground`, and `get_map` prints the ground as a material grid.
+  polygons, rectangles), `fill_ground`, and `get_map` prints the ground as a material grid.
+- **Animated materials**: a material's texture can hold **animation frames** side by side
+  (*Animation*: frames and frames per second; together with *Flow*), drawn by the ground shader in
+  the game, the editor and the web build. The example's water ripples again (its old tile
+  animation), the starter library brings animated **lava**, **swamp water** and a **waterfall
+  pool**, and converting an old project turns animated ground tiles into animated materials. The
+  pixel editor draws the frames one at a time (frame strip, Copy / Paste, a tiled preview), each
+  wrapping on its own; changing *Animation* adds or removes frames in the texture.
+- **Material form**: a live **preview** beside the settings draws the material as on a map (a round
+  and a square patch on a neighbour material of your choice, *Swap* for the other way round) with
+  its edge, raggedness, rim, priority and flow, following every change and the strokes not saved
+  yet; the **texture is drawn right under the form** in the pixel editor as a seamless picture:
+  copies around it, pencil, line, rectangle and fill wrap across its edges, *Size* in steps of 8 px;
+  *Draw a new one* makes a texture for a material without one (16 to 128 px). Editor script
+  `pxopen REL W H seamless`.
+- **Straight** material edges: exactly along the 8 px cells, with square corners, the rim as a
+  border. The example's wooden floor, stone tiles, carpet (with a gold border), rug and the
+  converted tile materials use them; the converted materials got real names (*Darkness*, *Cream
+  floor tiles*, *Tall grass*, *Plank deck*, *Straw*…), and so did the props made from the old
+  tiles (*Hedge*, *Berry bush*, *Wooden door*, *Lit window*, *Ladder*, *Dungeon torch*…: 48 in the
+  example, 80 in the starter library; ids like `hedge` instead of `terrain_tile_43`).
 - **Decorations**: props placed freely as pictures (trees, rocks, flowers, fences, walls,
   buildings) on a layer (*Flat* under characters, *Sorted* with them, *Above* over them), with their
   prop's hitbox, solidity, light and the new *Ladder* flag, but no states or triggers, so maps hold

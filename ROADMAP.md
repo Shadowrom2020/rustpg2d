@@ -392,7 +392,24 @@ walls as objects, all 13 example maps repainted.
   one `Edit::Ground`; the canvas marks the stroke with `Drag::Ground` (it forwards drags only then).
   With the tool and *Dim inactive layers*, every tile layer is faded. Agent tools in tile units with
   polygons filled cell by cell (`Ground::paint_polygon`). The Materials form has no edge preview
-  (the swatches show the textures); it may come with the repaint.
+  (the swatches show the textures); it may come with the repaint. After the repaint the maintainer found
+  the tool too basic (a rectangular carpet was impossible, the swatches looked odd): it gained a
+  *Rectangle* mode (`Ground::paint_rect`, agent `rects`, script `grect`), a square brush, *Snap to
+  tiles*, named material cards with whole-repeat icons and a search box, and materials a third
+  edge kind, *Straight* (exactly along the cells, the rim as a border up to 4 px). Then the
+  maintainer asked for a material preview and drawing textures in the editor: the Materials form got
+  the edge preview after all (`material_preview.rs`: a two-material sample map drawn by the game's
+  ground shader into a render target, `GroundRenderer::draw_with` taking the texture being drawn),
+  and the pixel editor under it with `Layout::Seamless` (one picture, copies around it, drawing and
+  fill wrap across the edges, size in steps of 8 px, *Draw a new one* for a material without a
+  texture). Animated materials came back next (the old tile animations were lost in the
+  conversion): `MaterialDef.frames` / `fps` (serde defaults 1 / 0), frames side by side in the
+  texture, packed in rows into the material's 256 px atlas slot, the frame picked in the shader from
+  the material table's row 3 (bytes z / w, spare until then); the converter makes animated ground
+  tiles into frame strips; `Layout::Seamless(frames)` in the pixel editor (the canvas shows the
+  selected frame, wrapping inside it; `refit_frames` when *Animation* changes); first frames for
+  swatches (`Assets::material_frames`). Content: the example's water (old tiles 3, 32, 33, 32 at
+  3 fps), starter *Lava*, *Swamp water*, *Waterfall pool*.
 
   **Touch points.** `editor/src/app.rs` (tools, palette), `canvas.rs`, `doc.rs`, `database.rs`,
   `mcp/exec_maps.rs`, `mcp/grid.rs`, `mcp/tools.rs`, `main.rs`.
@@ -478,7 +495,8 @@ walls as objects, all 13 example maps repainted.
   lazily), the ground stops at the map's edge, *New asset… › Ground material*, the new-project
   starter brings materials and scatter sets, `MaterialTexture` browse. The example and the starter
   library are converted here (not in *Painted example*); converted props are named
-  "Terrain tile N" (German "Geländekachel N").
+  "Terrain tile N" (German "Geländekachel N"); the example's and the starter library's were
+  renamed afterwards for what they show (`hedge`, `berry_bush`, `dungeon_torch`…).
 
   **Touch points.** new `convert_tiles.rs`, `old_tiles.rs`, `map/io.rs`, `migrate.rs`, `library.rs`
   (`STARTER_RULES` 11, bundles), `release.rs`, `refactor.rs` (`RefKind::Tileset` gone), `structure.rs`,
@@ -499,25 +517,43 @@ walls as objects, all 13 example maps repainted.
   game; the editor (ribbon, Ground swatches, minimap with decorations, the structure editor on the
   converted cottage); the CI smoke script with the updated agent smoke client; web build compiles.
 
-- [ ] Painted example — `feature/painted-example`
+- [x] Painted example — `feature/painted-example`
 
   **Goal.** All 13 example maps repainted in the new style.
 
   **Design.** Through the agent server, on the converted maps (converted in *Tile converter*;
-  uids, quests and triggers kept):
-  smooth roads, river and pond; scattered forests instead of tile trees; buildings as one prop each
-  (composed from today's wall and roof tiles); interiors with floor materials and wall pieces; the
-  mine. New assets go to the starter library.
+  uids, quests and triggers kept): smooth roads, river and pond; scattered forests instead of tile
+  trees; buildings as one prop each (composed from today's wall and roof tiles); interiors with
+  floor materials and wall pieces; the mine. New assets go to the starter library.
 
-  **Engine.** None (content).
+  **Engine.** None (content); three fixes of this release's own code turned up: `place_objects`
+  snapped feet points one cell down for props with a grid, `delete_def` didn't count decorations as
+  uses, the ground shader didn't blend (a see-through abyss showed white).
+
+  **Decided while building.** Done on the *Painted ground* branch, by a planner script driving the
+  agent server (erase / place_objects, set_collision, paint_ground, upsert_def, write_asset,
+  library_send) the same way on every map and structure: buildings (connected wall, roof, door and
+  window tiles with a roof and a door) became one picture prop each, eleven by look, the door's
+  *Walkable* override keeping the way in, invisible *Window glow* props keeping the lit windows'
+  light; tree tiles became `oak_tree` / `pine_tree` (big ones inside forests), shifted up to 5 px
+  and mirrored at random, with a *Solid* override on the old tile so forest walls keep blocking
+  (the props' small hitboxes would open gaps); solid tile props moved to the *Sorted* layer; natural
+  materials' corners rounded by a 5 x 5 majority filter (flower and tall grass left alone); rugs
+  and carpet runners rebuilt from the original tiles as flat props. Interiors keep their wall
+  tiles (no corner wall sets yet); 24 tile props nothing used any more were deleted. The village
+  went from 1 235 decorations to 504, the Wilds from 125 170 to about 66 000.
 
   **Touch points.** `example_project/`, `crates/editor/assets/starter_library/`,
-  `starter_history.ron`, README screenshots, `Documentation/manual/03-maps.md` (rewritten).
+  `starter_history.ron`, `Documentation/manual/03-maps.md`, CHANGELOG.
 
   **Example.** This item.
 
-  **Verify.** Walking routes and click-to-move on every map, fishing, chopping, mining, the smoke
-  script's quest run, screenshots of every map, the web export.
+  **Verify.** Done: every spawn, zone and character reachable as before on all 13 maps (a
+  flood fill from the spawns; the shopkeeper behind her counter was unreachable already), all
+  targets kept; screenshots of the village (start, square, tavern door), the tavern and chapel with
+  their rugs, the forest, the mine and the Wilds (60 fps); walking through the tavern door; tests,
+  clippy and the smoke script. Not done: a web export of the repainted example, README screenshots
+  (*Docs*).
 
 ## Backlog (unscheduled ideas)
 

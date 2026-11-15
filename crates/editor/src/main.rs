@@ -30,6 +30,7 @@ mod models;
 mod models_tab;
 mod new_project;
 mod frame_ops;
+mod material_preview;
 mod pixel;
 mod project_file;
 mod problems;
@@ -1157,9 +1158,16 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
         }
         // Pixel editor: pxopen REL FW FH · pxtool NAME · pxcolor RRGGBB · pxat X Y [right] · pxsave
-        // pxopen REL FW FH [layout]: `layout` labels the rows of the four-facing layout
+        // pxopen REL FW FH [layout|seamless [FRAMES]]: `layout` labels the rows of the four-facing
+        // layout, `seamless` = a material's texture (FRAMES side by side; the selected one shown
+        // with copies around it, drawing wraps; `pxframe N` selects)
         "pxopen" => {
-            ed.open_pixel(arg(1), (num(2) as u32, num(3) as u32), if arg(4) == "layout" { pixel::Layout::Character } else { pixel::Layout::Plain });
+            let layout = match arg(4) {
+                "layout" => pixel::Layout::Character,
+                "seamless" => pixel::Layout::Seamless((num(5) as u32).max(1)),
+                _ => pixel::Layout::Plain,
+            };
+            ed.open_pixel(arg(1), (num(2) as u32, num(3) as u32), layout);
         }
         "pxtool" => {
             if let Some(t) = pixel::PxTool::parse(arg(1)) {
@@ -1326,15 +1334,19 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // ground MATERIAL: the material the ground commands paint with ("-" = erase)
         // gpaint X Y R: a round brush at tile (X, Y) (fractions allowed), R tiles in radius
         // gline X1 Y1 X2 Y2 W: a stroke W tiles wide · gfill X Y: fill the area at (X, Y)
+        // grect X Y W H: a rectangle of W x H tiles with its top-left at tile (X, Y)
         "ground" => {
             ed.ground_material = if arg(1) == "-" { String::new() } else { arg(1).to_string() };
             println!("[script] ground material: {}", if ed.ground_material.is_empty() { "(erase)" } else { &ed.ground_material });
         }
-        // groundmode brush|line|fill · groundsize TILES: the Ground tool's mode and diameter
+        // groundmode brush|line|rect|fill · groundsize TILES · groundshape round|square ·
+        // groundsnap on|off: the Ground tool's mode, diameter, brush and snapping to tiles
         "groundmode" => match ground_tool::GroundMode::parse(arg(1)) {
             Some(m) => ed.ground_mode = m,
-            None => println!("[script] groundmode: brush|line|fill"),
+            None => println!("[script] groundmode: brush|line|rect|fill"),
         },
+        "groundshape" => ed.ground_square = arg(1) == "square",
+        "groundsnap" => ed.ground_snap = arg(1) != "off",
         // decormode place|line|scatter|erase · decorprop ID · decorscatter ID · decorlayer
         // flat|sorted|above · decorsize TILES · decorflip on|off: the Decorations tool
         "decormode" => match decor_tool::DecorMode::parse(arg(1)) {
@@ -1350,7 +1362,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         "decorsize" => ed.decor.size = num(1).max(0.5) * rustpg2d_engine::project::TILE_SIZE as f32 / 2.0,
         "decorflip" => ed.decor.random_flip = arg(1) != "off",
         "groundsize" => ed.ground_size = num(1).max(0.25) * rustpg2d_engine::project::TILE_SIZE as f32 / 2.0,
-        "gpaint" | "gline" | "gfill" => {
+        "gpaint" | "gline" | "gfill" | "grect" => {
             let ts = rustpg2d_engine::project::TILE_SIZE as f32;
             let material = ed.ground_material.clone();
             let Some(doc) = ed.doc.as_mut() else { return };
@@ -1367,6 +1379,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             let cells = match arg(0) {
                 "gpaint" => doc.map.ground.paint_circle((at(1), at(2)), num(3) * ts, v),
                 "gline" => doc.map.ground.paint_line((at(1), at(2)), (at(3), at(4)), num(5) * ts, v),
+                "grect" => doc.map.ground.paint_rect((at(1), at(2)), (at(1) + at(3), at(2) + at(4)), v),
                 _ => {
                     let c = rustpg2d_engine::ground::CELL as f32;
                     doc.map.ground.flood_fill((at(1) / c) as i32, (at(2) / c) as i32, v)

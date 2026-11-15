@@ -787,9 +787,9 @@ fn material_picker(ui: &mut egui::Ui, st: &mut StructEdit, db: &Database, tex: &
         ui.horizontal_wrapped(|ui| {
             for m in &db.materials {
                 let on = st.material == m.id;
-                let (r, resp) = ui.allocate_exact_size(vec2(52.0, 52.0), Sense::click());
-                if let Some((t, size)) = material_tex(tex, &m.id) {
-                    ui.painter().image(t, r, Rect::from_min_max(pos2(0.0, 0.0), pos2(52.0 / size.x, 52.0 / size.y)), Color32::WHITE);
+                let (r, resp) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::click());
+                if let Some(t) = tex.material_icons.get(&m.id) {
+                    ui.painter().image(t.id(), r, crate::widgets::icon_uv(t, 64.0), Color32::WHITE);
                 }
                 let stroke = if on { Stroke::new(3.0_f32, Color32::YELLOW) } else { Stroke::new(1.0_f32, Color32::from_gray(90)) };
                 ui.painter().rect_stroke(r, 2.0, stroke, StrokeKind::Inside);

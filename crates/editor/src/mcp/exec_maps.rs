@@ -223,8 +223,12 @@ impl Editor {
             cells.extend(g.paint_polygon(&pts, v));
             shapes += 1;
         }
+        for r in p.rects.iter().flatten() {
+            cells.extend(g.paint_rect(px([r[0], r[1]]), px([r[0] + r[2], r[1] + r[3]]), v));
+            shapes += 1;
+        }
         if shapes == 0 {
-            return Err("give circles, lines and / or polygons".into());
+            return Err("give circles, lines, polygons and / or rects".into());
         }
         let n = cells.len();
         doc.record_ground(cells, v, &self.assets);
@@ -253,7 +257,8 @@ impl Editor {
         let slot = doc.map.decor_slot(&p.prop);
         for q in p.points.iter().flatten() {
             let at = vec2(q[0] * ts, q[1] * ts);
-            let at = if def.snap > 0 { crate::decor_tool::snap_point(at, def.snap as f32) } else { at.round() };
+            // (Points are feet, on a cell's bottom edge: the cell they stand in is the one above.)
+            let at = if def.snap > 0 { crate::decor_tool::snap_point(at - vec2(0.0, 0.5), def.snap as f32) } else { at.round() };
             let d = Decor { def: slot, x: at.x as i32, y: at.y as i32, flip: p.flip.unwrap_or(false), state: 0, layer };
             doc.map.decor.push(d);
             added.push(d);

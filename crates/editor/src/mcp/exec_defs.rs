@@ -546,6 +546,10 @@ impl Editor {
                         _ => EntityKind::Character,
                     };
                     n += map.entities.iter().filter(|e| e.kind == ek && e.def == id).count();
+                    if kind == RefKind::Prop {
+                        // (Decorations of it count too.)
+                        n += map.decor.iter().filter(|d| map.decor_defs.get(d.def as usize).is_some_and(|p| p == id)).count();
+                    }
                     if kind == RefKind::Character {
                         n += map.zones.iter().filter(|z| matches!(&z.kind, rustpg2d_engine::map::ZoneKind::Spawner { character, .. } if character == id)).count();
                     }

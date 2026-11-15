@@ -64,6 +64,9 @@ pub struct Assets {
     /// and their average colours (overviews).
     pub materials: HashMap<String, Image>,
     pub material_colors: HashMap<String, Color>,
+    /// Animation frames of each material's texture (side by side; 1 = still): pictures of a
+    /// material show the first.
+    pub material_frames: HashMap<String, u32>,
     /// Changes with every load (renderers rebuild what they made from the images).
     pub generation: u64,
     pub errors: Vec<String>,
@@ -136,7 +139,7 @@ fn average_color(img: &Image, r: Rect) -> Color {
 impl Assets {
     /// No images (tests).
     pub fn empty(tile_size: f32) -> Assets {
-        Assets { tile_size, sheets: HashMap::new(), materials: HashMap::new(), material_colors: HashMap::new(), generation: 0, errors: Vec::new(), models: model::Models::default() }
+        Assets { tile_size, sheets: HashMap::new(), materials: HashMap::new(), material_colors: HashMap::new(), material_frames: HashMap::new(), generation: 0, errors: Vec::new(), models: model::Models::default() }
     }
 
     /// Loads all sprite sheet and material images. Needs a macroquad window.
@@ -164,12 +167,15 @@ impl Assets {
         }
         let mut materials = HashMap::new();
         let mut material_colors = HashMap::new();
+        let mut material_frames = HashMap::new();
         for def in &project.db.materials {
             if def.texture.is_empty() {
                 continue;
             }
             let image = load_image(project, &def.texture, &mut errors);
-            material_colors.insert(def.id.clone(), average_color(&image, Rect::new(0.0, 0.0, image.width as f32, image.height as f32)));
+            let (fw, fh) = def.frame_size(image.width as u32, image.height as u32);
+            material_colors.insert(def.id.clone(), average_color(&image, Rect::new(0.0, 0.0, fw.max(1) as f32, fh.max(1) as f32)));
+            material_frames.insert(def.id.clone(), def.frames.max(1) as u32);
             materials.insert(def.id.clone(), image);
         }
         for e in &errors {
@@ -180,7 +186,7 @@ impl Assets {
         let models = model::Models::load(&project.db, &|rel| crate::sys::read(&project.path(rel)));
         models.set_atlas_mb(project.config.model_atlas_mb);
         errors.extend(models.errors.iter().cloned());
-        Assets { tile_size: ts, sheets, materials, material_colors, generation, errors, models }
+        Assets { tile_size: ts, sheets, materials, material_colors, material_frames, generation, errors, models }
     }
 
     /// Overview colours of a map's ground by cell value (0 = none: transparent).

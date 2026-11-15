@@ -1,7 +1,8 @@
 //! Draws a map's painted ground ([`crate::ground`]) with a shader: each chunk's cells go to the
 //! GPU as a small texture (the cell value in the red channel), the materials' textures as one
 //! atlas, and the shader shapes the edges per material every frame (crisp pixel steps made
-//! ragged by noise, or soft fades; priority and rims where materials meet; flowing water). No
+//! ragged by noise, or soft fades; priority and rims where materials meet; flowing water and
+//! animation frames). No
 //! big pictures are baked: editing a cell re-uploads one 130 x 130 texture.
 //!
 //! GLSL ES 100 (the web build): no texture arrays, the material table is a texture (WebGL 1
@@ -17,7 +18,8 @@ use crate::map::Map;
 
 /// Side of a cell texture: a chunk's cells and a border of its neighbours' cells.
 const SIDE: u32 = CHUNK_CELLS + 2;
-/// A material's slot in the atlas (its texture repeats inside, up to this size).
+/// A material's slot in the atlas (its texture, up to this size; animation frames side by side
+/// and in rows as many as fit).
 const SLOT: u32 = 256;
 const ATLAS_COLS: u32 = 8;
 /// Width of the material table texture (cell values 0..=MAX_MATERIALS).
@@ -105,7 +107,12 @@ vec4 texel(float v, vec2 world) {
     vec2 flow = vec2(byte(i3.x), byte(i3.y)) - 128.0;
     vec2 q = floor(world - mod(flow * _Time.x, size));
     vec2 slot = vec2(byte(i0.x), byte(i0.y)) * 256.0;
-    return texture2D(Atlas, (slot + mod(q, size) + 0.5) / AtlasPx);
+    // Animation: the frame of the clock, laid out in rows of as many as fit in the slot.
+    float frames = byte(i3.z);
+    float k = frames > 1.0 ? mod(floor(_Time.x * byte(i3.w) / 10.0), frames) : 0.0;
+    float cols = floor(256.0 / size.x);
+    vec2 frame = vec2(mod(k, cols), floor(k / cols)) * size;
+    return texture2D(Atlas, (slot + frame + mod(q, size) + 0.5) / AtlasPx);
 }
 
 void main() {
@@ -162,9 +169,29 @@ void main() {
         float pix = max(1.0, byte(e.w));
         float w;
         float a;
-        if (soft > 0.5) {
+        if (soft > 0.75) {
             w = cover(bv, local + noise(world / CELL) * 2.0 * amp);
             a = smoothstep(0.1, 0.9, w);
+        } else if (soft > 0.25) {
+            // Straight: the cell under the pixel decides; the rim is a band of the neighbouring
+            // cells along the material's cells.
+            vec2 cl = floor(local / CELL);
+            a = cellAt(cl) == bv ? 1.0 : 0.0;
+            vec4 rim = info(bv, 2.0);
+            if (rim.a > 0.0 && a < 0.5) {
+                vec2 f = local - cl * CELL;
+                float r = min(byte(rim.a), 4.0);
+                float near = 0.0;
+                if (f.x < r && cellAt(cl + vec2(-1.0, 0.0)) == bv) near = 1.0;
+                if (CELL - f.x <= r && cellAt(cl + vec2(1.0, 0.0)) == bv) near = 1.0;
+                if (f.y < r && cellAt(cl + vec2(0.0, -1.0)) == bv) near = 1.0;
+                if (CELL - f.y <= r && cellAt(cl + vec2(0.0, 1.0)) == bv) near = 1.0;
+                if (f.x < r && f.y < r && cellAt(cl + vec2(-1.0, -1.0)) == bv) near = 1.0;
+                if (CELL - f.x <= r && f.y < r && cellAt(cl + vec2(1.0, -1.0)) == bv) near = 1.0;
+                if (f.x < r && CELL - f.y <= r && cellAt(cl + vec2(-1.0, 1.0)) == bv) near = 1.0;
+                if (CELL - f.x <= r && CELL - f.y <= r && cellAt(cl + vec2(1.0, 1.0)) == bv) near = 1.0;
+                col = mix(col, vec4(rim.rgb, 1.0), near);
+            }
         } else {
             // Crisp: the whole art pixel takes one value (pixel-art steps).
             vec2 ps = (floor(world / pix) + 0.5) * pix;
@@ -225,7 +252,16 @@ impl GroundRenderer {
                 MaterialParams {
                     uniforms: vec![UniformDesc::new("Origin", UniformType::Float2), UniformDesc::new("AtlasPx", UniformType::Float2)],
                     textures: vec!["Atlas".into(), "Info".into(), "Noise".into()],
-                    ..Default::default()
+                    // See-through textures (an abyss over a parallax layer) blend like sprites.
+                    pipeline_params: macroquad::miniquad::PipelineParams {
+                        color_blend: Some(macroquad::miniquad::BlendState::new(
+                            macroquad::miniquad::Equation::Add,
+                            macroquad::miniquad::BlendFactor::Value(macroquad::miniquad::BlendValue::SourceAlpha),
+                            macroquad::miniquad::BlendFactor::OneMinusValue(macroquad::miniquad::BlendValue::SourceAlpha),
+                        )),
+                        alpha_blend: Some(macroquad::miniquad::BlendState::new(macroquad::miniquad::Equation::Add, macroquad::miniquad::BlendFactor::Zero, macroquad::miniquad::BlendFactor::One)),
+                        ..Default::default()
+                    },
                 },
             ) {
                 Ok(m) => self.material = Some(m),
@@ -261,9 +297,9 @@ impl GroundRenderer {
     }
 
     /// Builds the atlas and the material table for the map's materials when they changed.
-    fn prepare(&mut self, map: &Map, db: &Database, assets: &super::Assets) {
+    fn prepare(&mut self, map: &Map, db: &Database, images: &HashMap<String, Image>, generation: u64) {
         let defs: Vec<Option<MaterialDef>> = map.materials.iter().map(|id| db.material(id).cloned()).collect();
-        if self.built.as_ref().is_some_and(|(m, d, g)| *m == map.materials && *d == defs && *g == assets.generation) && self.atlas.is_some() {
+        if self.built.as_ref().is_some_and(|(m, d, g)| *m == map.materials && *d == defs && *g == generation) && self.atlas.is_some() {
             return;
         }
         let n = map.materials.len().min(MAX_MATERIALS) as u32;
@@ -277,7 +313,7 @@ impl GroundRenderer {
         for k in 0..n {
             let id = &map.materials[k as usize];
             let def = defs[k as usize].clone().unwrap_or_else(|| MaterialDef::fresh(id));
-            let img = assets.materials.get(id).or_else(|| assets.materials.get(&def.id));
+            let img = images.get(id).or_else(|| images.get(&def.id));
             let fallback;
             let img = match img {
                 Some(i) => i,
@@ -286,34 +322,56 @@ impl GroundRenderer {
                     &fallback
                 }
             };
-            let (w, h) = (((img.width as u32).min(SLOT) / 8 * 8).max(8), ((img.height as u32).min(SLOT) / 8 * 8).max(8));
+            // One frame's size (frames side by side in the texture), in steps of 8 px; the frames
+            // go into the slot in rows, as many as fit.
+            let (fw, fh) = def.frame_size(img.width as u32, img.height as u32);
+            let (w, h) = ((fw.min(SLOT) / 8 * 8).max(8), (fh.min(SLOT) / 8 * 8).max(8));
+            let cols = SLOT / w;
+            let frames = (def.frames.max(1) as u32).min(cols * (SLOT / h)).max(1);
             let (sx, sy) = (k % ATLAS_COLS, k / ATLAS_COLS);
-            for y in 0..h.min(img.height as u32) {
-                for x in 0..w.min(img.width as u32) {
-                    atlas.set_pixel(sx * SLOT + x, sy * SLOT + y, img.get_pixel(x, y));
+            for f in 0..frames {
+                let (ox, oy) = (f % cols * w, f / cols * h);
+                for y in 0..h.min(img.height as u32) {
+                    for x in 0..w.min(fw) {
+                        let src = f * fw + x;
+                        if src < img.width as u32 {
+                            atlas.set_pixel(sx * SLOT + ox + x, sy * SLOT + oy + y, img.get_pixel(src, y));
+                        }
+                    }
                 }
             }
             let v = k + 1;
             put(v, 0, [sx as u8, sy as u8, (w / 8) as u8, (h / 8) as u8]);
-            let soft = if def.edge == Edge::Soft { 255 } else { 0 };
+            let soft = match def.edge {
+                Edge::Crisp => 0,
+                Edge::Straight => 128,
+                Edge::Soft => 255,
+            };
             put(v, 1, [soft, (def.edge_noise.clamp(0.0, 4.0) * 32.0) as u8, def.priority, def.edge_pixel.clamp(1, 8)]);
             if let Some(r) = def.rim {
                 put(v, 2, [r.color[0], r.color[1], r.color[2], r.width.clamp(1, 8)]);
             }
             let flow = |f: f32| (f.clamp(-127.0, 127.0) + 128.0).round() as u8;
-            put(v, 3, [flow(def.scroll[0]), flow(def.scroll[1]), 255, 255]);
+            put(v, 3, [flow(def.scroll[0]), flow(def.scroll[1]), frames as u8, (def.fps.clamp(0.0, 25.5) * 10.0).round() as u8]);
         }
         let atlas_tex = Texture2D::from_image(&atlas);
         atlas_tex.set_filter(FilterMode::Nearest);
         let info_tex = Texture2D::from_rgba8(INFO_W as u16, 4, &info);
         info_tex.set_filter(FilterMode::Nearest);
         self.atlas = Some((atlas_tex, info_tex, vec2(atlas.width as f32, atlas.height as f32)));
-        self.built = Some((map.materials.clone(), defs, assets.generation));
+        self.built = Some((map.materials.clone(), defs, generation));
     }
 
     /// Draws the ground of `map` inside `view` (world pixels) with the current camera; `tint`
     /// multiplies it (the editor dims inactive layers).
     pub fn draw(&mut self, map: &Map, db: &Database, assets: &super::Assets, view: Rect, tint: Color) {
+        self.draw_with(map, db, &assets.materials, assets.generation, view, tint);
+    }
+
+    /// [`GroundRenderer::draw`] with the materials' texture images given (material id -> image;
+    /// the editor's material preview passes a texture still being drawn); `generation` changes
+    /// whenever an image does.
+    pub fn draw_with(&mut self, map: &Map, db: &Database, images: &HashMap<String, Image>, generation: u64, view: Rect, tint: Color) {
         if map.ground.is_empty() {
             return;
         }
@@ -323,7 +381,7 @@ impl GroundRenderer {
             self.chunks.clear();
             self.map_key = key;
         }
-        self.prepare(map, db, assets);
+        self.prepare(map, db, images, generation);
         let noise = self.noise();
         let Some((atlas, info, atlas_px)) = self.atlas.clone() else { return };
         self.frame += 1;

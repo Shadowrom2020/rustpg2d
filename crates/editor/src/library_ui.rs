@@ -136,11 +136,18 @@ impl LibState {
         self.tex_dirty = false;
         self.tex.clear();
         *self.models.borrow_mut() = None;
-        let images = store.db.materials.iter().map(|t| (format!("mt:{}", t.id), &t.texture)).chain(store.db.sheets.iter().map(|s| (format!("sh:{}", s.id), &s.image)));
-        for (key, rel) in images {
-            let Ok(img) = std::fs::read(store.root.join(rel)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
+        let images = store.db.materials.iter().map(|t| (format!("mt:{}", t.id), &t.texture, t.frames as usize)).chain(store.db.sheets.iter().map(|s| (format!("sh:{}", s.id), &s.image, 1)));
+        for (key, rel, frames) in images {
+            let Ok(mut img) = std::fs::read(store.root.join(rel)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
+            if key.starts_with("mt:") {
+                // Material textures (the first frame of animated ones) repeated in the image
+                // (textures draw clamped); same period.
+                let (px, w, h) = crate::widgets::first_frame(&img.px, img.w as usize, img.h as usize, frames);
+                let (px, w, h) = crate::widgets::repeated(&px, w, h, 64);
+                img = Rgba { w: w as u32, h: h as u32, px };
+            }
             let ci = crate::widgets::color_image(ctx, img.w as usize, img.h as usize, &img.px);
-            let handle = ctx.load_texture(format!("lib:{key}"), ci, if key.starts_with("mt:") { egui::TextureOptions::NEAREST_REPEAT } else { egui::TextureOptions::NEAREST });
+            let handle = ctx.load_texture(format!("lib:{key}"), ci, egui::TextureOptions::NEAREST);
             self.tex.insert(key.clone(), Tex { handle, w: img.w as f32, h: img.h as f32 });
         }
     }
@@ -208,7 +215,7 @@ impl LibState {
             // A material: its texture repeated over the card.
             (RefKind::Material, _) => self.tex.get(&format!("mt:{}", a.1)).is_some_and(|t| {
                 let r = rect.shrink(4.0);
-                ui.painter().image(t.handle.id(), r, Rect::from_min_max(pos2(0.0, 0.0), pos2(r.width() / t.w / 2.0, r.height() / t.h / 2.0)), Color32::WHITE);
+                ui.painter().image(t.handle.id(), r, Rect::from_min_max(pos2(0.0, 0.0), pos2((64.0 / t.w).min(1.0),(64.0 / t.h).min(1.0))), Color32::WHITE);
                 true
             }),
             (RefKind::Character, _) => self.paint_character_in(ui, db, &a.1, rustpg2d_engine::entity::Facing::Down, rect),

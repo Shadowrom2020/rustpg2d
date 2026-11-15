@@ -28,9 +28,14 @@ edges:
 - **Crisp** materials (dirt, water, cobblestone) get a hard edge in steps of the art's pixels,
   made ragged by noise (*Raggedness*, *Edge pixel*);
 - **Soft** materials (sand, snow, forest floor) fade into their neighbour;
+- **Straight** materials (wooden floor, stone tiles, carpet, rug) follow the 8 px cells exactly,
+  with straight lines and square corners; their rim is a border (the gold edge of the carpet);
 - the material with the higher **priority** is drawn over the other where they meet (water over
   sand over grass), and a **rim** draws a fringe just outside a material's edge (the sandy band
-  round the starter library's water).
+  round the starter library's water);
+- **moving** materials flow (*Flow*: the texture drifts, a river) or play **animation frames**
+  (*Animation*: the example's rippling water, the starter library's lava, swamp water and
+  waterfall pool), in the editor as in the game.
 
 Painted ground **collides** by its cells: water stops walking exactly at its drawn edge (shots fly
 over it: *Low*), a *Solid* material stops walking, shots and sight. Route planning (click-to-move,
@@ -40,21 +45,26 @@ Footsteps play the material's sound.
 
 The starter library brings materials for grass, meadow, forest floor, dirt, farmland, sand, snow,
 cobblestone, flagstones, stone tiles, wooden floor, carpet, rug, water, earth, cave floor and the
-void, and those its converted tile structures needed. A map uses at most 64 materials.
+void, the animated **lava**, **swamp water** and **waterfall pool**, and those its converted tile
+structures needed. A map uses at most 64 materials.
 
 ### The Ground tool
 
 **Ground** (P) is the first tool of the ribbon's *Paint* group. Its panel shows the project's
-materials as swatches: click one, then paint on the map:
+materials as cards with their names (the map's own first; a search box filters them): click one,
+then paint on the map:
 
 | Mode | Use |
 |---|---|
-| **Brush** | Click or drag a round brush |
+| **Brush** | Click or drag a brush: **Round**, or **Square** for straight edges |
 | **Line** | Drag from one end to the other: a road or a stream as wide as the brush |
+| **Rectangle** | Drag from one corner to the other: a filled rectangle (a floor, a carpet, a field) |
 | **Fill** | Click: the connected area of the same material (or of no ground) |
 
 *Size* is the brush's diameter (a line's width) in tiles; **[** and **]** change it by a quarter
-tile. **Shift** erases (no ground: the background or the tiles show), **right-click** takes the
+tile. **Snap to tiles** (on by default) puts rectangle corners, the square brush and line ends on
+the 32 px tile grid; off, they follow the 8 px cells. A rectangular carpet: *Carpet*, *Rectangle*,
+drag over the floor. **Shift** erases (no ground: the background or the tiles show), **right-click** takes the
 material under the cursor. Each stroke is one undo step. While the tool is active, decorations
 drawn over everyone are see-through.
 
@@ -100,12 +110,15 @@ project **once, when it opens it**, after copying it beside itself (`<name>-back
 project file as `<name>-backup-tiles.r2dproject`):
 
 - the **ground layer** becomes painted ground: every kind of tile a material whose texture is the
-  tile (so the map looks as before; a project's materials with the same picture are used instead),
+  tile (so the map looks as before; a project's materials with the same picture are used instead;
+  an animated tile's frames become the material's animation frames),
   every **terrain** a material of its inside tile; a terrain tile's edge tiles paint its cells by
   their neighbours, so shores and paths keep their shape, now in 8 px cells;
 - the other layers become **decorations** (*Detail* = *Flat*, *Overhead* = *Above*) of props made
   for the tiles (`terrain_tile_12`: a sheet over the tileset's image, 32 px frames; solid, low,
-  ladder, light and animation carried over);
+  ladder, light and animation carried over; give them real names with *Rename…* in
+  *Database › Props*, which updates every map and structure, as the example and the starter
+  library did: `hedge`, `berry_bush`, `wooden_door`…);
 - **tile structures** become structures of ground cells and decorations; the tilesets go.
 
 Nothing that could be walked on is blocked afterwards; entities, zones, triggers and save games
@@ -181,8 +194,10 @@ Finer ground (a shore, a winding path) is easier to paint on a map and capture.
 
 The example has 35 structures (pieces of nature and the buildings of the village); the starter
 library adds town houses, a brick shop, a watchtower, city walls, fences, hedges, a plaza, a market,
-a canal, a campsite and dungeon rooms, corridors and a prison cell. (They came from tiles and show
-their tiles as decorations.)
+a canal, a campsite and dungeon rooms, corridors and a prison cell. The example's buildings are
+single pictures (props such as *Stone house*, *Thatched cottage*, *Timber-framed hall*, *Chapel*,
+with an invisible *Window glow* light behind each lit window), its trees the tree props; the
+starter library's other structures still show their former tiles as decorations.
 
 ## Map settings
 

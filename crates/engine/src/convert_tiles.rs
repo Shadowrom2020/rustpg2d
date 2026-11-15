@@ -199,11 +199,30 @@ impl TileConverter {
     }
 
     fn make_material(&mut self, db: &mut Database, ts: &str, index: u32, terrain: Option<(usize, &Terrain)>) -> Option<String> {
-        let pic = self.tile_picture(ts, index)?;
+        let def = self.tileset(ts)?.clone();
+        // An animated tile: its frames side by side (the material animates the same way).
+        let anim = def.animations.iter().find(|a| a.tile == index && a.frames.len() > 1 && a.frames.len() <= 64).cloned();
+        let pic = match &anim {
+            Some(a) => {
+                let pics: Vec<Rgba> = a.frames.iter().filter_map(|&f| self.tile_picture(ts, f)).collect();
+                if pics.len() != a.frames.len() {
+                    return None;
+                }
+                let mut strip = Rgba::new(TILE_SIZE * pics.len() as u32, TILE_SIZE);
+                for (k, p) in pics.iter().enumerate() {
+                    for y in 0..TILE_SIZE as i32 {
+                        for x in 0..TILE_SIZE as i32 {
+                            strip.set(k as i32 * TILE_SIZE as i32 + x, y, p.get(x, y));
+                        }
+                    }
+                }
+                strip
+            }
+            None => self.tile_picture(ts, index)?,
+        };
         if let Some(id) = self.by_texture.get(&pic) {
             return Some(id.clone());
         }
-        let def = self.tileset(ts)?.clone();
         let label = match terrain {
             Some((_, t)) => t.name.clone(),
             None => format!("{} tile {index}", crate::defs::SheetDef::new(ts, "", 1, 1).label()),
@@ -231,6 +250,7 @@ impl TileConverter {
             name: label,
             texture,
             // Terrains get ragged pixel edges; single tiles keep their tile's square.
+            edge: if terrain.is_some() { crate::ground::Edge::Crisp } else { crate::ground::Edge::Straight },
             edge_noise: if terrain.is_some() { 3.0 } else { 0.0 },
             priority: match terrain {
                 Some((ti, _)) => (30 + 2 * ti).min(250) as u8,
@@ -238,6 +258,8 @@ impl TileConverter {
             },
             walk,
             step,
+            frames: anim.as_ref().map_or(1, |a| a.frames.len() as u8),
+            fps: anim.as_ref().map_or(0.0, |a| a.fps),
             ..MaterialDef::default()
         };
         db.materials.push(m);
@@ -513,5 +535,41 @@ mod tests {
         // A blob tile with all four sides but no diagonals: the four corner cells are outside.
         assert_eq!(count(terrain_cells(15, true)), 12);
         assert_eq!(count(terrain_cells(15 | NORTH_EAST, true)), 13);
+    }
+
+    #[test]
+    fn an_animated_ground_tile_becomes_an_animated_material() {
+        let root = std::env::temp_dir().join(format!("rustpg2d_conv_anim_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("tilesets")).unwrap();
+        // Four tiles in a row, each one colour: tile 0 animates through 0, 1, 2, 1.
+        let mut img = Rgba::new(TILE_SIZE * 4, TILE_SIZE);
+        for t in 0..4u8 {
+            for y in 0..TILE_SIZE as i32 {
+                for x in 0..TILE_SIZE as i32 {
+                    img.set(t as i32 * TILE_SIZE as i32 + x, y, [t * 60, 100, 200, 255]);
+                }
+            }
+        }
+        std::fs::write(root.join("tilesets/water.png"), img.encode().unwrap()).unwrap();
+        let ts = TilesetDef {
+            id: "water".into(),
+            image: "tilesets/water.png".into(),
+            animations: vec![crate::old_tiles::TileAnim { tile: 0, frames: vec![0, 1, 2, 1], fps: 3.0 }],
+            ..TilesetDef::default()
+        };
+        let mut db = Database::default();
+        let mut conv = TileConverter::new(&root, vec![ts], &db);
+        let (Converted::Ground { material: still, .. }, Converted::Ground { material: anim, .. }) = (conv.convert_tile(&mut db, "water", 3, true), conv.convert_tile(&mut db, "water", 0, true)) else {
+            panic!("both are ground")
+        };
+        let (still, anim) = (db.material(&still).unwrap().clone(), db.material(&anim).unwrap().clone());
+        assert_eq!((still.frames, still.fps), (1, 0.0));
+        assert_eq!((anim.frames, anim.fps), (4, 3.0));
+        let strip = Rgba::decode(&std::fs::read(root.join(&anim.texture)).unwrap()).unwrap();
+        assert_eq!((strip.w, strip.h), (TILE_SIZE * 4, TILE_SIZE));
+        let shades: Vec<u8> = (0..4).map(|k| strip.get(k * TILE_SIZE as i32 + 5, 5)[0]).collect();
+        assert_eq!(shades, [0, 60, 120, 60]);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

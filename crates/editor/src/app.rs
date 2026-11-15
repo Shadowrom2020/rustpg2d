@@ -285,6 +285,10 @@ pub struct Editor {
     pub ground_mode: crate::ground_tool::GroundMode,
     /// The Ground brush's radius in pixels.
     pub ground_size: f32,
+    /// The Ground tool's square brush, snapping to tiles and material search.
+    pub ground_square: bool,
+    pub ground_snap: bool,
+    pub ground_filter: String,
     /// A ground stroke in progress.
     pub ground_drag: Option<crate::ground_tool::GroundDrag>,
     /// The Decorations tool.
@@ -466,7 +470,7 @@ impl Editor {
     #[cfg(test)]
     pub(crate) fn headless(project: Project) -> Self {
         crate::ui::set_headless();
-        let assets = Assets { tile_size: rustpg2d_engine::project::TILE_SIZE as f32, sheets: HashMap::new(), materials: HashMap::new(), material_colors: HashMap::new(), generation: 0, errors: Vec::new(), models: Default::default() };
+        let assets = Assets { tile_size: rustpg2d_engine::project::TILE_SIZE as f32, sheets: HashMap::new(), materials: HashMap::new(), material_frames: HashMap::new(), material_colors: HashMap::new(), generation: 0, errors: Vec::new(), models: Default::default() };
         let mut ed = Self::with_parts(project, true, assets, Audio::silent());
         ed.mode = Mode::Database;
         ed
@@ -521,6 +525,9 @@ impl Editor {
             ground_material: String::new(),
             ground_mode: Default::default(),
             ground_size: 24.0,
+            ground_square: false,
+            ground_snap: true,
+            ground_filter: String::new(),
             ground_drag: None,
             decor: Default::default(),
             light_cache: (-1.0, String::new(), Vec::new()),

@@ -46,6 +46,12 @@ prop and character forms open it.
   **Ctrl+V** replaces the selected frame with the copy. Buttons do the same, plus *Paste mirrored*,
   *Flip* and *Clear*. *Canvas … Resize* adds frames.
 - A live preview shows the selected frame and its row as an animation.
+- A **material's texture** opens as one seamless picture (and with the pencil): copies are shown
+  around it and drawing wraps across its edges; *Size* resizes it in steps of 8 px. An animated
+  one holds its frames side by side: the canvas shows the selected frame (pick it in the frame
+  strip; Copy / Paste, a tiled preview of them playing), and each frame wraps on its own. The material
+  form has it under its settings, beside a live preview of the material on a map
+  ([Database › Materials](05-database.md#materials)).
 
 **Four-facing sheets**: with **Four-facing rows** on, the rows are labelled (blocks of walk, idle,
 attack and hurt, each facing down, left, right and up: 4 columns, 16 rows) and an **animation

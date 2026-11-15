@@ -29,6 +29,9 @@ pub enum Edge {
     Crisp,
     /// A soft fade into the neighbour.
     Soft,
+    /// Exactly along the 8 px cells: straight lines and square corners (floors, carpets, plazas,
+    /// tiles); a rim is a border just outside them.
+    Straight,
 }
 
 /// What a material does to things moving over it.
@@ -90,10 +93,31 @@ pub struct MaterialDef {
     /// The texture drifts this many pixels per second (flowing water).
     #[serde(skip_serializing_if = "is_still")]
     pub scroll: [f32; 2],
+    /// Animation frames: the texture is this many frames side by side (1 = a still picture).
+    #[serde(skip_serializing_if = "is_one")]
+    pub frames: u8,
+    /// Animation frames shown per second (0 = the first frame only).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub fps: f32,
+}
+
+impl MaterialDef {
+    /// The size of one animation frame of a texture `w` x `h` pixels (frames side by side).
+    pub fn frame_size(&self, w: u32, h: u32) -> (u32, u32) {
+        (w / self.frames.max(1) as u32, h)
+    }
 }
 
 fn is_still(s: &[f32; 2]) -> bool {
     *s == [0.0, 0.0]
+}
+
+fn is_one(n: &u8) -> bool {
+    *n == 1
+}
+
+fn is_zero(n: &f32) -> bool {
+    *n == 0.0
 }
 
 impl Default for MaterialDef {
@@ -110,6 +134,8 @@ impl Default for MaterialDef {
             walk: Walk::Walk,
             step: String::new(),
             scroll: [0.0, 0.0],
+            frames: 1,
+            fps: 0.0,
         }
     }
 }
@@ -326,6 +352,27 @@ impl Ground {
         changed
     }
 
+    /// Paints the cells whose centres lie inside the rectangle between corners `a` and `b`
+    /// (world pixels, any order) with `v`; returns the changed cells like [`Ground::paint_circle`].
+    pub fn paint_rect(&mut self, a: (f32, f32), b: (f32, f32), v: u8) -> Vec<(i32, i32, u8)> {
+        let c = CELL as f32;
+        let (x0, x1) = (a.0.min(b.0), a.0.max(b.0));
+        let (y0, y1) = (a.1.min(b.1), a.1.max(b.1));
+        // Cells whose centre (cx + 0.5) * c lies in [x0, x1).
+        let (cx0, cx1) = ((x0 / c - 0.5).ceil() as i32, (x1 / c - 0.5).ceil() as i32);
+        let (cy0, cy1) = ((y0 / c - 0.5).ceil() as i32, (y1 / c - 0.5).ceil() as i32);
+        let mut changed = Vec::new();
+        for y in cy0..cy1 {
+            for x in cx0..cx1 {
+                let old = self.set(x, y, v);
+                if old != v {
+                    changed.push((x, y, old));
+                }
+            }
+        }
+        changed
+    }
+
     /// Paints the cells whose centres lie inside the polygon `points` (world pixels) with `v`;
     /// returns the changed cells like [`Ground::paint_circle`].
     pub fn paint_polygon(&mut self, points: &[(f32, f32)], v: u8) -> Vec<(i32, i32, u8)> {
@@ -480,6 +527,17 @@ impl MaterialTable {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rectangles_take_the_cells_inside() {
+        let mut g = Ground::new(4, 4);
+        // A 1 x 2 tile rectangle at tile (1, 1): 4 x 8 cells, either corner first.
+        let n = g.paint_rect((64.0, 96.0), (32.0, 32.0), 3).len();
+        assert_eq!(n, 4 * 8);
+        assert_eq!((g.get(4, 4), g.get(7, 11), g.get(8, 4), g.get(4, 12), g.get(3, 4)), (3, 3, 0, 0, 0));
+        // An empty one paints nothing.
+        assert!(g.paint_rect((40.0, 40.0), (40.0, 90.0), 5).is_empty());
+    }
 
     #[test]
     fn cells_across_chunks_and_compaction() {

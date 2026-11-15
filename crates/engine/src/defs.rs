@@ -350,10 +350,13 @@ pub enum HoldStyle {
     Hang,
     /// On the forearm, its face turned away from the body and its top up (shields).
     Strap,
+    /// On the back, against the upper back, its top up and its front facing away from the body
+    /// (backpacks): not in a hand.
+    Back,
 }
 
 impl HoldStyle {
-    pub const ALL: [HoldStyle; 4] = [HoldStyle::Grip, HoldStyle::Upright, HoldStyle::Hang, HoldStyle::Strap];
+    pub const ALL: [HoldStyle; 5] = [HoldStyle::Grip, HoldStyle::Upright, HoldStyle::Hang, HoldStyle::Strap, HoldStyle::Back];
     fn is_grip(&self) -> bool {
         *self == HoldStyle::Grip
     }
@@ -363,6 +366,7 @@ impl HoldStyle {
             HoldStyle::Upright => "Upright",
             HoldStyle::Hang => "Hang",
             HoldStyle::Strap => "Strap",
+            HoldStyle::Back => "On the back",
         }
     }
 }
@@ -620,10 +624,13 @@ pub enum EquipSlot {
     /// A tool used for an activity (a fishing rod, later pickaxes, hoes, …): held in the
     /// right hand while it is being used, the weapon otherwise.
     Tool,
+    /// On the back: a backpack (its `ItemDef::bag_slots` enlarge the player's inventory).
+    Back,
 }
 
 impl EquipSlot {
-    /// Slot by name as scripts write it: "clothing", "head", "body", "weapon", "offhand".
+    /// Slot by name as scripts write it: "clothing", "head", "body", "weapon", "offhand", "tool",
+    /// "back".
     pub fn parse(s: &str) -> Option<EquipSlot> {
         Some(match s.to_ascii_lowercase().as_str() {
             "clothing" | "clothes" | "outfit" => EquipSlot::Clothing,
@@ -632,10 +639,11 @@ impl EquipSlot {
             "weapon" | "hand" | "right" => EquipSlot::Weapon,
             "offhand" | "left" | "left hand" | "shield" => EquipSlot::Offhand,
             "tool" => EquipSlot::Tool,
+            "back" | "backpack" | "bag" => EquipSlot::Back,
             _ => return None,
         })
     }
-    pub const ALL: [EquipSlot; 6] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool];
+    pub const ALL: [EquipSlot; 7] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool, EquipSlot::Back];
     pub fn label(self) -> &'static str {
         match self {
             EquipSlot::Clothing => "Clothing",
@@ -644,6 +652,7 @@ impl EquipSlot {
             EquipSlot::Weapon => "Weapon",
             EquipSlot::Offhand => "Left hand",
             EquipSlot::Tool => "Tool",
+            EquipSlot::Back => "Backpack",
         }
     }
 }
@@ -651,7 +660,7 @@ impl EquipSlot {
 /// Clothing, helmets, body armor and left-hand items (shields, lanterns, torches).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Armor {
-    /// `Clothing`, `Head`, `Body` or `Offhand`.
+    /// `Clothing`, `Head`, `Body`, `Offhand` or `Back` (backpacks).
     pub slot: EquipSlot,
     /// Subtracted from incoming damage (at least 1 damage always gets through).
     #[serde(default)]
@@ -738,6 +747,10 @@ pub struct ItemDef {
     /// Food: its *on use* healing gets the player's *Food* skill bonus.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub food: bool,
+    /// A backpack (armor in the `Back` slot): this many more inventory slots while the player
+    /// wears it.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub bag_slots: u32,
     /// The animations a character plays with it in hand (weapons, shields): names that models map
     /// to clips. Empty ones are estimated from the weapon ([`ItemAnims::estimate`]).
     #[serde(default, skip_serializing_if = "ItemAnims::is_empty")]
@@ -834,6 +847,7 @@ impl Default for ItemDef {
             use_on: UseTarget::default(),
             crop: None,
             food: false,
+            bag_slots: 0,
             anims: ItemAnims::default(),
         }
     }
@@ -850,6 +864,9 @@ impl ItemDef {
         e.sort_by(|a, b| b.total_cmp(a));
         let long = e[0] > e[1].max(1e-6) * 2.2;
         let offhand = self.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
+        if self.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Back) {
+            return (HoldStyle::Back, 16.0, None);
+        }
         match &self.weapon {
             _ if offhand && self.light.is_some() => if long { (HoldStyle::Upright, 16.0, None) } else { (HoldStyle::Hang, 12.0, None) },
             _ if offhand => (HoldStyle::Strap, 18.0, None),

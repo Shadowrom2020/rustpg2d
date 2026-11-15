@@ -79,9 +79,47 @@ impl Game {
         }
     }
 
+    /// The player's inventory size: the project's, plus the slots of the backpack worn.
+    pub(super) fn player_capacity(&self) -> usize {
+        let bag = self.world.equipment.item(EquipSlot::Back).and_then(|id| self.project.db.item(id)).map_or(0, |d| d.bag_slots);
+        (self.project.config.inventory_size.max(1) + bag) as usize
+    }
+
+    /// Sizes the inventory to [`Self::player_capacity`]: growing adds empty slots; shrinking packs
+    /// the stacks of the slots that go into free slots before them first. False (and nothing
+    /// changed) when they don't fit.
+    pub(super) fn fit_inventory(&mut self) -> bool {
+        match self.world.inventory.packed_to(self.player_capacity()) {
+            Some(packed) => {
+                self.world.inventory = packed;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Runs an equipment change; when it would take away inventory slots that hold items
+    /// which don't fit elsewhere (a backpack taken off or swapped for a smaller one), undoes it.
+    fn keeping_room(&mut self, change: impl FnOnce(&mut Self) -> bool) -> bool {
+        let before = (self.world.inventory.clone(), self.world.equipment.clone());
+        if !change(self) {
+            return false;
+        }
+        if self.fit_inventory() {
+            return true;
+        }
+        (self.world.inventory, self.world.equipment) = before;
+        self.ui.toast("Make room first: the backpack's slots aren't empty".into());
+        false
+    }
+
     /// Equips one item from inventory slot `i`; the previously worn item goes back to the
     /// inventory (into the freed slot if possible). Returns false if impossible.
     pub(super) fn equip_from_slot(&mut self, i: usize) -> bool {
+        self.keeping_room(|g| g.equip_from_slot_now(i))
+    }
+
+    fn equip_from_slot_now(&mut self, i: usize) -> bool {
         let Some(stack) = self.world.inventory.slots.get(i).cloned().flatten() else { return false };
         let Some(slot) = self.project.db.item(&stack.item).and_then(|d| d.equip_slot()) else { return false };
         // A two-handed weapon and something in the left hand don't go together: the other one
@@ -89,7 +127,7 @@ impl Game {
         if let Some(other) = self.hand_conflict(&stack.item, slot) {
             let name = |g: &Self, id: &str| g.project.db.item(id).map_or(id.to_string(), |d| d.name.clone());
             let (new, old) = (name(self, &stack.item), self.world.equipment.item(other).map(|id| name(self, id)).unwrap_or_default());
-            if !self.unequip(other, None) {
+            if !self.unequip_now(other, None) {
                 self.ui.toast(format!("No room to put the {old} away"));
                 return false;
             }
@@ -141,6 +179,10 @@ impl Game {
 
     /// Takes off an equipped item; `to` = preferred inventory slot.
     pub(super) fn unequip(&mut self, slot: EquipSlot, to: Option<usize>) -> bool {
+        self.keeping_room(|g| g.unequip_now(slot, to))
+    }
+
+    fn unequip_now(&mut self, slot: EquipSlot, to: Option<usize>) -> bool {
         let Some(stack) = self.world.equipment.get(slot).cloned() else { return false };
         let inv = &mut self.world.inventory;
         let placed = match to {

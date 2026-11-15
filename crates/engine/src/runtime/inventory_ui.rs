@@ -38,7 +38,7 @@ fn quick_rects() -> Vec<Rect> {
     (0..QUICK_SLOTS).map(|k| Rect::new(x0 + k as f32 * (QUICK_SLOT + GAP), sh - QUICK_SLOT - 12.0, QUICK_SLOT, QUICK_SLOT)).collect()
 }
 
-const EQUIP_SLOTS: [EquipSlot; 6] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool];
+const EQUIP_SLOTS: [EquipSlot; 7] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool, EquipSlot::Back];
 const SHEET_W: f32 = 270.0;
 
 #[derive(Default)]
@@ -177,7 +177,7 @@ fn grid_size(n: usize, cols: usize) -> Vec2 {
 const EQUIP_STEP: f32 = 50.0;
 
 /// Height of the character sheet panel.
-const SHEET_H: f32 = 530.0;
+const SHEET_H: f32 = 580.0;
 
 /// Container panels are at least this wide (title + "Take all" button).
 const MIN_CONTAINER_W: f32 = 300.0;

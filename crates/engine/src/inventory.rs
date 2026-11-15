@@ -103,6 +103,20 @@ impl Inventory {
         }
     }
 
+    /// A copy with `capacity` slots whose stacks beyond it moved into free slots before it (a
+    /// backpack taken off); None when they don't fit. Growing just adds empty slots.
+    pub fn packed_to(&self, capacity: usize) -> Option<Inventory> {
+        let mut packed = self.clone();
+        for k in capacity..packed.slots.len() {
+            if let Some(s) = packed.slots[k].take() {
+                let free = packed.slots[..capacity].iter().position(|s| s.is_none())?;
+                packed.slots[free] = Some(s);
+            }
+        }
+        packed.slots.resize(capacity, None);
+        Some(packed)
+    }
+
     pub fn max_stack(&self, item: &str) -> u32 {
         self.limits.get(item).copied().unwrap_or(DEFAULT_STACK).max(1)
     }
@@ -367,5 +381,23 @@ mod tests {
         assert_eq!(inv.capacity(), 3);
         inv.resize(6);
         assert_eq!(inv.capacity(), 6);
+    }
+
+    #[test]
+    fn a_backpacks_slots_pack_into_free_ones_or_stay() {
+        // 4 slots + a backpack's 2: the extra slots hold "b" and "c".
+        let mut inv = Inventory::new(6);
+        for (k, id) in ["a", "x", "b", "c"].into_iter().enumerate() {
+            inv.slots[[0, 1, 4, 5][k]] = Some(ItemStack::new(id, 1));
+        }
+        // Taken off: they move into the free slots 2 and 3.
+        let packed = inv.packed_to(4).expect("room for both");
+        assert_eq!(packed.capacity(), 4);
+        assert_eq!(packed.slots.iter().flatten().map(|s| s.item.as_str()).collect::<Vec<_>>(), ["a", "x", "b", "c"]);
+        // With one free slot only, nothing changes.
+        inv.slots[2] = Some(ItemStack::new("y", 1));
+        assert!(inv.packed_to(4).is_none());
+        // Growing adds empty slots.
+        assert_eq!(inv.packed_to(9).unwrap().capacity(), 9);
     }
 }

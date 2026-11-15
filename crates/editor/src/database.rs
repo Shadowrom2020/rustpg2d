@@ -897,6 +897,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         (None, Some(a)) if a.slot == EquipSlot::Head => 2,
         (None, Some(a)) if a.slot == EquipSlot::Offhand => 4,
         (None, Some(a)) if a.slot == EquipSlot::Clothing => 5,
+        (None, Some(a)) if a.slot == EquipSlot::Back => 7,
         (None, Some(_)) => 3,
         _ => 0,
     };
@@ -909,19 +910,21 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         ui.radio_value(&mut kind, 4, "Left hand").on_hover_text("A shield (defense) or a light (lantern, torch: set its light below). Not usable together with a two-handed weapon.");
         ui.radio_value(&mut kind, 5, "Clothing").on_hover_text("An outfit (defense, speed); the model's art shows what a character wears.");
         ui.radio_value(&mut kind, 6, "Tool").on_hover_text("Goes into the Tool slot (a fishing rod, later pickaxes, hoes...): held in the right hand while it is used. Activities ask for it, e.g. a fishing spot's 'Needs item'.");
+        ui.radio_value(&mut kind, 7, "Backpack").on_hover_text("Goes into the Back slot and shows on the character's back (its 3D model, below); gives the player more inventory slots while worn.");
     });
     if kind != old {
         d.tool = if kind == 6 { if d.tool.is_empty() { "tool".into() } else { d.tool.clone() } } else { String::new() };
         d.weapon = (kind == 1).then(|| Weapon::melee(1, 0.4));
         d.armor = match kind {
-            2..=5 => {
+            2..=5 | 7 => {
                 let slot = match kind {
                     2 => EquipSlot::Head,
                     3 => EquipSlot::Body,
                     5 => EquipSlot::Clothing,
+                    7 => EquipSlot::Back,
                     _ => EquipSlot::Offhand,
                 };
-                let defense = if slot == EquipSlot::Clothing { 0 } else { 1 };
+                let defense = if matches!(slot, EquipSlot::Clothing | EquipSlot::Back) { 0 } else { 1 };
                 Some(d.armor.take().map(|a| Armor { slot, ..a }).unwrap_or(Armor { slot, defense, speed: 0.0 }))
             }
             _ => None,
@@ -929,6 +932,18 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         if kind != 0 && kind != 4 {
             d.max_stack = 1;
         }
+        d.bag_slots = if kind == 7 { d.bag_slots.max(6) } else { 0 };
+        // A backpack's model sits on the back.
+        if let Some(m) = d.model.as_mut().filter(|_| kind == 7) {
+            m.hold = rustpg2d_engine::defs::HoldStyle::Back;
+        }
+    }
+    if d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Back) {
+        ui.horizontal(|ui| {
+            ui.label("Extra inventory slots");
+            ui.add(egui::DragValue::new(&mut d.bag_slots).range(0..=96)).on_hover_text("The player's inventory has this many more slots while the backpack is worn");
+            ui.weak("(taking it off packs the items of those slots into free ones, or refuses when they don't fit)");
+        });
     }
     if d.weapon.is_some() {
         weapon_ui(ui, "item_weapon", &mut d.weapon, cx, false);
@@ -977,7 +992,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     ui.heading("Icon");
     widgets::sprite_field(ui, "item_icon", &mut d.icon, cx.tex, cx.assets, cx.db, false);
     art_buttons(ui, cx, "icon", (1, 1));
-    let holdable = d.weapon.is_some() || !d.tool.is_empty() || d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
+    let holdable = d.weapon.is_some() || !d.tool.is_empty() || d.armor.as_ref().is_some_and(|a| matches!(a.slot, EquipSlot::Offhand | EquipSlot::Back));
     if holdable {
         ui.separator();
         item_model_ui(ui, d, cx);
@@ -4128,6 +4143,7 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         HoldStyle::Upright => "Held up, the handle pointing up whatever the arm does: torches, staffs.",
         HoldStyle::Hang => "Hanging from the hand by its top: lanterns, buckets.",
         HoldStyle::Strap => "On the forearm, its face turned out and forward, its top up: shields.",
+        HoldStyle::Back => "On the upper back, its top up and its front facing away from the body: backpacks.",
     };
     egui::Grid::new("item_model").num_columns(2).show(ui, |ui| {
         ui.label("Held as");
@@ -4203,8 +4219,11 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         });
         HOLD_PREVIEW.with(|p| *p.borrow_mut() = (anim, play, holder.clone()));
         let look = Appearance { model: holder, ..Default::default() };
-        let offhand = d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand);
-        let gear = if offhand { Gear { offhand: Some(d.id.clone()), ..Default::default() } } else { Gear { weapon: Some(d.id.clone()), ..Default::default() } };
+        let gear = match d.armor.as_ref().map(|a| a.slot) {
+            Some(EquipSlot::Offhand) => Gear { offhand: Some(d.id.clone()), ..Default::default() },
+            Some(EquipSlot::Back) => Gear { back: Some(d.id.clone()), ..Default::default() },
+            _ => Gear { weapon: Some(d.id.clone()), ..Default::default() },
+        };
         // The clip its animations name for this model (`Models::anim_for`), at its blow.
         let clip = cx.assets.models.anim_for(cx.db, &look.model, &gear, anim);
         let hit = cx.assets.models.clip_map(&look.model, &clip).map_or(rustpg2d_engine::defs::DEFAULT_HIT, |c| c.hit_point());

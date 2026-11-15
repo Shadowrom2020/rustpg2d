@@ -49,18 +49,26 @@ pub struct Gear {
     pub weapon: Option<String>,
     pub offhand: Option<String>,
     pub carrying: String,
+    /// A backpack (`EquipSlot::Back`): its model on the upper back.
+    pub back: Option<String>,
 }
 
 impl Gear {
     /// From equipment, a carried prop and the tool in use (it replaces the weapon).
     pub fn of(eq: &crate::state::Equipment, carrying: &str, tool: Option<&str>) -> Gear {
         use crate::defs::EquipSlot;
-        Gear { weapon: tool.or(eq.item(EquipSlot::Weapon)).map(str::to_string), offhand: eq.item(EquipSlot::Offhand).map(str::to_string), carrying: carrying.to_string() }
+        Gear {
+            weapon: tool.or(eq.item(EquipSlot::Weapon)).map(str::to_string),
+            offhand: eq.item(EquipSlot::Offhand).map(str::to_string),
+            carrying: carrying.to_string(),
+            back: eq.item(EquipSlot::Back).map(str::to_string),
+        }
     }
 
     pub fn equipment(&self) -> crate::state::Equipment {
         use crate::inventory::ItemStack;
-        crate::state::Equipment { weapon: self.weapon.as_ref().map(|i| ItemStack::new(i, 1)), offhand: self.offhand.as_ref().map(|i| ItemStack::new(i, 1)), ..Default::default() }
+        let one = |i: &Option<String>| i.as_ref().map(|i| ItemStack::new(i, 1));
+        crate::state::Equipment { weapon: one(&self.weapon), offhand: one(&self.offhand), back: one(&self.back), ..Default::default() }
     }
 }
 
@@ -214,6 +222,8 @@ struct Loaded {
     /// Turn per clip that makes it face the front (radians).
     align: HashMap<String, f32>,
     hands: [Option<HandBone>; 2],
+    /// Where a backpack sits ([`BackBone`]); None without a spine.
+    back: Option<BackBone>,
     /// Frame size in image pixels, pixels per model unit, the camera target's height, the
     /// model's standing height (model units).
     frame: (u32, u32),
@@ -224,6 +234,33 @@ struct Loaded {
     /// Rig templates: the unfitted model, the template and the template's clip map (refitting
     /// when the fit is edited).
     fitted: Option<Box<Fitted>>,
+}
+
+/// The upper back of a model: the spine bone nearest the shoulders and, in its own space, the
+/// point on the back's skin behind it, up along the spine and out of the back.
+#[derive(Clone, Copy, Debug)]
+struct BackBone {
+    node: usize,
+    at: Vec3,
+    up: Vec3,
+    out: Vec3,
+}
+
+/// [`BackBone`] of a model at rest (it faces +Z, so its back is the skin furthest toward -Z
+/// around the bone's height and the body's middle).
+fn back_bone(model: &Model, rest: &[Mat4]) -> Option<BackBone> {
+    let node = ["spine02", "spine2", "upperchest", "chest", "spine01", "spine1", "spine"].iter().find_map(|n| model.node(n))?;
+    let m = rest[node];
+    let at = m.w_axis.truncate();
+    let (lo, hi) = model.bounds();
+    let h = (hi.y - lo.y).max(1e-3);
+    let mut skin = Vec::new();
+    model.skin(rest, &mut skin);
+    let near = skin.iter().map(|p| p.0).filter(|p| (p.y - at.y).abs() < h * 0.08 && (p.x - at.x).abs() < h * 0.08);
+    let z = near.map(|p| p.z).fold(f32::MAX, f32::min);
+    let z = if z == f32::MAX { at.z - h * 0.08 } else { z };
+    let inv = m.inverse();
+    Some(BackBone { node, at: inv.transform_point3(vec3(at.x, at.y, z)), up: inv.transform_vector3(Vec3::Y).normalize_or_zero(), out: inv.transform_vector3(-Vec3::Z).normalize_or_zero() })
 }
 
 struct Fitted {
@@ -416,7 +453,7 @@ impl Models {
         let (to_axis, to_front) = match spec.hold {
             HoldStyle::Grip | HoldStyle::Upright => (diag, vec3(-1.0, 1.0, 0.0).normalize()),
             HoldStyle::Hang => (-Vec3::Y, Vec3::Z),
-            HoldStyle::Strap => (Vec3::Y, Vec3::Z),
+            HoldStyle::Strap | HoldStyle::Back => (Vec3::Y, Vec3::Z),
         };
         let rot = hold_rotation(Vec3::from(spec.axis), item_front(spec, mesh), to_axis, to_front);
         let pts: Vec<(Vec3, Vec3)> = mesh.points.iter().map(|(p, n)| (rot * (*p - Vec3::from(spec.grip)), rot * *n)).collect();
@@ -864,11 +901,12 @@ fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Resul
         Some(HandBone { node, parent, thumb })
     };
     let hands = [hand("right"), hand("left")];
+    let back = back_bone(&model, &rest);
     let (lo, hi) = model.bounds();
     let height = (hi.y - lo.y).max(1e-3);
     let (frame, ppu, target_y) = layout(def, height);
     let texture = model.texture.clone();
-    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted })
+    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted })
 }
 
 /// A model's frame (image pixels), pixels per model unit and camera target height: the standing
@@ -1139,27 +1177,16 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
                 // Up, leaning a little with the fist.
                 HoldStyle::Upright => ((Vec3::Y * 2.0 + thumb).normalize_or(Vec3::Y), forward),
                 HoldStyle::Hang => (-Vec3::Y, forward),
+                // A backpack in the hand: carried by its top, upright.
+                HoldStyle::Back => (Vec3::Y, forward),
                 HoldStyle::Strap => {
                     // Turned to the front and out to the side of its hand.
                     let out = vec3(anchor.x, 0.0, anchor.z).normalize_or_zero();
                     (Vec3::Y, (forward + out * 0.7).normalize_or(forward))
                 }
             };
-            let k = spec.size * PX / l.ppu / mesh.len;
-            let rot = hold_rotation(Vec3::from(spec.axis), item_front(spec, mesh), to_axis, to_front);
-            let grip = Vec3::from(spec.grip);
-            let place = |p: Vec3| anchor + rot * ((p - grip) * k);
-            let vertices: Vec<Vertex> = mesh.points.iter().zip(&mesh.uvs).map(|((p, n), uv)| {
-                let n = rot * *n;
-                Vertex { position: place(*p), uv: *uv, color: [255; 4], normal: vec4(n.x, n.y, n.z, 0.0) }
-            }).collect();
-            let texture = mesh.texture.borrow_mut().get_or_insert_with(|| {
-                let t = mesh.image.as_ref().map_or_else(|| Texture2D::from_rgba8(1, 1, &[200, 200, 200, 255]), Texture2D::from_image);
-                t.set_filter(FilterMode::Nearest);
-                t
-            }).clone();
-            let far = mesh.points.iter().map(|p| p.0).max_by(|a, b| (*a - grip).length_squared().total_cmp(&(*b - grip).length_squared())).unwrap_or(grip);
-            held.push((Mesh { vertices, indices: mesh.indices.clone(), texture: Some(texture) }, true, layer.id.clone(), place(far)));
+            let (m, far) = placed_item(spec, mesh, anchor, to_axis, to_front, spec.size * PX / l.ppu);
+            held.push((m, true, layer.id.clone(), far));
             continue;
         }
         let mut layer = layer.clone();
@@ -1171,6 +1198,17 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         if let Some((mesh, tip)) = held_quad(&layer, anchor, sheets, l.ppu, screen_right, screen_down) {
             held.push((mesh, false, layer.id.clone(), tip));
         }
+    }
+    // A backpack on the upper back: against the back's skin, its top along the spine, its front
+    // facing away from the body.
+    let worn = req.gear.back.as_ref().filter(|_| !req.bust).and_then(|id| db.item(id)).and_then(|d| d.model.as_ref()).and_then(|m| items.get(&m.file).map(|mesh| (m, mesh)));
+    if let (Some((spec, mesh)), Some(bb)) = (worn, l.back) {
+        let m = world[bb.node];
+        let anchor = turn.transform_point3(m.transform_point3(bb.at));
+        let up = turn.transform_vector3(m.transform_vector3(bb.up)).normalize_or(Vec3::Y);
+        let out = turn.transform_vector3(m.transform_vector3(bb.out)).normalize_or(-Vec3::Z);
+        let (mesh, far) = placed_item(spec, mesh, anchor, up, out, spec.size * PX / l.ppu);
+        held.push((mesh, true, req.gear.back.clone().unwrap_or_default(), far));
     }
     // The frame: the standard one, grown by whatever sticks out of it (a spear, a swung arm),
     // in steps of 8 pixels and at most one and a half figures each way.
@@ -1241,6 +1279,35 @@ fn page_camera(rt: &RenderTarget) -> Camera2D {
     cam.zoom.y = -cam.zoom.y;
     cam.render_target = Some(rt.clone());
     cam
+}
+
+/// An item's model as a mesh in the pose: its hold point at `anchor`, its handle along `to_axis`
+/// and its front toward `to_front`, `length` model units long; with its far end.
+fn placed_item(spec: &crate::defs::ItemModel, mesh: &ItemMesh, anchor: Vec3, to_axis: Vec3, to_front: Vec3, length: f32) -> (Mesh, Vec3) {
+    let k = length / mesh.len;
+    let rot = hold_rotation(Vec3::from(spec.axis), item_front(spec, mesh), to_axis, to_front);
+    let grip = Vec3::from(spec.grip);
+    let place = |p: Vec3| anchor + rot * ((p - grip) * k);
+    let vertices: Vec<Vertex> = mesh
+        .points
+        .iter()
+        .zip(&mesh.uvs)
+        .map(|((p, n), uv)| {
+            let n = rot * *n;
+            Vertex { position: place(*p), uv: *uv, color: [255; 4], normal: vec4(n.x, n.y, n.z, 0.0) }
+        })
+        .collect();
+    let texture = mesh
+        .texture
+        .borrow_mut()
+        .get_or_insert_with(|| {
+            let t = mesh.image.as_ref().map_or_else(|| Texture2D::from_rgba8(1, 1, &[200, 200, 200, 255]), Texture2D::from_image);
+            t.set_filter(FilterMode::Nearest);
+            t
+        })
+        .clone();
+    let far = mesh.points.iter().map(|p| p.0).max_by(|a, b| (*a - grip).length_squared().total_cmp(&(*b - grip).length_squared())).unwrap_or(grip);
+    (Mesh { vertices, indices: mesh.indices.clone(), texture: Some(texture) }, place(far))
 }
 
 /// An item model's front: its own, else the wider side across its handle.

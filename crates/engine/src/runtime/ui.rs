@@ -370,6 +370,9 @@ pub(super) fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
     if !d.tool.is_empty() {
         return Some(format!("Tool · {}", d.tool));
     }
+    if d.bag_slots > 0 {
+        return Some(format!("Backpack · +{} inventory slots", d.bag_slots));
+    }
     if let Some(w) = &d.weapon {
         return Some(match &w.ranged {
             Some(r) => format!("Damage {} · every {:.2}s · range {:.0}", w.damage, w.cooldown, r.range),

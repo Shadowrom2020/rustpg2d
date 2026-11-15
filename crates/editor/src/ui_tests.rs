@@ -185,6 +185,34 @@ fn item_animations_are_named_estimated_and_saved() {
 }
 
 #[test]
+fn an_item_becomes_a_backpack_with_extra_slots() {
+    use rustpg2d_engine::defs::EquipSlot;
+    let root = example_copy("backpack");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "apple").expect("the example's apple");
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    // Equipment kind Backpack: the Back slot, six slots to start with.
+    h.get_by_label("Backpack").click();
+    step(&mut h);
+    let item = |h: &Harness<'static, Editor>| h.state().project.db.items[k].clone();
+    assert_eq!(item(&h).armor.map(|a| a.slot), Some(EquipSlot::Back));
+    assert_eq!(item(&h).bag_slots, 6);
+    // Twelve slots typed, saved.
+    beside(&h, "Extra inventory slots", |n| n.role() == Role::SpinButton).click();
+    step(&mut h);
+    h.get_by(|n| n.is_focused()).type_text("12");
+    step(&mut h);
+    h.press_key(egui::Key::Enter);
+    step(&mut h);
+    assert_eq!(item(&h).bag_slots, 12);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.items[k].clone();
+    assert_eq!((saved.armor.map(|a| a.slot), saved.bag_slots), (Some(EquipSlot::Back), 12));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn character_form_takes_a_race_and_a_speed() {
     let root = example_copy("character");
     let db = Project::load(&root).unwrap().db;

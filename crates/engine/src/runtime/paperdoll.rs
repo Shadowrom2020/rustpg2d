@@ -169,12 +169,15 @@ impl Game {
     }
 
     /// `held=` for `status`: what the player and the characters within 8 tiles hold, as
-    /// `who:item@hand` (`R`, `L`, `B` = both; `/back` behind a figure).
+    /// `who:item@hand` (`R`, `L`, `B` = both; `/back` behind a figure), and a backpack as
+    /// `who:item@back`.
     pub(super) fn held_status(&self) -> Vec<String> {
         let line = |who: &str, _a: &Appearance, gear: &Gear, pose: (Facing, Anim)| -> Vec<String> {
             let g = Some(crate::hands::Grip::new(0.0, 0.0, 0.0));
             let held = crate::hands::held_with(&self.project.db, (g, g), &gear.equipment(), &gear.carrying, None, pose.0);
-            held.into_iter().map(|h| format!("{who}:{}@{}{}", h.id, &format!("{:?}", h.hand)[..1], if h.front { "" } else { "/back" })).collect()
+            let mut out: Vec<String> = held.into_iter().map(|h| format!("{who}:{}@{}{}", h.id, &format!("{:?}", h.hand)[..1], if h.front { "" } else { "/back" })).collect();
+            out.extend(gear.back.as_ref().map(|b| format!("{who}:{b}@back")));
+            out
         };
         let mut out = match self.player_appearance() {
             Some(a) => line("player", &a, &self.player_gear(), (self.player.facing, self.player_anim())),

@@ -680,6 +680,8 @@ pub fn hold_rotation(axis: Vec3, front: Vec3, to_axis: Vec3, to_front: Vec3) -> 
 /// - Hang: held at the top, the body below it (models stand +Y up), the front +Z.
 /// - Strap: held at the middle of its back; the thinnest side is the face, the side its middle
 ///   bulges to (a boss, a dome) the front; the top +Y (else +Z).
+/// - Back: standing +Y up; its thinner horizontal side is its depth, the side its middle bulges
+///   to (pockets, a bedroll) the front; held at the middle of the other side (against the back).
 pub fn estimate_hold(points: &[Vec3], indices: &[u16], hold: crate::defs::HoldStyle) -> ([f32; 3], [f32; 3], [f32; 3]) {
     use crate::defs::HoldStyle;
     if points.is_empty() {
@@ -697,6 +699,20 @@ pub fn estimate_hold(points: &[Vec3], indices: &[u16], hold: crate::defs::HoldSt
         HoldStyle::Hang => {
             let (_, top) = range(Vec3::Y);
             ([middle.x, top, middle.z], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0])
+        }
+        HoldStyle::Back => {
+            let (xl, xh) = range(Vec3::X);
+            let (zl, zh) = range(Vec3::Z);
+            let t = if zh - zl <= xh - xl { Vec3::Z } else { Vec3::X };
+            let (yl, yh) = range(Vec3::Y);
+            let r = (yh - yl) * 0.25;
+            let (fwd, back) = points
+                .iter()
+                .filter(|p| ((**p - middle) - t * (**p - middle).dot(t)).length() <= r)
+                .fold((0.0f32, 0.0f32), |(f, b), p| (f.max((*p - middle).dot(t)), b.max(-(*p - middle).dot(t))));
+            let face = if fwd >= back { t } else { -t };
+            let (tl, th) = range(t);
+            (snap_v(middle - face * ((th - tl) / 2.0)), [0.0, 1.0, 0.0], face.to_array())
         }
         HoldStyle::Strap => {
             let t = axes[2];
@@ -1350,6 +1366,28 @@ mod tests {
         let (grip, axis) = estimate_grip(&flipped, &indices);
         assert_eq!(axis, [0.0, -1.0, 0.0]);
         assert!((0.81..0.97).contains(&grip[1]), "{grip:?}");
+    }
+
+    #[test]
+    fn backpacks_are_held_at_the_flat_side() {
+        use crate::defs::HoldStyle;
+        // A pack 0.3 wide, 0.4 high, 0.15 deep (z -0.075..0.075) with a pocket on its +Z side.
+        let mut points = Vec::new();
+        for x in [-0.15, 0.15] {
+            for y in [0.0, 0.4] {
+                for z in [-0.075, 0.075] {
+                    points.push(Vec3::new(x, y, z));
+                }
+            }
+        }
+        for x in [-0.08, 0.08] {
+            for y in [0.08, 0.24] {
+                points.push(Vec3::new(x, y, 0.13));
+            }
+        }
+        let (grip, axis, front) = estimate_hold(&points, &[], HoldStyle::Back);
+        assert_eq!((axis, front), ([0.0, 1.0, 0.0], [0.0, 0.0, 1.0]));
+        assert!((grip[2] + 0.075).abs() < 1e-4 && (grip[1] - 0.2).abs() < 1e-4, "{grip:?}");
     }
 
     #[test]

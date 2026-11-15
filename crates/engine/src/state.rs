@@ -22,6 +22,9 @@ pub struct Equipment {
     /// A tool (fishing rod, …), held while it is used.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool: Option<ItemStack>,
+    /// A backpack.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub back: Option<ItemStack>,
 }
 
 impl Equipment {
@@ -33,6 +36,7 @@ impl Equipment {
             EquipSlot::Weapon => self.weapon.as_ref(),
             EquipSlot::Offhand => self.offhand.as_ref(),
             EquipSlot::Tool => self.tool.as_ref(),
+            EquipSlot::Back => self.back.as_ref(),
         }
     }
     pub fn slot_mut(&mut self, slot: EquipSlot) -> &mut Option<ItemStack> {
@@ -43,6 +47,7 @@ impl Equipment {
             EquipSlot::Weapon => &mut self.weapon,
             EquipSlot::Offhand => &mut self.offhand,
             EquipSlot::Tool => &mut self.tool,
+            EquipSlot::Back => &mut self.back,
         }
     }
     pub fn item(&self, slot: EquipSlot) -> Option<&str> {
@@ -744,6 +749,19 @@ mod tests {
         assert_eq!(back.count("fishing_rod"), 1, "tools count as owned");
         assert!(!ron::to_string(&old).unwrap().contains("tool"), "no tool, nothing written");
         assert_eq!(EquipSlot::parse("tool"), Some(EquipSlot::Tool));
+    }
+
+    #[test]
+    fn back_slot_in_saves() {
+        // Saves from before backpacks have no "back" field, and none is written without one.
+        let old: Equipment = ron::from_str("(head: None, body: None, weapon: None, offhand: None)").unwrap();
+        assert_eq!(old.get(EquipSlot::Back), None);
+        assert!(!ron::to_string(&old).unwrap().contains("back"));
+        let mut eq = old;
+        *eq.slot_mut(EquipSlot::Back) = Some(ItemStack::new("small_backpack", 1));
+        let again: Equipment = ron::from_str(&ron::to_string(&eq).unwrap()).unwrap();
+        assert_eq!(again.item(EquipSlot::Back), Some("small_backpack"));
+        assert_eq!(EquipSlot::parse("backpack"), Some(EquipSlot::Back));
     }
 }
 

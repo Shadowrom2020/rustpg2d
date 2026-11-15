@@ -320,8 +320,8 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
                 }
             });
             section(ui, "Equipment", !eq.is_empty(), &mut |ui| {
-                ui.weak("Counts in play (damage, defense, what it drops). Weapons and left-hand items show in the hands (as their 3D model or their picture); worn armour shows only in the model's art.");
-                for slot in [EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Head, EquipSlot::Body, EquipSlot::Clothing] {
+                ui.weak("Counts in play (damage, defense, what it drops). Weapons and left-hand items show in the hands (as their 3D model or their picture), a backpack on the back; worn armour shows only in the model's art.");
+                for slot in [EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Head, EquipSlot::Body, EquipSlot::Clothing, EquipSlot::Back] {
                     ui.label(match slot {
                         EquipSlot::Body => "Body armor",
                         EquipSlot::Weapon => "Weapon",

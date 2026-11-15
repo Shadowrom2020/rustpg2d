@@ -18,12 +18,22 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - The example's hero has nine new clips from Meshy's library, and every person of the example and
   the starter library shares them.
 
+- **Backpacks**: a new *Backpack* equipment slot. A backpack shows on the character's back (its 3D
+  model on the upper back, also on characters) and gives the player its *Extra inventory slots*
+  while worn; taking it off packs the items of those slots into free ones, or stays on when they
+  don't fit. The example has three, modelled for it: a Small Backpack (+6) and a Traveller's Pack
+  (+12) in Tilda's shop, a Magic Backpack (+24) in the bandit chief's loot. `equip` / `unequip`
+  take `"back"`; `status` prints `bag=used/slots` and `held=` `who:item@back`.
+
 ### Events and scripts
 - New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with
   *Chase* behaviour runs to where another character (or the player) is, following them for 15 s,
   and fights whoever it sees on the way.
 
 ### Editor
+- **Items**: equipment kind **Backpack** with *Extra inventory slots*; the 3D model's hold style
+  **On the back** (estimated: held at the middle of its flatter side), previewed on the back. The
+  character editor has a Backpack row.
 - **Items › Animations**: what characters play attacking, standing, walking and blocking with the
   item, the estimate beside each empty field with how many models have it; *Estimate animations*.
   The 3D model preview plays them and has *Blocking*.

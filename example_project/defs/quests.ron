@@ -23,6 +23,82 @@
                 name: "elder",
             ),
         ],
+        giver: "elder",
+        giver_name: "Elder Rowan",
+        offer: (
+            lines: [
+                "Ah, a traveller! Welcome to Emberbrook, {player}.",
+                "Strange lights have been seen in Whisperwood, east of here.",
+            ],
+            question: "Would you investigate the old shrine for us?",
+            accept: "Of course!",
+            decline: "Not right now.",
+            accepted: [
+                "Wonderful! The gate key is in the chest in my house, east of the square.",
+            ],
+            declined: [
+                "I understand. Come back if you change your mind.",
+            ],
+        ),
+        steps: [
+            (
+                done: Conditions([
+                    (
+                        cond: HasItem(
+                            item: "key",
+                            count: 1,
+                        ),
+                        negate: false,
+                    ),
+                ]),
+                giver_line: "The shrine lies deep in Whisperwood. Take the key from my chest and open the east gate.",
+                on_start: [
+                    SetFlag(
+                        name: "quest_accepted",
+                        value: true,
+                    ),
+                ],
+            ),
+            (
+                done: Conditions([
+                    (
+                        cond: Flag(
+                            name: "shrine_lit",
+                        ),
+                        negate: false,
+                    ),
+                ]),
+                giver_line: "The shrine lies deep in Whisperwood. Take the key from my chest and open the east gate.",
+            ),
+            (
+                done: Talk(
+                    character: "",
+                    lines: [
+                        "The lights have calmed! You have my thanks, brave {lad|lass}.",
+                    ],
+                ),
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "coin",
+                    count: 25,
+                ),
+            ],
+            skill_points: 2,
+            actions: [
+                Emote(
+                    target: "self",
+                    emotion: "joy",
+                    seconds: 0.0,
+                    wait: false,
+                ),
+                RunScript(
+                    function: "quest_thanks",
+                ),
+            ],
+        ),
     ),
     (
         id: "pest_control",
@@ -43,6 +119,68 @@
                 name: "tilda",
             ),
         ],
+        giver: "tilda",
+        giver_name: "Tilda",
+        requires: [
+            (
+                cond: Flag(
+                    name: "shrine_lit",
+                ),
+                negate: true,
+            ),
+        ],
+        offer: (
+            lines: [],
+            question: "Slimes from Whisperwood keep eating my deliveries! Could you get rid of five of them? 30 coins and a potion are yours.",
+            accept: "I\'ll do it.",
+            decline: "Not right now.",
+            accepted: [
+                "Wonderful! Come back when it\'s done. Now, care to look at my wares?",
+            ],
+            declined: [
+                "The offer stands. Now, care to look at my wares?",
+            ],
+        ),
+        steps: [
+            (
+                done: Conditions([
+                    (
+                        cond: Var(
+                            name: "pest_slimes",
+                            op: Ge,
+                            value: 5,
+                        ),
+                        negate: false,
+                    ),
+                ]),
+            ),
+            (
+                done: Talk(
+                    character: "",
+                    lines: [
+                        "The slimes are gone? My deliveries are safe again - thank you, {player}! Here, as promised.",
+                    ],
+                ),
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "coin",
+                    count: 30,
+                ),
+                (
+                    item: "potion",
+                    count: 1,
+                ),
+            ],
+            skill_points: 1,
+            actions: [
+                RunScript(
+                    function: "quest_thanks",
+                ),
+            ],
+        ),
     ),
     (
         id: "lost_cat",
@@ -68,6 +206,92 @@
                 name: "mira",
             ),
         ],
+        giver: "mira",
+        giver_name: "Mira",
+        offer: (
+            lines: [
+                "Hi, {player}... Have you seen a ginger cat? My Biscuit has been gone for two whole days!",
+            ],
+            question: "Will you help me find him?",
+            accept: "I\'ll find him",
+            decline: "Not now",
+            accepted: [
+                "Thank you! Ask around - somebody must have seen him.",
+            ],
+            declined: [
+                "Oh... okay. Biscuit, where are you...",
+            ],
+        ),
+        steps: [
+            (
+                done: Conditions([
+                    (
+                        cond: Var(
+                            name: "cat_clues",
+                            op: Ge,
+                            value: 2,
+                        ),
+                        negate: false,
+                    ),
+                ]),
+                giver_line: "Any news of Biscuit? Bram, Old Finn or the miller might have seen him.",
+                on_done: [
+                    Dialog(
+                        speaker: "",
+                        text: "Two clues point the same way: Biscuit must be hiding in the old mill, across the river.",
+                    ),
+                ],
+            ),
+            (
+                done: Talk(
+                    character: "biscuit",
+                    lines: [
+                        "Mrrp?",
+                    ],
+                    speaker: "Biscuit",
+                ),
+                giver_line: "Any news of Biscuit? Bram, Old Finn or the miller might have seen him.",
+                on_done: [
+                    Dialog(
+                        speaker: "",
+                        text: "It\'s Biscuit! Fat and happy from the mill\'s mice. He trots off towards home.",
+                    ),
+                    SetFlag(
+                        name: "biscuit_found",
+                        value: true,
+                    ),
+                    SetActive(
+                        target: "biscuit",
+                        active: false,
+                    ),
+                ],
+            ),
+            (
+                done: Talk(
+                    character: "",
+                    lines: [
+                        "He was in the mill all along? And he\'s home now? Oh, thank you, thank you!",
+                    ],
+                ),
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "coin",
+                    count: 10,
+                ),
+                (
+                    item: "apple_pie",
+                    count: 1,
+                ),
+            ],
+            actions: [
+                RunScript(
+                    function: "quest_thanks",
+                ),
+            ],
+        ),
     ),
     (
         id: "festival_bread",
@@ -88,6 +312,90 @@
                 name: "bram",
             ),
         ],
+        giver: "bram",
+        giver_name: "Bram",
+        offer: (
+            lines: [
+                "Trouble, {player}! Outlaws raided Jorun\'s flour cart on the forest road, and the harvest festival is in three days.",
+            ],
+            question: "Could you bring back the flour? Three sacks would save the festival loaf.",
+            accept: "Leave it to me",
+            decline: "Not now",
+            accepted: [
+                "Bless you! The cart lies by the road past the east gate. Mind the outlaws.",
+            ],
+            declined: [],
+        ),
+        steps: [
+            (
+                done: Talk(
+                    character: "",
+                    lines: [
+                        "The flour! I\'ll keep one sack for the rolls. I\'m run off my feet - bake the loaf at my oven yourself: two flour, this egg and this honey.",
+                    ],
+                    when: [
+                        (
+                            cond: HasItem(
+                                item: "flour",
+                                count: 3,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                ),
+                on_done: [
+                    TakeItem(
+                        item: "flour",
+                        count: 1,
+                    ),
+                    GiveItem(
+                        item: "egg",
+                        count: 1,
+                    ),
+                    GiveItem(
+                        item: "honey",
+                        count: 1,
+                    ),
+                ],
+            ),
+            (
+                done: Talk(
+                    character: "",
+                    lines: [
+                        "Golden and braided, just like my grandmother\'s! The festival is saved, {player}.",
+                    ],
+                    when: [
+                        (
+                            cond: HasItem(
+                                item: "festival_bread",
+                                count: 1,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                ),
+                on_done: [
+                    TakeItem(
+                        item: "festival_bread",
+                        count: 1,
+                    ),
+                ],
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "coin",
+                    count: 40,
+                ),
+            ],
+            skill_points: 1,
+            actions: [
+                RunScript(
+                    function: "quest_thanks",
+                ),
+            ],
+        ),
     ),
     (
         id: "herbal_remedy",
@@ -108,6 +416,132 @@
                 name: "pip_sick",
             ),
         ],
+        giver: "ida",
+        giver_name: "Ida",
+        offer: (
+            lines: [
+                "My little Pip is ill with a fever. Wren can brew a remedy, but she needs feverleaf, bitterroot and a moonpetal.",
+            ],
+            question: "Would you gather the herbs for her?",
+            accept: "I\'ll gather them",
+            decline: "Not now",
+            accepted: [
+                "Thank you, {player}! Bring them to Wren at the apothecary.",
+            ],
+            declined: [],
+        ),
+        steps: [
+            (
+                done: Talk(
+                    character: "wren",
+                    lines: [
+                        "Feverleaf, bitterroot and a moonpetal - all three! Brew them at my alchemy table with a mortar and pestle.",
+                    ],
+                    when: [
+                        (
+                            cond: HasItem(
+                                item: "feverleaf",
+                                count: 1,
+                            ),
+                            negate: false,
+                        ),
+                        (
+                            cond: HasItem(
+                                item: "bitterroot",
+                                count: 1,
+                            ),
+                            negate: false,
+                        ),
+                        (
+                            cond: HasItem(
+                                item: "moonpetal",
+                                count: 1,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                    speaker: "Wren",
+                ),
+                giver_line: "Please hurry, {player}. Pip\'s fever is getting worse.",
+                on_done: [
+                    If(
+                        conditions: [
+                            (
+                                cond: HasItem(
+                                    item: "mortar",
+                                    count: 1,
+                                ),
+                                negate: true,
+                            ),
+                        ],
+                        then: [
+                            GiveItem(
+                                item: "mortar",
+                                count: 1,
+                            ),
+                            Dialog(
+                                speaker: "",
+                                text: "Wren gives you her spare mortar and pestle.",
+                            ),
+                        ],
+                        otherwise: [],
+                    ),
+                ],
+            ),
+            (
+                done: Talk(
+                    character: "pip_sick",
+                    lines: [
+                        "Yuck, it\'s so bitter! ...Oh. Oh, my head doesn\'t hurt any more!",
+                    ],
+                    when: [
+                        (
+                            cond: HasItem(
+                                item: "remedy",
+                                count: 1,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                    speaker: "Pip",
+                ),
+                giver_line: "Please hurry, {player}. Pip\'s fever is getting worse.",
+                on_done: [
+                    TakeItem(
+                        item: "remedy",
+                        count: 1,
+                    ),
+                    Emote(
+                        target: "pip_sick",
+                        emotion: "joy",
+                        seconds: 3.0,
+                        wait: false,
+                    ),
+                    Dialog(
+                        speaker: "",
+                        text: "Ida presses 20 coins into your hand.",
+                    ),
+                ],
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "coin",
+                    count: 20,
+                ),
+            ],
+            skill_points: 1,
+            actions: [
+                SetFlag(
+                    name: "pip_cured",
+                    value: true,
+                ),
+                RunScript(
+                    function: "quest_thanks",
+                ),
+            ],
+        ),
     ),
     (
         id: "tavern_rumours",
@@ -128,6 +562,51 @@
                 name: "halvar_locket",
             ),
         ],
+        steps: [
+            (
+                done: Talk(
+                    character: "brom",
+                    lines: [
+                        "Halvar? Greta\'s been telling tales again. He was my friend. Forty years ago he went down into the old mine and never came back.",
+                        "He always wore a silver locket with his Elsa\'s picture in it. If it\'s still down there... I\'d like to have it. For her grave.",
+                    ],
+                    speaker: "Brom",
+                ),
+            ),
+            (
+                done: Talk(
+                    character: "brom",
+                    lines: [
+                        "That\'s it. That\'s Halvar\'s locket... Thank you, {player}. I\'ll lay it on Elsa\'s grave tonight. Take this - and my best edge on anything you bring me.",
+                    ],
+                    when: [
+                        (
+                            cond: HasItem(
+                                item: "locket",
+                                count: 1,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                    speaker: "Brom",
+                ),
+                on_done: [
+                    TakeItem(
+                        item: "locket",
+                        count: 1,
+                    ),
+                ],
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "coin",
+                    count: 50,
+                ),
+            ],
+            skill_points: 1,
+        ),
     ),
     (
         id: "elven_trust",
@@ -143,5 +622,153 @@
                 name: "wild_herbalist",
             ),
         ],
+        giver: "wild_herbalist",
+        giver_name: "Elven Herbalist",
+        offer: (
+            lines: [
+                "The wolves keep digging up my herb grounds. Bring me two of their pelts, and the elves will count you a friend.",
+            ],
+            question: "",
+            accept: "",
+            decline: "",
+            accepted: [],
+            declined: [],
+        ),
+        steps: [
+            (
+                done: Talk(
+                    character: "",
+                    lines: [
+                        "Two fine pelts! The wolves will trouble my herb grounds less now. Thank you, {player}.",
+                        "I will tell the rangers about you. My people will know you as a friend.",
+                    ],
+                    when: [
+                        (
+                            cond: HasItem(
+                                item: "wolf_pelt",
+                                count: 2,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                ),
+                giver_line: "Two wolf pelts, {player}. The wolves roam all over the Wilds.",
+                on_done: [
+                    TakeItem(
+                        item: "wolf_pelt",
+                        count: 2,
+                    ),
+                ],
+            ),
+        ],
+        rewards: (
+            actions: [
+                ChangeStanding(
+                    faction: "elves",
+                    amount: 40,
+                ),
+            ],
+        ),
+    ),
+    (
+        id: "shrine_offering",
+        title: "An Offering for the Shrine",
+        description: "With the lights calmed, Elder Rowan remembered the old custom: a jar of honey for the shrine in Whisperwood every spring, as thanks.",
+        stages: [
+            "Get a jar of honey (there are beehives in the village).",
+            "Leave the honey at the shrine in Whisperwood.",
+            "Tell Elder Rowan.",
+        ],
+        xp: 50,
+        targets: [
+            (
+                map: "",
+                name: "",
+            ),
+            (
+                map: "forest",
+                name: "shrine",
+            ),
+            (
+                map: "village",
+                name: "elder",
+            ),
+        ],
+        giver: "elder",
+        giver_name: "Elder Rowan",
+        requires: [
+            (
+                cond: Quest(
+                    quest: "strange_lights",
+                    check: Completed,
+                    stage: 0,
+                ),
+                negate: false,
+            ),
+        ],
+        offer: (
+            lines: [
+                "Since the lights calmed, I keep thinking of the old shrine. Our grandparents left it honey every spring, as thanks.",
+                "We forgot, and maybe that is why it stirred.",
+            ],
+            question: "Would you bring it an offering for us?",
+            accept: "Gladly",
+            decline: "Another time",
+            accepted: [
+                "A jar of honey will do. There are beehives in the village - mind the bees.",
+            ],
+            declined: [
+                "The shrine has waited forty years. It can wait a little longer.",
+            ],
+        ),
+        steps: [
+            (
+                done: Conditions([
+                    (
+                        cond: HasItem(
+                            item: "honey",
+                            count: 1,
+                        ),
+                        negate: false,
+                    ),
+                ]),
+                giver_line: "A jar of honey, {player}. The beehives are by the gardens.",
+            ),
+            (
+                done: Reach,
+                giver_line: "Leave the honey at the shrine, {player}.",
+                on_done: [
+                    TakeItem(
+                        item: "honey",
+                        count: 1,
+                    ),
+                    RunScript(
+                        function: "shrine_offering",
+                    ),
+                ],
+            ),
+            (
+                done: Talk(
+                    character: "",
+                    lines: [
+                        "You left it an offering? Then the shrine will sleep well, and so will I.",
+                        "Thank you, {player}. Emberbrook is lucky to have you.",
+                    ],
+                ),
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "coin",
+                    count: 20,
+                ),
+            ],
+            actions: [
+                RunScript(
+                    function: "quest_thanks",
+                ),
+            ],
+        ),
     ),
 ]

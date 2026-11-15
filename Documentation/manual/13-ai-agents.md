@@ -71,7 +71,7 @@ bats and a chest".
 | Tool | Does |
 |---|---|
 | `list_maps` | Size, materials, decoration / entity / zone counts, spawns and where each map leads. |
-| `get_map {map, x, y, w, h, collision, ground, objects}` | A region as text: the collision grid with column / row rulers (`#` blocked by the ground or decorations, `.` free, `S` / `W` overrides), the painted ground (the material in each tile's middle, `a=grass, b=dirt`; `.` none), the decorations (a count per prop and layer, each one `D prop @x,y` when there are few) and the objects there (`E uid kind def "name" @x,y …`, `Z uid "name" kind @x,y wxh`). Whole map when it fits 80x50. |
+| `get_map {map, x, y, w, h, collision, ground, objects, triggers}` | A region as text: the collision grid with column / row rulers (`#` blocked by the ground or decorations, `.` free, `S` / `W` overrides), the painted ground (the material in each tile's middle, `a=grass, b=dirt`; `.` none), the decorations (a count per prop and layer, each one `D prop @x,y` when there are few) and the objects there (`E uid kind def "name" @x,y …`, `Z uid "name" kind @x,y wxh`). Whole map when it fits 80x50. `triggers: true` adds the map's own triggers as JSON (what `set_triggers` with owner `{"map":true}` replaces). |
 | `get_object {map, uid}` | An entity or zone as JSON. |
 | `view_image {kind, id, grid}` | The PNG of a sprite sheet (`sheet`, with cell borders drawn in; small images are shown enlarged) or a material's texture (`material`). |
 | `edit_frames {sheet, op, anim, frame, row, to_row, dx, dy, from, to, scope}` | Frame operations on a sheet's image: `mirror_rows` (four-facing sheets: Right rows = the mirrored Left rows; of `anim` or all), `copy_row` / `clear_row`, `duplicate` (a frame into the next column), `nudge` (move a frame's pixels), `replace_color` (`from` → `to` in a `frame`, `row` or the whole `sheet`), `fill_standing` (four-facing sheets: empty idle / hurt frames get the standing frame). Writes the PNG and reloads the art. |
@@ -179,7 +179,9 @@ Resources: `rustpg2d://docs/mcp` (this chapter), `rustpg2d://docs/scripting`
 ([Scripting](08-scripting.md)), `rustpg2d://docs/events` ([Events](07-events.md)),
 `rustpg2d://docs/autoplay` ([Testing your game](17-testing.md)), `rustpg2d://project` (the project
 summary). Prompts: `design_quest (theme, giver, reward)` and `build_map (name, setting, width,
-height, connect_to)` — step-by-step instructions over the tools above.
+height, connect_to)` — step-by-step instructions over the tools above. `design_quest` describes the
+whole quest in its definition (`upsert_def quests`: giver, offer, steps, rewards; `def_template
+quests` shows every field), as the quest editor does: no triggers on the giver.
 
 ## Files changed on disk
 

@@ -46,8 +46,17 @@ impl Game {
         quests.sort_by_key(|q| std::cmp::Reverse(q.1.order));
         for (id, p) in quests {
             let Some(def) = self.project.db.quests.iter().find(|q| q.id == *id) else { continue };
-            let Some(t) = def.target_of(p.stage) else { continue };
             let title = self.world.expand_text(&def.title);
+            // A Talk step: over the character it waits for, when it is here.
+            if let Some(who) = def.talk_to(p.stage) {
+                if let Some(e) = self.loaded.entities.iter().find(|e| e.active && e.kind == EntityKind::Character && (e.name == who || e.def == who)) {
+                    let look = self.look(&e.appearance);
+                    let h = self.project.db.model(&look.model).map_or(ts * 1.4, |m| m.height) * self.look_size(&e.appearance);
+                    out.push(Marker { quest: id.clone(), title, pos: e.body.pos - vec2(0.0, h + ts * 0.25), via: None });
+                    continue;
+                }
+            }
+            let Some(t) = def.target_of(p.stage) else { continue };
             let (map, name) = (t.map.trim(), t.name.trim());
             if map == m.name {
                 // The target here: a placed entity (over its head), else a zone (its middle).

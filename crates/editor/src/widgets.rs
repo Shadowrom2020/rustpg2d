@@ -726,6 +726,10 @@ pub struct Refs {
     pub vars: Vec<String>,
     /// Quest ids with their number of stages.
     pub quests: Vec<String>,
+    /// Placed characters' names (every map), then character definitions: quest givers.
+    pub people: Vec<String>,
+    /// The placed characters of every map: (name, definition).
+    pub placed_characters: Vec<(String, String)>,
     pub quest_stages: HashMap<String, Vec<String>>,
     pub skills: Vec<String>,
     pub spells: Vec<String>,

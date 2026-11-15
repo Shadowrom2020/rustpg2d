@@ -385,8 +385,8 @@ scripts use `used_item()`, `self_name()` and `is_consumable(item)`
 
 The **journal** (J) has four tabs:
 
-- **Quests**: active quests (newest first) and finished ones, with the description and the objectives
-  reached so far ([The Database › Quests](05-database.md#quests)).
+- **Quests**: active quests (newest first) and finished ones, with who gave them, the description,
+  the rewards and the objectives reached so far ([The Database › Quests](05-database.md#quests)).
 - **Bestiary**: every kind of character the player has defeated, how many, a portrait, the
   definition's *Description*, its numbers and drops. The *Defeated count* condition and
   `defeated_count("slime")` make "defeat ten slimes" quests without a script.
@@ -404,6 +404,9 @@ current, for every active quest:
 - a target on another map is shown at the exit leading there (a door, a map transition or a map
   edge) on the current map;
 - the map screen (M) pins the same spots with the quest's title.
+
+A step that waits for a talk with someone marks that character when it is on the map. A character
+with a quest to offer right now has a golden **!** over its head (talking to it offers the quest).
 
 Players switch them off in *Options › Gameplay › Quest markers*. In the example every quest stage with one place
 to go has a marker: the chest in the elder's house, the shrine, the slime den, Tilda, the mill's cat,

@@ -155,16 +155,24 @@ An *Unlocked* trigger on the door can add a line or a sound.
 
 ### A quest
 
-1. Define the quest in *Database › Quests* with its stages.
-2. The quest giver's *Interact* trigger, if *Quest* **not started**: *Dialog*, *Choice* "Will you
-   help?" into `help`, then *If* `help` = 0: *Quest* **start**.
-3. Steps advance it: a trigger zone's *Enter*, a prop's *Interact*, an enemy's *Defeat* trigger, a
-   *Defeated count* condition: *Quest* **advance** (or **set stage**).
-4. The giver's second *Interact* trigger, if *Quest* **active at stage** N: *Dialog* "Thank you!",
-   *Quest* **complete**, *Give item*, *Give experience*.
+Describe it in *Database › Quests* ([Database › Quests](05-database.md#quests)): the giver, the
+offer, each step (talk to someone, reach a place, conditions that hold) with actions when it starts
+and when it is done, and the rewards. The game plays it; the giver needs no triggers. The example's
+quests are all built this way (Elder Rowan's two, Tilda's, Mira's, Bram's, Ida's, Brom's and the
+elven herbalist's).
 
-The example's quests show every variation; open Elder Rowan, Tilda and Mira in the village to read
-them, or look at them in the Events graph.
+Triggers still take part where a quest needs more than the editor describes:
+
+- something the player does elsewhere counts: the clues three villagers give for Mira's cat (their
+  *Interact* triggers run `cat_clue()`, which adds to `cat_clues`; the quest's step is done when
+  `cat_clues` >= 2);
+- a map changes during a step: a *Map enter* trigger with the *Quest* condition (*active at
+  stage*) puts the cart's outlaws or the lost cat there;
+- a quest is started from somewhere else: Greta's tavern menu starts *Rumours at the Tavern* with
+  the *Quest* action (**start**); the quest has no giver, its steps and rewards still play.
+
+The *Quest* action (**advance**, **set stage**, **complete**, **fail**) and condition work on these
+quests too, and their step actions and rewards run whichever way a quest moves on.
 
 ### A shop after a greeting
 

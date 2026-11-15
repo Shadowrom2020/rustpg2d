@@ -50,6 +50,7 @@ mod attacks;
 mod defense;
 mod barks;
 mod markers;
+mod quests;
 mod soundscape;
 mod stealth;
 mod emotions;
@@ -521,6 +522,11 @@ pub struct Game {
     /// The HUD is hidden (H, or a script / action); not saved.
     ui_hidden: bool,
     cutscene: cutscene::CutsceneState,
+    /// Quests described in the quest editor: the next check of Conditions steps, the next
+    /// refresh of the offers, and the characters offering a quest now (uid, quest).
+    quest_check_timer: f32,
+    offer_check_timer: f32,
+    offer_cache: Vec<(u32, String)>,
 }
 
 impl Game {
@@ -637,6 +643,9 @@ impl Game {
             slot: None,
             ui_hidden: false,
             cutscene: Default::default(),
+            quest_check_timer: 0.0,
+            offer_check_timer: 0.0,
+            offer_cache: Vec::new(),
         };
         let arrival = match (start.pos, start.spawn) {
             (Some(p), _) => Arrival::Pos(p),
@@ -1455,6 +1464,12 @@ impl Game {
     }
 
     fn fire(&mut self, ev: GameEvent, source: Source) -> bool {
+        // Entering a zone may be where a quest step leads.
+        if let (GameEvent::Enter, Source::Zone(uid)) = (&ev, &source) {
+            if let Some(name) = self.loaded.map.zones.iter().find(|z| z.uid == *uid).map(|z| z.name.clone()) {
+                self.quest_reach(&name);
+            }
+        }
         let actions = self.collect(&ev, &source);
         let any = !actions.is_empty();
         for (a, ctx) in actions {
@@ -1745,6 +1760,10 @@ impl Game {
         // of characters a 'Damage area' defeats) went to the stand-in runner: keep them.
         let queued = std::mem::replace(&mut self.runner, runner);
         self.runner.append(queued);
+        if !self.on_title() {
+            self.check_quest_steps(dt);
+            self.refresh_quest_offers(dt);
+        }
         self.update_leaving(dt);
         // Moods last as long as the event that set them; so do pictures that don't wait.
         if !self.moods.is_empty() && !self.runner.busy() && !self.ui.dialog_open() {
@@ -2100,7 +2119,15 @@ impl Game {
                     }
                 }
             }
-            let fired = self.fire(GameEvent::Interact, Source::Entity(uid));
+            // Quests: a step leading to this entity is done; after its own Interact triggers
+            // (a greeting, what it says asleep) a character says what it has to say about a quest:
+            // a Talk step waiting for it, else (not while it lies in bed) an offer or its line for
+            // the current step.
+            let name = self.loaded.entities[i].name.clone();
+            self.quest_reach(&name);
+            let own = self.fire(GameEvent::Interact, Source::Entity(uid));
+            let awake = self.npc_pose(i) != "lie";
+            let fired = self.quest_talk(i, awake) || own;
             match self.loaded.entities[i].kind {
                 EntityKind::Prop => {
                     self.try_open_container(i);
@@ -2361,7 +2388,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} ground={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} ground={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2451,6 +2478,7 @@ impl Game {
             self.audio.ambient_status(),
             self.friends_status(),
             self.markers_status(),
+            self.offers_status(),
             self.hits_status(),
             self.anims_status(),
             self.held_status(),
@@ -2744,6 +2772,7 @@ impl Game {
         if !self.on_title() {
             self.draw_barks(&cam);
             self.draw_quest_markers(&cam);
+            self.draw_offer_marks(&cam);
             self.draw_damage_numbers(&cam);
         }
         let alpha = match &self.fade {
@@ -3119,8 +3148,13 @@ impl ActionHost for Game {
                 Step::Continue
             }
             Action::Quest { quest, op, stage } => {
-                self.quest_changed(quest, *op, *stage);
-                Step::Continue
+                // What the quest editor describes around it (step actions, rewards) runs next.
+                let follow = self.quest_changed(quest, *op, *stage);
+                if follow.is_empty() {
+                    Step::Continue
+                } else {
+                    Step::Insert(follow)
+                }
             }
             Action::Companion { target, join } => {
                 match self.entity_index(target, ctx.owner) {

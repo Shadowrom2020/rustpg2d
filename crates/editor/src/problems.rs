@@ -268,6 +268,11 @@ impl Editor {
                     RefKind::Item => db.item(&id).map(|d| d.on_use.clone()),
                     RefKind::Prop => db.prop(&id).map(|d| d.triggers.clone()),
                     RefKind::Character => db.character(&id).map(|d| d.triggers.clone()),
+                    // A quest's action lists (steps, rewards), checked like triggers.
+                    RefKind::Quest => db.quest(&id).map(|q| {
+                        let lists = q.steps.iter().flat_map(|s| [&s.on_start, &s.on_done]).chain([&q.rewards.actions]);
+                        lists.map(|a| Trigger { actions: a.clone(), ..Trigger::new(rustpg2d_engine::events::TriggerOn::Interact) }).collect()
+                    }),
                     _ => None,
                 };
                 self.trigger_problems(&triggers.unwrap_or_default(), Area::Definitions, &place, &target, out);
@@ -324,6 +329,30 @@ impl Editor {
                 }
                 if k == RefKind::Quest && db.quest(&id).is_some_and(|q| q.stages.is_empty()) {
                     out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: "has no stages: the journal shows nothing while it is active".into(), target: target.clone() });
+                }
+                if let Some(q) = db.quest(&id).filter(|_| k == RefKind::Quest) {
+                    use rustpg2d_engine::quest::StepGoal;
+                    let warn = |text: String, out: &mut Vec<Problem>| out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text, target: target.clone() });
+                    // Givers and talk characters: a placed character's name or a definition.
+                    let known = |who: &str| who.trim().is_empty() || self.refs.people.iter().any(|p| p == who);
+                    let talks = q.steps.iter().filter_map(|s| match &s.done {
+                        StepGoal::Talk { character, .. } => Some(character.as_str()),
+                        _ => None,
+                    });
+                    for who in std::iter::once(q.giver.as_str()).chain(talks).filter(|w| !known(w)) {
+                        out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: format!("names the character \"{who}\", which is neither a placed character's name nor a character definition"), target: target.clone() });
+                    }
+                    if q.has_giver() && q.offer.lines.iter().chain([&q.offer.question]).all(|l| l.trim().is_empty()) {
+                        warn("its giver says nothing when offering it: the quest starts silently when they are talked to".into(), out);
+                    }
+                    for (n, s) in q.steps.iter().enumerate().take(q.stages.len()) {
+                        match &s.done {
+                            StepGoal::Conditions(c) if c.is_empty() => warn(format!("step {n} is done when its conditions hold, but has none: it is done at once"), out),
+                            StepGoal::Reach if q.target_of(n as u32).is_none() => warn(format!("step {n} is done on reaching its marker target, but has none (map and name)"), out),
+                            StepGoal::Talk { character, .. } if character.trim().is_empty() && !q.has_giver() => warn(format!("step {n} waits for a talk with the giver, but the quest has no giver"), out),
+                            _ => {}
+                        }
+                    }
                 }
             }
         }

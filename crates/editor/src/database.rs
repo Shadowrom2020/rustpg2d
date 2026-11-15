@@ -68,6 +68,16 @@ pub fn take_usages_request() -> Option<String> {
     USAGES.with(|u| u.borrow_mut().take())
 }
 
+thread_local! {
+    /// A link in a form asked to open another definition (kind, id).
+    static JUMP: std::cell::RefCell<Option<(RefKind, String)>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Opens definition `id` of `kind` after this frame's form (links between forms).
+pub fn request_jump(kind: RefKind, id: &str) {
+    JUMP.with(|j| *j.borrow_mut() = Some((kind, id.to_string())));
+}
+
 impl Tab {
     /// The kind of definitions the tab edits (`None` for Project and Scripts).
     pub fn kind(self) -> Option<RefKind> {
@@ -522,7 +532,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     &mut db.quests,
                     sel,
                     |d| format!("{}  ({})", d.title, d.id),
-                    |ids| rustpg2d_engine::quest::QuestDef { id: unique("quest", ids), title: "New quest".into(), description: String::new(), stages: vec!["First objective".into()], xp: 0, targets: vec![] },
+                    |ids| rustpg2d_engine::quest::QuestDef { id: unique("quest", ids), title: "New quest".into(), stages: vec!["First objective".into()], ..Default::default() },
                     |d| &mut d.id,
                 ),
                 _ => false,
@@ -610,7 +620,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     }
                     Tab::Quests => {
                         if let Some(d) = db.quests.get_mut(i) {
-                            quest_form(ui, d, &mut cx);
+                            crate::quest_form::quest_form(ui, d, cx.refs, cx.db);
                         }
                     }
                     Tab::Skills => {
@@ -709,6 +719,9 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             ed.px.sel_frame = sel;
         }
     }
+    if let Some((kind, id)) = JUMP.with(|j| j.borrow_mut().take()) {
+        ed.jump_to(&crate::search::Target::Def(kind, id));
+    }
     if let Some((prop, old, new)) = state_renamed.take() {
         ed.rename_prop_state(&prop, &old, &new);
     }
@@ -763,7 +776,7 @@ pub fn rename_row(ui: &mut egui::Ui, kind: RefKind, id: &str, rn: &mut RenameUi)
 
 /// A multi-line text box as wide as the visible form, minus a margin for the scroll bar (the
 /// form's content may be wider than the window).
-fn text_box(ui: &mut egui::Ui, text: &mut String, rows: usize, hint: &str) -> egui::Response {
+pub(crate) fn text_box(ui: &mut egui::Ui, text: &mut String, rows: usize, hint: &str) -> egui::Response {
     let w = (ui.clip_rect().right() - ui.cursor().left() - 18.0).clamp(200.0, ui.available_width());
     ui.add(egui::TextEdit::multiline(text).desired_rows(rows).desired_width(w).hint_text(hint))
 }
@@ -1658,6 +1671,20 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     name_row(ui, &mut d.name);
     ui.label("Description").on_hover_text("What the bestiary (journal, J) says about it once the player has defeated one. Placeholders like {player} work.");
     text_box(ui, &mut d.description, 3, "Shown in the bestiary once the player has defeated one");
+    // The quests it gives (Database › Quests: Giver), as links.
+    // (Given by the definition, or by a character placed from it.)
+    let placed = |who: &str| cx.refs.placed_characters.iter().any(|(n, def)| n == who && *def == d.id);
+    let gives: Vec<(String, String)> = cx.db.quests.iter().filter(|q| q.giver == d.id || placed(&q.giver)).map(|q| (q.id.clone(), q.title.clone())).collect();
+    if !gives.is_empty() {
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Gives quests").on_hover_text("Quests whose giver is this character (Database › Quests): click one to open it");
+            for (id, title) in gives {
+                if ui.link(if title.is_empty() { id.clone() } else { title }).clicked() {
+                    request_jump(RefKind::Quest, &id);
+                }
+            }
+        });
+    }
     portrait_ui(ui, d, cx);
     if !cx.db.races.is_empty() || !d.race.is_empty() {
         ui.horizontal(|ui| {
@@ -1852,73 +1879,6 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     ui.separator();
     ui.heading("Default triggers");
     widgets::triggers_ui(ui, &format!("chr/{}", d.id), &mut d.triggers, cx.refs, rustpg2d_engine::events::TriggerOwner::Character);
-}
-
-fn quest_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::quest::QuestDef, cx: &mut Cx) {
-    ui.heading("Quest");
-    egui::Grid::new("quest").num_columns(2).show(ui, |ui| {
-        ui.label("Id");
-        ui.add(egui::TextEdit::singleline(&mut d.id).desired_width(200.0))
-            .on_hover_text("Used by 'Quest' actions / conditions and scripts (start_quest(\"id\")). Changing it does not update them.");
-        ui.end_row();
-        ui.label("Title");
-        ui.add(egui::TextEdit::singleline(&mut d.title).desired_width(320.0));
-        ui.end_row();
-        ui.label("Experience reward");
-        ui.add(egui::DragValue::new(&mut d.xp).range(0..=1_000_000).suffix(" XP"))
-            .on_hover_text("Given when the quest is completed (Project › Experience and levels must be on).");
-        ui.end_row();
-    });
-    ui.label("Description (shown in the journal)");
-    text_box(ui, &mut d.description, 3, "");
-    ui.separator();
-    ui.heading("Stages");
-    ui.weak("One objective per stage. The journal shows the objectives reached so far: earlier ones ticked, the current one open. \
-             Triggers move the quest on with the Quest action (start, advance to the next stage, set stage, complete, fail) \
-             and check it with the Quest condition; scripts use start_quest / advance_quest / set_quest_stage / complete_quest / fail_quest \
-             and quest_stage / quest_active / quest_done. Write {name} to show the value of variable 'name', e.g. \"Defeat slimes ({slimes}/5)\". \
-             Each stage can lead somewhere: a map and the name of a placed character, prop or zone there get a quest marker while the stage is current.");
-    let n = d.stages.len();
-    // One target per stage (empty = no marker); trailing empty ones aren't saved.
-    d.targets.resize(n, Default::default());
-    let mut swap = None;
-    let mut remove = None;
-    for (k, s) in d.stages.iter_mut().enumerate() {
-        ui.horizontal(|ui| {
-            ui.label(format!("{k}"));
-            ui.add(egui::TextEdit::multiline(s).desired_rows(1).desired_width(460.0));
-            if ui.add_enabled(k > 0, egui::Button::new("^").small()).on_hover_text("Move up").clicked() {
-                swap = Some(k - 1);
-            }
-            if ui.add_enabled(k + 1 < n, egui::Button::new("v").small()).on_hover_text("Move down").clicked() {
-                swap = Some(k);
-            }
-            if ui.small_button("\u{E4F6}").on_hover_text("Remove (later stages move up: check your triggers)").clicked() {
-                remove = Some(k);
-            }
-        });
-        let t = &mut d.targets[k];
-        ui.horizontal(|ui| {
-            ui.add_space(14.0);
-            ui.weak("leads to").on_hover_text("Its quest marker: over this character, prop or zone (by its name on the map) while the stage is current; on other maps at the exit leading there");
-            widgets::suggest(ui, &format!("qt_map{k}"), &mut t.map, &cx.refs.maps, 110.0);
-            ui.add(egui::TextEdit::singleline(&mut t.name).desired_width(140.0).hint_text("name on the map"));
-        });
-    }
-    if let Some(k) = swap {
-        d.stages.swap(k, k + 1);
-        d.targets.swap(k, k + 1);
-    }
-    if let Some(k) = remove {
-        d.stages.remove(k);
-        d.targets.remove(k);
-    }
-    if ui.button("+ Stage").clicked() {
-        d.stages.push(String::new());
-    }
-    while d.targets.last().is_some_and(|t| t.map.is_empty() && t.name.is_empty()) {
-        d.targets.pop();
-    }
 }
 
 /// Colour presets for colour features: (name, colours).

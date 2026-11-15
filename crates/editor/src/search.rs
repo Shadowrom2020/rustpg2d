@@ -394,7 +394,8 @@ impl Editor {
                 let defs: Vec<serde_json::Value> = rustpg2d_engine::with_def_kind!(k, |T| T::list(db).iter().filter_map(|d| serde_json::to_value(d).ok()).collect(), else => Vec::new());
                 for v in defs {
                     let did = v.get("id").and_then(|i| i.as_str()).unwrap_or_default().to_string();
-                    if !(k == kind && did == id) && names(kind, &v, id) > 0 {
+                    let listed = out.iter().any(|e: &Entry| e.target == Target::Def(k, did.clone()));
+                    if !(k == kind && did == id) && !listed && names(kind, &v, id) > 0 {
                         out.push(Entry::new(What::Def(k), did.clone(), format!("{} names it", k.label()), Target::Def(k, did)));
                     }
                 }

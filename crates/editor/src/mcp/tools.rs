@@ -62,6 +62,8 @@ pub struct GetMapParams {
     pub objects: Option<bool>,
     /// Print the painted ground: the material in the middle of each tile (default true).
     pub ground: Option<bool>,
+    /// Print the map's own triggers as JSON (what set_triggers with owner {"map":true} replaces; default false).
+    pub triggers: Option<bool>,
 }
 
 /// A stroke of the Ground tool: points in tiles (fractions allowed; 0.5 = a tile's middle).
@@ -949,11 +951,10 @@ pub fn prompt_text(name: &str, arg: &dyn Fn(&str) -> String) -> Option<String> {
             "Design and build a quest for this R(ust)PG2D project.\nTheme: {theme}\nQuest giver: {giver}\nReward: {reward}\n\n\
 Work in these steps, reading before writing:\n\
 1. `project_info`, then `list_defs characters`, `list_defs items`, `list_defs quests` to see what exists and the naming style.\n\
-2. `def_template quests` and `upsert_def quests` for the quest (title, description, 2-4 stages, xp).\n\
-3. `events_reference` for the shapes, then `set_triggers` on the giver (find them with `get_map` / `get_object`): an Interact trigger with Dialog, a Choice, Quest{{op: Start}}; further triggers gated by Quest conditions for the later stages and the reward (GiveItem, GiveXp, Quest{{op: Complete}}).\n\
-4. Anything the stages need on the maps: items to find (`place_entity`), a zone with an Enter trigger (`add_zone`), an enemy to defeat (a Spawner zone + Defeated condition).\n\
-5. Script logic that triggers can't express: `write_script` into scripts/<quest>.rhai and `check_script`.\n\
-6. `play_test` with a script that talks to the giver (`press e` twice per dialog page, `wait 2.5` between) and ends with `status` to confirm `quests=` shows the quest; take a `shot`.\n\
+2. `def_template quests`, then `upsert_def quests` with the whole quest described in it: title, description, 2-4 stages (the journal lines), xp; `giver` (the placed character's name, or a character definition) and `giver_name` (its name in the dialogs); `requires` (conditions for the offer, e.g. another quest completed for a follow-up); `offer` (lines, question, accept / decline, the lines after each answer); `steps` (per stage how it is done: {{Talk:{{character, lines, when, speaker}}}} (\"\" = back to the giver; `when` e.g. HasItem for a hand-in, then TakeItem in `on_done`), {{Conditions:[..]}} (has items, defeated count, a variable, a flag), \"Reach\" (the stage's target), \"Manual\"; `giver_line`, `on_start` / `on_done` actions, e.g. {{RunScript:{{function}}}}); `rewards` (items, skill_points, actions); `targets` for the quest markers. The game plays all of it: no triggers on the giver are needed.\n\
+3. Anything the steps need on the maps: items to find (`place_entity`), a named zone or prop for a Reach step (`add_zone`), an enemy to defeat (a Spawner zone + Defeated condition).\n\
+4. Script logic the steps call (`on_start` / `on_done` / reward actions Run script): `write_script` into scripts/<quest>.rhai and `check_script`. `problems` checks the quest (unknown characters, empty conditions, a Reach step without a target).\n\
+5. `play_test` with a script that talks to the giver (`talkto NAME`, then `press e` twice per dialog page, `wait 2.5` between) and ends with `status` to confirm `offers=` / `quests=` show the quest; take a `shot`.\n\
 Keep every id lowercase with underscores; use {{player}} in dialog texts for the player's name.",
             theme = arg("theme"),
             giver = if arg("giver").is_empty() { "choose a fitting character from the project".to_string() } else { arg("giver") },

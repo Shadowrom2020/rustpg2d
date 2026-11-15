@@ -35,6 +35,7 @@ mod frame_ops;
 mod material_preview;
 mod pixel;
 mod project_file;
+mod quest_form;
 mod repo_mode;
 mod problems;
 mod script_editor;

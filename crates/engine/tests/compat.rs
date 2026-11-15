@@ -169,6 +169,20 @@ fn convert_and_check(project: &str, maps: &[(&str, &str)]) {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Quests of 0.21.0 (before the quest designer) load with nothing described: started and moved
+/// on by triggers and scripts as before.
+#[test]
+fn quests_of_0_21_0_load_without_the_designer_fields() {
+    let text = std::fs::read_to_string(fixture("quests/quests-0.21.0.ron")).unwrap();
+    let quests: Vec<rustpg2d_engine::quest::QuestDef> = ron::from_str(&text).unwrap();
+    assert_eq!(quests.len(), 7);
+    let lights = quests.iter().find(|q| q.id == "strange_lights").unwrap();
+    assert_eq!((lights.stages.len(), lights.targets.len()), (3, 3));
+    for q in &quests {
+        assert!(!q.has_giver() && q.steps.is_empty() && q.rewards.is_empty() && q.offer.is_empty() && q.objects.is_empty(), "{}", q.id);
+    }
+}
+
 #[test]
 fn save_of_0_11_0_loads() {
     let s = std::fs::read_to_string(fixture("saves/save-0.11.0.ron")).unwrap();

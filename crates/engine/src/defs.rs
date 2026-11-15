@@ -1923,7 +1923,7 @@ impl_def!(ItemDef, crate::refactor::RefKind::Item, items, refs = crate::refactor
 impl_def!(PropDef, crate::refactor::RefKind::Prop, props, refs = crate::refactor::refs_of_prop);
 impl_def!(CharacterDef, crate::refactor::RefKind::Character, characters, refs = crate::refactor::refs_of_character);
 impl_def!(SoundDef, crate::refactor::RefKind::Sound, sounds);
-impl_def!(crate::quest::QuestDef, crate::refactor::RefKind::Quest, quests);
+impl_def!(crate::quest::QuestDef, crate::refactor::RefKind::Quest, quests, refs = crate::refactor::refs_of_quest);
 impl_def!(StructureDef, crate::refactor::RefKind::Structure, structures, refs = crate::refactor::refs_of_structure);
 impl_def!(crate::skills::SkillDef, crate::refactor::RefKind::Skill, skills, refs = crate::refactor::refs_of_skill);
 impl_def!(crate::skills::SpellDef, crate::refactor::RefKind::Spell, spells, refs = crate::refactor::refs_of_spell);

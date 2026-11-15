@@ -1,8 +1,10 @@
-//! Quests: definitions (title, description, stages), the player's progress, and the
-//! operations / checks used by the "Quest" action and condition.
+//! Quests: definitions (title, description, stages; who gives them and when, what the giver
+//! says, how each step is done, the rewards), the player's progress, and the operations /
+//! checks used by the "Quest" action and condition. `runtime/quests.rs` plays the described parts.
 
 use serde::{Deserialize, Serialize};
 
+use crate::events::{Action, Condition};
 use crate::state::WorldState;
 
 /// A quest as defined in `defs/quests.ron`.
@@ -23,6 +25,137 @@ pub struct QuestDef {
     /// Where each stage leads (by index; missing or empty = no quest marker for that stage).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub targets: Vec<QuestTarget>,
+    /// The character definition that offers the quest and takes it back ("" = started by
+    /// triggers or scripts).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub giver: String,
+    /// The giver's name in its dialogs ("" = its character's name): e.g. "Tilda" for a placed
+    /// merchant whose definition is called "Merchant".
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub giver_name: String,
+    /// When the giver offers it (besides not being started yet): e.g. another quest completed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub requires: Vec<Condition>,
+    /// What the giver says when offering it.
+    #[serde(default, skip_serializing_if = "QuestOffer::is_empty")]
+    pub offer: QuestOffer,
+    /// How each stage is done (by index like `targets`; missing = moved on by triggers / scripts).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub steps: Vec<QuestStep>,
+    /// Given when the quest is completed (besides `xp`).
+    #[serde(default, skip_serializing_if = "QuestRewards::is_empty")]
+    pub rewards: QuestRewards,
+}
+
+/// What the giver says when offering a quest: `lines` (one dialog box each), then `question`
+/// with the options `accept` / `decline` and the lines after each answer. Without a question the
+/// quest starts after the lines.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct QuestOffer {
+    pub lines: Vec<String>,
+    pub question: String,
+    pub accept: String,
+    pub decline: String,
+    pub accepted: Vec<String>,
+    pub declined: Vec<String>,
+}
+
+impl QuestOffer {
+    pub fn is_empty(&self) -> bool {
+        *self == QuestOffer::default()
+    }
+}
+
+/// How one stage of a quest is done, and what happens around it.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct QuestStep {
+    pub done: StepGoal,
+    /// What the giver says while this step is current ("" = nothing: the giver's own triggers).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub giver_line: String,
+    /// Run when the step begins (the first one when the quest starts).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub on_start: Vec<Action>,
+    /// Run when the step is done.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub on_done: Vec<Action>,
+}
+
+impl QuestStep {
+    pub fn is_empty(&self) -> bool {
+        *self == QuestStep::default()
+    }
+}
+
+/// When a quest step is done.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub enum StepGoal {
+    /// Quest actions or scripts move the quest on.
+    #[default]
+    Manual,
+    /// As soon as the conditions hold (has an item, defeated so many, a variable, a flag…).
+    Conditions(Vec<Condition>),
+    /// The player talks to `character` (a placed character's name or a character definition;
+    /// "" = the quest's giver) while `when` holds (e.g. carrying what is handed in): it says
+    /// `lines`, then the step is done.
+    Talk {
+        #[serde(default)]
+        character: String,
+        #[serde(default)]
+        lines: Vec<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        when: Vec<Condition>,
+        /// Its name in the dialog ("" = the giver's for the giver, else its character's name).
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        speaker: String,
+    },
+    /// The player arrives at the step's marker target: enters the zone, or interacts with the
+    /// character or prop of that name on its map.
+    Reach,
+}
+
+impl StepGoal {
+    pub fn label(&self) -> &'static str {
+        match self {
+            StepGoal::Manual => "triggers or scripts move it on",
+            StepGoal::Conditions(_) => "these conditions hold",
+            StepGoal::Talk { .. } => "the player talks to",
+            StepGoal::Reach => "the player reaches the marker target",
+        }
+    }
+}
+
+/// An item given as a quest reward.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct RewardItem {
+    pub item: String,
+    #[serde(default = "one")]
+    pub count: u32,
+}
+
+fn one() -> u32 {
+    1
+}
+
+/// What completing a quest gives (its `xp` is given too).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct QuestRewards {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<RewardItem>,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub skill_points: u32,
+    /// Anything else: Run script (e.g. friendship with the giver), Change standing…
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub actions: Vec<Action>,
+}
+
+impl QuestRewards {
+    pub fn is_empty(&self) -> bool {
+        *self == QuestRewards::default()
+    }
 }
 
 /// Where a quest stage leads, for its quest marker: a placed character, prop or zone by name on a
@@ -46,6 +179,100 @@ impl QuestDef {
     pub fn target_of(&self, stage: u32) -> Option<&QuestTarget> {
         self.targets.get(stage as usize).filter(|t| !t.is_empty())
     }
+
+    /// How stage `stage` is done (Manual when not described).
+    pub fn step(&self, stage: u32) -> Option<&QuestStep> {
+        self.steps.get(stage as usize)
+    }
+
+    /// The character a Talk step at `stage` waits for (a placed name or definition id; the giver
+    /// for "").
+    pub fn talk_to(&self, stage: u32) -> Option<&str> {
+        match &self.step(stage)?.done {
+            StepGoal::Talk { character, .. } => Some(if character.trim().is_empty() { self.giver.as_str() } else { character.as_str() }).filter(|c| !c.is_empty()),
+            _ => None,
+        }
+    }
+
+    /// Whether the quest is described in the quest editor (given by a character).
+    pub fn has_giver(&self) -> bool {
+        !self.giver.trim().is_empty()
+    }
+
+    /// The Quest action that finishes stage `stage`: on to the next one, or completing the quest
+    /// after the last.
+    pub fn step_done_action(&self, stage: u32) -> Action {
+        let op = if stage as usize + 1 >= self.stages.len() { QuestOp::Complete } else { QuestOp::Advance };
+        Action::Quest { quest: self.id.clone(), op, stage: 0 }
+    }
+
+    /// Talking to the character of the Talk step at `stage` (said by `speaker`): its lines, then
+    /// the step is done.
+    pub fn talk_actions(&self, stage: u32, speaker: &str) -> Vec<Action> {
+        let lines = match self.step(stage).map(|s| &s.done) {
+            Some(StepGoal::Talk { lines, .. }) => lines.as_slice(),
+            _ => &[],
+        };
+        let mut acts = dialog_lines(speaker, lines);
+        acts.push(self.step_done_action(stage));
+        acts
+    }
+
+    /// The giver (`speaker`) offering the quest: its lines, then the question with the options
+    /// (`yes` / `no` when the offer names none) and the lines after each answer; accepting starts
+    /// the quest. Without a question the quest starts after the lines.
+    pub fn offer_actions(&self, speaker: &str, yes: &str, no: &str) -> Vec<Action> {
+        let o = &self.offer;
+        let mut acts = dialog_lines(speaker, &o.lines);
+        let mut accepted = vec![Action::Quest { quest: self.id.clone(), op: QuestOp::Start, stage: 0 }];
+        accepted.extend(dialog_lines(speaker, &o.accepted));
+        if o.question.trim().is_empty() {
+            acts.extend(accepted);
+            return acts;
+        }
+        let pick = |s: &str, default: &str| if s.trim().is_empty() { default.to_string() } else { s.to_string() };
+        acts.push(Action::Choice { speaker: speaker.to_string(), text: o.question.clone(), options: vec![pick(&o.accept, yes), pick(&o.decline, no)], var: OFFER_VAR.into() });
+        acts.push(Action::If {
+            conditions: vec![Condition { cond: crate::events::Cond::Var { name: OFFER_VAR.into(), op: crate::events::CmpOp::Eq, value: 0 }, negate: false }],
+            then: accepted,
+            otherwise: dialog_lines(speaker, &o.declined),
+        });
+        acts
+    }
+
+    /// What follows the quest's change from `before` (stage, status; None = not started) to
+    /// `now`: the old step's done actions (not when it failed), the new step's start actions,
+    /// and on completion the rewards (items, skill points, the reward actions).
+    pub fn follow_up(&self, before: Option<(u32, QuestStatus)>, now: &QuestProgress) -> Vec<Action> {
+        let mut acts: Vec<Action> = Vec::new();
+        if let Some((stage, QuestStatus::Active)) = before {
+            let moved = now.stage != stage || now.status == QuestStatus::Completed;
+            if moved && now.status != QuestStatus::Failed {
+                acts.extend(self.step(stage).map_or(&[][..], |s| &s.on_done).iter().cloned());
+            }
+        }
+        let started = before.is_none_or(|(s, st)| st != QuestStatus::Active || s != now.stage);
+        if now.status == QuestStatus::Active && started {
+            acts.extend(self.step(now.stage).map_or(&[][..], |s| &s.on_start).iter().cloned());
+        }
+        if now.status == QuestStatus::Completed && before.is_some_and(|(_, st)| st != QuestStatus::Completed) {
+            let r = &self.rewards;
+            acts.extend(r.items.iter().filter(|i| !i.item.is_empty() && i.count > 0).map(|i| Action::GiveItem { item: i.item.clone(), count: i.count }));
+            if r.skill_points > 0 {
+                acts.push(Action::GiveSkillPoints { amount: r.skill_points as i32 });
+            }
+            acts.extend(r.actions.iter().cloned());
+        }
+        acts
+    }
+}
+
+/// The variable an offer's question answers into (0 = accept).
+pub const OFFER_VAR: &str = "quest_offer_answer";
+
+/// One dialog box per non-empty line, said by `speaker`.
+pub fn dialog_lines(speaker: &str, lines: &[String]) -> Vec<Action> {
+    lines.iter().filter(|l| !l.trim().is_empty()).map(|l| Action::Dialog { speaker: speaker.to_string(), text: l.clone() }).collect()
 }
 
 fn is_zero(n: &u32) -> bool {
@@ -193,6 +420,84 @@ impl WorldState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A quest as the quest editor describes it: the elder offers it after another quest, a
+    /// Conditions step, a Talk step back to him, rewards.
+    fn designed() -> QuestDef {
+        let say = |t: &str| Action::Dialog { speaker: String::new(), text: t.into() };
+        QuestDef {
+            id: "ashes".into(),
+            title: "Ashes".into(),
+            stages: vec!["Find the ashes".into(), "Bring them to the elder".into()],
+            giver: "elder".into(),
+            requires: vec![Condition { cond: crate::events::Cond::Quest { quest: "lights".into(), check: QuestCheck::Completed, stage: 0 }, negate: false }],
+            offer: QuestOffer { lines: vec!["The shrine left ashes.".into()], question: "Will you look?".into(), accept: "Yes".into(), decline: String::new(), accepted: vec!["Thank you.".into()], declined: vec!["Pity.".into()] },
+            steps: vec![
+                QuestStep { done: StepGoal::Conditions(vec![]), on_start: vec![say("start 0")], on_done: vec![say("done 0")], ..Default::default() },
+                QuestStep { done: StepGoal::Talk { character: String::new(), lines: vec!["You found them!".into()], when: vec![], speaker: String::new() }, giver_line: "Any luck?".into(), ..Default::default() },
+            ],
+            rewards: QuestRewards { items: vec![RewardItem { item: "coin".into(), count: 25 }], skill_points: 2, actions: vec![Action::RunScript { function: "quest_thanks".into() }] },
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn designed_quests_load_save_and_old_ones_stay_plain() {
+        // A quest from before the quest designer: none of the new fields, written back the same.
+        let old = r#"(id: "q", title: "Q", stages: ["a"], xp: 5)"#;
+        let q: QuestDef = ron::from_str(old).unwrap();
+        assert!(!q.has_giver() && q.steps.is_empty() && q.rewards.is_empty() && q.offer.is_empty());
+        let again = ron::to_string(&q).unwrap();
+        assert!(!again.contains("giver") && !again.contains("offer") && !again.contains("rewards"), "{again}");
+        // The new fields survive a round trip.
+        let d = designed();
+        let back: QuestDef = ron::from_str(&ron::to_string(&d).unwrap()).unwrap();
+        assert_eq!(back, d);
+    }
+
+    #[test]
+    fn talk_steps_wait_for_their_character_or_the_giver() {
+        let d = designed();
+        assert_eq!(d.talk_to(0), None);
+        assert_eq!(d.talk_to(1), Some("elder"));
+        let acts = d.talk_actions(1, "Rowan");
+        assert_eq!(acts[0], Action::Dialog { speaker: "Rowan".into(), text: "You found them!".into() });
+        // The last step completes the quest; earlier ones advance it.
+        assert_eq!(acts[1], Action::Quest { quest: "ashes".into(), op: QuestOp::Complete, stage: 0 });
+        assert_eq!(d.step_done_action(0), Action::Quest { quest: "ashes".into(), op: QuestOp::Advance, stage: 0 });
+    }
+
+    #[test]
+    fn the_offer_asks_and_starts_the_quest_when_accepted() {
+        let acts = designed().offer_actions("Rowan", "Yes", "No");
+        assert!(matches!(&acts[0], Action::Dialog { text, .. } if text == "The shrine left ashes."));
+        let Action::Choice { options, var, .. } = &acts[1] else { panic!("{:?}", acts[1]) };
+        // An empty option takes the default.
+        assert_eq!((options.as_slice(), var.as_str()), (&["Yes".to_string(), "No".to_string()][..], OFFER_VAR));
+        let Action::If { then, otherwise, .. } = &acts[2] else { panic!() };
+        assert_eq!(then[0], Action::Quest { quest: "ashes".into(), op: QuestOp::Start, stage: 0 });
+        assert!(matches!(&otherwise[0], Action::Dialog { text, .. } if text == "Pity."));
+        // Without a question: the lines, then it starts.
+        let mut d = designed();
+        d.offer.question.clear();
+        let acts = d.offer_actions("Rowan", "Yes", "No");
+        assert_eq!(acts[1], Action::Quest { quest: "ashes".into(), op: QuestOp::Start, stage: 0 });
+    }
+
+    #[test]
+    fn steps_run_their_actions_and_completion_gives_the_rewards() {
+        let d = designed();
+        let texts = |acts: Vec<Action>| acts.iter().map(|a| match a { Action::Dialog { text, .. } => text.clone(), other => other.label().to_string() }).collect::<Vec<_>>();
+        let p = |stage, status| QuestProgress { stage, status, order: 0 };
+        // Started: the first step's start actions.
+        assert_eq!(texts(d.follow_up(None, &p(0, QuestStatus::Active))), ["start 0"]);
+        // On to stage 1: the first step's done actions.
+        assert_eq!(texts(d.follow_up(Some((0, QuestStatus::Active)), &p(1, QuestStatus::Active))), ["done 0"]);
+        // Completed: the rewards (items, skill points, the reward actions).
+        assert_eq!(texts(d.follow_up(Some((1, QuestStatus::Active)), &p(1, QuestStatus::Completed))), ["Give item", "Give skill points", "Run script"]);
+        // Failed: nothing.
+        assert!(d.follow_up(Some((0, QuestStatus::Active)), &p(0, QuestStatus::Failed)).is_empty());
+    }
 
     #[test]
     fn quest_progress() {

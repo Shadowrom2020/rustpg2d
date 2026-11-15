@@ -362,6 +362,38 @@ impl Renamer<'_> {
         }
     }
 
+    /// A quest's markers and what the quest editor describes: giver, conditions, steps, rewards.
+    fn quest(&mut self, q: &mut crate::quest::QuestDef) {
+        for t in &mut q.targets {
+            self.fix(RefKind::Map, &mut t.map);
+        }
+        // (Givers and talk characters may be placed names, not definitions: renamed with a
+        // definition, but not listed as its dependencies.)
+        let collecting = self.found.is_some();
+        if !collecting {
+            self.fix(RefKind::Character, &mut q.giver);
+        }
+        self.conditions(&mut q.requires);
+        for s in &mut q.steps {
+            match &mut s.done {
+                crate::quest::StepGoal::Conditions(c) => self.conditions(c),
+                crate::quest::StepGoal::Talk { character, when, .. } => {
+                    if !collecting {
+                        self.fix(RefKind::Character, character);
+                    }
+                    self.conditions(when);
+                }
+                _ => {}
+            }
+            self.actions(&mut s.on_start);
+            self.actions(&mut s.on_done);
+        }
+        for i in &mut q.rewards.items {
+            self.fix(RefKind::Item, &mut i.item);
+        }
+        self.actions(&mut q.rewards.actions);
+    }
+
     fn conditions(&mut self, cs: &mut [Condition]) {
         for c in cs {
             match &mut c.cond {
@@ -442,9 +474,7 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
         r.race(d);
     }
     for q in &mut db.quests {
-        for t in &mut q.targets {
-            r.fix(RefKind::Map, &mut t.map);
-        }
+        r.quest(q);
     }
     for d in &mut db.models {
         if let Some(rig) = &mut d.rig {
@@ -599,6 +629,15 @@ pub fn refs_of_structure(d: &crate::defs::StructureDef) -> Vec<(RefKind, String)
     let mut d = d.clone();
     let mut r = collector();
     r.structure(&mut d);
+    r.found.unwrap_or_default()
+}
+
+/// What a quest refers to: its giver and talk characters, reward items, the maps of its
+/// markers, and the ids inside its conditions and actions.
+pub fn refs_of_quest(d: &crate::quest::QuestDef) -> Vec<(RefKind, String)> {
+    let mut d = d.clone();
+    let mut r = collector();
+    r.quest(&mut d);
     r.found.unwrap_or_default()
 }
 

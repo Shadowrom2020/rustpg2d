@@ -370,6 +370,22 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         add(&q.title);
         add(&q.description);
         q.stages.iter().for_each(|s| add(s));
+        // What the quest editor describes: the offer, the steps' lines and actions, the rewards.
+        add(&q.giver_name);
+        let o = &q.offer;
+        for l in o.lines.iter().chain(&o.accepted).chain(&o.declined).chain([&o.question, &o.accept, &o.decline]) {
+            add(l);
+        }
+        for s in &q.steps {
+            add(&s.giver_line);
+            if let crate::quest::StepGoal::Talk { lines, speaker, .. } = &s.done {
+                add(speaker);
+                lines.iter().for_each(|l| add(l));
+            }
+            actions(&s.on_start, &mut add);
+            actions(&s.on_done, &mut add);
+        }
+        actions(&q.rewards.actions, &mut add);
     }
     for s in &db.skills {
         add(&s.name);

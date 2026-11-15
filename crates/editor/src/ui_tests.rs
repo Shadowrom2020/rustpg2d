@@ -93,8 +93,9 @@ fn quest_stage_targets_are_edited_and_saved() {
     assert_eq!(db.quests[k].targets[2].name, "elder");
     let mut h = harness(&root, Tab::Quests, k);
     step(&mut h);
-    // Stage 2 leads to the elder: point it at his bed instead.
-    field(&h, "elder").type_text("_bed");
+    // Stage 2 leads to the elder: point it at his bed instead (the giver field, above, says
+    // "elder" too).
+    h.query_all_by(|n| n.role() == Role::TextInput && n.value().as_deref() == Some("elder")).last().expect("the marker's name").type_text("_bed");
     step(&mut h);
     unfocus(&mut h);
     assert_eq!(h.state().project.db.quests[k].targets[2].name, "elder_bed");
@@ -390,5 +391,45 @@ fn a_material_texture_is_drawn_seamlessly_in_the_form() {
     h.state_mut().save_all();
     let saved = Project::load(&root).unwrap().db.materials[k].clone();
     assert_eq!((saved.texture.as_str(), saved.frames, saved.fps), ("materials/moss.png", 3, 4.0));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn the_quest_designer_describes_giver_offer_steps_and_rewards() {
+    use rustpg2d_engine::quest::{QuestDef, StepGoal};
+    let root = example_copy("quest_designer");
+    let k = Project::load(&root).unwrap().db.quests.len();
+    let mut h = harness(&root, Tab::Quests, k);
+    h.state_mut().project.db.quests.push(QuestDef { id: "ashes".into(), title: "Ashes".into(), description: "Old ashes.".into(), stages: vec!["Find the ashes".into()], ..Default::default() });
+    step(&mut h);
+    let q = |h: &Harness<'static, Editor>| h.state().project.db.quests[k].clone();
+    // The giver: typed into its field.
+    beside(&h, "Giver", |n| n.role() == Role::TextInput).type_text("elder");
+    step(&mut h);
+    unfocus(&mut h);
+    assert_eq!(q(&h).giver, "elder");
+    // An offer line (the first "+ Line": what the giver says first).
+    h.query_all_by_label("+ Line").next().expect("the offer's lines").click();
+    step(&mut h);
+    h.get_by(|n| n.role() == Role::MultilineTextInput && n.value().as_deref() == Some("")).type_text("The shrine left ashes.");
+    step(&mut h);
+    unfocus(&mut h);
+    assert_eq!(q(&h).offer.lines, ["The shrine left ashes."]);
+    // A second step: a new last step of a given quest goes back to the giver.
+    h.get_by_label(&crate::ui::t(crate::ui::ph::PLUS, "Step")).click();
+    step(&mut h);
+    assert_eq!(q(&h).stages.len(), 2);
+    assert_eq!(q(&h).steps[1].done, StepGoal::Talk { character: String::new(), lines: vec![], when: vec![], speaker: String::new() });
+    // A reward item.
+    h.get_by_label(&crate::ui::t(crate::ui::ph::PLUS, "Item")).click();
+    step(&mut h);
+    assert_eq!(q(&h).rewards.items.len(), 1);
+    // Undo takes the item back; saved, the rest is in the file.
+    undo(&mut h);
+    assert!(q(&h).rewards.items.is_empty());
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.quests[k].clone();
+    assert_eq!((saved.giver.as_str(), saved.offer.lines.len(), saved.stages.len()), ("elder", 1, 2));
+    assert!(matches!(saved.steps[1].done, StepGoal::Talk { .. }));
     let _ = std::fs::remove_dir_all(&root);
 }

@@ -784,6 +784,7 @@ impl Editor {
         let mut all_names: Vec<String> = Vec::new();
         let mut all_flags: Vec<String> = Vec::new();
         let mut all_vars: Vec<String> = Vec::new();
+        let mut people: Vec<(String, String)> = Vec::new();
         for m in &self.maps {
             let refs = match &self.doc {
                 Some(d) if &d.map.name == m => MapRefs::of(&d.map, (0, 0)),
@@ -803,6 +804,7 @@ impl Editor {
                 }
             };
             all_names.extend(refs.names);
+            people.extend(refs.people);
             all_flags.extend(refs.flags);
             all_vars.extend(refs.vars);
             spawns.insert(m.clone(), refs.spawns);
@@ -847,6 +849,18 @@ impl Editor {
             all_flags,
             vars: all_vars,
             quests: self.project.db.quests.iter().map(|q| q.id.clone()).collect(),
+            people: {
+                let mut names: Vec<String> = people.iter().map(|(n, _)| n.clone()).collect();
+                names.sort();
+                names.dedup();
+                names.extend(self.project.db.characters.iter().map(|c| c.id.clone()));
+                names
+            },
+            placed_characters: {
+                people.sort();
+                people.dedup();
+                people
+            },
             quest_stages: self.project.db.quests.iter().map(|q| (q.id.clone(), q.stages.clone())).collect(),
             skills: self.project.db.skills.iter().map(|q| q.id.clone()).collect(),
             races: self.project.db.races.iter().map(|r| r.id.clone()).collect(),
@@ -3330,6 +3344,8 @@ pub fn collect_names(ts: &[rustpg2d_engine::events::Trigger], flags: &mut Vec<St
 struct MapRefs {
     stamp: (u64, u64),
     names: Vec<String>,
+    /// The placed characters: (name, definition) (quest givers and talk targets).
+    people: Vec<(String, String)>,
     flags: Vec<String>,
     vars: Vec<String>,
     spawns: Vec<String>,
@@ -3340,6 +3356,7 @@ impl MapRefs {
     fn of(map: &Map, stamp: (u64, u64)) -> Self {
         let mut r = MapRefs { stamp, ..Default::default() };
         r.names.extend(map.entities.iter().filter(|e| !e.name.is_empty()).map(|e| e.name.clone()));
+        r.people.extend(map.entities.iter().filter(|e| !e.name.is_empty() && e.kind == rustpg2d_engine::entity::EntityKind::Character).map(|e| (e.name.clone(), e.def.clone())));
         collect_map_names(map, &mut r.flags, &mut r.vars);
         r.spawns = map.zones.iter().filter(|z| z.kind == ZoneKind::Spawn).map(|z| z.name.clone()).collect();
         r.transitions = map

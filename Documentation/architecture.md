@@ -186,6 +186,15 @@ and 64 call levels; the `WorldState` is moved into the script context and back a
 Queued script functions (`say`, `walk_to`, …) become actions on the runner; immediate ones read and
 change state directly.
 
+Quests described in the quest editor (`QuestDef::giver`, `offer`, `steps`, `rewards`) are played
+by `runtime/quests.rs` as ordinary actions: talking to a character (`interact_entity`, after its
+own *Interact* triggers) pushes a Talk step's lines plus a *Quest* advance / complete, or the offer
+(dialogs, a *Choice*, an *If* with *Quest* start; built by `QuestDef::offer_actions`), or the
+giver's line; Conditions steps are checked every 0.25 s while the runner is idle; Reach steps on a
+zone *Enter* or an interaction with the stage's target. Every quest change goes through
+`quest_changed` (`runtime/journal.rs`), whose `Step::Insert` runs `QuestDef::follow_up` right after
+the *Quest* action: the old step's done actions, the new step's start actions, the rewards.
+
 ### Rendering and assets
 
 `render/ground.rs` draws the ground (above), sprites draw at their feet (`Assets::draw_sprite`;

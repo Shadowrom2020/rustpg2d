@@ -109,8 +109,7 @@ fn shrine_awakening() {
     if quest_active("pest_control") && quest_stage("pest_control") == 0 {
         set_quest_stage("pest_control", 1);     // the slimes are gone: back to Tilda
     }
-    set_flag("shrine_lit", true);
-    set_quest_stage("strange_lights", 2);
+    set_flag("shrine_lit", true);               // (the elder's quest goes on by itself)
     dim(0, 2);
     set_weather("none");                        // the eerie fog lifts (kept in the save game)
     wait(1.5);
@@ -130,12 +129,9 @@ fn slime_defeated() {
     if get_var("scavenging") > 0 {
         give_item("coin", get_var("scavenging"));
     }
-    // Tilda's quest counts slimes once it was accepted.
+    // Tilda's quest counts slimes once it was accepted (its first step is done at five).
     if quest_active("pest_control") && quest_stage("pest_control") == 0 {
         add_var("pest_slimes", 1);
-        if get_var("pest_slimes") >= 5 {
-            set_quest_stage("pest_control", 1);
-        }
     }
     if get_var("slimes_defeated") == 5 {
         say("You have defeated 5 slimes! You feel stronger... (not really)");
@@ -273,12 +269,9 @@ fn fireball_hit(x, y) {
 
 // The Lost Cat (Mira's quest): Bram, Old Finn and Jorun each saw something; two clues lead to
 // the mill. Their "clue" triggers call this.
+// A clue about Mira's cat (Bram's, Jorun's and Finn's triggers): the quest's first step is done at two.
 fn cat_clue() {
     add_var("cat_clues", 1);
-    if get_var("cat_clues") >= 2 && quest_stage("lost_cat") == 0 {
-        set_quest_stage("lost_cat", 1);
-        say("Two clues point the same way: Biscuit must be hiding in the old mill, across the river.");
-    }
 }
 
 // ------------------------------------------------------------------ Stalls
@@ -313,32 +306,26 @@ fn restock_baking() {
     restock_from_activity(SELF, "apple_pie", 2, 6);
 }
 
-// The elven herbalist in the Wilds asks for wolf pelts. Handing them in raises the player's
-// standing with the elves (change_standing): standing(faction) runs from -100 to 100, and at -20
-// or below a faction's characters attack the player. The first greeting changes for players the
-// elves don't trust (standing("elves") at -20 or below).
+// The elven herbalist in the Wilds (her Interact trigger) greets the player; her quest (Elven
+// Trust: two wolf pelts, Database > Quests) raises the player's standing with the elves
+// (change_standing): standing(faction) runs from -100 to 100, and at -20 or below a faction's
+// characters attack the player. Her shop opens after the talk.
 fn herbalist_talk() {
-    let q = "elven_trust";
-    if quest_done(q) {
+    if quest_done("elven_trust") {
         say("Elven Herbalist", "Welcome back, friend of the elves. Have a look at my herbs.");
-    } else if quest_active(q) {
-        if item_count("wolf_pelt") >= 2 {
-            take_item("wolf_pelt", 2);
-            say("Elven Herbalist", "Two fine pelts! The wolves will trouble my herb grounds less now. Thank you, {player}.");
-            complete_quest(q);
-            change_standing("elves", 40);
-            say("Elven Herbalist", "I will tell the rangers about you. My people will know you as a friend.");
-        } else {
-            say("Elven Herbalist", "Two wolf pelts, {player}. The wolves roam all over the Wilds.");
-        }
-    } else {
-        if standing("elves") <= -20 {
-            say("Elven Herbalist", "You are no friend of my people, {player}. Still, a healer turns nobody away.");
-        }
-        say("Elven Herbalist", "The wolves keep digging up my herb grounds. Bring me two of their pelts, and the elves will count you a friend.");
-        start_quest(q);
+    } else if !quest_active("elven_trust") && standing("elves") <= -20 {
+        say("Elven Herbalist", "You are no friend of my people, {player}. Still, a healer turns nobody away.");
     }
-    open_shop("self");
+}
+
+// The elder's follow-up quest (An Offering for the Shrine): leaving the honey at the shrine
+// (the step's "when it is done" actions run this).
+fn shrine_offering() {
+    say("You set the jar of honey on the old stone.");
+    play_sound("chime");
+    effect("magic_burst", 47.5, 20.5, #{ scale: 1.2, fps: 10, light: 4, color: [255, 220, 140] });
+    light_at(47.5, 21, 4, 3, #{ color: [255, 220, 150] });
+    bark("player", "The shrine feels... grateful.");
 }
 
 // Barks: Tomas grumbles about the weather (a Script condition of the village's 10 o'clock trigger).
@@ -535,6 +522,17 @@ fn friend_chat() {
     if get_var(key) == day() + 1 { return; }
     set_var(key, day() + 1);
     if friend_add(name, 2) {
+        say(friend_speaker(), "You're a true friend, {player}. Here, I want you to have this.");
+        friend_reward(name);
+    }
+}
+
+// A quest's reward (Database > Quests > Rewards > Also: Run script quest_thanks): the giver,
+// who hands out the reward, likes the player more (friendship, friend_add).
+fn quest_thanks() {
+    let name = self_name();
+    if name.len() == 0 { return; }
+    if friend_add(name, 10) && name in friend_tastes() {
         say(friend_speaker(), "You're a true friend, {player}. Here, I want you to have this.");
         friend_reward(name);
     }

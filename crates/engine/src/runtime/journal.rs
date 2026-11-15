@@ -130,9 +130,11 @@ impl Game {
         self.world.bestiary.iter().map(|(id, n)| format!("{id}x{n}")).collect()
     }
 
-    /// Runs a "Quest" action and tells the player what changed.
-    pub(super) fn quest_changed(&mut self, quest: &str, op: QuestOp, stage: u32) {
-        let Some(change) = self.world.apply_quest(quest, op, stage) else { return };
+    /// Runs a "Quest" action and tells the player what changed. Returns what the quest editor
+    /// describes to follow (the steps' actions, the rewards), to run right after it.
+    pub(super) fn quest_changed(&mut self, quest: &str, op: QuestOp, stage: u32) -> Vec<(crate::events::Action, super::ActionCtx)> {
+        let before = self.world.quest(quest).map(|p| (p.stage, p.status));
+        let Some(change) = self.world.apply_quest(quest, op, stage) else { return Vec::new() };
         let title = self.project.db.quest(quest).map_or(quest.to_string(), |d| d.title.clone());
         let msg = match change {
             QuestChange::Started => format!("New quest: {title}  (J: journal)"),
@@ -146,6 +148,32 @@ impl Game {
         if change == QuestChange::Completed {
             let xp = self.project.db.quest(quest).map_or(0, |d| d.xp);
             self.give_xp(xp as i64);
+        }
+        self.quest_follow_up(quest, before)
+    }
+
+    /// "Reward: 25 Coin, 80 XP, 2 skill points" for the journal ("" = none).
+    fn reward_text(&self, d: &crate::quest::QuestDef) -> String {
+        let mut parts: Vec<String> = d
+            .rewards
+            .items
+            .iter()
+            .filter(|i| i.count > 0)
+            .map(|i| {
+                let name = self.project.db.item(&i.item).map_or(i.item.clone(), |it| it.name.clone());
+                if i.count == 1 { name } else { format!("{} {name}", i.count) }
+            })
+            .collect();
+        if d.xp > 0 && self.project.config.progression.enabled {
+            parts.push(format!("{} XP", d.xp));
+        }
+        if d.rewards.skill_points > 0 {
+            parts.push(crate::lang::tr_ui(&format!("{} skill points", d.rewards.skill_points)).into_owned());
+        }
+        if parts.is_empty() {
+            String::new()
+        } else {
+            format!("Reward: {}", parts.join(", "))
         }
     }
 
@@ -369,9 +397,22 @@ impl Game {
         }
         y += 14.0;
         if let Some(d) = def {
+            // Who gave it (quests described in the quest editor).
+            let giver = if d.giver_name.trim().is_empty() { self.project.db.character(&d.giver).map(|c| c.name.clone()) } else { Some(d.giver_name.clone()) };
+            if let Some(giver) = giver.filter(|_| d.has_giver()) {
+                y += 22.0;
+                draw_text(format!("From {}", crate::lang::tr(&giver)), x, y, 18.0, Color::new(0.85, 0.8, 0.6, 0.8));
+            }
             for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
                 y += 24.0;
                 draw_text(&line, x, y, 20.0, LIGHTGRAY);
+            }
+            let reward = self.reward_text(d);
+            if !reward.is_empty() {
+                for line in wrap_text(&reward, 20, w) {
+                    y += 24.0;
+                    draw_text(&line, x, y, 20.0, Color::new(0.95, 0.85, 0.45, 1.0));
+                }
             }
         }
         y += 22.0;

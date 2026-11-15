@@ -230,19 +230,54 @@ music, the game's built-in sounds (*Database › Project › Game sounds*) and s
 
 ## Quests
 
-A quest has an id, a **title**, a **description** (shown in the journal), an **experience reward**
-and **stages**, one objective each. Write `{name}` in a stage to show the value of variable `name`,
-e.g. "Defeat slimes in Whisperwood ({pest_slimes}/5)".
+The quest editor describes a whole quest in one place: who gives it and when, what the giver says,
+each step, and the rewards. The game plays it by itself: the giver needs no triggers. A summary
+line at the top sums it up ("Given by Elder Rowan · after The Strange Lights · 3 steps · 25 Coin,
+80 XP").
 
-Each stage can **lead to** a place: a map and the name of a placed character, prop or zone on it
-(name it in its inspector). While the stage is current, a **quest marker** shows the way
-([Gameplay › Quest markers](09-gameplay.md#quest-markers)). Leave it empty for stages without one
-place ("ask around the village").
+**Quest:** an id, a **title** and a **description** (shown in the journal).
 
-Triggers drive quests with the **Quest** action (*start*, *advance to the next stage*, *set stage*,
-*complete*, *fail*) and check them with the **Quest** condition (*not started*, *active*,
-*completed*, *failed*, *active at stage*, *at stage or later*). The player gets a message for every
-change and follows the progress in the journal (J). See [Events › A quest](07-events.md#a-quest).
+**Giver and offer**
+
+| Setting | Meaning |
+|---|---|
+| **Giver** | Who offers the quest when talked to: a placed character's name (just that one, e.g. `ida`) or a character definition (every character placed from it). Empty: Quest actions and `start_quest()` start it, as before |
+| **shown as** | The giver's name in the quest's dialogs (empty: its character's name, which may be a generic one such as *Merchant*) |
+| **Offered when** | Conditions (as in triggers) besides not being started yet. A **follow-up** quest has *Quest › completed* with the first one |
+| **Offering it** | The giver's dialog boxes, the **question** with its two **answers** and what the giver says **after accepting** and **after declining** (the quest is offered again next time). Without a question the quest starts after the lines. `{player}`, `{sir\|madam}` and `{var}` work as in dialogs |
+
+**Steps:** one card per step, in order. A step's text is its objective in the journal
+(`{name}` shows variable `name`, e.g. "Defeat slimes ({pest_slimes}/5)"). It is **done when**:
+
+| Done when | |
+|---|---|
+| **the player talks to…** | a character (a placed name or a definition; empty = the giver, e.g. "Return to Elder Rowan"): it says its lines (*shown as* its name), then the step is done. **Only when** takes conditions, e.g. *Has item* for a hand-in (take the item with a *Take item* action when the step is done) |
+| **the player reaches the marker target** | the player enters the zone, or interacts with the character or prop named under *Leads to* |
+| **these conditions hold** | checked all the time: has an item, defeated so many, a variable or flag, another quest… |
+| **triggers or scripts move it on** | the *Quest* action or `advance_quest()` and friends, as before |
+
+Each step can also **lead to** a place: a map and the name of a placed character, prop or zone
+there, for its **quest marker** ([Gameplay › Quest markers](09-gameplay.md#quest-markers); a talk
+step's character gets one anyway when it is on the map). **The giver says meanwhile** is the
+giver's line while the step is current. **When the step starts** and **When it is done** take
+actions, as in triggers: *Run script* for anything a script does, *Give item*, *Set flag*, *Set
+active*… After the last step the quest is completed.
+
+**Rewards**, given when the quest is completed, whatever completes it: items with counts,
+**experience** (with experience and levels on), **skill points**, and **also** any actions. The
+starter library's script function `quest_thanks()` (*Run script*) makes the giver like the player
+more: it runs with the giver as `self`, as do the steps' actions while the giver is on the map. The
+journal shows the giver and the rewards.
+
+A character offers its quests **after** its own *Interact* triggers (a first greeting, a shop's
+welcome), not while it lies in bed; one with a quest to offer has a **!** over its head. Its form
+in *Database › Characters* lists the quests it gives.
+
+Triggers and scripts still drive quests too: the **Quest** action (*start*, *advance to the next
+stage*, *set stage*, *complete*, *fail*), the **Quest** condition (*not started*, *active*,
+*completed*, *failed*, *active at stage*, *at stage or later*) and the quest script functions. The
+steps' actions and the rewards run whichever way a quest moves on. See
+[Events › A quest](07-events.md#a-quest).
 
 ## Skills, spells, recipes and achievements
 

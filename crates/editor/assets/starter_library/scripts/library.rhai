@@ -249,6 +249,17 @@ fn friend_tastes() {
     }
 }
 
+// A quest's reward (Database > Quests > Rewards > Also: Run script quest_thanks): the giver,
+// who hands out the reward, likes the player more (friendship, friend_add).
+fn quest_thanks() {
+    let name = self_name();
+    if name.len() == 0 { return; }
+    if friend_add(name, 10) && name in friend_tastes() {
+        say(friend_speaker(), "You're a true friend, {player}. Here, I want you to have this.");
+        friend_reward(name);
+    }
+}
+
 // A character definition's 'Use item' trigger (any item, if friend_takes_gifts()): one gift a day.
 fn give_gift() {
     let name = self_name();

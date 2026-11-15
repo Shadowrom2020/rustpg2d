@@ -167,6 +167,9 @@ impl Editor {
             map.fog,
             map.triggers.len()
         );
+        if p.triggers.unwrap_or(false) {
+            out += &format!("map triggers (set_triggers owner {{\"map\":true}} replaces them all): {}\n", serde_json::to_string(&map.triggers).unwrap_or_default());
+        }
         if p.collision.unwrap_or(true) {
             // Painted collision, the painted ground (half a tile's cells) and solid decorations.
             let mut solid = map.compute_solid();

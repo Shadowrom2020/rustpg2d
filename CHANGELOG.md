@@ -5,6 +5,27 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Quests
+- **The quest editor describes the whole quest** (*Database › Quests*): who gives it (a placed
+  character's name or a character definition, and the name it goes by in the dialogs) and when
+  (conditions: a **follow-up** after another quest), what the giver says **offering** it (lines, a
+  question with two answers, the lines after each), each **step** (done when the player **talks
+  to** someone (only when, e.g., carrying what is handed in), **reaches** the step's marker target,
+  when **conditions** hold, or by triggers and scripts as before; what the giver says meanwhile;
+  actions when it **starts** and when it is **done**, e.g. *Run script*) and the **rewards** (items,
+  XP, skill points, any actions). The game plays it: the giver needs no triggers. A summary line
+  sums the quest up; character forms list the quests they give.
+- In play: characters offer their quests after their own *Interact* triggers (not while they lie in
+  bed) and have a **!** over their heads while they do; a talk step's character gets the quest
+  marker; the journal shows who gave a quest and its rewards. Step actions and rewards run however a
+  quest moves on (also by the *Quest* action and scripts). `status` prints `offers=`.
+- The example's seven quests are described this way (their givers' quest triggers are gone), and
+  the elder has a **follow-up**, *An Offering for the Shrine*: a step runs a script at the shrine,
+  and the reward, the starter library's new script function `quest_thanks()`, makes the giver like
+  the player more (every given quest of the example rewards that too).
+- AI agents: `def_template quests` shows the new fields, the `design_quest` prompt builds quests this
+  way, and `get_map` prints a map's own triggers (`triggers: true`).
+
 ### Gameplay
 - **Signposts are found by coming near them**: within 5 tiles of a signpost the player notices it
   ("A signpost! I can travel from here now.") and fast travel offers it, without pressing E there

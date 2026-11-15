@@ -182,7 +182,9 @@ The pixel editor sits right below the form ([Art and sound](10-art-and-sound.md)
 ## Sounds
 
 Each sound has an id, a file (WAV or Ogg Vorbis, copied into `sounds/` by *Browse…*) and a volume.
-*Play* and *Stop* preview it. Sounds are used by the *Play sound* and *Play music* actions, a map's
+*Play* and *Stop* preview it. **Caption**: what it sounds like (*Door creaks*, *Dog barks*; for music
+the track's name), shown to players who turn on *Captions* (Options › Accessibility) while it plays,
+translated like dialogs; empty for sounds that need none (footsteps, menu blips). Sounds are used by the *Play sound* and *Play music* actions, a map's
 music, the game's built-in sounds (*Database › Project › Game sounds*) and scripts. See
 [Art and sound › Sounds and music](10-art-and-sound.md#sounds-and-music).
 

@@ -44,6 +44,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   now in `scripts/sounds/music/` with all four tracks. `status` prints `battle=`, `music_fade=` and
   `@hip` in `held=`; muted games follow the music for `status` too.
 
+- **Accessibility** (Options › Accessibility…): **Text size** Normal / Large / Larger for dialogs,
+  choices, messages, speech bubbles, captions and the item details; **Captions** for sounds and
+  music (a sound's new *Caption* field, translated; the side a world sound came from; the example's
+  and library's sounds have them); **High contrast** (black panels with bright borders for the HUD,
+  windows, dialogs, messages and captions, black-on-white speech bubbles, outlined damage numbers);
+  **Hold to repeat** (holding Attack keeps attacking, holding E or the right mouse button keeps chopping or mining). `status`
+  prints `captions=`; the autoplay command `rhold X Y SECS` holds the right mouse button on a tile.
+
 ### Events and scripts
 - New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with
   *Chase* behaviour runs to where another character (or the player) is, following them for 15 s,

@@ -105,6 +105,8 @@ pub struct Audio {
     ambience: f32,
     /// The last sound effects started (also while muted): `status()` for automated tests.
     recent: std::cell::RefCell<std::collections::VecDeque<String>>,
+    /// Sound effects started since the game last asked ([`Audio::take_heard`]: its captions).
+    heard: std::cell::RefCell<Vec<String>>,
 }
 
 // The web game: browsers decode sounds asynchronously, so they are loaded (awaited) before the
@@ -154,6 +156,7 @@ impl Audio {
             rain_vol: 0.0,
             ambience: 1.0,
             recent: Default::default(),
+            heard: Default::default(),
         }
     }
 
@@ -226,6 +229,7 @@ impl Audio {
             rain_vol: 0.0,
             ambience: 1.0,
             recent: Default::default(),
+            heard: Default::default(),
         }
     }
 
@@ -282,19 +286,36 @@ impl Audio {
 
     /// Plays a sound effect once (unknown or empty ids are ignored).
     pub fn play(&self, id: &str) {
-        if !id.is_empty() {
-            let mut r = self.recent.borrow_mut();
-            if r.len() >= 6 {
-                r.pop_front();
-            }
-            r.push_back(id.to_string());
-        }
+        self.note(id);
         if !self.enabled {
             return;
         }
         if let Some((s, vol)) = self.sounds.get(id) {
             play_sound(s, PlaySoundParams { looped: false, volume: *vol * self.effects });
         }
+    }
+
+    /// Notes a sound effect started (also muted): `recent` for `status()`, `heard` for captions.
+    fn note(&self, id: &str) {
+        if id.is_empty() {
+            return;
+        }
+        let mut r = self.recent.borrow_mut();
+        if r.len() >= 6 {
+            r.pop_front();
+        }
+        r.push_back(id.to_string());
+        let mut h = self.heard.borrow_mut();
+        // (Kept short if nobody asks: a game without captions.)
+        if h.len() >= 32 {
+            h.remove(0);
+        }
+        h.push(id.to_string());
+    }
+
+    /// The sound effects started since the last call (their captions show).
+    pub fn take_heard(&self) -> Vec<String> {
+        std::mem::take(&mut *self.heard.borrow_mut())
     }
 
     /// The last sound effects started, oldest first (`status()` prints them as `sounds=`).
@@ -438,13 +459,7 @@ impl Audio {
         if gain <= 0.0 {
             return;
         }
-        if !id.is_empty() {
-            let mut r = self.recent.borrow_mut();
-            if r.len() >= 6 {
-                r.pop_front();
-            }
-            r.push_back(id.to_string());
-        }
+        self.note(id);
         if !self.enabled {
             return;
         }

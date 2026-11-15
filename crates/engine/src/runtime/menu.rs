@@ -6,7 +6,7 @@ use macroquad::prelude::*;
 
 use super::input::{self, Act, Pad};
 use super::{ui::panel, Arrival, Fade, Game, FADE_TIME};
-use crate::settings::{Settings, TEXT_SPEEDS, ZOOMS};
+use crate::settings::{Settings, TEXT_SIZES, TEXT_SPEEDS, ZOOMS};
 use super::text::{draw_text, measure_text};
 
 const W: f32 = 520.0;
@@ -34,6 +34,8 @@ enum Page {
     Options,
     /// The keys of every action (Options › Controls).
     Controls,
+    /// Text size, captions, high contrast, hold to repeat (Options › Accessibility).
+    Accessibility,
     /// The player was defeated: continue from the last save, start over or quit.
     Defeated,
     /// The game's achievements, unlocked ones with their date (title and pause menus).
@@ -66,11 +68,28 @@ enum Opt {
     ButtonStyle,
     /// Opens the Controls page.
     Controls,
+    /// Opens the Accessibility page.
+    Accessibility,
     Reset,
     Back,
+    TextSize,
+    Captions,
+    HighContrast,
+    HoldRepeat,
+    /// The Accessibility page's way back to Options.
+    AccessBack,
 }
 
-const OPTS: [Opt; 16] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::DamageNumbers, Opt::QuestMarkers, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back];
+const OPTS: [Opt; 17] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::DamageNumbers, Opt::QuestMarkers, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Accessibility, Opt::Reset, Opt::Back];
+/// Options › Accessibility.
+const ACCESS_OPTS: [Opt; 5] = [Opt::TextSize, Opt::Captions, Opt::HighContrast, Opt::HoldRepeat, Opt::AccessBack];
+
+impl Opt {
+    /// It opens a page or goes back (no value, no arrows).
+    fn is_link(self) -> bool {
+        matches!(self, Opt::Reset | Opt::Back | Opt::Controls | Opt::Accessibility | Opt::AccessBack)
+    }
+}
 
 struct SaveInfo {
     slot: String,
@@ -324,6 +343,7 @@ impl Game {
                 (Row::No, "Cancel".into(), "Back to the game".into()),
             ],
             Page::Options => OPTS.iter().map(|o| (Row::Opt(*o), Self::opt_label(*o).into(), self.opt_value(*o))).collect(),
+            Page::Accessibility => ACCESS_OPTS.iter().map(|o| (Row::Opt(*o), Self::opt_label(*o).into(), self.opt_value(*o))).collect(),
             Page::Controls => {
                 let mut v: Vec<(Row, String, String)> = Act::ALL
                     .into_iter()
@@ -356,6 +376,7 @@ impl Game {
             Page::ConfirmClose(_) => "Exit the game?".into(),
             Page::Options => "Options".into(),
             Page::Controls => "Controls".into(),
+            Page::Accessibility => "Accessibility".into(),
             Page::Defeated => "You were defeated".into(),
             Page::Achievements => {
                 let got = self.ach.progress.unlocked.keys().filter(|id| self.project.db.achievement(id).is_some()).count();
@@ -456,6 +477,10 @@ impl Game {
                 self.go(Page::Options);
                 self.menu.sel = OPTS.iter().position(|o| *o == Opt::Controls).unwrap();
             }
+            Page::Accessibility => {
+                self.go(Page::Options);
+                self.menu.sel = OPTS.iter().position(|o| *o == Opt::Accessibility).unwrap();
+            }
             Page::ConfirmClose(back) => match back {
                 Some(p) => self.go(*p),
                 None => self.menu.open = false,
@@ -536,6 +561,8 @@ impl Game {
             (_, Row::Back) => self.back(),
             (_, Row::Opt(Opt::Back)) => self.back(),
             (_, Row::Opt(Opt::Controls)) => self.go(Page::Controls),
+            (_, Row::Opt(Opt::Accessibility)) => self.go(Page::Accessibility),
+            (_, Row::Opt(Opt::AccessBack)) => self.back(),
             (_, Row::Bind(a)) => self.menu.capture = Some(a),
             (_, Row::ResetKeys) => {
                 self.set_keys(None, None);
@@ -615,8 +642,13 @@ impl Game {
             Opt::Language => "Language",
             Opt::ButtonStyle => "Button style",
             Opt::Controls => "Controls...",
+            Opt::Accessibility => "Accessibility...",
             Opt::Reset => "Reset to defaults",
-            Opt::Back => "Back",
+            Opt::Back | Opt::AccessBack => "Back",
+            Opt::TextSize => "Text size",
+            Opt::Captions => "Captions",
+            Opt::HighContrast => "High contrast",
+            Opt::HoldRepeat => "Hold to repeat",
         }
     }
 
@@ -638,11 +670,24 @@ impl Game {
             Opt::TextSpeed => TEXT_SPEEDS.iter().find(|t| t.0 == s.text_speed).map_or("Normal", |t| t.1).to_string(),
             Opt::Language => self.languages.iter().find(|(c, _)| *c == self.lang_code).map_or_else(|| self.lang_code.clone(), |(_, n)| n.clone()),
             Opt::ButtonStyle => super::glyphs::PadStyle::from_id(&s.pad_style).label().to_string(),
-            Opt::Controls | Opt::Reset | Opt::Back => String::new(),
+            Opt::TextSize => TEXT_SIZES.get(s.text_size as usize).map_or("Normal", |t| t.1).to_string(),
+            Opt::Captions => on(s.captions),
+            Opt::HighContrast => on(s.high_contrast),
+            Opt::HoldRepeat => on(s.hold_repeat),
+            Opt::Controls | Opt::Accessibility | Opt::AccessBack | Opt::Reset | Opt::Back => String::new(),
         }
     }
 
     /// Changes an option by one step (`wrap`: past the end starts over), applies and saves it.
+    /// The options of an options page (Options, Accessibility).
+    fn page_opts(&self) -> Option<&'static [Opt]> {
+        match self.menu.page {
+            Page::Options => Some(&OPTS),
+            Page::Accessibility => Some(&ACCESS_OPTS),
+            _ => None,
+        }
+    }
+
     fn change_opt(&mut self, o: Opt, dir: i32, wrap: bool) {
         let step = |list: &[f32], cur: f32| -> f32 {
             let i = list.iter().position(|v| (*v - cur).abs() < 1e-3).unwrap_or(0) as i32;
@@ -682,7 +727,15 @@ impl Game {
             }
             // The keys, the buttons and the language have their own ways back.
             Opt::Reset => *s = Settings { keys: std::mem::take(&mut s.keys), pad: std::mem::take(&mut s.pad), language: s.language.take(), ..Settings::default() },
-            Opt::Controls | Opt::Back => return,
+            Opt::TextSize => {
+                let n = TEXT_SIZES.len() as i32;
+                let i = s.text_size as i32;
+                s.text_size = if wrap { (i + dir).rem_euclid(n) } else { (i + dir).clamp(0, n - 1) } as u8;
+            }
+            Opt::Captions => s.captions = !s.captions,
+            Opt::HighContrast => s.high_contrast = !s.high_contrast,
+            Opt::HoldRepeat => s.hold_repeat = !s.hold_repeat,
+            Opt::Controls | Opt::Accessibility | Opt::AccessBack | Opt::Back => return,
         }
         self.apply_settings();
         if o == Opt::Effects || o == Opt::Master {
@@ -946,8 +999,8 @@ impl Game {
                     self.menu.sel = k;
                 }
             }
-            if self.menu.page == Page::Options {
-                let opt = OPTS[self.menu.sel.min(n - 1)];
+            if let Some(opts) = self.page_opts() {
+                let opt = opts[self.menu.sel.min(n - 1)];
                 if input::act_pressed(Act::Left) {
                     self.change_opt(opt, -1, false);
                 } else if input::act_pressed(Act::Right) {
@@ -960,15 +1013,16 @@ impl Game {
                 match hovered {
                     // Options: "<" goes to the previous value, ">" to the next one, a click
                     // elsewhere on the row cycles forward.
-                    Some(k) if self.menu.page == Page::Options && !matches!(OPTS[k], Opt::Reset | Opt::Back | Opt::Controls) => {
+                    Some(k) if self.page_opts().is_some_and(|o| !o[k].is_link()) => {
+                        let opt = self.page_opts().unwrap()[k];
                         self.menu.sel = k;
                         let (prev, next) = opt_arrows(rects[k - self.menu.scroll]);
                         if prev.contains(m) {
-                            self.change_opt(OPTS[k], -1, false);
+                            self.change_opt(opt, -1, false);
                         } else if next.contains(m) {
-                            self.change_opt(OPTS[k], 1, false);
+                            self.change_opt(opt, 1, false);
                         } else {
-                            self.change_opt(OPTS[k], 1, true);
+                            self.change_opt(opt, 1, true);
                         }
                     }
                     Some(k) => {
@@ -994,10 +1048,8 @@ impl Game {
     /// Screen position of an Options row's "<" (`prev`), ">" (`next`) or the row itself
     /// (automated play-throughs); `None` unless the Options page is open.
     pub fn option_click_pos(&self, row: usize, part: &str) -> Option<Vec2> {
-        if !self.menu.open || self.menu.page != Page::Options || row >= OPTS.len() {
-            return None;
-        }
-        let (_, rects) = self.menu_layout(OPTS.len());
+        let opts = self.page_opts().filter(|o| self.menu.open && row < o.len())?;
+        let (_, rects) = self.menu_layout(opts.len());
         let r = *rects.get(row.checked_sub(self.menu.scroll)?)?;
         let (prev, next) = opt_arrows(r);
         Some(match part {
@@ -1060,7 +1112,7 @@ impl Game {
             }
             let disabled = self.menu.saves.is_empty() && ((self.menu.page == Page::Title && idx == 1) || (self.menu.page == Page::Defeated && idx == 0));
             let c = if disabled { GRAY } else if selected { GOLD } else { WHITE };
-            if self.menu.page == Page::Options {
+            if self.page_opts().is_some() {
                 draw_text(label, r.x + 14.0, r.y + 26.0, 24.0, c);
                 if !detail.is_empty() {
                     let (prev, next) = opt_arrows(*r);
@@ -1148,7 +1200,7 @@ impl Game {
             Page::Save => "Pick a save to overwrite, or make a new one · {key:cancel}: back",
             Page::Load => "{key:confirm} / click: load · Del: delete · {key:cancel}: back",
             Page::Name => "Type a name · Enter: save · Esc: back",
-            Page::Options => "{key:left}/{key:right} or click < >: change · saved right away · {key:cancel}: back",
+            Page::Options | Page::Accessibility => "{key:left}/{key:right} or click < >: change · saved right away · {key:cancel}: back",
             Page::Controls if self.menu.capture.is_some() => "Press a new key or button · Esc / {pad:b}: keep them",
             Page::Controls if input::device() == input::Device::Pad => "{pad:a}: set a button · {pad:x}: clear the button · saved right away · {pad:b}: back",
             Page::Controls => "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back",

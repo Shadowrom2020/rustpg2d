@@ -265,6 +265,31 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
   leave (clock back), pause menu entry, pad B, the world frozen (clock and characters), German
   hint bar, unwritable Pictures folder (fallback), the web game in headless Brave (download call).
 
+- [x] Accessibility — `feature/accessibility`
+
+  **Goal.** Bigger text, captions for sound effects, a high-contrast HUD, hold instead of repeated
+  presses (from the backlog).
+
+  **Design.** Options › *Accessibility…*, a page of its own (`Settings`: `text_size`, `captions`,
+  `high_contrast`, `hold_repeat`, off in older files). Text size scales what players read (dialog
+  box and choices, toasts, speech bubbles, captions, the item details footer, which grows with it:
+  `ui::detail_h`); the windows' fixed layouts stay. Captions: `SoundDef.caption` (translated with the
+  content), `Audio` notes every sound started (`take_heard`), `runtime/captions.rs` shows them with
+  the side for world sounds (`Game::sound_from`: hits, swings, defeats, locks, gathering, *Play
+  sound* of an entity) and *Music: …* for a new track; at the top right while a window is open. High
+  contrast: `ui::contrast()` in `panel()`, toasts, the dialog's choices, the HUD frame, clock, quick
+  bar, speech bubbles, damage numbers. Hold to repeat: Attack held (weapon cooldown paces it), E held
+  on a gatherable prop every 0.45 s, and so does the right mouse button held after a right-click on one
+  (`mouse_hold_repeat`: the clicked target, once the player stands there); never in dialogs or windows.
+
+  **Engine.** Agreed: the settings and their page, the text scale and contrast in the UI code, the
+  caption field and `captions.rs`, hold to repeat in `combat.rs` / `update_player` / `mouse.rs`.
+
+  **Verify.** Scripted: all four on (settings file), Larger text in a dialog, a speech bubble, the
+  details footer (the character window still fits 720p), captions for swings (x6), music and hits,
+  holding X (five swings in 2 s), holding E at an oak (stump, a log), the Accessibility page, the
+  German texts; older settings files load.
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS
@@ -287,8 +312,6 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
   faster on roads.
 - Player housing: items that place furniture props in a house the player owns, kept in the save.
 - New Game+: start again from a finished save, keeping level and items.
-- Accessibility: bigger text, captions for sound effects, a high-contrast HUD, hold instead of
-  repeated presses.
 - Seasons (moved from 0.20.0): a year of N days, tile variants per season (autumn / winter tiles
   without repainting), crops by season, snow in winter, a *Season is* condition and `season()`.
   The full design block is in git history (ROADMAP.md, 0.20.0).

@@ -9,7 +9,7 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::ui::{panel, slot_grid, DragState, SlotEvent, DETAIL_H, PAD, SLOT};
+use super::ui::{panel, slot_grid, DragState, SlotEvent, PAD, SLOT};
 use super::Game;
 use crate::defs::EquipSlot;
 use crate::inventory::{Inventory, ItemStack};
@@ -272,15 +272,15 @@ impl Game {
         let h = (40.0 + GEAR.len() as f32 * 50.0 + 120.0).max(bag_size.y).max(player_size.y);
         let total = SHEET_W + 16.0 + bag_size.x + 16.0 + player_size.x;
         let x0 = ((sw - total) / 2.0).round();
-        let top = ((sh - h - DETAIL_H - 6.0) / 2.0).max(10.0).round();
+        let top = ((sh - h - super::ui::detail_h() - 6.0) / 2.0).max(10.0).round();
         let gear = (0..GEAR.len()).map(|k| Rect::new(x0 + 124.0, top + 50.0 + k as f32 * 50.0, SLOT, SLOT)).collect();
         let bx = x0 + SHEET_W + 16.0;
         let (bag, _) = slot_grid(vec2(bx, top), bag_n, BAG_COLS);
         let px = bx + bag_size.x + 16.0;
         let (player, _) = slot_grid(vec2(px, top), cap, PLAYER_COLS);
         let panels = [Rect::new(x0, top, SHEET_W, h), Rect::new(bx, top, bag_size.x, h), Rect::new(px, top, player_size.x, h)];
-        let window = Rect::new(x0, top, total, h + 6.0 + DETAIL_H);
-        Layout { window, gear, bag, player, panels, close: Rect::new(px + player_size.x - 30.0, top + 8.0, 22.0, 22.0), detail: Rect::new(x0, top + h + 6.0, total, DETAIL_H) }
+        let window = Rect::new(x0, top, total, h + 6.0 + super::ui::detail_h());
+        Layout { window, gear, bag, player, panels, close: Rect::new(px + player_size.x - 30.0, top + 8.0, 22.0, 22.0), detail: Rect::new(x0, top + h + 6.0, total, super::ui::detail_h()) }
     }
 
     /// Screen center of a slot for automated play-throughs: "gear", "bag" or "player".

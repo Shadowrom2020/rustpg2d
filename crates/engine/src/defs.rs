@@ -164,6 +164,11 @@ pub struct SoundDef {
     pub file: String,
     #[serde(default = "full_volume")]
     pub volume: f32,
+    /// What it sounds like, for players who can't hear it ("Door creaks", "Dog barks"): shown
+    /// when it plays with *Captions* on (Options › Accessibility); for music the track's name.
+    /// Translated like dialogs. Empty = no caption (footsteps, UI blips).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub caption: String,
 }
 
 fn full_volume() -> f32 {

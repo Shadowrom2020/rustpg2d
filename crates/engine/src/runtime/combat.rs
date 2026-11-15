@@ -71,6 +71,8 @@ pub(super) struct PlayerCombat {
     /// Base defense (armor adds to it).
     pub defense: i32,
     pub cooldown: f32,
+    /// Seconds until a held E works a tree or rock again (Hold to repeat).
+    pub hold_e: f32,
     pub swing: f32,
     pub invuln: f32,
     pub knock: Vec2,
@@ -104,6 +106,7 @@ impl PlayerCombat {
             defense,
             cooldown: 0.0,
             swing: 0.0,
+            hold_e: 0.0,
             invuln: 0.0,
             knock: Vec2::ZERO,
             block: None,
@@ -235,7 +238,9 @@ impl Game {
         }
         self.update_defense(dt, key_consumed);
         self.update_sneak(key_consumed);
-        if !key_consumed && self.combat.cooldown <= 0.0 && !self.blocking() && !self.rolling() && input::act_pressed(input::Act::Attack) {
+        // (Options › Accessibility › Hold to repeat: holding Attack keeps attacking, at the weapon's pace.)
+        let attack = input::act_pressed(input::Act::Attack) || (self.settings.hold_repeat && input::act_down(input::Act::Attack));
+        if !key_consumed && self.combat.cooldown <= 0.0 && !self.blocking() && !self.rolling() && attack {
             self.order = None;
             self.attack_at(None);
         }
@@ -651,7 +656,8 @@ impl Game {
                 self.defeat(i);
             }
         } else {
-            self.audio.play(&self.project.config.sfx.hit);
+            let (hit, at) = (self.project.config.sfx.hit.clone(), self.loaded.entities[i].body.pos);
+            self.sound_from(&hit, at);
             self.hp_dropped(i, before);
         }
     }
@@ -719,7 +725,8 @@ impl Game {
         if let Some(zone) = spawned_by {
             self.spawned_defeated(zone);
         }
-        self.audio.play(&self.project.config.sfx.defeat);
+        let (defeat, at) = (self.project.config.sfx.defeat.clone(), self.loaded.entities[i].body.pos);
+        self.sound_from(&defeat, at);
         self.fire(GameEvent::Defeat, Source::Entity(uid));
     }
 
@@ -947,9 +954,11 @@ impl Game {
         }
 
         // Frame: dark backing, a gold border with an inner line and corner studs.
-        let gold = Color::new(0.85, 0.72, 0.38, 1.0);
+        // (High contrast: opaque black, a bright yellow border.)
+        let contrast = super::ui::contrast();
+        let gold = if contrast { Color::new(1.0, 0.85, 0.2, 1.0) } else { Color::new(0.85, 0.72, 0.38, 1.0) };
         let dim_gold = Color::new(0.55, 0.45, 0.22, 1.0);
-        draw_rectangle(frame.x, frame.y, frame.w, frame.h, Color::new(0.05, 0.05, 0.1, 0.78));
+        draw_rectangle(frame.x, frame.y, frame.w, frame.h, if contrast { BLACK } else { Color::new(0.05, 0.05, 0.1, 0.78) });
         draw_rectangle_lines(frame.x, frame.y, frame.w, frame.h, 2.5, gold);
         draw_rectangle_lines(frame.x + 4.0, frame.y + 4.0, frame.w - 8.0, frame.h - 8.0, 1.0, dim_gold);
         for (cx, cy) in [(frame.x, frame.y), (frame.right(), frame.y), (frame.x, frame.bottom()), (frame.right(), frame.bottom())] {

@@ -26,7 +26,7 @@ pub(super) struct Chip {
 
 impl Game {
     /// Whether prop `i` can be gathered from now (it gathers and isn't used up).
-    fn gatherable(&self, i: usize) -> Option<crate::defs::Gather> {
+    pub(super) fn gatherable(&self, i: usize) -> Option<crate::defs::Gather> {
         let e = &self.loaded.entities[i];
         if e.kind != EntityKind::Prop || !e.active {
             return None;
@@ -65,7 +65,8 @@ impl Game {
         let hits = e.gather.map_or(0, |(h, _)| h) + 1;
         e.gather = Some((hits, 0.0));
         let pos = e.body.pos;
-        self.audio.play(&self.project.config.sfx.hit);
+        let hit = self.project.config.sfx.hit.clone();
+        self.sound_from(&hit, pos);
         self.spawn_chips(pos, i);
         if hits < need {
             return true;

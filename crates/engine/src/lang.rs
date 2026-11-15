@@ -303,6 +303,9 @@ pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
         t(&mut r.name);
         t(&mut r.description);
     }
+    for s in &mut d.sounds {
+        t(&mut s.caption);
+    }
     d.reindex();
     d
 }
@@ -383,6 +386,9 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for r in &db.races {
         add(&r.name);
         add(&r.description);
+    }
+    for s in &db.sounds {
+        add(&s.caption);
     }
     // The character creator's colour rows.
     for f in db.models.iter().flat_map(|m| &m.features).filter(|f| !f.colors.is_empty()) {

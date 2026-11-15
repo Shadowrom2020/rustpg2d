@@ -8,7 +8,7 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::ui::{panel, slot_grid, slot_grid_size, DragState, SlotEvent, DETAIL_H, GAP, PAD, SLOT};
+use super::ui::{panel, slot_grid, slot_grid_size, DragState, SlotEvent, GAP, PAD, SLOT};
 use super::Game;
 use crate::defs::EquipSlot;
 use crate::inventory::{Inventory, ItemStack};
@@ -240,7 +240,7 @@ impl Game {
     /// line below.
     pub(super) fn character_content_size(&self) -> Vec2 {
         let g = grid_size(self.world.inventory.capacity(), 6);
-        vec2(SHEET_W + 24.0 + g.x, g.y.max(SHEET_H) + 6.0 + DETAIL_H)
+        vec2(SHEET_W + 24.0 + g.x, g.y.max(SHEET_H) + 6.0 + super::ui::detail_h())
     }
 
     pub(super) fn inventory_open(&self) -> bool {
@@ -328,7 +328,7 @@ impl Game {
                 let (mut a, b) = (grid_size(n, ccols), grid_size(cap, cols));
                 a.x = a.x.max(MIN_CONTAINER_W);
                 let total = a.x + 24.0 + b.x;
-                let top = ((sh - a.y.max(b.y) - DETAIL_H) / 2.0).max(10.0).round();
+                let top = ((sh - a.y.max(b.y) - super::ui::detail_h()) / 2.0).max(10.0).round();
                 let x0 = ((sw - total) / 2.0).round();
                 let g = make_grid(Side::Container, self.container_name(uid), vec2(x0, top), n, ccols);
                 take_all = Some(Rect::new(g.panel.x + g.panel.w - 104.0, g.panel.y + 8.0, 90.0, 26.0));
@@ -351,12 +351,12 @@ impl Game {
                 // The character window: across its content.
                 None => {
                     let c = self.window_content();
-                    Rect::new(c.x + super::charwin::MARGIN, bottom + 6.0, c.w - 2.0 * super::charwin::MARGIN, DETAIL_H)
+                    Rect::new(c.x + super::charwin::MARGIN, bottom + 6.0, c.w - 2.0 * super::charwin::MARGIN, super::ui::detail_h())
                 }
                 // Loot: at least wide enough for the help line.
                 Some(_) => {
                     let w = (right - left).max(super::glyphs::measure_hint(self.hint(), 16.0) + 2.0 * PAD);
-                    Rect::new(((left + right) / 2.0 - w / 2.0).round(), bottom + 6.0, w, DETAIL_H)
+                    Rect::new(((left + right) / 2.0 - w / 2.0).round(), bottom + 6.0, w, super::ui::detail_h())
                 }
             },
             grids,
@@ -938,7 +938,8 @@ impl Game {
         let rects = quick_rects();
         let first = rects[0];
         let last = rects[QUICK_SLOTS - 1];
-        draw_rectangle(first.x - 6.0, first.y - 6.0, last.right() - first.x + 12.0, QUICK_SLOT + 12.0, Color::new(0.04, 0.04, 0.08, 0.55));
+        let backing = if super::ui::contrast() { BLACK } else { Color::new(0.04, 0.04, 0.08, 0.55) };
+        draw_rectangle(first.x - 6.0, first.y - 6.0, last.right() - first.x + 12.0, QUICK_SLOT + 12.0, backing);
         let open = self.inv.is_open();
         let dragging = self.inv.drag.dragging();
         let flash = self.inv.quick_flash.filter(|(_, t)| get_time() - t < 0.25).map(|(k, _)| k);

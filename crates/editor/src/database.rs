@@ -461,7 +461,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     &mut db.sounds,
                     sel,
                     |d| d.id.clone(),
-                    |ids| SoundDef { id: unique("sound", ids), file: "sounds/new.wav".into(), volume: 1.0 },
+                    |ids| SoundDef { id: unique("sound", ids), file: "sounds/new.wav".into(), volume: 1.0, caption: String::new() },
                     |d| &mut d.id,
                 ),
                 Tab::Structures => list_ui(
@@ -2509,6 +2509,9 @@ fn sound_form(ui: &mut egui::Ui, d: &mut SoundDef, cx: &mut Cx) {
         ui.end_row();
         ui.label("Volume");
         ui.add(egui::Slider::new(&mut d.volume, 0.0..=1.0));
+        ui.end_row();
+        ui.label("Caption").on_hover_text("What it sounds like, shown while it plays to players who turned on Captions (Options › Accessibility): \"Door creaks\", \"Dog barks\"; for music the track's name. Translated like dialogs. Empty: no caption (footsteps, menu blips).");
+        ui.add(egui::TextEdit::singleline(&mut d.caption).hint_text("(none)").desired_width(220.0));
         ui.end_row();
     });
     ui.weak("WAV or Ogg Vorbis (.ogg), path relative to the project; 44.1 kHz plays best. Use \u{E036} Reload assets after changing the file or volume.");

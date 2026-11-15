@@ -259,7 +259,8 @@ impl Game {
         let arc = w.arc.clamp(5.0, 180.0).to_radians();
         let damage = crate::effects::scale_damage(&e.effects, w.damage.max(1));
         let from = e.body.pos;
-        self.audio.play(&self.project.config.sfx.attack);
+        let swing = self.project.config.sfx.attack.clone();
+        self.sound_from(&swing, from);
         for (who, _, mid, r) in self.attack_targets(i) {
             let to = mid - center;
             if !(to.length() < ts * 0.5 || (to.length() - r <= reach && to.angle_between(dir).abs() <= arc)) {

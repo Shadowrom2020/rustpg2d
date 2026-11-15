@@ -126,9 +126,11 @@ impl Game {
         let ts = self.ts();
         // Screen pixels per world pixel.
         let scale = (cam.world_to_screen(vec2(1.0, 0.0)) - cam.world_to_screen(Vec2::ZERO)).x.abs().max(0.1);
+        // Options › Accessibility: text size, high contrast (pure black on white, a thick rim).
+        let (text, contrast) = (self.settings.text_scale(), super::ui::contrast());
         let draw = |b: &Bark, feet: Vec2, height: f32, emote: bool| {
             let alpha = b.alpha();
-            let size = (0.36 * ts * scale * b.scale()).round().max(10.0);
+            let size = (0.36 * ts * scale * b.scale() * text).round().max(10.0);
             let lines = wrap(&b.text, size, 5.5 * ts * scale);
             let widths: Vec<f32> = lines.iter().map(|l| measure_text(l, None, size as u16, 1.0).width).collect();
             let w = widths.iter().copied().fold(0.0, f32::max);
@@ -138,9 +140,13 @@ impl Game {
             let head = cam.world_to_screen(feet - vec2(0.0, height + if emote { 22.0 } else { 6.0 } * ts / 32.0));
             let tail = (size * 0.4).round();
             let (x, y) = ((head.x - bw / 2.0).round(), (head.y - tail - bh).round());
-            let paper = Color::new(0.98, 0.95, 0.86, 0.95 * alpha);
-            let ink = Color::new(0.22, 0.15, 0.1, alpha);
-            draw_rectangle(x - 1.0, y - 1.0, bw + 2.0, bh + 2.0, ink);
+            let (paper, ink) = if contrast {
+                (Color::new(1.0, 1.0, 1.0, alpha), Color::new(0.0, 0.0, 0.0, alpha))
+            } else {
+                (Color::new(0.98, 0.95, 0.86, 0.95 * alpha), Color::new(0.22, 0.15, 0.1, alpha))
+            };
+            let rim = if contrast { 2.0 } else { 1.0 };
+            draw_rectangle(x - rim, y - rim, bw + 2.0 * rim, bh + 2.0 * rim, ink);
             draw_rectangle(x, y, bw, bh, paper);
             draw_triangle(vec2(head.x - tail, y + bh), vec2(head.x + tail, y + bh), vec2(head.x, y + bh + tail), paper);
             draw_line(head.x - tail, y + bh, head.x, y + bh + tail, 1.0, ink);

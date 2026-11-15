@@ -305,6 +305,8 @@ struct Autoplay {
     shot: Option<String>,
     mouse: Option<Vec2>,
     mouse_frames: std::collections::VecDeque<rustpg2d_engine::runtime::input::MouseInject>,
+    /// Mouse buttons held down by `rhold` until its time is up.
+    mouse_held: Vec<MouseButton>,
     /// Simulates the window's close button.
     close: bool,
     /// `settime H`: applied by the main loop.
@@ -325,7 +327,7 @@ impl Autoplay {
             .map(|c| c.split_whitespace().map(str::to_string).collect::<Vec<_>>())
             .filter(|c| !c.is_empty())
             .collect();
-        Autoplay { cmds, timer: 0.0, held: Vec::new(), sticky: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), until: None }
+        Autoplay { cmds, timer: 0.0, held: Vec::new(), sticky: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), mouse_held: Vec::new(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), until: None }
     }
 
     /// Advances the script; returns false to quit.
@@ -338,7 +340,7 @@ impl Autoplay {
             return true;
         }
         if let Some(p) = self.mouse {
-            inject_mouse(Some(MouseInject { pos: p, ..Default::default() }));
+            inject_mouse(Some(MouseInject { pos: p, down: self.mouse_held.clone(), ..Default::default() }));
         }
         let click = |frames: &mut std::collections::VecDeque<MouseInject>, p: Vec2, b: MouseButton| {
             frames.push_back(MouseInject { pos: p, pressed: vec![b], down: vec![b], ..Default::default() });
@@ -368,6 +370,11 @@ impl Autoplay {
         }
         self.held.clear();
         self.held_pad.clear();
+        if !self.mouse_held.is_empty() {
+            let released = std::mem::take(&mut self.mouse_held);
+            self.mouse_frames.push_back(MouseInject { pos: self.mouse.unwrap_or_default(), released, ..Default::default() });
+            return true;
+        }
         inject(&self.sticky, &[]);
         inject_pad(&[], &[]);
         while let Some(cmd) = self.cmds.pop_front() {
@@ -440,6 +447,15 @@ impl Autoplay {
                     };
                     let b = if matches!(arg(0), "rclick" | "talkto") { MouseButton::Right } else { MouseButton::Left };
                     click(&mut self.mouse_frames, p, b);
+                    return true;
+                }
+                // rhold X Y SECS: press the right mouse button on a tile and keep it down for SECS
+                "rhold" => {
+                    let p = game.tile_to_screen(secs(1), secs(2));
+                    let r = MouseButton::Right;
+                    self.mouse_frames.push_back(MouseInject { pos: p, pressed: vec![r], down: vec![r], ..Default::default() });
+                    self.mouse_held = vec![r];
+                    self.timer = secs(3);
                     return true;
                 }
                 // slot player|chest|equip IDX [right|double]: click a slot of the open inventory / loot window

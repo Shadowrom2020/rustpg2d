@@ -1,7 +1,7 @@
 # 12. Languages
 
 A game is written in one language and can offer translations. Players choose the language in
-*Options › Language*; by default the game starts in the system's (in a browser: the browser's)
+*Options › Gameplay › Language*; by default the game starts in the system's (in a browser: the browser's)
 language when the game offers it.
 
 ## Translating a game

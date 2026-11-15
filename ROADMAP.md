@@ -270,7 +270,7 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
   **Goal.** Bigger text, captions for sound effects, a high-contrast HUD, hold instead of repeated
   presses (from the backlog).
 
-  **Design.** Options › *Accessibility…*, a page of its own (`Settings`: `text_size`, `captions`,
+  **Design.** Options › *Accessibility* (a tab since *Tabbed Options*) (`Settings`: `text_size`, `captions`,
   `high_contrast`, `hold_repeat`, off in older files). Text size scales what players read (dialog
   box and choices, toasts, speech bubbles, captions, the item details footer, which grows with it:
   `ui::detail_h`); the windows' fixed layouts stay. Captions: `SoundDef.caption` (translated with the
@@ -289,6 +289,22 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
   details footer (the character window still fits 720p), captions for swings (x6), music and hits,
   holding X (five swings in 2 s), holding E at an oak (stump, a log), the Accessibility page, the
   German texts; older settings files load.
+
+- [x] Tabbed Options — `feature/options-tabs`
+
+  **Goal.** A tidier Options page: *Graphics*, *Sound*, *Gameplay* and *Accessibility* get their own tabs.
+
+  **Design.** `menu.rs` `TABS` (name, rows; each tab ends with *Reset tab to defaults* and *Back*);
+  Tab / LB / RB (`Act::NextTab` / `PrevTab`) or a click switch tabs, sized to their translated
+  labels; the panel is as tall as the longest tab. *Controls…* sits on the Gameplay tab and comes
+  back to it. Reset only touches the open tab (`Opt::reset`; the language keeps its value).
+
+  **Engine.** Asked for by the user (the built-in menu). `status` prints `menu=options:<tab>`,
+  `wintab` clicks the tabs.
+
+  **Verify.** Scripted: every tab by Tab, LB / RB and clicks (pause menu and title screen),
+  changing values with the arrows, resetting the Sound tab (Accessibility unchanged), Controls and
+  back, the German labels.
 
 ## Backlog (unscheduled ideas)
 

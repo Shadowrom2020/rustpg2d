@@ -30,12 +30,10 @@ enum Page {
     /// The window's close button was clicked: save before exiting? Holds the page to go back
     /// to on Cancel (None = back to the game).
     ConfirmClose(Option<Box<Page>>),
-    /// Player options (graphics, sound, text).
+    /// Player options, in tabs ([`TABS`]: graphics, sound, gameplay, accessibility).
     Options,
-    /// The keys of every action (Options › Controls).
+    /// The keys of every action (Options › Gameplay › Controls).
     Controls,
-    /// Text size, captions, high contrast, hold to repeat (Options › Accessibility).
-    Accessibility,
     /// The player was defeated: continue from the last save, start over or quit.
     Defeated,
     /// The game's achievements, unlocked ones with their date (title and pause menus).
@@ -68,26 +66,54 @@ enum Opt {
     ButtonStyle,
     /// Opens the Controls page.
     Controls,
-    /// Opens the Accessibility page.
-    Accessibility,
+    /// The open tab's options back to their defaults.
     Reset,
     Back,
     TextSize,
     Captions,
     HighContrast,
     HoldRepeat,
-    /// The Accessibility page's way back to Options.
-    AccessBack,
 }
 
-const OPTS: [Opt; 17] = [Opt::Fullscreen, Opt::Zoom, Opt::ShowFps, Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::TextSpeed, Opt::ScreenEffects, Opt::DamageNumbers, Opt::QuestMarkers, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Accessibility, Opt::Reset, Opt::Back];
-/// Options › Accessibility.
-const ACCESS_OPTS: [Opt; 5] = [Opt::TextSize, Opt::Captions, Opt::HighContrast, Opt::HoldRepeat, Opt::AccessBack];
+/// The tabs of the Options page: name and rows (every tab ends with Reset and Back).
+const TABS: [(&str, &[Opt]); 4] = [
+    ("Graphics", &[Opt::Fullscreen, Opt::Zoom, Opt::ScreenEffects, Opt::ShowFps, Opt::Reset, Opt::Back]),
+    ("Sound", &[Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::Reset, Opt::Back]),
+    ("Gameplay", &[Opt::TextSpeed, Opt::DamageNumbers, Opt::QuestMarkers, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back]),
+    ("Accessibility", &[Opt::TextSize, Opt::Captions, Opt::HighContrast, Opt::HoldRepeat, Opt::Reset, Opt::Back]),
+];
+/// The tab strip's height on the Options page.
+const TAB_H: f32 = 34.0;
+/// The tab labels' font size.
+const TAB_FONT: f32 = 20.0;
 
 impl Opt {
     /// It opens a page or goes back (no value, no arrows).
     fn is_link(self) -> bool {
-        matches!(self, Opt::Reset | Opt::Back | Opt::Controls | Opt::Accessibility | Opt::AccessBack)
+        matches!(self, Opt::Reset | Opt::Back | Opt::Controls)
+    }
+
+    /// Sets this option back to its value in `d` (the language stays: it has its own way back).
+    fn reset(self, s: &mut Settings, d: &Settings) {
+        match self {
+            Opt::Fullscreen => s.fullscreen = d.fullscreen,
+            Opt::Zoom => s.zoom = d.zoom,
+            Opt::ShowFps => s.show_fps = d.show_fps,
+            Opt::Master => s.master_volume = d.master_volume,
+            Opt::Music => s.music_volume = d.music_volume,
+            Opt::Effects => s.effects_volume = d.effects_volume,
+            Opt::Ambience => s.ambience_volume = d.ambience_volume,
+            Opt::TextSpeed => s.text_speed = d.text_speed,
+            Opt::ScreenEffects => s.screen_effects = d.screen_effects,
+            Opt::DamageNumbers => s.damage_numbers = d.damage_numbers,
+            Opt::QuestMarkers => s.quest_markers = d.quest_markers,
+            Opt::ButtonStyle => s.pad_style = d.pad_style.clone(),
+            Opt::TextSize => s.text_size = d.text_size,
+            Opt::Captions => s.captions = d.captions,
+            Opt::HighContrast => s.high_contrast = d.high_contrast,
+            Opt::HoldRepeat => s.hold_repeat = d.hold_repeat,
+            Opt::Language | Opt::Controls | Opt::Reset | Opt::Back => {}
+        }
     }
 }
 
@@ -118,11 +144,13 @@ pub(super) struct Menu {
     title: bool,
     /// Controls page: waiting for a key for this action.
     capture: Option<Act>,
+    /// The open tab of the Options page (index into [`TABS`]).
+    tab: usize,
 }
 
 impl Default for Menu {
     fn default() -> Self {
-        Menu { open: false, page: Page::Main, sel: 0, scroll: 0, saves: Vec::new(), name: String::new(), message: None, quit: false, title: false, capture: None }
+        Menu { open: false, page: Page::Main, sel: 0, scroll: 0, saves: Vec::new(), name: String::new(), message: None, quit: false, title: false, capture: None, tab: 0 }
     }
 }
 
@@ -283,7 +311,7 @@ impl Game {
                     (Row::Photo, "Photo mode".into(), "Move the camera freely and take pictures".into()),
                     (Row::SaveMenu, "Save game".into(), String::new()),
                     (Row::LoadMenu, "Load game".into(), String::new()),
-                    (Row::OptionsMenu, "Options".into(), "Graphics, sound and text".into()),
+                    (Row::OptionsMenu, "Options".into(), "Graphics, sound, gameplay, accessibility".into()),
                 ];
                 v.extend(achievements_row);
                 v.push((Row::SaveQuit, "Save and quit".into(), format!("Saves to \"{}\" and returns to the main menu", display_name(&self.save_quit_slot()))));
@@ -342,8 +370,7 @@ impl Game {
                 (Row::ExitNoSave, "Exit without saving".into(), "Progress since the last save is lost".into()),
                 (Row::No, "Cancel".into(), "Back to the game".into()),
             ],
-            Page::Options => OPTS.iter().map(|o| (Row::Opt(*o), Self::opt_label(*o).into(), self.opt_value(*o))).collect(),
-            Page::Accessibility => ACCESS_OPTS.iter().map(|o| (Row::Opt(*o), Self::opt_label(*o).into(), self.opt_value(*o))).collect(),
+            Page::Options => TABS[self.menu.tab].1.iter().map(|o| (Row::Opt(*o), Self::opt_label(*o).into(), self.opt_value(*o))).collect(),
             Page::Controls => {
                 let mut v: Vec<(Row, String, String)> = Act::ALL
                     .into_iter()
@@ -376,7 +403,6 @@ impl Game {
             Page::ConfirmClose(_) => "Exit the game?".into(),
             Page::Options => "Options".into(),
             Page::Controls => "Controls".into(),
-            Page::Accessibility => "Accessibility".into(),
             Page::Defeated => "You were defeated".into(),
             Page::Achievements => {
                 let got = self.ach.progress.unlocked.keys().filter(|id| self.project.db.achievement(id).is_some()).count();
@@ -422,9 +448,16 @@ impl Game {
     fn menu_layout(&self, n: usize) -> (Rect, Vec<Rect>) {
         let (sw, sh) = (screen_width(), screen_height());
         let (row_h, max_rows) = (self.row_h(), self.max_rows());
-        let rows = n.clamp(1, max_rows) as f32;
-        // The title page has no heading (the game name is drawn above the panel).
-        let head = if self.menu.page == Page::Title { 20.0 } else { 64.0 };
+        // Options: as tall as the longest tab, so the panel keeps its size when the tab changes.
+        let n_shown = if self.menu.page == Page::Options { TABS.iter().map(|t| t.1.len()).max().unwrap_or(n) } else { n };
+        let rows = n_shown.clamp(1, max_rows) as f32;
+        // The title page has no heading (the game name is drawn above the panel); the Options
+        // page has its tabs under it.
+        let head = match self.menu.page {
+            Page::Title => 20.0,
+            Page::Options => 64.0 + TAB_H + 10.0,
+            _ => 64.0,
+        };
         let h = head + 6.0 + rows * row_h + 50.0 + if self.menu.page == Page::Name { 60.0 } else { 0.0 };
         let p = Rect::new(((sw - W) / 2.0).round(), ((sh - h) / 2.0).round() + if self.menu.title { 40.0 } else { 0.0 }, W, h);
         let top = p.y + head + if self.menu.page == Page::Name { 60.0 } else { 0.0 };
@@ -475,11 +508,7 @@ impl Game {
             }
             Page::Controls => {
                 self.go(Page::Options);
-                self.menu.sel = OPTS.iter().position(|o| *o == Opt::Controls).unwrap();
-            }
-            Page::Accessibility => {
-                self.go(Page::Options);
-                self.menu.sel = OPTS.iter().position(|o| *o == Opt::Accessibility).unwrap();
+                self.select(&Row::Opt(Opt::Controls));
             }
             Page::ConfirmClose(back) => match back {
                 Some(p) => self.go(*p),
@@ -550,7 +579,10 @@ impl Game {
                 }
             }
             (_, Row::LoadMenu) => self.go(Page::Load),
-            (_, Row::OptionsMenu) => self.go(Page::Options),
+            (_, Row::OptionsMenu) => {
+                self.menu.tab = 0;
+                self.go(Page::Options);
+            }
             (_, Row::AchievementsMenu) => self.go(Page::Achievements),
             (_, Row::Achievement(_)) => {}
             (_, Row::ResetAchievements) => self.go(Page::ConfirmResetAchievements),
@@ -561,8 +593,6 @@ impl Game {
             (_, Row::Back) => self.back(),
             (_, Row::Opt(Opt::Back)) => self.back(),
             (_, Row::Opt(Opt::Controls)) => self.go(Page::Controls),
-            (_, Row::Opt(Opt::Accessibility)) => self.go(Page::Accessibility),
-            (_, Row::Opt(Opt::AccessBack)) => self.back(),
             (_, Row::Bind(a)) => self.menu.capture = Some(a),
             (_, Row::ResetKeys) => {
                 self.set_keys(None, None);
@@ -642,9 +672,8 @@ impl Game {
             Opt::Language => "Language",
             Opt::ButtonStyle => "Button style",
             Opt::Controls => "Controls...",
-            Opt::Accessibility => "Accessibility...",
-            Opt::Reset => "Reset to defaults",
-            Opt::Back | Opt::AccessBack => "Back",
+            Opt::Reset => "Reset tab to defaults",
+            Opt::Back => "Back",
             Opt::TextSize => "Text size",
             Opt::Captions => "Captions",
             Opt::HighContrast => "High contrast",
@@ -674,20 +703,16 @@ impl Game {
             Opt::Captions => on(s.captions),
             Opt::HighContrast => on(s.high_contrast),
             Opt::HoldRepeat => on(s.hold_repeat),
-            Opt::Controls | Opt::Accessibility | Opt::AccessBack | Opt::Reset | Opt::Back => String::new(),
+            Opt::Controls | Opt::Reset | Opt::Back => String::new(),
         }
+    }
+
+    /// The rows of the open Options tab (`None` on other pages).
+    fn page_opts(&self) -> Option<&'static [Opt]> {
+        (self.menu.page == Page::Options).then(|| TABS[self.menu.tab.min(TABS.len() - 1)].1)
     }
 
     /// Changes an option by one step (`wrap`: past the end starts over), applies and saves it.
-    /// The options of an options page (Options, Accessibility).
-    fn page_opts(&self) -> Option<&'static [Opt]> {
-        match self.menu.page {
-            Page::Options => Some(&OPTS),
-            Page::Accessibility => Some(&ACCESS_OPTS),
-            _ => None,
-        }
-    }
-
     fn change_opt(&mut self, o: Opt, dir: i32, wrap: bool) {
         let step = |list: &[f32], cur: f32| -> f32 {
             let i = list.iter().position(|v| (*v - cur).abs() < 1e-3).unwrap_or(0) as i32;
@@ -696,6 +721,7 @@ impl Game {
             list[j as usize]
         };
         const VOLUMES: [f32; 11] = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+        let tab = TABS[self.menu.tab.min(TABS.len() - 1)].1;
         let s = &mut self.settings;
         match o {
             Opt::Fullscreen => s.fullscreen = !s.fullscreen,
@@ -725,8 +751,13 @@ impl Game {
                 let j = if wrap { (i + dir).rem_euclid(n) } else { (i + dir).clamp(0, n - 1) };
                 s.pad_style = PadStyle::ALL[j as usize].id().to_string();
             }
-            // The keys, the buttons and the language have their own ways back.
-            Opt::Reset => *s = Settings { keys: std::mem::take(&mut s.keys), pad: std::mem::take(&mut s.pad), language: s.language.take(), ..Settings::default() },
+            // Only the open tab's options; the keys, the buttons and the language have their own ways back.
+            Opt::Reset => {
+                let d = Settings::default();
+                for o in tab {
+                    o.reset(s, &d);
+                }
+            }
             Opt::TextSize => {
                 let n = TEXT_SIZES.len() as i32;
                 let i = s.text_size as i32;
@@ -735,7 +766,7 @@ impl Game {
             Opt::Captions => s.captions = !s.captions,
             Opt::HighContrast => s.high_contrast = !s.high_contrast,
             Opt::HoldRepeat => s.hold_repeat = !s.hold_repeat,
-            Opt::Controls | Opt::Accessibility | Opt::AccessBack | Opt::Back => return,
+            Opt::Controls | Opt::Back => return,
         }
         self.apply_settings();
         if o == Opt::Effects || o == Opt::Master {
@@ -892,7 +923,11 @@ impl Game {
 
     /// For `Game::status()`: the open menu page ("-" = closed).
     pub(super) fn menu_status(&self) -> String {
-        if self.menu.open { format!("{:?}", self.menu.page).to_lowercase() } else { "-".into() }
+        match &self.menu.page {
+            _ if !self.menu.open => "-".into(),
+            Page::Options => format!("options:{}", TABS[self.menu.tab].0.to_lowercase()),
+            p => format!("{p:?}").to_lowercase(),
+        }
     }
 
     /// Handles Esc and the open menu. Returns true while the game is paused by it.
@@ -964,6 +999,21 @@ impl Game {
         if input::act_pressed(Act::Cancel) {
             self.back();
             return true;
+        }
+        // Options: Tab / LB / RB or a click switch the tab.
+        if self.menu.page == Page::Options {
+            let clicked = if input::mouse_pressed(MouseButton::Left) { self.options_tab_rects(panel_rect).iter().position(|r| r.contains(m)) } else { None };
+            let step = if input::act_pressed(Act::NextTab) {
+                Some(self.menu.tab + 1)
+            } else if input::act_pressed(Act::PrevTab) {
+                Some(self.menu.tab + TABS.len() - 1)
+            } else {
+                clicked
+            };
+            if let Some(t) = step.map(|t| t % TABS.len()) {
+                self.open_options_tab(t);
+                return true;
+            }
         }
         // Controls page: Del / Backspace clears the selected action's keys, the gamepad's X its button.
         if self.menu.page == Page::Controls {
@@ -1059,6 +1109,46 @@ impl Game {
         })
     }
 
+    /// Shows tab `t` of the Options page, its first row selected.
+    fn open_options_tab(&mut self, t: usize) {
+        self.menu.tab = t;
+        self.menu.sel = 0;
+        self.menu.scroll = 0;
+        self.menu.message = None;
+    }
+
+    /// The Options page's tabs, in a row under the heading of panel `p`: each as wide as its
+    /// (translated) label, the room left shared out.
+    fn options_tab_rects(&self, p: Rect) -> Vec<Rect> {
+        let gap = 6.0;
+        let room = p.w - 32.0 - gap * (TABS.len() as f32 - 1.0);
+        let labels: Vec<f32> = TABS.iter().map(|t| measure_text(t.0, None, TAB_FONT as u16, 1.0).width + 16.0).collect();
+        let total: f32 = labels.iter().sum();
+        let extra = (room - total) / TABS.len() as f32;
+        let mut x = p.x + 16.0;
+        labels
+            .iter()
+            .map(|w| {
+                // Too long all together (a long translation): shrink them alike.
+                let w = if extra >= 0.0 { w + extra } else { w * room / total };
+                let r = Rect::new(x, p.y + 62.0, w, TAB_H);
+                x += w + gap;
+                r
+            })
+            .collect()
+    }
+
+    /// Screen position of an Options tab ("graphics", "sound", "gameplay", "accessibility") for
+    /// automated play; `None` unless the Options page is open.
+    pub(super) fn options_tab_pos(&self, name: &str) -> Option<Vec2> {
+        if !self.menu.open || self.menu.page != Page::Options {
+            return None;
+        }
+        let k = TABS.iter().position(|t| t.0.eq_ignore_ascii_case(name))?;
+        let (p, _) = self.menu_layout(self.rows().len());
+        Some(self.options_tab_rects(p)[k].center())
+    }
+
     fn name_ok_rect(&self) -> Rect {
         let (p, _) = self.menu_layout(0);
         Rect::new(p.x + W - 116.0, p.y + 70.0, 100.0, 36.0)
@@ -1086,6 +1176,21 @@ impl Game {
         let tw = measure_text(&title, None, 34, 1.0).width;
         draw_text(&title, p.x + (p.w - tw) / 2.0, p.y + 42.0, 34.0, GOLD);
         let m = input::mouse_pos();
+
+        if self.menu.page == Page::Options {
+            let rects = self.options_tab_rects(p);
+            for (k, tr) in rects.iter().enumerate() {
+                let on = k == self.menu.tab;
+                let fill = if on { Color::new(0.85, 0.7, 0.3, 0.3) } else if tr.contains(m) { Color::new(1.0, 1.0, 1.0, 0.08) } else { Color::new(0.0, 0.0, 0.0, 0.25) };
+                draw_rectangle(tr.x, tr.y, tr.w, tr.h, fill);
+                draw_rectangle_lines(tr.x, tr.y, tr.w, tr.h, if on { 2.0 } else { 1.0 }, if on { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.5) });
+                let label = TABS[k].0;
+                // Shrunk only when even the tab sized for it is too narrow.
+                let size = (TAB_FONT * (tr.w - 8.0) / measure_text(label, None, TAB_FONT as u16, 1.0).width.max(1.0)).min(TAB_FONT);
+                let tw = measure_text(label, None, size as u16, 1.0).width;
+                draw_text(label, tr.x + (tr.w - tw) / 2.0, tr.y + tr.h / 2.0 + size * 0.35, size, if on { WHITE } else { LIGHTGRAY });
+            }
+        }
 
         if self.menu.page == Page::Name {
             let field = Rect::new(p.x + 16.0, p.y + 70.0, W - 146.0, 36.0);
@@ -1200,7 +1305,7 @@ impl Game {
             Page::Save => "Pick a save to overwrite, or make a new one · {key:cancel}: back",
             Page::Load => "{key:confirm} / click: load · Del: delete · {key:cancel}: back",
             Page::Name => "Type a name · Enter: save · Esc: back",
-            Page::Options | Page::Accessibility => "{key:left}/{key:right} or click < >: change · saved right away · {key:cancel}: back",
+            Page::Options => "{key:next_tab}: next tab · {key:left}/{key:right} or click < >: change · {key:cancel}: back",
             Page::Controls if self.menu.capture.is_some() => "Press a new key or button · Esc / {pad:b}: keep them",
             Page::Controls if input::device() == input::Device::Pad => "{pad:a}: set a button · {pad:x}: clear the button · saved right away · {pad:b}: back",
             Page::Controls => "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back",
@@ -1254,5 +1359,24 @@ mod tests {
         assert_eq!(play_time(65.0), "1:05");
         assert_eq!(ago(now_secs()), "just now");
         assert_eq!(ago(now_secs() - 7200), "2 h ago");
+    }
+
+    #[test]
+    fn options_tabs_hold_every_option_once() {
+        let mut seen = Vec::new();
+        for (name, rows) in TABS {
+            assert_eq!(rows[rows.len() - 2..], [Opt::Reset, Opt::Back], "{name} ends with Reset and Back");
+            for o in &rows[..rows.len() - 2] {
+                assert!(!seen.contains(o), "{o:?} is on two tabs");
+                seen.push(*o);
+            }
+        }
+        assert_eq!(seen.len(), 18, "every option has a tab");
+        // Resetting a tab touches its own options only.
+        let mut s = Settings { music_volume: 0.2, text_size: 2, ..Settings::default() };
+        for o in TABS[1].1 {
+            o.reset(&mut s, &Settings::default());
+        }
+        assert_eq!((s.music_volume, s.text_size), (Settings::default().music_volume, 2));
     }
 }

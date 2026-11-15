@@ -26,6 +26,35 @@ pub struct Ui {
     pub portrait_rect: Option<Rect>,
     /// Dialog text speed from the player's options (set every frame; 0 = instant).
     pub text_speed: f32,
+    /// The size of what players read (Options › Accessibility › Text size; set every frame).
+    pub text_scale: f32,
+}
+
+thread_local! {
+    /// Options › Accessibility › High contrast (set every frame): panels, toasts, captions.
+    static CONTRAST: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Options › Accessibility › Text size (set every frame): the details footer.
+    static TEXT_SCALE: std::cell::Cell<f32> = const { std::cell::Cell::new(1.0) };
+}
+
+/// Switches the high-contrast look of panels, toasts and captions.
+pub(super) fn set_contrast(on: bool) {
+    CONTRAST.with(|c| c.set(on));
+}
+
+/// Sets the scale of what players read (for code without the `Ui` at hand).
+pub(super) fn set_text_scale(s: f32) {
+    TEXT_SCALE.with(|c| c.set(s.max(1.0)));
+}
+
+/// The scale of what players read (at least 1).
+pub(super) fn text_scale() -> f32 {
+    TEXT_SCALE.with(|c| c.get())
+}
+
+/// Whether the high-contrast look is on.
+pub(super) fn contrast() -> bool {
+    CONTRAST.with(|c| c.get())
 }
 
 pub struct UiInput {
@@ -128,14 +157,26 @@ impl Ui {
         out
     }
 
+    /// The scale of what players read (at least 1).
+    fn scale(&self) -> f32 {
+        self.text_scale.max(1.0)
+    }
+
     pub fn draw_toasts(&self) {
         let sw = screen_width();
+        let s = self.scale();
+        let font = (FONT as f32 * s).round();
         for (i, (msg, t)) in self.toasts.iter().enumerate() {
             let a = t.min(1.0);
-            let w = measure_text(msg, None, FONT, 1.0).width + 24.0;
-            let y = 16.0 + i as f32 * 40.0;
-            draw_rectangle((sw - w) / 2.0, y, w, 34.0, Color::new(0.05, 0.05, 0.1, 0.8 * a));
-            draw_text(msg, (sw - w) / 2.0 + 12.0, y + 24.0, FONT as f32, Color::new(1., 1., 1., a));
+            let w = measure_text(msg, None, font as u16, 1.0).width + 24.0;
+            let (y, h) = (16.0 + i as f32 * 40.0 * s, 34.0 * s);
+            if contrast() {
+                draw_rectangle((sw - w) / 2.0, y, w, h, Color::new(0.0, 0.0, 0.0, a));
+                draw_rectangle_lines((sw - w) / 2.0, y, w, h, 2.0, Color::new(1.0, 0.85, 0.2, a));
+            } else {
+                draw_rectangle((sw - w) / 2.0, y, w, h, Color::new(0.05, 0.05, 0.1, 0.8 * a));
+            }
+            draw_text(msg, (sw - w) / 2.0 + 12.0, y + h * 0.7, font, Color::new(1., 1., 1., a));
         }
     }
 
@@ -144,16 +185,19 @@ impl Ui {
         self.choice_rects.clear();
         self.portrait_rect = None;
 
+        let s = self.scale();
+        let (font, line) = ((FONT as f32 * s).round(), 30.0 * s);
         if let Some(d) = &self.dialog {
             let margin = 16.0;
-            let w = (sw - margin * 2.0).min(900.0);
+            // (Larger text: a wider box, up to the screen.)
+            let w = (sw - margin * 2.0).min(900.0 * s);
             let x = (sw - w) / 2.0;
             // A portrait takes a square at the left; the text moves right of it.
             const PORTRAIT: f32 = 120.0;
             let inset = if d.portrait { PORTRAIT + 18.0 } else { 0.0 };
             let choice_rows = d.choice.as_ref().map_or(0, |c| c.0.len()) as f32;
-            let lines = wrap_text(&d.text, FONT, w - 40.0 - inset);
-            let mut h = 56.0 + lines.len().max(2) as f32 * 30.0 + choice_rows * 30.0;
+            let lines = wrap_text(&d.text, font as u16, w - 40.0 - inset);
+            let mut h = 26.0 + 30.0 * s + lines.len().max(2) as f32 * line + choice_rows * line;
             if d.portrait {
                 h = h.max(PORTRAIT + 28.0);
             }
@@ -164,27 +208,28 @@ impl Ui {
             }
             let x = x + inset;
             let w = w - inset;
-            let mut ty = y + 34.0;
+            let mut ty = y + 8.0 + 26.0 * s;
             if !d.speaker.is_empty() {
                 // (Dialog content is translated already: macroquad's draw_text, no UI lookup.)
-                macroquad::text::draw_text(&d.speaker, x + 20.0, ty, 28.0, GOLD);
-                ty += 32.0;
+                macroquad::text::draw_text(&d.speaker, x + 20.0, ty, (28.0 * s).round(), GOLD);
+                ty += 32.0 * s;
             }
             let mut budget = d.revealed as usize;
-            for line in &lines {
-                let shown: String = line.chars().take(budget).collect();
-                budget = budget.saturating_sub(line.chars().count() + 1);
-                macroquad::text::draw_text(&shown, x + 20.0, ty, FONT as f32, WHITE);
-                ty += 30.0;
+            for l in &lines {
+                let shown: String = l.chars().take(budget).collect();
+                budget = budget.saturating_sub(l.chars().count() + 1);
+                macroquad::text::draw_text(&shown, x + 20.0, ty, font, WHITE);
+                ty += line;
             }
             let done = d.revealed as usize >= d.text.chars().count();
             if let (Some((opts, _, sel)), true) = (&d.choice, done) {
+                let dim = if contrast() { WHITE } else { LIGHTGRAY };
                 for (i, o) in opts.iter().enumerate() {
-                    self.choice_rects.push(Rect::new(x + 20.0, ty - 22.0, w - 40.0, 30.0));
-                    let c = if i == *sel { GOLD } else { LIGHTGRAY };
+                    self.choice_rects.push(Rect::new(x + 20.0, ty - 22.0 * s, w - 40.0, line));
+                    let c = if i == *sel { GOLD } else { dim };
                     let marker = if i == *sel { ">" } else { " " };
-                    macroquad::text::draw_text(format!("{marker} {o}"), x + 36.0, ty, FONT as f32, c);
-                    ty += 30.0;
+                    macroquad::text::draw_text(format!("{marker} {o}"), x + 36.0, ty, font, c);
+                    ty += line;
                 }
             } else if done && (get_time() * 2.0) as i64 % 2 == 0 {
                 let (cx, cy) = (x + w - 28.0, y + h - 20.0);
@@ -204,7 +249,12 @@ pub(super) const SLOT: f32 = 48.0;
 pub(super) const GAP: f32 = 6.0;
 pub(super) const PAD: f32 = 14.0;
 pub(super) const TITLE_H: f32 = 40.0;
-pub(super) const DETAIL_H: f32 = 84.0;
+const DETAIL_H: f32 = 84.0;
+
+/// The details footer's height, grown with the text size (Options › Accessibility).
+pub(super) fn detail_h() -> f32 {
+    DETAIL_H + (text_scale() - 1.0) * 80.0
+}
 
 /// The size of a panel holding `n` slots in `cols` columns under a title.
 pub(super) fn slot_grid_size(n: usize, cols: usize) -> Vec2 {
@@ -349,14 +399,17 @@ pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, st
         let def = db.item(&s.item);
         let name = def.map_or(s.item.as_str(), |d| d.name.as_str());
         let title = if s.count > 1 { format!("{name}  x{}", s.count) } else { name.to_string() };
-        draw_text(&title, d.x + pad, d.y + 24.0, 22.0, WHITE);
+        let s = text_scale();
+        let (big, small) = ((22.0 * s).round(), (18.0 * s).round());
+        draw_text(&title, d.x + pad, d.y + 24.0 * s, big, WHITE);
         if let Some(def) = def {
-            let tw = measure_text(&title, None, 22, 1.0).width;
+            let tw = measure_text(&title, None, big as u16, 1.0).width;
             if let Some(line) = item_stats_line(def) {
-                draw_text(&line, d.x + pad + tw + 16.0, d.y + 23.0, 18.0, GOLD);
+                draw_text(&line, d.x + pad + tw + 16.0, d.y + 23.0 * s, small, GOLD);
             }
-            for (k, line) in wrap_text(&super::glyphs::expand_keys(&def.description), 18, d.w - 2.0 * pad).iter().take(2).enumerate() {
-                draw_text(line, d.x + pad, d.y + 44.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
+            let desc = if contrast() { WHITE } else { LIGHTGRAY };
+            for (k, line) in wrap_text(&super::glyphs::expand_keys(&def.description), small as u16, d.w - 2.0 * pad).iter().take(2).enumerate() {
+                draw_text(line, d.x + pad, d.y + 44.0 * s + k as f32 * small, small, desc);
             }
         }
     }
@@ -389,6 +442,12 @@ pub(super) fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
 }
 
 pub(super) fn panel(x: f32, y: f32, w: f32, h: f32) {
+    if contrast() {
+        // High contrast: opaque black, a bright border.
+        draw_rectangle(x, y, w, h, BLACK);
+        draw_rectangle_lines(x, y, w, h, 3.0, Color::new(1.0, 0.85, 0.2, 1.0));
+        return;
+    }
     draw_rectangle(x, y, w, h, Color::new(0.06, 0.06, 0.12, 0.92));
     draw_rectangle_lines(x, y, w, h, 3.0, Color::new(0.85, 0.8, 0.6, 1.0));
 }

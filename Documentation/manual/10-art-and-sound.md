@@ -183,6 +183,12 @@ a file into `sounds/`.
   *Steel in the Woods*) are composed in a note notation and rendered by a small synthesizer:
   `scripts/sounds/music/` (`cargo run --release -- OUT_DIR [ID…]` in that folder).
 - Players set the volume of music, effects and ambience in *Options*.
+- **Captions**: a sound's *Caption* (Database › Sounds) is written on screen when it plays for
+  players who turned on *Captions* (Options › Accessibility), with the side it came from for sounds
+  of characters and props in the world (hits, swings, doors, locks, gathering, a *Play sound* action
+  of a character or prop); a new music track shows *Music: <its caption>*. The example's and the
+  starter library's sounds have captions (*Door opens*, *Dog barks*, *Market Day*…); footsteps, the
+  pickup and the dialog blip have none.
 
 ## Soundscapes and footsteps
 

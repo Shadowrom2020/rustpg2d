@@ -42,11 +42,22 @@ pub struct Settings {
     /// else the game's own).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+    /// Accessibility: the size of what players read (dialogs, toasts, speech bubbles, captions,
+    /// the item details): 0 = normal, 1 = large (125 %), 2 = larger (150 %).
+    pub text_size: u8,
+    /// Accessibility: sound effects with a caption show it (`SoundDef::caption`).
+    pub captions: bool,
+    /// Accessibility: the HUD, dialogs, toasts and captions on opaque dark panels with bright
+    /// borders and plain colours; outlined damage numbers.
+    pub high_contrast: bool,
+    /// Accessibility: holding Attack keeps attacking, holding E keeps working a tree, a rock,
+    /// a crop (in the world, not in dialogs or windows).
+    pub hold_repeat: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, damage_numbers: true, quest_markers: true, keys: Default::default(), pad: Default::default(), pad_style: "auto".into(), language: None }
+        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, damage_numbers: true, quest_markers: true, keys: Default::default(), pad: Default::default(), pad_style: "auto".into(), language: None, text_size: 0, captions: false, high_contrast: false, hold_repeat: false }
     }
 }
 
@@ -56,10 +67,18 @@ fn is_auto(s: &String) -> bool {
 
 /// Zoom levels the Options menu cycles through.
 pub const ZOOMS: [f32; 6] = [0.75, 1.0, 1.25, 1.5, 2.0, 2.5];
+/// Text sizes (Options › Accessibility): the scale and its name.
+pub const TEXT_SIZES: [(f32, &str); 3] = [(1.0, "Normal"), (1.25, "Large"), (1.5, "Larger")];
+
 /// Text speeds: slow, normal, fast, instant.
 pub const TEXT_SPEEDS: [(f32, &str); 4] = [(0.5, "Slow"), (1.0, "Normal"), (2.0, "Fast"), (0.0, "Instant")];
 
 impl Settings {
+    /// The scale of what players read ([`Settings::text_size`]).
+    pub fn text_scale(&self) -> f32 {
+        TEXT_SIZES.get(self.text_size as usize).map_or(1.0, |t| t.0)
+    }
+
     /// Folder of a game's settings (by the game's name).
     pub fn dir(game_name: &str) -> Option<PathBuf> {
         // The web game: kept in the browser's storage (`sys`).
@@ -110,6 +129,19 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn accessibility_options_are_off_in_older_files() {
+        // A settings file from before the Accessibility page: everything off, normal text.
+        let old: Settings = ron::from_str("(zoom: 1.5, text_speed: 2.0)").unwrap();
+        assert_eq!((old.text_size, old.captions, old.high_contrast, old.hold_repeat), (0, false, false, false));
+        assert_eq!(old.text_scale(), 1.0);
+        let larger = Settings { text_size: 2, captions: true, ..old };
+        let back: Settings = ron::from_str(&ron::to_string(&larger).unwrap()).unwrap();
+        assert_eq!((back.text_scale(), back.captions), (1.5, true));
+        // Out of range: normal.
+        assert_eq!(Settings { text_size: 9, ..Settings::default() }.text_scale(), 1.0);
+    }
 
     #[test]
     fn round_trip_and_defaults() {

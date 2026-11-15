@@ -62,8 +62,9 @@ impl Game {
             format!("Locked with the {}.", self.item_name(&lock.key))
         };
         self.ui.toast(msg);
-        let sfx = if lock.key.is_empty() { &self.project.config.sfx.portal } else { &self.project.config.sfx.unlock };
-        self.audio.play(sfx);
+        let sfx = if lock.key.is_empty() { self.project.config.sfx.portal.clone() } else { self.project.config.sfx.unlock.clone() };
+        let at = self.loaded.entities[i].body.pos;
+        self.sound_from(&sfx, at);
         self.apply_lock(i);
         let uid = self.loaded.entities[i].uid;
         self.fire(GameEvent::Lock, Source::Entity(uid));

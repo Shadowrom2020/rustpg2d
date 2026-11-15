@@ -132,6 +132,7 @@ place is named under the list (*R2 is also Switch weapon*).
 | Quest markers | On / off: markers over quest targets, arrows at the screen's edge and pins on the map |
 | Language | The game's languages |
 | Controls… | Every action with its keys: Enter, then a key, adds one (up to three per action); Del clears; *Reset to defaults* |
+| Accessibility… | **Text size** *Normal* / *Large* / *Larger* (125 %, 150 %: dialogs and choices, messages, speech bubbles, captions, the item details); **Captions** (what sounds and music are heard, written at the bottom left with `<` / `>` for the side a sound came from; at the top right while a window is open); **High contrast** (black panels with bright borders, plain white text, outlined damage numbers); **Hold to repeat** (holding Attack keeps attacking at the weapon's speed, holding E, or the right mouse button on a tree or a rock, keeps chopping or mining) |
 
 Options are saved per game and kept between sessions and save games: in `~/.config/rustpg2d/<game>/settings.ron` on Linux, `%APPDATA%\rustpg2d\<game>` on Windows, `~/Library/Application Support/rustpg2d/<game>` on macOS, and in the browser for web games. Achievements are kept there too, not in save games.
 

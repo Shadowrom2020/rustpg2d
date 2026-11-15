@@ -182,9 +182,12 @@ impl Game {
             let at = cam.world_to_screen(n.pos + vec2(n.drift * ts * 0.25 * p, -rise));
             let w = measure_text(&text, None, size as u16, 1.0).width;
             let (x, y) = ((at.x - w / 2.0).round(), at.y.round());
-            let o = (size / 12.0).max(1.0).round();
-            for (dx, dy) in [(-o, 0.0), (o, 0.0), (0.0, -o), (0.0, o), (o, o)] {
-                draw_text(&text, x + dx, y + dy, size, Color::new(0.0, 0.0, 0.0, alpha * 0.9));
+            // (High contrast: a thicker outline all round.)
+            let contrast = super::ui::contrast();
+            let o = (size / if contrast { 7.0 } else { 12.0 }).max(1.0).round();
+            let ring: &[(f32, f32)] = if contrast { &[(-o, 0.0), (o, 0.0), (0.0, -o), (0.0, o), (o, o), (-o, -o), (o, -o), (-o, o)] } else { &[(-o, 0.0), (o, 0.0), (0.0, -o), (0.0, o), (o, o)] };
+            for (dx, dy) in ring {
+                draw_text(&text, x + dx, y + dy, size, Color::new(0.0, 0.0, 0.0, if contrast { alpha } else { alpha * 0.9 }));
             }
             draw_text(&text, x, y, size, col);
         }

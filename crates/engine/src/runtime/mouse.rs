@@ -51,6 +51,8 @@ impl Order {
 pub(super) struct MouseState {
     last: Vec2,
     idle: f32,
+    /// What the last right-click was on: worked again while the button stays down (hold to repeat).
+    hold: Option<u32>,
 }
 
 impl Game {
@@ -217,6 +219,12 @@ impl Game {
             Goal::Attack(u) => self.uid_index(u).is_some_and(|i| self.melee_reaches(i)),
             _ => false,
         };
+        if right {
+            self.mouse.hold = match goal {
+                Goal::Interact(u) => Some(u),
+                _ => None,
+            };
+        }
         let path = if ready { Some(VecDeque::new()) } else { self.plan(goal) };
         match path {
             Some(path) => {
@@ -231,6 +239,29 @@ impl Game {
                     self.ui.toast("Can't get there.".into());
                 }
             }
+        }
+    }
+
+    /// Options › Accessibility › Hold to repeat: the right mouse button held on a tree or a rock
+    /// keeps working it once the player stands there (like holding E).
+    pub(super) fn mouse_hold_repeat(&mut self, dt: f32) {
+        if !input::mouse_down(MouseButton::Right) {
+            self.mouse.hold = None;
+            return;
+        }
+        if !self.settings.hold_repeat || self.order.is_some() || self.ui.dialog_open() {
+            return;
+        }
+        let Some(i) = self.mouse.hold.and_then(|u| self.uid_index(u)) else { return };
+        if self.gatherable(i).is_none() || !self.in_reach(i) {
+            return;
+        }
+        self.combat.hold_e -= dt;
+        if self.combat.hold_e <= 0.0 {
+            self.combat.hold_e = super::HOLD_REPEAT;
+            let p = self.loaded.entities[i].body.pos;
+            self.face_towards(p);
+            self.interact_entity(i);
         }
     }
 
@@ -261,6 +292,7 @@ impl Game {
                     // stands behind it.
                     let i = if self.inert_prop(i) { self.behind_counter(i).unwrap_or(i) } else { i };
                     self.interact_entity(i);
+                    self.combat.hold_e = super::HOLD_REPEAT;
                     return None;
                 }
             }

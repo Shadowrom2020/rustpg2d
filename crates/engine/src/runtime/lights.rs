@@ -79,7 +79,12 @@ impl Game {
         let size = 20.0;
         let w = measure_text(&text, None, size as u16, 1.0).width;
         let (x, y) = (screen_width() - w - 18.0, 30.0);
-        draw_rectangle(x - 8.0, y - 20.0, w + 16.0, 28.0, Color::new(0.04, 0.04, 0.08, 0.6));
+        if super::ui::contrast() {
+            draw_rectangle(x - 8.0, y - 20.0, w + 16.0, 28.0, BLACK);
+            draw_rectangle_lines(x - 8.0, y - 20.0, w + 16.0, 28.0, 2.0, Color::new(1.0, 0.85, 0.2, 1.0));
+        } else {
+            draw_rectangle(x - 8.0, y - 20.0, w + 16.0, 28.0, Color::new(0.04, 0.04, 0.08, 0.6));
+        }
         draw_text(&text, x, y, size, if night { Color::new(0.7, 0.8, 1.0, 1.0) } else { Color::new(1.0, 0.92, 0.6, 1.0) });
     }
 }

@@ -41,6 +41,7 @@ mod menu;
 mod minigame;
 mod image;
 mod orders;
+mod captions;
 mod battle;
 mod photo;
 pub mod input;
@@ -199,6 +200,9 @@ enum Drawn {
     Projectile(usize),
     Fly(usize),
 }
+
+/// Seconds between two hits while E is held (Options › Accessibility › Hold to repeat).
+const HOLD_REPEAT: f32 = 0.45;
 
 struct RtEntity {
     uid: u32,
@@ -399,6 +403,8 @@ pub struct Game {
     photo: photo::Photo,
     /// The player's combat state and the music (`battle.rs`).
     battle: battle::Battle,
+    /// Sound captions (`captions.rs`).
+    captions: captions::Captions,
     /// Script hot reload and the console (`--dev`).
     dev: dev::Dev,
     /// A save waits for its thumbnail (captured while drawing), and what waits for that.
@@ -555,6 +561,7 @@ impl Game {
             juice: Default::default(),
             photo: Default::default(),
             battle: Default::default(),
+            captions: Default::default(),
             dev: dev::Dev::new(start.dev, &project.scripts_dir()),
             thumb_request: None,
             after_thumb: None,
@@ -1464,6 +1471,7 @@ impl Game {
         self.update_soundscape(dt);
         self.update_juice(dt);
         self.update_battle(dt);
+        self.update_captions(dt);
         self.after_thumbnail();
         // Esc opens the pause menu (unless a window or dialog uses Esc); it pauses everything.
         // (While a bolt spell is being aimed, Esc cancels the spell instead.)
@@ -1612,6 +1620,7 @@ impl Game {
         let consumed = input.consumed || inv_key || aim_key;
         if !input.mouse_consumed && !inv_mouse && !aim_mouse && allow_inventory && !self.modal() {
             self.handle_mouse();
+            self.mouse_hold_repeat(dt);
         }
 
         let mut runner = std::mem::take(&mut self.runner);
@@ -1792,6 +1801,16 @@ impl Game {
 
         if !key_consumed && input::act_pressed(Act::Confirm) {
             self.interact();
+            self.combat.hold_e = HOLD_REPEAT;
+        } else if !key_consumed && self.settings.hold_repeat && input::act_down(Act::Confirm) && !self.ui.dialog_open() {
+            // Options › Accessibility › Hold to repeat: E held keeps working a tree or a rock.
+            self.combat.hold_e -= dt;
+            if self.combat.hold_e <= 0.0 {
+                self.combat.hold_e = HOLD_REPEAT;
+                if let Some(i) = self.facing_entity().filter(|&i| self.gatherable(i).is_some()) {
+                    self.interact_entity(i);
+                }
+            }
         }
     }
 
@@ -2226,7 +2245,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2309,6 +2328,7 @@ impl Game {
             self.sneak_status(),
             self.battle_status(),
             self.audio.music_fade_status(),
+            self.captions_status(),
             self.emotes_status(),
             self.barks_status(),
             self.audio.ambient_status(),
@@ -2464,6 +2484,10 @@ impl Game {
 
     pub fn draw(&mut self) {
         self.assets.models.begin_frame();
+        // Options › Accessibility: text size and high contrast, for everything drawn below.
+        self.ui.text_scale = self.settings.text_scale();
+        ui::set_contrast(self.settings.high_contrast);
+        ui::set_text_scale(self.settings.text_scale());
         let ts = self.ts();
         let m = &self.loaded.map;
         let bg = m.background;
@@ -2640,6 +2664,7 @@ impl Game {
         self.draw_cutscene_bars();
         self.draw_fps();
         self.draw_image();
+        self.draw_captions();
         self.ui.draw_toasts();
         self.ui.draw_dialog();
         self.draw_dialog_portrait();
@@ -2819,7 +2844,11 @@ impl ActionHost for Game {
                 Step::Block
             }
             Action::PlaySound { sound } => {
-                self.audio.play(sound);
+                // From the character or prop whose trigger plays it: its caption names the side.
+                match ctx.owner.and_then(|u| self.loaded.entities.iter().find(|e| e.uid == u)).map(|e| e.body.pos) {
+                    Some(at) => self.sound_from(sound, at),
+                    None => self.audio.play(sound),
+                }
                 Step::Continue
             }
             Action::PlayMusic { sound } => {

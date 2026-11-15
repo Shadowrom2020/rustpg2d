@@ -293,20 +293,32 @@ struct HipBone {
     out: Vec3,
 }
 
-/// [`HipBone`] of a model at rest (facing +Z: its left is +X): the side of the body around the
-/// hip bone's height.
+/// [`HipBone`] of a model at rest (facing +Z: its left is +X): the outside of the left thigh
+/// around the hip bone's height (not the widest skin there: the hands hang beside the hips).
 fn hip_bone(model: &Model, rest: &[Mat4]) -> Option<HipBone> {
     let node = ["hips", "pelvis", "hip"].iter().find_map(|n| model.node(n))?;
     let m = rest[node];
     let at = m.w_axis.truncate();
     let (lo, hi) = model.bounds();
     let h = (hi.y - lo.y).max(1e-3);
+    // The left thigh's top (+X), else a guess beside the hip bone.
+    let thigh = ["leftupleg", "leftthigh", "thigh_l", "upperleg_l", "leftleg"]
+        .iter()
+        .find_map(|n| model.node(n))
+        .map(|n| rest[n].w_axis.truncate())
+        .filter(|t| t.x > at.x)
+        .map_or(at.x + h * 0.05, |t| t.x);
     let mut skin = Vec::new();
     model.skin(rest, &mut skin);
-    let side = skin.iter().map(|p| p.0).filter(|p| (p.y - at.y).abs() < h * 0.05 && (p.z - at.z).abs() < h * 0.1).map(|p| p.x).fold(f32::MIN, f32::max);
-    let side = if side == f32::MIN { at.x + h * 0.08 } else { side };
-    // On the belt, a little in front of the side and above the hip bone.
-    let point = vec3(side + h * 0.01, at.y + h * 0.03, at.z + h * 0.03);
+    let side = skin
+        .iter()
+        .map(|p| p.0)
+        .filter(|p| (p.y - at.y).abs() < h * 0.05 && (p.z - at.z).abs() < h * 0.08 && (p.x - thigh).abs() < h * 0.07)
+        .map(|p| p.x)
+        .fold(f32::MIN, f32::max);
+    let side = if side == f32::MIN { thigh + h * 0.04 } else { side };
+    // On the belt at the side, a little in front and above the hip bone.
+    let point = vec3(side, at.y + h * 0.03, at.z + h * 0.03);
     let inv = m.inverse();
     let dir = |v: Vec3| inv.transform_vector3(v).normalize_or_zero();
     Some(HipBone { node, at: inv.transform_point3(point), down: dir(-Vec3::Y), fwd: dir(Vec3::Z), out: dir(Vec3::X) })
@@ -1264,7 +1276,8 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         let anchor = turn.transform_point3(m.transform_point3(hb.at));
         let v = |d: Vec3| turn.transform_vector3(m.transform_vector3(d)).normalize_or_zero();
         let (down, fwd, out) = (v(hb.down), v(hb.fwd), v(hb.out));
-        let axis = (down - fwd * 0.45 + out * 0.12).normalize_or(down);
+        // (Along the thigh: no outward tilt, the leg is narrower below.)
+        let axis = (down - fwd * 0.45 - out * 0.05).normalize_or(down);
         let (mesh, far) = placed_item(spec, mesh, anchor, axis, fwd, spec.size * PX / l.ppu);
         held.push((mesh, true, id.to_string(), far));
     }

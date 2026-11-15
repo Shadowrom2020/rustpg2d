@@ -59,6 +59,9 @@ type ZoneParts = (ZoneKind, Vec<Trigger>, Option<Vec<rustpg2d_engine::defs::Loot
 struct MapSettings {
     background: [u8; 3],
     music: String,
+    /// None = the project's battle music, "" = none.
+    #[serde(default)]
+    battle_music: Option<String>,
     lighting: rustpg2d_engine::map::MapLighting,
     fog: bool,
     weather: rustpg2d_engine::map::Weather,
@@ -996,10 +999,12 @@ impl Editor {
         self.mcp_target_map(&p.map)?;
         let doc = self.mcp_doc()?;
         let m = &doc.map;
-        let cur = MapSettings { background: m.background, music: m.music.clone(), lighting: m.lighting, fog: m.fog, weather: m.weather, parallax: m.parallax.clone(), edges: m.edges.clone() };
+        let cur = MapSettings { background: m.background, music: m.music.clone(), battle_music: m.battle_music.clone(), lighting: m.lighting, fog: m.fog, weather: m.weather, parallax: m.parallax.clone(), edges: m.edges.clone() };
         let new: MapSettings = patch::apply(&cur, &p.patch)?;
-        if !new.music.is_empty() && self.project.db.sound(&new.music).is_none() {
-            return Err(format!("music \"{}\" is not a sound.{}", new.music, suggestions(&new.music, self.project.db.sounds.iter().map(|s| s.id.as_str()))));
+        for m in std::iter::once(&new.music).chain(new.battle_music.iter()).filter(|m| !m.is_empty()) {
+            if self.project.db.sound(m).is_none() {
+                return Err(format!("music \"{m}\" is not a sound.{}", suggestions(m, self.project.db.sounds.iter().map(|s| s.id.as_str()))));
+            }
         }
         for (side, e) in [("north", &new.edges.north), ("south", &new.edges.south), ("east", &new.edges.east), ("west", &new.edges.west)] {
             if let Some(e) = e {
@@ -1017,6 +1022,7 @@ impl Editor {
         let before = Objects::of(&doc.map);
         doc.map.background = new.background;
         doc.map.music = new.music;
+        doc.map.battle_music = new.battle_music;
         doc.map.lighting = new.lighting;
         doc.map.fog = new.fog;
         doc.map.weather = new.weather;

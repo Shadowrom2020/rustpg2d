@@ -50,6 +50,17 @@ equipped bow or crossbow.
     shield ([Characters › Weapon animations](06-characters.md#weapon-animations)): a guard stance with
     a sword, a thrust with a spear, a drawn bow, an overhead blow with a two-handed weapon, a punch
     with bare hands, a raised shield while blocking. The player's strikes too.
+- **Battle stance and battle music**: characters are **in combat** while they hunt someone or fight
+  (companions too), the player while an enemy close by (16 tiles) hunts them or a companion, while
+  striking, blocking or hurt; it ends four seconds after the last of these. In combat characters take
+  their weapon's stance with a one-handed weapon in the hand; out of it they stand upright and
+  relaxed, the one-handed weapon at the left hip (two-handed and ranged weapons, shields and tools
+  stay in the hands). While enemies engage the player or a companion the music crossfades to the
+  **battle music** (*Database › Project › Game sounds › Battle music*; a map can choose another
+  track or none in its properties) and back to the map's music when the fight is over; the
+  player's own swing at nothing draws the sword but doesn't start the music. The example plays
+  *Steel in the Woods* (`music_battle`, in the starter library); `status` prints `battle=` (the
+  player's combat and who is in combat) and `music_fade=`.
 - **Groups fight like groups** (*Group* on the character's form, on by default): at most two
   enemies close in on the player (or on one companion) at a time; the others **circle** at about
   two and a half tiles, facing their target, and step in when one of the two falls or falls

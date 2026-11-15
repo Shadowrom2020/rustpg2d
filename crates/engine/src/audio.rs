@@ -74,6 +74,9 @@ enum Loop {
     Plain,
 }
 
+/// Seconds a music track takes to fade out or in ([`Audio::fade_music_to`]).
+pub const MUSIC_FADE: f32 = 0.8;
+
 pub struct Audio {
     sounds: HashMap<String, (Sound, f32)>,
     /// Sound files by id (music is decoded again for its gapless loop).
@@ -82,6 +85,9 @@ pub struct Audio {
     loops: HashMap<String, Loop>,
     prepared: Prepared,
     music: Option<String>,
+    /// The music's fade (0..1) and the track it fades out for ([`Audio::fade_music_to`]).
+    music_gain: f32,
+    music_next: Option<String>,
     /// The sound last started by [`Audio::play_preview`] (the editor's Play button).
     preview: Option<String>,
     pub errors: Vec<String>,
@@ -141,6 +147,8 @@ impl Audio {
             enabled: false,
             effects: 1.0,
             music_vol: 1.0,
+            music_gain: 1.0,
+            music_next: None,
             ambient: HashMap::new(),
             rain: None,
             rain_vol: 0.0,
@@ -211,6 +219,8 @@ impl Audio {
             enabled,
             effects: 1.0,
             music_vol: 1.0,
+            music_gain: 1.0,
+            music_next: None,
             ambient: HashMap::new(),
             rain: None,
             rain_vol: 0.0,
@@ -331,24 +341,83 @@ impl Audio {
         self.effects = effects.clamp(0.0, 1.0);
         self.music_vol = music.clamp(0.0, 1.0);
         if let Some((s, vol)) = self.music_sound() {
-            set_sound_volume(s, vol * self.music_vol);
+            set_sound_volume(s, vol * self.music_vol * self.music_gain);
         }
     }
 
-    /// Switches the looping music; `""` stops it. Re-requesting the current track keeps it playing.
+    /// Switches the looping music at once; `""` stops it. Re-requesting the current track keeps it
+    /// playing (a fade in progress is ended).
     pub fn play_music(&mut self, id: &str) {
+        self.music_next = None;
         if self.music.as_deref() == Some(id) {
+            self.music_gain = 1.0;
+            if let Some((s, vol)) = self.music_sound() {
+                set_sound_volume(s, vol * self.music_vol);
+            }
             return;
         }
+        self.music_gain = 1.0;
         self.stop_music();
-        if id.is_empty() || !self.enabled {
+        if id.is_empty() {
             return;
         }
-        let Some(&(_, vol)) = self.sounds.get(id) else { return };
-        self.gapless(id);
+        // (Muted, the track is still noted, for `status`; nothing plays.)
         self.music = Some(id.to_string());
+        let Some(&(_, vol)) = self.sounds.get(id).filter(|_| self.enabled) else { return };
+        self.gapless(id);
         if let Some((s, _)) = self.music_sound() {
             play_sound(s, PlaySoundParams { looped: true, volume: vol * self.music_vol });
+        }
+    }
+
+    /// Fades the music over to `id` (`""` = silence): the current track fades out over
+    /// [`MUSIC_FADE`] seconds, then `id` starts and fades in ([`Audio::tick_music`] moves it on).
+    /// Asking for the track that is fading out brings it back.
+    pub fn fade_music_to(&mut self, id: &str) {
+        let now = self.music.as_deref().unwrap_or("");
+        if now == id {
+            self.music_next = None;
+        } else if self.music_next.as_deref() != Some(id) {
+            self.music_next = Some(id.to_string());
+        }
+    }
+
+    /// Moves a music fade on by `dt` seconds (once a frame).
+    pub fn tick_music(&mut self, dt: f32) {
+        let step = dt / MUSIC_FADE;
+        if let Some(next) = self.music_next.clone() {
+            self.music_gain -= step;
+            if self.music_gain <= 0.0 || self.music.is_none() {
+                self.music_next = None;
+                self.stop_music();
+                self.music_gain = 0.0;
+                if !next.is_empty() {
+                    let play = self.enabled && self.sounds.contains_key(&next);
+                    if play {
+                        self.gapless(&next);
+                    }
+                    self.music = Some(next);
+                    // (Silent at first: it fades in.)
+                    if let Some((s, _)) = self.music_sound().filter(|_| play) {
+                        play_sound(s, PlaySoundParams { looped: true, volume: 0.0 });
+                    }
+                }
+            }
+        } else if self.music_gain < 1.0 {
+            self.music_gain = (self.music_gain + step).min(1.0);
+        } else {
+            return;
+        }
+        if let Some((s, vol)) = self.music_sound() {
+            set_sound_volume(s, vol * self.music_vol * self.music_gain.max(0.0));
+        }
+    }
+
+    /// `status()`: the track fading in, `>next` while one fades out for it.
+    pub fn music_fade_status(&self) -> String {
+        match &self.music_next {
+            Some(n) => format!("{:.2}>{n}", self.music_gain),
+            None => format!("{:.2}", self.music_gain),
         }
     }
 
@@ -710,6 +779,30 @@ pub fn loop_ready(bytes: &[u8]) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn music_fades_over_to_another_track_and_back() {
+        // (Silent: nothing plays, but the tracks and the fade are followed.)
+        let mut a = Audio::silent();
+        a.play_music("peace");
+        a.fade_music_to("battle");
+        a.tick_music(MUSIC_FADE / 2.0);
+        assert_eq!((a.current_music(), a.music_fade_status()), (Some("peace"), "0.50>battle".to_string()));
+        a.tick_music(MUSIC_FADE / 2.0 + 0.01);
+        assert_eq!(a.current_music(), Some("battle"), "the new track starts silent");
+        assert!(a.music_gain < 0.05);
+        a.tick_music(MUSIC_FADE);
+        assert_eq!(a.music_fade_status(), "1.00");
+        // Wanted back while fading out: it comes back up, no switch.
+        a.fade_music_to("peace");
+        a.tick_music(MUSIC_FADE / 4.0);
+        a.fade_music_to("battle");
+        a.tick_music(MUSIC_FADE);
+        assert_eq!((a.current_music(), a.music_fade_status()), (Some("battle"), "1.00".to_string()));
+        // At once (a map's music): no fade.
+        a.play_music("peace");
+        assert_eq!((a.current_music(), a.music_fade_status()), (Some("peace"), "1.00".to_string()));
+    }
 
     /// quad-snd's mixing of one looped sound, as it is (0.2.8): buffers of `MIX_BUFFER_FRAMES`
     /// stereo frames; after a rewind the rest is written from the buffer's start again.

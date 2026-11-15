@@ -411,6 +411,7 @@ impl Editor {
             match kind {
                 RefKind::Tileset if map.tilesets.iter().any(|t| t == id) => settings.push("uses the tileset"),
                 RefKind::Sound if map.music == id => settings.push("music"),
+                RefKind::Sound if map.battle_music.as_deref() == Some(id) => settings.push("battle music"),
                 RefKind::Sheet if names_id(&serde_json::to_value(&map.parallax).unwrap_or_default(), id) > 0 => settings.push("parallax layer"),
                 RefKind::Map if names_map(&serde_json::to_value(&map.edges).unwrap_or_default(), id) > 0 => settings.push("map edge"),
                 _ => {}
@@ -468,6 +469,9 @@ impl Editor {
         }
         if kind == RefKind::Map && self.project.config.start_map == id {
             out.push(Entry::new(What::Project, "Project", "the start map", Target::Project));
+        }
+        if kind == RefKind::Sound && self.project.config.battle_music == id {
+            out.push(Entry::new(What::Project, "Project", "the battle music", Target::Project));
         }
         out
     }

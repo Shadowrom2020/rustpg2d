@@ -207,6 +207,8 @@ pub struct Map {
     pub background: [u8; 3],
     /// Looping music sound id ("" = keep whatever is playing).
     pub music: String,
+    /// The music while the player fights: None = the project's battle music, `""` = none.
+    pub battle_music: Option<String>,
     /// Darkness of the map: always bright, day / night, or dark (dungeons).
     pub lighting: MapLighting,
     /// Fog of war: the map screen only shows what the player has explored.
@@ -385,6 +387,7 @@ impl Map {
             next_uid: 1,
             background: [20, 20, 28],
             music: String::new(),
+            battle_music: None,
             lighting: MapLighting::default(),
             fog: false,
             weather: Weather::default(),

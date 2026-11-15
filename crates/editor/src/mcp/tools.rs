@@ -418,7 +418,7 @@ pub struct AddTriggerParams {
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MapSettingsParams {
     pub map: Option<String>,
-    /// Merge patch over {background: [r,g,b], music: sound id, lighting: {mode: "Bright"|"Outdoor"|"Dark", darkness}, fog: bool, weather: {kind: "None"|"Rain"|"Snow"|"Fog", intensity}, parallax: [..], edges: {north|south|east|west: {target_map, offset, depth} | null}}.
+    /// Merge patch over {background: [r,g,b], music: sound id, battle_music: null (the project's battle music) | "" (none) | sound id, lighting: {mode: "Bright"|"Outdoor"|"Dark", darkness}, fog: bool, weather: {kind: "None"|"Rain"|"Snow"|"Fog", intensity}, parallax: [..], edges: {north|south|east|west: {target_map, offset, depth} | null}}.
     pub patch: Value,
 }
 
@@ -731,7 +731,7 @@ with_params {
     /// Redoes undone edit(s) of the open map.
     #[tool]
     redo: Redo(p: UndoParams) => ed.mcp_undo(p, true), summary = String::new();
-    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, skills, progression, dialog_portraits, model_atlas_mb (MB of GPU memory for rendered character poses, 8 to 128), …
+    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, battle_music (a sound id: the music while the player fights; maps may override it in set_map_settings), skills, progression, dialog_portraits, model_atlas_mb (MB of GPU memory for rendered character poses, 8 to 128), …
     #[tool(annotations(idempotent_hint = true))]
     set_project_config: SetProjectConfig(p: PatchParams) => ed.mcp_set_project_config(p);
     /// A map region as text: one grid per layer with a legend (glyph = tileset#index, terrain name, solid), the collision grid, and the entities and zones there with their uids. At most 80x50 tiles per call.

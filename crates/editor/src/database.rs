@@ -2689,6 +2689,9 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
             widgets::suggest(ui, &format!("sfx_{label}"), v, &ed.refs.sounds, 140.0);
             ui.end_row();
         }
+        ui.label("Battle music").on_hover_text("Played while the player fights (enemies hunting them or a companion, the player striking), faded in and back to the map's music a few seconds after the fight; empty = the map's music goes on. A map can name another track or none (map properties).");
+        widgets::suggest(ui, "battle_music", &mut c.battle_music, &ed.refs.sounds, 140.0);
+        ui.end_row();
     });
     ui.separator();
     ui.separator();
@@ -4219,10 +4222,11 @@ fn item_model_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         });
         HOLD_PREVIEW.with(|p| *p.borrow_mut() = (anim, play, holder.clone()));
         let look = Appearance { model: holder, ..Default::default() };
+        // (Battle-ready: the item in the hand and its stance, not sheathed at the hip.)
         let gear = match d.armor.as_ref().map(|a| a.slot) {
-            Some(EquipSlot::Offhand) => Gear { offhand: Some(d.id.clone()), ..Default::default() },
-            Some(EquipSlot::Back) => Gear { back: Some(d.id.clone()), ..Default::default() },
-            _ => Gear { weapon: Some(d.id.clone()), ..Default::default() },
+            Some(EquipSlot::Offhand) => Gear { offhand: Some(d.id.clone()), ready: true, ..Default::default() },
+            Some(EquipSlot::Back) => Gear { back: Some(d.id.clone()), ready: true, ..Default::default() },
+            _ => Gear { weapon: Some(d.id.clone()), ready: true, ..Default::default() },
         };
         // The clip its animations name for this model (`Models::anim_for`), at its blow.
         let clip = cx.assets.models.anim_for(cx.db, &look.model, &gear, anim);

@@ -22,6 +22,10 @@ pub struct ProjectConfig {
     pub scale: f32,
     /// Player character definition id.
     pub player: String,
+    /// Music while the player fights (a sound id; "" = none): enemies hunting the player or a
+    /// companion, the player striking. A map may name its own (`Map::battle_music`).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub battle_music: String,
     /// Sounds played by built-in game events.
     #[serde(default)]
     pub sfx: GameSfx,
@@ -201,6 +205,7 @@ impl ProjectConfig {
             start_spawn: "start".into(),
             scale: default_scale(),
             player: String::new(),
+            battle_music: String::new(),
             sfx: GameSfx::default(),
             inventory_size: default_inventory_size(),
             creation: CharacterCreation::default(),

@@ -60,6 +60,9 @@ pub struct Meta {
     pub weather: crate::map::Weather,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub parallax: Vec<crate::map::ParallaxLayer>,
+    /// The map's battle music: None = the project's, `""` = none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub battle_music: Option<String>,
 }
 
 impl Meta {
@@ -77,6 +80,7 @@ impl Meta {
             fog: map.fog,
             weather: map.weather,
             parallax: map.parallax.clone(),
+            battle_music: map.battle_music.clone(),
         }
     }
 
@@ -93,6 +97,7 @@ impl Meta {
         map.fog = self.fog;
         map.weather = self.weather;
         map.parallax = self.parallax.clone();
+        map.battle_music = self.battle_music.clone();
     }
 }
 
@@ -110,6 +115,7 @@ impl Default for Meta {
             fog: false,
             weather: Default::default(),
             parallax: Vec::new(),
+            battle_music: None,
         }
     }
 }
@@ -130,12 +136,13 @@ struct MetaLenient {
     fog: bool,
     weather: crate::map::Weather,
     parallax: Vec<crate::map::ParallaxLayer>,
+    battle_music: Option<String>,
 }
 
 impl Default for MetaLenient {
     fn default() -> Self {
         let d = Meta::default();
-        MetaLenient { entities: vec![], zones: vec![], edges: d.edges, triggers: vec![], next_uid: d.next_uid, background: d.background, music: d.music, lighting: d.lighting, fog: d.fog, weather: d.weather, parallax: d.parallax }
+        MetaLenient { entities: vec![], zones: vec![], edges: d.edges, triggers: vec![], next_uid: d.next_uid, background: d.background, music: d.music, lighting: d.lighting, fog: d.fog, weather: d.weather, parallax: d.parallax, battle_music: None }
     }
 }
 
@@ -147,7 +154,7 @@ fn parse_meta(text: &str, warn: &mut dyn FnMut(String)) -> Result<Meta> {
         Err(e) => e,
     };
     let l: MetaLenient = ron::from_str(text).with_context(|| format!("parsing map objects: {whole}"))?;
-    let mut m = Meta { entities: vec![], zones: vec![], edges: l.edges, triggers: vec![], next_uid: l.next_uid, background: l.background, music: l.music, lighting: l.lighting, fog: l.fog, weather: l.weather, parallax: l.parallax };
+    let mut m = Meta { entities: vec![], zones: vec![], edges: l.edges, triggers: vec![], next_uid: l.next_uid, background: l.background, music: l.music, lighting: l.lighting, fog: l.fog, weather: l.weather, parallax: l.parallax, battle_music: l.battle_music };
     use crate::project::field_hint;
     for (i, raw) in l.entities.iter().enumerate() {
         match raw.into_rust::<EntityInstance>() {
@@ -298,6 +305,7 @@ pub fn decode_with(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<Map> {
                 fog: false,
                 weather: Default::default(),
                 parallax: Vec::new(),
+                battle_music: None,
             }
         }
         2 => {
@@ -321,6 +329,7 @@ pub fn decode_with(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<Map> {
                 fog: meta.fog,
                 weather: meta.weather,
                 parallax: meta.parallax,
+                battle_music: meta.battle_music,
             }
         }
         v => bail!("unsupported map format version {v} (newest supported: {FORMAT_VERSION})"),
@@ -363,6 +372,19 @@ mod tests {
     use super::*;
     use crate::entity::EntityKind;
     use crate::map::{Chunk, CollisionOverride, Tile};
+
+    #[test]
+    fn battle_music_is_optional_in_maps() {
+        // Older maps have none: the project's.
+        let old: Meta = ron::from_str("(music: \"theme\")").unwrap();
+        assert_eq!(old.battle_music, None);
+        assert!(!ron::to_string(&old).unwrap().contains("battle_music"));
+        // None at all, or a track of its own.
+        for b in [Some(String::new()), Some("drums".to_string())] {
+            let m = Meta { battle_music: b.clone(), ..Meta::default() };
+            assert_eq!(ron::from_str::<Meta>(&ron::to_string(&m).unwrap()).unwrap().battle_music, b);
+        }
+    }
 
     /// One map object that can't be read (a newer version's variant, a hand edit) is left out
     /// with a warning; the rest of the map loads.

@@ -99,7 +99,7 @@ structures in your own games.
 | **Where** | The folder the project file is created in (*Browse…*). |
 | **Player character's sex** | *Player chooses*, *Always male* or *Always female*. |
 | **Character creator** | Whether players create their character (name and look) when a new game starts, and the default name. |
-| **Starter assets** | Copies a starter set from your asset library: a grass tileset, the hero's and heroine's 3D models (with skin, hair and clothing colours), a coin, an apple, a potion, a sword, a key, a chest, a sign, a barrel, a well and a boulder. |
+| **Starter assets** | Copies a starter set from your asset library: ground materials (grass, meadow, dirt, sand, water, cobblestone, flagstones, wooden floor), the *Forest* and *Rocks* scatter sets, a stone wall and a wooden fence, the hero's and heroine's 3D models (with skin, hair and clothing colours), a coin, an apple, a potion, a sword, a key, a chest, a sign, a barrel, a well and a boulder. |
 | **First map** | Name and size of the first map. It is filled with grass and has a start point in the middle. |
 | **Pixel scale** | How large the game draws its pixels (1.5 means each pixel of art is 1.5 screen pixels). Tiles are always 32 × 32 pixels of art. |
 | **Inventory slots** | How many stacks the player can carry. |
@@ -111,9 +111,9 @@ The project opens right away, ready to play with **F5**. Everything can be chang
 
 A small walk through the most important tools. Each step links to the chapter with the details.
 
-1. **Paint the ground.** Pick a tile in the *Tileset* palette on the left and paint with the left
-   mouse button. Choose **Terrain** (A) in the ribbon and pick *Dirt path* to paint a path whose
-   edges blend into the grass by themselves. [Maps](03-maps.md)
+1. **Paint the ground.** Choose **Ground** (P) in the ribbon, pick *Dirt* in the left panel, switch
+   to *Line* and drag across the grass: a path with natural edges. Choose **Decorations** (O),
+   *Scatter*, the *Forest* set, and brush a wood beside it. [Maps](03-maps.md)
 2. **Place a house.** Choose **Structures** (H), pick a house from the palette (*Add from library…*
    brings more), and click on the map. [Maps › Structures](03-maps.md#structures)
 3. **Add a villager.** Choose **Entities** (N), switch the palette to *Character*, pick a villager

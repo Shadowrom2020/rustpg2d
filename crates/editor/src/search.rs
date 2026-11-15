@@ -318,7 +318,8 @@ impl Editor {
             RefKind::Race,
             RefKind::Structure,
             RefKind::Sheet,
-            RefKind::Tileset,
+            RefKind::Material,
+            RefKind::Scatter,
             RefKind::Sound,
         ];
         for k in kinds {
@@ -409,7 +410,8 @@ impl Editor {
             let Some(map) = self.search_map(name) else { continue };
             let mut settings = Vec::new();
             match kind {
-                RefKind::Tileset if map.tilesets.iter().any(|t| t == id) => settings.push("uses the tileset"),
+                RefKind::Material if map.materials.iter().any(|t| t == id) => settings.push("painted ground"),
+                RefKind::Prop if map.decor_defs.iter().any(|t| t == id) => settings.push("decorations"),
                 RefKind::Sound if map.music == id => settings.push("music"),
                 RefKind::Sound if map.battle_music.as_deref() == Some(id) => settings.push("battle music"),
                 RefKind::Sheet if names_id(&serde_json::to_value(&map.parallax).unwrap_or_default(), id) > 0 => settings.push("parallax layer"),

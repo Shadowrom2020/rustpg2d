@@ -1,6 +1,6 @@
 //! Asset bundles and the shared asset library.
 //!
-//! A [`Bundle`] is a set of definitions (tilesets, sprite sheets, sounds, items, props,
+//! A [`Bundle`] is a set of definitions (materials, sprite sheets, sounds, items, props,
 //! characters) together with the image / sound files they need. Bundles are
 //! - collected from a project with all their dependencies ([`Bundle::collect`]),
 //! - stored as `.r2dpack` packages (a zip with `manifest.ron` and `files/…`),
@@ -35,7 +35,7 @@ const PACK_VERSION: u32 = 1;
 pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
-pub const KINDS: [RefKind; 12] = [RefKind::Sound, RefKind::Tileset, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
+pub const KINDS: [RefKind; 13] = [RefKind::Sound, RefKind::Material, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()
@@ -46,8 +46,9 @@ struct Manifest {
     version: u32,
     name: String,
     tile_size: u32,
-    #[serde(default)]
-    tilesets: Vec<TilesetDef>,
+    /// Tilesets of packages from before painted maps (converted when read).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    tilesets: Vec<crate::old_tiles::TilesetDef>,
     #[serde(default)]
     sheets: Vec<SheetDef>,
     #[serde(default)]
@@ -70,6 +71,10 @@ struct Manifest {
     races: Vec<crate::races::RaceDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     models: Vec<crate::defs::ModelDef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    materials: Vec<crate::ground::MaterialDef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    scatter: Vec<crate::decor::ScatterDef>,
     /// Script functions by name (their whole source text).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     scripts: BTreeMap<String, String>,
@@ -106,9 +111,6 @@ pub struct MergeReport {
     pub upgraded: Vec<AssetRef>,
     /// Assets whose existing version was replaced ([`Bundle::replace_into`]).
     pub replaced: Vec<AssetRef>,
-    /// New assets left out because they need newer art than the target has (a structure
-    /// whose tileset the target has with other tiles).
-    pub skipped: Vec<AssetRef>,
     /// Script functions whose existing code was replaced ([`Bundle::replace_into`]).
     pub scripts_replaced: Vec<String>,
 }
@@ -132,10 +134,6 @@ impl MergeReport {
         if !self.upgraded.is_empty() {
             let list: Vec<&str> = self.upgraded.iter().map(|a| a.1.as_str()).collect();
             s += &format!(", images extended: {}", list.join(", "));
-        }
-        if !self.skipped.is_empty() {
-            let list: Vec<&str> = self.skipped.iter().map(|a| a.1.as_str()).collect();
-            s += &format!(", left out (they need newer tileset art; rebuild the library to get them): {}", list.join(", "));
         }
         if !self.replaced.is_empty() {
             let list: Vec<&str> = self.replaced.iter().map(|a| a.1.as_str()).collect();
@@ -274,7 +272,6 @@ impl Bundle {
         }
         let has = |k: RefKind, id: &str| seen.contains(&(k, id.to_string()));
         let out = Database {
-            tilesets: db.tilesets.iter().filter(|d| has(RefKind::Tileset, &d.id)).cloned().collect(),
             sheets: db.sheets.iter().filter(|d| has(RefKind::Sheet, &d.id)).cloned().collect(),
             sounds: db.sounds.iter().filter(|d| has(RefKind::Sound, &d.id)).cloned().collect(),
             items: db.items.iter().filter(|d| has(RefKind::Item, &d.id)).cloned().collect(),
@@ -286,6 +283,8 @@ impl Bundle {
             recipes: db.recipes.iter().filter(|d| has(RefKind::Recipe, &d.id)).cloned().collect(),
             races: db.races.iter().filter(|d| has(RefKind::Race, &d.id)).cloned().collect(),
             models: db.models.iter().filter(|d| has(RefKind::Model, &d.id)).cloned().collect(),
+            materials: db.materials.iter().filter(|d| has(RefKind::Material, &d.id)).cloned().collect(),
+            scatter: db.scatter.iter().filter(|d| has(RefKind::Scatter, &d.id)).cloned().collect(),
             quests: Vec::new(),
             achievements: Vec::new(),
             ..Default::default()
@@ -370,7 +369,7 @@ impl Bundle {
             version: PACK_VERSION,
             name: self.name.clone(),
             tile_size: self.tile_size,
-            tilesets: self.db.tilesets.clone(),
+            tilesets: Vec::new(),
             sheets: self.db.sheets.clone(),
             sounds: self.db.sounds.clone(),
             items: self.db.items.clone(),
@@ -382,6 +381,8 @@ impl Bundle {
             recipes: self.db.recipes.clone(),
             races: self.db.races.clone(),
             models: self.db.models.clone(),
+            materials: self.db.materials.clone(),
+            scatter: self.db.scatter.clone(),
             scripts: self.scripts.clone(),
         };
         let manifest = crate::project::ron_text(&m)?;
@@ -420,14 +421,14 @@ impl Bundle {
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
         }
-        let db = Database { tilesets: m.tilesets, sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, ..Default::default() };
+        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
-        for rel in asset_files(&b.db) {
+        for rel in asset_files(&b.db).into_iter().chain(m.tilesets.iter().map(|t| t.image.clone())) {
             if !rel.is_empty() && !b.files.contains_key(&rel) {
                 bail!("package is missing {rel}");
             }
         }
-        Ok(b)
+        b.with_tiles_converted(m.tilesets)
     }
 
     /// Reads the files of a library folder (`project.ron`, `defs/*.ron`, `scripts/*.rhai` and
@@ -442,7 +443,11 @@ impl Bundle {
         let mut db = crate::project::parse_defs(|n| text(&format!("defs/{n}.ron")))?;
         db.quests.clear();
         db.achievements.clear();
-        let wanted = files_of(&db);
+        let tilesets: Vec<crate::old_tiles::TilesetDef> = match text("defs/tilesets.ron")? {
+            Some(t) => ron::from_str(&t).context("parsing defs/tilesets.ron")?,
+            None => Vec::new(),
+        };
+        let wanted: BTreeSet<String> = files_of(&db).into_iter().chain(tilesets.iter().map(|t| t.image.clone())).collect();
         let mut out = BTreeMap::new();
         for (rel, bytes) in files {
             if wanted.contains(*rel) {
@@ -463,7 +468,54 @@ impl Bundle {
                 scripts.entry(f.name).or_insert(f.text);
             }
         }
-        Ok(Bundle { name: config.name, tile_size: config.tile_size, db, files: out, scripts })
+        Bundle { name: config.name, tile_size: config.tile_size, db, files: out, scripts }.with_tiles_converted(tilesets)
+    }
+
+    /// A bundle from before painted maps (with `tilesets`, or tile structures) converted like a
+    /// project ([`crate::convert_tiles`]) in a temporary folder; others are returned as they are.
+    fn with_tiles_converted(mut self, tilesets: Vec<crate::old_tiles::TilesetDef>) -> Result<Bundle> {
+        if tilesets.is_empty() && !self.db.structures.iter().any(|s| !s.layers.is_empty()) {
+            return Ok(self);
+        }
+        // (Old 16 px art is enlarged first: the converter cuts 32 px tiles.)
+        if self.tile_size != 0 && self.tile_size != TILE_SIZE {
+            let f = TILE_SIZE as f32 / self.tile_size as f32;
+            for t in &tilesets {
+                if let Some(img) = self.files.get(&t.image).and_then(|b| Rgba::decode(b).ok()) {
+                    let out = img.resized((img.w as f32 * f).round() as u32, (img.h as f32 * f).round() as u32);
+                    self.files.insert(t.image.clone(), out.encode()?);
+                }
+            }
+            self.rescale(TILE_SIZE)?;
+        }
+        static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let dir = std::env::temp_dir().join(format!("rustpg2d-convert-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        let result = (|| -> Result<Bundle> {
+            let mut files = self.to_files()?;
+            files.push(("defs/tilesets.ron".into(), crate::project::ron_text(&tilesets)?.into_bytes()));
+            for t in &tilesets {
+                if let Some(b) = self.files.get(&t.image) {
+                    files.push((t.image.clone(), b.clone()));
+                }
+            }
+            for (rel, bytes) in &files {
+                if !safe_rel(rel) {
+                    bail!("unsafe path: {rel}");
+                }
+                let p = dir.join(rel);
+                std::fs::create_dir_all(p.parent().unwrap_or(&dir))?;
+                std::fs::write(&p, bytes)?;
+            }
+            crate::convert_tiles::convert_project(&dir, None)?;
+            let mut read = Vec::new();
+            collect_files(&dir, &dir, &mut read)?;
+            let refs: Vec<(&str, &[u8])> = read.iter().map(|(p, b)| (p.as_str(), b.as_slice())).collect();
+            Bundle::from_files(&refs)
+        })();
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut b = result.context("converting the package's tiles")?;
+        b.name = self.name;
+        Ok(b)
     }
 
     /// The bundle as the files of a library folder (the reverse of [`from_files`](Self::from_files)).
@@ -472,8 +524,7 @@ impl Bundle {
         config.tile_size = self.tile_size;
         let mut out = vec![("project.ron".to_string(), crate::project::ron_text(&config)?.into_bytes())];
         let db = &self.db;
-        let defs: [(&str, String); 12] = [
-            ("tilesets", crate::project::ron_text(&db.tilesets)?),
+        let defs: [(&str, String); 13] = [
             ("sheets", crate::project::ron_text(&db.sheets)?),
             ("items", crate::project::ron_text(&db.items)?),
             ("props", crate::project::ron_text(&db.props)?),
@@ -485,6 +536,8 @@ impl Bundle {
             ("recipes", crate::project::ron_text(&db.recipes)?),
             ("races", crate::project::ron_text(&db.races)?),
             ("models", crate::project::ron_text(&db.models)?),
+            ("materials", crate::project::ron_text(&db.materials)?),
+            ("scatter", crate::project::ron_text(&db.scatter)?),
         ];
         out.extend(defs.into_iter().map(|(n, t)| (format!("defs/{n}.ron"), t.into_bytes())));
         if !self.scripts.is_empty() {
@@ -508,7 +561,7 @@ impl Bundle {
         }
         let f = to as f32 / self.tile_size as f32;
         let sc = |v: u32| ((v as f32 * f).round() as u32).max(1);
-        let images: BTreeSet<String> = self.db.tilesets.iter().map(|d| d.image.clone()).chain(self.db.sheets.iter().map(|d| d.image.clone())).collect();
+        let images: BTreeSet<String> = self.db.sheets.iter().map(|d| d.image.clone()).collect();
         for rel in images {
             let Some(bytes) = self.files.get(&rel) else { continue };
             let img = Rgba::decode(bytes).with_context(|| format!("rescaling {rel} (only PNG images can be rescaled)"))?;
@@ -570,76 +623,18 @@ impl Bundle {
             let o = db.sheet(&n.id)?;
             ((o.frame_w, o.frame_h) == (n.frame_w, n.frame_h)).then(|| ((RefKind::Sheet, n.id.clone()), o.image.clone(), n.image.clone()))
         });
-        let pairs: Vec<_> = pairs.chain(self.db.tilesets.iter().filter_map(|n| Some(((RefKind::Tileset, n.id.clone()), db.tileset(&n.id)?.image.clone(), n.image.clone())))).collect();
-        // Tiles of upgraded tilesets that were empty before (their flags come along).
-        let mut fresh: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
+        let pairs: Vec<_> = pairs.collect();
         for (a, old_rel, new_rel) in pairs {
             let (Some(new_bytes), true) = (self.files.get(&new_rel), safe_rel(&old_rel)) else { continue };
             let path = root.join(&old_rel);
             let Ok(old_bytes) = std::fs::read(&path) else { continue };
             if extends(&old_bytes, new_bytes) {
-                if a.0 == RefKind::Tileset {
-                    fresh.insert(a.1.clone(), new_tiles(&old_bytes, new_bytes, TILE_SIZE));
-                }
                 std::fs::write(&path, new_bytes).with_context(|| format!("writing {old_rel}"))?;
                 upgraded.push(a);
             }
         }
-        // The new tiles of an upgraded tileset bring their flags (solid, ladder, light,
-        // animation); flags of the tiles that were there stay as the library has them.
-        for n in &self.db.tilesets {
-            let (Some(tiles), Some(o)) = (fresh.get(&n.id), db.tilesets.iter_mut().find(|o| o.id == n.id)) else { continue };
-            for (new, old) in [(&n.solid, &mut o.solid), (&n.ladder, &mut o.ladder), (&n.low, &mut o.low)] {
-                let add: Vec<u32> = new.iter().copied().filter(|t| tiles.contains(t) && !old.contains(t)).collect();
-                old.extend(add);
-                old.sort();
-            }
-            let anims: Vec<_> = n.animations.iter().filter(|a| tiles.contains(&a.tile) && !o.animations.iter().any(|x| x.tile == a.tile)).cloned().collect();
-            o.animations.extend(anims);
-            let lights: Vec<_> = n.lights.iter().filter(|l| tiles.contains(&l.tile) && !o.lights.iter().any(|x| x.tile == l.tile)).cloned().collect();
-            o.lights.extend(lights);
-        }
-        // Tilesets the newer set gives auto-tiling terrains get them (with the solid flags and
-        // animations of the terrain tiles) when they have none yet and use the same (or an
-        // upgraded) image.
-        for n in self.db.tilesets.iter().filter(|n| !n.terrains.is_empty()) {
-            let Some(o) = db.tilesets.iter_mut().find(|o| o.id == n.id && o.terrains.is_empty()) else { continue };
-            let key = (RefKind::Tileset, n.id.clone());
-            let same_image = upgraded.contains(&key) || (safe_rel(&o.image) && std::fs::read(root.join(&o.image)).ok().as_ref() == self.files.get(&n.image));
-            if !same_image {
-                continue;
-            }
-            o.terrains = n.terrains.clone();
-            for &t in n.solid.iter().filter(|&&t| n.terrains.iter().any(|tr| tr.contains(t))) {
-                if !o.solid.contains(&t) {
-                    o.solid.push(t);
-                }
-            }
-            o.solid.sort();
-            // Animated terrain tiles (water insides cycling through the water frames).
-            for a in n.animations.iter().filter(|a| n.terrains.iter().any(|tr| tr.contains(a.tile))) {
-                if !o.animations.iter().any(|x| x.tile == a.tile) {
-                    o.animations.push(a.clone());
-                }
-            }
-            if !upgraded.contains(&key) {
-                upgraded.push(key);
-            }
-        }
-        // Low tiles and low props (added in 0.14.0): a tileset without any low tiles gets the
-        // newer set's when it uses the same (or an upgraded) image; a prop gets the flag when it
-        // is otherwise the same as the newer set's.
-        for n in self.db.tilesets.iter().filter(|n| !n.low.is_empty()) {
-            let Some(o) = db.tilesets.iter_mut().find(|o| o.id == n.id && o.low.is_empty()) else { continue };
-            let key = (RefKind::Tileset, n.id.clone());
-            let same_image = upgraded.contains(&key) || (safe_rel(&o.image) && std::fs::read(root.join(&o.image)).ok().as_ref() == self.files.get(&n.image));
-            if same_image {
-                o.low = n.low.clone();
-                if !upgraded.contains(&key) {
-                    upgraded.push(key);
-                }
-            }
-        }
+        // Low props (added in 0.14.0): a prop gets the flag when it is otherwise the same as
+        // the newer set's.
         for n in self.db.props.iter().filter(|n| n.low) {
             if let Some(o) = db.props.iter_mut().find(|o| o.id == n.id && !o.low) {
                 if (PropDef { low: true, ..o.clone() }) == *n {
@@ -660,33 +655,7 @@ impl Bundle {
             std::fs::write(&p, bytes).with_context(|| format!("writing {rel}"))?;
             restored.push(rel);
         }
-        // New structures place tiles by index: they need the tilesets as the set has them. A
-        // tileset the target has with other art (not upgraded above) would get wrong tiles.
-        let other_art: BTreeSet<String> = self
-            .db
-            .tilesets
-            .iter()
-            .filter(|n| !upgraded.contains(&(RefKind::Tileset, n.id.clone())))
-            .filter_map(|n| {
-                let o = db.tileset(&n.id)?;
-                let mine = safe_rel(&o.image).then(|| std::fs::read(root.join(&o.image)).ok()).flatten();
-                let same = match (mine.as_deref().map(Rgba::decode), self.files.get(&n.image).map(|b| Rgba::decode(b))) {
-                    (Some(Ok(a)), Some(Ok(b))) => a == b,
-                    _ => true,
-                };
-                (!same).then(|| n.id.clone())
-            })
-            .collect();
-        let mut skipped = Vec::new();
-        self.db.structures.retain(|d| {
-            let ok = exists(db, &(RefKind::Structure, d.id.clone())) || !d.tilesets.iter().any(|t| other_art.contains(t));
-            if !ok {
-                skipped.push((RefKind::Structure, d.id.clone()));
-            }
-            ok
-        });
         let new = |k: RefKind, id: &str| !exists(db, &(k, id.to_string()));
-        self.db.tilesets.retain(|d| new(RefKind::Tileset, &d.id));
         self.db.sheets.retain(|d| new(RefKind::Sheet, &d.id));
         self.db.sounds.retain(|d| new(RefKind::Sound, &d.id));
         self.db.items.retain(|d| new(RefKind::Item, &d.id));
@@ -701,7 +670,6 @@ impl Bundle {
         self.files.retain(|rel, _| used.contains(rel));
         let mut report = self.merge_into(db, root)?;
         report.upgraded = upgraded;
-        report.skipped = skipped;
         report.files.extend(restored);
         Ok(report)
     }
@@ -727,10 +695,10 @@ impl Bundle {
             }
         }
         let file_of = |a: &AssetRef| match a.0 {
-            RefKind::Tileset => self.db.tileset(&a.1).map(|d| d.image.clone()),
             RefKind::Sheet => self.db.sheet(&a.1).map(|d| d.image.clone()),
             RefKind::Sound => self.db.sounds.iter().find(|d| d.id == a.1).map(|d| d.file.clone()),
             RefKind::Model => self.db.model(&a.1).map(|d| d.file.clone()),
+            RefKind::Material => self.db.material(&a.1).map(|d| d.texture.clone()),
             _ => None,
         };
         for a in all_assets(&self.db) {
@@ -810,9 +778,9 @@ impl Bundle {
                 *p = n.clone();
             }
         };
-        self.db.tilesets.iter_mut().for_each(|d| fix(&mut d.image));
         self.db.sheets.iter_mut().for_each(|d| fix(&mut d.image));
         self.db.sounds.iter_mut().for_each(|d| fix(&mut d.file));
+        self.db.materials.iter_mut().for_each(|d| fix(&mut d.texture));
         self.db.models.iter_mut().for_each(|d| {
             fix(&mut d.file);
             d.clip_files.iter_mut().for_each(&fix);
@@ -900,7 +868,6 @@ pub fn remove_assets(project: &mut Project, assets: &[AssetRef]) -> Result<()> {
     let files_before: BTreeSet<String> = files_of(&project.db);
     let db = &mut project.db;
     let keep = |k: RefKind, id: &str| !gone.contains(&(k, id.to_string()));
-    db.tilesets.retain(|d| keep(RefKind::Tileset, &d.id));
     db.sheets.retain(|d| keep(RefKind::Sheet, &d.id));
     db.sounds.retain(|d| keep(RefKind::Sound, &d.id));
     db.items.retain(|d| keep(RefKind::Item, &d.id));
@@ -911,6 +878,8 @@ pub fn remove_assets(project: &mut Project, assets: &[AssetRef]) -> Result<()> {
     db.spells.retain(|d| keep(RefKind::Spell, &d.id));
     db.recipes.retain(|d| keep(RefKind::Recipe, &d.id));
     db.races.retain(|d| keep(RefKind::Race, &d.id));
+    db.materials.retain(|d| keep(RefKind::Material, &d.id));
+    db.scatter.retain(|d| keep(RefKind::Scatter, &d.id));
     let files_after = files_of(&project.db);
     for f in files_before.difference(&files_after) {
         if safe_rel(f) {
@@ -961,34 +930,28 @@ fn extends(old: &[u8], new: &[u8]) -> bool {
     changed
 }
 
-/// Tile indices (in the new image's columns) whose cells were empty or missing in `old` and
-/// have art in `new`.
-fn new_tiles(old: &[u8], new: &[u8], ts: u32) -> BTreeSet<u32> {
-    let (Ok(o), Ok(n)) = (Rgba::decode(old), Rgba::decode(new)) else { return BTreeSet::new() };
-    let blank = |img: &Rgba, c: u32, r: u32| {
-        (r * ts..((r + 1) * ts).min(img.h)).all(|y| (c * ts..((c + 1) * ts).min(img.w)).all(|x| img.px[((y * img.w + x) * 4 + 3) as usize] == 0))
-    };
-    let cols = n.w / ts.max(1);
-    let mut out = BTreeSet::new();
-    for r in 0..n.h / ts.max(1) {
-        for c in 0..cols {
-            let was_empty = (c + 1) * ts > o.w || (r + 1) * ts > o.h || blank(&o, c, r);
-            if was_empty && !blank(&n, c, r) {
-                out.insert(r * cols + c);
-            }
-        }
-    }
-    out
-}
-
 fn files_of(db: &Database) -> BTreeSet<String> {
     asset_files(db).into_iter().collect()
 }
 
-/// Every file the assets of `db` use: tileset and sheet images, sound files, model files and
-/// their clip files, and items' 3D models.
+/// Every file under `dir` as (path relative to `root` with `/`, content).
+fn collect_files(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> Result<()> {
+    for e in std::fs::read_dir(dir)? {
+        let p = e?.path();
+        if p.is_dir() {
+            collect_files(root, &p, out)?;
+        } else if let Ok(rel) = p.strip_prefix(root) {
+            let rel = rel.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
+            out.push((rel, std::fs::read(&p)?));
+        }
+    }
+    Ok(())
+}
+
+/// Every file the assets of `db` use: sheet images, material textures, sound files,
+/// model files and their clip files, and items' 3D models.
 pub fn asset_files(db: &Database) -> Vec<String> {
-    let images = db.tilesets.iter().map(|d| d.image.clone()).chain(db.sheets.iter().map(|d| d.image.clone()));
+    let images = db.sheets.iter().map(|d| d.image.clone()).chain(db.materials.iter().map(|d| d.texture.clone()));
     let models = db.models.iter().flat_map(|d| std::iter::once(d.file.clone()).chain(d.clip_paths().cloned()));
     let items = db.items.iter().filter_map(|d| d.model.as_ref().map(|m| m.file.clone()));
     images.chain(db.sounds.iter().map(|d| d.file.clone())).chain(models).chain(items).collect()
@@ -1035,6 +998,20 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
     }
     // Libraries from before tiles were fixed at 32 px.
     crate::migrate::upgrade(dir, None)?;
+    // Libraries from before painted maps: tile structures and tilesets become ground and
+    // decorations (a copy of the library is kept beside it).
+    if crate::convert_tiles::needs_conversion(dir) {
+        let name = dir.file_name().map_or("library".into(), |n| n.to_string_lossy().into_owned());
+        let parent = dir.parent().unwrap_or(Path::new("."));
+        let mut backup = parent.join(format!("{name}-backup-tiles"));
+        let mut n = 2;
+        while backup.exists() {
+            backup = parent.join(format!("{name}-backup-tiles-{n}"));
+            n += 1;
+        }
+        let r = crate::convert_tiles::convert_project(dir, Some(&backup))?;
+        println!("[library] {}", r.summary());
+    }
     let mut lib = Project::load(dir)?;
     // A newer starter set (new editor version): add the assets the library doesn't have yet.
     if let (Some(files), Some(s)) = (starter, &stamp) {
@@ -1062,8 +1039,9 @@ const STARTER_STAMP: &str = "starter.stamp";
 /// same size that only fills empty cells is an upgrade too, and the new tiles bring their
 /// solid / ladder / light / animation flags; 8: tilesets and props get the low flags; 9: a
 /// changed starter set also leaves `starter.pending`, so the editor offers *Update asset library*;
-/// 10: files the library's assets use but lacks are added (0.18.0 left items' 3D models out).
-const STARTER_RULES: u32 = 10;
+/// 10: files the library's assets use but lacks are added (0.18.0 left items' 3D models out);
+/// 11: painted maps (tilesets and tile structures converted, materials and decorations).
+const STARTER_RULES: u32 = 11;
 
 /// 64-bit FNV-1a hash of every path and content (a cheap fingerprint of the starter set that
 /// only changes when the files do).
@@ -1333,124 +1311,76 @@ mod tests {
     }
 
     #[test]
-    fn newer_sets_add_terrains_to_existing_tilesets() {
-        let src = tmp("terrain_src");
-        let dst = tmp("terrain_dst");
-        for d in [&src, &dst] {
-            let _ = std::fs::remove_dir_all(d);
-            std::fs::create_dir_all(d.join("tilesets")).unwrap();
-            std::fs::write(d.join("tilesets/t.png"), png(64, 64, [10, 200, 10, 255])).unwrap();
-        }
-        let mut pond = crate::autotile::Terrain { name: "Pond".into(), base: Some(0), ..Default::default() };
-        pond.fill_from_block(0, 4);
-        let ts = |solid: Vec<u32>, terrains| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, terrains, ..Default::default() };
-        let mut newer = Database { tilesets: vec![ts(vec![3, 5, 99], vec![pond.clone()])], ..Default::default() };
-        newer.tilesets[0].animations = vec![TileAnim { tile: 15, frames: vec![15, 16], fps: 2.0 }, TileAnim { tile: 40, frames: vec![40, 41], fps: 2.0 }];
-        let pack = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap();
-        let mut db = Database { tilesets: vec![ts(vec![3], vec![])], ..Default::default() };
-        let report = pack.add_missing(&mut db, &dst).unwrap();
-        assert_eq!(db.tilesets[0].terrains, vec![pond.clone()]);
-        assert_eq!(db.tilesets[0].solid, vec![3, 5], "solid flags of terrain tiles only");
-        assert_eq!(db.tilesets[0].animations.iter().map(|a| a.tile).collect::<Vec<_>>(), vec![15], "animations of terrain tiles only");
-        assert_eq!(report.upgraded, vec![(RefKind::Tileset, "t".to_string())]);
-        // A user's own image (different pixels) keeps its definition as it is.
-        std::fs::write(dst.join("tilesets/t.png"), png(64, 64, [1, 2, 3, 255])).unwrap();
-        let mut db = Database { tilesets: vec![ts(vec![], vec![])], ..Default::default() };
-        let pack = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap();
-        pack.add_missing(&mut db, &dst).unwrap();
-        assert!(db.tilesets[0].terrains.is_empty());
-        let _ = (std::fs::remove_dir_all(src), std::fs::remove_dir_all(dst));
-    }
-
-    #[test]
-    fn filled_cells_upgrade_with_their_flags() {
-        // 64x64 tileset: tile 0 drawn; the newer one also draws tile 3 (a ladder) and tile 1 (solid).
-        let img = |tiles: &[u32], c: u8| {
-            let mut im = Rgba::new(64, 64);
-            for &t in tiles {
-                let (tx, ty) = ((t % 2) * 32, (t / 2) * 32);
-                for y in ty..ty + 32 {
-                    for x in tx..tx + 32 {
-                        let k = ((y * 64 + x) * 4) as usize;
-                        im.px[k..k + 4].copy_from_slice(&[c, 100, 50, 255]);
-                    }
-                }
-            }
-            im.encode().unwrap()
-        };
-        let (old, newer) = (img(&[0], 10), img(&[0, 1, 3], 10));
-        assert!(extends(&old, &newer), "art only where it was empty");
-        assert!(!extends(&old, &img(&[0, 1], 99)), "the existing tile changed");
-        assert!(!extends(&old, &old), "nothing new");
-        assert_eq!(new_tiles(&old, &newer, 32), BTreeSet::from([1, 3]));
-        let src = tmp("fill_src");
-        let dst = tmp("fill_dst");
-        for (d, png) in [(&src, &newer), (&dst, &old)] {
-            let _ = std::fs::remove_dir_all(d);
-            std::fs::create_dir_all(d.join("tilesets")).unwrap();
-            std::fs::write(d.join("tilesets/t.png"), png).unwrap();
-        }
-        let ts = |solid: Vec<u32>, ladder: Vec<u32>| TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid, ladder, ..Default::default() };
-        let newer_db = Database { tilesets: vec![ts(vec![0, 1], vec![3])], ..Default::default() };
-        let pack = Bundle::collect(&newer_db, &src, 32, "starter", &all_assets(&newer_db)).unwrap();
-        // The library's own tile 0 is walkable: that stays.
-        let mut db = Database { tilesets: vec![ts(vec![], vec![])], ..Default::default() };
-        let report = pack.add_missing(&mut db, &dst).unwrap();
-        assert_eq!(std::fs::read(dst.join("tilesets/t.png")).unwrap(), newer);
-        assert_eq!((db.tilesets[0].solid.clone(), db.tilesets[0].ladder.clone()), (vec![1], vec![3]));
-        assert_eq!(report.upgraded, vec![(RefKind::Tileset, "t".to_string())]);
-        let _ = (std::fs::remove_dir_all(src), std::fs::remove_dir_all(dst));
-    }
-
-    #[test]
     fn low_flags_reach_existing_libraries() {
         let src = tmp("low_src");
         let dst = tmp("low_dst");
         for d in [&src, &dst] {
             let _ = std::fs::remove_dir_all(d);
-            std::fs::create_dir_all(d.join("tilesets")).unwrap();
-            std::fs::write(d.join("tilesets/t.png"), png(64, 64, [10, 200, 10, 255])).unwrap();
+            std::fs::create_dir_all(d).unwrap();
         }
-        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid: vec![0, 1], ..Default::default() };
         let prop = |id: &str, low: bool| PropDef { id: id.into(), name: id.into(), solid: true, low, ..Default::default() };
-        let newer = Database { tilesets: vec![TilesetDef { low: vec![1], ..ts.clone() }], props: vec![prop("barrel", true), prop("crate", true)], ..Default::default() };
-        // The library has the same tileset without low tiles, the barrel as it was, a crate the user edited.
-        let mut db = Database { tilesets: vec![ts.clone()], props: vec![prop("barrel", false), PropDef { name: "My crate".into(), ..prop("crate", false) }], ..Default::default() };
+        let newer = Database { props: vec![prop("barrel", true), prop("crate", true)], ..Default::default() };
+        // The library has the barrel as it was and a crate the user edited.
+        let mut db = Database { props: vec![prop("barrel", false), PropDef { name: "My crate".into(), ..prop("crate", false) }], ..Default::default() };
         let report = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap().add_missing(&mut db, &dst).unwrap();
-        assert_eq!(db.tilesets[0].low, vec![1]);
         assert!(db.props[0].low, "the unchanged barrel gets the flag");
         assert!(!db.props[1].low, "an edited prop stays as it is");
         assert!(report.upgraded.contains(&(RefKind::Prop, "barrel".to_string())));
-        // Other art in the library: its tileset keeps no low tiles.
-        std::fs::write(dst.join("tilesets/t.png"), png(64, 64, [1, 2, 3, 255])).unwrap();
-        let mut db = Database { tilesets: vec![ts], ..Default::default() };
-        Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap().add_missing(&mut db, &dst).unwrap();
-        assert!(db.tilesets[0].low.is_empty());
         let _ = (std::fs::remove_dir_all(src), std::fs::remove_dir_all(dst));
     }
 
+    /// Packages from before painted maps: their tilesets and tile structures become materials,
+    /// props and structures of ground cells and decorations.
     #[test]
-    fn structures_wait_for_their_tileset_art() {
-        let src = tmp("st_src");
-        let dst = tmp("st_dst");
-        for (d, c) in [(&src, [10, 200, 10, 255]), (&dst, [1, 2, 3, 255])] {
-            let _ = std::fs::remove_dir_all(d);
-            std::fs::create_dir_all(d.join("tilesets")).unwrap();
-            std::fs::write(d.join("tilesets/t.png"), png(64, 64, c)).unwrap();
+    fn old_packages_convert_their_tiles() {
+        use crate::old_tiles::{Tile, TilesetDef};
+        // A 64 x 32 tileset: tile 0 grass (ground), tile 1 a solid rock (detail).
+        let mut img = Rgba::new(64, 32);
+        for y in 0..32 {
+            for x in 0..64 {
+                img.set(x, y, if x < 32 { [20, 160, 30, 255] } else { [120, 120, 120, 255] });
+            }
         }
-        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), ..Default::default() };
-        let st = StructureDef { id: "tower".into(), name: "Tower".into(), w: 1, h: 1, tilesets: vec!["t".into()], layers: vec![vec![1]], collision: vec![0], ..Default::default() };
-        let newer = Database { tilesets: vec![ts.clone()], structures: vec![st], ..Default::default() };
-        // The library's tileset has other art (not an extension): the structure would get wrong tiles.
-        let mut db = Database { tilesets: vec![ts.clone()], ..Default::default() };
-        let report = Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap().add_missing(&mut db, &dst).unwrap();
-        assert!(db.structures.is_empty());
-        assert_eq!(report.skipped, vec![(RefKind::Structure, "tower".to_string())]);
-        // Same art: it comes along.
-        std::fs::write(dst.join("tilesets/t.png"), png(64, 64, [10, 200, 10, 255])).unwrap();
-        Bundle::collect(&newer, &src, 32, "starter", &all_assets(&newer)).unwrap().add_missing(&mut db, &dst).unwrap();
-        assert_eq!(db.structures.len(), 1);
-        let _ = (std::fs::remove_dir_all(src), std::fs::remove_dir_all(dst));
+        let ts = TilesetDef { id: "t".into(), image: "tilesets/t.png".into(), solid: vec![1], ..Default::default() };
+        let st = StructureDef { id: "camp".into(), name: "Camp".into(), w: 2, h: 1, tilesets: vec!["t".into()], layers: vec![vec![Tile::new(0, 0).0; 2], vec![0, Tile::new(0, 1).0]], ..Default::default() };
+        let m = Manifest {
+            version: PACK_VERSION,
+            name: "old".into(),
+            tile_size: 32,
+            tilesets: vec![ts],
+            sheets: vec![],
+            sounds: vec![],
+            items: vec![],
+            props: vec![],
+            characters: vec![],
+            structures: vec![st],
+            skills: vec![],
+            spells: vec![],
+            recipes: vec![],
+            races: vec![],
+            models: vec![],
+            materials: vec![],
+            scatter: vec![],
+            scripts: BTreeMap::new(),
+        };
+        let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        let opts = zip::write::SimpleFileOptions::default();
+        zw.start_file("manifest.ron", opts).unwrap();
+        zw.write_all(crate::project::ron_text(&m).unwrap().as_bytes()).unwrap();
+        zw.start_file("files/tilesets/t.png", opts).unwrap();
+        zw.write_all(&img.encode().unwrap()).unwrap();
+        let b = Bundle::from_pack(&zw.finish().unwrap().into_inner()).unwrap();
+        assert_eq!(b.name, "old");
+        let s = b.db.structure("camp").unwrap();
+        assert!(s.layers.is_empty() && s.tilesets.is_empty());
+        assert_eq!(s.materials.len(), 1);
+        assert_eq!(s.ground.len(), 2 * 4 * 4);
+        assert!(s.ground.iter().all(|&v| v == 1));
+        assert_eq!(s.decor.len(), 1);
+        let rock = b.db.prop(&s.decor_defs[0]).unwrap();
+        assert!(rock.solid && rock.sprite.frame == 1);
+        let grass = b.db.material(&s.materials[0]).unwrap();
+        assert!(b.files.contains_key(&grass.texture) && b.files.contains_key("tilesets/t.png"));
     }
 
     #[test]

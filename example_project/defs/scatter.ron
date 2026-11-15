@@ -1,0 +1,39 @@
+[
+    (
+        id: "forest",
+        name: "Forest",
+        props: [
+            ("big_oak", 2),
+            ("big_pine", 2),
+            ("oak_tree", 1),
+            ("pine_tree", 1),
+        ],
+        density: 0.12,
+        spacing: 40.0,
+        flip: true,
+        layer: Sorted,
+    ),
+    (
+        id: "rocks",
+        name: "Rocks",
+        props: [
+            ("boulder", 1),
+        ],
+        density: 0.05,
+        spacing: 48.0,
+        flip: true,
+        layer: Sorted,
+    ),
+    (
+        id: "wild_plants",
+        name: "Wild plants",
+        props: [
+            ("herb_bush", 2),
+            ("mushroom_patch", 1),
+        ],
+        density: 0.08,
+        spacing: 32.0,
+        flip: true,
+        layer: Sorted,
+    ),
+]

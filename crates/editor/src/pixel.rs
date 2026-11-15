@@ -48,6 +48,23 @@ impl PxTool {
 pub enum Layout {
     Plain,
     Character,
+    /// A ground material's texture: a picture repeated over the ground, or this many animation
+    /// frames side by side. The canvas shows the selected frame with copies around it, and
+    /// drawing wraps across its edges, so the seams can be painted away.
+    Seamless(u32),
+}
+
+impl Layout {
+    pub fn seamless(self) -> bool {
+        matches!(self, Layout::Seamless(_))
+    }
+    /// The frames of a seamless texture (1 for other layouts).
+    pub fn frames(self) -> u32 {
+        match self {
+            Layout::Seamless(n) => n.max(1),
+            _ => 1,
+        }
+    }
 }
 
 /// An undo step: the image.
@@ -67,9 +84,28 @@ pub struct PixelDoc {
     dirty: bool,
     tex: Option<TextureHandle>,
     tex_dirty: bool,
+    /// Counts the changes (previews of the picture follow it).
+    pub version: u64,
+    /// Seamless textures: the frame drawing wraps in (the selected one).
+    pub cur: u32,
 }
 
 impl PixelDoc {
+    /// The pixel `p` stands for. Seamless textures: `p` is in the current frame's coordinates,
+    /// wrapped into it.
+    pub fn wrap(&self, p: (i32, i32)) -> (i32, i32) {
+        if self.layout.seamless() {
+            let (ox, oy) = self.frame_origin(self.cur.min(self.cols() * self.rows() - 1));
+            (ox + p.0.rem_euclid(self.frame.0.max(1) as i32), oy + p.1.rem_euclid(self.frame.1.max(1) as i32))
+        } else {
+            p
+        }
+    }
+    /// Sets a pixel (wrapped for seamless textures; outside the picture otherwise ignored).
+    pub fn plot(&mut self, p: (i32, i32), c: [u8; 4]) {
+        let (x, y) = self.wrap(p);
+        self.img.set(x, y, c);
+    }
     fn cols(&self) -> u32 {
         (self.img.w / self.frame.0.max(1)).max(1)
     }
@@ -93,6 +129,7 @@ impl PixelDoc {
     pub fn changed(&mut self) {
         self.dirty = self.img != self.saved;
         self.tex_dirty = true;
+        self.version += 1;
     }
     /// Whether the image differs from the file (undoing back to it makes it clean again).
     pub fn is_dirty(&self) -> bool {
@@ -139,34 +176,38 @@ impl PixelDoc {
     // ---------------------------------------------------------------- drawing operations
 
     pub fn line(&mut self, a: (i32, i32), b: (i32, i32), c: [u8; 4]) {
-        for (x, y) in line_points(a, b) {
-            self.img.set(x, y, c);
+        for p in line_points(a, b) {
+            self.plot(p, c);
         }
     }
     pub fn rect(&mut self, a: (i32, i32), b: (i32, i32), c: [u8; 4]) {
         let (x0, x1, y0, y1) = (a.0.min(b.0), a.0.max(b.0), a.1.min(b.1), a.1.max(b.1));
         for x in x0..=x1 {
-            self.img.set(x, y0, c);
-            self.img.set(x, y1, c);
+            self.plot((x, y0), c);
+            self.plot((x, y1), c);
         }
         for y in y0..=y1 {
-            self.img.set(x0, y, c);
-            self.img.set(x1, y, c);
+            self.plot((x0, y), c);
+            self.plot((x1, y), c);
         }
     }
-    /// Flood fill of the contiguous area with the color at (x, y).
+    /// Flood fill of the contiguous area with the color at (x, y) (across the edges of a seamless
+    /// texture).
     pub fn fill(&mut self, x: i32, y: i32, c: [u8; 4]) {
-        let target = self.img.get(x, y);
-        if !self.img.in_bounds(x, y) || target == c {
+        let (sx, sy) = self.wrap((x, y));
+        let target = self.img.get(sx, sy);
+        if !self.img.in_bounds(sx, sy) || target == c {
             return;
         }
+        // (In the frame's coordinates for seamless textures: neighbours wrap.)
         let mut stack = vec![(x, y)];
-        while let Some((x, y)) = stack.pop() {
-            if !self.img.in_bounds(x, y) || self.img.get(x, y) != target {
+        while let Some(p) = stack.pop() {
+            let (ix, iy) = self.wrap(p);
+            if !self.img.in_bounds(ix, iy) || self.img.get(ix, iy) != target {
                 continue;
             }
-            self.img.set(x, y, c);
-            stack.extend([(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]);
+            self.img.set(ix, iy, c);
+            stack.extend([(p.0 + 1, p.1), (p.0 - 1, p.1), (p.0, p.1 + 1), (p.0, p.1 - 1)]);
         }
     }
     fn frame_pixels(&self, f: u32) -> Rgba {
@@ -259,6 +300,8 @@ pub struct PixelState {
     pub onion_next: bool,
     /// A copied row (Copy row).
     row_clip: Option<Vec<Rgba>>,
+    /// Seamless textures: copies of the picture shown around it.
+    pub tiled: bool,
 }
 
 /// A frame operation of the sprite editor (buttons and editor script `px…` commands).
@@ -309,6 +352,7 @@ impl Default for PixelState {
             onion: false,
             onion_next: false,
             row_clip: None,
+            tiled: true,
         }
     }
 }
@@ -449,16 +493,45 @@ impl PixelState {
     }
 
     /// Applies the current tool at a pixel as a complete action (used by scripts / clicks).
+    /// A material's animation frames went from `old` to `new`: the open texture `rel` gets copies
+    /// of its last frame at the end (or loses frames there), an undoable change to save.
+    pub fn refit_frames(&mut self, rel: &str, old: u32, new: u32) {
+        let Some(d) = self.doc.as_mut().filter(|d| d.rel == rel) else { return };
+        let fw = (d.img.w / old.max(1)).max(1);
+        if d.img.w == fw * new {
+            return;
+        }
+        d.snapshot();
+        let mut img = Rgba::new(fw * new, d.img.h);
+        for f in 0..new {
+            let src = f.min(old.max(1) - 1);
+            for y in 0..d.img.h as i32 {
+                for x in 0..fw as i32 {
+                    img.set((f * fw) as i32 + x, y, d.img.get((src * fw) as i32 + x, y));
+                }
+            }
+        }
+        d.img = img;
+        d.frame = (fw, d.frame.1);
+        d.layout = Layout::Seamless(new);
+        d.changed();
+        self.sel_frame = self.sel_frame.min(new - 1);
+    }
+
     pub fn apply_at(&mut self, button: usize, p: (i32, i32)) {
         let c = if self.tool == PxTool::Eraser { [0; 4] } else { self.colors[button] };
         let Some(d) = &mut self.doc else { return };
+        d.cur = self.sel_frame;
         match self.tool {
             PxTool::Select => {
                 if d.img.in_bounds(p.0, p.1) {
                     self.sel_frame = d.frame_at(p.0, p.1);
                 }
             }
-            PxTool::Picker => self.colors[button] = d.img.get(p.0, p.1),
+            PxTool::Picker => {
+                let (x, y) = d.wrap(p);
+                self.colors[button] = d.img.get(x, y);
+            }
             PxTool::Fill => {
                 d.snapshot();
                 d.fill(p.0, p.1, c);
@@ -466,7 +539,7 @@ impl PixelState {
             }
             _ => {
                 d.snapshot();
-                d.img.set(p.0, p.1, c);
+                d.plot(p, c);
                 d.changed();
             }
         }
@@ -496,13 +569,20 @@ impl Editor {
                 return false;
             }
         };
-        let frame = (frame.0.clamp(1, img.w), frame.1.clamp(1, img.h));
-        self.px.resize = ((img.w / frame.0).max(1), (img.h / frame.1).max(1));
-        // Fit the image into roughly 900x700 screen pixels.
-        self.px.zoom = (900.0 / img.w as f32).min(700.0 / img.h as f32).floor().clamp(1.0, 24.0);
+        // A seamless texture is one picture (no frames).
+        let frame = if layout.seamless() { ((img.w / layout.frames()).max(1), img.h) } else { (frame.0.clamp(1, img.w), frame.1.clamp(1, img.h)) };
+        self.px.resize = if layout.seamless() { frame } else { ((img.w / frame.0).max(1), (img.h / frame.1).max(1)) };
+        // Fit the image into roughly 900x700 screen pixels (a seamless one's frame with room for
+        // the copies around it).
+        let (vw, vh, room) = if layout.seamless() { (frame.0, frame.1, 2.0) } else { (img.w, img.h, 1.0) };
+        self.px.zoom = (900.0 / (vw as f32 * room)).min(700.0 / (vh as f32 * room)).floor().clamp(1.0, 24.0);
         self.px.pan = egui::Vec2::ZERO;
         self.px.sel_frame = 0;
-        self.px.doc = Some(PixelDoc { rel: rel.to_string(), saved: img.clone(), img, frame, layout, undo: vec![], redo: vec![], dirty: false, tex: None, tex_dirty: true });
+        if layout.seamless() && self.px.tool == PxTool::Select {
+            // One picture: nothing to select, so start drawing.
+            self.px.tool = PxTool::Pencil;
+        }
+        self.px.doc = Some(PixelDoc { rel: rel.to_string(), saved: img.clone(), img, frame, layout, undo: vec![], redo: vec![], dirty: false, tex: None, tex_dirty: true, version: 0, cur: 0 });
         true
     }
 
@@ -530,8 +610,28 @@ impl Editor {
             let path = self.project.root.join(rel);
             if !path.exists() {
                 ui.label(format!("The image {rel} doesn't exist yet."));
-                if ui.button(format!("Create a blank image ({}×{} px frames, 4×4 frames)", frame.0.max(1), frame.1.max(1))).clicked() {
-                    let img = Rgba::new(frame.0.max(1) * 4, frame.1.max(1) * 4);
+                let mut create = None;
+                if layout.seamless() {
+                    // A texture starts as one plain colour (the ground shows no holes).
+                    ui.horizontal(|ui| {
+                        ui.label("Create a texture of");
+                        for n in [16, 32, 64, 128] {
+                            if ui.button(format!("{n}×{n} px")).on_hover_text("Filled with the left color; draw over it, then Save").clicked() {
+                                let mut img = Rgba::new(n * layout.frames(), n);
+                                let c = if self.px.colors[0][3] == 0 { [120, 120, 120, 255] } else { [self.px.colors[0][0], self.px.colors[0][1], self.px.colors[0][2], 255] };
+                                for y in 0..img.h as i32 {
+                                    for x in 0..img.w as i32 {
+                                        img.set(x, y, c);
+                                    }
+                                }
+                                create = Some(img);
+                            }
+                        }
+                    });
+                } else if ui.button(format!("Create a blank image ({}×{} px frames, 4×4 frames)", frame.0.max(1), frame.1.max(1))).clicked() {
+                    create = Some(Rgba::new(frame.0.max(1) * 4, frame.1.max(1) * 4));
+                }
+                if let Some(img) = create {
                     let res = img.encode().and_then(|b| {
                         if let Some(dir) = path.parent() {
                             std::fs::create_dir_all(dir)?;
@@ -552,12 +652,18 @@ impl Editor {
             // Fit the embedded canvas.
             if let Some(d) = &self.px.doc {
                 let w = (ui.available_width() - 280.0).max(200.0);
-                self.px.zoom = (w / d.img.w as f32).min((height - 40.0) / d.img.h as f32).floor().clamp(1.0, 16.0);
+                let (vw, vh, room) = if layout.seamless() { (d.frame.0, d.frame.1, 2.0) } else { (d.img.w, d.img.h, 1.0) };
+                self.px.zoom = (w / (vw as f32 * room)).min((height - 40.0) / (vh as f32 * room)).floor().clamp(1.0, 16.0);
             }
         }
         if let Some(d) = &mut self.px.doc {
-            // The grid follows the sheet's frame size as it is edited.
-            if d.frame != frame && frame.0 > 0 && frame.1 > 0 {
+            if layout.seamless() {
+                // A material's texture (perhaps opened as a plain image before): its frames side
+                // by side, as many as the material says.
+                d.layout = layout;
+                d.frame = ((d.img.w / layout.frames()).max(1), d.img.h);
+            } else if d.frame != frame && frame.0 > 0 && frame.1 > 0 {
+                // The grid follows the sheet's frame size as it is edited.
                 d.frame = frame;
             }
         }
@@ -602,7 +708,7 @@ impl Editor {
             .iter()
             .map(|s| (format!("Sheet: {}", s.id), s.image.clone(), (s.frame_w, s.frame_h), Layout::Plain))
             .collect();
-        out.extend(db.tilesets.iter().map(|t| (format!("Tileset: {}", t.id), t.image.clone(), (ts, ts), Layout::Plain)));
+        out.extend(db.materials.iter().filter(|t| !t.texture.is_empty()).map(|t| (format!("Material: {}", t.id), t.texture.clone(), (ts, ts), Layout::Seamless(t.frames as u32))));
         out
     }
 
@@ -734,7 +840,7 @@ impl Editor {
         });
 
         ui.separator();
-        if let Some(d) = &mut self.px.doc {
+        if let Some(d) = self.px.doc.as_mut().filter(|d| !d.layout.seamless()) {
             let mut four = d.layout == Layout::Character;
             if ui.checkbox(&mut four, "Four-facing rows").on_hover_text("The sheet's rows are facings (down, left, right, up) in blocks of walk, idle, attack and hurt: labelled rows and the animation panel").changed() {
                 d.layout = if four { Layout::Character } else { Layout::Plain };
@@ -816,6 +922,75 @@ impl Editor {
 
         // Frames: copy / paste / flip, canvas size.
         let Some(d) = &mut self.px.doc else { return };
+        if d.layout.seamless() {
+            ui.checkbox(&mut self.px.tiled, "Show copies around it").on_hover_text("The texture repeats over the ground: its copies show where the edges meet. Drawing wraps across the edges either way.");
+            ui.separator();
+            let n = d.cols();
+            ui.horizontal(|ui| {
+                ui.label(if n > 1 { "Frame size" } else { "Size" });
+                ui.add(egui::DragValue::new(&mut self.px.resize.0).range(8..=256).speed(8.0).suffix(" px"));
+                ui.label("×");
+                ui.add(egui::DragValue::new(&mut self.px.resize.1).range(8..=256).speed(8.0).suffix(" px"));
+                let (w, h) = (self.px.resize.0 / 8 * 8, self.px.resize.1 / 8 * 8);
+                if ui.add_enabled((w, h) != d.frame && w >= 8 && h >= 8, egui::Button::new("Resize")).on_hover_text("Materials take sizes in steps of 8 px, up to 256 (all frames together). Growing repeats each frame; shrinking cuts it at the right / bottom.").clicked() {
+                    d.snapshot();
+                    let (fw, fh) = d.frame;
+                    let mut img = Rgba::new(w * n, h);
+                    for f in 0..n {
+                        for y in 0..h as i32 {
+                            for x in 0..w as i32 {
+                                img.set(f as i32 * w as i32 + x, y, d.img.get(f as i32 * fw as i32 + x % fw as i32, y % fh as i32));
+                            }
+                        }
+                    }
+                    d.img = img;
+                    d.frame = (w, h);
+                    d.changed();
+                }
+            });
+            if n > 1 {
+                // The animation frames: pick one to draw; copy one onto another; watch them play.
+                ui.separator();
+                ui.label(format!("Frame {} of {n} (the material's Frames set how many)", self.px.sel_frame.min(n - 1) + 1));
+                let tex = d.texture(ui.ctx());
+                ui.horizontal_wrapped(|ui| {
+                    for f in 0..n {
+                        let r = frame_image(ui, d, &tex, f, 36.0).interact(Sense::click());
+                        if f == self.px.sel_frame {
+                            ui.painter().rect_stroke(r.rect, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Outside);
+                        }
+                        if r.clicked() {
+                            self.px.sel_frame = f;
+                        }
+                    }
+                });
+                let mut clip = None;
+                ui.horizontal(|ui| {
+                    if ui.button(ui::t(ph::COPY, "Copy")).on_hover_text("Ctrl+C: this frame").clicked() {
+                        clip = Some("copy");
+                    }
+                    if ui.add_enabled(self.px.clipboard.is_some(), egui::Button::new(ui::t(ph::CLIPBOARD_TEXT, "Paste"))).on_hover_text("Ctrl+V: over this frame (start the next frame from the last one)").clicked() {
+                        clip = Some("paste");
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Preview");
+                    ui.add(egui::Slider::new(&mut self.px.fps, 1.0..=16.0).suffix(" fps"));
+                });
+                let k = ((crate::ui::now() * self.px.fps as f64) as u32) % n;
+                let (rect, _) = ui.allocate_exact_size(vec2(128.0, 128.0), Sense::hover());
+                let (ox, oy) = d.frame_origin(k);
+                let uv = Rect::from_min_size(pos2(ox as f32 / d.img.w as f32, oy as f32 / d.img.h as f32), vec2(d.frame.0 as f32 / d.img.w as f32, d.frame.1 as f32 / d.img.h as f32));
+                for (dx, dy) in [(0.0, 0.0), (64.0, 0.0), (0.0, 64.0), (64.0, 64.0)] {
+                    ui.painter().image(tex.id(), Rect::from_min_size(rect.min + vec2(dx, dy), vec2(64.0, 64.0)), uv, Color32::WHITE);
+                }
+                ui.ctx().request_repaint();
+                if let Some(action) = clip {
+                    self.frame_clipboard(action);
+                }
+            }
+            return;
+        }
         ui.separator();
         ui.label(format!("Frame {} (click on the canvas selects it)", self.px.sel_frame));
         let f = self.px.sel_frame.min(d.cols() * d.rows() - 1);
@@ -1027,15 +1202,26 @@ impl Editor {
         let avail = ui.available_rect_before_wrap();
         let resp = ui.allocate_rect(avail, Sense::click_and_drag());
         let zoom = self.px.zoom;
-        let size = vec2(d.img.w as f32 * zoom, d.img.h as f32 * zoom);
+        // A seamless texture shows its selected frame (the canvas's coordinates are the frame's);
+        // anything else the whole image.
+        let seamless = d.layout.seamless();
+        let full_uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+        let (vw, vh, view_uv) = if seamless {
+            d.cur = self.px.sel_frame.min(d.cols() * d.rows() - 1);
+            let (ox, oy) = d.frame_origin(d.cur);
+            (d.frame.0, d.frame.1, Rect::from_min_size(pos2(ox as f32 / d.img.w as f32, oy as f32 / d.img.h as f32), vec2(d.frame.0 as f32 / d.img.w as f32, d.frame.1 as f32 / d.img.h as f32)))
+        } else {
+            (d.img.w, d.img.h, full_uv)
+        };
+        let size = vec2(vw as f32 * zoom, vh as f32 * zoom);
         let origin = avail.center() + self.px.pan - size / 2.0;
         let img_rect = Rect::from_min_size(origin, size);
         let painter = ui.painter_at(avail);
         painter.rect_filled(avail, 0.0, Color32::from_gray(30));
         // Checkerboard behind transparent pixels: one square per 4x4 image pixels, baked into a
         // texture of matching size (rebuilt when the image size changes).
-        let cw = d.img.w.div_ceil(4) as usize;
-        let ch = d.img.h.div_ceil(4) as usize;
+        let cw = vw.div_ceil(4) as usize;
+        let ch = vh.div_ceil(4) as usize;
         if self.px.checker.as_ref().is_none_or(|t| t.size() != [cw, ch]) {
             let mut ci = egui::ColorImage::new([cw, ch], Color32::from_gray(90));
             for y in 0..ch {
@@ -1051,7 +1237,20 @@ impl Editor {
         let full = Rect::from_min_size(origin, vec2(cw as f32 * 4.0, ch as f32 * 4.0) * zoom);
         painter.with_clip_rect(img_rect.intersect(avail)).image(checker.id(), full, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
         let tex = d.texture(ui.ctx());
-        painter.image(tex.id(), img_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+        if seamless && self.px.tiled {
+            // The copies the ground repeats it with, a little darker than the picture itself.
+            for dy in -2..=2 {
+                for dx in -2..=2 {
+                    if (dx, dy) != (0, 0) {
+                        let r = img_rect.translate(vec2(dx as f32 * size.x, dy as f32 * size.y));
+                        if r.intersects(avail) {
+                            painter.image(tex.id(), r, view_uv, Color32::from_gray(170));
+                        }
+                    }
+                }
+            }
+        }
+        painter.image(tex.id(), img_rect, view_uv, Color32::WHITE);
         // Onion skin: the animation's previous (red) and next (green) frame over the selected one.
         if d.layout == Layout::Character && (self.px.onion || self.px.onion_next) {
             let sel = self.px.sel_frame.min(d.cols() * d.rows() - 1);
@@ -1074,27 +1273,32 @@ impl Editor {
         // Grids.
         if self.px.grid && zoom >= 8.0 {
             let c = Color32::from_rgba_unmultiplied(255, 255, 255, 22);
-            for x in 0..=d.img.w {
+            for x in 0..=vw {
                 let sx = origin.x + x as f32 * zoom;
                 painter.line_segment([pos2(sx, origin.y), pos2(sx, origin.y + size.y)], Stroke::new(1.0_f32, c));
             }
-            for y in 0..=d.img.h {
+            for y in 0..=vh {
                 let sy = origin.y + y as f32 * zoom;
                 painter.line_segment([pos2(origin.x, sy), pos2(origin.x + size.x, sy)], Stroke::new(1.0_f32, c));
             }
         }
         let fc = Color32::from_rgba_unmultiplied(120, 200, 255, 140);
-        for x in (0..=d.img.w).step_by(d.frame.0.max(1) as usize) {
+        if seamless {
+            painter.rect_stroke(img_rect, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Outside);
+        }
+        for x in (0..=d.img.w).step_by(d.frame.0.max(1) as usize).filter(|_| !seamless) {
             let sx = origin.x + x as f32 * zoom;
             painter.line_segment([pos2(sx, origin.y), pos2(sx, origin.y + size.y)], Stroke::new(1.0_f32, fc));
         }
-        for y in (0..=d.img.h).step_by(d.frame.1.max(1) as usize) {
+        for y in (0..=d.img.h).step_by(d.frame.1.max(1) as usize).filter(|_| !seamless) {
             let sy = origin.y + y as f32 * zoom;
             painter.line_segment([pos2(origin.x, sy), pos2(origin.x + size.x, sy)], Stroke::new(1.0_f32, fc));
         }
-        let (fx, fy) = d.frame_origin(self.px.sel_frame.min(d.cols() * d.rows() - 1));
-        let fr = Rect::from_min_size(origin + vec2(fx as f32, fy as f32) * zoom, vec2(d.frame.0 as f32, d.frame.1 as f32) * zoom);
-        painter.rect_stroke(fr, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Outside);
+        if !seamless {
+            let (fx, fy) = d.frame_origin(self.px.sel_frame.min(d.cols() * d.rows() - 1));
+            let fr = Rect::from_min_size(origin + vec2(fx as f32, fy as f32) * zoom, vec2(d.frame.0 as f32, d.frame.1 as f32) * zoom);
+            painter.rect_stroke(fr, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Outside);
+        }
         if d.layout == Layout::Character {
             // Walk rows, then the animation rows (render::character::ANIM_ROWS).
             const LABELS: [&str; 16] = ["Down", "Left", "Right", "Up", "Idle Down", "Idle Left", "Idle Right", "Idle Up", "Attack Down", "Attack Left", "Attack Right", "Attack Up", "Hurt Down", "Hurt Left", "Hurt Right", "Hurt Up"];
@@ -1119,7 +1323,7 @@ impl Editor {
                     // Keep the pixel under the cursor in place.
                     let rel = (p - origin) / zoom;
                     let new_origin = p - rel * new;
-                    self.px.pan += new_origin - (avail.center() + self.px.pan - vec2(d.img.w as f32, d.img.h as f32) * new / 2.0);
+                    self.px.pan += new_origin - (avail.center() + self.px.pan - vec2(vw as f32, vh as f32) * new / 2.0);
                 }
                 self.px.zoom = new;
             }
@@ -1133,7 +1337,7 @@ impl Editor {
         });
         let tool = self.px.tool;
         if let Some(p) = hover.filter(|_| resp.hovered()) {
-            if d.img.in_bounds(p.0, p.1) {
+            if seamless || d.img.in_bounds(p.0, p.1) {
                 // Select outlines the frame a click would select, the drawing tools the pixel.
                 let r = if tool == PxTool::Select {
                     let (fx, fy) = d.frame_origin(d.frame_at(p.0, p.1));
@@ -1144,13 +1348,16 @@ impl Editor {
                 painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, Color32::WHITE), StrokeKind::Outside);
             }
             if let Some(b) = (0..2).find(|&b| pressed[b]) {
-                if d.img.in_bounds(p.0, p.1) {
+                if !seamless && d.img.in_bounds(p.0, p.1) {
                     self.px.sel_frame = d.frame_at(p.0, p.1);
                 }
                 let c = if tool == PxTool::Eraser { [0; 4] } else { self.px.colors[b] };
                 match tool {
                     PxTool::Select => {}
-                    PxTool::Picker => self.px.colors[b] = d.img.get(p.0, p.1),
+                    PxTool::Picker => {
+                        let (x, y) = d.wrap(p);
+                        self.px.colors[b] = d.img.get(x, y);
+                    }
                     PxTool::Fill => {
                         d.snapshot();
                         d.fill(p.0, p.1, c);
@@ -1158,7 +1365,7 @@ impl Editor {
                     }
                     PxTool::Pencil | PxTool::Eraser => {
                         d.snapshot();
-                        d.img.set(p.0, p.1, c);
+                        d.plot(p, c);
                         d.changed();
                         self.px.stroke = Some((b, p, p));
                     }
@@ -1200,6 +1407,7 @@ impl Editor {
             }
         }
         let info = match hover {
+            Some(p) if seamless => format!("pixel {},{}", p.0.rem_euclid(vw as i32), p.1.rem_euclid(vh as i32)),
             Some(p) if d.img.in_bounds(p.0, p.1) => format!("pixel {},{} · frame {}", p.0, p.1, d.frame_at(p.0, p.1)),
             _ => String::new(),
         };

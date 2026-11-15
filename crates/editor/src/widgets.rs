@@ -10,11 +10,15 @@ use rustpg2d_engine::entity::Facing;
 use rustpg2d_engine::events::{Action, CmpOp, Cond, Condition, Trigger, TriggerOn, TriggerOwner, VarOp};
 use rustpg2d_engine::render::Assets;
 
-/// egui copies of tileset and sprite sheet images.
+/// egui copies of sprite sheet images and material textures.
 #[derive(Default)]
 pub struct Textures {
-    pub tilesets: HashMap<String, TextureHandle>,
     pub sheets: HashMap<String, TextureHandle>,
+    /// Ground materials' textures.
+    pub materials: HashMap<String, TextureHandle>,
+    /// Ground materials' textures repeated to at least 64 px in whole copies, for swatches (the
+    /// egui backend draws textures clamped: repeating has to be in the image).
+    pub material_icons: HashMap<String, TextureHandle>,
     /// The looks of the character definitions as drawn (their models; painted for `@char:`
     /// sprites).
     pub characters: HashMap<String, rustpg2d_engine::defs::Appearance>,
@@ -65,15 +69,69 @@ pub fn color_image(ctx: &egui::Context, w: usize, h: usize, px: &[u8]) -> egui::
     egui::ColorImage::from_rgba_unmultiplied([nw, nh], &out)
 }
 
+/// An RGBA image repeated in whole copies until it is at least `min` pixels each way: (pixels,
+/// width, height). Its period stays the image's size.
+pub fn repeated(px: &[u8], w: usize, h: usize, min: usize) -> (Vec<u8>, usize, usize) {
+    let (w, h) = (w.max(1), h.max(1));
+    let (nw, nh) = (w * min.div_ceil(w), h * min.div_ceil(h));
+    let mut out = vec![0u8; nw * nh * 4];
+    for y in 0..nh {
+        for x in 0..nw {
+            let s = ((y % h) * w + x % w) * 4;
+            let d = (y * nw + x) * 4;
+            if s + 4 <= px.len() {
+                out[d..d + 4].copy_from_slice(&px[s..s + 4]);
+            }
+        }
+    }
+    (out, nw, nh)
+}
+
+/// The first of `frames` animation frames side by side in an RGBA image `w` x `h`: (pixels,
+/// width, height); the image itself for one frame.
+pub fn first_frame(px: &[u8], w: usize, h: usize, frames: usize) -> (Vec<u8>, usize, usize) {
+    let fw = (w / frames.max(1)).max(1);
+    if fw >= w {
+        return (px.to_vec(), w, h);
+    }
+    let mut out = Vec::with_capacity(fw * h * 4);
+    for y in 0..h {
+        out.extend_from_slice(&px[y * w * 4..(y * w + fw) * 4]);
+    }
+    (out, fw, h)
+}
+
+/// The rect of a [`Textures::material_icons`] icon to draw into `size` points: the top-left
+/// `size` pixels (whole repeats of small textures at their own pixel size).
+pub fn icon_uv(t: &TextureHandle, size: f32) -> Rect {
+    Rect::from_min_max(pos2(0.0, 0.0), pos2((size / t.size()[0] as f32).min(1.0), (size / t.size()[1] as f32).min(1.0)))
+}
+
 impl Textures {
     pub fn build(ctx: &egui::Context, assets: &Assets) -> Self {
-        let load = |name: &str, img: &macroquad::texture::Image| {
+        let load = |name: &str, img: &macroquad::texture::Image, opts: egui::TextureOptions| {
             let ci = color_image(ctx, img.width as usize, img.height as usize, &img.bytes);
-            ctx.load_texture(name, ci, egui::TextureOptions::NEAREST)
+            ctx.load_texture(name, ci, opts)
         };
         Textures {
-            tilesets: assets.tilesets.iter().map(|(id, t)| (id.clone(), load(&format!("ts:{id}"), &t.image))).collect(),
-            sheets: assets.sheets.iter().map(|(id, s)| (id.clone(), load(&format!("sh:{id}"), &s.image))).collect(),
+            sheets: assets.sheets.iter().map(|(id, s)| (id.clone(), load(&format!("sh:{id}"), &s.image, egui::TextureOptions::NEAREST))).collect(),
+            // (The first frame of animated ones.)
+            materials: assets
+                .materials
+                .iter()
+                .map(|(id, m)| {
+                    let (px, w, h) = first_frame(&m.bytes, m.width as usize, m.height as usize, assets.material_frames.get(id).copied().unwrap_or(1) as usize);
+                    (id.clone(), ctx.load_texture(format!("mt:{id}"), color_image(ctx, w, h, &px), egui::TextureOptions::NEAREST))
+                })
+                .collect(),
+            material_icons: assets
+                .materials
+                .iter()
+                .map(|(id, m)| {
+                    let (px, w, h) = first_frame(&m.bytes, m.width as usize, m.height as usize, assets.material_frames.get(id).copied().unwrap_or(1) as usize);
+                    let (px, w, h) = repeated(&px, w, h, 64);
+                    (id.clone(), ctx.load_texture(format!("mi:{id}"), color_image(ctx, w, h, &px), egui::TextureOptions::NEAREST))
+                }).collect(),
             characters: HashMap::new(),
         }
     }

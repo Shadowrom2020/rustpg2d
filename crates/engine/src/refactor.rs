@@ -10,7 +10,6 @@ use crate::project::ProjectConfig;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub enum RefKind {
-    Tileset,
     Sheet,
     Item,
     Prop,
@@ -29,13 +28,16 @@ pub enum RefKind {
     Race,
     /// 3D character model (`defs::ModelDef`).
     Model,
+    /// Ground material (`ground::MaterialDef`).
+    Material,
+    /// Scatter set (`decor::ScatterDef`).
+    Scatter,
 }
 
 impl RefKind {
-    /// Every kind: the fourteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
+    /// Every kind: the fifteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
     /// then `Map`.
-    pub const ALL: [RefKind; 15] = [
-        RefKind::Tileset,
+    pub const ALL: [RefKind; 16] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -49,11 +51,12 @@ impl RefKind {
         RefKind::Achievement,
         RefKind::Race,
         RefKind::Model,
+        RefKind::Material,
+        RefKind::Scatter,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 14] = [
-        RefKind::Tileset,
+    pub const DEFS: [RefKind; 15] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -67,12 +70,13 @@ impl RefKind {
         RefKind::Achievement,
         RefKind::Race,
         RefKind::Model,
+        RefKind::Material,
+        RefKind::Scatter,
     ];
 
-    /// The kind's word in messages and commands: "tileset", "sheet", …, "map".
+    /// The kind's word in messages and commands: "sheet", "item", …, "map".
     pub fn name(self) -> &'static str {
         match self {
-            RefKind::Tileset => "tileset",
             RefKind::Sheet => "sheet",
             RefKind::Item => "item",
             RefKind::Prop => "prop",
@@ -87,13 +91,14 @@ impl RefKind {
             RefKind::Achievement => "achievement",
             RefKind::Race => "race",
             RefKind::Model => "model",
+            RefKind::Material => "material",
+            RefKind::Scatter => "scatter",
         }
     }
 
     /// The `defs/<file>.ron` of a definition kind (`None` for maps).
     pub fn file(self) -> Option<&'static str> {
         Some(match self {
-            RefKind::Tileset => "tilesets",
             RefKind::Sheet => "sheets",
             RefKind::Item => "items",
             RefKind::Prop => "props",
@@ -107,6 +112,8 @@ impl RefKind {
             RefKind::Achievement => "achievements",
             RefKind::Race => "races",
             RefKind::Model => "models",
+            RefKind::Material => "materials",
+            RefKind::Scatter => "scatter",
             RefKind::Map => return None,
         })
     }
@@ -114,7 +121,6 @@ impl RefKind {
     /// The kind as shown to users: "Sprite sheet", "Prop", …
     pub fn label(self) -> &'static str {
         match self {
-            RefKind::Tileset => "Tileset",
             RefKind::Sheet => "Sprite sheet",
             RefKind::Sound => "Sound",
             RefKind::Item => "Item",
@@ -129,6 +135,8 @@ impl RefKind {
             RefKind::Achievement => "Achievement",
             RefKind::Race => "Race",
             RefKind::Model => "3D model",
+            RefKind::Material => "Material",
+            RefKind::Scatter => "Scatter set",
         }
     }
 
@@ -136,7 +144,6 @@ impl RefKind {
     pub fn parse(s: &str) -> Option<RefKind> {
         let k = s.trim().to_lowercase();
         Some(match k.trim_end_matches('s') {
-            "tileset" => RefKind::Tileset,
             "sheet" | "spritesheet" | "sprite_sheet" | "sprite sheet" => RefKind::Sheet,
             "item" => RefKind::Item,
             "prop" => RefKind::Prop,
@@ -151,6 +158,8 @@ impl RefKind {
             "achievement" => RefKind::Achievement,
             "race" => RefKind::Race,
             "model" | "3d model" => RefKind::Model,
+            "material" | "ground" => RefKind::Material,
+            "scatter" | "scatter set" | "scatter_set" => RefKind::Scatter,
             _ => return None,
         })
     }
@@ -282,8 +291,11 @@ impl Renamer<'_> {
     }
 
     fn structure(&mut self, d: &mut crate::defs::StructureDef) {
-        for t in &mut d.tilesets {
-            self.fix(RefKind::Tileset, t);
+        for m in &mut d.materials {
+            self.fix(RefKind::Material, m);
+        }
+        for p in &mut d.decor_defs {
+            self.fix(RefKind::Prop, p);
         }
         for e in &mut d.entities {
             self.entity(e);
@@ -434,17 +446,22 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
             r.fix(RefKind::Map, &mut t.map);
         }
     }
-    for d in &mut db.tilesets {
-        for t in &mut d.terrains {
-            r.fix(RefKind::Sound, &mut t.step);
-        }
-        for s in &mut d.steps {
-            r.fix(RefKind::Sound, &mut s.sound);
-        }
-    }
     for d in &mut db.models {
         if let Some(rig) = &mut d.rig {
             r.fix(RefKind::Model, &mut rig.template);
+        }
+    }
+    for d in &mut db.materials {
+        r.fix(RefKind::Sound, &mut d.step);
+    }
+    for d in &mut db.scatter {
+        for (p, _) in &mut d.props {
+            r.fix(RefKind::Prop, p);
+        }
+    }
+    for d in &mut db.props {
+        for p in &mut d.pieces {
+            r.fix(RefKind::Prop, p);
         }
     }
     r.fix(RefKind::Character, &mut config.player);
@@ -464,8 +481,11 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
 /// Updates references inside a map. Returns the number changed.
 pub fn rename_in_map(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usize {
     let mut r = Renamer { kind, old, new, count: 0, found: None };
-    for t in &mut map.tilesets {
-        r.fix(RefKind::Tileset, t);
+    for m in &mut map.materials {
+        r.fix(RefKind::Material, m);
+    }
+    for d in &mut map.decor_defs {
+        r.fix(RefKind::Prop, d);
     }
     r.fix(RefKind::Sound, &mut map.music);
     if let Some(m) = &mut map.battle_music {
@@ -508,11 +528,12 @@ fn collector() -> Renamer<'static> {
 /// Everything an item definition refers to (icon / projectile sheets, ammo, items and sounds used
 /// by its triggers, ...).
 /// A model's rig template.
-/// The sounds a tileset's footsteps use.
-pub fn refs_of_tileset(d: &crate::defs::TilesetDef) -> Vec<(RefKind, String)> {
-    let mut out: Vec<(RefKind, String)> = d.terrains.iter().map(|t| &t.step).chain(d.steps.iter().map(|s| &s.sound)).filter(|s| !s.is_empty()).map(|s| (RefKind::Sound, s.clone())).collect();
-    out.dedup();
-    out
+pub fn refs_of_scatter(d: &crate::decor::ScatterDef) -> Vec<(RefKind, String)> {
+    d.props.iter().map(|(p, _)| (RefKind::Prop, p.clone())).collect()
+}
+
+pub fn refs_of_material(d: &crate::ground::MaterialDef) -> Vec<(RefKind, String)> {
+    if d.step.is_empty() { vec![] } else { vec![(RefKind::Sound, d.step.clone())] }
 }
 
 pub fn refs_of_model(d: &crate::defs::ModelDef) -> Vec<(RefKind, String)> {
@@ -566,11 +587,14 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
     if let Some(g) = &mut d.gather {
         r.loot(&mut g.loot);
     }
+    for p in d.pieces.iter_mut().filter(|p| !p.is_empty()) {
+        r.fix(RefKind::Prop, p);
+    }
     r.found.unwrap_or_default()
 }
 
-/// Everything a structure refers to (tilesets, and the definitions of its entities with what
-/// those need).
+/// Everything a structure refers to (materials, decorations' props, and the definitions of its
+/// entities with what those need).
 pub fn refs_of_structure(d: &crate::defs::StructureDef) -> Vec<(RefKind, String)> {
     let mut d = d.clone();
     let mut r = collector();
@@ -698,16 +722,18 @@ mod tests {
         let mut db = Database::default();
         let mut e = EntityInstance::new(0, EntityKind::Prop, "chest", 0.0, 0.0);
         e.container = Some(crate::defs::ContainerSpec { items: vec![crate::inventory::ItemStack::new("key", 1)], ..Default::default() });
-        db.structures.push(crate::defs::StructureDef { id: "hut".into(), tilesets: vec!["terrain".into()], entities: vec![e], ..Default::default() });
+        db.structures.push(crate::defs::StructureDef { id: "hut".into(), materials: vec!["grass".into()], decor_defs: vec!["oak".into()], entities: vec![e], ..Default::default() });
         let mut cfg = ProjectConfig::new("t");
-        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Tileset, "terrain", "land"), 1);
+        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Material, "grass", "lawn"), 1);
+        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Prop, "oak", "elm"), 1);
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Prop, "chest", "box"), 1);
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Item, "key", "gate_key"), 1);
         let d = &db.structures[0];
-        assert_eq!((d.tilesets[0].as_str(), d.entities[0].def.as_str()), ("land", "box"));
+        assert_eq!((d.materials[0].as_str(), d.decor_defs[0].as_str(), d.entities[0].def.as_str()), ("lawn", "elm", "box"));
         let mut refs = refs_of_structure(d);
         refs.sort();
-        assert_eq!(refs, vec![(RefKind::Tileset, "land".to_string()), (RefKind::Item, "gate_key".to_string()), (RefKind::Prop, "box".to_string())]);
+        refs.dedup();
+        assert_eq!(refs, vec![(RefKind::Item, "gate_key".to_string()), (RefKind::Prop, "box".to_string()), (RefKind::Prop, "elm".to_string()), (RefKind::Material, "lawn".to_string())]);
     }
 
     #[test]

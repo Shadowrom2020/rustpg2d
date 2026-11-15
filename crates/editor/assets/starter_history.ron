@@ -1148,6 +1148,765 @@
                 9348527919872257672,
             ],
         ),
+        "material:abyss": (
+            defs: [
+                8997438218157196651,
+                13336654104026887452,
+            ],
+            files: {
+                "materials/abyss.png": [
+                    17481792034940309433,
+                ],
+            },
+        ),
+        "material:bone_floor": (
+            defs: [
+                6589823588482092112,
+            ],
+            files: {
+                "materials/dungeon_tile_17.png": [
+                    9216452437247372670,
+                ],
+            },
+        ),
+        "material:canal": (
+            defs: [
+                1726124523881224174,
+                16320325674877878830,
+            ],
+            files: {
+                "materials/canal.png": [
+                    9151526407813385372,
+                    13816012518376987831,
+                ],
+            },
+        ),
+        "material:carpet": (
+            defs: [
+                6192475521827864502,
+                7683616485780435943,
+                15314568213654999170,
+            ],
+            files: {
+                "materials/carpet.png": [
+                    4874826905544410054,
+                    11795510252894876325,
+                ],
+            },
+        ),
+        "material:cave_floor": (
+            defs: [
+                6510029305532532354,
+            ],
+            files: {
+                "materials/cave_floor.png": [
+                    3473092756872168658,
+                ],
+            },
+        ),
+        "material:chasm": (
+            defs: [
+                371316158869980739,
+                4681776288089707716,
+            ],
+            files: {
+                "materials/chasm.png": [
+                    13702300436162722737,
+                ],
+            },
+        ),
+        "material:city_paving": (
+            defs: [
+                5973523924459903689,
+            ],
+            files: {
+                "materials/city_tile_0.png": [
+                    5594884855248465312,
+                ],
+            },
+        ),
+        "material:city_tile_0": (
+            defs: [
+                1542914898032926002,
+                5167161192369876785,
+            ],
+            files: {
+                "materials/city_tile_0.png": [
+                    5594884855248465312,
+                ],
+            },
+        ),
+        "material:city_tile_23": (
+            defs: [
+                417752329557088207,
+            ],
+            files: {
+                "materials/city_tile_23.png": [
+                    13816012518376987831,
+                ],
+            },
+        ),
+        "material:cobblestone": (
+            defs: [
+                4457678950118503242,
+                15293460848596977675,
+                16137302903201269387,
+            ],
+            files: {
+                "materials/cobblestone.png": [
+                    8484846610279795604,
+                    17240809585039802349,
+                ],
+            },
+        ),
+        "material:cream_tiles": (
+            defs: [
+                6905390155165225947,
+            ],
+            files: {
+                "materials/terrain_tile_39.png": [
+                    1226748404456308201,
+                ],
+            },
+        ),
+        "material:darkness": (
+            defs: [
+                12088122429742946857,
+            ],
+            files: {
+                "materials/terrain_tile_7.png": [
+                    3372225137752307559,
+                ],
+            },
+        ),
+        "material:dirt": (
+            defs: [
+                6592259833968007348,
+            ],
+            files: {
+                "materials/dirt.png": [
+                    5068454769127499205,
+                ],
+            },
+        ),
+        "material:dirt_mound": (
+            defs: [
+                5007831102102243374,
+            ],
+            files: {
+                "materials/terrain_tile_59.png": [
+                    9030666680884578273,
+                ],
+            },
+        ),
+        "material:dirt_path": (
+            defs: [
+                9096634437156904647,
+                10211110011844767813,
+            ],
+            files: {
+                "materials/dirt_path.png": [
+                    11606519326416566946,
+                ],
+            },
+        ),
+        "material:dungeon_tile_0": (
+            defs: [
+                38225065373260579,
+                9397970674488877171,
+            ],
+            files: {
+                "materials/dungeon_tile_0.png": [
+                    7281442963660678572,
+                ],
+            },
+        ),
+        "material:dungeon_tile_17": (
+            defs: [
+                1014169836576072202,
+                4446718802079426851,
+                4656161811472326259,
+            ],
+            files: {
+                "materials/dungeon_tile_17.png": [
+                    9216452437247372670,
+                ],
+            },
+        ),
+        "material:dungeon_tile_20": (
+            defs: [
+                31589249605012029,
+                11524632113814731824,
+                13745371153495445985,
+            ],
+            files: {
+                "materials/dungeon_tile_20.png": [
+                    13235830121984110798,
+                ],
+            },
+        ),
+        "material:dungeon_tile_21": (
+            defs: [
+                6675441512297106675,
+                11019889636758694016,
+                18013144398314630052,
+            ],
+            files: {
+                "materials/dungeon_tile_21.png": [
+                    4489216975823114630,
+                ],
+            },
+        ),
+        "material:dungeon_tile_3": (
+            defs: [
+                986754431731037690,
+                2941823627376467033,
+            ],
+            files: {
+                "materials/dungeon_tile_3.png": [
+                    9531290854731811404,
+                ],
+            },
+        ),
+        "material:dungeon_water": (
+            defs: [
+                15424300214327384234,
+            ],
+            files: {
+                "materials/dungeon_tile_3.png": [
+                    9531290854731811404,
+                ],
+            },
+        ),
+        "material:earth": (
+            defs: [
+                2772087978535043696,
+                15389075983626725469,
+                17553504855215173187,
+            ],
+            files: {
+                "materials/earth.png": [
+                    385684899841528044,
+                    7217068989253390911,
+                ],
+            },
+        ),
+        "material:farmland": (
+            defs: [
+                5987988556072850284,
+                13362525769739722712,
+                14570351542882576768,
+            ],
+            files: {
+                "materials/farmland.png": [
+                    1272067610196120330,
+                    17670315384078434620,
+                ],
+            },
+        ),
+        "material:flagstones": (
+            defs: [
+                1348229707287565080,
+                9527272997348583316,
+                12417258284555607562,
+            ],
+            files: {
+                "materials/flagstones.png": [
+                    2689449828772199725,
+                    14186102712575848669,
+                ],
+            },
+        ),
+        "material:flower_grass": (
+            defs: [
+                148196306101829073,
+            ],
+            files: {
+                "materials/terrain_tile_1.png": [
+                    4637316627879005813,
+                ],
+            },
+        ),
+        "material:forest_floor": (
+            defs: [
+                12143483951595648752,
+                14799306230832655029,
+                16852644812797382131,
+            ],
+            files: {
+                "materials/forest_floor.png": [
+                    4093850994826824457,
+                    7170743887695781328,
+                ],
+            },
+        ),
+        "material:forest_path": (
+            defs: [
+                5449381523367759422,
+                13082395990168923990,
+            ],
+            files: {
+                "materials/forest_path.png": [
+                    10255953170488900177,
+                ],
+            },
+        ),
+        "material:frozen_lake": (
+            defs: [
+                3727138218747854284,
+            ],
+            files: {
+                "materials/frozen_lake.png": [
+                    5635511537278488400,
+                ],
+            },
+        ),
+        "material:grass": (
+            defs: [
+                2514176359957203000,
+            ],
+            files: {
+                "materials/grass.png": [
+                    10919147594427740665,
+                ],
+            },
+        ),
+        "material:hardpan": (
+            defs: [
+                5244313360044549489,
+            ],
+            files: {
+                "materials/hardpan.png": [
+                    3084860932475690738,
+                ],
+            },
+        ),
+        "material:lava": (
+            defs: [
+                5738918287733057113,
+            ],
+            files: {
+                "materials/lava.png": [
+                    2834216256695872251,
+                ],
+            },
+        ),
+        "material:meadow": (
+            defs: [
+                10531199535529685714,
+                13647078687995038515,
+                15285978442394623005,
+            ],
+            files: {
+                "materials/meadow.png": [
+                    9775050980082327416,
+                    15983572687455333778,
+                ],
+            },
+        ),
+        "material:mountain_path": (
+            defs: [
+                11639775683493359933,
+            ],
+            files: {
+                "materials/mountain_path.png": [
+                    10715297882180375447,
+                ],
+            },
+        ),
+        "material:oasis": (
+            defs: [
+                906239458886150421,
+                964726800012945116,
+                11872849925221566867,
+            ],
+            files: {
+                "materials/oasis.png": [
+                    1496330261966782182,
+                    10619398900660744896,
+                ],
+            },
+        ),
+        "material:plank_deck": (
+            defs: [
+                2291547517483768768,
+            ],
+            files: {
+                "materials/terrain_tile_18.png": [
+                    16046228692976186753,
+                ],
+            },
+        ),
+        "material:plank_floor": (
+            defs: [
+                5866639096541115948,
+            ],
+            files: {
+                "materials/terrain_tile_45.png": [
+                    5081271448355018076,
+                ],
+            },
+        ),
+        "material:plaza": (
+            defs: [
+                13029750460425488327,
+            ],
+            files: {
+                "materials/plaza.png": [
+                    12867189291680110967,
+                ],
+            },
+        ),
+        "material:pond": (
+            defs: [
+                9092144501825943398,
+                16766474409387827031,
+            ],
+            files: {
+                "materials/pond.png": [
+                    12194601314291297596,
+                ],
+            },
+        ),
+        "material:puddle_floor": (
+            defs: [
+                10394107071254053833,
+            ],
+            files: {
+                "materials/dungeon_tile_21.png": [
+                    4489216975823114630,
+                ],
+            },
+        ),
+        "material:rubble_floor": (
+            defs: [
+                2365056766422171518,
+            ],
+            files: {
+                "materials/dungeon_tile_20.png": [
+                    13235830121984110798,
+                ],
+            },
+        ),
+        "material:rug": (
+            defs: [
+                1925437026364355600,
+                13919422420698183133,
+                17491622160850894196,
+            ],
+            files: {
+                "materials/rug.png": [
+                    17175604431974485860,
+                    18432162067892948714,
+                ],
+            },
+        ),
+        "material:sand": (
+            defs: [
+                3205869397524838693,
+                6868623288575723165,
+                16761366349795680743,
+            ],
+            files: {
+                "materials/sand.png": [
+                    9910671082707842481,
+                    13328450208440737150,
+                ],
+            },
+        ),
+        "material:snow": (
+            defs: [
+                11946245595353641147,
+            ],
+            files: {
+                "materials/snow.png": [
+                    8441571496196186421,
+                ],
+            },
+        ),
+        "material:snowfield": (
+            defs: [
+                2069712450866280283,
+                14726012692268709294,
+                15378600474922961731,
+            ],
+            files: {
+                "materials/snowfield.png": [
+                    10746180748175099131,
+                    16656595320778101967,
+                ],
+            },
+        ),
+        "material:snowfield_2": (
+            defs: [
+                9214034840433756872,
+            ],
+            files: {
+                "materials/snowfield_2.png": [
+                    16656595320778101967,
+                ],
+            },
+        ),
+        "material:stone_tiles": (
+            defs: [
+                1847521731045969447,
+                15873597979484051934,
+            ],
+            files: {
+                "materials/stone_tiles.png": [
+                    13901295477019222943,
+                ],
+            },
+        ),
+        "material:straw": (
+            defs: [
+                14734157192771208036,
+            ],
+            files: {
+                "materials/terrain_tile_62.png": [
+                    12111061909877516188,
+                ],
+            },
+        ),
+        "material:swamp_water": (
+            defs: [
+                16578777421139558952,
+            ],
+            files: {
+                "materials/swamp_water.png": [
+                    18073405750346473198,
+                ],
+            },
+        ),
+        "material:tall_grass": (
+            defs: [
+                17025489594473403648,
+            ],
+            files: {
+                "materials/terrain_tile_17.png": [
+                    15566427785306564270,
+                ],
+            },
+        ),
+        "material:terrain_tile_0": (
+            defs: [
+                3129487511845079277,
+                14722692936350272258,
+            ],
+            files: {
+                "materials/terrain_tile_0.png": [
+                    5551451153025286161,
+                ],
+            },
+        ),
+        "material:terrain_tile_1": (
+            defs: [
+                2615899931650859143,
+                5137930051547272625,
+                17855246878508507978,
+            ],
+            files: {
+                "materials/terrain_tile_1.png": [
+                    4637316627879005813,
+                ],
+            },
+        ),
+        "material:terrain_tile_17": (
+            defs: [
+                14186735533667357910,
+            ],
+            files: {
+                "materials/terrain_tile_17.png": [
+                    15566427785306564270,
+                ],
+            },
+        ),
+        "material:terrain_tile_18": (
+            defs: [
+                13231241299996639737,
+                14311132581952692160,
+                16204523983124582803,
+            ],
+            files: {
+                "materials/terrain_tile_18.png": [
+                    16046228692976186753,
+                ],
+            },
+        ),
+        "material:terrain_tile_2": (
+            defs: [
+                6990828059251029772,
+            ],
+            files: {
+                "materials/terrain_tile_2.png": [
+                    11606519326416566946,
+                ],
+            },
+        ),
+        "material:terrain_tile_20": (
+            defs: [
+                10892573573725601752,
+            ],
+            files: {
+                "materials/terrain_tile_20.png": [
+                    17175604431974485860,
+                ],
+            },
+        ),
+        "material:terrain_tile_3": (
+            defs: [
+                17020938560915160993,
+            ],
+            files: {
+                "materials/terrain_tile_3.png": [
+                    12194601314291297596,
+                ],
+            },
+        ),
+        "material:terrain_tile_39": (
+            defs: [
+                4444129081538369178,
+                10237696976162108914,
+                16856421498601367757,
+            ],
+            files: {
+                "materials/terrain_tile_39.png": [
+                    1226748404456308201,
+                ],
+            },
+        ),
+        "material:terrain_tile_4": (
+            defs: [
+                6900347934578359166,
+            ],
+            files: {
+                "materials/terrain_tile_4.png": [
+                    13328450208440737150,
+                ],
+            },
+        ),
+        "material:terrain_tile_44": (
+            defs: [
+                12078888344952833582,
+                16149935302451355098,
+            ],
+            files: {
+                "materials/terrain_tile_44.png": [
+                    6033907037066985239,
+                ],
+            },
+        ),
+        "material:terrain_tile_45": (
+            defs: [
+                1577588807356933706,
+                15244277629813652729,
+                18442307009506754687,
+            ],
+            files: {
+                "materials/terrain_tile_45.png": [
+                    5081271448355018076,
+                ],
+            },
+        ),
+        "material:terrain_tile_5": (
+            defs: [
+                5538114035668790429,
+            ],
+            files: {
+                "materials/terrain_tile_5.png": [
+                    14186102712575848669,
+                ],
+            },
+        ),
+        "material:terrain_tile_59": (
+            defs: [
+                4614956801048131830,
+                14954468668240250292,
+                16021482462086730941,
+            ],
+            files: {
+                "materials/terrain_tile_59.png": [
+                    9030666680884578273,
+                ],
+            },
+        ),
+        "material:terrain_tile_6": (
+            defs: [
+                15592375912015683420,
+                17657473578718282760,
+            ],
+            files: {
+                "materials/terrain_tile_6.png": [
+                    5666717246451293757,
+                ],
+            },
+        ),
+        "material:terrain_tile_62": (
+            defs: [
+                8047762722687977409,
+                14298150606403744834,
+            ],
+            files: {
+                "materials/terrain_tile_62.png": [
+                    12111061909877516188,
+                ],
+            },
+        ),
+        "material:terrain_tile_7": (
+            defs: [
+                8006492814296676532,
+                18430625119595920067,
+            ],
+            files: {
+                "materials/terrain_tile_7.png": [
+                    3372225137752307559,
+                ],
+            },
+        ),
+        "material:void": (
+            defs: [
+                9968407522074951742,
+                16382764358622248473,
+            ],
+            files: {
+                "materials/void.png": [
+                    11969531904313441823,
+                ],
+            },
+        ),
+        "material:water": (
+            defs: [
+                19805980266519405,
+                17137549095518487803,
+            ],
+            files: {
+                "materials/water.png": [
+                    10922404142210849044,
+                    11731626712635229729,
+                ],
+            },
+        ),
+        "material:waterfall_pool": (
+            defs: [
+                320280353017396798,
+            ],
+            files: {
+                "materials/waterfall_pool.png": [
+                    6672367135846879601,
+                ],
+            },
+        ),
+        "material:wood_floor": (
+            defs: [
+                2581231767742701303,
+                11714144288021588090,
+            ],
+            files: {
+                "materials/wood_floor.png": [
+                    15395332555894408083,
+                ],
+            },
+        ),
         "model:baker": (
             defs: [
                 4969377674651474103,
@@ -3738,6 +4497,11 @@
                 14319981421797426222,
             ],
         ),
+        "prop:arched_door": (
+            defs: [
+                2573769902920033084,
+            ],
+        ),
         "prop:barrel": (
             defs: [
                 9243417737999339891,
@@ -3785,6 +4549,11 @@
                 17653736155559067815,
             ],
         ),
+        "prop:berry_bush": (
+            defs: [
+                6847532192051474957,
+            ],
+        ),
         "prop:big_oak": (
             defs: [
                 7662185474408518693,
@@ -3802,6 +4571,31 @@
                 12936301665519233016,
             ],
         ),
+        "prop:black_void": (
+            defs: [
+                2939071080213869495,
+            ],
+        ),
+        "prop:blue_bed": (
+            defs: [
+                5889630179328824386,
+            ],
+        ),
+        "prop:blue_door": (
+            defs: [
+                4534746210178257097,
+            ],
+        ),
+        "prop:blue_slate_roof": (
+            defs: [
+                12615960850422769366,
+            ],
+        ),
+        "prop:blue_slate_roof_edge": (
+            defs: [
+                3508485673803269970,
+            ],
+        ),
         "prop:boat": (
             defs: [
                 53284950019037688,
@@ -3811,6 +4605,11 @@
         "prop:bones": (
             defs: [
                 8034234048945686515,
+            ],
+        ),
+        "prop:bookshelf": (
+            defs: [
+                11819997084573141142,
             ],
         ),
         "prop:boulder": (
@@ -3827,6 +4626,11 @@
         "prop:bread_shelf": (
             defs: [
                 14580146447792254377,
+            ],
+        ),
+        "prop:brick_chimney": (
+            defs: [
+                17457819487800142487,
             ],
         ),
         "prop:broken_cart": (
@@ -3849,10 +4653,25 @@
                 16270990086846612980,
             ],
         ),
+        "prop:candle_ledge": (
+            defs: [
+                4296771541734953409,
+            ],
+        ),
         "prop:candle_stand": (
             defs: [
                 440422310716851687,
                 9328329516629711379,
+            ],
+        ),
+        "prop:carpet_runner": (
+            defs: [
+                6536051366339207068,
+            ],
+        ),
+        "prop:carpet_runner_long": (
+            defs: [
+                16713107616616457530,
             ],
         ),
         "prop:cart": (
@@ -3870,6 +4689,16 @@
             defs: [
                 1338513575824712166,
                 15992163470714910024,
+            ],
+        ),
+        "prop:cave_entrance": (
+            defs: [
+                9445778327547411967,
+            ],
+        ),
+        "prop:chained_wall": (
+            defs: [
+                6625660119771979149,
             ],
         ),
         "prop:chair": (
@@ -3896,6 +4725,11 @@
                 1515852159467483476,
             ],
         ),
+        "prop:chapel_building": (
+            defs: [
+                9940167240042348768,
+            ],
+        ),
         "prop:chest": (
             defs: [
                 5335989352638068014,
@@ -3907,10 +4741,131 @@
                 15006916878905826992,
             ],
         ),
+        "prop:city_brick_wall": (
+            defs: [
+                2493270282631203591,
+            ],
+        ),
+        "prop:city_tile_10": (
+            defs: [
+                14489920951494749494,
+            ],
+        ),
+        "prop:city_tile_11": (
+            defs: [
+                9792206058716082251,
+            ],
+        ),
+        "prop:city_tile_12": (
+            defs: [
+                14200861268108293796,
+            ],
+        ),
+        "prop:city_tile_13": (
+            defs: [
+                13009325432302041121,
+            ],
+        ),
+        "prop:city_tile_14": (
+            defs: [
+                10741865299271133802,
+            ],
+        ),
+        "prop:city_tile_15": (
+            defs: [
+                2035090734109612546,
+                17668330337057387263,
+            ],
+        ),
+        "prop:city_tile_16": (
+            defs: [
+                8384204152549519736,
+            ],
+        ),
+        "prop:city_tile_17": (
+            defs: [
+                11341188279083346693,
+            ],
+        ),
+        "prop:city_tile_18": (
+            defs: [
+                14663184305330308814,
+            ],
+        ),
+        "prop:city_tile_19": (
+            defs: [
+                17038912374590700563,
+            ],
+        ),
+        "prop:city_tile_21": (
+            defs: [
+                14798266147747815502,
+            ],
+        ),
+        "prop:city_tile_22": (
+            defs: [
+                9786707719291411549,
+            ],
+        ),
+        "prop:city_tile_31": (
+            defs: [
+                1329819066137087422,
+            ],
+        ),
+        "prop:city_tile_8": (
+            defs: [
+                12012928597805832147,
+            ],
+        ),
+        "prop:city_tile_9": (
+            defs: [
+                2866958020408622144,
+            ],
+        ),
+        "prop:cobweb": (
+            defs: [
+                6131062769967370094,
+            ],
+        ),
+        "prop:cottage_red": (
+            defs: [
+                9551276579289760754,
+            ],
+        ),
+        "prop:cottage_red_small": (
+            defs: [
+                12829667209984833640,
+            ],
+        ),
+        "prop:cottage_stone_thatched": (
+            defs: [
+                3673051870026954384,
+            ],
+        ),
+        "prop:cottage_thatched": (
+            defs: [
+                18308169552085394975,
+            ],
+        ),
+        "prop:counter": (
+            defs: [
+                4443694413349377958,
+            ],
+        ),
         "prop:crate": (
             defs: [
                 3573291798892634316,
                 9199351461804262370,
+            ],
+        ),
+        "prop:cross_brace": (
+            defs: [
+                9984044041686887950,
+            ],
+        ),
+        "prop:cross_brace_post": (
+            defs: [
+                3813422558674030921,
             ],
         ),
         "prop:crystal": (
@@ -3918,6 +4873,21 @@
                 1298303702422250311,
                 10480591263374974264,
                 10652615573280127190,
+            ],
+        ),
+        "prop:dark_dungeon_wall": (
+            defs: [
+                17275138633635494721,
+            ],
+        ),
+        "prop:dark_stone_wall": (
+            defs: [
+                9035441463301119290,
+            ],
+        ),
+        "prop:deck_with_ladder": (
+            defs: [
+                12368803392823888639,
             ],
         ),
         "prop:double_gate": (
@@ -3929,6 +4899,103 @@
             defs: [
                 10248134598739545032,
                 10369689693579962270,
+            ],
+        ),
+        "prop:drain_grate": (
+            defs: [
+                3604110886409500843,
+            ],
+        ),
+        "prop:dungeon_door": (
+            defs: [
+                13068781293266339618,
+            ],
+        ),
+        "prop:dungeon_tile_10": (
+            defs: [
+                277183213579269313,
+                6279977664192785959,
+            ],
+        ),
+        "prop:dungeon_tile_11": (
+            defs: [
+                5305784033439973188,
+            ],
+        ),
+        "prop:dungeon_tile_14": (
+            defs: [
+                12652270157530510699,
+            ],
+        ),
+        "prop:dungeon_tile_15": (
+            defs: [
+                9764497377913404056,
+            ],
+        ),
+        "prop:dungeon_tile_16": (
+            defs: [
+                9932621483393908453,
+            ],
+        ),
+        "prop:dungeon_tile_18": (
+            defs: [
+                16858383888411276128,
+            ],
+        ),
+        "prop:dungeon_tile_22": (
+            defs: [
+                9475111352938050766,
+                15161934796110587178,
+            ],
+        ),
+        "prop:dungeon_tile_6": (
+            defs: [
+                3649267639449784511,
+            ],
+        ),
+        "prop:dungeon_tile_8": (
+            defs: [
+                2575762862763895468,
+            ],
+        ),
+        "prop:dungeon_tile_9": (
+            defs: [
+                9691981361303868409,
+            ],
+        ),
+        "prop:dungeon_torch": (
+            defs: [
+                5096460583164850094,
+            ],
+        ),
+        "prop:dungeon_void": (
+            defs: [
+                1918365812158479188,
+            ],
+        ),
+        "prop:dungeon_wall": (
+            defs: [
+                6821938291615685979,
+            ],
+        ),
+        "prop:farmhouse_thatched": (
+            defs: [
+                608101595958875709,
+            ],
+        ),
+        "prop:fence_end_left": (
+            defs: [
+                11034121799013921662,
+            ],
+        ),
+        "prop:fence_end_right": (
+            defs: [
+                9436682883059602189,
+            ],
+        ),
+        "prop:fence_section": (
+            defs: [
+                7923340956173075753,
             ],
         ),
         "prop:feverleaf_bush": (
@@ -3965,6 +5032,11 @@
                 16790331511611593910,
             ],
         ),
+        "prop:flower_box_window": (
+            defs: [
+                11332473055710352036,
+            ],
+        ),
         "prop:flower_pot": (
             defs: [
                 11660049495981719917,
@@ -3993,10 +5065,20 @@
                 13172572995852004472,
             ],
         ),
+        "prop:grey_stone_wall": (
+            defs: [
+                10279740657899815171,
+            ],
+        ),
         "prop:grindstone": (
             defs: [
                 6440669133977225710,
                 6913534859807905368,
+            ],
+        ),
+        "prop:hall_timber": (
+            defs: [
+                5338359053713484928,
             ],
         ),
         "prop:hay_bale": (
@@ -4017,6 +5099,11 @@
                 6040969556092491813,
             ],
         ),
+        "prop:hedge": (
+            defs: [
+                16155745585873932380,
+            ],
+        ),
         "prop:herb_bush": (
             defs: [
                 12985205528421547367,
@@ -4027,10 +5114,35 @@
                 17095403362610505926,
             ],
         ),
+        "prop:house_red": (
+            defs: [
+                4181992021552252687,
+            ],
+        ),
+        "prop:house_red_small": (
+            defs: [
+                17391757365549865202,
+            ],
+        ),
+        "prop:house_stone": (
+            defs: [
+                993196460989589645,
+            ],
+        ),
+        "prop:house_stone_small": (
+            defs: [
+                5206340197293872121,
+            ],
+        ),
         "prop:inn_bed": (
             defs: [
                 3032223658714007511,
                 6986318283895657979,
+            ],
+        ),
+        "prop:iron_railing": (
+            defs: [
+                10990970735987279383,
             ],
         ),
         "prop:keg": (
@@ -4045,15 +5157,50 @@
                 15910555253867686332,
             ],
         ),
+        "prop:ladder": (
+            defs: [
+                14748506096151233984,
+            ],
+        ),
+        "prop:ladder_post": (
+            defs: [
+                8342268828897814721,
+            ],
+        ),
         "prop:laundry": (
             defs: [
                 5892355163855479400,
+            ],
+        ),
+        "prop:lawn_patch": (
+            defs: [
+                3077192603980108028,
             ],
         ),
         "prop:lever": (
             defs: [
                 3978747116875368478,
                 4465273089935100144,
+            ],
+        ),
+        "prop:light_stone_wall": (
+            defs: [
+                13164215229030466548,
+            ],
+        ),
+        "prop:lit_window": (
+            defs: [
+                7691368121641856582,
+            ],
+        ),
+        "prop:low_rail": (
+            defs: [
+                11840653323718450128,
+            ],
+        ),
+        "prop:low_rail_end": (
+            defs: [
+                6693006205333661552,
             ],
         ),
         "prop:market_stall": (
@@ -4081,15 +5228,45 @@
                 8142536772624143436,
             ],
         ),
+        "prop:oak_crown": (
+            defs: [
+                18367499018809735799,
+            ],
+        ),
         "prop:oak_tree": (
             defs: [
                 9349810580513218700,
+            ],
+        ),
+        "prop:oak_trunk": (
+            defs: [
+                5499422725023686437,
+            ],
+        ),
+        "prop:orange_tile_roof": (
+            defs: [
+                4099543606649350802,
+            ],
+        ),
+        "prop:orange_tile_roof_edge": (
+            defs: [
+                475366493326318560,
+            ],
+        ),
+        "prop:oval_window": (
+            defs: [
+                535398634432768454,
             ],
         ),
         "prop:oven": (
             defs: [
                 12586682003488143956,
                 14831318692522477542,
+            ],
+        ),
+        "prop:pale_plaster_wall": (
+            defs: [
+                14337143676637951352,
             ],
         ),
         "prop:palm_tree": (
@@ -4108,6 +5285,36 @@
                 10897932405523632883,
             ],
         ),
+        "prop:pine_trunk": (
+            defs: [
+                8215149869413890661,
+            ],
+        ),
+        "prop:plaster_panel": (
+            defs: [
+                12986727572861866317,
+            ],
+        ),
+        "prop:plaster_wall": (
+            defs: [
+                16153055381836584427,
+            ],
+        ),
+        "prop:plaster_window": (
+            defs: [
+                11636424443187611952,
+            ],
+        ),
+        "prop:post_left": (
+            defs: [
+                9686175239305927929,
+            ],
+        ),
+        "prop:post_right": (
+            defs: [
+                14431521935230521196,
+            ],
+        ),
         "prop:pot": (
             defs: [
                 7353666054954610936,
@@ -4117,6 +5324,71 @@
         "prop:potion_shelf": (
             defs: [
                 16869131601022633140,
+            ],
+        ),
+        "prop:prison_bars": (
+            defs: [
+                5764976797892425016,
+            ],
+        ),
+        "prop:purple_arched_door": (
+            defs: [
+                5717175752198176952,
+            ],
+        ),
+        "prop:rail_posts_left": (
+            defs: [
+                254044516118622018,
+            ],
+        ),
+        "prop:rail_posts_right": (
+            defs: [
+                18240925452108103387,
+            ],
+        ),
+        "prop:railing_left": (
+            defs: [
+                13822583297484757199,
+            ],
+        ),
+        "prop:railing_right": (
+            defs: [
+                12515511690840465720,
+            ],
+        ),
+        "prop:red_brick_wall": (
+            defs: [
+                17222885150116544024,
+            ],
+        ),
+        "prop:red_roof_tiles": (
+            defs: [
+                11733312423733162167,
+            ],
+        ),
+        "prop:roof_slope_left": (
+            defs: [
+                7403209131771855981,
+            ],
+        ),
+        "prop:roof_slope_right": (
+            defs: [
+                904254077986440878,
+            ],
+        ),
+        "prop:rug_patterned": (
+            defs: [
+                7133601285675800145,
+            ],
+        ),
+        "prop:rug_small": (
+            defs: [
+                14216037570489031718,
+            ],
+        ),
+        "prop:rug_wide": (
+            defs: [
+                8949366396292252215,
             ],
         ),
         "prop:sack": (
@@ -4134,6 +5406,11 @@
             defs: [
                 2473562362904447265,
                 13858122703589708177,
+            ],
+        ),
+        "prop:shop_window": (
+            defs: [
+                16024598726738671464,
             ],
         ),
         "prop:shrine": (
@@ -4176,6 +5453,36 @@
                 4804464773176219542,
             ],
         ),
+        "prop:slate_chimney": (
+            defs: [
+                4840544642651300790,
+            ],
+        ),
+        "prop:slate_roof": (
+            defs: [
+                11821158628300784624,
+            ],
+        ),
+        "prop:slate_roof_eave": (
+            defs: [
+                172011118172766746,
+            ],
+        ),
+        "prop:small_pine": (
+            defs: [
+                1832971482435158326,
+            ],
+        ),
+        "prop:small_rock": (
+            defs: [
+                1673445939999992222,
+            ],
+        ),
+        "prop:small_table": (
+            defs: [
+                14848863117888825909,
+            ],
+        ),
         "prop:smelter": (
             defs: [
                 1399410042667256724,
@@ -4184,6 +5491,11 @@
         "prop:soil_plot": (
             defs: [
                 12742537193782663350,
+            ],
+        ),
+        "prop:stained_glass_window": (
+            defs: [
+                3248797961358035130,
             ],
         ),
         "prop:stall_bread": (
@@ -4204,6 +5516,26 @@
         "prop:statue": (
             defs: [
                 7732382925527556355,
+            ],
+        ),
+        "prop:stone_block_wall": (
+            defs: [
+                3909449079949869184,
+            ],
+        ),
+        "prop:stone_chimney": (
+            defs: [
+                10393850074245528520,
+            ],
+        ),
+        "prop:stone_pillar": (
+            defs: [
+                14665389277854329351,
+            ],
+        ),
+        "prop:stone_wall": (
+            defs: [
+                5114184092311032778,
             ],
         ),
         "prop:stool": (
@@ -4237,6 +5569,11 @@
                 16854047346585134772,
             ],
         ),
+        "prop:tall_fence_post": (
+            defs: [
+                13422377202034609911,
+            ],
+        ),
         "prop:tavern_table": (
             defs: [
                 2112569873160710726,
@@ -4246,6 +5583,315 @@
         "prop:tent": (
             defs: [
                 11741764456862475118,
+            ],
+        ),
+        "prop:terrain_tile_10": (
+            defs: [
+                11294325453134827208,
+            ],
+        ),
+        "prop:terrain_tile_11": (
+            defs: [
+                2694916173150011556,
+            ],
+        ),
+        "prop:terrain_tile_12": (
+            defs: [
+                3760133800585000622,
+            ],
+        ),
+        "prop:terrain_tile_13": (
+            defs: [
+                1806601242521160946,
+            ],
+        ),
+        "prop:terrain_tile_14": (
+            defs: [
+                9248488676792166100,
+                14284379317058579860,
+            ],
+        ),
+        "prop:terrain_tile_15": (
+            defs: [
+                1761722278218420045,
+                6095231711032039439,
+            ],
+        ),
+        "prop:terrain_tile_16": (
+            defs: [
+                7691382145932667210,
+                11704015828142107990,
+            ],
+        ),
+        "prop:terrain_tile_19": (
+            defs: [
+                4775538543669740162,
+                7092611382397465891,
+            ],
+        ),
+        "prop:terrain_tile_21": (
+            defs: [
+                11936134484280940948,
+                14352463671735833940,
+            ],
+        ),
+        "prop:terrain_tile_22": (
+            defs: [
+                12318197591815626873,
+                17045436288164732787,
+            ],
+        ),
+        "prop:terrain_tile_23": (
+            defs: [
+                17969737726894215582,
+            ],
+        ),
+        "prop:terrain_tile_25": (
+            defs: [
+                3089685552005735832,
+                9613616380948337880,
+            ],
+        ),
+        "prop:terrain_tile_26": (
+            defs: [
+                2214055900815395798,
+            ],
+        ),
+        "prop:terrain_tile_27": (
+            defs: [
+                10829559338794737698,
+            ],
+        ),
+        "prop:terrain_tile_28": (
+            defs: [
+                56248882644131911,
+            ],
+        ),
+        "prop:terrain_tile_29": (
+            defs: [
+                16055307732100841836,
+            ],
+        ),
+        "prop:terrain_tile_30": (
+            defs: [
+                18077929013653178983,
+            ],
+        ),
+        "prop:terrain_tile_34": (
+            defs: [
+                10894961033438775090,
+            ],
+        ),
+        "prop:terrain_tile_40": (
+            defs: [
+                5169247740310457341,
+                12237671690288322775,
+            ],
+        ),
+        "prop:terrain_tile_41": (
+            defs: [
+                9577992029977790798,
+                16454080666500885162,
+            ],
+        ),
+        "prop:terrain_tile_42": (
+            defs: [
+                796272291561386611,
+            ],
+        ),
+        "prop:terrain_tile_43": (
+            defs: [
+                4014941675317767620,
+            ],
+        ),
+        "prop:terrain_tile_46": (
+            defs: [
+                2691076009811346541,
+            ],
+        ),
+        "prop:terrain_tile_47": (
+            defs: [
+                14547171481131384736,
+            ],
+        ),
+        "prop:terrain_tile_48": (
+            defs: [
+                18288222676748433269,
+            ],
+        ),
+        "prop:terrain_tile_49": (
+            defs: [
+                7481514234280680998,
+            ],
+        ),
+        "prop:terrain_tile_50": (
+            defs: [
+                14468801961926470868,
+            ],
+        ),
+        "prop:terrain_tile_51": (
+            defs: [
+                18175563329366301583,
+            ],
+        ),
+        "prop:terrain_tile_52": (
+            defs: [
+                5167471705586371274,
+            ],
+        ),
+        "prop:terrain_tile_53": (
+            defs: [
+                11492098265750223693,
+            ],
+        ),
+        "prop:terrain_tile_54": (
+            defs: [
+                11538547482550078776,
+            ],
+        ),
+        "prop:terrain_tile_55": (
+            defs: [
+                3898104869293442763,
+            ],
+        ),
+        "prop:terrain_tile_56": (
+            defs: [
+                17721953425122501919,
+            ],
+        ),
+        "prop:terrain_tile_57": (
+            defs: [
+                3768396126720794297,
+            ],
+        ),
+        "prop:terrain_tile_58": (
+            defs: [
+                14028483064954395964,
+                14929327684386315788,
+            ],
+        ),
+        "prop:terrain_tile_60": (
+            defs: [
+                13305770132255533387,
+            ],
+        ),
+        "prop:terrain_tile_64": (
+            defs: [
+                2562130158570944968,
+            ],
+        ),
+        "prop:terrain_tile_65": (
+            defs: [
+                17797257452689553805,
+            ],
+        ),
+        "prop:terrain_tile_66": (
+            defs: [
+                309917298654208081,
+                7171572298487306683,
+            ],
+        ),
+        "prop:terrain_tile_67": (
+            defs: [
+                5910900421433682986,
+                12980725400006750670,
+            ],
+        ),
+        "prop:terrain_tile_68": (
+            defs: [
+                12706461660194678097,
+                15646500184417038019,
+            ],
+        ),
+        "prop:terrain_tile_69": (
+            defs: [
+                348930347880927160,
+                16427572820912331256,
+            ],
+        ),
+        "prop:terrain_tile_7": (
+            defs: [
+                863465961495580632,
+            ],
+        ),
+        "prop:terrain_tile_70": (
+            defs: [
+                12065249649583545531,
+            ],
+        ),
+        "prop:terrain_tile_71": (
+            defs: [
+                17417257137791601386,
+            ],
+        ),
+        "prop:terrain_tile_72": (
+            defs: [
+                9426665830008335453,
+            ],
+        ),
+        "prop:terrain_tile_73": (
+            defs: [
+                17426580592207750492,
+            ],
+        ),
+        "prop:terrain_tile_74": (
+            defs: [
+                4575912521179271639,
+            ],
+        ),
+        "prop:terrain_tile_75": (
+            defs: [
+                12324618768704364686,
+            ],
+        ),
+        "prop:terrain_tile_76": (
+            defs: [
+                9599001290274669380,
+            ],
+        ),
+        "prop:terrain_tile_77": (
+            defs: [
+                7357930571735316319,
+            ],
+        ),
+        "prop:terrain_tile_78": (
+            defs: [
+                9243931514770521970,
+            ],
+        ),
+        "prop:terrain_tile_79": (
+            defs: [
+                15827646899142577009,
+            ],
+        ),
+        "prop:terrain_tile_8": (
+            defs: [
+                8289265952432283119,
+            ],
+        ),
+        "prop:terrain_tile_9": (
+            defs: [
+                8174151470113180242,
+            ],
+        ),
+        "prop:thatch_roof": (
+            defs: [
+                6516197542593594987,
+            ],
+        ),
+        "prop:thatch_roof_eave": (
+            defs: [
+                18428775662419547411,
+            ],
+        ),
+        "prop:timber_frame": (
+            defs: [
+                17284704133120400288,
+            ],
+        ),
+        "prop:toadstools": (
+            defs: [
+                11174772405439397424,
             ],
         ),
         "prop:tombstone": (
@@ -4306,6 +5952,11 @@
                 15201189106383710765,
             ],
         ),
+        "prop:wall_lantern": (
+            defs: [
+                12698030929301411861,
+            ],
+        ),
         "prop:wall_torch": (
             defs: [
                 4134443550181738391,
@@ -4331,6 +5982,31 @@
         "prop:windmill": (
             defs: [
                 374785161569596153,
+            ],
+        ),
+        "prop:window_glow": (
+            defs: [
+                14592504623673778874,
+            ],
+        ),
+        "prop:wood_fence": (
+            defs: [
+                10516588277219416459,
+            ],
+        ),
+        "prop:wooden_deck": (
+            defs: [
+                9711427794974777893,
+            ],
+        ),
+        "prop:wooden_door": (
+            defs: [
+                13333732497275516115,
+            ],
+        ),
+        "prop:wooden_post": (
+            defs: [
+                6578444552703987239,
             ],
         ),
         "prop:woodpile": (
@@ -4500,6 +6176,21 @@
         "recipe:upgrade_sword": (
             defs: [
                 10824065313562255991,
+            ],
+        ),
+        "scatter:forest": (
+            defs: [
+                11649803190987834651,
+            ],
+        ),
+        "scatter:rocks": (
+            defs: [
+                9235719448589050848,
+            ],
+        ),
+        "scatter:wild_plants": (
+            defs: [
+                13261516281659487022,
             ],
         ),
         "sheet:abyss_mist": (
@@ -4679,6 +6370,26 @@
                 ],
             },
         ),
+        "sheet:carpet_runner": (
+            defs: [
+                938106874058890983,
+            ],
+            files: {
+                "sprites/rugs/carpet_runner.png": [
+                    18254219058367939924,
+                ],
+            },
+        ),
+        "sheet:carpet_runner_long": (
+            defs: [
+                11658266631225133046,
+            ],
+            files: {
+                "sprites/rugs/carpet_runner_long.png": [
+                    11234135915211154757,
+                ],
+            },
+        ),
         "sheet:cat": (
             defs: [
                 3625561797219423911,
@@ -4720,6 +6431,16 @@
             files: {
                 "sprites/cat_ginger_classic.png": [
                     10198679281644195548,
+                ],
+            },
+        ),
+        "sheet:chapel_building": (
+            defs: [
+                7805677687714088969,
+            ],
+            files: {
+                "sprites/buildings/chapel_building.png": [
+                    14654391337248906945,
                 ],
             },
         ),
@@ -4789,6 +6510,17 @@
                 ],
             },
         ),
+        "sheet:city_tiles": (
+            defs: [
+                16487342399608298498,
+            ],
+            files: {
+                "tilesets/city.png": [
+                    1697235689965216650,
+                    15162543569978002789,
+                ],
+            },
+        ),
         "sheet:cloud_shadows": (
             defs: [
                 5119917512391435705,
@@ -4796,6 +6528,46 @@
             files: {
                 "sprites/cloud_shadows.png": [
                     12160021407330408109,
+                ],
+            },
+        ),
+        "sheet:cottage_red": (
+            defs: [
+                2670176100686257492,
+            ],
+            files: {
+                "sprites/buildings/cottage_red.png": [
+                    4803388224503246258,
+                ],
+            },
+        ),
+        "sheet:cottage_red_small": (
+            defs: [
+                9488542042601248423,
+            ],
+            files: {
+                "sprites/buildings/cottage_red_small.png": [
+                    17105551746534044546,
+                ],
+            },
+        ),
+        "sheet:cottage_stone_thatched": (
+            defs: [
+                18433289802054425961,
+            ],
+            files: {
+                "sprites/buildings/cottage_stone_thatched.png": [
+                    11222146369665152508,
+                ],
+            },
+        ),
+        "sheet:cottage_thatched": (
+            defs: [
+                6999058370249374869,
+            ],
+            files: {
+                "sprites/buildings/cottage_thatched.png": [
+                    4931637001990174500,
                 ],
             },
         ),
@@ -4840,6 +6612,17 @@
             files: {
                 "sprites/dog_classic.png": [
                     5550873291148959750,
+                ],
+            },
+        ),
+        "sheet:dungeon_tiles": (
+            defs: [
+                8796634593247559140,
+            ],
+            files: {
+                "tilesets/dungeon.png": [
+                    14814903225342770533,
+                    16781549001584007220,
                 ],
             },
         ),
@@ -4979,6 +6762,16 @@
                 ],
             },
         ),
+        "sheet:farmhouse_thatched": (
+            defs: [
+                13226846724177248420,
+            ],
+            files: {
+                "sprites/buildings/farmhouse_thatched.png": [
+                    2283983360864674273,
+                ],
+            },
+        ),
         "sheet:fireball": (
             defs: [
                 6716813369710946597,
@@ -5030,6 +6823,16 @@
             files: {
                 "sprites/ghost_classic.png": [
                     670849946027908806,
+                ],
+            },
+        ),
+        "sheet:glow": (
+            defs: [
+                4954021372066454321,
+            ],
+            files: {
+                "sprites/glow.png": [
+                    10691794337846893258,
                 ],
             },
         ),
@@ -5127,6 +6930,16 @@
                 "sprites/hair_short.png": [
                     903419896489336625,
                     5120445910275892381,
+                ],
+            },
+        ),
+        "sheet:hall_timber": (
+            defs: [
+                15842831379868019402,
+            ],
+            files: {
+                "sprites/buildings/hall_timber.png": [
+                    13112132824408228395,
                 ],
             },
         ),
@@ -5380,6 +7193,46 @@
                     1896436123657959363,
                     5985614685160818877,
                     7262319700423693939,
+                ],
+            },
+        ),
+        "sheet:house_red": (
+            defs: [
+                4502773485011538444,
+            ],
+            files: {
+                "sprites/buildings/house_red.png": [
+                    7324956066544843257,
+                ],
+            },
+        ),
+        "sheet:house_red_small": (
+            defs: [
+                10281098669797581816,
+            ],
+            files: {
+                "sprites/buildings/house_red_small.png": [
+                    9240373269839156261,
+                ],
+            },
+        ),
+        "sheet:house_stone": (
+            defs: [
+                5970480248543890268,
+            ],
+            files: {
+                "sprites/buildings/house_stone.png": [
+                    11637427019646407173,
+                ],
+            },
+        ),
+        "sheet:house_stone_small": (
+            defs: [
+                13902648444470100995,
+            ],
+            files: {
+                "sprites/buildings/house_stone_small.png": [
+                    7906009805544954809,
                 ],
             },
         ),
@@ -6504,6 +8357,36 @@
                 ],
             },
         ),
+        "sheet:rug_patterned": (
+            defs: [
+                683820448811561617,
+            ],
+            files: {
+                "sprites/rugs/rug_patterned.png": [
+                    14351085306066980533,
+                ],
+            },
+        ),
+        "sheet:rug_small": (
+            defs: [
+                13845467937341611842,
+            ],
+            files: {
+                "sprites/rugs/rug_small.png": [
+                    13240788070973705784,
+                ],
+            },
+        ),
+        "sheet:rug_wide": (
+            defs: [
+                15612242453881823814,
+            ],
+            files: {
+                "sprites/rugs/rug_wide.png": [
+                    15900645362466418549,
+                ],
+            },
+        ),
         "sheet:sheep": (
             defs: [
                 5778090689351247815,
@@ -6607,6 +8490,18 @@
                 ],
             },
         ),
+        "sheet:terrain_tiles": (
+            defs: [
+                16464740330972691870,
+            ],
+            files: {
+                "tilesets/terrain.png": [
+                    3199042138293905454,
+                    5204096225195305425,
+                    16236184867848582267,
+                ],
+            },
+        ),
         "sheet:tilda_full": (
             defs: [
                 6711559874858048150,
@@ -6692,6 +8587,16 @@
                     6451331678332867715,
                     9127919579150179999,
                     13608972594616416203,
+                ],
+            },
+        ),
+        "sheet:walls": (
+            defs: [
+                6975277754156028807,
+            ],
+            files: {
+                "sprites/walls.png": [
+                    7494692139386862072,
                 ],
             },
         ),
@@ -7186,328 +9091,332 @@
         ),
         "structure:animal_pen": (
             defs: [
-                17463729365652543569,
+                124724594079928575,
+                1675901198206853098,
             ],
         ),
         "structure:bakery_front": (
             defs: [
-                13993410845906513245,
+                4438747783085074290,
+                13927286688932532176,
+                14329445705626358779,
             ],
         ),
         "structure:brick_shop": (
             defs: [
-                174978819873969768,
+                3505088596538414193,
+                4574000978363640694,
             ],
         ),
         "structure:bridge_h": (
             defs: [
-                813454229957359241,
+                5443920214334520095,
+                9368278329173489573,
             ],
         ),
         "structure:campsite": (
             defs: [
-                7427945973408565695,
+                10272543617599420920,
             ],
         ),
         "structure:canal": (
             defs: [
-                4975600293078243755,
+                7421011377453665216,
+                11972467428644193571,
+                16746844314063653105,
             ],
         ),
         "structure:chapel": (
             defs: [
-                5317702085190688017,
+                3664392122011158859,
+                5394389699538385929,
+                15427570547855415024,
             ],
         ),
         "structure:city_wall_h": (
             defs: [
-                1527712703805824149,
+                11331570474358596271,
+                16237144378625666359,
             ],
         ),
         "structure:city_wall_v": (
             defs: [
-                4464547855837358813,
+                5117625633214371979,
+                6866651373416849843,
             ],
         ),
         "structure:corridor_h": (
             defs: [
-                10659498110075424519,
+                4951538906545319372,
+                10590556696487559796,
+                11137105104340391532,
             ],
         ),
         "structure:corridor_v": (
             defs: [
-                17212038143785425579,
+                596174331556284618,
+                4701910058542705786,
+                9929398181452706122,
             ],
         ),
         "structure:cottage": (
             defs: [
-                15898972811920580308,
+                6179335750123215587,
+                9589773249802623499,
             ],
         ),
         "structure:cottage_small": (
             defs: [
-                1034576369410191279,
+                2167428530518802978,
+                11080078370102837310,
             ],
         ),
         "structure:dock": (
             defs: [
-                12656289416123632737,
+                5339375459865489471,
+                8632715984882379035,
+                17018172991531849570,
             ],
         ),
         "structure:dungeon_room": (
             defs: [
-                4532805646354122830,
+                190762702050391124,
+                10296720636613342664,
+                13623687048121868439,
             ],
         ),
         "structure:dungeon_shrine": (
             defs: [
-                7916483527924157528,
+                626375037579708375,
+                11916929899255858888,
+                12983754910176722584,
             ],
         ),
         "structure:farmhouse_thatch": (
             defs: [
-                1459769909060360263,
+                5082393138140761706,
+                8448303382151092484,
+                9334239925208332729,
             ],
         ),
         "structure:fence_h": (
             defs: [
-                9131129501600483391,
+                3466467508782492251,
+                8939663153037119506,
             ],
         ),
         "structure:fence_v": (
             defs: [
-                6994590468875168775,
+                7980243422428685896,
+                15442256268455679621,
             ],
         ),
         "structure:garden": (
             defs: [
-                1849231933007663889,
+                10108642073932037626,
+                10331577374682917609,
             ],
         ),
         "structure:gate_towers": (
             defs: [
-                377611170569914272,
+                6735334702038131779,
+                9803803892006939382,
             ],
         ),
         "structure:graveyard": (
             defs: [
-                4902602492063632948,
+                3473934909805840255,
+                13328871744202227016,
             ],
         ),
         "structure:hedge": (
             defs: [
-                5692307277110594396,
+                8850638531777613149,
+                14860207441090722071,
             ],
         ),
         "structure:iron_fence": (
             defs: [
-                16281649628960998290,
+                607792717699372748,
+                5588535144402563063,
             ],
         ),
         "structure:lookout_tower": (
             defs: [
-                4469746573870739822,
+                7404621092350185645,
+                17675266130623317622,
             ],
         ),
         "structure:market": (
             defs: [
-                13625680913865628187,
+                3802048428910098216,
+                11635214506725360870,
             ],
         ),
         "structure:market_row": (
             defs: [
-                16428327077474026212,
+                8622356520476452810,
+                18181624628994741747,
             ],
         ),
         "structure:mill": (
             defs: [
-                9274867443328001387,
+                6316820321062212253,
+                12815309084855606188,
             ],
         ),
         "structure:orchard": (
             defs: [
-                7867853248437194777,
+                1606716757733494420,
+                11029360273989868823,
             ],
         ),
         "structure:pine_grove": (
             defs: [
-                1563029958360451963,
+                2268825817553202505,
+                4652642589300803881,
             ],
         ),
         "structure:plaza": (
             defs: [
-                14213223666566308023,
+                4989804358767432940,
+                13703525718482488514,
             ],
         ),
         "structure:pond": (
             defs: [
-                14582641015187538937,
+                1577586561714849515,
+                6205105848704425266,
+                6308467061466489405,
             ],
         ),
         "structure:prison_cell": (
             defs: [
-                1821438954197043049,
+                114590151890069883,
+                12714575945015217615,
+                18230337669060141889,
             ],
         ),
         "structure:rocks_bushes": (
             defs: [
-                17661702460129902487,
+                13231015750408114785,
+                17250971947940615274,
             ],
         ),
         "structure:room_bakery": (
             defs: [
-                13137574955552774070,
+                7429539929015104462,
+                18423788432103292053,
             ],
         ),
         "structure:room_bedroom": (
             defs: [
-                4579306648281379035,
+                4675965491365756885,
+                8118438048852314733,
+                14229714296844417394,
+                14252895111981197558,
             ],
         ),
         "structure:room_chapel": (
             defs: [
-                12792138064106831421,
+                4698741251883700661,
+                8340277721002426076,
+                17536103838007636188,
             ],
         ),
         "structure:room_small": (
             defs: [
-                11895789811632794245,
+                4437421286019748404,
+                4729740251533477578,
+                9175595373258598353,
             ],
         ),
         "structure:room_smithy": (
             defs: [
-                16250403667635755513,
+                1564452861963268875,
+                11260409056912809910,
+                14079090457440745084,
             ],
         ),
         "structure:room_storage": (
             defs: [
-                16834180159693133561,
+                6450881080213953113,
+                6795665636647787394,
+                7653305321380632906,
+                13128788600137004966,
             ],
         ),
         "structure:room_tavern": (
             defs: [
-                10683706096701933859,
+                677176907100559077,
+                2422369187507220947,
+                17752088809529373688,
             ],
         ),
         "structure:shop_front": (
             defs: [
-                5936063366157448584,
+                2477957892154395379,
+                3532848769755863082,
+                8622811219798507363,
+                15056045308217240671,
             ],
         ),
         "structure:smithy_stone": (
             defs: [
-                12781659562342942408,
+                10634580711465612990,
+                14747698444079501826,
+                15578151306337382855,
             ],
         ),
         "structure:stone_wall_h": (
             defs: [
-                5835661716641681157,
+                4141819113087547006,
+                14689772305547381293,
             ],
         ),
         "structure:stone_wall_v": (
             defs: [
-                13692430335259779933,
+                635239921381468723,
+                7506953681287173292,
             ],
         ),
         "structure:stone_yard": (
             defs: [
-                893677126940455,
+                3287705929479488743,
+                16388267774105121190,
             ],
         ),
         "structure:tavern_front": (
             defs: [
-                7675882528766040226,
+                509310841960282891,
+                10373252507692360374,
+                15702959504610618519,
             ],
         ),
         "structure:townhouse_blue": (
             defs: [
-                7322843987061854037,
+                11151717116116364674,
+                12309268600221210303,
             ],
         ),
         "structure:tree_grove": (
             defs: [
-                10003117383734821487,
+                6377032914436776442,
+                8205530030345324848,
             ],
         ),
         "structure:watchtower": (
             defs: [
-                10831207995499459644,
+                9088528654591774843,
+                12312086845332410863,
             ],
         ),
         "structure:well_square": (
             defs: [
-                15348376480533097350,
+                3353782256359123105,
+                4074480122693452664,
+                9052315642606146449,
             ],
-        ),
-        "tileset:city": (
-            defs: [
-                3094258349173716853,
-                12560771214166874307,
-                13311924345140306935,
-            ],
-            files: {
-                "tilesets/city.png": [
-                    1697235689965216650,
-                    15162543569978002789,
-                ],
-            },
-        ),
-        "tileset:desert": (
-            defs: [
-                6522155969085844631,
-                7851943548051777738,
-                15334276429685166016,
-            ],
-            files: {
-                "tilesets/desert.png": [
-                    2939344728343295174,
-                    3120364498052863711,
-                ],
-            },
-        ),
-        "tileset:dungeon": (
-            defs: [
-                875865990890361632,
-                4116115766450666944,
-                4168793310231919474,
-                11072828751951802315,
-                13710137611410294707,
-            ],
-            files: {
-                "tilesets/dungeon.png": [
-                    14814903225342770533,
-                    16781549001584007220,
-                ],
-            },
-        ),
-        "tileset:mountains": (
-            defs: [
-                8151254846681646969,
-                16182207747294911776,
-            ],
-            files: {
-                "tilesets/mountains.png": [
-                    1279306369908185074,
-                    16733992592977221635,
-                ],
-            },
-        ),
-        "tileset:terrain": (
-            defs: [
-                199505059939969359,
-                4129792098249543985,
-                8283339366773384771,
-                11638743114031530725,
-                13499723398079159713,
-                18114063288004087700,
-            ],
-            files: {
-                "tilesets/terrain.png": [
-                    3199042138293905454,
-                    5204096225195305425,
-                    16236184867848582267,
-                ],
-            },
         ),
     },
     functions: {

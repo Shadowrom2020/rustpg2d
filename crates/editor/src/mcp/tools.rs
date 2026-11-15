@@ -56,12 +56,81 @@ pub struct GetMapParams {
     pub y: Option<u32>,
     pub w: Option<u32>,
     pub h: Option<u32>,
-    /// Layer indices to print (default: all).
-    pub layers: Option<Vec<usize>>,
     /// Print the collision grid (default true).
     pub collision: Option<bool>,
     /// List the entities and zones in the region (default true).
     pub objects: Option<bool>,
+    /// Print the painted ground: the material in the middle of each tile (default true).
+    pub ground: Option<bool>,
+}
+
+/// A stroke of the Ground tool: points in tiles (fractions allowed; 0.5 = a tile's middle).
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GroundLine {
+    pub points: Vec<[f32; 2]>,
+    /// Width in tiles (default 1).
+    pub width: Option<f32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PaintGroundParams {
+    pub map: Option<String>,
+    /// Material id (list_defs materials); "" or "-" erases (no ground).
+    pub material: String,
+    /// Round dabs [x, y, radius] in tiles.
+    pub circles: Option<Vec<[f32; 3]>>,
+    /// Strokes through points (roads, streams).
+    pub lines: Option<Vec<GroundLine>>,
+    /// Filled polygons, each a list of [x, y] points in tiles (fields, plazas, lakes).
+    pub polygons: Option<Vec<Vec<[f32; 2]>>>,
+    /// Filled rectangles [x, y, w, h] in tiles (floors, carpets, fields; fractions allowed down to
+    /// the 8 px cells).
+    pub rects: Option<Vec<[f32; 4]>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PlaceObjectsParams {
+    pub map: Option<String>,
+    /// Prop id (list_defs props).
+    pub prop: String,
+    /// Feet positions [x, y] in tiles (fractions allowed; [3.5, 4] = the middle of tile 3's bottom edge… of row 3).
+    pub points: Option<Vec<[f32; 2]>>,
+    /// A straight line [x1, y1, x2, y2] (tiles) of a wall set's pieces on the prop's grid; the pieces join their neighbours.
+    pub line: Option<[f32; 4]>,
+    /// "Flat" (under characters), "Sorted" (default: by its feet) or "Above" (over everyone).
+    pub layer: Option<String>,
+    /// Mirror them (default false).
+    pub flip: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ScatterParams {
+    pub map: Option<String>,
+    /// Scatter set id (list_defs scatter).
+    pub set: String,
+    /// Brush dabs [x, y, radius] in tiles.
+    pub circles: Vec<[f32; 3]>,
+    /// Random seed (the same seed scatters the same way).
+    pub seed: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct EraseObjectsParams {
+    pub map: Option<String>,
+    /// Areas [x, y, radius] in tiles: the decorations whose feet lie inside go.
+    pub circles: Vec<[f32; 3]>,
+    /// Only decorations of this prop (default: all).
+    pub prop: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct FillGroundParams {
+    pub map: Option<String>,
+    /// Material id; "" or "-" erases.
+    pub material: String,
+    /// Where to start (tiles, fractions allowed): the connected area of the same material there.
+    pub x: f32,
+    pub y: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -70,12 +139,6 @@ pub struct ObjectParams {
     pub map: Option<String>,
     /// The entity's or zone's uid (from get_map).
     pub uid: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct TilesetParams {
-    /// Tileset id.
-    pub tileset: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -126,11 +189,11 @@ pub struct ArtRedoParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ViewImageParams {
-    /// "tileset" or "sheet".
+    /// "sheet" or "material".
     pub kind: String,
-    /// The tileset's or sprite sheet's id.
+    /// The sprite sheet's or material's id.
     pub id: String,
-    /// Draw cell borders and tile / frame indices over the image (default true).
+    /// Draw cell borders and frame indices over a sheet's image (default true).
     pub grid: Option<bool>,
 }
 
@@ -247,71 +310,13 @@ pub struct ScreenshotParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct FillSpec {
-    pub tileset: String,
-    /// Tile index in the tileset (row * columns + column).
-    pub index: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct CreateMapParams {
     /// Map name: letters, digits, '_' and '-'.
     pub name: String,
     pub width: u32,
     pub height: u32,
-    /// Fill the ground layer with this tile.
-    pub fill: Option<FillSpec>,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct SetTilesParams {
-    pub map: Option<String>,
-    /// Layer index (0 = Ground, 1 = Detail, 2 = Overhead in new maps; see get_map).
-    pub layer: usize,
-    pub tileset: String,
-    /// Cells as [x, y, index]; index -1 erases the cell.
-    pub cells: Vec<[i64; 3]>,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct PaintGridParams {
-    pub map: Option<String>,
-    pub layer: usize,
-    /// Top-left tile of the grid.
-    pub x: i32,
-    pub y: i32,
-    pub tileset: String,
-    /// Glyph (one character, not '.') to tile index; -1 erases.
-    pub legend: BTreeMap<String, i64>,
-    /// Rows of glyphs, as get_map prints them; '.' leaves a cell as it is.
-    pub rows: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct FillRectParams {
-    pub map: Option<String>,
-    pub layer: usize,
-    pub x: u32,
-    pub y: u32,
-    pub w: u32,
-    pub h: u32,
-    pub tileset: String,
-    /// Tile index; -1 erases.
-    pub index: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct PaintTerrainParams {
-    pub map: Option<String>,
-    /// Layer index (default 0).
-    pub layer: Option<usize>,
-    /// Terrain name (tileset_legend lists them).
-    pub terrain: String,
-    /// Cells [x, y] to paint, and / or a rect [x, y, w, h].
-    pub cells: Option<Vec<[i32; 2]>>,
-    pub rect: Option<[u32; 4]>,
-    /// Remove the terrain there instead (default false).
-    pub erase: Option<bool>,
+    /// Fill the ground with this material (list_defs materials).
+    pub fill: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -434,7 +439,7 @@ pub struct PlaceStructureParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct RenameParams {
-    /// "tileset", "sheet", "item", "prop", "character", "sound", "map", "structure", "skill", "spell" or "recipe".
+    /// "sheet", "item", "prop", "character", "sound", "map", "structure", "skill", "spell", "recipe", "material" or "scatter".
     pub kind: String,
     pub old: String,
     pub new: String,
@@ -442,7 +447,7 @@ pub struct RenameParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ListDefsParams {
-    /// "tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements" or "races".
+    /// "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials" or "scatter".
     pub kind: String,
     /// Only ids / names containing this text.
     pub filter: Option<String>,
@@ -573,7 +578,7 @@ pub struct PlayParams {
 
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 pub struct LibraryListParams {
-    /// "tileset", "sheet", "item", "prop", "character", "sound", "structure", "skill", "spell" or "recipe"; default all.
+    /// "sheet", "item", "prop", "character", "sound", "structure", "skill", "spell", "recipe", "material" or "scatter"; default all.
     pub kind: Option<String>,
     pub filter: Option<String>,
     pub offset: Option<usize>,
@@ -603,7 +608,7 @@ pub struct LibrarySendParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct WriteAssetParams {
-    /// Project-relative path of the file: under sprites/, tilesets/ or sounds/, ending in .png, .wav or .ogg. An existing file is replaced.
+    /// Project-relative path of the file: under sprites/, materials/ or sounds/, ending in .png, .wav or .ogg. An existing file is replaced.
     pub path: String,
     /// The file's contents in Base64 …
     pub base64: Option<String>,
@@ -625,7 +630,7 @@ pub struct CaptureStructureParams {
     pub name: Option<String>,
     /// Category in the editor's Structures palette (e.g. "Buildings").
     pub category: Option<String>,
-    /// Include the ground layer (default true; false for things that sit on any ground, e.g. a market stall).
+    /// Include the ground (default true; false for things that sit on any ground, e.g. a market stall).
     pub ground: Option<bool>,
 }
 
@@ -708,7 +713,7 @@ plain(ed) {
     /// Saves the open map, the definitions and pixel art (write tools already save; use after undo / redo).
     #[tool(annotations(idempotent_hint = true))]
     save: Save => ed.mcp_save();
-    /// Every map: size, tilesets, entity and zone counts, spawn zones and transitions to other maps.
+    /// Every map: size, materials, decoration, entity and zone counts, spawn zones and transitions to other maps.
     #[tool(annotations(read_only_hint = true))]
     list_maps: ListMaps => ed.mcp_list_maps();
     /// A picture (PNG) of the whole editor window as the person sees it.
@@ -734,16 +739,13 @@ with_params {
     /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, battle_music (a sound id: the music while the player fights; maps may override it in set_map_settings), skills, progression, dialog_portraits, model_atlas_mb (MB of GPU memory for rendered character poses, 8 to 128), …
     #[tool(annotations(idempotent_hint = true))]
     set_project_config: SetProjectConfig(p: PatchParams) => ed.mcp_set_project_config(p);
-    /// A map region as text: one grid per layer with a legend (glyph = tileset#index, terrain name, solid), the collision grid, and the entities and zones there with their uids. At most 80x50 tiles per call.
+    /// A map region as text: the painted ground (the material in the middle of each tile, with a legend), the collision grid (ground, decorations, overrides), the decorations by prop, and the entities and zones there with their uids. At most 80x50 tiles per call.
     #[tool(annotations(read_only_hint = true))]
     get_map: GetMap(p: GetMapParams) => ed.mcp_get_map(p);
     /// One entity or zone as JSON (the shape update_entity / update_zone patch).
     #[tool(annotations(read_only_hint = true))]
     get_object: GetObject(p: ObjectParams) => ed.mcp_get_object(p);
-    /// A tileset's tiles: columns and count (index = row * columns + column), solid tiles, animations, light tiles and its terrains (for paint_terrain). view_image shows it.
-    #[tool(annotations(read_only_hint = true))]
-    tileset_legend: TilesetLegend(p: TilesetParams) => ed.mcp_tileset_legend(p);
-    /// The image of a tileset or sprite sheet (PNG), with cell borders and indices drawn in by default.
+    /// The image of a sprite sheet (PNG, with cell borders and frame indices drawn in by default) or a material's texture.
     #[tool(annotations(read_only_hint = true))]
     view_image: ViewImage(p: ViewImageParams) => ed.mcp_view_image(p);
     /// The exact colours of a sprite sheet's image, most used first, with their pixel counts, the animation rows they appear in (figures) and the colour feature they belong to: pick a part's shades for a figure's colour features (upsert_def sheet `features: [{name, shades, colors}]`).
@@ -779,25 +781,28 @@ with_params {
     /// A rendered picture (PNG) of a map region as the editor draws it, optionally with grid, collision overlay and zones.
     #[tool(annotations(read_only_hint = true))]
     screenshot_map: ScreenshotMap(p: ScreenshotParams) => ed.mcp_screenshot_map(p).map(Reply::Shot);
-    /// Creates a map (layers Ground, Detail, Overhead), saves it and opens it in the editor.
+    /// Creates a map (optionally its ground filled with a material), saves it and opens it in the editor.
     #[tool]
     create_map: CreateMap(p: CreateMapParams) => ed.mcp_create_map(p);
-    /// Sets single tiles of a layer ([x, y, index] cells; index -1 erases). One undo step.
+    /// Paints the map's ground with a material (8 px cells; natural edges where materials meet, straight ones for materials with a Straight edge): round dabs, strokes through points with a width (roads, streams), filled polygons and rectangles, in tiles. One undo step.
     #[tool]
-    set_tiles: SetTiles(p: SetTilesParams) => ed.mcp_set_tiles(p);
-    /// Paints a block of tiles from text rows with a glyph legend (the format get_map prints); '.' leaves a cell unchanged.
+    paint_ground: PaintGround(p: PaintGroundParams) => ed.mcp_paint_ground(p);
+    /// Fills the connected area of the same ground material (or of no ground) at a point with a material. One undo step.
     #[tool]
-    paint_grid: PaintGrid(p: PaintGridParams) => ed.mcp_paint_grid(p);
-    /// Fills a rectangle of a layer with one tile (index -1 erases).
+    fill_ground: FillGround(p: FillGroundParams) => ed.mcp_fill_ground(p);
+    /// Places decorations: a prop as a picture at feet points, or a line of a wall set's pieces (they join their neighbours). Cheap in great numbers; props that do something (doors, chests, trees to chop) go in with add_entity. One undo step.
     #[tool]
-    fill_rect: FillRect(p: FillRectParams) => ed.mcp_fill_rect(p);
-    /// Paints a terrain (auto-tiling: edges and corners pick themselves) over cells and / or a rect; erase removes it.
+    place_objects: PlaceObjects(p: PlaceObjectsParams) => ed.mcp_place_objects(p);
+    /// Scatters a scatter set's props at random inside circles (forests, flowers, rocks), keeping their spacing. One undo step.
     #[tool]
-    paint_terrain: PaintTerrain(p: PaintTerrainParams) => ed.mcp_paint_terrain(p);
-    /// Overrides collision for cells / a rect: "solid", "walkable" or back to "auto" (from the tiles).
+    scatter: Scatter(p: ScatterParams) => ed.mcp_scatter(p);
+    /// Removes the decorations inside circles (all, or one prop's). One undo step.
+    #[tool]
+    erase_objects: EraseObjects(p: EraseObjectsParams) => ed.mcp_erase_objects(p);
+    /// Overrides collision for cells / a rect: "solid", "walkable" or back to "auto" (the ground and decorations decide).
     #[tool]
     set_collision: SetCollision(p: SetCollisionParams) => ed.mcp_set_collision(p);
-    /// Clears a rectangle: all layers' tiles, collision overrides and the entities standing there.
+    /// Clears a rectangle: the painted ground, the decorations and entities standing there and the collision overrides.
     #[tool(annotations(destructive_hint = true))]
     clear_region: ClearRegion(p: RectParams) => ed.mcp_clear_region(p);
     /// Resizes a map (the top-left area is kept).
@@ -833,10 +838,10 @@ with_params {
     /// Changes a map's settings with a merge patch: background colour, music, lighting, fog of war, weather, parallax layers, edge links.
     #[tool(annotations(idempotent_hint = true))]
     set_map_settings: SetMapSettings(p: MapSettingsParams) => ed.mcp_set_map_settings(p);
-    /// Stamps a structure (a ready-made multi-tile piece: house, well, …) onto a map at a top-left tile.
+    /// Stamps a structure (a ready-made piece of ground, decorations and props: a house, a well, a camp…) onto a map at a top-left tile.
     #[tool]
     place_structure: PlaceStructure(p: PlaceStructureParams) => ed.mcp_place_structure(p);
-    /// Makes a new structure from a map region: its tiles (all layers), collision and entities, ready for place_structure.
+    /// Makes a new structure from a map region: its ground, decorations, collision and entities, ready for place_structure.
     #[tool]
     capture_structure: CaptureStructure(p: CaptureStructureParams) => ed.mcp_capture_structure(p);
     /// Renames a definition or map and every reference to it (maps, definitions, scripts).
@@ -902,7 +907,7 @@ with_params {
     /// Sends project assets (and everything they need) to the shared asset library; with replace, the library's versions of the same ids are updated.
     #[tool]
     library_send: LibrarySend(p: LibrarySendParams) => ed.mcp_library_send(p);
-    /// Writes an image (PNG) or sound (WAV / Ogg Vorbis) file into the project (sprites/, tilesets/, sounds/) and reloads the art; then point a definition at it with upsert_def.
+    /// Writes an image (PNG) or sound (WAV / Ogg Vorbis) file into the project (sprites/, materials/, sounds/) and reloads the art; then point a definition at it with upsert_def.
     #[tool]
     write_asset: WriteAsset(p: WriteAssetParams) => ed.mcp_write_asset(p), summary = format!("{} ({})", p.path, if p.base64.is_some() { "base64" } else { "copy" });
 }
@@ -957,9 +962,9 @@ Keep every id lowercase with underscores; use {{player}} in dialog texts for the
         "build_map" => Some(format!(
             "Build a new map in this R(ust)PG2D project.\nName: {name}\nSetting: {setting}\nSize: {w} x {h} tiles\nConnect to: {connect}\n\n\
 Steps:\n\
-1. `project_info` and `list_maps`; `tileset_legend` of the tilesets in use (terrains are the easiest way to paint ground), `list_defs structures` and `list_defs props`.\n\
-2. `create_map` with a ground fill, then `paint_terrain` for paths / water / grass variety and `paint_grid` or `fill_rect` for details; keep the Overhead layer for what should draw above characters.\n\
-3. `place_structure` for buildings and `place_entity` for props and characters (give important ones names); `set_collision` where tiles alone don't block.\n\
+1. `project_info` and `list_maps`; `list_defs materials`, `list_defs scatter`, `list_defs structures` and `list_defs props`.\n\
+2. `create_map` with a base material as `fill`, then the painted ground: `paint_ground` lines for roads and streams, polygons for fields, plazas and lakes, circles for patches (natural edges; water blocks walking).\n\
+3. Decorations: `scatter` forests, flowers and rocks inside circles; `place_objects` single trees, rocks and furniture, and `line`s of wall and fence sets (layer Above for what should draw over characters); `place_structure` for buildings; `place_entity` for props that do something and characters (give important ones names); `set_collision` where nothing else blocks.\n\
 4. `add_zone` a Spawn named \"start\" (and others for arrivals), then `link_maps` to the map to connect, with matching rects on both edges.\n\
 5. `set_map_settings` for music, lighting (Outdoor / Dark) and weather.\n\
 6. `screenshot_map` to look at the result and fix what looks off; `play_test` with `wait 1; status; shot a` to see it in the game.",

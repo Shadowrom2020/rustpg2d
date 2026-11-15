@@ -1,11 +1,12 @@
 //! Rendering helpers shared by the game and the editor.
 //!
-//! Tile layers are drawn tile-by-tile for the visible area only (macroquad batches
-//! quads that share a texture). When zoomed far out, an [`Overview`] texture with one
-//! pixel per tile replaces the per-tile drawing, so even a 1024x1024 map renders fast.
+//! The painted ground is drawn by [`ground::GroundRenderer`], sprites by [`Assets`]. When zoomed
+//! far out, an [`Overview`] texture with one pixel per tile stands in for the map (minimaps,
+//! the editor), so even a 1024x1024 map renders fast.
 
 pub mod character;
 pub mod fish;
+pub mod ground;
 pub mod lighting;
 pub mod model;
 pub mod recolor;
@@ -16,74 +17,9 @@ use std::collections::HashMap;
 
 use macroquad::prelude::*;
 
-use crate::defs::{SpriteRef, TileAnim};
-use crate::map::{Map, TileLayer};
+use crate::defs::SpriteRef;
+use crate::map::Map;
 use crate::project::Project;
-
-pub struct TilesetTex {
-    pub texture: Texture2D,
-    pub image: Image,
-    pub columns: u32,
-    pub count: u32,
-    /// Average color of each tile (for the overview).
-    pub colors: Vec<Color>,
-    pub solid: Vec<bool>,
-    /// Ladder tiles (climbed by the player).
-    pub ladder: Vec<bool>,
-    /// Low tiles: solid ones stop walking but not shots (`TilesetDef::low`).
-    pub low: Vec<bool>,
-    /// Per tile index: animation (if any).
-    anim_of: Vec<Option<usize>>,
-    pub anims: Vec<TileAnim>,
-}
-
-impl TilesetTex {
-    /// Index actually drawn for `index` at time `t` (animated tiles cycle).
-    #[inline]
-    pub fn display_index(&self, index: u32, t: f64) -> u32 {
-        match self.anim_of.get(index as usize) {
-            Some(Some(a)) => self.anims[*a].frame_at(t),
-            _ => index,
-        }
-    }
-
-    /// Whether tile `index` is animated (it cycles through other tiles).
-    pub fn is_animated(&self, index: u32) -> bool {
-        matches!(self.anim_of.get(index as usize), Some(Some(_)))
-    }
-
-    pub fn set_animations(&mut self, anims: &[TileAnim]) {
-        self.anims = anims.to_vec();
-        self.anim_of = vec![None; self.count as usize];
-        for (i, a) in self.anims.iter().enumerate() {
-            if let Some(slot) = self.anim_of.get_mut(a.tile as usize) {
-                *slot = Some(i);
-            }
-        }
-    }
-
-    pub fn src_rect(&self, index: u32, ts: f32) -> Rect {
-        let c = index % self.columns.max(1);
-        let r = index / self.columns.max(1);
-        Rect::new(c as f32 * ts, r as f32 * ts, ts, ts)
-    }
-    pub fn is_solid(&self, index: u32) -> bool {
-        self.solid.get(index as usize).copied().unwrap_or(false)
-    }
-
-    pub fn is_ladder(&self, index: u32) -> bool {
-        self.ladder.get(index as usize).copied().unwrap_or(false)
-    }
-
-    pub fn is_low(&self, index: u32) -> bool {
-        self.low.get(index as usize).copied().unwrap_or(false)
-    }
-
-    /// A solid tile that isn't low: it stops shots and sight too.
-    pub fn is_high(&self, index: u32) -> bool {
-        self.is_solid(index) && !self.is_low(index)
-    }
-}
 
 pub struct SheetTex {
     pub texture: Texture2D,
@@ -123,8 +59,16 @@ impl SheetTex {
 
 pub struct Assets {
     pub tile_size: f32,
-    pub tilesets: HashMap<String, TilesetTex>,
     pub sheets: HashMap<String, SheetTex>,
+    /// Ground materials' textures (CPU images: the ground renderer packs them into an atlas)
+    /// and their average colours (overviews).
+    pub materials: HashMap<String, Image>,
+    pub material_colors: HashMap<String, Color>,
+    /// Animation frames of each material's texture (side by side; 1 = still): pictures of a
+    /// material show the first.
+    pub material_frames: HashMap<String, u32>,
+    /// Changes with every load (renderers rebuild what they made from the images).
+    pub generation: u64,
     pub errors: Vec<String>,
     /// 3D character models and their rendered poses.
     pub models: model::Models,
@@ -195,53 +139,13 @@ fn average_color(img: &Image, r: Rect) -> Color {
 impl Assets {
     /// No images (tests).
     pub fn empty(tile_size: f32) -> Assets {
-        Assets { tile_size, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), models: model::Models::default() }
+        Assets { tile_size, sheets: HashMap::new(), materials: HashMap::new(), material_colors: HashMap::new(), material_frames: HashMap::new(), generation: 0, errors: Vec::new(), models: model::Models::default() }
     }
 
-    /// Loads all tileset and sprite sheet images. Needs a macroquad window.
+    /// Loads all sprite sheet and material images. Needs a macroquad window.
     pub fn load(project: &Project) -> Assets {
         let ts = crate::project::TILE_SIZE as f32;
         let mut errors = Vec::new();
-        let mut tilesets = HashMap::new();
-        for def in &project.db.tilesets {
-            let image = load_image(project, &def.image, &mut errors);
-            let columns = (image.width as u32 / ts as u32).max(1);
-            let rows = (image.height as u32 / ts as u32).max(1);
-            let count = columns * rows;
-            let mut t = TilesetTex {
-                texture: texture(&image),
-                columns,
-                count,
-                colors: Vec::with_capacity(count as usize),
-                solid: vec![false; count as usize],
-                ladder: vec![false; count as usize],
-                low: vec![false; count as usize],
-                anim_of: Vec::new(),
-                anims: Vec::new(),
-                image,
-            };
-            t.set_animations(&def.animations);
-            for i in 0..count {
-                let c = average_color(&t.image, t.src_rect(i, ts));
-                t.colors.push(c);
-            }
-            for &s in &def.solid {
-                if let Some(v) = t.solid.get_mut(s as usize) {
-                    *v = true;
-                }
-            }
-            for &s in &def.ladder {
-                if let Some(v) = t.ladder.get_mut(s as usize) {
-                    *v = true;
-                }
-            }
-            for &s in &def.low {
-                if let Some(v) = t.low.get_mut(s as usize) {
-                    *v = true;
-                }
-            }
-            tilesets.insert(def.id.clone(), t);
-        }
         let mut sheets = HashMap::new();
         for def in &project.db.sheets {
             let image = load_image(project, &def.image, &mut errors);
@@ -261,44 +165,40 @@ impl Assets {
                 },
             );
         }
+        let mut materials = HashMap::new();
+        let mut material_colors = HashMap::new();
+        let mut material_frames = HashMap::new();
+        for def in &project.db.materials {
+            if def.texture.is_empty() {
+                continue;
+            }
+            let image = load_image(project, &def.texture, &mut errors);
+            let (fw, fh) = def.frame_size(image.width as u32, image.height as u32);
+            material_colors.insert(def.id.clone(), average_color(&image, Rect::new(0.0, 0.0, fw.max(1) as f32, fh.max(1) as f32)));
+            material_frames.insert(def.id.clone(), def.frames.max(1) as u32);
+            materials.insert(def.id.clone(), image);
+        }
         for e in &errors {
             eprintln!("[assets] {e}");
         }
+        static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let generation = GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let models = model::Models::load(&project.db, &|rel| crate::sys::read(&project.path(rel)));
         models.set_atlas_mb(project.config.model_atlas_mb);
         errors.extend(models.errors.iter().cloned());
-        Assets { tile_size: ts, tilesets, sheets, errors, models }
+        Assets { tile_size: ts, sheets, materials, material_colors, material_frames, generation, errors, models }
     }
 
-    /// Tileset textures for each slot of a map.
-    pub fn map_tilesets<'a>(&'a self, map: &Map) -> Vec<Option<&'a TilesetTex>> {
-        map.tilesets.iter().map(|id| self.tilesets.get(id)).collect()
+    /// Overview colours of a map's ground by cell value (0 = none: transparent).
+    pub fn map_material_colors(&self, map: &Map) -> Vec<Color> {
+        std::iter::once(Color::new(0., 0., 0., 0.)).chain(map.materials.iter().map(|id| self.material_colors.get(id).copied().unwrap_or(MAGENTA))).collect()
     }
 
-    /// Solidity grid of a map using tileset flags and the map's overrides.
-    pub fn compute_solid(&self, map: &Map) -> Vec<bool> {
-        let sets = self.map_tilesets(map);
-        map.compute_solid(|slot, i| sets.get(slot).copied().flatten().is_some_and(|t| t.is_solid(i)))
-    }
-
-    /// Shot grid of a map: cells that stop shots and sight (solid, and not only low tiles).
-    pub fn compute_shot_block(&self, map: &Map) -> Vec<bool> {
-        let sets = self.map_tilesets(map);
-        map.compute_shot_block(|slot, i| sets.get(slot).copied().flatten().is_some_and(|t| t.is_high(i)))
-    }
-
-    /// Ladder grid of a map: cells with a ladder tile on a layer below the characters.
-    pub fn compute_ladder(&self, map: &Map) -> Vec<bool> {
-        let sets = self.map_tilesets(map);
-        let mut out = vec![false; (map.width * map.height) as usize];
-        for y in 0..map.height {
-            for x in 0..map.width {
-                out[(y * map.width + x) as usize] = map.layers.iter().any(|l| {
-                    !l.above_entities && l.get(x, y).parts().is_some_and(|(slot, i)| sets.get(slot).copied().flatten().is_some_and(|t| t.is_ladder(i)))
-                });
-            }
-        }
-        out
+    /// The average colour of a sprite's picture (transparent when its sheet isn't loaded).
+    pub fn sprite_color(&self, sprite: &SpriteRef) -> Color {
+        let Some(s) = self.sheets.get(&sprite.sheet) else { return Color::new(0., 0., 0., 0.) };
+        let (w, h) = sprite.cells();
+        average_color(&s.image, s.region(sprite.frame, w, h))
     }
 
     /// Draws a sheet frame with its bottom-center at `feet`.
@@ -314,6 +214,17 @@ impl Assets {
         let Some(s) = self.sheets.get(&sprite.sheet) else { return false };
         let (w, h) = sprite.cells();
         draw_at_feet(&s.texture, s, s.region(sprite.frame + extra_frame, w, h), feet, tint);
+        true
+    }
+
+    /// [`Assets::draw_sprite`] mirrored left to right when `flip` (decorations).
+    pub fn draw_sprite_flipped(&self, sprite: &SpriteRef, feet: Vec2, tint: Color, flip: bool) -> bool {
+        let Some(s) = self.sheets.get(&sprite.sheet) else { return false };
+        let (w, h) = sprite.cells();
+        let src = s.region(sprite.frame, w, h);
+        let size = s.world_of(src);
+        let pos = vec2((feet.x - size.x / 2.0).round(), (feet.y - size.y).round());
+        draw_texture_ex(&s.texture, pos.x, pos.y, tint, DrawTextureParams { source: Some(inset(src)), dest_size: Some(size), flip_x: flip, ..Default::default() });
         true
     }
 
@@ -409,80 +320,89 @@ pub fn visible_tiles(view: Rect, ts: f32) -> f32 {
 
 pub const OVERVIEW_THRESHOLD: f32 = 60_000.0;
 
-/// Draws the visible part of a tile layer. `view` is in world pixels.
-pub fn draw_layer(map: &Map, layer: &TileLayer, sets: &[Option<&TilesetTex>], ts: f32, view: Rect, tint: Color) {
-    let x0 = (view.x / ts).floor().max(0.0) as u32;
-    let y0 = (view.y / ts).floor().max(0.0) as u32;
-    let x1 = ((view.x + view.w) / ts).ceil().clamp(0.0, map.width as f32) as u32;
-    let y1 = ((view.y + view.h) / ts).ceil().clamp(0.0, map.height as f32) as u32;
-    let chunk = crate::map::CHUNK_SIZE;
-    let time = get_time();
-    for y in y0..y1 {
-        let mut x = x0;
-        while x < x1 {
-            if !layer.chunk_allocated(x, y) {
-                x = (x / chunk + 1) * chunk;
-                continue;
-            }
-            if let Some((slot, idx)) = layer.get(x, y).parts() {
-                if let Some(Some(t)) = sets.get(slot) {
-                    let idx = t.display_index(idx, time);
-                    draw_texture_ex(
-                        &t.texture,
-                        x as f32 * ts,
-                        y as f32 * ts,
-                        tint,
-                        DrawTextureParams {
-                            source: Some(inset(t.src_rect(idx, ts))),
-                            dest_size: Some(vec2(ts, ts)),
-                            ..Default::default()
-                        },
-                    );
-                }
-            }
-            x += 1;
-        }
-    }
-}
-
-/// One pixel per tile: the top-most visible tile's average color.
+/// One pixel per tile: the ground's colour, with the average colour of the decorations
+/// standing on the tile (their feet) over it.
 pub struct Overview {
     pub image: Image,
     /// Created on first draw, so overviews can be built without a GL context.
     texture: Option<Texture2D>,
     dirty: bool,
+    /// Tiles with decorations: their colour (tile index -> colour).
+    decor: HashMap<u32, Color>,
+    /// The decorations changed since their colours were taken: [`Overview::refresh_decor`].
+    pub decor_stale: bool,
 }
 
 impl Overview {
+    /// The overview of the ground; the decorations come with [`Overview::refresh_decor`].
     pub fn build(map: &Map, assets: &Assets) -> Overview {
         let mut image = Image::gen_image_color(map.width as u16, map.height as u16, Color::new(0., 0., 0., 0.));
-        let sets = assets.map_tilesets(map);
+        let mats = assets.map_material_colors(map);
+        let decor = HashMap::new();
         for y in 0..map.height {
             for x in 0..map.width {
-                image.set_pixel(x, y, Self::color_at(map, &sets, x, y));
+                image.set_pixel(x, y, Self::color_at(map, &mats, &decor, x, y));
             }
         }
-        Overview { image, texture: None, dirty: false }
+        Overview { image, texture: None, dirty: false, decor, decor_stale: !map.decor.is_empty() }
     }
 
-    fn color_at(map: &Map, sets: &[Option<&TilesetTex>], x: u32, y: u32) -> Color {
-        for l in map.layers.iter().rev().filter(|l| l.visible) {
-            if let Some((slot, idx)) = l.get(x, y).parts() {
-                if let Some(Some(t)) = sets.get(slot) {
-                    if let Some(c) = t.colors.get(idx as usize) {
-                        if c.a > 0.0 {
-                            return *c;
-                        }
-                    }
+    /// The overview with its decorations.
+    pub fn with_decor(map: &Map, assets: &Assets, db: &crate::defs::Database) -> Overview {
+        let mut o = Self::build(map, assets);
+        o.refresh_decor(map, assets, db);
+        o
+    }
+
+    /// The colour of the decorations on each tile (by their feet; the last one drawn wins).
+    fn decor_colors(map: &Map, assets: &Assets, db: &crate::defs::Database) -> HashMap<u32, Color> {
+        let looks: Vec<Color> = map.decor_defs.iter().map(|id| db.prop(id).map_or(Color::new(0., 0., 0., 0.), |p| assets.sprite_color(p.state_look(0).0))).collect();
+        let ts = crate::project::TILE_SIZE as i32;
+        let mut out = HashMap::new();
+        let mut order: Vec<&crate::decor::Decor> = map.decor.iter().collect();
+        order.sort_by_key(|d| (d.layer as u8, d.y));
+        for d in order {
+            let (tx, ty) = (d.x.div_euclid(ts), (d.y - 1).div_euclid(ts));
+            if let Some(c) = looks.get(d.def as usize).filter(|c| c.a > 0.0) {
+                if map.in_bounds(tx, ty) {
+                    out.insert(ty as u32 * map.width + tx as u32, *c);
                 }
             }
         }
-        Color::new(0., 0., 0., 0.)
+        out
     }
 
+    fn color_at(map: &Map, mats: &[Color], decor: &HashMap<u32, Color>, x: u32, y: u32) -> Color {
+        if let Some(c) = decor.get(&(y * map.width + x)) {
+            return *c;
+        }
+        // The painted ground: the material in the middle of the tile.
+        let mid = (crate::ground::CELLS / 2) as i32;
+        let v = map.ground.get((x * crate::ground::CELLS) as i32 + mid, (y * crate::ground::CELLS) as i32 + mid);
+        mats.get(v as usize).copied().unwrap_or(Color::new(0., 0., 0., 0.))
+    }
+
+    /// The ground of tile (x, y) changed.
     pub fn update_tile(&mut self, map: &Map, assets: &Assets, x: u32, y: u32) {
-        let sets = assets.map_tilesets(map);
-        self.image.set_pixel(x, y, Self::color_at(map, &sets, x, y));
+        let mats = assets.map_material_colors(map);
+        self.image.set_pixel(x, y, Self::color_at(map, &mats, &self.decor, x, y));
+        self.dirty = true;
+    }
+
+    /// Takes the decorations' colours again (when [`Overview::decor_stale`]): the tiles they
+    /// stood or stand on change.
+    pub fn refresh_decor(&mut self, map: &Map, assets: &Assets, db: &crate::defs::Database) {
+        let decor = Self::decor_colors(map, assets, db);
+        let mats = assets.map_material_colors(map);
+        let old = std::mem::take(&mut self.decor);
+        self.decor = decor;
+        for &i in old.keys().chain(self.decor.keys()) {
+            let (x, y) = (i % map.width.max(1), i / map.width.max(1));
+            if y < map.height && x < self.image.width as u32 && y < self.image.height as u32 {
+                self.image.set_pixel(x, y, Self::color_at(map, &mats, &self.decor, x, y));
+            }
+        }
+        self.decor_stale = false;
         self.dirty = true;
     }
 

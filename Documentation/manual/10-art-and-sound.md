@@ -2,7 +2,9 @@
 
 ## Sizes and layouts
 
-- **Tiles** are always 32 × 32 pixels. Tilesets are images of tiles in a grid.
+- **Tiles** are always 32 × 32 pixels: the grid of collision, zones and positions.
+- **Material textures** are seamless pictures up to 256 × 256 pixels in steps of 8, repeated over
+  the painted ground (draw them with *New asset… › Ground material* in the pixel editor).
 - **Characters** are 3D models, not sprite sheets ([Characters](06-characters.md#how-characters-look)).
 - **Item icons** are 32 × 32. **Props** use one frame, or a block of several frames for big props.
 - **Portraits** can be any size (64 × 64 works well).
@@ -14,7 +16,7 @@ A sprite sheet can carry more detail than its place in the world: its **Scale** 
 Sprite sheets*) says how many image pixels make one world pixel. At **2×** a character frame is
 drawn 64 × 64 pixels in the image and fills the same 32 × 32 place as a 1× sprite, with twice
 the detail; item icons are 64 × 64, and so on (3× and 4× work the same way). Positions, hitboxes
-and tiles stay in world pixels, and tilesets are always 1×.
+and tiles stay in world pixels, and material textures are always 1×.
 
 The game draws the world magnified (the project's *Scale* times the player's *Zoom*), so a 2× sheet
 shows all its detail at a magnification of 2 or more; at less it is sampled down. The frame size
@@ -29,7 +31,7 @@ and sort in front of and behind each other.
 
 ![The pixel editor with the dialog portraits](../images/editor-pixel.webp)
 
-The **Pixel editor** tab, *Edit pixels* on a sprite sheet or tileset, and *Edit art* in the item,
+The **Pixel editor** tab, *Edit pixels* on a sprite sheet or material, and *Edit art* in the item,
 prop and character forms open it.
 
 | Tool | Key |
@@ -44,6 +46,12 @@ prop and character forms open it.
   **Ctrl+V** replaces the selected frame with the copy. Buttons do the same, plus *Paste mirrored*,
   *Flip* and *Clear*. *Canvas … Resize* adds frames.
 - A live preview shows the selected frame and its row as an animation.
+- A **material's texture** opens as one seamless picture (and with the pencil): copies are shown
+  around it and drawing wraps across its edges; *Size* resizes it in steps of 8 px. An animated
+  one holds its frames side by side: the canvas shows the selected frame (pick it in the frame
+  strip; Copy / Paste, a tiled preview of them playing), and each frame wraps on its own. The material
+  form has it under its settings, beside a live preview of the material on a map
+  ([Database › Materials](05-database.md#materials)).
 
 **Four-facing sheets**: with **Four-facing rows** on, the rows are labelled (blocks of walk, idle,
 attack and hurt, each facing down, left, right and up: 4 columns, 16 rows) and an **animation
@@ -69,7 +77,7 @@ Every operation is one undo step.
 ## New assets
 
 **New asset…** (*Assets* menu, the Database, or the Asset Library window) is a wizard for a **prop**
-(size in tiles), an **item**, a **tileset**, a **sprite sheet** or a **structure**. Draw a new image,
+(size in tiles), an **item**, a **ground material** (its texture), a **sprite sheet** or a **structure**. Draw a new image,
 start from a copy of an existing one, or reuse a frame of an existing sheet. New images open in the
 pixel editor, and the definitions get sensible hitboxes and speeds. Characters are made with **New
 character…**: from an existing 3D model, an imported one or AI generation ([Characters › New
@@ -148,11 +156,13 @@ what was left out; nothing existing is overwritten (files and ids get a free nam
 **Tiled maps** (`.tmx` / `.tmj`, orthogonal, not infinite; embedded or external tilesets; CSV,
 base64 or compressed tile data):
 
-- every tileset becomes a tileset of the project, repacked into plain 32 px tiles (other sizes are
-  scaled); tiles with a `solid` property block, tile animations become animated tiles, and Wang sets
-  become terrains;
-- tile layers become layers (names containing "over" or "above", or a boolean property `above`, draw
-  above characters); a layer named `collision` marks solid cells;
+- every tileset is repacked into plain 32 px tiles (other sizes are scaled) under `tilesets/`, and
+  the tiles are converted like an old project's ([Maps › Maps from older versions](03-maps.md#maps-from-older-versions)):
+  the first tile layer becomes painted ground (a material per kind of tile; Wang sets tell which
+  tiles are a terrain's edges: *mixed* sets like 47-tile terrains, *edge* sets like 16-tile ones),
+  the other layers decorations of props made for the tiles (names containing "over" or "above", or
+  a boolean property `above`, draw above characters); tiles with a `solid` property block, tile
+  animations become animated props; a layer named `collision` marks solid cells;
 - rectangles of object layers become trigger zones named like the object, and points named
   `spawn:NAME` spawn points.
 
@@ -198,16 +208,14 @@ How a place sounds comes from two things, both without events or scripts:
   looping sound, full inside the zone and fading out around it. A zone over the whole map gives
   it a constant background (birds outdoors, a tavern's murmur indoors); a narrow zone with a few
   tiles of fade follows a river. Loops play without a gap, like music.
-- **Footsteps**: a terrain's **Footsteps** sound (*Database › Tilesets › Terrains*) covers all its
-  tiles; single tiles get one with *Pick footstep tiles in the grid* (floors, bridges). Where layers
-  overlap, the topmost layer under the characters with a footstep sound decides, so a wooden bridge
-  over a stream sounds of wood. A step falls where a foot lands in the walk animation (two per walk
+- **Footsteps**: a material's **Footsteps** sound (*Database › Materials*) plays on its painted
+  ground. A step falls where a foot lands in the walk animation (two per walk
   cycle, quicker when running); characters within six tiles step too, quieter the farther away
   they are, and every step's loudness varies a little.
 
 The starter library has ambience loops (`amb_birds`, `amb_river`, `amb_tavern`, `amb_wind`,
 `amb_drips`) and footsteps (`step_grass`, `step_dirt`, `step_stone`, `step_wood`, `step_snow`),
-already set on the `terrain` and `dungeon` tilesets' terrains and floors. In the example, birds sing
+already set on the starter materials. In the example, birds sing
 over the village, the forest and the Wilds, the stream rushes along its banks, the wind blows in the
 Wilds, water drips in the mine and the tavern murmurs.
 

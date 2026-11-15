@@ -59,25 +59,6 @@ impl Light {
     }
 }
 
-/// Lights of the light-giving tiles placed on `map` (wall torches, lamps; see
-/// `TilesetDef::lights`), centered on their tiles.
-pub fn tile_lights(map: &crate::map::Map, db: &crate::defs::Database, ts: f32) -> Vec<Light> {
-    let sets: Vec<Option<&crate::defs::TilesetDef>> = map.tilesets.iter().map(|id| db.tileset(id).filter(|t| !t.lights.is_empty())).collect();
-    if sets.iter().all(Option::is_none) {
-        return Vec::new();
-    }
-    let mut out = Vec::new();
-    for layer in &map.layers {
-        for (x, y, t) in layer.tiles() {
-            let Some((slot, index)) = t.parts() else { continue };
-            if let Some(spec) = sets.get(slot).copied().flatten().and_then(|d| d.light_of(index)) {
-                out.push(Light::new(vec2((x as f32 + 0.5) * ts, (y as f32 + 0.5) * ts), spec));
-            }
-        }
-    }
-    out
-}
-
 const VERTEX: &str = r#"#version 100
 attribute vec3 position;
 attribute vec2 texcoord;

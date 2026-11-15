@@ -1,9 +1,9 @@
 //! Region copy, cut and paste on the map. The Select tool drags a rectangle
-//! (`Selection::Region`); Ctrl+C captures it (all layers, collision overrides, the entities
-//! standing in it) as an in-memory `StructureDef`, Ctrl+X also empties it, Ctrl+V arms the
+//! (`Selection::Region`); Ctrl+C captures it (its painted ground, the decorations and entities
+//! standing in it, collision overrides) as an in-memory `StructureDef`, Ctrl+X also empties it, Ctrl+V arms the
 //! clipboard: it follows the mouse as a ghost and every click pastes it as one undo step,
 //! until Esc / right-click. A selected entity can be copied on its own (a 1×1 clipboard
-//! without tiles). The clipboard survives switching maps; zones are never copied.
+//! without ground). The clipboard survives switching maps; zones are never copied.
 
 use std::collections::HashSet;
 
@@ -63,7 +63,7 @@ pub fn region_inspector(ui: &mut egui::Ui, map: &Map, r: (u32, u32, u32, u32), c
     let mut req = None;
     ui.heading(format!("Region {}×{}", r.2, r.3));
     ui.label(format!("From tile {},{} to {},{} · {} entities inside", r.0, r.1, r.0 + r.2 - 1, r.1 + r.3 - 1, entities_in(map, r)));
-    ui.weak("Copy takes the tiles of all layers, collision overrides and the entities standing in the region. Zones are not copied.");
+    ui.weak("Copy takes the painted ground, the decorations and entities standing in the region and the collision overrides. Zones are not copied.");
     ui.horizontal_wrapped(|ui| {
         if ui.button(ui::t(ph::COPY, "Copy")).on_hover_text("Ctrl+C").clicked() {
             req = Some(RegionReq::Copy);
@@ -74,7 +74,7 @@ pub fn region_inspector(ui: &mut egui::Ui, map: &Map, r: (u32, u32, u32, u32), c
         if ui.add_enabled(clipboard.is_some(), egui::Button::new(ui::t(ph::CLIPBOARD_TEXT, "Paste"))).on_hover_text("Ctrl+V: the clipboard follows the mouse, click to place it").clicked() {
             req = Some(RegionReq::Paste);
         }
-        if ui.button(ui::t(ph::ERASER, "Clear")).on_hover_text("Del: empty the tiles of all layers, reset collision, remove the entities").clicked() {
+        if ui.button(ui::t(ph::ERASER, "Clear")).on_hover_text("Del: remove the ground and the decorations and entities, reset collision").clicked() {
             req = Some(RegionReq::Clear);
         }
     });
@@ -125,12 +125,13 @@ impl Editor {
             }
             }
         };
-        let what = if clip.layers.is_empty() && clip.entities.len() > 1 {
+        let bare = clip.ground.is_empty() && clip.decor.is_empty();
+        let what = if bare && clip.entities.len() > 1 {
             format!("Copied {} entities", clip.entities.len())
-        } else if clip.layers.is_empty() {
+        } else if bare {
             format!("Copied {}", clip.entities.first().map_or("", |e| e.def.as_str()))
         } else {
-            format!("Copied {}×{} tiles and {} entities", clip.w, clip.h, clip.entities.len())
+            format!("Copied {}×{} tiles: ground, {} decorations and {} entities", clip.w, clip.h, clip.decor.len(), clip.entities.len())
         };
         self.set_status(format!("{what} · Ctrl+V to paste (also on another map)"));
         self.clipboard = Some(clip);
@@ -182,14 +183,12 @@ impl Editor {
         unique_names(&mut clip.entities, &doc.map.entities);
         let added = doc.place_structure(&clip, at.0, at.1, &self.assets);
         let mut msg = format!("Pasted {}×{} at {},{}", clip.w, clip.h, at.0, at.1);
-        let missing: Vec<&str> = clip.tilesets.iter().filter(|t| self.project.db.tileset(t).is_none()).map(String::as_str).collect();
+        let db = &self.project.db;
+        let missing: Vec<&str> = clip.materials.iter().filter(|m| db.material(m).is_none()).chain(clip.decor_defs.iter().filter(|p| db.prop(p).is_none())).map(String::as_str).collect();
         if !missing.is_empty() {
-            msg += &format!(" (missing tileset {})", missing.join(", "));
+            msg += &format!(" (missing {})", missing.join(", "));
         }
-        if clip.layers.len() > doc.map.layers.len() {
-            msg += &format!(" (the map has only {} layers; the rest was skipped)", doc.map.layers.len());
-        }
-        self.sel = if clip.layers.is_empty() && added.len() == 1 {
+        self.sel = if clip.ground.is_empty() && clip.decor.is_empty() && added.len() == 1 {
             Selection::Entity(added[0])
         } else {
             clip_rect(&doc.map, at, (at.0 + clip.w as i32 - 1, at.1 + clip.h as i32 - 1)).map_or(Selection::None, Selection::Region)

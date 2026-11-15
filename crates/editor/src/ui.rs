@@ -36,6 +36,11 @@ pub fn set_headless() {
     HEADLESS.with(|h| h.set(true));
 }
 
+/// Whether this thread's editor runs without a window (the UI tests).
+pub fn headless() -> bool {
+    HEADLESS.with(|h| h.get())
+}
+
 /// Seconds since the start, from macroquad's clock (headless: from the process's).
 pub fn now() -> f64 {
     if HEADLESS.with(|h| h.get()) {
@@ -106,7 +111,6 @@ pub fn tab(ui: &mut Ui, selected: bool, icon: &str, text: &str) -> Response {
 pub fn kind_icon(k: rustpg2d_engine::refactor::RefKind) -> &'static str {
     use rustpg2d_engine::refactor::RefKind;
     match k {
-        RefKind::Tileset => ph::GRID_FOUR,
         RefKind::Sheet => ph::IMAGE,
         RefKind::Sound => ph::SPEAKER_HIGH,
         RefKind::Item => ph::SWORD,
@@ -120,6 +124,8 @@ pub fn kind_icon(k: rustpg2d_engine::refactor::RefKind) -> &'static str {
         RefKind::Achievement => ph::TROPHY,
         RefKind::Race => ph::USERS_THREE,
         RefKind::Model => ph::CUBE,
+        RefKind::Material => ph::PAINT_BRUSH,
+        RefKind::Scatter => ph::TREE_EVERGREEN,
         RefKind::Map => ph::MAP_TRIFOLD,
     }
 }

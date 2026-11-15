@@ -5,6 +5,47 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Breaking
+- **Maps are painted; tiles are gone.** Tilesets, tile layers, auto-tiling terrains and the tile
+  tools (Brush, Rectangle, Fill, Erase, Pick, Terrain, the layer list, *Database › Tilesets*) are
+  removed: a map's ground is painted with materials and everything on it is a decoration or an
+  entity. Projects, asset libraries and `.r2dpack` packages from before **convert once**: the editor
+  copies a project (`<name>-backup-tiles`, or `<name>-backup-tiles.r2dproject` for a project file)
+  and a library beside themselves first. The ground layer becomes painted ground (a material per
+  kind of tile, shared by picture with existing materials; terrain edges keep their shape in 8 px
+  cells), the other layers decorations (*Detail* = *Flat*, *Overhead* = *Above*) of props made for
+  the tiles (`terrain_tile_12`, over a sheet of the tileset image; solid, low, ladder, light and
+  animation kept), tile structures structures of ground and decorations. Nothing walkable gets
+  blocked; entities, zones, triggers and save games stay. The game reads only converted maps (a
+  tile map loads without its tiles and warns). The example and the starter library are converted.
+- **Structures** hold painted ground (materials, cells; *remove the map's ground*), decorations and
+  tiles that clear the map's decorations, besides collision and entities. The structure editor's
+  tools are *Paint ground*, *Erase ground*, *Remove map ground*, *Place decoration*, *Clear map
+  decorations*, the collision tools and *Place prop*; region copy and paste take ground and
+  decorations.
+- **Tiled import** converts the tiles the same way (Wang sets as terrain edges).
+- **AI agents**: `set_tiles`, `paint_grid`, `fill_rect`, `paint_terrain` and `tileset_legend` are
+  removed; `create_map` `fill` is a material; `get_map` prints the collision, the ground and the
+  decorations (no layers); `view_image` shows sheets and material textures.
+- **Editor scripts**: `brush`, `layer`, `terrain`, `terrainpaint`, `terrainedit`, `terrainblob`,
+  `tilepick`, `stlayer`, `ststamp` and `tool brush|rect|fill|erase|terrain` are removed; `sttool`
+  takes `ground|keep|noground|decor|cleardecor|solid|walkable|auto|prop`, new `stmaterial ID`,
+  `stdecorlayer flat|sorted|above`; `dump X Y` prints the tile's material; `status` no longer prints
+  `tilecache=`.
+- **Props** can be **animated** (*Animation*: frames of their sheet and a speed), also as
+  decorations; *New asset…* makes a **ground material** (a texture drawn in the pixel editor) instead
+  of a tileset; a new project starts with grass, dirt, sand, water, cobblestone, flagstones and
+  wooden floor, the *Forest* and *Rocks* scatter sets and a stone wall and a fence.
+- **The example is repainted** on its converted maps (uids, quests and triggers kept): every
+  building is one picture (eleven new building props: *Small red-roofed cottage*, *Red-roofed
+  cottage*, *Red-roofed house*, *Small red-roofed house*, *Timber-framed hall*, *Stone house*,
+  *Small stone house*, *Thatched cottage*, *Thatched stone cottage*, *Thatched farmhouse*,
+  *Chapel*; lit windows keep their glow with *Window glow* lights), the forests are tree props
+  (shifted and mirrored at random, big ones among them; the old tree tiles stay blocked so paths
+  don't change), fences, walls, rocks and furniture are drawn in front of or behind characters,
+  road, river and shore corners are rounded, and the rugs and carpet runners are decorations with
+  their borders again. The structures follow; the new props are in the starter library.
+
 ### Gameplay
 - **Weapon animations**: characters fight and stand the way their weapon asks: a spear thrusts, a
   bow is drawn, a two-handed weapon swings overhead, bare hands punch, a sword-and-shield fighter
@@ -55,6 +96,52 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Tabbed Options**: the Options page has tabs (*Graphics*, *Sound*, *Gameplay*, *Accessibility*),
   switched with Tab / LB / RB or a click; *Controls…* is on the Gameplay tab, and *Reset tab to
   defaults* resets only the open tab. `status` prints `menu=options:<tab>`; `wintab <tab>` clicks one.
+
+- **Painted ground** (*Painted Worlds*): a map's ground is a grid of 8 px cells painted with
+  **materials** (*Database › Materials*: a seamless texture, crisp
+  or soft edges, raggedness, priority, a rim, walking Walkable / Solid / Low, footsteps, flow). The
+  game draws it with a shader, so roads, shores and meadows get natural, uneven edges; hitboxes
+  collide with the cells (water stops you at its drawn edge, shots fly over it), route planning
+  counts tiles blocked when half their cells are, footsteps follow the material. The starter
+  library brings 17 materials made from the terrain tiles. Map files are format version 3 (older
+  maps convert, see *Breaking*). Editor script `ground`, `gpaint`, `gline`, `gfill`, `newmap … blank`;
+  `status` prints `ground=`.
+- **Ground tool** (P, the ribbon's *Paint* group): material cards with names (the map's first,
+  their swatches repeating the texture as on the map, a search box), a round or square **Brush**, a **Line** for roads and streams, a **Rectangle**
+  (floors, carpets), **Fill**, and *Snap to tiles* for rectangles, squares and line ends; [ ] change the size, Shift erases, right-click picks the
+  material, one undo step per stroke. AI agents: `paint_ground` (circles, strokes with a width,
+  polygons, rectangles), `fill_ground`, and `get_map` prints the ground as a material grid.
+- **Animated materials**: a material's texture can hold **animation frames** side by side
+  (*Animation*: frames and frames per second; together with *Flow*), drawn by the ground shader in
+  the game, the editor and the web build. The example's water ripples again (its old tile
+  animation), the starter library brings animated **lava**, **swamp water** and a **waterfall
+  pool**, and converting an old project turns animated ground tiles into animated materials. The
+  pixel editor draws the frames one at a time (frame strip, Copy / Paste, a tiled preview), each
+  wrapping on its own; changing *Animation* adds or removes frames in the texture.
+- **Material form**: a live **preview** beside the settings draws the material as on a map (a round
+  and a square patch on a neighbour material of your choice, *Swap* for the other way round) with
+  its edge, raggedness, rim, priority and flow, following every change and the strokes not saved
+  yet; the **texture is drawn right under the form** in the pixel editor as a seamless picture:
+  copies around it, pencil, line, rectangle and fill wrap across its edges, *Size* in steps of 8 px;
+  *Draw a new one* makes a texture for a material without one (16 to 128 px). Editor script
+  `pxopen REL W H seamless`.
+- **Straight** material edges: exactly along the 8 px cells, with square corners, the rim as a
+  border. The example's wooden floor, stone tiles, carpet (with a gold border), rug and the
+  converted tile materials use them; the converted materials got real names (*Darkness*, *Cream
+  floor tiles*, *Tall grass*, *Plank deck*, *Straw*…), and so did the props made from the old
+  tiles (*Hedge*, *Berry bush*, *Wooden door*, *Lit window*, *Ladder*, *Dungeon torch*…: 48 in the
+  example, 80 in the starter library; ids like `hedge` instead of `terrain_tile_43`).
+- **Decorations**: props placed freely as pictures (trees, rocks, flowers, fences, walls,
+  buildings) on a layer (*Flat* under characters, *Sorted* with them, *Above* over them), with their
+  prop's hitbox, solidity, light and the new *Ladder* flag, but no states or triggers, so maps hold
+  tens of thousands (67 000 trees on a 1024 x 1024 map at full speed). The **Decorations** tool
+  (O): *Place*, *Line* (on the prop's new *Snap to* grid; **wall sets** pick their corner, end and
+  crossing pieces by their neighbours), *Scatter* with **scatter sets** (*Database › Scatter sets*:
+  weighted props, density, spacing; the starter library brings *Forest*, *Rocks*, *Wild plants*) and
+  *Erase*. Stone and plaster wall blocks and a wooden fence join the starter library. The collision
+  view shows decorations' hitboxes and the ground's blocked cells. AI agents: `place_objects`,
+  `scatter`, `erase_objects`; `get_map` lists decorations, its collision grid counts them and the
+  ground; `write_asset` takes `materials/`.
 
 ### Events and scripts
 - New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with

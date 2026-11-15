@@ -1,4 +1,4 @@
-//! "New asset" wizard: creates a prop, item, tileset, sprite sheet or structure in one step,
+//! "New asset" wizard: creates a prop, item, ground material, sprite sheet or structure in one step,
 //! either drawing a fresh image (opened in the pixel editor) or reusing an existing one.
 //! (Characters are assembled in the character builder, `builder.rs`.)
 
@@ -15,9 +15,10 @@ use crate::pixel::Layout;
 pub enum WKind {
     Prop,
     Item,
-    Tileset,
+    /// A ground material (its texture drawn in the pixel editor).
+    Material,
     Sheet,
-    /// Multi-tile structure (assembled from tileset stamps in the structure editor).
+    /// Structure (ground and decorations, assembled in the structure editor).
     Structure,
 }
 
@@ -26,7 +27,7 @@ impl WKind {
         Some(match s {
             "prop" => WKind::Prop,
             "item" => WKind::Item,
-            "tileset" => WKind::Tileset,
+            "material" => WKind::Material,
             "sheet" => WKind::Sheet,
             "structure" => WKind::Structure,
             _ => return None,
@@ -54,9 +55,9 @@ pub struct Wizard {
     pub cells: (u32, u32),
     /// Sprite sheet frame size.
     pub frame: (u32, u32),
-    /// Sprite sheet frames, tileset tiles.
+    /// Sprite sheet frames; a material's texture in tiles.
     pub grid: (u32, u32),
-    /// Sheet (or tileset) to copy / reuse, and the frame to use.
+    /// Sheet (or material) to copy / reuse, and the frame to use.
     pub other: String,
     pub other_frame: u32,
     /// Structures: palette category, and an existing structure to copy ("" = start empty).
@@ -114,7 +115,7 @@ impl Editor {
         let taken = match w.kind {
             WKind::Prop => db.prop(&id).is_some(),
             WKind::Item => db.item(&id).is_some(),
-            WKind::Tileset => db.tileset(&id).is_some(),
+            WKind::Material => db.material(&id).is_some(),
             WKind::Sheet => db.sheet(&id).is_some(),
             WKind::Structure => db.structure(&id).is_some(),
         };
@@ -135,12 +136,12 @@ impl Editor {
             self.db.tab = crate::database::Tab::Structures;
             self.db.sel = self.project.db.structures.len() - 1;
             self.mode = Mode::Database;
-            return Ok(format!("Created structure '{id}' — pick tiles from a tileset on the right and paint them on the grid, then save"));
+            return Ok(format!("Created structure '{id}' — paint its ground and place decorations on the grid, then save"));
         }
         // The image: a new one (blank or copied) or a frame of an existing sheet.
         let mut new_image: Option<(String, (u32, u32), Layout)> = None;
         let mut sprite = SpriteRef::new(&w.other, w.other_frame);
-        if w.source == Source::Existing && !matches!(w.kind, WKind::Tileset | WKind::Sheet) {
+        if w.source == Source::Existing && !matches!(w.kind, WKind::Material | WKind::Sheet) {
             if db.sheet(&w.other).is_none() {
                 bail!("Choose a sprite sheet");
             }
@@ -149,12 +150,12 @@ impl Editor {
                 WKind::Prop => ("sprites", (ts, ts), (ts * w.cells.0, ts * w.cells.1), Layout::Plain),
                 WKind::Item => ("sprites", (ts, ts), (ts, ts), Layout::Plain),
                 WKind::Sheet => ("sprites", w.frame, (w.frame.0 * w.grid.0, w.frame.1 * w.grid.1), if w.frame.1 > w.frame.0 { Layout::Character } else { Layout::Plain }),
-                WKind::Tileset | WKind::Structure => ("tilesets", (ts, ts), (ts * w.grid.0, ts * w.grid.1), Layout::Plain),
+                WKind::Material | WKind::Structure => ("materials", (ts, ts), (ts * w.grid.0, ts * w.grid.1), Layout::Plain),
             };
             let rel = free_path(&self.project, dir, &id);
             let (bytes, frame) = if w.source == Source::CopyOf {
                 let (src, f) = match w.kind {
-                    WKind::Tileset => (db.tileset(&w.other).map(|t| t.image.clone()), (ts, ts)),
+                    WKind::Material => (db.material(&w.other).map(|t| t.texture.clone()), (ts, ts)),
                     _ => (db.sheet(&w.other).map(|s| s.image.clone()), db.sheet(&w.other).map_or(frame, |s| (s.frame_w, s.frame_h))),
                 };
                 let Some(src) = src else { bail!("Choose an image to copy") };
@@ -167,8 +168,8 @@ impl Editor {
                 std::fs::create_dir_all(dir)?;
             }
             std::fs::write(&path, bytes)?;
-            if w.kind == WKind::Tileset {
-                self.project.db.tilesets.push(TilesetDef::new(&id, &rel));
+            if w.kind == WKind::Material {
+                self.project.db.materials.push(rustpg2d_engine::ground::MaterialDef { name: name.clone(), texture: rel.clone(), ..rustpg2d_engine::ground::MaterialDef::fresh(&id) });
             } else {
                 let sheet_id = rustpg2d_engine::refactor::unique_id(&id, |c| self.project.db.sheet(c).is_some());
                 self.project.db.sheets.push(SheetDef::new(&sheet_id, &rel, frame.0, frame.1));
@@ -180,7 +181,7 @@ impl Editor {
         match w.kind {
             WKind::Prop => db.props.push(PropDef { name, hitbox: [(ts * sprite.cells().0) as f32 - 2.0 * u, 8.0 * u], sprite, ..PropDef::fresh(&id) }),
             WKind::Item => db.items.push(ItemDef { name, icon: sprite, ..ItemDef::fresh(&id) }),
-            WKind::Tileset | WKind::Sheet | WKind::Structure => {}
+            WKind::Material | WKind::Sheet | WKind::Structure => {}
         }
         self.defs_dirty = true;
         self.reload_assets();
@@ -204,7 +205,7 @@ impl Editor {
         let ts = rustpg2d_engine::project::TILE_SIZE;
         egui::Window::new("New asset").open(&mut open).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
             ui.horizontal(|ui| {
-                for (k, l) in [(WKind::Prop, "Prop"), (WKind::Item, "Item"), (WKind::Tileset, "Tileset"), (WKind::Sheet, "Sprite sheet"), (WKind::Structure, "Structure")] {
+                for (k, l) in [(WKind::Prop, "Prop"), (WKind::Item, "Item"), (WKind::Material, "Ground material"), (WKind::Sheet, "Sprite sheet"), (WKind::Structure, "Structure")] {
                     if ui.selectable_value(&mut w.kind, k, l).clicked() && k == WKind::Structure && w.cells == (1, 1) {
                         w.cells = (6, 5);
                     }
@@ -259,7 +260,7 @@ impl Editor {
                     }
                     ui.end_row();
                 });
-                ui.weak("The structure editor opens next: pick tile stamps from a tileset and paint them on the grid.");
+                ui.weak("The structure editor opens next: paint its ground and place decorations on the grid.");
                 if let Some(e) = &w.error {
                     ui.colored_label(egui::Color32::LIGHT_RED, e);
                 }
@@ -268,14 +269,14 @@ impl Editor {
                 }
                 return;
             }
-            if matches!(w.kind, WKind::Tileset | WKind::Sheet) && w.source == Source::Existing {
+            if matches!(w.kind, WKind::Material | WKind::Sheet) && w.source == Source::Existing {
                 w.source = Source::Blank;
             }
             egui::Grid::new("wiz").num_columns(2).show(ui, |ui| {
                 ui.label("Id");
                 ui.add(egui::TextEdit::singleline(&mut w.id).hint_text("e.g. treasure_chest"));
                 ui.end_row();
-                if !matches!(w.kind, WKind::Tileset | WKind::Sheet) {
+                if w.kind != WKind::Sheet {
                     ui.label("Name");
                     ui.add(egui::TextEdit::singleline(&mut w.name).hint_text("shown in game"));
                     ui.end_row();
@@ -284,7 +285,7 @@ impl Editor {
                 ui.vertical(|ui| {
                     ui.radio_value(&mut w.source, Source::Blank, "Draw a new image");
                     ui.radio_value(&mut w.source, Source::CopyOf, "Start from a copy of an existing image");
-                    if !matches!(w.kind, WKind::Tileset | WKind::Sheet) {
+                    if !matches!(w.kind, WKind::Material | WKind::Sheet) {
                         ui.radio_value(&mut w.source, Source::Existing, "Use a frame of an existing sprite sheet");
                     }
                 });
@@ -317,8 +318,8 @@ impl Editor {
                             ui.end_row();
                         }
                     }
-                    (Source::Blank, WKind::Tileset) => {
-                        ui.label("Tiles");
+                    (Source::Blank, WKind::Material) => {
+                        ui.label("Texture (tiles)");
                         ui.horizontal(|ui| {
                             ui.add(egui::DragValue::new(&mut w.grid.0).range(1..=32));
                             ui.label("×");
@@ -327,12 +328,12 @@ impl Editor {
                         ui.end_row();
                     }
                     (Source::CopyOf | Source::Existing, _) => {
-                        let tileset = w.kind == WKind::Tileset;
-                        let ids: Vec<String> = if tileset { self.project.db.tilesets.iter().map(|t| t.id.clone()).collect() } else { self.project.db.sheets.iter().map(|s| s.id.clone()).collect() };
+                        let material = w.kind == WKind::Material;
+                        let ids: Vec<String> = if material { self.project.db.materials.iter().map(|t| t.id.clone()).collect() } else { self.project.db.sheets.iter().map(|s| s.id.clone()).collect() };
                         if !ids.contains(&w.other) {
                             w.other = ids.first().cloned().unwrap_or_default();
                         }
-                        ui.label(if tileset { "Tileset" } else { "Sprite sheet" });
+                        ui.label(if material { "Material" } else { "Sprite sheet" });
                         egui::ComboBox::from_id_salt("wiz_other").selected_text(&w.other).show_ui(ui, |ui| {
                             for id in ids {
                                 ui.selectable_value(&mut w.other, id.clone(), id);
@@ -355,7 +356,7 @@ impl Editor {
             let hint = match (w.kind, w.source) {
                 (_, Source::Existing) => "The definition uses the chosen frame; nothing new is drawn.".to_string(),
                 (WKind::Sheet, _) => format!("Frames taller than wide get the character layout (4 walk frames per row, rows down / left / right / up). Tiles are {ts}px."),
-                (WKind::Tileset, _) => format!("A tileset image of {ts}px tiles; mark solid tiles in Database \u{E13A} Tilesets."),
+                (WKind::Material, _) => "A seamless texture repeated over the ground (up to 256 px each way); set its edges and walking in Database \u{E13A} Materials.".to_string(),
                 _ => format!("Tiles are {ts}px. After creating, the image opens in the pixel editor."),
             };
             ui.weak(hint);

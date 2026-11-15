@@ -15,21 +15,51 @@ pub(super) const OCC_CHAR: u8 = 2;
 pub(super) const OCC_NEAR: u8 = 4;
 /// A solid prop that isn't low covers the tile: it stops shots and sight.
 pub(super) const OCC_HIGH: u8 = 8;
+/// A solid decoration's hitbox touches this tile or a neighbour: collision has to look at the
+/// decorations there.
+pub(super) const OCC_DECOR: u8 = 16;
 
 #[derive(Default)]
 pub(super) struct Occupancy {
     w: u32,
     h: u32,
     cells: Vec<u8>,
+    /// What stays every frame (solid decorations), copied in by [`Occupancy::clear`].
+    base: Vec<u8>,
 }
 
 impl Occupancy {
     pub fn new(w: u32, h: u32) -> Self {
-        Occupancy { w, h, cells: vec![0; (w as usize) * (h as usize)] }
+        Occupancy { w, h, cells: vec![0; (w as usize) * (h as usize)], base: Vec::new() }
     }
 
+    /// Back to the static marks (none, or what [`Occupancy::keep_as_base`] kept).
     pub fn clear(&mut self) {
-        self.cells.fill(0);
+        if self.base.len() == self.cells.len() {
+            self.cells.copy_from_slice(&self.base);
+        } else {
+            self.cells.fill(0);
+        }
+    }
+
+    /// The marks made so far stay through every [`Occupancy::clear`] (static decorations).
+    pub fn keep_as_base(&mut self) {
+        self.base = self.cells.clone();
+    }
+
+    /// Marks a solid decoration's hitbox `r`: what a prop covers (`OCC_PROP`, `OCC_HIGH`
+    /// unless `low`), and `OCC_DECOR` round it for the collision's broad phase.
+    pub fn add_decor(&mut self, r: Rect, low: bool, ts: f32) {
+        for (x, y) in Self::covered(r, ts) {
+            self.or(x, y, if low { OCC_PROP } else { OCC_PROP | OCC_HIGH });
+        }
+        let (x0, y0) = ((r.x / ts).floor() as i32 - 1, (r.y / ts).floor() as i32 - 1);
+        let (x1, y1) = (((r.x + r.w) / ts).floor() as i32 + 1, ((r.y + r.h) / ts).floor() as i32 + 1);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                self.or(x, y, OCC_DECOR);
+            }
+        }
     }
 
     /// Marks what a solid entity of `kind` with hitbox `r` covers ([`Self::covered`]), and
@@ -68,6 +98,13 @@ impl Occupancy {
         let (x0, y0) = ((r.x / ts).floor() as i32, (r.y / ts).floor() as i32);
         let (x1, y1) = (((r.x + r.w) / ts).floor() as i32, ((r.y + r.h) / ts).floor() as i32);
         (y0..=y1).flat_map(move |y| (x0..=x1).map(move |x| (x, y))).filter(move |&(x, y)| r.overlaps(&Rect::new(x as f32 * ts + 2.0, y as f32 * ts + 2.0, ts - 4.0, ts - 4.0)))
+    }
+
+    /// Clears `flags` on a tile.
+    pub fn unmark(&mut self, x: i32, y: i32, flags: u8) {
+        if x >= 0 && y >= 0 && (x as u32) < self.w && (y as u32) < self.h {
+            self.cells[(y as u32 * self.w + x as u32) as usize] &= !flags;
+        }
     }
 
     fn or(&mut self, x: i32, y: i32, flag: u8) {

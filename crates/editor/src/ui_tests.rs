@@ -86,21 +86,6 @@ fn undo(h: &mut Harness<'static, Editor>) {
 }
 
 #[test]
-fn footstep_picks_give_and_take_a_tiles_sound() {
-    use rustpg2d_engine::defs::TilesetDef;
-    let mut d = TilesetDef::new("t", "t.png");
-    crate::database::set_tile_step(&mut d, 6, "step_wood");
-    crate::database::set_tile_step(&mut d, 18, "step_wood");
-    assert_eq!(d.step_of(6), Some("step_wood"));
-    // Another sound moves the tile; the same sound again takes it away; empty groups go.
-    crate::database::set_tile_step(&mut d, 6, "step_stone");
-    assert_eq!((d.step_of(6), d.steps.len()), (Some("step_stone"), 2));
-    crate::database::set_tile_step(&mut d, 6, "step_stone");
-    crate::database::set_tile_step(&mut d, 18, "step_wood");
-    assert!(d.steps.is_empty());
-}
-
-#[test]
 fn quest_stage_targets_are_edited_and_saved() {
     let root = example_copy("quest");
     let db = Project::load(&root).unwrap().db;
@@ -317,5 +302,93 @@ fn colour_feature_default_is_set_and_cleared() {
     assert_eq!(skin(&h.state().project.db).default, None);
     h.state_mut().save_all();
     assert_eq!(skin(&Project::load(&root).unwrap().db).default, None);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn material_form_sets_edge_rim_and_walking() {
+    use rustpg2d_engine::ground::{Edge, Walk};
+    let root = example_copy("material");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.materials.iter().position(|m| m.id == "dirt").expect("the starter dirt");
+    assert_eq!((db.materials[k].edge, db.materials[k].rim, db.materials[k].walk), (Edge::Crisp, None, Walk::Walk));
+    let mut h = harness(&root, Tab::Materials, k);
+    step(&mut h);
+    // Soft edges, a rim, and a texture typed behind the path.
+    h.get_by_label("Soft").click();
+    step(&mut h);
+    beside(&h, "Rim", |n| n.role() == Role::CheckBox).click();
+    step(&mut h);
+    field(&h, "materials/dirt.png").type_text("x");
+    step(&mut h);
+    unfocus(&mut h);
+    let m = |h: &Harness<'static, Editor>| h.state().project.db.materials[k].clone();
+    assert_eq!(m(&h).edge, Edge::Soft);
+    assert!(m(&h).rim.is_some());
+    assert_eq!(m(&h).texture, "materials/dirt.pngx");
+    // Ctrl+Z takes the typing back; saved, the file has the rest.
+    undo(&mut h);
+    assert_eq!(m(&h).texture, "materials/dirt.png");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    assert_eq!((saved.materials[k].edge, saved.materials[k].rim.is_some()), (Edge::Soft, true));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_material_texture_is_drawn_seamlessly_in_the_form() {
+    use crate::pixel::{Layout, PxTool};
+    let root = example_copy("material_draw");
+    let k = Project::load(&root).unwrap().db.materials.len();
+    let mut h = harness(&root, Tab::Materials, k);
+    h.state_mut().project.db.materials.push(rustpg2d_engine::ground::MaterialDef { name: "Moss".into(), ..rustpg2d_engine::ground::MaterialDef::fresh("moss") });
+    step(&mut h);
+    // No texture yet: "Draw a new one" names it, then a size creates it, filled with one colour.
+    h.get_by_label_contains("Draw a new one").click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.materials[k].texture, "materials/moss.png");
+    h.get_by_label("32×32 px").click();
+    step(&mut h);
+    let file = root.join("materials/moss.png");
+    let img = rustpg2d_engine::imageio::Rgba::decode(&std::fs::read(&file).unwrap()).unwrap();
+    assert_eq!((img.w, img.h, img.get(5, 5)[3]), (32, 32, 255));
+    // It opens below the form as one seamless picture: drawing past an edge wraps around.
+    let d = h.state().px.doc.as_ref().expect("the texture is open");
+    assert_eq!((d.rel.as_str(), d.layout, d.frame), ("materials/moss.png", Layout::Seamless(1), (32, 32)));
+    let px = &mut h.state_mut().px;
+    px.tool = PxTool::Pencil;
+    px.colors[0] = [10, 200, 30, 255];
+    px.apply_at(0, (-1, 33));
+    let d = h.state().px.doc.as_ref().unwrap();
+    assert_eq!(d.img.get(31, 1), [10, 200, 30, 255]);
+    assert!(d.is_dirty() && d.version > 0);
+    h.state_mut().save_pixel();
+    let img = rustpg2d_engine::imageio::Rgba::decode(&std::fs::read(&file).unwrap()).unwrap();
+    assert_eq!(img.get(31, 1), [10, 200, 30, 255]);
+    // Three animation frames: the texture becomes a strip of copies; each frame wraps on its own.
+    let line = h.get_by_label("Animation").bounding_box().unwrap();
+    let spin = |n: &egui_kittest::kittest::Node<'_>| n.role() == Role::SpinButton && n.bounding_box().is_some_and(|b| b.y0 < line.y1 && b.y1 > line.y0);
+    let frames = h.query_all_by(spin).min_by(|a, b| a.bounding_box().unwrap().x0.total_cmp(&b.bounding_box().unwrap().x0)).expect("the frames field");
+    frames.click();
+    step(&mut h);
+    h.get_by(|n| n.is_focused()).type_text("3");
+    step(&mut h);
+    h.press_key(egui::Key::Enter);
+    step(&mut h);
+    let m = h.state().project.db.materials[k].clone();
+    assert_eq!((m.frames, m.fps), (3, 4.0));
+    let d = h.state().px.doc.as_ref().unwrap();
+    assert_eq!((d.img.w, d.frame, d.layout), (96, (32, 32), Layout::Seamless(3)));
+    assert_eq!(d.img.get(64 + 31, 1), [10, 200, 30, 255], "the new frames copy the last one");
+    let px = &mut h.state_mut().px;
+    px.sel_frame = 2;
+    px.colors[0] = [250, 20, 20, 255];
+    px.apply_at(0, (-1, 0));
+    let d = h.state().px.doc.as_ref().unwrap();
+    assert_eq!((d.img.get(95, 0), d.img.get(31, 0)), ([250, 20, 20, 255], [img.get(31, 0)[0], img.get(31, 0)[1], img.get(31, 0)[2], 255]));
+    h.state_mut().save_pixel();
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.materials[k].clone();
+    assert_eq!((saved.texture.as_str(), saved.frames, saved.fps), ("materials/moss.png", 3, 4.0));
     let _ = std::fs::remove_dir_all(&root);
 }

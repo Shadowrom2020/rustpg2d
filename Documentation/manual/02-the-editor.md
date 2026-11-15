@@ -17,12 +17,12 @@ From top to bottom:
   library in its own window (see [The asset library](11-asset-library.md)). The **map dropdown**
   shows the open map and switches to another one.
 - **The ribbon** holds the tools as icon buttons in groups: *Edit* (undo, redo) · *Select* ·
-  *Paint* (brush, rectangle, fill, erase, pick, terrain) · *Collision* · *Objects* (entities,
-  zones, transitions, structures) · *Layer* · *View* (grid, collision overlay, zones, dim other
-  layers, minimap, lighting preview, weather preview, fit) · *Play*. Hovering a button shows its
+  *Paint* (ground) · *Collision* · *Objects* (decorations, entities, zones, transitions,
+  structures) · *View* (grid, collision overlay, zones, minimap, lighting preview, weather preview,
+  parallax layers, fit) · *Play*. Hovering a button shows its
   name, its shortcut and a one-line how-to.
-- **The left panel** shows the active tool's options (the tileset palette, the entity or structure
-  palette, terrains) with the map's **Layers** underneath.
+- **The left panel** shows the active tool's options (the materials, the decorations' props and
+  scatter sets, the entity or structure palette).
 - **The map** in the middle, with a **minimap** in the corner.
 - **The right panel** is the **inspector**: the selected entity's or zone's settings, or the map's
   own settings when nothing is selected.
@@ -34,23 +34,18 @@ From top to bottom:
 | Key | Tool |
 |---|---|
 | V | **Select** (the default): select, move and copy things |
-| B | **Brush**: paint the selected tile or stamp |
-| R | **Rectangle**: fill a rectangle; Shift+drag erases one |
-| F | **Fill**: flood-fill an area of equal tiles |
-| E | **Erase** |
-| I | **Pick**: take the tile under the mouse into the brush |
-| A | **Terrain**: auto-tiling paths, ponds, floors |
+| P | **Ground**: paint the ground with materials (brush, line, fill; [ and ] change the size) |
 | C | **Collision**: make tiles solid or walkable |
 | N | **Entities**: place props, characters and items |
 | Z | **Zones**: draw spawn points, portals, trigger areas, spawners |
 | T | **Transition**: link two maps with a two-way exit |
-| H | **Structures**: place multi-tile assets |
+| H | **Structures**: place ready-made houses, walls, rooms |
+| O | **Decorations**: trees, rocks, walls and fences placed freely; scatter brush, wall lines ([Maps › Decorations](03-maps.md#decorations)) |
 
 | Input | Action |
 |---|---|
 | Mouse wheel, middle-drag, Space+drag, arrow keys | Zoom and pan |
-| Right-click (tile tools) | Pick the tile under the cursor |
-| 1–9 | Select a layer |
+| Right-click (Ground, Decorations) | Pick the material or prop under the cursor |
 | G / Home | Toggle the grid / fit the map into the view |
 | Ctrl+Z / Ctrl+Y | Undo / redo (in the Database mode: definition changes) |
 | Ctrl+S | Save the map and the definitions |
@@ -146,7 +141,7 @@ Exported games never have the console.
 
 *File › New project…*, *Open project…* and *Open project folder…* use your desktop's file dialogs.
 Fields that take an image or a sound have a *Browse…* button; a file from outside the project is
-copied into the project's `tilesets/`, `sprites/` or `sounds/` folder.
+copied into the project's `materials/`, `sprites/` or `sounds/` folder.
 
 A project is one file, `<name>.r2dproject` (see [Getting started › Projects are one
 file](01-getting-started.md#projects-are-one-file)). *Database › Project* shows where it is and
@@ -156,11 +151,12 @@ within two seconds.
 
 ```
 project.ron           the game's name, start map and spawn, pixel scale, player character and settings
-defs/                 the definitions: items, props, characters, tilesets, sprite sheets, sounds,
-                      quests, skills, spells, recipes, achievements, structures (text files)
+defs/                 the definitions: items, props, characters, materials, scatter sets, sprite
+                      sheets, sounds, quests, skills, spells, recipes, achievements, structures
+                      (text files)
 maps/<name>.map       the maps
 scripts/*.rhai        the scripts (all files share one namespace)
-tilesets/, sprites/   the images
+sprites/, materials/  the images (tilesets/: pictures of tiles from before 0.21, used as sheets)
 sounds/               WAV and Ogg Vorbis files
 lang/<code>.ron       translations
 saves/                save games of play-tests (never exported)

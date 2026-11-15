@@ -58,8 +58,7 @@ for how to use it all.
 ## What you can make
 
 **Worlds**
-- Tile maps up to 1024 × 1024 tiles with any number of layers; roofs and treetops draw above the characters.
-- Auto-tiling terrains: paint a path or a pond and its edges and corners fit by themselves.
+- Painted maps up to 1024 × 1024 tiles: paint the ground with brushes in materials (grass, roads, water) whose edges blend naturally, and place trees, rocks, walls and houses freely; scatter a forest of tens of thousands of trees in a few strokes.
 - Structures: a house, a market row or a dungeon room placed with one click; capture your own from any map.
 - Day and night with dynamic lights, rain, snow and fog, parallax skies and cloud shadows, ladders and watchtowers, fog of war.
 
@@ -128,7 +127,7 @@ All of them need a graphics driver with OpenGL 3 (a virtual machine needs 3D acc
    **New project…** to start your own.
 2. The wizard asks for a name, where to keep the project file and a few settings, and opens a first map with a start
    point. Press **F5** to play it right away.
-3. Paint ground with the **Brush** or a **Terrain**, place a house with the **Structures** tool,
+3. Paint ground with the **Ground** tool, scatter trees with **Decorations**, place a house with the **Structures** tool,
    and put a character on the map with the **Entities** tool.
 4. Select the character and give it a trigger: *On Interact* → *Dialog* "Welcome, {player}!".
    Press **F5** and talk to it.

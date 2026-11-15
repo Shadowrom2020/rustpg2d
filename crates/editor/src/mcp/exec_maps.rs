@@ -1,10 +1,10 @@
 //! Map tools on the main thread: reading maps as text / images and editing them through the
 //! `MapDoc` (undoable strokes and object edits), screenshots of the canvas.
 
-use rustpg2d_engine::autotile;
+use macroquad::math::vec2;
 use rustpg2d_engine::entity::{EntityInstance, EntityKind, Facing};
 use rustpg2d_engine::events::{Trigger, TriggerOwner};
-use rustpg2d_engine::map::{CollisionOverride, Map, Tile, Zone, ZoneKind, MAX_MAP_SIZE};
+use rustpg2d_engine::map::{CollisionOverride, Map, Zone, ZoneKind, MAX_MAP_SIZE};
 use rustpg2d_engine::refactor::RefKind;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,7 +16,7 @@ use super::exec::{json, suggestions, text, Reply, ShotSpec};
 use super::tools::*;
 use super::{grid, patch, ShotRequest};
 
-/// Cells one terrain / collision call may touch.
+/// Cells one collision call may touch.
 const MAX_CELLS: usize = 4000;
 
 /// Who may carry which triggers.
@@ -106,32 +106,6 @@ impl Editor {
         }
     }
 
-    /// Legend text for a tile: its terrain, solid, animated, light.
-    fn describe_tile(&self, tileset: &str, idx: u32) -> String {
-        let mut parts = Vec::new();
-        if let Some(def) = self.project.db.tileset(tileset) {
-            if let Some(k) = autotile::terrain_of(&def.terrains, idx) {
-                parts.push(format!("terrain \"{}\"", def.terrains[k].name));
-            }
-            if def.animations.iter().any(|a| a.tile == idx) {
-                parts.push("animated".into());
-            }
-            if def.lights.iter().any(|l| l.tile == idx) {
-                parts.push("light".into());
-            }
-        }
-        if self.assets.tilesets.get(tileset).is_some_and(|t| t.is_solid(idx)) {
-            parts.push("solid".into());
-        }
-        parts.join(" ")
-    }
-
-    fn tileset_slot_checked(&self, map: &Map, tileset: &str) -> Result<(u16, u32), String> {
-        let tex = self.assets.tilesets.get(tileset).ok_or_else(|| format!("\"{tileset}\" is not a tileset of the project.{}", suggestions(tileset, self.project.db.tilesets.iter().map(|t| t.id.as_str()))))?;
-        let slot = map.tilesets.iter().position(|t| t == tileset).map(|p| p as u16).unwrap_or(map.tilesets.len() as u16);
-        Ok((slot, tex.count))
-    }
-
     pub(crate) fn mcp_list_maps(&mut self) -> Result<Reply, String> {
         self.mcp_need_project()?;
         let cfg_start = self.project.config.start_map.clone();
@@ -155,12 +129,12 @@ impl Editor {
                         }
                     }
                     lines.push(format!(
-                        "{m}: {}x{}{}; tilesets [{}]; {} layers; {} entities, {} zones; spawns [{}]; leads to [{}]{}",
+                        "{m}: {}x{}{}; materials [{}]; {} decorations, {} entities, {} zones; spawns [{}]; leads to [{}]{}",
                         map.width,
                         map.height,
                         if m == cfg_start { " (start map)" } else { "" },
-                        map.tilesets.join(", "),
-                        map.layers.len(),
+                        map.materials.join(", "),
+                        map.decor.len(),
                         map.entities.len(),
                         map.zones.len(),
                         spawns.join(", "),
@@ -181,32 +155,175 @@ impl Editor {
         let map = self.mcp_read_map(&p.map)?;
         let r = grid::region(map.width, map.height, p.x, p.y, p.w, p.h)?;
         let mut out = format!(
-            "map \"{}\" {}x{} tiles; layers: {}; tilesets: {}; music {}; lighting {:?}; weather {:?}; fog of war {}; map triggers {}\n",
+            "map \"{}\" {}x{} tiles; materials: {}; {} decorations; music {}; lighting {:?}; weather {:?}; fog of war {}; map triggers {}\n",
             map.name,
             map.width,
             map.height,
-            map.layers.iter().enumerate().map(|(i, l)| format!("{i}={}", l.name)).collect::<Vec<_>>().join(", "),
-            map.tilesets.iter().enumerate().map(|(i, t)| format!("slot {i}={t}")).collect::<Vec<_>>().join(", "),
+            if map.materials.is_empty() { "none".to_string() } else { map.materials.join(", ") },
+            map.decor.len(),
             if map.music.is_empty() { "-" } else { &map.music },
             map.lighting.mode,
             map.weather.kind,
             map.fog,
             map.triggers.len()
         );
-        let layers: Vec<usize> = p.layers.unwrap_or_else(|| (0..map.layers.len()).collect());
-        let describe = |ts: &str, idx: u32| self.describe_tile(ts, idx);
-        for l in layers {
-            out += &grid::render_layer(&map, l, &r, &describe);
-        }
         if p.collision.unwrap_or(true) {
-            let solid = self.assets.compute_solid(&map);
+            // Painted collision, the painted ground (half a tile's cells) and solid decorations.
+            let mut solid = map.compute_solid();
+            let mut shot = vec![false; solid.len()];
+            rustpg2d_engine::ground::MaterialTable::new(&map.materials, &self.project.db).apply_to_tiles(&map, &mut solid, &mut shot);
+            rustpg2d_engine::decor::mark_solid_tiles(&map, &self.project.db, &mut solid);
             let w = map.width as usize;
             out += &grid::render_collision(&map, &r, &|x, y| solid.get(y as usize * w + x as usize).copied().unwrap_or(false));
+        }
+        if p.ground.unwrap_or(true) {
+            out += &render_ground(&map, &r);
+        }
+        if p.objects.unwrap_or(true) && !map.decor.is_empty() {
+            out += &render_decor(&map, &r, self.ts());
         }
         if p.objects.unwrap_or(true) {
             out += &grid::render_objects(&map, &r, self.ts());
         }
         text(out)
+    }
+
+    /// The map's ground value of a material ("" / "-" = erase).
+    fn mcp_ground_value(&mut self, material: &str) -> Result<u8, String> {
+        if material.is_empty() || material == "-" {
+            return Ok(0);
+        }
+        if self.project.db.material(material).is_none() {
+            return Err(format!("\"{material}\" is not a material.{}", suggestions(material, self.project.db.materials.iter().map(|m| m.id.as_str()))));
+        }
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        doc.map.material_value(material).ok_or_else(|| format!("the map already uses {} materials", rustpg2d_engine::ground::MAX_MATERIALS))
+    }
+
+    pub(crate) fn mcp_paint_ground(&mut self, p: PaintGroundParams) -> Result<Reply, String> {
+        self.mcp_target_map(&p.map)?;
+        let v = self.mcp_ground_value(&p.material)?;
+        let ts = self.ts();
+        let px = |q: [f32; 2]| (q[0] * ts, q[1] * ts);
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        let g = &mut doc.map.ground;
+        let mut cells = Vec::new();
+        let mut shapes = 0;
+        for c in p.circles.iter().flatten() {
+            cells.extend(g.paint_circle(px([c[0], c[1]]), c[2] * ts, v));
+            shapes += 1;
+        }
+        for l in p.lines.iter().flatten() {
+            let pts: Vec<(f32, f32)> = l.points.iter().map(|q| px(*q)).collect();
+            cells.extend(crate::ground_tool::paint_polyline(g, &pts, l.width.unwrap_or(1.0) * ts, v));
+            shapes += 1;
+        }
+        for poly in p.polygons.iter().flatten() {
+            let pts: Vec<(f32, f32)> = poly.iter().map(|q| px(*q)).collect();
+            cells.extend(g.paint_polygon(&pts, v));
+            shapes += 1;
+        }
+        for r in p.rects.iter().flatten() {
+            cells.extend(g.paint_rect(px([r[0], r[1]]), px([r[0] + r[2], r[1] + r[3]]), v));
+            shapes += 1;
+        }
+        if shapes == 0 {
+            return Err("give circles, lines, polygons and / or rects".into());
+        }
+        let n = cells.len();
+        doc.record_ground(cells, v, &self.assets);
+        let name = doc.map.name.clone();
+        self.mcp_after_write(format!("{} {n} ground cells with {shapes} shapes on \"{name}\".", if v == 0 { "Erased" } else { "Painted" }))
+    }
+
+    pub(crate) fn mcp_place_objects(&mut self, p: PlaceObjectsParams) -> Result<Reply, String> {
+        use rustpg2d_engine::decor::{Decor, DecorLayer};
+        self.mcp_target_map(&p.map)?;
+        let Some(def) = self.project.db.prop(&p.prop).cloned() else {
+            return Err(format!("\"{}\" is not a prop.{}", p.prop, suggestions(&p.prop, self.project.db.props.iter().map(|d| d.id.as_str()))));
+        };
+        let layer = match &p.layer {
+            Some(l) => DecorLayer::parse(l).ok_or_else(|| format!("layer \"{l}\" must be Flat, Sorted or Above"))?,
+            None => DecorLayer::Sorted,
+        };
+        let ts = self.ts();
+        let db = &self.project.db;
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        let (mut added, mut removed) = (Vec::new(), Vec::new());
+        if let Some(l) = p.line {
+            let set = rustpg2d_engine::decor::wall_set_of(db, &p.prop).unwrap_or(p.prop.clone());
+            (added, removed) = crate::decor_tool::wall_line(&mut doc.map, db, &set, vec2(l[0] * ts, l[1] * ts), vec2(l[2] * ts, l[3] * ts), layer);
+        }
+        let slot = doc.map.decor_slot(&p.prop);
+        for q in p.points.iter().flatten() {
+            let at = vec2(q[0] * ts, q[1] * ts);
+            // (Points are feet, on a cell's bottom edge: the cell they stand in is the one above.)
+            let at = if def.snap > 0 { crate::decor_tool::snap_point(at - vec2(0.0, 0.5), def.snap as f32) } else { at.round() };
+            let d = Decor { def: slot, x: at.x as i32, y: at.y as i32, flip: p.flip.unwrap_or(false), state: 0, layer };
+            doc.map.decor.push(d);
+            added.push(d);
+        }
+        if added.is_empty() && removed.is_empty() {
+            return Err("give points and / or a line".into());
+        }
+        let n = added.len();
+        doc.record_decor(added, removed);
+        let name = doc.map.name.clone();
+        self.mcp_after_write(format!("Placed {n} decorations of \"{}\" on \"{name}\" ({} in all).", p.prop, self.doc.as_ref().map_or(0, |d| d.map.decor.len())))
+    }
+
+    pub(crate) fn mcp_scatter(&mut self, p: ScatterParams) -> Result<Reply, String> {
+        use rustpg2d_engine::decor::Decor;
+        self.mcp_target_map(&p.map)?;
+        let Some(set) = self.project.db.scatter_set(&p.set).cloned() else {
+            return Err(format!("\"{}\" is not a scatter set.{}", p.set, suggestions(&p.set, self.project.db.scatter.iter().map(|d| d.id.as_str()))));
+        };
+        let ts = self.ts();
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        let mut added = Vec::new();
+        for (k, c) in p.circles.iter().enumerate() {
+            let (x, y, r) = (c[0] * ts, c[1] * ts, c[2] * ts);
+            let near: Vec<(f32, f32)> = doc.map.decor.iter().filter(|d| (d.x as f32 - x).hypot(d.y as f32 - y) <= r + set.spacing).map(|d| (d.x as f32, d.y as f32)).collect();
+            for (prop, px, py, flip) in set.scatter((x, y), r, &near, p.seed.unwrap_or(1).wrapping_add(k as u64 * 7919)) {
+                let slot = doc.map.decor_slot(&prop);
+                let d = Decor { def: slot, x: px as i32, y: py as i32, flip, state: 0, layer: set.layer };
+                doc.map.decor.push(d);
+                added.push(d);
+            }
+        }
+        let n = added.len();
+        doc.record_decor(added, vec![]);
+        let name = doc.map.name.clone();
+        self.mcp_after_write(format!("Scattered {n} decorations of \"{}\" on \"{name}\".", p.set))
+    }
+
+    pub(crate) fn mcp_erase_objects(&mut self, p: EraseObjectsParams) -> Result<Reply, String> {
+        self.mcp_target_map(&p.map)?;
+        let ts = self.ts();
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        let only = p.prop.as_ref().and_then(|id| doc.map.decor_defs.iter().position(|d| d == id));
+        if p.prop.is_some() && only.is_none() {
+            return Err("that prop isn't placed as a decoration on this map".into());
+        }
+        let inside = |d: &rustpg2d_engine::decor::Decor| only.is_none_or(|s| d.def as usize == s) && p.circles.iter().any(|c| (d.x as f32 - c[0] * ts).hypot(d.y as f32 - c[1] * ts) <= c[2] * ts);
+        let removed: Vec<_> = doc.map.decor.iter().filter(|d| inside(d)).copied().collect();
+        doc.map.decor.retain(|d| !inside(d));
+        let n = removed.len();
+        doc.record_decor(vec![], removed);
+        let name = doc.map.name.clone();
+        self.mcp_after_write(format!("Removed {n} decorations from \"{name}\"."))
+    }
+
+    pub(crate) fn mcp_fill_ground(&mut self, p: FillGroundParams) -> Result<Reply, String> {
+        self.mcp_target_map(&p.map)?;
+        let v = self.mcp_ground_value(&p.material)?;
+        let cells_per_tile = rustpg2d_engine::ground::CELLS as f32;
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        let cells = doc.map.ground.flood_fill((p.x * cells_per_tile).floor() as i32, (p.y * cells_per_tile).floor() as i32, v);
+        let n = cells.len();
+        doc.record_ground(cells, v, &self.assets);
+        let name = doc.map.name.clone();
+        self.mcp_after_write(format!("Filled {n} ground cells on \"{name}\"."))
     }
 
     pub(crate) fn mcp_get_object(&mut self, p: ObjectParams) -> Result<Reply, String> {
@@ -220,59 +337,20 @@ impl Editor {
         Err(format!("no entity or zone with uid {} on {} (get_map lists them)", p.uid, map.name))
     }
 
-    pub(crate) fn mcp_tileset_legend(&mut self, p: TilesetParams) -> Result<Reply, String> {
-        self.mcp_need_project()?;
-        let def = self.project.db.tileset(&p.tileset).ok_or_else(|| format!("\"{}\" is not a tileset.{}", p.tileset, suggestions(&p.tileset, self.project.db.tilesets.iter().map(|t| t.id.as_str()))))?;
-        let tex = self.assets.tilesets.get(&p.tileset);
-        let mut out = format!("tileset \"{}\": image {}", def.id, def.image);
-        match tex {
-            Some(t) => out += &format!(" ({}x{} px), {} columns, {} tiles (index = row * {} + column; view_image shows them)\n", t.image.width, t.image.height, t.columns, t.count, t.columns),
-            None => out += " (image not loaded)\n",
-        }
-        out += &format!("solid tiles: {}\n", if def.solid.is_empty() { "none".to_string() } else { def.solid.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", ") });
-        if !def.low.is_empty() {
-            out += &format!("low tiles (solid ones stop walking, not shots or sight): {}\n", def.low.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", "));
-        }
-        if !def.ladder.is_empty() {
-            out += &format!("ladder tiles (the player climbs them, characters keep off): {}\n", def.ladder.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", "));
-        }
-        if !def.animations.is_empty() {
-            out += &format!("animations: {}\n", def.animations.iter().map(|a| format!("{} -> [{}] @{} fps", a.tile, a.frames.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(","), a.fps)).collect::<Vec<_>>().join("; "));
-        }
-        if !def.lights.is_empty() {
-            out += &format!("light tiles: {}\n", def.lights.iter().map(|l| format!("{} (radius {}, color {:?})", l.tile, l.light.radius, l.light.color)).collect::<Vec<_>>().join("; "));
-        }
-        if def.terrains.is_empty() {
-            out += "terrains: none (paint_terrain needs one; set_tiles / paint_grid work with indices)\n";
-        } else {
-            out += "terrains (paint_terrain name):\n";
-            for t in &def.terrains {
-                let filled = t.tiles.iter().filter(|s| s.is_some()).count();
-                out += &format!(
-                    "  \"{}\": inside tile {}, {} of 16 edge tiles{}{}\n",
-                    t.name,
-                    t.base.map_or("-".to_string(), |b| b.to_string()),
-                    filled,
-                    if t.blob.iter().any(|b| b.is_some()) { ", corner set (47 tiles)" } else { "" },
-                    if t.joins.is_empty() { String::new() } else { format!(", joins {}", t.joins.join(", ")) }
-                );
-            }
-        }
-        text(out)
-    }
-
     pub(crate) fn mcp_view_image(&mut self, p: ViewImageParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
         let (path, cell, what) = match p.kind.to_lowercase().as_str() {
-            "tileset" | "tilesets" => {
-                let d = self.project.db.tileset(&p.id).ok_or_else(|| format!("\"{}\" is not a tileset.{}", p.id, suggestions(&p.id, self.project.db.tilesets.iter().map(|t| t.id.as_str()))))?;
-                (d.image.clone(), (rustpg2d_engine::project::TILE_SIZE, rustpg2d_engine::project::TILE_SIZE), format!("tileset {} (32 px tiles; index = row * columns + column)", d.id))
+            "material" | "materials" => {
+                let d = self.project.db.material(&p.id).ok_or_else(|| format!("\"{}\" is not a material.{}", p.id, suggestions(&p.id, self.project.db.materials.iter().map(|t| t.id.as_str()))))?;
+                let bytes = std::fs::read(self.project.root.join(&d.texture)).map_err(|e| format!("cannot read {}: {e}", d.texture))?;
+                let png = super::play::downscale(&bytes)?;
+                return Ok(Reply::TextImages(format!("material {} ({}): its texture {}, repeated over the ground", d.id, d.name, d.texture), vec![png]));
             }
             "sheet" | "sheets" => {
                 let d = self.project.db.sheet(&p.id).ok_or_else(|| format!("\"{}\" is not a sprite sheet.{}", p.id, suggestions(&p.id, self.project.db.sheets.iter().map(|t| t.id.as_str()))))?;
                 (d.image.clone(), (d.frame_w, d.frame_h), format!("sprite sheet {} ({:?}, {}x{} px frames; frame = row * columns + column)", d.id, d.kind, d.frame_w, d.frame_h))
             }
-            k => return Err(format!("kind \"{k}\" must be tileset or sheet")),
+            k => return Err(format!("kind \"{k}\" must be sheet or material")),
         };
         let bytes = std::fs::read(self.project.root.join(&path)).map_err(|e| format!("cannot read {path}: {e}"))?;
         let mut img = rustpg2d_engine::imageio::Rgba::decode(&bytes).map_err(|e| format!("{path}: {e}"))?;
@@ -408,43 +486,19 @@ impl Editor {
             return Err(format!("the size must be 1..{MAX_MAP_SIZE} tiles each way"));
         }
         let mut map = Map::new(&p.name, p.width, p.height);
-        if let Some(f) = &p.fill {
-            let (_, count) = self.tileset_slot_checked(&map, &f.tileset)?;
-            if f.index >= count {
-                return Err(format!("tile index {} is outside {} ({} tiles)", f.index, f.tileset, count));
+        if let Some(f) = p.fill.as_deref().filter(|f| !f.is_empty()) {
+            if self.project.db.material(f).is_none() {
+                return Err(format!("\"{f}\" is not a material.{}", suggestions(f, self.project.db.materials.iter().map(|m| m.id.as_str()))));
             }
-            let slot = map.tileset_slot(&f.tileset);
-            let t = Tile::new(slot, f.index);
-            for y in 0..map.height {
-                for x in 0..map.width {
-                    map.layers[0].set(x, y, t);
-                }
+            if let Some(v) = map.material_value(f) {
+                map.ground.fill(v);
             }
         }
         self.save_all();
         self.doc = None;
         self.load_doc(map);
         self.save_map();
-        self.mcp_after_write(format!("Created map \"{}\" ({}x{}) and opened it; layers 0=Ground 1=Detail 2=Overhead.", p.name, p.width, p.height))
-    }
-
-    /// Paints `cells` (x, y, tile) on `layer` as one stroke.
-    fn paint_cells(&mut self, layer: usize, cells: &[(i32, i32, Tile)]) -> Result<usize, String> {
-        let assets = &self.assets;
-        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
-        if layer >= doc.map.layers.len() {
-            return Err(format!("layer {layer} doesn't exist: the map has layers 0..{}", doc.map.layers.len() - 1));
-        }
-        let mut n = 0;
-        doc.begin_stroke(layer, false);
-        for (x, y, t) in cells {
-            if doc.map.in_bounds(*x, *y) {
-                doc.paint(layer, *x, *y, *t, assets);
-                n += 1;
-            }
-        }
-        doc.end_stroke();
-        Ok(n)
+        self.mcp_after_write(format!("Created map \"{}\" ({}x{}) and opened it{}.", p.name, p.width, p.height, p.fill.as_deref().filter(|f| !f.is_empty()).map_or(String::new(), |f| format!(", the ground filled with {f}"))))
     }
 
     /// The open map's document (after `mcp_target_map`): an error, not a panic, without one.
@@ -452,67 +506,7 @@ impl Editor {
         self.doc.as_ref().ok_or_else(|| "no map is open in the editor: give `map`".to_string())
     }
 
-    pub(crate) fn mcp_set_tiles(&mut self, p: SetTilesParams) -> Result<Reply, String> {
-        self.mcp_target_map(&p.map)?;
-        let map = self.mcp_doc()?.map.clone();
-        let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
-        let mut cells = Vec::new();
-        for c in &p.cells {
-            let t = match c[2] {
-                i if i < 0 => Tile::EMPTY,
-                i if (i as u32) < count => Tile::new(slot, i as u32),
-                i => return Err(format!("tile index {i} is outside {} ({} tiles)", p.tileset, count)),
-            };
-            cells.push((c[0] as i32, c[1] as i32, t));
-        }
-        if let Some(d) = &mut self.doc {
-            d.map.tileset_slot(&p.tileset);
-        }
-        let n = self.paint_cells(p.layer, &cells)?;
-        self.mcp_after_write(format!("Set {n} of {} tiles on layer {} of \"{}\".", p.cells.len(), p.layer, map.name))
-    }
-
-    pub(crate) fn mcp_paint_grid(&mut self, p: PaintGridParams) -> Result<Reply, String> {
-        self.mcp_target_map(&p.map)?;
-        let map = self.mcp_doc()?.map.clone();
-        let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
-        let parsed = grid::parse_grid(&p.rows, &p.legend)?;
-        let mut cells = Vec::new();
-        for (dx, dy, t) in parsed {
-            let tile = match t {
-                None => Tile::EMPTY,
-                Some(i) if i < count => Tile::new(slot, i),
-                Some(i) => return Err(format!("tile index {i} is outside {} ({} tiles)", p.tileset, count)),
-            };
-            cells.push((p.x + dx as i32, p.y + dy as i32, tile));
-        }
-        if let Some(d) = &mut self.doc {
-            d.map.tileset_slot(&p.tileset);
-        }
-        let n = self.paint_cells(p.layer, &cells)?;
-        self.mcp_after_write(format!("Painted {n} tiles on layer {} of \"{}\" from a {}-row grid at {},{}.", p.layer, map.name, p.rows.len(), p.x, p.y))
-    }
-
-    pub(crate) fn mcp_fill_rect(&mut self, p: FillRectParams) -> Result<Reply, String> {
-        self.mcp_target_map(&p.map)?;
-        let map = self.mcp_doc()?.map.clone();
-        let (slot, count) = self.tileset_slot_checked(&map, &p.tileset)?;
-        let tile = match p.index {
-            i if i < 0 => Tile::EMPTY,
-            i if (i as u32) < count => Tile::new(slot, i as u32),
-            i => return Err(format!("tile index {i} is outside {} ({} tiles)", p.tileset, count)),
-        };
-        if (p.w * p.h) as usize > MAX_CELLS * 4 {
-            return Err(format!("at most {} tiles per call", MAX_CELLS * 4));
-        }
-        let cells: Vec<(i32, i32, Tile)> = (p.y..p.y + p.h).flat_map(|y| (p.x..p.x + p.w).map(move |x| (x as i32, y as i32, tile))).collect();
-        if let Some(d) = &mut self.doc {
-            d.map.tileset_slot(&p.tileset);
-        }
-        let n = self.paint_cells(p.layer, &cells)?;
-        self.mcp_after_write(format!("Filled {n} tiles ({}x{} at {},{}) on layer {} of \"{}\".", p.w, p.h, p.x, p.y, p.layer, map.name))
-    }
-
+    /// The cells of `cells` and / or `rect` (tiles).
     fn cells_of(cells: &Option<Vec<[i32; 2]>>, rect: &Option<[u32; 4]>) -> Result<Vec<(i32, i32)>, String> {
         let mut out: Vec<(i32, i32)> = cells.iter().flatten().map(|c| (c[0], c[1])).collect();
         if let Some([x, y, w, h]) = rect {
@@ -531,38 +525,6 @@ impl Editor {
         Ok(out)
     }
 
-    pub(crate) fn mcp_paint_terrain(&mut self, p: PaintTerrainParams) -> Result<Reply, String> {
-        self.mcp_target_map(&p.map)?;
-        let found = self.project.db.tilesets.iter().find_map(|d| d.terrains.iter().position(|t| t.name.eq_ignore_ascii_case(&p.terrain)).map(|k| (d.id.clone(), k, d.terrains.clone())));
-        let Some((id, k, terrains)) = found else {
-            let names: Vec<String> = self.project.db.tilesets.iter().flat_map(|d| d.terrains.iter().map(|t| t.name.clone())).collect();
-            return Err(format!("no terrain named \"{}\".{}", p.terrain, suggestions(&p.terrain, names.iter().map(String::as_str))));
-        };
-        let cells = Self::cells_of(&p.cells, &p.rect)?;
-        let layer = p.layer.unwrap_or(0);
-        let erase = p.erase.unwrap_or(false);
-        let assets = &self.assets;
-        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
-        if layer >= doc.map.layers.len() {
-            return Err(format!("layer {layer} doesn't exist: the map has layers 0..{}", doc.map.layers.len() - 1));
-        }
-        let slot = doc.map.tileset_slot(&id);
-        let mut n = 0;
-        doc.begin_stroke(layer, false);
-        for cell in cells {
-            if !doc.map.in_bounds(cell.0, cell.1) {
-                continue;
-            }
-            for (x, y, new) in autotile::paint(&doc.map, layer, slot, &terrains, k, cell, erase) {
-                doc.paint(layer, x as i32, y as i32, new, assets);
-            }
-            n += 1;
-        }
-        doc.end_stroke();
-        let name = doc.map.name.clone();
-        self.mcp_after_write(format!("{} terrain \"{}\" ({id}) on {n} cells of layer {layer} of \"{name}\".", if erase { "Erased" } else { "Painted" }, p.terrain))
-    }
-
     pub(crate) fn mcp_set_collision(&mut self, p: SetCollisionParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
         let value = match p.value.to_lowercase().as_str() {
@@ -573,7 +535,7 @@ impl Editor {
         };
         let cells = Self::cells_of(&p.cells, &p.rect)?;
         let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
-        doc.begin_stroke(0, true);
+        doc.begin_stroke();
         let mut n = 0;
         for (x, y) in cells {
             if doc.map.in_bounds(x, y) {
@@ -1071,7 +1033,7 @@ impl Editor {
         let name = p.name.as_deref().map(str::trim).filter(|n| !n.is_empty()).unwrap_or(&id).to_string();
         let mut d = rustpg2d_engine::defs::StructureDef::capture(&doc.map, &id, &name, (p.x, p.y, p.w, p.h), p.ground.unwrap_or(true));
         d.category = p.category.clone().unwrap_or_default().trim().to_string();
-        let msg = format!("New structure \"{id}\" ({}x{} tiles, {} entities) from \"{}\".", d.w, d.h, d.entities.len(), doc.map.name);
+        let msg = format!("New structure \"{id}\" ({}x{} tiles, {} decorations, {} entities) from \"{}\".", d.w, d.h, d.decor.len(), d.entities.len(), doc.map.name);
         self.project.db.structures.push(d);
         self.defs_dirty = true;
         self.mcp_after_write(msg)
@@ -1124,5 +1086,44 @@ pub(crate) fn functions_in(ts: &[Trigger]) -> Vec<String> {
     }
     out.sort();
     out.dedup();
+    out
+}
+
+/// The painted ground of a region as text: one glyph per tile (the material in the tile's middle),
+/// with a legend; '.' = no ground.
+fn render_ground(map: &Map, r: &grid::Region) -> String {
+    const GLYPHS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+=?";
+    let n = rustpg2d_engine::ground::CELLS as i32;
+    let mut used = std::collections::BTreeSet::new();
+    let mut rows = String::new();
+    for y in r.y..r.y + r.h {
+        for x in r.x..r.x + r.w {
+            let v = map.ground.get(x as i32 * n + n / 2, y as i32 * n + n / 2);
+            used.insert(v);
+            rows.push(if v == 0 { '.' } else { GLYPHS.get(v as usize - 1).copied().unwrap_or(b'?') as char });
+        }
+        rows.push('\n');
+    }
+    let legend: Vec<String> = used.into_iter().filter(|v| *v > 0).map(|v| format!("{}={}", GLYPHS.get(v as usize - 1).copied().unwrap_or(b'?') as char, map.material_of(v).unwrap_or("?"))).collect();
+    format!("ground ({} materials; {}):\n{rows}", map.materials.len(), if legend.is_empty() { "none painted".to_string() } else { legend.join(", ") })
+}
+
+/// The decorations of a region: a count per prop and layer, and each one when there are few.
+fn render_decor(map: &Map, r: &grid::Region, ts: f32) -> String {
+    let inside: Vec<&rustpg2d_engine::decor::Decor> = map
+        .decor
+        .iter()
+        .filter(|d| d.x as f32 >= r.x as f32 * ts && (d.x as f32) < (r.x + r.w) as f32 * ts && d.y as f32 >= r.y as f32 * ts && (d.y as f32) < (r.y + r.h) as f32 * ts)
+        .collect();
+    let mut counts: std::collections::BTreeMap<(String, String), usize> = Default::default();
+    for d in &inside {
+        *counts.entry((map.decor_defs[d.def as usize].clone(), d.layer.label().to_lowercase())).or_default() += 1;
+    }
+    let mut out = format!("decorations here: {} ({})\n", inside.len(), counts.iter().map(|((p, l), n)| format!("{p} x{n} {l}")).collect::<Vec<_>>().join(", "));
+    if inside.len() <= 60 {
+        for d in inside {
+            out += &format!("D {} @{:.2},{:.2}{}{}\n", map.decor_defs[d.def as usize], d.x as f32 / ts, d.y as f32 / ts, if d.flip { " flipped" } else { "" }, if d.layer == rustpg2d_engine::decor::DecorLayer::Sorted { String::new() } else { format!(" {}", d.layer.label().to_lowercase()) });
+        }
+    }
     out
 }

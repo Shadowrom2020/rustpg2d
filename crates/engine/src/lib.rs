@@ -2,8 +2,10 @@
 
 pub mod achievements;
 pub mod audio;
-pub mod autotile;
 pub mod crafting;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod convert_tiles;
+pub mod decor;
 pub mod defs;
 pub mod desktop;
 pub mod effects;
@@ -15,6 +17,7 @@ pub mod fog;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;
 pub mod grid;
+pub mod ground;
 pub mod hash;
 pub mod icon;
 pub mod imageio;
@@ -28,6 +31,7 @@ pub mod macsign;
 pub mod map;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod migrate;
+pub mod old_tiles;
 pub mod model;
 pub mod path;
 pub mod pack;

@@ -36,7 +36,7 @@ impl ImportKind {
     }
     pub fn help(self) -> &'static str {
         match self {
-            ImportKind::Tiled => "A .tmx or .tmj map (orthogonal, not infinite). Its tilesets are added (scaled to 32 px tiles), tile layers become layers (names with \"over\" / \"above\" draw above characters), a layer named \"collision\" marks solid tiles, tiles with a \"solid\" property block, rectangles of object layers become trigger zones and points named spawn:NAME spawn points. The map is saved and opened.",
+            ImportKind::Tiled => "A .tmx or .tmj map (orthogonal, not infinite). Its tilesets are scaled to 32 px tiles and converted: the first tile layer becomes painted ground (a material per tile kind, Wang sets as terrains with natural edges), the others decorations (names with \"over\" / \"above\" draw above characters); a layer named \"collision\" marks solid tiles, tiles with a \"solid\" property block, rectangles of object layers become trigger zones and points named spawn:NAME spawn points. The map is saved and opened.",
             ImportKind::Aseprite => "The JSON exported with Aseprite's File › Export Sprite Sheet (array or hash), next to its PNG. Frames are packed into a grid; tags become named animations offered by the Effect / Fly actions and effect(…, #{ tag: \"name\" }).",
         }
     }

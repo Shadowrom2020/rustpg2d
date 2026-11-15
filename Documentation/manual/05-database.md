@@ -7,8 +7,9 @@ Database says what they are.
 
 ## Working with definitions
 
-The tabs along the top are *Items, Props, Characters, Tilesets, Sprite sheets, Sounds, Structures,
-Skills, Spells, Recipes, Quests, Achievements, Project* and *Scripts*. Each asset tab has a list on
+The tabs along the top are *Items, Props, Characters, Races, 3D models, Materials, Scatter sets,
+Sprite sheets, Sounds, Structures, Skills, Spells, Recipes, Quests, Achievements, Project* and
+*Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
 
 - **+ New**, **Duplicate** and **Delete** manage the list, **Usages** lists every place the
@@ -121,6 +122,10 @@ things run along the line through both fists.
 | **States** | Every prop has a list of named states, each with its own sprite and whether it blocks movement (an iron gate: *closed*, *open*, *destroyed*; a shrine: *dormant*, *glowing*). The first is the default. *+ Add state*, *Make default*, the arrows and ✖ organise them; renaming a state updates placed props and triggers. |
 | **Size and hitbox** | *Size (cells)* for props made of several frames of their sheet (a 2 × 2 double gate, a 3 × 4 oak), and the collision box (e.g. only the trunk), so the player walks behind big crowns. |
 | **Low** | While solid, the prop stops walking but not shots or sight (barrels, chairs, crates, fences). Solid props that aren't low stop arrows and bolts where their hitbox is (a tree at its trunk); see [Maps › Low and high obstacles](03-maps.md#low-and-high-obstacles). |
+| **Ladder** | Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it. |
+| **Animation** | Frames of its sprite sheet shown in turn at a speed (*fps*): the default state of a torch, a flag, a water wheel; also as a decoration. Props converted from animated tiles have one. |
+| **Snap to** | Placed as a decoration it sits on a grid of 8, 16 or 32 pixels (walls, fences). |
+| **Wall set** | Its *Wall pieces*: the prop for each combination of neighbours of the set (north, east, south, west: corners, ends, crossings). A line drawn with the Decorations tool swaps in the piece each spot needs; empty pieces use the prop itself. |
 | **Lockable** | A default lock for every copy: the key item, whether the key is *used up* or *stays*, what happens when unlocked (disappear, or switch to a state such as *open*), the locked / unlocked messages, *Can be locked again with the key*, and a **Lockpicking** difficulty. A lock without a key item is a door that simply opens. |
 | **Lootable container** | Slots, starting contents, *Opens only if* conditions with a locked message, and the state to switch to when first opened. Contents are saved. |
 | **Furniture** | Makes it sittable or a bed ([Gameplay › Furniture](09-gameplay.md#furniture-sitting-and-sleeping)). |
@@ -151,18 +156,53 @@ Humans, goblins, elves…: each race's bodies, the looks the creator offers, wha
 race gets (max HP, speed, defense, starting skills) and its size. See
 [Characters › Races](06-characters.md#races).
 
-## Tilesets
+## Materials
+
+Ground materials painted on maps ([Maps › Painted ground](03-maps.md#painted-ground)).
 
 | Setting | Meaning |
 |---|---|
-| **Image** | The tileset picture (*Browse…* copies it into `tilesets/`), cut into 32 × 32 tiles |
-| **Solid tiles** | Click tiles in the grid to make them block movement by default |
-| **Light tiles** | Tiles that glow (windows, lamps): a list, or *Pick light tiles in the grid*. A bulb marks them |
-| **Ladder tiles** | *Pick ladder tiles in the grid*; a green ladder icon marks them |
-| **Low tiles** | *Pick low tiles in the grid*: solid tiles that stop walking but not shots or sight (fences, rocks, water, tables; [Maps › Low and high obstacles](03-maps.md#low-and-high-obstacles)). They are drawn yellow instead of red, with an arrow mark |
-| **Footsteps** | *Pick footstep tiles in the grid* with a sound chosen next to it: a click gives a tile that step sound or takes it away; footprints mark them. For floors that aren't terrains (wooden floors indoors); a terrain's own **Footsteps** sound (in its row under *Terrains*) covers its tiles ([Art and sound › Soundscapes](10-art-and-sound.md#soundscapes-and-footsteps)) |
-| **Animations** | Add an animation, then click tiles in the image to append its frames (water, lava, waterfalls) |
-| **Terrains** | Auto-tiling terrains ([Maps › Terrains](03-maps.md#defining-a-terrain)) |
+| **Texture** | A seamless picture under the project (up to 256 × 256 px, sizes in steps of 8), repeated over the ground |
+| **Edge** | *Crisp*: a hard edge in steps of the art's pixels; *Soft*: a fade into the neighbour; *Straight*: exactly along the 8 px cells, square corners (floors, carpets, plazas; the converted tile materials) |
+| **Raggedness** | How far noise moves the edge, 0–4 px (0 = smooth curves along the painted cells) |
+| **Edge pixel** | The step size of a crisp edge (the texture's pixel size in world pixels: 1, 2 or 4) |
+| **Priority** | Where two materials meet, the higher one is drawn over the other |
+| **Rim** | A fringe of a colour and width drawn just outside the edge (sand round water); on a *Straight* material a border up to 4 px (the carpet's gold edge) |
+| **Walking** | *Walkable*; *Solid* (blocks walking, shots and sight: cliffs, a void); *Low* (blocks walking only: water, a chasm) |
+| **Footsteps** | The sound of each step on it |
+| **Flow** | The texture drifts this many pixels per second (flowing water) |
+| **Animation** | How many **frames** the texture holds side by side (each one seamless; together up to 256 × 256 px) and how many are shown **per second**: rippling water, bubbling lava. Works together with *Flow* |
+
+Beside the settings a **preview** draws the material as on a map: a round and a square patch of it on
+a neighbour material (*Preview next to*; grass by default), with its edge, raggedness, rim, priority
+and flow. *Swap* puts the neighbour inside it instead, to see both sides of the edge. The preview
+follows every change at once, also strokes in the texture not saved yet.
+
+**Drawing the texture**: the pixel editor sits under the form with the texture open as one seamless
+picture. Copies of it are drawn around it (*Show copies around it*), and the pencil, line, rectangle
+and fill wrap across its edges, so a stroke leaving the picture on one side comes back on the other
+and the seams can be painted away where you see them. *Size* resizes it in steps of 8 px (growing
+repeats the picture). *Save* (Ctrl+S) writes the PNG and the maps show it. An **animated** material
+shows one frame at a time, with its copies: the strip of frames beside the tools picks the frame to
+draw (Copy / Paste carries one over to start the next), and a small preview plays them tiled.
+Raising *Animation* adds copies of the last frame to the texture (lowering it removes frames at
+the end): draw the differences, then save. A material without a
+texture gets one with **Draw a new one** (`materials/<id>.png`) and a size to start from (16 to 128 px,
+filled with the left colour).
+
+## Scatter sets
+
+The props the Decorations tool's **scatter brush** places at random ([Maps › Decorations](03-maps.md#decorations)):
+
+| Setting | Meaning |
+|---|---|
+| **Props** | Prop ids and how often each comes (a weight: 2 comes twice as often as 1) |
+| **Density** | Decorations per tile under the brush (0.05: a sparse wood, 0.5: flowers) |
+| **Spacing** | The least distance between two of them, and from what is there already |
+| **Layer** | *Flat*, *Sorted* or *Above* |
+| **Mirror half of them** | Every other one at random is mirrored left to right |
+
+The starter library brings *Forest* (oaks and pines), *Rocks* and *Wild plants*.
 
 ## Sprite sheets
 

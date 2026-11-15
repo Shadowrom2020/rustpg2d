@@ -1,4 +1,5 @@
-//! Tile maps: chunked, sparse layers so maps up to 1024x1024 tiles stay cheap.
+//! Maps: painted ground (8 px cells in materials), decorations, entities and zones on a grid of
+//! 32 px tiles (collision, route planning, zones); up to 1024 x 1024 tiles.
 
 pub mod io;
 /// The non-tile part of a map (objects and settings), the editor's undo snapshot: see `io::Meta`.
@@ -13,168 +14,6 @@ pub use transition::{Edge, EdgeLink, EdgeLinks, Respawn, Zone, ZoneKind};
 
 pub const MAX_MAP_SIZE: u32 = 1024;
 pub const CHUNK_SIZE: u32 = 32;
-const CHUNK_AREA: usize = (CHUNK_SIZE * CHUNK_SIZE) as usize;
-
-/// A tile reference. `0` is the empty tile; otherwise it encodes
-/// a tileset slot (index into `Map::tilesets`) and a tile index inside that tileset.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Tile(pub u32);
-
-impl Tile {
-    pub const EMPTY: Tile = Tile(0);
-    const INDEX_BITS: u32 = 20;
-    const INDEX_MASK: u32 = (1 << Self::INDEX_BITS) - 1;
-
-    pub fn new(tileset_slot: u16, index: u32) -> Tile {
-        debug_assert!(tileset_slot < 4095 && index <= Self::INDEX_MASK);
-        Tile(((tileset_slot as u32 + 1) << Self::INDEX_BITS) | (index & Self::INDEX_MASK))
-    }
-    pub fn is_empty(self) -> bool {
-        self.0 == 0
-    }
-    /// `(tileset_slot, tile_index)`, or `None` for the empty tile (and for values without a
-    /// tileset slot, which only bad data contains).
-    pub fn parts(self) -> Option<(usize, u32)> {
-        let slot = self.0 >> Self::INDEX_BITS;
-        (slot > 0).then(|| ((slot - 1) as usize, self.0 & Self::INDEX_MASK))
-    }
-}
-
-/// Frozen: stored with postcard (by position, no defaults) inside map files, like [`TileLayer`].
-/// A new property of layers or chunks goes into the map's RON `Meta` (`io.rs`), or the format
-/// version is bumped with a reader for the old layout.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Chunk {
-    pub tiles: Vec<Tile>,
-}
-
-impl Chunk {
-    fn new() -> Self {
-        Chunk { tiles: vec![Tile::EMPTY; CHUNK_AREA] }
-    }
-    fn is_empty(&self) -> bool {
-        self.tiles.iter().all(|t| t.is_empty())
-    }
-}
-
-/// One drawable layer of tiles, stored as a grid of optional chunks.
-///
-/// Frozen: map files store it with postcard (fields by position, no defaults), so the `serde`
-/// defaults below only apply to other formats. A new layer property goes into the map's RON
-/// `Meta` (`io.rs`), or the format version is bumped with a reader for the old layout.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct TileLayer {
-    pub name: String,
-    #[serde(default = "yes")]
-    pub visible: bool,
-    /// Drawn after entities (tree tops, roofs, ...).
-    #[serde(default)]
-    pub above_entities: bool,
-    chunks_w: u32,
-    chunks_h: u32,
-    chunks: Vec<Option<Box<Chunk>>>,
-}
-
-fn yes() -> bool {
-    true
-}
-
-impl TileLayer {
-    pub fn new(name: &str, width: u32, height: u32, above_entities: bool) -> Self {
-        let chunks_w = width.div_ceil(CHUNK_SIZE);
-        let chunks_h = height.div_ceil(CHUNK_SIZE);
-        TileLayer {
-            name: name.to_string(),
-            visible: true,
-            above_entities,
-            chunks_w,
-            chunks_h,
-            chunks: vec![None; (chunks_w * chunks_h) as usize],
-        }
-    }
-
-    /// Checks a layer read from a file against the map's size: `get` and `set` index the chunk
-    /// grid without bounds checks, so a layer that doesn't fit is refused when loading.
-    pub fn validate(&self, width: u32, height: u32) -> Result<(), String> {
-        let (cw, ch) = (width.div_ceil(CHUNK_SIZE), height.div_ceil(CHUNK_SIZE));
-        if self.chunks_w != cw || self.chunks_h != ch {
-            return Err(format!("layer '{}' has a {}x{} chunk grid, the map needs {cw}x{ch}", self.name, self.chunks_w, self.chunks_h));
-        }
-        if self.chunks.len() != cw as usize * ch as usize {
-            return Err(format!("layer '{}' has {} chunks, not {}", self.name, self.chunks.len(), cw as usize * ch as usize));
-        }
-        if let Some(c) = self.chunks.iter().flatten().find(|c| c.tiles.len() != CHUNK_AREA) {
-            return Err(format!("layer '{}' has a chunk of {} tiles, not {CHUNK_AREA}", self.name, c.tiles.len()));
-        }
-        Ok(())
-    }
-
-    #[inline]
-    fn locate(&self, x: u32, y: u32) -> (usize, usize) {
-        let ci = (y / CHUNK_SIZE * self.chunks_w + x / CHUNK_SIZE) as usize;
-        let ti = ((y % CHUNK_SIZE) * CHUNK_SIZE + x % CHUNK_SIZE) as usize;
-        (ci, ti)
-    }
-
-    /// Caller must ensure `x,y` are inside the map.
-    #[inline]
-    pub fn get(&self, x: u32, y: u32) -> Tile {
-        let (ci, ti) = self.locate(x, y);
-        match &self.chunks[ci] {
-            Some(c) => c.tiles[ti],
-            None => Tile::EMPTY,
-        }
-    }
-
-    /// Sets a tile and returns the previous value.
-    pub fn set(&mut self, x: u32, y: u32, tile: Tile) -> Tile {
-        let (ci, ti) = self.locate(x, y);
-        let slot = &mut self.chunks[ci];
-        if slot.is_none() {
-            if tile.is_empty() {
-                return Tile::EMPTY;
-            }
-            *slot = Some(Box::new(Chunk::new()));
-        }
-        let chunk = slot.as_mut().unwrap();
-        std::mem::replace(&mut chunk.tiles[ti], tile)
-    }
-
-    /// Every non-empty tile as `(x, y, tile)`, chunk by chunk (skips unallocated chunks).
-    pub fn tiles(&self) -> impl Iterator<Item = (u32, u32, Tile)> + '_ {
-        self.chunks.iter().enumerate().filter_map(|(ci, c)| c.as_ref().map(|c| (ci as u32, c))).flat_map(move |(ci, c)| {
-            let (cx, cy) = (ci % self.chunks_w * CHUNK_SIZE, ci / self.chunks_w * CHUNK_SIZE);
-            c.tiles.iter().enumerate().filter(|(_, t)| !t.is_empty()).map(move |(i, t)| (cx + i as u32 % CHUNK_SIZE, cy + i as u32 / CHUNK_SIZE, *t))
-        })
-    }
-
-    /// Frees chunks that became completely empty (called before saving).
-    pub fn compact(&mut self) {
-        for slot in &mut self.chunks {
-            if slot.as_ref().is_some_and(|c| c.is_empty()) {
-                *slot = None;
-            }
-        }
-    }
-
-    pub fn allocated_chunks(&self) -> usize {
-        self.chunks.iter().filter(|c| c.is_some()).count()
-    }
-
-    /// Whether the chunk containing tile `(x, y)` holds any data.
-    pub fn chunk_allocated(&self, x: u32, y: u32) -> bool {
-        self.chunks[self.locate(x, y).0].is_some()
-    }
-
-    /// The tiles of chunk (`cx`, `cy`), row by row (`CHUNK_SIZE` wide); None while it is empty
-    /// or outside the layer.
-    pub fn chunk_tiles(&self, cx: u32, cy: u32) -> Option<&[Tile]> {
-        if cx >= self.chunks_w || cy >= self.chunks_h {
-            return None;
-        }
-        self.chunks[(cy * self.chunks_w + cx) as usize].as_deref().map(|c| &c.tiles[..])
-    }
-}
 
 /// Per-tile collision override painted in the editor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -192,9 +31,14 @@ pub struct Map {
     pub name: String,
     pub width: u32,
     pub height: u32,
-    /// Tileset ids used by this map; `Tile` slots index into this list.
-    pub tilesets: Vec<String>,
-    pub layers: Vec<TileLayer>,
+    /// Material ids used by the painted ground; a ground cell holds its slot here plus one.
+    pub materials: Vec<String>,
+    /// The painted ground.
+    pub ground: crate::ground::Ground,
+    /// Prop ids of the decorations; `Decor::def` indexes into this list.
+    pub decor_defs: Vec<String>,
+    /// Decorations: props placed freely as pictures (trees, rocks, walls, buildings).
+    pub decor: Vec<crate::decor::Decor>,
     /// One byte per tile (`CollisionOverride`).
     pub collision: Vec<u8>,
     pub entities: Vec<EntityInstance>,
@@ -373,12 +217,10 @@ impl Map {
             name: name.to_string(),
             width,
             height,
-            tilesets: Vec::new(),
-            layers: vec![
-                TileLayer::new("Ground", width, height, false),
-                TileLayer::new("Detail", width, height, false),
-                TileLayer::new("Overhead", width, height, true),
-            ],
+            materials: Vec::new(),
+            ground: crate::ground::Ground::new(width, height),
+            decor_defs: Vec::new(),
+            decor: Vec::new(),
             collision: vec![0; (width * height) as usize],
             entities: Vec::new(),
             zones: Vec::new(),
@@ -399,17 +241,75 @@ impl Map {
         x >= 0 && y >= 0 && (x as u32) < self.width && (y as u32) < self.height
     }
 
-    pub fn add_layer(&mut self, name: &str, above_entities: bool) {
-        self.layers.push(TileLayer::new(name, self.width, self.height, above_entities));
+    /// The ground cell value of a material id, registering it in the map's list; `None` when
+    /// the map already uses [`crate::ground::MAX_MATERIALS`] materials.
+    pub fn material_value(&mut self, material: &str) -> Option<u8> {
+        if let Some(i) = self.materials.iter().position(|m| m == material) {
+            return Some(i as u8 + 1);
+        }
+        if self.materials.len() >= crate::ground::MAX_MATERIALS {
+            return None;
+        }
+        self.materials.push(material.to_string());
+        Some(self.materials.len() as u8)
     }
 
-    /// Returns the slot for a tileset id, registering it if needed.
-    pub fn tileset_slot(&mut self, tileset_id: &str) -> u16 {
-        if let Some(i) = self.tilesets.iter().position(|t| t == tileset_id) {
+    /// The material id of a ground cell value (`None` for 0 = no ground).
+    pub fn material_of(&self, v: u8) -> Option<&str> {
+        (v > 0).then(|| self.materials.get(v as usize - 1).map(String::as_str)).flatten()
+    }
+
+    /// The `decor_defs` slot of a prop id, registering it.
+    pub fn decor_slot(&mut self, prop: &str) -> u16 {
+        if let Some(i) = self.decor_defs.iter().position(|d| d == prop) {
             return i as u16;
         }
-        self.tilesets.push(tileset_id.to_string());
-        (self.tilesets.len() - 1) as u16
+        self.decor_defs.push(prop.to_string());
+        (self.decor_defs.len() - 1) as u16
+    }
+
+    /// Drops prop ids no decoration uses any more from `decor_defs` (renumbering).
+    pub fn prune_decor_defs(&mut self) {
+        let mut used = vec![false; self.decor_defs.len()];
+        for d in &self.decor {
+            if let Some(u) = used.get_mut(d.def as usize) {
+                *u = true;
+            }
+        }
+        if used.iter().all(|u| *u) {
+            return;
+        }
+        let mut map = vec![0u16; used.len()];
+        let mut kept = Vec::new();
+        for (i, id) in self.decor_defs.iter().enumerate() {
+            if used[i] {
+                map[i] = kept.len() as u16;
+                kept.push(id.clone());
+            }
+        }
+        self.decor.retain(|d| (d.def as usize) < map.len());
+        for d in &mut self.decor {
+            d.def = map[d.def as usize];
+        }
+        self.decor_defs = kept;
+    }
+
+    /// Drops materials no ground cell uses any more from the list (renumbering the cells).
+    pub fn prune_materials(&mut self) {
+        let used = self.ground.used();
+        if (1..=self.materials.len() as u8).all(|v| used.contains(&v)) {
+            return;
+        }
+        let mut map = vec![0u8; self.materials.len() + 1];
+        let mut kept = Vec::new();
+        for (i, id) in self.materials.iter().enumerate() {
+            if used.contains(&(i as u8 + 1)) {
+                kept.push(id.clone());
+                map[i + 1] = kept.len() as u8;
+            }
+        }
+        self.ground.remap(|v| map.get(v as usize).copied().unwrap_or(0));
+        self.materials = kept;
     }
 
     pub fn collision_at(&self, x: u32, y: u32) -> CollisionOverride {
@@ -444,49 +344,10 @@ impl Map {
             .find(|z| matches!(z.kind, ZoneKind::Spawn) && z.name == name)
     }
 
-    /// Whether a tile blocks movement, given a tile-solidity lookup
-    /// `(tileset_slot, tile_index) -> solid`. Overhead layers never collide.
-    pub fn tile_solid(&self, x: u32, y: u32, is_solid: &impl Fn(usize, u32) -> bool) -> bool {
-        match self.collision_at(x, y) {
-            CollisionOverride::Solid => true,
-            CollisionOverride::Walkable => false,
-            CollisionOverride::Auto => self.layers.iter().any(|l| {
-                !l.above_entities && l.get(x, y).parts().is_some_and(|(s, i)| is_solid(s, i))
-            }),
-        }
-    }
-
-    /// Whether a tile stops shots and sight, given `(tileset_slot, tile_index) -> high` (solid
-    /// and not low). A cell painted solid in the collision layer stops them; one painted
-    /// walkable doesn't. Overhead layers never count.
-    pub fn tile_blocks_shot(&self, x: u32, y: u32, is_high: &impl Fn(usize, u32) -> bool) -> bool {
-        match self.collision_at(x, y) {
-            CollisionOverride::Solid => true,
-            CollisionOverride::Walkable => false,
-            CollisionOverride::Auto => self.layers.iter().any(|l| !l.above_entities && l.get(x, y).parts().is_some_and(|(s, i)| is_high(s, i))),
-        }
-    }
-
-    /// Computes the shot grid for the whole map ([`Self::tile_blocks_shot`]).
-    pub fn compute_shot_block(&self, is_high: impl Fn(usize, u32) -> bool) -> Vec<bool> {
-        let mut out = vec![false; (self.width * self.height) as usize];
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out[(y * self.width + x) as usize] = self.tile_blocks_shot(x, y, &is_high);
-            }
-        }
-        out
-    }
-
-    /// Computes the walkability grid for the whole map.
-    pub fn compute_solid(&self, is_solid: impl Fn(usize, u32) -> bool) -> Vec<bool> {
-        let mut out = vec![false; (self.width * self.height) as usize];
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out[(y * self.width + x) as usize] = self.tile_solid(x, y, &is_solid);
-            }
-        }
-        out
+    /// The tiles painted solid in the collision layer (ground and decorations add theirs when
+    /// a map is entered; tiles painted walkable keep out of those).
+    pub fn compute_solid(&self) -> Vec<bool> {
+        self.collision.iter().map(|&c| c == CollisionOverride::Solid as u8).collect()
     }
 
     /// Resizes the map, keeping the top-left area. Entities and zones are kept as-is.
@@ -494,18 +355,6 @@ impl Map {
         let width = width.clamp(1, MAX_MAP_SIZE);
         let height = height.clamp(1, MAX_MAP_SIZE);
         let (cw, ch) = (self.width.min(width), self.height.min(height));
-        for layer in &mut self.layers {
-            let mut nl = TileLayer::new(&layer.name, width, height, layer.above_entities);
-            nl.visible = layer.visible;
-            for y in 0..ch {
-                for x in 0..cw {
-                    if layer.chunk_allocated(x, y) {
-                        nl.set(x, y, layer.get(x, y));
-                    }
-                }
-            }
-            *layer = nl;
-        }
         let mut col = vec![0u8; (width * height) as usize];
         for y in 0..ch {
             for x in 0..cw {
@@ -513,14 +362,17 @@ impl Map {
             }
         }
         self.collision = col;
+        self.ground = self.ground.resized(width, height);
+        let (pw, ph) = ((width * crate::project::TILE_SIZE) as i32, (height * crate::project::TILE_SIZE) as i32);
+        self.decor.retain(|d| d.x < pw && d.y <= ph);
         self.width = width;
         self.height = height;
     }
 
     pub fn compact(&mut self) {
-        for l in &mut self.layers {
-            l.compact();
-        }
+        self.ground.compact();
+        self.prune_materials();
+        self.prune_decor_defs();
     }
 }
 
@@ -529,44 +381,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tile_encoding_roundtrip() {
-        let t = Tile::new(3, 12345);
-        assert_eq!(t.parts(), Some((3, 12345)));
-        assert_eq!(Tile::EMPTY.parts(), None);
-        assert_eq!(Tile::new(0, 0).parts(), Some((0, 0)));
-    }
-
-    #[test]
-    fn get_set_across_chunk_boundaries() {
-        let mut l = TileLayer::new("t", 100, 70, false);
-        let pts = [(0, 0), (31, 31), (32, 31), (31, 32), (99, 69), (64, 0)];
-        for (i, &(x, y)) in pts.iter().enumerate() {
-            l.set(x, y, Tile::new(0, i as u32 + 1));
-        }
-        for (i, &(x, y)) in pts.iter().enumerate() {
-            assert_eq!(l.get(x, y), Tile::new(0, i as u32 + 1));
-        }
-        assert_eq!(l.get(33, 33), Tile::EMPTY);
-        // Setting empty in an unallocated chunk must not allocate.
-        let before = l.allocated_chunks();
-        l.set(50, 50, Tile::EMPTY);
-        assert_eq!(l.allocated_chunks(), before);
-        l.set(99, 69, Tile::EMPTY);
-        l.compact();
-        assert_eq!(l.allocated_chunks(), before - 1);
-    }
-
-    #[test]
     fn resize_keeps_overlap() {
         let mut m = Map::new("m", 40, 40);
-        m.layers[0].set(39, 39, Tile::new(0, 1));
-        m.layers[0].set(5, 5, Tile::new(0, 2));
+        m.ground.set(5 * 4, 5 * 4, 2);
         m.set_collision(5, 5, CollisionOverride::Solid);
         m.resize(70, 20);
         assert_eq!((m.width, m.height), (70, 20));
-        assert_eq!(m.layers[0].get(5, 5), Tile::new(0, 2));
+        assert_eq!(m.ground.get(5 * 4, 5 * 4), 2);
         assert_eq!(m.collision_at(5, 5), CollisionOverride::Solid);
-        assert_eq!(m.layers[0].get(69, 19), Tile::EMPTY);
+        assert_eq!(m.ground.get(69 * 4, 19 * 4), 0);
     }
 
     #[test]
@@ -576,34 +399,13 @@ mod tests {
     }
 
     #[test]
-    fn solidity_respects_overrides() {
+    fn painted_collision_is_solid() {
         let mut m = Map::new("m", 4, 4);
-        m.layers[0].set(1, 1, Tile::new(0, 7));
-        m.layers[0].set(2, 2, Tile::new(0, 7));
         m.set_collision(2, 2, CollisionOverride::Walkable);
         m.set_collision(3, 3, CollisionOverride::Solid);
-        let solid = m.compute_solid(|_, i| i == 7);
-        assert!(solid[4 + 1]);
-        assert!(!solid[2 * 4 + 2]);
+        let solid = m.compute_solid();
         assert!(solid[3 * 4 + 3]);
+        assert!(!solid[2 * 4 + 2]);
         assert!(!solid[0]);
-    }
-
-    #[test]
-    fn low_tiles_stop_walking_but_not_shots() {
-        // Tile 7 is a wall (solid, high), tile 5 a fence (solid, low).
-        let mut m = Map::new("m", 4, 2);
-        m.layers[0].set(0, 0, Tile::new(0, 7));
-        m.layers[0].set(1, 0, Tile::new(0, 5));
-        // A fence over water, both low; a wall under an overhead layer still stops shots.
-        m.layers[0].set(2, 0, Tile::new(0, 5));
-        m.set_collision(3, 0, CollisionOverride::Solid);
-        m.set_collision(0, 1, CollisionOverride::Walkable);
-        m.layers[0].set(0, 1, Tile::new(0, 7));
-        let solid = m.compute_solid(|_, i| i == 7 || i == 5);
-        let shot = m.compute_shot_block(|_, i| i == 7);
-        assert_eq!(&solid[..4], &[true, true, true, true]);
-        assert_eq!(&shot[..4], &[true, false, false, true], "walls and painted collision stop shots, fences don't");
-        assert!(!shot[4], "a cell painted walkable stops nothing");
     }
 }

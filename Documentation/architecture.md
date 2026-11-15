@@ -270,8 +270,12 @@ between the two steps still recognises the file. A project file whose size or mt
 behind the editor's back isn't overwritten: the work goes to `<name> (changed N).r2dproject`.
 Closing, switching projects and quitting pack synchronously. Project folders are converted on
 open (`<folder>.r2dproject` beside them); `RUSTPG2D_FOLDER_PROJECTS=1` opens them as they are,
-which the repository's `example_project/`, the smoke script's MCP part and editing the example
-through the agent server rely on.
+which the smoke script's MCP part relies on. **Repository mode** (`repo_mode.rs`): an editor whose
+current folder is a checkout of the repository opens `example_project/` as a folder when started
+without a project, and sets `RUSTPG2D_LIBRARY` (unless set) to the starter library, so library
+writes land in `crates/editor/assets/starter_library/`; the starter source folder never gets the
+embedded starter set applied (`library_ui::starter_for`), which would bring back deleted assets.
+`RUSTPG2D_REPO=0` turns it off.
 
 The **AI agent server** (`mcp/`) is an MCP server (rmcp, Streamable HTTP on `127.0.0.1:7743`) on a
 tokio thread. Tool calls are queued to the main thread and executed between frames (`mcp_drain`:

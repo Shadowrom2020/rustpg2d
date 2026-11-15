@@ -155,8 +155,9 @@ toolchain (Visual Studio Build Tools); on macOS the Xcode command line tools
 
 ```sh
 cargo build --workspace                           # the game runner and the editor
-cargo run -p rustpg2d-editor                      # the editor (welcome screen)
-RUSTPG2D_FOLDER_PROJECTS=1 cargo run -p rustpg2d-editor -- example_project   # the editor on the example folder
+cargo run -p rustpg2d-editor                      # in the repository: the editor on example_project,
+                                                  # with the starter library as its asset library
+RUSTPG2D_REPO=0 cargo run -p rustpg2d-editor      # the editor as users see it (welcome screen)
 cargo run -p rustpg2d-game                        # play the example
 cargo build --release --workspace                 # release builds, used by exports
 ```

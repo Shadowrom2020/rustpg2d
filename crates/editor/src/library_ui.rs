@@ -24,6 +24,12 @@ include!(concat!(env!("OUT_DIR"), "/starter_files.rs"));
 /// example project's assets plus library-only extras), embedded by `build.rs`.
 pub const STARTER: &rustpg2d_engine::library::LibraryFiles<'static> = STARTER_FILES;
 
+/// The starter set to apply when opening the library at `dir`: none for the starter library's
+/// own source folder (repository mode), whose assets are edited there.
+pub fn starter_for(dir: &std::path::Path) -> Option<&'static rustpg2d_engine::library::LibraryFiles<'static>> {
+    (!crate::repo_mode::is_starter_source(dir)).then_some(STARTER)
+}
+
 struct Tex {
     handle: TextureHandle,
     w: f32,
@@ -93,7 +99,8 @@ impl LibState {
         if self.lib.is_some() || self.error.is_some() {
             return;
         }
-        match library::open_library(&library::library_dir(), Some(STARTER)) {
+        let dir = library::library_dir();
+        match library::open_library(&dir, starter_for(&dir)) {
             Ok(p) => {
                 self.lib = Some(p);
                 self.tex_dirty = true;

@@ -1,6 +1,8 @@
 //! R(ust)PG2D editor: maps, entities, zones, transitions, definitions and scripts.
 //!
-//! Usage: rustpg2d-editor [PROJECT_DIR]   (without a folder the welcome screen shows)
+//! Usage: rustpg2d-editor [PROJECT_DIR]   (without a folder the welcome screen shows; started in the
+//!        repository's root folder, its example project opens and the starter library is the
+//!        asset library: `repo_mode.rs`)
 //!        rustpg2d-editor --library [DIR]  (the Asset Library window; default: the shared library)
 // No console window on Windows (logs go to the terminal it was started from, if any).
 #![cfg_attr(windows, windows_subsystem = "windows")]
@@ -33,6 +35,7 @@ mod frame_ops;
 mod material_preview;
 mod pixel;
 mod project_file;
+mod repo_mode;
 mod problems;
 mod script_editor;
 mod search;
@@ -62,6 +65,7 @@ fn library_arg() -> Option<std::path::PathBuf> {
 
 fn window_conf() -> macroquad::conf::Conf {
     rustpg2d_engine::desktop::startup("The R(ust)PG2D editor");
+    repo_mode::init();
     let library = library_arg().is_some();
     let window = Conf {
         icon: Some(rustpg2d_engine::icon::window_icon(&rustpg2d_engine::icon::emblem())),
@@ -105,9 +109,13 @@ pub const EGUI_NOTCH: f32 = WHEEL_POINTS_PER_UNIT * WHEEL_NOTCH;
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // With a folder argument that project opens directly; otherwise the welcome screen shows.
+    // Started in a checkout of the repository: its example project and starter library.
+    repo_mode::init();
+    // With a folder argument that project opens directly; otherwise the welcome screen shows
+    // (repository mode: the example project opens).
     // (macOS passes `-psn_…` to apps started from Finder on some versions: not a project.)
-    let mut ed = match (library_arg(), std::env::args().nth(1).filter(|a| !a.starts_with("-psn_"))) {
+    let project = std::env::args().nth(1).filter(|a| !a.starts_with("-psn_")).or_else(|| repo_mode::example().map(|p| p.display().to_string()));
+    let mut ed = match (library_arg(), project) {
         (Some(dir), _) => Editor::library_window(dir.clone()).unwrap_or_else(|e| {
             let mut ed = Editor::empty();
             ed.set_status(format!("Cannot open the asset library at {}: {e:#}", dir.display()));
@@ -634,8 +642,13 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} ground={} decor={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} ground={} decor={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
+            match repo_mode::root() {
+                None => "off".to_string(),
+                Some(_) => format!("on{}", if repo_mode::library_is_starter() { ":starter" } else { "" }),
+            },
+            rustpg2d_engine::library::library_dir().display(),
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),

@@ -211,6 +211,36 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
   new clips still attacks as before; a copied clip on a body far from the reference (troll); the
   item form (UI test: pick an animation, *Estimate*, save); old item files load (no `anims`).
 
+- [x] Backpacks — `feature/backpacks`
+
+  **Goal.** A *Back* equipment slot for a backpack that shows on the character's model and gives the
+  player more inventory slots while worn: the example's small backpack +6, big +12, magic +24.
+
+  **Design.**
+  - *Slot and item.* `EquipSlot::Back` (appended) and `Equipment.back`; an item worn there is armor
+    with `slot: Back` and `ItemDef.bag_slots` (serde default 0) = the extra slots.
+  - *Inventory size* = `ProjectConfig.inventory_size` + the worn backpack's `bag_slots`, set on
+    equip, unequip and load. Taking a backpack off (or swapping it for a smaller one) packs the
+    items of the slots that go into free slots of the rest; when they don't fit it stays on
+    ("Make room first").
+  - *On the model.* `HoldStyle::Back`: the item's 3D model sits on the upper-back bone (`Spine02`,
+    else the spine bone nearest the shoulders), against the back of the torso, turned with it.
+    Characters of any kind can wear one (NPC equipment too).
+  - *Example.* Three backpacks modelled in Blender (no Meshy credits) with rendered icons: the
+    small and big ones in the village merchant's shop, the magic one in the bandit chief's loot.
+
+  **Engine.** Agreed: the slot, `bag_slots`, the inventory size, the Back slot in the character
+  window, `equip` / `unequip` "back", `HoldStyle::Back` in `render/model.rs`, the editor's item form.
+
+  **Touch points.** `defs.rs` (`EquipSlot`, `ItemDef.bag_slots`, `HoldStyle`), `state.rs`
+  (`Equipment`), `runtime/equipment.rs`, `inventory_ui.rs` (slot), `runtime/mod.rs` (size on load),
+  `render/model.rs` (back placement), editor `database.rs` (item form), `builder.rs` (equipment),
+  manual 05, 09, 15, CHANGELOG.
+
+  **Verify.** Equip each backpack: the inventory grows by its slots, the model wears it in all
+  facings and while walking and fighting; taking it off with full extra slots refuses, with room
+  packs; save and load keep it; an NPC wearing one; the item form (UI test); old saves load.
+
 ## Backlog (unscheduled ideas)
 
 - Code signing and notarization of the Windows and macOS games (today: Windows unsigned, macOS

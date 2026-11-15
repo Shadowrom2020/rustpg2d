@@ -167,7 +167,13 @@ spell*, *Add mana*, *Damage around player*, *Light around player*.
 
 - The **inventory** has as many slots as *Database › Project › Inventory slots* says; each item has
   a stack size. The character window (C or I) shows it next to the equipment slots (clothing, head,
-  body, weapon, left hand, tool), a portrait in the current gear and live stats.
+  body, weapon, left hand, tool, backpack), a portrait in the current gear and live stats.
+- **Backpacks** go into the *Backpack* slot and show on the character's back; while worn the
+  inventory has the backpack's extra slots (*Extra inventory slots* on the item). Taking one off, or
+  changing it for a smaller one, moves what lies in the slots that go away into free slots; when
+  they don't fit it stays on (*Make room first*). In the example Tilda sells a **Small Backpack**
+  (+6) and a **Traveller's Pack** (+12), and the bandit chief carries a **Magic Backpack** (+24);
+  all three are in the starter library.
 - The **quick bar** has 8 slots: drag items onto it (or select one and press 1–8), then press 1–8 or
   click to use them. Slots show how many you own and grey out at 0.
 - **Dropping**: G drops the selected stack (Shift+G one item), or drag it out of the window. Dropped

@@ -51,7 +51,7 @@ is full, assigns it and opens it for drawing.
 | **Magic** | **Teaches spell**: using it teaches a spell (a scroll that is consumed, a book that isn't) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
 | **Held** | Weapons, left-hand items and tools without a 3D model: how their picture is held (below) |
-| **3D model** | Weapons, left-hand items and tools: the model 3D model characters hold (below) |
+| **3D model** | Weapons, left-hand items, tools and backpacks: the model 3D model characters hold or wear (below) |
 | **Animations** | Weapons and left-hand items: the animations characters play attacking, standing, walking and blocking with it (`attack_2h`, `idle_bow`, `block_shield`…); empty = estimated from its kind, shown beside the field with how many models have each ([Characters › Weapon animations](06-characters.md#weapon-animations)). *Estimate animations* empties them again |
 | **On use** | Triggers that run when the player uses the item: heal, give something, run a script ([Events](07-events.md)) |
 
@@ -65,6 +65,9 @@ is full, assigns it and opens it for drawing.
 - **Helmet**, **Body armor**: defense and a speed change (heavy armor slows).
 - **Left hand**: shields (defense) or lights (a lantern, a torch: give the item a *Light*).
 - **Clothing**: outfits (defense, speed).
+- **Backpack**: goes into the Back slot and shows on the character's back (its 3D model, held *On
+  the back*); **Extra inventory slots** = how many more slots the player's inventory has while it is
+  worn (the example's backpacks: 6, 12, 24).
 
 - **Tool**: a *Tool kind* (`rod`, `pickaxe`, `hammer`, `hoe`…) for activities, gathering, fishing
   and crafting recipes. Held in the right hand while used.
@@ -90,7 +93,7 @@ and correct it with the buttons:
 
 | Setting | What it does |
 |---|---|
-| **Held as** | *Grip*: in the fist, the handle through it and the item's front (a blade's edge, an axe's head, a bow's back) where the knuckles point; swords, axes, tools, bows. Two-handed items lie along both fists when they are together, else in the right hand. *Upright*: held up, the handle pointing up whatever the arm does (torches, staffs). *Hang*: hanging from the hand by its top (lanterns, buckets). *Strap*: on the forearm, its face turned out and forward, its top up (shields). Changing it estimates the item again. |
+| **Held as** | *On the back* (backpacks): on the upper back, against the back of the body, its top up and its front (pockets, a bedroll) facing away; *Estimate* puts the hold point at the middle of its flatter side. *Grip*: in the fist, the handle through it and the item's front (a blade's edge, an axe's head, a bow's back) where the knuckles point; swords, axes, tools, bows. Two-handed items lie along both fists when they are together, else in the right hand. *Upright*: held up, the handle pointing up whatever the arm does (torches, staffs). *Hang*: hanging from the hand by its top (lanterns, buckets). *Strap*: on the forearm, its face turned out and forward, its top up (shields). Changing it estimates the item again. |
 | **Length** | The whole model's length in world pixels (a character is about 40 tall: a sword 24, a spear 44). |
 | **Hold at** | Where along its length the hand holds it, from the handle's end to the far end. |
 | **Estimate** | Hold point, handle and front guessed from the shape again: along the model's length (also when it lies diagonally, like an icon) a thin stretch at one end is the handle (when both ends are thin, the shorter: a sword's grip rather than its blade), held 40 % along it; the front is where its head sticks out, else its wider side. By kind, bows are held upright at their middle, shields at the middle of their back, lanterns at their top. |

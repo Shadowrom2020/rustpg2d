@@ -1982,12 +1982,17 @@ impl Game {
             self.world.player_sex = sex;
         }
         let limits = self.project.db.stack_limits();
-        self.world.inventory.resize(self.project.config.inventory_size.max(1) as usize);
+        // (A save whose backpack's slots hold items keeps them: the size never drops items.)
+        let cap = self.player_capacity();
+        self.world.inventory.resize(cap);
         self.world.inventory.set_limits(limits.clone());
         for inv in self.world.containers.values_mut().flat_map(|m| m.values_mut()) {
             inv.set_limits(limits.clone());
         }
         self.dress_player();
+        // (A player definition may start with a backpack on.)
+        let cap = self.player_capacity();
+        self.world.inventory.resize(cap);
         // A new game is the player character's race (the creator may choose another).
         let fresh = self.world.play_time == 0.0 && self.world.current_map.is_empty();
         let race = self.project.db.character(&self.project.config.player).map(|d| d.race.clone()).unwrap_or_default();
@@ -2199,7 +2204,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2267,6 +2272,8 @@ impl Game {
             self.runner.busy(),
             self.ui.dialog_open(),
             self.world.inventory.summary(),
+            self.world.inventory.used_slots(),
+            self.world.inventory.capacity(),
             self.world.flags,
             self.audio.current_music(),
             self.audio.music_loop_status(),

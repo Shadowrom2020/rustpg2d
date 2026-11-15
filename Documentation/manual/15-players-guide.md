@@ -36,7 +36,8 @@ with E or a right-click.
 
 - **Character window**: arrows or a click select; Enter, a double-click or a right-click uses or
   equips; drag items onto or off the equipment slots, onto the quick bar, or out of the window to
-  drop them; G drops the selected stack (Shift+G one item).
+  drop them; G drops the selected stack (Shift+G one item). A **backpack** in the *Backpack* slot
+  gives you more inventory slots; to take it off, first make room for what lies in its slots.
 - **Shop**: click *Buy* or *Sell* (or double-click a row, or Enter / E) to trade one, Shift for ten;
   Tab switches between the merchant's goods and your items.
 - **Loot window**: click a stack to take it (right-click: one), click your own to store it; T takes

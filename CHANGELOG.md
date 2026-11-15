@@ -31,6 +31,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   (`<Pictures>/<game>/`, else beside the save games; the web game offers a download). Exported
   Flatpaks may write to the Pictures folder. `status` prints `photo=`.
 
+- **Character window**: the equipment slots sit around a bigger figure of the player where things
+  are worn (head and body armor, right hand and tool on the left as the figure faces you; backpack,
+  clothing and left hand on the right; a two-handed weapon shows faded in the left hand). Arrows and
+  the d-pad move between them by position; item names and numbers are in the details line.
 - **Battle stance and battle music**: characters stand upright and relaxed out of combat, a
   one-handed weapon at the left hip, and take their weapon's stance with it in the hand when a fight
   starts (hunting, attacking, a companion fighting; the player when engaged, striking, blocking or

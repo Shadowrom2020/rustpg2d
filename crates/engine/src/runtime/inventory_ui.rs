@@ -12,7 +12,6 @@ use super::ui::{panel, slot_grid, slot_grid_size, DragState, SlotEvent, DETAIL_H
 use super::Game;
 use crate::defs::EquipSlot;
 use crate::inventory::{Inventory, ItemStack};
-use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
 
 
@@ -39,7 +38,34 @@ fn quick_rects() -> Vec<Rect> {
 }
 
 const EQUIP_SLOTS: [EquipSlot; 7] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool, EquipSlot::Back];
-const SHEET_W: f32 = 270.0;
+const SHEET_W: f32 = 324.0;
+
+/// Where an equipment slot sits around the figure (it faces the viewer: its right hand is on
+/// the left): (column 0 = left / 1 = right, row from the top).
+fn equip_cell(slot: EquipSlot) -> (usize, usize) {
+    match slot {
+        EquipSlot::Head => (0, 0),
+        EquipSlot::Body => (0, 1),
+        EquipSlot::Weapon => (0, 2),
+        EquipSlot::Tool => (0, 3),
+        EquipSlot::Back => (1, 0),
+        EquipSlot::Clothing => (1, 1),
+        EquipSlot::Offhand => (1, 2),
+    }
+}
+
+/// The index (in [`EQUIP_SLOTS`]) of the slot at a cell.
+fn equip_at(col: usize, row: usize) -> Option<usize> {
+    EQUIP_SLOTS.iter().position(|s| equip_cell(*s) == (col, row))
+}
+
+/// A slot's caption under it.
+fn equip_caption(slot: EquipSlot) -> &'static str {
+    match slot {
+        EquipSlot::Weapon => "Right hand",
+        s => s.label(),
+    }
+}
 
 #[derive(Default)]
 pub(super) struct InvUi {
@@ -173,11 +199,13 @@ fn grid_size(n: usize, cols: usize) -> Vec2 {
     slot_grid_size(n, cols)
 }
 
-/// Vertical distance of the equipment slots.
-const EQUIP_STEP: f32 = 50.0;
+/// Vertical distance of the equipment slots (a slot and its caption).
+const EQUIP_STEP: f32 = 76.0;
+/// The slots' first row below the panel's top (under its title).
+const EQUIP_TOP: f32 = 50.0;
 
 /// Height of the character sheet panel.
-const SHEET_H: f32 = 580.0;
+const SHEET_H: f32 = 540.0;
 
 /// Container panels are at least this wide (title + "Take all" button).
 const MIN_CONTAINER_W: f32 = 300.0;
@@ -281,7 +309,14 @@ impl Game {
                 let total = SHEET_W + 24.0 + size.x;
                 let top = c.y + super::charwin::MARGIN;
                 let x0 = (c.x + (c.w - total) / 2.0).round();
-                let slots = (0..EQUIP_SLOTS.len()).map(|k| Rect::new(x0 + 134.0, top + 50.0 + k as f32 * EQUIP_STEP, SLOT, SLOT)).collect();
+                let slots = EQUIP_SLOTS
+                    .iter()
+                    .map(|s| {
+                        let (col, row) = equip_cell(*s);
+                        let x = if col == 0 { x0 + PAD } else { x0 + SHEET_W - PAD - SLOT };
+                        Rect::new(x, top + EQUIP_TOP + row as f32 * EQUIP_STEP, SLOT, SLOT)
+                    })
+                    .collect();
                 grids.push(Grid { side: Side::Equip, title: "Character".into(), panel: Rect::new(x0, top, SHEET_W, h), slots, cols: 1 });
                 let mut g = make_grid(Side::Player, player_title, vec2(x0 + SHEET_W + 24.0, top), cap, cols);
                 g.panel.h = h;
@@ -636,26 +671,45 @@ impl Game {
                 let mut j = i as i32;
                 let left = input::act_pressed(Act::Left);
                 let right = input::act_pressed(Act::Right);
+                let (up, down) = (input::act_pressed(Act::Up), input::act_pressed(Act::Down));
                 // Hop between the character sheet and the inventory grid.
                 if side == Side::Player && left && i % g.cols == 0 && layout.grid(Side::Equip).is_some() {
-                    self.inv.sel = Some((Side::Equip, (i / g.cols).min(EQUIP_SLOTS.len() - 1)));
+                    self.inv.sel = equip_at(1, (i / g.cols).min(2)).map(|k| (Side::Equip, k));
                     return (true, true);
                 }
-                if side == Side::Equip && right {
-                    self.inv.sel = Some((Side::Player, i * cols_of(&layout, Side::Player)));
-                    return (true, true);
-                }
-                if left {
-                    j -= 1;
-                }
-                if right {
-                    j += 1;
-                }
-                if input::act_pressed(Act::Up) {
-                    j -= c;
-                }
-                if input::act_pressed(Act::Down) {
-                    j += c;
+                if side == Side::Equip {
+                    // Around the figure: by position; right of the right column is the inventory.
+                    let (col, row) = equip_cell(EQUIP_SLOTS[i]);
+                    let to = if right && col == 1 {
+                        let cols = cols_of(&layout, Side::Player);
+                        let cap = self.world.inventory.capacity().max(1);
+                        self.inv.sel = Some((Side::Player, (row * cols).min(cap - 1)));
+                        return (true, true);
+                    } else if right {
+                        equip_at(1, row).or_else(|| equip_at(1, 2))
+                    } else if left && col == 1 {
+                        equip_at(0, row)
+                    } else if up {
+                        row.checked_sub(1).and_then(|r| equip_at(col, r))
+                    } else if down {
+                        equip_at(col, row + 1)
+                    } else {
+                        None
+                    };
+                    j = to.unwrap_or(i) as i32;
+                } else {
+                    if left {
+                        j -= 1;
+                    }
+                    if right {
+                        j += 1;
+                    }
+                    if up {
+                        j -= c;
+                    }
+                    if down {
+                        j += c;
+                    }
                 }
                 self.inv.sel = Some((side, j.clamp(0, n - 1) as usize));
                 let i = self.inv.sel.unwrap().1;
@@ -826,7 +880,11 @@ impl Game {
     /// Character sheet: portrait, equipment slots and stats.
     fn draw_sheet(&self, g: &Grid, hover: Option<(Side, usize)>, dragging: Option<(Side, usize)>) {
         let p = g.panel;
-        self.draw_portrait(Rect::new(p.x + PAD, p.y + 50.0, 104.0, 168.0));
+        // The figure between the two columns of slots, as tall as three rows.
+        let fig_x = p.x + PAD + SLOT + 12.0;
+        let fig = Rect::new(fig_x, p.y + EQUIP_TOP, p.x + p.w - PAD - SLOT - 12.0 - fig_x, 3.0 * EQUIP_STEP - 14.0);
+        draw_rectangle(fig.x, fig.y, fig.w, fig.h, Color::new(0.0, 0.0, 0.0, 0.18));
+        self.draw_portrait(fig);
         for (k, r) in g.slots.iter().enumerate() {
             let key = (Side::Equip, k);
             let selected = self.inv.sel == Some(key);
@@ -834,26 +892,21 @@ impl Game {
             draw_rectangle(r.x, r.y, r.w, r.h, bg);
             draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.5 }, if selected { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.6) });
             let slot = EQUIP_SLOTS[k];
-            draw_text(slot.label(), r.x + r.w + 8.0, r.y + 20.0, 18.0, LIGHTGRAY);
-            match self.world.equipment.get(slot).and_then(|s| self.project.db.item(&s.item)) {
-                Some(d) => {
-                    let tint = if dragging == Some(key) { Color::new(1.0, 1.0, 1.0, 0.3) } else { WHITE };
-                    self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 32.0, 32.0), tint);
-                    for (n, line) in wrap_text(&d.name, 15, 80.0).iter().take(2).enumerate() {
-                        draw_text(line, r.x + r.w + 8.0, r.y + 36.0 + n as f32 * 13.0, 15.0, WHITE);
-                    }
-                }
-                None => {
-                    let hint = match slot {
-                        EquipSlot::Weapon => "bare hands",
-                        EquipSlot::Offhand if self.two_handed_equipped() => "(two-handed)",
-                        EquipSlot::Offhand => "shield / light",
-                        EquipSlot::Tool => "fishing rod, ...",
-                        _ => "empty",
-                    };
-                    draw_text(hint, r.x + r.w + 8.0, r.y + 38.0, 15.0, GRAY);
+            let item = self.world.equipment.get(slot).and_then(|s| self.project.db.item(&s.item));
+            if let Some(d) = item {
+                let tint = if dragging == Some(key) { Color::new(1.0, 1.0, 1.0, 0.3) } else { WHITE };
+                self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 32.0, 32.0), tint);
+            } else if slot == EquipSlot::Offhand && self.two_handed_equipped() {
+                // A two-handed weapon fills the left hand too: shown faded there.
+                if let Some(d) = self.world.equipment.item(EquipSlot::Weapon).and_then(|id| self.project.db.item(id)) {
+                    self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 32.0, 32.0), Color::new(1.0, 1.0, 1.0, 0.3));
                 }
             }
+            // The caption under it (the item's name and numbers are in the details line).
+            let caption = equip_caption(slot);
+            let w = measure_text(caption, None, 15, 1.0).width;
+            let colour = if item.is_some() { LIGHTGRAY } else { GRAY };
+            draw_text(caption, (r.x + r.w / 2.0 - w / 2.0).round(), r.y + r.h + 14.0, 15.0, colour);
         }
         let st = self.stats();
         let hp = self.hp();
@@ -870,7 +923,7 @@ impl Game {
             let (have, need) = self.xp_progress();
             lines.insert(0, format!("Level       {}  (XP {have} / {need})", self.world.player_level()));
         }
-        let y0 = p.y + 50.0 + EQUIP_SLOTS.len() as f32 * EQUIP_STEP + 20.0;
+        let y0 = p.y + EQUIP_TOP + 4.0 * EQUIP_STEP + 8.0;
         draw_line(p.x + PAD, y0 - 12.0, p.x + p.w - PAD, y0 - 12.0, 1.0, Color::new(0.85, 0.8, 0.6, 0.4));
         for (n, l) in lines.iter().enumerate() {
             draw_text(l, p.x + PAD, y0 + 8.0 + n as f32 * 22.0, 19.0, WHITE);
@@ -1000,4 +1053,25 @@ impl Game {
 /// The quick bar key (1-8) pressed this frame, if any.
 pub(super) fn quick_key_pressed() -> Option<usize> {
     Act::QUICK.iter().position(|a| input::act_pressed(*a))
+}
+
+#[cfg(test)]
+mod paperdoll_tests {
+    use super::*;
+
+    #[test]
+    fn every_slot_has_its_own_place_around_the_figure() {
+        let cells: Vec<_> = EQUIP_SLOTS.iter().map(|s| equip_cell(*s)).collect();
+        for (k, c) in cells.iter().enumerate() {
+            assert!(!cells[..k].contains(c), "{:?} shares {c:?}", EQUIP_SLOTS[k]);
+            assert_eq!(equip_at(c.0, c.1), Some(k));
+        }
+        // The figure faces the viewer: its right hand (the weapon) is on the left, at the same
+        // height as the left hand's item; the head is at the top.
+        assert_eq!(equip_cell(EquipSlot::Weapon), (0, 2));
+        assert_eq!(equip_cell(EquipSlot::Offhand), (1, 2));
+        assert_eq!(equip_cell(EquipSlot::Head).1, 0);
+        // Every slot of the game is in the window.
+        assert!(EquipSlot::ALL.iter().all(|s| EQUIP_SLOTS.contains(s)));
+    }
 }

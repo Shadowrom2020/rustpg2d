@@ -3049,6 +3049,31 @@ impl Editor {
                         self.audio.stop_music();
                     }
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Battle music");
+                    // The project's track, none, or its own.
+                    let mut mode = match &map.battle_music {
+                        None => 0,
+                        Some(s) if s.is_empty() => 1,
+                        Some(_) => 2,
+                    };
+                    let before = mode;
+                    egui::ComboBox::from_id_salt("map_battle_music").width(110.0).selected_text(["Project's", "None", "Own track"][mode]).show_ui(ui, |ui| {
+                        ui.selectable_value(&mut mode, 0, "Project's").on_hover_text("Database › Project › Game sounds › Battle music");
+                        ui.selectable_value(&mut mode, 1, "None").on_hover_text("No battle music on this map: its own music plays on");
+                        ui.selectable_value(&mut mode, 2, "Own track");
+                    });
+                    if mode != before {
+                        map.battle_music = match mode {
+                            0 => None,
+                            1 => Some(String::new()),
+                            _ => Some(self.project.config.battle_music.clone()),
+                        };
+                    }
+                    if let Some(track) = map.battle_music.as_mut().filter(|_| mode == 2) {
+                        widgets::suggest(ui, "map_battle_track", track, &refs.sounds, 110.0);
+                    }
+                });
                 ui.horizontal(|ui| match &mut self.map_rename {
                     None => {
                         if ui.button("Rename map…").on_hover_text("Renames the file and updates portals, edge links, teleports and the project start").clicked() {

@@ -154,4 +154,9 @@
         file: "sounds/step_snow.wav",
         volume: 0.35,
     ),
+    (
+        id: "music_battle",
+        file: "sounds/music_battle.ogg",
+        volume: 1.0,
+    ),
 ]

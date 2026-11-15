@@ -64,7 +64,7 @@ bats and a chest".
 | `editor_state` | Open map, selection, unsaved changes, undo / redo, open script, last status message, server state. |
 | `save` | Saves the open map, definitions and pixel art (writes already save). |
 | `undo {steps}` / `redo {steps}` | Steps on the open map (then unsaved: call `save`). |
-| `set_project_config {patch}` | project.ron: `name`, `start_map`, `start_spawn`, `player`, `language`, `languages`, `day_minutes`, `start_hour`, `inventory_size`, `creation`, `sfx`, `skills`, `progression`, `dialog_portraits`, … (`tile_size` can't change). |
+| `set_project_config {patch}` | project.ron: `name`, `start_map`, `start_spawn`, `player`, `language`, `languages`, `day_minutes`, `start_hour`, `inventory_size`, `creation`, `sfx`, `battle_music`, `skills`, `progression`, `dialog_portraits`, … (`tile_size` can't change). |
 
 ### Reading maps
 | Tool | Does |
@@ -101,7 +101,7 @@ bats and a chest".
 | `update_zone {map, uid, patch}` / `remove_zone {map, uid}` | |
 | `link_maps {map, rect, to_map, to_rect, name}` | A pair of transition zones between two maps (the other map is written to disk directly). |
 | `set_triggers {map, owner, triggers}` / `add_trigger {map, owner, trigger}` | `owner`: `{"map": true}`, `{"entity": UID}`, `{"zone": UID}` or `{"def": {"kind": "item"\|"prop"\|"character", "id": …}}`. Events must suit the owner (`events_reference`); ids in actions and conditions must exist; functions not defined yet are warnings. |
-| `set_map_settings {map, patch}` | `background`, `music`, `lighting {mode: Bright\|Outdoor\|Dark, darkness}`, `fog`, `weather {kind: None\|Rain\|Snow\|Fog, intensity}`, `parallax`, `edges {north\|south\|east\|west: {target_map, offset, depth} \| null}`. |
+| `set_map_settings {map, patch}` | `background`, `music`, `battle_music` (`null` = the project's, `""` = none, or a sound), `lighting {mode: Bright\|Outdoor\|Dark, darkness}`, `fog`, `weather {kind: None\|Rain\|Snow\|Fog, intensity}`, `parallax`, `edges {north\|south\|east\|west: {target_map, offset, depth} \| null}`. |
 | `place_structure {map, structure, x, y}` | Stamps a structure (tiles, collision, entities). |
 | `capture_structure {map, x, y, w, h, id, name, category, ground}` | A new structure from a map region: its tiles (all layers; `ground: false` leaves the ground layer out), collision overrides and entities. |
 | `rename {kind, old, new}` | A definition or map and every reference to it, scripts included. |

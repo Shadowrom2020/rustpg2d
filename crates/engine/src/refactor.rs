@@ -457,6 +457,7 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
     for (_, s) in config.sfx.fields_mut() {
         r.fix(RefKind::Sound, s);
     }
+    r.fix(RefKind::Sound, &mut config.battle_music);
     r.count
 }
 
@@ -467,6 +468,9 @@ pub fn rename_in_map(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usiz
         r.fix(RefKind::Tileset, t);
     }
     r.fix(RefKind::Sound, &mut map.music);
+    if let Some(m) = &mut map.battle_music {
+        r.fix(RefKind::Sound, m);
+    }
     for l in &mut map.parallax {
         r.fix(RefKind::Sheet, &mut l.sheet);
     }
@@ -733,6 +737,7 @@ mod tests {
             start_spawn: "s".into(),
             scale: 3.0,
             player: "hero".into(),
+            battle_music: String::new(),
             sfx: Default::default(),
             inventory_size: 24,
             creation: Default::default(),

@@ -41,6 +41,7 @@ mod menu;
 mod minigame;
 mod image;
 mod orders;
+mod battle;
 mod photo;
 pub mod input;
 pub mod glyphs;
@@ -220,6 +221,8 @@ struct RtEntity {
     low: bool,
     /// A weapon swing or lunge in progress (`attacks.rs`; not saved).
     attack: Option<attacks::Attack>,
+    /// Seconds it stays battle-ready (`battle.rs`): a stance, its weapon drawn.
+    combat_t: f32,
     /// The emotion shown over its head (`emotions.rs`; not saved).
     emote: Option<Box<emotions::Emote>>,
     /// A line it is saying (`barks.rs`).
@@ -394,6 +397,8 @@ pub struct Game {
     juice: juice::Juice,
     /// Photo mode (`photo.rs`).
     photo: photo::Photo,
+    /// The player's combat state and the music (`battle.rs`).
+    battle: battle::Battle,
     /// Script hot reload and the console (`--dev`).
     dev: dev::Dev,
     /// A save waits for its thumbnail (captured while drawing), and what waits for that.
@@ -549,6 +554,7 @@ impl Game {
             settings: crate::settings::Settings::default(),
             juice: Default::default(),
             photo: Default::default(),
+            battle: Default::default(),
             dev: dev::Dev::new(start.dev, &project.scripts_dir()),
             thumb_request: None,
             after_thumb: None,
@@ -710,6 +716,7 @@ impl Game {
             solid: solid && !hostile,
             low,
             attack: None,
+            combat_t: 0.0,
             emote: None,
             bark: None,
             windup: self.project.db.character(def).filter(|_| kind == EntityKind::Character).map_or(0.0, |d| d.windup.max(0.0)),
@@ -946,7 +953,7 @@ impl Game {
         self.update_regrow();
         let music = self.loaded.map.music.clone();
         if !music.is_empty() {
-            self.audio.play_music(&music);
+            self.set_peace_music(&music);
         }
         // Loading a saved game resumes it: the player didn't enter the map, so its "Map enter"
         // triggers don't run again (their effects are part of the save).
@@ -1456,6 +1463,7 @@ impl Game {
         self.footsteps();
         self.update_soundscape(dt);
         self.update_juice(dt);
+        self.update_battle(dt);
         self.after_thumbnail();
         // Esc opens the pause menu (unless a window or dialog uses Esc); it pauses everything.
         // (While a bolt spell is being aimed, Esc cancels the spell instead.)
@@ -2218,7 +2226,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2299,6 +2307,8 @@ impl Game {
             self.attacks_status(),
             self.defense_status(),
             self.sneak_status(),
+            self.battle_status(),
+            self.audio.music_fade_status(),
             self.emotes_status(),
             self.barks_status(),
             self.audio.ambient_status(),
@@ -2709,7 +2719,7 @@ impl Game {
             (None, None) => {
                 self.project.db.character(&e.def).is_some() && {
                     let anim = self.npc_anim(i);
-                    let gear = self.character_gear(&e.equipment, &e.carrying, None);
+                    let gear = render::model::Gear { ready: self.npc_in_combat(i), ..self.character_gear(&e.equipment, &e.carrying, None) };
                     self.draw_character_turned(&e.appearance, &gear, (e.body.facing, anim), self.walk_turn(&e.body, anim), e.body.pos, tint)
                 }
             }
@@ -2813,7 +2823,7 @@ impl ActionHost for Game {
                 Step::Continue
             }
             Action::PlayMusic { sound } => {
-                self.audio.play_music(sound);
+                self.set_peace_music(sound);
                 Step::Continue
             }
             Action::Heal { amount } => {

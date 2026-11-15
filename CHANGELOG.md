@@ -35,6 +35,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   are worn (head and body armor, right hand and tool on the left as the figure faces you; backpack,
   clothing and left hand on the right; a two-handed weapon shows faded in the left hand). Arrows and
   the d-pad move between them by position; item names and numbers are in the details line.
+- **Battle stance and battle music**: characters stand upright and relaxed out of combat, a
+  one-handed weapon at the left hip, and take their weapon's stance with it in the hand when a fight
+  starts (hunting, attacking, a companion fighting; the player when engaged, striking, blocking or
+  hurt; four seconds after the last). Enemies engaging the player crossfade the music to the project's
+  **Battle music** (a map can choose another or none) and back afterwards. The example has a new
+  track, *Steel in the Woods* (`music_battle`), composed with the old example music's synthesizer,
+  now in `scripts/sounds/music/` with all four tracks. `status` prints `battle=`, `music_fade=` and
+  `@hip` in `held=`; muted games follow the music for `status` too.
 
 ### Events and scripts
 - New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with

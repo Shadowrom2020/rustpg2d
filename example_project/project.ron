@@ -5,6 +5,7 @@
     start_spawn: "start",
     scale: 1.5,
     player: "hero",
+    battle_music: "music_battle",
     sfx: (
         pickup: "pickup",
         attack: "swing",

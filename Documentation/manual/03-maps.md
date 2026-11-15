@@ -12,7 +12,9 @@ a grid of 32 × 32 pixel tiles up to 1024 × 1024 tiles large, painted on layers
   **Ctrl+PgUp / Ctrl+PgDn** step through the maps.
 - With nothing selected, the inspector shows the map's settings: **Rename map…** (every reference
   in the project follows), **Resize…**, the **Background** colour shown outside the map and under
-  empty tiles, and the map's **Music** (a looping sound; empty keeps whatever is playing).
+  empty tiles, and the map's **Music** (a looping sound; empty keeps whatever is playing). **Battle
+  music**: *Project's* (*Database › Project › Game sounds › Battle music*), *None* (the map's music
+  plays on in fights) or *Own track*.
 
 ## Tilesets and layers
 

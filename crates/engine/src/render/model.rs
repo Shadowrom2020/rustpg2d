@@ -51,6 +51,9 @@ pub struct Gear {
     pub carrying: String,
     /// A backpack (`EquipSlot::Back`): its model on the upper back.
     pub back: Option<String>,
+    /// In combat (`runtime/battle.rs`): the weapon's stance and a one-handed weapon in the hand;
+    /// out of it the plain idle and walk, and a one-handed weapon hangs at the hip.
+    pub ready: bool,
 }
 
 impl Gear {
@@ -62,6 +65,7 @@ impl Gear {
             offhand: eq.item(EquipSlot::Offhand).map(str::to_string),
             carrying: carrying.to_string(),
             back: eq.item(EquipSlot::Back).map(str::to_string),
+            ready: false,
         }
     }
 
@@ -167,6 +171,19 @@ fn strike_time(hit: f32, k: u16) -> f32 {
     }
 }
 
+/// The weapon that hangs at the hip instead of being in the hand: out of combat (`!gear.ready`),
+/// not attacking or blocking (`anim`: the clip's animation name), a one-handed melee weapon with
+/// a 3D model.
+pub fn sheathed<'a>(db: &Database, gear: &'a Gear, anim: &str) -> Option<&'a str> {
+    if gear.ready || anim.starts_with("attack") || anim.starts_with("block") {
+        return None;
+    }
+    let id = gear.weapon.as_deref()?;
+    let d = db.item(id)?;
+    let w = d.weapon.as_ref()?;
+    (w.ranged.is_none() && !w.two_handed && d.model.is_some()).then_some(id)
+}
+
 /// The animation name an item names for a base animation (`attack`, `idle`, `walk`, `block`).
 fn item_anim(db: &Database, item: Option<&String>, base: &str) -> Option<String> {
     let d = db.item(item?)?;
@@ -224,6 +241,8 @@ struct Loaded {
     hands: [Option<HandBone>; 2],
     /// Where a backpack sits ([`BackBone`]); None without a spine.
     back: Option<BackBone>,
+    /// Where a sheathed weapon hangs ([`HipBone`]); None without hips.
+    hip: Option<HipBone>,
     /// Frame size in image pixels, pixels per model unit, the camera target's height, the
     /// model's standing height (model units).
     frame: (u32, u32),
@@ -261,6 +280,36 @@ fn back_bone(model: &Model, rest: &[Mat4]) -> Option<BackBone> {
     let z = if z == f32::MAX { at.z - h * 0.08 } else { z };
     let inv = m.inverse();
     Some(BackBone { node, at: inv.transform_point3(vec3(at.x, at.y, z)), up: inv.transform_vector3(Vec3::Y).normalize_or_zero(), out: inv.transform_vector3(-Vec3::Z).normalize_or_zero() })
+}
+
+/// The left hip of a model: its hip bone and, in its own space, the point at the side of the
+/// body (the belt) where a sheathed weapon's handle sits, down, forward and outward.
+#[derive(Clone, Copy, Debug)]
+struct HipBone {
+    node: usize,
+    at: Vec3,
+    down: Vec3,
+    fwd: Vec3,
+    out: Vec3,
+}
+
+/// [`HipBone`] of a model at rest (facing +Z: its left is +X): the side of the body around the
+/// hip bone's height.
+fn hip_bone(model: &Model, rest: &[Mat4]) -> Option<HipBone> {
+    let node = ["hips", "pelvis", "hip"].iter().find_map(|n| model.node(n))?;
+    let m = rest[node];
+    let at = m.w_axis.truncate();
+    let (lo, hi) = model.bounds();
+    let h = (hi.y - lo.y).max(1e-3);
+    let mut skin = Vec::new();
+    model.skin(rest, &mut skin);
+    let side = skin.iter().map(|p| p.0).filter(|p| (p.y - at.y).abs() < h * 0.05 && (p.z - at.z).abs() < h * 0.1).map(|p| p.x).fold(f32::MIN, f32::max);
+    let side = if side == f32::MIN { at.x + h * 0.08 } else { side };
+    // On the belt, a little in front of the side and above the hip bone.
+    let point = vec3(side + h * 0.01, at.y + h * 0.03, at.z + h * 0.03);
+    let inv = m.inverse();
+    let dir = |v: Vec3| inv.transform_vector3(v).normalize_or_zero();
+    Some(HipBone { node, at: inv.transform_point3(point), down: dir(-Vec3::Y), fwd: dir(Vec3::Z), out: dir(Vec3::X) })
 }
 
 struct Fitted {
@@ -780,6 +829,10 @@ impl Models {
     /// next, as far as model `id` has the clip; else the plain one (`block` without a clip:
     /// `idle`).
     pub fn anim_for(&self, db: &Database, id: &str, gear: &Gear, base: &str) -> String {
+        // Out of combat: standing and walking relaxed, whatever is in hand.
+        if !gear.ready && matches!(base, "idle" | "walk") {
+            return base.into();
+        }
         let has = |n: &str| self.clip_map(id, n).is_some();
         let mut wanted: Vec<String> = Vec::new();
         match base {
@@ -902,11 +955,12 @@ fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Resul
     };
     let hands = [hand("right"), hand("left")];
     let back = back_bone(&model, &rest);
+    let hip = hip_bone(&model, &rest);
     let (lo, hi) = model.bounds();
     let height = (hi.y - lo.y).max(1e-3);
     let (frame, ppu, target_y) = layout(def, height);
     let texture = model.texture.clone();
-    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted })
+    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted })
 }
 
 /// A model's frame (image pixels), pixels per model unit and camera target height: the standing
@@ -1143,7 +1197,12 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
     // Held items and a carried prop, placed (not drawn yet): item models shaded on the hand,
     // pictures facing the camera; with their far tips.
     let mut held: Vec<(Mesh, bool, String, Vec3)> = Vec::new();
+    // Out of combat a one-handed weapon hangs at the left hip, not in the hand.
+    let hip = l.hip.zip(sheathed(db, req.gear, req.anim)).and_then(|(hb, id)| db.item(id)?.model.as_ref().and_then(|m| items.get(&m.file).map(|mesh| (hb, id, m, mesh))));
     for layer in &layers {
+        if hip.is_some_and(|h| h.1 == layer.id) {
+            continue;
+        }
         let anchor = match layer.hand {
             Hand::Right => hands3[0].map(|h| h.0),
             Hand::Left => hands3[1].map(|h| h.0),
@@ -1198,6 +1257,16 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         if let Some((mesh, tip)) = held_quad(&layer, anchor, sheets, l.ppu, screen_right, screen_down) {
             held.push((mesh, false, layer.id.clone(), tip));
         }
+    }
+    if let Some((hb, id, spec, mesh)) = hip {
+        // The handle at the belt, the blade down and a little back, its edge forward.
+        let m = world[hb.node];
+        let anchor = turn.transform_point3(m.transform_point3(hb.at));
+        let v = |d: Vec3| turn.transform_vector3(m.transform_vector3(d)).normalize_or_zero();
+        let (down, fwd, out) = (v(hb.down), v(hb.fwd), v(hb.out));
+        let axis = (down - fwd * 0.45 + out * 0.12).normalize_or(down);
+        let (mesh, far) = placed_item(spec, mesh, anchor, axis, fwd, spec.size * PX / l.ppu);
+        held.push((mesh, true, id.to_string(), far));
     }
     // A backpack on the upper back: against the back's skin, its top along the spine, its front
     // facing away from the body.

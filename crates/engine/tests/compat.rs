@@ -1,5 +1,6 @@
 //! Files written by earlier versions keep loading: the 0.9.0 example project's definitions, maps
-//! of 0.9.0 and 0.10.0, a frozen format-version-1 map and save games (see `fixtures/README.md`).
+//! of 0.9.0 and 0.10.0, a frozen format-version-1 map and save games, the last tile release
+//! (0.20.0) converting (see `fixtures/README.md`).
 //! Tile maps and tilesets (before 0.22) load for the converter and convert into painted maps.
 
 use std::path::{Path, PathBuf};
@@ -77,18 +78,27 @@ fn v1_map_decodes() {
 /// tilesets file goes and a backup keeps the old project.
 #[test]
 fn tile_projects_convert() {
-    let dir = std::env::temp_dir().join(format!("rustpg2d_compat_convert_{}", std::process::id()));
+    convert_and_check("project-0.9.0", &[("house-0.9.0.map", "house"), ("shop-0.9.0.map", "shop"), ("village-0.9.0.map", "village"), ("mine-0.10.0.map", "mine")]);
+}
+
+/// The same for the last tile release, 0.20.0 (its example's definitions, village and mine).
+#[test]
+fn projects_of_0_20_0_convert() {
+    convert_and_check("project-0.20.0", &[("village-0.20.0.map", "village"), ("mine-0.20.0.map", "mine")]);
+}
+
+fn convert_and_check(project: &str, maps: &[(&str, &str)]) {
+    let dir = std::env::temp_dir().join(format!("rustpg2d_compat_convert_{project}_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let root = dir.join("old");
     std::fs::create_dir_all(root.join("defs")).unwrap();
     std::fs::create_dir_all(root.join("maps")).unwrap();
-    let src = fixture("project-0.9.0");
+    let src = fixture(project);
     std::fs::copy(src.join("project.ron"), root.join("project.ron")).unwrap();
     for e in std::fs::read_dir(src.join("defs")).unwrap() {
         let p = e.unwrap().path();
         std::fs::copy(&p, root.join("defs").join(p.file_name().unwrap())).unwrap();
     }
-    let maps = [("house-0.9.0.map", "house"), ("shop-0.9.0.map", "shop"), ("village-0.9.0.map", "village"), ("mine-0.10.0.map", "mine")];
     for (file, name) in maps {
         std::fs::copy(fixture(&format!("maps/{file}")), root.join(format!("maps/{name}.map"))).unwrap();
     }
@@ -125,7 +135,7 @@ fn tile_projects_convert() {
         .collect();
     let backup = dir.join("backup");
     let report = rustpg2d_engine::convert_tiles::convert_project(&root, Some(&backup)).unwrap();
-    assert_eq!(report.maps.len(), 4);
+    assert_eq!(report.maps.len(), maps.len());
     assert!(report.structures > 0 && !report.materials_added.is_empty() && !report.props_added.is_empty());
     assert!(report.warnings.is_empty(), "{:?}", report.warnings);
     assert!(backup.join("defs/tilesets.ron").is_file() && !root.join("defs/tilesets.ron").exists());

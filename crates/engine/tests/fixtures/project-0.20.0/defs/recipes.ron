@@ -1,0 +1,490 @@
+[
+    (
+        id: "brew_potion",
+        result: "potion",
+        count: 1,
+        ingredients: [
+            (
+                item: "herb",
+                count: 2,
+            ),
+        ],
+        station: "alchemy",
+        skill: "",
+        level: 0,
+        tools: [
+            "mortar",
+        ],
+    ),
+    (
+        id: "brew_antidote",
+        result: "antidote",
+        count: 1,
+        ingredients: [
+            (
+                item: "herb",
+                count: 1,
+            ),
+            (
+                item: "mushroom",
+                count: 1,
+            ),
+        ],
+        station: "alchemy",
+        skill: "alchemy",
+        level: 1,
+        tools: [
+            "mortar",
+        ],
+    ),
+    (
+        id: "brew_mana",
+        result: "mana_potion",
+        count: 1,
+        ingredients: [
+            (
+                item: "mushroom",
+                count: 2,
+            ),
+            (
+                item: "apple",
+                count: 1,
+            ),
+        ],
+        station: "alchemy",
+        skill: "",
+        level: 0,
+        tools: [
+            "mortar",
+        ],
+    ),
+    (
+        id: "brew_swiftness",
+        result: "swiftness",
+        count: 1,
+        ingredients: [
+            (
+                item: "herb",
+                count: 2,
+            ),
+            (
+                item: "mushroom",
+                count: 2,
+            ),
+        ],
+        station: "alchemy",
+        skill: "alchemy",
+        level: 2,
+        tools: [
+            "mortar",
+        ],
+    ),
+    (
+        id: "smelt_copper",
+        result: "copper_ingot",
+        count: 1,
+        ingredients: [
+            (
+                item: "copper_ore",
+                count: 2,
+            ),
+            (
+                item: "coal",
+                count: 1,
+            ),
+        ],
+        station: "smelter",
+        skill: "",
+        level: 0,
+        tools: [
+            "tongs",
+        ],
+    ),
+    (
+        id: "smelt_iron",
+        result: "iron_ingot",
+        count: 1,
+        ingredients: [
+            (
+                item: "iron_ore",
+                count: 2,
+            ),
+            (
+                item: "coal",
+                count: 1,
+            ),
+        ],
+        station: "smelter",
+        skill: "",
+        level: 0,
+        tools: [
+            "tongs",
+        ],
+    ),
+    (
+        id: "smelt_silver",
+        result: "silver_ingot",
+        count: 1,
+        ingredients: [
+            (
+                item: "silver_ore",
+                count: 2,
+            ),
+            (
+                item: "coal",
+                count: 1,
+            ),
+        ],
+        station: "smelter",
+        skill: "mining",
+        level: 2,
+        tools: [
+            "tongs",
+        ],
+    ),
+    (
+        id: "forge_iron_sword",
+        result: "iron_sword",
+        count: 1,
+        ingredients: [
+            (
+                item: "iron_ingot",
+                count: 2,
+            ),
+        ],
+        station: "anvil",
+        skill: "smithing",
+        level: 0,
+        tools: [
+            "hammer",
+            "tongs",
+        ],
+        quality: [
+            (
+                level: 2,
+                result: "fine_iron_sword",
+            ),
+        ],
+    ),
+    (
+        id: "forge_helmet",
+        result: "iron_helmet",
+        count: 1,
+        ingredients: [
+            (
+                item: "iron_ingot",
+                count: 2,
+            ),
+        ],
+        station: "anvil",
+        skill: "smithing",
+        level: 1,
+        tools: [
+            "hammer",
+            "tongs",
+        ],
+    ),
+    (
+        id: "forge_chainmail",
+        result: "chainmail",
+        count: 1,
+        ingredients: [
+            (
+                item: "iron_ingot",
+                count: 4,
+            ),
+        ],
+        station: "anvil",
+        skill: "smithing",
+        level: 2,
+        tools: [
+            "hammer",
+            "tongs",
+        ],
+    ),
+    (
+        id: "forge_arrows",
+        result: "arrows",
+        count: 10,
+        ingredients: [
+            (
+                item: "iron_ingot",
+                count: 1,
+            ),
+        ],
+        station: "anvil",
+        skill: "smithing",
+        level: 0,
+        tools: [
+            "hammer",
+            "tongs",
+        ],
+    ),
+    (
+        id: "forge_pickaxe",
+        result: "pickaxe",
+        count: 1,
+        ingredients: [
+            (
+                item: "iron_ingot",
+                count: 1,
+            ),
+            (
+                item: "copper_ingot",
+                count: 1,
+            ),
+        ],
+        station: "anvil",
+        skill: "smithing",
+        level: 0,
+        tools: [
+            "hammer",
+            "tongs",
+        ],
+    ),
+    (
+        id: "grill_trout",
+        result: "grilled_trout",
+        count: 1,
+        ingredients: [
+            (
+                item: "trout",
+                count: 1,
+            ),
+        ],
+        station: "cooking",
+        skill: "",
+        level: 0,
+        station_state: "lit",
+    ),
+    (
+        id: "bake_bread",
+        result: "bread",
+        count: 1,
+        ingredients: [
+            (
+                item: "wheat",
+                count: 2,
+            ),
+        ],
+        station: "cooking",
+        skill: "",
+        level: 0,
+        station_state: "lit",
+    ),
+    (
+        id: "carrot_soup",
+        result: "carrot_soup",
+        count: 1,
+        ingredients: [
+            (
+                item: "carrot",
+                count: 2,
+            ),
+            (
+                item: "mushroom",
+                count: 1,
+            ),
+        ],
+        station: "cooking",
+        skill: "cooking",
+        level: 1,
+        station_state: "lit",
+    ),
+    (
+        id: "pumpkin_stew",
+        result: "pumpkin_stew",
+        count: 1,
+        ingredients: [
+            (
+                item: "pumpkin",
+                count: 1,
+            ),
+            (
+                item: "carrot",
+                count: 1,
+            ),
+            (
+                item: "wheat",
+                count: 1,
+            ),
+        ],
+        station: "cooking",
+        skill: "cooking",
+        level: 1,
+        station_state: "lit",
+    ),
+    (
+        id: "apple_pie",
+        result: "apple_pie",
+        count: 1,
+        ingredients: [
+            (
+                item: "apple",
+                count: 2,
+            ),
+            (
+                item: "wheat",
+                count: 2,
+            ),
+        ],
+        station: "cooking",
+        skill: "cooking",
+        level: 2,
+        station_state: "lit",
+    ),
+    (
+        id: "upgrade_sword",
+        result: "iron_sword",
+        count: 1,
+        ingredients: [
+            (
+                item: "sword",
+                count: 1,
+            ),
+            (
+                item: "iron_ingot",
+                count: 1,
+            ),
+        ],
+        station: "anvil",
+        skill: "smithing",
+        level: 0,
+        tools: [
+            "hammer",
+            "tongs",
+        ],
+        quality: [
+            (
+                level: 2,
+                result: "fine_iron_sword",
+            ),
+        ],
+    ),
+    (
+        id: "grind_flour",
+        result: "flour",
+        count: 1,
+        ingredients: [
+            (
+                item: "wheat",
+                count: 2,
+            ),
+        ],
+        station: "mill",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "bake_festival_bread",
+        result: "festival_bread",
+        count: 1,
+        ingredients: [
+            (
+                item: "flour",
+                count: 2,
+            ),
+            (
+                item: "egg",
+                count: 1,
+            ),
+            (
+                item: "honey",
+                count: 1,
+            ),
+        ],
+        station: "cooking",
+        skill: "",
+        level: 0,
+        station_state: "lit",
+    ),
+    (
+        id: "brew_remedy",
+        result: "remedy",
+        count: 1,
+        ingredients: [
+            (
+                item: "moonpetal",
+                count: 1,
+            ),
+            (
+                item: "feverleaf",
+                count: 1,
+            ),
+            (
+                item: "bitterroot",
+                count: 1,
+            ),
+        ],
+        station: "alchemy",
+        skill: "",
+        level: 0,
+        tools: [
+            "mortar",
+        ],
+    ),
+    (
+        id: "saw_planks",
+        result: "plank",
+        count: 3,
+        ingredients: [
+            (
+                item: "log",
+                count: 2,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_wooden_shield",
+        result: "wooden_shield",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 3,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_fishing_rod",
+        result: "fishing_rod",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 2,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "forge_woodcutter_axe",
+        result: "woodcutter_axe",
+        count: 1,
+        ingredients: [
+            (
+                item: "iron_ingot",
+                count: 1,
+            ),
+            (
+                item: "plank",
+                count: 1,
+            ),
+        ],
+        station: "anvil",
+        skill: "smithing",
+        level: 0,
+        tools: [
+            "hammer",
+            "tongs",
+        ],
+    ),
+]

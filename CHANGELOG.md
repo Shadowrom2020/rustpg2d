@@ -5,6 +5,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Gameplay
+- **Signposts are found by coming near them**: within 5 tiles of a signpost the player notices it
+  ("A signpost! I can travel from here now.") and fast travel offers it, without pressing E there
+  first. Built as content: a *Trigger* zone around each signpost runs the new library script
+  function `signpost_seen()`; the example's four signposts have their zones.
+
 ### Editor
 - **Repository mode** for working on R(ust)PG2D itself: started with a checkout of the repository as
   its current folder, the editor opens `example_project/` directly (as a folder) and uses the

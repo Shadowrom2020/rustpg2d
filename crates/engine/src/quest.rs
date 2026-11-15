@@ -45,6 +45,10 @@ pub struct QuestDef {
     /// Given when the quest is completed (besides `xp`).
     #[serde(default, skip_serializing_if = "QuestRewards::is_empty")]
     pub rewards: QuestRewards,
+    /// Placed items, props and characters (map + name) that belong to the quest: hidden until
+    /// it is started, then shown once while it is active (taken items stay taken).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<QuestTarget>,
 }
 
 /// What the giver says when offering a quest: `lines` (one dialog box each), then `question`
@@ -81,6 +85,10 @@ pub struct QuestStep {
     /// Run when the step is done.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub on_done: Vec<Action>,
+    /// A Talk step whose `when` doesn't hold yet leads here instead of to its character (what to
+    /// fetch or make first: the cart with the flour, the oven); empty = no marker until then.
+    #[serde(skip_serializing_if = "QuestTarget::is_empty")]
+    pub first_to: QuestTarget,
 }
 
 impl QuestStep {
@@ -434,7 +442,12 @@ mod tests {
             offer: QuestOffer { lines: vec!["The shrine left ashes.".into()], question: "Will you look?".into(), accept: "Yes".into(), decline: String::new(), accepted: vec!["Thank you.".into()], declined: vec!["Pity.".into()] },
             steps: vec![
                 QuestStep { done: StepGoal::Conditions(vec![]), on_start: vec![say("start 0")], on_done: vec![say("done 0")], ..Default::default() },
-                QuestStep { done: StepGoal::Talk { character: String::new(), lines: vec!["You found them!".into()], when: vec![], speaker: String::new() }, giver_line: "Any luck?".into(), ..Default::default() },
+                QuestStep {
+                    done: StepGoal::Talk { character: String::new(), lines: vec!["You found them!".into()], when: vec![], speaker: String::new() },
+                    giver_line: "Any luck?".into(),
+                    first_to: QuestTarget { map: "forest".into(), name: "shrine".into() },
+                    ..Default::default()
+                },
             ],
             rewards: QuestRewards { items: vec![RewardItem { item: "coin".into(), count: 25 }], skill_points: 2, actions: vec![Action::RunScript { function: "quest_thanks".into() }] },
             ..Default::default()

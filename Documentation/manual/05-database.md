@@ -251,7 +251,7 @@ line at the top sums it up ("Given by Elder Rowan · after The Strange Lights ·
 
 | Done when | |
 |---|---|
-| **the player talks to…** | a character (a placed name or a definition; empty = the giver, e.g. "Return to Elder Rowan"): it says its lines (*shown as* its name), then the step is done. **Only when** takes conditions, e.g. *Has item* for a hand-in (take the item with a *Take item* action when the step is done) |
+| **the player talks to…** | a character (a placed name or a definition; empty = the giver, e.g. "Return to Elder Rowan"): it says its lines (*shown as* its name), then the step is done. **Only when** takes conditions, e.g. *Has item* for a hand-in (take the item with a *Take item* action when the step is done); **until then, leads to** is where the marker points while they don't hold (what to fetch or make first: the cart with the flour, the oven), the character's place (*Leads to*) once they do |
 | **the player reaches the marker target** | the player enters the zone, or interacts with the character or prop named under *Leads to* |
 | **these conditions hold** | checked all the time: has an item, defeated so many, a variable or flag, another quest… |
 | **triggers or scripts move it on** | the *Quest* action or `advance_quest()` and friends, as before |
@@ -262,6 +262,12 @@ step's character gets one anyway when it is on the map). **The giver says meanwh
 giver's line while the step is current. **When the step starts** and **When it is done** take
 actions, as in triggers: *Run script* for anything a script does, *Give item*, *Set flag*, *Set
 active*… After the last step the quest is completed.
+
+**Quest objects**: placed items, props and characters that only exist for the quest (a map and
+their name there), e.g. the raided cart and its flour sacks, or a lost locket. They are hidden
+until the quest is started, then there once while it is active: taken items stay taken. One the
+player never saw stays hidden once the quest is over. *Edit › Problems* reports an object that
+isn't placed under that name.
 
 **Rewards**, given when the quest is completed, whatever completes it: items with counts,
 **experience** (with experience and levels on), **skill points**, and **also** any actions. The

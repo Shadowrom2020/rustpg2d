@@ -61,7 +61,7 @@ mod weather;
 mod ui;
 mod worldmap;
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use anyhow::{anyhow, Context, Result};
 use macroquad::prelude::*;
@@ -527,6 +527,12 @@ pub struct Game {
     quest_check_timer: f32,
     offer_check_timer: f32,
     offer_cache: Vec<(u32, String)>,
+    /// Active quests whose current Talk step's conditions hold (refreshed with the offers).
+    talk_ready: Vec<String>,
+    /// The maps each map's exits lead to (read once per map, for routes), and per quest target
+    /// map the first map on the way there from here (its exit gets the marker).
+    map_links: HashMap<String, Vec<String>>,
+    marker_hops: HashMap<String, String>,
 }
 
 impl Game {
@@ -646,6 +652,9 @@ impl Game {
             quest_check_timer: 0.0,
             offer_check_timer: 0.0,
             offer_cache: Vec::new(),
+            talk_ready: Vec::new(),
+            map_links: HashMap::new(),
+            marker_hops: HashMap::new(),
         };
         let arrival = match (start.pos, start.spawn) {
             (Some(p), _) => Arrival::Pos(p),
@@ -964,6 +973,10 @@ impl Game {
         let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, shot, entities, tile_lights, occupancy, materials, walls, decor_index, decor_looks });
         self.rebuild_occupancy();
         self.restore_unlocked();
+        // Quest objects show only once their quest is under way; offers and the markers' routes
+        // are found again for this map.
+        self.apply_quest_objects();
+        self.offer_check_timer = 0.0;
         // Scheduled characters are where their day has taken them.
         for i in 0..self.loaded.entities.len() {
             self.place_on_schedule(i);

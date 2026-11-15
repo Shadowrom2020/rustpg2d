@@ -135,6 +135,8 @@ impl Game {
     pub(super) fn quest_changed(&mut self, quest: &str, op: QuestOp, stage: u32) -> Vec<(crate::events::Action, super::ActionCtx)> {
         let before = self.world.quest(quest).map(|p| (p.stage, p.status));
         let Some(change) = self.world.apply_quest(quest, op, stage) else { return Vec::new() };
+        // Its objects on this map appear (started) or stay hidden.
+        self.apply_quest_objects();
         let title = self.project.db.quest(quest).map_or(quest.to_string(), |d| d.title.clone());
         let msg = match change {
             QuestChange::Started => format!("New quest: {title}  (J: journal)"),

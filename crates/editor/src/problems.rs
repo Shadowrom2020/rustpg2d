@@ -342,6 +342,18 @@ impl Editor {
                     for who in std::iter::once(q.giver.as_str()).chain(talks).filter(|w| !known(w)) {
                         out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: format!("names the character \"{who}\", which is neither a placed character's name nor a character definition"), target: target.clone() });
                     }
+                    // Quest objects (placed things) and where Talk steps lead first (also zones): on
+                    // their map under that name.
+                    let objects = q.objects.iter().map(|o| (o, false));
+                    let first = q.steps.iter().map(|s| &s.first_to).filter(|t| !t.is_empty()).map(|o| (o, true));
+                    for (o, zones) in objects.chain(first) {
+                        let placed = self.problems.maps.get(o.map.trim()).and_then(|f| f.map.as_ref()).map(|m| m.entities.iter().any(|e| e.name == o.name.trim()) || (zones && m.zones.iter().any(|z| z.name == o.name.trim())));
+                        match placed {
+                            None => out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: format!("names \"{}\" on map \"{}\", which doesn't exist", o.name, o.map), target: target.clone() }),
+                            Some(false) => out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: format!("names \"{}\", which isn't placed on map {} (name it in its inspector)", o.name, o.map), target: target.clone() }),
+                            Some(true) => {}
+                        }
+                    }
                     if q.has_giver() && q.offer.lines.iter().chain([&q.offer.question]).all(|l| l.trim().is_empty()) {
                         warn("its giver says nothing when offering it: the quest starts silently when they are talked to".into(), out);
                     }

@@ -304,8 +304,8 @@
         xp: 60,
         targets: [
             (
-                map: "forest",
-                name: "raided_cart",
+                map: "bakery",
+                name: "bram",
             ),
             (
                 map: "bakery",
@@ -357,6 +357,10 @@
                         count: 1,
                     ),
                 ],
+                first_to: (
+                    map: "forest",
+                    name: "raided_cart",
+                ),
             ),
             (
                 done: Talk(
@@ -380,6 +384,10 @@
                         count: 1,
                     ),
                 ],
+                first_to: (
+                    map: "bakery",
+                    name: "bakery_oven",
+                ),
             ),
         ],
         rewards: (
@@ -396,6 +404,20 @@
                 ),
             ],
         ),
+        objects: [
+            (
+                map: "forest",
+                name: "raided_cart",
+            ),
+            (
+                map: "forest",
+                name: "cart_flour_1",
+            ),
+            (
+                map: "forest",
+                name: "cart_flour_2",
+            ),
+        ],
     ),
     (
         id: "herbal_remedy",
@@ -522,6 +544,10 @@
                         text: "Ida presses 20 coins into your hand.",
                     ),
                 ],
+                first_to: (
+                    map: "apothecary",
+                    name: "alchemy_table",
+                ),
             ),
         ],
         rewards: (
@@ -558,8 +584,8 @@
                 name: "brom",
             ),
             (
-                map: "mine",
-                name: "halvar_locket",
+                map: "smithy",
+                name: "brom",
             ),
         ],
         steps: [
@@ -596,6 +622,10 @@
                         count: 1,
                     ),
                 ],
+                first_to: (
+                    map: "mine",
+                    name: "halvar_locket",
+                ),
             ),
         ],
         rewards: (
@@ -607,6 +637,12 @@
             ],
             skill_points: 1,
         ),
+        objects: [
+            (
+                map: "mine",
+                name: "halvar_locket",
+            ),
+        ],
     ),
     (
         id: "elven_trust",
@@ -659,6 +695,10 @@
                         count: 2,
                     ),
                 ],
+                first_to: (
+                    map: "wilds",
+                    name: "wolves_1",
+                ),
             ),
         ],
         rewards: (
@@ -682,8 +722,8 @@
         xp: 50,
         targets: [
             (
-                map: "",
-                name: "",
+                map: "village",
+                name: "beehive",
             ),
             (
                 map: "forest",

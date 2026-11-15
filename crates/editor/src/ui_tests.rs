@@ -420,6 +420,10 @@ fn the_quest_designer_describes_giver_offer_steps_and_rewards() {
     step(&mut h);
     assert_eq!(q(&h).stages.len(), 2);
     assert_eq!(q(&h).steps[1].done, StepGoal::Talk { character: String::new(), lines: vec![], when: vec![], speaker: String::new() });
+    // A quest object (hidden in the game until the quest starts).
+    h.get_by_label(&crate::ui::t(crate::ui::ph::PLUS, "Object")).click();
+    step(&mut h);
+    assert_eq!(q(&h).objects.len(), 1);
     // A reward item.
     h.get_by_label(&crate::ui::t(crate::ui::ph::PLUS, "Item")).click();
     step(&mut h);

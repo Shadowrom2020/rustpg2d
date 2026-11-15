@@ -15,7 +15,7 @@
     };
     miniquad_add_plugin({
         name: "rustpg2d",
-        version: 2,
+        version: 3,
         register_plugin: function (importObject) {
             const env = importObject.env;
             env.rustpg2d_now = () => Date.now() / 1000;
@@ -91,6 +91,18 @@
                 return pending.length;
             };
             env.rustpg2d_pad_id_take = take;
+            // A file for the player (photos): a download through a link that is clicked at once.
+            env.rustpg2d_download = (np, nl, dp, dl) => {
+                const bytes = new Uint8Array(wasm_memory.buffer, dp, dl).slice();
+                const url = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = text(np, nl);
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+            };
         },
     });
 })();

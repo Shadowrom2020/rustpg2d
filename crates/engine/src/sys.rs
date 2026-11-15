@@ -38,6 +38,26 @@ pub fn write(path: &Path, data: &[u8]) -> io::Result<()> {
     imp::write(path, data)
 }
 
+/// Hands a file to the player outside the game's own folders (a photo): natively written to
+/// `path` (its folder made); on the web offered as a browser download named like the file.
+/// Returns where it went (the path, or "downloads/<name>").
+pub fn give_player(path: &Path, data: &[u8]) -> io::Result<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "file".into());
+        web::download(&name, data);
+        Ok(format!("downloads/{name}"))
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+            std::fs::create_dir_all(dir)?;
+        }
+        std::fs::write(path, data)?;
+        Ok(path.display().to_string())
+    }
+}
+
 /// Whether a file (or, natively, a folder) exists.
 pub fn exists(path: &Path) -> bool {
     imp::exists(path)
@@ -211,12 +231,19 @@ pub mod web {
         fn rustpg2d_pad_axis(i: u32) -> f32;
         fn rustpg2d_pad_id_dump() -> usize;
         fn rustpg2d_pad_id_take(dest: *mut u8);
+        fn rustpg2d_download(name: *const u8, name_len: usize, data: *const u8, data_len: usize);
     }
 
-    /// macroquad's loader checks that a JS plugin's crate is there (web/rustpg2d.js, version 2).
+    /// macroquad's loader checks that a JS plugin's crate is there (web/rustpg2d.js, version 3).
     #[no_mangle]
     pub extern "C" fn rustpg2d_crate_version() -> u32 {
-        2
+        3
+    }
+
+    /// Offers `data` as a browser download named `name` (photos).
+    pub fn download(name: &str, data: &[u8]) {
+        // SAFETY: pointers into live buffers, lengths in bytes; the JS copies them.
+        unsafe { rustpg2d_download(name.as_ptr(), name.len(), data.as_ptr(), data.len()) }
     }
 
     /// The first connected gamepad (the browser's Gamepad API): its buttons in the standard

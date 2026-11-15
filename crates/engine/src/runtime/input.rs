@@ -555,12 +555,14 @@ pub enum Act {
     Dodge,
     /// Sneaking on / off (`stealth.rs`).
     Sneak,
+    /// Photo mode on / off (`photo.rs`).
+    Photo,
 }
 
 impl Act {
     pub const QUICK: [Act; 8] = [Act::Quick1, Act::Quick2, Act::Quick3, Act::Quick4, Act::Quick5, Act::Quick6, Act::Quick7, Act::Quick8];
 
-    pub const ALL: [Act; 39] = [
+    pub const ALL: [Act; 40] = [
         Act::Up,
         Act::Down,
         Act::Left,
@@ -580,6 +582,7 @@ impl Act {
         Act::Map,
         Act::Journal,
         Act::HideUi,
+        Act::Photo,
         Act::Command,
         Act::Drop,
         Act::Use,
@@ -623,6 +626,7 @@ impl Act {
             Act::Map => "map",
             Act::Journal => "journal",
             Act::HideUi => "hide_ui",
+            Act::Photo => "photo",
             Act::Drop => "drop",
             Act::Use => "use",
             Act::TakeAll => "take_all",
@@ -672,6 +676,7 @@ impl Act {
             Act::Map => "Map",
             Act::Journal => "Journal",
             Act::HideUi => "Hide interface",
+            Act::Photo => "Photo mode",
             Act::Drop => "Drop item",
             Act::Use => "Use item",
             Act::TakeAll => "Take all (loot)",
@@ -744,6 +749,7 @@ impl Act {
             Act::Map => &[K::M],
             Act::Journal => &[K::J],
             Act::HideUi => &[K::H],
+            Act::Photo => &[K::P],
             Act::Drop => &[K::G],
             Act::Use => &[K::U],
             Act::TakeAll => &[K::T],

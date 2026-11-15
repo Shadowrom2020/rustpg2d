@@ -24,6 +24,7 @@ These are the default keys; players change them in *Options › Controls*.
 | M | The map screen |
 | G | Companion orders (with companions along) |
 | H | Hide or show the interface |
+| P | Photo mode (see below) |
 | F5 / F9 | Quick save / quick load |
 | Esc | Pause menu; closes windows |
 | Left click | Walk to the tile, attack the enemy under the cursor, advance a dialog |
@@ -90,6 +91,8 @@ the first button press makes the pad known to the page.
 | Right stick click | Journal |
 | Left stick click | Sneak on / off (Hide interface has no button; H on the keyboard) |
 
+Photo mode has no button of its own: choose *Photo mode* in the pause menu (Start).
+
 **Hints follow your hands.** The help lines at the bottom of windows and menus name the keys while
 you play with the keyboard and mouse, and show your controller's buttons as soon as you press one
 (and back when you press a key or click). The pictures match the controller: coloured A B X Y for
@@ -109,7 +112,7 @@ place is named under the list (*R2 is also Switch weapon*).
   picture), sex, body and colours (skin, hair, clothing…). Enter starts the adventure, Esc goes back.
 - **Title screen**: *New game*, *Continue* (the latest save), *Load game*, *Options*, *Achievements*
   (if the game has them), *Exit*.
-- **Pause menu** (Esc): *Resume*, *Save game* (a new named save or overwrite one), *Load game* (every
+- **Pause menu** (Esc): *Resume*, *Photo mode*, *Save game* (a new named save or overwrite one), *Load game* (every
   save with a small picture of the world, the map, the play time and its age; Del deletes), *Options*,
   *Save and quit*, *Quit* (after a confirmation).
 - Closing the window while playing asks *Save and exit*, *Exit without saving* or *Cancel*.
@@ -130,6 +133,27 @@ place is named under the list (*R2 is also Switch weapon*).
 | Controls… | Every action with its keys: Enter, then a key, adds one (up to three per action); Del clears; *Reset to defaults* |
 
 Options are saved per game and kept between sessions and save games: in `~/.config/rustpg2d/<game>/settings.ron` on Linux, `%APPDATA%\rustpg2d\<game>` on Windows, `~/Library/Application Support/rustpg2d/<game>` on macOS, and in the browser for web games. Achievements are kept there too, not in save games.
+
+## Photo mode
+
+P, or *Photo mode* in the pause menu, stops the world (characters, weather, the clock) and hides
+the interface; the camera is yours. A bar at the bottom names the controls (it isn't in the
+pictures):
+
+| Keys | Gamepad | |
+|---|---|---|
+| Arrows / WASD (Shift: faster), drag with the mouse | Left stick / d-pad | Move the camera over the map |
+| Wheel, + / − | LB / RB | Zoom (0.5× to 3×) |
+| [ / ] | LT / RT | Another hour's light (only for the pictures: the clock is back when you leave) |
+| H | Y | Hide yourself |
+| E / Enter / Space | A | Take a picture |
+| Esc / P | B | Leave photo mode |
+
+Pictures are PNG files at the window's size, named after the game and the moment
+(`Emberbrook-2026-11-15_10-05-18.png`), in your Pictures folder: `~/Pictures/<game name>` on
+Linux (or wherever `XDG_PICTURES_DIR` points, e.g. `~/Bilder`), `Pictures\<game name>` on Windows,
+`~/Pictures/<game name>` on macOS; when that can't be written, a `photos` folder next to the save
+games. The browser version offers each picture as a download.
 
 ## Where saves are kept
 

@@ -25,6 +25,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   (+12) in Tilda's shop, a Magic Backpack (+24) in the bandit chief's loot. `equip` / `unequip`
   take `"back"`; `status` prints `bag=used/slots` and `held=` `who:item@back`.
 
+- **Photo mode**: P (or *Photo mode* in the pause menu) freezes the world, hides the HUD and frees the
+  camera: move (keys, stick, mouse drag), zoom 0.5× to 3×, hide the player (H), another hour's light
+  ([ / ]); E / Space takes a picture of the world alone as a PNG in the Pictures folder
+  (`<Pictures>/<game>/`, else beside the save games; the web game offers a download). Exported
+  Flatpaks may write to the Pictures folder. `status` prints `photo=`.
+
 ### Events and scripts
 - New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with
   *Chase* behaviour runs to where another character (or the player) is, following them for 15 s,

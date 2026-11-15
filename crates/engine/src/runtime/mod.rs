@@ -41,6 +41,7 @@ mod menu;
 mod minigame;
 mod image;
 mod orders;
+mod photo;
 pub mod input;
 pub mod glyphs;
 mod attacks;
@@ -391,6 +392,8 @@ pub struct Game {
     combat: PlayerCombat,
     /// Screen shake and the hurt flash.
     juice: juice::Juice,
+    /// Photo mode (`photo.rs`).
+    photo: photo::Photo,
     /// Script hot reload and the console (`--dev`).
     dev: dev::Dev,
     /// A save waits for its thumbnail (captured while drawing), and what waits for that.
@@ -545,6 +548,7 @@ impl Game {
             clock_seen: None,
             settings: crate::settings::Settings::default(),
             juice: Default::default(),
+            photo: Default::default(),
             dev: dev::Dev::new(start.dev, &project.scripts_dir()),
             thumb_request: None,
             after_thumb: None,
@@ -1469,6 +1473,11 @@ impl Game {
         if self.update_dev(dt) {
             return;
         }
+        // Photo mode: the world stands still, only the camera moves.
+        if self.photo_on() {
+            self.update_photo(dt);
+            return;
+        }
         if self.update_creator(dt) {
             return;
         }
@@ -1573,6 +1582,11 @@ impl Game {
             if self.ui_hidden {
                 self.ui.toast("Interface hidden - press H to show it".into());
             }
+        }
+        // P: photo mode (from the next frame on).
+        if allow_windows && !input.consumed && !shop_key && !hide_key && input::act_pressed(Act::Photo) && !self.modal() && self.can_photo() {
+            self.start_photo();
+            return;
         }
         // G / LB: the companions' orders (only while nothing else is open).
         let cmd_key = self.maybe_open_order_menu(allow_windows && !input.consumed && !shop_key && !hide_key && !self.modal() && !self.aiming());
@@ -2204,7 +2218,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2212,6 +2226,7 @@ impl Game {
             self.autosave_status(),
             self.cutscene_status(),
             self.ui_hidden,
+            self.photo_status(),
             self.window_status(),
             self.npc_items_status(),
             self.fx_status(),
@@ -2416,6 +2431,11 @@ impl Game {
         let clamp_axis = |p: f32, view: f32, size: f32| {
             if size <= view { size / 2.0 } else { p.clamp(view / 2.0, size - view / 2.0) }
         };
+        if let Some((center, scale)) = self.photo_view() {
+            // Photo mode: wherever the player moved it, at its zoom (also past the map's edges
+            // when zoomed out).
+            return render::pixel_camera(center, scale);
+        }
         let mut focus = vec2(self.player.pos.x, self.player.pos.y - 8.0);
         if self.on_title() {
             // The title screen slowly drifts over the start map.
@@ -2469,7 +2489,9 @@ impl Game {
             .filter(|(_, e)| e.active)
             .map(|(i, e)| (e.npc_seat.as_ref().map_or(e.body.pos.y, |s| s.prop_feet.y + 0.5), Drawn::Entity(i)))
             .collect();
-        order.push((self.player_sort_y(), Drawn::Player));
+        if !self.photo.hide_player || !self.photo_on() {
+            order.push((self.player_sort_y(), Drawn::Player));
+        }
         let above_ground = ts * FLIGHT_HEIGHT;
         order.extend(self.projectiles.iter().enumerate().map(|(k, p)| (p.ground_y(above_ground), Drawn::Projectile(k))));
         order.extend(self.flying_fx().map(|(k, y)| (y + above_ground, Drawn::Fly(k))));
@@ -2545,6 +2567,13 @@ impl Game {
         self.draw_weather(view, scene_light);
         // A save's thumbnail: the world as it is now, before overlays, HUD and menus.
         self.capture_thumbnail();
+        if self.photo_on() {
+            // Photo mode: the picture is the world alone; only the hint bar goes over it.
+            self.capture_photo();
+            set_default_camera();
+            self.draw_photo_hint();
+            return;
+        }
 
         if self.debug {
             self.draw_debug(view);

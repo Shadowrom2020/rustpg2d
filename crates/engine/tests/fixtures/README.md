@@ -13,6 +13,7 @@ loading fails the tests.
 | `saves/save-0.12.0.ron` | a quick save written by the 0.12.0 game (built from tag v0.12.0) with the town guard as a hurt companion: before companions had mana and learned spells |
 | `project-0.16.0/` | `project.ron` and `defs/` of the example project at tag v0.16.0: before races (no `races.ron`, no `race` on characters, no body `cut`) |
 | `project-0.20.0/`, `maps/village-0.20.0.map`, `maps/mine-0.20.0.map` | `project.ron`, `defs/` and two maps of the example project at tag v0.20.0, the last release with tiles (`tilesets.ron`, format version 2 tile maps): they convert into a painted project (`projects_of_0_20_0_convert`) |
+| `quests/quests-0.21.0.ron` | the example's `defs/quests.ron` at tag v0.21.0: quests driven by triggers, before the quest designer (no giver, offer, steps, rewards, objects) |
 | `saves/minimal.ron` | only the fields without a default: the oldest save layout |
 
 Add a fixture when a format changes (take the file from the last release's tag), never edit one.

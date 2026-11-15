@@ -602,7 +602,7 @@ impl Editor {
             .iter()
             .map(|s| (format!("Sheet: {}", s.id), s.image.clone(), (s.frame_w, s.frame_h), Layout::Plain))
             .collect();
-        out.extend(db.tilesets.iter().map(|t| (format!("Tileset: {}", t.id), t.image.clone(), (ts, ts), Layout::Plain)));
+        out.extend(db.materials.iter().map(|t| (format!("Material: {}", t.id), t.texture.clone(), (ts, ts), Layout::Plain)));
         out
     }
 

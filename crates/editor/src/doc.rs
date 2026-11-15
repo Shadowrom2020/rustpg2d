@@ -3,15 +3,18 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use rustpg2d_engine::map::{Map, Tile};
+use rustpg2d_engine::map::Map;
 use rustpg2d_engine::render::{Assets, Overview};
 
 /// Everything on a map that isn't tile data (the map file's own RON part).
 pub type Objects = rustpg2d_engine::map::MapObjects;
 
 pub enum Edit {
-    Tiles { layer: usize, changes: Vec<(u32, u32, Tile, Tile)> },
     Collision { changes: Vec<(u32, u32, u8, u8)> },
+    /// Painted ground cells (x, y, old, new).
+    Ground { changes: Vec<(i32, i32, u8, u8)> },
+    /// Decorations added and removed.
+    Decor { added: Vec<rustpg2d_engine::decor::Decor>, removed: Vec<rustpg2d_engine::decor::Decor> },
     Objects { before: Box<Objects>, after: Box<Objects>, tag: &'static str, time: Instant },
     /// Whole-map replacement (resize, layer add/remove).
     Map { before: Box<Map>, after: Box<Map> },
@@ -19,12 +22,9 @@ pub enum Edit {
     Group(Vec<Edit>),
 }
 
-/// Tile changes being accumulated during a mouse drag.
+/// Collision overrides painted during a mouse drag.
 #[derive(Default)]
 pub struct Stroke {
-    layer: usize,
-    collision: bool,
-    tiles: HashMap<(u32, u32), (Tile, Tile)>,
     col: HashMap<(u32, u32), (u8, u8)>,
 }
 
@@ -104,41 +104,17 @@ impl MapDoc {
 
     // ------------------------------------------------------------ strokes
 
-    pub fn begin_stroke(&mut self, layer: usize, collision: bool) {
+    pub fn begin_stroke(&mut self) {
         self.end_stroke();
-        self.stroke = Some(Stroke { layer, collision, ..Default::default() });
+        self.stroke = Some(Stroke::default());
     }
 
     pub fn end_stroke(&mut self) {
         let Some(s) = self.stroke.take() else { return };
-        if s.collision {
-            let changes: Vec<_> = s.col.into_iter().filter(|(_, (a, b))| a != b).map(|((x, y), (a, b))| (x, y, a, b)).collect();
-            if !changes.is_empty() {
-                self.push(Edit::Collision { changes });
-            }
-        } else {
-            let changes: Vec<_> = s.tiles.into_iter().filter(|(_, (a, b))| a != b).map(|((x, y), (a, b))| (x, y, a, b)).collect();
-            if !changes.is_empty() {
-                self.push(Edit::Tiles { layer: s.layer, changes });
-            }
+        let changes: Vec<_> = s.col.into_iter().filter(|(_, (a, b))| a != b).map(|((x, y), (a, b))| (x, y, a, b)).collect();
+        if !changes.is_empty() {
+            self.push(Edit::Collision { changes });
         }
-    }
-
-    /// Sets a tile as part of the current stroke (starting one if needed).
-    pub fn paint(&mut self, layer: usize, x: i32, y: i32, tile: Tile, assets: &Assets) {
-        if !self.map.in_bounds(x, y) || layer >= self.map.layers.len() {
-            return;
-        }
-        if self.stroke.is_none() {
-            self.begin_stroke(layer, false);
-        }
-        let (x, y) = (x as u32, y as u32);
-        let old = self.map.layers[layer].set(x, y, tile);
-        if old != tile {
-            self.overview.update_tile(&self.map, assets, x, y);
-        }
-        let s = self.stroke.as_mut().unwrap();
-        s.tiles.entry((x, y)).or_insert((old, tile)).1 = tile;
     }
 
     pub fn paint_collision(&mut self, x: i32, y: i32, value: u8) {
@@ -146,51 +122,12 @@ impl MapDoc {
             return;
         }
         if self.stroke.is_none() {
-            self.begin_stroke(0, true);
+            self.begin_stroke();
         }
         let i = (y as u32 * self.map.width + x as u32) as usize;
         let old = std::mem::replace(&mut self.map.collision[i], value);
         let s = self.stroke.as_mut().unwrap();
         s.col.entry((x as u32, y as u32)).or_insert((old, value)).1 = value;
-    }
-
-    /// Flood-fills the 4-connected region of identical tiles starting at `(x, y)`.
-    /// `pattern(x, y)` gives the tile for each filled cell. Returns cells changed.
-    pub fn flood_fill(&mut self, layer: usize, x: i32, y: i32, pattern: impl Fn(u32, u32) -> Tile, assets: &Assets) -> usize {
-        if !self.map.in_bounds(x, y) {
-            return 0;
-        }
-        let (w, h) = (self.map.width, self.map.height);
-        let target = self.map.layers[layer].get(x as u32, y as u32);
-        let mut seen = vec![false; (w * h) as usize];
-        let mut stack = vec![(x as u32, y as u32)];
-        let mut cells = Vec::new();
-        while let Some((cx, cy)) = stack.pop() {
-            let i = (cy * w + cx) as usize;
-            if seen[i] || self.map.layers[layer].get(cx, cy) != target {
-                continue;
-            }
-            seen[i] = true;
-            cells.push((cx, cy));
-            if cx > 0 {
-                stack.push((cx - 1, cy));
-            }
-            if cy > 0 {
-                stack.push((cx, cy - 1));
-            }
-            if cx + 1 < w {
-                stack.push((cx + 1, cy));
-            }
-            if cy + 1 < h {
-                stack.push((cx, cy + 1));
-            }
-        }
-        self.begin_stroke(layer, false);
-        for &(cx, cy) in &cells {
-            self.paint(layer, cx as i32, cy as i32, pattern(cx, cy), assets);
-        }
-        self.end_stroke();
-        cells.len()
     }
 
     // ------------------------------------------------------------ objects
@@ -230,9 +167,9 @@ impl MapDoc {
         self.place_recorded(def, x, y, before, "structure", assets)
     }
 
-    /// Empties a rectangle of tiles `(x, y, w, h)` as one undo step: every layer's tiles, the
-    /// collision overrides (back to the tileset's) and the entities whose feet are inside
-    /// (the same ones `StructureDef::capture` copies). Zones stay.
+    /// Empties a rectangle of tiles `(x, y, w, h)` as one undo step: the painted ground, the
+    /// decorations and entities whose feet are inside (the ones `StructureDef::capture`
+    /// copies) and the collision overrides (back to automatic). Zones stay.
     pub fn clear_region(&mut self, rect: (u32, u32, u32, u32), assets: &Assets) {
         use rustpg2d_engine::defs::StructureDef;
         self.end_stroke();
@@ -242,34 +179,31 @@ impl MapDoc {
         let r = macroquad::math::Rect::new(x as f32 * ts, y as f32 * ts, w as f32 * ts, h as f32 * ts);
         self.map.entities.retain(|e| !(e.x >= r.x && e.x < r.right() && e.y >= r.y && e.y < r.bottom()));
         let n = (w * h) as usize;
-        let blank = StructureDef {
-            w,
-            h,
-            layers: vec![vec![StructureDef::CLEAR; n]; self.map.layers.len()],
-            collision: vec![StructureDef::COLLISION_AUTO; n],
-            ..Default::default()
-        };
+        let cells = (n as u32 * rustpg2d_engine::ground::CELLS * rustpg2d_engine::ground::CELLS) as usize;
+        let blank = StructureDef { w, h, ground: vec![StructureDef::CLEAR_GROUND; cells], clear: vec![1; n], collision: vec![StructureDef::COLLISION_AUTO; n], ..Default::default() };
         self.place_recorded(&blank, x as i32, y as i32, before, "clear", assets);
     }
 
-    /// Places `def` and records the tile, collision and object changes since `before` as one
-    /// `Edit::Group`.
+    /// Places `def` and records the ground, decoration, collision and object changes since
+    /// `before` as one `Edit::Group`.
     fn place_recorded(&mut self, def: &rustpg2d_engine::defs::StructureDef, x: i32, y: i32, before: Objects, tag: &'static str, assets: &Assets) -> Vec<u32> {
         let p = def.place(&mut self.map, x, y);
         let mut group: Vec<Edit> = Vec::new();
-        for (layer, changes) in p.tiles.into_iter().enumerate().filter(|(_, c)| !c.is_empty()) {
-            for &(tx, ty, _, _) in &changes {
-                self.overview.update_tile(&self.map, assets, tx, ty);
-            }
-            group.push(Edit::Tiles { layer, changes });
+        if !p.ground.is_empty() {
+            self.ground_overview(assets, p.ground.iter().map(|c| (c.0, c.1)));
+            group.push(Edit::Ground { changes: p.ground });
+        }
+        if !p.decor_added.is_empty() || !p.decor_removed.is_empty() {
+            self.overview.decor_stale = true;
+            group.push(Edit::Decor { added: p.decor_added, removed: p.decor_removed });
         }
         if !p.collision.is_empty() {
             group.push(Edit::Collision { changes: p.collision });
         }
         let after = Objects::of(&self.map);
         if after != before {
-            // (Registering tilesets on the map is part of this too: `tilesets` isn't undone,
-            // an unused tileset slot is harmless.)
+            // (Registering materials and props on the map is part of this too: those lists
+            // aren't undone, an unused slot is harmless and dropped when saving.)
             group.push(Edit::Objects { before: Box::new(before), after: Box::new(after), tag, time: Instant::now() });
         }
         if !group.is_empty() {
@@ -282,16 +216,24 @@ impl MapDoc {
 
     fn apply(&mut self, e: &Edit, forward: bool, assets: &Assets) {
         match e {
-            Edit::Tiles { layer, changes } => {
-                for &(x, y, old, new) in changes {
-                    self.map.layers[*layer].set(x, y, if forward { new } else { old });
-                    self.overview.update_tile(&self.map, assets, x, y);
-                }
-            }
             Edit::Collision { changes } => {
                 for &(x, y, old, new) in changes {
                     self.map.collision[(y * self.map.width + x) as usize] = if forward { new } else { old };
                 }
+            }
+            Edit::Ground { changes } => {
+                for &(x, y, old, new) in changes {
+                    self.map.ground.set(x, y, if forward { new } else { old });
+                }
+                self.ground_overview(assets, changes.iter().map(|c| (c.0, c.1)));
+            }
+            Edit::Decor { added, removed } => {
+                let (gone, back) = if forward { (removed, added) } else { (added, removed) };
+                for d in gone {
+                    crate::decor_tool::remove_one(&mut self.map.decor, d);
+                }
+                self.map.decor.extend(back.iter().copied());
+                self.overview.decor_stale = true;
             }
             Edit::Objects { before, after, .. } => (if forward { after } else { before }).apply(&mut self.map),
             Edit::Map { before, after } => {
@@ -304,6 +246,38 @@ impl MapDoc {
                 } else {
                     edits.iter().rev().for_each(|e| self.apply(e, false, assets));
                 }
+            }
+        }
+    }
+
+    /// Records painted ground cells (`(x, y, old)` from the `Ground` painting functions, which
+    /// already set them to `new`) as one undo step.
+    pub fn record_ground(&mut self, cells: Vec<(i32, i32, u8)>, new: u8, assets: &Assets) {
+        if cells.is_empty() {
+            return;
+        }
+        self.end_stroke();
+        self.ground_overview(assets, cells.iter().map(|c| (c.0, c.1)));
+        self.push(Edit::Ground { changes: cells.into_iter().map(|(x, y, old)| (x, y, old, new)).collect() });
+    }
+
+    /// Records decorations already added to / removed from the map as one undo step.
+    pub fn record_decor(&mut self, added: Vec<rustpg2d_engine::decor::Decor>, removed: Vec<rustpg2d_engine::decor::Decor>) {
+        if added.is_empty() && removed.is_empty() {
+            return;
+        }
+        self.end_stroke();
+        self.overview.decor_stale = true;
+        self.push(Edit::Decor { added, removed });
+    }
+
+    /// The overview pixels of the tiles holding these cells.
+    fn ground_overview(&mut self, assets: &Assets, cells: impl Iterator<Item = (i32, i32)>) {
+        let n = rustpg2d_engine::ground::CELLS as i32;
+        let tiles: std::collections::BTreeSet<(i32, i32)> = cells.map(|(x, y)| (x.div_euclid(n), y.div_euclid(n))).collect();
+        for (x, y) in tiles {
+            if self.map.in_bounds(x, y) {
+                self.overview.update_tile(&self.map, assets, x as u32, y as u32);
             }
         }
     }
@@ -332,47 +306,6 @@ mod tests {
 
     fn assets() -> Assets {
         Assets::empty(rustpg2d_engine::project::TILE_SIZE as f32)
-    }
-
-    #[test]
-    fn stroke_undo_redo() {
-        let a = assets();
-        let mut d = MapDoc::new(Map::new("t", 64, 64), &a);
-        let t = Tile::new(0, 5);
-        d.begin_stroke(0, false);
-        for x in 0..40 {
-            d.paint(0, x, 3, t, &a);
-            d.paint(0, x, 3, t, &a); // repeated paint in one stroke
-        }
-        d.paint(0, -1, 3, t, &a); // out of bounds is ignored
-        d.end_stroke();
-        assert!(d.is_dirty() && d.can_undo());
-        assert_eq!(d.map.layers[0].get(39, 3), t);
-        d.undo(&a);
-        assert_eq!(d.map.layers[0].get(39, 3), Tile::EMPTY);
-        assert_eq!(d.map.layers[0].get(0, 3), Tile::EMPTY);
-        d.redo(&a);
-        assert_eq!(d.map.layers[0].get(0, 3), t);
-        assert!(!d.can_redo());
-    }
-
-    #[test]
-    fn flood_fill_is_bounded_by_region() {
-        let a = assets();
-        let mut d = MapDoc::new(Map::new("t", 20, 20), &a);
-        let wall = Tile::new(0, 1);
-        d.begin_stroke(0, false);
-        for i in 0..20 {
-            d.paint(0, 10, i, wall, &a);
-        }
-        d.end_stroke();
-        let n = d.flood_fill(0, 2, 2, |_, _| Tile::new(0, 2), &a);
-        assert_eq!(n, 10 * 20);
-        assert_eq!(d.map.layers[0].get(15, 5), Tile::EMPTY);
-        assert_eq!(d.map.layers[0].get(9, 19), Tile::new(0, 2));
-        d.undo(&a);
-        assert_eq!(d.map.layers[0].get(9, 19), Tile::EMPTY);
-        assert_eq!(d.map.layers[0].get(10, 19), wall);
     }
 
     #[test]
@@ -412,7 +345,7 @@ mod tests {
         let mut d = MapDoc::new(Map::new("t", 8, 8), &a);
         assert!(!d.is_dirty());
         let paint = |d: &mut MapDoc, x| {
-            d.paint(0, x, 0, Tile::new(0, 1), &a);
+            d.paint_collision(x, 0, 1);
             d.end_stroke();
         };
         paint(&mut d, 1);
@@ -459,12 +392,16 @@ mod tests {
 
     #[test]
     fn placing_a_structure_is_one_undo_step() {
+        use rustpg2d_engine::decor::{Decor, DecorLayer};
         let a = assets();
         let mut src = Map::new("s", 4, 4);
-        let slot = src.tileset_slot("terrain");
+        let wood = src.material_value("wood").unwrap();
+        for cx in 0..12 {
+            src.ground.set(cx, 5, wood);
+        }
+        let wall = src.decor_slot("wall");
         for x in 0..3 {
-            src.layers[0].set(x, 1, Tile::new(slot, 6));
-            src.layers[1].set(x, 0, Tile::new(slot, 9));
+            src.decor.push(Decor { def: wall, x: x * 32 + 16, y: 32, flip: false, state: 0, layer: DecorLayer::Sorted });
         }
         src.set_collision(1, 1, rustpg2d_engine::map::CollisionOverride::Walkable);
         let uid = src.alloc_uid();
@@ -472,35 +409,35 @@ mod tests {
         let def = rustpg2d_engine::defs::StructureDef::capture(&src, "s", "S", (0, 0, 3, 2), true);
 
         let mut d = MapDoc::new(Map::new("t", 8, 8), &a);
-        let tree = d.map.tileset_slot("forest");
-        d.map.layers[1].set(3, 3, Tile::new(tree, 2));
+        let tree = d.map.decor_slot("tree");
+        d.map.decor.push(Decor { def: tree, x: 3 * 32 + 16, y: 4 * 32, flip: false, state: 0, layer: DecorLayer::Sorted });
         d.mark_saved();
-        let before = (d.map.layers[0].get(3, 4), d.map.layers[1].get(3, 3), d.map.collision.clone(), d.map.entities.len());
+        let before = (d.map.ground.get(2 * 4, 3 * 4 + 5), d.map.decor.clone(), d.map.collision.clone(), d.map.entities.len());
         let added = d.place_structure(&def, 2, 3, &a);
         assert_eq!(added.len(), 1);
-        assert!(d.is_dirty() && d.map.layers[1].get(3, 3).parts().is_some_and(|p| p.1 == 9));
+        assert!(d.is_dirty() && d.map.decor.len() == 3, "the tree is cleared, three walls stand");
         d.undo(&a);
-        assert_eq!((d.map.layers[0].get(3, 4), d.map.layers[1].get(3, 3), d.map.collision.clone(), d.map.entities.len()), before);
+        assert_eq!((d.map.ground.get(2 * 4, 3 * 4 + 5), d.map.decor.clone(), d.map.collision.clone(), d.map.entities.len()), before);
         assert!(!d.is_dirty());
         d.redo(&a);
         assert_eq!(d.map.entities.len(), 1);
+        assert_eq!(d.map.material_of(d.map.ground.get(2 * 4, 3 * 4 + 5)), Some("wood"));
         assert_eq!(d.map.collision_at(3, 4), rustpg2d_engine::map::CollisionOverride::Walkable);
     }
 
     #[test]
     fn cut_and_paste_a_region() {
+        use rustpg2d_engine::decor::{Decor, DecorLayer};
         use rustpg2d_engine::defs::StructureDef;
         use rustpg2d_engine::map::CollisionOverride;
         let a = assets();
         let mut d = MapDoc::new(Map::new("t", 10, 10), &a);
-        let slot = d.map.tileset_slot("terrain");
-        for y in 0..10 {
-            for x in 0..10 {
-                d.map.layers[0].set(x, y, Tile::new(slot, 1));
-            }
-        }
-        d.map.layers[0].set(2, 2, Tile::new(slot, 5));
-        d.map.layers[1].set(3, 2, Tile::new(slot, 9));
+        let grass = d.map.material_value("grass").unwrap();
+        let sand = d.map.material_value("sand").unwrap();
+        d.map.ground.fill(grass);
+        d.map.ground.set(2 * 4, 2 * 4, sand);
+        let rock = d.map.decor_slot("rock");
+        d.map.decor.push(Decor { def: rock, x: 3 * 32 + 16, y: 3 * 32, flip: false, state: 0, layer: DecorLayer::Sorted });
         d.map.set_collision(2, 3, CollisionOverride::Solid);
         let (inside, outside) = (d.map.alloc_uid(), d.map.alloc_uid());
         d.map.entities.push(EntityInstance::new(inside, EntityKind::Prop, "barrel", 3.5 * 32.0, 4.0 * 32.0 - 1.0));
@@ -510,22 +447,24 @@ mod tests {
         // Cut (2, 2, 2x2): copy, then one undo step empties it.
         let clip = StructureDef::capture(&d.map, "clip", "clip", (2, 2, 2, 2), true);
         d.clear_region((2, 2, 2, 2), &a);
-        assert_eq!((d.map.layers[0].get(2, 2), d.map.layers[1].get(3, 2)), (Tile::EMPTY, Tile::EMPTY));
+        assert_eq!((d.map.ground.get(2 * 4, 2 * 4), d.map.decor.len()), (0, 0));
         assert_eq!(d.map.collision_at(2, 3), CollisionOverride::Auto);
         assert_eq!(d.map.entities.iter().map(|e| e.uid).collect::<Vec<_>>(), vec![outside]);
-        assert_eq!(d.map.layers[0].get(4, 2), Tile::new(slot, 1), "outside the region");
+        assert_eq!(d.map.ground.get(4 * 4, 2 * 4), grass, "outside the region");
 
         // Paste at (6, 0): an exact copy, the cut is still undoable separately.
         let added = d.place_structure(&clip, 6, 0, &a);
         assert_eq!(added.len(), 1);
-        assert_eq!((d.map.layers[0].get(6, 0), d.map.layers[1].get(7, 0)), (Tile::new(slot, 5), Tile::new(slot, 9)));
-        assert_eq!(d.map.layers[1].get(6, 0), Tile::EMPTY);
+        assert_eq!((d.map.ground.get(6 * 4, 0), d.map.ground.get(7 * 4, 0)), (sand, grass));
+        assert_eq!((d.map.decor.len(), d.map.decor[0].x, d.map.decor[0].y), (1, 7 * 32 + 16, 32));
         assert_eq!(d.map.collision_at(6, 1), CollisionOverride::Solid);
         let e = d.map.entity(added[0]).unwrap();
         assert_eq!((e.x, e.y), (7.5 * 32.0, 2.0 * 32.0 - 1.0));
+        assert!(d.overview.decor_stale);
         d.undo(&a);
         d.undo(&a);
-        assert_eq!((d.map.layers[0].get(2, 2), d.map.layers[1].get(3, 2)), (Tile::new(slot, 5), Tile::new(slot, 9)));
+        assert_eq!((d.map.ground.get(2 * 4, 2 * 4), d.map.ground.get(6 * 4, 0)), (sand, grass));
+        assert_eq!((d.map.decor.len(), d.map.decor[0].x), (1, 3 * 32 + 16));
         assert_eq!(d.map.collision_at(2, 3), CollisionOverride::Solid);
         assert_eq!(d.map.entities.len(), 2);
         assert!(!d.is_dirty());

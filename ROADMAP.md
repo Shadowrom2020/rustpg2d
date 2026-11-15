@@ -89,7 +89,11 @@ Instructions for every session (people and coding agents) that implements roadma
     tests fail otherwise), `cargo xtask check-version release/X.Y.Z`, pull request into master, merge after the
     checks: the Release workflow tags and publishes it.
 
-## 0.21.0 — Weapons in Hand
+## 0.21.0 — Weapons in Hand & Painted Worlds (breaking)
+
+Two themes in one release (the maintainer merged the planned 0.22.0 *Painted Worlds* into 0.21.0 on
+2026-11-15): weapons in hand, then painted maps (below, from *Painted ground* on). The release is
+breaking: tile projects convert once (CHANGELOG says so).
 
 Fighting should look like the weapon in the hand: a sword slashes, an axe comes down overhead, a
 spear thrusts, a bow draws and looses, a crossbow aims and fires, a shield comes up to block, and a
@@ -305,6 +309,215 @@ maintainer before changing Rust code (CLAUDE.md, *Content first*).
   **Verify.** Scripted: every tab by Tab, LB / RB and clicks (pause menu and title screen),
   changing values with the arrows, resetting the Sound tab (Accessibility unchanged), Controls and
   back, the German labels.
+
+### Painted Worlds
+
+Maps stop being tile grids. The ground is painted with brushes in materials (grass, dirt road,
+sand, water, cobblestone…) on an 8 px grid; the engine draws the painting with a shader, with edges
+shaped per material (crisp pixel-art edges or soft blends), so roads and shores blend in naturally.
+Trees, rocks, fences, walls and buildings are objects placed freely (scatter brush, wall pieces that
+snap together), not tiles. Old projects are converted once when opened (with a backup). Agreed with
+the maintainer (2026-11-15): the engine bakes at load (no export step), edges per material, tiles
+replaced everywhere (older maps only need to convert, not load as tiles), a one-time converter,
+walls as objects, all 13 example maps repainted.
+
+- [x] Painted ground — `feature/ground-paint`
+
+  **Goal.** A map's ground is a painting in materials that the game draws and collides with.
+
+  **Design.**
+  - *Materials* (`MaterialDef`, `defs/materials.ron`, replaces `TilesetDef` in the end): `id`,
+    `name`, `texture` (a seamless picture, repeated), `edge` `Crisp | Soft`, `edge_noise` (px),
+    `rim` (optional fringe colour, px wide), `priority` (higher grows over lower at an edge), `walk`
+    `Walk | Solid | Low` (Low = solid to feet, shots fly over: water), `step` (footstep sound),
+    `scroll` (px per second, flowing water); its colour on overviews is the texture's average.
+  - *Ground grid*: `Map.ground`, chunked like tile layers (32 x 32 tiles a chunk), one byte per 8 px
+    cell (4 x 4 per tile) = an index into the map's `materials` list; a chunk of one material is
+    stored as one value. Map format v3 (`map/io.rs`); v2 / v1 maps keep their reader.
+  - *Drawing*: each chunk's cells become a small texture (index in the red channel); a GLSL ES 100
+    shader draws the visible ground every frame from one atlas of material textures: crisp edges =
+    the cell lookup warped by noise snapped to art pixels, soft = smoothstep weights of the
+    neighbours, priority and rim at borders, water scrolled by a time uniform. Editing re-uploads
+    one chunk texture. Precedents: `render/lighting.rs` (material, render target), `render/model.rs`.
+  - *Logic stays on the 32 px grid* (occupancy, A*, fog, zones, script tile coordinates). Movement
+    tests the 8 px cells under the hitbox (exact shores); A* counts a tile blocked when half its cells
+    are; the per-tile collision overrides stay. Footsteps = the material under the feet; shots stop at
+    Solid, fly over Low.
+  - *Map screen* (`worldmap.rs`) and the editor minimap draw the ground through the same shader.
+  - *While tiles still exist* (until *Tile converter*), tile layers draw over the ground, so maps can
+    mix both during the transition.
+
+  **Engine.** Agreed: all of the above.
+
+  **Decided while building.** The ground is drawn by the shader every frame (nothing baked; the
+  chunks' cell textures are the only GPU data, re-uploaded when a chunk or a neighbour changes).
+  A material's map colour is the texture's average (no `map_color` field). The starter textures
+  are the terrain tiles' 32 px insides as they are (mirrored 64 px versions showed patterns);
+  better seamless textures can come with the repaint. Cells past the map's edge repeat the edge
+  cells (no ragged border against the background). macroquad's `_Time` is a vec4. Editor script
+  commands `ground` / `gpaint` / `gline` / `gfill` (one undo step each, `Edit::Ground`) and
+  `newmap NAME W H blank` came early, for testing; `status` prints `ground=material/count`.
+
+  **Touch points.** `map/mod.rs`, `map/io.rs`, `defs.rs` / `project.rs` (`DEFS`), new
+  `render/ground.rs`, `runtime/mod.rs` (`enter_map`, draw order, `rect_blocked_by`, `try_move`,
+  `blocks_shot`), `runtime/mouse.rs` (`plan`), `runtime/soundscape.rs`, `runtime/worldmap.rs`,
+  `release.rs`, `library.rs`, `refactor.rs`.
+
+  **Example.** Starter materials made from today's terrain base tiles (grass, meadow, dirt, forest
+  floor, sand, water, cobblestone, flagstones, wood, carpet, rug, farmland, snow, earth, chasm,
+  abyss); a scratch map shows them.
+
+  **Verify.** Done: ground round trips (postcard, map v3, v2 without ground), brushes and fill,
+  cells vs the A* rule (unit tests); a 40 x 30 map painted by editor script (screenshots of crisp
+  and soft edges, rims); in the game the player stops at the painted water's edge and footsteps
+  change with the material (`sounds=`); a 1024 x 1024 map with 400 strokes runs at 60 fps (debug,
+  0.1 ms CPU for drawing); the web export draws it in headless Brave (WebGL 1, no GL errors). Shots
+  over water: unit test only.
+
+- [x] Ground tool — `feature/ground-tool`
+
+  **Goal.** Painting the ground in the editor and through the agent server.
+
+  **Design.** Map ribbon *Ground*: round brush (size, material), line / road with a width, fill,
+  erase to the base material, pick; undo = strokes of changed cells (`doc.rs`); the material palette
+  shows the textures. Agent tools `paint_ground` (circles, polylines with a width, polygons),
+  `fill_ground`, `get_map` with the material grid; editor script `ground MATERIAL`, `gpaint X Y R`,
+  `gline …`, `gfill`; `status` prints `ground=`. Database tab *Materials* with an edge preview.
+
+  **Engine.** Agreed (editor).
+
+  **Decided while building.** Built on the *Painted ground* branch (`feature/ground-paint`). The
+  tool is `Tool::Ground` (key P) in `ground_tool.rs`: modes Brush / Line / Fill, size = diameter in
+  tiles ([ ]), Shift erases, right-click picks; strokes collect their cells (`GroundDrag`) and become
+  one `Edit::Ground`; the canvas marks the stroke with `Drag::Ground` (it forwards drags only then).
+  With the tool and *Dim inactive layers*, every tile layer is faded. Agent tools in tile units with
+  polygons filled cell by cell (`Ground::paint_polygon`). The Materials form has no edge preview
+  (the swatches show the textures); it may come with the repaint.
+
+  **Touch points.** `editor/src/app.rs` (tools, palette), `canvas.rs`, `doc.rs`, `database.rs`,
+  `mcp/exec_maps.rs`, `mcp/grid.rs`, `mcp/tools.rs`, `main.rs`.
+
+  **Example.** None yet (the repaint comes last).
+
+  **Verify.** Done: editor script with simulated mouse (`tool ground`, `drag` brush and line,
+  `click` fill, right-click pick, `undo` restores the filled area; screenshots), the agent tools on a
+  scratch map (fill, polygon lake, stream, unknown material refused, `get_map` grid), an editor UI
+  test of the Materials form (edge, rim, texture, undo, save).
+
+- [x] Decorations — `feature/decor`
+
+  **Goal.** Trees, rocks, flowers, fences, walls and buildings placed freely and cheaply.
+
+  **Design.** `Map.decor`: chunked `{def, x, y (feet, px), flip, variant, layer}` with layer
+  `Flat | Sorted | Above` (under characters / depth-sorted / over them like today's Overhead layer),
+  using ordinary `PropDef`s (picture, hitbox, solid / low, light) without uid, state or triggers; the
+  same prop can still be placed as an entity (a choppable `oak_tree`). Solid decor fills a static
+  occupancy layer at load (`runtime/occupancy.rs`); hitboxes are tested per chunk. New `PropDef`
+  fields `climb` (ladders), `snap` (16 / 32 px), `pieces` (a wall set's straight, corner, end and T
+  pieces: a dragged line picks them). Scatter sets (`ScatterDef`, `defs/scatter.ron`: weighted props,
+  density, spacing, flip). Editor *Objects* tool (place, snap, wall line, scatter brush, erase,
+  select / move), agent tools `place_objects`, `scatter`, `erase_objects`. Structures v2 = a ground
+  patch + decor + entities.
+
+  **Engine.** Agreed.
+
+  **Decided while building.** Built on the same branch as *Painted ground*. Decorations live in map
+  format v3 (still unreleased: `decor_defs`, `decor` after the ground in `Core3`). A decoration's
+  `state` picks its prop's state picture; collision and lights use the prop's definition. Wall sets
+  are 16 pieces by neighbour mask on the set prop (`pieces`); a dragged line goes along the longer
+  axis on the prop's grid and re-picks every member of the set around it. Undo stores the added and
+  removed decorations (`Edit::Decor`). The editor tool is `Tool::Decor` (key O) in
+  `decor_tool.rs`. **Structures v2 move to *Tile converter*** (structures are converted with the
+  maps). No wall sets with corner pieces yet: they come with the repaint (the starter library has
+  stone and plaster wall blocks and a wooden fence that snap to 32 px).
+
+  **Touch points.** `map/mod.rs`, `map/io.rs`, `defs.rs`, `structure.rs`, `runtime/mod.rs` (draw
+  order, collision), `runtime/occupancy.rs`, `render/lighting.rs` (lights of decor), editor
+  `canvas.rs`, `structures.rs`, `clipboard.rs`, `database.rs`, `mcp/`.
+
+  **Example.** Scatter sets "Forest", "Meadow flowers", "Rocks"; wall pieces from today's wall tiles.
+
+  **Verify.** Done: unit tests (scatter spacing and density, chunk index, map round trip and the
+  corrupt-slot check, wall lines joining a corner); agent tools on a scratch map (scatter forest and
+  rocks, wall and fence lines, a boulder; `get_map` lists them); in the game the player stops at a
+  boulder and a wall, trees are depth-sorted with the player (screenshots); 67 000 scattered trees
+  on a 1024 x 1024 map: 60 fps, 0.4 ms draw CPU (debug and release), 521 KB file, editor canvas
+  2.8 ms zoomed out; editor script: scatter, place, wall line, erase, undo, collision view.
+
+- [x] Tile converter — `feature/tile-converter`
+
+  **Goal.** Older projects open as painted projects; tiles leave the engine.
+
+  **Design.** `engine/src/convert_tiles.rs` (after `migrate.rs` for 16 px projects), run by the
+  editor when it opens a pre-0.21 project (backup copy first) and by `import tiled`: each terrain
+  and plain ground tile becomes a material (its base tile as texture, step sound kept), a blob
+  tile's slot mask fills the tile's 8 px cells, Detail / Overhead tiles become Sorted / Above decor
+  of props generated from the tiles (a sheet per tileset image; solid, low, ladder, light, animation
+  kept), tile structures become v2 structures (a ground patch, decorations and entities: they
+  moved here from *Decorations*). Then `TilesetDef`, `autotile.rs`, the tile tools,
+  forms and agent tools go; the game reads v3 maps only.
+
+  **Engine.** Agreed.
+
+  **Decided while building.** Built on the same branch. The conversion is per tile, so maps and
+  structures share it (`TileConverter::convert_tile`): a terrain tile paints the cells its slot mask
+  says are the terrain (middle 2 × 2 always, an edge row where that side's neighbour is the
+  terrain, a corner where both sides are and, for blob sets, the diagonal), the rest with the
+  terrain's base on the ground layer (kept on upper layers); every other ground tile is a material
+  of its own (the tile as a 32 px texture, crisp, no noise: looks as before); materials are shared
+  by texture pixels, so the example's 17 hand-made materials are reused. Detail tiles became *Flat*
+  decorations, not Sorted (that is how they drew). Every terrain of every tileset becomes a material
+  (the palette stays). The old types live in `old_tiles.rs`; `io::decode_tiles` returns a v1 / v2
+  map's tiles, `decode_with` drops them with a warning; the 16 px upgrade writes v2 maps
+  (`save_tiles`) for the converter. Map format v3 was redefined without tile layers (unreleased).
+  Backups: a project file is copied (`<name>-backup-tiles.r2dproject`), a folder (`-backup-tiles`),
+  the asset library too; old `.r2dpack`s convert in a temporary folder. New: `PropDef.anim`
+  (animated props, for animated tiles; also in the props form), structures v2 (`materials`,
+  `ground`, `decor_defs`, `decor`, `clear`; old `tilesets` / `layers` read for conversion), the
+  structure editor rebuilt for ground and decorations, overviews colour decorations (refreshed
+  lazily), the ground stops at the map's edge, *New asset… › Ground material*, the new-project
+  starter brings materials and scatter sets, `MaterialTexture` browse. The example and the starter
+  library are converted here (not in *Painted example*); converted props are named
+  "Terrain tile N" (German "Geländekachel N").
+
+  **Touch points.** new `convert_tiles.rs`, `old_tiles.rs`, `map/io.rs`, `migrate.rs`, `library.rs`
+  (`STARTER_RULES` 11, bundles), `release.rs`, `refactor.rs` (`RefKind::Tileset` gone), `structure.rs`,
+  `render/mod.rs` (`Overview`), `render/ground.rs` (map edge), editor `app.rs` (`Editor::new` converts),
+  `canvas.rs`, `doc.rs`, `structures.rs`, `clipboard.rs`, `import/tiled.rs`, `wizard.rs`,
+  `new_project.rs`, `database.rs`, `mcp/`; removed `terrain.rs`, `tile_cache.rs`, `autotile.rs`.
+
+  **Example.** Converted (13 maps, 35 structures: 14 new materials, 59 tile props); the starter
+  library too (51 structures, 22 materials, 75 tile props), plus the example's 6 it lacked.
+
+  **Verify.** Done: unit tests (terrain cells by mask, structure capture / place / prune, undo of a
+  placement, cut and paste, an old package converting, the Tiled import); the compat test converts
+  the 0.9.0 project with the 0.9.0 / 0.10.0 maps (no walkable tile blocked, entities and zones
+  equal, backup, tilesets file gone); the example's 13 maps compared tile by tile (0 walkable tiles
+  blocked, 121 blocked ones walkable now: shore and chasm edges) and in screenshots before / after
+  (village, tavern, mine, forest: the same but the rug's border); the Wilds (125 000 decorations)
+  at 60 fps; a scratch copy of `~/Test` converted by the editor with its backup, both maps in the
+  game; the editor (ribbon, Ground swatches, minimap with decorations, the structure editor on the
+  converted cottage); the CI smoke script with the updated agent smoke client; web build compiles.
+
+- [ ] Painted example — `feature/painted-example`
+
+  **Goal.** All 13 example maps repainted in the new style.
+
+  **Design.** Through the agent server, on the converted maps (converted in *Tile converter*;
+  uids, quests and triggers kept):
+  smooth roads, river and pond; scattered forests instead of tile trees; buildings as one prop each
+  (composed from today's wall and roof tiles); interiors with floor materials and wall pieces; the
+  mine. New assets go to the starter library.
+
+  **Engine.** None (content).
+
+  **Touch points.** `example_project/`, `crates/editor/assets/starter_library/`,
+  `starter_history.ron`, README screenshots, `Documentation/manual/03-maps.md` (rewritten).
+
+  **Example.** This item.
+
+  **Verify.** Walking routes and click-to-move on every map, fishing, chopping, mining, the smoke
+  script's quest run, screenshots of every map, the web export.
 
 ## Backlog (unscheduled ideas)
 

@@ -225,4 +225,28 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "walls",
+        image: "sprites/walls.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
+    (
+        id: "terrain_tiles",
+        image: "tilesets/terrain.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
+    (
+        id: "city_tiles",
+        image: "tilesets/city.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
+    (
+        id: "dungeon_tiles",
+        image: "tilesets/dungeon.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

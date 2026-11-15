@@ -212,9 +212,11 @@ impl Editor {
     }
 }
 
-/// The definitions whose files the editor loads as images and sounds.
-fn asset_defs(db: &Database) -> (Vec<rustpg2d_engine::defs::TilesetDef>, Vec<rustpg2d_engine::defs::SheetDef>, Vec<rustpg2d_engine::defs::SoundDef>) {
-    (db.tilesets.clone(), db.sheets.clone(), db.sounds.clone())
+/// The definitions whose files the editor loads as images and sounds (materials: only their
+/// textures; edges and the rest are read while drawing).
+type AssetDefs = (Vec<(String, String)>, Vec<rustpg2d_engine::defs::SheetDef>, Vec<rustpg2d_engine::defs::SoundDef>);
+fn asset_defs(db: &Database) -> AssetDefs {
+    (db.materials.iter().map(|m| (m.id.clone(), m.texture.clone())).collect(), db.sheets.clone(), db.sounds.clone())
 }
 
 #[cfg(test)]

@@ -1,13 +1,8 @@
-//! Maps as text for agents: a region of a tile layer as rows of glyphs with a legend (the most
-//! frequent tile gets `a`, …), the collision grid, the objects in the region — and the reverse,
-//! parsing such rows for `paint_grid`. Pure functions over the map data.
+//! Maps as text for agents: the region an agent asks for, the collision grid and the objects in
+//! the region. Pure functions over the map data.
 
-use std::collections::{BTreeMap, HashMap};
+use rustpg2d_engine::map::{CollisionOverride, Map, ZoneKind};
 
-use rustpg2d_engine::map::{CollisionOverride, Map, Tile, ZoneKind};
-
-/// Glyphs in the order they are handed out (`.` = empty, `#` = more kinds than glyphs).
-pub const GLYPHS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!$%&*+-/:;<=>?@^~";
 /// Largest region per call (tiles).
 pub const MAX_CELLS: u32 = 80 * 50;
 
@@ -48,58 +43,7 @@ fn rulers(r: &Region) -> String {
     format!("{tens}\n{units}\n")
 }
 
-/// One layer of `map` in `r` as glyph rows plus the legend; `describe(tileset id, index)` names a
-/// tile (terrain, solid, …) for the legend.
-pub fn render_layer(map: &Map, layer: usize, r: &Region, describe: &dyn Fn(&str, u32) -> String) -> String {
-    let Some(l) = map.layers.get(layer) else { return format!("layer {layer}: the map has {} layers\n", map.layers.len()) };
-    // Frequency per tile, then glyphs by frequency.
-    let mut counts: HashMap<Tile, usize> = HashMap::new();
-    for y in r.y..r.y + r.h {
-        for x in r.x..r.x + r.w {
-            let t = l.get(x, y);
-            if t != Tile::EMPTY {
-                *counts.entry(t).or_default() += 1;
-            }
-        }
-    }
-    let mut order: Vec<(Tile, usize)> = counts.into_iter().collect();
-    order.sort_by(|a, b| b.1.cmp(&a.1).then(a.0 .0.cmp(&b.0 .0)));
-    let glyphs: Vec<char> = GLYPHS.chars().collect();
-    let mut glyph_of: HashMap<Tile, char> = HashMap::new();
-    let mut legend = Vec::new();
-    let mut overflow = 0;
-    for (i, (t, n)) in order.iter().enumerate() {
-        if let Some(&g) = glyphs.get(i) {
-            glyph_of.insert(*t, g);
-            let (slot, idx) = t.parts().unwrap_or((0, 0));
-            let ts = map.tilesets.get(slot).map_or("?", |s| s.as_str());
-            legend.push(format!("{g} = {ts}#{idx} {} x{n}", describe(ts, idx)));
-        } else {
-            overflow += n;
-        }
-    }
-    let mut out = format!("layer {layer} \"{}\"{} x{}..{} y{}..{} (. = empty{}):\n", l.name, if l.above_entities { " (above characters)" } else { "" }, r.x, r.x + r.w - 1, r.y, r.y + r.h - 1, if overflow > 0 { ", # = other tiles" } else { "" });
-    out += &rulers(r);
-    for y in r.y..r.y + r.h {
-        out += &format!("{y:>5} ");
-        for x in r.x..r.x + r.w {
-            let t = l.get(x, y);
-            out.push(if t == Tile::EMPTY { '.' } else { *glyph_of.get(&t).unwrap_or(&'#') });
-        }
-        out.push('\n');
-    }
-    if legend.is_empty() {
-        out += "legend: (the region is empty on this layer)\n";
-    } else {
-        out += &format!("legend: {}\n", legend.join(" · "));
-        if overflow > 0 {
-            out += &format!("        # = {overflow} tiles of other kinds (ask for a smaller region)\n");
-        }
-    }
-    out
-}
-
-/// The collision grid: `#` blocked, `.` free (from the tiles and overrides), `S` / `W` where a
+/// The collision grid: `#` blocked, `.` free (ground, decorations), `S` / `W` where a
 /// Solid / Walkable override is set.
 pub fn render_collision(map: &Map, r: &Region, solid: &dyn Fn(u32, u32) -> bool) -> String {
     let mut out = format!("collision x{}..{} y{}..{} (# blocked, . free, S/W = solid/walkable override):\n", r.x, r.x + r.w - 1, r.y, r.y + r.h - 1);
@@ -170,59 +114,13 @@ pub fn render_objects(map: &Map, r: &Region, ts: f32) -> String {
     out
 }
 
-/// Rows of glyphs → cells `(dx, dy, tile index or None = erase)`; `.` is skipped.
-pub fn parse_grid(rows: &[String], legend: &BTreeMap<String, i64>) -> Result<Vec<(u32, u32, Option<u32>)>, String> {
-    let mut by_glyph: HashMap<char, Option<u32>> = HashMap::new();
-    for (k, v) in legend {
-        let mut chars = k.chars();
-        let (Some(c), None) = (chars.next(), chars.next()) else { return Err(format!("legend key \"{k}\" must be one character")) };
-        if c == '.' {
-            return Err("'.' is reserved for 'leave the cell as it is'".into());
-        }
-        by_glyph.insert(c, if *v < 0 { None } else { Some(*v as u32) });
-    }
-    let mut cells = Vec::new();
-    for (dy, row) in rows.iter().enumerate() {
-        for (dx, c) in row.chars().enumerate() {
-            if c == '.' || c == ' ' {
-                continue;
-            }
-            match by_glyph.get(&c) {
-                Some(t) => cells.push((dx as u32, dy as u32, *t)),
-                None => return Err(format!("row {dy} has '{c}', which the legend doesn't define")),
-            }
-        }
-    }
-    Ok(cells)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn map() -> Map {
-        let mut m = Map::new("t", 6, 3);
-        let slot = m.tileset_slot("terrain");
-        for x in 0..6 {
-            m.layers[0].set(x, 0, Tile::new(slot, 1));
-        }
-        m.layers[0].set(0, 1, Tile::new(slot, 5));
-        m.layers[0].set(1, 1, Tile::new(slot, 5));
-        m.layers[0].set(5, 2, Tile::new(slot, 9));
-        m
-    }
-
     #[test]
-    fn grids_name_tiles_by_frequency_and_round_trip() {
-        let m = map();
-        let r = region(6, 3, None, None, None, None).unwrap();
-        let text = render_layer(&m, 0, &r, &|_, i| format!("t{i}"));
-        assert!(text.contains("    0 aaaaaa\n    1 bb....\n    2 .....c\n"), "{text}");
-        assert!(text.contains("a = terrain#1 t1 x6 · b = terrain#5 t5 x2 · c = terrain#9 t9 x1"), "{text}");
-        let legend: BTreeMap<String, i64> = [("a".to_string(), 1), ("b".to_string(), 5), ("x".to_string(), -1)].into_iter().collect();
-        let cells = parse_grid(&["ab.".into(), "x".into()], &legend).unwrap();
-        assert_eq!(cells, vec![(0, 0, Some(1)), (1, 0, Some(5)), (0, 1, None)]);
-        assert!(parse_grid(&["q".into()], &legend).is_err());
+    fn regions_are_clipped_and_bounded() {
+        assert_eq!(region(6, 3, None, None, None, None).unwrap(), Region { x: 0, y: 0, w: 6, h: 3 });
         assert!(region(6, 3, Some(6), None, None, None).is_err());
         assert!(region(1000, 1000, None, None, None, None).is_err(), "too big without a region");
         assert_eq!(region(1000, 1000, Some(990), Some(5), Some(50), Some(50)).unwrap(), Region { x: 990, y: 5, w: 10, h: 50 });
@@ -230,7 +128,7 @@ mod tests {
 
     #[test]
     fn collision_grid_shows_overrides() {
-        let mut m = map();
+        let mut m = Map::new("t", 6, 3);
         m.set_collision(2, 2, CollisionOverride::Solid);
         let r = region(6, 3, None, None, None, None).unwrap();
         let text = render_collision(&m, &r, &|x, y| y == 0 && x < 3);

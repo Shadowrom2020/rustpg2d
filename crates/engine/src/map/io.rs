@@ -5,30 +5,39 @@
 //! triggers, properties) as a RON string. RON is self-describing, so new optional
 //! fields can be added to [`Meta`] without breaking existing maps.
 //!
-//! Version 1 stored the whole map with postcard; it is still readable.
+//! Version 3 (R(ust)PG2D 0.21, painted maps) replaced the tile layers with the painted ground
+//! (`materials`, `ground`) and decorations (`decor_defs`, `decor`).
+//!
+//! Version 1 stored the whole map with postcard. Versions 1 and 2 (tile maps) are still read:
+//! [`decode_tiles`] hands their tiles to the converter (`convert_tiles`); everything else sees
+//! the map without them.
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use super::{EdgeLinks, Map, TileLayer, Zone, ZoneKind, MAX_MAP_SIZE};
+use super::{EdgeLinks, Map, Zone, ZoneKind, MAX_MAP_SIZE};
+use crate::old_tiles::{OldTiles, TileLayer};
 use crate::entity::EntityInstance;
 use crate::events::Trigger;
 
 const MAGIC: &[u8; 6] = b"R2DMAP";
-pub const FORMAT_VERSION: u32 = 2;
+pub const FORMAT_VERSION: u32 = 3;
 
 #[derive(Serialize)]
 struct CoreRef<'a> {
     name: &'a str,
     width: u32,
     height: u32,
-    tilesets: &'a [String],
-    layers: &'a [TileLayer],
     collision: &'a [u8],
     meta: String,
+    materials: &'a [String],
+    ground: &'a crate::ground::Ground,
+    decor_defs: &'a [String],
+    decor: &'a [crate::decor::Decor],
 }
 
+/// Version 2 (frozen).
 #[derive(Deserialize)]
 struct Core {
     name: String,
@@ -38,6 +47,21 @@ struct Core {
     layers: Vec<TileLayer>,
     collision: Vec<u8>,
     meta: String,
+}
+
+/// Version 3: the painted ground and decorations instead of tile layers (postcard: fields by
+/// position).
+#[derive(Deserialize)]
+struct Core3 {
+    name: String,
+    width: u32,
+    height: u32,
+    collision: Vec<u8>,
+    meta: String,
+    materials: Vec<String>,
+    ground: crate::ground::Ground,
+    decor_defs: Vec<String>,
+    decor: Vec<crate::decor::Decor>,
 }
 
 /// Everything on a map that isn't tile data: the RON part of a map file, and (as
@@ -250,10 +274,12 @@ pub fn encode(map: &Map) -> Result<Vec<u8>> {
         name: &map.name,
         width: map.width,
         height: map.height,
-        tilesets: &map.tilesets,
-        layers: &map.layers,
         collision: &map.collision,
         meta: ron::to_string(&meta).context("serializing map objects")?,
+        materials: &map.materials,
+        ground: &map.ground,
+        decor_defs: &map.decor_defs,
+        decor: &map.decor,
     };
     let raw = postcard::to_stdvec(&core).context("serializing map")?;
     let mut out = Vec::with_capacity(raw.len() / 4 + 16);
@@ -273,8 +299,18 @@ pub fn decode(bytes: &[u8]) -> Result<Map> {
     decode_with(bytes, &mut |w| eprintln!("[map] {w}"))
 }
 
-/// [`decode`], reporting every object that was left out through `warn`.
+/// [`decode`], reporting every object that was left out through `warn`. Tiles of a map from
+/// before painted maps are left out too (the editor converts such projects when it opens them).
 pub fn decode_with(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<Map> {
+    let (map, tiles) = decode_tiles(bytes, warn)?;
+    if !tiles.layers.is_empty() {
+        warn(format!("map {} still has tiles (made before R(ust)PG2D 0.21): open the project in the editor to convert it", map.name));
+    }
+    Ok(map)
+}
+
+/// [`decode_with`], also returning the tiles of a version 1 or 2 map (none for newer maps).
+pub fn decode_tiles(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<(Map, OldTiles)> {
     if bytes.len() < 14 || &bytes[..6] != MAGIC {
         bail!("not an R(ust)PG2D map file");
     }
@@ -284,15 +320,19 @@ pub fn decode_with(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<Map> {
         bail!("corrupt map: {claimed} bytes of tile data claimed");
     }
     let raw = lz4_flex::decompress_size_prepended(&bytes[10..]).context("decompressing map")?;
+    let mut tiles = OldTiles::default();
     let map = match version {
         1 => {
             let m: MapV1 = postcard::from_bytes(&raw).context("deserializing v1 map")?;
+            tiles = OldTiles { tilesets: m.tilesets, layers: m.layers };
             Map {
                 name: m.name,
                 width: m.width,
                 height: m.height,
-                tilesets: m.tilesets,
-                layers: m.layers,
+                materials: Vec::new(),
+                ground: crate::ground::Ground::new(m.width, m.height),
+                decor_defs: Vec::new(),
+                decor: Vec::new(),
                 collision: m.collision,
                 entities: m.entities.into_iter().map(EntityInstance::from).collect(),
                 zones: m.zones.into_iter().map(Zone::from).collect(),
@@ -308,15 +348,24 @@ pub fn decode_with(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<Map> {
                 battle_music: None,
             }
         }
-        2 => {
-            let c: Core = postcard::from_bytes(&raw).context("deserializing map")?;
+        2 | 3 => {
+            let c = if version == 2 {
+                let c: Core = postcard::from_bytes(&raw).context("deserializing map")?;
+                let ground = crate::ground::Ground::new(c.width, c.height);
+                tiles = OldTiles { tilesets: c.tilesets, layers: c.layers };
+                Core3 { name: c.name, width: c.width, height: c.height, collision: c.collision, meta: c.meta, materials: Vec::new(), ground, decor_defs: Vec::new(), decor: Vec::new() }
+            } else {
+                postcard::from_bytes(&raw).context("deserializing map")?
+            };
             let meta = parse_meta(&c.meta, warn)?;
             Map {
                 name: c.name,
                 width: c.width,
                 height: c.height,
-                tilesets: c.tilesets,
-                layers: c.layers,
+                materials: c.materials,
+                ground: c.ground,
+                decor_defs: c.decor_defs,
+                decor: c.decor,
                 collision: c.collision,
                 entities: meta.entities,
                 zones: meta.zones,
@@ -341,12 +390,21 @@ pub fn decode_with(bytes: &[u8], warn: &mut dyn FnMut(String)) -> Result<Map> {
         bail!("corrupt map: collision grid size mismatch");
     }
     // Layers index their chunk grid without bounds checks: refuse one that doesn't fit.
-    for layer in &map.layers {
+    for layer in &tiles.layers {
         if let Err(e) = layer.validate(map.width, map.height) {
             bail!("corrupt map: {e}");
         }
     }
-    Ok(map)
+    if let Err(e) = map.ground.validate(map.width, map.height) {
+        bail!("corrupt map: {e}");
+    }
+    if map.materials.len() > crate::ground::MAX_MATERIALS {
+        bail!("corrupt map: {} ground materials", map.materials.len());
+    }
+    if map.decor.iter().any(|d| d.def as usize >= map.decor_defs.len()) {
+        bail!("corrupt map: a decoration without its prop");
+    }
+    Ok((map, tiles))
 }
 
 pub fn save(map: &Map, path: &Path) -> Result<()> {
@@ -362,6 +420,32 @@ pub fn load_with(path: &Path, warn: &mut dyn FnMut(String)) -> Result<Map> {
     decode_with(&bytes, warn).with_context(|| format!("loading map {}", path.display()))
 }
 
+/// Writes a tile map in format version 2: only the 16 px upgrade (`migrate`) does, for the tile
+/// converter that runs after it.
+pub fn save_tiles(map: &Map, tiles: &OldTiles, path: &Path) -> Result<()> {
+    #[derive(Serialize)]
+    struct Core2<'a> {
+        name: &'a str,
+        width: u32,
+        height: u32,
+        tilesets: &'a [String],
+        layers: &'a [TileLayer],
+        collision: &'a [u8],
+        meta: String,
+    }
+    let core = Core2 { name: &map.name, width: map.width, height: map.height, tilesets: &tiles.tilesets, layers: &tiles.layers, collision: &map.collision, meta: ron::to_string(&Meta::of(map))? };
+    let mut out = MAGIC.to_vec();
+    out.extend_from_slice(&2u32.to_le_bytes());
+    out.extend_from_slice(&lz4_flex::compress_prepend_size(&postcard::to_stdvec(&core)?));
+    crate::sys::write(path, &out).with_context(|| format!("writing {}", path.display()))
+}
+
+/// Loads a map with the tiles of an older version ([`decode_tiles`]).
+pub fn load_tiles(path: &Path) -> Result<(Map, OldTiles)> {
+    let bytes = crate::sys::read(path).with_context(|| format!("reading {}", path.display()))?;
+    decode_tiles(&bytes, &mut |w| eprintln!("[map] {w}")).with_context(|| format!("loading map {}", path.display()))
+}
+
 pub fn load(path: &Path) -> Result<Map> {
     let bytes = crate::sys::read(path).with_context(|| format!("reading {}", path.display()))?;
     decode(&bytes).with_context(|| format!("loading map {}", path.display()))
@@ -371,7 +455,34 @@ pub fn load(path: &Path) -> Result<Map> {
 mod tests {
     use super::*;
     use crate::entity::EntityKind;
-    use crate::map::{Chunk, CollisionOverride, Tile};
+    use crate::map::CollisionOverride;
+    use crate::old_tiles::{Chunk, Tile};
+
+    /// A tile map as version 2 wrote it.
+    fn v2_bytes(m: &Map, tiles: &OldTiles) -> Vec<u8> {
+        #[derive(Serialize)]
+        struct Core2<'a> {
+            name: &'a str,
+            width: u32,
+            height: u32,
+            tilesets: &'a [String],
+            layers: &'a [TileLayer],
+            collision: &'a [u8],
+            meta: String,
+        }
+        let core = Core2 { name: &m.name, width: m.width, height: m.height, tilesets: &tiles.tilesets, layers: &tiles.layers, collision: &m.collision, meta: ron::to_string(&Meta::of(m)).unwrap() };
+        let mut out = MAGIC.to_vec();
+        out.extend_from_slice(&2u32.to_le_bytes());
+        out.extend_from_slice(&lz4_flex::compress_prepend_size(&postcard::to_stdvec(&core).unwrap()));
+        out
+    }
+
+    /// Old maps' three layers with one tile.
+    fn old_tiles(w: u32, h: u32) -> OldTiles {
+        let mut layers = vec![TileLayer::new("Ground", w, h, false), TileLayer::new("Detail", w, h, false), TileLayer::new("Overhead", w, h, true)];
+        layers[0].set(3, 3, Tile::new(0, 9));
+        OldTiles { tilesets: vec!["terrain".into()], layers }
+    }
 
     #[test]
     fn battle_music_is_optional_in_maps() {
@@ -395,7 +506,7 @@ mod tests {
         m.entities.push(EntityInstance::new(uid, EntityKind::Prop, "chest", 1.0, 2.0));
         let uid = m.alloc_uid();
         m.entities.push(EntityInstance::new(uid, EntityKind::Character, "guard", 3.0, 4.0));
-        let core: Core = postcard::from_bytes(&lz4_flex::decompress_size_prepended(&encode(&m).unwrap()[10..]).unwrap()).unwrap();
+        let core: Core3 = postcard::from_bytes(&lz4_flex::decompress_size_prepended(&encode(&m).unwrap()[10..]).unwrap()).unwrap();
         let broken = core.meta.replace("kind:Character", "kind:Dragon");
         assert_ne!(broken, core.meta);
         let mut warnings = Vec::new();
@@ -408,12 +519,65 @@ mod tests {
         parse_meta(&core.meta, &mut |_| panic!("healthy")).unwrap();
     }
 
+    /// Version 3 keeps the painted ground; version 2 maps load with none.
+    #[test]
+    fn painted_ground_round_trips() {
+        let mut m = Map::new("g", 50, 40);
+        let grass = m.material_value("grass").unwrap();
+        let water = m.material_value("water").unwrap();
+        m.ground.fill(grass);
+        m.ground.paint_circle((400.0, 300.0), 60.0, water);
+        let back = decode(&encode(&m).unwrap()).unwrap();
+        assert_eq!(back.materials, ["grass", "water"]);
+        assert_eq!(back.ground.get(50, 37), water);
+        assert_eq!(back.ground.get(0, 0), grass);
+        // A material nothing is painted with any more leaves the list when saving.
+        m.ground.fill(water);
+        let back = decode(&encode(&m).unwrap()).unwrap();
+        assert_eq!(back.materials, ["water"]);
+        assert_eq!(back.ground.get(0, 0), 1);
+        // A version 2 map (tiles, no ground) loads without ground; its tiles come separately.
+        let (old, tiles) = decode_tiles(&v2_bytes(&m, &old_tiles(50, 40)), &mut |_| {}).unwrap();
+        assert!(old.ground.is_empty() && old.materials.is_empty());
+        assert_eq!(tiles.layers[0].get(3, 3), Tile::new(0, 9));
+        assert_eq!(tiles.tilesets, ["terrain"]);
+        let mut warned = Vec::new();
+        decode_with(&v2_bytes(&m, &old_tiles(50, 40)), &mut |w| warned.push(w)).unwrap();
+        assert!(warned[0].contains("still has tiles"), "{warned:?}");
+    }
+
+    /// Decorations round trip; props no decoration uses leave the list when saving.
+    #[test]
+    fn decorations_round_trip() {
+        use crate::decor::{Decor, DecorLayer};
+        let mut m = Map::new("d", 30, 20);
+        let oak = m.decor_slot("oak");
+        let gone = m.decor_slot("gone");
+        let rock = m.decor_slot("rock");
+        assert_eq!((oak, gone, rock), (0, 1, 2));
+        m.decor.push(Decor { def: oak, x: 100, y: 200, flip: true, state: 0, layer: DecorLayer::Sorted });
+        m.decor.push(Decor { def: rock, x: -5, y: 640, flip: false, state: 1, layer: DecorLayer::Above });
+        let back = decode(&encode(&m).unwrap()).unwrap();
+        assert_eq!(back.decor_defs, ["oak", "rock"]);
+        assert_eq!(back.decor.len(), 2);
+        assert_eq!((back.decor_defs[back.decor[1].def as usize].as_str(), back.decor[1].x, back.decor[1].layer, back.decor[1].state), ("rock", -5, DecorLayer::Above, 1));
+        assert!(back.decor[0].flip);
+        // A decoration whose prop slot doesn't exist: a corrupt file.
+        let mut bad = m.clone();
+        bad.decor.push(Decor { def: 9, x: 0, y: 0, flip: false, state: 0, layer: DecorLayer::Flat });
+        let core = CoreRef { name: "d", width: 30, height: 20, collision: &bad.collision, meta: ron::to_string(&Meta::of(&bad)).unwrap(), materials: &[], ground: &bad.ground, decor_defs: &bad.decor_defs, decor: &bad.decor };
+        let mut bytes = MAGIC.to_vec();
+        bytes.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
+        bytes.extend_from_slice(&lz4_flex::compress_prepend_size(&postcard::to_stdvec(&core).unwrap()));
+        assert!(decode(&bytes).is_err());
+    }
+
     /// Corrupt files are refused with an error, never a panic (the game loads untrusted data).
     #[test]
     fn corrupt_maps_are_refused() {
         let mut m = Map::new("m", 40, 40);
-        let slot = m.tileset_slot("terrain");
-        m.layers[0].set(3, 3, Tile::new(slot, 9));
+        let v = m.material_value("grass").unwrap();
+        m.ground.paint_circle((100.0, 100.0), 50.0, v);
         let good = encode(&m).unwrap();
         assert!(decode(&good).is_ok());
         // Truncated anywhere: an error.
@@ -424,13 +588,13 @@ mod tests {
         let mut huge = good.clone();
         huge[10..14].copy_from_slice(&u32::MAX.to_le_bytes());
         assert!(decode(&huge).unwrap_err().to_string().contains("claimed"));
-        // A layer whose chunk grid doesn't match the map.
-        let mut bad = m.clone();
-        bad.layers[0].chunks.pop();
-        assert!(decode(&encode(&bad).unwrap()).unwrap_err().to_string().contains("chunks"));
-        let mut bad = m.clone();
-        bad.layers[1].chunks[0] = Some(Box::new(Chunk { tiles: vec![Tile::new(slot, 1); 3] })); // (empty chunks are dropped when encoding)
-        assert!(decode(&encode(&bad).unwrap()).unwrap_err().to_string().contains("tiles"));
+        // An old map's layer whose chunk grid doesn't match the map.
+        let mut tiles = old_tiles(40, 40);
+        tiles.layers[0].chunks.pop();
+        assert!(decode(&v2_bytes(&m, &tiles)).unwrap_err().to_string().contains("chunks"));
+        let mut tiles = old_tiles(40, 40);
+        tiles.layers[1].chunks[0] = Some(Box::new(Chunk { tiles: vec![Tile::new(0, 1); 3] }));
+        assert!(decode(&v2_bytes(&m, &tiles)).unwrap_err().to_string().contains("tiles"));
         // A size the format can't hold.
         let mut bad = m.clone();
         bad.width = 0;
@@ -440,13 +604,17 @@ mod tests {
     #[test]
     fn roundtrip_max_size_map() {
         let mut m = Map::new("huge", 1024, 1024);
-        let slot = m.tileset_slot("terrain");
-        for y in 0..1024 {
-            for x in 0..1024 {
-                m.layers[0].set(x, y, Tile::new(slot, (x * 7 + y * 3) % 64));
-            }
+        let grass = m.material_value("grass").unwrap();
+        let sand = m.material_value("sand").unwrap();
+        m.ground.fill(grass);
+        for k in 0..200 {
+            let p = (k as f32 * 157.0 % 32768.0, k as f32 * 311.0 % 32768.0);
+            m.ground.paint_circle(p, 40.0, sand);
         }
-        m.layers[1].set(1023, 1023, Tile::new(slot, 5));
+        let oak = m.decor_slot("oak");
+        for k in 0..50_000 {
+            m.decor.push(crate::decor::Decor { def: oak, x: k * 13 % 32768, y: k * 29 % 32768, flip: k % 2 == 0, state: 0, layer: crate::decor::DecorLayer::Sorted });
+        }
         m.set_collision(512, 512, CollisionOverride::Solid);
         m.music = "theme".into();
         m.lighting = crate::map::MapLighting { mode: crate::map::LightMode::Dark, darkness: 0.9 };
@@ -473,11 +641,11 @@ mod tests {
         let back = decode(&bytes).unwrap();
         assert_eq!(back.parallax, m.parallax);
         assert_eq!((back.width, back.height), (1024, 1024));
-        assert_eq!(back.layers[0].get(1000, 999), m.layers[0].get(1000, 999));
-        assert_eq!(back.layers[1].get(1023, 1023), Tile::new(slot, 5));
-        assert_eq!(back.layers[1].allocated_chunks(), 1);
+        for (x, y) in [(0, 0), (1000, 999), (4095, 4095), (157 * 3 / 8, 311 * 3 / 8)] {
+            assert_eq!(back.ground.get(x, y), m.ground.get(x, y));
+        }
+        assert_eq!(back.decor, m.decor);
         assert_eq!(back.collision_at(512, 512), CollisionOverride::Solid);
-        assert_eq!(back.tilesets, vec!["terrain".to_string()]);
         assert_eq!(back.music, "theme");
         assert_eq!(back.lighting, m.lighting);
         assert!(back.fog);
@@ -503,8 +671,8 @@ mod tests {
             next_uid: u32,
             background: [u8; 3],
         }
-        let mut m = Map::new("old", 10, 10);
-        m.layers[0].set(3, 3, Tile::new(0, 9));
+        let m = Map::new("old", 10, 10);
+        let tiles = old_tiles(10, 10);
         let old_entities = vec![EntityV1 {
             uid: 4,
             kind: EntityKind::Item,
@@ -522,8 +690,8 @@ mod tests {
             name: &m.name,
             width: 10,
             height: 10,
-            tilesets: &m.tilesets,
-            layers: &m.layers,
+            tilesets: &[],
+            layers: &tiles.layers,
             collision: &m.collision,
             entities: &old_entities,
             zones: &m
@@ -547,8 +715,8 @@ mod tests {
             std::fs::write(&fixture, &bytes).unwrap();
         }
         assert_eq!(std::fs::read(&fixture).unwrap(), bytes, "tests/fixtures/maps/v1-synthetic.map differs: the map file layout changed");
-        let back = decode(&bytes).unwrap();
-        assert_eq!(back.layers[0].get(3, 3), Tile::new(0, 9));
+        let (back, old) = decode_tiles(&bytes, &mut |_| {}).unwrap();
+        assert_eq!(old.layers[0].get(3, 3), Tile::new(0, 9));
         assert_eq!((back.entities[0].def.as_str(), back.entities[0].count), ("key", 2));
         assert!(back.entities[0].container.is_none());
         assert_eq!((back.next_uid, back.background), (5, [1, 2, 3]));

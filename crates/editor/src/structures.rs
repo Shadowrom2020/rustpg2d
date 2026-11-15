@@ -28,59 +28,95 @@ pub fn sprite_px(db: &Database, s: &SpriteRef) -> egui::Vec2 {
     })
 }
 
-/// Paints a structure scaled into `rect` (tiles of all layers, its entities above the detail
-/// layer). `tileset` gives the texture and pixel size of a tileset image; `sprite` paints a
-/// sprite into a rect (bottom-centered, aspect kept).
+/// What a structure shows, back to front: its decorations (flat ones, then sorted ones with
+/// its entities by their feet, then the ones over everyone). `(y, layer, picture)`.
+fn structure_pictures(d: &StructureDef, db: &Database) -> Vec<(i32, SpriteRef, egui::Vec2, bool)> {
+    use rustpg2d_engine::decor::DecorLayer;
+    let mut out: Vec<(u8, f32, SpriteRef, egui::Vec2, bool)> = Vec::new();
+    for dec in &d.decor {
+        let Some(p) = d.decor_defs.get(dec.def as usize).and_then(|id| db.prop(id)) else { continue };
+        let order = match dec.layer {
+            DecorLayer::Flat => 0,
+            DecorLayer::Sorted => 1,
+            DecorLayer::Above => 2,
+        };
+        out.push((order, dec.y as f32, p.state_look(dec.state as usize).0.clone(), vec2(dec.x as f32, dec.y as f32), dec.flip));
+    }
+    for e in &d.entities {
+        if let Some(s) = entity_sprite(db, e) {
+            out.push((1, e.y + 1.0, s, vec2(e.x, e.y + 1.0), false));
+        }
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.total_cmp(&b.1)));
+    out.into_iter().map(|(_, y, s, feet, flip)| (y as i32, s, feet, flip)).collect()
+}
+
+/// Paints a structure scaled into `rect`: its ground (`material` gives a material texture and
+/// its pixel size), its decorations and entities (`sprite` paints a sprite into a rect,
+/// bottom-centered, aspect kept).
 pub fn paint_structure(
     ui: &egui::Ui,
     rect: Rect,
     d: &StructureDef,
     db: &Database,
-    tileset: &dyn Fn(&str) -> Option<(TextureId, egui::Vec2)>,
+    material: &dyn Fn(&str) -> Option<(TextureId, egui::Vec2)>,
     sprite: &dyn Fn(&SpriteRef, Rect) -> bool,
 ) {
     let ts = TILE_SIZE as f32;
     let (w, h) = (d.w.max(1) as f32 * ts, d.h.max(1) as f32 * ts);
     let scale = (rect.width() / w).min(rect.height() / h);
     let origin = rect.center() - vec2(w, h) * scale / 2.0;
-    let cell = ts * scale;
-    let painter = ui.painter_at(rect);
-    let tiles = |layer: &Vec<u32>| {
-        for (i, &v) in layer.iter().enumerate() {
-            let Some((ts_id, index)) = d.tile_source(v) else { continue };
-            let Some((tex, size)) = tileset(ts_id) else { continue };
-            let cols = (size.x / ts).floor().max(1.0) as u32;
-            let (sx, sy) = ((index % cols) as f32 * ts, (index / cols) as f32 * ts);
-            let uv = Rect::from_min_size(pos2(sx / size.x, sy / size.y), vec2(ts / size.x, ts / size.y));
-            let (x, y) = ((i as u32 % d.w) as f32, (i as u32 / d.w) as f32);
-            painter.image(tex, Rect::from_min_size(origin + vec2(x, y) * cell, vec2(cell, cell)), uv, Color32::WHITE);
-        }
-    };
-    for layer in d.layers.iter().take(2) {
-        tiles(layer);
-    }
-    let mut ents: Vec<&EntityInstance> = d.entities.iter().collect();
-    ents.sort_by(|a, b| a.y.total_cmp(&b.y));
-    for e in ents {
-        let Some(s) = entity_sprite(db, e) else { continue };
+    paint_ground(ui, origin, scale, d, material, |_| Color32::WHITE);
+    for (_, s, feet, _) in structure_pictures(d, db) {
         let size = sprite_px(db, &s) * scale;
-        let feet = origin + vec2(e.x, e.y + 1.0) * scale;
+        let feet = origin + feet * scale;
         sprite(&s, Rect::from_min_size(feet - vec2(size.x / 2.0, size.y), size));
-    }
-    for layer in d.layers.iter().skip(2) {
-        tiles(layer);
     }
 }
 
-/// Paints a project structure (tilesets and sprites from the editor's textures).
-pub fn paint_project_structure(ui: &egui::Ui, rect: Rect, d: &StructureDef, db: &Database, tex: &crate::widgets::Textures, assets: &rustpg2d_engine::render::Assets) {
-    let tileset = |id: &str| {
-        let t = tex.tilesets.get(id)?;
-        let a = assets.tilesets.get(id)?;
-        Some((t.id(), vec2(a.image.width as f32, a.image.height as f32)))
+/// Paints a structure's ground cells (a tile whose cells are all one material in one piece)
+/// from `origin`, `scale` screen points per world pixel.
+fn paint_ground(ui: &egui::Ui, origin: egui::Pos2, scale: f32, d: &StructureDef, material: &dyn Fn(&str) -> Option<(TextureId, egui::Vec2)>, tint: impl Fn(u8) -> Color32) {
+    use rustpg2d_engine::ground::{CELL, CELLS};
+    if d.ground.is_empty() {
+        return;
+    }
+    let painter = ui.painter();
+    let c = CELL as f32;
+    let (gw, gh) = d.cells_size();
+    let piece = |x: u32, y: u32, n: u32, v: u8| {
+        let Some((tex, size)) = d.material_of(v).and_then(material) else { return };
+        let (wx, wy) = ((x * CELL) as f32, (y * CELL) as f32);
+        let uv = Rect::from_min_size(pos2((wx % size.x) / size.x, (wy % size.y) / size.y), vec2(n as f32 * c / size.x, n as f32 * c / size.y));
+        painter.image(tex, Rect::from_min_size(origin + vec2(wx, wy) * scale, vec2(n as f32 * c, n as f32 * c) * scale), uv, tint(v));
     };
+    for ty in 0..gh / CELLS {
+        for tx in 0..gw / CELLS {
+            let first = d.ground_at(tx * CELLS, ty * CELLS);
+            let whole = (0..CELLS).all(|cy| (0..CELLS).all(|cx| d.ground_at(tx * CELLS + cx, ty * CELLS + cy) == first));
+            if whole {
+                piece(tx * CELLS, ty * CELLS, CELLS, first);
+            } else {
+                for cy in 0..CELLS {
+                    for cx in 0..CELLS {
+                        piece(tx * CELLS + cx, ty * CELLS + cy, 1, d.ground_at(tx * CELLS + cx, ty * CELLS + cy));
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// A material's editor texture and pixel size.
+fn material_tex(tex: &crate::widgets::Textures, id: &str) -> Option<(TextureId, egui::Vec2)> {
+    tex.materials.get(id).map(|t| (t.id(), vec2(t.size()[0] as f32, t.size()[1] as f32)))
+}
+
+/// Paints a project structure (materials and sprites from the editor's textures).
+pub fn paint_project_structure(ui: &egui::Ui, rect: Rect, d: &StructureDef, db: &Database, tex: &crate::widgets::Textures, assets: &rustpg2d_engine::render::Assets) {
+    let material = |id: &str| material_tex(tex, id);
     let sprite = |s: &SpriteRef, r: Rect| crate::widgets::paint_sprite(ui, tex, assets, s, r);
-    paint_structure(ui, rect, d, db, &tileset, &sprite);
+    paint_structure(ui, rect, d, db, &material, &sprite);
 }
 
 /// "New from map area": drag a rectangle on the map, then name the new structure.
@@ -119,7 +155,7 @@ impl Editor {
         self.db.tab = crate::database::Tab::Structures;
         self.db.sel = self.project.db.structures.len() - 1;
         self.mode = crate::app::Mode::Database;
-        self.set_status(format!("New structure '{id}': pick tiles from a tileset on the left and paint them on the grid"));
+        self.set_status(format!("New structure '{id}': paint its ground and place decorations on the grid"));
     }
 
     /// Arms a structure for placing (Structures tool).
@@ -133,17 +169,14 @@ impl Editor {
     pub fn place_structure_at(&mut self, tile: (i32, i32)) {
         let Some(def) = self.project.db.structure(&self.place_structure).cloned() else { return };
         let Some(doc) = &mut self.doc else { return };
-        let missing: Vec<&String> = def.tilesets.iter().filter(|t| self.project.db.tileset(t).is_none()).collect();
+        let missing: Vec<&String> = def.materials.iter().filter(|m| self.project.db.material(m).is_none()).chain(def.decor_defs.iter().filter(|p| self.project.db.prop(p).is_none())).collect();
         let added = doc.place_structure(&def, tile.0, tile.1, &self.assets);
         if let Some(&uid) = added.first() {
             self.sel = crate::app::Selection::Entity(uid);
         }
         let mut msg = format!("Placed {} at {},{}", def.name, tile.0, tile.1);
         if !missing.is_empty() {
-            msg += &format!(" (missing tileset {} — add it from the library)", missing.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "));
-        }
-        if def.layers.len() > doc.map.layers.len() {
-            msg += &format!(" (the map has only {} layers; the rest was skipped)", doc.map.layers.len());
+            msg += &format!(" (missing {} — add them from the library)", missing.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "));
         }
         self.set_status(msg);
     }
@@ -177,11 +210,11 @@ impl Editor {
         });
         ui.weak("Pick one, then click the map to place it (one undo step) · right-click / Esc: stop placing.");
         ui.horizontal(|ui| {
-            if ui.button(ui::t(ph::PLUS, "New…")).on_hover_text("An empty structure, painted from tileset stamps in Database › Structures").clicked() {
+            if ui.button(ui::t(ph::PLUS, "New…")).on_hover_text("An empty structure, painted with ground and decorations in Database › Structures").clicked() {
                 self.new_structure();
             }
             let label = ui::t(ph::SELECTION_PLUS, if self.capture.dragging { "Drag an area on the map…" } else { "New from map area…" });
-            if ui.selectable_label(self.capture.dragging, label).on_hover_text("Drag a rectangle on the map: its tiles (all layers), collision and entities become a new structure").clicked() {
+            if ui.selectable_label(self.capture.dragging, label).on_hover_text("Drag a rectangle on the map: its ground, decorations, collision and entities become a new structure").clicked() {
                 self.capture.dragging = !self.capture.dragging;
                 self.place_structure.clear();
             }
@@ -231,7 +264,7 @@ impl Editor {
         if let Some(d) = self.project.db.structure(&self.place_structure) {
             ui.separator();
             ui.label(egui::RichText::new(&d.name).strong());
-            ui.weak(format!("{}×{} tiles · {} entities · tilesets: {}", d.w, d.h, d.entities.len(), d.tilesets.join(", ")));
+            ui.weak(format!("{}×{} tiles · {} decorations · {} entities · materials: {}", d.w, d.h, d.decor.len(), d.entities.len(), d.materials.join(", ")));
         }
     }
 
@@ -265,8 +298,8 @@ impl Editor {
                 });
                 ui.end_row();
             });
-            ui.checkbox(&mut self.capture.ground, "Include the ground layer").on_hover_text("Off for things that should stand on whatever ground the map has (trees, walls, furniture)");
-            ui.weak("Tiles of all layers, collision overrides and the entities standing in the area are copied. Inside the structure, empty upper layers clear what the map has there when placed.");
+            ui.checkbox(&mut self.capture.ground, "Include the ground").on_hover_text("Off for things that should stand on whatever ground the map has (trees, walls, furniture)");
+            ui.weak("Decorations, collision overrides and the entities standing in the area are copied. With the ground, placing it also clears the decorations of the area first.");
             ui.horizontal(|ui| {
                 create = ui.add_enabled(!self.capture.id.trim().is_empty(), egui::Button::new(ui::t(ph::CHECK, "Create"))).clicked();
                 cancel = ui.button("Cancel").clicked();
@@ -296,31 +329,37 @@ impl Editor {
     /// Canvas: semi-transparent ghost of a structure with its top-left corner at tile `origin`
     /// (also the clipboard while pasting).
     pub fn draw_structure_def_ghost(&self, d: &StructureDef, origin: (i32, i32)) {
-        use macroquad::prelude::{draw_rectangle_lines, draw_texture_ex, vec2 as mvec2, Color, DrawTextureParams, YELLOW};
+        use macroquad::prelude::{draw_rectangle, draw_rectangle_lines, vec2 as mvec2, Color, YELLOW};
+        use rustpg2d_engine::ground::{CELL, CELLS};
         let ts = self.ts();
         let (ox, oy) = origin;
         let tint = Color::new(1.0, 1.0, 1.0, 0.6);
-        let draw_layer = |layer: &Vec<u32>| {
-            for (i, &v) in layer.iter().enumerate() {
-                let Some((id, index)) = d.tile_source(v) else { continue };
-                let Some(t) = self.assets.tilesets.get(id) else { continue };
-                let (x, y) = ((ox + (i as u32 % d.w) as i32) as f32 * ts, (oy + (i as u32 / d.w) as i32) as f32 * ts);
-                draw_texture_ex(&t.texture, x, y, tint, DrawTextureParams { source: Some(t.src_rect(index, ts)), ..Default::default() });
+        // The ground as the materials' colours (cells in runs along each row).
+        let (gw, gh) = d.cells_size();
+        let c = CELL as f32;
+        for cy in 0..gh {
+            let mut cx = 0;
+            while cx < gw {
+                let v = d.ground_at(cx, cy);
+                let mut n = 1;
+                while cx + n < gw && d.ground_at(cx + n, cy) == v {
+                    n += 1;
+                }
+                let col = match v {
+                    0 => None,
+                    StructureDef::CLEAR_GROUND => Some(Color::new(0.0, 0.0, 0.0, 0.35)),
+                    v => d.material_of(v).and_then(|m| self.assets.material_colors.get(m)).map(|k| Color::new(k.r, k.g, k.b, 0.6)),
+                };
+                if let Some(col) = col {
+                    draw_rectangle(ox as f32 * ts + cx as f32 * c, oy as f32 * ts + cy as f32 * c, n as f32 * c, c, col);
+                }
+                cx += n;
             }
-        };
-        for l in d.layers.iter().take(2) {
-            draw_layer(l);
         }
-        for e in &d.entities {
-            let feet = mvec2(ox as f32 * ts + e.x, oy as f32 * ts + e.y);
-            if e.kind == EntityKind::Character {
-                self.draw_char(&e.def, Some(e), e.facing, feet, tint);
-            } else if let Some(s) = entity_sprite(&self.project.db, e) {
-                self.assets.draw_sprite(&s, 0, feet, tint);
-            }
-        }
-        for l in d.layers.iter().skip(2) {
-            draw_layer(l);
+        let _ = CELLS;
+        for (_, s, feet, flip) in structure_pictures(d, &self.project.db) {
+            let feet = mvec2(ox as f32 * ts + feet.x, oy as f32 * ts + feet.y);
+            self.assets.draw_sprite_flipped(&s, feet, tint, flip);
         }
         let px = 1.0 / self.cam.zoom;
         draw_rectangle_lines(ox as f32 * ts, oy as f32 * ts, d.w as f32 * ts, d.h as f32 * ts, 2.0 * px, YELLOW);
@@ -332,40 +371,38 @@ impl Editor {
 /// What a click in the structure editor does.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StTool {
-    /// Paint the selected tileset stamp on the current layer (right-click picks a tile).
-    Stamp,
-    /// Empty cell: placing keeps whatever the map has there.
+    /// Paint the chosen material on the tile (right-click picks the material of a tile).
+    Ground,
+    /// Empty ground: placing keeps the map's ground there.
     Keep,
-    /// Placing empties the map's tile on this layer (e.g. trees inside a room).
-    Clear,
+    /// Placing removes the map's ground there (a pit, the edge of a cliff).
+    NoGround,
+    /// Place the chosen prop as a decoration (right-click removes the decorations on a tile).
+    Decor,
+    /// Placing removes the map's decorations standing on the tile (trees inside a room).
+    ClearDecor,
     /// Collision override (1 solid, 2 walkable, `StructureDef::COLLISION_AUTO`, 0 keep).
     Collision(u8),
-    /// Place the chosen prop (right-click removes the entity on a cell).
+    /// Place the chosen prop as an entity (right-click removes the entity on a tile).
     Prop,
 }
 
 /// State of the structure editor (Database → Structures, also in the Asset Library window).
 pub struct StructEdit {
-    pub layer: usize,
     pub tool: StTool,
-    pub tileset: String,
-    /// Selected stamp in the tileset: (x, y, w, h) in tiles.
-    pub stamp: (u32, u32, u32, u32),
+    pub material: String,
     pub prop: String,
+    /// The layer new decorations go on.
+    pub decor_layer: rustpg2d_engine::decor::DecorLayer,
     /// Size fields (applied with "Resize"), for the structure `size_of`.
     pub size: (u32, u32),
     size_of: String,
     size_was: (u32, u32),
-    pal_start: Option<(u32, u32)>,
     last_cell: Option<(u32, u32)>,
     /// Undo / redo snapshots of the structure being edited (`hist_of`).
     undo: Vec<StructureDef>,
     redo: Vec<StructureDef>,
     hist_of: String,
-    /// Layers hidden in the editor grid (by index: ground, detail, overhead).
-    pub hidden: [bool; 3],
-    /// Draw the layers you are not painting on faded.
-    pub dim: bool,
     /// Grid cell size in screen points (0 = fit the available width).
     pub zoom: f32,
     pub prop_filter: String,
@@ -374,21 +411,17 @@ pub struct StructEdit {
 impl Default for StructEdit {
     fn default() -> Self {
         StructEdit {
-            layer: 1,
-            tool: StTool::Stamp,
-            tileset: String::new(),
-            stamp: (0, 0, 1, 1),
+            tool: StTool::Ground,
+            material: String::new(),
             prop: String::new(),
+            decor_layer: rustpg2d_engine::decor::DecorLayer::Sorted,
             size: (0, 0),
             size_of: String::new(),
             size_was: (0, 0),
-            pal_start: None,
             last_cell: None,
             undo: Vec::new(),
             redo: Vec::new(),
             hist_of: String::new(),
-            hidden: [false; 3],
-            dim: true,
             zoom: 0.0,
             prop_filter: String::new(),
         }
@@ -416,29 +449,47 @@ impl StructEdit {
         }
     }
 
-    /// Applies the current tool at a cell (one cell of a stroke).
-    pub fn apply(&mut self, d: &mut StructureDef, cell: (u32, u32), db: &Database, assets: &rustpg2d_engine::render::Assets) {
+    /// Applies the current tool at a tile (one tile of a stroke).
+    pub fn apply(&mut self, d: &mut StructureDef, cell: (u32, u32), db: &Database) {
+        use rustpg2d_engine::ground::CELLS;
         let (cx, cy) = cell;
-        match self.tool {
-            StTool::Stamp => {
-                let Some(t) = assets.tilesets.get(&self.tileset) else { return };
-                let slot = d.tileset_slot(&self.tileset);
-                let (sx, sy, sw, sh) = self.stamp;
-                for dy in 0..sh {
-                    for dx in 0..sw {
-                        let index = (sy + dy) * t.columns.max(1) + sx + dx;
-                        d.set_tile(self.layer, cx + dx, cy + dy, rustpg2d_engine::map::Tile::new(slot, index).0);
-                    }
+        let ground = |d: &mut StructureDef, v: u8| {
+            for y in 0..CELLS {
+                for x in 0..CELLS {
+                    d.set_ground(cx * CELLS + x, cy * CELLS + y, v);
                 }
             }
-            StTool::Keep => d.set_tile(self.layer, cx, cy, 0),
-            StTool::Clear => d.set_tile(self.layer, cx, cy, StructureDef::CLEAR),
+        };
+        let ts = TILE_SIZE as f32;
+        match self.tool {
+            StTool::Ground => {
+                if self.material.is_empty() {
+                    return;
+                }
+                let v = d.material_value(&self.material);
+                ground(d, v);
+            }
+            StTool::Keep => ground(d, 0),
+            StTool::NoGround => ground(d, StructureDef::CLEAR_GROUND),
+            StTool::Decor => {
+                let Some(p) = db.prop(&self.prop) else { return };
+                // Wall pieces snap to their grid; anything else stands in the tile's middle.
+                let snap = p.snap.max(1) as i32;
+                let (x, y) = ((cx as i32 * TILE_SIZE as i32 + TILE_SIZE as i32 / 2) / snap * snap, (cy as i32 + 1) * TILE_SIZE as i32);
+                let x = if p.snap > 0 { x + snap / 2 } else { x };
+                let def = d.decor_slot(&p.id);
+                d.decor.push(rustpg2d_engine::decor::Decor { def, x, y, flip: false, state: 0, layer: self.decor_layer });
+            }
+            StTool::ClearDecor => {
+                d.clear.resize((d.w * d.h) as usize, 0);
+                let i = (cy * d.w + cx) as usize;
+                d.clear[i] = 1 - d.clear[i].min(1);
+            }
             StTool::Collision(c) => d.set_collision(cx, cy, c),
             StTool::Prop => {
                 if self.prop.is_empty() {
                     return;
                 }
-                let ts = TILE_SIZE as f32;
                 // Like placing on the map: even-width props stand on a tile edge.
                 let tiles_wide = db.prop(&self.prop).map_or(1, |p| (sprite_px(db, &p.sprite).x / ts).round().max(1.0) as u32);
                 let p = rustpg2d_engine::grid::snap_feet(macroquad::math::vec2(cx as f32 * ts, (cy as f32 + 0.5) * ts), tiles_wide, ts);
@@ -447,17 +498,6 @@ impl StructEdit {
         }
         d.prune();
     }
-}
-
-/// The map layers a structure paints on, top to bottom as they are drawn in the game.
-const LAYERS: [(usize, &str, &str); 3] = [
-    (2, "Overhead", "Drawn above characters: roofs, treetops, arches"),
-    (1, "Detail", "Walls, doors, furniture, trees, fences"),
-    (0, "Ground", "Floors, grass, paths, water"),
-];
-
-fn layer_name(i: usize) -> &'static str {
-    LAYERS.iter().find(|l| l.0 == i).map_or("layer", |l| l.1)
 }
 
 const ACCENT: Color32 = Color32::from_rgb(70, 110, 170);
@@ -470,14 +510,13 @@ fn section(ui: &mut egui::Ui, title: &str) {
 }
 
 impl StTool {
-    fn uses_layers(self) -> bool {
-        matches!(self, StTool::Stamp | StTool::Keep | StTool::Clear)
-    }
     fn icon(self) -> &'static str {
         match self {
-            StTool::Stamp => ph::PAINT_BRUSH,
+            StTool::Ground => ph::PAINT_BRUSH_BROAD,
             StTool::Keep => ph::ERASER,
-            StTool::Clear => ph::X_CIRCLE,
+            StTool::NoGround => ph::X_CIRCLE,
+            StTool::Decor => ph::TREE,
+            StTool::ClearDecor => ph::BROOM,
             StTool::Collision(1) => ph::WALL,
             StTool::Collision(2) => ph::FOOTPRINTS,
             StTool::Collision(0) => ph::MINUS,
@@ -487,20 +526,26 @@ impl StTool {
     }
     fn label(self) -> &'static str {
         match self {
-            StTool::Stamp => "Paint tiles",
-            StTool::Keep => "Erase",
-            StTool::Clear => "Clear map tile",
+            StTool::Ground => "Paint ground",
+            StTool::Keep => "Erase ground",
+            StTool::NoGround => "Remove map ground",
+            StTool::Decor => "Place decoration",
+            StTool::ClearDecor => "Clear map decorations",
             StTool::Collision(1) => "Solid",
             StTool::Collision(2) => "Walkable",
             StTool::Collision(0) => "Keep map collision",
-            StTool::Collision(_) => "Tileset default",
+            StTool::Collision(_) => "Automatic",
             StTool::Prop => "Place prop",
         }
     }
+    /// Picks a prop (decorations and props) rather than a material.
+    fn picks_props(self) -> bool {
+        matches!(self, StTool::Decor | StTool::Prop)
+    }
 }
 
-/// The structure editor: tools and layers on the left, the grid in the middle, the tileset (or
-/// the props) to pick from on the right. Edits `d` in place.
+/// The structure editor: tools on the left, the grid in the middle, the materials (or the
+/// props) to pick from on the right. Edits `d` in place.
 pub fn structure_editor(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit, db: &Database, tex: &crate::widgets::Textures, assets: &rustpg2d_engine::render::Assets) {
     if st.hist_of != d.id {
         st.undo.clear();
@@ -513,8 +558,8 @@ pub fn structure_editor(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut Struct
         st.size_was = (d.w, d.h);
         st.size_of = d.id.clone();
     }
-    if st.tileset.is_empty() || !assets.tilesets.contains_key(&st.tileset) {
-        st.tileset = d.tilesets.iter().find(|t| assets.tilesets.contains_key(*t)).cloned().or_else(|| db.tilesets.first().map(|t| t.id.clone())).unwrap_or_default();
+    if st.material.is_empty() || db.material(&st.material).is_none() {
+        st.material = d.materials.iter().find(|m| db.material(m).is_some()).cloned().or_else(|| db.materials.first().map(|m| m.id.clone())).unwrap_or_default();
     }
     if st.prop.is_empty() {
         st.prop = db.props.first().map(|p| p.id.clone()).unwrap_or_default();
@@ -551,14 +596,14 @@ pub fn structure_editor(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut Struct
         ui.vertical(|ui| {
             ui.set_width(right);
             match st.tool {
-                StTool::Prop => prop_picker(ui, st, db, tex, assets),
+                t if t.picks_props() => prop_picker(ui, st, db, tex, assets),
                 StTool::Collision(_) => {
                     section(ui, "COLLISION");
-                    ui.label("Click or drag over cells to set how they block movement once the structure is placed:");
+                    ui.label("Click or drag over tiles to set how they block movement once the structure is placed:");
                     for (c, col, text) in [
                         (1, Color32::from_rgb(220, 60, 60), "Solid: always blocks"),
                         (2, Color32::from_rgb(60, 200, 90), "Walkable: never blocks (doors, gaps)"),
-                        (StructureDef::COLLISION_AUTO, Color32::from_gray(160), "Tileset default: blocks if the tile is solid"),
+                        (StructureDef::COLLISION_AUTO, Color32::from_gray(160), "Automatic: the ground and decorations decide"),
                         (0, Color32::from_gray(60), "Keep: the map's own setting stays"),
                     ] {
                         ui.horizontal(|ui| {
@@ -570,13 +615,17 @@ pub fn structure_editor(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut Struct
                         });
                     }
                 }
-                _ => tileset_palette(ui, st, db, tex, assets),
+                StTool::ClearDecor => {
+                    section(ui, "CLEAR DECORATIONS");
+                    ui.label("Click tiles: when the structure is placed, the map's decorations standing there are removed first (trees inside a room). Click again to undo the mark.");
+                }
+                _ => material_picker(ui, st, db, tex),
             }
         });
     });
 }
 
-/// Left column: tools, layer stack, size and history.
+/// Left column: tools, size and history.
 fn sidebar(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit) {
     let w = ui.available_width();
     let tool = |ui: &mut egui::Ui, st: &mut StructEdit, t: StTool, tip: &str| {
@@ -585,66 +634,20 @@ fn sidebar(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit) {
             st.tool = t;
         }
     };
-    section(ui, "TILES");
-    tool(ui, st, StTool::Stamp, "Paint the stamp selected in the tileset on the right (click or drag on the grid; right-click a cell picks its tile)");
-    tool(ui, st, StTool::Keep, "Empty cell: placing the structure leaves the map's tile there");
-    tool(ui, st, StTool::Clear, "Placing the structure removes the map's tile on this layer (e.g. trees inside a room) — red cross");
+    section(ui, "GROUND");
+    tool(ui, st, StTool::Ground, "Paint the material chosen on the right on whole tiles (right-click a tile picks its material)");
+    tool(ui, st, StTool::Keep, "No ground of its own: placing the structure leaves the map's ground there");
+    tool(ui, st, StTool::NoGround, "Placing the structure removes the map's ground there (black cross)");
+    section(ui, "DECORATIONS");
+    tool(ui, st, StTool::Decor, "Place the prop chosen on the right as a decoration (a picture: trees, walls, furniture); right-click removes the decorations on a tile");
+    tool(ui, st, StTool::ClearDecor, "Placing the structure removes the map's decorations on these tiles (red cross)");
     section(ui, "COLLISION");
     tool(ui, st, StTool::Collision(1), "Always blocks");
     tool(ui, st, StTool::Collision(2), "Never blocks (doors)");
-    tool(ui, st, StTool::Collision(StructureDef::COLLISION_AUTO), "Blocks if the tile is solid in its tileset");
+    tool(ui, st, StTool::Collision(StructureDef::COLLISION_AUTO), "Blocks where the ground or a decoration is solid");
     tool(ui, st, StTool::Collision(0), "Leave the map's collision alone");
     section(ui, "OBJECTS");
-    tool(ui, st, StTool::Prop, "Put props (doors, chests, signs…) into the structure; right-click removes one");
-
-    section(ui, "LAYERS");
-    let uses = st.tool.uses_layers();
-    ui.add_enabled_ui(uses, |ui| {
-        for (i, name, desc) in LAYERS {
-            let on = st.layer == i;
-            let (tiles, clears) = d.layers.get(i).map_or((0, 0), |l| {
-                (l.iter().filter(|&&v| v != 0 && v != StructureDef::CLEAR).count(), l.iter().filter(|&&v| v == StructureDef::CLEAR).count())
-            });
-            let n = |t: usize| if t == 1 { "1 tile".to_string() } else { format!("{t} tiles") };
-            let count = match (tiles, clears) {
-                (0, 0) => "empty".to_string(),
-                (t, 0) => n(t),
-                (0, c) => format!("clears {c}"),
-                (t, c) => format!("{}, clears {c}", n(t)),
-            };
-            let frame = egui::Frame::new()
-                .fill(if on && uses { ACCENT } else { Color32::from_gray(38) })
-                .corner_radius(4.0)
-                .inner_margin(egui::Margin::symmetric(6, 4));
-            let r = frame
-                .show(ui, |ui| {
-                    ui.set_width(w - 12.0);
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(name).strong().color(Color32::WHITE));
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let mut shown = !st.hidden[i];
-                            if ui.checkbox(&mut shown, "").on_hover_text("Show this layer in the grid").changed() {
-                                st.hidden[i] = !shown;
-                            }
-                            ui.label(egui::RichText::new(&count).small().color(Color32::from_gray(190)))
-                                .on_hover_text("Tiles this layer sets, and cells where placing removes the map's tile");
-                        });
-                    });
-                    ui.label(egui::RichText::new(desc).small().color(Color32::from_gray(if on { 225 } else { 150 })));
-                })
-                .response
-                .interact(Sense::click());
-            if r.on_hover_text(format!("Paint on the {name} layer")).clicked() {
-                st.layer = i;
-                st.hidden[i] = false;
-            }
-            ui.add_space(2.0);
-        }
-    });
-    if !uses {
-        ui.weak("Layers only matter for tile tools.");
-    }
-    ui.checkbox(&mut st.dim, "Fade the other layers");
+    tool(ui, st, StTool::Prop, "Put props (doors, chests, signs…) into the structure as entities; right-click removes one");
 
     section(ui, "SIZE");
     ui.horizontal(|ui| {
@@ -672,15 +675,24 @@ fn sidebar(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit) {
 /// Middle column: what a click does, zoom, the grid, the entities.
 fn canvas_column(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit, db: &Database, tex: &crate::widgets::Textures, assets: &rustpg2d_engine::render::Assets) {
     ui.horizontal(|ui| {
-        let chip = |ui: &mut egui::Ui, text: String, fill: Color32| {
-            egui::Frame::new().fill(fill).corner_radius(10.0).inner_margin(egui::Margin::symmetric(8, 2)).show(ui, |ui| {
-                ui.label(egui::RichText::new(text).color(Color32::WHITE));
-            });
-        };
-        chip(ui, ui::t(st.tool.icon(), st.tool.label()), Color32::from_gray(70));
-        if st.tool.uses_layers() {
-            ui.label("on");
-            chip(ui, format!("{} layer", layer_name(st.layer)), ACCENT);
+        egui::Frame::new().fill(Color32::from_gray(70)).corner_radius(10.0).inner_margin(egui::Margin::symmetric(8, 2)).show(ui, |ui| {
+            ui.label(egui::RichText::new(ui::t(st.tool.icon(), st.tool.label())).color(Color32::WHITE));
+        });
+        if st.tool == StTool::Decor {
+            use rustpg2d_engine::decor::DecorLayer;
+            egui::ComboBox::from_id_salt("st_decor_layer")
+                .selected_text(match st.decor_layer {
+                    DecorLayer::Flat => "flat",
+                    DecorLayer::Sorted => "sorted",
+                    DecorLayer::Above => "above",
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut st.decor_layer, DecorLayer::Flat, "Flat: under everyone");
+                    ui.selectable_value(&mut st.decor_layer, DecorLayer::Sorted, "Sorted: in front of or behind characters");
+                    ui.selectable_value(&mut st.decor_layer, DecorLayer::Above, "Above: over everyone");
+                })
+                .response
+                .on_hover_text("Where new decorations are drawn");
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.selectable_label(st.zoom == 0.0, "Fit").clicked() {
@@ -702,14 +714,15 @@ fn canvas_column(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit, d
             ui.painter().rect_filled(r, 2.0, col);
             ui.label(egui::RichText::new(text).small().color(Color32::from_gray(160)));
         };
-        legend(ui, Color32::from_rgb(230, 70, 70), "× clears the map tile");
+        legend(ui, Color32::BLACK, "× removes the map's ground");
+        legend(ui, Color32::from_rgb(230, 70, 70), "× clears the map's decorations");
         if matches!(st.tool, StTool::Collision(_)) {
             legend(ui, Color32::from_rgb(220, 60, 60), "solid");
             legend(ui, Color32::from_rgb(60, 200, 90), "walkable");
-            legend(ui, Color32::from_gray(160), "tileset default");
+            legend(ui, Color32::from_gray(160), "automatic");
         }
-        ui.label(egui::RichText::new("· right-click picks a tile").small().color(Color32::from_gray(160)));
     });
+    ui.weak(format!("{} decorations · {} props", d.decor.len(), d.entities.len()));
     if !d.entities.is_empty() {
         section(ui, "PROPS IN THIS STRUCTURE");
         let ts = TILE_SIZE as f32;
@@ -737,7 +750,7 @@ fn canvas_column(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit, d
     }
 }
 
-/// Right column (Place prop): searchable gallery of the props.
+/// Right column (decorations, props): searchable gallery of the props.
 fn prop_picker(ui: &mut egui::Ui, st: &mut StructEdit, db: &Database, tex: &crate::widgets::Textures, assets: &rustpg2d_engine::render::Assets) {
     section(ui, "PROPS");
     ui.horizontal(|ui| {
@@ -761,73 +774,44 @@ fn prop_picker(ui: &mut egui::Ui, st: &mut StructEdit, db: &Database, tex: &crat
     if let Some(p) = db.prop(&st.prop) {
         ui.label(egui::RichText::new(format!("{}  ({})", p.name, p.id)).strong());
     }
-    ui.weak("Click a cell to place it; right-click a cell removes the prop standing there.");
+    ui.weak("Click a tile to place it; right-click a tile removes what stands there.");
 }
 
-/// Right column (tile tools): tileset combo and image; click a tile or drag over several to
-/// select the stamp; a large preview of the stamp below.
-fn tileset_palette(ui: &mut egui::Ui, st: &mut StructEdit, db: &Database, tex: &crate::widgets::Textures, assets: &rustpg2d_engine::render::Assets) {
-    section(ui, "TILESET");
-    egui::ComboBox::from_id_salt("st_ts").selected_text(st.tileset.as_str()).width(ui.available_width() - 10.0).show_ui(ui, |ui| {
-        for t in &db.tilesets {
-            if ui.selectable_label(st.tileset == t.id, &t.id).clicked() {
-                st.tileset = t.id.clone();
-                st.stamp = (0, 0, 1, 1);
+/// Right column (ground tools): the materials.
+fn material_picker(ui: &mut egui::Ui, st: &mut StructEdit, db: &Database, tex: &crate::widgets::Textures) {
+    section(ui, "MATERIALS");
+    if db.materials.is_empty() {
+        ui.weak("No materials yet: add some in Database › Materials or from the asset library.");
+    }
+    egui::ScrollArea::vertical().id_salt("st_materials").max_height(460.0).show(ui, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            for m in &db.materials {
+                let on = st.material == m.id;
+                let (r, resp) = ui.allocate_exact_size(vec2(52.0, 52.0), Sense::click());
+                if let Some((t, size)) = material_tex(tex, &m.id) {
+                    ui.painter().image(t, r, Rect::from_min_max(pos2(0.0, 0.0), pos2(52.0 / size.x, 52.0 / size.y)), Color32::WHITE);
+                }
+                let stroke = if on { Stroke::new(3.0_f32, Color32::YELLOW) } else { Stroke::new(1.0_f32, Color32::from_gray(90)) };
+                ui.painter().rect_stroke(r, 2.0, stroke, StrokeKind::Inside);
+                if resp.on_hover_text(format!("{} ({})", m.name, m.id)).clicked() {
+                    st.material = m.id.clone();
+                    if st.tool != StTool::Ground {
+                        st.tool = StTool::Ground;
+                    }
+                }
             }
-        }
+        });
     });
-    let (Some(t), Some(a)) = (tex.tilesets.get(&st.tileset), assets.tilesets.get(&st.tileset)) else {
-        ui.weak("No tileset");
-        return;
-    };
-    let ts = TILE_SIZE as f32;
-    let (iw, ih) = (a.image.width as f32, a.image.height as f32);
-    let scale = ((ui.available_width() - 4.0) / iw).min(1.5);
-    let (rect, resp) = ui.allocate_exact_size(vec2(iw, ih) * scale, Sense::click_and_drag());
-    ui.painter().rect_filled(rect, 0.0, Color32::from_gray(25));
-    ui.painter().image(t.id(), rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-    let cell = ts * scale;
-    let (cols, rows) = ((iw / ts) as u32, (ih / ts) as u32);
-    let at = |p: egui::Pos2| (((p.x - rect.min.x) / cell).clamp(0.0, cols as f32 - 1.0) as u32, ((p.y - rect.min.y) / cell).clamp(0.0, rows as f32 - 1.0) as u32);
-    if let Some(p) = resp.interact_pointer_pos() {
-        let c = at(p);
-        if st.pal_start.is_none() {
-            // Start where the button went down (a drag is only reported after some movement).
-            let origin = ui.input(|i| i.pointer.press_origin()).filter(|o| rect.contains(*o)).unwrap_or(p);
-            st.pal_start = Some(at(origin));
-        }
-        if let Some(s) = st.pal_start {
-            st.stamp = (s.0.min(c.0), s.1.min(c.1), s.0.abs_diff(c.0) + 1, s.1.abs_diff(c.1) + 1);
-            if !st.tool.uses_layers() || st.tool != StTool::Stamp {
-                st.tool = StTool::Stamp;
-            }
-        }
+    if let Some(m) = db.material(&st.material) {
+        ui.label(egui::RichText::new(format!("{}  ({})", m.name, m.id)).strong());
     }
-    if !resp.is_pointer_button_down_on() {
-        st.pal_start = None;
-    }
-    if let Some(h) = resp.hover_pos() {
-        let c = at(h);
-        let r = Rect::from_min_size(rect.min + vec2(c.0 as f32, c.1 as f32) * cell, vec2(cell, cell));
-        ui.painter().rect_stroke(r, 0.0, Stroke::new(1.0_f32, Color32::from_white_alpha(120)), StrokeKind::Inside);
-    }
-    let (x, y, w, h) = st.stamp;
-    let r = Rect::from_min_size(rect.min + vec2(x as f32, y as f32) * cell, vec2(w as f32, h as f32) * cell);
-    ui.painter().rect_stroke(r, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Inside);
-    ui.weak("Click a tile, or drag over several for a bigger stamp.");
-    section(ui, "STAMP");
-    let size = vec2(w as f32, h as f32) * ts;
-    let k = (120.0 / size.x.max(size.y)).min(2.0);
-    let (pr, _) = ui.allocate_exact_size(size * k, Sense::hover());
-    let uv = Rect::from_min_size(pos2(x as f32 * ts / iw, y as f32 * ts / ih), vec2(w as f32 * ts / iw, h as f32 * ts / ih));
-    ui.painter().rect_filled(pr, 0.0, Color32::from_gray(30));
-    ui.painter().image(t.id(), pr, uv, Color32::WHITE);
-    ui.label(format!("{w} × {h} tiles"));
+    ui.weak("Click or drag over tiles to paint them; finer shapes: paint the ground on a map and capture it (Structures tool › New from map area).");
 }
 
-/// The structure's grid: visible layers (the others faded), clear marks, collision, props;
-/// paints with the current tool.
+/// The structure's grid: ground, decorations and props, the clear marks, collision; paints
+/// with the current tool.
 fn structure_canvas(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit, db: &Database, tex: &crate::widgets::Textures, assets: &rustpg2d_engine::render::Assets) {
+    use rustpg2d_engine::ground::CELLS;
     let ts = TILE_SIZE as f32;
     let fit = ((ui.available_width() - 8.0) / d.w.max(1) as f32).clamp(12.0, 48.0).floor();
     let cell = if st.zoom > 0.0 { st.zoom } else { fit };
@@ -835,51 +819,40 @@ fn structure_canvas(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click_and_drag());
     let painter = ui.painter_at(rect.expand(2.0));
     painter.rect_filled(rect.expand(6.0), 6.0, Color32::from_gray(22));
-    // Checkerboard: empty cells.
+    // Checkerboard: tiles without ground of their own.
     for y in 0..d.h {
         for x in 0..d.w {
             let c = if (x + y) % 2 == 0 { 46 } else { 38 };
             painter.rect_filled(Rect::from_min_size(rect.min + vec2(x as f32, y as f32) * cell, vec2(cell, cell)), 0.0, Color32::from_gray(c));
         }
     }
+    let scale = cell / ts;
+    let fade = matches!(st.tool, StTool::Collision(_) | StTool::ClearDecor);
+    paint_ground(ui, rect.min, scale, d, &|id| material_tex(tex, id), |_| if fade { Color32::from_white_alpha(140) } else { Color32::WHITE });
     let tile_rect = |i: usize| Rect::from_min_size(rect.min + vec2((i as u32 % d.w) as f32, (i as u32 / d.w) as f32) * cell, vec2(cell, cell));
-    let faded = st.dim && st.tool.uses_layers();
-    let draw_layer = |li: usize, l: &Vec<u32>| {
-        if st.hidden.get(li).copied().unwrap_or(false) {
-            return;
-        }
-        let tint = if !faded || li == st.layer { Color32::WHITE } else { Color32::from_white_alpha(70) };
-        for (i, &v) in l.iter().enumerate() {
-            let Some((id, index)) = d.tile_source(v) else { continue };
-            let (Some(t), Some(a)) = (tex.tilesets.get(id), assets.tilesets.get(id)) else { continue };
-            let (iw, ih) = (a.image.width as f32, a.image.height as f32);
-            let cols = (iw / ts).floor().max(1.0) as u32;
-            let uv = Rect::from_min_size(pos2((index % cols) as f32 * ts / iw, (index / cols) as f32 * ts / ih), vec2(ts / iw, ts / ih));
-            painter.image(t.id(), tile_rect(i), uv, tint);
-        }
+    let cross = |r: Rect, col: Color32| {
+        let r = r.shrink(cell * 0.25);
+        let s = Stroke::new(2.0_f32, col);
+        painter.line_segment([r.left_top(), r.right_bottom()], s);
+        painter.line_segment([r.right_top(), r.left_bottom()], s);
     };
-    for (li, l) in d.layers.iter().enumerate().take(2) {
-        draw_layer(li, l);
-    }
-    for e in &d.entities {
-        if let Some(s) = entity_sprite(db, e) {
-            let sz = sprite_px(db, &s) * (cell / ts);
-            let feet = rect.min + vec2(e.x, e.y + 1.0) * (cell / ts);
-            crate::widgets::paint_sprite(ui, tex, assets, &s, Rect::from_min_size(feet - vec2(sz.x / 2.0, sz.y), sz));
+    // Tiles whose ground the structure removes.
+    for i in 0..(d.w * d.h) as usize {
+        let (tx, ty) = (i as u32 % d.w, i as u32 / d.w);
+        if d.ground_at(tx * CELLS, ty * CELLS) == StructureDef::CLEAR_GROUND {
+            cross(tile_rect(i), Color32::BLACK);
         }
     }
-    for (li, l) in d.layers.iter().enumerate().skip(2) {
-        draw_layer(li, l);
+    for (_, s, feet, _) in structure_pictures(d, db) {
+        let sz = sprite_px(db, &s) * scale;
+        let feet = rect.min + feet * scale;
+        crate::widgets::paint_sprite(ui, tex, assets, &s, Rect::from_min_size(feet - vec2(sz.x / 2.0, sz.y), sz));
     }
-    // "Clear map tile" marks of the current layer.
-    if let Some(l) = d.layers.get(st.layer).filter(|_| st.tool.uses_layers()) {
-        for (i, &v) in l.iter().enumerate() {
-            if v == StructureDef::CLEAR {
-                let r = tile_rect(i).shrink(cell * 0.25);
-                let s = Stroke::new(2.0_f32, Color32::from_rgb(230, 70, 70));
-                painter.line_segment([r.left_top(), r.right_bottom()], s);
-                painter.line_segment([r.right_top(), r.left_bottom()], s);
-            }
+    // (Faint unless the tool that sets them is on: they cover the whole picture of a building.)
+    let clear_col = if st.tool == StTool::ClearDecor { Color32::from_rgb(230, 70, 70) } else { Color32::from_rgba_unmultiplied(230, 70, 70, 50) };
+    for (i, &c) in d.clear.iter().enumerate() {
+        if c == 1 {
+            cross(tile_rect(i), clear_col);
         }
     }
     if matches!(st.tool, StTool::Collision(_)) {
@@ -901,61 +874,56 @@ fn structure_canvas(ui: &mut egui::Ui, d: &mut StructureDef, st: &mut StructEdit
     }
     painter.rect_stroke(rect, 0.0, Stroke::new(1.0_f32, Color32::from_gray(110)), StrokeKind::Outside);
 
-    // Hover: ghost of what a click would do.
     let cell_at = |p: egui::Pos2| -> Option<(u32, u32)> {
         let v = (p - rect.min) / cell;
         (v.x >= 0.0 && v.y >= 0.0 && v.x < d.w as f32 && v.y < d.h as f32).then_some((v.x as u32, v.y as u32))
     };
     if let Some(c) = resp.hover_pos().and_then(cell_at) {
-        let (w, h) = if st.tool == StTool::Stamp { (st.stamp.2, st.stamp.3) } else { (1, 1) };
-        if st.tool == StTool::Stamp {
-            if let (Some(t), Some(a)) = (tex.tilesets.get(&st.tileset), assets.tilesets.get(&st.tileset)) {
-                let (iw, ih) = (a.image.width as f32, a.image.height as f32);
-                let (sx, sy, sw, sh) = st.stamp;
-                let uv = Rect::from_min_size(pos2(sx as f32 * ts / iw, sy as f32 * ts / ih), vec2(sw as f32 * ts / iw, sh as f32 * ts / ih));
-                let r = Rect::from_min_size(rect.min + vec2(c.0 as f32, c.1 as f32) * cell, vec2(sw as f32, sh as f32) * cell);
-                painter.image(t.id(), r, uv, Color32::from_white_alpha(160));
-            }
-        }
-        let r = Rect::from_min_size(rect.min + vec2(c.0 as f32, c.1 as f32) * cell, vec2(w as f32, h as f32) * cell);
+        let r = Rect::from_min_size(rect.min + vec2(c.0 as f32, c.1 as f32) * cell, vec2(cell, cell));
         painter.rect_stroke(r, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Inside);
-        let what = if st.tool.uses_layers() { format!(" · {} layer", layer_name(st.layer)) } else { String::new() };
-        resp.clone().on_hover_text(format!("cell {}, {}{what}", c.0, c.1));
+        let ground = d.material_of(d.ground_at(c.0 * CELLS, c.1 * CELLS)).map_or(String::new(), |m| format!(" · {m}"));
+        resp.clone().on_hover_text(format!("tile {}, {}{ground}", c.0, c.1));
     }
 
-    // Painting: one undo snapshot per stroke; a stroke paints each cell once.
+    // Painting: one undo snapshot per stroke; a stroke paints each tile once.
     let primary = ui.input(|i| i.pointer.primary_down());
     if let Some(c) = resp.interact_pointer_pos().and_then(cell_at) {
+        // (A tile's decorations and entities: their feet lie in it.)
+        let on_tile = |x: f32, y: f32| ((x / ts).floor() as u32, ((y - 1.0) / ts).floor() as u32) == c;
         if resp.secondary_clicked() {
             match st.tool {
                 StTool::Prop => {
-                    let at = |e: &EntityInstance| ((e.x / ts).floor() as u32, ((e.y - 1.0) / ts).floor() as u32);
-                    if let Some(i) = d.entities.iter().position(|e| at(e) == c) {
+                    if let Some(i) = d.entities.iter().position(|e| on_tile(e.x, e.y)) {
                         st.snapshot(d);
                         d.entities.remove(i);
                     }
                 }
+                StTool::Decor => {
+                    if d.decor.iter().any(|e| on_tile(e.x as f32, e.y as f32)) {
+                        st.snapshot(d);
+                        d.decor.retain(|e| !on_tile(e.x as f32, e.y as f32));
+                        d.prune();
+                    }
+                }
                 _ => {
-                    // Eyedropper: pick the tile of this cell on the current layer.
-                    if let Some((id, index)) = d.tile_source(d.tile(st.layer, c.0, c.1)) {
-                        if let Some(a) = assets.tilesets.get(id) {
-                            st.tileset = id.to_string();
-                            st.stamp = (index % a.columns.max(1), index / a.columns.max(1), 1, 1);
-                            st.tool = StTool::Stamp;
-                        }
+                    // Eyedropper: the material of this tile.
+                    if let Some(m) = d.material_of(d.ground_at(c.0 * CELLS + CELLS / 2, c.1 * CELLS + CELLS / 2)) {
+                        st.material = m.to_string();
+                        st.tool = StTool::Ground;
                     }
                 }
             }
         } else if resp.clicked() && st.last_cell.is_none() {
             // A click so quick that the button was never seen held down on the grid.
             st.snapshot(d);
-            st.apply(d, c, db, assets);
+            st.apply(d, c, db);
         } else if primary && (resp.drag_started() || resp.is_pointer_button_down_on()) && st.last_cell != Some(c) {
             if st.last_cell.is_none() {
                 st.snapshot(d);
             }
-            if st.tool != StTool::Prop || st.last_cell.is_none() {
-                st.apply(d, c, db, assets);
+            // (Objects and clear marks: one per click, not along a drag.)
+            if !matches!(st.tool, StTool::Prop | StTool::Decor | StTool::ClearDecor) || st.last_cell.is_none() {
+                st.apply(d, c, db);
             }
             st.last_cell = Some(c);
         }

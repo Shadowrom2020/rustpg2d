@@ -70,11 +70,12 @@ dialog is open), `cutscene`, `quests` (quest id → stage), `inv`, `flags`, `var
 `enemies`, `menu` (`defeated` after a death), `autosave`, `schedule` (scheduled characters:
 name:stop-time[>map](walking|inside|elsewhere)[:sit|:lie]@x,y), `sounds` (the last six sound
 effects started, also when the game is muted: a bell or an animal's call), `climbing` (the
-player is on a ladder tile), `foes` (the hostile characters on the map with their HP and tile:
+player is on a ladder), `foes` (the hostile characters on the map with their HP and tile:
 whether a shot hit), `device` (the device used last: hints show keys or pad buttons; `pad a`
 switches to the pad, `press` or a click back), `pad_style` (how buttons are drawn) and `attacks`
 (hostile characters winding up, swinging or lunging, recovering), `block` (the player's shield:
-`parry` in its first 0.2 s, `roll` while dodging) and `dodge` (seconds until the next roll), `emotes` (emotions shown over heads now; `player:joy`).
+`parry` in its first 0.2 s, `roll` while dodging) and `dodge` (seconds until the next roll), `emotes` (emotions shown over heads now; `player:joy`), `ground` (the painted material under the
+player's feet and how many materials the map uses: `sand/9`, `-/0` without painted ground).
 
 For performance checks: `fps`, `frame_ms` (average / worst frame), `update_ms` and `draw_ms`
 (average time of the two halves of a frame) and `astar` (path searches and the nodes they

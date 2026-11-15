@@ -50,7 +50,8 @@ macro_rules! def_facts {
     };
 }
 
-def_facts!(TilesetDef, |d| format!("image {}; {} solid tiles; terrains [{}]; {} animations", d.image, d.solid.len(), d.terrains.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", "), d.animations.len()));
+def_facts!(rustpg2d_engine::ground::MaterialDef, |d| format!("texture {}; {:?} edge, priority {}; {:?}{}", d.texture, d.edge, d.priority, d.walk, if d.step.is_empty() { String::new() } else { format!("; steps {}", d.step) }));
+def_facts!(rustpg2d_engine::decor::ScatterDef, |d| format!("{} props [{}]; density {} per tile, spacing {} px; {:?}", d.props.len(), d.props.iter().map(|(p, w)| format!("{p} x{w}")).collect::<Vec<_>>().join(", "), d.density, d.spacing, d.layer));
 def_facts!(SheetDef, |d| {
     let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
     let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
@@ -199,10 +200,6 @@ fn remove<T: DefFacts>(list: &mut Vec<T>, id: &str) -> bool {
 fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
     let icon = SpriteRef::default();
     match kind {
-        RefKind::Tileset => (
-            val(&TilesetDef::new(id, "tilesets/<file>.png")),
-            "image: PNG path under the project (32 px tiles, any columns); solid: tile indices that block; low: solid tile indices that only stop walking, shots and sight pass over them (fences, rocks, water, tables); ladder: tile indices the player climbs (characters keep off); animations: [{tile, frames, fps}]; lights: [{tile, light: {radius, color, intensity, flicker}}]; terrains: auto-tiling sets (easier made in the editor).",
-        ),
         RefKind::Sheet => (
             val(&SheetDef::new(id, "sprites/<file>.png", 32, 32)),
             "kind: Sprite (props, effects) | Emotions (icons over heads; its tags are the emotions); frame_w/frame_h in image px; scale: image px per world px (1 default; 2 = high-resolution art); tags: named frame ranges [{name, first, last, fps}].",
@@ -218,7 +215,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {model (a 3D model id; none: the mannequin), colors: {feature: [r,g,b]} (the model's colour features; missing = as made)}; equipment / inventory: the items it wears and carries (count in play; weapon, left hand and tools show in its hands: items' `model` or `held` picture); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
         RefKind::Sound => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0, caption: String::new() }), "file: WAV or Ogg Vorbis under the project; volume 0..1; caption: what it sounds like for players with Captions on (\"Door creaks\"; music: the track's name; translated; empty = none). Used by PlaySound / PlayMusic, map music, battle music and the project's built-in sounds."),
         RefKind::Quest => (val(&QuestDef { id: id.into(), title: "New quest".into(), description: String::new(), stages: vec!["Find out more".into(), "Done".into()], xp: 0, targets: vec![] }), "stages: the journal lines in order (stage 0 is the first after Start); xp on completion; targets (optional, one per stage): {map, name} = where the stage leads (a placed character, prop or zone by name), shown as a quest marker. Triggers drive it: Action Quest{quest, op: Start|Advance|SetStage|Complete|Fail, stage}, Cond Quest{quest, check: NotStarted|Active|Completed|Failed|AtStage|StageAtLeast, stage}."),
-        RefKind::Structure => (val(&StructureDef { id: id.into(), name: "New structure".into(), category: String::new(), w: 2, h: 2, tilesets: vec![], layers: vec![vec![0; 4], vec![0; 4], vec![0; 4]], collision: vec![0; 4], entities: vec![] }), "layers: one Vec per map layer of w*h tile values (0 = empty; tile = slot << 16 | index with slot into `tilesets`); collision: w*h bytes (0 auto, 1 solid, 2 walkable); entities with positions relative to the top-left. Easier: build it on a map and capture it in the editor (Structures tool)."),
+        RefKind::Structure => (val(&StructureDef { id: id.into(), name: "New structure".into(), w: 2, h: 2, ..Default::default() }), "w, h: size in tiles; materials: material ids, ground: (w*4) x (h*4) cells row by row (0 = keep the map's, 255 = no ground, else a materials slot + 1); decor_defs: prop ids, decor: decorations {def (slot), x, y (feet, pixels from the top-left), flip, state, layer Flat|Sorted|Above}; clear: w*h bytes (1 = placing removes the map's decorations there); collision: w*h bytes (0 keep, 1 solid, 2 walkable, 3 automatic); entities with positions relative to the top-left. Easier: build it on a map and capture_structure."),
         RefKind::Skill => (val(&SkillDef { id: id.into(), name: "New skill".into(), description: String::new(), icon: icon.clone(), max_level: 5, effect: SkillEffect::None }), "effect: None | MeleeDamage | RangedDamage | SpellDamage | Defense | Speed | Lockpick | Haggle | Mana | ManaRegen | {Script:{function}} | {Gather:{tool, percent}} | FoodBonus | {SneakAttack:{percent}}; max_level; players spend skill points (K screen)."),
         RefKind::Spell => (val(&SpellDef::new(id, "New spell", "", icon.clone(), 5, 1.0, SpellEffect::Heal { amount: 5 })), "effect: {Heal:{amount}} | {Bolt:{damage, projectile (sheet), speed, range}} | {Blast:{..}} | {Light:{..}} | {Script:{function}}; mana cost; cooldown s; skill + level required to learn (empty skill = none). Items with teaches = this id teach it."),
         RefKind::Recipe => (val(&RecipeDef::new(id, "<item id>", 1, vec![], "")), "result + count from ingredients [{item, count}]; station: a prop id the player must use (empty = anywhere, craftable from the inventory), station_state: the state it must be in (a lit fire); skill + level required; tools: item ids that must be in the inventory; quality: [{level, result}] better results at higher skill."),
@@ -227,6 +224,14 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Model => (
             val(&rustpg2d_engine::defs::ModelDef::new(id, "models/<file>.glb")),
             "file: a rigged .glb under models/ (Meshy, Blender…); clip_files: more .glb files with clips of the same rig; shared_clips: clip files of another model with the same bone names, fitted to this one's bones (share_model_clips sets them); height: standing height in world px (40 = a person); clips: [{anim: walk|idle|attack|hurt|sit|sleep|fish|farm|craft|chop|mine|sweep|read|sneak or a weapon animation (attack_1h, attack_2h, attack_thrust, attack_bow, attack_crossbow, attack_cast, attack_unarmed, idle_1h, idle_2h, idle_bow, idle_spear, block_shield, block_weapon, block_2h), clip: the clip's name in the files, fps (12), hit: 0..1 where an attack's blow lands / a block's guard is up (0.42)}]; features: colour features of its texture (as a figure sheet's); playable / female: offered in the character creator. Characters use it with appearance.model.",
+        ),
+        RefKind::Material => (
+            val(&rustpg2d_engine::ground::MaterialDef::fresh(id)),
+            "texture: a seamless PNG under the project (up to 256 x 256 px, sizes in steps of 8), repeated over the painted ground; edge: Crisp (hard pixel-art edge, ragged by edge_noise px, steps of edge_pixel px) | Soft (a fade); priority 0..255: the higher material is drawn over the lower where they meet; rim: null | {color: [r,g,b], width: px} a fringe outside its edge; walk: Walk | Solid (blocks walking, shots, sight) | Low (blocks walking only: water); step: footstep sound id; scroll: [x, y] px per second (flowing water).",
+        ),
+        RefKind::Scatter => (
+            val(&rustpg2d_engine::decor::ScatterDef::fresh(id)),
+            "props: [[prop id, weight], …] placed at random by the scatter brush / the scatter agent tool (weights: how often each comes); density: decorations per tile (0.05 a sparse wood, 0.5 flowers); spacing: least distance between two in px; flip: mirror half of them; layer: Flat | Sorted | Above.",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
     }
@@ -455,7 +460,7 @@ impl Editor {
             }
         }
         let file = match kind {
-            RefKind::Tileset => db.tileset(id).map(|d| d.image.clone()),
+            RefKind::Material => db.material(id).map(|d| d.texture.clone()),
             RefKind::Sheet => db.sheet(id).map(|d| d.image.clone()),
             RefKind::Sound => db.sound(id).map(|d| d.file.clone()),
             _ => None,
@@ -511,7 +516,7 @@ impl Editor {
         self.project.db = copy;
         self.project.db.reindex();
         self.defs_dirty = true;
-        if matches!(kind, RefKind::Tileset | RefKind::Sheet | RefKind::Sound) {
+        if matches!(kind, RefKind::Material | RefKind::Sheet | RefKind::Sound) {
             self.reload_assets();
         }
         let mut msg = format!("{} {} \"{id}\".", if replaced { "Replaced" } else { "Created" }, kind.name());
@@ -545,7 +550,7 @@ impl Editor {
                         n += map.zones.iter().filter(|z| matches!(&z.kind, rustpg2d_engine::map::ZoneKind::Spawner { character, .. } if character == id)).count();
                     }
                 }
-                RefKind::Tileset => n += map.tilesets.iter().filter(|t| *t == id).count(),
+                RefKind::Material => n += map.materials.iter().filter(|t| *t == id).count(),
                 RefKind::Sound => n += (map.music == id) as usize,
                 _ => {}
             }
@@ -614,7 +619,7 @@ impl Editor {
         on_defs!(db, kind, remove(&p.id));
         self.project.db.reindex();
         self.defs_dirty = true;
-        if matches!(kind, RefKind::Tileset | RefKind::Sheet | RefKind::Sound) {
+        if matches!(kind, RefKind::Material | RefKind::Sheet | RefKind::Sound) {
             self.reload_assets();
         }
         self.mcp_after_write(format!("Deleted {} \"{}\"{}. Its image / sound files were kept.", kind.name(), p.id, if users.is_empty() { String::new() } else { format!(" although it was used by: {}", users.join("; ")) }))
@@ -964,9 +969,9 @@ impl Editor {
         let rel = p.path.trim().replace('\\', "/");
         let lower = rel.to_lowercase();
         let image = lower.ends_with(".png");
-        let folder_ok = ["sprites/", "tilesets/", "sounds/"].iter().any(|f| rel.starts_with(f));
+        let folder_ok = ["sprites/", "sounds/", "materials/"].iter().any(|f| rel.starts_with(f));
         if !folder_ok || rel.split('/').any(|c| c.is_empty() || c == "." || c == "..") || !(image || lower.ends_with(".wav") || lower.ends_with(".ogg")) {
-            return Err(format!("\"{rel}\": give a path under sprites/, tilesets/ or sounds/ ending in .png, .wav or .ogg"));
+            return Err(format!("\"{rel}\": give a path under sprites/, materials/ or sounds/ ending in .png, .wav or .ogg"));
         }
         let bytes = match (&p.base64, &p.source) {
             (Some(b), None) => rustpg2d_engine::hash::base64_decode(b).ok_or("base64 is not valid Base64")?,
@@ -989,17 +994,17 @@ impl Editor {
         self.reload_assets();
         let db = &self.project.db;
         let users: Vec<String> = db
-            .tilesets
+            .materials
             .iter()
-            .filter(|d| d.image == rel)
-            .map(|d| format!("tileset {}", d.id))
+            .filter(|d| d.texture == rel)
+            .map(|d| format!("material {}", d.id))
             .chain(db.sheets.iter().filter(|d| d.image == rel).map(|d| format!("sheet {}", d.id)))
             .chain(db.sounds.iter().filter(|d| d.file == rel).map(|d| format!("sound {}", d.id)))
             .collect();
         text(format!(
             "{} {rel} ({what}). {}",
             if existed { "Replaced" } else { "Wrote" },
-            if users.is_empty() { "No definition uses it yet: add one with upsert_def (tilesets / sheets / sounds).".to_string() } else { format!("Used by {}; the art was reloaded.", users.join(", ")) }
+            if users.is_empty() { "No definition uses it yet: add one with upsert_def (materials / sheets / sounds).".to_string() } else { format!("Used by {}; the art was reloaded.", users.join(", ")) }
         ))
     }
 }

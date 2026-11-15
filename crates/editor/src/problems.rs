@@ -272,7 +272,7 @@ impl Editor {
                 };
                 self.trigger_problems(&triggers.unwrap_or_default(), Area::Definitions, &place, &target, out);
                 let file = match k {
-                    RefKind::Tileset => db.tileset(&id).map(|d| d.image.clone()),
+                    RefKind::Material => db.material(&id).map(|d| d.texture.clone()),
                     RefKind::Sheet => db.sheet(&id).map(|d| d.image.clone()),
                     RefKind::Sound => db.sound(&id).map(|d| d.file.clone()),
                     _ => None,
@@ -365,7 +365,7 @@ impl Editor {
                 }
             };
             // The map's own settings and triggers.
-            let mut refs: Vec<(RefKind, String)> = m.tilesets.iter().map(|t| (RefKind::Tileset, t.clone())).collect();
+            let mut refs: Vec<(RefKind, String)> = m.materials.iter().map(|t| (RefKind::Material, t.clone())).chain(m.decor_defs.iter().map(|p| (RefKind::Prop, p.clone()))).collect();
             refs.push((RefKind::Sound, m.music.clone()));
             refs.extend(m.parallax.iter().map(|l| (RefKind::Sheet, l.sheet.clone())));
             refs.extend([&m.edges.north, &m.edges.south, &m.edges.east, &m.edges.west].into_iter().flatten().map(|l| (RefKind::Map, l.target_map.clone())));

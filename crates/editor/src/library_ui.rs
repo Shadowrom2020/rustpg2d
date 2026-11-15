@@ -119,7 +119,7 @@ impl LibState {
         }
     }
 
-    /// Thumbnail textures of a store's tilesets and sprite sheets (rebuilt when `tex_dirty`).
+    /// Thumbnail textures of a store's materials and sprite sheets (rebuilt when `tex_dirty`).
     /// Called every frame with the store on show: loads its pictures when they changed, and starts
     /// the frame of its models (they render a few thumbnails a frame, more in the next ones).
     pub(crate) fn textures_of(&mut self, ctx: &egui::Context, store: &Project) {
@@ -136,11 +136,11 @@ impl LibState {
         self.tex_dirty = false;
         self.tex.clear();
         *self.models.borrow_mut() = None;
-        let images = store.db.tilesets.iter().map(|t| (format!("ts:{}", t.id), &t.image)).chain(store.db.sheets.iter().map(|s| (format!("sh:{}", s.id), &s.image)));
+        let images = store.db.materials.iter().map(|t| (format!("mt:{}", t.id), &t.texture)).chain(store.db.sheets.iter().map(|s| (format!("sh:{}", s.id), &s.image)));
         for (key, rel) in images {
             let Ok(img) = std::fs::read(store.root.join(rel)).map_err(anyhow::Error::from).and_then(|b| Rgba::decode(&b)) else { continue };
             let ci = crate::widgets::color_image(ctx, img.w as usize, img.h as usize, &img.px);
-            let handle = ctx.load_texture(format!("lib:{key}"), ci, egui::TextureOptions::NEAREST);
+            let handle = ctx.load_texture(format!("lib:{key}"), ci, if key.starts_with("mt:") { egui::TextureOptions::NEAREST_REPEAT } else { egui::TextureOptions::NEAREST });
             self.tex.insert(key.clone(), Tex { handle, w: img.w as f32, h: img.h as f32 });
         }
     }
@@ -185,9 +185,9 @@ impl LibState {
     fn paint_thumb(&self, ui: &egui::Ui, db: &Database, a: &AssetRef, rect: Rect) {
         if a.0 == RefKind::Structure {
             if let Some(d) = db.structure(&a.1) {
-                let tileset = |id: &str| self.tex.get(&format!("ts:{id}")).map(|t| (t.handle.id(), vec2(t.w, t.h)));
+                let material = |id: &str| self.tex.get(&format!("mt:{id}")).map(|t| (t.handle.id(), vec2(t.w, t.h)));
                 let sprite = |s: &SpriteRef, r: Rect| self.paint_sprite_in(ui, db, s, r);
-                crate::structures::paint_structure(ui, rect, d, db, &tileset, &sprite);
+                crate::structures::paint_structure(ui, rect, d, db, &material, &sprite);
             }
             return;
         }
@@ -205,10 +205,10 @@ impl LibState {
             _ => None,
         };
         let drawn = match (a.0, sprite) {
-            (RefKind::Tileset, _) => self.tex.get(&format!("ts:{}", a.1)).is_some_and(|t| {
-                let scale = (rect.width() / t.w).min(rect.height() / t.h);
-                let r = Rect::from_center_size(rect.center(), vec2(t.w, t.h) * scale);
-                ui.painter().image(t.handle.id(), r, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+            // A material: its texture repeated over the card.
+            (RefKind::Material, _) => self.tex.get(&format!("mt:{}", a.1)).is_some_and(|t| {
+                let r = rect.shrink(4.0);
+                ui.painter().image(t.handle.id(), r, Rect::from_min_max(pos2(0.0, 0.0), pos2(r.width() / t.w / 2.0, r.height() / t.h / 2.0)), Color32::WHITE);
                 true
             }),
             (RefKind::Character, _) => self.paint_character_in(ui, db, &a.1, rustpg2d_engine::entity::Facing::Down, rect),
@@ -282,12 +282,12 @@ fn filtered(db: &Database, k: Option<RefKind>, search: &str) -> Vec<AssetRef> {
         .collect()
 }
 
-/// "tilesets", "sprite sheets", …
+/// "materials", "sprite sheets", …
 fn plural(k: RefKind) -> String {
     format!("{}s", kind_label(k).to_lowercase())
 }
 
-/// Parses "item", "prop", "character", "sheet", "tileset", "sound", "structure", "skill",
+/// Parses "item", "prop", "character", "sheet", "material", "scatter", "sound", "structure", "skill",
 /// "spell" or "recipe": the kinds a library holds.
 pub fn parse_kind(s: &str) -> Option<RefKind> {
     RefKind::parse(s).filter(|k| library::KINDS.contains(k))
@@ -664,10 +664,10 @@ impl Editor {
                 if ui.add_enabled(sel.len() == 1, egui::Button::new(ui::t(ph::PENCIL_SIMPLE, "Edit"))).on_hover_text("Edit the selected asset (or double-click it)").clicked() {
                     edit = sel.first().cloned();
                 }
-                if ui.button(ui::t(ph::SPARKLE, "New asset…")).on_hover_text("Create a prop, item, character, tileset, sprite sheet or structure in the library").clicked() {
+                if ui.button(ui::t(ph::SPARKLE, "New asset…")).on_hover_text("Create a prop, item, character, ground material, sprite sheet or structure in the library").clicked() {
                     self.wizard = Some(crate::wizard::Wizard::new(&self.project));
                 }
-                if ui.button(ui::t(ph::HOUSE, "New structure")).on_hover_text("A multi-tile structure (house, wall, room…), assembled from tileset stamps").clicked() {
+                if ui.button(ui::t(ph::HOUSE, "New structure")).on_hover_text("A structure (house, wall, room…) of ground and decorations, assembled in the structure editor").clicked() {
                     new_structure = true;
                 }
                 ui.separator();
@@ -888,7 +888,7 @@ mod tests {
         for a in library::script_asset_refs(b.scripts.values().map(String::as_str)) {
             assert!(library::exists(&b.db, &a), "a starter script uses the {} {}, which the library lacks", kind_label(a.0), a.1);
         }
-        assert!(b.db.tilesets.len() >= 5 && b.db.sheets.len() > 15 && b.db.models.len() > 60, "{} tilesets, {} sheets, {} models", b.db.tilesets.len(), b.db.sheets.len(), b.db.models.len());
+        assert!(b.db.materials.len() >= 15 && b.db.sheets.len() > 15 && b.db.models.len() > 60, "{} materials, {} sheets, {} models", b.db.materials.len(), b.db.sheets.len(), b.db.models.len());
         // Every character is a model (none falls back to the mannequin).
         for c in &b.db.characters {
             assert!(b.db.model(&c.appearance.model).is_some(), "character {} has no model", c.id);

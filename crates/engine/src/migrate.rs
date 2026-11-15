@@ -1,6 +1,9 @@
 //! Converts projects made with another tile size (e.g. 16 px) to the engine's fixed
 //! [`TILE_SIZE`] of 32 px.
 //!
+//! Such projects are older than painted maps: they still have tilesets and tile maps, which
+//! this keeps (tile maps are written in the old format) for [`crate::convert_tiles`], run next.
+//!
 //! A backup of the whole project folder is made first. Then:
 //! - images that are shrunken copies of asset-library art are replaced by the library
 //!   originals; all other images are enlarged without loss (nearest neighbour),
@@ -19,7 +22,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 
 use crate::imageio::Rgba;
-use crate::map::{CollisionOverride, Edge, Map, Tile, TileLayer};
+use crate::map::{CollisionOverride, Edge, Map};
+use crate::old_tiles::{OldTiles, Tile, TileLayer};
 use crate::library::{all_assets, Bundle};
 use crate::project::{write_ron, Project, ProjectConfig, TILE_SIZE};
 use crate::state::WorldState;
@@ -59,7 +63,7 @@ pub fn stored_tile_size(root: &Path) -> Result<u32> {
     Ok(ron::from_str::<ProjectConfig>(&s)?.tile_size)
 }
 
-fn copy_dir(from: &Path, to: &Path) -> Result<()> {
+pub fn copy_dir(from: &Path, to: &Path) -> Result<()> {
     std::fs::create_dir_all(to)?;
     for e in std::fs::read_dir(from)?.flatten() {
         let (src, dst) = (e.path(), to.join(e.file_name()));
@@ -96,13 +100,22 @@ pub fn upgrade(root: &Path, library: Option<&Project>) -> Result<Option<Upgrade>
 
     // 2. Definitions and images (the bundle rescale does images, frames, hitboxes, speeds).
     let mut b = Bundle::collect(&project.db, root, from, &project.config.name, &all_assets(&project.db))?;
-    let originals = b.files.clone();
+    let mut tilesets = crate::old_tiles::read_tilesets(root)?;
+    let mut originals = b.files.clone();
+    for t in &tilesets {
+        if let Ok(bytes) = std::fs::read(root.join(&t.image)) {
+            if let Ok(img) = Rgba::decode(&bytes) {
+                b.files.insert(t.image.clone(), img.resized((img.w as f32 * f).round() as u32, (img.h as f32 * f).round() as u32).encode()?);
+            }
+            originals.insert(t.image.clone(), bytes);
+        }
+    }
     b.rescale(TILE_SIZE)?;
     // Library art shrunken to this project's size → its original file.
     let mut lib_art: HashMap<Rgba, Vec<u8>> = HashMap::new();
     let mut lib_full: std::collections::HashSet<Rgba> = std::collections::HashSet::new();
     if let Some(lib) = library {
-        let images = lib.db.tilesets.iter().map(|d| &d.image).chain(lib.db.sheets.iter().map(|d| &d.image));
+        let images = lib.db.sheets.iter().map(|d| &d.image);
         for rel in images {
             let Ok(bytes) = std::fs::read(lib.root.join(rel)) else { continue };
             let Ok(img) = Rgba::decode(&bytes) else { continue };
@@ -115,7 +128,7 @@ pub fn upgrade(root: &Path, library: Option<&Project>) -> Result<Option<Upgrade>
     // (tileset id → (columns before, columns after))
     let mut remap: HashMap<String, (u32, u32)> = HashMap::new();
     let k = (TILE_SIZE / from.max(1)).max(1);
-    for t in &mut b.db.tilesets {
+    for t in &mut tilesets {
         let Some(img) = originals.get(&t.image).and_then(|bytes| Rgba::decode(bytes).ok()) else { continue };
         if !lib_full.contains(&img) || !TILE_SIZE.is_multiple_of(from) {
             continue;
@@ -135,9 +148,9 @@ pub fn upgrade(root: &Path, library: Option<&Project>) -> Result<Option<Upgrade>
         b.files.insert(t.image.clone(), originals[&t.image].clone());
         remap.insert(t.id.clone(), (old_cols, new_cols));
     }
-    let kept: Vec<String> = b.db.tilesets.iter().filter(|t| remap.contains_key(&t.id)).map(|t| t.image.clone()).collect();
+    let kept: Vec<String> = tilesets.iter().filter(|t| remap.contains_key(&t.id)).map(|t| t.image.clone()).collect();
     let (mut restored, mut enlarged) = (Vec::new(), Vec::new());
-    let images: Vec<String> = b.db.tilesets.iter().map(|d| d.image.clone()).chain(b.db.sheets.iter().map(|d| d.image.clone())).collect();
+    let images: Vec<String> = tilesets.iter().map(|d| d.image.clone()).chain(b.db.sheets.iter().map(|d| d.image.clone())).collect();
     for rel in images {
         if restored.contains(&rel) || enlarged.contains(&rel) || kept.contains(&rel) {
             continue;
@@ -159,14 +172,15 @@ pub fn upgrade(root: &Path, library: Option<&Project>) -> Result<Option<Upgrade>
     // 3. Maps.
     let mut shrunk_maps = Vec::new();
     for m in project.list_maps() {
-        let map = project.load_map(&m)?;
-        let map = if painted_in_blocks(&map, &remap, k) {
+        let path = project.map_path(&m);
+        let (map, tiles) = crate::map::io::load_tiles(&path)?;
+        let (map, tiles) = if painted_in_blocks(&tiles, &remap, k, map.width, map.height) {
             shrunk_maps.push(m.clone());
-            shrink_map(&map, &remap, k, from)
+            shrink_map(&map, &tiles, &remap, k, from)
         } else {
-            enlarge_map(map, &remap, k, f)
+            enlarge_map(map, tiles, &remap, k, f)
         };
-        project.save_map(&map)?;
+        crate::map::io::save_tiles(&map, &tiles, &path)?;
     }
 
     // 4. Save games.
@@ -199,6 +213,9 @@ pub fn upgrade(root: &Path, library: Option<&Project>) -> Result<Option<Upgrade>
     project.config.scale = (project.config.scale / f).max(1.0);
     write_ron(&root.join("project.ron"), &project.config)?;
     project.save_defs()?;
+    if !tilesets.is_empty() {
+        write_ron(&root.join("defs/tilesets.ron"), &tilesets)?;
+    }
     let remapped = remap.into_keys().collect();
     Ok(Some(Upgrade { from, backup, restored, enlarged, remapped, shrunk_maps }))
 }
@@ -210,16 +227,16 @@ fn full_index(i: u32, (old_cols, new_cols): (u32, u32), k: u32) -> u32 {
 
 /// Was the map painted only with remapped tilesets, in whole tiles laid as aligned k×k blocks
 /// of their quarters (as the editor's multi-tile stamp does)?
-fn painted_in_blocks(map: &Map, remap: &HashMap<String, (u32, u32)>, k: u32) -> bool {
+fn painted_in_blocks(tiles: &OldTiles, remap: &HashMap<String, (u32, u32)>, k: u32, width: u32, height: u32) -> bool {
     if k < 2 {
         return false;
     }
     let (mut aligned, mut total) = (0usize, 0usize);
-    for l in &map.layers {
-        for y in 0..map.height {
-            for x in 0..map.width {
+    for l in &tiles.layers {
+        for y in 0..height {
+            for x in 0..width {
                 let Some((slot, i)) = l.get(x, y).parts() else { continue };
-                let Some(&(old_cols, _)) = map.tilesets.get(slot).and_then(|id| remap.get(id)) else { return false };
+                let Some(&(old_cols, _)) = tiles.tilesets.get(slot).and_then(|id| remap.get(id)) else { return false };
                 total += 1;
                 if (i % old_cols) % k == x % k && (i / old_cols) % k == y % k {
                     aligned += 1;
@@ -231,11 +248,10 @@ fn painted_in_blocks(map: &Map, remap: &HashMap<String, (u32, u32)>, k: u32) -> 
 }
 
 /// Same picture on a grid k times coarser: each k×k block becomes the whole tile it shows.
-fn shrink_map(map: &Map, remap: &HashMap<String, (u32, u32)>, k: u32, from: u32) -> Map {
+fn shrink_map(map: &Map, tiles: &OldTiles, remap: &HashMap<String, (u32, u32)>, k: u32, from: u32) -> (Map, OldTiles) {
     let (w, h) = (map.width.div_ceil(k), map.height.div_ceil(k));
     let mut m = Map::new(&map.name, w, h);
-    m.tilesets = map.tilesets.clone();
-    m.layers = map
+    let layers = tiles
         .layers
         .iter()
         .map(|l| {
@@ -247,7 +263,7 @@ fn shrink_map(map: &Map, remap: &HashMap<String, (u32, u32)>, k: u32, from: u32)
                     let cells = (0..k).flat_map(|dy| (0..k).map(move |dx| (nx * k + dx, ny * k + dy)));
                     let tile = cells.filter(|&(x, y)| x < map.width && y < map.height).find_map(|(x, y)| l.get(x, y).parts());
                     if let Some((slot, i)) = tile {
-                        let i = map.tilesets.get(slot).and_then(|id| remap.get(id)).map_or(i, |c| full_index(i, *c, k));
+                        let i = tiles.tilesets.get(slot).and_then(|id| remap.get(id)).map_or(i, |c| full_index(i, *c, k));
                         nl.set(nx, ny, Tile::new(slot as u16, i));
                     }
                 }
@@ -303,19 +319,19 @@ fn shrink_map(map: &Map, remap: &HashMap<String, (u32, u32)>, k: u32, from: u32)
     m.next_uid = map.next_uid;
     m.background = map.background;
     m.music = map.music.clone();
-    m
+    (m, OldTiles { tilesets: tiles.tilesets.clone(), layers })
 }
 
 /// Same grid, everything twice (k times) as big: entity positions scale, tiles of kept
 /// full-size tilesets point at the whole tile they were cut from.
-fn enlarge_map(mut map: Map, remap: &HashMap<String, (u32, u32)>, k: u32, f: f32) -> Map {
+fn enlarge_map(mut map: Map, mut tiles: OldTiles, remap: &HashMap<String, (u32, u32)>, k: u32, f: f32) -> (Map, OldTiles) {
     for e in &mut map.entities {
         e.x *= f;
         e.y *= f;
     }
-    let slots: HashMap<usize, (u32, u32)> = map.tilesets.iter().enumerate().filter_map(|(i, id)| remap.get(id).map(|c| (i, *c))).collect();
+    let slots: HashMap<usize, (u32, u32)> = tiles.tilesets.iter().enumerate().filter_map(|(i, id)| remap.get(id).map(|c| (i, *c))).collect();
     if !slots.is_empty() {
-        for l in &mut map.layers {
+        for l in &mut tiles.layers {
             for y in 0..map.height {
                 for x in 0..map.width {
                     if let Some((slot, i)) = l.get(x, y).parts() {
@@ -327,7 +343,7 @@ fn enlarge_map(mut map: Map, remap: &HashMap<String, (u32, u32)>, k: u32, f: f32
             }
         }
     }
-    map
+    (map, tiles)
 }
 
 #[cfg(test)]
@@ -336,6 +352,12 @@ mod tests {
     use crate::defs::{Database, PropDef, SheetDef, SpriteRef};
     use crate::entity::{EntityInstance, EntityKind};
     use crate::map::Map;
+    use crate::old_tiles::TilesetDef;
+
+    /// An old map with one tileset and three empty layers.
+    fn tile_map(w: u32, h: u32) -> OldTiles {
+        OldTiles { tilesets: vec!["big".into()], layers: vec![TileLayer::new("Ground", w, h, false), TileLayer::new("Detail", w, h, false), TileLayer::new("Overhead", w, h, true)] }
+    }
 
     #[test]
     fn upgrades_16px_project() {
@@ -364,8 +386,11 @@ mod tests {
             root: lib_root.clone(),
             config: ProjectConfig::new("lib"),
             db: Database {
-                sheets: vec![SheetDef { id: "hero".into(), image: "sprites/hero.png".into(), frame_w: 32, frame_h: 32, ..Default::default() }],
-                tilesets: vec![crate::defs::TilesetDef { id: "terrain".into(), image: "tilesets/terrain.png".into(), ..Default::default() }],
+                sheets: vec![
+                    SheetDef { id: "hero".into(), image: "sprites/hero.png".into(), frame_w: 32, frame_h: 32, ..Default::default() },
+                    // (A converted library: its tilesets became sheets of the same images.)
+                    SheetDef { id: "terrain_tiles".into(), image: "tilesets/terrain.png".into(), frame_w: 32, frame_h: 32, ..Default::default() },
+                ],
                 ..Default::default()
             },
         };
@@ -383,32 +408,33 @@ mod tests {
                 SheetDef { id: "hero".into(), image: "sprites/hero.png".into(), frame_w: 16, frame_h: 16, ..Default::default() },
                 SheetDef { id: "own".into(), image: "sprites/own.png".into(), frame_w: 16, frame_h: 16, ..Default::default() },
             ],
-            tilesets: vec![crate::defs::TilesetDef { id: "big".into(), image: "tilesets/big.png".into(), solid: vec![3, 7], ..Default::default() }],
             props: vec![PropDef { id: "p".into(), name: "P".into(), sprite: SpriteRef::new("own", 0), solid: true, hitbox: [12.0, 6.0], ..Default::default() }],
             ..Default::default()
         };
         let p = Project { root: root.clone(), config: ProjectConfig { tile_size: 16, scale: 3.0, ..ProjectConfig::new("Old") }, db };
         p.save_config().unwrap();
         p.save_defs().unwrap();
+        write_ron(&root.join("defs/tilesets.ron"), &vec![TilesetDef { id: "big".into(), image: "tilesets/big.png".into(), solid: vec![3, 7], ..Default::default() }]).unwrap();
+        std::fs::create_dir_all(root.join("maps")).unwrap();
         let mut map = Map::new("start", 4, 4);
         map.entities.push(EntityInstance::new(1, EntityKind::Prop, "p", 24.0, 31.0));
-        let slot = map.tileset_slot("big");
+        let mut tiles = tile_map(4, 4);
         // Quarter tiles 3 (top row, 4th) and 6 (bottom row, 3rd) both lie in full tile 1.
-        map.layers[0].set(0, 0, crate::map::Tile::new(slot, 3));
-        map.layers[0].set(1, 0, crate::map::Tile::new(slot, 6));
-        map.layers[0].set(2, 0, crate::map::Tile::new(slot, 0));
-        p.save_map(&map).unwrap();
+        tiles.layers[0].set(0, 0, Tile::new(0, 3));
+        tiles.layers[0].set(1, 0, Tile::new(0, 6));
+        tiles.layers[0].set(2, 0, Tile::new(0, 0));
+        crate::map::io::save_tiles(&map, &tiles, &p.map_path("start")).unwrap();
         // A map painted with whole tiles as aligned 2x2 blocks: full tile 1 at the top-left,
         // full tile 0 next to it; a gate snapped to the 16 px grid; a 2x2 zone.
         let mut blocks = Map::new("blocks", 4, 4);
-        let s = blocks.tileset_slot("big");
+        let mut btiles = tile_map(4, 4);
         for (x, y, i) in [(0, 0, 2), (1, 0, 3), (0, 1, 6), (1, 1, 7), (2, 0, 0), (3, 0, 1), (2, 1, 4), (3, 1, 5)] {
-            blocks.layers[0].set(x, y, crate::map::Tile::new(s, i));
+            btiles.layers[0].set(x, y, Tile::new(0, i));
         }
         blocks.set_collision(3, 3, CollisionOverride::Solid);
         blocks.entities.push(EntityInstance::new(1, EntityKind::Prop, "p", 40.0, 47.0));
         blocks.zones.push(crate::map::Zone { uid: 2, name: "z".into(), x: 2, y: 2, w: 2, h: 2, kind: crate::map::ZoneKind::Spawn, triggers: vec![], loot: None });
-        p.save_map(&blocks).unwrap();
+        crate::map::io::save_tiles(&blocks, &btiles, &p.map_path("blocks")).unwrap();
 
         let up = upgrade(&root, Some(&lib)).unwrap().unwrap();
         assert_eq!(up.from, 16);
@@ -423,15 +449,15 @@ mod tests {
         assert_eq!(Rgba::decode(&std::fs::read(root.join("sprites/own.png")).unwrap()).unwrap().w, 2);
         assert_eq!(up.remapped, vec!["big".to_string()]);
         assert_eq!(Rgba::decode(&std::fs::read(root.join("tilesets/big.png")).unwrap()).unwrap(), terrain, "kept at full size");
-        assert_eq!(p.db.tileset("big").unwrap().solid, vec![1]);
-        let m = p.load_map("start").unwrap();
-        let idx = |x| m.layers[0].get(x, 0).parts().unwrap().1;
+        assert_eq!(crate::old_tiles::read_tilesets(&root).unwrap()[0].solid, vec![1]);
+        let (_, t) = crate::map::io::load_tiles(&p.map_path("start")).unwrap();
+        let idx = |x| t.layers[0].get(x, 0).parts().unwrap().1;
         assert_eq!((idx(0), idx(1), idx(2)), (1, 1, 0));
         assert_eq!(up.shrunk_maps, vec!["blocks".to_string()]);
-        let b = p.load_map("blocks").unwrap();
+        let (b, bt) = crate::map::io::load_tiles(&p.map_path("blocks")).unwrap();
         assert_eq!((b.width, b.height), (2, 2));
-        assert_eq!(b.layers[0].get(0, 0).parts().unwrap().1, 1);
-        assert_eq!(b.layers[0].get(1, 0).parts().unwrap().1, 0);
+        assert_eq!(bt.layers[0].get(0, 0).parts().unwrap().1, 1);
+        assert_eq!(bt.layers[0].get(1, 0).parts().unwrap().1, 0);
         assert_eq!(b.collision_at(1, 1), CollisionOverride::Solid);
         assert_eq!((b.entities[0].x, b.entities[0].y), (48.0, 63.0));
         assert_eq!((b.zones[0].x, b.zones[0].y, b.zones[0].w, b.zones[0].h), (1, 1, 1, 1));

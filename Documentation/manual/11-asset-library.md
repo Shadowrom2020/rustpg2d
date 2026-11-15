@@ -1,15 +1,16 @@
 # 11. The asset library
 
-The **asset library** is your own collection of tilesets, sprite sheets, sounds, items, props,
-characters, structures, skills, spells and recipes, shared by all your projects. Build something
+The **asset library** is your own collection of ground materials, scatter sets, sprite sheets,
+sounds, items, props, characters, structures, skills, spells and recipes, shared by all your projects. Build something
 once, use it in every game.
 
 ## What's in it
 
 The first time the editor opens the library, it fills it with the **starter set**: all of the example
 game's art (the village's buildings and some 60 props, its villagers, children and animals in both
-sexes, goods, recipes, sounds and music, 17 structures) plus **desert, mountain, city and
-dungeon tilesets** (with animated water, waterfalls and lava), more characters (hero, elder, wizard
+sexes, goods, recipes, sounds and music, structures, its ground materials and scatter sets) plus the
+**desert, mountain, city and dungeon** pieces of the former tilesets (materials such as oasis
+water, hardpan, frozen lake, canal and plaza; walls, pillars and furniture as props), more characters (hero, elder, wizard
 and sorceress, nomads, nobles, bandits, skeletons, elves, dwarves, orcs (and their chief), a troll, a dwarf
 trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the example; every humanoid in a male and a
 female version), three **realistic** figures in another style than the example's chibi cast (*Hero
@@ -50,7 +51,7 @@ macOS: `~/Library/Application Support/rustpg2d`). `RUSTPG2D_LIBRARY` moves it.
 ## Taking assets into a project
 
 **Add from library…** is everywhere you need it: in every Database asset tab, next to the map's
-tileset palette, the structures palette and the entities palette, and in *Assets › Add from
+materials of the Ground tool, the structures palette and the entities palette, and in *Assets › Add from
 library…* (all kinds). The dialog shows the library's assets as cards with thumbnails:
 
 - Click cards to pick one or more (*Pick all shown*, search). Assets the project already has are
@@ -78,8 +79,8 @@ window**, a second editor working on the library. It has three views:
   double-click opens it in the Edit view; *New character…* and *New asset…* create assets in the
   library; *Import package…* adds a `.r2dpack`; *Export package…* writes the selection to share;
   *Remove from library…* asks first and refuses to remove things other library assets still use.
-- **Edit**: the Database forms (Items, Props, Characters, Tilesets, Sprite sheets, Sounds,
-  Structures) on the library's own definitions, with *Edit pixels*, *Rename…* and *Delete…*. Save
+- **Edit**: the Database forms (Items, Props, Characters, Materials, Scatter sets, Sprite sheets,
+  Sounds, Structures) on the library's own definitions, with *Edit pixels*, *Rename…* and *Delete…*. Save
   with Ctrl+S.
 - **Pixel editor**: draw and fix library images in place.
 

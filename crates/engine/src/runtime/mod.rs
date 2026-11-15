@@ -199,6 +199,8 @@ enum Drawn {
     Entity(usize),
     Projectile(usize),
     Fly(usize),
+    /// A decoration (index in the map's `decor`).
+    Decor(usize),
 }
 
 /// Seconds between two hits while E is held (Options › Accessibility › Hold to repeat).
@@ -324,6 +326,13 @@ struct Loaded {
     tile_lights: Vec<render::lighting::Light>,
     /// The tiles solid entities stand on, rebuilt every frame ([`Game::rebuild_occupancy`]).
     occupancy: occupancy::Occupancy,
+    /// What the painted ground's materials do (walking, footsteps), by cell value.
+    materials: crate::ground::MaterialTable,
+    /// Tiles painted solid in the collision layer (the painted ground is tested cell by cell).
+    walls: Vec<bool>,
+    /// The map's decorations by chunk, and what each `decor_defs` slot does.
+    decor_index: crate::decor::DecorIndex,
+    decor_looks: Vec<crate::decor::DecorLook>,
 }
 
 enum Fade {
@@ -483,6 +492,8 @@ pub struct Game {
     runner: ActionRunner,
     /// Darkness and light renderer (created on first use).
     light_pass: Option<render::lighting::LightPass>,
+    /// Draws the painted ground (shader, atlas, chunk textures).
+    ground_draw: render::ground::GroundRenderer,
     /// Rain / snow / fog particles.
     weather_fx: render::weather::WeatherFx,
     skills: skills::Skills,
@@ -552,6 +563,7 @@ impl Game {
             lang_code: project.config.language.clone(),
             languages,
             light_pass: None,
+            ground_draw: render::ground::GroundRenderer::new(),
             weather_fx: Default::default(),
             skills: Default::default(),
             resuming: false,
@@ -566,7 +578,7 @@ impl Game {
             thumb_request: None,
             after_thumb: None,
             fullscreen: None,
-            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], shot: vec![], entities: vec![], tile_lights: vec![], occupancy: Default::default() },
+            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], shot: vec![], entities: vec![], tile_lights: vec![], occupancy: Default::default(), materials: Default::default(), walls: vec![], decor_index: Default::default(), decor_looks: vec![] },
             project,
             assets,
             audio,
@@ -901,13 +913,46 @@ impl Game {
         // Patrolling characters continue where they were when the player comes back.
         self.persist_patrols();
         let ts = self.ts();
-        let solid = self.assets.compute_solid(&map);
-        let ladder = self.assets.compute_ladder(&map);
-        let shot = self.assets.compute_shot_block(&map);
+        // Tiles painted solid in the collision layer; the painted ground adds tiles with half
+        // their cells blocked (for planning), decorations what they cover (occupancy).
+        let mut solid = map.compute_solid();
+        let mut ladder = vec![false; solid.len()];
+        let mut shot = solid.clone();
+        let materials = crate::ground::MaterialTable::new(&map.materials, &self.project.db);
+        let walls = solid.clone();
+        materials.apply_to_tiles(&map, &mut solid, &mut shot);
         let entities = self.build_entities(&map);
-        let tile_lights = render::lighting::tile_lights(&map, &self.project.db, ts);
-        let occupancy = occupancy::Occupancy::new(map.width, map.height);
-        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, shot, entities, tile_lights, occupancy });
+        let mut tile_lights = Vec::new();
+        let mut occupancy = occupancy::Occupancy::new(map.width, map.height);
+        // Decorations: solid ones are marked for good, ladders climbed, lamps lit.
+        let decor_looks: Vec<crate::decor::DecorLook> = map.decor_defs.iter().map(|id| crate::decor::DecorLook::of(&self.project.db, id, 0)).collect();
+        for d in &map.decor {
+            let Some(look) = decor_looks.get(d.def as usize) else { continue };
+            let (x, y, w, h) = look.rect(d.x as f32, d.y as f32);
+            if look.solid {
+                occupancy.add_decor(Rect::new(x, y, w, h), look.low, ts);
+            }
+            if look.climb {
+                for (tx, ty) in crate::grid::tiles_of_rect(Rect::new(x, y, w, h), ts) {
+                    if map.in_bounds(tx, ty) {
+                        ladder[(ty as u32 * map.width + tx as u32) as usize] = true;
+                    }
+                }
+            }
+            if let Some(p) = self.project.db.prop(&map.decor_defs[d.def as usize]) {
+                if let Some(l) = p.state_light(d.state as usize) {
+                    let lift = self.assets.sprite_size(p.state_look(d.state as usize).0, ts).y * 0.65;
+                    tile_lights.push(render::lighting::Light::new(vec2(d.x as f32, d.y as f32 - lift), l));
+                }
+            }
+        }
+        // Tiles painted walkable in the collision layer let everyone through.
+        for (i, _) in map.collision.iter().enumerate().filter(|(_, &c)| c == crate::map::CollisionOverride::Walkable as u8) {
+            occupancy.unmark((i as u32 % map.width) as i32, (i as u32 / map.width) as i32, occupancy::OCC_PROP | occupancy::OCC_HIGH);
+        }
+        occupancy.keep_as_base();
+        let decor_index = crate::decor::DecorIndex::build(&map.decor, map.width, map.height);
+        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, shot, entities, tile_lights, occupancy, materials, walls, decor_index, decor_looks });
         self.rebuild_occupancy();
         self.restore_unlocked();
         // Scheduled characters are where their day has taken them.
@@ -1032,6 +1077,74 @@ impl Game {
         self.loaded.solid.get((ty as u32 * m.width + tx as u32) as usize).copied().unwrap_or(false)
     }
 
+    /// Whether a solid decoration's hitbox overlaps `r` (world pixels).
+    fn decor_blocks(&self, r: Rect) -> bool {
+        let m = &self.loaded.map;
+        self.loaded.decor_index.near(r.x, r.y, r.w, r.h, crate::project::TILE_SIZE as f32 * 2.0).any(|i| {
+            let d = &m.decor[i as usize];
+            self.loaded.decor_looks.get(d.def as usize).is_some_and(|l| {
+                let (x, y, w, h) = l.rect(d.x as f32, d.y as f32);
+                // (Only where the collision layer doesn't say walkable.)
+                l.solid && Rect::new(x, y, w, h).intersect(r).is_some_and(|o| !self.all_walkable(o))
+            })
+        })
+    }
+
+    /// Whether every tile under `r` is painted walkable in the collision layer.
+    fn all_walkable(&self, r: Rect) -> bool {
+        let m = &self.loaded.map;
+        crate::grid::tiles_of_rect(r, self.ts()).into_iter().all(|(tx, ty)| m.in_bounds(tx, ty) && m.collision_at(tx as u32, ty as u32) == crate::map::CollisionOverride::Walkable)
+    }
+
+    /// Draws the decorations of `layer` inside `view` (Flat and Above; Sorted ones go through
+    /// the depth-sorted list of [`Game::draw`]).
+    fn draw_decor_layer(&self, layer: crate::decor::DecorLayer, view: Rect) {
+        let m = &self.loaded.map;
+        let mut list: Vec<u32> = self.loaded.decor_index.near(view.x, view.y, view.w, view.h, crate::decor::REACH).filter(|&i| m.decor[i as usize].layer == layer).collect();
+        list.sort_by_key(|&i| m.decor[i as usize].y);
+        for i in list {
+            self.draw_decor(i as usize);
+        }
+    }
+
+    /// Draws decoration `i`.
+    fn draw_decor(&self, i: usize) {
+        let m = &self.loaded.map;
+        let d = &m.decor[i];
+        let Some(p) = m.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)) else { return };
+        self.assets.draw_sprite_flipped(&p.sprite_at(d.state as usize, get_time()), vec2(d.x as f32, d.y as f32), WHITE, d.flip);
+    }
+
+    /// For `status()`: the material under the player's feet ("-" = none) and how many the map
+    /// paints with, e.g. `grass/3`.
+    fn ground_status(&self) -> String {
+        let m = &self.loaded.map;
+        let c = crate::ground::CELL as f32;
+        // (The feet point is the hitbox's bottom edge: the cell just above it.)
+        let v = m.ground.get((self.player.pos.x / c).floor() as i32, ((self.player.pos.y - 1.0) / c).floor() as i32);
+        format!("{}/{}", m.material_of(v).unwrap_or("-"), m.materials.len())
+    }
+
+    /// Whether `r` (world pixels) is blocked inside tile (tx, ty): by the tile grid's walls and
+    /// collision overrides, else by painted ground cells under `r` (exact shores and rocks; the
+    /// tile grid itself counts a tile blocked only when half its cells are).
+    fn tile_solid_cells(&self, tx: i32, ty: i32, r: Rect) -> bool {
+        let m = &self.loaded.map;
+        if !m.in_bounds(tx, ty) {
+            return true;
+        }
+        match m.collision_at(tx as u32, ty as u32) {
+            crate::map::CollisionOverride::Solid => return true,
+            crate::map::CollisionOverride::Walkable => return false,
+            crate::map::CollisionOverride::Auto => {}
+        }
+        if self.loaded.walls.get((ty as u32 * m.width + tx as u32) as usize).copied().unwrap_or(false) {
+            return true;
+        }
+        let ts = self.ts();
+        r.intersect(Rect::new(tx as f32 * ts, ty as f32 * ts, ts, ts)).is_some_and(|p| self.loaded.materials.rect_blocked(&m.ground, p.x, p.y, p.w, p.h))
+    }
+
     /// Whether shots and sight stop at (tx, ty): a solid tile that isn't low, a solid prop that
     /// isn't low, or the map's edge. Low obstacles (fences, water, barrels) stop only walking.
     pub(super) fn blocks_shot(&self, tx: i32, ty: i32) -> bool {
@@ -1107,12 +1220,15 @@ impl Game {
         // Characters keep off ladders; the player climbs them.
         for ty in y0..=y1 {
             for tx in x0..=x1 {
-                if self.tile_solid(tx, ty) || (npc && self.tile_ladder(tx, ty)) {
+                if self.tile_solid_cells(tx, ty, r) || (npc && self.tile_ladder(tx, ty)) {
                     return true;
                 }
             }
         }
         if check_player && self.player.rect().overlaps(&r) {
+            return true;
+        }
+        if self.loaded.occupancy.any_in(r, ts, occupancy::OCC_DECOR) && self.decor_blocks(r) {
             return true;
         }
         // Broad phase: no solid entity near any tile of `r` means none can overlap it.
@@ -2245,7 +2361,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} ground={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2297,6 +2413,7 @@ impl Game {
                 let (a, m) = (&self.assets, &self.loaded.map.parallax);
                 format!("{}behind,{}above", render::parallax::count(a, m, false), render::parallax::count(a, m, true))
             },
+            self.ground_status(),
             self.lang_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
@@ -2496,13 +2613,12 @@ impl Game {
         let cam = self.camera();
         set_camera(&cam);
         let view = render::camera_view(&cam);
-        let sets = self.assets.map_tilesets(m);
 
-        // Parallax layers behind the tiles (seen under empty tiles and past the map's edge).
+        // Parallax layers behind the map (seen where nothing is painted and past its edge).
         render::parallax::draw(&self.assets, &m.parallax, false, view, get_time() as f32);
-        for layer in m.layers.iter().filter(|l| l.visible && !l.above_entities) {
-            render::draw_layer(m, layer, &sets, ts, view, WHITE);
-        }
+        // The painted ground.
+        self.ground_draw.draw(m, &self.project.db, &self.assets, view, WHITE);
+        self.draw_decor_layer(crate::decor::DecorLayer::Flat, view);
         // Fish shadows mark the fishing spots' water.
         let now = get_time() as f32;
         for z in m.zones.iter().filter(|z| matches!(z.kind, ZoneKind::FishingSpot { .. })) {
@@ -2529,6 +2645,15 @@ impl Game {
         let above_ground = ts * FLIGHT_HEIGHT;
         order.extend(self.projectiles.iter().enumerate().map(|(k, p)| (p.ground_y(above_ground), Drawn::Projectile(k))));
         order.extend(self.flying_fx().map(|(k, y)| (y + above_ground, Drawn::Fly(k))));
+        // Decorations sorted with everyone (those near the screen).
+        let dm = &self.loaded.map;
+        order.extend(
+            self.loaded
+                .decor_index
+                .near(view.x, view.y, view.w, view.h, crate::decor::REACH)
+                .filter(|&i| dm.decor[i as usize].layer == crate::decor::DecorLayer::Sorted)
+                .map(|i| (dm.decor[i as usize].y as f32, Drawn::Decor(i as usize))),
+        );
         order.sort_by(|a, b| a.0.total_cmp(&b.0));
         let t = get_time() as f32;
         for (_, drawn) in order {
@@ -2539,6 +2664,10 @@ impl Game {
                 }
                 Drawn::Fly(k) => {
                     self.draw_one_fx(k);
+                    continue;
+                }
+                Drawn::Decor(i) => {
+                    self.draw_decor(i);
                     continue;
                 }
                 Drawn::Player => None,
@@ -2582,9 +2711,7 @@ impl Game {
             self.draw_padlocks();
         }
 
-        for layer in m.layers.iter().filter(|l| l.visible && l.above_entities) {
-            render::draw_layer(m, layer, &sets, ts, view, WHITE);
-        }
+        self.draw_decor_layer(crate::decor::DecorLayer::Above, view);
         // Parallax layers over the map (cloud shadows, mist), lit like the rest of the scene.
         render::parallax::draw(&self.assets, &m.parallax, true, view, get_time() as f32);
 
@@ -2696,7 +2823,7 @@ impl Game {
         let tint = Self::effect_tint(&e.effects).unwrap_or(WHITE);
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
-                let ok = self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE);
+                let ok = self.assets.draw_sprite(&d.sprite_at(e.state, get_time()), e.frame, e.body.pos, WHITE);
                 if e.planted.is_some() {
                     self.draw_crop(i);
                 }

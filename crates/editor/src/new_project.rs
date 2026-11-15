@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use anyhow::{bail, Context, Result};
 use egui_macroquad::egui::{self, Color32};
 use rustpg2d_engine::library::{AssetRef, Bundle};
-use rustpg2d_engine::map::{Map, Tile, Zone, ZoneKind};
+use rustpg2d_engine::map::{Map, Zone, ZoneKind};
 use rustpg2d_engine::project::{CharacterCreation, Project, SexChoice, TILE_SIZE};
 use rustpg2d_engine::refactor::RefKind;
 
@@ -82,8 +82,19 @@ impl NewProjectWizard {
 }
 
 /// Library assets a new project starts with (those the library has).
-const STARTER: [(RefKind, &str); 12] = [
-    (RefKind::Tileset, "terrain"),
+const STARTER: [(RefKind, &str); 23] = [
+    (RefKind::Material, "grass"),
+    (RefKind::Material, "meadow"),
+    (RefKind::Material, "dirt"),
+    (RefKind::Material, "sand"),
+    (RefKind::Material, "water"),
+    (RefKind::Material, "cobblestone"),
+    (RefKind::Material, "flagstones"),
+    (RefKind::Material, "wood_floor"),
+    (RefKind::Scatter, "forest"),
+    (RefKind::Scatter, "rocks"),
+    (RefKind::Prop, "stone_wall"),
+    (RefKind::Prop, "wood_fence"),
     (RefKind::Character, "hero"),
     (RefKind::Item, "coin"),
     (RefKind::Item, "apple"),
@@ -123,7 +134,7 @@ impl Editor {
         let mut project = Project::load(&dir)?;
         let mut notes = Vec::new();
         // Starter assets from the library.
-        let mut have_terrain = false;
+        let mut have_grass = false;
         if w.starter {
             self.lib.ensure_loaded();
             match &self.lib.lib {
@@ -135,7 +146,7 @@ impl Editor {
                     b.rescale(TILE_SIZE)?;
                     let report = b.merge_into(&mut project.db, &dir)?;
                     notes.push(format!("{} starter assets", report.added.len()));
-                    have_terrain = project.db.tileset("terrain").is_some();
+                    have_grass = project.db.material("grass").is_some();
                 }
                 None => notes.push("asset library not available: no starter assets".into()),
             }
@@ -167,14 +178,11 @@ impl Editor {
                 h.name = "Heroine".into();
             }
         }
-        // First map: grass when the terrain tileset came with the starter assets.
+        // First map: grass when the material came with the starter assets.
         let mut map = Map::new(&w.map_name, w.width.clamp(8, 1024), w.height.clamp(8, 1024));
-        if have_terrain {
-            let slot = map.tileset_slot("terrain");
-            for y in 0..map.height {
-                for x in 0..map.width {
-                    map.layers[0].set(x, y, Tile::new(slot, 0));
-                }
+        if have_grass {
+            if let Some(v) = map.material_value("grass") {
+                map.ground.fill(v);
             }
         }
         let uid = map.alloc_uid();
@@ -247,7 +255,7 @@ impl Editor {
             ui.heading("Setup");
             egui::Grid::new("np_setup").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
                 ui.label("Starter assets");
-                ui.checkbox(&mut w.starter, "Copy basics from the asset library: grass tileset, hero looks, a few items and props")
+                ui.checkbox(&mut w.starter, "Copy basics from the asset library: ground materials (grass, dirt, water…), forest and rock scatter sets, walls, hero looks, a few items and props")
                     .on_hover_text("Everything else can be added later with Assets \u{E13A} Add from library");
                 ui.end_row();
                 ui.label("First map");

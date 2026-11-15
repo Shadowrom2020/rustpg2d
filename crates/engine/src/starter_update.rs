@@ -32,12 +32,12 @@ pub fn def_fingerprint(db: &Database, a: &AssetRef) -> Option<u64> {
     Some(fnv(text.as_bytes()))
 }
 
-/// The files an asset owns (a tileset's or sheet's image, a sound's file).
+/// The files an asset owns (a sheet's image, a material's texture, a sound's file).
 pub fn own_files(db: &Database, a: &AssetRef) -> Vec<String> {
     let f = match a.0 {
-        RefKind::Tileset => db.tileset(&a.1).map(|d| d.image.clone()),
         RefKind::Sheet => db.sheet(&a.1).map(|d| d.image.clone()),
         RefKind::Sound => db.sound(&a.1).map(|d| d.file.clone()),
+        RefKind::Material => db.material(&a.1).map(|d| d.texture.clone()),
         RefKind::Model => {
             return db.model(&a.1).map(|d| std::iter::once(d.file.clone()).chain(d.clip_paths().cloned()).filter(|f| !f.is_empty()).collect()).unwrap_or_default();
         }

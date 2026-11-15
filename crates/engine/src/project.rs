@@ -278,7 +278,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 14] = ["tilesets", "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models"];
+pub const DEFS: [&str; 15] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials", "scatter"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -322,20 +322,21 @@ pub fn parse_defs(read: impl Fn(&str) -> Result<Option<String>>) -> Result<Datab
 pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut dyn FnMut(String)) -> Result<Database> {
     let r = |i: usize| read(DEFS[i]);
     let mut db = Database {
-        tilesets: parse_list(r(0)?, DEFS[0], warn)?,
-        sheets: parse_list(r(1)?, DEFS[1], warn)?,
-        items: parse_list(r(2)?, DEFS[2], warn)?,
-        props: parse_list(r(3)?, DEFS[3], warn)?,
-        characters: parse_list(r(4)?, DEFS[4], warn)?,
-        sounds: parse_list(r(5)?, DEFS[5], warn)?,
-        quests: parse_list(r(6)?, DEFS[6], warn)?,
-        structures: parse_list(r(7)?, DEFS[7], warn)?,
-        skills: parse_list(r(8)?, DEFS[8], warn)?,
-        spells: parse_list(r(9)?, DEFS[9], warn)?,
-        recipes: parse_list(r(10)?, DEFS[10], warn)?,
-        achievements: parse_list(r(11)?, DEFS[11], warn)?,
-        races: parse_list(r(12)?, DEFS[12], warn)?,
-        models: parse_list(r(13)?, DEFS[13], warn)?,
+        sheets: parse_list(r(0)?, DEFS[0], warn)?,
+        items: parse_list(r(1)?, DEFS[1], warn)?,
+        props: parse_list(r(2)?, DEFS[2], warn)?,
+        characters: parse_list(r(3)?, DEFS[3], warn)?,
+        sounds: parse_list(r(4)?, DEFS[4], warn)?,
+        quests: parse_list(r(5)?, DEFS[5], warn)?,
+        structures: parse_list(r(6)?, DEFS[6], warn)?,
+        skills: parse_list(r(7)?, DEFS[7], warn)?,
+        spells: parse_list(r(8)?, DEFS[8], warn)?,
+        recipes: parse_list(r(9)?, DEFS[9], warn)?,
+        achievements: parse_list(r(10)?, DEFS[10], warn)?,
+        races: parse_list(r(11)?, DEFS[11], warn)?,
+        models: parse_list(r(12)?, DEFS[12], warn)?,
+        materials: parse_list(r(13)?, DEFS[13], warn)?,
+        scatter: parse_list(r(14)?, DEFS[14], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
@@ -432,34 +433,39 @@ impl Project {
 
     pub fn save_defs(&self) -> Result<()> {
         let d = |n: &str| self.root.join("defs").join(format!("{n}.ron"));
-        write_ron(&d(DEFS[0]), &self.db.tilesets)?;
-        write_ron(&d(DEFS[1]), &self.db.sheets)?;
-        write_ron(&d(DEFS[2]), &self.db.items)?;
-        write_ron(&d(DEFS[3]), &self.db.props)?;
-        write_ron(&d(DEFS[4]), &self.db.characters)?;
-        write_ron(&d(DEFS[5]), &self.db.sounds)?;
-        write_ron(&d(DEFS[6]), &self.db.quests)?;
+        write_ron(&d(DEFS[0]), &self.db.sheets)?;
+        write_ron(&d(DEFS[1]), &self.db.items)?;
+        write_ron(&d(DEFS[2]), &self.db.props)?;
+        write_ron(&d(DEFS[3]), &self.db.characters)?;
+        write_ron(&d(DEFS[4]), &self.db.sounds)?;
+        write_ron(&d(DEFS[5]), &self.db.quests)?;
         // Only projects that have structures get the file (older editors ignore it anyway).
-        if !self.db.structures.is_empty() || d(DEFS[7]).exists() {
-            write_ron(&d(DEFS[7]), &self.db.structures)?;
+        if !self.db.structures.is_empty() || d(DEFS[6]).exists() {
+            write_ron(&d(DEFS[6]), &self.db.structures)?;
         }
-        if !self.db.skills.is_empty() || d(DEFS[8]).exists() {
-            write_ron(&d(DEFS[8]), &self.db.skills)?;
+        if !self.db.skills.is_empty() || d(DEFS[7]).exists() {
+            write_ron(&d(DEFS[7]), &self.db.skills)?;
         }
-        if !self.db.spells.is_empty() || d(DEFS[9]).exists() {
-            write_ron(&d(DEFS[9]), &self.db.spells)?;
+        if !self.db.spells.is_empty() || d(DEFS[8]).exists() {
+            write_ron(&d(DEFS[8]), &self.db.spells)?;
         }
-        if !self.db.recipes.is_empty() || d(DEFS[10]).exists() {
-            write_ron(&d(DEFS[10]), &self.db.recipes)?;
+        if !self.db.recipes.is_empty() || d(DEFS[9]).exists() {
+            write_ron(&d(DEFS[9]), &self.db.recipes)?;
         }
-        if !self.db.achievements.is_empty() || d(DEFS[11]).exists() {
-            write_ron(&d(DEFS[11]), &self.db.achievements)?;
+        if !self.db.achievements.is_empty() || d(DEFS[10]).exists() {
+            write_ron(&d(DEFS[10]), &self.db.achievements)?;
         }
-        if !self.db.races.is_empty() || d(DEFS[12]).exists() {
-            write_ron(&d(DEFS[12]), &self.db.races)?;
+        if !self.db.races.is_empty() || d(DEFS[11]).exists() {
+            write_ron(&d(DEFS[11]), &self.db.races)?;
         }
-        if !self.db.models.is_empty() || d(DEFS[13]).exists() {
-            write_ron(&d(DEFS[13]), &self.db.models)?;
+        if !self.db.models.is_empty() || d(DEFS[12]).exists() {
+            write_ron(&d(DEFS[12]), &self.db.models)?;
+        }
+        if !self.db.materials.is_empty() || d(DEFS[13]).exists() {
+            write_ron(&d(DEFS[13]), &self.db.materials)?;
+        }
+        if !self.db.scatter.is_empty() || d(DEFS[14]).exists() {
+            write_ron(&d(DEFS[14]), &self.db.scatter)?;
         }
         Ok(())
     }

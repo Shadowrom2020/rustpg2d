@@ -40,17 +40,39 @@ debug builds play at full speed; CI's test job overrides it to 0 for speed.
 ## 2. Data model
 
 **Project** = a folder: `project.ron` (`ProjectConfig`: name, player, inventory size, skills,
-languages, …), `defs/*.ron` (thirteen lists, `project::DEFS`, the last being races), `maps/*.map`, `sprites/`, `tilesets/`,
+languages, …), `defs/*.ron` (fifteen lists, `project::DEFS`), `maps/*.map`, `sprites/`, `materials/`, `tilesets/` (pictures of converted tiles),
 `sounds/`, `scripts/*.rhai`, `lang/<code>.ron`, and the ignored `saves/`. `Project::load` reads it
 all into `Database` (`defs.rs`), one `Vec` per kind, referenced by string ids everywhere
 (`refactor.rs` knows every reference for renames and library exports: `refs_of_*`).
 
-**Maps** (`map/`): `Map` = size, tileset slots, tile layers, a collision grid, entities, zones,
-edge links, triggers and settings (music, lighting, fog, weather, parallax). Tiles live in
-`TileLayer`s of sparse 32×32-tile chunks (`Option<Box<Chunk>>`), maps up to 1024×1024 tiles. The
-file (`map/io.rs`) is `MAGIC` + version + lz4 of a postcard `Core` (name, size, tileset slots,
-layers, collision, and a RON string `Meta` with everything else). Format version 2 has been the
-format since 0.0.1; v1 (all postcard) is still decoded.
+**Maps** (`map/`): `Map` = size (up to 1024×1024 tiles of 32 px), the painted ground, decorations,
+a collision grid (per-tile overrides), entities, zones, edge links, triggers and settings (music,
+lighting, fog, weather, parallax). The **painted ground** (`ground.rs`): `Map.ground`, chunked in
+32×32-tile chunks, one byte per
+8 px cell = a slot in `Map.materials` plus one (0 = none), a uniform chunk stored as one value;
+`MaterialDef`s (`defs/materials.ron`) say how a material looks and walks. `render/ground.rs` draws
+it every frame with a GLSL ES 100 shader (per chunk a 130 × 130 cell texture with a border of the
+neighbours' cells, the materials' textures in one atlas, the per-material table in a 128 × 4
+texture because WebGL 1 can't index uniform arrays with texture values; edges from bilinear
+coverage of the cell centres, warped by noise and snapped to the art's pixels when crisp). The
+runtime collides hitboxes with the cells and plans routes on tiles blocked by half their cells
+(`MaterialTable`). **Decorations** (`decor.rs`) are `Map.decor`: a prop slot (`Map.decor_defs`), feet
+position in pixels, flip, state and layer; the runtime indexes them by chunk (`DecorIndex`), draws the
+Sorted ones in the depth-sorted list with characters, and marks the solid ones once per map in the
+occupancy grid's base (`Occupancy::keep_as_base`, `OCC_DECOR` for the collision's broad phase;
+tiles painted *walkable* are taken out again). The file (`map/io.rs`) is `MAGIC` + version + lz4 of
+a postcard `Core3` (name, size, collision, a RON string `Meta` with everything else, the materials,
+the ground and the decorations).
+
+**Tile projects** (0.20 and older) had tilesets (`defs/tilesets.ron`) and maps of tile layers
+(format v2, v1 all postcard). They are still read (`old_tiles.rs`, `io::decode_tiles`), but only
+for `convert_tiles.rs`, which turns them into painted projects once: the editor runs it when it
+opens such a project (after a backup copy), `library::open_library` on an old library, bundles
+read from old `.r2dpack`s through a temporary folder. The ground layer becomes ground cells (a
+terrain tile's slot mask says which of its 4 × 4 cells are the terrain), the other layers
+decorations of props made per tile over a sheet of the tileset's image; materials are shared by
+their texture's pixels. Everything else (`decode_with`, the game) sees a tile map without its
+tiles and warns. `migrate.rs` (16 px projects) runs before it and writes v2 maps (`save_tiles`).
 
 **Save games** (`state.rs`): `WorldState` as RON in `saves/<slot>.ron` (plus `autosave`): flags,
 variables, inventory, equipment, quests, shops, containers, per-map entity states, dropped items,
@@ -64,8 +86,7 @@ can change lives here; nothing else is persisted.
 `~/.local/share/rustpg2d/library` (`RUSTPG2D_LIBRARY` overrides). The editor's starter set is the
 committed folder `crates/editor/assets/starter_library/`, embedded by `crates/editor/build.rs` and
 applied to a library when its `starter.stamp` (rules version + hash of the files) differs: new ids
-are added, images the new set only extends are replaced, structures wait for their tileset art,
-and `starter.pending` is left for the editor to offer *Update asset library*
+are added, images the new set only extends are replaced, and `starter.pending` is left for the editor to offer *Update asset library*
 (`starter_update.rs`): it compares the library with the starter set using
 `crates/editor/assets/starter_history.ron` (fingerprints of every definition, file and script
 function any starter set shipped, written by `cargo run -p rustpg2d-editor --example
@@ -137,9 +158,9 @@ waypoint), one tile at a time through `try_move`, with re-planning when blocked 
 after a few seconds. The player moves through `try_move` too: solid tiles, solid entities and the
 player block; ladders block characters and are climbed by the player (vertical only, slower).
 
-`draw` runs: pixel camera, parallax layers behind, tile layers below entities, fish shadows,
-entities and the player Y-sorted, combat / gathering / activity / FX / mouse overlays, layers above
-entities, parallax above, the light pass when it is dark or the weather tints, weather, the save
+`draw` runs: pixel camera, parallax layers behind, the painted ground, flat decorations, fish
+shadows, entities, the player and sorted decorations Y-sorted, combat / gathering / activity / FX /
+mouse overlays, decorations above everyone, parallax above, the light pass when it is dark or the weather tints, weather, the save
 thumbnail, the debug overlay, the fade, HUD, windows, dialog, menus, console.
 
 The windows share their building blocks in `runtime/ui.rs`: `ScrollList` (selection, scrolling,
@@ -150,8 +171,8 @@ item footer), dialogs and toasts. A new window composes these instead of copying
 ### Maps, events, scripts
 
 Map changes: `transition(map, arrival)` starts a fade; `finish_transition` → `take_map` (cache or
-disk) → `enter_map`: the old map's patrols are persisted, `solid` / `ladder` / tile lights are
-computed from the layers, entities are built (placed ones with their saved state, companions,
+disk) → `enter_map`: the old map's patrols are persisted, `solid` / `shot` come from the collision
+overrides and the ground (`MaterialTable::apply_to_tiles`), ladders and lights from decorations, entities are built (placed ones with their saved state, companions,
 visitors, dropped items), scheduled characters are placed where their day says, the arrival spot
 is made free, spawners and regrowth run, music starts, *Map enter* fires. `load_game` replaces the
 world and re-enters the save's map the same way, without *Map enter*.
@@ -167,12 +188,12 @@ change state directly.
 
 ### Rendering and assets
 
-`render/mod.rs` draws the tiles in view one `draw_texture_ex` each (sparse chunks skip empty
-areas; macroquad batches draws by texture). Characters are 3D models (below); figure sheets of 0.17
+`render/ground.rs` draws the ground (above), sprites draw at their feet (`Assets::draw_sprite`;
+decorations by chunk, `DecorIndex::near`). Characters are 3D models (below); figure sheets of 0.17
 load as plain sprites. `render/lighting.rs` renders the lights into a
 half-resolution target (ambient colour, one additive glow per light in view) and multiplies it
-over the scene. `Assets::load` loads every tileset and sheet up front, computing per-tile average
-colours (the world map) and the solid / ladder flags; a missing image becomes a checkerboard.
+over the scene. `Assets::load` loads every sheet and material texture up front (materials' average
+colours for overviews); a missing image becomes a checkerboard.
 A sheet's `SheetTex` cuts frames in image pixels (`frame_w`, `src_rect`) but every draw function
 draws them at `world_size()` = image size / `SheetDef::scale`, so high-resolution (2x) sheets
 take the same place as 1x ones; code that needs a sprite's size in the world uses `world_size()`
@@ -274,7 +295,7 @@ means per format:
   enums stored by name (`Action`, `Cond`, `TriggerOn`, `ZoneKind`, `OnUnlock` in v2 maps and in
   definitions) may be added anywhere by format, but are **appended** by convention because v1
   maps stored them by index.
-- **postcard** (map `Core`, `TileLayer`, `Chunk`): positional and without defaults. **These
+- **postcard** (map `Core`, `TileLayer`, `Chunk`, `Ground`, `GroundChunk`): positional and without defaults. **These
   structs are frozen**: a new layer or chunk property goes into the RON `Meta`, or the format
   version is bumped with a reader for the old one.
 - **Game packs** (`data.pack`, and project files `.r2dproject`): the 8-byte magic `R2DPAK1\0` carries the version; a game refuses
@@ -310,19 +331,16 @@ means per format:
 
 Known properties of the current implementation (see the CHANGELOG for what each release changed):
 
-- Tiles are drawn one quad each, every frame, in the game (macroquad batches the quads, and a game
-  view is a few thousand of them). Chunks that were never painted are skipped. The editor zoomed
-  far out (a tile 8 screen pixels or less) draws each 32 x 32 chunk of a layer from a texture
-  rendered once at 8 px per tile (`editor/src/tile_cache.rs`: known by a hash of its tiles and the
-  tilesets' textures, so every change shows; animated tiles drawn per tile on top; at most 320
-  textures, 80 MB). On a 256 x 256 map with four full layers that took the map view from 17.7 ms
-  to 1.3 ms a frame at 16 % zoom. Above `OVERVIEW_THRESHOLD` visible tiles (60,000) a map is
-  drawn as its `Overview`, one pixel per tile. Entities outside the view (with a margin for tall
-  sprites) are skipped.
+- The ground is one quad per visible chunk with the ground shader; decorations near the view are
+  drawn one quad each (macroquad batches them by texture; 125 000 decorations on the 1024 × 1024
+  Wilds draw in under half a millisecond of CPU). Above `OVERVIEW_THRESHOLD` visible tiles (60,000)
+  the editor draws a map as its `Overview`, one pixel per tile (the ground's colour, the colour of
+  the decorations standing on the tile, refreshed when they change). Entities outside the view
+  (with a margin for tall sprites) are skipped.
 - Text uses macroquad's default font: Latin-1 glyphs only, measured per draw. The runtime's
   `draw_text` / `measure_text` (`runtime/text.rs`) look every string up in the language's runtime
   texts first (`lang::tr_ui`, a hash lookup; English copies nothing).
-- The hot definition lookups (`db.item(id)`, `prop`, `character`, `sheet`, `tileset`) go through
+- The hot definition lookups (`db.item(id)`, `prop`, `character`, `sheet`) go through
   an id index that verifies its hits and falls back to a scan, so an index left stale by an
   in-place edit is slower, never wrong; `Database::reindex` refreshes it.
 - Characters are 3D models drawn as pictures (`render/model.rs`):
@@ -352,7 +370,8 @@ Known properties of the current implementation (see the CHANGELOG for what each 
   (`runtime/occupancy.rs`); code that moves an entity by more than a tile within a frame calls
   `occupy(i)`.
 - Two collision grids per map: `Loaded::solid` (walking) and `Loaded::shot` (shots and sight:
-  solid tiles that aren't in their tileset's `low` list; a cell painted *force solid* counts).
+  tiles with half their cells of a *Solid* material, not *Low*; a tile painted *force solid*
+  counts). Movement tests the cells under a hitbox exactly (`tile_solid_cells`).
   Solid props that aren't `low` add `OCC_HIGH` to the occupancy grid; `Game::blocks_shot` reads
   both and is what projectiles and `line_clear` (aiming, enemy and companion line of fire, enemy
   sight) use.

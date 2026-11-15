@@ -10,7 +10,6 @@ use super::input::{self, Act};
 use super::{ui::panel, Game, RtEntity};
 use crate::entity::EntityKind;
 use crate::map::{Edge, ZoneKind};
-use crate::render;
 use super::text::{draw_text, measure_text};
 
 /// Zoom levels in screen pixels per tile.
@@ -338,22 +337,25 @@ impl Game {
         let bg = m.background;
         clear_background(Color::from_rgba(bg[0], bg[1], bg[2], 255));
         let view = Rect::new(0.0, 0.0, world.x, world.y);
-        let sets = self.assets.map_tilesets(m);
-        for layer in m.layers.iter().filter(|l| l.visible && !l.above_entities) {
-            render::draw_layer(m, layer, &sets, ts, view, WHITE);
-        }
-        // Props belong to the map's picture (houses' signs, trees, wells); people and loose
-        // items don't.
-        let mut props: Vec<&RtEntity> = self.loaded.entities.iter().filter(|e| e.active && e.kind == EntityKind::Prop).collect();
-        props.sort_by(|a, b| a.body.pos.y.total_cmp(&b.body.pos.y));
-        for e in props {
-            if let Some(d) = self.project.db.prop(&e.def) {
-                self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE);
+        self.ground_draw.draw(m, &self.project.db, &self.assets, view, WHITE);
+        // Props and decorations belong to the map's picture (houses' signs, trees, wells);
+        // people and loose items don't.
+        use crate::decor::DecorLayer;
+        self.draw_decor_layer(DecorLayer::Flat, view);
+        let mut props: Vec<(f32, Option<&RtEntity>, usize)> = self.loaded.entities.iter().filter(|e| e.active && e.kind == EntityKind::Prop).map(|e| (e.body.pos.y, Some(e), 0)).collect();
+        props.extend(m.decor.iter().enumerate().filter(|(_, d)| d.layer == DecorLayer::Sorted).map(|(i, d)| (d.y as f32, None, i)));
+        props.sort_by(|a, b| a.0.total_cmp(&b.0));
+        for (_, e, i) in props {
+            match e {
+                Some(e) => {
+                    if let Some(d) = self.project.db.prop(&e.def) {
+                        self.assets.draw_sprite(d.state_look(e.state).0, e.frame, e.body.pos, WHITE);
+                    }
+                }
+                None => self.draw_decor(i),
             }
         }
-        for layer in m.layers.iter().filter(|l| l.visible && l.above_entities) {
-            render::draw_layer(m, layer, &sets, ts, view, WHITE);
-        }
+        self.draw_decor_layer(DecorLayer::Above, view);
         set_default_camera();
         self.worldmap.picture = Some((rt, ppt));
     }

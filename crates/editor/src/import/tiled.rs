@@ -1,20 +1,22 @@
 //! Tiled maps: `.tmx` (XML) and `.tmj` (JSON), with embedded or external tilesets (`.tsx` /
 //! `.tsj`). Orthogonal, fixed-size maps; tile data as CSV, base64, base64 + zlib / gzip.
 //! Tilesets are repacked into plain 32 px grids (margins and spacing removed, other tile sizes
-//! scaled), tile layers become map layers, a layer named `collision` becomes collision,
+//! scaled) and the tile layers go through the tile converter (`convert_tiles`): the first layer
+//! becomes painted ground, the others decorations. A layer named `collision` becomes collision,
 //! rectangles of object layers become trigger zones and points named `spawn:NAME` spawn points.
-//! Wang sets become auto-tiling terrains: *mixed* sets (sides and corners) 47-tile terrains,
-//! *edge* sets 16-tile terrains; *corner* sets don't fit the side-based terrains and are reported.
+//! Wang sets tell the converter which tiles are a terrain's edges: *mixed* sets (sides and
+//! corners) like 47-tile terrains, *edge* sets like 16-tile ones; *corner* sets don't fit the
+//! side-based terrains and are reported.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
-use rustpg2d_engine::autotile::Terrain;
-use rustpg2d_engine::defs::{Database, TileAnim, TilesetDef};
+use rustpg2d_engine::defs::Database;
 use rustpg2d_engine::imageio::Rgba;
-use rustpg2d_engine::map::{CollisionOverride, Map, TileLayer, Tile, Zone, ZoneKind};
+use rustpg2d_engine::map::{CollisionOverride, Map, Zone, ZoneKind};
+use rustpg2d_engine::old_tiles::{OldTiles, Terrain, Tile, TileAnim, TileLayer, TilesetDef};
 
 use super::{sanitize, unique_id, write_new, TS};
 
@@ -498,6 +500,9 @@ pub struct Report {
     pub uneven_anims: usize,
     /// Terrains made from Wang sets (`name (47 tiles)`).
     pub terrains: Vec<String>,
+    /// Ground materials and decoration props the tiles became.
+    pub materials: Vec<String>,
+    pub props: Vec<String>,
     /// Wang sets that don't fit (corner sets, or tiles whose corners lack their sides).
     pub dropped_wang: Vec<String>,
 }
@@ -505,11 +510,13 @@ pub struct Report {
 impl Report {
     pub fn message(&self, map: &Map) -> String {
         let mut s = format!(
-            "Imported Tiled map '{}' ({}×{}, {} layers, tilesets {}; {} zones, {} spawn points, {} collision cells).",
+            "Imported Tiled map '{}' ({}×{}, {} tile layers painted as ground and decorations with {} new materials and {} new props from the tilesets {}; {} zones, {} spawn points, {} collision cells).",
             map.name,
             map.width,
             map.height,
             self.layers,
+            self.materials.len(),
+            self.props.len(),
             if self.tilesets.is_empty() { "none".into() } else { self.tilesets.join(", ") },
             self.zones,
             self.spawns,
@@ -569,7 +576,7 @@ fn repack(img: &Rgba, ts: &Tileset) -> Rgba {
 /// (a tile whose corner colour lacks one of the two sides next to it doesn't fit and is
 /// skipped), *edge* sets the 16-tile set; *corner* sets are reported.
 pub fn wang_terrains(sets: &[WangSet], rep: &mut Report) -> Vec<Terrain> {
-    use rustpg2d_engine::autotile::{reduce, BLOB_SLOT, BLOB_SLOTS, EAST, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, WEST};
+    use rustpg2d_engine::old_tiles::{reduce, BLOB_SLOT, BLOB_SLOTS, EAST, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, WEST};
     // Wang id order: top, top-right, right, bottom-right, bottom, bottom-left, left, top-left.
     const BITS: [usize; 8] = [NORTH, NORTH_EAST, EAST, SOUTH_EAST, SOUTH, SOUTH_WEST, WEST, NORTH_WEST];
     let mut out = Vec::new();
@@ -603,7 +610,7 @@ pub fn wang_terrains(sets: &[WangSet], rep: &mut Report) -> Vec<Terrain> {
                     t.tiles[mask & 15] = Some(*tile);
                 }
             }
-            if t.tiles_set() > 0 {
+            if t.tiles.iter().chain(&t.blob).any(Option::is_some) {
                 rep.terrains.push(format!("{} ({} tiles)", t.name, if blob { 47 } else { 16 }));
                 out.push(t);
             }
@@ -615,8 +622,9 @@ pub fn wang_terrains(sets: &[WangSet], rep: &mut Report) -> Vec<Terrain> {
     out
 }
 
-/// Builds the R(ust)PG2D map: tilesets are written into `<root>/tilesets/` and added to `db`
-/// (never overwriting anything), the map is returned (not saved yet).
+/// Builds the R(ust)PG2D map: tileset images are written into `<root>/tilesets/` (never
+/// overwriting anything) and the tiles converted into ground materials and decoration props of
+/// `db`; the map is returned (not saved yet).
 pub fn convert(p: &Parsed, name: &str, root: &Path, db: &mut Database) -> Result<(Map, Report)> {
     if p.width == 0 || p.height == 0 || p.tile_w == 0 {
         bail!("the map has no size");
@@ -628,6 +636,7 @@ pub fn convert(p: &Parsed, name: &str, root: &Path, db: &mut Database) -> Result
     let mut map = Map::new(name, p.width, p.height);
     // Tilesets: (firstgid, slot or None when dropped).
     let mut slots: Vec<(u32, Option<u16>)> = Vec::new();
+    let mut tilesets: Vec<TilesetDef> = Vec::new();
     for ts in &p.tilesets {
         let Some(path) = ts.image.as_ref() else {
             rep.dropped_tilesets.push(ts.name.clone());
@@ -648,7 +657,7 @@ pub fn convert(p: &Parsed, name: &str, root: &Path, db: &mut Database) -> Result
         }
         let png = repack(&img, &ts).encode()?;
         let base = sanitize(if ts.name.is_empty() { name } else { &ts.name });
-        let id = unique_id(&base, |c| db.tileset(c).is_some());
+        let id = unique_id(&base, |c| tilesets.iter().any(|t| t.id == c) || db.sheet(&format!("{c}_tiles")).is_some() || root.join(format!("tilesets/{c}.png")).exists());
         let rel = write_new(root, "tilesets", &id, "png", &png)?;
         let mut animations = Vec::new();
         for (tile, frames) in &ts.anims {
@@ -660,12 +669,12 @@ pub fn convert(p: &Parsed, name: &str, root: &Path, db: &mut Database) -> Result
             animations.push(TileAnim { tile: *tile, frames: frames.iter().map(|f| f.0).collect(), fps: 1000.0 / ms });
         }
         let terrains = wang_terrains(&ts.wangsets, &mut rep);
-        db.tilesets.push(TilesetDef { id: id.clone(), image: rel, solid: ts.solid.iter().copied().collect(), animations, terrains, ..Default::default() });
+        tilesets.push(TilesetDef { id: id.clone(), image: rel, solid: ts.solid.iter().copied().collect(), animations, terrains, ..Default::default() });
         if (ts.tile_w, ts.tile_h) != (TS, TS) {
             rep.scaled.push(format!("{id} ({} px)", ts.tile_w));
         }
         rep.tilesets.push(id.clone());
-        slots.push((ts.firstgid, Some(map.tileset_slot(&id))));
+        slots.push((ts.firstgid, Some((tilesets.len() - 1) as u16)));
     }
     slots.sort_by_key(|s| s.0);
     let tile_of = |gid: u32| -> Option<Tile> {
@@ -732,11 +741,14 @@ pub fn convert(p: &Parsed, name: &str, root: &Path, db: &mut Database) -> Result
             LayerData::Image => rep.image_layers += 1,
         }
     }
-    if !layers.is_empty() {
-        rep.layers = layers.len();
-        map.layers = layers;
-    } else {
-        rep.layers = map.layers.len();
+    rep.layers = layers.len();
+    let names = tilesets.iter().map(|t| t.id.clone()).collect();
+    let mut conv = rustpg2d_engine::convert_tiles::TileConverter::new(root, tilesets, db);
+    conv.convert_map(db, &mut map, OldTiles { tilesets: names, layers });
+    rep.materials = conv.report.materials_added.clone();
+    rep.props = conv.report.props_added.clone();
+    for w in &conv.report.warnings {
+        eprintln!("[import] {w}");
     }
     Ok((map, rep))
 }
@@ -810,9 +822,9 @@ mod tests {
         std::fs::create_dir_all(&root).unwrap();
         let p = parse_file(&fixtures().join("tiny.tmx")).unwrap();
         let mut db = Database::default();
-        db.tilesets.push(TilesetDef { id: "ground".into(), image: "x.png".into(), ..Default::default() });
+        db.sheets.push(rustpg2d_engine::defs::SheetDef::new("ground_tiles", "x.png", 32, 32));
         let (map, rep) = convert(&p, "tiny", &root, &mut db).unwrap();
-        // Ids never clash with existing ones; images are 32 px grids.
+        // Ids never clash with existing ones (the tiles' sheet would); images are 32 px grids.
         assert_eq!(rep.tilesets, vec!["ground_2".to_string(), "decorations".to_string()]);
         let img = Rgba::decode(&std::fs::read(root.join("tilesets/ground_2.png")).unwrap()).unwrap();
         assert_eq!((img.w, img.h), (64, 64), "2×2 tiles of 16 px, upscaled");
@@ -820,14 +832,20 @@ mod tests {
         assert_eq!((deco.w, deco.h), (64, 32), "margin and spacing removed");
         // Its pixels: tile 1 of the deco set is blue in the fixture.
         assert_eq!(deco.get(40, 10), [0, 0, 255, 255]);
-        let g = db.tileset("ground_2").unwrap();
-        assert_eq!(g.solid, vec![3]);
-        assert_eq!(g.animations, vec![TileAnim { tile: 1, frames: vec![1, 2], fps: 4.0 }]);
-        assert_eq!(map.layers.len(), 2);
-        assert!(map.layers[1].above_entities, "'Overhead trees'");
-        assert_eq!(map.layers[0].get(0, 0), Tile::new(0, 0));
-        assert_eq!(map.layers[0].get(5, 3), Tile::new(0, 3));
-        assert_eq!(map.layers[1].get(2, 1), Tile::new(1, 1));
+        // The first layer became painted ground: the Wang terrain "Paths" (its inside tile 0) and
+        // the solid tile 3 a material each.
+        let c = rustpg2d_engine::ground::CELLS as i32;
+        let at = |x: i32, y: i32| map.material_of(map.ground.get(x * c + c / 2, y * c + c / 2)).map(str::to_string);
+        assert_eq!(at(0, 0).as_deref(), Some("paths"));
+        let wall = db.material(&at(5, 3).unwrap()).unwrap();
+        assert_eq!(wall.walk, rustpg2d_engine::ground::Walk::Solid);
+        assert_eq!(rep.materials.len(), db.materials.len());
+        // The second layer ('Overhead trees') became decorations over everyone.
+        let d = map.decor.iter().find(|d| (d.x, d.y) == (2 * 32 + 16, 2 * 32)).expect("the tree at 2,1");
+        assert_eq!(d.layer, rustpg2d_engine::decor::DecorLayer::Above);
+        let prop = db.prop(&map.decor_defs[d.def as usize]).unwrap();
+        assert_eq!((prop.sprite.sheet.as_str(), prop.sprite.frame), ("decorations_tiles", 1));
+        assert_eq!(rep.layers, 2);
         assert_eq!(rep.flips, 1);
         assert_eq!((rep.collision, map.collision_at(0, 3)), (2, CollisionOverride::Solid));
         assert_eq!((rep.zones, rep.spawns, rep.dropped_objects), (2, 1, 1));
@@ -837,10 +855,7 @@ mod tests {
             vec![("door".into(), 1, 1, 2, 1, false), ("start".into(), 3, 2, 1, 1, true), ("pond".into(), 3, 0, 2, 2, false)]
         );
         // The mixed Wang set became a 47-tile terrain; the corner set and the misfit are reported.
-        let t = &g.terrains[0];
-        use rustpg2d_engine::autotile::{BLOB_SLOT, EAST, NORTH};
-        assert_eq!((t.name.as_str(), t.is_blob(), t.tiles_set()), ("Paths", true, 3));
-        assert_eq!((t.inside(), t.blob_tile(BLOB_SLOT[NORTH] as usize), t.blob_tile(BLOB_SLOT[NORTH | EAST] as usize)), (Some(0), Some(1), Some(2)));
+        assert_eq!(rep.terrains, vec!["Paths (47 tiles)".to_string()]);
         assert_eq!(rep.dropped_wang.len(), 2, "{:?}", rep.dropped_wang);
         let msg = rep.message(&map);
         assert!(msg.contains("1 flipped") && msg.contains("ground_2 (16 px)") && msg.contains("Paths (47 tiles)"), "{msg}");

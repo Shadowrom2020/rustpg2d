@@ -86,21 +86,6 @@ fn undo(h: &mut Harness<'static, Editor>) {
 }
 
 #[test]
-fn footstep_picks_give_and_take_a_tiles_sound() {
-    use rustpg2d_engine::defs::TilesetDef;
-    let mut d = TilesetDef::new("t", "t.png");
-    crate::database::set_tile_step(&mut d, 6, "step_wood");
-    crate::database::set_tile_step(&mut d, 18, "step_wood");
-    assert_eq!(d.step_of(6), Some("step_wood"));
-    // Another sound moves the tile; the same sound again takes it away; empty groups go.
-    crate::database::set_tile_step(&mut d, 6, "step_stone");
-    assert_eq!((d.step_of(6), d.steps.len()), (Some("step_stone"), 2));
-    crate::database::set_tile_step(&mut d, 6, "step_stone");
-    crate::database::set_tile_step(&mut d, 18, "step_wood");
-    assert!(d.steps.is_empty());
-}
-
-#[test]
 fn quest_stage_targets_are_edited_and_saved() {
     let root = example_copy("quest");
     let db = Project::load(&root).unwrap().db;
@@ -317,5 +302,35 @@ fn colour_feature_default_is_set_and_cleared() {
     assert_eq!(skin(&h.state().project.db).default, None);
     h.state_mut().save_all();
     assert_eq!(skin(&Project::load(&root).unwrap().db).default, None);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn material_form_sets_edge_rim_and_walking() {
+    use rustpg2d_engine::ground::{Edge, Walk};
+    let root = example_copy("material");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.materials.iter().position(|m| m.id == "dirt").expect("the starter dirt");
+    assert_eq!((db.materials[k].edge, db.materials[k].rim, db.materials[k].walk), (Edge::Crisp, None, Walk::Walk));
+    let mut h = harness(&root, Tab::Materials, k);
+    step(&mut h);
+    // Soft edges, a rim, and a texture typed behind the path.
+    h.get_by_label("Soft").click();
+    step(&mut h);
+    beside(&h, "Rim", |n| n.role() == Role::CheckBox).click();
+    step(&mut h);
+    field(&h, "materials/dirt.png").type_text("x");
+    step(&mut h);
+    unfocus(&mut h);
+    let m = |h: &Harness<'static, Editor>| h.state().project.db.materials[k].clone();
+    assert_eq!(m(&h).edge, Edge::Soft);
+    assert!(m(&h).rim.is_some());
+    assert_eq!(m(&h).texture, "materials/dirt.pngx");
+    // Ctrl+Z takes the typing back; saved, the file has the rest.
+    undo(&mut h);
+    assert_eq!(m(&h).texture, "materials/dirt.png");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    assert_eq!((saved.materials[k].edge, saved.materials[k].rim.is_some()), (Edge::Soft, true));
     let _ = std::fs::remove_dir_all(&root);
 }

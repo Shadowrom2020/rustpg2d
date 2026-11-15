@@ -195,10 +195,9 @@ impl Editor {
                         continue;
                     }
                     if path.exists() {
-                        let (sel, layer) = (self.sel, self.layer);
+                        let sel = self.sel;
                         self.open_map(&name);
                         self.sel = sel;
-                        self.layer = layer.min(self.doc.as_ref().map_or(0, |d| d.map.layers.len().saturating_sub(1)));
                         reloaded.push("the open map");
                     } else {
                         self.doc = None;

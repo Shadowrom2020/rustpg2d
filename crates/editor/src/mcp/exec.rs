@@ -166,8 +166,8 @@ impl Editor {
             }
         }
         s += &format!(
-            "Definitions: {} tilesets, {} sprite sheets, {} items, {} props, {} characters, {} sounds, {} quests, {} structures, {} skills, {} spells, {} recipes, {} achievements (list_defs KIND)\n",
-            db.tilesets.len(),
+            "Definitions: {} materials, {} sprite sheets, {} items, {} props, {} characters, {} sounds, {} quests, {} structures, {} skills, {} spells, {} recipes, {} achievements (list_defs KIND)\n",
+            db.materials.len(),
             db.sheets.len(),
             db.items.len(),
             db.props.len(),
@@ -243,7 +243,7 @@ impl Editor {
                 Selection::Zone(uid) => d.map.zones.iter().find(|z| z.uid == uid).map_or(format!("zone {uid}"), |z| format!("zone {uid} \"{}\"", z.name)),
                 Selection::Region((x, y, w, h)) => format!("tile region {x},{y} {w}x{h}"),
             };
-            s += &format!("Selection: {sel}; layer {}; undo {}, redo {}\n", self.layer, if d.can_undo() { "possible" } else { "nothing" }, if d.can_redo() { "possible" } else { "nothing" });
+            s += &format!("Selection: {sel}; undo {}, redo {}\n", if d.can_undo() { "possible" } else { "nothing" }, if d.can_redo() { "possible" } else { "nothing" });
         }
         if self.mode == Mode::Database {
             s += &format!("Database tab: {:?}\n", self.db.tab);

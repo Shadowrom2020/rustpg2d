@@ -12,9 +12,9 @@ interest you.
 
 1. [Getting started](01-getting-started.md): install, the welcome screen, the example project, a new project, a first play-test
 2. [The editor](02-the-editor.md): the window, tools and shortcuts, saving, play-testing, project files
-3. [Maps](03-maps.md): tilesets and layers, painting, terrains, collision, structures, copy and paste, map settings
+3. [Maps](03-maps.md): painted ground, decorations, maps from older versions, collision, structures, copy and paste, map settings
 4. [Objects and zones](04-objects-and-zones.md): placing props, characters and items, the inspector, zones, map transitions, spawners
-5. [The Database](05-database.md): items, props, tilesets, sprite sheets, sounds, quests, recipes, achievements, project settings
+5. [The Database](05-database.md): items, props, materials, scatter sets, sprite sheets, sounds, quests, recipes, achievements, project settings
 6. [Characters](06-characters.md): the character builder, the player and the character creator, behaviour, routines, merchants, companions, portraits
 7. [Events](07-events.md): triggers, conditions and actions, cut-scenes, the Events graph
 8. [Scripting](08-scripting.md): Rhai scripts, the script editor, live reload, the console, and every script function with recipes
@@ -39,8 +39,9 @@ change R(ust)PG2D itself.
 | Word | Meaning |
 |---|---|
 | **Project** | A folder with a game: its settings, definitions, maps, scripts, images and sounds |
-| **Map** | One area of the game world, a grid of 32 × 32 pixel tiles |
-| **Tileset** | An image of tiles the maps are painted with |
+| **Map** | One area of the game world: painted ground and decorations on a grid of 32 × 32 pixel tiles |
+| **Material** | What a map's ground is painted with: grass, dirt, water… (a repeated texture) |
+| **Decoration** | A prop placed as a picture: a tree, a rock, a wall, a house |
 | **Sprite sheet** | An image of frames for characters, props, item icons and effects |
 | **Definition** | A kind of thing in the Database: an item, a prop, a character, a quest… |
 | **Entity** | A definition placed on a map: a chest, a villager, a coin on the ground |

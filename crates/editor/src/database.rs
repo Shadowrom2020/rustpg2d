@@ -1,6 +1,6 @@
-//! Definition editors: items, props, characters, tilesets, sprite sheets, sounds, project and scripts.
+//! Definition editors: items, props, characters, materials, sprite sheets, sounds, project and scripts.
 
-use egui_macroquad::egui::{self, pos2, vec2, Color32, Sense, Stroke, StrokeKind};
+use egui_macroquad::egui::{self, vec2, Color32, Sense};
 
 use crate::ui::{self, ph};
 use rustpg2d_engine::audio::Audio;
@@ -20,7 +20,6 @@ pub enum Tab {
     Items,
     Props,
     Characters,
-    Tilesets,
     Sheets,
     Sounds,
     Quests,
@@ -33,6 +32,8 @@ pub enum Tab {
     Achievements,
     Races,
     Models,
+    Materials,
+    Scatter,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -41,7 +42,6 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Items => db.items.len(),
         Tab::Props => db.props.len(),
         Tab::Characters => db.characters.len(),
-        Tab::Tilesets => db.tilesets.len(),
         Tab::Sheets => db.sheets.len(),
         Tab::Sounds => db.sounds.len(),
         Tab::Quests => db.quests.len(),
@@ -52,6 +52,8 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Achievements => db.achievements.len(),
         Tab::Races => db.races.len(),
         Tab::Models => db.models.len(),
+        Tab::Materials => db.materials.len(),
+        Tab::Scatter => db.scatter.len(),
         Tab::Project | Tab::Scripts => 0,
     }
 }
@@ -73,7 +75,6 @@ impl Tab {
             Tab::Items => RefKind::Item,
             Tab::Props => RefKind::Prop,
             Tab::Characters => RefKind::Character,
-            Tab::Tilesets => RefKind::Tileset,
             Tab::Sheets => RefKind::Sheet,
             Tab::Sounds => RefKind::Sound,
             Tab::Quests => RefKind::Quest,
@@ -84,6 +85,8 @@ impl Tab {
             Tab::Achievements => RefKind::Achievement,
             Tab::Races => RefKind::Race,
             Tab::Models => RefKind::Model,
+            Tab::Materials => RefKind::Material,
+            Tab::Scatter => RefKind::Scatter,
             Tab::Project | Tab::Scripts => return None,
         })
     }
@@ -94,7 +97,6 @@ impl Tab {
             RefKind::Item => Tab::Items,
             RefKind::Prop => Tab::Props,
             RefKind::Character => Tab::Characters,
-            RefKind::Tileset => Tab::Tilesets,
             RefKind::Sheet => Tab::Sheets,
             RefKind::Sound => Tab::Sounds,
             RefKind::Quest => Tab::Quests,
@@ -105,6 +107,8 @@ impl Tab {
             RefKind::Achievement => Tab::Achievements,
             RefKind::Race => Tab::Races,
             RefKind::Model => Tab::Models,
+            RefKind::Material => Tab::Materials,
+            RefKind::Scatter => Tab::Scatter,
             RefKind::Map => return None,
         })
     }
@@ -133,8 +137,6 @@ pub struct DbState {
     /// Script editor (completion popup, pending cursor moves).
     pub script_ed: crate::script_editor::EditorState,
     pub rename: RenameUi,
-    /// Tileset editor: animation that clicked tiles are appended to (None = toggle solidity).
-    pub anim_target: Option<usize>,
     /// Prop editor: selected state (its sprite is edited below the list) and an open rename.
     pub state_sel: usize,
     pub state_rename: Option<(usize, String)>,
@@ -142,20 +144,8 @@ pub struct DbState {
     pub art_open: bool,
     /// What the embedded editor last focused (to select its frame once).
     pub art_focus: Option<(String, u32)>,
-    /// Tilesets tab: clicks on the tile grid toggle light tiles.
-    pub tile_light_pick: bool,
-    /// Tilesets tab: clicks on the tile grid toggle ladder tiles.
-    pub tile_ladder_pick: bool,
-    /// Tilesets tab: clicks on the tile grid toggle low tiles (shots fly over them).
-    pub tile_low_pick: bool,
-    /// Tilesets tab: clicks on the tile grid give tiles the footstep sound `tile_step_sound`
-    /// (or take it away).
-    pub tile_step_pick: bool,
-    pub tile_step_sound: String,
     /// Editor script `dbscroll Y`: scroll the definition form there once.
     pub form_scroll: Option<f32>,
-    /// Tilesets tab: the terrain whose tiles clicks into the grid assign.
-    pub terrain_pick: Option<crate::terrain::TerrainPick>,
     /// The structure editor (Structures tab).
     pub st_edit: crate::structures::StructEdit,
 }
@@ -167,7 +157,6 @@ struct Cx<'a> {
     refs: &'a Refs,
     audio: &'a mut Audio,
     rename: &'a mut RenameUi,
-    anim_target: &'a mut Option<usize>,
     /// Read-only copy of the definitions (for item icons / stack sizes).
     db: &'a Database,
     browse: &'a mut Option<Purpose>,
@@ -182,12 +171,6 @@ struct Cx<'a> {
     /// Art actions handled after the form (they need the whole editor).
     art: &'a mut Option<ArtAction>,
     st_edit: &'a mut crate::structures::StructEdit,
-    tile_light_pick: &'a mut bool,
-    tile_ladder_pick: &'a mut bool,
-    tile_low_pick: &'a mut bool,
-    tile_step_pick: &'a mut bool,
-    tile_step_sound: &'a mut String,
-    terrain_pick: &'a mut Option<crate::terrain::TerrainPick>,
 }
 
 /// An id not yet used in `ids`, based on `prefix`.
@@ -209,7 +192,6 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Items => ph::SWORD,
         Tab::Props => ph::TREASURE_CHEST,
         Tab::Characters => ph::USERS,
-        Tab::Tilesets => ph::GRID_FOUR,
         Tab::Sheets => ph::IMAGE,
         Tab::Sounds => ph::SPEAKER_HIGH,
         Tab::Structures => ph::HOUSE,
@@ -220,6 +202,8 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Achievements => ph::TROPHY,
         Tab::Races => ph::USERS_THREE,
         Tab::Models => ph::CUBE,
+        Tab::Materials => ph::PAINT_BRUSH,
+        Tab::Scatter => ph::TREE_EVERGREEN,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
     }
@@ -298,7 +282,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Characters, "Characters"),
             (Tab::Races, "Races"),
             (Tab::Models, "3D models"),
-            (Tab::Tilesets, "Tilesets"),
+            (Tab::Materials, "Materials"),
+            (Tab::Scatter, "Scatter sets"),
             (Tab::Sheets, "Sprite sheets"),
             (Tab::Sounds, "Sounds"),
             (Tab::Structures, "Structures"),
@@ -318,8 +303,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 ed.db.tab = t;
                 ed.db.sel = 0;
                 ed.db.rename = RenameUi::default();
-                ed.db.anim_target = None;
-                ed.db.terrain_pick = None;
             }
         }
         ui.separator();
@@ -344,7 +327,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Items => db.items.get(i).map(|d| (RefKind::Item, d.id.clone())),
             Tab::Props => db.props.get(i).map(|d| (RefKind::Prop, d.id.clone())),
             Tab::Characters => db.characters.get(i).map(|d| (RefKind::Character, d.id.clone())),
-            Tab::Tilesets => db.tilesets.get(i).map(|d| (RefKind::Tileset, d.id.clone())),
             Tab::Sheets => db.sheets.get(i).map(|d| (RefKind::Sheet, d.id.clone())),
             Tab::Sounds => db.sounds.get(i).map(|d| (RefKind::Sound, d.id.clone())),
             Tab::Structures => db.structures.get(i).map(|d| (RefKind::Structure, d.id.clone())),
@@ -353,6 +335,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Recipes => db.recipes.get(i).map(|d| (RefKind::Recipe, d.id.clone())),
             Tab::Races => db.races.get(i).map(|d| (RefKind::Race, d.id.clone())),
             Tab::Models => db.models.get(i).map(|d| (RefKind::Model, d.id.clone())),
+            Tab::Materials => db.materials.get(i).map(|d| (RefKind::Material, d.id.clone())),
+            Tab::Scatter => db.scatter.get(i).map(|d| (RefKind::Scatter, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -360,7 +344,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Items => Some(RefKind::Item),
                 Tab::Props => Some(RefKind::Prop),
                 Tab::Characters => Some(RefKind::Character),
-                Tab::Tilesets => Some(RefKind::Tileset),
                 Tab::Sheets => Some(RefKind::Sheet),
                 Tab::Sounds => Some(RefKind::Sound),
                 Tab::Structures => Some(RefKind::Structure),
@@ -369,6 +352,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Recipes => Some(RefKind::Recipe),
                 Tab::Races => Some(RefKind::Race),
                 Tab::Models => Some(RefKind::Model),
+                Tab::Materials => Some(RefKind::Material),
+                Tab::Scatter => Some(RefKind::Scatter),
                 _ => None,
             };
             if kind.is_some() {
@@ -390,7 +375,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         if ui.button(ui::t(ph::USER, "New character…")).on_hover_text("A new character from an existing 3D model, an imported one or one generated with AI").clicked() {
             ed.open_builder(crate::builder::Target::New);
         }
-        if ui.button(ui::t(ph::SPARKLE, "New asset…")).on_hover_text("A prop, item, tileset, sprite sheet or structure (a wizard asks the details)").clicked() {
+        if ui.button(ui::t(ph::SPARKLE, "New asset…")).on_hover_text("A prop, item, sprite sheet or structure (a wizard asks the details)").clicked() {
             ed.wizard = Some(crate::wizard::Wizard::new(&ed.project));
         }
     });
@@ -438,14 +423,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     sel,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| CharacterDef { id: unique("character", ids), ..fresh.clone() },
-                    |d| &mut d.id,
-                ),
-                Tab::Tilesets => list_ui(
-                    ui,
-                    &mut db.tilesets,
-                    sel,
-                    |d| d.id.clone(),
-                    |ids| TilesetDef::fresh(&unique("tileset", ids)),
                     |d| &mut d.id,
                 ),
                 Tab::Sheets => list_ui(
@@ -511,6 +488,22 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                         |d| &mut d.id,
                     )
                 }
+                Tab::Scatter => list_ui(
+                    ui,
+                    &mut db.scatter,
+                    sel,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::decor::ScatterDef::fresh(&unique("scatter", ids)),
+                    |d| &mut d.id,
+                ),
+                Tab::Materials => list_ui(
+                    ui,
+                    &mut db.materials,
+                    sel,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::ground::MaterialDef::fresh(&unique("material", ids)),
+                    |d| &mut d.id,
+                ),
                 Tab::Achievements => list_ui(
                     ui,
                     &mut db.achievements,
@@ -532,8 +525,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         });
         if ed.db.sel != sel_before {
             ed.db.rename = RenameUi::default();
-            ed.db.anim_target = None;
-            ed.db.terrain_pick = None;
         }
         let db_snapshot = ed.project.db.clone();
         let mut embed: Option<(String, (u32, u32), bool)> = None;
@@ -560,7 +551,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     refs: &ed.refs,
                     audio: &mut ed.audio,
                     rename: &mut ed.db.rename,
-                    anim_target: &mut ed.db.anim_target,
                     browse: &mut ed.browse_request,
                     db: &db_snapshot,
                     paint: &mut paint,
@@ -570,12 +560,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     art_open: &mut ed.db.art_open,
                     art: &mut art,
                     st_edit: &mut ed.db.st_edit,
-                    tile_light_pick: &mut ed.db.tile_light_pick,
-                    tile_ladder_pick: &mut ed.db.tile_ladder_pick,
-                    tile_low_pick: &mut ed.db.tile_low_pick,
-                    tile_step_pick: &mut ed.db.tile_step_pick,
-                    tile_step_sound: &mut ed.db.tile_step_sound,
-                    terrain_pick: &mut ed.db.terrain_pick,
                 };
                 let i = ed.db.sel;
                 let db = &mut ed.project.db;
@@ -597,11 +581,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                         if let Some(d) = db.characters.get_mut(i) {
                             character_form(ui, d, &mut cx);
                             art_target = art_of(&db_snapshot, &d.portrait, false);
-                        }
-                    }
-                    Tab::Tilesets => {
-                        if let Some(d) = db.tilesets.get_mut(i) {
-                            tileset_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Sheets => {
@@ -650,6 +629,16 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Models => {
                         if let Some(d) = db.models.get_mut(i) {
                             model_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Materials => {
+                        if let Some(d) = db.materials.get_mut(i) {
+                            material_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Scatter => {
+                        if let Some(d) = db.scatter.get_mut(i) {
+                            scatter_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -1275,6 +1264,31 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.checkbox(&mut d.low, "Low (shots fly over it)").on_hover_text(
         "A low prop (a barrel, a chair, a fence) stops walking while it is solid, but arrows, bolts and the sight of enemies pass over it. Solid props that aren't low stop shots too (trees, statues, stalls).",
     );
+    ui.checkbox(&mut d.climb, "Ladder (the player climbs it)").on_hover_text("Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it.");
+    ui.horizontal(|ui| {
+        ui.label("Snap to").on_hover_text("Placed as a decoration it sits on a grid of this many pixels (walls, fences); 0 = anywhere.");
+        egui::ComboBox::from_id_salt("prop_snap").selected_text(if d.snap == 0 { "anywhere".to_string() } else { format!("{} px", d.snap) }).show_ui(ui, |ui| {
+            for s in [0u16, 8, 16, 32] {
+                ui.selectable_value(&mut d.snap, s, if s == 0 { "anywhere".to_string() } else { format!("{s} px") });
+            }
+        });
+    });
+    // An animated picture: frames of its sheet, shown in turn (its first state).
+    ui.horizontal(|ui| {
+        let mut on = d.anim.is_some();
+        if ui.checkbox(&mut on, "Animation").on_hover_text("The default state cycles through frames of its sprite sheet (a torch, a flag, a water wheel), also as a decoration.").changed() {
+            d.anim = on.then(|| rustpg2d_engine::defs::FrameAnim { frames: vec![d.sprite.frame, d.sprite.frame + 1], fps: 4.0 });
+        }
+        if let Some(a) = &mut d.anim {
+            ui.label("frames");
+            let mut text = a.frames.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(", ");
+            if ui.add(egui::TextEdit::singleline(&mut text).desired_width(120.0)).on_hover_text("Frame numbers of the sheet, separated by commas").changed() {
+                a.frames = text.split(',').filter_map(|t| t.trim().parse().ok()).collect();
+            }
+            ui.add(egui::DragValue::new(&mut a.fps).range(0.5..=30.0).speed(0.1).suffix(" fps"));
+        }
+    });
+    wall_pieces_ui(ui, d, cx);
     ui.separator();
     prop_states_ui(ui, d, cx);
     ui.separator();
@@ -1319,6 +1333,35 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.heading("Default triggers");
     ui.weak("Run for every placed instance, in addition to the instance's own triggers.");
     widgets::triggers_ui(ui, &format!("prop/{}", d.id), &mut d.triggers, cx.refs, rustpg2d_engine::events::TriggerOwner::Prop);
+}
+
+/// A wall set: the prop for each combination of neighbours (Decorations tool, Line).
+fn wall_pieces_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
+    use rustpg2d_engine::decor::{EAST, NORTH, SOUTH, WEST};
+    let mut on = !d.pieces.is_empty();
+    if ui.checkbox(&mut on, "Wall set (pieces join their neighbours)").on_hover_text("A line drawn with the Decorations tool places this prop and swaps in the piece each spot needs by its neighbours: corners, ends, crossings. Empty pieces use this prop.").changed() {
+        d.pieces = if on { vec![String::new(); 16] } else { Vec::new() };
+        if on && d.snap == 0 {
+            d.snap = 32;
+        }
+    }
+    if d.pieces.is_empty() {
+        return;
+    }
+    d.pieces.resize(16, String::new());
+    egui::CollapsingHeader::new("Wall pieces").id_salt("wall_pieces").show(ui, |ui| {
+        let name = |m: usize| {
+            let parts: Vec<&str> = [(NORTH, "north"), (EAST, "east"), (SOUTH, "south"), (WEST, "west")].iter().filter(|(b, _)| m & b != 0).map(|(_, n)| *n).collect();
+            if parts.is_empty() { "alone".to_string() } else { parts.join(" + ") }
+        };
+        egui::Grid::new("pieces").num_columns(2).show(ui, |ui| {
+            for m in 0..16 {
+                ui.label(name(m)).on_hover_text("The neighbours of the spot that belong to the set");
+                widgets::suggest(ui, &format!("piece{m}"), &mut d.pieces[m], &cx.refs.props, 180.0);
+                ui.end_row();
+            }
+        });
+    });
 }
 
 /// Furniture: where and how the player uses the prop (sits, lies, stands at it).
@@ -1857,298 +1900,6 @@ fn quest_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::quest::QuestDef, cx: &
     }
 }
 
-fn tileset_form(ui: &mut egui::Ui, d: &mut TilesetDef, cx: &mut Cx) {
-    let tile = cx.assets.tile_size;
-    ui.heading("Tileset");
-    rename_row(ui, RefKind::Tileset, &d.id, cx.rename);
-    ui.horizontal(|ui| {
-        ui.label("Image");
-        ui.text_edit_singleline(&mut d.image);
-        if ui.button("\u{E3B4} Edit pixels").on_hover_text("Open the image in the pixel editor").clicked() {
-            *cx.paint = Some((d.image.clone(), (tile as u32, tile as u32), false, 0));
-        }
-        if ui.button("Browse…").clicked() {
-            *cx.browse = Some(Purpose::TilesetImage(d.id.clone()));
-        }
-    });
-    ui.weak(format!("Path relative to the project; files from elsewhere are copied into tilesets/. Tiles are {tile}px squares. After editing the path by hand, use \u{E036} Reload assets."));
-    let (Some(t), Some(ts)) = (cx.tex.tilesets.get(&d.id), cx.assets.tilesets.get_mut(&d.id)) else {
-        ui.colored_label(Color32::LIGHT_RED, "Not loaded — reload assets.");
-        return;
-    };
-
-    // ---- animations
-    ui.separator();
-    ui.heading("Animated tiles");
-    ui.weak("Wherever the base tile is placed it cycles through the frames. Pick an animation below, then click tiles in the image to append frames.");
-    let mut remove = None;
-    let uv_of = |i: u32| {
-        let (c, r) = (i % ts.columns, i / ts.columns);
-        let (w, h) = (ts.image.width as f32, ts.image.height as f32);
-        egui::Rect::from_min_max(pos2(c as f32 * tile / w, r as f32 * tile / h), pos2((c + 1) as f32 * tile / w, (r + 1) as f32 * tile / h))
-    };
-    let now = crate::ui::now();
-    for (k, a) in d.animations.iter_mut().enumerate() {
-        ui.horizontal(|ui| {
-            ui.radio_value(cx.anim_target, Some(k), "");
-            let (rect, _) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::hover());
-            ui.painter().image(t.id(), rect, uv_of(a.frame_at(now)), Color32::WHITE);
-            ui.label("tile");
-            ui.add(egui::DragValue::new(&mut a.tile).range(0..=ts.count.saturating_sub(1)));
-            ui.label("frames");
-            let mut text = a.frames.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(", ");
-            if ui.add(egui::TextEdit::singleline(&mut text).desired_width(140.0)).changed() {
-                a.frames = text.split(',').filter_map(|f| f.trim().parse().ok()).filter(|&f| f < ts.count).collect();
-            }
-            ui.label("fps");
-            ui.add(egui::DragValue::new(&mut a.fps).range(0.1..=60.0).speed(0.1));
-            if ui.small_button("\u{E4F6}").clicked() {
-                remove = Some(k);
-            }
-        });
-    }
-    if let Some(k) = remove {
-        d.animations.remove(k);
-        *cx.anim_target = None;
-    }
-    ui.horizontal(|ui| {
-        if ui.button("+ Animation").clicked() {
-            d.animations.push(TileAnim { tile: 0, frames: vec![], fps: 4.0 });
-            *cx.anim_target = Some(d.animations.len() - 1);
-        }
-        if cx.anim_target.is_some() && ui.button("Done (back to solidity)").clicked() {
-            *cx.anim_target = None;
-        }
-    });
-    ui.ctx().request_repaint();
-
-    // ---- light tiles
-    ui.separator();
-    ui.heading("Light tiles");
-    ui.weak("Tiles that give light wherever they are placed (wall torches, lamps, glowing windows). Lights only show on maps that are dark (Map › Lighting).");
-    let mut remove = None;
-    for (k, tl) in d.lights.iter_mut().enumerate() {
-        ui.push_id(("tile_light", k), |ui| {
-            ui.horizontal(|ui| {
-                let (rect, _) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::hover());
-                ui.painter().image(t.id(), rect, uv_of(tl.tile), Color32::WHITE);
-                ui.label(format!("tile {}", tl.tile));
-                if ui.small_button(ui::ph::TRASH).on_hover_text("No light for this tile").clicked() {
-                    remove = Some(k);
-                }
-            });
-            let mut l = Some(tl.light.clone());
-            widgets::light_ui(ui, "tile_light", &mut l, "gives light");
-            match l {
-                Some(l) => tl.light = l,
-                None => remove = Some(k),
-            }
-        });
-    }
-    if let Some(k) = remove {
-        d.lights.remove(k);
-    }
-    if ui.selectable_label(*cx.tile_light_pick, ui::t(ui::ph::LIGHTBULB, "Pick light tiles in the grid")).on_hover_text("While on, clicking a tile below adds or removes its light").clicked() {
-        *cx.tile_light_pick = !*cx.tile_light_pick;
-        *cx.tile_ladder_pick = false;
-        *cx.tile_low_pick = false;
-        *cx.anim_target = None;
-        *cx.terrain_pick = None;
-    }
-    ui.horizontal(|ui| {
-        if ui
-            .selectable_label(*cx.tile_ladder_pick, ui::t(ui::ph::LADDER_SIMPLE, "Pick ladder tiles in the grid"))
-            .on_hover_text("While on, clicking a tile below marks it as a ladder or not. The player climbs ladders: only up and down, slower, seen from behind (a ladder top can lead somewhere with a portal). Characters keep off them.")
-            .clicked()
-        {
-            *cx.tile_ladder_pick = !*cx.tile_ladder_pick;
-            *cx.tile_light_pick = false;
-            *cx.tile_low_pick = false;
-            *cx.anim_target = None;
-            *cx.terrain_pick = None;
-        }
-        if !d.ladder.is_empty() {
-            ui.weak(format!("{} ladder tile(s)", d.ladder.len()));
-        }
-    });
-    ui.horizontal(|ui| {
-        if ui
-            .selectable_label(*cx.tile_low_pick, ui::t(ui::ph::ARROW_FAT_LINES_DOWN, "Pick low tiles in the grid"))
-            .on_hover_text("While on, clicking a tile below marks it as low or not. A low solid tile (a fence, a rock, water, a table) stops walking, but arrows, bolts and the sight of enemies pass over it. Solid tiles that aren't low stop shots too (walls, tree trunks).")
-            .clicked()
-        {
-            *cx.tile_low_pick = !*cx.tile_low_pick;
-            *cx.tile_ladder_pick = false;
-            *cx.tile_light_pick = false;
-            *cx.anim_target = None;
-            *cx.terrain_pick = None;
-        }
-        if !d.low.is_empty() {
-            ui.weak(format!("{} low tile(s)", d.low.len()));
-        }
-    });
-    ui.horizontal(|ui| {
-        if ui
-            .selectable_label(*cx.tile_step_pick, ui::t(ui::ph::FOOTPRINTS, "Pick footstep tiles in the grid"))
-            .on_hover_text("While on, clicking a tile below gives it the footstep sound chosen here, or takes it away. For floors that aren't terrains (wooden floors indoors); a terrain's own Footsteps sound covers its tiles. The topmost layer under the characters with a footstep sound decides, so a bridge over water sounds of wood.")
-            .clicked()
-        {
-            *cx.tile_step_pick = !*cx.tile_step_pick;
-            *cx.tile_low_pick = false;
-            *cx.tile_ladder_pick = false;
-            *cx.tile_light_pick = false;
-            *cx.anim_target = None;
-            *cx.terrain_pick = None;
-        }
-        ui.label("sound");
-        widgets::suggest(ui, "tile_step_sound", cx.tile_step_sound, &cx.refs.sounds, 120.0);
-        let n: usize = d.steps.iter().map(|s| s.tiles.len()).sum();
-        if n > 0 {
-            ui.weak(format!("{n} tile(s) with footsteps"));
-        }
-    });
-
-    // ---- terrains
-    ui.separator();
-    let before = *cx.terrain_pick;
-    crate::terrain::terrains_form(ui, d, t.id(), ts, tile, cx.terrain_pick, &cx.refs.sounds);
-    if cx.terrain_pick.is_some() && before.is_none() {
-        *cx.anim_target = None;
-        *cx.tile_light_pick = false;
-        *cx.tile_ladder_pick = false;
-        *cx.tile_low_pick = false;
-        *cx.tile_step_pick = false;
-    }
-
-    // ---- tile grid
-    ui.separator();
-    let editing_terrain = cx.terrain_pick.and_then(|p| d.terrains.get(p.terrain).map(|t| (p, t.name.clone())));
-    match (*cx.anim_target, *cx.tile_light_pick) {
-        _ if *cx.tile_ladder_pick && editing_terrain.is_none() && cx.anim_target.is_none() => ui.label("Click tiles to mark or unmark ladders (green rungs = ladder)."),
-        _ if *cx.tile_low_pick && editing_terrain.is_none() && cx.anim_target.is_none() => ui.label("Click tiles to mark or unmark them as low (yellow = solid but low: shots fly over it)."),
-        _ if *cx.tile_step_pick && editing_terrain.is_none() && cx.anim_target.is_none() => {
-            ui.label(format!("Click tiles to give them the footstep sound \"{}\" or take it away (footprints = a footstep sound of its own).", cx.tile_step_sound))
-        }
-        _ if editing_terrain.is_some() => {
-            let (p, name) = editing_terrain.clone().unwrap();
-            let blob = d.terrains.get(p.terrain).is_some_and(|t| t.is_blob());
-            ui.label(if p.block {
-                format!("Click the top-left tile of a {} block for terrain {name}.", if blob { "7×7" } else { "4×4" })
-            } else if p.slot == crate::terrain::BASE_SLOT {
-                format!("Click the tile that erasing {name} leaves.")
-            } else {
-                format!("Click the tile for slot {} of terrain {name} (cyan outline = its tiles).", p.slot + 1)
-            })
-        }
-        (Some(k), _) => ui.label(format!("Click tiles to append frames to animation #{} (the first click also sets its base tile).", k + 1)),
-        (None, true) => ui.label("Click tiles to add or remove their light (yellow bulb = gives light)."),
-        (None, false) => ui.label("Click tiles to toggle solidity (red = blocks movement)."),
-    };
-    let scale = 3.0;
-    let size = vec2(ts.image.width as f32 * scale, ts.image.height as f32 * scale);
-    let cell = tile * scale;
-    // Only sideways (very wide images): vertically the grid is part of the form, so the form's
-    // scrollbar reaches its last row. (A scroll area of its own got just the space left below
-    // the sections above, often a 64 px strip.)
-    egui::ScrollArea::horizontal().id_salt("ts_solid").show(ui, |ui| {
-        let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-        let p = ui.painter_at(rect);
-        p.rect_filled(rect, 0.0, Color32::from_gray(30));
-        p.image(t.id(), rect, egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-        let animated: Vec<u32> = d.animations.iter().map(|a| a.tile).collect();
-        for i in 0..ts.count {
-            let r = egui::Rect::from_min_size(rect.min + vec2((i % ts.columns) as f32 * cell, (i / ts.columns) as f32 * cell), vec2(cell, cell));
-            p.rect_stroke(r, 0.0, Stroke::new(1.0_f32, Color32::from_white_alpha(20)), StrokeKind::Inside);
-            let low = d.low.contains(&i);
-            if d.solid.contains(&i) {
-                let c = if low { Color32::from_rgba_unmultiplied(255, 210, 0, 80) } else { Color32::from_rgba_unmultiplied(255, 0, 0, 70) };
-                p.rect_filled(r, 0.0, c);
-            }
-            if low {
-                p.text(r.right_bottom() + vec2(-2.0, -2.0), egui::Align2::RIGHT_BOTTOM, ui::ph::ARROW_FAT_LINES_DOWN, egui::FontId::proportional(14.0), Color32::from_rgb(255, 220, 60));
-            }
-            if animated.contains(&i) {
-                p.rect_stroke(r, 0.0, Stroke::new(2.0_f32, Color32::LIGHT_BLUE), StrokeKind::Inside);
-            }
-            if editing_terrain.as_ref().is_some_and(|(p, _)| d.terrains[p.terrain].contains(i) || d.terrains[p.terrain].base == Some(i)) {
-                p.rect_stroke(r.shrink(2.0), 0.0, Stroke::new(2.0_f32, Color32::from_rgb(90, 220, 255)), StrokeKind::Inside);
-            }
-            if d.steps.iter().any(|s| s.tiles.contains(&i)) {
-                p.text(r.center_bottom() + vec2(0.0, -2.0), egui::Align2::CENTER_BOTTOM, ui::ph::FOOTPRINTS, egui::FontId::proportional(14.0), Color32::from_rgb(230, 200, 150));
-            }
-            if d.ladder.contains(&i) {
-                p.text(r.left_bottom() + vec2(2.0, -2.0), egui::Align2::LEFT_BOTTOM, ui::ph::LADDER_SIMPLE, egui::FontId::proportional(16.0), Color32::from_rgb(120, 230, 120));
-            }
-            if d.lights.iter().any(|l| l.tile == i) {
-                p.text(r.right_top() + vec2(-3.0, 2.0), egui::Align2::RIGHT_TOP, ui::ph::LIGHTBULB, egui::FontId::proportional(16.0), Color32::YELLOW);
-            }
-            p.text(r.left_top() + vec2(2.0, 1.0), egui::Align2::LEFT_TOP, i.to_string(), egui::FontId::monospace(9.0), Color32::from_white_alpha(120));
-        }
-        if resp.clicked() {
-            if let Some(pos) = resp.interact_pointer_pos() {
-                let rel = pos - rect.min;
-                let i = (rel.y / cell) as u32 * ts.columns + (rel.x / cell) as u32;
-                let terrain_click = i < ts.count && cx.terrain_pick.as_mut().is_some_and(|p| crate::terrain::grid_click(d, ts, p, i));
-                if i < ts.count && !terrain_click {
-                    match cx.anim_target.and_then(|k| d.animations.get_mut(k)) {
-                        Some(a) => {
-                            if a.frames.is_empty() {
-                                a.tile = i;
-                            }
-                            a.frames.push(i);
-                        }
-                        None if *cx.tile_ladder_pick => match d.ladder.iter().position(|&l| l == i) {
-                            Some(k) => {
-                                d.ladder.remove(k);
-                            }
-                            None => {
-                                d.ladder.push(i);
-                                d.ladder.sort();
-                            }
-                        },
-                        None if *cx.tile_step_pick => set_tile_step(d, i, cx.tile_step_sound),
-                        None if *cx.tile_low_pick => {
-                            match d.low.iter().position(|&l| l == i) {
-                                Some(k) => {
-                                    d.low.remove(k);
-                                }
-                                None => {
-                                    d.low.push(i);
-                                    d.low.sort();
-                                }
-                            }
-                            if let Some(v) = ts.low.get_mut(i as usize) {
-                                *v = d.low.contains(&i);
-                            }
-                        }
-                        None if *cx.tile_light_pick => match d.lights.iter().position(|l| l.tile == i) {
-                            Some(k) => {
-                                d.lights.remove(k);
-                            }
-                            None => d.lights.push(rustpg2d_engine::defs::TileLight { tile: i, light: rustpg2d_engine::defs::LightSpec::torch(4.0) }),
-                        },
-                        None => {
-                            if let Some(k) = d.solid.iter().position(|&s| s == i) {
-                                d.solid.remove(k);
-                            } else {
-                                d.solid.push(i);
-                                d.solid.sort();
-                            }
-                            // Keep runtime flags in sync without a full reload.
-                            if let Some(v) = ts.solid.get_mut(i as usize) {
-                                *v = d.solid.contains(&i);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
-    if ts.anims != d.animations {
-        ts.set_animations(&d.animations);
-    }
-}
-
 /// Colour presets for colour features: (name, colours).
 pub const COLOR_PRESETS: [(&str, &[[u8; 3]]); 3] = [("Skin tones", &widgets::SKIN_PRESETS), ("Hair", &widgets::HAIR_PRESETS), ("Cloth", &widgets::CLOTH_PRESETS)];
 
@@ -2335,25 +2086,6 @@ struct Features<'a> {
     features: &'a mut Vec<rustpg2d_engine::defs::ColorFeature>,
 }
 
-/// A click on tile `i` in the footstep pick mode: it gets `sound`, or loses it when it has it
-/// already (a tile has one footstep sound; empty groups go).
-pub(crate) fn set_tile_step(d: &mut TilesetDef, i: u32, sound: &str) {
-    let had = d.steps.iter().any(|s| s.sound == sound && s.tiles.contains(&i));
-    for s in &mut d.steps {
-        s.tiles.retain(|&t| t != i);
-    }
-    if !had && !sound.trim().is_empty() {
-        match d.steps.iter_mut().find(|s| s.sound == sound) {
-            Some(s) => {
-                s.tiles.push(i);
-                s.tiles.sort();
-            }
-            None => d.steps.push(rustpg2d_engine::defs::TileSteps { sound: sound.trim().to_string(), tiles: vec![i] }),
-        }
-    }
-    d.steps.retain(|s| !s.tiles.is_empty());
-}
-
 fn sheet_form(ui: &mut egui::Ui, d: &mut SheetDef, cx: &mut Cx) {
     ui.heading("Sprite sheet");
     rename_row(ui, RefKind::Sheet, &d.id, cx.rename);
@@ -2472,14 +2204,14 @@ fn structure_form(ui: &mut egui::Ui, d: &mut StructureDef, cx: &mut Cx) -> bool 
         });
     });
     ui.horizontal_wrapped(|ui| {
-        let missing: Vec<&String> = d.tilesets.iter().filter(|t| cx.db.tileset(t).is_none()).collect();
-        let tilesets = if d.tilesets.is_empty() { "no tiles yet".to_string() } else { format!("tilesets: {}", d.tilesets.join(", ")) };
+        let missing: Vec<&String> = d.materials.iter().filter(|m| cx.db.material(m).is_none()).chain(d.decor_defs.iter().filter(|p| cx.db.prop(p).is_none())).collect();
+        let ground = if d.materials.is_empty() { "no ground".to_string() } else { format!("ground: {}", d.materials.join(", ")) };
         let props = match d.entities.len() {
             0 => String::new(),
             1 => " · 1 prop".to_string(),
             n => format!(" · {n} props"),
         };
-        ui.weak(format!("{} × {} tiles · {tilesets}{props}", d.w, d.h));
+        ui.weak(format!("{} × {} tiles · {ground} · {} decorations{props}", d.w, d.h, d.decor.len()));
         if !missing.is_empty() {
             ui.colored_label(Color32::YELLOW, format!("\u{E4E0} not in this project: {}", missing.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")));
         }
@@ -2534,6 +2266,112 @@ fn sound_form(ui: &mut egui::Ui, d: &mut SoundDef, cx: &mut Cx) {
     });
     ui.separator();
     ui.weak("Use sounds with the 'Play sound' / 'Play music' actions, as map music (map properties), or for built-in game events (Project tab).");
+}
+
+fn scatter_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::decor::ScatterDef, cx: &mut Cx) {
+    use rustpg2d_engine::decor::DecorLayer;
+    ui.heading("Scatter set");
+    rename_row(ui, RefKind::Scatter, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.weak("The Decorations tool's scatter brush places these props at random: a forest, flowers in a meadow, rocks on a slope.");
+    egui::Grid::new("scatter").num_columns(2).show(ui, |ui| {
+        ui.label("Density").on_hover_text("Decorations per tile under the brush (0.05: a sparse wood, 0.5: flowers).");
+        ui.add(egui::Slider::new(&mut d.density, 0.01..=2.0).logarithmic(true));
+        ui.end_row();
+        ui.label("Spacing").on_hover_text("The least distance between two of them (and from what is there already).");
+        ui.add(egui::Slider::new(&mut d.spacing, 0.0..=128.0).suffix(" px"));
+        ui.end_row();
+        ui.label("Layer").on_hover_text("Flat: on the ground · Sorted: with characters by their feet · Above: over everyone");
+        ui.horizontal(|ui| {
+            for l in DecorLayer::ALL {
+                ui.selectable_value(&mut d.layer, l, l.label());
+            }
+        });
+        ui.end_row();
+        ui.label("");
+        ui.checkbox(&mut d.flip, "Mirror half of them");
+        ui.end_row();
+    });
+    ui.separator();
+    ui.label("Props (how often each comes)");
+    let mut remove = None;
+    for (k, (prop, weight)) in d.props.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            widgets::suggest(ui, &format!("scatter_prop{k}"), prop, &cx.refs.props, 180.0);
+            ui.add(egui::DragValue::new(weight).range(1..=100).prefix("x "));
+            if ui.small_button(ui::t(ph::TRASH, "")).on_hover_text("Remove").clicked() {
+                remove = Some(k);
+            }
+        });
+    }
+    if let Some(k) = remove {
+        d.props.remove(k);
+    }
+    if ui.button(ui::t(ph::PLUS, "Prop")).clicked() {
+        d.props.push((String::new(), 1));
+    }
+}
+
+fn material_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::ground::MaterialDef, cx: &mut Cx) {
+    use rustpg2d_engine::ground::{Edge, Rim, Walk};
+    ui.heading("Material");
+    rename_row(ui, RefKind::Material, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    egui::Grid::new("material").num_columns(2).show(ui, |ui| {
+        ui.label("Texture").on_hover_text("A seamless picture (PNG, up to 256 x 256 px, sizes in steps of 8) repeated over the ground painted with this material.");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.texture).hint_text("materials/grass.png").desired_width(220.0));
+            if ui.button("Browse…").on_hover_text("Pick a PNG: files from elsewhere are copied into materials/").clicked() {
+                *cx.browse = Some(Purpose::MaterialTexture(d.id.clone()));
+            }
+        });
+        ui.end_row();
+        ui.label("Edge").on_hover_text("Crisp: a hard edge in steps of the art's pixels, made ragged by noise (pixel art). Soft: a fade into the neighbour.");
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut d.edge, Edge::Crisp, "Crisp");
+            ui.selectable_value(&mut d.edge, Edge::Soft, "Soft");
+        });
+        ui.end_row();
+        ui.label("Raggedness").on_hover_text("How far noise moves the edge, in pixels (0 = smooth curves along the painted cells).");
+        ui.add(egui::Slider::new(&mut d.edge_noise, 0.0..=4.0).suffix(" px"));
+        ui.end_row();
+        ui.label("Edge pixel").on_hover_text("The step size of a crisp edge: the size of the texture's pixels in world pixels (1, 2 or 4).");
+        ui.add(egui::Slider::new(&mut d.edge_pixel, 1..=4).suffix(" px"));
+        ui.end_row();
+        ui.label("Priority").on_hover_text("Where two materials meet, the one with the higher priority is drawn over the other (its edge shape wins). Water over sand over grass, for example.");
+        ui.add(egui::Slider::new(&mut d.priority, 0..=255));
+        ui.end_row();
+        ui.label("Rim").on_hover_text("A fringe drawn just outside the material's edge: a sandy band round a pond, a dark outline round a hole.");
+        ui.horizontal(|ui| {
+            let mut on = d.rim.is_some();
+            if ui.checkbox(&mut on, "").changed() {
+                d.rim = on.then_some(Rim { color: [200, 180, 120], width: 3 });
+            }
+            if let Some(r) = &mut d.rim {
+                ui.color_edit_button_srgb(&mut r.color);
+                ui.add(egui::Slider::new(&mut r.width, 1..=8).suffix(" px"));
+            }
+        });
+        ui.end_row();
+        ui.label("Walking").on_hover_text("Walkable; Solid blocks walking, shots and sight (a cliff); Low blocks walking only, shots fly over it (water).");
+        egui::ComboBox::from_id_salt("material_walk").selected_text(d.walk.label()).show_ui(ui, |ui| {
+            for w in Walk::ALL {
+                ui.selectable_value(&mut d.walk, w, w.label());
+            }
+        });
+        ui.end_row();
+        ui.label("Footsteps").on_hover_text("Sound played for each step on it (empty: none).");
+        widgets::suggest(ui, "material_step", &mut d.step, &cx.refs.sounds, 200.0);
+        ui.end_row();
+        ui.label("Flow").on_hover_text("The texture drifts this many pixels per second (flowing water; 0 = still).");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut d.scroll[0]).speed(0.5).prefix("x "));
+            ui.add(egui::DragValue::new(&mut d.scroll[1]).speed(0.5).prefix("y "));
+        });
+        ui.end_row();
+    });
+    ui.separator();
+    ui.weak("Paint it on maps with the Ground tool. Use \u{E036} Reload assets after changing the texture file.");
 }
 
 fn project_ui(ed: &mut Editor, ui: &mut egui::Ui) {

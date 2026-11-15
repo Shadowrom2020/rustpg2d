@@ -2,7 +2,7 @@
 
 use macroquad::prelude::*;
 use rustpg2d_engine::entity::{EntityInstance, EntityKind};
-use rustpg2d_engine::map::{CollisionOverride, Edge, Tile, Zone, ZoneKind};
+use rustpg2d_engine::map::{CollisionOverride, Edge, Zone, ZoneKind};
 use rustpg2d_engine::render::{self, OVERVIEW_THRESHOLD};
 
 use crate::app::{Editor, Mode, Selection, Tool, ZoneTemplate};
@@ -50,8 +50,8 @@ const M: usize = 2;
 
 pub enum Drag {
     Pan { last: Vec2 },
+    /// Collision tool: painting overrides.
     Paint { last: (i32, i32) },
-    Rect { start: (i32, i32) },
     MoveEntity { uid: u32, grab: Vec2, before: Box<Objects> },
     MoveZone { uid: u32, grab: (i32, i32), orig: (u32, u32), before: Box<Objects> },
     NewZone { start: (i32, i32) },
@@ -65,6 +65,10 @@ pub enum Drag {
     BoxSelect { start: (i32, i32) },
     /// Moving every object of a multi-selection by whole tiles.
     MoveMany { grab: (i32, i32), origs: Vec<crate::multisel::Orig>, before: Box<Objects> },
+    /// A Ground tool stroke (its state: `Editor::ground_drag`).
+    Ground,
+    /// A Decorations tool line or brush stroke (its state: `Editor::decor`).
+    Decor,
 }
 
 fn modifier_ctrl() -> bool {
@@ -339,17 +343,13 @@ impl Editor {
         }
         let tools = [
             (KeyCode::V, Tool::Select),
-            (KeyCode::B, Tool::Brush),
-            (KeyCode::R, Tool::Rect),
-            (KeyCode::F, Tool::Fill),
-            (KeyCode::E, Tool::Erase),
-            (KeyCode::I, Tool::Pick),
             (KeyCode::C, Tool::Collision),
             (KeyCode::N, Tool::Entity),
             (KeyCode::Z, Tool::Zone),
             (KeyCode::T, Tool::Link),
             (KeyCode::H, Tool::Structure),
-            (KeyCode::A, Tool::Terrain),
+            (KeyCode::P, Tool::Ground),
+            (KeyCode::O, Tool::Decor),
         ];
         for (k, t) in tools {
             if is_key_pressed(k) {
@@ -358,6 +358,25 @@ impl Editor {
         }
         if is_key_pressed(KeyCode::G) {
             self.view.grid = !self.view.grid;
+        }
+        // [ and ]: the Ground brush's size, a quarter tile at a time.
+        if self.tool == Tool::Ground {
+            let q = self.ts() / 8.0;
+            if is_key_pressed(KeyCode::LeftBracket) {
+                self.ground_size = (self.ground_size - q).max(q);
+            }
+            if is_key_pressed(KeyCode::RightBracket) {
+                self.ground_size = (self.ground_size + q).min(self.ts() * 4.0);
+            }
+        }
+        if self.tool == Tool::Decor {
+            let h = self.ts() / 4.0;
+            if is_key_pressed(KeyCode::LeftBracket) {
+                self.decor.size = (self.decor.size - h).max(h);
+            }
+            if is_key_pressed(KeyCode::RightBracket) {
+                self.decor.size = (self.decor.size + h).min(self.ts() * 8.0);
+            }
         }
         if is_key_pressed(KeyCode::Home) {
             self.fit_view();
@@ -408,61 +427,16 @@ impl Editor {
                 self.palette_scroll_to_armed = true;
             }
         }
-        let nums = [KeyCode::Key1, KeyCode::Key2, KeyCode::Key3, KeyCode::Key4, KeyCode::Key5, KeyCode::Key6, KeyCode::Key7, KeyCode::Key8, KeyCode::Key9];
-        let layers = self.doc.as_ref().map_or(0, |d| d.map.layers.len());
-        for (i, k) in nums.iter().enumerate() {
-            if is_key_pressed(*k) && i < layers {
-                self.layer = i;
-            }
-        }
     }
 
-    fn paint_stamp(&mut self, tx: i32, ty: i32, erase: bool) {
-        let (w, h) = (self.brush.w, self.brush.h);
-        for dy in 0..h {
-            for dx in 0..w {
-                let t = if erase { Tile::EMPTY } else { self.stamp_tile(dx, dy) };
-                if let Some(doc) = &mut self.doc {
-                    doc.paint(self.layer, tx + dx as i32, ty + dy as i32, t, &self.assets);
-                }
-            }
-        }
-    }
-
-    fn pick(&mut self, tile: (i32, i32)) {
-        let Some(doc) = &self.doc else { return };
-        if !doc.map.in_bounds(tile.0, tile.1) {
-            return;
-        }
-        // Top-most visible non-empty tile, preferring the active layer.
-        let order = std::iter::once(self.layer).chain((0..doc.map.layers.len()).rev());
-        for li in order {
-            let Some(l) = doc.map.layers.get(li) else { continue };
-            if let Some((slot, idx)) = l.get(tile.0 as u32, tile.1 as u32).parts() {
-                let Some(id) = doc.map.tilesets.get(slot) else { continue };
-                let Some(ts) = self.assets.tilesets.get(id) else { continue };
-                self.brush.tileset = id.clone();
-                self.brush.x = idx % ts.columns;
-                self.brush.y = idx / ts.columns;
-                self.brush.w = 1;
-                self.brush.h = 1;
-                self.layer = li;
-                if self.tool == Tool::Pick {
-                    self.tool = Tool::Brush;
-                }
-                return;
-            }
-        }
-    }
-
-    fn right_click(&mut self, tile: (i32, i32)) {
+    fn right_click(&mut self, _tile: (i32, i32)) {
         if self.pasting {
             self.stop_paste();
             return;
         }
         match self.tool {
-            Tool::Terrain => self.pick_terrain(tile),
-            t if t.paints_tiles() => self.pick(tile),
+            Tool::Ground => self.pick_ground(self.hover_world),
+            Tool::Decor => self.pick_decor(self.hover_world),
             // Right-click clears the placing cursor (and the selection).
             Tool::Entity => {
                 self.disarm();
@@ -480,7 +454,6 @@ impl Editor {
     fn mouse_down(&mut self, tile: (i32, i32), world: Vec2) {
         self.press_world = world;
         self.click_stack = None;
-        let layer_ok = self.doc.as_ref().is_some_and(|d| self.layer < d.map.layers.len());
         if self.pasting && self.tool == Tool::Select {
             if let Some(o) = self.paste_origin(tile) {
                 self.paste_at(o);
@@ -488,46 +461,18 @@ impl Editor {
             return;
         }
         match self.tool {
-            Tool::Brush | Tool::Erase if layer_ok => {
-                if let Some(doc) = &mut self.doc {
-                    doc.begin_stroke(self.layer, false);
-                }
-                self.paint_stamp(tile.0, tile.1, self.tool == Tool::Erase);
-                self.drag = Some(Drag::Paint { last: tile });
-            }
-            Tool::Rect if layer_ok => self.drag = Some(Drag::Rect { start: tile }),
-            Tool::Terrain if layer_ok => {
-                if self.active_terrain().is_none() {
-                    self.set_status("Pick a terrain in the left panel first");
-                    return;
-                }
-                if let Some(doc) = &mut self.doc {
-                    doc.begin_stroke(self.layer, false);
-                }
-                self.paint_terrain_at(tile, modifier_shift());
-                self.drag = Some(Drag::Paint { last: tile });
-            }
-            Tool::Fill if layer_ok => {
-                let (bw, bh) = (self.brush.w, self.brush.h);
-                let tiles: Vec<Vec<Tile>> = (0..bh).map(|dy| (0..bw).map(|dx| self.stamp_tile(dx, dy)).collect()).collect();
-                let (ox, oy) = (tile.0, tile.1);
-                let layer = self.layer;
-                if let Some(doc) = &mut self.doc {
-                    let n = doc.flood_fill(
-                        layer,
-                        tile.0,
-                        tile.1,
-                        |x, y| {
-                            let dx = (x as i32 - ox).rem_euclid(bw as i32) as usize;
-                            let dy = (y as i32 - oy).rem_euclid(bh as i32) as usize;
-                            tiles[dy][dx]
-                        },
-                        &self.assets,
-                    );
-                    self.set_status(format!("Filled {n} tiles"));
+            Tool::Ground => {
+                self.ground_down(world, modifier_shift());
+                if self.ground_drag.is_some() {
+                    self.drag = Some(Drag::Ground);
                 }
             }
-            Tool::Pick => self.pick(tile),
+            Tool::Decor => {
+                self.decor_down(world);
+                if self.decor.stroke.is_some() || self.decor.line_start.is_some() {
+                    self.drag = Some(Drag::Decor);
+                }
+            }
             Tool::Select => {
                 let stack = self.objects_at(world);
                 // Ctrl: an object goes into the selection or out of it; on empty space a box
@@ -579,7 +524,7 @@ impl Editor {
             Tool::Collision => {
                 let v = if modifier_shift() { CollisionOverride::Auto } else { CollisionOverride::Solid };
                 if let Some(doc) = &mut self.doc {
-                    doc.begin_stroke(0, true);
+                    doc.begin_stroke();
                     doc.paint_collision(tile.0, tile.1, v as u8);
                 }
                 self.drag = Some(Drag::Paint { last: tile });
@@ -619,11 +564,18 @@ impl Editor {
                     self.drag = Some(Drag::NewZone { start: tile });
                 }
             }
-            _ => {}
         }
     }
 
     fn mouse_drag(&mut self, tile: (i32, i32), world: Vec2) {
+        if self.ground_drag.is_some() {
+            self.ground_drag_to(world);
+            return;
+        }
+        if matches!(self.drag, Some(Drag::Decor)) {
+            self.decor_drag_to(world);
+            return;
+        }
         let free = modifier_shift();
         match self.drag.take() {
             Some(Drag::Paint { last }) => {
@@ -634,10 +586,6 @@ impl Editor {
                             if let Some(doc) = &mut self.doc {
                                 doc.paint_collision(t.0, t.1, v as u8);
                             }
-                        } else if self.tool == Tool::Terrain {
-                            self.paint_terrain_at(t, free);
-                        } else {
-                            self.paint_stamp(t.0, t.1, self.tool == Tool::Erase);
                         }
                     }
                 }
@@ -678,79 +626,20 @@ impl Editor {
     }
 
     fn mouse_up(&mut self, tile: (i32, i32)) {
+        if self.ground_drag.is_some() {
+            self.drag = None;
+            self.ground_up(self.hover_world, modifier_shift());
+            return;
+        }
+        if matches!(self.drag, Some(Drag::Decor)) {
+            self.drag = None;
+            self.decor_up(self.hover_world);
+            return;
+        }
         match self.drag.take() {
             Some(Drag::Paint { .. }) => {
                 if let Some(doc) = &mut self.doc {
                     doc.end_stroke();
-                }
-            }
-            Some(Drag::Rect { start }) => {
-                let (x0, y0, w, h) = rect_of(start, tile);
-                let erase = modifier_shift();
-                if let Some(doc) = &mut self.doc {
-                    doc.begin_stroke(self.layer, false);
-                }
-                for y in y0..y0 + h {
-                    for x in x0..x0 + w {
-                        let t = if erase { Tile::EMPTY } else { self.stamp_tile((x - x0) as u32, (y - y0) as u32) };
-                        if let Some(doc) = &mut self.doc {
-                            doc.paint(self.layer, x, y, t, &self.assets);
-                        }
-                    }
-                }
-                if let Some(doc) = &mut self.doc {
-                    doc.end_stroke();
-                }
-            }
-            Some(Drag::MoveEntity { before, .. }) | Some(Drag::MoveZone { before, .. }) => {
-                if let Some(doc) = &mut self.doc {
-                    doc.record_objects(*before, "move");
-                }
-                // A plain click on something already selected cycles through what's stacked there.
-                if let Some((stack, true)) = self.click_stack.take() {
-                    if !self.dragged(self.hover_world) && stack.len() > 1 {
-                        let i = stack.iter().position(|s| *s == self.sel).map_or(0, |i| (i + 1) % stack.len());
-                        self.sel = stack[i];
-                        self.on_map_scroll = true;
-                    }
-                }
-            }
-            Some(Drag::MoveMany { before, .. }) => {
-                if let Some(doc) = &mut self.doc {
-                    doc.record_objects(*before, "move");
-                }
-            }
-            Some(Drag::BoxSelect { start }) => {
-                if let Some(r) = self.doc.as_ref().and_then(|d| crate::clipboard::clip_rect(&d.map, start, tile)) {
-                    self.box_select(r);
-                }
-            }
-            Some(Drag::Region { start }) => {
-                if start != tile || self.dragged(self.hover_world) {
-                    if let Some(r) = self.doc.as_ref().and_then(|d| crate::clipboard::clip_rect(&d.map, start, tile)) {
-                        self.sel = Selection::Region(r);
-                        self.set_status(format!("Region {}×{} · Ctrl+C copy · Ctrl+X cut · Del clear", r.2, r.3));
-                    }
-                }
-            }
-            Some(Drag::Capture { start }) => {
-                let Some(doc) = &self.doc else { return };
-                let (mw, mh) = (doc.map.width as i32, doc.map.height as i32);
-                let (x0, y0, w, h) = rect_of(start, tile);
-                let (x1, y1) = ((x0 + w).min(mw), (y0 + h).min(mh));
-                let (x0, y0) = (x0.max(0), y0.max(0));
-                if x1 > x0 && y1 > y0 {
-                    self.capture_dragged((x0 as u32, y0 as u32, (x1 - x0) as u32, (y1 - y0) as u32));
-                }
-            }
-            Some(Drag::LinkRect { start }) => {
-                let Some(doc) = &self.doc else { return };
-                let (mw, mh) = (doc.map.width as i32, doc.map.height as i32);
-                let (x0, y0, w, h) = rect_of(start, tile);
-                let (x1, y1) = ((x0 + w).min(mw), (y0 + h).min(mh));
-                let (x0, y0) = (x0.max(0), y0.max(0));
-                if x1 > x0 && y1 > y0 {
-                    self.link_area((x0 as u32, y0 as u32, (x1 - x0) as u32, (y1 - y0) as u32));
                 }
             }
             Some(Drag::NewZone { start }) => {
@@ -809,8 +698,21 @@ impl Editor {
         self.doc = Some(doc);
     }
 
+    /// Draws decoration `i` of `map`.
+    fn draw_decor(&self, map: &rustpg2d_engine::map::Map, i: usize, tint: Color) {
+        let d = &map.decor[i];
+        let drawn = map.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).is_some_and(|p| self.assets.draw_sprite_flipped(&p.sprite_at(d.state as usize, get_time()), vec2(d.x as f32, d.y as f32), tint, d.flip));
+        if !drawn {
+            draw_rectangle(d.x as f32 - 8.0, d.y as f32 - 16.0, 16.0, 16.0, Color::new(1.0, 0.0, 1.0, 0.6));
+        }
+    }
+
     fn draw_map(&mut self, doc: &mut crate::doc::MapDoc, cam: &Camera2D, view: Rect, px: f32) {
         let ts = self.ts();
+        // The overview (minimap, far zoom) takes the decorations' colours after they changed.
+        if doc.overview.decor_stale {
+            doc.overview.refresh_decor(&doc.map, &self.assets, &self.project.db);
+        }
         // Lighting / weather preview: darkness, lights and the weather's tint (drawn over the map,
         // under the overlays), then the weather's particles.
         let weather = if self.view.weather { doc.map.weather } else { rustpg2d_engine::map::Weather::default() };
@@ -831,27 +733,9 @@ impl Editor {
             doc.overview.draw(&doc.map, ts);
         }
         let map = &doc.map;
-        let sets = self.assets.map_tilesets(map);
-        let tint = |i: usize| {
-            if self.view.dim_layers && i != self.layer {
-                Color::new(1.0, 1.0, 1.0, 0.35)
-            } else {
-                WHITE
-            }
-        };
-        // Zoomed far out, layers draw from chunk textures (`tile_cache`; RUSTPG2D_NO_TILE_CACHE
-        // turns it off, for comparisons).
-        let cached = !overview && self.cam.zoom * ts <= crate::tile_cache::CACHE_AT_PX && std::env::var_os("RUSTPG2D_NO_TILE_CACHE").is_none();
-        let sets_key = crate::tile_cache::sets_key(map, &sets);
-        self.tile_cache.begin(&map.name);
         if !overview {
-            for (i, l) in map.layers.iter().enumerate().filter(|(_, l)| l.visible && !l.above_entities) {
-                if cached {
-                    self.tile_cache.draw_layer(map, i, &sets, sets_key, ts, view, tint(i));
-                } else {
-                    render::draw_layer(map, l, &sets, ts, view, tint(i));
-                }
-            }
+            // The painted ground, as in the game.
+            self.ground_draw.draw(map, &self.project.db, &self.assets, view, WHITE);
             // Fish shadows in fishing spots, as in the game.
             for z in map.zones.iter().filter(|z| matches!(z.kind, ZoneKind::FishingSpot { .. })) {
                 let r = Rect::new(z.x as f32 * ts, z.y as f32 * ts, z.w as f32 * ts, z.h as f32 * ts);
@@ -859,15 +743,35 @@ impl Editor {
             }
         }
 
-        // Entities (y-sorted).
+        // Decorations near the view, by layer.
+        use rustpg2d_engine::decor::DecorLayer;
+        let reach = rustpg2d_engine::decor::REACH;
+        let near_view = |x: f32, y: f32| x > view.x - reach && x < view.x + view.w + reach && y > view.y - reach && y < view.y + view.h + reach;
+        let decor_in = |layer: DecorLayer| {
+            let mut v: Vec<usize> = map.decor.iter().enumerate().filter(|(_, d)| d.layer == layer && near_view(d.x as f32, d.y as f32)).map(|(i, _)| i).collect();
+            v.sort_by_key(|&i| map.decor[i].y);
+            v
+        };
+        if !overview {
+            for i in decor_in(DecorLayer::Flat) {
+                self.draw_decor(map, i, WHITE);
+            }
+        }
+        // Entities and decorations (y-sorted).
         let mut ents: Vec<&EntityInstance> = map
             .entities
             .iter()
             .filter(|e| e.x > view.x - 64.0 && e.x < view.x + view.w + 64.0 && e.y > view.y - 64.0 && e.y < view.y + view.h + 64.0)
             .collect();
         ents.sort_by(|a, b| a.y.total_cmp(&b.y));
+        let sorted_decor = if overview { Vec::new() } else { decor_in(DecorLayer::Sorted) };
+        let mut di = 0;
         if ents.len() < 5000 {
             for e in &ents {
+                while di < sorted_decor.len() && (map.decor[sorted_decor[di]].y as f32) <= e.y {
+                    self.draw_decor(map, sorted_decor[di], WHITE);
+                    di += 1;
+                }
                 let col = if e.active { WHITE } else { Color::new(1.0, 1.0, 1.0, 0.4) };
                 let pos = vec2(e.x, e.y);
                 let db = &self.project.db;
@@ -881,19 +785,15 @@ impl Editor {
                 }
             }
         }
+        for &i in &sorted_decor[di.min(sorted_decor.len())..] {
+            self.draw_decor(map, i, WHITE);
+        }
 
         if !overview {
-            for (i, l) in map.layers.iter().enumerate().filter(|(_, l)| l.visible && l.above_entities) {
-                let mut t = tint(i);
-                // Overhead layers get see-through while editing something below them.
-                if i != self.layer && (self.tool.paints_tiles() || self.tool == Tool::Terrain) {
-                    t.a *= 0.6;
-                }
-                if cached {
-                    self.tile_cache.draw_layer(map, i, &sets, sets_key, ts, view, t);
-                } else {
-                    render::draw_layer(map, l, &sets, ts, view, t);
-                }
+            // Decorations over everyone (see-through while placing decorations or painting).
+            let over = if matches!(self.tool, Tool::Decor | Tool::Ground) { Color::new(1.0, 1.0, 1.0, 0.6) } else { WHITE };
+            for i in decor_in(DecorLayer::Above) {
+                self.draw_decor(map, i, over);
             }
         }
         if self.view.parallax {
@@ -917,25 +817,42 @@ impl Editor {
         let tile_px = ts * self.cam.zoom;
 
         if (self.view.collision || self.tool == Tool::Collision) && tile_px >= 3.0 {
-            let is_solid = |slot: usize, i: u32| sets.get(slot).copied().flatten().is_some_and(|t| t.is_solid(i));
-            let is_high = |slot: usize, i: u32| sets.get(slot).copied().flatten().is_some_and(|t| t.is_high(i));
             for y in y0..y1 {
                 for x in x0..x1 {
                     let over = map.collision_at(x, y);
                     let (fx, fy) = (x as f32 * ts, y as f32 * ts);
-                    if map.tile_solid(x, y, &is_solid) {
-                        // Red: stops walking and shots; yellow: low (shots fly over it).
-                        let c = if over == CollisionOverride::Solid {
-                            Color::new(1.0, 0.1, 0.1, 0.55)
-                        } else if map.tile_blocks_shot(x, y, &is_high) {
-                            Color::new(1.0, 0.2, 0.2, 0.3)
-                        } else {
-                            Color::new(1.0, 0.85, 0.1, 0.35)
-                        };
-                        draw_rectangle(fx, fy, ts, ts, c);
+                    if over == CollisionOverride::Solid {
+                        draw_rectangle(fx, fy, ts, ts, Color::new(1.0, 0.1, 0.1, 0.55));
                     } else if over == CollisionOverride::Walkable {
                         draw_rectangle(fx, fy, ts, ts, Color::new(0.2, 1.0, 0.3, 0.3));
                     }
+                }
+            }
+            // The painted ground cell by cell (red: solid, yellow: low such as water), and the
+            // hitboxes of solid decorations.
+            if !map.ground.is_empty() && tile_px >= 8.0 {
+                use rustpg2d_engine::ground::{Walk, CELL, CELLS};
+                let table = rustpg2d_engine::ground::MaterialTable::new(&map.materials, &self.project.db);
+                let c = CELL as f32;
+                for cy in (y0 * CELLS) as i32..(y1 * CELLS) as i32 {
+                    for cx in (x0 * CELLS) as i32..(x1 * CELLS) as i32 {
+                        if map.collision_at(cx as u32 / CELLS, cy as u32 / CELLS) == CollisionOverride::Walkable {
+                            continue;
+                        }
+                        match table.walk_of(map.ground.get(cx, cy)) {
+                            Walk::Solid => draw_rectangle(cx as f32 * c, cy as f32 * c, c, c, Color::new(1.0, 0.2, 0.2, 0.3)),
+                            Walk::Low => draw_rectangle(cx as f32 * c, cy as f32 * c, c, c, Color::new(1.0, 0.85, 0.1, 0.3)),
+                            Walk::Walk => {}
+                        }
+                    }
+                }
+            }
+            for d in &map.decor {
+                let Some(p) = map.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).filter(|p| p.solid) else { continue };
+                let r = Rect::new(d.x as f32 - p.hitbox[0] / 2.0, d.y as f32 - p.hitbox[1], p.hitbox[0], p.hitbox[1]);
+                if r.overlaps(&view) {
+                    let c = if p.low { Color::new(1.0, 0.85, 0.1, 0.9) } else { Color::new(1.0, 0.2, 0.2, 0.9) };
+                    draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5 * px, c);
                 }
             }
         }
@@ -1056,11 +973,6 @@ impl Editor {
         if let Some((tx, ty)) = self.hover_tile {
             let (fx, fy) = (tx as f32 * ts, ty as f32 * ts);
             match (&self.drag, self.tool) {
-                (Some(Drag::Rect { start }), _) => {
-                    let (rx, ry, rw, rh) = rect_of(*start, (tx, ty));
-                    draw_rectangle(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, Color::new(1.0, 1.0, 0.3, 0.2));
-                    draw_rectangle_lines(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, 2.0 * px, YELLOW);
-                }
                 (Some(Drag::Region { start }), _) => {
                     let (rx, ry, rw, rh) = rect_of(*start, (tx, ty));
                     draw_rectangle(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, Color::new(0.35, 0.75, 1.0, 0.15));
@@ -1089,26 +1001,8 @@ impl Editor {
                 (None, Tool::Link) => {
                     draw_rectangle_lines(fx, fy, ts, ts, 2.0 * px, ORANGE);
                 }
-                (_, Tool::Brush | Tool::Rect | Tool::Fill) if self.drag.is_none() => {
-                    if let Some(t) = self.assets.tilesets.get(&self.brush.tileset) {
-                        let src = Rect::new(self.brush.x as f32 * ts, self.brush.y as f32 * ts, self.brush.w as f32 * ts, self.brush.h as f32 * ts);
-                        draw_texture_ex(
-                            &t.texture,
-                            fx,
-                            fy,
-                            Color::new(1.0, 1.0, 1.0, 0.6),
-                            DrawTextureParams { source: Some(src), ..Default::default() },
-                        );
-                        draw_rectangle_lines(fx, fy, src.w, src.h, 1.5 * px, YELLOW);
-                    }
-                }
-                (_, Tool::Terrain) => {
-                    let c = if modifier_shift() { RED } else { Color::new(0.4, 1.0, 0.5, 1.0) };
-                    draw_rectangle_lines(fx, fy, ts, ts, 2.0 * px, c);
-                }
-                (_, Tool::Erase) => {
-                    draw_rectangle_lines(fx, fy, self.brush.w as f32 * ts, self.brush.h as f32 * ts, 2.0 * px, RED);
-                }
+                (_, Tool::Ground) => self.draw_ground_hover(self.hover_world, px, modifier_shift()),
+                (_, Tool::Decor) => self.draw_decor_hover(self.hover_world, px),
                 (_, Tool::Entity) if self.drag.is_none() && !self.place_def.is_empty() => {
                     // Ghost of the definition about to be placed (unless hovering an entity).
                     let wide = self.def_tiles_wide(self.place_kind, &self.place_def);
@@ -1360,14 +1254,22 @@ fn route_edit(map: &mut rustpg2d_engine::map::Map, uid: u32, kind: crate::app::R
 }
 
 impl Editor {
-    /// Lights of the map for the lighting preview: tiles (cached, refreshed twice a second) and
-    /// placed props, characters and items.
+    /// Lights of the map for the lighting preview: decorations (cached, refreshed twice a
+    /// second) and placed props, characters and items.
     fn preview_lights(&mut self, map: &rustpg2d_engine::map::Map) -> Vec<render::lighting::Light> {
         use render::lighting::Light;
         let ts = self.ts();
         let now = get_time();
         if now - self.light_cache.0 > 0.5 || self.light_cache.1 != map.name {
-            self.light_cache = (now, map.name.clone(), render::lighting::tile_lights(map, &self.project.db, ts));
+            let mut lights = Vec::new();
+            for d in &map.decor {
+                let Some(p) = map.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)) else { continue };
+                if let Some(l) = p.state_light(d.state as usize) {
+                    let lift = self.assets.sprite_size(p.state_look(d.state as usize).0, ts).y * 0.65;
+                    lights.push(Light::new(vec2(d.x as f32, d.y as f32 - lift), l));
+                }
+            }
+            self.light_cache = (now, map.name.clone(), lights);
         }
         let mut out = self.light_cache.2.clone();
         let db = &self.project.db;

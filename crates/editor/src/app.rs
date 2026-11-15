@@ -3,10 +3,10 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use egui_macroquad::egui::{self, pos2, vec2, Color32, Sense, Stroke, StrokeKind};
+use egui_macroquad::egui::{self, Color32};
 use macroquad::prelude::Vec2;
 use rustpg2d_engine::entity::{EntityInstance, EntityKind, Facing};
-use rustpg2d_engine::map::{Edge, EdgeLink, Map, Respawn, Tile, Zone, ZoneKind, MAX_MAP_SIZE};
+use rustpg2d_engine::map::{Edge, EdgeLink, Map, Respawn, Zone, ZoneKind, MAX_MAP_SIZE};
 use rustpg2d_engine::audio::Audio;
 use rustpg2d_engine::defs::{ContainerSpec, LockSpec, ShopSpec, SpriteRef};
 use rustpg2d_engine::entity::{PatrolMode, PatrolRoute, ScheduleStop};
@@ -40,11 +40,6 @@ pub enum Mode {
 pub enum Tool {
     /// Default: click selects entities / zones, drag moves them. Never paints.
     Select,
-    Brush,
-    Rect,
-    Fill,
-    Erase,
-    Pick,
     Collision,
     Entity,
     Zone,
@@ -52,43 +47,34 @@ pub enum Tool {
     Link,
     /// Place multi-tile structures (houses, walls, rooms…) with one click.
     Structure,
-    /// Paint an auto-tiling terrain: edge tiles follow the neighbours.
-    Terrain,
+    /// Paint the ground with materials (`ground_tool.rs`).
+    Ground,
+    /// Place props freely as pictures (`decor_tool.rs`).
+    Decor,
 }
 
 impl Tool {
-    pub const ALL: [(Tool, &'static str, &'static str); 12] = [
+    pub const ALL: [(Tool, &'static str, &'static str); 8] = [
         (Tool::Select, "Select", "V"),
-        (Tool::Brush, "Brush", "B"),
-        (Tool::Rect, "Rect", "R"),
-        (Tool::Fill, "Fill", "F"),
-        (Tool::Erase, "Erase", "E"),
-        (Tool::Pick, "Pick", "I"),
-        (Tool::Terrain, "Terrain", "A"),
+        (Tool::Ground, "Ground", "P"),
         (Tool::Collision, "Collision", "C"),
         (Tool::Entity, "Entities", "N"),
         (Tool::Zone, "Zones", "Z"),
         (Tool::Link, "Transition", "T"),
         (Tool::Structure, "Structures", "H"),
+        (Tool::Decor, "Decorations", "O"),
     ];
-    pub fn paints_tiles(self) -> bool {
-        matches!(self, Tool::Brush | Tool::Rect | Tool::Fill | Tool::Erase | Tool::Pick)
-    }
     pub fn icon(self) -> &'static str {
         use crate::ui::ph;
         match self {
             Tool::Select => ph::CURSOR,
-            Tool::Brush => ph::PAINT_BRUSH,
-            Tool::Rect => ph::RECTANGLE,
-            Tool::Fill => ph::PAINT_BUCKET,
-            Tool::Erase => ph::ERASER,
-            Tool::Pick => ph::EYEDROPPER,
             Tool::Collision => ph::WALL,
             Tool::Entity => ph::SHAPES,
             Tool::Zone => ph::BOUNDING_BOX,
             Tool::Link => ph::SIGNPOST,
             Tool::Structure => ph::HOUSE,
-            Tool::Terrain => ph::MOUNTAINS,
+            Tool::Ground => ph::PAINT_BRUSH_BROAD,
+            Tool::Decor => ph::TREE,
         }
     }
     pub fn name(self) -> &'static str {
@@ -101,29 +87,15 @@ impl Tool {
     pub fn help(self) -> &'static str {
         match self {
             Tool::Select => "Click selects an entity or zone, drag moves it, click again cycles through stacked objects; drag on empty space (or Shift+drag) selects a region to copy (Ctrl+C), cut (Ctrl+X) and paste (Ctrl+V); right-click deselects",
-            Tool::Brush => "Click or drag paints the stamp on the active layer; right-click picks the tile under the cursor",
-            Tool::Rect => "Drag a rectangle to fill it with the stamp; Shift+drag erases",
-            Tool::Fill => "Click fills the connected area of identical tiles with the stamp",
-            Tool::Erase => "Click or drag empties tiles on the active layer",
-            Tool::Pick => "Click picks the tile under the cursor as the stamp (right-click does this with any paint tool)",
-            Tool::Collision => "Left: force solid · right: force walkable · Shift+left: back to the tileset default",
+            Tool::Collision => "Left: force solid · right: force walkable · Shift+left: back to automatic (ground and decorations decide)",
             Tool::Entity => "Pick a prop, character or item in the panel and click the map to place it; right-click or Esc stops placing",
             Tool::Zone => "Drag to draw a zone (spawn, portal, trigger, spawner); click selects one, drag moves it",
             Tool::Link => "Drag over the exit area, choose the target map, then drag the arrival area on that map",
             Tool::Structure => "Pick a structure in the panel and click the map to place it; New from map area captures a rectangle as a structure",
-            Tool::Terrain => "Pick a terrain in the panel, then click or drag: edge tiles follow the neighbours; Shift erases, right-click picks the terrain under the cursor",
+            Tool::Ground => "Paint the ground with a material: brush, line or fill (left panel), [ ] change the size; Shift erases, right-click picks the material under the cursor",
+            Tool::Decor => "Place props freely as pictures: one per click, a line of wall pieces, a scatter brush (forests, flowers) or the eraser (left panel); right-click picks the one under the cursor",
         }
     }
-}
-
-/// Selected rectangle of tiles in a tileset (the stamp).
-#[derive(Clone, Debug)]
-pub struct Brush {
-    pub tileset: String,
-    pub x: u32,
-    pub y: u32,
-    pub w: u32,
-    pub h: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -149,14 +121,13 @@ pub struct ViewOpts {
     pub grid: bool,
     pub collision: bool,
     pub zones: bool,
-    pub dim_layers: bool,
     pub minimap: bool,
     /// Shows the map's darkness and lights at `hour` (outdoor maps) in the editor.
     pub lighting: bool,
     pub hour: f32,
     /// Shows the map's weather (particles, darker rain) in the editor.
     pub weather: bool,
-    /// Draws the map's parallax layers (behind the tiles and over the map).
+    /// Draws the map's parallax layers (behind and over the map).
     pub parallax: bool,
 }
 
@@ -252,8 +223,6 @@ pub struct Editor {
     pub maps: Vec<String>,
     pub mode: Mode,
     pub tool: Tool,
-    pub layer: usize,
-    pub brush: Brush,
     pub cam: Cam,
     pub sel: Selection,
     /// A multi-selection (`multisel.rs`): the primary `sel` it was made with, and every selected
@@ -274,8 +243,6 @@ pub struct Editor {
     pub import_report: Option<(bool, String)>,
     /// Events mode: layout, scope and editing state of the graph.
     pub graph: crate::graph::GraphState,
-    /// Terrain tool: the armed terrain (tileset id, index into its terrains).
-    pub terrain: Option<(String, usize)>,
     /// Copied region / entity (Ctrl+C / Ctrl+X), pasted with Ctrl+V; kept across maps.
     pub clipboard: Option<rustpg2d_engine::defs::StructureDef>,
     /// Ctrl+V armed the clipboard: the Select tool shows it at the mouse, clicks paste it.
@@ -311,8 +278,17 @@ pub struct Editor {
     pub light_pass: Option<rustpg2d_engine::render::lighting::LightPass>,
     /// Weather preview particles.
     pub weather_fx: rustpg2d_engine::render::weather::WeatherFx,
-    /// Chunk textures of the open map's tile layers, for views zoomed far out.
-    pub tile_cache: crate::tile_cache::TileCache,
+    /// Draws the painted ground (as the game does).
+    pub ground_draw: rustpg2d_engine::render::ground::GroundRenderer,
+    /// The material the Ground tool paints with ("" = erase).
+    pub ground_material: String,
+    pub ground_mode: crate::ground_tool::GroundMode,
+    /// The Ground brush's radius in pixels.
+    pub ground_size: f32,
+    /// A ground stroke in progress.
+    pub ground_drag: Option<crate::ground_tool::GroundDrag>,
+    /// The Decorations tool.
+    pub decor: crate::decor_tool::DecorTool,
     pub light_cache: (f64, String, Vec<rustpg2d_engine::render::lighting::Light>),
     /// Main editor: the Asset Library window it started.
     pub lib_window: crate::library_window::LibWindow,
@@ -341,7 +317,6 @@ pub struct Editor {
     pub click_stack: Option<(Vec<Selection>, bool)>,
     pub drag: Option<crate::canvas::Drag>,
     pub quit: bool,
-    pub palette_drag: Option<(u32, u32)>,
     /// Native file dialog currently open.
     pub file_dialog: Option<files::PendingDialog>,
     /// A form asked for a file dialog this frame.
@@ -355,8 +330,9 @@ pub struct Editor {
 }
 
 impl Editor {
-    /// An editor with the project at `root` open.
-    pub fn new(root: PathBuf) -> anyhow::Result<Self> {
+    /// An editor with the project at `root` open (`file`: the project file it is the working
+    /// copy of, for backups).
+    pub fn new(root: PathBuf, file: Option<&Path>) -> anyhow::Result<Self> {
         // Projects from before tiles were fixed at 32 px are converted first (with a backup),
         // restoring library art that was shrunken for them.
         let mut converted = None;
@@ -364,6 +340,8 @@ impl Editor {
             let lib = rustpg2d_engine::library::open_library(&rustpg2d_engine::library::library_dir(), Some(crate::library_ui::STARTER)).ok();
             converted = rustpg2d_engine::migrate::upgrade(&root, lib.as_ref())?;
         }
+        // Projects from before painted maps: tiles become ground and decorations (with a backup).
+        let tiles = if rustpg2d_engine::convert_tiles::needs_conversion(&root) { Some(convert_tile_project(&root, file)?) } else { None };
         let (project, warnings) = Project::load_with_warnings(&root)?;
         let mut ed = Self::with_project(project, true);
         ed.note_defs_warnings(warnings);
@@ -383,6 +361,13 @@ impl Editor {
             println!("[editor] {}", c.summary());
             ed.set_status(c.summary());
         }
+        if let Some(r) = tiles {
+            println!("[editor] {}", r.summary());
+            for w in &r.warnings {
+                eprintln!("[editor] converting tiles: {w}");
+            }
+            ed.set_status(r.summary());
+        }
         Ok(ed)
     }
 
@@ -396,7 +381,7 @@ impl Editor {
                 anyhow::bail!("{} is not an R(ust)PG2D project (no project.ron)", path.display());
             }
             if folders_allowed() {
-                let ed = Editor::new(path.clone())?;
+                let ed = Editor::new(path.clone(), None)?;
                 files::remember_recent(&path);
                 return Ok(ed);
             }
@@ -412,7 +397,7 @@ impl Editor {
             return Ok(ed);
         }
         let mut pf = ProjectFile::open(&path)?;
-        let mut ed = Editor::new(pf.work.clone())?;
+        let mut ed = Editor::new(pf.work.clone(), Some(&pf.path))?;
         files::remember_recent(&pf.path);
         if let Some(n) = pf.note.take() {
             ed.set_status(n);
@@ -481,7 +466,7 @@ impl Editor {
     #[cfg(test)]
     pub(crate) fn headless(project: Project) -> Self {
         crate::ui::set_headless();
-        let assets = Assets { tile_size: rustpg2d_engine::project::TILE_SIZE as f32, tilesets: HashMap::new(), sheets: HashMap::new(), errors: Vec::new(), models: Default::default() };
+        let assets = Assets { tile_size: rustpg2d_engine::project::TILE_SIZE as f32, sheets: HashMap::new(), materials: HashMap::new(), material_colors: HashMap::new(), generation: 0, errors: Vec::new(), models: Default::default() };
         let mut ed = Self::with_parts(project, true, assets, Audio::silent());
         ed.mode = Mode::Database;
         ed
@@ -489,7 +474,6 @@ impl Editor {
 
     fn with_parts(project: Project, project_open: bool, assets: Assets, audio: Audio) -> Self {
         let maps = project.list_maps();
-        let brush_ts = project.db.tilesets.first().map(|t| t.id.clone()).unwrap_or_default();
         Editor {
             link: None,
             quick: Default::default(),
@@ -513,8 +497,6 @@ impl Editor {
             maps,
             mode: Mode::Map,
             tool: Tool::Select,
-            layer: 0,
-            brush: Brush { tileset: brush_ts, x: 0, y: 0, w: 1, h: 1 },
             cam: Cam { center: Vec2::ZERO, zoom: 2.0 },
             sel: Selection::None,
             multi: None,
@@ -524,7 +506,6 @@ impl Editor {
             place_filter: String::new(),
             place_structure: String::new(),
             clipboard: None,
-            terrain: None,
             graph: Default::default(),
             import: None,
             import_report: None,
@@ -533,10 +514,15 @@ impl Editor {
             capture: Default::default(),
             place_recent: Vec::new(),
             zone_template: ZoneTemplate::Spawn,
-            view: ViewOpts { grid: true, collision: false, zones: true, dim_layers: false, minimap: true, lighting: false, hour: 22.0, weather: false, parallax: true },
+            view: ViewOpts { grid: true, collision: false, zones: true, minimap: true, lighting: false, hour: 22.0, weather: false, parallax: true },
             light_pass: None,
             weather_fx: Default::default(),
-            tile_cache: Default::default(),
+            ground_draw: Default::default(),
+            ground_material: String::new(),
+            ground_mode: Default::default(),
+            ground_size: 24.0,
+            ground_drag: None,
+            decor: Default::default(),
             light_cache: (-1.0, String::new(), Vec::new()),
             status: (String::new(), 0.0),
             notices: Vec::new(),
@@ -576,7 +562,6 @@ impl Editor {
             click_stack: None,
             drag: None,
             quit: false,
-            palette_drag: None,
             file_dialog: None,
             browse_request: None,
             mcp: Default::default(),
@@ -683,7 +668,6 @@ impl Editor {
     pub(crate) fn load_doc(&mut self, map: Map) {
         let ts = self.ts();
         self.cam.center = macroquad::math::vec2(map.width as f32 * ts / 2.0, map.height as f32 * ts / 2.0);
-        self.layer = self.layer.min(map.layers.len().saturating_sub(1));
         self.sel = Selection::None;
         self.drag = None;
         self.doc = Some(MapDoc::new(map, &self.assets));
@@ -765,6 +749,11 @@ impl Editor {
     }
 
     pub fn reload_assets(&mut self) {
+        if crate::ui::headless() {
+            // (No window: no textures or sounds to load; the UI tests.)
+            self.refresh_refs();
+            return;
+        }
         self.lib.tex_dirty = true; // library thumbnails (the library window shows its own art)
         self.assets = Assets::load(&self.project);
         self.audio.stop_music();
@@ -984,13 +973,12 @@ impl Editor {
 
         // Editor state that refers to ids.
         match kind {
-            RefKind::Tileset if self.brush.tileset == old => self.brush.tileset = new.to_string(),
             RefKind::Prop | RefKind::Character | RefKind::Item if self.place_def == old => self.place_def = new.to_string(),
             RefKind::Structure if self.place_structure == old => self.place_structure = new.to_string(),
             _ => {}
         }
         self.save_defs();
-        if matches!(kind, RefKind::Tileset | RefKind::Sheet | RefKind::Sound) {
+        if matches!(kind, RefKind::Material | RefKind::Sheet | RefKind::Sound) {
             self.reload_assets();
         }
         self.refresh_refs();
@@ -1227,10 +1215,10 @@ impl Editor {
                 let msg = self.use_model_file(id, clips, &rel);
                 self.set_status(msg);
             }
-            P::TilesetImage(ref id) | P::SheetImage(ref id) | P::SoundFile(ref id) => {
+            P::MaterialTexture(ref id) | P::SheetImage(ref id) | P::SoundFile(ref id) => {
                 let id = id.clone();
                 let sub = match purpose {
-                    P::TilesetImage(_) => "tilesets",
+                    P::MaterialTexture(_) => "materials",
                     P::SheetImage(_) => "sprites",
                     _ => "sounds",
                 };
@@ -1243,7 +1231,7 @@ impl Editor {
                 };
                 let db = &mut self.project.db;
                 match purpose {
-                    P::TilesetImage(_) => db.tilesets.iter_mut().filter(|d| d.id == id).for_each(|d| d.image = rel.clone()),
+                    P::MaterialTexture(_) => db.materials.iter_mut().filter(|d| d.id == id).for_each(|d| d.texture = rel.clone()),
                     P::SheetImage(_) => db.sheets.iter_mut().filter(|d| d.id == id).for_each(|d| d.image = rel.clone()),
                     _ => db.sounds.iter_mut().filter(|d| d.id == id).for_each(|d| d.file = rel.clone()),
                 }
@@ -1278,15 +1266,6 @@ impl Editor {
     }
 
     // ------------------------------------------------------------ helpers
-
-    /// Brush tile at stamp offset (dx, dy), registering the tileset on the map.
-    pub fn stamp_tile(&mut self, dx: u32, dy: u32) -> Tile {
-        let Some(doc) = &mut self.doc else { return Tile::EMPTY };
-        let Some(ts) = self.assets.tilesets.get(&self.brush.tileset) else { return Tile::EMPTY };
-        let slot = doc.map.tileset_slot(&self.brush.tileset);
-        let (x, y) = (self.brush.x + dx % self.brush.w, self.brush.y + dy % self.brush.h);
-        Tile::new(slot, y * ts.columns + x)
-    }
 
     /// Snaps an entity's feet position to the grid. Props an even number of tiles wide are
     /// centered on a tile edge, odd ones on a tile center (so they cover whole tiles).
@@ -1777,7 +1756,7 @@ impl Editor {
                     }
                 });
                 ui.menu_button("Assets", |ui| {
-                    if ui.button(ui::t(ph::SPARKLE, "New asset…")).on_hover_text("A prop, item, character, tileset, sprite sheet or structure for this project").clicked() {
+                    if ui.button(ui::t(ph::SPARKLE, "New asset…")).on_hover_text("A prop, item, character, ground material, sprite sheet or structure for this project").clicked() {
                         self.wizard = Some(crate::wizard::Wizard::new(&self.project));
                         ui.close_menu();
                     }
@@ -1820,7 +1799,6 @@ impl Editor {
                     ui.checkbox(&mut self.view.grid, "Grid   G");
                     ui.checkbox(&mut self.view.collision, "Collision overlay");
                     ui.checkbox(&mut self.view.zones, "Zones & edges");
-                    ui.checkbox(&mut self.view.dim_layers, "Dim inactive layers");
                     ui.checkbox(&mut self.view.minimap, "Minimap");
                     ui.checkbox(&mut self.view.lighting, "Lighting preview");
                     ui.checkbox(&mut self.view.weather, "Weather preview");
@@ -1839,7 +1817,7 @@ impl Editor {
                 ui.separator();
                 ui::tab(ui, self.mode == Mode::Map, ph::MAP_TRIFOLD, "Map").on_hover_text("Maps: tiles, entities, zones, transitions").clicked().then(|| self.mode = Mode::Map);
                 ui::tab(ui, self.mode == Mode::Events, ph::GRAPH, "Events").on_hover_text("The open map's events as a graph: triggers, dialogs and choices, the scripts they run, events, flags and variables, where they lead").clicked().then(|| self.mode = Mode::Events);
-                ui::tab(ui, self.mode == Mode::Database, ph::DATABASE, "Database").on_hover_text("Definitions: items, props, characters, tilesets, sprite sheets, sounds, structures, quests, project settings, scripts").clicked().then(|| self.mode = Mode::Database);
+                ui::tab(ui, self.mode == Mode::Database, ph::DATABASE, "Database").on_hover_text("Definitions: items, props, characters, materials, scatter sets, sprite sheets, sounds, structures, quests, project settings, scripts").clicked().then(|| self.mode = Mode::Database);
                 let px_label = if self.px.is_dirty() { "Pixel editor •" } else { "Pixel editor" };
                 ui::tab(ui, self.mode == Mode::Pixel, ph::IMAGE, px_label).on_hover_text("Draw and edit the project's images").clicked().then(|| self.mode = Mode::Pixel);
                 if ui.button(ui::t(ph::BOOKS, &format!("Asset Library {}", ph::ARROW_SQUARE_OUT))).on_hover_text("Opens the shared asset library in its own window: edit, create, import and export library assets").clicked() {
@@ -1877,9 +1855,9 @@ impl Editor {
                 });
                 let groups: [(&str, &[Tool]); 4] = [
                     ("Select", &[Tool::Select]),
-                    ("Paint", &[Tool::Brush, Tool::Rect, Tool::Fill, Tool::Erase, Tool::Pick, Tool::Terrain]),
+                    ("Paint", &[Tool::Ground]),
                     ("Collision", &[Tool::Collision]),
-                    ("Objects", &[Tool::Entity, Tool::Zone, Tool::Link, Tool::Structure]),
+                    ("Objects", &[Tool::Decor, Tool::Entity, Tool::Zone, Tool::Link, Tool::Structure]),
                 ];
                 for (caption, tools) in groups {
                     ui::group(ui, caption, |ui| {
@@ -1890,22 +1868,10 @@ impl Editor {
                         }
                     });
                 }
-                ui::group(ui, "Layer", |ui| {
-                    let names: Vec<String> = self.doc.as_ref().map_or(Vec::new(), |d| d.map.layers.iter().map(|l| l.name.clone()).collect());
-                    let current = names.get(self.layer).cloned().unwrap_or_else(|| "–".into());
-                    egui::ComboBox::from_id_salt("ribbon_layer").selected_text(format!("{}. {current}", self.layer + 1)).width(130.0).show_ui(ui, |ui| {
-                        for (i, n) in names.iter().enumerate() {
-                            ui.selectable_value(&mut self.layer, i, format!("{}. {n}", i + 1));
-                        }
-                    })
-                    .response
-                    .on_hover_text("The layer paint tools work on (keys 1–9). Visibility, order and new layers: Layers in the left panel");
-                });
                 ui::group(ui, "View", |ui| {
                     ui::toggle(ui, &mut self.view.grid, ph::GRID_FOUR, "Grid", "G", "Tile grid over the map");
                     ui::toggle(ui, &mut self.view.collision, ph::WALL, "Collision overlay", "", "Red = blocked, green = walkable override");
                     ui::toggle(ui, &mut self.view.zones, ph::BOUNDING_BOX, "Zones & edges", "", "Zone rectangles, labels and edge links");
-                    ui::toggle(ui, &mut self.view.dim_layers, ph::STACK, "Dim inactive layers", "", "Fades every layer except the active one");
                     ui::toggle(ui, &mut self.view.minimap, ph::MAP_TRIFOLD, "Minimap", "", "Overview in the corner of the map");
                     ui::toggle(ui, &mut self.view.lighting, ph::LIGHTBULB, "Lighting preview", "", "Shows the map's darkness and its lights as in the game (outdoor maps at the hour chosen next to it)");
                     ui::toggle(ui, &mut self.view.weather, ph::CLOUD_RAIN, "Weather preview", "", "Shows the map's rain, snow or fog as in the game (set it in the map's settings: nothing selected)");
@@ -1942,9 +1908,10 @@ impl Editor {
                 if let (Some(doc), Some((x, y))) = (&self.doc, self.hover_tile) {
                     ui.monospace(format!("tile {x},{y}"));
                     if doc.map.in_bounds(x, y) {
-                        let t = doc.map.layers.get(self.layer).map(|l| l.get(x as u32, y as u32));
-                        if let Some((slot, i)) = t.and_then(|t| t.parts()) {
-                            ui.monospace(format!("[{}#{}]", doc.map.tilesets.get(slot).map_or("?", |s| s.as_str()), i));
+                        // The material in the middle of the tile.
+                        let c = rustpg2d_engine::ground::CELLS as i32;
+                        if let Some(m) = doc.map.material_of(doc.map.ground.get(x * c + c / 2, y * c + c / 2)) {
+                            ui.monospace(format!("[{m}]"));
                         }
                     }
                     ui.separator();
@@ -2115,7 +2082,7 @@ impl Editor {
                     ui.add(egui::DragValue::new(&mut d.height).range(1..=MAX_MAP_SIZE));
                     ui.end_row();
                 });
-                ui.checkbox(&mut d.fill, "Fill ground with the current brush tile");
+                ui.checkbox(&mut d.fill, "Fill the ground with the Ground tool's material").on_hover_text("Choose the material with the Ground tool (P)");
                 let valid = valid_name(&d.name);
                 let exists = self.maps.contains(&d.name);
                 if !valid {
@@ -2135,15 +2102,9 @@ impl Editor {
             if create {
                 let mut map = Map::new(&d.name, d.width, d.height);
                 self.doc = None;
-                if d.fill {
-                    if let Some(ts) = self.assets.tilesets.get(&self.brush.tileset) {
-                        let slot = map.tileset_slot(&self.brush.tileset);
-                        let t = Tile::new(slot, self.brush.y * ts.columns + self.brush.x);
-                        for y in 0..map.height {
-                            for x in 0..map.width {
-                                map.layers[0].set(x, y, t);
-                            }
-                        }
+                if d.fill && !self.ground_material.is_empty() {
+                    if let Some(v) = map.material_value(&self.ground_material.clone()) {
+                        map.ground.fill(v);
                     }
                 }
                 self.load_doc(map);
@@ -2183,76 +2144,9 @@ impl Editor {
 
     // ------------------------------------------------------------ left panel
 
-    /// Left panel: the active tool's options, then the map's layers.
+    /// Left panel: the active tool's options.
     fn left_panel(&mut self, ui: &mut egui::Ui) {
         self.tool_options(ui);
-        ui.add_space(6.0);
-        ui.separator();
-        egui::CollapsingHeader::new(ui::t(ph::STACK, "Layers")).default_open(true).show(ui, |ui| self.layers_panel(ui));
-    }
-
-    /// Visibility, order, names and the active layer of the open map.
-    fn layers_panel(&mut self, ui: &mut egui::Ui) {
-        if let Some(doc) = &mut self.doc {
-            let n = doc.map.layers.len();
-            let mut layer_op: Option<(&str, usize)> = None;
-            for i in 0..n {
-                let l = &mut doc.map.layers[i];
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut l.visible, "").on_hover_text("Visible");
-                    if ui.selectable_label(self.layer == i, format!("{}. {}", i + 1, l.name)).clicked() {
-                        self.layer = i;
-                    }
-                    if l.above_entities {
-                        ui.weak("overhead");
-                    }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if n > 1 && ui.small_button(ph::TRASH).on_hover_text("Delete layer").clicked() {
-                            layer_op = Some(("del", i));
-                        }
-                        if i + 1 < n && ui.small_button(ph::ARROW_DOWN).on_hover_text("Move down (drawn later)").clicked() {
-                            layer_op = Some(("down", i));
-                        }
-                        if i > 0 && ui.small_button(ph::ARROW_UP).on_hover_text("Move up (drawn earlier)").clicked() {
-                            layer_op = Some(("up", i));
-                        }
-                    });
-                });
-            }
-            if let Some(l) = doc.map.layers.get_mut(self.layer) {
-                ui.horizontal(|ui| {
-                    ui.label("Name");
-                    ui.add(egui::TextEdit::singleline(&mut l.name).desired_width(110.0));
-                    ui.checkbox(&mut l.above_entities, "overhead").on_hover_text("Drawn above characters, never collides");
-                });
-            }
-            if ui.button(ui::t(ph::PLUS, "Layer")).clicked() {
-                layer_op = Some(("add", 0));
-            }
-            if let Some((op, i)) = layer_op {
-                let before = doc.map.clone();
-                match op {
-                    "add" => {
-                        let name = format!("Layer {}", n + 1);
-                        doc.map.add_layer(&name, false);
-                        self.layer = n;
-                    }
-                    "del" => {
-                        doc.map.layers.remove(i);
-                        self.layer = self.layer.min(doc.map.layers.len() - 1);
-                    }
-                    "up" => {
-                        doc.map.layers.swap(i, i - 1);
-                        self.layer = i - 1;
-                    }
-                    _ => {
-                        doc.map.layers.swap(i, i + 1);
-                        self.layer = i + 1;
-                    }
-                }
-                doc.record_map(before, &self.assets);
-            }
-        }
     }
 
     /// The active tool's panel (palette, placement list, structures, help).
@@ -2262,17 +2156,15 @@ impl Editor {
                 ui.heading("Select");
                 ui.label("Click an entity or zone to select it, drag to move it. Click again to cycle through objects on the same spot. Clicking empty space or right-click deselects.");
                 ui.label("Several at once: Ctrl+click adds or removes an object, Ctrl+drag on empty space selects the entities and zones in the box. Drag one of them to move them all; Del, Ctrl+D, Ctrl+C and Ctrl+X act on all.");
-                ui.label("Drag on empty space (Shift+drag anywhere) to select a region of tiles: Ctrl+C copies it (all layers, collision, entities), Ctrl+X cuts it, Del clears it. Ctrl+V pastes: the copy follows the mouse, each click places it, Esc stops. The clipboard is kept when you open another map.");
-                ui.weak("Nothing is painted with this tool. Pick a tile below (or press B / R / F) to paint; Esc returns here.");
-                ui.separator();
-                self.palette(ui);
+                ui.label("Drag on empty space (Shift+drag anywhere) to select a region: Ctrl+C copies it (ground, decorations, collision, entities), Ctrl+X cuts it, Del clears it. Ctrl+V pastes: the copy follows the mouse, each click places it, Esc stops. The clipboard is kept when you open another map.");
+                ui.weak("Nothing is painted with this tool: paint the ground with the Ground tool (P), place trees, rocks and walls with Decorations (O); Esc returns here.");
             }
-            Tool::Terrain => self.terrain_palette(ui),
-            t if t.paints_tiles() => self.palette(ui),
+            Tool::Ground => self.ground_palette(ui),
+            Tool::Decor => self.decor_palette(ui),
             Tool::Collision => {
                 ui.heading("Collision");
-                ui.label("Left: force solid\nRight: force walkable\nShift+Left: reset to tileset default");
-                ui.weak("Red = blocked, green = walkable override. Tileset tiles flagged solid block automatically (edit flags in Database \u{E13A} Tilesets).");
+                ui.label("Left: force solid\nRight: force walkable\nShift+Left: back to automatic");
+                ui.weak("Red = blocked, green = walkable override. Automatically, solid ground materials (Database \u{E13A} Materials) and solid decorations and props block.");
             }
             Tool::Entity => self.entity_palette(ui),
             Tool::Structure => self.structure_palette(ui),
@@ -2294,74 +2186,7 @@ impl Editor {
                 ui.radio_value(&mut self.zone_template, ZoneTemplate::Transition, "Map transition (link it to another map in the inspector)");
                 ui.weak("Click a zone to select it, drag to move. Map-edge transitions are set in the map properties (right panel, nothing selected).");
             }
-            _ => {}
         }
-    }
-
-    fn palette(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.heading("Tileset");
-            self.add_from_library_button(ui, Some(rustpg2d_engine::refactor::RefKind::Tileset));
-        });
-        let mut ids: Vec<String> = self.project.db.tilesets.iter().map(|t| t.id.clone()).collect();
-        ids.sort();
-        egui::ComboBox::from_id_salt("brush_ts").selected_text(self.brush.tileset.as_str()).show_ui(ui, |ui| {
-            for id in &ids {
-                if ui.selectable_label(*id == self.brush.tileset, id).clicked() {
-                    self.brush = Brush { tileset: id.clone(), x: 0, y: 0, w: 1, h: 1 };
-                }
-            }
-        });
-        let (Some(tex), Some(ts)) = (self.tex.tilesets.get(&self.brush.tileset), self.assets.tilesets.get(&self.brush.tileset)) else {
-            ui.label("No tileset");
-            return;
-        };
-        ui.weak("Click a tile, or drag to select a multi-tile stamp. Right-click on the map picks a tile.");
-        let tsz = self.assets.tile_size;
-        let scale = ((ui.available_width() - 8.0) / ts.image.width as f32).clamp(1.0, 3.0).floor();
-        let size = vec2(ts.image.width as f32 * scale, ts.image.height as f32 * scale);
-        let cell = tsz * scale;
-        let rows = ts.count.div_ceil(ts.columns);
-        egui::ScrollArea::both().id_salt("palette").max_height(420.0).show(ui, |ui| {
-            let (rect, resp) = ui.allocate_exact_size(size, Sense::click_and_drag());
-            let p = ui.painter_at(rect);
-            p.rect_filled(rect, 0.0, Color32::from_gray(30));
-            p.image(tex.id(), rect, egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-            let cell_at = |pos: egui::Pos2| -> (u32, u32) {
-                let rel = pos - rect.min;
-                (((rel.x / cell).floor().max(0.0) as u32).min(ts.columns - 1), ((rel.y / cell).floor().max(0.0) as u32).min(rows - 1))
-            };
-            if let Some(pos) = resp.interact_pointer_pos() {
-                let (cx, cy) = cell_at(pos);
-                if (resp.drag_started() || resp.clicked() || self.palette_drag.is_none())
-                    && (resp.drag_started() || resp.clicked()) {
-                        self.palette_drag = Some((cx, cy));
-                    }
-                if let Some((sx, sy)) = self.palette_drag {
-                    self.brush.x = sx.min(cx);
-                    self.brush.y = sy.min(cy);
-                    self.brush.w = sx.abs_diff(cx) + 1;
-                    self.brush.h = sy.abs_diff(cy) + 1;
-                    // Picking a tile is the explicit way to start painting.
-                    if matches!(self.tool, Tool::Erase | Tool::Pick | Tool::Select) {
-                        self.tool = Tool::Brush;
-                    }
-                }
-            }
-            if resp.drag_stopped() || resp.clicked() {
-                self.palette_drag = None;
-            }
-            for &s in &self.project.db.tileset(&self.brush.tileset).map(|d| d.solid.clone()).unwrap_or_default() {
-                let r = egui::Rect::from_min_size(rect.min + vec2((s % ts.columns) as f32 * cell, (s / ts.columns) as f32 * cell), vec2(cell, cell));
-                p.line_segment([r.right_top() + vec2(-6.0, 1.0), r.right_top() + vec2(-1.0, 1.0)], Stroke::new(2.0_f32, Color32::RED));
-            }
-            let sel = egui::Rect::from_min_size(
-                rect.min + vec2(self.brush.x as f32 * cell, self.brush.y as f32 * cell),
-                vec2(self.brush.w as f32 * cell, self.brush.h as f32 * cell),
-            );
-            p.rect_stroke(sel, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Inside);
-        });
-        ui.label(format!("Stamp {}x{} at ({}, {})", self.brush.w, self.brush.h, self.brush.x, self.brush.y));
     }
 
     fn entity_palette(&mut self, ui: &mut egui::Ui) {
@@ -3108,7 +2933,7 @@ impl Editor {
                                 l.darkness = pct / 100.0;
                             }
                         });
-                        ui.weak("Lights: tiles (Database › Tilesets › Light tiles), props per state, characters and items (Database), and the player's equipped light. Preview: View › Lighting preview.");
+                        ui.weak("Lights: props per state (also as decorations), characters and items (Database), and the player's equipped light. Preview: View › Lighting preview.");
                     }
                 }
                 ui.separator();
@@ -3565,7 +3390,7 @@ pub fn speakers_of(map: &Map, db: &rustpg2d_engine::defs::Database) -> Vec<(Stri
 fn parallax_ui(ui: &mut egui::Ui, layers: &mut Vec<rustpg2d_engine::map::ParallaxLayer>, db: &rustpg2d_engine::defs::Database, tex: &crate::app::Textures) {
     use rustpg2d_engine::map::ParallaxLayer;
     ui.heading("Parallax layers");
-    ui.weak("Images moving at their own speed: behind the tiles (a sky or abyss, seen under empty tiles and past the map's edge) or over the map (cloud shadows, mist). The image is a sprite sheet (Database › Sprite sheets), drawn whole. Preview: View › Parallax layers.");
+    ui.weak("Images moving at their own speed: behind the map (a sky or abyss, seen where no ground is painted and past the map's edge) or over the map (cloud shadows, mist). The image is a sprite sheet (Database › Sprite sheets), drawn whole. Preview: View › Parallax layers.");
     let sheets: Vec<String> = db.sheets.iter().map(|s| s.id.clone()).collect();
     let (mut remove, mut swap) = (None, None);
     let n = layers.len();
@@ -3640,5 +3465,40 @@ fn parallax_ui(ui: &mut egui::Ui, layers: &mut Vec<rustpg2d_engine::map::Paralla
     }
     if ui.button(crate::ui::t(crate::ui::ph::PLUS, "Parallax layer")).clicked() {
         layers.push(ParallaxLayer { sheet: sheets.first().cloned().unwrap_or_default(), ..Default::default() });
+    }
+}
+
+/// Converts a project with tile maps into a painted one: first copies the project file (`file`)
+/// or the project folder beside it as `<name>-backup-tiles`.
+fn convert_tile_project(root: &Path, file: Option<&Path>) -> anyhow::Result<rustpg2d_engine::convert_tiles::Report> {
+    use anyhow::Context;
+    let free = |dir: &Path, stem: &str, ext: &str| {
+        let mut n = 1;
+        loop {
+            let name = if n == 1 { format!("{stem}-backup-tiles{ext}") } else { format!("{stem}-backup-tiles-{n}{ext}") };
+            let p = dir.join(name);
+            if !p.exists() {
+                return p;
+            }
+            n += 1;
+        }
+    };
+    match file {
+        Some(f) => {
+            let dir = f.parent().unwrap_or(Path::new("."));
+            let stem = f.file_stem().map_or("project".into(), |s| s.to_string_lossy().into_owned());
+            let ext = f.extension().map_or(String::new(), |e| format!(".{}", e.to_string_lossy()));
+            let backup = free(dir, &stem, &ext);
+            std::fs::copy(f, &backup).with_context(|| format!("making a backup at {}", backup.display()))?;
+            let mut r = rustpg2d_engine::convert_tiles::convert_project(root, None)?;
+            r.backup = Some(backup);
+            Ok(r)
+        }
+        None => {
+            let dir = root.parent().unwrap_or(Path::new("."));
+            let stem = root.file_name().map_or("project".into(), |s| s.to_string_lossy().into_owned());
+            let backup = free(dir, &stem, "");
+            rustpg2d_engine::convert_tiles::convert_project(root, Some(&backup))
+        }
     }
 }

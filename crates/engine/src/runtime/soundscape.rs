@@ -58,19 +58,10 @@ impl Game {
         self.audio.set_ambient(&wanted, dt);
     }
 
-    /// The footstep sound under feet at `pos`: the topmost layer below the characters whose
-    /// tile has one.
+    /// The footstep sound under feet at `pos`: the painted ground's material there.
     fn step_sound(&self, pos: Vec2) -> Option<String> {
         let m = &self.loaded.map;
-        let (tx, ty) = crate::grid::feet_tile(pos, self.ts());
-        if !m.in_bounds(tx, ty) {
-            return None;
-        }
-        m.layers.iter().rev().filter(|l| !l.above_entities).find_map(|l| {
-            let (slot, idx) = l.get(tx as u32, ty as u32).parts()?;
-            let id = m.tilesets.get(slot)?;
-            self.project.db.tileset(id)?.step_of(idx).map(str::to_string)
-        })
+        self.loaded.materials.step_at(&m.ground, pos.x, pos.y).map(str::to_string)
     }
 
     /// The walk cycle (seconds) of a look's model.
@@ -120,19 +111,6 @@ impl Game {
 mod tests {
     use super::*;
     use crate::map::Zone;
-
-    #[test]
-    fn steps_come_from_the_tile_then_its_terrain_not_a_base() {
-        use crate::autotile::Terrain;
-        use crate::defs::{TileSteps, TilesetDef};
-        let mut path = Terrain { name: "Dirt path".into(), base: Some(0), step: "step_dirt".into(), ..Default::default() };
-        path.tiles[15] = Some(7);
-        let ts = TilesetDef { terrains: vec![path], steps: vec![TileSteps { sound: "step_wood".into(), tiles: vec![6] }], ..TilesetDef::new("t", "t.png") };
-        assert_eq!(ts.step_of(6), Some("step_wood"));
-        assert_eq!(ts.step_of(7), Some("step_dirt"));
-        // Grass is the path's base (what erasing it leaves), not a path tile: silent here.
-        assert_eq!(ts.step_of(0), None);
-    }
 
     #[test]
     fn ambience_is_full_inside_and_fades_around() {

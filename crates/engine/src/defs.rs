@@ -7,45 +7,6 @@ use crate::entity::EntityKind;
 use crate::events::{Condition, Trigger};
 use crate::inventory::ItemStack;
 
-/// A tileset image cut into 32 px squares ([`crate::project::TILE_SIZE`]).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct TilesetDef {
-    pub id: String,
-    /// Image path relative to the project root.
-    pub image: String,
-    /// Indices of tiles that block movement.
-    #[serde(default)]
-    pub solid: Vec<u32>,
-    /// Ladder tiles: the player climbs them (only up and down, slower, seen from behind);
-    /// characters keep off them. Not solid by themselves.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub ladder: Vec<u32>,
-    /// Low tiles (fences, rocks, water, a table): when solid they stop walking but not shots or
-    /// sight. Solid tiles not listed here stop both (walls, trees).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub low: Vec<u32>,
-    /// Animated tiles: wherever `tile` is placed, it cycles through `frames`.
-    #[serde(default)]
-    pub animations: Vec<TileAnim>,
-    /// Tiles that give light wherever they are placed (wall torches, lamps).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub lights: Vec<TileLight>,
-    /// Auto-tiling terrains (grass / dirt, grass / water…): the editor's Terrain tool picks
-    /// their edge tiles. Editor-only; games just show the painted tiles.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub terrains: Vec<crate::autotile::Terrain>,
-    /// Footstep sounds of single tiles (floors that aren't terrains); before the terrains'.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub steps: Vec<TileSteps>,
-}
-
-/// Tiles that sound like `sound` when walked on.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct TileSteps {
-    pub sound: String,
-    pub tiles: Vec<u32>,
-}
-
 /// A light source: a soft circle of light around a tile, prop, character or carried item.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LightSpec {
@@ -89,49 +50,6 @@ impl LightSpec {
 }
 
 /// A tile of a tileset that gives light.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct TileLight {
-    pub tile: u32,
-    pub light: LightSpec,
-}
-
-/// The serde defaults (what an entry with only `id` and `image` loads as). The editor's "+ New"
-/// value is [`TilesetDef::fresh`].
-impl Default for TilesetDef {
-    fn default() -> Self {
-        TilesetDef { id: String::new(), image: String::new(), solid: vec![], ladder: vec![], low: vec![], animations: vec![], lights: vec![], terrains: vec![], steps: vec![] }
-    }
-}
-
-impl TilesetDef {
-    pub fn new(id: &str, image: &str) -> Self {
-        TilesetDef { id: id.into(), image: image.into(), ..Default::default() }
-    }
-
-    /// A new tileset as the editor creates it.
-    pub fn fresh(id: &str) -> Self {
-        Self::new(id, "tilesets/new.png")
-    }
-
-    /// The footstep sound of a tile: its own (`steps`), else that of a terrain it belongs to.
-    pub fn step_of(&self, tile: u32) -> Option<&str> {
-        let own = self.steps.iter().find(|s| s.tiles.contains(&tile)).map(|s| s.sound.as_str());
-        // (A terrain's base tile is what erasing it leaves, often another ground: not its own.)
-        own.or_else(|| self.terrains.iter().find(|t| !t.step.is_empty() && t.contains(tile)).map(|t| t.step.as_str())).filter(|s| !s.is_empty())
-    }
-
-    pub fn light_of(&self, tile: u32) -> Option<&LightSpec> {
-        self.lights.iter().find(|l| l.tile == tile).map(|l| &l.light)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct TileAnim {
-    pub tile: u32,
-    pub frames: Vec<u32>,
-    pub fps: f32,
-}
-
 impl ItemDef {
     /// The equipment slot this item goes into, if it can be equipped.
     pub fn equip_slot(&self) -> Option<EquipSlot> {
@@ -142,17 +60,6 @@ impl ItemDef {
         } else {
             self.armor.as_ref().map(|a| a.slot)
         }
-    }
-}
-
-impl TileAnim {
-    /// Tile index shown at time `t` (seconds).
-    pub fn frame_at(&self, t: f64) -> u32 {
-        if self.frames.is_empty() || self.fps <= 0.0 {
-            return self.tile;
-        }
-        let i = (t * self.fps as f64).floor() as usize % self.frames.len();
-        self.frames[i]
     }
 }
 
@@ -1114,6 +1021,35 @@ pub struct PropDef {
     /// (None: the middle of its lower half, its horizontal along the hands).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub carry: Option<crate::hands::HeldSprite>,
+    /// A ladder: the player climbs it (characters keep off), placed as a decoration.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub climb: bool,
+    /// Placed on a grid of this many pixels (16 or 32: wall pieces); 0 = anywhere.
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    pub snap: u16,
+    /// A wall set: the prop for each neighbour mask (`decor::NORTH | EAST | SOUTH | WEST`, 16
+    /// entries; "" = this prop). A line of the set picks its pieces by their neighbours.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pieces: Vec<String>,
+    /// An animated picture: the default state cycles through these frames of its sheet (a torch,
+    /// a flag, a water wheel).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anim: Option<FrameAnim>,
+}
+
+/// Frames of a sprite sheet shown one after the other (`PropDef::anim`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FrameAnim {
+    pub frames: Vec<u32>,
+    pub fps: f32,
+}
+
+impl FrameAnim {
+    /// The frame shown at `time` seconds.
+    pub fn frame_at(&self, time: f64) -> Option<u32> {
+        let n = self.frames.len();
+        (n > 0).then(|| self.frames[((time * self.fps.max(0.01) as f64) as usize) % n])
+    }
 }
 
 /// The serde defaults (what an entry with only `id`, `name` and `sprite` loads as: not solid,
@@ -1138,6 +1074,10 @@ impl Default for PropDef {
             plot: false,
             low: false,
             carry: None,
+            climb: false,
+            snap: 0,
+            pieces: vec![],
+            anim: None,
         }
     }
 }
@@ -1278,6 +1218,15 @@ impl PropDef {
         if index == 0 { &self.default_state } else { self.states.get(index - 1).map_or("", |s| s.name.as_str()) }
     }
     /// Sprite and solidity of state `index` (out of range: the default state).
+    /// The picture of state `index` at `time` seconds (the default state's `anim` cycles).
+    pub fn sprite_at(&self, index: usize, time: f64) -> std::borrow::Cow<'_, SpriteRef> {
+        let s = self.state_look(index).0;
+        match self.anim.as_ref().filter(|_| index == 0).and_then(|a| a.frame_at(time)) {
+            Some(frame) => std::borrow::Cow::Owned(SpriteRef { frame, ..s.clone() }),
+            None => std::borrow::Cow::Borrowed(s),
+        }
+    }
+
     pub fn state_look(&self, index: usize) -> (&SpriteRef, bool) {
         match index.checked_sub(1).and_then(|i| self.states.get(i)) {
             Some(s) => (&s.sprite, s.solid),
@@ -1644,7 +1593,6 @@ fn default_behavior() -> Behavior {
 /// All definitions of a project.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Database {
-    pub tilesets: Vec<TilesetDef>,
     pub sheets: Vec<SheetDef>,
     pub items: Vec<ItemDef>,
     pub props: Vec<PropDef>,
@@ -1664,6 +1612,10 @@ pub struct Database {
     pub races: Vec<crate::races::RaceDef>,
     /// 3D character models.
     pub models: Vec<ModelDef>,
+    /// Ground materials (the painted ground of maps).
+    pub materials: Vec<crate::ground::MaterialDef>,
+    /// Scatter sets (the editor's scatter brush: forests, flowers).
+    pub scatter: Vec<crate::decor::ScatterDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1682,12 +1634,13 @@ pub struct StructureDef {
     /// Size in tiles.
     pub w: u32,
     pub h: u32,
-    /// Tilesets the tiles come from; a tile's slot indexes into this list.
-    #[serde(default)]
+    /// Tile structures (R(ust)PG2D 0.20 and older; converted when the project is opened): the
+    /// tilesets their tiles come from.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tilesets: Vec<String>,
-    /// Tiles per map layer (0 = ground, 1 = detail, 2 = overhead, …), row by row (`w × h`),
-    /// encoded like map tiles: 0 = keep the map's tile, `StructureDef::CLEAR` = empty it.
-    #[serde(default)]
+    /// Tile structures: tiles per old map layer (0 = ground, 1 = detail, 2 = overhead), row by
+    /// row (`w × h`): 0 = keep the map's tile, `StructureDef::CLEAR` = empty it, else a tile.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub layers: Vec<Vec<u32>>,
     /// Collision override per tile (`CollisionOverride` as a byte; 0 = keep the map's).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1696,15 +1649,30 @@ pub struct StructureDef {
     /// structure's top-left corner (uids are assigned when placing).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entities: Vec<crate::entity::EntityInstance>,
+    /// Material ids of the painted ground; a `ground` cell holds its slot here plus one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub materials: Vec<String>,
+    /// Ground cells (`ground::CELLS` per tile each way, row by row): 0 = keep the map's,
+    /// `StructureDef::CLEAR_GROUND` = no ground, else a `materials` slot plus one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ground: Vec<u8>,
+    /// Prop ids of the decorations; `Decor::def` indexes into this list.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub decor_defs: Vec<String>,
+    /// Decorations, feet positions relative to the structure's top-left corner (pixels).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub decor: Vec<crate::decor::Decor>,
+    /// Per tile: 1 = placing removes the map's decorations standing there (row by row).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub clear: Vec<u8>,
 }
 
 /// Id → position caches of the lists the game looks up per entity per frame (items, props,
-/// characters, sheets, tilesets). A hit is verified (`list[i].id == id`) and a miss or a stale
+/// characters, sheets). A hit is verified (`list[i].id == id`) and a miss or a stale
 /// entry falls back to the linear search, so a list edited in place (the editor's forms, the
 /// agent server) only makes lookups slower until [`Database::reindex`] runs, never wrong.
 #[derive(Clone, Default)]
 pub struct DefIndex {
-    tilesets: std::collections::HashMap<String, usize>,
     sheets: std::collections::HashMap<String, usize>,
     items: std::collections::HashMap<String, usize>,
     props: std::collections::HashMap<String, usize>,
@@ -1720,7 +1688,7 @@ impl PartialEq for DefIndex {
 
 impl std::fmt::Debug for DefIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DefIndex({} ids)", self.tilesets.len() + self.sheets.len() + self.items.len() + self.props.len() + self.characters.len())
+        write!(f, "DefIndex({} ids)", self.sheets.len() + self.items.len() + self.props.len() + self.characters.len())
     }
 }
 
@@ -1735,7 +1703,7 @@ impl Database {
             }
             m
         }
-        self.index = DefIndex { tilesets: build(&self.tilesets), sheets: build(&self.sheets), items: build(&self.items), props: build(&self.props), characters: build(&self.characters) };
+        self.index = DefIndex { sheets: build(&self.sheets), items: build(&self.items), props: build(&self.props), characters: build(&self.characters) };
     }
 
     fn lookup<'a, T: Def>(list: &'a [T], index: &std::collections::HashMap<String, usize>, id: &str) -> Option<&'a T> {
@@ -1747,9 +1715,6 @@ impl Database {
         list.iter().find(|d| d.id() == id)
     }
 
-    pub fn tileset(&self, id: &str) -> Option<&TilesetDef> {
-        Self::lookup(&self.tilesets, &self.index.tilesets, id)
-    }
     pub fn sheet(&self, id: &str) -> Option<&SheetDef> {
         Self::lookup(&self.sheets, &self.index.sheets, id)
     }
@@ -1782,6 +1747,14 @@ impl Database {
     pub fn spell(&self, id: &str) -> Option<&crate::skills::SpellDef> {
         self.spells.iter().find(|d| d.id == id)
     }
+    pub fn scatter_set(&self, id: &str) -> Option<&crate::decor::ScatterDef> {
+        self.scatter.iter().find(|d| d.id == id)
+    }
+
+    pub fn material(&self, id: &str) -> Option<&crate::ground::MaterialDef> {
+        self.materials.iter().find(|d| d.id == id)
+    }
+
     pub fn achievement(&self, id: &str) -> Option<&crate::achievements::AchievementDef> {
         self.achievements.iter().find(|d| d.id == id)
     }
@@ -1945,7 +1918,6 @@ macro_rules! impl_def {
     };
 }
 
-impl_def!(TilesetDef, crate::refactor::RefKind::Tileset, tilesets, refs = crate::refactor::refs_of_tileset);
 impl_def!(SheetDef, crate::refactor::RefKind::Sheet, sheets);
 impl_def!(ItemDef, crate::refactor::RefKind::Item, items, refs = crate::refactor::refs_of_item);
 impl_def!(PropDef, crate::refactor::RefKind::Prop, props, refs = crate::refactor::refs_of_prop);
@@ -1959,6 +1931,8 @@ impl_def!(crate::crafting::RecipeDef, crate::refactor::RefKind::Recipe, recipes,
 impl_def!(crate::achievements::AchievementDef, crate::refactor::RefKind::Achievement, achievements);
 impl_def!(crate::races::RaceDef, crate::refactor::RefKind::Race, races, refs = crate::refactor::refs_of_race);
 impl_def!(ModelDef, crate::refactor::RefKind::Model, models, refs = crate::refactor::refs_of_model);
+impl_def!(crate::ground::MaterialDef, crate::refactor::RefKind::Material, materials, refs = crate::refactor::refs_of_material);
+impl_def!(crate::decor::ScatterDef, crate::refactor::RefKind::Scatter, scatter, refs = crate::refactor::refs_of_scatter);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
@@ -1970,10 +1944,6 @@ impl_def!(ModelDef, crate::refactor::RefKind::Model, models, refs = crate::refac
 macro_rules! with_def_kind {
     ($kind:expr, |$T:ident| $body:expr, else => $else:expr) => {
         match $kind {
-            $crate::refactor::RefKind::Tileset => {
-                type $T = $crate::defs::TilesetDef;
-                $body
-            }
             $crate::refactor::RefKind::Sheet => {
                 type $T = $crate::defs::SheetDef;
                 $body
@@ -2024,6 +1994,14 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Model => {
                 type $T = $crate::defs::ModelDef;
+                $body
+            }
+            $crate::refactor::RefKind::Material => {
+                type $T = $crate::ground::MaterialDef;
+                $body
+            }
+            $crate::refactor::RefKind::Scatter => {
+                type $T = $crate::decor::ScatterDef;
                 $body
             }
             $crate::refactor::RefKind::Map => $else,
@@ -2287,8 +2265,6 @@ mod tests {
     /// editor can write `..Default::default()`), and `fresh` is the editor's "+ New" value.
     #[test]
     fn defaults_match_the_file_format() {
-        let t: TilesetDef = ron::from_str(r#"(id: "t", image: "tilesets/t.png")"#).unwrap();
-        assert_eq!(t, TilesetDef::new("t", "tilesets/t.png"));
         let s: SheetDef = ron::from_str(r#"(id: "s", image: "sprites/s.png", frame_w: 32, frame_h: 32)"#).unwrap();
         assert_eq!(s, SheetDef::new("s", "sprites/s.png", 32, 32));
         assert_eq!(s, SheetDef { id: "s".into(), image: "sprites/s.png".into(), ..Default::default() });
@@ -2305,7 +2281,7 @@ mod tests {
         let p = PropDef::fresh("x");
         assert!(p.solid && p.hitbox == [28.0, 16.0] && p.name == "New prop" && p.id == "x");
         assert_eq!((ItemDef::fresh("x").name.as_str(), CharacterDef::fresh("x").name.as_str()), ("New item", "New character"));
-        assert_eq!((TilesetDef::fresh("x").image.as_str(), SheetDef::fresh("x").image.as_str()), ("tilesets/new.png", "sprites/new.png"));
+        assert_eq!(SheetDef::fresh("x").image.as_str(), "sprites/new.png");
     }
 
     #[test]
@@ -2412,31 +2388,22 @@ mod tests {
     }
 
     #[test]
-    fn tile_animation_frames() {
-        let a = TileAnim { tile: 3, frames: vec![3, 40, 41], fps: 2.0 };
-        assert_eq!(a.frame_at(0.0), 3);
-        assert_eq!(a.frame_at(0.6), 40);
-        assert_eq!(a.frame_at(1.2), 41);
-        assert_eq!(a.frame_at(1.5), 3);
-        let still = TileAnim { tile: 3, frames: vec![], fps: 2.0 };
-        assert_eq!(still.frame_at(9.0), 3);
+    fn animated_props_cycle_their_frames() {
+        let a = FrameAnim { frames: vec![3, 40, 41], fps: 2.0 };
+        assert_eq!((a.frame_at(0.0), a.frame_at(0.6), a.frame_at(1.2), a.frame_at(1.5)), (Some(3), Some(40), Some(41), Some(3)));
+        assert_eq!(FrameAnim { frames: vec![], fps: 2.0 }.frame_at(9.0), None);
+        let mut p = PropDef { id: "torch".into(), sprite: SpriteRef::new("s", 3), anim: Some(a), ..Default::default() };
+        p.states.push(PropState { name: "out".into(), sprite: SpriteRef::new("s", 9), solid: false, light: None });
+        assert_eq!(p.sprite_at(0, 0.6).frame, 40);
+        assert_eq!(p.sprite_at(1, 0.6).frame, 9, "other states don't animate");
+        // Props without one don't write it.
+        assert!(!ron::to_string(&PropDef::default()).unwrap().contains("anim"));
     }
 }
 
 #[cfg(test)]
 mod furniture_tests {
     use super::*;
-
-    #[test]
-    fn ladder_tiles_in_ron() {
-        // Tilesets from before ladders load without them; empty lists aren't written.
-        let t: TilesetDef = ron::from_str(r#"(id: "t", image: "tilesets/t.png", solid: [1])"#).unwrap();
-        assert!(t.ladder.is_empty());
-        assert!(!ron::to_string(&t).unwrap().contains("ladder"));
-        let t = TilesetDef { ladder: vec![4, 9], ..t };
-        let back: TilesetDef = ron::from_str(&ron::to_string(&t).unwrap()).unwrap();
-        assert_eq!(back.ladder, vec![4, 9]);
-    }
 
     #[test]
     fn use_spots_in_ron() {

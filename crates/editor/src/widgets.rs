@@ -10,11 +10,12 @@ use rustpg2d_engine::entity::Facing;
 use rustpg2d_engine::events::{Action, CmpOp, Cond, Condition, Trigger, TriggerOn, TriggerOwner, VarOp};
 use rustpg2d_engine::render::Assets;
 
-/// egui copies of tileset and sprite sheet images.
+/// egui copies of sprite sheet images and material textures.
 #[derive(Default)]
 pub struct Textures {
-    pub tilesets: HashMap<String, TextureHandle>,
     pub sheets: HashMap<String, TextureHandle>,
+    /// Ground materials' textures.
+    pub materials: HashMap<String, TextureHandle>,
     /// The looks of the character definitions as drawn (their models; painted for `@char:`
     /// sprites).
     pub characters: HashMap<String, rustpg2d_engine::defs::Appearance>,
@@ -67,13 +68,14 @@ pub fn color_image(ctx: &egui::Context, w: usize, h: usize, px: &[u8]) -> egui::
 
 impl Textures {
     pub fn build(ctx: &egui::Context, assets: &Assets) -> Self {
-        let load = |name: &str, img: &macroquad::texture::Image| {
+        let load = |name: &str, img: &macroquad::texture::Image, opts: egui::TextureOptions| {
             let ci = color_image(ctx, img.width as usize, img.height as usize, &img.bytes);
-            ctx.load_texture(name, ci, egui::TextureOptions::NEAREST)
+            ctx.load_texture(name, ci, opts)
         };
         Textures {
-            tilesets: assets.tilesets.iter().map(|(id, t)| (id.clone(), load(&format!("ts:{id}"), &t.image))).collect(),
-            sheets: assets.sheets.iter().map(|(id, s)| (id.clone(), load(&format!("sh:{id}"), &s.image))).collect(),
+            sheets: assets.sheets.iter().map(|(id, s)| (id.clone(), load(&format!("sh:{id}"), &s.image, egui::TextureOptions::NEAREST))).collect(),
+            // (Repeated over swatches and structure grids.)
+            materials: assets.materials.iter().map(|(id, m)| (id.clone(), load(&format!("mt:{id}"), m, egui::TextureOptions::NEAREST_REPEAT))).collect(),
             characters: HashMap::new(),
         }
     }

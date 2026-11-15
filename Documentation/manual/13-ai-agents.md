@@ -38,8 +38,9 @@ bats and a chest".
   keeps pixels in `x` / `y`). Tiles are 32 px.
 - **`map`** may be omitted in map tools: then the map open in the editor is meant. Naming another
   map saves the open one and opens the named one (the editor follows the agent).
-- **Layers** are indices: new maps have `0` Ground, `1` Detail, `2` Overhead (drawn above
-  characters); `get_map` prints the names.
+- **The ground** is painted in 8 px cells (four per tile side) with materials; **decorations**
+  (trees, rocks, walls) stand at pixel positions, given in tiles with fractions (`[3.5, 4]` = the
+  middle of tile 3's bottom edge… of row 3).
 - **Ids** are strict. An unknown id is an error that lists known ids containing the text.
 - **JSON shapes** are serde's form of the engine's types: externally tagged enums
   (`"Spawn"`, `{"Portal": {"target_map": "village", "target_spawn": "start"}}`,
@@ -69,11 +70,10 @@ bats and a chest".
 ### Reading maps
 | Tool | Does |
 |---|---|
-| `list_maps` | Size, tilesets, layers, entity / zone counts, spawns and where each map leads. |
-| `get_map {map, x, y, w, h, layers, collision, objects}` | A region as text: one glyph grid per layer with column / row rulers and a legend (`a = terrain#235 terrain "Dirt path" solid x25`), the collision grid (`#` blocked, `.` free, `S` / `W` overrides) and the objects there (`E uid kind def "name" @x,y …`, `Z uid "name" kind @x,y wxh`). Whole map when it fits 80x50. |
+| `list_maps` | Size, materials, decoration / entity / zone counts, spawns and where each map leads. |
+| `get_map {map, x, y, w, h, collision, ground, objects}` | A region as text: the collision grid with column / row rulers (`#` blocked by the ground or decorations, `.` free, `S` / `W` overrides), the painted ground (the material in each tile's middle, `a=grass, b=dirt`; `.` none), the decorations (a count per prop and layer, each one `D prop @x,y` when there are few) and the objects there (`E uid kind def "name" @x,y …`, `Z uid "name" kind @x,y wxh`). Whole map when it fits 80x50. |
 | `get_object {map, uid}` | An entity or zone as JSON. |
-| `tileset_legend {tileset}` | Columns and tile count (index = row · columns + column), solid tiles, animations, light tiles, terrains. |
-| `view_image {kind, id, grid}` | The PNG of a tileset or sprite sheet, with cell borders drawn in (small images are shown enlarged). |
+| `view_image {kind, id, grid}` | The PNG of a sprite sheet (`sheet`, with cell borders drawn in; small images are shown enlarged) or a material's texture (`material`). |
 | `edit_frames {sheet, op, anim, frame, row, to_row, dx, dy, from, to, scope}` | Frame operations on a sheet's image: `mirror_rows` (four-facing sheets: Right rows = the mirrored Left rows; of `anim` or all), `copy_row` / `clear_row`, `duplicate` (a frame into the next column), `nudge` (move a frame's pixels), `replace_color` (`from` → `to` in a `frame`, `row` or the whole `sheet`), `fill_standing` (four-facing sheets: empty idle / hurt frames get the standing frame). Writes the PNG and reloads the art. |
 | `import_model {path, clips_for}` | Imports a rigged 3D character model (`.glb` from Meshy, Blender, Mixamo…) into `models/` as a new model, its clips matched to the animations by name; with `clips_for`, adds the file's clips to that model. Characters then use it with `upsert_def` `appearance: {model}`. Saves. |
 | `model_info {model}` | A 3D model: triangles, bones, hands, its clips with their lengths, the clip each animation plays, its rig template, and its texture's colours (the shades for colour features: `upsert_def` model `features`, each `{name, shades, colors, default}`). |
@@ -86,13 +86,14 @@ bats and a chest".
 ### Writing maps (one undo step each)
 | Tool | Does |
 |---|---|
-| `create_map {name, width, height, fill}` | A new map (layers Ground / Detail / Overhead), saved and opened. |
-| `set_tiles {map, layer, tileset, cells: [[x, y, index]]}` | Single tiles; index −1 erases. |
-| `paint_grid {map, layer, x, y, tileset, legend, rows}` | Tiles from text rows with a glyph legend — the format `get_map` prints; `.` leaves a cell unchanged. |
-| `fill_rect {map, layer, x, y, w, h, tileset, index}` | One tile over a rectangle. |
-| `paint_terrain {map, layer, terrain, cells, rect, erase}` | Auto-tiling terrain (edges and corners pick themselves). |
+| `create_map {name, width, height, fill}` | A new map, its ground filled with the material `fill` (optional), saved and opened. |
+| `paint_ground {map, material, circles, lines, polygons}` | The painted ground ([Maps › Painted ground](03-maps.md#painted-ground)) with a material (`""` erases): `circles` = `[x, y, radius]`, `lines` = `{points: [[x, y], …], width}` (roads, streams), `polygons` = `[[x, y], …]` filled; all in tiles, fractions allowed. One undo step. |
+| `fill_ground {map, material, x, y}` | Fills the connected area of the same material (or of no ground) at a point. |
+| `place_objects {map, prop, points, line, layer, flip}` | Decorations ([Maps › Decorations](03-maps.md#decorations)): a prop as a picture at feet `points` (`[x, y]` in tiles), and / or a `line` `[x1, y1, x2, y2]` of a wall set's pieces on its grid (they join their neighbours); `layer` `Flat` \| `Sorted` (default) \| `Above`. One undo step. |
+| `scatter {map, set, circles, seed}` | A scatter set's props at random inside `circles` (`[x, y, radius]` in tiles), keeping their spacing (forests, flowers, rocks). |
+| `erase_objects {map, circles, prop}` | Removes the decorations inside `circles` (all, or one prop's). |
 | `set_collision {map, cells, rect, value}` | `solid`, `walkable` or back to `auto`. |
-| `clear_region {map, x, y, w, h}` | Empties all layers, overrides and entities in a rectangle. |
+| `clear_region {map, x, y, w, h}` | Removes the ground, the decorations and entities and the overrides in a rectangle. |
 | `resize_map {map, width, height}` | Keeps the top-left area. |
 | `place_entity {map, kind, def, x, y, name, facing, state, count, patch}` | A prop, character or item pickup; returns its uid and JSON. Like the editor, a prop an even number of tiles wide stands on the tile edge between `x` and `x + 1` (covering both); its `tile_x` then reads `x + 1`. |
 | `update_entity {map, uid, patch}` | Merge patch (`tile_x` / `tile_y` move it; `uid` is fixed). |
@@ -102,20 +103,20 @@ bats and a chest".
 | `link_maps {map, rect, to_map, to_rect, name}` | A pair of transition zones between two maps (the other map is written to disk directly). |
 | `set_triggers {map, owner, triggers}` / `add_trigger {map, owner, trigger}` | `owner`: `{"map": true}`, `{"entity": UID}`, `{"zone": UID}` or `{"def": {"kind": "item"\|"prop"\|"character", "id": …}}`. Events must suit the owner (`events_reference`); ids in actions and conditions must exist; functions not defined yet are warnings. |
 | `set_map_settings {map, patch}` | `background`, `music`, `battle_music` (`null` = the project's, `""` = none, or a sound), `lighting {mode: Bright\|Outdoor\|Dark, darkness}`, `fog`, `weather {kind: None\|Rain\|Snow\|Fog, intensity}`, `parallax`, `edges {north\|south\|east\|west: {target_map, offset, depth} \| null}`. |
-| `place_structure {map, structure, x, y}` | Stamps a structure (tiles, collision, entities). |
-| `capture_structure {map, x, y, w, h, id, name, category, ground}` | A new structure from a map region: its tiles (all layers; `ground: false` leaves the ground layer out), collision overrides and entities. |
+| `place_structure {map, structure, x, y}` | Stamps a structure (ground, decorations, collision, entities). |
+| `capture_structure {map, x, y, w, h, id, name, category, ground}` | A new structure from a map region: its painted ground (`ground: false` leaves it out), decorations, collision overrides and entities. |
 | `rename {kind, old, new}` | A definition or map and every reference to it, scripts included. |
 
 ### Definitions
 | Tool | Does |
 |---|---|
-| `list_defs {kind, filter, offset}` | `tilesets`, `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `skills`, `spells`, `recipes`, `achievements`, `races`: id and key facts per line. |
+| `list_defs {kind, filter, offset}` | `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `skills`, `spells`, `recipes`, `achievements`, `races`, `models`, `materials`, `scatter`: id and key facts per line. |
 | `get_def {kind, id}` | JSON. |
 | `def_template {kind, id}` | A complete new definition to fill in, with notes on the fields. |
-| `upsert_def {kind, def, merge}` | Create or replace (or merge fields into) a definition; checks referenced ids, image / sound files and the definition's own triggers; tilesets, sheets and sounds reload the editor's textures. |
+| `upsert_def {kind, def, merge}` | Create or replace (or merge fields into) a definition; checks referenced ids, image / sound files and the definition's own triggers; materials, sheets and sounds reload the editor's textures. |
 | `find_usages {kind, id}` | Every place a definition (or a map: kind `map`) is used: placed entities and spawners, map / zone / entity triggers, other definitions, script lines, project settings, each with its map and uid, definition or script line. |
 | `delete_def {kind, id, force}` | Refuses while definitions, maps or scripts use it unless `force`; files are kept. |
-| `write_asset {path, base64 \| source}` | Writes an image (`.png`) or sound (`.wav`, `.ogg`) under `sprites/`, `tilesets/` or `sounds/` — from Base64 or by copying a file on this computer — after checking that it decodes, and reloads the art. Replacing a file updates every definition that uses it; a new file needs a definition (`upsert_def`). |
+| `write_asset {path, base64 \| source}` | Writes an image (`.png`) or sound (`.wav`, `.ogg`) under `sprites/`, `materials/` (ground textures) or `sounds/` — from Base64 or by copying a file on this computer — after checking that it decodes, and reloads the art. Replacing a file updates every definition that uses it; a new file needs a definition (`upsert_def`). |
 | `events_reference {what}` | Allowed events per owner, every condition and action as JSON with example values. |
 
 ### Scripts
@@ -146,7 +147,7 @@ screenshots as images. The game opens a real window on the person's screen for t
 ### Asset library
 | Tool | Does |
 |---|---|
-| `library_list {kind, filter, offset}` | Ready-made assets (tilesets, sheets, items, props, characters, sounds, structures, skills, spells, recipes) with what each needs and whether it is in the project. |
+| `library_list {kind, filter, offset}` | Ready-made assets (materials, scatter sets, sheets, items, props, characters, sounds, structures, skills, spells, recipes) with what each needs and whether it is in the project. |
 | `library_info {kind, id}` | One asset as JSON with its dependencies. |
 | `library_add {assets: [{kind, id}]}` | Copies assets with everything they need (sheets, sounds, script functions) into the project. |
 | `library_send {assets: [{kind, id}], replace, drop_script_triggers}` | Sends project assets with everything they need to the library. An id the library has already gets a numbered copy, or with `replace` its definition, files and script functions are updated. `drop_script_triggers` leaves the triggers of items, props and characters that run the project's script functions behind (story scripts stay with the game). The library is `$RUSTPG2D_LIBRARY` or the user's own one. |

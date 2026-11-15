@@ -17,6 +17,8 @@ mod export;
 mod package;
 mod files;
 mod graph;
+mod decor_tool;
+mod ground_tool;
 mod import;
 mod library_ui;
 mod library_update;
@@ -34,8 +36,6 @@ mod problems;
 mod script_editor;
 mod search;
 mod structures;
-mod terrain;
-mod tile_cache;
 #[cfg(test)]
 mod ui_tests;
 mod ui;
@@ -248,13 +248,6 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             mouse.push_back(frame(b, 0, false, false, true));
             mouse.push_back(frame(b, 0, false, false, false));
         }
-        "brush" => {
-            ed.brush.x = num(1) as u32;
-            ed.brush.y = num(2) as u32;
-            ed.brush.w = (num(3) as u32).max(1);
-            ed.brush.h = (num(4) as u32).max(1);
-        }
-        "layer" => ed.layer = num(1) as usize,
         // containeradd ITEM COUNT / containersize N: edit the selected entity's container
         "containeradd" | "containersize" => {
             if let (Some(doc), Selection::Entity(uid)) = (&mut ed.doc, ed.sel) {
@@ -330,46 +323,6 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         }
         "paste" => ed.start_paste(),
         "unpaste" => ed.stop_paste(),
-        // terrain NAME: arms a terrain (any tileset) and the Terrain tool
-        "terrain" => {
-            if !ed.select_terrain_named(&cmd[1..].join(" ")) {
-                println!("[script] terrain: no terrain named '{}'", cmd[1..].join(" "));
-            }
-        }
-        // terrainpaint X Y [erase]: one Terrain-tool click (erase = Shift+click), one undo step
-        "terrainpaint" => {
-            if let Some(d) = &mut ed.doc {
-                d.begin_stroke(ed.layer, false);
-            }
-            ed.paint_terrain_at((num(1) as i32, num(2) as i32), arg(3) == "erase");
-            if let Some(d) = &mut ed.doc {
-                d.end_stroke();
-            }
-        }
-        // terrainedit K [block]: Database › Tilesets: edit terrain K of the selected tileset
-        // tilepick low|ladder|light|step SOUND|off: the Tilesets tab's grid pick mode
-        "tilepick" => {
-            ed.db.tile_low_pick = arg(1) == "low";
-            ed.db.tile_ladder_pick = arg(1) == "ladder";
-            ed.db.tile_light_pick = arg(1) == "light";
-            ed.db.tile_step_pick = arg(1) == "step";
-            if arg(1) == "step" {
-                ed.db.tile_step_sound = arg(2).to_string();
-            }
-        }
-        "terrainedit" => ed.db.terrain_pick = Some(terrain::TerrainPick { terrain: num(1) as usize, slot: 0, block: arg(2) == "block" }),
-        // terrainblob TILESET NAME on|off: the terrain's Corners (47 tiles) toggle
-        "terrainblob" => {
-            let name = cmd.get(2..cmd.len().saturating_sub(1)).map(|n| n.join(" ")).unwrap_or_default();
-            let found = ed.project.db.tilesets.iter_mut().find(|d| d.id == arg(1)).and_then(|d| d.terrains.iter_mut().find(|t| t.name.eq_ignore_ascii_case(&name)));
-            match found {
-                Some(t) => {
-                    t.set_blob(cmd.last().is_some_and(|l| *l != "off"));
-                    ed.defs_dirty = true;
-                }
-                None => println!("[script] terrainblob: no terrain {name} in {}", arg(1)),
-            }
-        }
         // Events mode: graph scope map|selection · graph functions map|all · graphnode N
         // (select node N, -1 = none) · graphedit N (toggle its editors) · graphtext N K TEXT
         // (text of action K of trigger node N) · graphdump (nodes with summaries)
@@ -428,7 +381,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         "importdialog" => ed.import = Some(Default::default()),
         "import" => {
             let purpose = match arg(1) {
-                "tileset" => files::Purpose::TilesetImage(arg(2).into()),
+                "material" => files::Purpose::MaterialTexture(arg(2).into()),
                 "sheet" => files::Purpose::SheetImage(arg(2).into()),
                 _ => files::Purpose::SoundFile(arg(2).into()),
             };
@@ -680,10 +633,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} tilecache={}/{} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} msg={}",
+            "[status] {} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} ground={} decor={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
-            ed.tile_cache.len(),
-            ed.tile_cache.builds,
             ed.lib.script_pick.as_ref().map_or("closed".to_string(), |p| format!("{:?} needed={:?} picked={:?} missing={:?}", p.to, p.needed.keys().collect::<Vec<_>>(), p.picked, p.missing)),
             ed.project_open,
             ed.project.root.display(),
@@ -719,6 +670,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.db.tab,
             ed.db.sel,
             ed.db.script_file.as_ref().and_then(|f| f.file_name()).map(|f| f.to_string_lossy().to_string()),
+            ed.ground_status(),
+            ed.decor_status(),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),
@@ -726,15 +679,23 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             Some(kind) => ed.rename_id(kind, arg(2), arg(3)),
             None => eprintln!("[script] rename: unknown kind {:?} (tileset, sheet, item, prop, character, sound, map, structure, skill, spell, recipe, quest, achievement)", arg(1)),
         },
+        // newmap NAME W H: the New map dialog · newmap NAME W H blank: creates an empty map at once
+        "newmap" if arg(4) == "blank" => {
+            ed.doc = None;
+            ed.load_doc(rustpg2d_engine::map::Map::new(arg(1), num(2) as u32, num(3) as u32));
+            ed.save_map();
+        }
         "newmap" => {
             ed.new_map = Some(app::NewMapDialog { name: arg(1).into(), width: num(2) as u32, height: num(3) as u32, fill: true });
         }
         "dump" => {
             if let Some(d) = &ed.doc {
                 let m = &d.map;
-                let tile = |l: usize, x: u32, y: u32| m.layers[l].get(x, y).parts().map_or("-".to_string(), |(_, i)| i.to_string());
+                // dump X Y: the material in the middle of tile (X, Y) and its collision byte.
+                let c = rustpg2d_engine::ground::CELLS as i32;
+                let ground = |x: i32, y: i32| m.material_of(m.ground.get(x * c + c / 2, y * c + c / 2)).unwrap_or("-").to_string();
                 println!(
-                    "[dump] map={} {}x{} dirty={} sel={:?} ents={} zones={:?} tile(L{},{},{})={} col={}",
+                    "[dump] map={} {}x{} dirty={} sel={:?} ents={} zones={:?} ground({},{})={} col={}",
                     m.name,
                     m.width,
                     m.height,
@@ -744,9 +705,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                     m.zones.iter().map(|z| format!("{}:{}({},{} {}x{})", z.name, z.kind.label(), z.x, z.y, z.w, z.h)).collect::<Vec<_>>(),
                     num(1),
                     num(2),
-                    num(3),
-                    tile(num(1) as usize, num(2) as u32, num(3) as u32),
-                    m.collision[(num(3) as u32 * m.width + num(2) as u32) as usize],
+                    ground(num(1) as i32, num(2) as i32),
+                    m.collision.get((num(2) as u32 * m.width + num(1) as u32) as usize).copied().unwrap_or(0),
                 );
             }
         }
@@ -811,27 +771,34 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.show_result(r);
             println!("[script] {}", ed.lib.report.clone().unwrap_or_default());
         }
-        // stnew · stlayer N · sttool stamp|keep|clear|solid|walkable|auto|prop · ststamp TS X Y W H ·
-        // stprop ID · stpaint X Y (cell of the open structure in Database → Structures) · stsize W H
+        // stnew · sttool ground|keep|noground|decor|cleardecor|solid|walkable|auto|prop ·
+        // stmaterial ID · stprop ID · stdecorlayer flat|sorted|above · stpaint X Y (tile of the
+        // open structure in Database → Structures) · stsize W H
         "stnew" => ed.new_structure(),
-        "stlayer" => ed.db.st_edit.layer = num(1) as usize,
         "sttool" => {
             use structures::StTool;
             ed.db.st_edit.tool = match arg(1) {
                 "keep" => StTool::Keep,
-                "clear" => StTool::Clear,
+                "noground" => StTool::NoGround,
+                "decor" => StTool::Decor,
+                "cleardecor" => StTool::ClearDecor,
                 "solid" => StTool::Collision(1),
                 "walkable" => StTool::Collision(2),
                 "auto" => StTool::Collision(rustpg2d_engine::defs::StructureDef::COLLISION_AUTO),
                 "prop" => StTool::Prop,
-                _ => StTool::Stamp,
+                _ => StTool::Ground,
             }
         }
-        "ststamp" => {
-            ed.db.st_edit.tileset = arg(1).to_string();
-            ed.db.st_edit.stamp = (num(2) as u32, num(3) as u32, (num(4) as u32).max(1), (num(5) as u32).max(1));
-        }
+        "stmaterial" => ed.db.st_edit.material = arg(1).to_string(),
         "stprop" => ed.db.st_edit.prop = arg(1).to_string(),
+        "stdecorlayer" => {
+            use rustpg2d_engine::decor::DecorLayer;
+            ed.db.st_edit.decor_layer = match arg(1) {
+                "flat" => DecorLayer::Flat,
+                "above" => DecorLayer::Above,
+                _ => DecorLayer::Sorted,
+            }
+        }
         "stpaint" | "stsize" => {
             let i = ed.db.sel;
             let db = ed.project.db.clone();
@@ -840,7 +807,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                     d.resize(num(1) as u32, num(2) as u32);
                     d.prune();
                 } else {
-                    ed.db.st_edit.apply(d, (num(1) as u32, num(2) as u32), &db, &ed.assets);
+                    ed.db.st_edit.apply(d, (num(1) as u32, num(2) as u32), &db);
                 }
                 ed.defs_dirty = true;
             }
@@ -1261,7 +1228,6 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.db.tab = match arg(1) {
                 "props" => Tab::Props,
                 "characters" => Tab::Characters,
-                "tilesets" => Tab::Tilesets,
                 "sheets" => Tab::Sheets,
                 "project" => Tab::Project,
                 "quests" => Tab::Quests,
@@ -1274,13 +1240,14 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "achievements" => Tab::Achievements,
                 "races" => Tab::Races,
                 "models" => Tab::Models,
+                "materials" => Tab::Materials,
+                "scatter" => Tab::Scatter,
                 _ => Tab::Items,
             };
-            // tab KIND N, or tab KIND ID (sheets, tilesets, items, props, characters).
+            // tab KIND N, or tab KIND ID (sheets, items, props, characters, …).
             let db = &ed.project.db;
             let by_id = match ed.db.tab {
                 Tab::Sheets => db.sheets.iter().position(|d| d.id == arg(2)),
-                Tab::Tilesets => db.tilesets.iter().position(|d| d.id == arg(2)),
                 Tab::Items => db.items.iter().position(|d| d.id == arg(2)),
                 Tab::Props => db.props.iter().position(|d| d.id == arg(2)),
                 Tab::Characters => db.characters.iter().position(|d| d.id == arg(2)),
@@ -1288,6 +1255,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Achievements => db.achievements.iter().position(|d| d.id == arg(2)),
                 Tab::Races => db.races.iter().position(|d| d.id == arg(2)),
                 Tab::Models => db.models.iter().position(|d| d.id == arg(2)),
+                Tab::Materials => db.materials.iter().position(|d| d.id == arg(2)),
+                Tab::Scatter => db.scatter.iter().position(|d| d.id == arg(2)),
                 _ => None,
             };
             ed.db.sel = by_id.unwrap_or(num(2) as usize);
@@ -1307,12 +1276,11 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "entity" => Tool::Entity,
                 "zone" => Tool::Zone,
                 "collision" => Tool::Collision,
-                "rect" => Tool::Rect,
-                "fill" => Tool::Fill,
-                "erase" => Tool::Erase,
                 "structure" => Tool::Structure,
-                "terrain" => Tool::Terrain,
-                _ => Tool::Brush,
+                "ground" => Tool::Ground,
+                "decor" => Tool::Decor,
+                "link" => Tool::Link,
+                _ => Tool::Select,
             }
         }
         // selectadd entity N | zone N | named NAME: Ctrl+click on that object (into the
@@ -1354,6 +1322,58 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 doc.record_objects(before, "script");
                 println!("[script] weather of {}: {:?}", doc.map.name, doc.map.weather);
             }
+        }
+        // ground MATERIAL: the material the ground commands paint with ("-" = erase)
+        // gpaint X Y R: a round brush at tile (X, Y) (fractions allowed), R tiles in radius
+        // gline X1 Y1 X2 Y2 W: a stroke W tiles wide · gfill X Y: fill the area at (X, Y)
+        "ground" => {
+            ed.ground_material = if arg(1) == "-" { String::new() } else { arg(1).to_string() };
+            println!("[script] ground material: {}", if ed.ground_material.is_empty() { "(erase)" } else { &ed.ground_material });
+        }
+        // groundmode brush|line|fill · groundsize TILES: the Ground tool's mode and diameter
+        "groundmode" => match ground_tool::GroundMode::parse(arg(1)) {
+            Some(m) => ed.ground_mode = m,
+            None => println!("[script] groundmode: brush|line|fill"),
+        },
+        // decormode place|line|scatter|erase · decorprop ID · decorscatter ID · decorlayer
+        // flat|sorted|above · decorsize TILES · decorflip on|off: the Decorations tool
+        "decormode" => match decor_tool::DecorMode::parse(arg(1)) {
+            Some(m) => ed.decor.mode = m,
+            None => println!("[script] decormode: place|line|scatter|erase"),
+        },
+        "decorprop" => ed.decor.prop = arg(1).to_string(),
+        "decorscatter" => ed.decor.scatter = arg(1).to_string(),
+        "decorlayer" => match rustpg2d_engine::decor::DecorLayer::parse(arg(1)) {
+            Some(l) => ed.decor.layer = l,
+            None => println!("[script] decorlayer: flat|sorted|above"),
+        },
+        "decorsize" => ed.decor.size = num(1).max(0.5) * rustpg2d_engine::project::TILE_SIZE as f32 / 2.0,
+        "decorflip" => ed.decor.random_flip = arg(1) != "off",
+        "groundsize" => ed.ground_size = num(1).max(0.25) * rustpg2d_engine::project::TILE_SIZE as f32 / 2.0,
+        "gpaint" | "gline" | "gfill" => {
+            let ts = rustpg2d_engine::project::TILE_SIZE as f32;
+            let material = ed.ground_material.clone();
+            let Some(doc) = ed.doc.as_mut() else { return };
+            let v = if material.is_empty() {
+                Some(0)
+            } else {
+                doc.map.material_value(&material)
+            };
+            let Some(v) = v else {
+                println!("[script] {}: the map already uses {} materials", arg(0), rustpg2d_engine::ground::MAX_MATERIALS);
+                return;
+            };
+            let at = |i: usize| num(i) * ts;
+            let cells = match arg(0) {
+                "gpaint" => doc.map.ground.paint_circle((at(1), at(2)), num(3) * ts, v),
+                "gline" => doc.map.ground.paint_line((at(1), at(2)), (at(3), at(4)), num(5) * ts, v),
+                _ => {
+                    let c = rustpg2d_engine::ground::CELL as f32;
+                    doc.map.ground.flood_fill((at(1) / c) as i32, (at(2) / c) as i32, v)
+                }
+            };
+            println!("[script] {}: {} cells", arg(0), cells.len());
+            doc.record_ground(cells, v, &ed.assets);
         }
         // viewopt zones|grid|collision|weather on|off: the View toggles
         "viewopt" => {

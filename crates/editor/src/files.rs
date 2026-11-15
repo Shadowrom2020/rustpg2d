@@ -19,8 +19,8 @@ pub enum Purpose {
     NewProject,
     /// Folder the new project wizard creates the project in.
     NewProjectParent,
-    /// Image for the tileset with this id.
-    TilesetImage(String),
+    /// Texture for the ground material with this id.
+    MaterialTexture(String),
     SheetImage(String),
     SoundFile(String),
     /// A 3D model file (`.glb`): a new model (`id` empty), model `id`'s file, or (`clips`) a file
@@ -70,7 +70,7 @@ impl PendingDialog {
                 Purpose::OpenProjectFolder => d.set_title("Open a project folder (folder containing project.ron)").pick_folder(),
                 Purpose::NewProject => d.set_title("New project file").add_filter("R(ust)PG2D project", &[crate::project_file::EXT]).set_file_name(format!("my-game.{}", crate::project_file::EXT)).save_file(),
                 Purpose::NewProjectParent => d.set_title("Where to create the new project").pick_folder(),
-                Purpose::TilesetImage(_) => d.set_title("Choose tileset image").add_filter("Images", &images).pick_file(),
+                Purpose::MaterialTexture(_) => d.set_title("Choose the material's texture").add_filter("Images", &images).pick_file(),
                 Purpose::SheetImage(_) => d.set_title("Choose sprite sheet image").add_filter("Images", &images).pick_file(),
                 Purpose::SoundFile(_) => d.set_title("Choose sound").add_filter("Audio (WAV, OGG)", &["wav", "ogg"]).pick_file(),
                 Purpose::ItemModel(_) => d.set_title("Choose the item's 3D model").add_filter("glTF binary", &["glb"]).pick_file(),
@@ -156,7 +156,7 @@ pub fn create_project(dir: &Path) -> Result<()> {
         project.scripts_dir().join("main.rhai"),
         "// Functions here can be called with the 'Run script' action.\n\nfn hello() {\n    say(\"Hello!\");\n}\n",
     )?;
-    for d in ["tilesets", "sprites", "sounds"] {
+    for d in ["materials", "sprites", "sounds"] {
         std::fs::create_dir_all(dir.join(d))?;
     }
     Ok(())

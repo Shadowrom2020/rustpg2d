@@ -192,6 +192,7 @@ pub const API: &[ApiFn] = api! {
     "used_item"() "The item the player used on the trigger's owner (its 'Use item' trigger; \"\" for other events), e.g. for gifts";
     "self_name"() "The name of the placed character or prop whose trigger runs the script (\"\" if it has none)";
     "is_consumable"(item: Item) "Whether an item is used up when used (the game already took one when a 'Use item' trigger reacted to it)";
+    "rush_to"(target: Target, to: Target) "A fighting character (Chase behaviour) runs to where another character (or \"player\") is, following it for 15 s, and fights whoever it sees on the way: a chief calling his men (queued)";
     "bark"(target: Target, text: Line) "A short line in a speech bubble over a character's head (\"player\" too) that doesn't stop play; it stays by its length (queued)";
     "bark"(target: Target, text: Line, seconds: Num) "Like bark(), for `seconds` (queued)";
     "mood"(target: Target, mood: Text) "A character's portrait shows that mood (its definition's mood portrait) until changed or the event ends; \"\" = its usual one (queued)";

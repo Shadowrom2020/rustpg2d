@@ -616,6 +616,10 @@ pub enum Action {
     /// A short line in a speech bubble over a character's head (`player` too) that doesn't stop
     /// play: one of `lines` at random, not the one it said last. `seconds` 0 = by the length.
     Bark { target: TargetName, lines: Vec<String>, #[serde(default)] seconds: f32 },
+    /// A fighting character (*Chase* behaviour) runs to where another character (or "player")
+    /// is, following it for a while, and fights whoever it sees on the way: a chief calling
+    /// his men.
+    RushTo { target: TargetName, to: TargetName },
 }
 
 fn yes() -> bool {
@@ -769,6 +773,7 @@ impl Action {
             Action::ChangeStanding { .. } => "Change standing",
             Action::Carry { .. } => "Carry prop",
             Action::Bark { .. } => "Bark (speech bubble)",
+            Action::RushTo { .. } => "Rush to (fighters)",
         }
     }
 
@@ -848,6 +853,7 @@ impl Action {
             Action::ChangeStanding { faction: String::new(), amount: 10 },
             Action::Carry { target: "player".into(), prop: String::new() },
             Action::Bark { target: "self".into(), lines: vec!["Fine weather today!".into()], seconds: 0.0 },
+            Action::RushTo { target: s(), to: "self".into() },
         ]
     }
 }

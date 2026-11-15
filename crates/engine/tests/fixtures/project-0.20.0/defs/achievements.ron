@@ -1,0 +1,214 @@
+[
+    (
+        id: "first_blood",
+        name: "First Blood",
+        description: "Defeat your first slime.",
+        icon: (
+            sheet: "items",
+            frame: 11,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Defeated(
+                    character: "slime",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "pest_control",
+        name: "Pest Control",
+        description: "Rid Tilda\'s deliveries of the slimes.",
+        icon: (
+            sheet: "items",
+            frame: 1,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Quest(
+                    quest: "pest_control",
+                    check: Completed,
+                    stage: 0,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "lights_in_the_dark",
+        name: "Lights in the Dark",
+        description: "Wake the old shrine in Whisperwood.",
+        icon: (
+            sheet: "items",
+            frame: 27,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Flag(
+                    name: "shrine_lit",
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "seasoned",
+        name: "Seasoned",
+        description: "Reach level 5.",
+        icon: (
+            sheet: "items",
+            frame: 30,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Level(
+                    op: Ge,
+                    value: 5,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "naturalist",
+        name: "Naturalist",
+        description: "Face a slime, a goblin archer, an outlaw and the bandit chief.",
+        icon: (
+            sheet: "items",
+            frame: 23,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Defeated(
+                    character: "slime",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+            (
+                cond: Defeated(
+                    character: "goblin",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+            (
+                cond: Defeated(
+                    character: "outlaw",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+            (
+                cond: Defeated(
+                    character: "bandit_chief",
+                    op: Ge,
+                    count: 1,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "hidden_hoard",
+        name: "Hidden Hoard",
+        description: "Pick the lock of the old mine\'s treasure chest.",
+        icon: (
+            sheet: "items",
+            frame: 31,
+        ),
+        hidden: true,
+        conditions: [],
+    ),
+    (
+        id: "cat_person",
+        name: "Cat Person",
+        description: "Find Mira\'s cat Biscuit.",
+        icon: (
+            sheet: "items",
+            frame: 38,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Quest(
+                    quest: "lost_cat",
+                    check: Completed,
+                    stage: 0,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "festival_baker",
+        name: "Festival Baker",
+        description: "Bake the festival loaf for Bram.",
+        icon: (
+            sheet: "items2",
+            frame: 10,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Quest(
+                    quest: "festival_bread",
+                    check: Completed,
+                    stage: 0,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "village_healer",
+        name: "Village Healer",
+        description: "Cure Pip\'s fever.",
+        icon: (
+            sheet: "items2",
+            frame: 8,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Quest(
+                    quest: "herbal_remedy",
+                    check: Completed,
+                    stage: 0,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+    (
+        id: "old_debts",
+        name: "Old Debts",
+        description: "Bring Halvar\'s locket home to Brom.",
+        icon: (
+            sheet: "items2",
+            frame: 9,
+        ),
+        hidden: false,
+        conditions: [
+            (
+                cond: Quest(
+                    quest: "tavern_rumours",
+                    check: Completed,
+                    stage: 0,
+                ),
+                negate: false,
+            ),
+        ],
+    ),
+]

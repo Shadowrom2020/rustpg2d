@@ -347,7 +347,8 @@ fn is_raining() {
 }
 
 // ---- Fast travel by signposts ------------------------------------------------------------
-// The Signpost prop's Interact trigger runs signpost_menu(). Touching a signpost marks it found;
+// The Signpost prop's Interact trigger runs signpost_menu(). Coming near a signpost (a Trigger
+// zone around it runs signpost_seen()) or touching it marks it found;
 // it offers the other signposts found so far, and travelling takes hours on the clock (the
 // difference of their `hours` along the roads, at least one). No travel at night (21:00-5:00).
 // Every signpost of the game, one entry each: its name, map, tile (where the prop stands) and
@@ -379,6 +380,30 @@ fn signpost_here() {
         }
     }
     best
+}
+
+// Coming near a signpost (the Trigger zone around it runs this on Enter) marks the nearest one
+// on the map found, so fast travel offers it without the player touching it.
+fn signpost_seen() {
+    let list = signposts();
+    let best = -1;
+    let best_d = 9.0;
+    for i in 0..list.len() {
+        let s = list[i];
+        if s.map == current_map() {
+            let dx = player_x() - (s.x + 0.5);
+            let dy = player_y() - (s.y + 1.0);
+            let d = (dx * dx + dy * dy).sqrt();
+            if d < best_d {
+                best = i;
+                best_d = d;
+            }
+        }
+    }
+    if best >= 0 && !flag("signpost_found_" + list[best].id) {
+        set_flag("signpost_found_" + list[best].id, true);
+        bark("player", "A signpost! I can travel from here now.");
+    }
 }
 
 fn signpost_hours(a, b) {

@@ -18,6 +18,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - The example's hero has nine new clips from Meshy's library, and every person of the example and
   the starter library shares them.
 
+### Events and scripts
+- New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with
+  *Chase* behaviour runs to where another character (or the player) is, following them for 15 s,
+  and fights whoever it sees on the way.
+
 ### Editor
 - **Items › Animations**: what characters play attacking, standing, walking and blocking with the
   item, the estimate beside each empty field with how many models have it; *Estimate animations*.
@@ -39,6 +44,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ### Tools
 - `model_sheet --clip ANIM=CLIP` renders another animation name's clip.
+
+### Fixed
+- Enemies shot or hit from beyond their sight went on with their routine: now an enemy hurt by the
+  player or a companion notices where the attack came from, is surprised, alerts its kind and hunts
+  the attacker (a killing blow alerts no one).
+- Hunting enemies out of sight walked straight at their goal and got stuck behind trees; they now
+  find their way around (A*).
+- The bandit chief's men stood among the trees when he called them: they now rush to him and fight.
 
 ## 0.20.0 — 2026-11-14
 

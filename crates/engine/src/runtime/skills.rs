@@ -319,7 +319,7 @@ impl Game {
         match &d.effect {
             SpellEffect::Heal { amount } => self.heal(*amount),
             SpellEffect::Bolt { .. } => {}
-            SpellEffect::Blast { damage, radius } => self.damage_around(*damage, *radius),
+            SpellEffect::Blast { damage, radius } => self.damage_around(*damage, *radius, true),
             SpellEffect::Light { radius, seconds } => self.player_light_for(*radius, *seconds, crate::events::spell_light_color(), false),
             SpellEffect::Script { .. } => {}
         }
@@ -466,14 +466,15 @@ impl Game {
         }
     }
 
-    /// Damages every character within `radius` tiles of the player.
-    pub(super) fn damage_around(&mut self, damage: i32, radius: f32) {
-        self.damage_at(self.player.pos, damage, radius);
+    /// Damages every character within `radius` tiles of the player (`cast`: the player's spell,
+    /// which the characters hurt notice; a scripted blast isn't).
+    pub(super) fn damage_around(&mut self, damage: i32, radius: f32, cast: bool) {
+        self.damage_at(self.player.pos, damage, radius, cast);
     }
 
     /// Damages every character within `radius` tiles of `center` (world pixels), scaled by the
-    /// spell damage skills.
-    pub(super) fn damage_at(&mut self, center: Vec2, damage: i32, radius: f32) {
+    /// spell damage skills; `cast` = the player's own (see [`Self::damage_around`]).
+    pub(super) fn damage_at(&mut self, center: Vec2, damage: i32, radius: f32, cast: bool) {
         let ts = self.ts();
         let dmg = (damage as f32 * self.spell_damage_factor()).round() as i32;
         let targets: Vec<usize> = (0..self.loaded.entities.len())
@@ -482,8 +483,9 @@ impl Game {
                 e.active && e.hostile && e.max_hp > 0 && e.invuln <= 0.0 && e.body.pos.distance(center) <= radius.max(0.5) * ts
             })
             .collect();
+        let attacker = cast.then_some(self.player.pos);
         for i in targets {
-            self.damage_entity(i, dmg, center, 1.2);
+            self.strike_entity(i, dmg, center, 1.2, super::combat::Blow { attacker, ..Default::default() });
         }
         self.effects.push((center, 0.0));
     }

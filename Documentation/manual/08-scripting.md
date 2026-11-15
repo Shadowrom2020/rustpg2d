@@ -326,6 +326,7 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `is_consumable(item)` | Whether an item is used up when used. When a *Use item* trigger reacts to a consumable item, the game has already taken one, so a script that takes the item itself checks this first. |
 | `bark(target, text)` | A short line in a speech bubble over a character's head (`"player"` too) that doesn't stop play, e.g. `bark(SELF, "Fresh bread!");`. It stays for 2 to 7 s by its length; placeholders work and the line is translated like dialogs. *(queued)* |
 | `bark(target, text, seconds)` | Like `bark()`, for `seconds`. *(queued)* |
+| `rush_to(target, to)` | A fighting character (*Chase* behaviour) runs to where another character (or `"player"`) is, following it for 15 s along the way around trees and walls, and fights whoever it sees on the way: `rush_to("outlaw_1", SELF);` when a chief calls his men. *(queued)* |
 | `mood(target, mood)` | A character's portrait shows that mood (its definition's mood portrait) from now on, until changed or the running event is over; `""` = its usual portrait. `target`: a character on the map, or a character definition's id or name. *(queued)* |
 | `choice(text, options, var)` | Asks a question with answers `["Yes", "No"]`; the chosen index (0 = first) goes into variable `var`. *(queued, blocks)* |
 | `wait(seconds)` | Pauses the queue. *(queued, blocks)* |

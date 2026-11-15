@@ -28,6 +28,8 @@ const SPREAD: f32 = 1.1;
 /// threat) and come back after this many seconds next to one.
 const RALLY_RANGE: f32 = 8.0;
 const REGROUP: f32 = 3.0;
+/// How long a character sent by *Rush to* follows where it was sent (seconds).
+const RUSH_TIME: f32 = 15.0;
 
 /// Whom a chaser is after.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,6 +64,9 @@ pub(super) struct Ai {
     rallied: bool,
     /// It has seen the target itself (not only been alerted): it raised the alarm then.
     spotted: bool,
+    /// Sent to someone (`Action::RushTo`): whom it runs to (None = the player, else a uid) and the
+    /// seconds left; over once it sees a foe, gets there or the time is up.
+    pub rush: Option<(Option<u32>, f32)>,
     /// The way home (`walk_home`), shared with patrols and schedules.
     walker: super::patrol::Walker,
 }
@@ -192,6 +197,50 @@ impl Game {
         push
     }
 
+    /// Hostile character `i` was hurt by the player's side from `from` (the attacker's feet): out
+    /// of sight or not, it hunts there (long enough to walk the way), surprised and alerting its
+    /// kind like on sighting the player. Its leash still sends it home.
+    pub(super) fn notice_attack(&mut self, i: usize, from: Vec2) {
+        let e = &self.loaded.entities[i];
+        let Some(Chase { alert, .. }) = chase_of(&e.behavior) else { return };
+        if !e.hostile || e.companion.is_some() || self.game_over.is_some() {
+            return;
+        }
+        let (was_hunting, spotted) = (e.ai.aggro > 0.0, e.ai.spotted);
+        let walk = from.distance(e.body.pos) / e.body.speed.max(1.0);
+        let e = &mut self.loaded.entities[i];
+        e.ai.returning = false;
+        e.ai.aggro = e.ai.aggro.max(AGGRO_MEMORY).max(walk * 1.5 + 1.0);
+        e.ai.last_seen = from;
+        e.ai.spotted = true;
+        if !was_hunting {
+            self.auto_emote(i, "surprise");
+        }
+        if !spotted && alert > 0.0 {
+            self.alert_kind(i, from, alert);
+        }
+    }
+
+    /// `Action::RushTo`: fighting character `i` runs to `to` (the player or a character) and
+    /// follows it for [`RUSH_TIME`], fighting whoever it sees on the way (`chase`).
+    pub(super) fn rush_to(&mut self, i: usize, to: super::emotions::Who) {
+        if chase_of(&self.loaded.entities[i].behavior).is_none() {
+            eprintln!("[events] Rush to: {} doesn't fight (no Chase behaviour)", self.loaded.entities[i].name);
+            return;
+        }
+        let (uid, goal) = match to {
+            super::emotions::Who::Player => (None, self.player.pos),
+            super::emotions::Who::Entity(j) if j == i => return,
+            super::emotions::Who::Entity(j) => (Some(self.loaded.entities[j].uid), self.loaded.entities[j].body.pos),
+        };
+        let e = &mut self.loaded.entities[i];
+        e.ai.returning = false;
+        e.ai.rush = Some((uid, RUSH_TIME));
+        e.ai.last_seen = goal;
+        e.ai.aggro = e.ai.aggro.max(0.5);
+        self.auto_emote(i, "anger");
+    }
+
     /// Character `i` noticed `target`: others of its kind within `tiles` come too.
     fn alert_kind(&mut self, i: usize, target: Vec2, tiles: f32) {
         let ts = self.ts();
@@ -290,6 +339,14 @@ impl Game {
         let dist = to.length();
         let hurt = e.max_hp > 0 && flee_below > 0.0 && (e.hp as f32) < flee_below * e.max_hp as f32;
         let ranged = e.weapon.as_ref().and_then(|w| w.ranged.as_ref()).map(|r| r.range * ts);
+        // Sent somewhere (*Rush to*): where that one is now.
+        let rush = self.loaded.entities[i].ai.rush.map(|(to, left)| {
+            let goal = match to {
+                None => Some(self.player.pos),
+                Some(uid) => self.loaded.entities.iter().find(|o| o.uid == uid && o.active).map(|o| o.body.pos),
+            };
+            (to, left, goal)
+        });
         let e = &mut self.loaded.entities[i];
         let was_hunting = e.ai.aggro > 0.0;
         let was_fleeing = e.ai.fleeing;
@@ -299,6 +356,16 @@ impl Game {
             e.ai.last_seen = target;
         } else {
             e.ai.aggro -= dt;
+        }
+        e.ai.rush = None;
+        if let (false, Some((to, left, Some(goal)))) = (sees, rush) {
+            // Running there until it sees a foe, arrives (next to a character) or gives up.
+            let arrived = to.is_some() && pos.distance(goal) < 1.5 * ts;
+            if left > dt && !arrived {
+                e.ai.rush = Some((to, left - dt));
+                e.ai.last_seen = goal;
+                e.ai.aggro = e.ai.aggro.max(0.5);
+            }
         }
         let hurt = hurt && !(group && e.ai.rallied);
         // Emotions (automatic): noticing someone, losing them, running away.
@@ -363,12 +430,24 @@ impl Game {
             return true;
         }
         if !sees {
-            // Hunt: walk to where the player was seen last; then give up.
+            // Hunt: walk to where the player was seen last (or where it was sent); then give up.
             let goal = e.ai.last_seen;
             if pos.distance(goal) < ts * 0.3 {
                 e.ai.aggro = 0.0;
                 e.body.moving = false;
                 return false;
+            }
+            // Around trees and walls (A*, planned again when the goal moves to another tile); the
+            // last stretch, and a goal it can't reach, straight.
+            let tile = self.tile_of(goal);
+            let mut walker = std::mem::take(&mut self.loaded.entities[i].ai.walker);
+            if walker.path.last().is_some_and(|t| *t != tile) {
+                walker.path.clear();
+            }
+            let walked = self.walk_to_tile(i, tile, &mut walker, 0.0, dt);
+            self.loaded.entities[i].ai.walker = walker;
+            if walked == Walk::Walking {
+                return true;
             }
             let mut dir = (goal - pos).normalize_or_zero();
             if group {
@@ -499,6 +578,10 @@ impl Game {
         }
         let goal = self.tile_of(home);
         let mut walker = std::mem::take(&mut self.loaded.entities[i].ai.walker);
+        // A way planned while hunting leads elsewhere.
+        if walker.path.last().is_some_and(|t| *t != goal) {
+            walker.path.clear();
+        }
         let walked = if self.tile_of(pos) == goal {
             // On the home tile: the last step goes straight to the spot.
             let e = &self.loaded.entities[i];

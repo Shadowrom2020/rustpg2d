@@ -95,6 +95,9 @@ across map changes and in save games.
 - **Equip item**, **Unequip slot**, **Give item to character**, **Take item from character**.
 - **Patrol**, **Schedule** (follow / stop), **Companion** (joins / leaves), **Companion order**,
   **Open companion window**.
+- **Rush to (fighters)**: a character with *Chase* behaviour runs to where another character (or
+  the player) is, following them for 15 seconds, and fights whoever it sees on the way. In the
+  example the bandit chief's *Lads, to me!* brings his two men out of the trees to him.
 - **Open shop**, **Shop stock** (add to or set a merchant's stock), **Open crafting**,
   **Lockpicking game**, **Sleep** (hours).
 - **Set time of day**, **Set weather**, **Spawners on / off**, **Defeat all enemies**.

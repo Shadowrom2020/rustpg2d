@@ -51,6 +51,9 @@ pub(super) struct Blow {
     /// Another character's hit (not the player's side): a kill gives no experience and isn't
     /// the player's in the bestiary.
     pub by_npc: bool,
+    /// Where the player's side attacked from (the player's or a companion's feet): an enemy the
+    /// blow hurts notices it, however far it came from (`ai.rs` `notice_attack`).
+    pub attacker: Option<Vec2>,
 }
 
 impl Projectile {
@@ -362,7 +365,8 @@ impl Game {
             }
             let crit = self.roll_crit(weapon.crit);
             let (dmg, sneak) = self.sneak_attack(i, if crit { damage * 2 } else { damage });
-            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit: crit || sneak, ..Default::default() });
+            let attacker = Some(self.player.pos);
+            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit: crit || sneak, attacker, ..Default::default() });
         }
     }
 
@@ -492,7 +496,12 @@ impl Game {
                     });
                     if let Some(t) = target {
                         let (mut dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
-                        let mut blow = Blow { by_player: p.shooter.is_none(), crit: p.crit, ..Default::default() };
+                        // Shot by the player or a companion: the target notices where from.
+                        let attacker = match p.shooter {
+                            None => Some(self.player.pos),
+                            Some(uid) => self.loaded.entities.iter().find(|e| e.uid == uid).map(|e| e.body.pos),
+                        };
+                        let mut blow = Blow { by_player: p.shooter.is_none(), crit: p.crit, attacker, ..Default::default() };
                         // The player's own shot (not a companion's) at an enemy that hasn't noticed them.
                         if blow.by_player {
                             let (d, sneak) = self.sneak_attack(t, dmg);
@@ -631,6 +640,9 @@ impl Game {
             if blow.crit {
                 self.shake_screen(0.12, 0.6);
             }
+        }
+        if let Some(at) = blow.attacker.filter(|_| !killed) {
+            self.notice_attack(i, at);
         }
         if killed {
             if blow.by_npc {

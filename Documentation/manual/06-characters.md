@@ -180,7 +180,11 @@ walking to where they last saw the player, and slide around obstacles. Per chara
 An *HP below %* trigger lets a character react when it's hurt, e.g. a boss calling for help; scripts
 read any character's HP with `hp_of(target)`. In the example, the goblin archers keep four tiles
 away, flee once wounded and give up ten tiles from their camp, and the *Bandit Chief* calls two
-outlaws at half his HP.
+outlaws at half his HP: *Set active* makes them appear and *Rush to (fighters)* (`rush_to`) sends them
+to him, around the trees, so they join the fight even when they can't see the player.
+
+Out of sight, a hunting character (walking to where it last saw the player, where it was hit from
+or where it was sent) finds its way around trees and walls.
 
 **Making way**: a friendly character standing in the player's way (a villager in a doorway, a guard
 in a gate) steps aside when the player keeps walking into it for a moment, so no character can shut

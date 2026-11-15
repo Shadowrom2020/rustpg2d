@@ -1515,6 +1515,11 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 ui.add(egui::DragValue::new(y).range(0..=4096));
             });
         }
+        Action::RushTo { target, to } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "runs to", |ui| suggest(ui, &format!("{id}/to"), to, &refs.targets, 100.0));
+            ui.weak("(a character with Chase behaviour; it follows them for 15 s and fights whoever it sees)");
+        }
         Action::Approach { target, to } => {
             target_field(ui, id, target, refs);
             labeled(ui, "walks up to", |ui| suggest(ui, &format!("{id}/to"), to, &refs.targets, 100.0));

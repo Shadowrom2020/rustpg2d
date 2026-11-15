@@ -349,6 +349,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("used_item", with!(ctx, |c| c.used_item.clone()));
     engine.register_fn("self_name", with!(ctx, |c| c.self_name.clone()));
     engine.register_fn("is_consumable", with!(ctx, |c, item: &str| c.consumables.contains(item)));
+    engine.register_fn("rush_to", with!(ctx, |c, t: &str, to: &str| c.actions.push(Action::RushTo { target: t.into(), to: to.into() })));
     engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: 0.0 })));
     engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str, seconds: f64| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: seconds as f32 })));
     engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str, seconds: i64| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: seconds as f32 })));

@@ -351,7 +351,7 @@ impl Game {
                 if let Some(fx) = &fx {
                     crate::effects::apply(&mut self.loaded.entities[t].effects, fx);
                 }
-                self.damage_entity(t, damage, me, w.knockback);
+                self.strike_entity(t, damage, me, w.knockback, super::combat::Blow { attacker: Some(me), ..Default::default() });
                 self.show_swing(i, dir);
             }
             return true;

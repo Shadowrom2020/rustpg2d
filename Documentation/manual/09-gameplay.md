@@ -42,6 +42,10 @@ equipped bow or crossbow.
   - **Archers** shoot; other hostile characters (traps, creatures that don't chase) hurt by touch.
   - They attack companions as well as the player. *Attack wind-up* on the character's form changes
     the wind-up (a slow, heavy brute; a quick assassin).
+  - **Hit from afar, they come**: an enemy hurt by the player's or a companion's blow, arrow or
+    spell notices the attacker even out of its sight: surprised, it alerts its kind around it and
+    hunts toward where the attack came from until it sees the player (its *Leash* still sends it
+    home). A blow that kills alerts no one, so a silent sneak attack stays silent.
   - **What they hold shows how they fight**: characters play the animations of their weapon and
     shield ([Characters › Weapon animations](06-characters.md#weapon-animations)): a guard stance with
     a sword, a thrust with a spear, a drawn bow, an overhead blow with a two-handed weapon, a punch

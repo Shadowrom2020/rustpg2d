@@ -2806,6 +2806,14 @@ impl ActionHost for Game {
                 }
                 Step::Continue
             }
+            Action::RushTo { target, to } => {
+                match (self.emote_target(target, ctx.owner), self.emote_target(to, ctx.owner)) {
+                    (Some(emotions::Who::Entity(i)), Some(dest)) => self.rush_to(i, dest),
+                    (Some(_), Some(_)) => eprintln!("[events] Rush to: the player can't be sent ('{target}')"),
+                    _ => eprintln!("[events] Rush to: no character '{target}' or '{to}'"),
+                }
+                Step::Continue
+            }
             Action::Emote { target, emotion, seconds, wait } => {
                 match self.emote_target(target, ctx.owner) {
                     Some(who) if self.start_emote(who, emotion, *seconds) && *wait => {
@@ -2948,7 +2956,7 @@ impl ActionHost for Game {
                 Step::Continue
             }
             Action::DamageAround { damage, radius } => {
-                self.damage_around(*damage, *radius);
+                self.damage_around(*damage, *radius, false);
                 Step::Continue
             }
             Action::PlayerLight { radius, seconds, color, flicker } => {
@@ -2969,7 +2977,7 @@ impl ActionHost for Game {
             }
             Action::DamageArea { x, y, radius, damage } => {
                 let ts = self.ts();
-                self.damage_at(vec2(*x, *y) * ts, *damage, *radius);
+                self.damage_at(vec2(*x, *y) * ts, *damage, *radius, false);
                 Step::Continue
             }
             Action::LightAt { x, y, radius, seconds, color, flicker } => {

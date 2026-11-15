@@ -44,13 +44,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   now in `scripts/sounds/music/` with all four tracks. `status` prints `battle=`, `music_fade=` and
   `@hip` in `held=`; muted games follow the music for `status` too.
 
-- **Accessibility** (Options › Accessibility…): **Text size** Normal / Large / Larger for dialogs,
+- **Accessibility** (Options › Accessibility): **Text size** Normal / Large / Larger for dialogs,
   choices, messages, speech bubbles, captions and the item details; **Captions** for sounds and
   music (a sound's new *Caption* field, translated; the side a world sound came from; the example's
   and library's sounds have them); **High contrast** (black panels with bright borders for the HUD,
   windows, dialogs, messages and captions, black-on-white speech bubbles, outlined damage numbers);
   **Hold to repeat** (holding Attack keeps attacking, holding E or the right mouse button keeps chopping or mining). `status`
   prints `captions=`; the autoplay command `rhold X Y SECS` holds the right mouse button on a tile.
+
+- **Tabbed Options**: the Options page has tabs (*Graphics*, *Sound*, *Gameplay*, *Accessibility*),
+  switched with Tab / LB / RB or a click; *Controls…* is on the Gameplay tab, and *Reset tab to
+  defaults* resets only the open tab. `status` prints `menu=options:<tab>`; `wintab <tab>` clicks one.
 
 ### Events and scripts
 - New action **Rush to (fighters)** and script function `rush_to(target, to)`: a character with

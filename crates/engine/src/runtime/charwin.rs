@@ -119,7 +119,10 @@ impl Game {
 
     /// Screen center of a tab (automated play-throughs): "character", "skills", "spells".
     pub fn window_tab_pos(&self, name: &str) -> Option<Vec2> {
-        // The open journal's tabs (quests / bestiary).
+        // The Options page's tabs, then the open journal's (quests / bestiary).
+        if let Some(p) = self.options_tab_pos(name) {
+            return Some(p);
+        }
         if self.journal_open() {
             return self.journal_tab_pos(name);
         }

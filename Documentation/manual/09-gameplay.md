@@ -20,11 +20,11 @@ equipped bow or crossbow.
   slow the wearer.
 - Hits knock back (a hard shove that stops quickly) and give a moment of invulnerability. When
   the player is hurt the screen shakes briefly and flashes red (players can turn this off in
-  *Options › Shake & flash*).
+  *Options › Graphics › Shake & flash*).
 - **Hits feel like hits**: when the player's blow, arrow or spell lands, the world pauses for a
   few hundredths of a second (longer for a critical hit or a kill; off with *Shake & flash*), the
   character hit flashes white, and a **damage number** rises from it: white for the player's hits,
-  big and yellow for **critical hits**, red when the player or a companion is hurt (*Options ›
+  big and yellow for **critical hits**, red when the player or a companion is hurt (*Options › Gameplay ›
   Damage numbers*). A **critical hit** does double damage and shakes the view a little; each
   weapon has its own chance (*Critical hits* on the item form, 5 % by default; in the example
   the crossbow and the fine iron sword are best at it). Characters show a **health bar** for
@@ -401,7 +401,7 @@ current, for every active quest:
   edge) on the current map;
 - the map screen (M) pins the same spots with the quest's title.
 
-Players switch them off in *Options › Quest markers*. In the example every quest stage with one place
+Players switch them off in *Options › Gameplay › Quest markers*. In the example every quest stage with one place
 to go has a marker: the chest in the elder's house, the shrine, the slime den, Tilda, the mill's cat,
 the raided cart, Bram, Wren, Pip, Brom, Halvar's locket and the elven herbalist in the Wilds.
 

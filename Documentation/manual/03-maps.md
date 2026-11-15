@@ -175,7 +175,7 @@ The clock itself is set in *Database › Project* (day length, the hour new game
 ### Weather
 
 *Clear*, *Rain*, *Snow* or *Fog*, with a *Strength*. Rain falls in streaks with splashes, darkens
-the map a little and plays a rain sound (players set its loudness with *Options › Ambience
+the map a little and plays a rain sound (players set its loudness with *Options › Sound › Ambience
 volume*); snow drifts down; fog drifts over the map in soft clouds. Particles are drawn over the lit
 scene, dimmer at night, with lamps showing through. **View › Weather preview** (the cloud in the
 ribbon) shows it in the editor. The *Set weather* action and the scripts `set_weather` /

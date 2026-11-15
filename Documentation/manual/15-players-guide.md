@@ -5,7 +5,7 @@ players here.
 
 ## Keyboard and mouse
 
-These are the default keys; players change them in *Options › Controls*.
+These are the default keys; players change them in *Options › Gameplay › Controls*.
 
 | Key | Action |
 |---|---|
@@ -98,9 +98,9 @@ Photo mode has no button of its own: choose *Photo mode* in the pause menu (Star
 you play with the keyboard and mouse, and show your controller's buttons as soon as you press one
 (and back when you press a key or click). The pictures match the controller: coloured A B X Y for
 Xbox pads and the Steam Deck, ✕ ○ □ △ for PlayStation, the Nintendo letters for Switch pads. If the
-game guesses wrong, choose it in *Options › Button style* (Auto, Xbox, PlayStation, Nintendo).
+game guesses wrong, choose it in *Options › Gameplay › Button style* (Auto, Xbox, PlayStation, Nintendo).
 
-**Rebinding buttons.** In *Options › Controls* every action shows its button next to its keys. Select
+**Rebinding buttons.** In *Options › Gameplay › Controls* every action shows its button next to its keys. Select
 an action, press A (Enter on the keyboard) and then the button you want for it; X clears the
 action's button, *Reset to defaults* brings back all keys and buttons. B and Start keep the old
 buttons; moving stays on the stick and the d-pad. A button that does something else in the same
@@ -120,19 +120,23 @@ place is named under the list (*R2 is also Switch weapon*).
 
 ## Options
 
-| Option | Choices |
-|---|---|
-| Fullscreen | On / off |
-| Zoom | 75–250 % on top of the game's own pixel scale |
-| Show FPS | On / off |
-| Master, Music, Effects, Ambience volume | In 10 % steps (ambience = the rain and the sounds of places: birds, rivers, a tavern's murmur) |
-| Text speed | Slow, Normal, Fast, Instant |
-| Shake & flash | The screen shake and red flash when hurt, shakes from explosions, and the short pause when a blow lands |
-| Damage numbers | On / off: the numbers that rise from hits |
-| Quest markers | On / off: markers over quest targets, arrows at the screen's edge and pins on the map |
-| Language | The game's languages |
-| Controls… | Every action with its keys: Enter, then a key, adds one (up to three per action); Del clears; *Reset to defaults* |
-| Accessibility… | **Text size** *Normal* / *Large* / *Larger* (125 %, 150 %: dialogs and choices, messages, speech bubbles, captions, the item details); **Captions** (what sounds and music are heard, written at the bottom left with `<` / `>` for the side a sound came from; at the top right while a window is open); **High contrast** (black panels with bright borders, plain white text, outlined damage numbers); **Hold to repeat** (holding Attack keeps attacking at the weapon's speed, holding E, or the right mouse button on a tree or a rock, keeps chopping or mining) |
+The Options page has four tabs: Tab (or LB / RB on a gamepad) moves to the next one, a click picks
+one. *Reset tab to defaults* at the bottom of each tab resets only that tab's options.
+
+| Tab | Option | Choices |
+|---|---|---|
+| Graphics | Fullscreen | On / off |
+| | Zoom | 75–250 % on top of the game's own pixel scale |
+| | Shake & flash | The screen shake and red flash when hurt, shakes from explosions, and the short pause when a blow lands |
+| | Show FPS | On / off |
+| Sound | Master, Music, Effects, Ambience volume | In 10 % steps (ambience = the rain and the sounds of places: birds, rivers, a tavern's murmur) |
+| Gameplay | Text speed | Slow, Normal, Fast, Instant |
+| | Damage numbers | On / off: the numbers that rise from hits |
+| | Quest markers | On / off: markers over quest targets, arrows at the screen's edge and pins on the map |
+| | Language | The game's languages |
+| | Button style | How gamepad buttons are shown: Auto, Xbox, PlayStation, Nintendo |
+| | Controls… | Every action with its keys: Enter, then a key, adds one (up to three per action); Del clears; *Reset to defaults* |
+| Accessibility | Text size, Captions, High contrast, Hold to repeat | **Text size** *Normal* / *Large* / *Larger* (125 %, 150 %: dialogs and choices, messages, speech bubbles, captions, the item details); **Captions** (what sounds and music are heard, written at the bottom left with `<` / `>` for the side a sound came from; at the top right while a window is open); **High contrast** (black panels with bright borders, plain white text, outlined damage numbers); **Hold to repeat** (holding Attack keeps attacking at the weapon's speed, holding E, or the right mouse button on a tree or a rock, keeps chopping or mining) |
 
 Options are saved per game and kept between sessions and save games: in `~/.config/rustpg2d/<game>/settings.ron` on Linux, `%APPDATA%\rustpg2d\<game>` on Windows, `~/Library/Application Support/rustpg2d/<game>` on macOS, and in the browser for web games. Achievements are kept there too, not in save games.
 

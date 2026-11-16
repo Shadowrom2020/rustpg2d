@@ -154,8 +154,8 @@ crates/engine/src/      library: everything shared by game and editor
                         pack.rs = the data.pack format (scrambled index + files; Pack reads by seek);
                         macsign.rs = ad-hoc signing of exported macOS apps (CodeResources + code
                         directories, no Mac needed); hash.rs = SHA-256 / SHA-1 / Base64
-  lang.rs               languages: lang/<code>.ron (texts = content, ui = runtime texts; built-in German in
-                        engine/lang/de.ron), tr (content, used by expand_text + translate_db), tr_ui (runtime
+  lang.rs               languages: lang/<code>.ron (texts = content, ui = runtime texts; built-in runtime texts in
+                        engine/lang/<code>.ron: de, fr, es, pt-br, it, pl, ru, ja, zh-hans; builtin_ui), tr (content, used by expand_text + translate_db), tr_ui (runtime
                         texts, `{}` templates), content_texts / template (translation templates);
                         runtime/text.rs = the draw_text / measure_text the runtime imports (translating)
   sys.rs                the game's file / clock access: native std::fs (+ a mounted data.pack), web =
@@ -274,7 +274,8 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   effects). Rhai reserves `var`, hence `get_var` / `set_var`.
 - Game UI (macroquad's default font, ProggyClean) has Latin-1 only (ä, ö, ü, ß, é, · work): no `∞`, `▲`, `✔`, `–`, `“` in `draw_text`.
   New runtime texts: draw them with the runtime's `draw_text` (`runtime/text.rs`, already imported in
-  the runtime files) and add a German line to `engine/lang/de.ron` (whole English string, `{}` for values).
+  the runtime files) and add a line to every built-in language file, `engine/lang/de.ron` and the eight others (whole
+  English string, `{}` for values; a test fails until each file has it).
   Content that is already translated (dialog lines, names) goes through `text::draw_plain` / `measure_plain`;
   never call macroquad's text functions in the runtime (they skip the project's fonts). A new HUD / dialog
   drawing function starts with `let _font = text::role(Role::Hud | Role::Dialog);`. Projects without fonts

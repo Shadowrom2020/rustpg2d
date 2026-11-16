@@ -43,7 +43,38 @@ pub struct LangFile {
 }
 
 /// Built-in translations of the runtime's texts (the `ui` part of a [`LangFile`]).
-const BUILTIN: [(&str, &str); 1] = [("de", include_str!("../lang/de.ron"))];
+const BUILTIN: [(&str, &str); 9] = [
+    ("de", include_str!("../lang/de.ron")),
+    ("fr", include_str!("../lang/fr.ron")),
+    ("es", include_str!("../lang/es.ron")),
+    ("pt-br", include_str!("../lang/pt-br.ron")),
+    ("it", include_str!("../lang/it.ron")),
+    ("pl", include_str!("../lang/pl.ron")),
+    ("ru", include_str!("../lang/ru.ron")),
+    ("ja", include_str!("../lang/ja.ron")),
+    ("zh-hans", include_str!("../lang/zh-hans.ron")),
+];
+
+/// The built-in runtime file for a project's language code (case does not matter; `zh` and
+/// `zh-cn` use Simplified Chinese, `pt` Brazilian Portuguese).
+fn builtin_src(code: &str) -> Option<&'static str> {
+    let code = match code.to_lowercase().as_str() {
+        "zh" | "zh-cn" | "zh-sg" => "zh-hans".to_string(),
+        "pt" => "pt-br".to_string(),
+        c => c.to_string(),
+    };
+    BUILTIN.iter().find(|(c, _)| *c == code).map(|(_, src)| *src)
+}
+
+/// The language codes whose runtime texts (menus, HUD, windows) are built in.
+pub fn builtin_codes() -> impl Iterator<Item = &'static str> {
+    BUILTIN.iter().map(|(c, _)| *c)
+}
+
+/// The built-in runtime texts of a language (English → translation), if it has them.
+pub fn builtin_ui(code: &str) -> BTreeMap<String, String> {
+    builtin_src(code).and_then(|src| ron::from_str::<LangFile>(src).ok()).map(|f| f.ui).unwrap_or_default()
+}
 
 /// Names of common languages by code, each in its own language and script (the Options menu,
 /// the editor's language list); codes in any case (`pt-BR`).
@@ -152,7 +183,7 @@ impl Translations {
     /// The built-in runtime texts of `code` plus a project's file for it (either may be missing).
     pub fn new(code: &str, project: Option<LangFile>) -> Translations {
         let mut ui: BTreeMap<String, String> = BTreeMap::new();
-        if let Some((_, src)) = BUILTIN.iter().find(|(c, _)| *c == code) {
+        if let Some(src) = builtin_src(code) {
             match ron::from_str::<LangFile>(src) {
                 Ok(f) => ui.extend(f.ui),
                 Err(e) => eprintln!("[lang] built-in {code}: {e}"),
@@ -561,11 +592,35 @@ mod tests {
     }
 
     #[test]
-    fn builtin_german_parses_and_has_its_templates_right() {
-        let f: LangFile = ron::from_str(BUILTIN[0].1).unwrap();
-        assert!(f.ui.len() > 100, "{}", f.ui.len());
-        for (k, v) in &f.ui {
-            assert_eq!(k.matches("{}").count(), v.matches("{}").count() + (0..10).filter(|i| v.contains(&format!("{{{i}}}"))).count(), "placeholders of {k:?} → {v:?}");
+    fn builtin_languages_parse_and_have_their_templates_right() {
+        let german: LangFile = ron::from_str(BUILTIN[0].1).unwrap();
+        assert!(german.ui.len() > 100, "{}", german.ui.len());
+        for (code, src) in BUILTIN {
+            let f: LangFile = ron::from_str(src).unwrap_or_else(|e| panic!("{code}: {e}"));
+            assert!(!f.name.is_empty(), "{code}");
+            // Every language translates the same runtime texts as German (the reference).
+            let missing: Vec<&String> = german.ui.keys().filter(|k| f.ui.get(*k).is_none_or(|v| v.is_empty())).collect();
+            let extra: Vec<&String> = f.ui.keys().filter(|k| !german.ui.contains_key(*k)).collect();
+            assert!(missing.is_empty() && extra.is_empty(), "{code}: missing {missing:?}, not in de.ron {extra:?}");
+            for (k, v) in &f.ui {
+                let values = k.matches("{}").count();
+                let indexed: Vec<usize> = (0..10).filter(|i| v.contains(&format!("{{{i}}}"))).collect();
+                if indexed.is_empty() {
+                    assert_eq!(values, v.matches("{}").count(), "{code}: placeholders of {k:?} → {v:?}");
+                } else {
+                    // ({0}, {1} pick values; one may be left out, e.g. an English plural "s".)
+                    assert!(v.matches("{}").count() == 0 && indexed.iter().all(|i| *i < values), "{code}: placeholders of {k:?} → {v:?}");
+                }
+                let keys = |s: &str| {
+                    let mut t: Vec<String> = s.match_indices("{key:").chain(s.match_indices("{pad:")).map(|(i, _)| s[i..].split_inclusive('}').next().unwrap_or("").to_string()).collect();
+                    t.sort();
+                    t
+                };
+                assert_eq!(keys(k), keys(v), "{code}: key glyphs of {k:?} → {v:?}");
+            }
         }
+        assert_eq!(builtin_ui("ZH").get("New game").map(String::as_str), Some("新游戏"));
+        assert_eq!(builtin_ui("pt-BR").get("New game").map(String::as_str), Some("Novo jogo"));
+        assert!(builtin_ui("xx").is_empty());
     }
 }

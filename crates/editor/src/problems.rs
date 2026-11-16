@@ -595,7 +595,9 @@ impl Editor {
                 continue;
             }
             let (file, unused) = rustpg2d_engine::lang::template(&self.project, &code, existing);
-            Self::glyph_problem(&code, format!("lang/{code}.ron"), Self::uncovered(&fonts, file.texts.values().chain(file.ui.values()).chain(std::iter::once(&file.name))), out);
+            // (With the engine's built-in runtime texts of the language: menus, HUD, windows.)
+            let builtin = rustpg2d_engine::lang::builtin_ui(&code);
+            Self::glyph_problem(&code, format!("lang/{code}.ron"), Self::uncovered(&fonts, file.texts.values().chain(file.ui.values()).chain(builtin.values()).chain(std::iter::once(&file.name))), out);
             let dropped: Vec<&String> = file.texts.iter().filter(|(k, v)| !v.is_empty() && dc::written_codes(k) != dc::written_codes(v)).map(|(k, _)| k).collect();
             if !dropped.is_empty() {
                 let sample: Vec<String> = dropped.iter().take(3).map(|t| format!("\"{}\"", shorten(t, 40))).collect();

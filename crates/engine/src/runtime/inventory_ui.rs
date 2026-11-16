@@ -926,8 +926,11 @@ impl Game {
         }
         let y0 = p.y + EQUIP_TOP + 4.0 * EQUIP_STEP + 8.0;
         draw_line(p.x + PAD, y0 - 12.0, p.x + p.w - PAD, y0 - 12.0, 1.0, Color::new(0.85, 0.8, 0.6, 0.4));
-        for (n, l) in lines.iter().enumerate() {
-            draw_text(l, p.x + PAD, y0 + 8.0 + n as f32 * 22.0, 19.0, WHITE);
+        // (Taller fallback glyphs, e.g. Japanese labels, get the room they need.)
+        let mut y = y0 + 8.0;
+        for l in &lines {
+            draw_text(l, p.x + PAD, y, 19.0, WHITE);
+            y += super::text::line_step(&crate::lang::tr_ui(l), 19.0, 22.0);
         }
     }
 }

@@ -373,23 +373,33 @@ Games can be written in any language:
 
   **Decided while building.** Choice options and the dialog log show the text without codes.
 
-- [ ] Runtime texts in more languages — `feature/runtime-languages`
+- [x] Runtime texts in more languages — `feature/runtime-languages`
 
   **Goal.** The engine's own texts (menus, HUD, windows, toasts) ship in more languages than
   German, so creators only translate their content.
 
   **Design.**
-  - **Languages:** `engine/lang/<code>.ron` (runtime texts only) for fr, es, pt-BR, it, pl, ru,
-    ja and zh-Hans. `lang::tr_ui` already loads such files.
+  - **Languages:** `engine/lang/<code>.ron` (runtime texts only) for fr, es, pt-br, it, pl, ru,
+    ja and zh-hans. `lang::tr_ui` loads them; the lookup ignores case, and `zh` / `zh-cn` use
+    zh-hans, `pt` pt-br.
   - **Quality:** the translations are drafts made with AI help. The manual says so and asks for
     native reviewers.
-  - **Tests:** keep every file complete, as for `de.ron`.
-  - **Fonts:** ru, ja and zh need project fonts, so this item comes after them.
+  - **Tests:** every file has exactly de.ron's keys, the same values (`{0}`, `{1}` may leave one
+    out: an English plural "s") and the same `{key:…}` / `{pad:…}` glyphs.
+  - **Fonts:** pl and ru need a font beyond Latin-1 (monogram has both), ja and zh a CJK font
+    (Fusion Pixel in the starter library). *Problems* checks the built-in texts of each offered
+    language against the project's fonts.
 
-  **Engine.** Data only: new built-in language files, plus the list of built-in runtime languages.
+  **Engine.** Data only: new built-in language files, the list of built-in runtime languages
+  (`lang::builtin_codes`, `builtin_ui`), and the character window's stats lines use
+  `text::line_step` (Japanese labels overlapped).
 
-  **Verify.** Screenshots of each language's pause menu, inventory and options page; the
-  completeness test.
+  **Verify.** Screenshots of each language's pause menu, inventory and options page (a scratch
+  copy of the example with Fusion Pixel ja / zh-hans as fallbacks: `missing_glyphs=0` in all
+  eight); the completeness test; *Problems* without the CJK fallbacks warns for ja and zh-hans.
+
+  **Decided while building.** Long hint lines at the bottom of windows run past the edge in the
+  longer languages, as some English ones do; the 0.25 UI skin's layouts should wrap them.
 
 ## 0.25.0 — Your Own Look
 

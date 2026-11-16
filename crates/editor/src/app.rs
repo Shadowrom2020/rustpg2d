@@ -1262,6 +1262,25 @@ impl Editor {
                 self.reload_assets();
                 self.set_status(format!("Using {rel}"));
             }
+            P::FontFile { ref id, license } => {
+                let id = id.clone();
+                let rel = match import("fonts") {
+                    Ok(rel) => rel,
+                    Err(e) => {
+                        self.set_status(format!("Import failed: {e:#}"));
+                        return;
+                    }
+                };
+                for d in self.project.db.fonts.iter_mut().filter(|d| d.id == id) {
+                    if license {
+                        d.license = rel.clone();
+                    } else {
+                        d.file = rel.clone();
+                    }
+                }
+                self.defs_dirty = true;
+                self.set_status(format!("Using {rel}"));
+            }
         }
     }
 

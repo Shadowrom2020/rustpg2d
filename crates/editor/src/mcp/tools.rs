@@ -441,7 +441,7 @@ pub struct PlaceStructureParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct RenameParams {
-    /// "sheet", "item", "prop", "character", "sound", "map", "structure", "skill", "spell", "recipe", "material" or "scatter".
+    /// "sheet", "item", "prop", "character", "sound", "map", "structure", "skill", "spell", "recipe", "material", "scatter" or "font".
     pub kind: String,
     pub old: String,
     pub new: String,
@@ -449,7 +449,7 @@ pub struct RenameParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ListDefsParams {
-    /// "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials" or "scatter".
+    /// "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials", "scatter" or "fonts".
     pub kind: String,
     /// Only ids / names containing this text.
     pub filter: Option<String>,
@@ -580,7 +580,7 @@ pub struct PlayParams {
 
 #[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
 pub struct LibraryListParams {
-    /// "sheet", "item", "prop", "character", "sound", "structure", "skill", "spell", "recipe", "material" or "scatter"; default all.
+    /// "sheet", "item", "prop", "character", "sound", "structure", "skill", "spell", "recipe", "material", "scatter" or "font"; default all.
     pub kind: Option<String>,
     pub filter: Option<String>,
     pub offset: Option<usize>,
@@ -610,7 +610,7 @@ pub struct LibrarySendParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct WriteAssetParams {
-    /// Project-relative path of the file: under sprites/, materials/ or sounds/, ending in .png, .wav or .ogg. An existing file is replaced.
+    /// Project-relative path of the file: under sprites/, materials/ or sounds/, ending in .png, .wav or .ogg, or under fonts/ ending in .ttf / .otf (a font) or .txt (its licence). An existing file is replaced.
     pub path: String,
     /// The file's contents in Base64 …
     pub base64: Option<String>,

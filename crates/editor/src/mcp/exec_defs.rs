@@ -52,6 +52,10 @@ macro_rules! def_facts {
 
 def_facts!(rustpg2d_engine::ground::MaterialDef, |d| format!("texture {}; {:?} edge, priority {}; {:?}{}", d.texture, d.edge, d.priority, d.walk, if d.step.is_empty() { String::new() } else { format!("; steps {}", d.step) }));
 def_facts!(rustpg2d_engine::decor::ScatterDef, |d| format!("{} props [{}]; density {} per tile, spacing {} px; {:?}", d.props.len(), d.props.iter().map(|(p, w)| format!("{p} x{w}")).collect::<Vec<_>>().join(", "), d.density, d.spacing, d.layer));
+def_facts!(rustpg2d_engine::fonts::FontDef, |d| {
+    let pixel = if d.pixel > 0 { format!("pixel font, {} px grid", d.pixel) } else { "smooth font".to_string() };
+    format!("file {}; {pixel}; scale {}{}", d.file, d.scale, if d.license.is_empty() { String::new() } else { format!("; licence {}", d.license) })
+});
 def_facts!(SheetDef, |d| {
     let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
     let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
@@ -248,6 +252,10 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Scatter => (
             val(&rustpg2d_engine::decor::ScatterDef::fresh(id)),
             "props: [[prop id, weight], …] placed at random by the scatter brush / the scatter agent tool (weights: how often each comes); density: decorations per tile (0.05 a sparse wood, 0.5 flowers); spacing: least distance between two in px; flip: mirror half of them; layer: Flat | Sorted | Above.",
+        ),
+        RefKind::Font => (
+            val(&rustpg2d_engine::fonts::FontDef { file: "fonts/<file>.ttf".into(), ..rustpg2d_engine::fonts::FontDef::fresh(id) }),
+            "file: a TTF / OTF under the project (write_asset it into fonts/); pixel: a pixel font's grid size (texts are drawn at whole multiples of it), 0 = a smooth font; scale: size against the built-in font (1 = as big); offset_y: baseline shift as a part of the size (+ = down); license: its licence text file (exported with it); credit. The project's `fonts` (in project.ron: ui, dialog, hud, title = font ids, fallback = font ids tried per character) chooses what the game draws with; empty = the built-in font (Latin-1 only).",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
     }
@@ -989,16 +997,24 @@ impl Editor {
         let rel = p.path.trim().replace('\\', "/");
         let lower = rel.to_lowercase();
         let image = lower.ends_with(".png");
-        let folder_ok = ["sprites/", "sounds/", "materials/"].iter().any(|f| rel.starts_with(f));
-        if !folder_ok || rel.split('/').any(|c| c.is_empty() || c == "." || c == "..") || !(image || lower.ends_with(".wav") || lower.ends_with(".ogg")) {
-            return Err(format!("\"{rel}\": give a path under sprites/, materials/ or sounds/ ending in .png, .wav or .ogg"));
+        let font = rel.starts_with("fonts/") && (lower.ends_with(".ttf") || lower.ends_with(".otf"));
+        let licence = rel.starts_with("fonts/") && lower.ends_with(".txt");
+        let media = ["sprites/", "sounds/", "materials/"].iter().any(|f| rel.starts_with(f)) && (image || lower.ends_with(".wav") || lower.ends_with(".ogg"));
+        if !(media || font || licence) || rel.split('/').any(|c| c.is_empty() || c == "." || c == "..") {
+            return Err(format!("\"{rel}\": give a path under sprites/, materials/ or sounds/ ending in .png, .wav or .ogg, or under fonts/ ending in .ttf, .otf or .txt (a font's licence)"));
         }
         let bytes = match (&p.base64, &p.source) {
             (Some(b), None) => rustpg2d_engine::hash::base64_decode(b).ok_or("base64 is not valid Base64")?,
             (None, Some(src)) => std::fs::read(src).map_err(|e| format!("reading {src}: {e}"))?,
             _ => return Err("give either base64 or source".into()),
         };
-        let what = if image {
+        let what = if font {
+            let n = rustpg2d_engine::fonts::Coverage::of(&bytes).ok_or("not a TTF / OTF font")?.len();
+            format!("font, {n} characters")
+        } else if licence {
+            String::from_utf8(bytes.clone()).map_err(|_| "a licence text must be UTF-8 text")?;
+            "text".to_string()
+        } else if image {
             let img = rustpg2d_engine::imageio::Rgba::decode(&bytes).map_err(|e| format!("not a PNG image: {e:#}"))?;
             format!("{}x{} px image", img.w, img.h)
         } else {
@@ -1020,11 +1036,12 @@ impl Editor {
             .map(|d| format!("material {}", d.id))
             .chain(db.sheets.iter().filter(|d| d.image == rel).map(|d| format!("sheet {}", d.id)))
             .chain(db.sounds.iter().filter(|d| d.file == rel).map(|d| format!("sound {}", d.id)))
+            .chain(db.fonts.iter().filter(|d| d.file == rel || d.license == rel).map(|d| format!("font {}", d.id)))
             .collect();
         text(format!(
             "{} {rel} ({what}). {}",
             if existed { "Replaced" } else { "Wrote" },
-            if users.is_empty() { "No definition uses it yet: add one with upsert_def (materials / sheets / sounds).".to_string() } else { format!("Used by {}; the art was reloaded.", users.join(", ")) }
+            if users.is_empty() { "No definition uses it yet: add one with upsert_def (materials / sheets / sounds / fonts).".to_string() } else { format!("Used by {}; the art was reloaded.", users.join(", ")) }
         ))
     }
 }

@@ -280,8 +280,12 @@ impl Editor {
                     RefKind::Material => db.material(&id).map(|d| d.texture.clone()),
                     RefKind::Sheet => db.sheet(&id).map(|d| d.image.clone()),
                     RefKind::Sound => db.sound(&id).map(|d| d.file.clone()),
+                    RefKind::Font => db.font(&id).map(|d| d.file.clone()),
                     _ => None,
                 };
+                if let Some(l) = db.font(&id).filter(|_| k == RefKind::Font).map(|d| &d.license).filter(|l| !l.is_empty() && !self.project.root.join(l).is_file()) {
+                    out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("its licence file {l} is missing (exports carry it with the font)"), target: target.clone() });
+                }
                 if let Some(f) = file {
                     if f.is_empty() || !self.project.root.join(&f).is_file() {
                         out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: if f.is_empty() { "has no file".into() } else { format!("its file {f} is missing") }, target: target.clone() });
@@ -530,7 +534,41 @@ impl Editor {
         }
     }
 
+    /// The characters of `texts` that neither the project's fonts (every role's, the fallbacks)
+    /// nor the built-in font have.
+    fn uncovered<'t>(fonts: &[rustpg2d_engine::fonts::Coverage], texts: impl Iterator<Item = &'t String>) -> std::collections::BTreeSet<char> {
+        use rustpg2d_engine::fonts::{builtin_covers, invisible};
+        texts.flat_map(|t| t.chars()).filter(|&c| !builtin_covers(c) && !invisible(c) && !fonts.iter().any(|f| f.has(c))).collect()
+    }
+
+    /// A problem for characters of language `code` no font can draw (players see empty boxes).
+    fn glyph_problem(code: &str, place: String, missing: std::collections::BTreeSet<char>, out: &mut Vec<Problem>) {
+        if missing.is_empty() {
+            return;
+        }
+        // (With their code points: the editor's own font lacks most of them too.)
+        let sample = missing.iter().take(6).map(|c| format!("{c} U+{:04X}", *c as u32)).collect::<Vec<_>>().join(", ");
+        let more = if missing.len() > 6 { format!(" and {} more", missing.len() - 6) } else { String::new() };
+        out.push(Problem {
+            severity: Severity::Warning,
+            area: Area::Translations,
+            place,
+            text: format!("{} character(s) of the {code} texts have no glyph in the project's fonts: {sample}{more} (players see empty boxes; Database › Project › Fonts: add a font or fallback that has them)", missing.len()),
+            target: Target::Project,
+        });
+    }
+
     fn translation_problems(&self, out: &mut Vec<Problem>) {
+        let fonts: Vec<rustpg2d_engine::fonts::Coverage> = self
+            .project
+            .config
+            .fonts
+            .ids()
+            .filter_map(|id| self.project.db.font(id))
+            .filter_map(|d| std::fs::read(self.project.root.join(&d.file)).ok().and_then(|b| rustpg2d_engine::fonts::Coverage::of(&b)))
+            .collect();
+        let own = rustpg2d_engine::lang::content_texts(&self.project);
+        Self::glyph_problem(&self.project.config.language, "project texts".into(), Self::uncovered(&fonts, own.iter()), out);
         let dir = self.project.root.join("lang");
         let Ok(entries) = std::fs::read_dir(&dir) else { return };
         let mut codes: Vec<String> = entries.flatten().filter_map(|e| e.path().file_name()?.to_str()?.strip_suffix(".ron").map(str::to_string)).collect();
@@ -542,6 +580,7 @@ impl Editor {
                 continue;
             }
             let (file, unused) = rustpg2d_engine::lang::template(&self.project, &code, existing);
+            Self::glyph_problem(&code, format!("lang/{code}.ron"), Self::uncovered(&fonts, file.texts.values().chain(file.ui.values()).chain(std::iter::once(&file.name))), out);
             let missing: Vec<&String> = file.texts.iter().filter(|(k, v)| v.is_empty() && !unused.contains(k)).map(|(k, _)| k).collect();
             if !missing.is_empty() {
                 let sample: Vec<String> = missing.iter().take(3).map(|t| format!("\"{}\"", shorten(t, 40))).collect();

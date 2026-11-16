@@ -5,7 +5,7 @@ use macroquad::prelude::*;
 use super::input;
 use crate::render::wrap_text;
 use crate::state::WorldState;
-use super::text::{draw_text, measure_text};
+use super::text::{draw_plain, draw_text, measure_text, Role};
 
 struct Dialog {
     /// Room for the speaker's portrait at the left (the game draws it into `portrait_rect`).
@@ -163,6 +163,7 @@ impl Ui {
     }
 
     pub fn draw_toasts(&self) {
+        let _font = super::text::role(Role::Hud);
         let sw = screen_width();
         let s = self.scale();
         let font = (FONT as f32 * s).round();
@@ -181,6 +182,7 @@ impl Ui {
     }
 
     pub fn draw_dialog(&mut self) {
+        let _font = super::text::role(Role::Dialog);
         let (sw, sh) = (screen_width(), screen_height());
         self.choice_rects.clear();
         self.portrait_rect = None;
@@ -210,15 +212,15 @@ impl Ui {
             let w = w - inset;
             let mut ty = y + 8.0 + 26.0 * s;
             if !d.speaker.is_empty() {
-                // (Dialog content is translated already: macroquad's draw_text, no UI lookup.)
-                macroquad::text::draw_text(&d.speaker, x + 20.0, ty, (28.0 * s).round(), GOLD);
+                // (Dialog content is translated already: no UI lookup.)
+                draw_plain(&d.speaker, x + 20.0, ty, (28.0 * s).round(), GOLD);
                 ty += 32.0 * s;
             }
             let mut budget = d.revealed as usize;
             for l in &lines {
                 let shown: String = l.chars().take(budget).collect();
                 budget = budget.saturating_sub(l.chars().count() + 1);
-                macroquad::text::draw_text(&shown, x + 20.0, ty, font, WHITE);
+                draw_plain(&shown, x + 20.0, ty, font, WHITE);
                 ty += line;
             }
             let done = d.revealed as usize >= d.text.chars().count();
@@ -228,7 +230,7 @@ impl Ui {
                     self.choice_rects.push(Rect::new(x + 20.0, ty - 22.0 * s, w - 40.0, line));
                     let c = if i == *sel { GOLD } else { dim };
                     let marker = if i == *sel { ">" } else { " " };
-                    macroquad::text::draw_text(format!("{marker} {o}"), x + 36.0, ty, font, c);
+                    draw_plain(&format!("{marker} {o}"), x + 36.0, ty, font, c);
                     ty += line;
                 }
             } else if done && (get_time() * 2.0) as i64 % 2 == 0 {

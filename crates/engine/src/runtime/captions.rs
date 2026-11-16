@@ -85,6 +85,7 @@ impl Game {
     /// The captions at the bottom left (over the world, under menus); while a window is open
     /// (its details line is down there) at the top right, under the clock.
     pub(super) fn draw_captions(&self) {
+        let _font = super::text::role(super::text::Role::Dialog);
         if self.captions.lines.is_empty() {
             return;
         }

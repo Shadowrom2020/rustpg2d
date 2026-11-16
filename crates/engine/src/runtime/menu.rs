@@ -1170,12 +1170,14 @@ impl Game {
         let (p, rects) = self.menu_layout(rows.len());
         if self.menu.title {
             // Big game title above the menu.
+            // (In the title font; the name is content, translated already.)
+            let _font = super::text::role(super::text::Role::Title);
             let name = &crate::lang::tr(&self.project.config.name);
-            let size = 64u16;
-            let tw = measure_text(name, None, size, 1.0).width;
+            let size = 64.0;
+            let tw = super::text::measure_plain(name, size).width;
             let y = (p.y - 60.0).max(80.0);
-            draw_text(name, (sw - tw) / 2.0 + 3.0, y + 3.0, size as f32, Color::new(0.0, 0.0, 0.0, 0.7));
-            draw_text(name, (sw - tw) / 2.0, y, size as f32, GOLD);
+            super::text::draw_plain(name, (sw - tw) / 2.0 + 3.0, y + 3.0, size, Color::new(0.0, 0.0, 0.0, 0.7));
+            super::text::draw_plain(name, (sw - tw) / 2.0, y, size, GOLD);
         }
         panel(p.x, p.y, p.w, p.h);
         let title = self.title();

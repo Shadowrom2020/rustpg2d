@@ -48,6 +48,17 @@ ui: {
 }
 ```
 
-The game's font covers Latin-1 (ä, ö, ü, ß, é, ñ…), not other scripts.
+## Fonts for other scripts
+
+The built-in font covers Latin-1 (ä, ö, ü, ß, é, ñ…), not other scripts. For Russian, Greek,
+Japanese, Chinese, Korean and the like, add a font that has them ([Database › Fonts](05-database.md#fonts))
+and choose it under *Database › Project › Fonts*, as the font of a role or as a **fallback**: each
+character comes from the first font that has it (the role's font, then the fallbacks, then the
+built-in font), so one line can mix a pixel font's Latin letters with a CJK font's characters.
+*Edit › Problems* lists the characters of each language that no font covers. Fusion Pixel Font,
+Ark Pixel Font (both SIL Open Font License) and the Noto fonts cover Chinese, Japanese and Korean.
+
+Lines wrap at spaces, so a translation without spaces (Japanese, Chinese) needs line breaks
+(`\n`) where a line should end.
 
 The example project offers German for all of its texts.

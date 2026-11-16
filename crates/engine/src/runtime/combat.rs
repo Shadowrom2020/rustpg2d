@@ -901,6 +901,7 @@ impl Game {
     /// hero's name, the hearts (1 heart = 2 HP), the mana bar (with magic) and the ammo of a
     /// ranged weapon.
     pub(super) fn draw_hud(&self) {
+        let _font = super::text::role(super::text::Role::Hud);
         if !self.combat.enabled() {
             return;
         }

@@ -152,12 +152,13 @@ within two seconds.
 ```
 project.ron           the game's name, start map and spawn, pixel scale, player character and settings
 defs/                 the definitions: items, props, characters, materials, scatter sets, sprite
-                      sheets, sounds, quests, skills, spells, recipes, achievements, structures
-                      (text files)
+                      sheets, sounds, fonts, quests, skills, spells, recipes, achievements,
+                      structures (text files)
 maps/<name>.map       the maps
 scripts/*.rhai        the scripts (all files share one namespace)
 sprites/, materials/  the images (tilesets/: pictures of tiles from before 0.21, used as sheets)
 sounds/               WAV and Ogg Vorbis files
+fonts/                TTF / OTF fonts and their licence texts
 lang/<code>.ron       translations
 saves/                save games of play-tests (never exported)
 ```

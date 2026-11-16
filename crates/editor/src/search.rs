@@ -321,6 +321,7 @@ impl Editor {
             RefKind::Material,
             RefKind::Scatter,
             RefKind::Sound,
+            RefKind::Font,
         ];
         for k in kinds {
             let defs: Vec<serde_json::Value> = rustpg2d_engine::with_def_kind!(k, |T| T::list(db).iter().filter_map(|d| serde_json::to_value(d).ok()).collect(), else => Vec::new());

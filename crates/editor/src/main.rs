@@ -393,6 +393,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             let purpose = match arg(1) {
                 "material" => files::Purpose::MaterialTexture(arg(2).into()),
                 "sheet" => files::Purpose::SheetImage(arg(2).into()),
+                "font" => files::Purpose::FontFile { id: arg(2).into(), license: false },
+                "fontlicense" => files::Purpose::FontFile { id: arg(2).into(), license: true },
                 _ => files::Purpose::SoundFile(arg(2).into()),
             };
             ed.handle_file(purpose, arg(3).into());
@@ -1264,6 +1266,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "models" => Tab::Models,
                 "materials" => Tab::Materials,
                 "scatter" => Tab::Scatter,
+                "fonts" => Tab::Fonts,
                 _ => Tab::Items,
             };
             // tab KIND N, or tab KIND ID (sheets, items, props, characters, …).
@@ -1279,6 +1282,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Models => db.models.iter().position(|d| d.id == arg(2)),
                 Tab::Materials => db.materials.iter().position(|d| d.id == arg(2)),
                 Tab::Scatter => db.scatter.iter().position(|d| d.id == arg(2)),
+                Tab::Fonts => db.fonts.iter().position(|d| d.id == arg(2)),
                 _ => None,
             };
             ed.db.sel = by_id.unwrap_or(num(2) as usize);

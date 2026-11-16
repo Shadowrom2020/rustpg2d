@@ -464,14 +464,14 @@ pub fn camera_view(cam: &Camera2D) -> Rect {
     Rect::new(a.x.min(b.x), a.y.min(b.y), (b.x - a.x).abs(), (b.y - a.y).abs())
 }
 
-/// Word-wraps `text` to `max_w` pixels for `draw_text`.
+/// Word-wraps `text` to `max_w` pixels for `draw_text` (measured in the current font role's font).
 pub fn wrap_text(text: &str, font_size: u16, max_w: f32) -> Vec<String> {
     let mut lines = Vec::new();
     for para in text.split('\n') {
         let mut line = String::new();
         for word in para.split_whitespace() {
             let candidate = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
-            if measure_text(&candidate, None, font_size, 1.0).width > max_w && !line.is_empty() {
+            if crate::runtime::text::measure_plain(&candidate, font_size as f32).width > max_w && !line.is_empty() {
                 lines.push(std::mem::replace(&mut line, word.to_string()));
             } else {
                 line = candidate;

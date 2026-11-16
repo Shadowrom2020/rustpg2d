@@ -71,6 +71,7 @@ impl Game {
 
     /// Small clock (top right) on maps with day and night.
     pub(super) fn draw_clock(&self) {
+        let _font = super::text::role(super::text::Role::Hud);
         if self.loaded.map.lighting.mode != LightMode::Outdoor {
             return;
         }

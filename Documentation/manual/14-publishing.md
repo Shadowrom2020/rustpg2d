@@ -22,7 +22,8 @@ releases/<game-name>-x86_64.AppImage    (optional, Linux package)
 releases/<game-name>.flatpak            (optional, Linux package)
 ```
 
-Each bundle holds only the images and sounds the game uses, never the project's save games. The game
+Each bundle holds only the images, sounds and fonts the game uses (the fonts of *Database › Project
+› Fonts* with their licence texts), never the project's save games. The game
 executable is the R(ust)PG2D game runner; it runs the data next to it and titles its window with the
 game's name.
 
@@ -124,4 +125,5 @@ Games made with R(ust)PG2D are licensed however you decide; R(ust)PG2D sets no t
 art, scripts or story. The game executable is the R(ust)PG2D game runner, released under the MIT
 License, so every export includes the engine's license as `rustpg2d-LICENSE.txt`. That's all the MIT
 License asks for. The example project's art and music are MIT-licensed too, so you may use them in
-your games.
+your games. Fonts keep their own licences: an export carries each font's licence text (the
+font's *Licence* field), which the SIL Open Font License and most others ask for.

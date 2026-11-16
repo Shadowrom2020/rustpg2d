@@ -351,4 +351,16 @@
         frame_w: 32,
         frame_h: 64,
     ),
+    (
+        id: "furniture_icons",
+        image: "sprites/furniture_icons.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
+    (
+        id: "front_door",
+        image: "sprites/front_door.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

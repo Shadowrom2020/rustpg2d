@@ -487,4 +487,88 @@
             "tongs",
         ],
     ),
+    (
+        id: "make_chair",
+        result: "furn_chair",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 2,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_small_table",
+        result: "furn_small_table",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 3,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_bench",
+        result: "furn_bench",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 3,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_bookshelf",
+        result: "furn_bookshelf",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 4,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_storage_chest",
+        result: "furn_chest",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 4,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
+    (
+        id: "make_bed",
+        result: "furn_bed",
+        count: 1,
+        ingredients: [
+            (
+                item: "plank",
+                count: 5,
+            ),
+        ],
+        station: "sawhorse",
+        skill: "",
+        level: 0,
+    ),
 ]

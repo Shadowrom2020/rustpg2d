@@ -167,15 +167,17 @@ screen.
   **Verify.** Enter every house from the village and back; the stairs both ways; residents and
   Greta in bed at night (`schedule=`); renting a room and sleeping upstairs; screenshots.
 
-- [ ] Player housing and the elder's third quest — `feature/player-housing`
+- [x] Player housing and the elder's third quest — `feature/player-housing`
 
   **Goal.** The player can make the empty stone house their home and furnish it.
 
   **Design.** *A Home in Emberbrook* (quest designer, after *An Offering for the Shrine*): Halvar's
   old house; Brom has the key, the junk inside is cleared (quest objects, a script), Elder Rowan
-  takes 100 coins; the reward makes it the player's home (`own_house()`) with a chair to start.
-  Furniture items (chair, small table, bookshelf, flower pot, small rug, bench, chest, bed) are
-  crafted at the sawhorse and some sold by Tilda; all of it in the starter library.
+  takes 100 coins; the reward makes it the player's home (`own_stone_house()` in the example's
+  script: `set_home`) with a chair to start. Furniture items (chair, small table, bookshelf, flower
+  pot, small rug, bench, chest, bed) are crafted at the sawhorse (planks) and some sold by Tilda;
+  all of it in the starter library. The house's front door (`front_door`, a door prop painted
+  like the house's own) is locked with Halvar's key (or lockpicking 4).
 
   **Engine.** None (content on *Furniture and a player home*).
 
@@ -201,7 +203,6 @@ screen.
   chests and loot from tables.
 - Mounts: riding a horse (two models in one pose: the rider seated on the mount's back bone),
   faster on roads.
-- Player housing: items that place furniture props in a house the player owns, kept in the save.
 - New Game+: start again from a finished save, keeping level and items.
 - Seasons (moved from 0.20.0): a year of N days, tile variants per season (autumn / winter tiles
   without repainting), crops by season, snow in winter, a *Season is* condition and `season()`.

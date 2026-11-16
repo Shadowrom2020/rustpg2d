@@ -3,37 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
-
-### Doors
-- **Props can be doors** (*Database › Props › Door*): E opens and closes them; a lock keeps a door
-  shut until its key or a lockpick opens it, and closing it with the key locks it again. Villagers
-  on their routes open doors on their way and close them behind them, locked ones only with the
-  key in their inventory (and they lock them again). `set_locked` leaves an unlocked door closed;
-  new `is_locked(target)`; `status` prints `doors=`.
-- New prop **Door** (`room_door`, for doorways in timber walls) in the starter library.
-
-### The example: a home in Emberbrook
-- **Elder Rowan's third quest, *A Home in Emberbrook*** (after *An Offering for the Shrine*): get
-  the key to Halvar's old stone house from Brom, haul out the junk, pay the elder 100 coins, and
-  the house is yours (`set_home`), with a chair to start and the elder's friendship.
-- **Furniture**: a wooden chair, a small table, a bench, a bookshelf, a storage chest and a bed are
-  made from planks at the sawhorse; Tilda sells flower pots, small rugs and chairs. All of them, the
-  front door prop and the key are in the starter library.
-- The stone house has a lockable front door (Halvar's key, or lockpicking 4).
-
-### The example: village interiors
-- **Every house of Emberbrook has an interior**: the farmhouse (Hal and Beth), Oswin's cottage
-  (with Lotte and Finnick), Finn's cottage and the old stone house. Their residents sleep in their
-  own beds at night, and Hal and the children have lunch at home.
-- **The Copper Kettle has an upper floor**: stairs by the east wall lead to the two guest rooms
-  (the inn beds moved up there), Greta's room and a room Dagny the night guard rents by day, each
-  behind a locked door. Renting a room from Greta gets you its **Room Key**; after the night it
-  goes back on its hook when you step out onto the landing, and the room locks again. Greta and
-  Dagny carry their own keys; the other rooms can be picked.
-- New props **Stairs up** and **Stairs down** (they lie flat), also in the starter library. In the
-  tavern a portal on the stairs leads to the other floor, and each staircase has an *Interact*
-  trigger with *Teleport* to the same place, so a right-click (or E in front) takes the stairs too.
+## 0.23.0 — 2026-11-16
 
 ### Homes and furniture
 - **Homes**: `set_home(map, true)` makes a map the player's (`is_home(map)` asks), saved with the
@@ -48,6 +18,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   on it. As furniture a rug may go under other things but not onto another rug; the Decorations tool
   puts such props on the *Flat* layer. The starter library's rugs and carpet runners lie flat.
 
+### Doors
+- **Props can be doors** (*Database › Props › Door*): E opens and closes them; a lock keeps a door
+  shut until its key or a lockpick opens it, and closing it with the key locks it again. Villagers
+  on their routes open doors on their way and close them behind them, locked ones only with the
+  key in their inventory (and they lock them again). `set_locked` leaves an unlocked door closed;
+  new `is_locked(target)`; `status` prints `doors=`.
+- New prop **Door** (`room_door`, for doorways in timber walls) in the starter library.
+
 ### Languages
 - **The bed's sleep question is translated** ("Sleep until 07:00?", *Sleep*, *Not now*): the engine
   builds it from its runtime texts, which fill in the hour.
@@ -61,6 +39,28 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - The map screen's exit labels no longer cover each other, and the game's texts are drawn at whole
   pixels (umlaut dots faded at some positions).
 - The example: German for all of the above; its coin count is one translatable line.
+
+### The example: village interiors
+- **Every house of Emberbrook has an interior**: the farmhouse (Hal and Beth), Oswin's cottage
+  (with Lotte and Finnick), Finn's cottage and the old stone house. Their residents sleep in their
+  own beds at night, and Hal and the children have lunch at home.
+- **The Copper Kettle has an upper floor**: stairs by the east wall lead to the two guest rooms
+  (the inn beds moved up there), Greta's room and a room Dagny the night guard rents by day, each
+  behind a locked door. Renting a room from Greta gets you its **Room Key**; after the night it
+  goes back on its hook when you step out onto the landing, and the room locks again. Greta and
+  Dagny carry their own keys; the other rooms can be picked.
+- New props **Stairs up** and **Stairs down** (they lie flat), also in the starter library. In the
+  tavern a portal on the stairs leads to the other floor, and each staircase has an *Interact*
+  trigger with *Teleport* to the same place, so a right-click (or E in front) takes the stairs too.
+
+### The example: a home in Emberbrook
+- **Elder Rowan's third quest, *A Home in Emberbrook*** (after *An Offering for the Shrine*): get
+  the key to Halvar's old stone house from Brom, haul out the junk, pay the elder 100 coins, and
+  the house is yours (`set_home`), with a chair to start and the elder's friendship.
+- **Furniture**: a wooden chair, a small table, a bench, a bookshelf, a storage chest and a bed are
+  made from planks at the sawhorse; Tilda sells flower pots, small rugs and chairs. All of them, the
+  front door prop and the key are in the starter library.
+- The stone house has a lockable front door (Halvar's key, or lockpicking 4).
 
 ## 0.22.0 — 2026-11-16
 

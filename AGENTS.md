@@ -161,7 +161,10 @@ cargo test --workspace
   when the engine can't do it, and only after the maintainer agreed to the proposed (small,
   generic) addition. CLAUDE.md (*Content route*) describes the workflow.
 - Map and definition files must stay loadable by older and newer versions: append new enum
-  variants at the end, and give new fields `#[serde(default)]`. `crates/engine/tests/fixtures/`
+  variants at the end, and give new fields `#[serde(default)]`. Until 1.0.0 a break is allowed
+  when compatibility would cost more than the feature, but only with the maintainer's agreement
+  and a conversion where possible (ROADMAP.md, *Compatibility until 1.0.0*); from 1.0.0 on every
+  format change comes with a migration. `crates/engine/tests/fixtures/`
   holds files of earlier versions that the tests load; add the last release's file there when a
   format changes.
 - Tiles are always 32 px (`project::TILE_SIZE`).

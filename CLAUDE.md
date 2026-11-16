@@ -240,7 +240,10 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   editor's UI tests, with them), image 0.24 and lewton 0.9
   (macroquad's versions: `image` only turns on the JPEG decoder of macroquad's copy; ignored too), postcard + lz4_flex, ron,
   rhai, rfd, zip 9, png 0.18 (`imageio.rs`; macroquad keeps its own png 0.17 internally).
-- **Compatibility is a hard rule** (maps, defs and save games of older versions must load):
+- **Compatibility** (maps, defs and save games of older versions load). Until 1.0.0 this is the default, not an
+  absolute: a break is allowed only when keeping compatibility costs more than the feature, or makes it impossible.
+  The user must agree to the break, and it comes with a conversion where possible (ROADMAP.md, *Compatibility until
+  1.0.0*). From 1.0.0 on it is a hard rule, with a migration for every format change. The default rules:
   - New variants of `Action`, `TriggerOn`, `Cond`, `ZoneKind`, `OnUnlock` are **appended**
     at the end (map files store variant indices).
   - New fields get `#[serde(default)]` (or `default = "fn"`). New map object fields go in the

@@ -163,4 +163,19 @@
     languages: [
         "de",
     ],
+    map_titles: {
+        "apothecary": "Wren\'s Apothecary",
+        "bakery": "Bram\'s Bakery",
+        "chapel": "The Chapel",
+        "forest": "Whisperwood",
+        "home_mira": "Mira\'s Home",
+        "house": "Elder Rowan\'s House",
+        "mill": "Jorun\'s Mill",
+        "mine": "The Old Mine",
+        "shop": "Tilda\'s Shop",
+        "smithy": "Brom\'s Smithy",
+        "tavern": "The Copper Kettle",
+        "village": "Emberbrook",
+        "wilds": "The Wilds",
+    },
 )

@@ -71,6 +71,11 @@ pub struct ProjectConfig {
     /// Translations players can choose (codes; each has `lang/<code>.ron`, see `lang`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub languages: Vec<String>,
+    /// Maps' names as players read them (map name -> title, e.g. "home_mira" -> "Mira's Home"):
+    /// the map screen, its exits and the save list (translated like other content). A map
+    /// without one shows its name with spaces.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub map_titles: std::collections::BTreeMap<String, String>,
     /// GPU memory for the rendered poses of 3D characters, in MB (the pose atlas: pages of 4 MB;
     /// 8 to 128, see `render::model::atlas_pages`). Big casts on screen at once need more.
     #[serde(default = "default_atlas_mb", skip_serializing_if = "is_default_atlas_mb")]
@@ -220,9 +225,23 @@ impl ProjectConfig {
             player_portrait: Default::default(),
             language: default_language(),
             languages: Vec::new(),
+            map_titles: Default::default(),
             model_atlas_mb: default_atlas_mb(),
             eight_facings: true,
         }
+    }
+}
+
+impl ProjectConfig {
+    /// A map's title as players read it (untranslated): its title, else its name with spaces
+    /// and a capital letter ("home_mira" -> "Home mira").
+    pub fn map_title(&self, name: &str) -> String {
+        if let Some(t) = self.map_titles.get(name).filter(|t| !t.trim().is_empty()) {
+            return t.clone();
+        }
+        let s = name.replace(['_', '-'], " ");
+        let mut c = s.chars();
+        c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
     }
 }
 

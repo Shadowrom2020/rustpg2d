@@ -117,7 +117,10 @@ impl Game {
             let hours = if hours < 0.5 { hours + 24.0 } else { hours };
             let until = crate::entity::hour_text(spot.sleep_until);
             self.bed = Some(uid);
-            let ask = Action::Choice { speaker: String::new(), text: format!("Sleep until {until}?"), options: vec!["Sleep".into(), "Not now".into()], var: SLEEP_ANSWER.into() };
+            // (Texts the engine fills in go through the runtime translation: its templates know
+            // "Sleep until {}?"; the content translation the dialog applies only knows whole texts.)
+            let ui = |s: &str| crate::lang::tr_ui(s).into_owned();
+            let ask = Action::Choice { speaker: String::new(), text: ui(&format!("Sleep until {until}?")), options: vec![ui("Sleep"), ui("Not now")], var: SLEEP_ANSWER.into() };
             let then = Action::If {
                 conditions: vec![Condition::new(Cond::Var { name: SLEEP_ANSWER.into(), op: CmpOp::Eq, value: 0 })],
                 then: vec![Action::Sleep { hours }],

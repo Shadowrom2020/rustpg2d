@@ -3,6 +3,22 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Languages
+- **The bed's sleep question is translated** ("Sleep until 07:00?", *Sleep*, *Not now*): the engine
+  builds it from its runtime texts, which fill in the hour.
+- **Maps have a title** (map settings › *Title*): shown on the map screen, at its exits and in the
+  save list, and translated like other texts (the example's maps are *Emberbrook*, *The Copper
+  Kettle*, *Brom's Smithy*…). Without one the map's name shows with a capital.
+- Translated now as well: character descriptions (the bestiary), props' furniture messages (the
+  inn bed for paying guests), crafting windows' titles and their tools (named after a tool item),
+  the save list's map and time, the title screen's *Continue* line, the slot in item tooltips, the
+  journal's *People* names, the map screen's "more above / below" and *Sneaking*.
+- The map screen's exit labels no longer cover each other, and the game's texts are drawn at whole
+  pixels (umlaut dots faded at some positions).
+- The example: German for all of the above; its coin count is one translatable line.
+
 ## 0.22.0 — 2026-11-16
 
 ### Quests

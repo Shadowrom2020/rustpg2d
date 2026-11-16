@@ -572,7 +572,8 @@ impl Game {
 
     /// The People page: two columns of names with ten hearts each (10 points a heart).
     fn draw_people(&self, r: Rect) {
-        let friends = self.friends();
+        // (Names in the current language: "elder" is the elder's character name "Elder".)
+        let friends: Vec<(String, i64)> = self.friends().into_iter().map(|(n, p)| (crate::lang::tr(&n), p)).collect();
         if friends.is_empty() {
             draw_text("No friends yet. Talk to people, help them, bring them gifts they like.", r.x + PAD, r.y + 80.0, 22.0, LIGHTGRAY);
             return;

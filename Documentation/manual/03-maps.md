@@ -12,8 +12,9 @@ collision overrides, route planning, zones and positions in events and scripts.
   use letters, digits, `_` and `-`.
 - The **map dropdown** in the top bar switches maps; **Ctrl+M** opens a searchable switcher;
   **Ctrl+PgUp / Ctrl+PgDn** step through the maps.
-- With nothing selected, the inspector shows the map's settings: **Rename map…** (every reference
-  in the project follows), **Resize…**, the **Background** colour shown outside the map and where
+- With nothing selected, the inspector shows the map's settings: its **Title** (the name players
+  see on the map screen, at its exits and in the save list; empty = the map's name with a capital,
+  e.g. *Tavern*), **Rename map…** (every reference in the project follows), **Resize…**, the **Background** colour shown outside the map and where
   no ground is painted, and the map's **Music** (a looping sound; empty keeps whatever is playing). **Battle
   music**: *Project's* (*Database › Project › Game sounds › Battle music*), *None* (the map's music
   plays on in fights) or *Own track*.

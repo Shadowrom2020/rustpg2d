@@ -2934,6 +2934,21 @@ impl Editor {
                         widgets::suggest(ui, "map_battle_track", track, &refs.sounds, 110.0);
                     }
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Title").on_hover_text("The map's name as players read it: on the map screen, at its exits and in the save list (translated like other texts). Empty: the map's name.");
+                    let mut title = self.project.config.map_titles.get(&map.name).cloned().unwrap_or_default();
+                    let hint = self.project.config.map_title(&map.name);
+                    if ui.add(egui::TextEdit::singleline(&mut title).desired_width(170.0).hint_text(hint)).changed() {
+                        if title.trim().is_empty() {
+                            self.project.config.map_titles.remove(&map.name);
+                        } else {
+                            self.project.config.map_titles.insert(map.name.clone(), title);
+                        }
+                        if let Err(e) = self.project.save_config() {
+                            eprintln!("[editor] saving project.ron: {e:#}");
+                        }
+                    }
+                });
                 ui.horizontal(|ui| match &mut self.map_rename {
                     None => {
                         if ui.button("Rename map…").on_hover_text("Renames the file and updates portals, edge links, teleports and the project start").clicked() {

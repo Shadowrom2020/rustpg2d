@@ -8,7 +8,8 @@ use macroquad::prelude::{Color, TextDimensions};
 
 /// Draws a runtime text in the current language.
 pub fn draw_text(text: impl AsRef<str>, x: f32, y: f32, font_size: f32, color: Color) -> TextDimensions {
-    macroquad::text::draw_text(crate::lang::tr_ui(text.as_ref()), x, y, font_size, color)
+    // Whole pixels: at fractional positions the font's one-pixel details (umlaut dots) fade.
+    macroquad::text::draw_text(crate::lang::tr_ui(text.as_ref()), x.round(), y.round(), font_size, color)
 }
 
 /// Measures a runtime text as [`draw_text`] draws it.

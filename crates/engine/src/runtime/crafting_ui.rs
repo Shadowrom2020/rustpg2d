@@ -80,7 +80,7 @@ impl Game {
 
     /// Queues the crafting window of `station` (opens once the current events have finished).
     pub(super) fn open_crafting(&mut self, station: &str, title: &str, owner: Option<u32>) {
-        let title = if title.is_empty() { "Crafting".to_string() } else { title.to_string() };
+        let title = if title.is_empty() { "Crafting".to_string() } else { crate::lang::tr(title) };
         self.crafting.pending = Some((station.to_string(), title));
         self.crafting.pending_prop = owner;
     }
@@ -283,12 +283,15 @@ impl Game {
             let kinds = db.tool_kinds();
             for kind in r.tools.iter().filter(|t| !t.trim().is_empty()) {
                 let have = crate::crafting::has_tool(&self.world, &kinds, kind);
-                if let Some(d) = db.items.iter().find(|d| d.tool.eq_ignore_ascii_case(kind)) {
+                // Named after a tool of that kind (its name is translated), else the kind itself.
+                let tool = db.items.iter().find(|d| d.tool.eq_ignore_ascii_case(kind));
+                if let Some(d) = tool {
                     self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(x, rr.y + 28.0, 20.0, 20.0), WHITE);
                 }
+                let name = tool.map_or(kind.as_str(), |d| d.name.as_str());
                 let c = if have { Color::new(0.7, 0.95, 0.7, 1.0) } else { Color::new(1.0, 0.55, 0.5, 1.0) };
-                draw_text(kind, x + 22.0, rr.y + 44.0, 17.0, c);
-                x += 30.0 + measure_text(kind, None, 17, 1.0).width;
+                draw_text(name, x + 22.0, rr.y + 44.0, 17.0, c);
+                x += 30.0 + measure_text(name, None, 17, 1.0).width;
             }
             if let Some(Missing::Skill(..) | Missing::StationState(..)) = &missing {
                 draw_text(self.missing_text(missing.as_ref().unwrap()), x + 6.0, rr.y + 44.0, 17.0, Color::new(1.0, 0.55, 0.5, 1.0));

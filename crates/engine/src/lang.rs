@@ -279,6 +279,7 @@ pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
     }
     for c in &mut d.characters {
         t(&mut c.name);
+        t(&mut c.description);
     }
     for q in &mut d.quests {
         t(&mut q.title);
@@ -362,9 +363,17 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     };
     for p in &db.props {
         add(&p.name);
+        if let Some(spot) = &p.use_spot {
+            add(&spot.refuse_text);
+        }
     }
     for c in &db.characters {
         add(&c.name);
+        add(&c.description);
+    }
+    // The maps' titles (the map screen, its exits, the save list).
+    for m in project.list_maps() {
+        add(&project.config.map_title(&m));
     }
     for q in &db.quests {
         add(&q.title);
@@ -489,6 +498,9 @@ mod tests {
         assert_eq!(t.ui("Lv 12").as_deref(), Some("Stufe 12"));
         assert_eq!(t.ui("Tilda sold Apple").as_deref(), Some("Apple von Tilda verkauft"), "reordered");
         assert_eq!(t.ui("Lv "), None, "values aren't empty");
+        // The bed's question, filled in by the engine (runtime/furniture.rs).
+        assert_eq!(t.ui("Sleep until 07:00?").as_deref(), Some("Bis 07:00 schlafen?"));
+        assert_eq!(t.ui("Not now").as_deref(), Some("Jetzt nicht"));
         assert_eq!(t.ui("a: b"), None, "keys without words of their own are ignored");
         assert_eq!(t.ui("Something else"), None);
         assert_eq!(fill("{0}-{}-{1}{x}", &["a".into(), "b".into()]), "a-a-b{x}");

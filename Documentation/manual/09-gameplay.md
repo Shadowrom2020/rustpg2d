@@ -447,7 +447,8 @@ or on the title screen.
 ## The map screen
 
 M (or the map button) shows the current map from above with the player's marker and the exits
-labelled with the maps they lead to; the game pauses meanwhile. Large maps scroll and zoom. On maps
+labelled with the titles of the maps they lead to (map settings, [Maps](03-maps.md)); labels of
+doors side by side stack instead of covering each other. The game pauses meanwhile. Large maps scroll and zoom. On maps
 with **fog of war** only the explored parts show ([Maps › Fog of war](03-maps.md#map-screen-and-fog-of-war)).
 
 ![The map screen](../images/game-map.webp)

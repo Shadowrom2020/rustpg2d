@@ -425,6 +425,13 @@ impl Renamer<'_> {
 /// (The definition's own `id` must be renamed by the caller.)
 pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &str, new: &str) -> usize {
     let mut r = Renamer { kind, old, new, count: 0, found: None };
+    // A renamed map keeps its title.
+    if kind == RefKind::Map {
+        if let Some(t) = config.map_titles.remove(old) {
+            config.map_titles.insert(new.to_string(), t);
+            r.count += 1;
+        }
+    }
     for d in &mut db.items {
         r.fix(RefKind::Sheet, &mut d.icon.sheet);
         r.fix(RefKind::Spell, &mut d.teaches);
@@ -819,12 +826,14 @@ mod tests {
         languages: vec![],
         model_atlas_mb: 32,
         eight_facings: true,
+        map_titles: [("village".to_string(), "Emberbrook".to_string())].into(),
         };
         cfg.sfx.pickup = "blip".into();
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "items", "icons"), 1);
         assert_eq!(db.items[0].icon.sheet, "icons");
-        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Map, "village", "town"), 1);
+        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Map, "village", "town"), 2);
         assert_eq!(cfg.start_map, "town");
+        assert_eq!(cfg.map_titles.get("town").map(String::as_str), Some("Emberbrook"));
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sound, "blip", "ding"), 1);
         assert_eq!(cfg.sfx.pickup, "ding");
     }

@@ -242,8 +242,11 @@ fn guard_answer() {
     }
 }
 
+// (The count goes into a variable for the {coins} placeholder: a text glued together here
+// couldn't be translated.)
 fn count_coins() {
-    say("You have " + item_count("coin") + " coins.");
+    set_var("coins", item_count("coin"));
+    say("You have {coins} coins.");
 }
 
 // Fireball, a scripted spell (Database > Spells > Fireball, effect "Script"). Casting it calls

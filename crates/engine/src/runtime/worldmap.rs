@@ -423,7 +423,9 @@ impl Game {
                 draw_texture_ex(fog, vis.x, vis.y, WHITE, DrawTextureParams { dest_size: Some(vis.size()), source: Some(src), ..Default::default() });
             }
             draw_rectangle_lines(vis.x, vis.y, vis.w, vis.h, 1.0, Color::new(0.85, 0.8, 0.6, 0.5));
-            // Their labels: the map they lead to, at the explored part.
+            // Their labels: the map they lead to, at the explored part; a label that would cover
+            // another one moves down below it (doors side by side).
+            let mut placed: Vec<Rect> = Vec::new();
             for (_, target, c) in exits {
                 let c = self.map_to_screen(c);
                 if !v.contains(c) {
@@ -432,7 +434,14 @@ impl Game {
                 let label = format!("to {}", self.map_title(&target));
                 let tw = measure_text(&label, None, 18, 1.0).width;
                 let lx = (c.x - tw / 2.0).clamp(v.x + 2.0, v.right() - tw - 2.0);
-                let ly = (c.y + 6.0).clamp(v.y + 16.0, v.bottom() - 4.0);
+                let mut ly = (c.y + 6.0).clamp(v.y + 16.0, v.bottom() - 4.0);
+                for _ in 0..8 {
+                    match placed.iter().find(|p| p.overlaps(&Rect::new(lx - 4.0, ly - 15.0, tw + 8.0, 20.0))) {
+                        Some(p) => ly = p.bottom() + 15.0 + 1.0,
+                        None => break,
+                    }
+                }
+                placed.push(Rect::new(lx - 4.0, ly - 15.0, tw + 8.0, 20.0));
                 draw_rectangle(lx - 4.0, ly - 15.0, tw + 8.0, 20.0, Color::new(0.0, 0.0, 0.0, 0.7));
                 draw_text(&label, lx, ly, 18.0, WHITE);
             }
@@ -510,10 +519,9 @@ impl Game {
     }
 
     /// A map's name for the player: "dark_forest" -> "Dark forest".
-    fn map_title(&self, name: &str) -> String {
-        let s = name.replace(['_', '-'], " ");
-        let mut c = s.chars();
-        c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+    /// A map's title in the current language (`ProjectConfig::map_titles`).
+    pub(super) fn map_title(&self, name: &str) -> String {
+        crate::lang::tr(&self.project.config.map_title(name))
     }
 
     /// Screen position of a map screen button ("close", "zoomin", "zoomout", "center") for

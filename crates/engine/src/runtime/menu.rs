@@ -217,6 +217,12 @@ pub(super) fn display_name(slot: &str) -> String {
     }
 }
 
+/// A runtime text in the current language (for values put into other texts: their templates
+/// translate the rest, not the values).
+fn ui(text: &str) -> String {
+    crate::lang::tr_ui(text).into_owned()
+}
+
 fn ago(secs: u64) -> String {
     let d = now_secs().saturating_sub(secs);
     match d {
@@ -273,15 +279,15 @@ impl Game {
             m.saves
                 .iter()
                 .map(|s| {
-                    let detail = format!("{} · {} played · {}", s.map, play_time(s.play_time), ago(s.saved));
-                    (Row::Slot(s.slot.clone()), display_name(&s.slot), detail)
+                    let detail = format!("{} · {} played · {}", self.map_title(&s.map), play_time(s.play_time), ui(&ago(s.saved)));
+                    (Row::Slot(s.slot.clone()), ui(&display_name(&s.slot)), detail)
                 })
                 .collect()
         };
         // The Achievements row of the title and pause menus (games that have achievements).
         let (got, all) = (self.ach.progress.unlocked.keys().filter(|id| self.project.db.achievement(id).is_some()).count(), self.project.db.achievements.len());
         let achievements_row: Option<(Row, String, String)> = (all > 0).then(|| (Row::AchievementsMenu, "Achievements".into(), format!("{got} of {all} unlocked")));
-        let latest_save = |m: &Menu| m.saves.first().map(|s| format!("{} · {} · {}", display_name(&s.slot), s.map, ago(s.saved)));
+        let latest_save = |m: &Menu| m.saves.first().map(|s| format!("{} · {} · {}", ui(&display_name(&s.slot)), self.map_title(&s.map), ui(&ago(s.saved))));
         match &self.menu.page {
             Page::Defeated => vec![
                 (Row::LastSave, "Continue from last save".into(), latest_save(&self.menu).unwrap_or("no saved game yet".into())),
@@ -290,7 +296,7 @@ impl Game {
             ],
             Page::Title => {
                 let latest = self.menu.saves.first().map_or("no saved game yet".to_string(), |s| {
-                    format!("{} · {} · {}", display_name(&s.slot), s.map, ago(s.saved))
+                    format!("{} · {} · {}", ui(&display_name(&s.slot)), self.map_title(&s.map), ui(&ago(s.saved)))
                 });
                 let mut v = vec![
                     (Row::NewGame, "New game".into(), String::new()),
@@ -331,7 +337,7 @@ impl Game {
                             _ => (d.name.clone(), d.description.clone()),
                         };
                         let detail = match when {
-                            Some(t) => format!("{text} · unlocked {}", ago(*t)),
+                            Some(t) => format!("{text} · unlocked {}", ui(&ago(*t))),
                             None => text,
                         };
                         (Row::Achievement(d.id.clone()), name, detail)

@@ -433,7 +433,7 @@ pub(super) fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
         });
     }
     d.armor.as_ref().map(|a| {
-        let mut s = format!("{} · Defense +{}", a.slot.label(), a.defense);
+        let mut s = format!("{} · Defense +{}", crate::lang::tr_ui(a.slot.label()), a.defense);
         if a.speed != 0.0 {
             s.push_str(&format!(" · Speed {:+.0}%", a.speed * 100.0));
         }

@@ -46,8 +46,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   lists it in `SHA256SUMS`, and the package smoke test installs it in the packaged editor.
 
 ### Documentation
-- **The road to 1.0.0** (ROADMAP.md): releases 0.24 to 0.33 and 1.0.0, planned from a comparison with
-  commercial RPG makers (`Comparison.md`). Until 1.0.0, compatibility gives way when it costs more than a feature
+- **The road to 1.0.0** (ROADMAP.md): releases 0.24 to 0.35 and 1.0.0. From 0.28 the rules follow the
+  **SRD 5.1** (Wizards of the Coast's System Reference Document, CC BY 4.0): dice and checks, races,
+  conditions, turn-based combat, the twelve classes, spells, equipment and monsters, replacing the
+  engine's real-time combat, skills and mana. Until 1.0.0, compatibility gives way when it costs more than a feature
   (agreed per case, with a conversion where possible); from 1.0.0 every format change comes with a migration.
 - README: the example has nine quests.
 

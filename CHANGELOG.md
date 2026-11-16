@@ -27,6 +27,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - Status: `fonts=` and `missing_glyphs=` (autoplay); the agent server's `list_defs` / `upsert_def`
   know `fonts` and `write_asset` writes fonts and licence texts; editor script
   `import font|fontlicense ID FILE`.
+- **Message codes** in dialog and choice texts: `{c:gold}…{/c}` colours words (named colours or
+  `#rrggbb`), `{i:item}` shows an item's icon in the line, `{w:0.5}` pauses the typing, `{s:2}`
+  changes its speed, `{name:…}` the name box, and `{at:top}` / `{at:middle}` moves the box. The
+  Dialog and Choice forms get a row to insert them and a preview; the script function `say_at`
+  places the box. *Problems* warns about unknown codes, icons of missing items and translations
+  that drop a code. The dialog log shows the text without codes; autoplay `status` prints
+  `dialog_text=`. In the example, Greta shows the room key's icon and colours a few names.
 - **The example game** draws its texts in **monogram** (a CC0 pixel font by Vinícius Menézio, with
   Cyrillic and Greek), also in the starter library; the screenshots show it.
 

@@ -338,6 +338,15 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         speaker: if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") },
         text: text.into()
     })));
+    // say_at("top", ...): the box at the top / middle / bottom of the screen.
+    engine.register_fn("say_at", with!(ctx, |c, at: &str, text: &str| c.actions.push(Action::Dialog {
+        speaker: String::new(),
+        text: crate::dialog_codes::set_box_at(text, crate::dialog_codes::BoxAt::parse(at).unwrap_or_default())
+    })));
+    engine.register_fn("say_at", with!(ctx, |c, at: &str, speaker: &str, text: &str| c.actions.push(Action::Dialog {
+        speaker: speaker.into(),
+        text: crate::dialog_codes::set_box_at(text, crate::dialog_codes::BoxAt::parse(at).unwrap_or_default())
+    })));
     // say(speaker, "...", #{ mood: "worried" }): the line with a mood portrait of the speaker.
     fn say_with(c: &mut Ctx, speaker: String, text: &str, opts: &rhai::Map) {
         // An emotion over the speaker's head while the line is up (the dialog takes it away).

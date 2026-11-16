@@ -131,6 +131,31 @@ AI agents get every event, condition and action with its fields as JSON ([below]
   works, `interact` is the same as `confirm`). In a speaker, `{self}` is the owner's name. Item
   descriptions understand `{key:…}` too ("press {key:interact} to cast").
 
+### Message codes
+
+Dialog and Choice texts may also carry **message codes**, in the same braces:
+
+| Code | What it does |
+|---|---|
+| `{c:gold}…{/c}` | Colours the text up to `{/c}`. Colour names: `white`, `gray`, `red`, `green`, `blue`, `cyan`, `yellow`, `gold`, `orange`, `purple`, `pink`, `brown`; or `#rrggbb`. |
+| `{i:room_key}` | Shows an item's icon inside the line (the item's id). |
+| `{w:0.5}` | Pauses the typing for that many seconds (up to 60). |
+| `{s:2}` | Types the rest of the line at that speed: 2 = twice as fast, 0.5 = half as fast. |
+| `{name:A voice}` | Shows another name in the name box (and the dialog log). |
+| `{at:top}` | Shows the box at the `top`, `middle` or `bottom` (the usual place) of the screen. |
+
+Example: `Here's the {i:room_key} {c:gold}key{/c} to your room.{w:0.4} Sleep well!`
+
+- The action's form has a row above the text: the box's place, **Colour** and **Icon** menus and
+  **Pause**, each inserting its code at the cursor. A preview below the text shows the colours,
+  icons and pauses, and names anything in braces that isn't a valid code.
+- Pressing E while the text types out still shows all of it at once, pauses included.
+- The dialog log (journal) and Choice options show the text without codes.
+- A leading `{at:…}` isn't part of the text translators see. The other codes are: a translation
+  keeps them (*Problems* warns when one is missing, and about unknown codes and icons of items that
+  don't exist).
+- Scripts: `say_at("top", speaker, text)`, or the codes inside any `say` text.
+
 ## Common patterns
 
 ### A character with something new to say

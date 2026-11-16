@@ -344,6 +344,45 @@ fn a_font_is_defined_and_chosen() {
 }
 
 #[test]
+fn dialog_codes_are_inserted_and_the_box_placed() {
+    let root = example_copy("dialog_codes");
+    let chars = root.join("defs/characters.ron");
+    let ron = std::fs::read_to_string(&chars).unwrap().replacen(
+        "triggers: [],",
+        r#"triggers: [(on: Interact, conditions: [], actions: [Dialog(speaker: "Greta", text: "Sleep well!")], once: false)],"#,
+        1,
+    );
+    std::fs::write(&chars, ron).unwrap();
+    let text = |h: &Harness<'static, Editor>| match &h.state().project.db.characters[0].triggers[0].actions[0] {
+        rustpg2d_engine::events::Action::Dialog { text, .. } => text.clone(),
+        other => panic!("{other:?}"),
+    };
+    let mut h = harness(&root, Tab::Characters, 0);
+    step(&mut h);
+    // Pause: the code goes in at the cursor (the end of a field never clicked).
+    h.get_by(|n| n.role() == Role::Button && n.label().as_deref().is_some_and(|l| l.ends_with("Pause"))).click();
+    step(&mut h);
+    assert_eq!(text(&h), "Sleep well!{w:0.5}");
+    // A colour from the Colour menu.
+    h.get_by(|n| n.role() == Role::Button && n.label().as_deref().is_some_and(|l| l.ends_with("Colour"))).click();
+    step(&mut h);
+    h.get_by(|n| n.role() == Role::Button && n.label().as_deref() == Some("gold")).click();
+    step(&mut h);
+    assert_eq!(text(&h), "Sleep well!{w:0.5}{c:gold}");
+    // The box at the top: the code at the start of the text.
+    let colour = format!("{} Colour", crate::ui::ph::PALETTE);
+    beside(&h, &colour, |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("top") && n.role() != Role::ComboBox).click();
+    step(&mut h);
+    assert_eq!(text(&h), "{at:top}Sleep well!{w:0.5}{c:gold}");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert!(matches!(&saved.db.characters[0].triggers[0].actions[0], rustpg2d_engine::events::Action::Dialog { text, .. } if text == "{at:top}Sleep well!{w:0.5}{c:gold}"));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn colour_feature_default_is_set_and_cleared() {
     let root = example_copy("feature_default");
     let db = Project::load(&root).unwrap().db;

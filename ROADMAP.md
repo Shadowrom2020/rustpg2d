@@ -334,37 +334,44 @@ Games can be written in any language:
     - アレックス typed into the creator;
     - the editor's language list showing 日本語.
 
-- [ ] Dialog message codes — `feature/message-codes`
+- [x] Dialog message codes — `feature/message-codes`
 
   **Goal.** Dialog lines with colour, inline icons, pauses and speed, like RPG Maker's `\C[n]`,
   `\I[n]` and `\.`.
 
   **Design.**
   - **Syntax:** codes in braces, like the existing placeholders, so translators see one syntax:
-    - `{c:gold}…{c}` sets a colour: a named colour of the UI skin or `#rrggbb`;
+    - `{c:gold}…{/c}` sets a colour: a named colour (12 names; the UI skin of 0.25 may add its
+      own) or `#rrggbb`; `{/c}` ends it (a bare `{c}` would be read as the variable `c`);
     - `{i:item_id}` shows the item's icon inline;
     - `{w:0.5}` pauses;
     - `{s:2}` sets the typing speed;
     - `{name:…}` overrides the name box.
-  - **Box position:** a new field of *Dialog* / *Choice* (serde default): `bottom` (the default),
-    `middle` or `top`. Scripts get `say_at`.
+  - **Box position:** a code too, `{at:top}` / `{at:middle}` (`bottom` is the default), not a field
+    of *Dialog* / *Choice*: v1 maps store triggers with postcard, where a new field of those
+    variants can't be added. A leading `{at:…}` is left out of the translated text. The editor's
+    form shows it as a combo box; scripts get `say_at`.
   - **Rendering:** `expand_text` leaves codes alone; the dialog renderer parses them after
     expansion.
-  - **Problems list:** warns about unknown codes, and about translations that drop a code.
+  - **Problems list:** warns about unknown codes, icons of missing items, and translations that
+    drop a code.
 
   **Engine.**
-  - the parser and renderer in `runtime/ui.rs`;
-  - the position field;
+  - the parser (`dialog_codes.rs`) and renderer (`runtime/ui.rs`);
   - the problem check;
-  - the editor's Dialog field gets a small toolbar (colour, icon, pause) and a preview.
+  - the editor's Dialog / Choice text gets a small toolbar (place, colour, icon, pause) and a
+    preview.
 
-  **Example.** A few dialogs colour item names, and Greta's room-key line shows the key's icon.
+  **Example.** Greta's room-key line shows the key's icon and pauses; her Halvar story colours the
+  names and slows down for the ghost; her locket line shows the locket.
 
   **Verify.**
-  - Autoplay screenshots of a coloured line with an icon and a pause, at the top and at the
-    bottom.
-  - `status` `dialog=` shows the plain text.
-  - Unit tests of the parser.
+  - Autoplay screenshots of a coloured line with an icon and a pause, at the top, the middle and
+    the bottom.
+  - `status` `dialog_text=` shows the plain text (`dialog=` stays true / false).
+  - Unit tests of the parser; a UI test of the toolbar.
+
+  **Decided while building.** Choice options and the dialog log show the text without codes.
 
 - [ ] Runtime texts in more languages — `feature/runtime-languages`
 

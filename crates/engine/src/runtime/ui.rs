@@ -5,15 +5,121 @@ use macroquad::prelude::*;
 use super::input;
 use crate::render::wrap_text;
 use crate::state::WorldState;
-use super::text::{draw_plain, draw_text, measure_text, Role};
+use super::text::{draw_plain, draw_text, measure_plain, measure_text, Role};
+use crate::dialog_codes::{self, BoxAt, Code, Piece};
+
+/// The first private-use character that stands for a code inside a dialog's text (the codes'
+/// places survive wrapping, and each counts as one character of the typing).
+const MARK: u32 = 0xF0000;
 
 struct Dialog {
     /// Room for the speaker's portrait at the left (the game draws it into `portrait_rect`).
     portrait: bool,
     speaker: String,
-    text: String,
-    revealed: f32,
+    /// The text with each code (colour, icon, pause, speed) replaced by `MARK + its index`.
+    text: Vec<char>,
+    codes: Vec<Code>,
+    /// The text without codes (`status`).
+    plain: String,
+    at: BoxAt,
+    /// Characters typed out so far, and the time not yet spent on the next one.
+    revealed: usize,
+    clock: f32,
+    /// A `{w:…}` pause still running, and the `{s:…}` speed.
+    pause: f32,
+    speed: f32,
     choice: Option<(Vec<String>, String, usize)>,
+}
+
+impl Dialog {
+    fn new(speaker: &str, text: &str, choice: Option<(Vec<String>, String, usize)>) -> Self {
+        let mut codes = Vec::new();
+        let mut marked = Vec::new();
+        let mut at = BoxAt::Bottom;
+        let mut speaker = speaker.to_string();
+        for p in dialog_codes::split(text) {
+            match p {
+                Piece::Text(t) => marked.extend(t.chars()),
+                Piece::Code(Code::At(a), _) => at = a,
+                Piece::Code(Code::Name(n), _) => speaker = n,
+                Piece::Code(c, _) => {
+                    marked.push(char::from_u32(MARK + codes.len() as u32).unwrap_or(' '));
+                    codes.push(c);
+                }
+            }
+        }
+        let choice = choice.map(|(o, v, s)| (o.iter().map(|o| dialog_codes::plain(o)).collect(), v, s));
+        Dialog { portrait: false, speaker: dialog_codes::plain(&speaker), text: marked, codes, plain: dialog_codes::plain(text), at, revealed: 0, clock: 0.0, pause: 0.0, speed: 1.0, choice }
+    }
+
+    /// The code a character of the text stands for.
+    fn code(&self, c: char) -> Option<&Code> {
+        (c as u32).checked_sub(MARK).and_then(|k| self.codes.get(k as usize))
+    }
+
+    /// Types the text out for `dt` seconds at `rate` characters per second (pauses and speed
+    /// codes take effect when the typing reaches them).
+    fn type_out(&mut self, dt: f32, rate: f32) {
+        if rate <= 0.0 {
+            self.revealed = self.text.len();
+            return;
+        }
+        self.clock += dt;
+        while self.revealed < self.text.len() {
+            if self.pause > 0.0 {
+                let t = self.pause.min(self.clock);
+                self.pause -= t;
+                self.clock -= t;
+                if self.pause > 0.0 {
+                    break;
+                }
+            }
+            match self.code(self.text[self.revealed]).cloned() {
+                Some(Code::Wait(s)) => self.pause = s,
+                Some(Code::Speed(v)) => self.speed = v,
+                // (An icon takes a character's time.)
+                Some(Code::Icon(_)) | None => {
+                    let cost = 1.0 / (rate * self.speed);
+                    if self.clock < cost {
+                        break;
+                    }
+                    self.clock -= cost;
+                }
+                Some(_) => {}
+            }
+            self.revealed += 1;
+        }
+        if self.revealed >= self.text.len() {
+            self.clock = 0.0;
+        }
+    }
+
+    fn done(&self) -> bool {
+        self.revealed >= self.text.len()
+    }
+
+    /// The width of a piece of the marked text at `font` (codes take none, icons a square).
+    fn width(&self, s: &str, font: f32) -> f32 {
+        let mut w = 0.0;
+        let mut run = String::new();
+        for c in s.chars() {
+            match self.code(c) {
+                Some(code) => {
+                    w += measure_plain(&std::mem::take(&mut run), font).width;
+                    if matches!(code, Code::Icon(_)) {
+                        w += icon_size(font) + 4.0;
+                    }
+                }
+                None => run.push(c),
+            }
+        }
+        w + measure_plain(&run, font).width
+    }
+}
+
+/// The side of an inline item icon in a dialog line.
+fn icon_size(font: f32) -> f32 {
+    (font * 1.1).round()
 }
 
 #[derive(Default)]
@@ -24,6 +130,8 @@ pub struct Ui {
     choice_rects: Vec<Rect>,
     /// Where the open dialog's portrait goes (set while drawing).
     pub portrait_rect: Option<Rect>,
+    /// The `{i:…}` item icons of the open dialog and where they go (set while drawing).
+    pub icon_spots: Vec<(String, Rect)>,
     /// Dialog text speed from the player's options (set every frame; 0 = instant).
     pub text_speed: f32,
     /// The size of what players read (Options › Accessibility › Text size; set every frame).
@@ -76,8 +184,9 @@ impl Ui {
         self.toasts.push((msg, 2.5));
     }
 
+    /// Opens a dialog box; the text may hold message codes (`dialog_codes`).
     pub fn show_dialog(&mut self, speaker: &str, text: &str) {
-        self.dialog = Some(Dialog { portrait: false, speaker: speaker.into(), text: text.into(), revealed: 0.0, choice: None });
+        self.dialog = Some(Dialog::new(speaker, text, None));
     }
 
     /// The open dialog gets a portrait (call right after `show_dialog` / `show_choice`).
@@ -88,17 +197,16 @@ impl Ui {
     }
 
     pub fn show_choice(&mut self, speaker: &str, text: &str, options: &[String], var: &str) {
-        self.dialog = Some(Dialog {
-            portrait: false,
-            speaker: speaker.into(),
-            text: text.into(),
-            revealed: 0.0,
-            choice: Some((options.to_vec(), var.to_string(), 0)),
-        });
+        self.dialog = Some(Dialog::new(speaker, text, Some((options.to_vec(), var.to_string(), 0))));
     }
 
     pub fn dialog_open(&self) -> bool {
         self.dialog.is_some()
+    }
+
+    /// The open dialog's text without its codes (`status`).
+    pub fn dialog_text(&self) -> Option<&str> {
+        self.dialog.as_ref().map(|d| d.plain.as_str())
     }
 
     pub fn update(&mut self, dt: f32, world: &mut WorldState) -> UiInput {
@@ -113,8 +221,7 @@ impl Ui {
         if let Some(d) = &mut self.dialog {
             out.consumed = true;
             out.mouse_consumed = true;
-            let len = d.text.chars().count() as f32;
-            d.revealed = if self.text_speed <= 0.0 { len } else { (d.revealed + dt * CHARS_PER_SEC * self.text_speed).min(len) };
+            d.type_out(dt, CHARS_PER_SEC * self.text_speed.max(0.0));
             if let Some((opts, _, sel)) = &mut d.choice {
                 let n = opts.len().max(1);
                 if input::act_pressed(input::Act::Up) {
@@ -124,7 +231,7 @@ impl Ui {
                     *sel = (*sel + 1) % n;
                 }
             }
-            let done = d.revealed >= len;
+            let done = d.done();
             let mut confirm = confirm_pressed();
             if let Some((_, _, sel)) = &mut d.choice {
                 if let Some(k) = self.choice_rects.iter().position(|r| r.contains(mouse)) {
@@ -137,8 +244,9 @@ impl Ui {
                 confirm |= click;
             }
             if confirm {
-                if d.revealed < len {
-                    d.revealed = len;
+                if !d.done() {
+                    d.revealed = d.text.len();
+                    d.pause = 0.0;
                 } else {
                     if let Some((opts, var, sel)) = &d.choice {
                         world.set_var(var, *sel as i64);
@@ -186,6 +294,7 @@ impl Ui {
         let (sw, sh) = (screen_width(), screen_height());
         self.choice_rects.clear();
         self.portrait_rect = None;
+        self.icon_spots.clear();
 
         let s = self.scale();
         let (font, line) = ((FONT as f32 * s).round(), 30.0 * s);
@@ -198,12 +307,17 @@ impl Ui {
             const PORTRAIT: f32 = 120.0;
             let inset = if d.portrait { PORTRAIT + 18.0 } else { 0.0 };
             let choice_rows = d.choice.as_ref().map_or(0, |c| c.0.len()) as f32;
-            let lines = super::text::wrap_counted(&d.text, font, w - 40.0 - inset);
+            let marked: String = d.text.iter().collect();
+            let lines = super::text::wrap_with(&marked, w - 40.0 - inset, |s| d.width(s, font));
             let mut h = 26.0 + 30.0 * s + lines.len().max(2) as f32 * line + choice_rows * line;
             if d.portrait {
                 h = h.max(PORTRAIT + 28.0);
             }
-            let y = sh - h - margin;
+            let y = match d.at {
+                BoxAt::Bottom => sh - h - margin,
+                BoxAt::Middle => ((sh - h) / 2.0).round(),
+                BoxAt::Top => margin,
+            };
             panel(x, y, w, h);
             if d.portrait {
                 self.portrait_rect = Some(Rect::new(x + 14.0, y + 14.0, PORTRAIT, PORTRAIT));
@@ -216,15 +330,34 @@ impl Ui {
                 draw_plain(&d.speaker, x + 20.0, ty, (28.0 * s).round(), GOLD);
                 ty += 32.0 * s;
             }
-            let mut budget = d.revealed as usize;
+            let mut budget = d.revealed;
+            let mut color = WHITE;
             // (Each line's own count of the text's characters: Japanese lines end on no space.)
             for (l, used) in &lines {
-                let shown: String = l.chars().take(budget).collect();
+                let mut lx = x + 20.0;
+                let mut run = String::new();
+                for c in l.chars().take(budget) {
+                    let Some(code) = d.code(c) else {
+                        run.push(c);
+                        continue;
+                    };
+                    lx += draw_plain(&std::mem::take(&mut run), lx, ty, font, color).width;
+                    match code {
+                        Code::Color(Some([r, g, b])) => color = Color::from_rgba(*r, *g, *b, 255),
+                        Code::Color(None) => color = WHITE,
+                        Code::Icon(id) => {
+                            let side = icon_size(font);
+                            self.icon_spots.push((id.clone(), Rect::new(lx + 2.0, (ty - font * 0.85).round(), side, side)));
+                            lx += side + 4.0;
+                        }
+                        _ => {}
+                    }
+                }
+                draw_plain(&run, lx, ty, font, color);
                 budget = budget.saturating_sub(*used);
-                draw_plain(&shown, x + 20.0, ty, font, WHITE);
                 ty += line;
             }
-            let done = d.revealed as usize >= d.text.chars().count();
+            let done = d.done();
             if let (Some((opts, _, sel)), true) = (&d.choice, done) {
                 let dim = if contrast() { WHITE } else { LIGHTGRAY };
                 for (i, o) in opts.iter().enumerate() {

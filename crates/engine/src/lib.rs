@@ -7,6 +7,7 @@ pub mod crafting;
 pub mod convert_tiles;
 pub mod decor;
 pub mod defs;
+pub mod dialog_codes;
 pub mod desktop;
 pub mod effects;
 pub mod entity;

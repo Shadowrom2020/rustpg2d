@@ -1,0 +1,11 @@
+[
+    (
+        id: "monogram",
+        name: "monogram",
+        file: "fonts/monogram.ttf",
+        pixel: 16,
+        scale: 1.3,
+        license: "fonts/monogram_credits.txt",
+        credit: "monogram by Vinícius Menézio (datagoblin), CC0",
+    ),
+]

@@ -93,6 +93,7 @@ impl Game {
 
     /// "Achievement unlocked" toasts at the top of the screen (above the menu).
     pub(super) fn draw_achievement_toasts(&self) {
+        let _font = super::text::role(super::text::Role::Hud);
         let (w, h) = (380.0, 64.0);
         let x = ((screen_width() - w) / 2.0).round();
         for (k, (id, t)) in self.ach.toasts.iter().enumerate() {

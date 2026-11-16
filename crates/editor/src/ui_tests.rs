@@ -316,6 +316,34 @@ fn project_settings_tick_and_number() {
 }
 
 #[test]
+fn a_font_is_defined_and_chosen() {
+    let root = example_copy("font");
+    std::fs::write(root.join("defs/fonts.ron"), r#"[(id: "pixel", name: "Pixel", file: "fonts/pixel.ttf")]"#).unwrap();
+    let mut h = harness(&root, Tab::Fonts, 0);
+    step(&mut h);
+    // Its pixel size, typed.
+    beside(&h, "Pixel size", |n| n.role() == Role::SpinButton && n.value().as_deref() == Some("0 px")).click();
+    step(&mut h);
+    h.get_by(|n| n.is_focused()).type_text("16");
+    step(&mut h);
+    h.press_key(egui::Key::Enter);
+    step(&mut h);
+    assert_eq!(h.state().project.db.fonts[0].pixel, 16);
+    // Project › Fonts: the windows' font (the combo box beside its label).
+    h.state_mut().db.tab = Tab::Project;
+    step(&mut h);
+    beside(&h, "Windows and menus", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("pixel") && n.role() != Role::ComboBox).click();
+    step(&mut h);
+    assert_eq!(h.state().project.config.fonts.ui, "pixel");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert_eq!((saved.db.fonts[0].pixel, saved.config.fonts.ui.as_str()), (16, "pixel"));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn colour_feature_default_is_set_and_cleared() {
     let root = example_copy("feature_default");
     let db = Project::load(&root).unwrap().db;

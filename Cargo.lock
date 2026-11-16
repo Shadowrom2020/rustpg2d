@@ -2589,6 +2589,7 @@ dependencies = [
  "rhai",
  "ron",
  "serde",
+ "ttf-parser",
  "zip",
 ]
 

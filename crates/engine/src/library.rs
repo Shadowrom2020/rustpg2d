@@ -35,7 +35,7 @@ const PACK_VERSION: u32 = 1;
 pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
-pub const KINDS: [RefKind; 13] = [RefKind::Sound, RefKind::Material, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
+pub const KINDS: [RefKind; 14] = [RefKind::Font, RefKind::Sound, RefKind::Material, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race];
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()
@@ -75,6 +75,8 @@ struct Manifest {
     materials: Vec<crate::ground::MaterialDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     scatter: Vec<crate::decor::ScatterDef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    fonts: Vec<crate::fonts::FontDef>,
     /// Script functions by name (their whole source text).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     scripts: BTreeMap<String, String>,
@@ -285,6 +287,7 @@ impl Bundle {
             models: db.models.iter().filter(|d| has(RefKind::Model, &d.id)).cloned().collect(),
             materials: db.materials.iter().filter(|d| has(RefKind::Material, &d.id)).cloned().collect(),
             scatter: db.scatter.iter().filter(|d| has(RefKind::Scatter, &d.id)).cloned().collect(),
+            fonts: db.fonts.iter().filter(|d| has(RefKind::Font, &d.id)).cloned().collect(),
             quests: Vec::new(),
             achievements: Vec::new(),
             ..Default::default()
@@ -383,6 +386,7 @@ impl Bundle {
             models: self.db.models.clone(),
             materials: self.db.materials.clone(),
             scatter: self.db.scatter.clone(),
+            fonts: self.db.fonts.clone(),
             scripts: self.scripts.clone(),
         };
         let manifest = crate::project::ron_text(&m)?;
@@ -421,7 +425,7 @@ impl Bundle {
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
         }
-        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, ..Default::default() };
+        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
         for rel in asset_files(&b.db).into_iter().chain(m.tilesets.iter().map(|t| t.image.clone())) {
             if !rel.is_empty() && !b.files.contains_key(&rel) {
@@ -524,7 +528,7 @@ impl Bundle {
         config.tile_size = self.tile_size;
         let mut out = vec![("project.ron".to_string(), crate::project::ron_text(&config)?.into_bytes())];
         let db = &self.db;
-        let defs: [(&str, String); 13] = [
+        let defs: [(&str, String); 14] = [
             ("sheets", crate::project::ron_text(&db.sheets)?),
             ("items", crate::project::ron_text(&db.items)?),
             ("props", crate::project::ron_text(&db.props)?),
@@ -538,6 +542,7 @@ impl Bundle {
             ("models", crate::project::ron_text(&db.models)?),
             ("materials", crate::project::ron_text(&db.materials)?),
             ("scatter", crate::project::ron_text(&db.scatter)?),
+            ("fonts", crate::project::ron_text(&db.fonts)?),
         ];
         out.extend(defs.into_iter().map(|(n, t)| (format!("defs/{n}.ron"), t.into_bytes())));
         if !self.scripts.is_empty() {
@@ -699,6 +704,7 @@ impl Bundle {
             RefKind::Sound => self.db.sounds.iter().find(|d| d.id == a.1).map(|d| d.file.clone()),
             RefKind::Model => self.db.model(&a.1).map(|d| d.file.clone()),
             RefKind::Material => self.db.material(&a.1).map(|d| d.texture.clone()),
+            RefKind::Font => self.db.font(&a.1).map(|d| d.file.clone()),
             _ => None,
         };
         for a in all_assets(&self.db) {
@@ -880,6 +886,7 @@ pub fn remove_assets(project: &mut Project, assets: &[AssetRef]) -> Result<()> {
     db.races.retain(|d| keep(RefKind::Race, &d.id));
     db.materials.retain(|d| keep(RefKind::Material, &d.id));
     db.scatter.retain(|d| keep(RefKind::Scatter, &d.id));
+    db.fonts.retain(|d| keep(RefKind::Font, &d.id));
     let files_after = files_of(&project.db);
     for f in files_before.difference(&files_after) {
         if safe_rel(f) {
@@ -949,12 +956,13 @@ fn collect_files(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> R
 }
 
 /// Every file the assets of `db` use: sheet images, material textures, sound files,
-/// model files and their clip files, and items' 3D models.
+/// model files and their clip files, items' 3D models, font files and their licences.
 pub fn asset_files(db: &Database) -> Vec<String> {
     let images = db.sheets.iter().map(|d| d.image.clone()).chain(db.materials.iter().map(|d| d.texture.clone()));
     let models = db.models.iter().flat_map(|d| std::iter::once(d.file.clone()).chain(d.clip_paths().cloned()));
     let items = db.items.iter().filter_map(|d| d.model.as_ref().map(|m| m.file.clone()));
-    images.chain(db.sounds.iter().map(|d| d.file.clone())).chain(models).chain(items).collect()
+    let fonts = db.fonts.iter().flat_map(|d| [d.file.clone(), d.license.clone()]).filter(|f| !f.is_empty());
+    images.chain(db.sounds.iter().map(|d| d.file.clone())).chain(models).chain(items).chain(fonts).collect()
 }
 
 /// Folder of the shared asset library: `$RUSTPG2D_LIBRARY`, else
@@ -1361,6 +1369,7 @@ mod tests {
             models: vec![],
             materials: vec![],
             scatter: vec![],
+            fonts: vec![],
             scripts: BTreeMap::new(),
         };
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));

@@ -239,7 +239,7 @@ pub fn measure_hint(template: &str, size: f32) -> f32 {
     segments(template)
         .iter()
         .map(|s| match s {
-            Seg::Text(t) => macroquad::text::measure_text(t, None, size as u16, 1.0).width,
+            Seg::Text(t) => super::text::measure_plain(t, size).width,
             Seg::Button(p) => pad_width(*p, size) + 2.0,
         })
         .sum()
@@ -250,7 +250,7 @@ pub fn draw_hint(template: &str, x: f32, y: f32, size: f32, color: Color) -> f32
     let mut cx = x;
     for s in segments(template) {
         match s {
-            Seg::Text(t) => cx += macroquad::text::draw_text(&t, cx, y, size, color).width,
+            Seg::Text(t) => cx += super::text::draw_plain(&t, cx, y, size, color).width,
             Seg::Button(p) => cx += draw_pad(p, cx + 1.0, y - size * 0.3, size) + 2.0,
         }
     }
@@ -272,7 +272,7 @@ pub fn pad_width(p: Pad, size: f32) -> f32 {
         Pad::Select | Pad::Start if style() == PadStyle::Nintendo => h,
         _ => {
             let label = pad_label(p);
-            (macroquad::text::measure_text(label, None, (h * 0.62) as u16, 1.0).width + h * 0.55).max(h * 1.3)
+            (super::text::measure_plain(label, ((h * 0.62) as u16) as f32).width + h * 0.55).max(h * 1.3)
         }
     }
 }
@@ -285,8 +285,8 @@ pub fn draw_pad(p: Pad, x: f32, cy: f32, size: f32) -> f32 {
     let st = style();
     let dark = Color::new(0.08, 0.08, 0.1, 1.0);
     let centered = |text: &str, cx: f32, fs: f32, c: Color| {
-        let d = macroquad::text::measure_text(text, None, fs as u16, 1.0);
-        macroquad::text::draw_text(text, (cx - d.width / 2.0).round(), (cy + d.offset_y / 2.0 - 1.0).round(), fs, c);
+        let d = super::text::measure_plain(text, fs);
+        super::text::draw_plain(text, cx - d.width / 2.0, cy + d.offset_y / 2.0 - 1.0, fs, c);
     };
     match p {
         Pad::South | Pad::East | Pad::West | Pad::North => {

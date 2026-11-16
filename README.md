@@ -46,7 +46,7 @@ for how to use it all.
     <td align="center"><em>Items held in the hands: pick how, check it in the preview</em></td>
   </tr>
   <tr>
-    <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night: the hero with a lantern, the guard on his round with his spear, a street lamp"></td>
+    <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night: the hero with a lantern, the night watch on her round with her spear, the street lamps"></td>
     <td><img src="Documentation/images/editor-events.webp" alt="The Events view: a forest map's triggers, scripts and map links as a graph"></td>
   </tr>
   <tr>

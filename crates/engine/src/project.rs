@@ -84,6 +84,10 @@ pub struct ProjectConfig {
     /// facings only).
     #[serde(default = "yes", skip_serializing_if = "is_yes")]
     pub eight_facings: bool,
+    /// The fonts the game draws its texts with (font ids per role, fallbacks); empty = the
+    /// built-in font, which has Latin-1 only.
+    #[serde(default, skip_serializing_if = "crate::fonts::FontRoles::is_empty")]
+    pub fonts: crate::fonts::FontRoles,
 }
 
 fn is_yes(b: &bool) -> bool {
@@ -228,6 +232,7 @@ impl ProjectConfig {
             map_titles: Default::default(),
             model_atlas_mb: default_atlas_mb(),
             eight_facings: true,
+            fonts: Default::default(),
         }
     }
 }
@@ -297,7 +302,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 15] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials", "scatter"];
+pub const DEFS: [&str; 16] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -356,6 +361,7 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         models: parse_list(r(12)?, DEFS[12], warn)?,
         materials: parse_list(r(13)?, DEFS[13], warn)?,
         scatter: parse_list(r(14)?, DEFS[14], warn)?,
+        fonts: parse_list(r(15)?, DEFS[15], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
@@ -485,6 +491,9 @@ impl Project {
         }
         if !self.db.scatter.is_empty() || d(DEFS[14]).exists() {
             write_ron(&d(DEFS[14]), &self.db.scatter)?;
+        }
+        if !self.db.fonts.is_empty() || d(DEFS[15]).exists() {
+            write_ron(&d(DEFS[15]), &self.db.fonts)?;
         }
         Ok(())
     }

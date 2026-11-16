@@ -343,7 +343,15 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     let models = db.models.iter().flat_map(|d| std::iter::once(&d.file).chain(d.clip_paths()).map(move |f| (f, "3D model", &d.id)));
     let item_models = db.items.iter().filter_map(|d| d.model.as_ref().map(|m| (&m.file, "item's 3D model", &d.id)));
     let assets = db.sheets.iter().map(|d| (&d.image, "sprite sheet", &d.id)).chain(db.materials.iter().map(|d| (&d.texture, "material", &d.id))).chain(db.sounds.iter().map(|d| (&d.file, "sound", &d.id))).chain(models).chain(item_models);
-    for (rel, kind, id) in assets {
+    // The fonts the game uses (others stay out: a CJK font is megabytes), with their licences.
+    let mut fonts = Vec::new();
+    for id in cfg.fonts.ids() {
+        match db.font(id) {
+            Some(d) => fonts.extend([(&d.file, "font", &d.id)].into_iter().chain((!d.license.is_empty()).then_some((&d.license, "font's licence", &d.id)))),
+            None => c.warnings.push(format!("The project uses the font '{id}', which isn't defined (Database › Fonts); the built-in font is used instead.")),
+        }
+    }
+    for (rel, kind, id) in assets.chain(fonts) {
         if rel.is_empty() || !root.join(rel).exists() {
             c.warnings.push(format!("The {kind} '{id}' has no file ({rel}); it will be missing in the game."));
         } else if !crate::project::safe_rel(rel) {

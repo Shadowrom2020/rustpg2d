@@ -123,6 +123,7 @@ impl Game {
 
     /// The speech bubbles (screen space, over the world; `cam` = the world's camera).
     pub(super) fn draw_barks(&self, cam: &Camera2D) {
+        let _font = super::text::role(super::text::Role::Dialog);
         let ts = self.ts();
         // Screen pixels per world pixel.
         let scale = (cam.world_to_screen(vec2(1.0, 0.0)) - cam.world_to_screen(Vec2::ZERO)).x.abs().max(0.1);

@@ -231,6 +231,26 @@ translated like dialogs; empty for sounds that need none (footsteps, menu blips)
 music, the game's built-in sounds (*Database › Project › Game sounds*) and scripts. See
 [Art and sound › Sounds and music](10-art-and-sound.md#sounds-and-music).
 
+## Fonts
+
+Fonts the game can draw its texts with (TTF or OTF, copied into `fonts/` by *Browse…*). Without
+one, the game uses its built-in pixel font, which has only Latin letters (with accents and
+umlauts, Latin-1); a font of your own brings every script it has glyphs for: Cyrillic, Greek,
+Japanese, Chinese, Korean. Choose which texts use which font under *Database › Project › Fonts*.
+
+| Field | Meaning |
+|---|---|
+| **File** | The font file, relative to the project |
+| **Pixel size** | For a pixel font: the size its pixels are drawn for (its grid, e.g. 12). Texts are drawn at whole multiples of it, so they stay crisp; 0 = a smooth font, drawn at any size |
+| **Scale** | How big it is drawn against the built-in font (1 = the size the game asks for). Raise it for a font that looks small, lower it for one that looks big; a pixel font then snaps to its grid |
+| **Baseline** | Moves the letters down (+) or up (-) by a part of the text size, for a font that sits higher or lower than the built-in one |
+| **Licence** | The font's licence text (a file in `fonts/`): exported games carry it with the font, as most font licences (the SIL Open Font License, for one) ask |
+| **Credit** | Who made it and under which licence |
+
+Below the form a sample shows the font with Latin, Cyrillic, Greek, Japanese, Chinese and Korean
+text, and how many characters it has. *Edit › Problems* warns when a text of the game or of one of
+its translations has characters no font of the project covers (players would see empty boxes).
+
 ## Quests
 
 The quest editor describes a whole quest in one place: who gives it and when, what the giver says,
@@ -312,3 +332,4 @@ These belong to the game systems they drive: [Skills and magic](09-gameplay.md#s
 | **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana, skill points) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |
 | **Languages** | The language the game is written in, translations, *Play-test in* ([Languages](12-languages.md)) |
+| **Fonts** | Which font the **windows and menus**, the **dialogs** (and speech bubbles, captions), the **HUD** (bars, quickbar, toasts, clock, damage numbers) and the **title** (the game's name on the title screen) use; empty = the built-in font for windows, the windows' font for the others. **Fallbacks**: fonts tried in order for a character the role's font lacks, before the built-in font (a Japanese font for a Japanese translation) ([Fonts](#fonts)) |

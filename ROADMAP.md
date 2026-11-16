@@ -141,7 +141,7 @@ Games can be written in any language:
 - dialog codes for colour, icons and pacing;
 - the engine's own texts in more languages.
 
-- [ ] Project fonts — `feature/project-fonts`
+- [x] Project fonts — `feature/project-fonts`
 
   **Goal.** A project chooses its fonts (TTF / OTF). Any script a font covers shows in dialogs,
   menus and the HUD, not only Latin-1.
@@ -166,6 +166,29 @@ Games can be written in any language:
   settings page and the problem check. A new library asset kind, `Font`. Compatible: an empty
   field means today's font.
 
+  **Decided while building.**
+  - **Fonts are definitions:** `defs/fonts.ron` with `FontDef` (file, `pixel` grid, `scale`,
+    `offset_y`, `license`, `credit`) and `RefKind::Font`, so the library, packages, renames and
+    the agent server handle them like other assets. `ProjectConfig.fonts` names font ids per role.
+    *Database › Fonts* is the form (with a sample set in the font through egui); the roles are a
+    *Fonts* section of *Database › Project*.
+  - **Loading:** `text::install_project` at game start, not `Assets`. Coverage comes from the
+    font's cmap through `ttf-parser` (already in the lockfile through fontdue). Roles are guards:
+    `text::role(Role::Dialog)` at the top of `draw_dialog`, `draw_barks`, `draw_captions`; `Hud`
+    in `draw_hud`, the quickbar, HUD buttons, the clock, toasts, damage numbers; `Title` for the
+    game's name on the title screen.
+  - **Content:** `draw_plain` / `measure_plain` draw text that is already translated. The direct
+    macroquad calls (dialog box, key glyphs, `render::wrap_text`) use them; the developer console
+    keeps the built-in font.
+  - **Exports:** only the fonts the roles use, with their licence files.
+  - **`write_asset`** writes `fonts/*.ttf|otf|txt`. The problems list names uncovered characters
+    with their code points, because the editor's own font lacks most of them.
+  - **The example:** monogram (extended, 577 glyphs, CC0, `fonts/monogram_credits.txt`) as the
+    `ui` font of every role, 16 px grid, scale 1.3: body text and headings at 32 px, small hints
+    at 16 px. The eight game screenshots that show text were retaken; the fishing one has none.
+  - **Not changed:** without project fonts the game draws exactly as before. The exception is
+    the text pieces of lines with key glyphs, which now sit on whole pixels like all other text.
+
   **Touch points.**
   - `project.rs`;
   - `runtime/text.rs`: every `macroquad::text::draw_text` / `measure_text` in `runtime/` goes
@@ -186,6 +209,23 @@ Games can be written in any language:
     screenshots of a dialog, the pause menu and the HUD.
   - `status` prints `fonts=role:file…` and `missing_glyphs=N`.
   - An old project draws exactly as before: compare screenshots against master.
+
+  Checked:
+  - **Fusion Pixel on a scratch copy:** dialog, menu, inventory, journal and title, and a
+    Japanese scratch translation mixing Japanese and Latin letters in one line;
+    `missing_glyphs=0`.
+  - **monogram in the example:** dialog, menu, options, inventory, skills, spells, journal, map,
+    HUD at night, shop and crafting.
+  - **Without fonts, against a build of master:** the dialog box is pixel-identical; the menu,
+    inventory and journal differ only in the background and in the text of key-glyph lines.
+  - **Exports:** a Linux export reads its font from `data.pack`; the web export too (headless
+    Brave); the Windows runner under Wine and a macOS build on the test Mac draw the example's dialog in
+    monogram.
+  - **Smoke test:** `scripts/ci/smoke.sh` passes.
+  - **Editor:** the Fonts tab and its sample, the project roles, `import font`, and the glyph
+    warning per language.
+  - **Tests:** unit tests (sizes, roles, coverage, run splitting, renames) and the editor UI test
+    `a_font_is_defined_and_chosen`.
 
 - [ ] Text for every language — `feature/unicode-text`
 

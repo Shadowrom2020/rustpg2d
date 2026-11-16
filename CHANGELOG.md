@@ -5,6 +5,26 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Fonts and languages
+- **Project fonts** (*Database › Fonts*): TTF / OTF fonts the game draws with, each with its pixel
+  grid (pixel fonts are drawn at whole multiples of it and stay crisp), scale, baseline, licence
+  text and credit; *Browse…* copies the file into `fonts/`, and a sample shows it with Latin,
+  Cyrillic, Greek, Japanese, Chinese and Korean text.
+- **Font roles** (*Database › Project › Fonts*): a font for the windows and menus, the dialogs
+  (with speech bubbles and captions), the HUD and the title, plus **fallback** fonts tried per
+  character, so one line can mix a pixel font's Latin letters with a CJK font's characters. Games
+  can now show every script their fonts cover; without fonts nothing changes (the built-in font,
+  Latin-1).
+- Exports carry the fonts the game uses with their licence texts (fonts it doesn't use stay out).
+- *Edit › Problems* warns about characters of the game's texts or of a translation that no font
+  of the project covers, and about missing font or licence files.
+- The asset library and packages carry fonts; renaming a font updates the project's font roles.
+- Status: `fonts=` and `missing_glyphs=` (autoplay); the agent server's `list_defs` / `upsert_def`
+  know `fonts` and `write_asset` writes fonts and licence texts; editor script
+  `import font|fontlicense ID FILE`.
+- **The example game** draws its texts in **monogram** (a CC0 pixel font by Vinícius Menézio, with
+  Cyrillic and Greek), also in the starter library; the screenshots show it.
+
 ### Documentation
 - **The road to 1.0.0** (ROADMAP.md): releases 0.24 to 0.33 and 1.0.0, planned from a comparison with
   commercial RPG makers (`Comparison.md`). Until 1.0.0, compatibility gives way when it costs more than a feature

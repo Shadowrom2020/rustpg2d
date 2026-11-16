@@ -160,6 +160,7 @@ impl Game {
 
     /// The damage numbers (screen space, over the world; `cam` = the world's camera).
     pub(super) fn draw_damage_numbers(&self, cam: &Camera2D) {
+        let _font = super::text::role(super::text::Role::Hud);
         if !self.settings.damage_numbers {
             return;
         }

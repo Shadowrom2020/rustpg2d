@@ -32,12 +32,14 @@ pub enum RefKind {
     Material,
     /// Scatter set (`decor::ScatterDef`).
     Scatter,
+    /// Font (`fonts::FontDef`).
+    Font,
 }
 
 impl RefKind {
-    /// Every kind: the fifteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
+    /// Every kind: the sixteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
     /// then `Map`.
-    pub const ALL: [RefKind; 16] = [
+    pub const ALL: [RefKind; 17] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -53,10 +55,11 @@ impl RefKind {
         RefKind::Model,
         RefKind::Material,
         RefKind::Scatter,
+        RefKind::Font,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 15] = [
+    pub const DEFS: [RefKind; 16] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -72,6 +75,7 @@ impl RefKind {
         RefKind::Model,
         RefKind::Material,
         RefKind::Scatter,
+        RefKind::Font,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -93,6 +97,7 @@ impl RefKind {
             RefKind::Model => "model",
             RefKind::Material => "material",
             RefKind::Scatter => "scatter",
+            RefKind::Font => "font",
         }
     }
 
@@ -114,6 +119,7 @@ impl RefKind {
             RefKind::Model => "models",
             RefKind::Material => "materials",
             RefKind::Scatter => "scatter",
+            RefKind::Font => "fonts",
             RefKind::Map => return None,
         })
     }
@@ -137,6 +143,7 @@ impl RefKind {
             RefKind::Model => "3D model",
             RefKind::Material => "Material",
             RefKind::Scatter => "Scatter set",
+            RefKind::Font => "Font",
         }
     }
 
@@ -160,6 +167,7 @@ impl RefKind {
             "model" | "3d model" => RefKind::Model,
             "material" | "ground" => RefKind::Material,
             "scatter" | "scatter set" | "scatter_set" => RefKind::Scatter,
+            "font" => RefKind::Font,
             _ => return None,
         })
     }
@@ -514,6 +522,10 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
         r.fix(RefKind::Sound, s);
     }
     r.fix(RefKind::Sound, &mut config.battle_music);
+    let f = &mut config.fonts;
+    for s in [&mut f.ui, &mut f.dialog, &mut f.hud, &mut f.title].into_iter().chain(f.fallback.iter_mut()) {
+        r.fix(RefKind::Font, s);
+    }
     r.count
 }
 
@@ -829,6 +841,7 @@ mod tests {
         model_atlas_mb: 32,
         eight_facings: true,
         map_titles: [("village".to_string(), "Emberbrook".to_string())].into(),
+        fonts: crate::fonts::FontRoles { ui: "mono".into(), fallback: vec!["cjk".into()], ..Default::default() },
         };
         cfg.sfx.pickup = "blip".into();
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "items", "icons"), 1);
@@ -838,6 +851,10 @@ mod tests {
         assert_eq!(cfg.map_titles.get("town").map(String::as_str), Some("Emberbrook"));
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sound, "blip", "ding"), 1);
         assert_eq!(cfg.sfx.pickup, "ding");
+        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Font, "cjk", "noto"), 1);
+        assert_eq!(cfg.fonts.fallback, vec!["noto".to_string()]);
+        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Font, "mono", "pixel"), 1);
+        assert_eq!(cfg.fonts.resolve(crate::fonts::Role::Dialog), "pixel");
     }
 
     #[test]

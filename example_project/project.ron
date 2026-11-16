@@ -183,4 +183,7 @@
         "village": "Emberbrook",
         "wilds": "The Wilds",
     },
+    fonts: (
+        ui: "monogram",
+    ),
 )

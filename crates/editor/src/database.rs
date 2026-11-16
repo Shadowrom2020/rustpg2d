@@ -34,6 +34,7 @@ pub enum Tab {
     Models,
     Materials,
     Scatter,
+    Fonts,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -54,6 +55,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Models => db.models.len(),
         Tab::Materials => db.materials.len(),
         Tab::Scatter => db.scatter.len(),
+        Tab::Fonts => db.fonts.len(),
         Tab::Project | Tab::Scripts => 0,
     }
 }
@@ -97,6 +99,7 @@ impl Tab {
             Tab::Models => RefKind::Model,
             Tab::Materials => RefKind::Material,
             Tab::Scatter => RefKind::Scatter,
+            Tab::Fonts => RefKind::Font,
             Tab::Project | Tab::Scripts => return None,
         })
     }
@@ -119,6 +122,7 @@ impl Tab {
             RefKind::Model => Tab::Models,
             RefKind::Material => Tab::Materials,
             RefKind::Scatter => Tab::Scatter,
+            RefKind::Font => Tab::Fonts,
             RefKind::Map => return None,
         })
     }
@@ -186,6 +190,8 @@ struct Cx<'a> {
     mat_preview: &'a mut crate::material_preview::MaterialPreview,
     /// The picture open in the pixel editor: (path, pixels, change counter).
     drawing: Option<(&'a str, &'a rustpg2d_engine::imageio::Rgba, u64)>,
+    /// The project folder (font previews read the font files).
+    root: &'a std::path::Path,
 }
 
 /// An id not yet used in `ids`, based on `prefix`.
@@ -219,6 +225,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Models => ph::CUBE,
         Tab::Materials => ph::PAINT_BRUSH,
         Tab::Scatter => ph::TREE_EVERGREEN,
+        Tab::Fonts => ph::TEXT_AA,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
     }
@@ -301,6 +308,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Scatter, "Scatter sets"),
             (Tab::Sheets, "Sprite sheets"),
             (Tab::Sounds, "Sounds"),
+            (Tab::Fonts, "Fonts"),
             (Tab::Structures, "Structures"),
             (Tab::Skills, "Skills"),
             (Tab::Spells, "Spells"),
@@ -352,6 +360,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Models => db.models.get(i).map(|d| (RefKind::Model, d.id.clone())),
             Tab::Materials => db.materials.get(i).map(|d| (RefKind::Material, d.id.clone())),
             Tab::Scatter => db.scatter.get(i).map(|d| (RefKind::Scatter, d.id.clone())),
+            Tab::Fonts => db.fonts.get(i).map(|d| (RefKind::Font, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -369,6 +378,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Models => Some(RefKind::Model),
                 Tab::Materials => Some(RefKind::Material),
                 Tab::Scatter => Some(RefKind::Scatter),
+                Tab::Fonts => Some(RefKind::Font),
                 _ => None,
             };
             if kind.is_some() {
@@ -511,6 +521,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     |ids| rustpg2d_engine::decor::ScatterDef::fresh(&unique("scatter", ids)),
                     |d| &mut d.id,
                 ),
+                Tab::Fonts => list_ui(
+                    ui,
+                    &mut db.fonts,
+                    sel,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::fonts::FontDef::fresh(&unique("font", ids)),
+                    |d| &mut d.id,
+                ),
                 Tab::Materials => list_ui(
                     ui,
                     &mut db.materials,
@@ -582,6 +600,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     st_edit: &mut ed.db.st_edit,
                     mat_preview: &mut ed.db.mat_preview,
                     drawing: ed.px.doc.as_ref().map(|d| (d.rel.as_str(), &d.img, d.version)),
+                    root: &ed.project.root,
                 };
                 let i = ed.db.sel;
                 let db = &mut ed.project.db;
@@ -668,6 +687,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Scatter => {
                         if let Some(d) = db.scatter.get_mut(i) {
                             scatter_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Fonts => {
+                        if let Some(d) = db.fonts.get_mut(i) {
+                            font_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -2262,6 +2286,139 @@ fn sound_form(ui: &mut egui::Ui, d: &mut SoundDef, cx: &mut Cx) {
     ui.weak("Use sounds with the 'Play sound' / 'Play music' actions, as map music (map properties), or for built-in game events (Project tab).");
 }
 
+fn font_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::fonts::FontDef, cx: &mut Cx) {
+    ui.heading("Font");
+    rename_row(ui, RefKind::Font, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.weak("A TTF or OTF font the game can draw its texts with: choose which texts use it under Project › Fonts. Fonts other than the built-in one show every script they have glyphs for (Cyrillic, Greek, Japanese…).");
+    egui::Grid::new("font").num_columns(2).show(ui, |ui| {
+        ui.label("File").on_hover_text("The font file (TTF / OTF), relative to the project; files from elsewhere are copied into fonts/.");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.file).hint_text("fonts/my_font.ttf").desired_width(220.0));
+            if ui.button("Browse…").clicked() {
+                *cx.browse = Some(Purpose::FontFile { id: d.id.clone(), license: false });
+            }
+        });
+        ui.end_row();
+        ui.label("Pixel size").on_hover_text("For a pixel font: the size its pixels are drawn for (its grid, e.g. 16). Texts are then drawn at whole multiples of it and stay crisp. 0 = a smooth font, drawn at any size.");
+        ui.add(egui::DragValue::new(&mut d.pixel).range(0..=64).suffix(" px"));
+        ui.end_row();
+        ui.label("Scale").on_hover_text("How big it is drawn against the built-in font (1 = the same size asked for). Raise it for a font that looks small, lower it for one that looks big; pixel fonts then snap to their grid.");
+        ui.add(egui::DragValue::new(&mut d.scale).range(0.25..=4.0).speed(0.01).fixed_decimals(2));
+        ui.end_row();
+        ui.label("Baseline").on_hover_text("Moves its letters down (+) or up (-) by this part of the text size, for fonts that sit higher or lower than the built-in one.");
+        ui.add(egui::DragValue::new(&mut d.offset_y).range(-0.5..=0.5).speed(0.005).fixed_decimals(3));
+        ui.end_row();
+        ui.label("Licence").on_hover_text("The font's licence text (a file in fonts/). Exported games carry it with the font, as most font licences ask.");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.license).hint_text("fonts/OFL.txt").desired_width(220.0));
+            if ui.button("Browse…").clicked() {
+                *cx.browse = Some(Purpose::FontFile { id: d.id.clone(), license: true });
+            }
+        });
+        ui.end_row();
+        ui.label("Credit");
+        ui.add(egui::TextEdit::singleline(&mut d.credit).hint_text("Font by …, licence").desired_width(260.0));
+        ui.end_row();
+    });
+    ui.separator();
+    font_preview(ui, cx.root, d);
+}
+
+thread_local! {
+    /// Font files already handed to egui for previews (by their egui font name).
+    static PREVIEW_FONTS: std::cell::RefCell<std::collections::BTreeMap<String, Option<usize>>> = std::cell::RefCell::default();
+}
+
+/// A sample of `d` set in its own face (egui's font), with how many characters the file has.
+fn font_preview(ui: &mut egui::Ui, root: &std::path::Path, d: &rustpg2d_engine::fonts::FontDef) {
+    if d.file.is_empty() {
+        ui.weak("Choose a font file to see a sample.");
+        return;
+    }
+    let path = root.join(&d.file);
+    let name = format!("r2d-font:{}:{}", d.file, rustpg2d_engine::sys::modified_secs(&path));
+    let glyphs = PREVIEW_FONTS.with(|p| {
+        *p.borrow_mut().entry(name.clone()).or_insert_with(|| {
+            let bytes = std::fs::read(&path).ok()?;
+            let n = rustpg2d_engine::fonts::Coverage::of(&bytes)?.len();
+            ui.ctx().add_font(egui::epaint::text::FontInsert::new(
+                &name,
+                egui::FontData::from_owned(bytes),
+                vec![egui::epaint::text::InsertFontFamily { family: egui::FontFamily::Name(name.as_str().into()), priority: egui::epaint::text::FontPriority::Highest }],
+            ));
+            Some(n)
+        })
+    });
+    let Some(n) = glyphs else {
+        ui.colored_label(Color32::LIGHT_RED, format!("{} can't be read as a TTF / OTF font.", d.file));
+        return;
+    };
+    ui.weak(format!("{n} characters. Sample (as the editor draws it; the game snaps pixel fonts to their grid):"));
+    // (A font added to egui is there from the next frame on.)
+    let family = egui::FontFamily::Name(name.as_str().into());
+    if !ui.fonts(|f| f.families().contains(&family)) {
+        ui.weak("…");
+        ui.ctx().request_repaint();
+        return;
+    }
+    let size = if d.pixel > 0 { d.pixel as f32 * 2.0 } else { 24.0 * d.scale };
+    for line in ["The quick brown fox jumps over the lazy dog 0123456789", "Grüße · Привет · Γειά σου · こんにちは · 你好 · 안녕"] {
+        ui.label(egui::RichText::new(line).family(family.clone()).size(size));
+    }
+}
+
+/// Project › Fonts: which font each kind of text uses, and the fallbacks.
+fn fonts_form(ed: &mut Editor, ui: &mut egui::Ui) {
+    use rustpg2d_engine::fonts::Role;
+    ui.heading("Fonts");
+    ui.weak("The fonts the game draws its texts with (define them under Database › Fonts). Without one, the game uses its built-in pixel font, which has only Latin letters (with accents and umlauts). A character a font lacks comes from the first fallback that has it: add a font for Japanese, Chinese or Korean there.");
+    let ids: Vec<String> = ed.project.db.fonts.iter().map(|d| d.id.clone()).collect();
+    let f = &mut ed.project.config.fonts;
+    egui::Grid::new("fonts").num_columns(2).show(ui, |ui| {
+        for (role, label, help) in [
+            (Role::Ui, "Windows and menus", "Menus, windows, tooltips: every text without a font of its own below. Empty: the built-in font."),
+            (Role::Dialog, "Dialogs", "Dialog and choice boxes, speech bubbles, captions. Empty: the windows' font."),
+            (Role::Hud, "HUD", "Bars, the quickbar, toasts, the clock, damage numbers. Empty: the windows' font."),
+            (Role::Title, "Title", "The game's name on the title screen. Empty: the windows' font."),
+        ] {
+            ui.label(label).on_hover_text(help);
+            let v = f.get_mut(role);
+            let shown = if v.is_empty() { if role == Role::Ui { "(built-in)".to_string() } else { "(as windows)".to_string() } } else { v.clone() };
+            egui::ComboBox::from_id_salt(("font_role", role.name())).selected_text(shown).show_ui(ui, |ui| {
+                ui.selectable_value(v, String::new(), if role == Role::Ui { "(built-in)" } else { "(as windows)" });
+                for id in &ids {
+                    ui.selectable_value(v, id.clone(), id);
+                }
+            });
+            ui.end_row();
+        }
+        let mut remove = None;
+        for (k, id) in f.fallback.iter_mut().enumerate() {
+            ui.label(if k == 0 { "Fallbacks" } else { "" }).on_hover_text("Tried in order for characters the role's font has no glyph for; the built-in font comes last.");
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_id_salt(("font_fallback", k)).selected_text(id.clone()).show_ui(ui, |ui| {
+                    for i in &ids {
+                        ui.selectable_value(id, i.clone(), i);
+                    }
+                });
+                if ui.small_button(ph::TRASH).on_hover_text("Remove this fallback").clicked() {
+                    remove = Some(k);
+                }
+            });
+            ui.end_row();
+        }
+        if let Some(k) = remove {
+            f.fallback.remove(k);
+        }
+        ui.label(if f.fallback.is_empty() { "Fallbacks" } else { "" });
+        if ui.add_enabled(!ids.is_empty(), egui::Button::new(ui::t(ph::PLUS, "Fallback font"))).clicked() {
+            f.fallback.push(ids.first().cloned().unwrap_or_default());
+        }
+        ui.end_row();
+    });
+}
+
 fn scatter_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::decor::ScatterDef, cx: &mut Cx) {
     use rustpg2d_engine::decor::DecorLayer;
     ui.heading("Scatter set");
@@ -2479,6 +2636,8 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     ui.weak("Tile size changes need a restart of the editor.");
     ui.separator();
     languages_form(ed, ui);
+    ui.separator();
+    fonts_form(ed, ui);
     let c = &mut ed.project.config;
     ui.separator();
     ui.heading("Skills & magic");

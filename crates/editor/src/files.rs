@@ -23,6 +23,8 @@ pub enum Purpose {
     MaterialTexture(String),
     SheetImage(String),
     SoundFile(String),
+    /// The font file (or, `license`, the licence text) of font `id`.
+    FontFile { id: String, license: bool },
     /// A 3D model file (`.glb`): a new model (`id` empty), model `id`'s file, or (`clips`) a file
     /// with more clips for it.
     ModelFile { id: String, clips: bool },
@@ -73,6 +75,8 @@ impl PendingDialog {
                 Purpose::MaterialTexture(_) => d.set_title("Choose the material's texture").add_filter("Images", &images).pick_file(),
                 Purpose::SheetImage(_) => d.set_title("Choose sprite sheet image").add_filter("Images", &images).pick_file(),
                 Purpose::SoundFile(_) => d.set_title("Choose sound").add_filter("Audio (WAV, OGG)", &["wav", "ogg"]).pick_file(),
+                Purpose::FontFile { license: false, .. } => d.set_title("Choose font").add_filter("Fonts (TTF, OTF)", &["ttf", "otf"]).pick_file(),
+                Purpose::FontFile { license: true, .. } => d.set_title("Choose the font's licence").add_filter("Text", &["txt", "md"]).pick_file(),
                 Purpose::ItemModel(_) => d.set_title("Choose the item's 3D model").add_filter("glTF binary", &["glb"]).pick_file(),
                 Purpose::ModelFile { clips, .. } => d.set_title(if clips { "Choose a file with clips" } else { "Choose a 3D model" }).add_filter("glTF binary", &["glb"]).pick_file(),
                 Purpose::ExportGameFolder => d.set_title("Folder for the exported game").pick_folder(),

@@ -147,6 +147,7 @@ impl Game {
     }
 
     fn draw_hud_buttons(&self) {
+        let _font = super::text::role(super::text::Role::Hud);
         let m = input::mouse_pos();
         for (b, r) in self.hud_buttons() {
             let hover = r.contains(m);
@@ -934,6 +935,7 @@ impl Game {
 impl Game {
     /// The quick action bar (bottom center): icon, owned count, key number.
     fn draw_quickbar(&self) {
+        let _font = super::text::role(super::text::Role::Hud);
         let m = input::mouse_pos();
         let rects = quick_rects();
         let first = rects[0];

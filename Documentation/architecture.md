@@ -19,7 +19,8 @@ and the module-by-module map.
 Rust 2021, clippy with `-D warnings`. The pinned stack and why:
 
 - **macroquad 0.4.16** (`audio` feature): window, OpenGL drawing, input, sound. Everything the game
-  draws goes through `draw_texture_ex`; text is macroquad's default font (Latin-1 only).
+  draws goes through `draw_texture_ex`; text is macroquad's default font (Latin-1 only) or the project's
+  TTF / OTF fonts (`fonts.rs`, loaded with macroquad's `load_ttf_font_from_bytes`).
 - **egui-macroquad 0.17.3** = egui 0.31, with **egui-phosphor 0.9** (icon font). Later egui-phosphor
   versions need a newer egui, so all four are pinned and excluded from Dependabot.
 - **rhai 1.27**: the scripting language (`script.rs`); the editor also uses it to parse JSON imports.
@@ -353,9 +354,16 @@ Known properties of the current implementation (see the CHANGELOG for what each 
   the editor draws a map as its `Overview`, one pixel per tile (the ground's colour, the colour of
   the decorations standing on the tile, refreshed when they change). Entities outside the view
   (with a margin for tall sprites) are skipped.
-- Text uses macroquad's default font: Latin-1 glyphs only, measured per draw. The runtime's
-  `draw_text` / `measure_text` (`runtime/text.rs`) look every string up in the language's runtime
-  texts first (`lang::tr_ui`, a hash lookup; English copies nothing).
+- Text uses macroquad's default font (Latin-1 glyphs only) unless the project has fonts, measured
+  per draw. The runtime's `draw_text` / `measure_text` (`runtime/text.rs`) look every string up in
+  the language's runtime texts first (`lang::tr_ui`, a hash lookup; English copies nothing);
+  `draw_plain` / `measure_plain` draw content that is translated already. With project fonts
+  (`ProjectConfig.fonts`, `defs/fonts.ron`) a string is split into runs: each character goes to the
+  first font of the current role's chain (`text::role`: ui, dialog, hud, title; then the
+  fallbacks; then the built-in font) whose character map (`fonts::Coverage`, read with ttf-parser
+  once at start) has it, and each run is drawn with `draw_text_ex`. Pixel fonts are drawn at whole
+  multiples of their grid (`FontDef::draw_size`) with Nearest filtering. Without project fonts the
+  calls go straight to macroquad, as before.
 - The hot definition lookups (`db.item(id)`, `prop`, `character`, `sheet`) go through
   an id index that verifies its hits and falls back to a scan, so an index left stale by an
   in-place edit is slower, never wrong; `Database::reindex` refreshes it.

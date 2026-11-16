@@ -1633,6 +1633,8 @@ pub struct Database {
     pub materials: Vec<crate::ground::MaterialDef>,
     /// Scatter sets (the editor's scatter brush: forests, flowers).
     pub scatter: Vec<crate::decor::ScatterDef>,
+    /// Fonts (`ProjectConfig::fonts` picks which the game uses).
+    pub fonts: Vec<crate::fonts::FontDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1766,6 +1768,9 @@ impl Database {
     }
     pub fn scatter_set(&self, id: &str) -> Option<&crate::decor::ScatterDef> {
         self.scatter.iter().find(|d| d.id == id)
+    }
+    pub fn font(&self, id: &str) -> Option<&crate::fonts::FontDef> {
+        self.fonts.iter().find(|d| d.id == id)
     }
 
     pub fn material(&self, id: &str) -> Option<&crate::ground::MaterialDef> {
@@ -1950,6 +1955,7 @@ impl_def!(crate::races::RaceDef, crate::refactor::RefKind::Race, races, refs = c
 impl_def!(ModelDef, crate::refactor::RefKind::Model, models, refs = crate::refactor::refs_of_model);
 impl_def!(crate::ground::MaterialDef, crate::refactor::RefKind::Material, materials, refs = crate::refactor::refs_of_material);
 impl_def!(crate::decor::ScatterDef, crate::refactor::RefKind::Scatter, scatter, refs = crate::refactor::refs_of_scatter);
+impl_def!(crate::fonts::FontDef, crate::refactor::RefKind::Font, fonts);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
@@ -2019,6 +2025,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Scatter => {
                 type $T = $crate::decor::ScatterDef;
+                $body
+            }
+            $crate::refactor::RefKind::Font => {
+                type $T = $crate::fonts::FontDef;
                 $body
             }
             $crate::refactor::RefKind::Map => $else,

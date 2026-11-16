@@ -3,6 +3,14 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Documentation
+- **The road to 1.0.0** (ROADMAP.md): releases 0.24 to 0.33 and 1.0.0, planned from a comparison with
+  commercial RPG makers (`Comparison.md`). Until 1.0.0, compatibility gives way when it costs more than a feature
+  (agreed per case, with a conversion where possible); from 1.0.0 every format change comes with a migration.
+- README: the example has nine quests.
+
 ## 0.23.0 — 2026-11-16
 
 ### Homes and furniture

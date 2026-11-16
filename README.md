@@ -96,7 +96,7 @@ for how to use it all.
 The download includes a complete example game to play, take apart and build on. **Emberbrook** is
 a village that lives by the clock: the baker kneads at dawn and has an ale in the tavern at night,
 the smith hammers at his anvil, the night watch walks her rounds, and everyone goes home to bed.
-Six quests lead through the village, the haunted Whisperwood with its shrine and an old mine, and
+Nine quests lead through the village, the haunted Whisperwood with its shrine and an old mine, and
 a cave opens onto the vast Wilds. Its art, sounds and three music tracks were made for R(ust)PG2D, and every asset is
 also in the editor's asset library for your own games.
 

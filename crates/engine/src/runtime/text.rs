@@ -40,7 +40,10 @@ struct FontSet {
 }
 
 thread_local! {
-    static SET: RefCell<FontSet> = RefCell::new(FontSet::default());
+    // Never dropped: at exit the thread's locals go after macroquad has closed the graphics
+    // context, and freeing a font's texture then crashes the game (the system frees it anyway).
+    // [`install`] replacing the set while the game runs still frees the old one.
+    static SET: std::mem::ManuallyDrop<RefCell<FontSet>> = std::mem::ManuallyDrop::new(RefCell::new(FontSet::default()));
     static ROLE: Cell<Role> = const { Cell::new(Role::Ui) };
 }
 

@@ -46,6 +46,15 @@ expect() {
 line=$(game "wait 2; status; quit")
 expect "title screen" "$line" "menu=title"
 
+# Quitting ends the game with exit code 0 (a crash while closing, e.g. freeing fonts after the
+# graphics context, would show here as 139).
+if RUSTPG2D_AUTOPLAY="wait 1; quit" timeout 120 "${X[@]}" "$BIN/rustpg2d-game" "$WORK/proj" >> "$WORK/game.log" 2>&1; then
+  echo "PASS the game quits cleanly"
+else
+  echo "FAIL the game quits cleanly: exit code $?"
+  failed=$((failed + 1))
+fi
+
 line=$(game "wait 2; status; quit" --no-title --map house --spawn start)
 expect "a map with the player" "$line" "map=house" "hp=Some(" "fps="
 

@@ -1498,6 +1498,9 @@ impl Editor {
             println!("[probe] {p:?}: layer {layer:?} (pixels per point {ppp})");
         }
         self.poll_file_dialog();
+        if self.project_open {
+            ui::add_project_fonts(ctx, &self.project);
+        }
         self.db_history_frame(ctx);
         if self.defs_dirty && self.defs_saved.0 == self.project.db && self.defs_saved.1 == self.project.config {
             self.defs_dirty = false; // edited and changed back

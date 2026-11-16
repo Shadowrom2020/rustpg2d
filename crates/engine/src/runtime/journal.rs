@@ -406,13 +406,13 @@ impl Game {
                 draw_text(format!("From {}", crate::lang::tr(&giver)), x, y, 18.0, Color::new(0.85, 0.8, 0.6, 0.8));
             }
             for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
-                y += 24.0;
+                y += super::text::line_step(&line, 20.0, 24.0);
                 draw_text(&line, x, y, 20.0, LIGHTGRAY);
             }
             let reward = self.reward_text(d);
             if !reward.is_empty() {
                 for line in wrap_text(&reward, 20, w) {
-                    y += 24.0;
+                    y += super::text::line_step(&line, 20.0, 24.0);
                     draw_text(&line, x, y, 20.0, Color::new(0.95, 0.85, 0.45, 1.0));
                 }
             }
@@ -435,7 +435,7 @@ impl Game {
             };
             let lines = wrap_text(&self.world.expand_text(s), 20, w - 34.0);
             for (n, line) in lines.iter().enumerate() {
-                y += 24.0;
+                y += super::text::line_step(line, 20.0, 24.0);
                 if y > r.y + r.h - 44.0 {
                     return;
                 }
@@ -526,7 +526,7 @@ impl Game {
         let mut y = top.max(top + 54.0 + lines.len() as f32 * 21.0 - 21.0).max(plate.bottom()) + 10.0;
         if !d.description.is_empty() {
             for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
-                y += 24.0;
+                y += super::text::line_step(&line, 20.0, 24.0);
                 if y > r.y + r.h - 50.0 {
                     return;
                 }

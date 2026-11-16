@@ -58,7 +58,18 @@ built-in font), so one line can mix a pixel font's Latin letters with a CJK font
 *Edit › Problems* lists the characters of each language that no font covers. Fusion Pixel Font,
 Ark Pixel Font (both SIL Open Font License) and the Noto fonts cover Chinese, Japanese and Korean.
 
-Lines wrap at spaces, so a translation without spaces (Japanese, Chinese) needs line breaks
-(`\n`) where a line should end.
+Lines wrap at spaces and, in Chinese and Japanese, between characters, following the usual rules
+(*kinsoku*): a line never starts with a closing mark (、。」！？ ー, small kana) and never ends
+with an opening one (「（). Korean wraps at its spaces. Lines in other scripts that use no spaces
+(Thai, for one) still need line breaks (`\n`) where a line should end; right-to-left scripts
+(Arabic, Hebrew) aren't supported yet.
+
+The *Language* option shows each language by its own name (*Deutsch*, *日本語*, *Русский*),
+from the `name` of its `lang/<code>.ron` or a built-in list. Players can type names in any
+script the fonts have (the character creator), but not through an input method (IME): letters
+typed directly arrive, composed Japanese or Chinese input does not.
+
+The editor draws its forms with its own font, plus the fonts the project uses as fallbacks: once a
+Japanese font is a fallback under *Project › Fonts*, the editor shows Japanese text too.
 
 The example project offers German for all of its texts.

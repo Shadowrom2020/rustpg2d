@@ -275,7 +275,7 @@ Games can be written in any language:
   - **Tests:** the pack round trip and the `SHA256SUMS` lookup; the editor's starter tests read
     the source folder.
 
-- [ ] Text for every language — `feature/unicode-text`
+- [x] Text for every language — `feature/unicode-text`
 
   **Goal.** Languages without spaces, such as Japanese and Chinese, wrap correctly. Right-to-left
   text comes later (backlog).
@@ -294,11 +294,45 @@ Games can be written in any language:
   **Engine.** One wrap function in `runtime/text.rs`, used wherever text wraps. Options: the small
   `unicode-linebreak` crate, or a hand-written CJK rule if the user prefers no new crate.
 
+  **Decided while building.**
+  - **Hand-written rule,** no new crate. `text::wrap` / `wrap_counted`:
+    - break at spaces;
+    - break before and after any character of the CJK ranges (`breaks_anywhere`): ideographs,
+      kana, full-width forms;
+    - never before closing punctuation (kinsoku, small kana, `ー`) or after opening punctuation;
+    - Korean wraps at its spaces.
+
+    `render::wrap_text` and the speech bubbles use it.
+  - **Typing out:** the dialog reveals text using each line's count of source characters
+    (`wrap_counted`). It used to subtract one assumed space per line, which would have skipped a
+    character per Japanese line.
+  - **Line spacing:** `text::line_step` gives taller lines (a CJK fallback at 24 px in a 24 px
+    line pitch) a 4 px gap in the journal's quest and bestiary texts. Other fixed-pitch layouts are
+    unchanged; scale the fallback down if they look tight.
+  - **Language names:** the built-in table covers pt-BR, cs, hu, ro, tr, el, ru, uk, ja, ko and
+    zh-Hans / zh-Hant; codes match in any case.
+  - **Text input** already took any character (`get_char_pressed`); IME composition is out of
+    scope (manual).
+  - **Editor:** there is no dialog preview. Instead the editor adds the project's role and
+    fallback fonts to egui as lowest-priority fallbacks (`ui::add_project_fonts`), so forms and
+    lists show Japanese and the like.
+
   **Touch points.** `runtime/ui.rs`, `journal.rs`, `menu.rs` (language names), `lang.rs`, the
   editor's dialog preview.
 
   **Verify.** A Japanese scratch translation of one dialog and one quest: screenshots of wrapped
   lines. A unit test of the break points.
+
+  Checked:
+  - **Unit tests:** Latin, Japanese kinsoku, mixed Latin / Japanese, Korean, character counts.
+  - **A scratch copy of the example** (monogram + Fusion Pixel ja fallback, a Japanese translation
+    of Greta's greeting, its choices, the first quest and some menu texts), with screenshots of:
+    - the dialog wrapped mid-sentence, and halfway typed out;
+    - the journal, with spaced lines (English unchanged);
+    - the pause menu;
+    - Options showing 日本語;
+    - アレックス typed into the creator;
+    - the editor's language list showing 日本語.
 
 - [ ] Dialog message codes — `feature/message-codes`
 

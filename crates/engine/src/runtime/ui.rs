@@ -198,7 +198,7 @@ impl Ui {
             const PORTRAIT: f32 = 120.0;
             let inset = if d.portrait { PORTRAIT + 18.0 } else { 0.0 };
             let choice_rows = d.choice.as_ref().map_or(0, |c| c.0.len()) as f32;
-            let lines = wrap_text(&d.text, font as u16, w - 40.0 - inset);
+            let lines = super::text::wrap_counted(&d.text, font, w - 40.0 - inset);
             let mut h = 26.0 + 30.0 * s + lines.len().max(2) as f32 * line + choice_rows * line;
             if d.portrait {
                 h = h.max(PORTRAIT + 28.0);
@@ -217,9 +217,10 @@ impl Ui {
                 ty += 32.0 * s;
             }
             let mut budget = d.revealed as usize;
-            for l in &lines {
+            // (Each line's own count of the text's characters: Japanese lines end on no space.)
+            for (l, used) in &lines {
                 let shown: String = l.chars().take(budget).collect();
-                budget = budget.saturating_sub(l.chars().count() + 1);
+                budget = budget.saturating_sub(*used);
                 draw_plain(&shown, x + 20.0, ty, font, WHITE);
                 ty += line;
             }

@@ -248,7 +248,8 @@ Japanese, Chinese, Korean. Choose which texts use which font under *Database ›
 | **Credit** | Who made it and under which licence |
 
 Below the form a sample shows the font with Latin, Cyrillic, Greek, Japanese, Chinese and Korean
-text, and how many characters it has. *Edit › Problems* warns when a text of the game or of one of
+text, and how many characters it has. The fonts the project uses also become fallbacks of the
+editor's own font, so its forms show those scripts too. *Edit › Problems* warns when a text of the game or of one of
 its translations has characters no font of the project covers (players would see empty boxes).
 
 ## Quests

@@ -80,9 +80,10 @@ What you'll find in it:
   a generated 1024 × 1024 map with fifty enemy spawners (slimes, goblin archers, wolf packs, bat
   swarms), an orc camp with its chief, a troll guarding a bridge and an elven herbalist who
   wanders between four spots during the day.
-- **Six quests**: *The Strange Lights* (the main quest from Elder Rowan), *Pest Control* (Tilda's
-  slime hunt), *The Lost Cat*, *Bread for the Festival*, *The Herbalist's Remedy* and *Rumours at
-  the Tavern*.
+- **Nine quests**: *The Strange Lights* (the main quest from Elder Rowan), *Pest Control* (Tilda's
+  slime hunt), *The Lost Cat*, *Bread for the Festival*, *The Herbalist's Remedy*, *Rumours at
+  the Tavern*, *Friend of the Elves*, *An Offering for the Shrine* and *A Home in Emberbrook*, which
+  makes Halvar's old stone house yours to furnish (furniture from the sawhorse and Tilda's shop).
 - Skills, spells (among them a scripted Fireball), crafting, cooking, blacksmithing, mining,
   farming, fishing, lockpicking, a companion, ten achievements, and a full German translation.
 

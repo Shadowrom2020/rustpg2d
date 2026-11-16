@@ -356,6 +356,11 @@ Props that **lie flat on the ground** (rugs, *Database › Props*) are drawn und
 judged by their picture: a rug may go under a table, a chair or the player, but not onto another
 rug; a table or chair may then be placed on it. E takes what stands on a rug before the rug.
 
+In the example, Elder Rowan's quest *A Home in Emberbrook* makes Halvar's old stone house by the
+east gate the player's home (its reward runs `own_stone_house()`, which calls `set_home`); the
+starter library's furniture items (`furn_chair`, `furn_bed`, `furn_rug`…) are made from planks at
+the sawhorse or bought from Tilda.
+
 ## Emotions
 
 Characters show how they feel with a small icon over their head

@@ -721,6 +721,46 @@
                 10579771140119577190,
             ],
         ),
+        "item:furn_bed": (
+            defs: [
+                6680820430956758502,
+            ],
+        ),
+        "item:furn_bench": (
+            defs: [
+                12851936075748101827,
+            ],
+        ),
+        "item:furn_bookshelf": (
+            defs: [
+                16264686951547504769,
+            ],
+        ),
+        "item:furn_chair": (
+            defs: [
+                4948443747448089915,
+            ],
+        ),
+        "item:furn_chest": (
+            defs: [
+                17255279712892426108,
+            ],
+        ),
+        "item:furn_flower_pot": (
+            defs: [
+                15908969405139318537,
+            ],
+        ),
+        "item:furn_rug": (
+            defs: [
+                14997120688750119967,
+            ],
+        ),
+        "item:furn_small_table": (
+            defs: [
+                1881284197960980868,
+            ],
+        ),
         "item:goblin_rags": (
             defs: [
                 7760063568072590460,
@@ -1064,6 +1104,11 @@
         "item:spellbook_spark": (
             defs: [
                 14195622903084819531,
+            ],
+        ),
+        "item:stone_house_key": (
+            defs: [
+                7698138285450433333,
             ],
         ),
         "item:swiftness": (
@@ -5071,6 +5116,11 @@
                 7046063838412672780,
             ],
         ),
+        "prop:front_door": (
+            defs: [
+                5059073679413439560,
+            ],
+        ),
         "prop:gate": (
             defs: [
                 4849352564428991126,
@@ -6173,9 +6223,39 @@
                 4777643218219955984,
             ],
         ),
+        "recipe:make_bed": (
+            defs: [
+                5513847604000775670,
+            ],
+        ),
+        "recipe:make_bench": (
+            defs: [
+                15613251508968919632,
+            ],
+        ),
+        "recipe:make_bookshelf": (
+            defs: [
+                14019924409004351295,
+            ],
+        ),
+        "recipe:make_chair": (
+            defs: [
+                16971463216775096613,
+            ],
+        ),
         "recipe:make_fishing_rod": (
             defs: [
                 16117316833856407767,
+            ],
+        ),
+        "recipe:make_small_table": (
+            defs: [
+                14991921195795370416,
+            ],
+        ),
+        "recipe:make_storage_chest": (
+            defs: [
+                17887211561017370165,
             ],
         ),
         "recipe:make_wooden_shield": (
@@ -6845,6 +6925,26 @@
             files: {
                 "sprites/food.png": [
                     9083934842522639137,
+                ],
+            },
+        ),
+        "sheet:front_door": (
+            defs: [
+                317200603024814339,
+            ],
+            files: {
+                "sprites/front_door.png": [
+                    10869313222175890772,
+                ],
+            },
+        ),
+        "sheet:furniture_icons": (
+            defs: [
+                14383957831232266927,
+            ],
+            files: {
+                "sprites/furniture_icons.png": [
+                    11612321229335539216,
                 ],
             },
         ),

@@ -576,3 +576,9 @@ fn give_gift() {
         friend_reward(name);
     }
 }
+
+// "A Home in Emberbrook": Halvar's old stone house becomes the player's home (furniture can be
+// placed there from now on).
+fn own_stone_house() {
+    set_home("stone_house", true);
+}

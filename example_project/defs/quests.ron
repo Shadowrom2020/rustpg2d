@@ -811,4 +811,142 @@
             ],
         ),
     ),
+    (
+        id: "home_in_emberbrook",
+        title: "A Home in Emberbrook",
+        description: "Halvar\'s old stone house by the east gate has stood empty for forty years. Elder Rowan thinks it could be yours - if you put it right.",
+        stages: [
+            "Ask Brom the smith for the key to Halvar\'s old house.",
+            "Clear the junk out of the old stone house ({junk_cleared}/3).",
+            "Pay Elder Rowan 100 coins for the house.",
+        ],
+        xp: 80,
+        targets: [
+            (
+                map: "smithy",
+                name: "brom",
+            ),
+            (
+                map: "stone_house",
+                name: "junk_cart",
+            ),
+            (
+                map: "village",
+                name: "elder",
+            ),
+        ],
+        giver: "elder",
+        giver_name: "Elder Rowan",
+        requires: [
+            (
+                cond: Quest(
+                    quest: "shrine_offering",
+                    check: Completed,
+                    stage: 0,
+                ),
+                negate: false,
+            ),
+        ],
+        offer: (
+            lines: [
+                "You have done a great deal for Emberbrook, {player}. You ought to have a roof of your own here.",
+                "Halvar\'s old stone house by the east gate has stood empty since he went down into the mine. Forty years of dust and junk.",
+            ],
+            question: "Would you like to make it your home?",
+            accept: "I would",
+            decline: "Not yet",
+            accepted: [
+                "Splendid! Brom the smith kept Halvar\'s things - he will have the key. Clear the place out, and it is yours for a hundred coins.",
+            ],
+            declined: [
+                "The house is going nowhere. Neither am I.",
+            ],
+        ),
+        steps: [
+            (
+                done: Talk(
+                    character: "brom",
+                    lines: [
+                        "Halvar\'s house? I kept his key all these years, hoping he\'d walk in one day and ask for it.",
+                        "Take it, {player}. Better a friend lives there than the mice.",
+                    ],
+                ),
+                giver_line: "Brom the smith kept Halvar\'s things. Ask him for the key.",
+                on_done: [
+                    GiveItem(
+                        item: "stone_house_key",
+                        count: 1,
+                    ),
+                ],
+            ),
+            (
+                done: Conditions([
+                    (
+                        cond: Var(
+                            name: "junk_cleared",
+                            op: Ge,
+                            value: 3,
+                        ),
+                        negate: false,
+                    ),
+                ]),
+                giver_line: "Clear the junk out of the old house first, {player}. Forty years of it!",
+            ),
+            (
+                done: Talk(
+                    character: "",
+                    lines: [
+                        "A hundred coins, thank you. The house is yours, {player} - Halvar would be glad.",
+                        "Here, a chair to start with. Tilda sells more, and you can build furniture at the sawhorse by the mill.",
+                    ],
+                    when: [
+                        (
+                            cond: HasItem(
+                                item: "coin",
+                                count: 100,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                ),
+                giver_line: "The house is yours for a hundred coins, {player}. Come back when you have them.",
+                on_done: [
+                    TakeItem(
+                        item: "coin",
+                        count: 100,
+                    ),
+                ],
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "furn_chair",
+                    count: 1,
+                ),
+            ],
+            actions: [
+                RunScript(
+                    function: "own_stone_house",
+                ),
+                RunScript(
+                    function: "quest_thanks",
+                ),
+            ],
+        ),
+        objects: [
+            (
+                map: "stone_house",
+                name: "junk_cart",
+            ),
+            (
+                map: "stone_house",
+                name: "junk_sack",
+            ),
+            (
+                map: "stone_house",
+                name: "junk_bones",
+            ),
+        ],
+    ),
 ]

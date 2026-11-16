@@ -4822,4 +4822,29 @@
         lock: None,
         door: true,
     ),
+    (
+        id: "front_door",
+        name: "Front Door",
+        sprite: (
+            sheet: "front_door",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "closed",
+        states: [
+            (
+                name: "open",
+                sprite: (
+                    sheet: "front_door",
+                    frame: 1,
+                ),
+                solid: false,
+            ),
+        ],
+        hitbox: (30.0, 14.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        door: true,
+    ),
 ]

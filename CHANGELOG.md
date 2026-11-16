@@ -13,6 +13,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   new `is_locked(target)`; `status` prints `doors=`.
 - New prop **Door** (`room_door`, for doorways in timber walls) in the starter library.
 
+### The example: a home in Emberbrook
+- **Elder Rowan's third quest, *A Home in Emberbrook*** (after *An Offering for the Shrine*): get
+  the key to Halvar's old stone house from Brom, haul out the junk, pay the elder 100 coins, and
+  the house is yours (`set_home`), with a chair to start and the elder's friendship.
+- **Furniture**: a wooden chair, a small table, a bench, a bookshelf, a storage chest and a bed are
+  made from planks at the sawhorse; Tilda sells flower pots, small rugs and chairs. All of them, the
+  front door prop and the key are in the starter library.
+- The stone house has a lockable front door (Halvar's key, or lockpicking 4).
+
 ### The example: village interiors
 - **Every house of Emberbrook has an interior**: the farmhouse (Hal and Beth), Oswin's cottage
   (with Lotte and Finnick), Finn's cottage and the old stone house. Their residents sleep in their

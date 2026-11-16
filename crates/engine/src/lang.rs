@@ -45,9 +45,10 @@ pub struct LangFile {
 /// Built-in translations of the runtime's texts (the `ui` part of a [`LangFile`]).
 const BUILTIN: [(&str, &str); 1] = [("de", include_str!("../lang/de.ron"))];
 
-/// Names of common languages by code (the original language's name in the Options menu).
+/// Names of common languages by code, each in its own language and script (the Options menu,
+/// the editor's language list); codes in any case (`pt-BR`).
 pub fn language_name(code: &str) -> String {
-    match code {
+    match code.to_lowercase().as_str() {
         "en" => "English",
         "de" => "Deutsch",
         "fr" => "Français",
@@ -60,7 +61,19 @@ pub fn language_name(code: &str) -> String {
         "da" => "Dansk",
         "fi" => "Suomi",
         "no" | "nb" => "Norsk",
-        _ => code,
+        "pt-br" => "Português (Brasil)",
+        "cs" => "Čeština",
+        "hu" => "Magyar",
+        "ro" => "Română",
+        "tr" => "Türkçe",
+        "el" => "Ελληνικά",
+        "ru" => "Русский",
+        "uk" => "Українська",
+        "ja" => "日本語",
+        "ko" => "한국어",
+        "zh" | "zh-hans" | "zh-cn" => "简体中文",
+        "zh-hant" | "zh-tw" | "zh-hk" => "繁體中文",
+        _ => return code.to_string(),
     }
     .to_string()
 }
@@ -466,6 +479,14 @@ pub fn template(project: &crate::project::Project, code: &str, existing: Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn languages_are_named_in_their_own_script() {
+        assert_eq!(language_name("ja"), "日本語");
+        assert_eq!(language_name("pt-BR"), "Português (Brasil)");
+        assert_eq!(language_name("ZH-hant"), "繁體中文");
+        assert_eq!(language_name("xx"), "xx");
+    }
 
     fn de() -> Translations {
         let file = LangFile {

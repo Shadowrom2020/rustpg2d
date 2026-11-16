@@ -367,7 +367,10 @@ Known properties of the current implementation (see the CHANGELOG for what each 
   fallbacks; then the built-in font) whose character map (`fonts::Coverage`, read with ttf-parser
   once at start) has it, and each run is drawn with `draw_text_ex`. Pixel fonts are drawn at whole
   multiples of their grid (`FontDef::draw_size`) with Nearest filtering. Without project fonts the
-  calls go straight to macroquad, as before.
+  calls go straight to macroquad, as before. Wrapping is `text::wrap` / `wrap_counted` (lines and
+the characters each uses, for text that types out): pieces split at spaces and, in Chinese and
+Japanese, between characters except before closing / after opening punctuation (`breaks_anywhere`,
+kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
 - The hot definition lookups (`db.item(id)`, `prop`, `character`, `sheet`) go through
   an id index that verifies its hits and falls back to a scan, so an index left stale by an
   in-place edit is slower, never wrong; `Database::reindex` refreshes it.

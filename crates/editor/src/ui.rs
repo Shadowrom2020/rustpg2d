@@ -11,6 +11,36 @@ pub fn install_fonts(ctx: &egui::Context) {
     ctx.set_fonts(fonts);
 }
 
+thread_local! {
+    /// Project font files already added to egui as fallbacks.
+    static FALLBACKS: std::cell::RefCell<std::collections::BTreeSet<std::path::PathBuf>> = Default::default();
+}
+
+/// Adds the fonts the project uses (*Project › Fonts*: every role's font and the fallbacks) to
+/// the editor's own fonts as last fallbacks, so the forms show text in the scripts they cover
+/// (Japanese dialog lines, a translation's name) instead of empty boxes. Once per font file;
+/// cheap to call every frame.
+pub fn add_project_fonts(ctx: &egui::Context, project: &rustpg2d_engine::project::Project) {
+    for id in project.config.fonts.ids() {
+        let Some(def) = project.db.font(id) else { continue };
+        let path = project.root.join(&def.file);
+        if FALLBACKS.with(|f| f.borrow().contains(&path)) {
+            continue;
+        }
+        FALLBACKS.with(|f| f.borrow_mut().insert(path.clone()));
+        let Ok(bytes) = std::fs::read(&path) else { continue };
+        if rustpg2d_engine::fonts::Coverage::of(&bytes).is_none() {
+            continue;
+        }
+        let name = format!("r2d-fallback:{}", path.display());
+        let families = [egui::FontFamily::Proportional, egui::FontFamily::Monospace]
+            .into_iter()
+            .map(|family| egui::epaint::text::InsertFontFamily { family, priority: egui::epaint::text::FontPriority::Lowest })
+            .collect();
+        ctx.add_font(egui::epaint::text::FontInsert::new(&name, egui::FontData::from_owned(bytes), families));
+    }
+}
+
 /// "<icon> text" (shortcuts in it as on this platform, see [`keys`]).
 pub fn t(icon: &str, text: &str) -> String {
     format!("{icon} {}", keys(text))

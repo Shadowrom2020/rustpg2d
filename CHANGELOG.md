@@ -19,6 +19,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - *Edit › Problems* warns about characters of the game's texts or of a translation that no font
   of the project covers, and about missing font or licence files.
 - The asset library and packages carry fonts; renaming a font updates the project's font roles.
+- **Text for every language**: lines wrap between Chinese and Japanese characters too, never
+  before a closing mark (、。」！, small kana) or after an opening one (「（); a dialog that types
+  out stays in step with such lines. Taller fallback glyphs get room in the journal. The *Language*
+  option names languages in their own script (日本語, Русский, 简体中文…). The editor's forms
+  show the scripts of the project's fonts.
 - Status: `fonts=` and `missing_glyphs=` (autoplay); the agent server's `list_defs` / `upsert_def`
   know `fonts` and `write_asset` writes fonts and licence texts; editor script
   `import font|fontlicense ID FILE`.

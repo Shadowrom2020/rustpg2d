@@ -226,6 +226,103 @@ pub fn measure_plain(text: &str, font_size: f32) -> TextDimensions {
     })
 }
 
+/// Whether `c` is written without spaces between words (Chinese, Japanese): a line may break
+/// before and after it. Korean, which puts spaces between words, wraps at its spaces.
+pub fn breaks_anywhere(c: char) -> bool {
+    matches!(c as u32,
+        0x2E80..=0x2FFF        // CJK radicals, Kangxi radicals
+        | 0x3000..=0x303F      // CJK symbols and punctuation
+        | 0x3040..=0x30FF      // Hiragana, Katakana
+        | 0x3100..=0x312F      // Bopomofo
+        | 0x31F0..=0x31FF      // Katakana extensions
+        | 0x3400..=0x4DBF      // CJK extension A
+        | 0x4E00..=0x9FFF      // CJK unified ideographs
+        | 0xF900..=0xFAFF      // CJK compatibility ideographs
+        | 0xFF00..=0xFFEF      // full-width forms, half-width katakana
+        | 0x20000..=0x3FFFF) // CJK extensions B and later
+}
+
+/// Punctuation a line never starts with (Japanese *kinsoku*: closing brackets, stops, small kana,
+/// the long-vowel mark) and Latin closing punctuation after CJK text.
+fn no_break_before(c: char) -> bool {
+    "、。，．・：；？！ー〜～…‥）〕］｝〉》」』】〙〗〟’”ゝゞヽヾ々ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ,.;:!?)]}%".contains(c)
+}
+
+/// Punctuation a line never ends with (opening brackets).
+fn no_break_after(c: char) -> bool {
+    "（〔［｛〈《「『【〘〖〝‘“([{".contains(c)
+}
+
+/// How far to move down for `line` at `font_size`: `step` (the layout's line spacing), or more
+/// when the line is taller than that (a fallback font's glyphs: Japanese in a pixel font's
+/// layout), so lines never touch.
+pub fn line_step(line: &str, font_size: f32, step: f32) -> f32 {
+    if !has_fonts() {
+        return step;
+    }
+    step.max(measure_plain(line, font_size).height.ceil() + 4.0)
+}
+
+/// Lines of `text` no wider than `max_w` pixels at `font_size` in the current role's font: breaks
+/// at spaces and line breaks, and in Chinese and Japanese text between characters too (never
+/// before closing or after opening punctuation). A word wider than a line gets a line of its own.
+pub fn wrap(text: &str, font_size: f32, max_w: f32) -> Vec<String> {
+    wrap_counted(text, font_size, max_w).into_iter().map(|(l, _)| l).collect()
+}
+
+/// [`wrap`], each line with how many characters of `text` it uses (with the spaces or line break
+/// it ends on): what a text that types out character by character shows of each line.
+pub fn wrap_counted(text: &str, font_size: f32, max_w: f32) -> Vec<(String, usize)> {
+    wrap_with(text, max_w, |s| measure_plain(s, font_size).width)
+}
+
+/// The wrapping itself, with any `measure` (tests measure without a graphics context).
+fn wrap_with(text: &str, max_w: f32, measure: impl Fn(&str) -> f32) -> Vec<(String, usize)> {
+    let mut out: Vec<(String, usize)> = Vec::new();
+    let paragraphs: Vec<&str> = text.split('\n').collect();
+    for (k, para) in paragraphs.iter().enumerate() {
+        // Pieces that stay together: (spaces before it, its text).
+        let mut pieces: Vec<(usize, String)> = Vec::new();
+        let mut spaces = 0;
+        let mut prev: Option<char> = None;
+        for c in para.chars() {
+            if c.is_whitespace() {
+                spaces += 1;
+                prev = None;
+                continue;
+            }
+            let joins = match (pieces.last(), prev) {
+                (Some(_), Some(p)) if spaces == 0 => !((breaks_anywhere(c) || breaks_anywhere(p)) && !no_break_before(c) && !no_break_after(p)),
+                _ => false,
+            };
+            match pieces.last_mut() {
+                Some((_, t)) if joins => t.push(c),
+                _ => pieces.push((std::mem::take(&mut spaces), c.to_string())),
+            }
+            prev = Some(c);
+        }
+        let mut line = String::new();
+        let mut used = 0;
+        for (sp, piece) in pieces {
+            let sep = if line.is_empty() || sp == 0 { "" } else { " " };
+            let candidate = format!("{line}{sep}{piece}");
+            if !line.is_empty() && measure(&candidate) > max_w {
+                out.push((std::mem::take(&mut line), used + sp));
+                used = 0;
+                line = piece.clone();
+            } else {
+                // (Spaces before a paragraph's first piece are used but not shown.)
+                line = candidate;
+                used += sp;
+            }
+            used += piece.chars().count();
+        }
+        used += spaces + usize::from(k + 1 < paragraphs.len());
+        out.push((line, used));
+    }
+    out
+}
+
 /// Without project fonts: remembers characters the built-in font lacks (for `status`).
 fn note_missing(text: &str) {
     if text.chars().all(|c| builtin_covers(c) || invisible(c)) {
@@ -252,6 +349,44 @@ mod tests {
         assert_eq!(runs(&mut set, "ж"), vec![("ж", None)]);
         assert!(set.missing.contains(&'ж'));
         assert!(!set.missing.contains(&'ü'));
+    }
+
+    /// Wraps with every character 10 px wide.
+    fn wrapped(text: &str, max_w: f32) -> Vec<(String, usize)> {
+        wrap_with(text, max_w, |s| s.chars().count() as f32 * 10.0)
+    }
+
+    #[test]
+    fn latin_text_wraps_at_spaces() {
+        assert_eq!(wrapped("the quick brown fox", 100.0), vec![("the quick".to_string(), 10), ("brown fox".to_string(), 9)]);
+        // A word wider than the line keeps a line of its own; a line break always breaks.
+        assert_eq!(wrapped("a extraordinarily b\nc", 50.0), vec![("a".to_string(), 2), ("extraordinarily".to_string(), 16), ("b".to_string(), 2), ("c".to_string(), 1)]);
+        assert_eq!(wrapped("", 50.0), vec![(String::new(), 0)]);
+    }
+
+    #[test]
+    fn japanese_breaks_between_characters_but_not_before_closing_marks() {
+        // 6 characters per line.
+        let lines = wrapped("銅のやかん亭へようこそ、アレックス！", 60.0);
+        let text: Vec<&str> = lines.iter().map(|(l, _)| l.as_str()).collect();
+        assert_eq!(text, vec!["銅のやかん亭", "へようこそ、", "アレックス！"]);
+        // Every character is used once: a typing-out text stays in step.
+        assert_eq!(lines.iter().map(|(_, n)| n).sum::<usize>(), "銅のやかん亭へようこそ、アレックス！".chars().count());
+        // 、 never starts a line: it goes with the character before it.
+        let lines = wrapped("あいうえお、かき", 50.0);
+        assert_eq!(lines.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>(), vec!["あいうえ", "お、かき"]);
+        // 「 never ends a line.
+        let lines = wrapped("あいう「えお」", 40.0);
+        assert_eq!(lines.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>(), vec!["あいう", "「えお」"]);
+    }
+
+    #[test]
+    fn mixed_text_breaks_between_latin_and_cjk() {
+        let lines = wrapped("Alexは村へ行く", 60.0);
+        assert_eq!(lines.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>(), vec!["Alexは村", "へ行く"]);
+        // Korean keeps its words whole and breaks at spaces.
+        let lines = wrapped("안녕하세요 반갑습니다", 60.0);
+        assert_eq!(lines.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>(), vec!["안녕하세요", "반갑습니다"]);
     }
 
     #[test]

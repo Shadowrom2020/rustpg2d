@@ -59,20 +59,9 @@ pub(super) fn pick_line<'a>(lines: &'a [String], last: Option<&str>, r: usize) -
     (!pool.is_empty()).then(|| pool[r % pool.len()])
 }
 
-/// Words of `text` in lines no wider than `max` (pixels at `size`); a word longer than that
-/// gets a line of its own.
+/// `text` in lines no wider than `max` (pixels at `size`; `text::wrap`).
 fn wrap(text: &str, size: f32, max: f32) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    for word in text.split_whitespace() {
-        match out.last_mut() {
-            Some(line) if measure_text(&format!("{line} {word}"), None, size as u16, 1.0).width <= max => {
-                line.push(' ');
-                line.push_str(word);
-            }
-            _ => out.push(word.to_string()),
-        }
-    }
-    out
+    super::text::wrap(text, size, max)
 }
 
 /// Who said what last (uid; the player is `u32::MAX`), so a list of lines doesn't repeat.

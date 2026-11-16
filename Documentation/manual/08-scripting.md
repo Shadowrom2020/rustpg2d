@@ -309,6 +309,8 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `heal(amount)` | Restores hit points; a negative amount hurts the player. *(queued)* |
 | `heal_npc(name, amount)` | Restores a character's hit points (a companion, any character with HP; `"player"` = the player); a negative amount hurts it. *(queued)* |
 | `current_map()` | Name of the current map. |
+| `set_home(map, owned)` | Makes a map one of the player's homes (`true`) or no longer (`false`): furniture items can be placed there ([Gameplay › Homes and furniture](09-gameplay.md#homes-and-furniture)). Saved with the game. |
+| `is_home(map)` | Whether a map is one of the player's homes. |
 
 ### Dialogs and flow
 

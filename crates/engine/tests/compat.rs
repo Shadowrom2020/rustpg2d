@@ -240,3 +240,19 @@ fn minimal_save_loads_with_defaults() {
     assert_eq!(w.hour, project::default_start_hour());
     assert!(w.player_hp.is_none() && w.quests.is_empty() && w.companions.is_empty());
 }
+
+#[test]
+fn save_of_0_22_0_loads_without_homes() {
+    // A quick save of 0.22.0 in Tilda's shop at 21:00: before homes and placed furniture.
+    let s = std::fs::read_to_string(fixture("saves/save-0.22.0.ron")).unwrap();
+    let mut w = WorldState::from_ron(&s).unwrap();
+    assert_eq!(w.current_map, "shop");
+    assert!(w.homes.is_empty() && w.furniture.is_empty() && w.next_furniture == 0);
+    // With a home and a chair: saved and read back.
+    w.homes.insert("stone_house".into());
+    let uid = w.add_furniture("stone_house", "chair", "chair_item", 80.0, 112.0);
+    let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
+    assert!(back.homes.contains("stone_house"));
+    assert_eq!(back.furniture["stone_house"][0].uid, uid);
+    assert_eq!(back.furniture["stone_house"][0].item, "chair_item");
+}

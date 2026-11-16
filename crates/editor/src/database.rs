@@ -1009,6 +1009,13 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         ui.weak("(scrolls, spell books; using the item learns it — tick 'Consumed' for one-use scrolls)");
     });
     ui.separator();
+    ui.heading("Furniture");
+    ui.horizontal(|ui| {
+        ui.label("Places prop");
+        widgets::suggest(ui, "item_furniture", &mut d.furniture, &cx.refs.props, 140.0);
+        ui.weak("(using it in a home of the player's places the prop in front; picking the prop up gives the item back)");
+    });
+    ui.separator();
     ui.heading("Light");
     widgets::light_ui(ui, "item_light", &mut d.light, "Gives light (while equipped, e.g. in the left hand, or lying on the ground)");
     ui.separator();
@@ -1297,6 +1304,9 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     hitbox(ui, &mut d.hitbox);
     ui.checkbox(&mut d.low, "Low (shots fly over it)").on_hover_text(
         "A low prop (a barrel, a chair, a fence) stops walking while it is solid, but arrows, bolts and the sight of enemies pass over it. Solid props that aren't low stop shots too (trees, statues, stalls).",
+    );
+    ui.checkbox(&mut d.flat, "Lies flat on the ground").on_hover_text(
+        "A rug, a mat, a puddle: drawn under everyone (like a Flat decoration) instead of sorted with characters by its feet; as furniture it may lie under tables and chairs.",
     );
     ui.checkbox(&mut d.climb, "Ladder (the player climbs it)").on_hover_text("Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it.");
     ui.horizontal(|ui| {

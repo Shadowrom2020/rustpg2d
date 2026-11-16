@@ -50,6 +50,7 @@ is full, assigns it and opens it for drawing.
 | **Equipment** | *None, Weapon, Helmet, Body armor, Left hand, Clothing* or *Tool* (below) |
 | **Seed** | Makes it plantable on farm plots: growth stages with a sprite and hours each, and the harvest ([Farming](09-gameplay.md#farming)) |
 | **Magic** | **Teaches spell**: using it teaches a spell (a scroll that is consumed, a book that isn't) |
+| **Furniture** | **Places prop**: using the item in one of the player's homes puts this prop on the free tile in front; picking the prop up gives the item back ([Homes and furniture](09-gameplay.md#homes-and-furniture)) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
 | **Held** | Weapons, left-hand items and tools without a 3D model: how their picture is held (below) |
 | **3D model** | Weapons, left-hand items, tools and backpacks: the model 3D model characters hold or wear (below) |
@@ -121,6 +122,7 @@ things run along the line through both fists.
 |---|---|
 | **States** | Every prop has a list of named states, each with its own sprite and whether it blocks movement (an iron gate: *closed*, *open*, *destroyed*; a shrine: *dormant*, *glowing*). The first is the default. *+ Add state*, *Make default*, the arrows and ✖ organise them; renaming a state updates placed props and triggers. |
 | **Size and hitbox** | *Size (cells)* for props made of several frames of their sheet (a 2 × 2 double gate, a 3 × 4 oak), and the collision box (e.g. only the trunk), so the player walks behind big crowns. |
+| **Lies flat on the ground** | Rugs, mats, puddles: drawn under everyone, like a *Flat* decoration, instead of sorted with characters by its feet (a table placed on a rug stands on it). Picking it in the Decorations tool switches to the *Flat* layer; as furniture it may lie under other things ([Homes and furniture](09-gameplay.md#homes-and-furniture)). The starter library's rugs and carpet runners have it. |
 | **Low** | While solid, the prop stops walking but not shots or sight (barrels, chairs, crates, fences). Solid props that aren't low stop arrows and bolts where their hitbox is (a tree at its trunk); see [Maps › Low and high obstacles](03-maps.md#low-and-high-obstacles). |
 | **Ladder** | Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it. |
 | **Animation** | Frames of its sprite sheet shown in turn at a speed (*fps*): the default state of a torch, a flag, a water wheel; also as a decoration. Props converted from animated tiles have one. |

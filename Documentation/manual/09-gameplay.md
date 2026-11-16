@@ -315,6 +315,28 @@ up. The **Sleep** action and `sleep(hours)` rest without a bed (camping, an inn'
 
 Villagers use furniture too, through their schedules ([Characters](06-characters.md#daily-schedules)).
 
+## Homes and furniture
+
+A map can be one of the player's **homes**: a quest, a trigger or a script makes it so with
+`set_home("stone_house", true)` (`is_home(map)` asks; [Scripting](08-scripting.md)). It is saved with
+the game.
+
+Items with **Places prop** set (*Database › Items › Furniture*) are furniture. Used from the
+inventory in a home, the item becomes its prop on the free tile in front of the player: not on
+walls, doors (portals, transitions) or arrival points, not over another entity, the player or a
+solid decoration. Props wider or deeper than a tile reach away from the player. Elsewhere the game
+says "Furniture goes in your home."
+
+E at placed furniture asks first: **Use** / **Pick up** / **Leave it** for props that do something
+(sit on a chair, sleep in a bed, open a chest), **Pick up** / **Leave it** for the others. Picking
+it up gives the item back; a chest with something in it has to be emptied first. Placed furniture is
+an ordinary prop otherwise: its states, a chest's contents and its triggers work as on a prop placed
+in the editor, and it stays where it was put, in save games too.
+
+Props that **lie flat on the ground** (rugs, *Database › Props*) are drawn under everything and are
+judged by their picture: a rug may go under a table, a chair or the player, but not onto another
+rug; a table or chair may then be placed on it. E takes what stands on a rug before the rug.
+
 ## Emotions
 
 Characters show how they feel with a small icon over their head

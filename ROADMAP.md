@@ -120,14 +120,15 @@ screen.
   signpost (day, night, nothing found yet), shops, crafting, the journal; `translation_template de`
   complete.
 
-- [ ] Furniture and a player home — `feature/furniture`
+- [x] Furniture and a player home — `feature/furniture`
 
   **Goal.** Items that place furniture in a house the player owns (backlog: player housing), kept
   in the save.
 
   **Design.** `ItemDef.furniture` = the prop it places. `WorldState.homes` (maps the player owns,
   `set_home(map, owned)` / `is_home(map)`) and `WorldState.furniture` (per map: placed props with
-  uids from `FURNITURE_UID_BASE`, spawned like dropped items). Using a furniture item at home puts
+  uids from `FURNITURE_UID_BASE`; entering a map adds them to its entities, so containers, states
+  and triggers work as on placed props). Using a furniture item at home puts
   its prop on the free tile in front (used up); elsewhere "Furniture goes in your home." Placed
   furniture offers *Pick up* (with *Use* for beds, chairs, chests; a chest with things in it
   refuses). `status` prints `homes=` and `furniture=`.
@@ -136,11 +137,14 @@ screen.
   script functions, the item form's field, renames and dependencies.
 
   **Touch points.** `defs.rs` (`ItemDef`), `state.rs`, `runtime/mod.rs` (`use_item`,
-  `build_entities`), a new `runtime/home.rs`, `script.rs` / `script_api.rs`, editor `database.rs`,
+  `enter_map`), a new `runtime/housing.rs`, `script.rs` / `script_api.rs`, editor `database.rs`,
   `refactor.rs`, manual 05, 08, 09, compat fixture of a 0.22.0 save.
 
   **Verify.** Place, sit on, pick up a chair at home; refused elsewhere; save and load keep it;
-  unit test of the world round trip; old saves load.
+  unit test of the world round trip; old saves load. Done: chair (sit), bed (sleep), chest (open,
+  refused while full), no room, not a home, German texts, save + load. Rugs needed one more
+  (agreed) addition: `PropDef.flat` = drawn under everyone (game and editor), judged by its picture
+  when placed, things stand on it; the library's rugs and runners have it.
 
 - [ ] Village interiors and the tavern's upper floor — `feature/village-interiors`
 

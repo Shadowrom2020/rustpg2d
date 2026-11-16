@@ -5,6 +5,19 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Homes and furniture
+- **Homes**: `set_home(map, true)` makes a map the player's (`is_home(map)` asks), saved with the
+  game. Quests and triggers hand out houses this way.
+- **Furniture items** (*Database › Items › Furniture: Places prop*): used in a home, the item puts
+  its prop on the free tile in front of the player (not on doors, arrival points, walls or other
+  things). E at it asks *Use / Pick up / Leave it*: sit on the chair, sleep in the bed, open the
+  chest, or take it back into the inventory (a chest only when empty). It works like any placed
+  prop and stays in the save game. `status` prints `homes=` and `furniture=`.
+- **Props that lie flat on the ground** (*Database › Props › Lies flat on the ground*): drawn under
+  everyone like *Flat* decorations, in the game and in the editor, so a table placed on a rug stands
+  on it. As furniture a rug may go under other things but not onto another rug; the Decorations tool
+  puts such props on the *Flat* layer. The starter library's rugs and carpet runners lie flat.
+
 ### Languages
 - **The bed's sleep question is translated** ("Sleep until 07:00?", *Sleep*, *Not now*): the engine
   builds it from its runtime texts, which fill in the hour.

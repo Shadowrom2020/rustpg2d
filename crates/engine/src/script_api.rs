@@ -85,6 +85,8 @@ pub const API: &[ApiFn] = api! {
     "give_item"(item: Item, count: Num) "Gives items to the player; returns how many didn't fit";
     "take_item"(item: Item, count: Num) "Takes items from the player; returns how many were taken";
     "current_map"() "Name of the current map";
+    "set_home"(map: Map, owned: Bool) "Makes a map the player's home (true) or no longer (false): furniture items can be placed there. Saved (immediately)";
+    "is_home"(map: Map) "Whether a map is one of the player's homes";
     "player_hp"() "The player's hit points";
     "player_name"() "The player's name";
     "player_sex"() "\"male\" or \"female\"";
@@ -347,6 +349,8 @@ mod tests {
             ("unlock_achievement", 0, IdKind::Achievement),
             ("achievement_unlocked", 0, IdKind::Achievement),
             ("carry", 1, IdKind::Prop),
+            ("set_home", 0, IdKind::Map),
+            ("is_home", 0, IdKind::Map),
         ];
         let derived: std::collections::BTreeSet<(&str, usize, u8)> = api_ids().iter().map(|(f, i, k)| (*f, *i, *k as u8)).collect();
         let wanted: std::collections::BTreeSet<(&str, usize, u8)> = expected.iter().map(|(f, i, k)| (*f, *i, *k as u8)).collect();

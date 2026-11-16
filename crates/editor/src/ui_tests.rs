@@ -199,6 +199,38 @@ fn an_item_becomes_a_backpack_with_extra_slots() {
 }
 
 #[test]
+fn an_item_places_furniture() {
+    let root = example_copy("furniture");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "apple").expect("the example's apple");
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    beside(&h, "Places prop", |n| n.role() == Role::TextInput).type_text("chair");
+    step(&mut h);
+    unfocus(&mut h);
+    assert_eq!(h.state().project.db.items[k].furniture, "chair");
+    h.state_mut().save_all();
+    assert_eq!(Project::load(&root).unwrap().db.items[k].furniture, "chair");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_prop_lies_flat() {
+    let root = example_copy("flat_prop");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.props.iter().position(|p| p.id == "chest").expect("the example's chest");
+    assert!(!db.props[k].flat);
+    let mut h = harness(&root, Tab::Props, k);
+    step(&mut h);
+    h.get_by_label("Lies flat on the ground").click();
+    step(&mut h);
+    assert!(h.state().project.db.props[k].flat);
+    h.state_mut().save_all();
+    assert!(Project::load(&root).unwrap().db.props[k].flat);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn character_form_takes_a_race_and_a_speed() {
     let root = example_copy("character");
     let db = Project::load(&root).unwrap().db;

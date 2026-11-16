@@ -76,7 +76,8 @@ tiles and warns. `migrate.rs` (16 px projects) runs before it and writes v2 maps
 
 **Save games** (`state.rs`): `WorldState` as RON in `saves/<slot>.ron` (plus `autosave`): flags,
 variables, inventory, equipment, quests, shops, containers, per-map entity states, dropped items,
-fired once-triggers, companions, explored fog, the clock, the player's look. Everything the player
+the player's homes and placed furniture, fired once-triggers, companions, explored fog, the clock,
+the player's look. Everything the player
 can change lives here; nothing else is persisted.
 
 **Settings** (`settings.rs`): per user and game, `~/.config/rustpg2d/<game>/settings.ron`
@@ -119,7 +120,8 @@ definition id, uid, `Body` (feet position, facing, hitbox, speed, animation time
 schedule, companion, visitor, AI and status-effect state. **Indices are valid within a frame only;
 anything that lives longer stores a uid.** Uid ranges: placed entities are small numbers, spawned
 characters start at `1 << 30`, companions at `0x5000_0000`, visitors (scheduled characters from
-other maps) at `0x5800_0000`, dropped items at `0x6000_0000`. `persist(i)` writes an entity's
+other maps) at `0x5800_0000`, furniture the player placed at `0x5C00_0000`, dropped items at
+`0x6000_0000`. `persist(i)` writes an entity's
 state back into `world.entities[map]`.
 
 ### Frame
@@ -171,7 +173,8 @@ item footer), dialogs and toasts. A new window composes these instead of copying
 ### Maps, events, scripts
 
 Map changes: `transition(map, arrival)` starts a fade; `finish_transition` → `take_map` (cache or
-disk) → `enter_map`: the old map's patrols are persisted, `solid` / `shot` come from the collision
+disk) → `enter_map`: the furniture the player placed there joins the map's entities (as placed
+props, so containers, locks and states find it by uid), the old map's patrols are persisted, `solid` / `shot` come from the collision
 overrides and the ground (`MaterialTable::apply_to_tiles`), ladders and lights from decorations, entities are built (placed ones with their saved state, companions,
 visitors, dropped items), scheduled characters are placed where their day says, the arrival spot
 is made free, spawners and regrowth run, music starts, *Map enter* fires. `load_game` replaces the

@@ -350,6 +350,10 @@ impl Editor {
             });
         });
         if let Some(c) = chosen {
+            // A prop that lies flat goes on the Flat layer.
+            if self.project.db.prop(&c).is_some_and(|d| d.flat) {
+                self.decor.layer = DecorLayer::Flat;
+            }
             self.decor.prop = c;
         }
         let n = self.doc.as_ref().map_or(0, |d| d.map.decor.len());

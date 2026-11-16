@@ -84,7 +84,8 @@ speed). A prop that does something (a door, a chest, a tree to chop) is placed w
 
 Each decoration lies on a **layer**: *Flat* (on the ground, under everyone: rugs, puddles),
 *Sorted* (in front of or behind characters by its feet: trees, rocks, walls, houses) or *Above*
-(over everyone: treetops, roofs, arches). A prop with an **animation** (*Database › Props*:
+(over everyone: treetops, roofs, arches); choosing a prop that *lies flat on the ground* picks
+*Flat*. A prop with an **animation** (*Database › Props*:
 frames of its sheet and a speed) plays it as a decoration too: torches, flags, water wheels.
 
 **Decorations** (O) in the ribbon's *Objects* group has four modes:

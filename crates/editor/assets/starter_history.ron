@@ -654,6 +654,11 @@
                 17857317730340646892,
             ],
         ),
+        "item:dagny_key": (
+            defs: [
+                12776830438650565690,
+            ],
+        ),
         "item:egg": (
             defs: [
                 6641424212317120941,
@@ -719,6 +724,11 @@
         "item:goblin_rags": (
             defs: [
                 7760063568072590460,
+            ],
+        ),
+        "item:greta_key": (
+            defs: [
+                14997714676171093022,
             ],
         ),
         "item:grilled_trout": (
@@ -997,6 +1007,11 @@
         "item:remedy": (
             defs: [
                 687331942259141486,
+            ],
+        ),
+        "item:room_key": (
+            defs: [
+                13512107994534551019,
             ],
         ),
         "item:ruby": (
@@ -5378,6 +5393,11 @@
                 904254077986440878,
             ],
         ),
+        "prop:room_door": (
+            defs: [
+                1953470766122695929,
+            ],
+        ),
         "prop:rug_patterned": (
             defs: [
                 7133601285675800145,
@@ -5501,6 +5521,16 @@
         "prop:stained_glass_window": (
             defs: [
                 3248797961358035130,
+            ],
+        ),
+        "prop:stairs_down": (
+            defs: [
+                9894615812470815352,
+            ],
+        ),
+        "prop:stairs_up": (
+            defs: [
+                9094518535327289681,
             ],
         ),
         "prop:stall_bread": (
@@ -6617,6 +6647,16 @@
             files: {
                 "sprites/dog_classic.png": [
                     5550873291148959750,
+                ],
+            },
+        ),
+        "sheet:doors": (
+            defs: [
+                762842684934747550,
+            ],
+            files: {
+                "sprites/doors.png": [
+                    14175641488742406789,
                 ],
             },
         ),
@@ -8492,6 +8532,16 @@
             files: {
                 "sprites/slime_classic.png": [
                     8425911634817169746,
+                ],
+            },
+        ),
+        "sheet:stairs": (
+            defs: [
+                3820418750359068382,
+            ],
+            files: {
+                "sprites/stairs.png": [
+                    11287314934814200050,
                 ],
             },
         ),

@@ -177,14 +177,17 @@ impl Game {
             // they are waited for instead (`avoid`: planned round too, except the walker itself).
             let occ = &self.loaded.occupancy;
             let mine: Vec<TilePos> = Occupancy::covered(self.loaded.entities[i].body.rect(), self.ts()).collect();
+            // (Doors it may open are no obstacle.)
+            let doors = self.npc_door_tiles(i);
+            let prop = |x: i32, y: i32| occ.has(x, y, OCC_PROP) && !doors.contains(&(x, y));
             let people = |x: i32, y: i32| w.avoid && occ.has(x, y, OCC_CHAR) && !mine.contains(&(x, y));
-            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (occ.has(x, y, OCC_PROP) || people(x, y)));
+            let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && (x, y) != here && (prop(x, y) || people(x, y)));
             let planned = match find_path_ex(here, goal, |t| t == goal, blocked, MAX_NODES) {
                 Search::Found(p) => Some(p),
                 // Hemmed in by people: plan as if they weren't there (they move on). Out of
                 // budget: the goal is far or walled in, another search would run out too.
                 Search::NoRoute if w.avoid => {
-                    let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && occ.has(x, y, OCC_PROP));
+                    let blocked = |x: i32, y: i32| !self.loaded.map.in_bounds(x, y) || self.tile_blocks_npc(x, y) || ((x, y) != goal && prop(x, y));
                     find_path(here, goal, |t| t == goal, blocked, MAX_NODES)
                 }
                 Search::NoRoute | Search::OutOfBudget => None,
@@ -204,6 +207,8 @@ impl Game {
                 }
             }
         }
+        // A closed door on the next tile opens for it.
+        self.npc_open_door(i, w.path[0]);
         let e = &self.loaded.entities[i];
         let target = self.tile_spot(w.path[0]);
         let speed = if speed > 0.0 { speed } else { e.body.speed.max(30.0) };

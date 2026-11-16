@@ -17,6 +17,7 @@ mod furniture;
 mod gather;
 mod healing;
 mod housing;
+mod doors;
 mod fx;
 mod inventory_ui;
 mod journal;
@@ -490,6 +491,8 @@ pub struct Game {
     /// The furniture question waiting for its answer, and furniture being used after it.
     furniture_ask: Option<housing::FurnitureAsk>,
     furniture_use: Option<u32>,
+    /// Doors characters opened on their way (closed again behind them).
+    npc_doors: Vec<doors::NpcDoor>,
     journal: journal::Journal,
     worldmap: worldmap::WorldMap,
     creator: Option<creator::Creator>,
@@ -640,6 +643,7 @@ impl Game {
             bed: None,
             furniture_ask: None,
             furniture_use: None,
+            npc_doors: Vec::new(),
             journal: Default::default(),
             worldmap: Default::default(),
             creator: None,
@@ -935,6 +939,8 @@ impl Game {
     }
 
     fn enter_map(&mut self, mut map: Map, arrival: Arrival) {
+        // Doors characters opened on the old map close behind them.
+        self.close_npc_doors_now();
         // Furniture the player placed here joins the map's props (containers, states, locks).
         map.entities.extend(self.furniture_instances(&map.name));
         // Off any furniture (it belongs to the old map); pictures belong to the event before.
@@ -1806,6 +1812,9 @@ impl Game {
         self.update_player(dt, frozen, consumed);
         self.reveal_fog();
         self.update_entities(dt, frozen);
+        if !frozen {
+            self.update_npc_doors(dt);
+        }
         self.update_combat(dt, frozen, consumed);
         self.update_emotes(dt);
         self.update_barks(dt);
@@ -2016,7 +2025,7 @@ impl Game {
     /// A prop E does nothing with (a market stall, a crate): someone across it is talked to.
     fn inert_prop(&self, i: usize) -> bool {
         let e = &self.loaded.entities[i];
-        if e.kind != EntityKind::Prop || Self::is_placed_furniture(e.uid) {
+        if e.kind != EntityKind::Prop || Self::is_placed_furniture(e.uid) || self.is_door(i) {
             return false;
         }
         if self.loaded.map.entities.iter().any(|m| m.uid == e.uid && (!m.triggers.is_empty() || m.container.is_some() || m.lock.is_some())) {
@@ -2129,8 +2138,8 @@ impl Game {
                     }
                 }
                 EntityKind::Prop => {
-                    // Placed furniture: use it or pick it up?
-                    if self.ask_furniture(i) {
+                    // Placed furniture: use it or pick it up? A door: open or close it.
+                    if self.ask_furniture(i) || self.use_door(i) {
                         return;
                     }
                     // Open gates / doors (not containers) can be locked again with their key.
@@ -2423,7 +2432,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2469,6 +2478,7 @@ impl Game {
             self.gather_status(),
             self.prop_states_status(),
             self.crops_status(),
+            self.doors_status(),
             self.homes_status(),
             self.furniture_status(),
             self.activities_status(),
@@ -3154,7 +3164,13 @@ impl ActionHost for Game {
                     return Step::Insert(self.collect(&GameEvent::Lock, &Source::Entity(uid)));
                 }
                 let Some(lock) = self.active_lock(i) else { return Step::Continue };
-                self.apply_unlock(i, &lock.on_unlock);
+                if self.is_door(i) {
+                    // (An unlocked door stays shut until someone opens it.)
+                    self.loaded.entities[i].unlocked = true;
+                    self.persist(i);
+                } else {
+                    self.apply_unlock(i, &lock.on_unlock);
+                }
                 let uid = self.loaded.entities[i].uid;
                 // Unlock triggers run before the rest of this sequence.
                 Step::Insert(self.collect(&GameEvent::Unlock, &Source::Entity(uid)))

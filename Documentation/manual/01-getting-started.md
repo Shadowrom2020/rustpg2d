@@ -71,10 +71,10 @@ switch to the *Events* view to see what each map's triggers do.
 What you'll find in it:
 
 - **Emberbrook**, an 80 × 60 village that lives by the clock: a market square with three stalls
-  whose sellers come and go, the *Copper Kettle* tavern with rooms for paying guests, a bakery, a
+  whose sellers come and go, the *Copper Kettle* tavern with guest rooms up its stairs, a bakery, a
   smithy, an apothecary, a chapel with a bell tower and a graveyard, a windmill and a mill, fields,
-  an orchard, animals and two watchtowers you can climb. About twenty villagers follow daily
-  routines and go to bed at night.
+  an orchard, animals and two watchtowers you can climb. Every house can be entered; about twenty
+  villagers follow daily routines and go to bed in their own homes at night.
 - **Whisperwood**, a forest with slimes, goblin archers, a bandit camp and a shrine at its heart;
   an **old mine** with ore veins, a pitch-dark treasure room and a dwarf trader; and **The Wilds**,
   a generated 1024 × 1024 map with fifty enemy spawners (slimes, goblin archers, wolf packs, bat

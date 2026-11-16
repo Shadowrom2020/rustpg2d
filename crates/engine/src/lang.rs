@@ -332,7 +332,7 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     let mut out = std::collections::BTreeSet::new();
     let mut add = |s: &str| {
         // Texts with letters of their own (not "{self}" or "...").
-        let words = s.replace('{', " {").split_whitespace().filter(|w| !w.starts_with('{')).any(|w| w.chars().any(char::is_alphabetic));
+        let words = crate::dialog_codes::plain(s).replace('{', " {").split_whitespace().filter(|w| !w.starts_with('{')).any(|w| w.chars().any(char::is_alphabetic));
         if words {
             out.insert(s.to_string());
         }
@@ -341,11 +341,11 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         crate::events::walk_actions(list, &mut |a| match a {
             Action::Dialog { speaker, text } => {
                 add(speaker);
-                add(text);
+                add(crate::dialog_codes::split_box_at(text).1);
             }
             Action::Choice { speaker, text, options, .. } => {
                 add(speaker);
-                add(text);
+                add(crate::dialog_codes::split_box_at(text).1);
                 options.iter().for_each(|o| add(o));
             }
             Action::OpenCrafting { title, .. } => add(title),

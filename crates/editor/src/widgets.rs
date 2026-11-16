@@ -752,6 +752,100 @@ pub struct Refs {
 /// Placeholders understood in dialog / choice texts (and quest texts).
 pub const TEXT_HELP: &str = "Placeholders: {player} = the player's name, {sir|madam} = first word for a male player, second for a female one, {name} = value of variable 'name'. In the speaker field {self} is the name of the trigger's owner.";
 
+pub const CODES_HELP: &str = "Message codes: {c:gold}text{/c} colours text (a colour name or #rrggbb), {i:item_id} shows an item's icon, {w:0.5} pauses the typing for half a second, {s:2} types twice as fast, {name:Someone} changes the name box, {at:top} / {at:middle} places the box.";
+
+/// A dialog or choice text: the box's place, buttons that insert message codes at the cursor,
+/// the text and, when it has codes, a preview.
+fn dialog_text_field(ui: &mut Ui, id: &str, text: &mut String, refs: &Refs) {
+    use crate::ui::{self as eui, ph};
+    use rustpg2d_engine::dialog_codes::{self as dc, BoxAt, Code, Piece};
+    let edit_id = ui.make_persistent_id(format!("{id}/dialogtext"));
+    let mut insert: Option<String> = None;
+    ui.horizontal(|ui| {
+        let mut at = dc::box_at(text);
+        egui::ComboBox::from_id_salt(format!("{id}/at")).selected_text(at.name()).width(70.0).show_ui(ui, |ui| {
+            for b in BoxAt::ALL {
+                ui.selectable_value(&mut at, b, b.name());
+            }
+        }).response.on_hover_text("Where the box shows: at the bottom (usual), the middle or the top of the screen");
+        if at != dc::box_at(text) {
+            *text = dc::set_box_at(text, at);
+        }
+        ui.menu_button(eui::t(ph::PALETTE, "Colour"), |ui| {
+            for (name, [r, g, b]) in dc::COLORS {
+                if ui.button(egui::RichText::new(*name).color(Color32::from_rgb(*r, *g, *b))).clicked() {
+                    insert = Some(format!("{{c:{name}}}"));
+                    ui.close_menu();
+                }
+            }
+            ui.separator();
+            if ui.button("End of colour").clicked() {
+                insert = Some("{/c}".into());
+                ui.close_menu();
+            }
+        }).response.on_hover_text("Colours the text after the cursor: {c:name} ... {/c}");
+        ui.menu_button(eui::t(ph::IMAGE, "Icon"), |ui| {
+            egui::ScrollArea::vertical().max_height(240.0).show(ui, |ui| {
+                for item in &refs.items {
+                    if ui.button(item).clicked() {
+                        insert = Some(format!("{{i:{item}}}"));
+                        ui.close_menu();
+                    }
+                }
+            });
+        }).response.on_hover_text("Shows an item's icon inside the line: {i:item_id}");
+        if ui.button(eui::t(ph::PAUSE, "Pause")).on_hover_text("Pauses the typing for half a second: {w:0.5} (change the number for longer)").clicked() {
+            insert = Some("{w:0.5}".into());
+        }
+    });
+    let out = egui::TextEdit::multiline(text).id(edit_id).desired_rows(2).desired_width(f32::INFINITY).show(ui);
+    out.response.on_hover_text(format!("{TEXT_HELP}\n\n{CODES_HELP}"));
+    if let Some(code) = insert {
+        // At the cursor (kept after the field lost focus to the button), else at the end.
+        let at = out.state.cursor.char_range().map_or(text.chars().count(), |r| r.primary.index).min(text.chars().count());
+        let byte = text.char_indices().nth(at).map_or(text.len(), |(b, _)| b);
+        text.insert_str(byte, &code);
+        let mut state = out.state;
+        state.cursor.set_char_range(Some(egui::text::CCursorRange::one(egui::text::CCursor::new(at + code.chars().count()))));
+        state.store(ui.ctx(), edit_id);
+    }
+    let pieces = dc::split(text);
+    let unknown = dc::unknown_codes(text);
+    if pieces.iter().any(|p| matches!(p, Piece::Code(..))) || !unknown.is_empty() {
+        // The preview: colours as in the game, icons and pauses as marks.
+        let mut job = egui::text::LayoutJob::default();
+        let font = egui::FontId::proportional(13.0);
+        let (usual, weak) = (Color32::WHITE, Color32::from_gray(150));
+        let mut color = usual;
+        let add = |job: &mut egui::text::LayoutJob, s: &str, c: Color32, italics: bool| {
+            job.append(s, 0.0, egui::TextFormat { font_id: font.clone(), color: c, italics, ..Default::default() });
+        };
+        for p in pieces {
+            match p {
+                Piece::Text(t) => add(&mut job, t, color, false),
+                Piece::Code(Code::Color(Some([r, g, b])), _) => color = Color32::from_rgb(r, g, b),
+                Piece::Code(Code::Color(None), _) => color = usual,
+                Piece::Code(Code::Icon(item), _) => add(&mut job, &format!("[{item}]"), weak, true),
+                Piece::Code(Code::Wait(s), _) => add(&mut job, &format!(" ({s} s) "), weak, true),
+                Piece::Code(Code::Speed(v), _) => add(&mut job, &format!(" (x{v}) "), weak, true),
+                Piece::Code(Code::Name(n), _) => add(&mut job, &format!("[{n}:] "), weak, true),
+                Piece::Code(Code::At(_), _) => {}
+            }
+        }
+        egui::Frame::new().fill(Color32::from_rgb(16, 16, 32)).inner_margin(6.0).corner_radius(4.0).show(ui, |ui| {
+            // (The game's dark box in every editor theme, so the colours read the same.)
+            ui.label(job);
+        });
+        if !unknown.is_empty() {
+            ui.colored_label(Color32::from_rgb(230, 120, 60), format!("Not a message code: {} (shown as written)", unknown.join(" ")));
+        }
+        let missing: Vec<String> = dc::icons(text).into_iter().filter(|i| !refs.items.contains(i)).collect();
+        if !missing.is_empty() {
+            ui.colored_label(Color32::from_rgb(230, 120, 60), format!("No such item: {}", missing.join(", ")));
+        }
+    }
+}
+
 /// Stage number with the stage's objective text as a dropdown.
 fn quest_stage_field(ui: &mut Ui, id: &str, quest: &str, stage: &mut u32, refs: &Refs) {
     let stages = refs.quest_stages.get(quest).cloned().unwrap_or_default();
@@ -1192,12 +1286,11 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
     match a {
         Action::Dialog { speaker, text } => {
             speaker_field(ui, id, speaker, refs);
-            ui.add(egui::TextEdit::multiline(text).desired_rows(2).desired_width(f32::INFINITY))
-                .on_hover_text(TEXT_HELP);
+            dialog_text_field(ui, id, text, refs);
         }
         Action::Choice { speaker, text, options, var } => {
             speaker_field(ui, id, speaker, refs);
-            ui.add(egui::TextEdit::multiline(text).desired_rows(2).desired_width(f32::INFINITY));
+            dialog_text_field(ui, id, text, refs);
             ui.label("Options (one per line):");
             let mut joined = options.join("\n");
             if ui.add(egui::TextEdit::multiline(&mut joined).desired_rows(2).desired_width(f32::INFINITY)).changed() {

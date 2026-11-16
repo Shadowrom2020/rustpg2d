@@ -164,6 +164,8 @@ pub const API: &[ApiFn] = api! {
     "say"(speaker: Line, text: Line) "Shows a dialog with a speaker name (queued)";
     "say"(entity: Num, text: Line) "Shows a dialog with an entity's name as speaker, e.g. say(SELF, \"...\") (queued)";
     "say"(speaker: Line, text: Line, options: Opts) "A dialog line with options: #{ mood: \"worried\" } shows the speaker's portrait for that mood for this line, #{ emote: \"joy\" } an emotion over the speaker's head (queued)";
+    "say_at"(at: Text, text: Line) "Shows a dialog at \"top\", \"middle\" or \"bottom\" of the screen (queued)";
+    "say_at"(at: Text, speaker: Line, text: Line) "Shows a dialog with a speaker name at \"top\", \"middle\" or \"bottom\" of the screen (queued)";
     "choice"(text: Line, options: List, var: Var) "Asks a question; the chosen index goes into the variable (queued)";
     "teleport"(map: Map, spawn: Spawn) "Moves the player to a spawn point on a map (queued)";
     "set_active"(target: Target, active: Bool) "Shows / hides an entity (queued)";

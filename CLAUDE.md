@@ -113,6 +113,9 @@ crates/engine/src/      library: everything shared by game and editor
                         Map.decor_defs + Map.decor, DecorIndex (by chunk), DecorLook, ScatterDef
                         (defs/scatter.ron), wall sets (PropDef.pieces by neighbour mask); the runtime
                         draws them sorted with characters and puts solid ones into the occupancy base
+  dialog_codes.rs       message codes in dialog / choice texts ({c:gold}…{/c}, {i:item}, {w:0.5}, {s:2},
+                        {name:…}, {at:top}): split / plain / unknown_codes; runtime/ui.rs types and
+                        draws them (codes become private-use marks that survive wrapping)
   fog.rs                fog of war: Explored (tiles per map, saved as a compact string), REVEAL_RADIUS
   fonts.rs              project fonts: FontDef (defs/fonts.ron: TTF / OTF, pixel grid, scale, licence),
                         FontRoles (ProjectConfig.fonts: ui / dialog / hud / title + fallbacks), Coverage

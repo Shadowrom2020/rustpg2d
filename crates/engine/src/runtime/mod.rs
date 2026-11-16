@@ -2433,7 +2433,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2507,6 +2507,7 @@ impl Game {
             self.enemies_alive(),
             self.runner.busy(),
             self.ui.dialog_open(),
+            self.ui.dialog_text().unwrap_or(""),
             self.world.inventory.summary(),
             self.world.inventory.used_slots(),
             self.world.inventory.capacity(),
@@ -2877,6 +2878,11 @@ impl Game {
         self.ui.draw_toasts();
         self.ui.draw_dialog();
         self.draw_dialog_portrait();
+        for (id, r) in &self.ui.icon_spots {
+            if let Some(d) = self.project.db.item(id) {
+                self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, *r, WHITE);
+            }
+        }
         self.draw_game_over();
         if self.creator.is_some() {
             self.draw_creator();
@@ -3031,8 +3037,9 @@ impl ActionHost for Game {
             Action::Dialog { speaker: raw, text } => {
                 self.audio.play(&self.project.config.sfx.dialog);
                 let speaker = self.entity_names_in(raw, ctx.owner);
-                let (speaker, text) = (self.world.expand_text(&speaker), self.world.expand_text(text));
-                self.world.log_dialog(&speaker, &text, false);
+                let (at, text) = crate::dialog_codes::split_box_at(text);
+                let (speaker, text) = (self.world.expand_text(&speaker), format!("{at}{}", self.world.expand_text(text)));
+                self.world.log_dialog(&crate::dialog_codes::name_override(&text).unwrap_or_else(|| speaker.clone()), &crate::dialog_codes::plain(&text), false);
                 self.ui.show_dialog(&speaker, &text);
                 self.set_dialog_portrait(raw, &speaker, ctx.owner);
                 Step::Block
@@ -3040,9 +3047,10 @@ impl ActionHost for Game {
             Action::Choice { speaker: raw, text, options, var } => {
                 self.audio.play(&self.project.config.sfx.dialog);
                 let speaker = self.entity_names_in(raw, ctx.owner);
-                let (speaker, text) = (self.world.expand_text(&speaker), self.world.expand_text(text));
+                let (at, text) = crate::dialog_codes::split_box_at(text);
+                let (speaker, text) = (self.world.expand_text(&speaker), format!("{at}{}", self.world.expand_text(text)));
                 let options: Vec<String> = options.iter().map(|o| self.world.expand_text(o)).collect();
-                self.world.log_dialog(&speaker, &text, false);
+                self.world.log_dialog(&crate::dialog_codes::name_override(&text).unwrap_or_else(|| speaker.clone()), &crate::dialog_codes::plain(&text), false);
                 self.ui.show_choice(&speaker, &text, &options, var);
                 self.set_dialog_portrait(raw, &speaker, ctx.owner);
                 Step::Block

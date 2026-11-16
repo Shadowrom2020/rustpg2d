@@ -277,7 +277,7 @@ pub fn wrap_counted(text: &str, font_size: f32, max_w: f32) -> Vec<(String, usiz
 }
 
 /// The wrapping itself, with any `measure` (tests measure without a graphics context).
-fn wrap_with(text: &str, max_w: f32, measure: impl Fn(&str) -> f32) -> Vec<(String, usize)> {
+pub(crate) fn wrap_with(text: &str, max_w: f32, measure: impl Fn(&str) -> f32) -> Vec<(String, usize)> {
     let mut out: Vec<(String, usize)> = Vec::new();
     let paragraphs: Vec<&str> = text.split('\n').collect();
     for (k, para) in paragraphs.iter().enumerate() {

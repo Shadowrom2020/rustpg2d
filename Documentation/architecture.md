@@ -371,6 +371,14 @@ Known properties of the current implementation (see the CHANGELOG for what each 
 the characters each uses, for text that types out): pieces split at spaces and, in Chinese and
 Japanese, between characters except before closing / after opening punctuation (`breaks_anywhere`,
 kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
+- Dialog message codes (`dialog_codes.rs`) are kept in the text through translation and
+  `expand_text` (which leaves `{x:…}` alone). The dialog box (`runtime/ui.rs`, `Dialog::new`)
+  replaces each colour / icon / pause / speed code with a private-use character (U+F0000 + its
+  index), so the codes' places survive `text::wrap_with` (a code measures nothing, an icon a
+  square) and the typing counts them; drawing switches colour at them and records icon spots that
+  `Game` fills with item icons. `{name:…}` and `{at:…}` are applied when the box opens; a leading
+  `{at:…}` is split off before the translation lookup (`split_box_at`), and `lang::content_texts`
+  leaves it out the same way.
 - The hot definition lookups (`db.item(id)`, `prop`, `character`, `sheet`) go through
   an id index that verifies its hits and falls back to a scan, so an index left stale by an
   in-place edit is slower, never wrong; `Database::reindex` refreshes it.

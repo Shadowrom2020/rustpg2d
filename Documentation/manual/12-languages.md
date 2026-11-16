@@ -29,6 +29,8 @@ language when the game offers it.
    ```
 
    Keep the placeholders (`{player}`, `{variable}`); `{sir|madam}` gets the pair of the new language.
+   Keep a dialog's [message codes](07-events.md#message-codes) too, around the words they belong to
+   in the new language (`{c:gold}Schlüssel{/c}`); *Problems* lists translations that lost one.
    An empty or missing translation shows the original text.
 4. After changing the game, **Update template** adds new texts, keeps every translation already
    made, and reports texts no longer used (they stay until you delete them). The list shows how many

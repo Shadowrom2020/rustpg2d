@@ -5,6 +5,7 @@
 //! (probably unintended) and leads to its place like a search hit. The list is rebuilt when
 //! something is saved (and on *Refresh*); maps that didn't change aren't read again.
 
+use rustpg2d_engine::dialog_codes as dc;
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 
 use egui_macroquad::egui;
@@ -558,6 +559,19 @@ impl Editor {
         });
     }
 
+    /// Message codes in the project's texts that aren't valid, and icons of items that don't exist.
+    fn code_problems(&self, own: &std::collections::BTreeSet<String>, out: &mut Vec<Problem>) {
+        let bad: std::collections::BTreeSet<&str> = own.iter().flat_map(|t| dc::unknown_codes(t)).collect();
+        if !bad.is_empty() {
+            let sample: Vec<&str> = bad.iter().take(6).copied().collect();
+            out.push(Problem { severity: Severity::Warning, area: Area::Project, place: "dialog texts".into(), text: format!("{} unknown message code(s), shown as written: {} (codes: {{c:colour}} … {{/c}}, {{i:item}}, {{w:seconds}}, {{s:speed}}, {{name:…}}, {{at:top|middle|bottom}})", bad.len(), sample.join(" ")), target: Target::Project });
+        }
+        let icons: std::collections::BTreeSet<String> = own.iter().flat_map(|t| dc::icons(t)).filter(|i| self.project.db.item(i).is_none()).collect();
+        if !icons.is_empty() {
+            out.push(Problem { severity: Severity::Warning, area: Area::Project, place: "dialog texts".into(), text: format!("{{i:…}} names item(s) that don't exist: {}", icons.into_iter().collect::<Vec<_>>().join(", ")), target: Target::Project });
+        }
+    }
+
     fn translation_problems(&self, out: &mut Vec<Problem>) {
         let fonts: Vec<rustpg2d_engine::fonts::Coverage> = self
             .project
@@ -569,6 +583,7 @@ impl Editor {
             .collect();
         let own = rustpg2d_engine::lang::content_texts(&self.project);
         Self::glyph_problem(&self.project.config.language, "project texts".into(), Self::uncovered(&fonts, own.iter()), out);
+        self.code_problems(&own, out);
         let dir = self.project.root.join("lang");
         let Ok(entries) = std::fs::read_dir(&dir) else { return };
         let mut codes: Vec<String> = entries.flatten().filter_map(|e| e.path().file_name()?.to_str()?.strip_suffix(".ron").map(str::to_string)).collect();
@@ -581,6 +596,12 @@ impl Editor {
             }
             let (file, unused) = rustpg2d_engine::lang::template(&self.project, &code, existing);
             Self::glyph_problem(&code, format!("lang/{code}.ron"), Self::uncovered(&fonts, file.texts.values().chain(file.ui.values()).chain(std::iter::once(&file.name))), out);
+            let dropped: Vec<&String> = file.texts.iter().filter(|(k, v)| !v.is_empty() && dc::written_codes(k) != dc::written_codes(v)).map(|(k, _)| k).collect();
+            if !dropped.is_empty() {
+                let sample: Vec<String> = dropped.iter().take(3).map(|t| format!("\"{}\"", shorten(t, 40))).collect();
+                let more = if dropped.len() > 3 { format!(" and {} more", dropped.len() - 3) } else { String::new() };
+                out.push(Problem { severity: Severity::Warning, area: Area::Translations, place: format!("lang/{code}.ron"), text: format!("{} translation(s) don't keep the message codes of their text ({{c:…}}, {{i:…}}, {{w:…}} …): {}{more}", dropped.len(), sample.join(", ")), target: Target::Project });
+            }
             let missing: Vec<&String> = file.texts.iter().filter(|(k, v)| v.is_empty() && !unused.contains(k)).map(|(k, _)| k).collect();
             if !missing.is_empty() {
                 let sample: Vec<String> = missing.iter().take(3).map(|t| format!("\"{}\"", shorten(t, 40))).collect();

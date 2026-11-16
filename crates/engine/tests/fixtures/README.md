@@ -14,6 +14,7 @@ loading fails the tests.
 | `project-0.16.0/` | `project.ron` and `defs/` of the example project at tag v0.16.0: before races (no `races.ron`, no `race` on characters, no body `cut`) |
 | `project-0.20.0/`, `maps/village-0.20.0.map`, `maps/mine-0.20.0.map` | `project.ron`, `defs/` and two maps of the example project at tag v0.20.0, the last release with tiles (`tilesets.ron`, format version 2 tile maps): they convert into a painted project (`projects_of_0_20_0_convert`) |
 | `quests/quests-0.21.0.ron` | the example's `defs/quests.ron` at tag v0.21.0: quests driven by triggers, before the quest designer (no giver, offer, steps, rewards, objects) |
+| `saves/save-0.22.0.ron` | a quick save in Tilda's shop written by the game of the 0.22.0 save layout (built from `master` after #188, which changed no save fields): before homes and placed furniture |
 | `saves/minimal.ron` | only the fields without a default: the oldest save layout |
 
 Add a fixture when a format changes (take the file from the last release's tag), never edit one.

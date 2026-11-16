@@ -209,6 +209,15 @@ pub struct WorldState {
     /// Counter for the uids of dropped items (see [`DROPPED_UID_BASE`]).
     #[serde(default)]
     pub next_drop: u32,
+    /// Maps the player owns (`set_home`): furniture can be placed there.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub homes: BTreeSet<String>,
+    /// map -> furniture the player placed there (a prop each, see [`FURNITURE_UID_BASE`]).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub furniture: BTreeMap<String, Vec<PlacedFurniture>>,
+    /// Counter for the uids of placed furniture.
+    #[serde(default)]
+    pub next_furniture: u32,
     /// skill id -> level (bought with skill points).
     #[serde(default)]
     pub skills: BTreeMap<String, u32>,
@@ -351,6 +360,23 @@ pub struct NpcItems {
 /// Uids of dropped items start here, far above the uids of map entities and of spawned
 /// characters (`0x4000_0000..`).
 pub const DROPPED_UID_BASE: u32 = 0x6000_0000;
+
+/// Uids of furniture the player placed start here: above visitors (`0x5800_0000..`), below
+/// dropped items.
+pub const FURNITURE_UID_BASE: u32 = 0x5C00_0000;
+const _: () = assert!(FURNITURE_UID_BASE < DROPPED_UID_BASE);
+
+/// A piece of furniture the player placed in a home: the prop and the item it was made from.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PlacedFurniture {
+    pub uid: u32,
+    pub prop: String,
+    /// The item picking it up gives back.
+    pub item: String,
+    /// Feet position in pixels.
+    pub x: f32,
+    pub y: f32,
+}
 
 /// An item stack the player dropped on a map.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -517,6 +543,32 @@ impl WorldState {
         self.next_drop = next;
     }
 
+    /// Saves a piece of furniture placed on `map`; returns its uid.
+    pub fn add_furniture(&mut self, map: &str, prop: &str, item: &str, x: f32, y: f32) -> u32 {
+        let uid = FURNITURE_UID_BASE + self.next_furniture;
+        self.next_furniture += 1;
+        self.furniture.entry(map.to_string()).or_default().push(PlacedFurniture { uid, prop: prop.to_string(), item: item.to_string(), x, y });
+        uid
+    }
+
+    /// Removes placed furniture `uid` of `map` and what was saved about it (state, contents);
+    /// returns it.
+    pub fn remove_furniture(&mut self, map: &str, uid: u32) -> Option<PlacedFurniture> {
+        let list = self.furniture.get_mut(map)?;
+        let k = list.iter().position(|f| f.uid == uid)?;
+        let f = list.remove(k);
+        if list.is_empty() {
+            self.furniture.remove(map);
+        }
+        if let Some(m) = self.entities.get_mut(map) {
+            m.remove(&uid);
+        }
+        if let Some(m) = self.containers.get_mut(map) {
+            m.remove(&uid);
+        }
+        Some(f)
+    }
+
     /// Updates the size of a dropped pile (0 removes it).
     pub fn set_dropped_count(&mut self, map: &str, uid: u32, count: u32) {
         if let Some(piles) = self.dropped.get_mut(map) {
@@ -621,6 +673,24 @@ mod tests {
         let back: WorldState = ron::from_str(&ron::to_string(&w).unwrap()).unwrap();
         assert_eq!(back.dropped["forest"][0].count, 7);
         assert_eq!(back.next_drop, w.next_drop);
+    }
+
+    #[test]
+    fn placed_furniture() {
+        let mut w = WorldState::default();
+        let a = w.add_furniture("home", "chest", "chest_item", 48.0, 80.0);
+        let b = w.add_furniture("home", "chair", "chair_item", 80.0, 80.0);
+        assert!(a >= FURNITURE_UID_BASE && b == a + 1 && b < DROPPED_UID_BASE);
+        // Its saved state and contents go with it when it is picked up.
+        w.entities.entry("home".into()).or_default().insert(a, EntityState { active: true, frame: 0, x: 48.0, y: 80.0, facing: Facing::Down, count: None, unlocked: false, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: None, planted: None });
+        w.containers.entry("home".into()).or_default().insert(a, Inventory::new(4));
+        assert_eq!(w.remove_furniture("home", a).map(|f| f.prop), Some("chest".to_string()));
+        assert!(!w.entities["home"].contains_key(&a) && !w.containers["home"].contains_key(&a));
+        assert!(w.remove_furniture("home", a).is_none());
+        w.remove_furniture("home", b);
+        assert!(!w.furniture.contains_key("home"));
+        // A new piece never reuses a uid.
+        assert_eq!(w.add_furniture("home", "rug", "rug_item", 0.0, 0.0), b + 1);
     }
 
     use super::*;

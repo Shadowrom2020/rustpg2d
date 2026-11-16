@@ -667,6 +667,10 @@ pub struct ItemDef {
     /// to clips. Empty ones are estimated from the weapon ([`ItemAnims::estimate`]).
     #[serde(default, skip_serializing_if = "ItemAnims::is_empty")]
     pub anims: ItemAnims,
+    /// Furniture: using the item in a home of the player's (`WorldState::homes`) places this prop
+    /// on the free tile in front; picking the prop up gives the item back. "" = not furniture.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub furniture: String,
 }
 
 /// Animation names of an item (`ItemDef::anims`); "" = by its kind ([`ItemAnims::estimate`]),
@@ -761,6 +765,7 @@ impl Default for ItemDef {
             food: false,
             bag_slots: 0,
             anims: ItemAnims::default(),
+            furniture: String::new(),
         }
     }
 }
@@ -1017,6 +1022,10 @@ pub struct PropDef {
     /// sight. Solid props that aren't low stop both (trees, statues, stalls).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub low: bool,
+    /// Lies flat on the ground (a rug, a mat, a puddle): drawn under everyone like a *Flat*
+    /// decoration instead of sorted by its feet, and placed as furniture by its picture.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub flat: bool,
     /// How characters carry it in both hands (*Carry prop*): its hold point and orientation mark
     /// (None: the middle of its lower half, its horizontal along the hands).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1073,6 +1082,7 @@ impl Default for PropDef {
             regrow: None,
             plot: false,
             low: false,
+            flat: false,
             carry: None,
             climb: false,
             snap: 0,

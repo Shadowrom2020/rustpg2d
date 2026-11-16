@@ -16,6 +16,7 @@ mod farm;
 mod furniture;
 mod gather;
 mod healing;
+mod housing;
 mod fx;
 mod inventory_ui;
 mod journal;
@@ -226,6 +227,8 @@ struct RtEntity {
     solid: bool,
     /// A low prop (`PropDef::low`): while solid it stops walking but not shots.
     low: bool,
+    /// A flat prop (`PropDef::flat`): drawn on the ground under everyone.
+    flat: bool,
     /// A weapon swing or lunge in progress (`attacks.rs`; not saved).
     attack: Option<attacks::Attack>,
     /// Seconds it stays battle-ready (`battle.rs`): a stance, its weapon drawn.
@@ -484,6 +487,9 @@ pub struct Game {
     hud_bottom: std::cell::Cell<f32>,
     sleeping: Option<furniture::Sleeping>,
     bed: Option<u32>,
+    /// The furniture question waiting for its answer, and furniture being used after it.
+    furniture_ask: Option<housing::FurnitureAsk>,
+    furniture_use: Option<u32>,
     journal: journal::Journal,
     worldmap: worldmap::WorldMap,
     creator: Option<creator::Creator>,
@@ -632,6 +638,8 @@ impl Game {
             hud_bottom: std::cell::Cell::new(80.0),
             sleeping: None,
             bed: None,
+            furniture_ask: None,
+            furniture_use: None,
             journal: Default::default(),
             worldmap: Default::default(),
             creator: None,
@@ -723,6 +731,7 @@ impl Game {
     ) -> RtEntity {
         let ts = self.ts();
         let low = kind == EntityKind::Prop && self.project.db.prop(def).is_some_and(|d| d.low);
+        let flat = kind == EntityKind::Prop && self.project.db.prop(def).is_some_and(|d| d.flat);
         let (hitbox, speed, solid, behavior) = match kind {
             EntityKind::Prop => match self.project.db.prop(def) {
                 Some(d) => (vec2(d.hitbox[0], d.hitbox[1]), 0.0, d.solid, Behavior::Static),
@@ -752,6 +761,7 @@ impl Game {
             // Hostiles overlap the player (contact damage) instead of blocking.
             solid: solid && !hostile,
             low,
+            flat,
             attack: None,
             combat_t: 0.0,
             emote: None,
@@ -924,7 +934,9 @@ impl Game {
         rt
     }
 
-    fn enter_map(&mut self, map: Map, arrival: Arrival) {
+    fn enter_map(&mut self, mut map: Map, arrival: Arrival) {
+        // Furniture the player placed here joins the map's props (containers, states, locks).
+        map.entities.extend(self.furniture_instances(&map.name));
         // Off any furniture (it belongs to the old map); pictures belong to the event before.
         self.seat = None;
         self.image = None;
@@ -1773,6 +1785,7 @@ impl Game {
         // of characters a 'Damage area' defeats) went to the stand-in runner: keep them.
         let queued = std::mem::replace(&mut self.runner, runner);
         self.runner.append(queued);
+        self.furniture_answered();
         if !self.on_title() {
             self.check_quest_steps(dt);
             self.refresh_quest_offers(dt);
@@ -2003,7 +2016,7 @@ impl Game {
     /// A prop E does nothing with (a market stall, a crate): someone across it is talked to.
     fn inert_prop(&self, i: usize) -> bool {
         let e = &self.loaded.entities[i];
-        if e.kind != EntityKind::Prop {
+        if e.kind != EntityKind::Prop || Self::is_placed_furniture(e.uid) {
             return false;
         }
         if self.loaded.map.entities.iter().any(|m| m.uid == e.uid && (!m.triggers.is_empty() || m.container.is_some() || m.lock.is_some())) {
@@ -2053,7 +2066,8 @@ impl Game {
             .min_by(|(_, a), (_, b)| {
                 let da = a.body.pos.distance_squared(center);
                 let db = b.body.pos.distance_squared(center);
-                da.total_cmp(&db)
+                // (What stands on a rug before the rug.)
+                a.flat.cmp(&b.flat).then(da.total_cmp(&db))
             })
             .map(|(i, _)| i)
     }
@@ -2115,6 +2129,10 @@ impl Game {
                     }
                 }
                 EntityKind::Prop => {
+                    // Placed furniture: use it or pick it up?
+                    if self.ask_furniture(i) {
+                        return;
+                    }
                     // Open gates / doors (not containers) can be locked again with their key.
                     if self.loaded.entities[i].unlocked && !self.is_container(i) && self.try_relock(i, None) {
                         return;
@@ -2246,6 +2264,10 @@ impl Game {
             if self.relockable(i).is_some_and(|l| l.key == item) && self.try_relock(i, Some(item)) {
                 return;
             }
+        }
+        // Furniture is placed in front (in a home of the player's).
+        if self.place_furniture(item) {
+            return;
         }
         // Seeds are planted on the farm plot in front.
         if self.plant_on_facing(item) {
@@ -2401,7 +2423,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} activities={:?} day={} parallax={} ground={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2447,6 +2469,8 @@ impl Game {
             self.gather_status(),
             self.prop_states_status(),
             self.crops_status(),
+            self.homes_status(),
+            self.furniture_status(),
             self.activities_status(),
             self.world.day,
             {
@@ -2641,6 +2665,8 @@ impl Game {
     }
 
     pub fn draw(&mut self) {
+        /// Sort keys of flat props are their feet minus this: before everything else.
+        const FLAT_FIRST: f32 = 1.0e7;
         self.assets.models.begin_frame();
         // Options › Accessibility: text size and high contrast, for everything drawn below.
         self.ui.text_scale = self.settings.text_scale();
@@ -2678,7 +2704,8 @@ impl Game {
             .iter()
             .enumerate()
             .filter(|(_, e)| e.active)
-            .map(|(i, e)| (e.npc_seat.as_ref().map_or(e.body.pos.y, |s| s.prop_feet.y + 0.5), Drawn::Entity(i)))
+            // (Flat props first, under everyone: on the ground with the Flat decorations.)
+            .map(|(i, e)| (if e.flat { e.body.pos.y - FLAT_FIRST } else { e.npc_seat.as_ref().map_or(e.body.pos.y, |s| s.prop_feet.y + 0.5) }, Drawn::Entity(i)))
             .collect();
         if !self.photo.hide_player || !self.photo_on() {
             order.push((self.player_sort_y(), Drawn::Player));

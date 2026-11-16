@@ -435,6 +435,7 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
     for d in &mut db.items {
         r.fix(RefKind::Sheet, &mut d.icon.sheet);
         r.fix(RefKind::Spell, &mut d.teaches);
+        r.fix(RefKind::Prop, &mut d.furniture);
         r.triggers(&mut d.on_use);
         r.weapon(&mut d.weapon);
         r.crop(&mut d.crop);
@@ -585,6 +586,7 @@ pub fn refs_of_item(d: &crate::defs::ItemDef) -> Vec<(RefKind, String)> {
     r.triggers(&mut d.on_use);
     r.weapon(&mut d.weapon);
     r.fix(RefKind::Spell, &mut d.teaches);
+    r.fix(RefKind::Prop, &mut d.furniture);
     r.crop(&mut d.crop);
     r.found.unwrap_or_default()
 }

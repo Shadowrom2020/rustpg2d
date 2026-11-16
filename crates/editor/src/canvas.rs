@@ -763,12 +763,15 @@ impl Editor {
             .iter()
             .filter(|e| e.x > view.x - 64.0 && e.x < view.x + view.w + 64.0 && e.y > view.y - 64.0 && e.y < view.y + view.h + 64.0)
             .collect();
-        ents.sort_by(|a, b| a.y.total_cmp(&b.y));
+        // (Flat props first, under everyone, as the game draws them.)
+        let db = &self.project.db;
+        let key = |e: &EntityInstance| if e.kind == EntityKind::Prop && db.prop(&e.def).is_some_and(|d| d.flat) { e.y - 1.0e7 } else { e.y };
+        ents.sort_by(|a, b| key(a).total_cmp(&key(b)));
         let sorted_decor = if overview { Vec::new() } else { decor_in(DecorLayer::Sorted) };
         let mut di = 0;
         if ents.len() < 5000 {
             for e in &ents {
-                while di < sorted_decor.len() && (map.decor[sorted_decor[di]].y as f32) <= e.y {
+                while di < sorted_decor.len() && (map.decor[sorted_decor[di]].y as f32) <= key(e) {
                     self.draw_decor(map, sorted_decor[di], WHITE);
                     di += 1;
                 }

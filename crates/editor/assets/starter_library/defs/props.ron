@@ -4699,6 +4699,7 @@
         triggers: [],
         container: None,
         lock: None,
+        flat: true,
     ),
     (
         id: "carpet_runner_long",
@@ -4714,6 +4715,7 @@
         triggers: [],
         container: None,
         lock: None,
+        flat: true,
     ),
     (
         id: "rug_small",
@@ -4729,6 +4731,7 @@
         triggers: [],
         container: None,
         lock: None,
+        flat: true,
     ),
     (
         id: "rug_patterned",
@@ -4744,6 +4747,7 @@
         triggers: [],
         container: None,
         lock: None,
+        flat: true,
     ),
     (
         id: "rug_wide",
@@ -4759,5 +4763,6 @@
         triggers: [],
         container: None,
         lock: None,
+        flat: true,
     ),
 ]

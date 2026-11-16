@@ -34,6 +34,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   places the box. *Problems* warns about unknown codes, icons of missing items and translations
   that drop a code. The dialog log shows the text without codes; autoplay `status` prints
   `dialog_text=`. In the example, Greta shows the room key's icon and colours a few names.
+- **The engine's own texts in more languages**: menus, windows, HUD and messages now come in
+  French, Spanish, Brazilian Portuguese, Italian, Polish, Russian, Japanese and Simplified Chinese
+  besides German (drafts made with AI help; native speakers' corrections welcome), so a game in one
+  of them only translates its content. `zh` / `zh-cn` use Simplified Chinese, `pt` Brazilian
+  Portuguese. *Problems* checks the fonts against these texts too; the character window's stats
+  get room for taller fallback glyphs.
 - **The example game** draws its texts in **monogram** (a CC0 pixel font by Vinícius Menézio, with
   Cyrillic and Greek), also in the starter library; the screenshots show it.
 

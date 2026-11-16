@@ -41,8 +41,20 @@ Exported games carry the translation files.
 
 ## The engine's own texts
 
-R(ust)PG2D's menus, windows, HUD and messages come translated for **German**. A project's
-`lang/<code>.ron` can add or replace them in a `ui` section, where `{}` stands for a value:
+R(ust)PG2D's menus, windows, HUD and messages come translated for **German** (`de`), **French**
+(`fr`), **Spanish** (`es`), **Brazilian Portuguese** (`pt-br`, also used for `pt`), **Italian**
+(`it`), **Polish** (`pl`), **Russian** (`ru`), **Japanese** (`ja`) and **Simplified Chinese**
+(`zh-hans`, also used for `zh` and `zh-cn`). A project that offers one of these languages only
+translates its own content. All but German are drafts made with AI help: corrections from native
+speakers are welcome (the files are `crates/engine/lang/<code>.ron` in the repository).
+
+Polish, Russian, Japanese and Chinese need a project font with their letters (below): monogram,
+the example's font, covers Polish and Russian; the starter library's Fusion Pixel fonts cover
+Japanese and Chinese. *Edit › Problems* checks the built-in texts of each language the project
+offers along with its own.
+
+A project's `lang/<code>.ron` can add or replace the engine's texts in a `ui` section, where `{}`
+stands for a value (`{0}`, `{1}` pick values by position, to change their order):
 
 ```
 ui: {

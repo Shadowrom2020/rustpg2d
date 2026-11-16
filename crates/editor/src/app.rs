@@ -205,6 +205,8 @@ pub struct Editor {
     pub lib: crate::library_ui::LibState,
     /// *Update asset library* (window and banner).
     pub lib_update: crate::library_update::LibUpdate,
+    /// *Assets › Starter asset library…*
+    pub starter_ui: crate::starter_ui::StarterUi,
     pub px: crate::pixel::PixelState,
     pub wizard: Option<crate::wizard::Wizard>,
     pub export: Option<crate::export::ExportDialog>,
@@ -342,7 +344,7 @@ impl Editor {
         let mut converted = None;
         if rustpg2d_engine::migrate::stored_tile_size(&root)? != rustpg2d_engine::project::TILE_SIZE {
             let dir = rustpg2d_engine::library::library_dir();
-            let lib = rustpg2d_engine::library::open_library(&dir, crate::library_ui::starter_for(&dir)).ok();
+            let lib = crate::starter::open_library(&dir).ok();
             converted = rustpg2d_engine::migrate::upgrade(&root, lib.as_ref())?;
         }
         // Projects from before painted maps: tiles become ground and decorations (with a backup).
@@ -548,6 +550,7 @@ impl Editor {
             art_settings: crate::art::ArtSettings { model: "nano-banana-2-lite".into(), budget: 60, ask: true },
             library_mode: false,
             lib_update: Default::default(),
+            starter_ui: Default::default(),
             lib_window: Default::default(),
             lib_stamp: None,
             lib_check: 0.0,
@@ -1189,6 +1192,7 @@ impl Editor {
         let root = self.project.root.clone();
         let import = |sub: &str| files::import_asset(&root, &path, sub);
         match purpose {
+            P::StarterLibrary => self.install_starter_file(&path),
             P::ImportPackage { into_library } => {
                 let r = self.import_package(into_library, &path);
                 self.show_result(r);
@@ -1522,6 +1526,7 @@ impl Editor {
             self.library_update_banner(ctx);
         }
         self.library_update_window(ctx);
+        self.starter_window(ctx);
         self.mcp_window(ctx);
         self.search_windows(ctx);
         self.problems_tick();
@@ -1821,6 +1826,10 @@ impl Editor {
                     }
                     if ui.button(ui::t(ph::ARROWS_CLOCKWISE, "Update asset library…")).on_hover_text("Brings this version's starter assets into your asset library: adds new ones, replaces the ones you never changed, asks about the rest").clicked() {
                         self.open_library_update();
+                        ui.close_menu();
+                    }
+                    if ui.button(ui::t(ph::PACKAGE, "Starter asset library…")).on_hover_text("Installs the starter asset library (everything the example game is made of): a download of its own for each version").clicked() {
+                        self.starter_ui.open = true;
                         ui.close_menu();
                     }
                     if ui.button(ui::t(ph::ROBOT, "AI agent server…")).on_hover_text("Lets AI agents (Claude Code, Cursor, …) read and build this project live through the Model Context Protocol").clicked() {

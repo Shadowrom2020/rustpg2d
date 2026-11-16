@@ -30,6 +30,8 @@ pub enum Purpose {
     ModelFile { id: String, clips: bool },
     /// The 3D model (`.glb`) of item `id` (held by 3D model characters).
     ItemModel(String),
+    /// A starter asset library file (`.r2dlib`) to install.
+    StarterLibrary,
     /// A `.r2dpack` to import into the library or the project.
     ImportPackage { into_library: bool },
     /// Where to write a `.r2dpack` with these assets.
@@ -74,6 +76,7 @@ impl PendingDialog {
                 Purpose::NewProjectParent => d.set_title("Where to create the new project").pick_folder(),
                 Purpose::MaterialTexture(_) => d.set_title("Choose the material's texture").add_filter("Images", &images).pick_file(),
                 Purpose::SheetImage(_) => d.set_title("Choose sprite sheet image").add_filter("Images", &images).pick_file(),
+                Purpose::StarterLibrary => d.set_title("Starter asset library file").add_filter("Starter asset library", &[rustpg2d_engine::starter_pack::EXT]).pick_file(),
                 Purpose::SoundFile(_) => d.set_title("Choose sound").add_filter("Audio (WAV, OGG)", &["wav", "ogg"]).pick_file(),
                 Purpose::FontFile { license: false, .. } => d.set_title("Choose font").add_filter("Fonts (TTF, OTF)", &["ttf", "otf"]).pick_file(),
                 Purpose::FontFile { license: true, .. } => d.set_title("Choose the font's licence").add_filter("Text", &["txt", "md"]).pick_file(),

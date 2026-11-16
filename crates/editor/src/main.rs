@@ -40,6 +40,8 @@ mod repo_mode;
 mod problems;
 mod script_editor;
 mod search;
+mod starter;
+mod starter_ui;
 mod structures;
 #[cfg(test)]
 mod ui_tests;
@@ -645,7 +647,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} libupdate={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} ground={} decor={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} ground={} decor={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -681,6 +683,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.usages.status(),
             ed.problems.status(),
             ed.lib_update.status(),
+            ed.starter_ui.status(),
             ed.art.status(),
             ed.px.status(),
             ed.mode,
@@ -1091,6 +1094,16 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             println!("[libupdate] {}", ed.lib_update.report.clone().or_else(|| ed.lib_update.error.clone()).unwrap_or_default());
         }
         "libupdatecancel" => ed.lib_update.open = false,
+        // Assets › Starter asset library…: starterwindow · starterinstall FILE (Load from file…) ·
+        // starterdownload (Download; RUSTPG2D_STARTER_URL points it at a test server); status
+        // prints starter=VERSION(SOURCE)|none/STATE.
+        "starterwindow" => ed.starter_ui.open = true,
+        "starterinstall" => ed.install_starter_file(std::path::Path::new(arg(1))),
+        "starterdownload" => {
+            ed.starter_ui.open = true;
+            ed.starter_ui.message = None;
+            ed.starter_ui.download = Some(crate::starter::Download::start());
+        }
         // Generate art: artwindow / settingswindow open the windows · artgen KIND ID SIZE ATTACK DESCRIPTION… starts a
         // job (the cost confirmed) · artkind KIND = the window's kind · artjobs prints them · artapply JOB [ID] · artredo JOB PICTURE · status prints art=
         "artwindow" => ed.art.window.open = true,

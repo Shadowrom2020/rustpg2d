@@ -30,7 +30,7 @@ pub struct LibWindow {
 impl Editor {
     /// The editor in library mode on the asset library folder `dir`.
     pub fn library_window(dir: PathBuf) -> anyhow::Result<Self> {
-        let lib = library::open_library(&dir, crate::library_ui::starter_for(&dir))?;
+        let lib = crate::starter::open_library(&dir)?;
         let mut ed = Self::with_project(lib, true);
         ed.library_mode = true;
         ed.mode = Mode::Library;

@@ -16,9 +16,6 @@ use rustpg2d_engine::starter_update::{self as su, StarterHistory, StarterUpdate}
 use crate::app::Editor;
 use crate::ui::{self, ph};
 
-/// The starter set's history, shipped with the editor (`cargo run -p rustpg2d-editor --example
-/// starter_history` writes it).
-pub const STARTER_HISTORY: &str = include_str!("../assets/starter_history.ron");
 
 /// The update window and the "updates waiting" banner.
 #[derive(Default)]
@@ -50,8 +47,11 @@ impl LibUpdate {
     }
 }
 
+/// The starter library and its history (`cargo run -p rustpg2d-editor --example starter_history`
+/// writes the history; the starter library file carries it).
 fn starter() -> anyhow::Result<(Bundle, StarterHistory)> {
-    Ok((su::starter_bundle(crate::library_ui::STARTER)?, StarterHistory::parse(STARTER_HISTORY)?))
+    let Some(s) = crate::starter::current() else { anyhow::bail!("the starter asset library isn't installed (Assets › Starter asset library…)") };
+    Ok((su::starter_bundle(&s.files())?, StarterHistory::parse(&s.pack.history)?))
 }
 
 fn list_label(a: &AssetRef) -> String {
@@ -76,7 +76,7 @@ impl Editor {
             library::open_library(&self.project.root, None)
         } else {
             let dir = library::library_dir();
-            library::open_library(&dir, crate::library_ui::starter_for(&dir))
+            crate::starter::open_library(&dir)
         }
     }
 
@@ -149,7 +149,7 @@ impl Editor {
         }
         if !self.library_mode {
             // Opening applies a changed starter set (new ids) and leaves the pending mark.
-            let _ = library::open_library(&root, crate::library_ui::starter_for(&root));
+            let _ = crate::starter::open_library(&root);
         }
         if !su::pending(&root) {
             return;
@@ -320,8 +320,9 @@ mod tests {
 
     #[test]
     fn starter_history_covers_the_starter() {
-        let b = su::starter_bundle(crate::library_ui::STARTER).unwrap();
-        let h = StarterHistory::parse(STARTER_HISTORY).unwrap();
+        let s = crate::starter::current().expect("the starter library (the source folder)");
+        let b = su::starter_bundle(&s.files()).unwrap();
+        let h = StarterHistory::parse(&s.pack.history).unwrap();
         let missing = h.missing(&b);
         assert!(missing.is_empty(), "crates/editor/assets/starter_history.ron lacks {missing:?}: run `cargo run -p rustpg2d-editor --example starter_history`");
     }

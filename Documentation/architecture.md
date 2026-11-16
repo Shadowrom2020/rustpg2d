@@ -86,8 +86,12 @@ can change lives here; nothing else is persisted.
 
 **Asset library** (`library.rs`): a project folder without maps at
 `~/.local/share/rustpg2d/library` (`RUSTPG2D_LIBRARY` overrides). The editor's starter set is the
-committed folder `crates/editor/assets/starter_library/`, embedded by `crates/editor/build.rs` and
-applied to a library when its `starter.stamp` (rules version + hash of the files) differs: new ids
+committed folder `crates/editor/assets/starter_library/`. Releases publish it as one file,
+`rustpg2d-starter-library-X.Y.Z.r2dlib` (`starter_pack.rs`: a zip of `starter.ron` = version and
+`FORMAT`, `history.ron` and `library/…`; written by `xtask dist`), which the editor installs beside
+the library (`starter/`, `crates/editor/src/starter.rs`: downloaded from the release and checked
+against its `SHA256SUMS`, or loaded from a file; only a pack of the editor's own `FORMAT` is read).
+Repository mode and development builds read the folder itself. The starter set is applied to a library when its `starter.stamp` (rules version + hash of the files) differs: new ids
 are added, images the new set only extends are replaced, and `starter.pending` is left for the editor to offer *Update asset library*
 (`starter_update.rs`): it compares the library with the starter set using
 `crates/editor/assets/starter_history.ron` (fingerprints of every definition, file and script
@@ -287,7 +291,7 @@ which the smoke script's MCP part relies on. **Repository mode** (`repo_mode.rs`
 current folder is a checkout of the repository opens `example_project/` as a folder when started
 without a project, and sets `RUSTPG2D_LIBRARY` (unless set) to the starter library, so library
 writes land in `crates/editor/assets/starter_library/`; the starter source folder never gets the
-embedded starter set applied (`library_ui::starter_for`), which would bring back deleted assets.
+starter set applied (`starter::open_library`), which would bring back deleted assets.
 `RUSTPG2D_REPO=0` turns it off.
 
 The **AI agent server** (`mcp/`) is an MCP server (rmcp, Streamable HTTP on `127.0.0.1:7743`) on a

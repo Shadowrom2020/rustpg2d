@@ -231,6 +231,7 @@ jobs:
             dist/*.AppImage
             dist/*.flatpak
             dist/*.zip
+            dist/*.r2dlib
           retention-days: 30
 
   macos-app:

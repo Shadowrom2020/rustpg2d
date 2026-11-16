@@ -27,6 +27,8 @@ fn main() {
     let res = match args.first().map(String::as_str) {
         #[cfg(feature = "dist")]
         Some("dist") => dist::dist(&args[1..]),
+        #[cfg(feature = "dist")]
+        Some("starter-pack") => dist::starter_pack(args.get(1).map(std::path::Path::new)).map(|_| ()),
         #[cfg(not(feature = "dist"))]
         Some("dist") => Err(anyhow::anyhow!("dist needs the engine: run `cargo xtask-dist` (xtask with --features dist)")),
         Some("check-version") => args.get(1).context("usage: check-version BRANCH").and_then(|b| check_version(&root(), b)),
@@ -37,7 +39,7 @@ fn main() {
         Some("release-notes") => {
             args.get(1).context("usage: release-notes X.Y.Z").and_then(|v| release_notes(&read(&root().join("CHANGELOG.md"))?, v)).map(|n| print!("{n}"))
         }
-        _ => Err(anyhow::anyhow!("tasks: dist, check-version, check-branch, release-notes (see crates/xtask/src/main.rs)")),
+        _ => Err(anyhow::anyhow!("tasks: dist, starter-pack, check-version, check-branch, release-notes (see crates/xtask/src/main.rs)")),
     };
     if let Err(e) = res {
         eprintln!("error: {e:#}");

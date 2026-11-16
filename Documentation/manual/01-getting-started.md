@@ -17,15 +17,30 @@ them) and the example project.
 R(ust)PG2D needs a graphics driver with OpenGL 3. In a virtual machine, turn on 3D acceleration.
 To build it yourself instead, see *Building from source* in the [README](../../README.md).
 
+### The starter asset library
+
+The ready-made assets (ground materials, props, characters with their 3D models, items, sounds,
+music, structures and fonts: everything the example game is made of, and more) are a download of
+their own, `rustpg2d-starter-library-X.Y.Z.r2dlib` on the same releases page, about 40 MB. The first
+time the editor starts without it, the *Starter asset library* window offers **Download for
+R(ust)PG2D X.Y.Z** (it fetches the file of the editor's own version, checks it against the release's
+`SHA256SUMS` and installs it) or **Load from file…** (a file you downloaded, e.g. for a computer
+without internet). *Not now* closes the window; *Assets › Starter asset library…* brings it back.
+The editor reads only a starter library made for its own version line: an editor refuses one of
+another format and says which version it is for. Its assets go into your
+[asset library](11-asset-library.md).
+
 ### Where your things are kept
 
 | | Linux | Windows | macOS |
 |---|---|---|---|
 | Editor settings, recent projects | `~/.config/rustpg2d` | `%APPDATA%\rustpg2d` | `~/Library/Application Support/rustpg2d` |
-| Asset library | `~/.local/share/rustpg2d/library` | `%LOCALAPPDATA%\rustpg2d\library` | `~/Library/Application Support/rustpg2d` |
+| Asset library | `~/.local/share/rustpg2d/library` | `%LOCALAPPDATA%\rustpg2d\library` | `~/Library/Application Support/rustpg2d/library` |
+| The installed starter asset library | `~/.local/share/rustpg2d/starter` | `%LOCALAPPDATA%\rustpg2d\starter` | `~/Library/Application Support/rustpg2d/starter` |
 | Your projects | wherever you create them | | |
 
-The asset library folder can be moved by setting the environment variable `RUSTPG2D_LIBRARY`.
+The asset library folder can be moved by setting the environment variable `RUSTPG2D_LIBRARY`; the
+starter asset library then lives in a `starter` folder beside it.
 
 ## The welcome screen
 

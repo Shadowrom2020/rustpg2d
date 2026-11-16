@@ -121,6 +121,11 @@ runners for every platform and the example project, for:
 
 All of them need a graphics driver with OpenGL 3 (a virtual machine needs 3D acceleration).
 
+The **starter asset library** (everything the example game is made of, plus more: materials,
+props, characters, sounds, music, structures, fonts for Chinese, Japanese and Korean) is a download
+of its own, `rustpg2d-starter-library-X.Y.Z.r2dlib` on the same release page. The editor offers to
+download it the first time it starts, or installs the file with *Load from file…*.
+
 ## Your first game in five minutes
 
 1. Start the editor and choose **Example project** on the welcome screen to look around, or

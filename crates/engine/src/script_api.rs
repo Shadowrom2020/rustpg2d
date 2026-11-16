@@ -203,7 +203,8 @@ pub const API: &[ApiFn] = api! {
     "heal_npc"(target: Target, amount: Num) "Heals a character by name (a companion, \"player\"); a negative amount hurts it (queued)";
     "play_sound"(sound: Sound) "Plays a sound (queued)";
     "play_music"(sound: Sound) "Plays music (queued)";
-    "set_locked"(target: Target, locked: Bool) "Locks / unlocks a prop (queued)";
+    "set_locked"(target: Target, locked: Bool) "Locks / unlocks a prop (queued); an unlocked door stays closed";
+    "is_locked"(target: Target) "Whether a prop on this map is locked (false without a lock)";
     "open_shop"(target: Target) "Opens a merchant's trade window (queued)";
     "patrol"(target: Target) "Starts a character's own patrol route (queued)";
     "patrol"(target: Target, points: List) "Patrols [[x, y], ...] tile waypoints (queued)";

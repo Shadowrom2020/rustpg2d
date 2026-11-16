@@ -78,7 +78,7 @@ impl Game {
     }
 
     /// The state a placed prop starts in (its "closed" state for locks).
-    fn initial_state(&self, i: usize) -> String {
+    pub(super) fn initial_state(&self, i: usize) -> String {
         let uid = self.loaded.entities[i].uid;
         self.loaded.map.entity(uid).map(|e| e.state.clone()).unwrap_or_default()
     }
@@ -111,6 +111,17 @@ impl Game {
             _ => {}
         }
         self.persist(i);
+    }
+
+    /// For scripts (`is_locked`): the props with a lock on this map: (uid, name, locked).
+    pub(super) fn lock_list(&self) -> Vec<(u32, String, bool)> {
+        (0..self.loaded.entities.len())
+            .filter(|&i| self.loaded.entities[i].kind == crate::entity::EntityKind::Prop)
+            .filter_map(|i| {
+                let e = &self.loaded.entities[i];
+                self.loaded.map.entity(e.uid).and_then(|inst| self.project.db.lock_of(inst)).map(|_| (e.uid, e.name.clone(), !e.unlocked))
+            })
+            .collect()
     }
 
     pub(super) fn item_name(&self, id: &str) -> String {

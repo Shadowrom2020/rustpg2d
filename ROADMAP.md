@@ -146,7 +146,7 @@ screen.
   (agreed) addition: `PropDef.flat` = drawn under everyone (game and editor), judged by its picture
   when placed, things stand on it; the library's rugs and runners have it.
 
-- [ ] Village interiors and the tavern's upper floor — `feature/village-interiors`
+- [x] Village interiors and the tavern's upper floor — `feature/village-interiors`
 
   **Goal.** Every house of the village has an interior; the tavern's guest rooms are upstairs.
 
@@ -154,7 +154,11 @@ screen.
   `finn_cottage` (Finn), `stone_house` (empty: the player's later) and `tavern_upper` (landing,
   two guest rooms with the inn beds, Greta's room), built from a captured interior. Stairs props
   (`stairs_up`, `stairs_down`, drawn) with portals; the inn beds and Greta's bed move upstairs.
-  The residents' night stops lead to their beds inside.
+  The residents' night stops lead to their beds inside. Dagny (the night guard) lived in the stone
+  house by day: she now rents a room upstairs in the tavern, so the stone house is free.
+  Added on request: doors (`PropDef.door`, agreed engine addition: E opens / closes, locks with
+  key / lockpick / relock, characters on routes open the doors they may and close them behind
+  them, `is_locked`); the upstairs rooms have locked doors and Greta hands out a room key.
 
   **Engine.** None (content).
 

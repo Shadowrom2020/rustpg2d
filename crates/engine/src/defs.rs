@@ -1026,6 +1026,12 @@ pub struct PropDef {
     /// decoration instead of sorted by its feet, and placed as furniture by its picture.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub flat: bool,
+    /// A door: E opens it (its "open" state) and closes it again (its first state); a lock keeps
+    /// it shut until its key or a lockpick opens it, and with the key closing it locks it again.
+    /// Characters walking their routes open unlocked doors (and locked ones they carry the key
+    /// of) and close them behind them.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub door: bool,
     /// How characters carry it in both hands (*Carry prop*): its hold point and orientation mark
     /// (None: the middle of its lower half, its horizontal along the hands).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1083,6 +1089,7 @@ impl Default for PropDef {
             plot: false,
             low: false,
             flat: false,
+            door: false,
             carry: None,
             climb: false,
             snap: 0,

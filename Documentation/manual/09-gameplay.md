@@ -300,6 +300,25 @@ be picked by a player with the *Lockpick* skill effect:
 The **Lockpicking game** action and `lockpick(difficulty, var)` play the game for any puzzle and put 1
 (success) or 0 into the variable.
 
+## Doors
+
+Props marked **Door** (*Database › Props*) open and close with E. A door with a lock stays shut
+until it is opened with its key (kept, unless the lock uses it up) or picked
+([Lockpicking](#lockpicking)); a picked door then opens and closes freely, and with the key closing it
+locks it again ("Locked with the Room Key."). Nobody can be shut in: a door doesn't close on the
+player or a character standing in it.
+
+Villagers walking their daily routes (and patrols, companions) open closed doors on their way
+and close them again a moment after passing; a locked door only for those who carry its key in
+their inventory (a placed character's items), and it is locked again behind them. The *Set locked*
+action and `set_locked(target, locked)` lock a door (closing it) or unlock it (it stays closed);
+`is_locked(target)` asks. `status` prints `doors=` (name:open|closed[:locked]@x,y).
+
+The example's tavern: Greta hands over a **Room Key** with a paid room (the first guest room
+upstairs); stepping onto the landing after the night puts it back on its hook and locks the room.
+Greta and Dagny lock their own rooms behind them, and the second guest room needs Greta's key or a
+lockpick.
+
 ## Furniture: sitting and sleeping
 
 *Database › Props › Furniture* makes a prop sittable or a bed: a pose (*Sit*, *Lie*, *Stand*), the

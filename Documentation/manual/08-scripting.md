@@ -345,7 +345,8 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `set_active(target, active)` | Shows or hides an entity. Hidden entities don't collide or react. Saved. *(queued)* |
 | `set_state(target, state)` | Switches a prop to one of its states (sprite, solid or not). Saved. *(queued)* |
 | `set_frame(target, frame)` | Older way to change a prop's look (frame offset); prefer `set_state`. *(queued)* |
-| `set_locked(target, locked)` | Locks or unlocks a prop without a key (unlocking applies its *on unlock* effect). *(queued)* |
+| `set_locked(target, locked)` | Locks or unlocks a prop without a key (unlocking applies its *on unlock* effect; an unlocked **door** stays closed until someone opens it). Locking closes it. *(queued)* |
+| `is_locked(target)` | Whether a prop on this map (`SELF`, a name) is locked; `false` for props without a lock. |
 | `move_by(target, dx, dy)` | Walks a character by whole tiles. *(queued, blocks until it arrives)* |
 | `face(target, direction)` | Turns a character: `"up"`, `"down"`, `"left"`, `"right"`. *(queued)* |
 | `patrol(target)` | Starts the character's own patrol route (set in the editor). *(queued)* |

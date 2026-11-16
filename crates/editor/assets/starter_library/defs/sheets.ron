@@ -351,4 +351,16 @@
         frame_w: 160,
         frame_h: 64,
     ),
+    (
+        id: "stairs",
+        image: "sprites/stairs.png",
+        frame_w: 32,
+        frame_h: 64,
+    ),
+    (
+        id: "doors",
+        image: "sprites/doors.png",
+        frame_w: 32,
+        frame_h: 64,
+    ),
 ]

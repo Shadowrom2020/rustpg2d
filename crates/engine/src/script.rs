@@ -37,6 +37,8 @@ struct Ctx {
     achievements: std::collections::BTreeSet<String>,
     /// The project's factions (`standing()` where the save holds none).
     factions: crate::factions::Factions,
+    /// Props with a lock on the current map: (uid, name, locked) (`is_locked`).
+    locks: Vec<(u32, String, bool)>,
     /// Consumable item ids (`is_consumable`).
     consumables: std::collections::BTreeSet<String>,
     /// The trigger's event: the used item and the owner's name (`used_item()`, `self_name()`).
@@ -128,6 +130,11 @@ impl ScriptHost {
     }
 
     /// The current map's characters that can be hurt, as (uid, name, HP), for `hp_of()`.
+    /// The props with a lock on the current map: (uid, name, locked).
+    pub fn set_locks(&mut self, locks: Vec<(u32, String, bool)>) {
+        self.ctx.borrow_mut().locks = locks;
+    }
+
     pub fn set_characters(&mut self, characters: Vec<(u32, String, i32)>) {
         self.ctx.borrow_mut().characters = characters;
     }
@@ -650,6 +657,12 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         target: t.into(),
         locked
     })));
+    // Whether a prop is locked: "self", a name or an entity uid (SELF); false without a lock.
+    engine.register_fn("is_locked", with!(ctx, |c, t: &str| {
+        let owner = c.owner;
+        c.locks.iter().any(|l| l.2 && if t.is_empty() || t == "self" { Some(l.0) == owner } else { l.1 == t })
+    }));
+    engine.register_fn("is_locked", with!(ctx, |c, uid: i64| c.locks.iter().any(|l| l.2 && l.0 as i64 == uid)));
     engine.register_fn("play_sound", with!(ctx, |c, id: &str| c.actions.push(Action::PlaySound { sound: id.into() })));
     engine.register_fn("play_music", with!(ctx, |c, id: &str| c.actions.push(Action::PlayMusic { sound: id.into() })));
     // Continue in another function after the queued actions (e.g. after a choice).

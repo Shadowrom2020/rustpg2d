@@ -1308,6 +1308,9 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.checkbox(&mut d.flat, "Lies flat on the ground").on_hover_text(
         "A rug, a mat, a puddle: drawn under everyone (like a Flat decoration) instead of sorted with characters by its feet; as furniture it may lie under tables and chairs.",
     );
+    ui.checkbox(&mut d.door, "Door (E opens and closes it)").on_hover_text(
+        "Needs a state named \"open\" (passable); its first state is the closed door. A lock keeps it shut until its key or a lockpick opens it; with the key, closing it locks it again. Villagers open unlocked doors on their way (locked ones when they carry the key) and close them behind them.",
+    );
     ui.checkbox(&mut d.climb, "Ladder (the player climbs it)").on_hover_text("Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it.");
     ui.horizontal(|ui| {
         ui.label("Snap to").on_hover_text("Placed as a decoration it sits on a grid of this many pixels (walls, fences); 0 = anywhere.");

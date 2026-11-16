@@ -215,7 +215,7 @@ fn an_item_places_furniture() {
 }
 
 #[test]
-fn a_prop_lies_flat() {
+fn a_prop_lies_flat_or_is_a_door() {
     let root = example_copy("flat_prop");
     let db = Project::load(&root).unwrap().db;
     let k = db.props.iter().position(|p| p.id == "chest").expect("the example's chest");
@@ -225,8 +225,12 @@ fn a_prop_lies_flat() {
     h.get_by_label("Lies flat on the ground").click();
     step(&mut h);
     assert!(h.state().project.db.props[k].flat);
+    h.get_by_label("Door (E opens and closes it)").click();
+    step(&mut h);
+    assert!(h.state().project.db.props[k].door);
     h.state_mut().save_all();
-    assert!(Project::load(&root).unwrap().db.props[k].flat);
+    let saved = Project::load(&root).unwrap().db.props[k].clone();
+    assert!(saved.flat && saved.door);
     let _ = std::fs::remove_dir_all(&root);
 }
 

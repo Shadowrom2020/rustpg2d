@@ -1,6 +1,7 @@
 [alias]
 # Project tasks (crates/xtask): `cargo xtask check-version | check-branch | release-notes` build
-# without the engine (seconds); `cargo xtask-dist` packages the toolkit (AppImage + Flatpak).
+# without the engine (seconds); `cargo xtask-dist` packages the toolkit (AppImage + Flatpak) and the
+# starter asset library file (`cargo run -p xtask --features dist -- starter-pack [DIR]` writes only that).
 xtask = "run --quiet --package xtask --"
 xtask-dist = "run --quiet --package xtask --features dist -- dist"
 

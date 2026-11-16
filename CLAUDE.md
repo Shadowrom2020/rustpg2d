@@ -143,7 +143,8 @@ crates/engine/src/      library: everything shared by game and editor
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;
                         parallax.rs = Map.parallax image layers behind / over the map)
   library.rs            asset library + .r2dpack bundles; refactor.rs = id renames / refs_of_*;
-                        starter_update.rs = Update asset library (StarterHistory, plan, apply, backup)
+                        starter_update.rs = Update asset library (StarterHistory, plan, apply, backup);
+                        starter_pack.rs = the starter library file (.r2dlib: manifest, history, files)
   migrate.rs            converts old 16 px projects; release.rs = standalone game export (Platform:
                         Linux / Windows / MacOS = <Name>.app, data in Contents/Resources; export_web;
                         packed = data.pack, else a loose data folder; bundled_root mounts the pack);
@@ -222,8 +223,13 @@ crates/editor/src/      editor binary
 crates/editor/assets/starter_library/
                         the editor's starter asset library: a library folder (project.ron, defs/,
                         sprites/, materials/, tilesets/ (pictures of converted tiles), sounds/, fonts/,
-                        scripts/library.rhai), embedded by
-                        crates/editor/build.rs (library_ui::STARTER) = the example's assets + extras
+                        scripts/library.rhai) = the example's assets + extras; not built into the
+                        editor: releases ship it as rustpg2d-starter-library-X.Y.Z.r2dlib
+                        (engine starter_pack.rs, written by `xtask dist` / `xtask starter-pack`), the
+                        editor's starter.rs finds it (RUSTPG2D_STARTER_PACK=<file>|installed, repository
+                        folder, the installed pack beside the library, a dev build's source folder) and
+                        starter_ui.rs installs it (Assets › Starter asset library…: download + SHA-256
+                        check, or a file)
 example_project/        the example game, plain project files (edit them through the editor / its
                         AI agent server, see *Example content*)
 scripts/art/rigs/       templates.py: the rig templates (Blender: skeleton, stand-in mesh, Walk / Idle /
@@ -503,7 +509,12 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
   features match exact colours of a model's 32-colour texture: `model_info` tells where each colour
   sits on the model (0 = feet, 1 = top) to keep the hair's browns apart from the boots'. Meshy files
   are big: models are compacted on import (`model::compact`, editor script `modelcompact`). The
-  editor binary embeds the starter library at build time: rebuild before testing *Update asset
-  library*.
+  editor doesn't carry the starter library: a dev build reads `crates/editor/assets/starter_library`
+  directly; to test what users get, write the pack (`cargo run -p xtask --features dist --
+  starter-pack <scratch>`) and run with `RUSTPG2D_STARTER_PACK=<file>`, or `=installed` (only the
+  pack installed in `<library>/../starter/`; `starterinstall FILE`, `starterdownload` with
+  `RUSTPG2D_STARTER_URL=http://127.0.0.1:PORT/<dir with SHA256SUMS and the pack>`; status
+  `starter=VERSION(SOURCE)|none/STATE`). Raise `starter_pack::FORMAT` when the pack's contents
+  need a newer editor.
 - Interaction: E checks the tile in front of the player (also across a counter / solid
   tile for NPCs); right-click walks there first. Place test players accordingly.

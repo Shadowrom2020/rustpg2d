@@ -4,6 +4,8 @@
 //! - macOS: `macos/R(ust)PG2D.app` (needs the macOS build), unsigned and not zipped: CI's macOS job
 //!   signs it with `codesign` and zips it as `rustpg2d-X.Y.Z-macos.zip` (`macos/macos-app.tar`
 //!   carries it there with its file modes);
+//! - `rustpg2d-starter-library-X.Y.Z.r2dlib`: the starter asset library (`engine::starter_pack`),
+//!   which the editors download or load from a file;
 //! - `SHA256SUMS` of what it wrote.
 //!
 //! Every editor gets the game runners of the other platforms and the web game next to it, so it
@@ -231,12 +233,29 @@ pub fn dist(args: &[String]) -> Result<()> {
         println!("{} (+ .tar; sign and zip it on a Mac)", app.display());
     }
 
+    // The starter asset library: a download of its own (the editors no longer carry it).
+    made.push(starter_pack(Some(&out))?);
+
     let mut sums = String::new();
     for p in &made {
         sums += &format!("{}  {}\n", rustpg2d_packaging::sha256_hex(&std::fs::read(p)?), p.file_name().unwrap().to_string_lossy());
     }
     std::fs::write(out.join("SHA256SUMS"), sums)?;
     Ok(())
+}
+
+/// `xtask starter-pack [DIR]` (also part of `dist`): writes the starter asset library file of
+/// this version (`rustpg2d-starter-library-X.Y.Z.r2dlib`) into `DIR` (default `dist/`).
+pub fn starter_pack(out: Option<&Path>) -> Result<PathBuf> {
+    let root = root();
+    let version = workspace_version(&read(&root.join("Cargo.toml"))?)?;
+    let out = out.map_or_else(|| root.join("dist"), Path::to_path_buf);
+    std::fs::create_dir_all(&out)?;
+    let starter = rustpg2d_engine::starter_pack::StarterPack::from_dir(&root.join("crates/editor/assets/starter_library"), &root.join("crates/editor/assets/starter_history.ron"), &version)?;
+    let file = out.join(rustpg2d_engine::starter_pack::file_name(&version));
+    std::fs::write(&file, starter.to_bytes()?).with_context(|| format!("writing {}", file.display()))?;
+    println!("{} ({} files, {:.1} MB)", file.display(), starter.files.len(), std::fs::metadata(&file)?.len() as f64 / 1_048_576.0);
+    Ok(file)
 }
 
 /// The example project's files (relative `/` path, file) without the developer's save games.

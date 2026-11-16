@@ -6,7 +6,10 @@ once, use it in every game.
 
 ## What's in it
 
-The first time the editor opens the library, it fills it with the **starter set**: all of the example
+The library is filled from the **starter asset library**, a download of its own for each version
+([Getting started › The starter asset library](01-getting-started.md#the-starter-asset-library)):
+when you install it, or the first time the editor opens the library with it installed. The
+**starter set** holds all of the example
 game's art (the village's buildings and some 60 props, its villagers, children and animals in both
 sexes, goods, recipes, sounds and music, structures, its ground materials and scatter sets) plus the
 **desert, mountain, city and dungeon** pieces of the former tilesets (materials such as oasis
@@ -16,10 +19,13 @@ trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the e
 female version), three **realistic** figures in another style than the example's chibi cast (*Hero
 (realistic)*, *Elf (realistic)*, *Elf woman (realistic)*, drawn at 115 %) and more structures (town
 houses, city walls, dungeon rooms). The starter library
-also includes the scripted Fireball spell and Scavenging skill with their script functions.
+also includes the scripted Fireball spell and Scavenging skill with their script functions, and
+fonts: **monogram** (the example's pixel font: Latin, Cyrillic, Greek) and **Fusion Pixel** in its
+Japanese, Korean, Simplified and Traditional Chinese forms (each covers all of Chinese, Japanese and
+Korean; the forms differ in how some characters are drawn).
 
-When a newer editor brings more starter assets, the library adds the ones it doesn't have yet the
-next time it's opened. Changed assets (redrawn art, new animations, better values) wait for you:
+When a newer starter library (installed with a newer editor) brings more assets, the library adds
+the ones it doesn't have yet the next time it's opened. Changed assets (redrawn art, new animations, better values) wait for you:
 
 ### Updating the library
 
@@ -46,7 +52,8 @@ starter asset it ever shipped (`crates/editor/assets/starter_history.ron`); an a
 one of them was never changed by you.
 
 The library lives in `~/.local/share/rustpg2d/library` (Windows: `%LOCALAPPDATA%\rustpg2d\library`;
-macOS: `~/Library/Application Support/rustpg2d`). `RUSTPG2D_LIBRARY` moves it.
+macOS: `~/Library/Application Support/rustpg2d/library`). `RUSTPG2D_LIBRARY` moves it. The installed
+starter asset library is the file `starter/starter-library.r2dlib` beside it.
 
 ## Taking assets into a project
 

@@ -486,6 +486,58 @@
                 17200867872950165834,
             ],
         ),
+        "font:fusion_pixel_ja": (
+            defs: [
+                7677984787702396506,
+            ],
+            files: {
+                "fonts/fusion_pixel_ja.otf": [
+                    12186280303393354410,
+                ],
+                "fonts/fusion_pixel_licence.txt": [
+                    17660197895329734310,
+                ],
+            },
+        ),
+        "font:fusion_pixel_ko": (
+            defs: [
+                9293822106116252672,
+            ],
+            files: {
+                "fonts/fusion_pixel_ko.otf": [
+                    1263090792435818482,
+                ],
+                "fonts/fusion_pixel_licence.txt": [
+                    17660197895329734310,
+                ],
+            },
+        ),
+        "font:fusion_pixel_zh_hans": (
+            defs: [
+                17665722991924042688,
+            ],
+            files: {
+                "fonts/fusion_pixel_licence.txt": [
+                    17660197895329734310,
+                ],
+                "fonts/fusion_pixel_zh_hans.otf": [
+                    14572286591721887711,
+                ],
+            },
+        ),
+        "font:fusion_pixel_zh_hant": (
+            defs: [
+                14105530566081341582,
+            ],
+            files: {
+                "fonts/fusion_pixel_licence.txt": [
+                    17660197895329734310,
+                ],
+                "fonts/fusion_pixel_zh_hant.otf": [
+                    6272600162890674478,
+                ],
+            },
+        ),
         "font:monogram": (
             defs: [
                 204738967333016220,

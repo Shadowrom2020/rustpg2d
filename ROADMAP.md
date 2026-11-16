@@ -227,6 +227,54 @@ Games can be written in any language:
   - **Tests:** unit tests (sizes, roles, coverage, run splitting, renames) and the editor UI test
     `a_font_is_defined_and_chosen`.
 
+- [x] Starter library download — `feature/starter-pack`
+
+  **Goal.** The starter asset library leaves the editor binary (the user's decision when the CJK
+  fonts came: they add 20 MB). It becomes one file per release, which only compatible editors
+  load.
+
+  **Design.**
+  - **The file:** `rustpg2d-starter-library-X.Y.Z.r2dlib`, a zip (`engine/src/starter_pack.rs`):
+    - `starter.ron`: the version and `FORMAT`;
+    - `history.ron`: the starter history;
+    - `library/…`: the files of `crates/editor/assets/starter_library`.
+  - **Building it:** `xtask dist` writes it (CI's *Packages* job), and `xtask starter-pack DIR`
+    writes only it. The release publishes it and lists it in `SHA256SUMS`.
+  - **Finding it** (`crates/editor/src/starter.rs`), in this order:
+    1. `RUSTPG2D_STARTER_PACK=<file>` (`installed` = only the installed one);
+    2. the repository folder in repository mode;
+    3. the installed pack in `starter/` beside the asset library;
+    4. a development build's source folder.
+
+    `starter::open_library` replaces `open_library(dir, starter_for(dir))`.
+  - **Installing it** (*Assets › Starter asset library…*, offered at start while missing,
+    `starter_ui.rs`):
+    - downloads the pack of the editor's version from the GitHub release (`RUSTPG2D_STARTER_URL`
+      for tests) on a thread, with progress and a SHA-256 check against `SHA256SUMS`;
+    - or loads it from a file;
+    - only `FORMAT` equal to the editor's is accepted;
+    - the asset library then gets the new assets.
+  - **Fonts:** Fusion Pixel 12 px proportional in four forms (ja, ko, zh_hans, zh_hant), with one
+    licence text holding the OFL of Fusion Pixel and of its three source fonts. They are
+    library-only.
+
+  **Engine.** Agreed: `starter_pack.rs` (format, read, write, `SHA256SUMS` lookup); the editor
+  modules; `build.rs` removed; xtask and the CI workflows.
+
+  **Verify.**
+  - **Size:** the release editor is 28 MB instead of 88 MB.
+  - **First start** without a starter library: the window is offered; `starterinstall` from a
+    file fills an empty library (5 fonts, 464 props).
+  - **Downloads from a local server:**
+    - installs, `starter=0.23.0(installed)/installed`;
+    - a wrong SHA-256 is refused;
+    - format 2 is refused with its version;
+    - a `SHA256SUMS` without the pack says so;
+    - a missing release (404) says so.
+  - **Update asset library** from the installed pack: nothing to update.
+  - **Tests:** the pack round trip and the `SHA256SUMS` lookup; the editor's starter tests read
+    the source folder.
+
 - [ ] Text for every language — `feature/unicode-text`
 
   **Goal.** Languages without spaces, such as Japanese and Chinese, wrap correctly. Right-to-left

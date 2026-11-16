@@ -124,6 +124,7 @@ jobs:
             dist/*.AppImage
             dist/*.flatpak
             dist/*.zip
+            dist/*.r2dlib
           retention-days: 7
 
   macos-app:
@@ -163,7 +164,9 @@ jobs:
             esac
           done
           test "$n" -eq 4 || { echo "::error::expected 4 downloads, found $n"; exit 1; }
-          (cd dist && sha256sum -- *.AppImage *.flatpak *.zip > SHA256SUMS && cat SHA256SUMS)
+          # The starter asset library: the editors download it from the release by this name.
+          test -f "dist/rustpg2d-starter-library-$V.r2dlib" || { echo "::error::no rustpg2d-starter-library-$V.r2dlib"; exit 1; }
+          (cd dist && sha256sum -- *.AppImage *.flatpak *.zip *.r2dlib > SHA256SUMS && cat SHA256SUMS)
       - name: Tag and GitHub Release
         if: github.event_name == 'push' && needs.version.outputs.exists == 'false'
         env:
@@ -176,5 +179,5 @@ jobs:
           git push origin "v$V"
           flags=()
           if [ "$PRE" = "true" ]; then flags+=(--prerelease); fi
-          gh release create "v$V" dist/*.AppImage dist/*.flatpak dist/*-windows-x86_64.zip dist/*-macos.zip dist/SHA256SUMS \
+          gh release create "v$V" dist/*.AppImage dist/*.flatpak dist/*-windows-x86_64.zip dist/*-macos.zip dist/*.r2dlib dist/SHA256SUMS \
             --title "R(ust)PG2D $V" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag "${flags[@]}"

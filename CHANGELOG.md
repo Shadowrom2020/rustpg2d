@@ -25,6 +25,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The example game** draws its texts in **monogram** (a CC0 pixel font by Vinícius Menézio, with
   Cyrillic and Greek), also in the starter library; the screenshots show it.
 
+### Starter asset library
+- **A download of its own**: the starter asset library is no longer built into the editor (which
+  shrinks from 88 to 28 MB) but published with each release as
+  `rustpg2d-starter-library-X.Y.Z.r2dlib` (about 40 MB). The editor offers it at its first start
+  (*Assets › Starter asset library…*): **Download** fetches the file of the editor's own version
+  from the release and checks it against the release's `SHA256SUMS`; **Load from file…** installs
+  a file you downloaded. The file carries a format number: an editor reads only starter libraries
+  of its own format, and says which version a refused one is for. Installing fills the asset
+  library with the new assets; *Update asset library* works from the installed file.
+- **Fonts for Chinese, Japanese and Korean**: Fusion Pixel Font (12 px, SIL Open Font License) in
+  its Japanese, Korean, Simplified and Traditional Chinese forms, as fallback fonts for
+  translations; monogram for Latin, Cyrillic and Greek.
+- CI writes the file (`xtask dist`, or `xtask starter-pack DIR` alone), the release publishes it and
+  lists it in `SHA256SUMS`, and the package smoke test installs it in the packaged editor.
+
 ### Documentation
 - **The road to 1.0.0** (ROADMAP.md): releases 0.24 to 0.33 and 1.0.0, planned from a comparison with
   commercial RPG makers (`Comparison.md`). Until 1.0.0, compatibility gives way when it costs more than a feature

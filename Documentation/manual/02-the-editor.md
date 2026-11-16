@@ -176,8 +176,10 @@ Asset Library window and the agent server's `library_send` change the repository
 **Repository** badge at the left of the status bar says so (its tooltip names the project and the
 library). A project given on the command line opens instead of the example; `RUSTPG2D_LIBRARY`
 still picks another library, and `RUSTPG2D_REPO=0` turns the mode off. The starter library isn't
-filled from the editor's built-in starter set in this mode, so assets deleted there stay deleted;
-after changing it, run `cargo run -p rustpg2d-editor --example starter_history`.
+filled from a starter set in this mode (it is the starter set), so assets deleted there stay
+deleted; after changing it, run `cargo run -p rustpg2d-editor --example starter_history`. Releases
+publish it as `rustpg2d-starter-library-X.Y.Z.r2dlib` (`cargo xtask-dist` writes it, or
+`cargo run -p xtask --features dist -- starter-pack DIR` alone).
 
 ### Files changed outside the editor
 

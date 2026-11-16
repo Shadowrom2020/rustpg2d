@@ -18,17 +18,6 @@ use crate::app::Editor;
 use crate::files::Purpose;
 use crate::ui::{self, ph};
 
-include!(concat!(env!("OUT_DIR"), "/starter_files.rs"));
-
-/// Assets the library starts with: the files of `crates/editor/assets/starter_library` (the
-/// example project's assets plus library-only extras), embedded by `build.rs`.
-pub const STARTER: &rustpg2d_engine::library::LibraryFiles<'static> = STARTER_FILES;
-
-/// The starter set to apply when opening the library at `dir`: none for the starter library's
-/// own source folder (repository mode), whose assets are edited there.
-pub fn starter_for(dir: &std::path::Path) -> Option<&'static rustpg2d_engine::library::LibraryFiles<'static>> {
-    (!crate::repo_mode::is_starter_source(dir)).then_some(STARTER)
-}
 
 struct Tex {
     handle: TextureHandle,
@@ -100,7 +89,7 @@ impl LibState {
             return;
         }
         let dir = library::library_dir();
-        match library::open_library(&dir, starter_for(&dir)) {
+        match crate::starter::open_library(&dir) {
             Ok(p) => {
                 self.lib = Some(p);
                 self.tex_dirty = true;
@@ -878,7 +867,8 @@ mod tests {
     use super::*;
 
     fn starter() -> Bundle {
-        Bundle::from_files(STARTER).unwrap()
+        let s = crate::starter::current().expect("the starter library (the source folder)");
+        Bundle::from_files(&s.files()).unwrap()
     }
 
     /// The starter library loads, has every id once per kind, and everything its assets refer

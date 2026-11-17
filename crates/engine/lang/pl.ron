@@ -93,6 +93,8 @@
         "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back": "Enter: dodaj klawisz lub przycisk · Del: wyczyść klawisze · zapisywane od razu · Esc: wstecz",
         "{key:up}/{key:down}: choose · {key:confirm} / click: confirm": "{key:up}/{key:down}: wybierz · {key:confirm} / kliknięcie: potwierdź",
         "{key:up}/{key:down} or wheel: browse · {key:cancel}: back": "{key:up}/{key:down} lub kółko: przeglądaj · {key:cancel}: wstecz",
+        "{key:up}/{key:down} or wheel: scroll · {key:cancel}: back": "{key:up}/{key:down} lub kółko: przewijaj · {key:cancel}: wstecz",
+        "Credits": "Twórcy",
         "{key:confirm} / click · {key:cancel}: back": "{key:confirm} / kliknięcie · {key:cancel}: wstecz",
         "Press a key or a button...": "Naciśnij klawisz lub przycisk...",
         "That key can't be used.": "Tego klawisza nie można użyć.",

@@ -13,6 +13,8 @@ const W: f32 = 520.0;
 const ROW_H: f32 = 40.0;
 const MAX_ROWS: usize = 12;
 const MAX_NAME: usize = 32;
+/// The Credits page's line height.
+const CREDITS_LINE: f32 = 24.0;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Page {
@@ -40,6 +42,8 @@ enum Page {
     Achievements,
     /// Forget every unlocked achievement?
     ConfirmResetAchievements,
+    /// The project's credits text (`ProjectConfig::credits`).
+    Credits,
 }
 
 /// An entry of the Options page.
@@ -146,11 +150,13 @@ pub(super) struct Menu {
     capture: Option<Act>,
     /// The open tab of the Options page (index into [`TABS`]).
     tab: usize,
+    /// The Credits page: the first line shown.
+    credits_scroll: usize,
 }
 
 impl Default for Menu {
     fn default() -> Self {
-        Menu { open: false, page: Page::Main, sel: 0, scroll: 0, saves: Vec::new(), name: String::new(), message: None, quit: false, title: false, capture: None, tab: 0 }
+        Menu { open: false, page: Page::Main, sel: 0, scroll: 0, saves: Vec::new(), name: String::new(), message: None, quit: false, title: false, capture: None, tab: 0, credits_scroll: 0 }
     }
 }
 
@@ -197,6 +203,10 @@ enum Row {
     ResetAchievements,
     /// Back to the previous page.
     Back,
+    /// Opens the Credits page.
+    CreditsMenu,
+    /// A custom entry: runs this script function.
+    Custom(String),
 }
 
 pub(super) fn now_secs() -> u64 {
@@ -294,36 +304,42 @@ impl Game {
                 (Row::StartOver, "Start over".into(), "A new game from the beginning, as the same hero".into()),
                 (Row::ToTitle, "Quit to main menu".into(), String::new()),
             ],
-            Page::Title => {
-                let latest = self.menu.saves.first().map_or("no saved game yet".to_string(), |s| {
-                    format!("{} · {} · {}", ui(&display_name(&s.slot)), self.map_title(&s.map), ui(&ago(s.saved)))
-                });
-                let mut v = vec![
-                    (Row::NewGame, "New game".into(), String::new()),
-                    (Row::Continue, "Continue".into(), latest),
-                    (Row::LoadMenu, "Load game".into(), String::new()),
-                    (Row::OptionsMenu, "Options".into(), String::new()),
-                ];
-                v.extend(achievements_row.clone());
-                // (A web page isn't closed by the game: the tab is.)
-                if !cfg!(target_arch = "wasm32") {
-                    v.push((Row::Exit, "Exit".into(), String::new()));
+            Page::Title | Page::Main => {
+                let title = self.menu.page == Page::Title;
+                let entries = if title { self.project.config.title.entries() } else { self.project.config.menu.entries() };
+                let mut v = Vec::new();
+                for e in entries {
+                    if !e.fits(title) {
+                        continue;
+                    }
+                    use crate::menus::MenuEntry as E;
+                    let row = match e {
+                        E::NewGame => (Row::NewGame, "New game".into(), String::new()),
+                        E::Continue => (Row::Continue, "Continue".into(), latest_save(&self.menu).unwrap_or("no saved game yet".into())),
+                        E::Load => (Row::LoadMenu, "Load game".into(), String::new()),
+                        E::Options if title => (Row::OptionsMenu, "Options".into(), String::new()),
+                        E::Options => (Row::OptionsMenu, "Options".into(), "Graphics, sound, gameplay, accessibility".into()),
+                        E::Achievements => match achievements_row.clone() {
+                            Some(r) => r,
+                            None => continue,
+                        },
+                        E::Credits => (Row::CreditsMenu, "Credits".into(), String::new()),
+                        // (A web page isn't closed by the game: the tab is.)
+                        E::Exit if cfg!(target_arch = "wasm32") => continue,
+                        E::Exit => (Row::Exit, "Exit".into(), String::new()),
+                        E::Resume => (Row::Resume, "Resume".into(), String::new()),
+                        E::Photo => (Row::Photo, "Photo mode".into(), "Move the camera freely and take pictures".into()),
+                        E::Save => (Row::SaveMenu, "Save game".into(), String::new()),
+                        E::SaveAndQuit => (Row::SaveQuit, "Save and quit".into(), format!("Saves to \"{}\" and returns to the main menu", display_name(&self.save_quit_slot()))),
+                        E::QuitToTitle => (Row::Quit, "Quit".into(), "Back to the main menu without saving".into()),
+                        // (Content, translated here: the runtime's lookup only knows its own texts.)
+                        E::Custom { label, function, detail } => (Row::Custom(function), crate::lang::tr(&label).to_string(), crate::lang::tr(&detail).to_string()),
+                    };
+                    v.push(row);
                 }
                 v
             }
-            Page::Main => {
-                let mut v = vec![
-                    (Row::Resume, "Resume".into(), String::new()),
-                    (Row::Photo, "Photo mode".into(), "Move the camera freely and take pictures".into()),
-                    (Row::SaveMenu, "Save game".into(), String::new()),
-                    (Row::LoadMenu, "Load game".into(), String::new()),
-                    (Row::OptionsMenu, "Options".into(), "Graphics, sound, gameplay, accessibility".into()),
-                ];
-                v.extend(achievements_row);
-                v.push((Row::SaveQuit, "Save and quit".into(), format!("Saves to \"{}\" and returns to the main menu", display_name(&self.save_quit_slot()))));
-                v.push((Row::Quit, "Quit".into(), "Back to the main menu without saving".into()));
-                v
-            }
+            Page::Credits => vec![(Row::Back, "Back".into(), String::new())],
             Page::Achievements => {
                 let mut v: Vec<(Row, String, String)> = self
                     .project
@@ -415,6 +431,7 @@ impl Game {
                 format!("Achievements {got}/{}", self.project.db.achievements.len())
             }
             Page::ConfirmResetAchievements => "Reset achievements?".into(),
+            Page::Credits => "Credits".into(),
         }
     }
 
@@ -462,13 +479,40 @@ impl Game {
         let head = match self.menu.page {
             Page::Title => 20.0,
             Page::Options => 64.0 + TAB_H + 10.0,
+            Page::Credits => 64.0 + self.credits_shown() as f32 * CREDITS_LINE + 16.0,
             _ => 64.0,
         };
         let h = head + 6.0 + rows * row_h + 50.0 + if self.menu.page == Page::Name { 60.0 } else { 0.0 };
-        let p = Rect::new(((sw - W) / 2.0).round(), ((sh - h) / 2.0).round() + if self.menu.title { 40.0 } else { 0.0 }, W, h);
+        let align = if self.menu.title { self.project.config.title.align } else { self.project.config.menu.align };
+        let edge = (sw * 0.06).max(16.0);
+        let x = match align {
+            crate::menus::MenuAlign::Left => edge,
+            crate::menus::MenuAlign::Center => (sw - W) / 2.0,
+            crate::menus::MenuAlign::Right => sw - W - edge,
+        };
+        let p = Rect::new(x.round(), ((sh - h) / 2.0).round() + if self.menu.title { 40.0 } else { 0.0 }, W, h);
         let top = p.y + head + if self.menu.page == Page::Name { 60.0 } else { 0.0 };
         let rects = (0..n.min(max_rows)).map(|k| Rect::new(p.x + 16.0, top + k as f32 * row_h, W - 32.0, row_h - 4.0)).collect();
         (p, rects)
+    }
+
+    /// The credits text in lines that fit the panel.
+    fn credits_lines(&self) -> Vec<String> {
+        let text = crate::lang::tr(&self.project.config.credits).to_string();
+        let mut out = Vec::new();
+        for para in text.lines() {
+            if para.trim().is_empty() {
+                out.push(String::new());
+            } else {
+                out.extend(crate::render::wrap_text(para, 20, W - 48.0));
+            }
+        }
+        out
+    }
+
+    /// How many credits lines the page shows at once.
+    fn credits_shown(&self) -> usize {
+        (((screen_height() * 0.6).min(480.0) / CREDITS_LINE) as usize).max(4)
     }
 
     fn go(&mut self, page: Page) {
@@ -497,6 +541,10 @@ impl Game {
             Page::Achievements => {
                 self.go(if self.menu.title { Page::Title } else { Page::Main });
                 self.select(&Row::AchievementsMenu);
+            }
+            Page::Credits => {
+                self.go(if self.menu.title { Page::Title } else { Page::Main });
+                self.select(&Row::CreditsMenu);
             }
             Page::ConfirmResetAchievements => {
                 self.go(Page::Achievements);
@@ -535,12 +583,16 @@ impl Game {
     /// Leaves the running game for the title screen, with a fresh game behind it.
     pub(super) fn quit_to_title(&mut self) {
         self.reset_world();
-        let (map, spawn) = (self.project.config.start_map.clone(), self.project.config.start_spawn.clone());
-        self.finish_transition(map, Arrival::Spawn(spawn));
+        let (map, arrival) = match super::title_map(&self.project.config) {
+            Some(m) => (m, Arrival::Spawn(String::new())),
+            None => (self.project.config.start_map.clone(), Arrival::Spawn(self.project.config.start_spawn.clone())),
+        };
+        self.finish_transition(map, arrival);
         // The fresh game behind the title screen isn't worth an autosave.
         self.autosave_pending = false;
         self.fade = Fade::In { t: FADE_TIME };
         self.open_title();
+        self.title_scene();
     }
 
     fn do_save(&mut self, slot: &str) {
@@ -590,6 +642,25 @@ impl Game {
                 self.go(Page::Options);
             }
             (_, Row::AchievementsMenu) => self.go(Page::Achievements),
+            (_, Row::CreditsMenu) => {
+                self.menu.credits_scroll = 0;
+                self.go(Page::Credits);
+            }
+            (_, Row::Custom(function)) => {
+                let run = [crate::events::Action::RunScript { function }];
+                if self.menu.title {
+                    // The title screen stays: instant actions (variables, sounds, toasts) run now;
+                    // what waits stays queued until the game starts.
+                    self.runner.push(&run, &Default::default());
+                    let mut runner = std::mem::take(&mut self.runner);
+                    runner.update(self, 0.0);
+                    let queued = std::mem::replace(&mut self.runner, runner);
+                    self.runner.append(queued);
+                } else {
+                    self.menu.open = false;
+                    self.runner.push(&run, &Default::default());
+                }
+            }
             (_, Row::Achievement(_)) => {}
             (_, Row::ResetAchievements) => self.go(Page::ConfirmResetAchievements),
             (Page::ConfirmResetAchievements, Row::Yes) => {
@@ -894,8 +965,46 @@ impl Game {
         self.menu = Menu { open: true, title: true, ..Default::default() };
         self.go(Page::Title);
         if !self.menu.saves.is_empty() {
-            self.menu.sel = 1;
+            self.select(&Row::Continue);
         }
+    }
+
+    /// The title screen's scene once its map is entered: the camera's tile, the held hour, the
+    /// music (`ProjectConfig::title`).
+    pub(super) fn title_scene(&mut self) {
+        let t = self.project.config.title.clone();
+        if let crate::menus::TitleBackground::Map { at, hour, .. } = &t.background {
+            if let Some((x, y)) = at {
+                let ts = self.assets.tile_size;
+                self.player.pos = vec2((x + 0.5) * ts, (y + 0.5) * ts);
+            }
+            if let Some(h) = hour {
+                self.world.hour = *h;
+            }
+        }
+        if !t.music.is_empty() {
+            self.set_peace_music(&t.music);
+        }
+    }
+
+    /// Whether the title screen's camera drifts over its map.
+    pub(super) fn title_drifts(&self) -> bool {
+        !matches!(self.project.config.title.background, crate::menus::TitleBackground::Map { drift: false, .. })
+    }
+
+    /// For `Game::status()`: the open page's rows, and the title's background.
+    pub(super) fn menu_rows_status(&self) -> (Vec<String>, String) {
+        // (The selected row starts with ">".)
+        let rows = if self.menu.open { self.rows().into_iter().enumerate().map(|(k, r)| if k == self.menu.sel { format!(">{}", r.1) } else { r.1 }).collect() } else { Vec::new() };
+        let bg = match &self.project.config.title.background {
+            crate::menus::TitleBackground::Picture { sheet } => format!("picture:{sheet}"),
+            crate::menus::TitleBackground::Map { map, at, hour, .. } => {
+                let map = if map.is_empty() { self.project.config.start_map.as_str() } else { map.as_str() };
+                let at = at.map_or("spawn".to_string(), |(x, y)| format!("{x},{y}"));
+                format!("map:{map}@{at}:{}", hour.map_or("-".to_string(), |h| format!("{h}")))
+            }
+        };
+        (rows, bg)
     }
 
     pub(super) fn close_title(&mut self) {
@@ -1034,6 +1143,17 @@ impl Game {
                 }
             }
         }
+        // Credits: Up / Down and the wheel scroll the text (its only row is Back).
+        if self.menu.page == Page::Credits {
+            let max = self.credits_lines().len().saturating_sub(self.credits_shown());
+            let wheel = input::wheel();
+            if input::act_pressed(Act::Up) || wheel > 0.0 {
+                self.menu.credits_scroll = self.menu.credits_scroll.saturating_sub(1);
+            }
+            if input::act_pressed(Act::Down) || wheel < 0.0 {
+                self.menu.credits_scroll = (self.menu.credits_scroll + 1).min(max);
+            }
+        }
         if n > 0 {
             if input::act_pressed(Act::Up) {
                 self.menu.sel = (self.menu.sel + n - 1) % n;
@@ -1165,10 +1285,32 @@ impl Game {
             return;
         }
         let (sw, sh) = (screen_width(), screen_height());
-        draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.0, 0.0, 0.0, 0.55));
+        let t = &self.project.config.title;
+        // A picture behind the title screen covers the map (and is dimmed less).
+        let picture = match &t.background {
+            crate::menus::TitleBackground::Picture { sheet } if self.menu.title => self.assets.sheets.get(sheet),
+            _ => None,
+        };
+        if let Some(pic) = picture {
+            let size = vec2(pic.texture.width(), pic.texture.height());
+            let k = (sw / size.x).max(sh / size.y);
+            let (w, h) = (size.x * k, size.y * k);
+            draw_texture_ex(&pic.texture, ((sw - w) / 2.0).round(), ((sh - h) / 2.0).round(), WHITE, DrawTextureParams { dest_size: Some(vec2(w, h)), ..Default::default() });
+        }
+        // (The title's own darkening; the pause menu always darkens the game the same.)
+        let dim = t.dim.filter(|_| self.menu.title).unwrap_or(if picture.is_some() { 0.2 } else { 0.55 });
+        draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.0, 0.0, 0.0, dim.clamp(0.0, 1.0)));
         let rows = self.rows();
         let (p, rects) = self.menu_layout(rows.len());
-        if self.menu.title {
+        let logo = t.logo.as_ref().filter(|_| self.menu.title).and_then(|l| self.assets.sheets.get(&l.sheet).map(|s| (l, s)));
+        if let Some((l, pic)) = logo {
+            let (w, h) = (pic.texture.width() * l.scale, pic.texture.height() * l.scale);
+            let (x, y) = ((sw * l.x - w / 2.0).round(), (sh * l.y - h / 2.0).round());
+            // (Not behind a taller page's panel: Credits, Options.)
+            if !Rect::new(x, y, w, h).overlaps(&p) {
+                draw_texture_ex(&pic.texture, x, y, WHITE, DrawTextureParams { dest_size: Some(vec2(w, h)), ..Default::default() });
+            }
+        } else if self.menu.title {
             // Big game title above the menu.
             // (In the title font; the name is content, translated already.)
             let _font = super::text::role(super::text::Role::Title);
@@ -1179,11 +1321,31 @@ impl Game {
             super::text::draw_plain(name, (sw - tw) / 2.0 + 3.0, y + 3.0, size, Color::new(0.0, 0.0, 0.0, 0.7));
             super::text::draw_plain(name, (sw - tw) / 2.0, y, size, skin::title());
         }
-        panel(p.x, p.y, p.w, p.h);
+        // Rows floating over the title's background (no panel): a soft shadow behind each.
+        let floating = self.menu.page == Page::Title && !t.panel;
+        if floating {
+            for r in &rects {
+                draw_rectangle(r.x, r.y, r.w, r.h, Color::new(0.0, 0.0, 0.0, 0.35));
+            }
+        } else {
+            panel(p.x, p.y, p.w, p.h);
+        }
         let title = self.title();
         let tw = measure_text(&title, None, 34, 1.0).width;
         draw_text(&title, p.x + (p.w - tw) / 2.0, p.y + 42.0, 34.0, skin::title());
         let m = input::mouse_pos();
+        if self.menu.page == Page::Credits {
+            // (Content, translated already.)
+            let lines = self.credits_lines();
+            let top = p.y + 64.0;
+            for (k, l) in lines.iter().skip(self.menu.credits_scroll).take(self.credits_shown()).enumerate() {
+                super::text::draw_plain(l, p.x + 24.0, top + 20.0 + k as f32 * CREDITS_LINE, 20.0, skin::normal());
+            }
+            if lines.len() > self.credits_shown() {
+                let more = format!("{}-{} of {}", self.menu.credits_scroll + 1, (self.menu.credits_scroll + self.credits_shown()).min(lines.len()), lines.len());
+                draw_text(&more, p.x + p.w - 110.0, p.y + 42.0, 16.0, skin::disabled());
+            }
+        }
 
         if self.menu.page == Page::Options {
             let rects = self.options_tab_rects(p);
@@ -1232,7 +1394,8 @@ impl Game {
             if selected && !skin::cursor(*r, Color::new(1.0, 1.0, 1.0, 0.12)) {
                 draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, skin::highlight());
             }
-            let disabled = self.menu.saves.is_empty() && ((self.menu.page == Page::Title && idx == 1) || (self.menu.page == Page::Defeated && idx == 0));
+            // (Continuing needs a save.)
+            let disabled = self.menu.saves.is_empty() && matches!(rows[idx].0, Row::Continue | Row::LastSave);
             let c = if disabled { skin::disabled() } else if selected { skin::highlight() } else { skin::normal() };
             if self.page_opts().is_some() {
                 draw_text(label, r.x + 14.0, r.y + 26.0, 24.0, c);
@@ -1328,6 +1491,7 @@ impl Game {
             Page::Controls => "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back",
             Page::Defeated => "{key:up}/{key:down}: choose · {key:confirm} / click: confirm",
             Page::Achievements => "{key:up}/{key:down} or wheel: browse · {key:cancel}: back",
+            Page::Credits => "{key:up}/{key:down} or wheel: scroll · {key:cancel}: back",
             _ => "{key:confirm} / click · {key:cancel}: back",
         };
         // Controls page: what the selected action's keys clash with.

@@ -2509,6 +2509,271 @@ fn skin_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skin::SkinDef, cx: &mut
     });
 }
 
+/// The entries of a menu: up / down / remove per entry, custom entries' label and function, and
+/// an Add menu with the entries that fit (`title`: the title screen, else the pause menu).
+fn entries_ui(ui: &mut egui::Ui, salt: &str, entries: &mut Vec<rustpg2d_engine::menus::MenuEntry>, defaults: &[rustpg2d_engine::menus::MenuEntry], title: bool, functions: &[String]) {
+    use rustpg2d_engine::menus::MenuEntry;
+    if entries.is_empty() {
+        ui.horizontal(|ui| {
+            ui.weak(format!("Built in: {}.", defaults.iter().map(|e| e.label()).collect::<Vec<_>>().join(", ")));
+            if ui.button(ui::t(ph::PENCIL_SIMPLE, "Change…")).on_hover_text("Start from the built-in entries and change them").clicked() {
+                *entries = defaults.to_vec();
+            }
+        });
+        return;
+    }
+    let (mut up, mut down, mut remove) = (None, None, None);
+    let n = entries.len();
+    for (k, e) in entries.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            if ui.add_enabled(k > 0, egui::Button::new(ph::ARROW_UP).small()).on_hover_text("Move up").clicked() {
+                up = Some(k);
+            }
+            if ui.add_enabled(k + 1 < n, egui::Button::new(ph::ARROW_DOWN).small()).on_hover_text("Move down").clicked() {
+                down = Some(k);
+            }
+            if ui.small_button(ph::TRASH).on_hover_text("Remove").clicked() {
+                remove = Some(k);
+            }
+            match e {
+                MenuEntry::Custom { label, function, detail } => {
+                    ui.add(egui::TextEdit::singleline(label).hint_text("label").desired_width(140.0)).on_hover_text("What the entry says (translated like dialogs)");
+                    ui.label("runs");
+                    widgets::suggest(ui, &format!("{salt}_fn_{k}"), function, functions, 130.0);
+                    ui.add(egui::TextEdit::singleline(detail).hint_text("(line under it)").desired_width(160.0));
+                }
+                other => {
+                    ui.label(other.label());
+                }
+            }
+        });
+    }
+    if let Some(k) = up {
+        entries.swap(k, k - 1);
+    }
+    if let Some(k) = down {
+        entries.swap(k, k + 1);
+    }
+    if let Some(k) = remove {
+        entries.remove(k);
+    }
+    ui.horizontal(|ui| {
+        ui.menu_button(ui::t(ph::PLUS, "Add entry"), |ui| {
+            let offered: &[MenuEntry] = if title { &MenuEntry::TITLE } else { &MenuEntry::PAUSE };
+            let missing: Vec<MenuEntry> = offered.iter().filter(|e| !entries.contains(e)).cloned().collect();
+            for e in missing {
+                if ui.button(e.label()).clicked() {
+                    entries.push(e);
+                    ui.close_menu();
+                }
+            }
+            ui.separator();
+            if ui.button("Custom: runs a script function").clicked() {
+                entries.push(MenuEntry::Custom { label: "New entry".into(), function: String::new(), detail: String::new() });
+                ui.close_menu();
+            }
+        });
+        if ui.button(ui::t(ph::ARROW_COUNTER_CLOCKWISE, "Built-in entries")).on_hover_text("Back to the built-in entries").clicked() {
+            entries.clear();
+        }
+    });
+}
+
+/// Project › Title screen, Pause menu and Credits.
+fn menus_form(ed: &mut Editor, ui: &mut egui::Ui) {
+    use rustpg2d_engine::menus::{MenuAlign, PauseMenu, TitleBackground, TitleLogo, TitleScreen};
+    let refs = ed.refs.clone();
+    let mut play = false;
+    {
+        let tex = &ed.tex;
+        let c = &mut ed.project.config;
+        let name = c.name.clone();
+        let start_map = c.start_map.clone();
+        let t = &mut c.title;
+        ui.heading("Title screen");
+        ui.weak("What players see first: a map (the start map, or another one at a place and an hour of your choice) or a picture behind the menu, a logo, music, and the entries in the order you want. Custom entries run a script function (on the title screen, instant things such as variables and sounds; what waits runs once the game starts).");
+        title_preview(ui, t, &name, &start_map, tex);
+        egui::Grid::new("title_screen").num_columns(2).show(ui, |ui| {
+            ui.label("Background");
+            ui.horizontal(|ui| {
+                let is_map = matches!(t.background, TitleBackground::Map { .. });
+                if ui.selectable_label(is_map, "A map").clicked() && !is_map {
+                    t.background = TitleBackground::default();
+                }
+                if ui.selectable_label(!is_map, "A picture").clicked() && is_map {
+                    t.background = TitleBackground::Picture { sheet: String::new() };
+                }
+            });
+            ui.end_row();
+            match &mut t.background {
+                TitleBackground::Map { map, at, hour, drift } => {
+                    ui.label("Map").on_hover_text("Empty: the start map");
+                    widgets::suggest(ui, "title_map", map, &refs.maps, 160.0);
+                    ui.end_row();
+                    ui.label("Camera on tile").on_hover_text("Where the camera looks (off: the map's start spawn)");
+                    ui.horizontal(|ui| {
+                        let mut on = at.is_some();
+                        if ui.checkbox(&mut on, "").changed() {
+                            *at = on.then_some((10.0, 10.0));
+                        }
+                        if let Some((x, y)) = at {
+                            ui.add(egui::DragValue::new(x).range(0.0..=1024.0).prefix("x "));
+                            ui.add(egui::DragValue::new(y).range(0.0..=1024.0).prefix("y "));
+                        }
+                    });
+                    ui.end_row();
+                    ui.label("Hour").on_hover_text("The time of day the title screen shows (off: the hour new games start at)");
+                    ui.horizontal(|ui| {
+                        let mut on = hour.is_some();
+                        if ui.checkbox(&mut on, "").changed() {
+                            *hour = on.then_some(19.5);
+                        }
+                        if let Some(h) = hour {
+                            ui.add(egui::DragValue::new(h).range(0.0..=23.99).speed(0.1).custom_formatter(|v, _| format!("{:02}:{:02}", v as u32, ((v.fract()) * 60.0).round() as u32)));
+                        }
+                        ui.checkbox(drift, "Drift").on_hover_text("The camera drifts slowly over the map");
+                    });
+                    ui.end_row();
+                }
+                TitleBackground::Picture { sheet } => {
+                    ui.label("Picture").on_hover_text("A sprite sheet drawn whole, covering the window");
+                    widgets::suggest(ui, "title_picture", sheet, &refs.sheets, 160.0);
+                    ui.end_row();
+                }
+            }
+            ui.label("Logo").on_hover_text("A picture drawn instead of the game's name");
+            ui.horizontal(|ui| {
+                let mut on = t.logo.is_some();
+                if ui.checkbox(&mut on, "").changed() {
+                    t.logo = on.then(|| TitleLogo::new(""));
+                }
+                if let Some(l) = &mut t.logo {
+                    widgets::suggest(ui, "title_logo", &mut l.sheet, &refs.sheets, 140.0);
+                    ui.add(egui::DragValue::new(&mut l.x).range(0.0..=1.0).speed(0.01).prefix("x ")).on_hover_text("Its middle, as a part of the window's width");
+                    ui.add(egui::DragValue::new(&mut l.y).range(0.0..=1.0).speed(0.01).prefix("y ")).on_hover_text("Its middle, as a part of the window's height");
+                    ui.add(egui::DragValue::new(&mut l.scale).range(0.25..=8.0).speed(0.05).suffix("x"));
+                } else {
+                    ui.weak("(the game's name)");
+                }
+            });
+            ui.end_row();
+            ui.label("Music").on_hover_text("Empty: the background map's music");
+            widgets::suggest(ui, "title_music", &mut t.music, &refs.sounds, 160.0);
+            ui.end_row();
+            ui.label("Menu");
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_id_salt("title_align").selected_text(t.align.label()).show_ui(ui, |ui| {
+                    for a in MenuAlign::ALL {
+                        ui.selectable_value(&mut t.align, a, a.label());
+                    }
+                });
+                ui.checkbox(&mut t.panel, "On a panel").on_hover_text("Off: the entries float over the background");
+            });
+            ui.end_row();
+            ui.label("Darken").on_hover_text("How much the background is darkened behind the menu (off: 55 % over a map, 20 % over a picture)");
+            ui.horizontal(|ui| {
+                let mut on = t.dim.is_some();
+                if ui.checkbox(&mut on, "").changed() {
+                    t.dim = on.then_some(0.3);
+                }
+                if let Some(d) = &mut t.dim {
+                    let mut pc = *d * 100.0;
+                    if ui.add(egui::Slider::new(&mut pc, 0.0..=90.0).suffix(" %")).changed() {
+                        *d = (pc / 100.0 * 100.0).round() / 100.0;
+                    }
+                }
+            });
+            ui.end_row();
+        });
+        ui.label("Entries");
+        entries_ui(ui, "title", &mut t.entries, &TitleScreen::DEFAULT, true, &refs.functions);
+        if ui.button(ui::t(ph::PLAY, "Play title screen")).on_hover_text("Play-tests the game from its title screen").clicked() {
+            play = true;
+        }
+        ui.separator();
+        ui.heading("Pause menu");
+        let m = &mut c.menu;
+        ui.horizontal(|ui| {
+            ui.label("Place");
+            egui::ComboBox::from_id_salt("pause_align").selected_text(m.align.label()).show_ui(ui, |ui| {
+                for a in MenuAlign::ALL {
+                    ui.selectable_value(&mut m.align, a, a.label());
+                }
+            });
+        });
+        entries_ui(ui, "pause", &mut m.entries, &PauseMenu::DEFAULT, false, &refs.functions);
+        ui.separator();
+        ui.heading("Credits");
+        ui.weak("The text of the Credits page (add a Credits entry to a menu to show it). Translated like dialogs.");
+        ui.add(egui::TextEdit::multiline(&mut c.credits).desired_rows(6).desired_width(f32::INFINITY).hint_text("Made by …"));
+    }
+    if play {
+        ed.play_title();
+    }
+}
+
+/// A small sketch of the title screen: the background, the logo at its place, the menu at its
+/// side with the entries in order.
+fn title_preview(ui: &mut egui::Ui, t: &rustpg2d_engine::menus::TitleScreen, name: &str, start_map: &str, tex: &widgets::Textures) {
+    use egui::{pos2, Rect};
+    use rustpg2d_engine::menus::{MenuAlign, TitleBackground};
+    let (w, h) = (384.0, 216.0);
+    let k = w / 1280.0;
+    let (rect, _) = ui.allocate_exact_size(vec2(w, h), Sense::hover());
+    let p = ui.painter_at(rect);
+    p.rect_filled(rect, 0.0, Color32::from_rgb(28, 40, 26));
+    let small = egui::FontId::proportional(11.0);
+    match &t.background {
+        TitleBackground::Picture { sheet } => match tex.sheets.get(sheet) {
+            Some(img) => {
+                let s = img.size_vec2();
+                let f = (w / s.x).max(h / s.y);
+                let r = Rect::from_center_size(rect.center(), s * f);
+                p.image(img.id(), r, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+            }
+            None => {
+                p.text(rect.center_top() + vec2(0.0, 12.0), egui::Align2::CENTER_TOP, "(choose a picture)", small.clone(), Color32::GRAY);
+            }
+        },
+        TitleBackground::Map { map, at, hour, drift } => {
+            let map = if map.is_empty() { start_map } else { map.as_str() };
+            let at = at.map_or("its start spawn".to_string(), |(x, y)| format!("tile {x}, {y}"));
+            let hour = hour.map_or(String::new(), |h| format!(", {:02}:{:02}", h as u32, (h.fract() * 60.0).round() as u32));
+            p.text(rect.left_bottom() + vec2(6.0, -6.0), egui::Align2::LEFT_BOTTOM, format!("map {map} at {at}{hour}{}", if *drift { ", drifting" } else { "" }), small.clone(), Color32::from_gray(200));
+        }
+    }
+    p.rect_filled(rect, 0.0, Color32::from_black_alpha(if matches!(t.background, TitleBackground::Picture { .. }) { 50 } else { 120 }));
+    // The menu (520 px wide in a 1280 x 720 window).
+    let entries = t.entries();
+    let mh = (entries.len() as f32 * 40.0 + 76.0) * k;
+    let mw = 520.0 * k;
+    let edge = (1280.0 * 0.06) * k;
+    let mx = match t.align {
+        MenuAlign::Left => rect.left() + edge,
+        MenuAlign::Center => rect.center().x - mw / 2.0,
+        MenuAlign::Right => rect.right() - edge - mw,
+    };
+    let menu = Rect::from_min_size(pos2(mx, rect.center().y - mh / 2.0 + 40.0 * k), vec2(mw, mh));
+    if t.panel {
+        p.rect_filled(menu, 2.0, Color32::from_rgba_unmultiplied(15, 15, 31, 235));
+        p.rect_stroke(menu, 2.0, egui::Stroke::new(1.0_f32, Color32::from_rgb(217, 204, 153)), egui::StrokeKind::Inside);
+    }
+    for (i, e) in entries.iter().enumerate() {
+        let y = menu.top() + (26.0 + i as f32 * 40.0) * k;
+        p.text(pos2(menu.left() + 8.0, y), egui::Align2::LEFT_TOP, e.label(), small.clone(), if i == 0 { Color32::GOLD } else { Color32::WHITE });
+    }
+    match t.logo.as_ref().and_then(|l| tex.sheets.get(&l.sheet).map(|img| (l, img))) {
+        Some((l, img)) => {
+            let s = img.size_vec2() * l.scale * k;
+            let c = pos2(rect.left() + l.x * w, rect.top() + l.y * h);
+            p.image(img.id(), Rect::from_center_size(c, s), Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+        }
+        None => {
+            p.text(pos2(rect.center().x, (menu.top() - 60.0 * k).max(rect.top() + 80.0 * k)), egui::Align2::CENTER_BOTTOM, name, egui::FontId::proportional(18.0), Color32::GOLD);
+        }
+    }
+}
+
 /// Project › Look: the UI skin the game uses.
 fn look_form(ed: &mut Editor, ui: &mut egui::Ui) {
     ui.heading("Look");
@@ -2799,6 +3064,8 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     fonts_form(ed, ui);
     ui.separator();
     look_form(ed, ui);
+    ui.separator();
+    menus_form(ed, ui);
     let c = &mut ed.project.config;
     ui.separator();
     ui.heading("Skills & magic");

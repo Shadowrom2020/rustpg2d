@@ -93,6 +93,8 @@
         "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back": "Enter: добавить клавишу или кнопку · Del: очистить клавиши · сохраняется сразу · Esc: назад",
         "{key:up}/{key:down}: choose · {key:confirm} / click: confirm": "{key:up}/{key:down}: выбор · {key:confirm} / щелчок: подтвердить",
         "{key:up}/{key:down} or wheel: browse · {key:cancel}: back": "{key:up}/{key:down} или колесо: листать · {key:cancel}: назад",
+        "{key:up}/{key:down} or wheel: scroll · {key:cancel}: back": "{key:up}/{key:down} или колесо: прокрутка · {key:cancel}: назад",
+        "Credits": "Авторы",
         "{key:confirm} / click · {key:cancel}: back": "{key:confirm} / щелчок · {key:cancel}: назад",
         "Press a key or a button...": "Нажмите клавишу или кнопку...",
         "That key can't be used.": "Эту клавишу нельзя использовать.",

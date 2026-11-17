@@ -91,6 +91,15 @@ pub struct ProjectConfig {
     /// The UI skin the game uses (`defs/skins.ron`); empty = the built-in look.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub skin: String,
+    /// The title screen: background, logo, music, entries; empty = the built-in one.
+    #[serde(default, skip_serializing_if = "crate::menus::TitleScreen::is_default")]
+    pub title: crate::menus::TitleScreen,
+    /// The pause menu's entries; empty = the built-in ones.
+    #[serde(default, skip_serializing_if = "crate::menus::PauseMenu::is_default")]
+    pub menu: crate::menus::PauseMenu,
+    /// The text of the Credits page (menus with a Credits entry); translated like dialogs.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub credits: String,
 }
 
 fn is_yes(b: &bool) -> bool {
@@ -237,6 +246,9 @@ impl ProjectConfig {
             eight_facings: true,
             fonts: Default::default(),
             skin: String::new(),
+            title: Default::default(),
+            menu: Default::default(),
+            credits: String::new(),
         }
     }
 }

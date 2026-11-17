@@ -8742,6 +8742,16 @@
                 ],
             },
         ),
+        "sheet:title_logo": (
+            defs: [
+                18311606762013856831,
+            ],
+            files: {
+                "sprites/title_logo.png": [
+                    14137869294838774379,
+                ],
+            },
+        ),
         "sheet:town_crier": (
             defs: [
                 2726553208597152932,

@@ -92,6 +92,8 @@
         "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back": "Enter: Taste oder Knopf dazu · Entf: Tasten leeren · sofort gespeichert · Esc: zurück",
         "{key:up}/{key:down}: choose · {key:confirm} / click: confirm": "{key:up}/{key:down}: wählen · {key:confirm} / Klick: bestätigen",
         "{key:up}/{key:down} or wheel: browse · {key:cancel}: back": "{key:up}/{key:down} oder Mausrad: blättern · {key:cancel}: zurück",
+        "{key:up}/{key:down} or wheel: scroll · {key:cancel}: back": "{key:up}/{key:down} oder Mausrad: scrollen · {key:cancel}: zurück",
+        "Credits": "Mitwirkende",
         "{key:confirm} / click · {key:cancel}: back": "{key:confirm} / Klick · {key:cancel}: zurück",
         "Press a key or a button...": "Taste oder Knopf drücken...",
         "That key can't be used.": "Diese Taste kann nicht verwendet werden.",

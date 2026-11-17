@@ -575,6 +575,7 @@ impl Editor {
 
     /// Message codes in the project's texts that aren't valid, and icons of items that don't exist.
     fn code_problems(&self, own: &std::collections::BTreeSet<String>, out: &mut Vec<Problem>) {
+        self.menu_problems(out);
         // The game's skin may add colour names ({c:ember}).
         let skin = self.project.db.skin(&self.project.config.skin);
         dc::set_skin_colors(skin.map(|s| s.colors.iter().map(|(n, c)| (n.clone(), c.rgb3())).collect()).unwrap_or_default());
@@ -589,6 +590,40 @@ impl Editor {
         let icons: std::collections::BTreeSet<String> = own.iter().flat_map(|t| dc::icons(t)).filter(|i| self.project.db.item(i).is_none()).collect();
         if !icons.is_empty() {
             out.push(Problem { severity: Severity::Warning, area: Area::Project, place: "dialog texts".into(), text: format!("{{i:…}} names item(s) that don't exist: {}", icons.into_iter().collect::<Vec<_>>().join(", ")), target: Target::Project });
+        }
+    }
+
+    /// The title screen's map, pictures and music, and both menus' entries.
+    fn menu_problems(&self, out: &mut Vec<Problem>) {
+        use rustpg2d_engine::menus::{MenuEntry, TitleBackground};
+        let c = &self.project.config;
+        let mut bad = |text: String, severity: Severity| out.push(Problem { severity, area: Area::Project, place: "Project › Title screen".into(), text, target: Target::Project });
+        match &c.title.background {
+            TitleBackground::Map { map, .. } if !map.is_empty() && !self.refs.maps.contains(map) => bad(format!("the title screen's map \"{map}\" doesn't exist"), Severity::Error),
+            TitleBackground::Picture { sheet } if self.project.db.sheet(sheet).is_none() => bad(format!("the title screen's picture \"{sheet}\" isn't a sprite sheet"), Severity::Error),
+            _ => {}
+        }
+        if let Some(l) = c.title.logo.as_ref().filter(|l| self.project.db.sheet(&l.sheet).is_none()) {
+            bad(format!("the logo \"{}\" isn't a sprite sheet", l.sheet), Severity::Error);
+        }
+        if !c.title.music.is_empty() && self.project.db.sound(&c.title.music).is_none() {
+            bad(format!("the title music \"{}\" isn't a sound", c.title.music), Severity::Error);
+        }
+        for (title, entries) in [(true, &c.title.entries), (false, &c.menu.entries)] {
+            let menu = if title { "the title screen" } else { "the pause menu" };
+            for e in entries {
+                match e {
+                    MenuEntry::Custom { function, label, .. } if !self.refs.functions.contains(function) => {
+                        bad(format!("{menu}'s entry \"{label}\" runs the script function \"{function}\", which doesn't exist"), Severity::Error)
+                    }
+                    e if !e.fits(title) => bad(format!("{menu} can't show \"{}\" (left out)", e.label()), Severity::Warning),
+                    MenuEntry::Credits if c.credits.trim().is_empty() => bad(format!("{menu} has a Credits entry, but the credits text is empty"), Severity::Warning),
+                    _ => {}
+                }
+            }
+        }
+        if !c.title.entries.is_empty() && !c.title.entries.iter().any(|e| matches!(e, MenuEntry::NewGame)) {
+            bad("the title screen has no New game entry".into(), Severity::Warning);
         }
     }
 

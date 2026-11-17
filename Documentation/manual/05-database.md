@@ -294,6 +294,38 @@ drawn by the game itself with this skin and the project's fonts. *Edit › Probl
 picture without a sprite sheet, a corner larger than half its picture, and a project skin that
 doesn't exist.
 
+## Title screen and menus
+
+*Database › Project › Title screen* designs the screen players see first, *Pause menu* the menu
+Esc opens. Without settings both are the built-in ones.
+
+- **Background**: *A map* (empty = the start map) with the tile the **camera** looks at, the
+  **hour** it shows (the clock stands still there) and **Drift** (the camera wanders slowly), or *A
+  picture* (a sprite sheet drawn whole, covering the window).
+- **Logo**: a sprite sheet drawn instead of the game's name, its middle at a place given as parts
+  of the window (x 0.5, y 0.17 = centred, near the top) and a scale (pixel art: whole numbers).
+- **Music**: empty = the background map's music. **Darken**: how much the background is darkened
+  behind the menu (built in: 55 % over a map, 20 % over a picture).
+- **Menu**: left, centre or right, on a panel or floating over the background.
+- **Entries**: *Change…* starts from the built-in ones; then move them up and down, remove them, and
+  *Add entry* adds *New game*, *Continue*, *Load game*, *Options*, *Achievements* (shown only when the
+  game has achievements), *Credits* and *Exit* (left out of web games) to the title screen;
+  *Resume*, *Photo mode*, *Save game*, *Load game*, *Options*, *Achievements*, *Credits*, *Save and
+  quit* and *Quit* to the pause menu. A **custom entry** has a label (translated like dialogs), a
+  line under it, and the script function it runs. In the pause menu, the menu closes and the
+  function runs as from an event (dialogs included). On the title screen, the title stays: what the
+  function does at once (variables, sounds, a toast) happens, and anything that waits (a dialog, a
+  cut-scene) runs once the game starts.
+- **Credits**: the text of the Credits page, which a menu with a *Credits* entry shows (scrolling
+  with Up / Down or the wheel). It is translated like dialogs.
+
+A sketch at the top shows the background, the logo and the entries in their place; **Play title
+screen** play-tests the game from its real title screen. *Edit › Problems* reports a missing map,
+picture, logo, music or script function, a title screen without *New game*, and a *Credits* entry
+without credits text.
+
+![The example's title screen: Emberbrook's market square at dusk under its logo](../images/game-title.webp)
+
 ## Quests
 
 The quest editor describes a whole quest in one place: who gives it and when, what the giver says,
@@ -375,5 +407,8 @@ These belong to the game systems they drive: [Skills and magic](09-gameplay.md#s
 | **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana, skill points) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |
 | **Languages** | The language the game is written in, translations, *Play-test in* ([Languages](12-languages.md)) |
+| **Title screen** | What players see first: the background (a map, with the tile the camera looks at, the hour and a slow drift, or a picture), a logo, the music, how dark the background gets, the menu's place, and its entries ([Title screen and menus](#title-screen-and-menus)) |
+| **Pause menu** | The pause menu's place and entries |
+| **Credits** | The text of the Credits page |
 | **Look** | The **UI skin** of the game's windows, menus, dialog box and HUD; *Built in* = the dark blue look ([UI skins](#ui-skins)) |
 | **Fonts** | Which font the **windows and menus**, the **dialogs** (and speech bubbles, captions), the **HUD** (bars, quickbar, toasts, clock, damage numbers) and the **title** (the game's name on the title screen) use; empty = the built-in font for windows, the windows' font for the others. **Fallbacks**: fonts tried in order for a character the role's font lacks, before the built-in font (a Japanese font for a Japanese translation) ([Fonts](#fonts)) |

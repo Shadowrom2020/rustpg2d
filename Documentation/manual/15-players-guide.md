@@ -115,10 +115,11 @@ place is named under the list (*R2 is also Switch weapon*).
   choose a row and Left / Right change it: race (each with its own strengths, described under the
   picture), sex, body and colours (skin, hair, clothing…). Enter starts the adventure, Esc goes back.
 - **Title screen**: *New game*, *Continue* (the latest save), *Load game*, *Options*, *Achievements*
-  (if the game has them), *Exit*.
+  (if the game has them), *Exit*. A game may order them differently, leave some out, add a
+  *Credits* page (Up / Down or the wheel scroll it) and entries of its own.
 - **Pause menu** (Esc): *Resume*, *Photo mode*, *Save game* (a new named save or overwrite one), *Load game* (every
   save with a small picture of the world, the map, the play time and its age; Del deletes), *Options*,
-  *Save and quit*, *Quit* (after a confirmation).
+  *Save and quit*, *Quit* (after a confirmation); here too a game may change the entries.
 - Closing the window while playing asks *Save and exit*, *Exit without saving* or *Cancel*.
 
 ## Options

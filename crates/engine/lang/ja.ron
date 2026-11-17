@@ -93,6 +93,8 @@
         "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back": "Enter：キーかボタンを追加 · Del：キーを消去 · すぐに保存 · Esc：戻る",
         "{key:up}/{key:down}: choose · {key:confirm} / click: confirm": "{key:up}/{key:down}：選択 · {key:confirm} / クリック：決定",
         "{key:up}/{key:down} or wheel: browse · {key:cancel}: back": "{key:up}/{key:down} またはホイール：めくる · {key:cancel}：戻る",
+        "{key:up}/{key:down} or wheel: scroll · {key:cancel}: back": "{key:up}/{key:down} またはホイール：スクロール · {key:cancel}：戻る",
+        "Credits": "クレジット",
         "{key:confirm} / click · {key:cancel}: back": "{key:confirm} / クリック · {key:cancel}：戻る",
         "Press a key or a button...": "キーかボタンを押してください...",
         "That key can't be used.": "そのキーは使えません。",

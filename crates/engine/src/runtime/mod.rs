@@ -570,7 +570,9 @@ impl Game {
             Some(c) => (vec2(c.hitbox[0], c.hitbox[1]), c.speed),
             None => (vec2(ts * 0.75, ts * 0.5), 70.0),
         };
-        let map_name = start.map.clone().unwrap_or_else(|| project.config.start_map.clone());
+        // The title screen's own map behind it (unless a map to start on was given).
+        let title_map = (start.title && start.map.is_none() && start.pos.is_none() && start.spawn.is_none()).then(|| title_map(&project.config)).flatten();
+        let map_name = start.map.clone().or(title_map.clone()).unwrap_or_else(|| project.config.start_map.clone());
         let map = project.load_map(&map_name)?;
         let player = Body {
             pos: Vec2::ZERO,
@@ -676,6 +678,7 @@ impl Game {
             marker_hops: HashMap::new(),
         };
         let arrival = match (start.pos, start.spawn) {
+            _ if title_map.is_some() => Arrival::Spawn(String::new()),
             (Some(p), _) => Arrival::Pos(p),
             (None, Some(s)) => Arrival::Spawn(s),
             (None, None) if start.map.is_some() => Arrival::Spawn(String::new()),
@@ -705,6 +708,9 @@ impl Game {
             game.runner.push(&[Action::Cutscene { function: f.clone() }], &ActionCtx::default());
         }
         game.enter_map(map, arrival);
+        if start.title {
+            game.title_scene();
+        }
         Ok(game)
     }
 
@@ -2439,7 +2445,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2499,6 +2505,8 @@ impl Game {
             text::status().0,
             text::status().1,
             skin::status(),
+            self.menu_rows_status().0,
+            self.menu_rows_status().1,
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2670,8 +2678,8 @@ impl Game {
             return render::pixel_camera(center, scale);
         }
         let mut focus = vec2(self.player.pos.x, self.player.pos.y - 8.0);
-        if self.on_title() {
-            // The title screen slowly drifts over the start map.
+        if self.on_title() && self.title_drifts() {
+            // The title screen slowly drifts over its map.
             let t = get_time() as f32;
             focus += vec2((t * 0.07).sin() * 12.0 * ts, (t * 0.05).cos() * 6.0 * ts);
         }
@@ -3007,6 +3015,15 @@ impl Game {
         draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.0, GREEN);
     }
 }
+
+/// The map the title screen shows, when it is another map than the start map.
+pub(super) fn title_map(c: &crate::project::ProjectConfig) -> Option<String> {
+    match &c.title.background {
+        crate::menus::TitleBackground::Map { map, .. } if !map.is_empty() && *map != c.start_map => Some(map.clone()),
+        _ => None,
+    }
+}
+
 
 /// Healing of food raised by `percent` (the Food skill), also inside *If* actions.
 fn food_bonus(a: Action, percent: f32) -> Action {

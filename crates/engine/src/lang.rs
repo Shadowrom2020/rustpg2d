@@ -392,6 +392,14 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     let db = &project.db;
     // The game's name (title screen).
     add(&project.config.name);
+    // The menus' own entries and the Credits page.
+    for e in project.config.title.entries.iter().chain(&project.config.menu.entries) {
+        if let crate::menus::MenuEntry::Custom { label, detail, .. } = e {
+            add(label);
+            add(detail);
+        }
+    }
+    add(&project.config.credits);
     for i in &db.items {
         add(&i.name);
         add(&i.description);

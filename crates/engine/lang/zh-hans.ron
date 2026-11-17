@@ -93,6 +93,8 @@
         "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back": "Enter：添加按键或按钮 · Del：清除按键 · 立即保存 · Esc：返回",
         "{key:up}/{key:down}: choose · {key:confirm} / click: confirm": "{key:up}/{key:down}：选择 · {key:confirm} / 点击：确认",
         "{key:up}/{key:down} or wheel: browse · {key:cancel}: back": "{key:up}/{key:down} 或滚轮：浏览 · {key:cancel}：返回",
+        "{key:up}/{key:down} or wheel: scroll · {key:cancel}: back": "{key:up}/{key:down} 或滚轮：滚动 · {key:cancel}：返回",
+        "Credits": "制作人员",
         "{key:confirm} / click · {key:cancel}: back": "{key:confirm} / 点击 · {key:cancel}：返回",
         "Press a key or a button...": "请按下按键或按钮...",
         "That key can't be used.": "该按键无法使用。",

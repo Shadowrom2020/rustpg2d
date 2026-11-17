@@ -23,6 +23,16 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - Agent server: `upsert_def` / `list_defs` / `def_template` know `skins`; `set_project_config`
   sets `skin`. `status` prints `skin=`.
 
+- **Title screen and menus** (*Database › Project › Title screen*, *Pause menu*, *Credits*): the
+  title's background (a map with the tile the camera looks at, the hour and a slow drift, or a
+  picture), a logo instead of the game's name, its music, how dark the background gets, the menu's
+  place (left, centre, right) and whether it sits on a panel; the entries of both menus in any
+  order, with **custom entries** that run a script function; a **Credits** page with the
+  project's credits text. Without settings both menus are unchanged. A sketch in the editor shows
+  the layout, *Play title screen* play-tests from the title screen, *Problems* checks the
+  settings. The example opens on Emberbrook's market square at dusk under its new logo, with
+  credits. `status` prints `menu_rows=` and `title_bg=`; the editor script has `playtitle`.
+
 ### Fixes
 - Help lines at the bottom of windows no longer run past the window's edge in long translations
   (and a few English ones): they are drawn a little smaller, or in two lines.

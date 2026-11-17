@@ -217,6 +217,8 @@ pub struct Editor {
     pub map_rename: Option<String>,
     /// Play-tests start in this language (`--lang`; "" = the player's / system's choice).
     pub play_lang: String,
+    /// The next play-test opens on the title screen ([`Editor::play_title`]).
+    pub play_title_next: bool,
     /// The last translation template export's result (Database › Project › Languages).
     pub lang_msg: Option<String>,
     pub tex: Textures,
@@ -498,6 +500,7 @@ impl Editor {
             audio,
             map_rename: None,
             play_lang: String::new(),
+            play_title_next: false,
             lang_msg: None,
             tex: Textures::default(),
             tex_dirty: true,
@@ -1095,7 +1098,14 @@ impl Editor {
         self.play_with(true, Some(function));
     }
 
+    /// Play-tests the game from its title screen (Project › Title screen).
+    pub fn play_title(&mut self) {
+        self.play_title_next = true;
+        self.play_with(false, None);
+    }
+
     fn play_with(&mut self, here: bool, cutscene: Option<&str>) {
+        let title = std::mem::take(&mut self.play_title_next);
         self.save_all();
         let runner = rustpg2d_engine::release::Platform::host().game_runner();
         let exe = std::env::current_exe().ok().map(|p| p.with_file_name(runner));
@@ -1107,7 +1117,7 @@ impl Editor {
         cmd.arg(&self.project.root);
         // Developer play-test: scripts reload when saved, F4 opens the console.
         cmd.arg("--dev");
-        if !here || cutscene.is_some() {
+        if (!here || cutscene.is_some()) && !title {
             cmd.arg("--no-title");
         }
         if let Some(f) = cutscene {

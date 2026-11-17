@@ -10,7 +10,8 @@ language when the game offers it.
 2. **Export translation template** with a language code (`de`, `fr`, `pt-br`…). It writes
    `lang/<code>.ron` into the project with every text players see, each with an empty translation:
    names and descriptions of items, props, characters, quests and their stages, skills, spells and
-   achievements, the game's name, the maps' titles, the lines and choices of every trigger, the
+   achievements, the game's name, the maps' titles, the menus' own entries and the credits text
+   (*Database › Project › Title screen*), the lines and choices of every trigger, the
    lock, container and furniture messages, and the texts scripts pass to `say` and `choice`.
    A script text is found only as one string: write `say("You have {coins} coins.")` after
    `set_var("coins", item_count("coin"))`, not `say("You have " + n + " coins.")`, whose pieces

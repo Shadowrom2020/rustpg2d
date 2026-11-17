@@ -387,4 +387,10 @@
         frame_w: 24,
         frame_h: 24,
     ),
+    (
+        id: "title_logo",
+        image: "sprites/title_logo.png",
+        frame_w: 100,
+        frame_h: 23,
+    ),
 ]

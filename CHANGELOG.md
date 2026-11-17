@@ -3,7 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.24.0 — 2026-11-17
 
 ### Fonts and languages
 - **Project fonts** (*Database › Fonts*): TTF / OTF fonts the game draws with, each with its pixel

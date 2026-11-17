@@ -34,12 +34,14 @@ pub enum RefKind {
     Scatter,
     /// Font (`fonts::FontDef`).
     Font,
+    /// UI skin (`skin::SkinDef`).
+    Skin,
 }
 
 impl RefKind {
-    /// Every kind: the sixteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
+    /// Every kind: the seventeen definition lists in `defs/` file order ([`crate::project::DEFS`]),
     /// then `Map`.
-    pub const ALL: [RefKind; 17] = [
+    pub const ALL: [RefKind; 18] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -56,10 +58,11 @@ impl RefKind {
         RefKind::Material,
         RefKind::Scatter,
         RefKind::Font,
+        RefKind::Skin,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 16] = [
+    pub const DEFS: [RefKind; 17] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -76,6 +79,7 @@ impl RefKind {
         RefKind::Material,
         RefKind::Scatter,
         RefKind::Font,
+        RefKind::Skin,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -98,6 +102,7 @@ impl RefKind {
             RefKind::Material => "material",
             RefKind::Scatter => "scatter",
             RefKind::Font => "font",
+            RefKind::Skin => "skin",
         }
     }
 
@@ -120,6 +125,7 @@ impl RefKind {
             RefKind::Material => "materials",
             RefKind::Scatter => "scatter",
             RefKind::Font => "fonts",
+            RefKind::Skin => "skins",
             RefKind::Map => return None,
         })
     }
@@ -144,6 +150,7 @@ impl RefKind {
             RefKind::Material => "Material",
             RefKind::Scatter => "Scatter set",
             RefKind::Font => "Font",
+            RefKind::Skin => "UI skin",
         }
     }
 
@@ -168,6 +175,7 @@ impl RefKind {
             "material" | "ground" => RefKind::Material,
             "scatter" | "scatter set" | "scatter_set" => RefKind::Scatter,
             "font" => RefKind::Font,
+            "skin" | "ui skin" | "ui_skin" => RefKind::Skin,
             _ => return None,
         })
     }
@@ -526,6 +534,12 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
     for s in [&mut f.ui, &mut f.dialog, &mut f.hud, &mut f.title].into_iter().chain(f.fallback.iter_mut()) {
         r.fix(RefKind::Font, s);
     }
+    r.fix(RefKind::Skin, &mut config.skin);
+    for d in &mut db.skins {
+        for p in d.pictures_mut() {
+            r.fix(RefKind::Sheet, &mut p.sheet);
+        }
+    }
     r.count
 }
 
@@ -579,6 +593,12 @@ fn collector() -> Renamer<'static> {
 /// Everything an item definition refers to (icon / projectile sheets, ammo, items and sounds used
 /// by its triggers, ...).
 /// A model's rig template.
+pub fn refs_of_skin(d: &crate::skin::SkinDef) -> Vec<(RefKind, String)> {
+    let mut out: Vec<(RefKind, String)> = d.pictures().into_iter().map(|(_, p)| (RefKind::Sheet, p.sheet.clone())).filter(|(_, s)| !s.is_empty()).collect();
+    out.dedup();
+    out
+}
+
 pub fn refs_of_scatter(d: &crate::decor::ScatterDef) -> Vec<(RefKind, String)> {
     d.props.iter().map(|(p, _)| (RefKind::Prop, p.clone())).collect()
 }
@@ -842,6 +862,7 @@ mod tests {
         eight_facings: true,
         map_titles: [("village".to_string(), "Emberbrook".to_string())].into(),
         fonts: crate::fonts::FontRoles { ui: "mono".into(), fallback: vec!["cjk".into()], ..Default::default() },
+        skin: "wood".into(),
         };
         cfg.sfx.pickup = "blip".into();
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "items", "icons"), 1);
@@ -855,6 +876,14 @@ mod tests {
         assert_eq!(cfg.fonts.fallback, vec!["noto".to_string()]);
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Font, "mono", "pixel"), 1);
         assert_eq!(cfg.fonts.resolve(crate::fonts::Role::Dialog), "pixel");
+        // Skins: the project's choice, and the sheets of a skin's pictures.
+        let pic = crate::skin::NineSlice::new("ui_wood");
+        db.skins.push(crate::skin::SkinDef { id: "wood".into(), frame: Some(pic.clone()), cursor: Some(pic), ..Default::default() });
+        assert_eq!(refs_of_skin(&db.skins[0]), vec![(RefKind::Sheet, "ui_wood".to_string())]);
+        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Skin, "wood", "oak"), 1);
+        assert_eq!(cfg.skin, "oak");
+        assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "ui_wood", "ui_oak"), 2);
+        assert_eq!(db.skins[0].cursor.as_ref().unwrap().sheet, "ui_oak");
     }
 
     #[test]

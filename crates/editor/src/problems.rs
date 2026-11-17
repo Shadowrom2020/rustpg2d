@@ -287,6 +287,20 @@ impl Editor {
                 if let Some(l) = db.font(&id).filter(|_| k == RefKind::Font).map(|d| &d.license).filter(|l| !l.is_empty() && !self.project.root.join(l).is_file()) {
                     out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("its licence file {l} is missing (exports carry it with the font)"), target: target.clone() });
                 }
+                if let Some(skin) = db.skin(&id).filter(|_| k == RefKind::Skin) {
+                    for (part, p) in skin.pictures() {
+                        let text = match db.sheet(&p.sheet) {
+                            _ if p.sheet.is_empty() => Some(format!("its {part} picture has no sprite sheet")),
+                            // (A missing sheet is reported with the other missing references.)
+                            None => None,
+                            Some(sh) if p.corner * 2 > sh.frame_w.min(sh.frame_h) => Some(format!("its {part} picture's corner ({} px) is more than half its frame ({}x{} px)", p.corner, sh.frame_w, sh.frame_h)),
+                            Some(_) => None,
+                        };
+                        if let Some(text) = text {
+                            out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text, target: target.clone() });
+                        }
+                    }
+                }
                 if let Some(f) = file {
                     if f.is_empty() || !self.project.root.join(&f).is_file() {
                         out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: if f.is_empty() { "has no file".into() } else { format!("its file {f} is missing") }, target: target.clone() });
@@ -561,6 +575,12 @@ impl Editor {
 
     /// Message codes in the project's texts that aren't valid, and icons of items that don't exist.
     fn code_problems(&self, own: &std::collections::BTreeSet<String>, out: &mut Vec<Problem>) {
+        // The game's skin may add colour names ({c:ember}).
+        let skin = self.project.db.skin(&self.project.config.skin);
+        dc::set_skin_colors(skin.map(|s| s.colors.iter().map(|(n, c)| (n.clone(), c.rgb3())).collect()).unwrap_or_default());
+        if !self.project.config.skin.is_empty() && skin.is_none() {
+            out.push(Problem { severity: Severity::Error, area: Area::Project, place: "Project › Look".into(), text: format!("the UI skin \"{}\" doesn't exist (the game uses the built-in look)", self.project.config.skin), target: Target::Project });
+        }
         let bad: std::collections::BTreeSet<&str> = own.iter().flat_map(|t| dc::unknown_codes(t)).collect();
         if !bad.is_empty() {
             let sample: Vec<&str> = bad.iter().take(6).copied().collect();

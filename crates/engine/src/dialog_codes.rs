@@ -70,9 +70,23 @@ pub const COLORS: &[(&str, [u8; 3])] = &[
 /// The prefixes of other `{prefix:…}` placeholders (not dialog codes, never "unknown").
 const OTHER_PREFIXES: &[&str] = &["key", "uid"];
 
-/// The colour of a name or `#rrggbb`.
+thread_local! {
+    /// The colour names of the game's UI skin ([`set_skin_colors`]).
+    static SKIN_COLORS: std::cell::RefCell<Vec<(String, [u8; 3])>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The colour names the UI skin adds or changes (`SkinDef::colors`): they win over [`COLORS`].
+/// Set by the game when it installs its skin, and by the editor for its checks.
+pub fn set_skin_colors(colors: Vec<(String, [u8; 3])>) {
+    SKIN_COLORS.with(|c| *c.borrow_mut() = colors);
+}
+
+/// The colour of a name (the skin's names first) or `#rrggbb`.
 pub fn color(s: &str) -> Option<[u8; 3]> {
     let s = s.trim();
+    if let Some(c) = SKIN_COLORS.with(|c| c.borrow().iter().find(|(n, _)| n.eq_ignore_ascii_case(s)).map(|(_, c)| *c)) {
+        return Some(c);
+    }
     if let Some(hex) = s.strip_prefix('#') {
         if hex.len() != 6 || !hex.is_ascii() {
             return None;

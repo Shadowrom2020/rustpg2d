@@ -33,6 +33,7 @@ mod models_tab;
 mod new_project;
 mod frame_ops;
 mod material_preview;
+mod skin_preview;
 mod pixel;
 mod project_file;
 mod quest_form;
@@ -1280,6 +1281,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "materials" => Tab::Materials,
                 "scatter" => Tab::Scatter,
                 "fonts" => Tab::Fonts,
+                "skins" => Tab::Skins,
                 _ => Tab::Items,
             };
             // tab KIND N, or tab KIND ID (sheets, items, props, characters, …).
@@ -1296,6 +1298,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Materials => db.materials.iter().position(|d| d.id == arg(2)),
                 Tab::Scatter => db.scatter.iter().position(|d| d.id == arg(2)),
                 Tab::Fonts => db.fonts.iter().position(|d| d.id == arg(2)),
+                Tab::Skins => db.skins.iter().position(|d| d.id == arg(2)),
                 _ => None,
             };
             ed.db.sel = by_id.unwrap_or(num(2) as usize);

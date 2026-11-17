@@ -9,6 +9,8 @@
 
 use macroquad::prelude::*;
 
+use super::skin;
+
 use super::input::{self, Act, Pad};
 use super::{ui::panel, Game};
 use crate::defs::Appearance;
@@ -77,17 +79,21 @@ fn arrows(r: Rect) -> (Rect, Rect) {
 }
 
 fn button(r: Rect, label: &str, selected: bool, active: bool, hover: bool) {
-    let fill = if active {
-        Color::new(0.45, 0.35, 0.12, 1.0)
-    } else if hover {
-        Color::new(0.3, 0.26, 0.14, 1.0)
-    } else {
-        Color::new(0.12, 0.12, 0.2, 0.9)
-    };
-    draw_rectangle(r.x, r.y, r.w, r.h, fill);
-    draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.5 }, if selected { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.8) });
+    if !skin::button_picture(r, active || hover || selected) {
+        let fill = if active {
+            skin::button_fill(true, Color::new(0.45, 0.35, 0.12, 1.0))
+        } else if hover {
+            skin::button_fill(true, Color::new(0.3, 0.26, 0.14, 1.0))
+        } else {
+            skin::button_fill(false, Color::new(0.12, 0.12, 0.2, 0.9))
+        };
+        draw_rectangle(r.x, r.y, r.w, r.h, fill);
+        draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.5 }, if selected { skin::highlight() } else { skin::line(0.8) });
+    } else if selected {
+        skin::cursor_picture(r);
+    }
     let tw = measure_text(label, None, 24, 1.0).width;
-    draw_text(label, r.x + (r.w - tw) / 2.0, r.y + r.h / 2.0 + 8.0, 24.0, WHITE);
+    draw_text(label, r.x + (r.w - tw) / 2.0, r.y + r.h / 2.0 + 8.0, 24.0, skin::normal());
 }
 
 fn rgb(c: [u8; 3]) -> Color {
@@ -404,7 +410,7 @@ impl Game {
         panel(p.x, p.y, p.w, p.h);
         let title = "Create your character";
         let tw = measure_text(title, None, 34, 1.0).width;
-        draw_text(title, p.x + (p.w - tw) / 2.0, p.y + 46.0, 34.0, GOLD);
+        draw_text(title, p.x + (p.w - tw) / 2.0, p.y + 46.0, 34.0, skin::highlight());
         let cc = &self.project.config.creation;
         let race = self.creator_race(c);
         let features = self.creator_features(c);
@@ -412,16 +418,16 @@ impl Game {
         for (k, row) in choice_rows.iter().enumerate() {
             let r = l.rows[k];
             let active = sel == Some(*row);
-            draw_text(self.creator_label(c, *row), p.x + 30.0, r.y + 27.0, 24.0, if active { GOLD } else { LIGHTGRAY });
+            draw_text(self.creator_label(c, *row), p.x + 30.0, r.y + 27.0, 24.0, if active { skin::highlight() } else { skin::dim() });
             match row {
                 Row::Name => {
                     draw_rectangle(r.x, r.y, r.w, r.h, Color::new(0.0, 0.0, 0.0, 0.5));
-                    draw_rectangle_lines(r.x, r.y, r.w, r.h, if active { 2.5 } else { 1.5 }, if active { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.8) });
+                    draw_rectangle_lines(r.x, r.y, r.w, r.h, if active { 2.5 } else { 1.5 }, if active { skin::highlight() } else { skin::line(0.8) });
                     let caret = if active && (get_time() * 2.0) as i64 % 2 == 0 { "_" } else { "" };
-                    draw_text(format!("{}{caret}", c.name), r.x + 10.0, r.y + 27.0, 26.0, WHITE);
+                    draw_text(format!("{}{caret}", c.name), r.x + 10.0, r.y + 27.0, 26.0, skin::normal());
                 }
                 Row::Sex if cc.sex.fixed().is_some() => {
-                    draw_text(c.sex.label(), r.x + 6.0, r.y + 26.0, 24.0, WHITE);
+                    draw_text(c.sex.label(), r.x + 6.0, r.y + 26.0, 24.0, skin::normal());
                 }
                 Row::Sex => {
                     for (k, s) in Sex::ALL.iter().enumerate() {
@@ -436,7 +442,7 @@ impl Game {
                     }
                     let mid = Rect::new(prev.right() + 6.0, r.y, next.x - prev.right() - 12.0, r.h);
                     if active {
-                        draw_rectangle_lines(mid.x, mid.y, mid.w, mid.h, 2.0, GOLD);
+                        draw_rectangle_lines(mid.x, mid.y, mid.w, mid.h, 2.0, skin::highlight());
                     }
                     let (text, swatch) = match row {
                         Row::Race => (race.map_or(String::new(), |r| r.name.clone()), None),
@@ -461,10 +467,10 @@ impl Game {
                     let mut x = mid.x + 10.0;
                     if let Some(col) = swatch {
                         draw_rectangle(x, mid.y + 7.0, 40.0, mid.h - 14.0, rgb(col));
-                        draw_rectangle_lines(x, mid.y + 7.0, 40.0, mid.h - 14.0, 1.5, Color::new(0.85, 0.8, 0.6, 0.8));
+                        draw_rectangle_lines(x, mid.y + 7.0, 40.0, mid.h - 14.0, 1.5, skin::line(0.8));
                         x += 52.0;
                     }
-                    draw_text(&text, x, mid.y + 26.0, 22.0, WHITE);
+                    draw_text(&text, x, mid.y + 26.0, 22.0, skin::normal());
                 }
             }
         }
@@ -500,7 +506,7 @@ impl Game {
             for w in text.split_whitespace() {
                 let next = if line.is_empty() { w.to_string() } else { format!("{line} {w}") };
                 if measure_text(&next, None, 18, 1.0).width > pr.w && !line.is_empty() {
-                    draw_text(&line, pr.x, y, 18.0, LIGHTGRAY);
+                    draw_text(&line, pr.x, y, 18.0, skin::dim());
                     y += 20.0;
                     line = w.to_string();
                 } else {
@@ -508,12 +514,12 @@ impl Game {
                 }
             }
             if !line.is_empty() {
-                draw_text(&line, pr.x, y, 18.0, LIGHTGRAY);
+                draw_text(&line, pr.x, y, 18.0, skin::dim());
             }
         }
 
         button(l.start, "Start adventure", sel == Some(Row::Start), false, l.start.contains(m));
         button(l.back, "Back", sel == Some(Row::Back), false, l.back.contains(m));
-        super::glyphs::draw_hint("Type a name  -  {key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: start  -  {key:cancel}: back", p.x + 30.0, p.y + H - 6.0, 16.0, GRAY);
+        super::glyphs::draw_hint_in("Type a name  -  {key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: start  -  {key:cancel}: back", p.x + 30.0, p.y + H - 6.0, 16.0, p.w - 60.0, skin::disabled());
     }
 }

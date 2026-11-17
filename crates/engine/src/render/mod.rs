@@ -313,6 +313,29 @@ pub fn inset(r: Rect) -> Rect {
     Rect::new(r.x + E, r.y + E, (r.w - 2.0 * E).max(0.0), (r.h - 2.0 * E).max(0.0))
 }
 
+/// Draws the frame `src` of `tex` stretched over `dest` as a nine-slice: corners of `corner`
+/// picture pixels at `scale` screen pixels each, edges and middle stretched (or repeated with
+/// `tile`). Positions snap to whole pixels (UI skins, `runtime/skin.rs`).
+pub fn draw_nine_slice(tex: &Texture2D, src: Rect, dest: Rect, corner: f32, scale: f32, tile: bool, tint: Color) {
+    let dest = Rect::new(dest.x.round(), dest.y.round(), dest.w.round(), dest.h.round());
+    let scale = scale.max(1.0);
+    let piece = |s: [f32; 4], d: [f32; 4]| {
+        draw_texture_ex(tex, d[0], d[1], tint, DrawTextureParams { source: Some(inset(Rect::new(s[0], s[1], s[2], s[3]))), dest_size: Some(vec2(d[2], d[3])), ..Default::default() });
+    };
+    for (s, d) in crate::skin::nine_parts([src.x, src.y, src.w, src.h], [dest.x, dest.y, dest.w, dest.h], corner, scale) {
+        // Repeat along a side that is longer on screen than the piece at its scale.
+        let rep_x = tile && d[2] > s[2] * scale + 0.5;
+        let rep_y = tile && d[3] > s[3] * scale + 0.5;
+        let xs = if rep_x { crate::skin::repeats(s[2], d[2], scale) } else { vec![(s[2], 0.0, d[2])] };
+        let ys = if rep_y { crate::skin::repeats(s[3], d[3], scale) } else { vec![(s[3], 0.0, d[3])] };
+        for (sh, oy, dh) in &ys {
+            for (sw, ox, dw) in &xs {
+                piece([s[0], s[1], *sw, *sh], [d[0] + ox, d[1] + oy, *dw, *dh]);
+            }
+        }
+    }
+}
+
 /// Number of tiles visible in a view (used to choose between per-tile and overview drawing).
 pub fn visible_tiles(view: Rect, ts: f32) -> f32 {
     (view.w / ts) * (view.h / ts)

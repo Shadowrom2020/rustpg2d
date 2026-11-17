@@ -6,6 +6,8 @@
 
 use macroquad::prelude::*;
 
+use super::skin;
+
 use super::input::{self, Act};
 use super::{Game, RtEntity};
 use crate::defs::UseTarget;
@@ -324,9 +326,9 @@ impl Game {
                 if let Some(s) = icon {
                     self.assets.draw_frame_in(&s.sheet, s.frame, Rect::new(ax + 2.0, r.y + 7.0, 20.0, 20.0), WHITE);
                 }
-                draw_text(format!("x{n}"), ax + 24.0, r.y + 22.0, 16.0, if n == 0 { Color::new(1.0, 0.35, 0.35, 1.0) } else { WHITE });
+                draw_text(format!("x{n}"), ax + 24.0, r.y + 22.0, 16.0, if n == 0 { Color::new(1.0, 0.35, 0.35, 1.0) } else { skin::normal() });
             }
-            let (hp, col) = if self.is_down(i) { ("DOWN".to_string(), Color::new(1.0, 0.35, 0.35, 1.0)) } else { (format!("{}/{}", e.hp, e.max_hp), LIGHTGRAY) };
+            let (hp, col) = if self.is_down(i) { ("DOWN".to_string(), skin::text(skin::Text::Negative, Color::new(1.0, 0.35, 0.35, 1.0))) } else { (format!("{}/{}", e.hp, e.max_hp), skin::dim()) };
             let w = measure_text(&hp, None, 14, 1.0).width;
             draw_text(&hp, r.right() - w - 6.0, r.y + 14.0, 14.0, col);
         }
@@ -377,10 +379,10 @@ impl Game {
             if lit {
                 draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, Color::new(0.5, 1.0, 0.55, 1.0));
             }
-            draw_text(n, r.x + 12.0, r.y + 20.0, 20.0, WHITE);
+            draw_text(n, r.x + 12.0, r.y + 20.0, 20.0, skin::normal());
         }
         let hw = super::glyphs::measure_hint(HINT, 16.0);
-        super::glyphs::draw_hint(HINT, p.x + (p.w - hw) / 2.0, p.y + p.h - 10.0, 16.0, LIGHTGRAY);
+        super::glyphs::draw_hint(HINT, p.x + (p.w - hw) / 2.0, p.y + p.h - 10.0, 16.0, skin::dim());
         // The chosen character on the map.
         let pos = match pick.choices[pick.sel] {
             None => Some(self.player.pos),

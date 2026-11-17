@@ -375,4 +375,16 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "ui_wood",
+        image: "sprites/ui_wood.png",
+        frame_w: 24,
+        frame_h: 24,
+    ),
+    (
+        id: "ui_stone",
+        image: "sprites/ui_stone.png",
+        frame_w: 24,
+        frame_h: 24,
+    ),
 ]

@@ -8,7 +8,7 @@ use macroquad::prelude::*;
 
 use super::input::{self, Act};
 use super::ui::{panel, ListClick, ScrollList, PAD};
-use super::Game;
+use super::{skin, Game};
 use crate::defs::{ShopEntry, ShopSpec};
 use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
@@ -439,13 +439,13 @@ impl Game {
         let side = self.shop.side.unwrap_or(ShopSide::Merchant);
         for (s, list) in l.lists.iter().enumerate() {
             let this = if s == 0 { ShopSide::Merchant } else { ShopSide::Player };
-            let title_col = if this == side { GOLD } else { Color::new(0.85, 0.8, 0.6, 1.0) };
+            let title_col = if this == side { skin::highlight() } else { skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 1.0)) };
             draw_text(&titles[s], list.x, p.y + 32.0, 28.0, title_col);
             draw_rectangle(list.x, list.y, list.w, list.h, Color::new(0.0, 0.0, 0.0, 0.25));
             let rows = self.shop_rows(this);
             if rows.is_empty() {
                 let msg = if this == ShopSide::Merchant { "Sold out." } else { "Nothing to sell." };
-                draw_text(msg, list.x + 12.0, list.y + 28.0, 22.0, GRAY);
+                draw_text(msg, list.x + 12.0, list.y + 28.0, 22.0, skin::disabled());
             }
             let scroll = self.shop.lists[s].scroll;
             for (vis, row) in rows.iter().skip(scroll).take(ROWS).enumerate() {
@@ -453,16 +453,12 @@ impl Game {
                 let r = row_rect(*list, vis);
                 let selected = this == side && self.shop.lists[s].sel == k;
                 let hover = r.contains(m);
-                let bg = if selected {
-                    Color::new(0.85, 0.7, 0.3, 0.22)
-                } else if hover {
-                    Color::new(1.0, 1.0, 1.0, 0.1)
-                } else {
-                    Color::new(0.0, 0.0, 0.0, 0.25)
-                };
-                draw_rectangle(r.x, r.y, r.w, r.h, bg);
                 if selected {
-                    draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, GOLD);
+                    if !skin::cursor(r, Color::new(0.85, 0.7, 0.3, 0.22)) {
+                        draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, skin::highlight());
+                    }
+                } else {
+                    draw_rectangle(r.x, r.y, r.w, r.h, if hover { Color::new(1.0, 1.0, 1.0, 0.1) } else { Color::new(0.0, 0.0, 0.0, 0.25) });
                 }
                 if let Some(d) = self.project.db.item(&row.item) {
                     self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(r.x + 4.0, r.y + 4.0, 32.0, 32.0), WHITE);
@@ -471,8 +467,8 @@ impl Game {
                     None => "in stock".to_string(),
                     Some(c) => format!("x{c}"),
                 };
-                draw_text(self.item_name(&row.item), r.x + 44.0, r.y + 18.0, 21.0, WHITE);
-                draw_text(&count, r.x + 44.0, r.y + 36.0, 17.0, LIGHTGRAY);
+                draw_text(self.item_name(&row.item), r.x + 44.0, r.y + 18.0, 21.0, skin::normal());
+                draw_text(&count, r.x + 44.0, r.y + 36.0, 17.0, skin::dim());
                 // Price button.
                 let b = button_rect(r);
                 let (label, ok) = match (this, row.price) {
@@ -480,31 +476,36 @@ impl Game {
                     (ShopSide::Player, Some(pr)) => (format!("Sell {pr}"), true),
                     (_, None) => ("-".to_string(), false),
                 };
-                let fill = if !ok {
-                    Color::new(0.25, 0.1, 0.1, 0.8)
-                } else if b.contains(m) {
-                    Color::new(0.45, 0.35, 0.12, 1.0)
-                } else {
-                    Color::new(0.3, 0.24, 0.1, 0.9)
-                };
-                draw_rectangle(b.x, b.y, b.w, b.h, fill);
-                draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.0, Color::new(0.85, 0.8, 0.6, 0.8));
+                let hot = ok && b.contains(m);
+                if !skin::button_picture(b, hot) {
+                    let fill = if !ok {
+                        Color::new(0.25, 0.1, 0.1, 0.8)
+                    } else if hot {
+                        skin::button_fill(true, Color::new(0.45, 0.35, 0.12, 1.0))
+                    } else {
+                        skin::button_fill(false, Color::new(0.3, 0.24, 0.1, 0.9))
+                    };
+                    draw_rectangle(b.x, b.y, b.w, b.h, fill);
+                    draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.0, skin::line(0.8));
+                }
                 let tw = measure_text(&label, None, 18, 1.0).width;
-                draw_text(&label, b.x + (b.w - tw) / 2.0, b.y + b.h / 2.0 + 6.0, 18.0, if ok { WHITE } else { Color::new(0.9, 0.5, 0.5, 1.0) });
+                draw_text(&label, b.x + (b.w - tw) / 2.0, b.y + b.h / 2.0 + 6.0, 18.0, if ok { skin::normal() } else { skin::text(skin::Text::Negative, Color::new(0.9, 0.5, 0.5, 1.0)) });
             }
             // Scroll hints.
             if scroll > 0 {
-                draw_text("more above", list.x + list.w - 80.0, list.y - 2.0, 14.0, LIGHTGRAY);
+                draw_text("more above", list.x + list.w - 80.0, list.y - 2.0, 14.0, skin::dim());
             }
             if rows.len() > scroll + ROWS {
-                draw_text("more below", list.x + list.w - 80.0, list.y + list.h + 12.0, 14.0, LIGHTGRAY);
+                draw_text("more below", list.x + list.w - 80.0, list.y + list.h + 12.0, 14.0, skin::dim());
             }
         }
         // Close button.
         let c = l.close;
-        draw_rectangle_lines(c.x, c.y, c.w, c.h, 1.5, Color::new(0.85, 0.8, 0.6, 1.0));
-        draw_line(c.x + 6.0, c.y + 6.0, c.x + c.w - 6.0, c.y + c.h - 6.0, 2.0, WHITE);
-        draw_line(c.x + c.w - 6.0, c.y + 6.0, c.x + 6.0, c.y + c.h - 6.0, 2.0, WHITE);
+        if !skin::button_picture(c, c.contains(input::mouse_pos())) {
+            draw_rectangle_lines(c.x, c.y, c.w, c.h, 1.5, skin::line(1.0));
+        }
+        draw_line(c.x + 6.0, c.y + 6.0, c.x + c.w - 6.0, c.y + c.h - 6.0, 2.0, skin::normal());
+        draw_line(c.x + c.w - 6.0, c.y + 6.0, c.x + 6.0, c.y + c.h - 6.0, 2.0, skin::normal());
 
         // Footer: money, details of the selected item, help.
         let f = l.foot;
@@ -512,25 +513,25 @@ impl Game {
         if let Some(d) = self.project.db.item(&cur) {
             self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(f.x + f.w - 150.0, f.y + 8.0, 28.0, 28.0), WHITE);
         }
-        draw_text(format!("{money}"), f.x + f.w - 116.0, f.y + 30.0, 26.0, GOLD);
+        draw_text(format!("{money}"), f.x + f.w - 116.0, f.y + 30.0, 26.0, skin::highlight());
         let sel = self.shop_rows(side).into_iter().nth(self.shop.lists[side.idx()].sel);
         if let Some(d) = sel.as_ref().and_then(|r| self.project.db.item(&r.item)) {
-            draw_text(&d.name, f.x + 10.0, f.y + 24.0, 22.0, GOLD);
+            draw_text(&d.name, f.x + 10.0, f.y + 24.0, 22.0, skin::highlight());
             for (k, line) in wrap_text(&super::glyphs::expand_keys(&d.description), 18, f.w - 190.0).iter().take(2).enumerate() {
-                draw_text(line, f.x + 10.0, f.y + 46.0 + k as f32 * 18.0, 18.0, LIGHTGRAY);
+                draw_text(line, f.x + 10.0, f.y + 46.0 + k as f32 * 18.0, 18.0, skin::dim());
             }
         }
         if let Some((text, ok, t)) = &self.shop.msg {
             let age = (get_time() - t) as f32;
             if age < 4.0 {
                 let a = (4.0 - age).min(1.0);
-                let c = if *ok { Color::new(0.6, 0.95, 0.6, a) } else { Color::new(1.0, 0.55, 0.5, a) };
+                let c = if *ok { skin::text(skin::Text::Positive, Color::new(0.6, 0.95, 0.6, a)) } else { skin::text(skin::Text::Negative, Color::new(1.0, 0.55, 0.5, a)) };
                 let tw = measure_text(text, None, 20, 1.0).width;
                 draw_text(text, f.x + f.w - tw - 10.0, f.y + 62.0, 20.0, c);
             }
         }
         let hint = "Click price / {key:confirm}: trade one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:next_tab}: switch side   {key:cancel}: close";
-        super::glyphs::draw_hint(hint, f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
+        super::glyphs::draw_hint_in(hint, f.x + 10.0, f.y + f.h - 8.0, 16.0, f.w - 20.0, skin::disabled());
     }
 }
 

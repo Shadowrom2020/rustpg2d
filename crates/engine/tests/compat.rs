@@ -29,6 +29,8 @@ fn definitions_of_0_9_0_load() {
     // as plain sprites.
     assert!(db.characters.iter().all(|c| !c.appearance.body.is_empty()), "every character has a body");
     assert!(db.sheets.iter().any(|s| s.id.starts_with("hair_") && s.kind == rustpg2d_engine::defs::SheetKind::Sprite));
+    // Projects before UI skins (0.25): no skins.ron, no `skin` = the built-in look.
+    assert!(db.skins.is_empty() && p.config.skin.is_empty());
 }
 
 /// Old definitions written by today's writer read back the same (nothing is lost or changed).

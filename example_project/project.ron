@@ -186,4 +186,5 @@
     fonts: (
         ui: "monogram",
     ),
+    skin: "wood",
 )

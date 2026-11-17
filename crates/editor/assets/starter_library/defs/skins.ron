@@ -1,0 +1,159 @@
+[
+    (
+        id: "wood",
+        name: "Wood",
+        frame: Some((
+            sheet: "ui_wood",
+            corner: 8,
+            scale: 2,
+        )),
+        border: Some("#a97644"),
+        name_box: Some((
+            sheet: "ui_wood",
+            frame: 4,
+            corner: 6,
+            scale: 2,
+        )),
+        button: Some((
+            sheet: "ui_wood",
+            frame: 1,
+            corner: 3,
+            scale: 2,
+        )),
+        button_hover: Some((
+            sheet: "ui_wood",
+            frame: 2,
+            corner: 3,
+            scale: 2,
+        )),
+        cursor: Some((
+            sheet: "ui_wood",
+            frame: 3,
+            corner: 3,
+            scale: 2,
+        )),
+        toast: Some((
+            sheet: "ui_wood",
+            frame: 5,
+            corner: 3,
+            scale: 2,
+        )),
+        text: (
+            normal: Some("#f3e6c8"),
+            dim: Some("#cdb894"),
+            highlight: Some("#ffd36b"),
+            disabled: Some("#8c7a62"),
+            title: Some("#ffcf5a"),
+            positive: Some("#b4e690"),
+            negative: Some("#ff9d80"),
+        ),
+        hp: (
+            frame: Some((
+                sheet: "ui_wood",
+                frame: 7,
+                corner: 3,
+                scale: 2,
+            )),
+        ),
+        mana: (
+            frame: Some((
+                sheet: "ui_wood",
+                frame: 6,
+                corner: 3,
+                scale: 1,
+            )),
+        ),
+        xp: (
+            frame: Some((
+                sheet: "ui_wood",
+                frame: 6,
+                corner: 3,
+                scale: 1,
+            )),
+        ),
+        colors: [
+            ("ember", "#ff8a3d"),
+            ("parchment", "#e2cfab"),
+        ],
+    ),
+    (
+        id: "stone",
+        name: "Stone",
+        frame: Some((
+            sheet: "ui_stone",
+            corner: 8,
+            scale: 2,
+        )),
+        border: Some("#9a9ba2"),
+        name_box: Some((
+            sheet: "ui_stone",
+            frame: 4,
+            corner: 6,
+            scale: 2,
+        )),
+        button: Some((
+            sheet: "ui_stone",
+            frame: 1,
+            corner: 3,
+            scale: 2,
+        )),
+        button_hover: Some((
+            sheet: "ui_stone",
+            frame: 2,
+            corner: 3,
+            scale: 2,
+        )),
+        cursor: Some((
+            sheet: "ui_stone",
+            frame: 3,
+            corner: 3,
+            scale: 2,
+        )),
+        toast: Some((
+            sheet: "ui_stone",
+            frame: 5,
+            corner: 3,
+            scale: 2,
+        )),
+        text: (
+            normal: Some("#eef2f6"),
+            dim: Some("#b9c0c8"),
+            highlight: Some("#ffd75e"),
+            disabled: Some("#7d848c"),
+            title: Some("#e9d9a6"),
+            positive: Some("#a8e69a"),
+            negative: Some("#ff9c8c"),
+        ),
+        hp: (
+            frame: Some((
+                sheet: "ui_stone",
+                frame: 7,
+                corner: 3,
+                scale: 2,
+            )),
+        ),
+        mana: (
+            frame: Some((
+                sheet: "ui_stone",
+                frame: 6,
+                corner: 3,
+                scale: 1,
+            )),
+        ),
+        xp: (
+            frame: Some((
+                sheet: "ui_stone",
+                frame: 6,
+                corner: 3,
+                scale: 1,
+            )),
+        ),
+        colors: [
+            ("frost", "#9fd8ff"),
+        ],
+    ),
+    (
+        id: "classic",
+        name: "Classic",
+    ),
+]

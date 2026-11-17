@@ -22,7 +22,9 @@ houses, city walls, dungeon rooms). The starter library
 also includes the scripted Fireball spell and Scavenging skill with their script functions, and
 fonts: **monogram** (the example's pixel font: Latin, Cyrillic, Greek) and **Fusion Pixel** in its
 Japanese, Korean, Simplified and Traditional Chinese forms (each covers all of Chinese, Japanese and
-Korean; the forms differ in how some characters are drawn).
+Korean; the forms differ in how some characters are drawn), and three UI skins: **Wood** (the
+example's), **Stone** and **Classic** (the built-in look, to copy) ([Database › UI
+skins](05-database.md#ui-skins)).
 
 When a newer starter library (installed with a newer editor) brings more assets, the library adds
 the ones it doesn't have yet the next time it's opened. Changed assets (redrawn art, new animations, better values) wait for you:

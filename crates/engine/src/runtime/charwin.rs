@@ -6,7 +6,7 @@ use macroquad::prelude::*;
 
 use super::inventory_ui::Side;
 use super::input::{self, Act};
-use super::{ui::panel, Game};
+use super::{skin, ui::panel, Game};
 
 /// Height of the tab strip above the content.
 const TAB_H: f32 = 34.0;
@@ -198,31 +198,36 @@ impl Game {
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.35));
         let c = self.window_content();
         panel(c.x, c.y, c.w, c.h);
-        let border = Color::new(0.85, 0.8, 0.6, 1.0);
+        let border = skin::line(1.0);
         for (t, r) in self.tab_rects() {
             let on = t == open;
-            let fill = if on {
-                Color::new(0.06, 0.06, 0.12, 0.97)
-            } else if r.contains(m) {
-                Color::new(0.16, 0.15, 0.22, 0.95)
-            } else {
-                Color::new(0.04, 0.04, 0.08, 0.85)
-            };
-            draw_rectangle(r.x, r.y, r.w, r.h, fill);
-            draw_rectangle_lines(r.x, r.y, r.w, r.h, if on { 3.0 } else { 1.5 }, if on { border } else { Color::new(0.85, 0.8, 0.6, 0.5) });
-            if on {
-                // Open tab: no line between it and the panel.
-                draw_rectangle(r.x + 3.0, r.y + r.h - 3.0, r.w - 6.0, 6.0, Color::new(0.06, 0.06, 0.12, 1.0));
+            let hot = on || r.contains(m);
+            if !skin::button_picture(r, hot) {
+                let fill = if on {
+                    skin::button_fill(true, Color::new(0.06, 0.06, 0.12, 0.97))
+                } else if r.contains(m) {
+                    skin::button_fill(true, Color::new(0.16, 0.15, 0.22, 0.95))
+                } else {
+                    skin::button_fill(false, Color::new(0.04, 0.04, 0.08, 0.85))
+                };
+                draw_rectangle(r.x, r.y, r.w, r.h, fill);
+                draw_rectangle_lines(r.x, r.y, r.w, r.h, if on { 3.0 } else { 1.5 }, if on { border } else { skin::line(0.5) });
+                if on && !skin::framed() {
+                    // Open tab: no line between it and the panel.
+                    draw_rectangle(r.x + 3.0, r.y + r.h - 3.0, r.w - 6.0, 6.0, skin::button_fill(true, Color::new(0.06, 0.06, 0.12, 1.0)));
+                }
             }
             let label = t.label();
             let tw = super::glyphs::measure_hint(label, 22.0);
-            super::glyphs::draw_hint(label, r.x + (r.w - tw) / 2.0, r.y + 23.0, 22.0, if on { GOLD } else { LIGHTGRAY });
+            super::glyphs::draw_hint(label, r.x + (r.w - tw) / 2.0, r.y + 23.0, 22.0, if on { skin::highlight() } else { skin::dim() });
         }
         let x = self.window_close();
         let hover = x.contains(m);
-        draw_rectangle(x.x, x.y, x.w, x.h, Color::new(0.06, 0.06, 0.12, if hover { 1.0 } else { 0.8 }));
-        draw_rectangle_lines(x.x, x.y, x.w, x.h, 1.5, border);
-        let col = if hover { WHITE } else { LIGHTGRAY };
+        if !skin::button_picture(x, hover) {
+            draw_rectangle(x.x, x.y, x.w, x.h, skin::button_fill(hover, Color::new(0.06, 0.06, 0.12, if hover { 1.0 } else { 0.8 })));
+            draw_rectangle_lines(x.x, x.y, x.w, x.h, 1.5, border);
+        }
+        let col = if hover { skin::normal() } else { skin::dim() };
         draw_line(x.x + 6.0, x.y + 6.0, x.x + x.w - 6.0, x.y + x.h - 6.0, 2.0, col);
         draw_line(x.x + x.w - 6.0, x.y + 6.0, x.x + 6.0, x.y + x.h - 6.0, 2.0, col);
     }

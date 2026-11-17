@@ -9,7 +9,7 @@ use macroquad::prelude::*;
 
 use super::input::{self, Act};
 use super::ui::{panel, ListClick, ScrollList, PAD};
-use super::Game;
+use super::{skin, Game};
 use crate::crafting::{Missing, RecipeDef};
 use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
@@ -227,12 +227,12 @@ impl Game {
         let p = l.panel;
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.35));
         panel(p.x, p.y, p.w, p.h);
-        draw_text(title, l.list.x, p.y + 32.0, 28.0, GOLD);
+        draw_text(title, l.list.x, p.y + 32.0, 28.0, skin::highlight());
         let list = l.list;
         draw_rectangle(list.x, list.y, list.w, list.h, Color::new(0.0, 0.0, 0.0, 0.25));
         let recipes = self.crafting_recipes();
         if recipes.is_empty() {
-            draw_text("Nothing can be made here.", list.x + 12.0, list.y + 28.0, 22.0, GRAY);
+            draw_text("Nothing can be made here.", list.x + 12.0, list.y + 28.0, 22.0, skin::disabled());
         }
         let db = &self.project.db;
         for (vis, r) in recipes.iter().skip(self.crafting.list.scroll).take(ROWS).enumerate() {
@@ -240,18 +240,14 @@ impl Game {
             let rr = row_rect(list, vis);
             let selected = self.crafting.list.sel == k;
             let missing = self.recipe_missing(r);
-            let bg = if selected {
-                Color::new(0.85, 0.7, 0.3, 0.22)
-            } else if rr.contains(m) {
-                Color::new(1.0, 1.0, 1.0, 0.1)
-            } else {
-                Color::new(0.0, 0.0, 0.0, 0.25)
-            };
-            draw_rectangle(rr.x, rr.y, rr.w, rr.h, bg);
             if selected {
-                draw_rectangle_lines(rr.x, rr.y, rr.w, rr.h, 2.0, GOLD);
+                if !skin::cursor(rr, Color::new(0.85, 0.7, 0.3, 0.22)) {
+                    draw_rectangle_lines(rr.x, rr.y, rr.w, rr.h, 2.0, skin::highlight());
+                }
+            } else {
+                draw_rectangle(rr.x, rr.y, rr.w, rr.h, if rr.contains(m) { Color::new(1.0, 1.0, 1.0, 0.1) } else { Color::new(0.0, 0.0, 0.0, 0.25) });
             }
-            let dim = if missing.is_some() { Color::new(1.0, 1.0, 1.0, 0.45) } else { WHITE };
+            let dim = if missing.is_some() { skin::text(skin::Text::Disabled, Color::new(1.0, 1.0, 1.0, 0.45)) } else { skin::normal() };
             // What the player's skill makes of it (quality steps).
             let result = r.result_for(&self.world);
             if let Some(d) = db.item(result) {
@@ -264,9 +260,9 @@ impl Game {
                 let skill = db.skill(&r.skill).map_or(r.skill.clone(), |d| d.name.clone());
                 let hint = format!("{skill} {}: {}", q.level, self.item_name(&q.result));
                 let nw = measure_text(&name, None, 21, 1.0).width;
-                draw_text(&hint, rr.x + 58.0 + nw, rr.y + 20.0, 16.0, Color::new(0.75, 0.75, 0.6, 1.0));
+                draw_text(&hint, rr.x + 58.0 + nw, rr.y + 20.0, 16.0, skin::text(skin::Text::Dim, Color::new(0.75, 0.75, 0.6, 1.0)));
             }
-            draw_text(&name, rr.x + 50.0, rr.y + 21.0, 21.0, if missing.is_some() { LIGHTGRAY } else { WHITE });
+            draw_text(&name, rr.x + 50.0, rr.y + 21.0, 21.0, if missing.is_some() { skin::dim() } else { skin::normal() });
             // Ingredients: small icons with have / need, red where short.
             let mut x = rr.x + 50.0;
             for s in r.ingredients.iter().filter(|s| !s.item.is_empty()) {
@@ -275,7 +271,7 @@ impl Game {
                     self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(x, rr.y + 28.0, 20.0, 20.0), WHITE);
                 }
                 let t = format!("{have}/{}", s.count);
-                let c = if have >= s.count { Color::new(0.7, 0.95, 0.7, 1.0) } else { Color::new(1.0, 0.55, 0.5, 1.0) };
+                let c = if have >= s.count { skin::text(skin::Text::Positive, Color::new(0.7, 0.95, 0.7, 1.0)) } else { skin::text(skin::Text::Negative, Color::new(1.0, 0.55, 0.5, 1.0)) };
                 draw_text(&t, x + 22.0, rr.y + 44.0, 17.0, c);
                 x += 30.0 + measure_text(&t, None, 17, 1.0).width;
             }
@@ -289,57 +285,62 @@ impl Game {
                     self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(x, rr.y + 28.0, 20.0, 20.0), WHITE);
                 }
                 let name = tool.map_or(kind.as_str(), |d| d.name.as_str());
-                let c = if have { Color::new(0.7, 0.95, 0.7, 1.0) } else { Color::new(1.0, 0.55, 0.5, 1.0) };
+                let c = if have { skin::text(skin::Text::Positive, Color::new(0.7, 0.95, 0.7, 1.0)) } else { skin::text(skin::Text::Negative, Color::new(1.0, 0.55, 0.5, 1.0)) };
                 draw_text(name, x + 22.0, rr.y + 44.0, 17.0, c);
                 x += 30.0 + measure_text(name, None, 17, 1.0).width;
             }
             if let Some(Missing::Skill(..) | Missing::StationState(..)) = &missing {
-                draw_text(self.missing_text(missing.as_ref().unwrap()), x + 6.0, rr.y + 44.0, 17.0, Color::new(1.0, 0.55, 0.5, 1.0));
+                draw_text(self.missing_text(missing.as_ref().unwrap()), x + 6.0, rr.y + 44.0, 17.0, skin::text(skin::Text::Negative, Color::new(1.0, 0.55, 0.5, 1.0)));
             }
             // Make button.
             let b = button_rect(rr);
             let ok = missing.is_none();
-            let fill = if !ok {
-                Color::new(0.25, 0.1, 0.1, 0.8)
-            } else if b.contains(m) {
-                Color::new(0.45, 0.35, 0.12, 1.0)
-            } else {
-                Color::new(0.3, 0.24, 0.1, 0.9)
-            };
-            draw_rectangle(b.x, b.y, b.w, b.h, fill);
-            draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.0, Color::new(0.85, 0.8, 0.6, 0.8));
+            let hot = ok && b.contains(m);
+            if !skin::button_picture(b, hot) {
+                let fill = if !ok {
+                    Color::new(0.25, 0.1, 0.1, 0.8)
+                } else if hot {
+                    skin::button_fill(true, Color::new(0.45, 0.35, 0.12, 1.0))
+                } else {
+                    skin::button_fill(false, Color::new(0.3, 0.24, 0.1, 0.9))
+                };
+                draw_rectangle(b.x, b.y, b.w, b.h, fill);
+                draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.0, skin::line(0.8));
+            }
             let tw = measure_text("Make", None, 18, 1.0).width;
-            draw_text("Make", b.x + (b.w - tw) / 2.0, b.y + b.h / 2.0 + 6.0, 18.0, if ok { WHITE } else { Color::new(0.9, 0.5, 0.5, 1.0) });
+            draw_text("Make", b.x + (b.w - tw) / 2.0, b.y + b.h / 2.0 + 6.0, 18.0, if ok { skin::normal() } else { skin::text(skin::Text::Negative, Color::new(0.9, 0.5, 0.5, 1.0)) });
         }
         if self.crafting.list.scroll > 0 {
-            draw_text("more above", list.x + list.w - 80.0, list.y - 2.0, 14.0, LIGHTGRAY);
+            draw_text("more above", list.x + list.w - 80.0, list.y - 2.0, 14.0, skin::dim());
         }
         if recipes.len() > self.crafting.list.scroll + ROWS {
-            draw_text("more below", list.x + list.w - 80.0, list.y + list.h + 12.0, 14.0, LIGHTGRAY);
+            draw_text("more below", list.x + list.w - 80.0, list.y + list.h + 12.0, 14.0, skin::dim());
         }
         let c = l.close;
-        draw_rectangle_lines(c.x, c.y, c.w, c.h, 1.5, Color::new(0.85, 0.8, 0.6, 1.0));
-        draw_line(c.x + 6.0, c.y + 6.0, c.x + c.w - 6.0, c.y + c.h - 6.0, 2.0, WHITE);
-        draw_line(c.x + c.w - 6.0, c.y + 6.0, c.x + 6.0, c.y + c.h - 6.0, 2.0, WHITE);
+        if !skin::button_picture(c, c.contains(input::mouse_pos())) {
+            draw_rectangle_lines(c.x, c.y, c.w, c.h, 1.5, skin::line(1.0));
+        }
+        draw_line(c.x + 6.0, c.y + 6.0, c.x + c.w - 6.0, c.y + c.h - 6.0, 2.0, skin::normal());
+        draw_line(c.x + c.w - 6.0, c.y + 6.0, c.x + 6.0, c.y + c.h - 6.0, 2.0, skin::normal());
 
         // Footer: the selected result's description, the last message, help.
         let f = l.foot;
         draw_rectangle(f.x, f.y, f.w, f.h, Color::new(0.0, 0.0, 0.0, 0.25));
         if let Some(d) = recipes.get(self.crafting.list.sel).and_then(|r| db.item(r.result_for(&self.world))) {
-            draw_text(&d.name, f.x + 10.0, f.y + 22.0, 21.0, GOLD);
+            draw_text(&d.name, f.x + 10.0, f.y + 22.0, 21.0, skin::highlight());
             for (k, line) in wrap_text(&super::glyphs::expand_keys(&d.description), 17, f.w - 20.0).iter().take(1).enumerate() {
-                draw_text(line, f.x + 10.0, f.y + 42.0 + k as f32 * 17.0, 17.0, LIGHTGRAY);
+                draw_text(line, f.x + 10.0, f.y + 42.0 + k as f32 * 17.0, 17.0, skin::dim());
             }
         }
         if let Some((text, ok, t)) = &self.crafting.msg {
             let age = (get_time() - t) as f32;
             if age < 4.0 {
                 let a = (4.0 - age).min(1.0);
-                let c = if *ok { Color::new(0.6, 0.95, 0.6, a) } else { Color::new(1.0, 0.55, 0.5, a) };
+                let c = if *ok { skin::text(skin::Text::Positive, Color::new(0.6, 0.95, 0.6, a)) } else { skin::text(skin::Text::Negative, Color::new(1.0, 0.55, 0.5, a)) };
                 let tw = measure_text(text, None, 20, 1.0).width;
                 draw_text(text, f.x + f.w - tw - 10.0, f.y + 22.0, 20.0, c);
             }
         }
-        super::glyphs::draw_hint("Make / {key:confirm}: make one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:cancel}: close", f.x + 10.0, f.y + f.h - 8.0, 16.0, GRAY);
+        super::glyphs::draw_hint_in("Make / {key:confirm}: make one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:cancel}: close", f.x + 10.0, f.y + f.h - 8.0, 16.0, f.w - 20.0, skin::disabled());
     }
 }

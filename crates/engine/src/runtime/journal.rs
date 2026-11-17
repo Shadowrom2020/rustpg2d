@@ -9,7 +9,7 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::{ui::panel, Game};
+use super::{skin, ui::panel, Game};
 use crate::quest::{QuestChange, QuestOp, QuestStatus};
 use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
@@ -313,24 +313,28 @@ impl Game {
         let m = input::mouse_pos();
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.35));
         panel(r.x, r.y, r.w, r.h);
-        draw_text("Journal", r.x + PAD, r.y + 34.0, 30.0, GOLD);
+        draw_text("Journal", r.x + PAD, r.y + 34.0, 30.0, skin::highlight());
         let c = Rect::new(r.x + r.w - 30.0, r.y + 8.0, 22.0, 22.0);
-        draw_rectangle_lines(c.x, c.y, c.w, c.h, 1.5, Color::new(0.85, 0.8, 0.6, 1.0));
-        draw_line(c.x + 6.0, c.y + 6.0, c.x + c.w - 6.0, c.y + c.h - 6.0, 2.0, WHITE);
-        draw_line(c.x + c.w - 6.0, c.y + 6.0, c.x + 6.0, c.y + c.h - 6.0, 2.0, WHITE);
+        if !skin::button_picture(c, c.contains(input::mouse_pos())) {
+            draw_rectangle_lines(c.x, c.y, c.w, c.h, 1.5, skin::line(1.0));
+        }
+        draw_line(c.x + 6.0, c.y + 6.0, c.x + c.w - 6.0, c.y + c.h - 6.0, 2.0, skin::normal());
+        draw_line(c.x + c.w - 6.0, c.y + 6.0, c.x + 6.0, c.y + c.h - 6.0, 2.0, skin::normal());
         let hint = if self.journal.tab == JournalTab::Dialogs {
             "{key:up}/{key:down}, wheel, PgUp/PgDn, Home/End: scroll   {key:next_tab}: next tab   {key:journal} / {key:cancel}: close"
         } else {
             "{key:up}/{key:down} or click: select   {key:next_tab}: next tab   {key:journal} / {key:cancel}: close"
         };
-        super::glyphs::draw_hint(hint, r.x + PAD, r.y + r.h - 14.0, 16.0, GRAY);
+        super::glyphs::draw_hint_in(hint, r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
         for (t, tr) in tab_rects(r) {
             let on = self.journal.tab == t;
-            let fill = if on { Color::new(0.85, 0.7, 0.3, 0.3) } else if tr.contains(m) { Color::new(1.0, 1.0, 1.0, 0.08) } else { Color::new(0.0, 0.0, 0.0, 0.25) };
-            draw_rectangle(tr.x, tr.y, tr.w, tr.h, fill);
-            draw_rectangle_lines(tr.x, tr.y, tr.w, tr.h, if on { 2.0 } else { 1.0 }, if on { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.5) });
+            if !skin::button_picture(tr, on || tr.contains(m)) {
+                let fill = if on { skin::button_fill(true, Color::new(0.85, 0.7, 0.3, 0.3)) } else if tr.contains(m) { skin::button_fill(true, Color::new(1.0, 1.0, 1.0, 0.08)) } else { skin::button_fill(false, Color::new(0.0, 0.0, 0.0, 0.25)) };
+                draw_rectangle(tr.x, tr.y, tr.w, tr.h, fill);
+                draw_rectangle_lines(tr.x, tr.y, tr.w, tr.h, if on { 2.0 } else { 1.0 }, if on { skin::highlight() } else { skin::line(0.5) });
+            }
             let tw = measure_text(t.label(), None, 20, 1.0).width;
-            draw_text(t.label(), tr.x + (tr.w - tw) / 2.0, tr.y + 21.0, 20.0, if on { WHITE } else { LIGHTGRAY });
+            draw_text(t.label(), tr.x + (tr.w - tw) / 2.0, tr.y + 21.0, 20.0, if on { skin::normal() } else { skin::dim() });
         }
         match self.journal.tab {
             JournalTab::Bestiary => return self.draw_bestiary(r),
@@ -341,10 +345,10 @@ impl Game {
 
         let entries = self.journal_entries();
         if entries.is_empty() {
-            draw_text("No quests yet. Talk to people - someone may need your help.", r.x + PAD, r.y + 80.0, 22.0, LIGHTGRAY);
+            draw_text("No quests yet. Talk to people - someone may need your help.", r.x + PAD, r.y + 80.0, 22.0, skin::dim());
             return;
         }
-        draw_line(r.x + LIST_W + 8.0, r.y + 50.0, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, Color::new(0.85, 0.8, 0.6, 0.4));
+        draw_line(r.x + LIST_W + 8.0, r.y + 50.0, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
         let rows = Self::quest_rows(&entries);
         let sel = rows.get(self.journal.sel).copied();
         for (i, (id, label)) in entries.iter().enumerate() {
@@ -354,21 +358,22 @@ impl Game {
             }
             match id {
                 None => {
-                    draw_text(label, er.x, er.y + 22.0, 18.0, Color::new(0.85, 0.8, 0.6, 0.8));
+                    draw_text(label, er.x, er.y + 22.0, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 0.8)));
                 }
                 Some(qid) => {
                     let on = sel == Some(i);
                     if on {
-                        draw_rectangle(er.x, er.y, er.w, er.h, Color::new(0.85, 0.7, 0.3, 0.22));
-                        draw_rectangle_lines(er.x, er.y, er.w, er.h, 2.0, GOLD);
+                        if !skin::cursor(er, Color::new(0.85, 0.7, 0.3, 0.22)) {
+                            draw_rectangle_lines(er.x, er.y, er.w, er.h, 2.0, skin::highlight());
+                        }
                     } else if er.contains(m) {
                         draw_rectangle(er.x, er.y, er.w, er.h, Color::new(1.0, 1.0, 1.0, 0.08));
                     }
                     let status = self.world.quest(qid).map(|q| q.status);
                     let col = match status {
-                        Some(QuestStatus::Completed) => Color::new(0.6, 0.85, 0.6, 1.0),
-                        Some(QuestStatus::Failed) => Color::new(0.9, 0.5, 0.5, 1.0),
-                        _ => WHITE,
+                        Some(QuestStatus::Completed) => skin::text(skin::Text::Positive, Color::new(0.6, 0.85, 0.6, 1.0)),
+                        Some(QuestStatus::Failed) => skin::text(skin::Text::Negative, Color::new(0.9, 0.5, 0.5, 1.0)),
+                        _ => skin::normal(),
                     };
                     let mut text: String = label.chars().take(26).collect();
                     if text.len() < label.len() {
@@ -387,11 +392,11 @@ impl Game {
         let w = r.x + r.w - PAD - x;
         let mut y = r.y + 74.0;
         let title = def.map_or(qid.clone(), |d| d.title.clone());
-        draw_text(&title, x, y, 28.0, GOLD);
+        draw_text(&title, x, y, 28.0, skin::title());
         let tag = match p.status {
             QuestStatus::Active => None,
-            QuestStatus::Completed => Some(("COMPLETED", Color::new(0.6, 0.85, 0.6, 1.0))),
-            QuestStatus::Failed => Some(("FAILED", Color::new(0.9, 0.5, 0.5, 1.0))),
+            QuestStatus::Completed => Some(("COMPLETED", skin::text(skin::Text::Positive, Color::new(0.6, 0.85, 0.6, 1.0)))),
+            QuestStatus::Failed => Some(("FAILED", skin::text(skin::Text::Negative, Color::new(0.9, 0.5, 0.5, 1.0)))),
         };
         if let Some((t, c)) = tag {
             let tw = measure_text(t, None, 18, 1.0).width;
@@ -403,22 +408,22 @@ impl Game {
             let giver = if d.giver_name.trim().is_empty() { self.project.db.character(&d.giver).map(|c| c.name.clone()) } else { Some(d.giver_name.clone()) };
             if let Some(giver) = giver.filter(|_| d.has_giver()) {
                 y += 22.0;
-                draw_text(format!("From {}", crate::lang::tr(&giver)), x, y, 18.0, Color::new(0.85, 0.8, 0.6, 0.8));
+                draw_text(format!("From {}", crate::lang::tr(&giver)), x, y, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 0.8)));
             }
             for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
                 y += super::text::line_step(&line, 20.0, 24.0);
-                draw_text(&line, x, y, 20.0, LIGHTGRAY);
+                draw_text(&line, x, y, 20.0, skin::dim());
             }
             let reward = self.reward_text(d);
             if !reward.is_empty() {
                 for line in wrap_text(&reward, 20, w) {
                     y += super::text::line_step(&line, 20.0, 24.0);
-                    draw_text(&line, x, y, 20.0, Color::new(0.95, 0.85, 0.45, 1.0));
+                    draw_text(&line, x, y, 20.0, skin::text(skin::Text::Highlight, Color::new(0.95, 0.85, 0.45, 1.0)));
                 }
             }
         }
         y += 22.0;
-        draw_text("Objectives", x, y + 14.0, 18.0, Color::new(0.85, 0.8, 0.6, 0.8));
+        draw_text("Objectives", x, y + 14.0, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 0.8)));
         y += 20.0;
         let stages = def.map_or(&[][..], |d| d.stages.as_slice());
         let finished = p.status != QuestStatus::Active;
@@ -427,11 +432,11 @@ impl Game {
         for (k, s) in stages.iter().take(shown).enumerate() {
             let done = k < p.stage as usize || p.status == QuestStatus::Completed;
             let (mark, col) = if done {
-                ("[x]", Color::new(0.6, 0.6, 0.6, 1.0))
+                ("[x]", skin::text(skin::Text::Disabled, Color::new(0.6, 0.6, 0.6, 1.0)))
             } else if finished {
-                ("[-]", Color::new(0.9, 0.5, 0.5, 1.0))
+                ("[-]", skin::text(skin::Text::Negative, Color::new(0.9, 0.5, 0.5, 1.0)))
             } else {
-                ("[ ]", WHITE)
+                ("[ ]", skin::normal())
             };
             let lines = wrap_text(&self.world.expand_text(s), 20, w - 34.0);
             for (n, line) in lines.iter().enumerate() {
@@ -453,10 +458,10 @@ impl Game {
         let m = input::mouse_pos();
         let entries = self.bestiary_entries();
         if entries.is_empty() {
-            draw_text("No creatures yet. Every kind you defeat is described here.", r.x + PAD, r.y + 80.0, 22.0, LIGHTGRAY);
+            draw_text("No creatures yet. Every kind you defeat is described here.", r.x + PAD, r.y + 80.0, 22.0, skin::dim());
             return;
         }
-        draw_line(r.x + LIST_W + 8.0, r.y + 50.0, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, Color::new(0.85, 0.8, 0.6, 0.4));
+        draw_line(r.x + LIST_W + 8.0, r.y + 50.0, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
         let sel = self.journal.best_sel.min(entries.len() - 1);
         for (k, (_, name, n)) in entries.iter().enumerate() {
             let er = Self::entry_rect(r, k);
@@ -464,16 +469,17 @@ impl Game {
                 break;
             }
             if k == sel {
-                draw_rectangle(er.x, er.y, er.w, er.h, Color::new(0.85, 0.7, 0.3, 0.22));
-                draw_rectangle_lines(er.x, er.y, er.w, er.h, 2.0, GOLD);
+                if !skin::cursor(er, Color::new(0.85, 0.7, 0.3, 0.22)) {
+                    draw_rectangle_lines(er.x, er.y, er.w, er.h, 2.0, skin::highlight());
+                }
             } else if er.contains(m) {
                 draw_rectangle(er.x, er.y, er.w, er.h, Color::new(1.0, 1.0, 1.0, 0.08));
             }
             let label: String = name.chars().take(20).collect();
-            draw_text(&label, er.x + 8.0, er.y + 21.0, 20.0, WHITE);
+            draw_text(&label, er.x + 8.0, er.y + 21.0, 20.0, skin::normal());
             let count = format!("x{n}");
             let cw = measure_text(&count, None, 18, 1.0).width;
-            draw_text(&count, er.x + er.w - cw - 8.0, er.y + 21.0, 18.0, LIGHTGRAY);
+            draw_text(&count, er.x + er.w - cw - 8.0, er.y + 21.0, 18.0, skin::dim());
         }
 
         let (id, name, n) = &entries[sel];
@@ -485,7 +491,7 @@ impl Game {
         // Portrait: the definition's figure.
         let plate = Rect::new(x, top, 110.0, 140.0);
         draw_rectangle(plate.x, plate.y, plate.w, plate.h, Color::new(0.0, 0.0, 0.0, 0.4));
-        draw_rectangle_lines(plate.x, plate.y, plate.w, plate.h, 1.5, Color::new(0.55, 0.45, 0.22, 1.0));
+        draw_rectangle_lines(plate.x, plate.y, plate.w, plate.h, 1.5, skin::border(Color::new(0.55, 0.45, 0.22, 1.0)));
         let (fw, fh) = self.character_frame_size(&d.appearance);
         let scale = ((plate.w - 10.0) / fw).min((plate.h - 10.0) / fh).floor().max(1.0);
         let (pw, ph) = (fw * scale, fh * scale);
@@ -494,7 +500,7 @@ impl Game {
 
         // Name and numbers beside the portrait.
         let sx = plate.right() + 18.0;
-        draw_text(name, sx, top + 26.0, 28.0, GOLD);
+        draw_text(name, sx, top + 26.0, 28.0, skin::highlight());
         let armor: i32 = [crate::defs::EquipSlot::Clothing, crate::defs::EquipSlot::Head, crate::defs::EquipSlot::Body, crate::defs::EquipSlot::Offhand]
             .into_iter()
             .filter_map(|s| db.item(d.equipment.item(s)?)?.armor.as_ref().map(|a| a.defense))
@@ -519,7 +525,7 @@ impl Game {
             lines.push(format!("Touch       {}", fx.kind.label()));
         }
         for (k, l) in lines.iter().enumerate() {
-            draw_text(l, sx, top + 54.0 + k as f32 * 21.0, 18.0, if k == 0 { WHITE } else { LIGHTGRAY });
+            draw_text(l, sx, top + 54.0 + k as f32 * 21.0, 18.0, if k == 0 { skin::normal() } else { skin::dim() });
         }
 
         // Description and loot under the portrait.
@@ -530,13 +536,13 @@ impl Game {
                 if y > r.y + r.h - 50.0 {
                     return;
                 }
-                draw_text(&line, x, y, 20.0, LIGHTGRAY);
+                draw_text(&line, x, y, 20.0, skin::dim());
             }
             y += 8.0;
         }
         if !d.loot.is_empty() {
             y += 24.0;
-            draw_text("Drops", x, y, 18.0, Color::new(0.85, 0.8, 0.6, 0.8));
+            draw_text("Drops", x, y, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 0.8)));
             let drops: Vec<String> = d
                 .loot
                 .iter()
@@ -551,7 +557,7 @@ impl Game {
                 if y > r.y + r.h - 46.0 {
                     return;
                 }
-                draw_text(&line, x, y, 18.0, LIGHTGRAY);
+                draw_text(&line, x, y, 18.0, skin::dim());
             }
         }
     }
@@ -575,7 +581,7 @@ impl Game {
         // (Names in the current language: "elder" is the elder's character name "Elder".)
         let friends: Vec<(String, i64)> = self.friends().into_iter().map(|(n, p)| (crate::lang::tr(&n), p)).collect();
         if friends.is_empty() {
-            draw_text("No friends yet. Talk to people, help them, bring them gifts they like.", r.x + PAD, r.y + 80.0, 22.0, LIGHTGRAY);
+            draw_text("No friends yet. Talk to people, help them, bring them gifts they like.", r.x + PAD, r.y + 80.0, 22.0, skin::dim());
             return;
         }
         let col_w = (r.w - PAD * 3.0) / 2.0;
@@ -588,7 +594,7 @@ impl Game {
             let y = r.y + 56.0 + row as f32 * ROW;
             draw_rectangle(x, y, col_w, ROW - 4.0, Color::new(0.0, 0.0, 0.0, 0.25));
             let label: String = name.chars().take(18).collect();
-            draw_text(&label, x + 8.0, y + 21.0, 20.0, WHITE);
+            draw_text(&label, x + 8.0, y + 21.0, 20.0, skin::normal());
             let hx = x + col_w - 10.0 * (heart + gap) - 6.0;
             for h in 0..10 {
                 let at = hx + h as f32 * (heart + gap);
@@ -604,7 +610,7 @@ impl Game {
     fn draw_dialog_log(&self, r: Rect) {
         let log = &self.world.dialog_log;
         if log.is_empty() {
-            draw_text("Nothing said yet. Conversations you have are kept here.", r.x + PAD, r.y + 80.0, 22.0, LIGHTGRAY);
+            draw_text("Nothing said yet. Conversations you have are kept here.", r.x + PAD, r.y + 80.0, 22.0, skin::dim());
             return;
         }
         let (top, bottom) = (r.y + 56.0, r.y + r.h - 44.0);
@@ -660,13 +666,13 @@ impl Game {
             let line = &log[*k];
             let mut ly = y + 18.0;
             if !line.speaker.is_empty() {
-                let col = if line.answer { Color::new(0.6, 0.8, 1.0, 1.0) } else { GOLD };
+                let col = if line.answer { Color::new(0.6, 0.8, 1.0, 1.0) } else { skin::title() };
                 draw_text(&line.speaker, x, ly, 19.0, col);
                 ly += 22.0;
             }
             for (n, l) in lines.iter().enumerate() {
                 let (tx, text) = if line.answer && n == 0 { (x + 10.0, format!("> {l}")) } else if line.answer { (x + 24.0, l.clone()) } else { (x + 10.0, l.clone()) };
-                draw_text(&text, tx, ly, 20.0, if line.answer { Color::new(0.75, 0.85, 1.0, 1.0) } else { WHITE });
+                draw_text(&text, tx, ly, 20.0, if line.answer { Color::new(0.75, 0.85, 1.0, 1.0) } else { skin::normal() });
                 ly += 22.0;
             }
             y += h;
@@ -681,7 +687,7 @@ impl Game {
         draw_rectangle(bx, ty, 6.0, thumb, Color::new(0.85, 0.7, 0.3, 0.8));
         let below = log.len() - 1 - last_shown;
         if below > 0 {
-            draw_text(&format!("{below} newer line(s) below - Down / End")[..], x, r.y + r.h - 32.0, 16.0, Color::new(0.85, 0.8, 0.6, 0.9));
+            draw_text(&format!("{below} newer line(s) below - Down / End")[..], x, r.y + r.h - 32.0, 16.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 0.9)));
         }
     }
 }

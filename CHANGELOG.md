@@ -3,6 +3,30 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Look
+- **UI skins** (*Database › UI skins*, chosen under *Database › Project › Look*): restyle every
+  window and menu, the dialog box, the HUD and the toasts without code. Pictures are frames of
+  sprite sheets drawn as nine-slices (corners kept, edges and middle stretched or repeated): a
+  window frame, the dialog box, a **name box** for the speaker on the dialog box's edge, the HUD
+  panel, buttons and tabs (also under the pointer), the selection cursor, toasts and frames around
+  the HUD's bars. Colours replace the panels' background and border, button, cursor and toast
+  fills, seven kinds of text (normal, dim, highlight, disabled, title, positive, negative) and the
+  hearts and bars. Every part is optional: what a skin leaves empty keeps the built-in look, which
+  is unchanged. High contrast always shows the built-in high-contrast look.
+- A skin can add **colour names** for the dialog codes (`{c:ember}`).
+- The skin form shows a live preview drawn by the game itself (a menu, the HUD, a toast, a dialog
+  with a name box). *Edit › Problems* checks skins' pictures and the project's skin.
+- The example game uses the new **Wood** skin; the starter library has Wood, **Stone** and
+  **Classic** (the built-in look as a skin, to copy).
+- Agent server: `upsert_def` / `list_defs` / `def_template` know `skins`; `set_project_config`
+  sets `skin`. `status` prints `skin=`.
+
+### Fixes
+- Help lines at the bottom of windows no longer run past the window's edge in long translations
+  (and a few English ones): they are drawn a little smaller, or in two lines.
+
 ## 0.24.0 — 2026-11-17
 
 ### Fonts and languages

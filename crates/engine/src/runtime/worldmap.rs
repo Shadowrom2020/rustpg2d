@@ -6,6 +6,8 @@
 
 use macroquad::prelude::*;
 
+use super::skin;
+
 use super::input::{self, Act};
 use super::{ui::panel, Game, RtEntity};
 use crate::entity::EntityKind;
@@ -393,7 +395,7 @@ impl Game {
         let p = panel_rect();
         panel(p.x, p.y, p.w, p.h);
         let title = format!("Map - {}", self.map_title(&self.loaded.map.name));
-        draw_text(&title, p.x + 16.0, p.y + 36.0, 30.0, GOLD);
+        draw_text(&title, p.x + 16.0, p.y + 36.0, 30.0, skin::highlight());
         let mouse = input::mouse_pos();
 
         // The visible part of the picture.
@@ -415,14 +417,14 @@ impl Game {
                 let sr = Rect::new(a.x, a.y, (r.w * zoom).max(4.0), (r.h * zoom).max(4.0));
                 if let Some(on) = sr.intersect(v) {
                     draw_rectangle(on.x, on.y, on.w, on.h, Color::new(1.0, 0.85, 0.3, 0.3));
-                    draw_rectangle_lines(on.x, on.y, on.w, on.h, 2.0, GOLD);
+                    draw_rectangle_lines(on.x, on.y, on.w, on.h, 2.0, skin::highlight());
                 }
             }
             if let Some(fog) = &self.worldmap.fog {
                 let src = Rect::new((vis.x - origin.x) / zoom, (vis.y - origin.y) / zoom, vis.w / zoom, vis.h / zoom);
                 draw_texture_ex(fog, vis.x, vis.y, WHITE, DrawTextureParams { dest_size: Some(vis.size()), source: Some(src), ..Default::default() });
             }
-            draw_rectangle_lines(vis.x, vis.y, vis.w, vis.h, 1.0, Color::new(0.85, 0.8, 0.6, 0.5));
+            draw_rectangle_lines(vis.x, vis.y, vis.w, vis.h, 1.0, skin::line(0.5));
             // Their labels: the map they lead to, at the explored part; a label that would cover
             // another one moves down below it (doors side by side).
             let mut placed: Vec<Rect> = Vec::new();
@@ -443,7 +445,7 @@ impl Game {
                 }
                 placed.push(Rect::new(lx - 4.0, ly - 15.0, tw + 8.0, 20.0));
                 draw_rectangle(lx - 4.0, ly - 15.0, tw + 8.0, 20.0, Color::new(0.0, 0.0, 0.0, 0.7));
-                draw_text(&label, lx, ly, 18.0, WHITE);
+                draw_text(&label, lx, ly, 18.0, skin::normal());
             }
         }
 
@@ -482,39 +484,42 @@ impl Game {
             let Some(t) = thumb else { continue };
             draw_rectangle(track.x, track.y, track.w, track.h, Color::new(1.0, 1.0, 1.0, 0.08));
             let hot = self.worldmap.drag == Some(axis) || track.contains(mouse);
-            draw_rectangle(t.x, t.y, t.w, t.h, if hot { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.7) });
+            draw_rectangle(t.x, t.y, t.w, t.h, if hot { skin::highlight() } else { skin::line(0.7) });
         }
 
         // Header buttons.
         for b in BUTTONS {
             let r = button_rect(b);
             let hot = r.contains(mouse);
-            draw_rectangle(r.x, r.y, r.w, r.h, Color::new(1.0, 1.0, 1.0, if hot { 0.18 } else { 0.06 }));
-            draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, Color::new(0.85, 0.8, 0.6, 1.0));
+            if !skin::button_picture(r, hot) {
+                draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(hot, Color::new(1.0, 1.0, 1.0, if hot { 0.18 } else { 0.06 })));
+                draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, skin::line(1.0));
+            }
             let c = r.center();
             match b {
                 Button::Close => {
-                    draw_line(c.x - 7.0, c.y - 7.0, c.x + 7.0, c.y + 7.0, 2.0, WHITE);
-                    draw_line(c.x + 7.0, c.y - 7.0, c.x - 7.0, c.y + 7.0, 2.0, WHITE);
+                    draw_line(c.x - 7.0, c.y - 7.0, c.x + 7.0, c.y + 7.0, 2.0, skin::normal());
+                    draw_line(c.x + 7.0, c.y - 7.0, c.x - 7.0, c.y + 7.0, 2.0, skin::normal());
                 }
                 Button::ZoomIn | Button::ZoomOut => {
-                    draw_line(c.x - 7.0, c.y, c.x + 7.0, c.y, 2.0, WHITE);
+                    draw_line(c.x - 7.0, c.y, c.x + 7.0, c.y, 2.0, skin::normal());
                     if b == Button::ZoomIn {
-                        draw_line(c.x, c.y - 7.0, c.x, c.y + 7.0, 2.0, WHITE);
+                        draw_line(c.x, c.y - 7.0, c.x, c.y + 7.0, 2.0, skin::normal());
                     }
                 }
                 Button::Center => {
                     let tw = measure_text("Center", None, 20, 1.0).width;
-                    draw_text("Center", c.x - tw / 2.0, c.y + 6.0, 20.0, WHITE);
+                    draw_text("Center", c.x - tw / 2.0, c.y + 6.0, 20.0, skin::normal());
                 }
             }
         }
-        super::glyphs::draw_hint(
+        super::glyphs::draw_hint_in(
             "Arrows / WASD, drag or wheel ({key:run}: sideways): scroll   {key:zoom_in} / {key:zoom_out}: zoom   {key:map_center}: center on you   {key:map} / {key:cancel}: close",
             p.x + 16.0,
             p.bottom() - 12.0,
             16.0,
-            GRAY,
+            p.w - 32.0,
+            skin::disabled(),
         );
     }
 

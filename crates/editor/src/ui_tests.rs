@@ -344,6 +344,34 @@ fn a_font_is_defined_and_chosen() {
 }
 
 #[test]
+fn a_skin_is_defined_and_chosen() {
+    let root = example_copy("skin");
+    std::fs::write(root.join("defs/skins.ron"), r#"[(id: "plain", name: "Plain")]"#).unwrap();
+    let mut h = harness(&root, Tab::Skins, 0);
+    step(&mut h);
+    // A window frame picture and an own border colour (switched on: they start as built in).
+    h.get_by(|n| n.role() == Role::CheckBox && n.label().as_deref() == Some("Window frame")).click();
+    step(&mut h);
+    h.get_by(|n| n.role() == Role::CheckBox && n.label().as_deref() == Some("Border")).click();
+    step(&mut h);
+    let d = &h.state().project.db.skins[0];
+    assert_eq!(d.frame.as_ref().map(|f| (f.corner, f.scale)), Some((4, 2)));
+    assert_eq!(d.border.map(|c| c.0), Some([217, 204, 153, 255]));
+    // Project › Look: the game's skin.
+    h.state_mut().db.tab = Tab::Project;
+    step(&mut h);
+    beside(&h, "Skin", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("Plain") && n.role() != Role::ComboBox).click();
+    step(&mut h);
+    assert_eq!(h.state().project.config.skin, "plain");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert_eq!((saved.db.skins[0].border.map(|c| c.hex()), saved.config.skin.as_str()), (Some("#d9cc99".to_string()), "plain"));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn dialog_codes_are_inserted_and_the_box_placed() {
     let root = example_copy("dialog_codes");
     let chars = root.join("defs/characters.ron");

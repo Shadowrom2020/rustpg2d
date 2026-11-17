@@ -1635,6 +1635,8 @@ pub struct Database {
     pub scatter: Vec<crate::decor::ScatterDef>,
     /// Fonts (`ProjectConfig::fonts` picks which the game uses).
     pub fonts: Vec<crate::fonts::FontDef>,
+    /// UI skins (`ProjectConfig::skin` picks the one the game uses).
+    pub skins: Vec<crate::skin::SkinDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1771,6 +1773,9 @@ impl Database {
     }
     pub fn font(&self, id: &str) -> Option<&crate::fonts::FontDef> {
         self.fonts.iter().find(|d| d.id == id)
+    }
+    pub fn skin(&self, id: &str) -> Option<&crate::skin::SkinDef> {
+        self.skins.iter().find(|d| d.id == id)
     }
 
     pub fn material(&self, id: &str) -> Option<&crate::ground::MaterialDef> {
@@ -1956,6 +1961,7 @@ impl_def!(ModelDef, crate::refactor::RefKind::Model, models, refs = crate::refac
 impl_def!(crate::ground::MaterialDef, crate::refactor::RefKind::Material, materials, refs = crate::refactor::refs_of_material);
 impl_def!(crate::decor::ScatterDef, crate::refactor::RefKind::Scatter, scatter, refs = crate::refactor::refs_of_scatter);
 impl_def!(crate::fonts::FontDef, crate::refactor::RefKind::Font, fonts);
+impl_def!(crate::skin::SkinDef, crate::refactor::RefKind::Skin, skins, refs = crate::refactor::refs_of_skin);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
@@ -2029,6 +2035,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Font => {
                 type $T = $crate::fonts::FontDef;
+                $body
+            }
+            $crate::refactor::RefKind::Skin => {
+                type $T = $crate::skin::SkinDef;
                 $body
             }
             $crate::refactor::RefKind::Map => $else,

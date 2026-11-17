@@ -5,7 +5,7 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act, Pad};
-use super::{ui::panel, Arrival, Fade, Game, FADE_TIME};
+use super::{skin, ui::panel, Arrival, Fade, Game, FADE_TIME};
 use crate::settings::{Settings, TEXT_SIZES, TEXT_SPEEDS, ZOOMS};
 use super::text::{draw_text, measure_text};
 
@@ -1177,66 +1177,75 @@ impl Game {
             let tw = super::text::measure_plain(name, size).width;
             let y = (p.y - 60.0).max(80.0);
             super::text::draw_plain(name, (sw - tw) / 2.0 + 3.0, y + 3.0, size, Color::new(0.0, 0.0, 0.0, 0.7));
-            super::text::draw_plain(name, (sw - tw) / 2.0, y, size, GOLD);
+            super::text::draw_plain(name, (sw - tw) / 2.0, y, size, skin::title());
         }
         panel(p.x, p.y, p.w, p.h);
         let title = self.title();
         let tw = measure_text(&title, None, 34, 1.0).width;
-        draw_text(&title, p.x + (p.w - tw) / 2.0, p.y + 42.0, 34.0, GOLD);
+        draw_text(&title, p.x + (p.w - tw) / 2.0, p.y + 42.0, 34.0, skin::title());
         let m = input::mouse_pos();
 
         if self.menu.page == Page::Options {
             let rects = self.options_tab_rects(p);
             for (k, tr) in rects.iter().enumerate() {
                 let on = k == self.menu.tab;
-                let fill = if on { Color::new(0.85, 0.7, 0.3, 0.3) } else if tr.contains(m) { Color::new(1.0, 1.0, 1.0, 0.08) } else { Color::new(0.0, 0.0, 0.0, 0.25) };
-                draw_rectangle(tr.x, tr.y, tr.w, tr.h, fill);
-                draw_rectangle_lines(tr.x, tr.y, tr.w, tr.h, if on { 2.0 } else { 1.0 }, if on { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.5) });
+                if !skin::button_picture(*tr, on || tr.contains(m)) {
+                    let fill = if on {
+                        skin::button_fill(true, Color::new(0.85, 0.7, 0.3, 0.3))
+                    } else if tr.contains(m) {
+                        skin::button_fill(true, Color::new(1.0, 1.0, 1.0, 0.08))
+                    } else {
+                        skin::button_fill(false, Color::new(0.0, 0.0, 0.0, 0.25))
+                    };
+                    draw_rectangle(tr.x, tr.y, tr.w, tr.h, fill);
+                    draw_rectangle_lines(tr.x, tr.y, tr.w, tr.h, if on { 2.0 } else { 1.0 }, if on { skin::highlight() } else { skin::line(0.5) });
+                }
                 let label = TABS[k].0;
                 // Shrunk only when even the tab sized for it is too narrow.
                 let size = (TAB_FONT * (tr.w - 8.0) / measure_text(label, None, TAB_FONT as u16, 1.0).width.max(1.0)).min(TAB_FONT);
                 let tw = measure_text(label, None, size as u16, 1.0).width;
-                draw_text(label, tr.x + (tr.w - tw) / 2.0, tr.y + tr.h / 2.0 + size * 0.35, size, if on { WHITE } else { LIGHTGRAY });
+                draw_text(label, tr.x + (tr.w - tw) / 2.0, tr.y + tr.h / 2.0 + size * 0.35, size, if on { skin::normal() } else { skin::dim() });
             }
         }
 
         if self.menu.page == Page::Name {
             let field = Rect::new(p.x + 16.0, p.y + 70.0, W - 146.0, 36.0);
             draw_rectangle(field.x, field.y, field.w, field.h, Color::new(0.0, 0.0, 0.0, 0.5));
-            draw_rectangle_lines(field.x, field.y, field.w, field.h, 2.0, GOLD);
+            draw_rectangle_lines(field.x, field.y, field.w, field.h, 2.0, skin::highlight());
             let caret = if (get_time() * 2.0) as i64 % 2 == 0 { "_" } else { "" };
-            draw_text(format!("{}{caret}", self.menu.name), field.x + 10.0, field.y + 26.0, 26.0, WHITE);
+            draw_text(format!("{}{caret}", self.menu.name), field.x + 10.0, field.y + 26.0, 26.0, skin::normal());
             let ok = self.name_ok_rect();
-            draw_rectangle(ok.x, ok.y, ok.w, ok.h, Color::new(0.3, 0.25, 0.1, if ok.contains(m) { 1.0 } else { 0.8 }));
-            draw_rectangle_lines(ok.x, ok.y, ok.w, ok.h, 1.5, GOLD);
-            draw_text("Save", ok.x + 28.0, ok.y + 25.0, 24.0, WHITE);
+            if !skin::button_picture(ok, ok.contains(m)) {
+                draw_rectangle(ok.x, ok.y, ok.w, ok.h, skin::button_fill(ok.contains(m), Color::new(0.3, 0.25, 0.1, if ok.contains(m) { 1.0 } else { 0.8 })));
+                draw_rectangle_lines(ok.x, ok.y, ok.w, ok.h, 1.5, skin::highlight());
+            }
+            draw_text("Save", ok.x + 28.0, ok.y + 25.0, 24.0, skin::normal());
         }
 
         if rows.is_empty() && self.menu.page != Page::Name {
-            draw_text("No saved games yet.", p.x + 24.0, p.y + 92.0, 22.0, GRAY);
+            draw_text("No saved games yet.", p.x + 24.0, p.y + 92.0, 22.0, skin::disabled());
         }
         for (k, r) in rects.iter().enumerate() {
             let idx = k + self.menu.scroll;
             let Some((_, label, detail)) = rows.get(idx) else { break };
             let selected = idx == self.menu.sel;
-            if selected {
-                draw_rectangle(r.x, r.y, r.w, r.h, Color::new(1.0, 1.0, 1.0, 0.12));
-                draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, GOLD);
+            if selected && !skin::cursor(*r, Color::new(1.0, 1.0, 1.0, 0.12)) {
+                draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, skin::highlight());
             }
             let disabled = self.menu.saves.is_empty() && ((self.menu.page == Page::Title && idx == 1) || (self.menu.page == Page::Defeated && idx == 0));
-            let c = if disabled { GRAY } else if selected { GOLD } else { WHITE };
+            let c = if disabled { skin::disabled() } else if selected { skin::highlight() } else { skin::normal() };
             if self.page_opts().is_some() {
                 draw_text(label, r.x + 14.0, r.y + 26.0, 24.0, c);
                 if !detail.is_empty() {
                     let (prev, next) = opt_arrows(*r);
-                    let base = if selected { WHITE } else { LIGHTGRAY };
+                    let base = if selected { skin::normal() } else { skin::dim() };
                     for (a, txt) in [(prev, "<"), (next, ">")] {
                         let hot = a.contains(m);
                         if hot {
-                            draw_rectangle(a.x + 2.0, a.y + 4.0, a.w - 4.0, a.h - 8.0, Color::new(1.0, 0.85, 0.3, 0.25));
+                            draw_rectangle(a.x + 2.0, a.y + 4.0, a.w - 4.0, a.h - 8.0, skin::button_fill(true, Color::new(1.0, 0.85, 0.3, 0.25)));
                         }
                         let aw = measure_text(txt, None, 24, 1.0).width;
-                        draw_text(txt, a.x + (a.w - aw) / 2.0, r.y + 26.0, 24.0, if hot { GOLD } else { base });
+                        draw_text(txt, a.x + (a.w - aw) / 2.0, r.y + 26.0, 24.0, if hot { skin::highlight() } else { base });
                     }
                     // The value centered between the arrows.
                     let vw = measure_text(detail, None, 22, 1.0).width;
@@ -1247,11 +1256,11 @@ impl Game {
                 draw_text(label, r.x + 14.0, r.y + 26.0, 22.0, c);
                 let Row::Bind(a) = rows[idx].0 else { continue };
                 let (text, col) = if self.menu.capture == Some(a) {
-                    ("Press a key or a button...".to_string(), GOLD)
+                    ("Press a key or a button...".to_string(), skin::highlight())
                 } else if self.conflict_text(a).is_some() {
-                    (detail.clone(), Color::new(1.0, 0.65, 0.25, 1.0))
+                    (detail.clone(), skin::text(skin::Text::Negative, Color::new(1.0, 0.65, 0.25, 1.0)))
                 } else {
-                    (detail.clone(), if selected { WHITE } else { LIGHTGRAY })
+                    (detail.clone(), if selected { skin::normal() } else { skin::dim() })
                 };
                 let tw = measure_text(&text, None, 20, 1.0).width;
                 draw_text(&text, r.x + r.w - 14.0 - tw, r.y + 25.0, 20.0, col);
@@ -1275,11 +1284,11 @@ impl Game {
                         draw_text("?", t.x + (t.w - q.width) / 2.0, t.y + (t.h + q.height) / 2.0, 26.0, DARKGRAY);
                     }
                 }
-                draw_rectangle_lines(t.x, t.y, t.w, t.h, 1.0, Color::new(0.85, 0.72, 0.38, if unlocked { 1.0 } else { 0.35 }));
+                draw_rectangle_lines(t.x, t.y, t.w, t.h, 1.0, skin::border(Color::new(0.85, 0.72, 0.38, if unlocked { 1.0 } else { 0.35 })));
                 let tx = t.right() + 12.0;
                 let room = r.right() - tx - 8.0;
-                draw_text(fit(label, 22, room), tx, r.y + 24.0, 22.0, if unlocked { c } else { GRAY });
-                draw_text(fit(detail, 16, room), tx, r.y + 44.0, 16.0, if unlocked { LIGHTGRAY } else { GRAY });
+                draw_text(fit(label, 22, room), tx, r.y + 24.0, 22.0, if unlocked { c } else { skin::disabled() });
+                draw_text(fit(detail, 16, room), tx, r.y + 44.0, 16.0, if unlocked { skin::dim() } else { skin::disabled() });
             } else if let (true, Row::Slot(slot)) = (self.save_page(), &rows[idx].0) {
                 // A save: its thumbnail (or a placeholder), then name and details.
                 let th = r.h - 10.0;
@@ -1292,20 +1301,20 @@ impl Game {
                         draw_text("?", t.x + (t.w - q.width) / 2.0, t.y + (t.h + q.height) / 2.0, 26.0, DARKGRAY);
                     }
                 }
-                draw_rectangle_lines(t.x, t.y, t.w, t.h, 1.0, Color::new(0.85, 0.72, 0.38, if selected { 1.0 } else { 0.5 }));
+                draw_rectangle_lines(t.x, t.y, t.w, t.h, 1.0, skin::border(Color::new(0.85, 0.72, 0.38, if selected { 1.0 } else { 0.5 })));
                 let tx = t.right() + 12.0;
                 draw_text(label, tx, r.y + 24.0, 22.0, c);
-                draw_text(detail, tx, r.y + 44.0, 16.0, LIGHTGRAY);
+                draw_text(detail, tx, r.y + 44.0, 16.0, skin::dim());
             } else if detail.is_empty() {
                 // Centered in the row (the Save page's rows are taller).
                 draw_text(label, r.x + 14.0, r.y + r.h / 2.0 + 8.0, 26.0, c);
             } else {
                 draw_text(label, r.x + 14.0, r.y + 17.0, 22.0, c);
-                draw_text(detail, r.x + 14.0, r.y + 33.0, 16.0, LIGHTGRAY);
+                draw_text(detail, r.x + 14.0, r.y + 33.0, 16.0, skin::dim());
             }
         }
         if rows.len() > self.max_rows() {
-            draw_text(format!("{}-{} of {}", self.menu.scroll + 1, (self.menu.scroll + self.max_rows()).min(rows.len()), rows.len()), p.x + p.w - 110.0, p.y + 42.0, 16.0, GRAY);
+            draw_text(format!("{}-{} of {}", self.menu.scroll + 1, (self.menu.scroll + self.max_rows()).min(rows.len()), rows.len()), p.x + p.w - 110.0, p.y + 42.0, 16.0, skin::disabled());
         }
         let hint = match self.menu.page {
             Page::Title => "{key:up}/{key:down} + {key:confirm} or click",
@@ -1327,9 +1336,9 @@ impl Game {
             _ => None,
         };
         if let Some(msg) = self.menu.message.as_ref().or(clash.as_ref()) {
-            draw_text(msg, p.x + 16.0, p.y + p.h - 34.0, 18.0, Color::new(1.0, 0.5, 0.5, 1.0));
+            draw_text(msg, p.x + 16.0, p.y + p.h - 34.0, 18.0, skin::text(skin::Text::Negative, Color::new(1.0, 0.5, 0.5, 1.0)));
         }
-        super::glyphs::draw_hint(hint, p.x + 16.0, p.y + p.h - 12.0, 16.0, GRAY);
+        super::glyphs::draw_hint_in(hint, p.x + 16.0, p.y + p.h - 12.0, 16.0, p.w - 32.0, skin::disabled());
     }
 }
 

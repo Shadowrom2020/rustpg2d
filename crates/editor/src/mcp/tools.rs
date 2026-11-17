@@ -738,7 +738,7 @@ with_params {
     /// Redoes undone edit(s) of the open map.
     #[tool]
     redo: Redo(p: UndoParams) => ed.mcp_undo(p, true), summary = String::new();
-    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, battle_music (a sound id: the music while the player fights; maps may override it in set_map_settings), skills, progression, dialog_portraits, model_atlas_mb (MB of GPU memory for rendered character poses, 8 to 128), …
+    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, battle_music (a sound id: the music while the player fights; maps may override it in set_map_settings), skills, progression, dialog_portraits, model_atlas_mb (MB of GPU memory for rendered character poses, 8 to 128), skin (a UI skin id from defs/skins.ron; empty = the built-in look), …
     #[tool(annotations(idempotent_hint = true))]
     set_project_config: SetProjectConfig(p: PatchParams) => ed.mcp_set_project_config(p);
     /// A map region as text: the painted ground (the material in the middle of each tile, with a legend), the collision grid (ground, decorations, overrides), the decorations by prop, and the entities and zones there with their uids. At most 80x50 tiles per call.

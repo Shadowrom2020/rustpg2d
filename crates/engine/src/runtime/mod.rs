@@ -48,6 +48,7 @@ mod battle;
 mod photo;
 pub mod input;
 pub mod glyphs;
+pub mod skin;
 mod attacks;
 mod defense;
 mod barks;
@@ -555,6 +556,11 @@ impl Game {
         }
         let assets = Assets::load(&project);
         text::install_project(&project);
+        let skin = (!project.config.skin.is_empty()).then(|| project.db.skin(&project.config.skin)).flatten();
+        if skin.is_none() && !project.config.skin.is_empty() {
+            eprintln!("[skin] the project's skin {:?} is not defined: using the built-in look", project.config.skin);
+        }
+        skin::install(skin, &|n| assets.sheets.get(&n.sheet).filter(|s| n.frame < s.count.max(1)).map(|s| (s.texture.clone(), s.src_rect(n.frame))));
         let audio = Audio::load(&project);
         let combat = PlayerCombat::new(project.db.character(&project.config.player));
         let mut scripts = ScriptHost::new();
@@ -2433,7 +2439,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2492,6 +2498,7 @@ impl Game {
             self.lang_status(),
             text::status().0,
             text::status().1,
+            skin::status(),
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),

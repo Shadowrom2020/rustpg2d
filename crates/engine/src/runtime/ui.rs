@@ -279,13 +279,8 @@ impl Ui {
             let a = t.min(1.0);
             let w = measure_text(msg, None, font as u16, 1.0).width + 24.0;
             let (y, h) = (16.0 + i as f32 * 40.0 * s, 34.0 * s);
-            if contrast() {
-                draw_rectangle((sw - w) / 2.0, y, w, h, Color::new(0.0, 0.0, 0.0, a));
-                draw_rectangle_lines((sw - w) / 2.0, y, w, h, 2.0, Color::new(1.0, 0.85, 0.2, a));
-            } else {
-                draw_rectangle((sw - w) / 2.0, y, w, h, Color::new(0.05, 0.05, 0.1, 0.8 * a));
-            }
-            draw_text(msg, (sw - w) / 2.0 + 12.0, y + h * 0.7, font, Color::new(1., 1., 1., a));
+            super::skin::toast_box(Rect::new((sw - w) / 2.0, y, w, h), a);
+            draw_text(msg, (sw - w) / 2.0 + 12.0, y + h * 0.7, font, super::skin::toast_text(a));
         }
     }
 
@@ -309,29 +304,45 @@ impl Ui {
             let choice_rows = d.choice.as_ref().map_or(0, |c| c.0.len()) as f32;
             let marked: String = d.text.iter().collect();
             let lines = super::text::wrap_with(&marked, w - 40.0 - inset, |s| d.width(s, font));
-            let mut h = 26.0 + 30.0 * s + lines.len().max(2) as f32 * line + choice_rows * line;
+            // A skin's name box sits on the box's top edge: the name needs no line inside.
+            let name_box = super::skin::has_name_box() && !d.speaker.is_empty();
+            let name_size = (28.0 * s).round();
+            let pad = super::skin::name_box_pad();
+            let name_h = (name_size + 2.0 * pad).round();
+            // The text starts below the name box's lower half (else below the name's line).
+            let below_box = ((name_h / 2.0) - 14.0 * s).max(0.0).round();
+            let name_line = if name_box { below_box } else { 30.0 * s };
+            let mut h = 26.0 + name_line + lines.len().max(2) as f32 * line + choice_rows * line;
             if d.portrait {
                 h = h.max(PORTRAIT + 28.0);
             }
             let y = match d.at {
                 BoxAt::Bottom => sh - h - margin,
                 BoxAt::Middle => ((sh - h) / 2.0).round(),
-                BoxAt::Top => margin,
+                BoxAt::Top => margin + if name_box { (name_h / 2.0).round() } else { 0.0 },
             };
-            panel(x, y, w, h);
+            super::skin::dialog_box(x, y, w, h);
+            if name_box {
+                let nw = (measure_plain(&d.speaker, name_size).width + 2.0 * pad).round();
+                let nx = x + 16.0 + if d.portrait { PORTRAIT + 18.0 } else { 0.0 };
+                let ny = y - (name_h / 2.0).round();
+                super::skin::name_box(Rect::new(nx, ny, nw, name_h));
+                draw_plain(&d.speaker, nx + pad, ny + pad + name_size * 0.8, name_size, super::skin::title());
+            }
             if d.portrait {
                 self.portrait_rect = Some(Rect::new(x + 14.0, y + 14.0, PORTRAIT, PORTRAIT));
             }
             let x = x + inset;
             let w = w - inset;
-            let mut ty = y + 8.0 + 26.0 * s;
-            if !d.speaker.is_empty() {
+            let mut ty = y + 8.0 + 26.0 * s + if name_box { below_box } else { 0.0 };
+            if !d.speaker.is_empty() && !name_box {
                 // (Dialog content is translated already: no UI lookup.)
-                draw_plain(&d.speaker, x + 20.0, ty, (28.0 * s).round(), GOLD);
+                draw_plain(&d.speaker, x + 20.0, ty, name_size, super::skin::title());
                 ty += 32.0 * s;
             }
             let mut budget = d.revealed;
-            let mut color = WHITE;
+            let text_color = super::skin::dialog_text();
+            let mut color = text_color;
             // (Each line's own count of the text's characters: Japanese lines end on no space.)
             for (l, used) in &lines {
                 let mut lx = x + 20.0;
@@ -344,7 +355,7 @@ impl Ui {
                     lx += draw_plain(&std::mem::take(&mut run), lx, ty, font, color).width;
                     match code {
                         Code::Color(Some([r, g, b])) => color = Color::from_rgba(*r, *g, *b, 255),
-                        Code::Color(None) => color = WHITE,
+                        Code::Color(None) => color = text_color,
                         Code::Icon(id) => {
                             let side = icon_size(font);
                             self.icon_spots.push((id.clone(), Rect::new(lx + 2.0, (ty - font * 0.85).round(), side, side)));
@@ -359,17 +370,21 @@ impl Ui {
             }
             let done = d.done();
             if let (Some((opts, _, sel)), true) = (&d.choice, done) {
-                let dim = if contrast() { WHITE } else { LIGHTGRAY };
+                let dim = if contrast() { WHITE } else { super::skin::dim() };
                 for (i, o) in opts.iter().enumerate() {
-                    self.choice_rects.push(Rect::new(x + 20.0, ty - 22.0 * s, w - 40.0, line));
-                    let c = if i == *sel { GOLD } else { dim };
+                    let r = Rect::new(x + 20.0, ty - 22.0 * s, w - 40.0, line);
+                    self.choice_rects.push(r);
+                    if i == *sel && super::skin::has_cursor() {
+                        super::skin::cursor(r, Color::new(0.0, 0.0, 0.0, 0.0));
+                    }
+                    let c = if i == *sel { super::skin::highlight() } else { dim };
                     let marker = if i == *sel { ">" } else { " " };
                     draw_plain(&format!("{marker} {o}"), x + 36.0, ty, font, c);
                     ty += line;
                 }
             } else if done && (get_time() * 2.0) as i64 % 2 == 0 {
                 let (cx, cy) = (x + w - 28.0, y + h - 20.0);
-                draw_triangle(vec2(cx - 7.0, cy - 5.0), vec2(cx + 7.0, cy - 5.0), vec2(cx, cy + 4.0), WHITE);
+                draw_triangle(vec2(cx - 7.0, cy - 5.0), vec2(cx + 7.0, cy - 5.0), vec2(cx, cy + 4.0), text_color);
             }
         }
     }
@@ -537,20 +552,20 @@ pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, st
         let title = if s.count > 1 { format!("{name}  x{}", s.count) } else { name.to_string() };
         let s = text_scale();
         let (big, small) = ((22.0 * s).round(), (18.0 * s).round());
-        draw_text(&title, d.x + pad, d.y + 24.0 * s, big, WHITE);
+        draw_text(&title, d.x + pad, d.y + 24.0 * s, big, super::skin::normal());
         if let Some(def) = def {
             let tw = measure_text(&title, None, big as u16, 1.0).width;
             if let Some(line) = item_stats_line(def) {
-                draw_text(&line, d.x + pad + tw + 16.0, d.y + 23.0 * s, small, GOLD);
+                draw_text(&line, d.x + pad + tw + 16.0, d.y + 23.0 * s, small, super::skin::highlight());
             }
-            let desc = if contrast() { WHITE } else { LIGHTGRAY };
+            let desc = if contrast() { WHITE } else { super::skin::dim() };
             for (k, line) in wrap_text(&super::glyphs::expand_keys(&def.description), small as u16, d.w - 2.0 * pad).iter().take(2).enumerate() {
                 draw_text(line, d.x + pad, d.y + 44.0 * s + k as f32 * small, small, desc);
             }
         }
     }
-    let size = super::glyphs::hint_size(hint, d.w - 2.0 * pad, 16);
-    super::glyphs::draw_hint(hint, d.x + pad, d.y + d.h - 8.0, size, GRAY);
+    // (The largest size up to 16 that fits; too long even at 70 %: two lines.)
+    super::glyphs::draw_hint_in(hint, d.x + pad, d.y + d.h - 8.0, 16.0, d.w - 2.0 * pad, super::skin::disabled());
 }
 
 /// One line of an item's numbers: tool kind, weapon damage / cooldown / reach, armor slot /
@@ -577,13 +592,7 @@ pub(super) fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
     })
 }
 
+/// A window or menu panel in the skin's look ([`super::skin::panel`]).
 pub(super) fn panel(x: f32, y: f32, w: f32, h: f32) {
-    if contrast() {
-        // High contrast: opaque black, a bright border.
-        draw_rectangle(x, y, w, h, BLACK);
-        draw_rectangle_lines(x, y, w, h, 3.0, Color::new(1.0, 0.85, 0.2, 1.0));
-        return;
-    }
-    draw_rectangle(x, y, w, h, Color::new(0.06, 0.06, 0.12, 0.92));
-    draw_rectangle_lines(x, y, w, h, 3.0, Color::new(0.85, 0.8, 0.6, 1.0));
+    super::skin::panel(x, y, w, h);
 }

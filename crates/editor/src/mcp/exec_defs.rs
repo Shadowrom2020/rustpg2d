@@ -56,6 +56,11 @@ def_facts!(rustpg2d_engine::fonts::FontDef, |d| {
     let pixel = if d.pixel > 0 { format!("pixel font, {} px grid", d.pixel) } else { "smooth font".to_string() };
     format!("file {}; {pixel}; scale {}{}", d.file, d.scale, if d.license.is_empty() { String::new() } else { format!("; licence {}", d.license) })
 });
+def_facts!(rustpg2d_engine::skin::SkinDef, |d| {
+    let pics: Vec<String> = d.pictures().iter().map(|(part, p)| format!("{part} {}:{}", p.sheet, p.frame)).collect();
+    let colors = d.text.normal.iter().chain(&d.text.highlight).count() + d.colors.len();
+    format!("{}; {} colours set", if pics.is_empty() { "no pictures".to_string() } else { pics.join(", ") }, colors)
+});
 def_facts!(SheetDef, |d| {
     let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
     let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
@@ -256,6 +261,10 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Font => (
             val(&rustpg2d_engine::fonts::FontDef { file: "fonts/<file>.ttf".into(), ..rustpg2d_engine::fonts::FontDef::fresh(id) }),
             "file: a TTF / OTF under the project (write_asset it into fonts/); pixel: a pixel font's grid size (texts are drawn at whole multiples of it), 0 = a smooth font; scale: size against the built-in font (1 = as big); offset_y: baseline shift as a part of the size (+ = down); license: its licence text file (exported with it); credit. The project's `fonts` (in project.ron: ui, dialog, hud, title = font ids, fallback = font ids tried per character) chooses what the game draws with; empty = the built-in font (Latin-1 only).",
+        ),
+        RefKind::Skin => (
+            val(&rustpg2d_engine::skin::SkinDef { frame: Some(rustpg2d_engine::skin::NineSlice::new("<sheet>")), ..rustpg2d_engine::skin::SkinDef::fresh(id) }),
+            "A UI skin; every part is optional (left out = the built-in look). Pictures are nine-slices {sheet, frame, corner (corner size in picture px, 4), scale (screen px per picture px, 2), tile (repeat edges / middle instead of stretching)} of a sprite sheet: frame (every window and menu panel), dialog (dialog / choice box; none = frame), name_box (a box for the speaker's name on the dialog box's top edge), hud (the HUD panel; none = frame), button, button_hover (also the open tab), cursor (the selection marker of menus, lists, slots), toast, hp.frame (behind the hearts), mana.frame, xp.frame (around those bars). Colours are \"#rrggbb\" or \"#rrggbbaa\": background, border (panels without a picture), button_fill, button_hover_fill, cursor_fill, toast_fill, toast_text, text {normal, dim, highlight, disabled, title, positive, negative}, hp/mana/xp {fill, back} (hp = the hearts), colors: [[name, colour], …] = colour names for dialog texts ({c:name}). The project's `skin` (set_project_config) picks the one the game uses; empty = built in. High contrast (Options) always shows the built-in look.",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
     }

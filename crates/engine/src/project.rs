@@ -88,6 +88,9 @@ pub struct ProjectConfig {
     /// built-in font, which has Latin-1 only.
     #[serde(default, skip_serializing_if = "crate::fonts::FontRoles::is_empty")]
     pub fonts: crate::fonts::FontRoles,
+    /// The UI skin the game uses (`defs/skins.ron`); empty = the built-in look.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub skin: String,
 }
 
 fn is_yes(b: &bool) -> bool {
@@ -233,6 +236,7 @@ impl ProjectConfig {
             model_atlas_mb: default_atlas_mb(),
             eight_facings: true,
             fonts: Default::default(),
+            skin: String::new(),
         }
     }
 }
@@ -302,7 +306,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 16] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts"];
+pub const DEFS: [&str; 17] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -362,6 +366,7 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         materials: parse_list(r(13)?, DEFS[13], warn)?,
         scatter: parse_list(r(14)?, DEFS[14], warn)?,
         fonts: parse_list(r(15)?, DEFS[15], warn)?,
+        skins: parse_list(r(16)?, DEFS[16], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
@@ -494,6 +499,9 @@ impl Project {
         }
         if !self.db.fonts.is_empty() || d(DEFS[15]).exists() {
             write_ron(&d(DEFS[15]), &self.db.fonts)?;
+        }
+        if !self.db.skins.is_empty() || d(DEFS[16]).exists() {
+            write_ron(&d(DEFS[16]), &self.db.skins)?;
         }
         Ok(())
     }

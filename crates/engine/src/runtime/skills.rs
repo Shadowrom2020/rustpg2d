@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::Game;
+use super::{skin, Game};
 use crate::defs::LightSpec;
 use crate::render::wrap_text;
 use crate::skills::{SkillEffect, SpellEffect, SPELL_PREFIX};
@@ -610,20 +610,20 @@ impl Game {
         } else {
             format!("Mana {:.0} / {}   -   spells known: {}", self.world.mana, self.max_mana(), self.world.spells.len())
         };
-        draw_text(&head, r.x + PAD, r.y + 32.0, 22.0, if self.skills.tab == 0 && points > 0 { GOLD } else { LIGHTGRAY });
+        draw_text(&head, r.x + PAD, r.y + 32.0, 22.0, if self.skills.tab == 0 && points > 0 { skin::highlight() } else { skin::dim() });
         let help = if self.skills.tab == 0 {
             "{key:up}/{key:down}: select   {key:confirm} or +: spend a point   {key:next_tab}: next tab   {key:skills} / {key:cancel}: close"
         } else {
             "{key:up}/{key:down}: select   {key:confirm}: cast   1-8: put on the quick bar   {key:next_tab}: next tab   {key:spells} / {key:cancel}: close"
         };
-        super::glyphs::draw_hint(help, r.x + PAD, r.y + r.h - 14.0, 16.0, GRAY);
-        draw_line(r.x + LIST_W + 8.0, r.y + LIST_TOP, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, Color::new(0.85, 0.8, 0.6, 0.4));
+        super::glyphs::draw_hint_in(help, r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
+        draw_line(r.x + LIST_W + 8.0, r.y + LIST_TOP, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
 
         let rows = self.skill_rows();
         let tab = self.skills.tab;
         let sel = self.skills.sel[tab].min(rows.len().saturating_sub(1));
         if rows.is_empty() {
-            draw_text(if tab == 0 { "No skills in this game." } else { "No spells in this game." }, r.x + PAD, r.y + LIST_TOP + 26.0, 22.0, LIGHTGRAY);
+            draw_text(if tab == 0 { "No skills in this game." } else { "No spells in this game." }, r.x + PAD, r.y + LIST_TOP + 26.0, 22.0, skin::dim());
             return;
         }
         for (i, id) in rows.iter().enumerate() {
@@ -633,8 +633,9 @@ impl Game {
             }
             let on = i == sel;
             if on {
-                draw_rectangle(rr.x, rr.y, rr.w, rr.h, Color::new(0.85, 0.7, 0.3, 0.22));
-                draw_rectangle_lines(rr.x, rr.y, rr.w, rr.h, 2.0, GOLD);
+                if !skin::cursor(rr, Color::new(0.85, 0.7, 0.3, 0.22)) {
+                    draw_rectangle_lines(rr.x, rr.y, rr.w, rr.h, 2.0, skin::highlight());
+                }
             } else if rr.contains(m) {
                 draw_rectangle(rr.x, rr.y, rr.w, rr.h, Color::new(1.0, 1.0, 1.0, 0.08));
             }
@@ -644,22 +645,24 @@ impl Game {
                 if !d.icon.sheet.is_empty() {
                     self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(rr.x + 4.0, rr.y + 4.0, 28.0, 28.0), WHITE);
                 }
-                draw_text(&d.name, rr.x + 38.0, rr.y + 17.0, 19.0, WHITE);
+                draw_text(&d.name, rr.x + 38.0, rr.y + 17.0, 19.0, skin::normal());
                 // Level pips.
                 let n = d.max_level.max(1);
                 for k in 0..n {
                     let (x, y) = (rr.x + 38.0 + k as f32 * 14.0, rr.y + 23.0);
-                    draw_rectangle(x, y, 10.0, 8.0, if k < level { GOLD } else { Color::new(1.0, 1.0, 1.0, 0.15) });
+                    draw_rectangle(x, y, 10.0, 8.0, if k < level { skin::highlight() } else { Color::new(1.0, 1.0, 1.0, 0.15) });
                 }
                 let pr = Self::plus_rect(rr);
                 let can = points > 0 && level < n;
-                draw_rectangle(pr.x, pr.y, pr.w, pr.h, if can { Color::new(0.85, 0.7, 0.3, 0.35) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
-                draw_rectangle_lines(pr.x, pr.y, pr.w, pr.h, 1.0, if can { GOLD } else { GRAY });
-                draw_text("+", pr.x + 7.0, pr.y + 20.0, 24.0, if can { WHITE } else { GRAY });
+                if !skin::button_picture(pr, can && pr.contains(m)) {
+                    draw_rectangle(pr.x, pr.y, pr.w, pr.h, if can { skin::button_fill(false, Color::new(0.85, 0.7, 0.3, 0.35)) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
+                    draw_rectangle_lines(pr.x, pr.y, pr.w, pr.h, 1.0, if can { skin::highlight() } else { skin::disabled() });
+                }
+                draw_text("+", pr.x + 7.0, pr.y + 20.0, 24.0, if can { skin::normal() } else { skin::disabled() });
             } else {
                 let Some(d) = self.project.db.spell(id) else { continue };
                 let known = self.world.spells.contains(id);
-                let col = if known { WHITE } else { GRAY };
+                let col = if known { skin::normal() } else { skin::disabled() };
                 if !d.icon.sheet.is_empty() {
                     self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(rr.x + 4.0, rr.y + 4.0, 28.0, 28.0), Color::new(1.0, 1.0, 1.0, if known { 1.0 } else { 0.4 }));
                 }
@@ -672,7 +675,7 @@ impl Game {
                 } else {
                     "not learned".to_string()
                 };
-                draw_text(&sub, rr.x + 38.0, rr.y + 32.0, 14.0, GRAY);
+                draw_text(&sub, rr.x + 38.0, rr.y + 32.0, 14.0, skin::disabled());
             }
         }
 
@@ -684,34 +687,36 @@ impl Game {
         if tab == 0 {
             let Some(d) = self.project.db.skill(id) else { return };
             let level = self.world.skill_level(id);
-            draw_text(&d.name, x, y, 28.0, GOLD);
+            draw_text(&d.name, x, y, 28.0, skin::highlight());
             y += 26.0;
-            draw_text(format!("Level {level} / {}", d.max_level), x, y, 18.0, LIGHTGRAY);
+            draw_text(format!("Level {level} / {}", d.max_level), x, y, 18.0, skin::dim());
             for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
                 y += 26.0;
-                draw_text(&line, x, y, 20.0, WHITE);
+                draw_text(&line, x, y, 20.0, skin::normal());
             }
             y += 30.0;
             let now = d.effect_text(level);
             if !now.is_empty() && level > 0 {
-                draw_text(format!("Now: {now}"), x, y, 18.0, LIGHTGRAY);
+                draw_text(format!("Now: {now}"), x, y, 18.0, skin::dim());
                 y += 22.0;
             }
             if level < d.max_level.max(1) {
                 let next = d.effect_text(level + 1);
                 if !next.is_empty() {
-                    draw_text(format!("Next level: {next}"), x, y, 18.0, Color::new(0.85, 0.8, 0.6, 1.0));
+                    draw_text(format!("Next level: {next}"), x, y, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 1.0)));
                 }
             }
             let b = Self::button_rect(r);
             let can = points > 0 && level < d.max_level.max(1);
-            draw_rectangle(b.x, b.y, b.w, b.h, if can { Color::new(0.85, 0.7, 0.3, 0.35) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
-            draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.5, if can { GOLD } else { GRAY });
-            draw_text(if level >= d.max_level.max(1) { "Maximum" } else { "Spend a point  (Enter)" }, b.x + 12.0, b.y + 21.0, 18.0, if can { WHITE } else { GRAY });
+            if !skin::button_picture(b, can && b.contains(input::mouse_pos())) {
+                draw_rectangle(b.x, b.y, b.w, b.h, if can { skin::button_fill(false, Color::new(0.85, 0.7, 0.3, 0.35)) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
+                draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.5, if can { skin::highlight() } else { skin::disabled() });
+            }
+            draw_text(if level >= d.max_level.max(1) { "Maximum" } else { "Spend a point  (Enter)" }, b.x + 12.0, b.y + 21.0, 18.0, if can { skin::normal() } else { skin::disabled() });
         } else {
             let Some(d) = self.project.db.spell(id) else { return };
             let known = self.world.spells.contains(id);
-            draw_text(&d.name, x, y, 28.0, GOLD);
+            draw_text(&d.name, x, y, 28.0, skin::highlight());
             y += 26.0;
             let mut info = format!("{} mana", d.mana);
             if d.cooldown > 0.0 {
@@ -721,10 +726,10 @@ impl Game {
                 let s = self.project.db.skill(&d.skill).map_or(d.skill.clone(), |s| s.name.clone());
                 info += &format!("  -  needs {s} {}", d.level);
             }
-            draw_text(&info, x, y, 18.0, LIGHTGRAY);
+            draw_text(&info, x, y, 18.0, skin::dim());
             for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
                 y += 26.0;
-                draw_text(&line, x, y, 20.0, WHITE);
+                draw_text(&line, x, y, 20.0, skin::normal());
             }
             y += 30.0;
             let effect = match &d.effect {
@@ -735,14 +740,16 @@ impl Game {
                 SpellEffect::Script { .. } => String::new(),
             };
             if !effect.is_empty() {
-                draw_text(&effect, x, y, 18.0, Color::new(0.85, 0.8, 0.6, 1.0));
+                draw_text(&effect, x, y, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 1.0)));
             }
             let b = Self::button_rect(r);
             let ready = known && self.world.mana >= d.mana as f32 && !self.skills.cooldown.contains_key(id) && self.spell_requirement(id).is_none();
-            draw_rectangle(b.x, b.y, b.w, b.h, if ready { Color::new(0.4, 0.5, 0.9, 0.35) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
-            draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.5, if ready { Color::new(0.6, 0.7, 1.0, 1.0) } else { GRAY });
+            if !skin::button_picture(b, ready && b.contains(input::mouse_pos())) {
+                draw_rectangle(b.x, b.y, b.w, b.h, if ready { Color::new(0.4, 0.5, 0.9, 0.35) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
+                draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.5, if ready { Color::new(0.6, 0.7, 1.0, 1.0) } else { skin::disabled() });
+            }
             let label = if !known { "Not learned" } else if self.world.mana < d.mana as f32 { "Not enough mana" } else { "Cast  (Enter)" };
-            draw_text(label, b.x + 12.0, b.y + 21.0, 18.0, if ready { WHITE } else { GRAY });
+            draw_text(label, b.x + 12.0, b.y + 21.0, 18.0, if ready { skin::normal() } else { skin::disabled() });
             let mana = format!("Mana {:.0} / {}", self.world.mana, self.max_mana());
             draw_text(&mana, b.x + b.w + 16.0, b.y + 21.0, 18.0, Color::new(0.6, 0.7, 1.0, 1.0));
         }

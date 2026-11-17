@@ -121,6 +121,10 @@ crates/engine/src/      library: everything shared by game and editor
                         FontRoles (ProjectConfig.fonts: ui / dialog / hud / title + fallbacks), Coverage
                         (ttf-parser cmap), builtin_covers (ProggyClean = Latin-1 + €); runtime/text.rs
                         draws with them (text::role guards, runs split per character by font)
+  skin.rs               UI skins: SkinDef (defs/skins.ron: nine-slice pictures of sheet frames, colours,
+                        dialog colour names; every part optional), ProjectConfig.skin; runtime/skin.rs
+                        draws every window frame, button, cursor, toast, HUD frame, bar and window text
+                        colour (each call takes the place's built-in colour: no skin = unchanged look)
   state.rs              WorldState = save game (flags, vars, inventory, quests, shops,
                         player name/sex/look), Sex, expand_text() placeholders
   map/                  Map (painted ground, decorations, collision, objects), zones (spawn, portal,
@@ -278,7 +282,10 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   English string, `{}` for values; a test fails until each file has it).
   Content that is already translated (dialog lines, names) goes through `text::draw_plain` / `measure_plain`;
   never call macroquad's text functions in the runtime (they skip the project's fonts). A new HUD / dialog
-  drawing function starts with `let _font = text::role(Role::Hud | Role::Dialog);`. Projects without fonts
+  drawing function starts with `let _font = text::role(Role::Hud | Role::Dialog);`. Window chrome
+  (panels, buttons, tabs, selection, toasts, HUD frame and bars) and window text colours go through
+  `runtime/skin.rs` (`skin::panel`, `skin::button_picture` / `button_fill`, `skin::cursor`,
+  `skin::normal()` / `dim()` / `highlight()` / `text(kind, builtin)`), never colour literals of their own. Projects without fonts
   still draw everything in ProggyClean, so runtime texts stay Latin-1. The editor
   uses the Phosphor icon font (`crates/editor/src/ui.rs`: `ph::NAME` constants, `ui::t(icon,
   text)`, `tool_button` / `icon_button` / `toggle` with name + shortcut + how-to tooltips,

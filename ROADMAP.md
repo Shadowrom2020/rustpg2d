@@ -137,7 +137,7 @@ can be content as content: the library and example parts of each item.
 Games stop looking like every other R(ust)PG2D game: window frames, colours, the title screen,
 the menus and the HUD all belong to the creator.
 
-- [ ] UI skin — `feature/ui-skin`
+- [x] UI skin — `feature/ui-skin`
 
   **Goal.** One place to restyle every window, menu, dialog and HUD element without code.
 
@@ -160,6 +160,24 @@ the menus and the HUD all belong to the creator.
   - **Editor:** a *Look* page edits the skin, with a live preview of a dialog, a menu and the HUD.
   - **Library:** skins are assets (pictures plus settings), so a creator can pick one from the
     library.
+
+  **Decided while building.**
+  - Skins are definitions (`SkinDef` in `defs/skins.ron`, the library kind *UI skin*);
+    `ProjectConfig.skin` holds the chosen id (empty = built in), like fonts. A project can keep
+    several and switch.
+  - Pictures are nine-slices of sprite-sheet frames (corner, pixel size, stretch or repeat), so the
+    library, export, renames and pickers needed nothing new.
+  - Every drawing call takes the place's own built-in colour and only a part the skin sets replaces
+    it: the windows use slightly different shades (four reds), and the built-in look had to stay
+    pixel for pixel. Checked against master: identical screenshots apart from the hint-line fix.
+  - Hearts stay hearts: the skin colours them and can put a plate behind them; a health bar
+    instead belongs to a HUD layout item.
+  - High contrast always shows the built-in high-contrast look over any skin.
+  - The *Look* page is a section of *Database › Project*; the live preview is on the skin's form
+    (drawn by `runtime/skin.rs::draw_preview` into a render target, with the project's fonts).
+  - The stone and classic skins are library-only; *classic* is an empty skin (= the built-in look)
+    to copy.
+  - World drawing (damage numbers, markers, speech bubbles) isn't skinned.
 
   **Engine.**
   - the skin struct and `runtime/skin.rs`;

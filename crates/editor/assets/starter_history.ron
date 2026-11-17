@@ -8774,6 +8774,26 @@
                 ],
             },
         ),
+        "sheet:ui_stone": (
+            defs: [
+                1085617907780740777,
+            ],
+            files: {
+                "sprites/ui_stone.png": [
+                    16087830820039237484,
+                ],
+            },
+        ),
+        "sheet:ui_wood": (
+            defs: [
+                9001165372382480893,
+            ],
+            files: {
+                "sprites/ui_wood.png": [
+                    11415195862934047999,
+                ],
+            },
+        ),
         "sheet:village": (
             defs: [
                 5810430288145868763,
@@ -8934,6 +8954,21 @@
         "skill:woodcutting": (
             defs: [
                 9706046993194547192,
+            ],
+        ),
+        "skin:classic": (
+            defs: [
+                1341667966520508528,
+            ],
+        ),
+        "skin:stone": (
+            defs: [
+                10838359826225710803,
+            ],
+        ),
+        "skin:wood": (
+            defs: [
+                3527683895434694527,
             ],
         ),
         "sound:amb_birds": (

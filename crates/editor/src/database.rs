@@ -35,6 +35,7 @@ pub enum Tab {
     Materials,
     Scatter,
     Fonts,
+    Skins,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -56,6 +57,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Materials => db.materials.len(),
         Tab::Scatter => db.scatter.len(),
         Tab::Fonts => db.fonts.len(),
+        Tab::Skins => db.skins.len(),
         Tab::Project | Tab::Scripts => 0,
     }
 }
@@ -100,6 +102,7 @@ impl Tab {
             Tab::Materials => RefKind::Material,
             Tab::Scatter => RefKind::Scatter,
             Tab::Fonts => RefKind::Font,
+            Tab::Skins => RefKind::Skin,
             Tab::Project | Tab::Scripts => return None,
         })
     }
@@ -123,6 +126,7 @@ impl Tab {
             RefKind::Material => Tab::Materials,
             RefKind::Scatter => Tab::Scatter,
             RefKind::Font => Tab::Fonts,
+            RefKind::Skin => Tab::Skins,
             RefKind::Map => return None,
         })
     }
@@ -164,6 +168,7 @@ pub struct DbState {
     pub st_edit: crate::structures::StructEdit,
     /// The material form's preview (Materials tab).
     pub mat_preview: crate::material_preview::MaterialPreview,
+    pub skin_preview: crate::skin_preview::SkinPreview,
 }
 
 /// Everything the definition forms need besides the definition itself.
@@ -192,6 +197,9 @@ struct Cx<'a> {
     drawing: Option<(&'a str, &'a rustpg2d_engine::imageio::Rgba, u64)>,
     /// The project folder (font previews read the font files).
     root: &'a std::path::Path,
+    skin_preview: &'a mut crate::skin_preview::SkinPreview,
+    /// The project's font roles (the skin preview draws with them).
+    fonts: &'a rustpg2d_engine::fonts::FontRoles,
 }
 
 /// An id not yet used in `ids`, based on `prefix`.
@@ -226,6 +234,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Materials => ph::PAINT_BRUSH,
         Tab::Scatter => ph::TREE_EVERGREEN,
         Tab::Fonts => ph::TEXT_AA,
+        Tab::Skins => ph::FRAME_CORNERS,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
     }
@@ -309,6 +318,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Sheets, "Sprite sheets"),
             (Tab::Sounds, "Sounds"),
             (Tab::Fonts, "Fonts"),
+            (Tab::Skins, "UI skins"),
             (Tab::Structures, "Structures"),
             (Tab::Skills, "Skills"),
             (Tab::Spells, "Spells"),
@@ -361,6 +371,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Materials => db.materials.get(i).map(|d| (RefKind::Material, d.id.clone())),
             Tab::Scatter => db.scatter.get(i).map(|d| (RefKind::Scatter, d.id.clone())),
             Tab::Fonts => db.fonts.get(i).map(|d| (RefKind::Font, d.id.clone())),
+            Tab::Skins => db.skins.get(i).map(|d| (RefKind::Skin, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -379,6 +390,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Materials => Some(RefKind::Material),
                 Tab::Scatter => Some(RefKind::Scatter),
                 Tab::Fonts => Some(RefKind::Font),
+                Tab::Skins => Some(RefKind::Skin),
                 _ => None,
             };
             if kind.is_some() {
@@ -529,6 +541,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     |ids| rustpg2d_engine::fonts::FontDef::fresh(&unique("font", ids)),
                     |d| &mut d.id,
                 ),
+                Tab::Skins => list_ui(
+                    ui,
+                    &mut db.skins,
+                    sel,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::skin::SkinDef::fresh(&unique("skin", ids)),
+                    |d| &mut d.id,
+                ),
                 Tab::Materials => list_ui(
                     ui,
                     &mut db.materials,
@@ -601,6 +621,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     mat_preview: &mut ed.db.mat_preview,
                     drawing: ed.px.doc.as_ref().map(|d| (d.rel.as_str(), &d.img, d.version)),
                     root: &ed.project.root,
+                    skin_preview: &mut ed.db.skin_preview,
+                    fonts: &ed.project.config.fonts,
                 };
                 let i = ed.db.sel;
                 let db = &mut ed.project.db;
@@ -692,6 +714,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Fonts => {
                         if let Some(d) = db.fonts.get_mut(i) {
                             font_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Skins => {
+                        if let Some(d) = db.skins.get_mut(i) {
+                            skin_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -2368,6 +2395,138 @@ fn font_preview(ui: &mut egui::Ui, root: &std::path::Path, d: &rustpg2d_engine::
     }
 }
 
+/// Database › UI skins: a skin's pictures and colours, with the game's own drawing as a preview.
+fn skin_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skin::SkinDef, cx: &mut Cx) {
+    use rustpg2d_engine::skin::SkinColor;
+    ui.heading("UI skin");
+    rename_row(ui, RefKind::Skin, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.weak("How the game's windows, menus, dialog box, HUD and toasts look: pick it under Project › Look. Every part is optional: a part left empty keeps the built-in look. Pictures are frames of sprite sheets cut into nine parts: the corners keep their size, the edges and the middle stretch (or repeat). High contrast (Options › Accessibility) always shows the built-in look.");
+    cx.skin_preview.ui(ui, d, cx.assets, cx.fonts, &cx.db.fonts, cx.root);
+    ui.add_space(4.0);
+    egui::CollapsingHeader::new(ui::t(ph::IMAGE, "Pictures")).id_salt("skin_pics").default_open(true).show(ui, |ui| {
+        let parts: [(&str, &str, &mut Option<rustpg2d_engine::skin::NineSlice>); 11] = [
+            ("Window frame", "Every window and menu panel.", &mut d.frame),
+            ("Dialog box", "The dialog and choice box (empty: the window frame).", &mut d.dialog),
+            ("Name box", "A box for the speaker's name on the dialog box's top edge (empty: the name stays inside the box).", &mut d.name_box),
+            ("HUD panel", "The panel with the hero's portrait, hearts and bars (empty: the window frame, or the built-in gold frame).", &mut d.hud),
+            ("Button", "Buttons, tabs and close buttons.", &mut d.button),
+            ("Button under the pointer", "A button under the pointer and the open tab (empty: the button picture).", &mut d.button_hover),
+            ("Cursor", "The selection marker of menus, lists and inventory slots.", &mut d.cursor),
+            ("Toast", "The short messages at the top of the screen.", &mut d.toast),
+            ("Behind the hearts", "A plate behind the row of hearts.", &mut d.hp.frame),
+            ("Around the mana bar", "Drawn around the mana bar.", &mut d.mana.frame),
+            ("Around the experience bar", "Drawn around the experience bar.", &mut d.xp.frame),
+        ];
+        for (k, (label, tip, slot)) in parts.into_iter().enumerate() {
+            ui.horizontal(|ui| {
+                let mut on = slot.is_some();
+                if ui.checkbox(&mut on, label).on_hover_text(tip).changed() {
+                    *slot = on.then(|| rustpg2d_engine::skin::NineSlice::new(""));
+                }
+            });
+            if let Some(n) = slot {
+                ui.indent(("skin_pic", k), |ui| {
+                    let mut sprite = SpriteRef { sheet: n.sheet.clone(), frame: n.frame, ..Default::default() };
+                    if widgets::sprite_field(ui, &format!("skin_pic_{k}"), &mut sprite, cx.tex, cx.assets, cx.db, false) {
+                        n.sheet = sprite.sheet;
+                        n.frame = sprite.frame;
+                    }
+                    ui.horizontal(|ui| {
+                        ui.label("Corner").on_hover_text("The corners' size in the picture's pixels: they keep their size, the parts between them stretch.");
+                        ui.add(egui::DragValue::new(&mut n.corner).range(0..=64).suffix(" px"));
+                        ui.label("Pixel size").on_hover_text("Screen pixels per picture pixel: whole numbers keep pixel art crisp (2 = as the game's 16 px art is drawn).");
+                        ui.add(egui::DragValue::new(&mut n.scale).range(1..=8).suffix("x"));
+                        ui.checkbox(&mut n.tile, "Repeat").on_hover_text("Repeat the edges and the middle instead of stretching them (patterns, planks).");
+                    });
+                });
+            }
+        }
+    });
+    let color = |ui: &mut egui::Ui, label: &str, tip: &str, c: &mut Option<SkinColor>, builtin: [u8; 4]| {
+        ui.horizontal(|ui| {
+            let mut on = c.is_some();
+            if ui.checkbox(&mut on, label).on_hover_text(tip).changed() {
+                *c = on.then_some(SkinColor(builtin));
+            }
+            match c {
+                Some(c) => {
+                    ui.color_edit_button_srgba_unmultiplied(&mut c.0);
+                }
+                None => {
+                    let [r, g, b, a] = builtin;
+                    let (rect, _) = ui.allocate_exact_size(vec2(36.0, 16.0), Sense::hover());
+                    ui.painter().rect_filled(rect, 2.0, Color32::from_rgba_unmultiplied(r, g, b, a));
+                    ui.weak("built in");
+                }
+            }
+        });
+    };
+    egui::CollapsingHeader::new(ui::t(ph::PALETTE, "Colours")).id_salt("skin_colors").default_open(true).show(ui, |ui| {
+        ui.weak("Windows without a picture:");
+        color(ui, "Background", "A panel's fill.", &mut d.background, [15, 15, 31, 235]);
+        color(ui, "Border", "A panel's border, tab and slot outlines.", &mut d.border, [217, 204, 153, 255]);
+        color(ui, "Button", "A button's fill.", &mut d.button_fill, [10, 10, 20, 217]);
+        color(ui, "Button under the pointer", "A button under the pointer, the open tab.", &mut d.button_hover_fill, [41, 38, 56, 242]);
+        color(ui, "Cursor", "The selection marker's fill.", &mut d.cursor_fill, [255, 255, 255, 31]);
+        color(ui, "Toast", "A toast's fill.", &mut d.toast_fill, [13, 13, 26, 204]);
+        color(ui, "Toast text", "A toast's text.", &mut d.toast_text, [255, 255, 255, 255]);
+        ui.weak("Texts:");
+        let t = &mut d.text;
+        color(ui, "Normal", "Most text, dialog lines.", &mut t.normal, [255, 255, 255, 255]);
+        color(ui, "Dim", "Hints, descriptions, choices not selected.", &mut t.dim, [199, 199, 199, 255]);
+        color(ui, "Highlight", "The selected row, the open tab.", &mut t.highlight, [255, 203, 0, 255]);
+        color(ui, "Disabled", "Entries that can't be chosen, help lines.", &mut t.disabled, [130, 130, 130, 255]);
+        color(ui, "Title", "Window titles, the speaker's name.", &mut t.title, [255, 203, 0, 255]);
+        color(ui, "Positive", "Good news: enough money, a quest done.", &mut t.positive, [153, 242, 153, 255]);
+        color(ui, "Negative", "Bad news: too expensive, missing.", &mut t.negative, [255, 140, 128, 255]);
+        ui.weak("HUD:");
+        color(ui, "Full hearts", "", &mut d.hp.fill, [230, 38, 51, 255]);
+        color(ui, "Empty hearts", "", &mut d.hp.back, [51, 51, 64, 230]);
+        color(ui, "Mana", "The mana bar's fill.", &mut d.mana.fill, [77, 115, 255, 255]);
+        color(ui, "Mana bar back", "", &mut d.mana.back, [0, 0, 0, 179]);
+        color(ui, "Experience", "The experience bar's fill.", &mut d.xp.fill, [217, 173, 51, 255]);
+        color(ui, "Experience bar back", "", &mut d.xp.back, [0, 0, 0, 179]);
+    });
+    egui::CollapsingHeader::new(ui::t(ph::CHAT_TEXT, "Colour names for dialogs")).id_salt("skin_names").show(ui, |ui| {
+        ui.weak("Names dialog texts can use in {c:name}…{/c} with this skin: new names, or other shades of the built-in ones (gold, red, …).");
+        let mut remove = None;
+        for (k, (name, c)) in d.colors.iter_mut().enumerate() {
+            ui.horizontal(|ui| {
+                ui.add(egui::TextEdit::singleline(name).desired_width(120.0));
+                ui.color_edit_button_srgba_unmultiplied(&mut c.0);
+                if ui.small_button(ph::TRASH).on_hover_text("Remove").clicked() {
+                    remove = Some(k);
+                }
+            });
+        }
+        if let Some(k) = remove {
+            d.colors.remove(k);
+        }
+        if ui.button(ui::t(ph::PLUS, "Add a colour name")).clicked() {
+            d.colors.push((format!("colour{}", d.colors.len() + 1), SkinColor::rgb(250, 140, 60)));
+        }
+    });
+}
+
+/// Project › Look: the UI skin the game uses.
+fn look_form(ed: &mut Editor, ui: &mut egui::Ui) {
+    ui.heading("Look");
+    ui.weak("The UI skin of the game's windows, menus, dialog box and HUD (define skins under Database › UI skins, or add one from the library). Built in: the dark blue look.");
+    let ids: Vec<(String, String)> = ed.project.db.skins.iter().map(|d| (d.id.clone(), if d.name.is_empty() { d.id.clone() } else { d.name.clone() })).collect();
+    let c = &mut ed.project.config;
+    ui.horizontal(|ui| {
+        ui.label("Skin");
+        let shown = if c.skin.is_empty() { "Built in".to_string() } else { ids.iter().find(|(id, _)| *id == c.skin).map_or(format!("{} (missing)", c.skin), |(_, n)| n.clone()) };
+        egui::ComboBox::from_id_salt("project_skin").selected_text(shown).show_ui(ui, |ui| {
+            ui.selectable_value(&mut c.skin, String::new(), "Built in");
+            for (id, name) in &ids {
+                ui.selectable_value(&mut c.skin, id.clone(), name);
+            }
+        });
+    });
+}
+
 /// Project › Fonts: which font each kind of text uses, and the fallbacks.
 fn fonts_form(ed: &mut Editor, ui: &mut egui::Ui) {
     use rustpg2d_engine::fonts::Role;
@@ -2638,6 +2797,8 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     languages_form(ed, ui);
     ui.separator();
     fonts_form(ed, ui);
+    ui.separator();
+    look_form(ed, ui);
     let c = &mut ed.project.config;
     ui.separator();
     ui.heading("Skills & magic");

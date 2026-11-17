@@ -5,6 +5,8 @@
 
 use macroquad::prelude::*;
 
+use super::skin;
+
 use super::input::{self, Act};
 use super::Game;
 use crate::state::Order;
@@ -251,7 +253,7 @@ impl Game {
             if lit && focus {
                 draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, Color::new(0.5, 1.0, 0.55, 1.0));
             }
-            draw_text(text, r.x + 12.0, r.y + 20.0, 20.0, if current { Color::new(1.0, 0.86, 0.45, 1.0) } else { WHITE });
+            draw_text(text, r.x + 12.0, r.y + 20.0, 20.0, if current { Color::new(1.0, 0.86, 0.45, 1.0) } else { skin::normal() });
         };
         for (k, (n, r)) in lay.who.iter().enumerate() {
             button(r, n, k == m.who, m.on_who, false);
@@ -261,7 +263,7 @@ impl Game {
         }
         let hint = if lay.who.is_empty() { HINT } else { HINT_MANY };
         let hw = super::glyphs::measure_hint(hint, 16.0);
-        super::glyphs::draw_hint(hint, p.x + (p.w - hw) / 2.0, p.bottom() - 10.0, 16.0, LIGHTGRAY);
+        super::glyphs::draw_hint(hint, p.x + (p.w - hw) / 2.0, p.bottom() - 10.0, 16.0, skin::dim());
     }
 
     /// `status()`: the open menu's choice (`orders=<who>:<order>`), else `-`.

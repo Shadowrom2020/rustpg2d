@@ -954,18 +954,10 @@ impl Game {
             self.hud_bottom.set(frame.bottom() + 24.0);
         }
 
-        // Frame: dark backing, a gold border with an inner line and corner studs.
-        // (High contrast: opaque black, a bright yellow border.)
-        let contrast = super::ui::contrast();
-        let gold = if contrast { Color::new(1.0, 0.85, 0.2, 1.0) } else { Color::new(0.85, 0.72, 0.38, 1.0) };
-        let dim_gold = Color::new(0.55, 0.45, 0.22, 1.0);
-        draw_rectangle(frame.x, frame.y, frame.w, frame.h, if contrast { BLACK } else { Color::new(0.05, 0.05, 0.1, 0.78) });
-        draw_rectangle_lines(frame.x, frame.y, frame.w, frame.h, 2.5, gold);
-        draw_rectangle_lines(frame.x + 4.0, frame.y + 4.0, frame.w - 8.0, frame.h - 8.0, 1.0, dim_gold);
-        for (cx, cy) in [(frame.x, frame.y), (frame.right(), frame.y), (frame.x, frame.bottom()), (frame.right(), frame.bottom())] {
-            draw_poly(cx, cy, 4, 5.0, 45.0, gold);
-            draw_poly(cx, cy, 4, 2.5, 45.0, Color::new(0.95, 0.88, 0.6, 1.0));
-        }
+        // Frame: the skin's HUD picture, or a dark backing with a gold border, an inner line and
+        // corner studs (high contrast: opaque black, a bright yellow border).
+        super::skin::hud_frame(frame);
+        let dim_gold = super::skin::hud_dim_line();
 
         // Portrait: the hero as dressed now, on a darker plate.
         draw_rectangle(portrait.x, portrait.y, portrait.w, portrait.h, Color::new(0.0, 0.0, 0.0, 0.45));
@@ -981,15 +973,16 @@ impl Game {
         // Name, defense.
         let mut y = y0 + PAD;
         draw_text(&name, tx + 1.0, y + 19.0, 22.0, Color::new(0.0, 0.0, 0.0, 0.7));
-        draw_text(&name, tx, y + 18.0, 22.0, Color::new(1.0, 0.86, 0.45, 1.0));
+        draw_text(&name, tx, y + 18.0, 22.0, super::skin::text(super::skin::Text::Title, Color::new(1.0, 0.86, 0.45, 1.0)));
         if let Some(t) = &def_text {
             let w = measure_text(t, None, 16, 1.0).width;
-            draw_text(t, tx + col_w - w, y + 17.0, 16.0, LIGHTGRAY);
+            draw_text(t, tx + col_w - w, y + 17.0, 16.0, super::skin::dim());
         }
         y += 24.0;
 
         // Hearts.
-        let (full, empty) = (Color::new(0.9, 0.15, 0.2, 1.0), Color::new(0.2, 0.2, 0.25, 0.9));
+        let (full, empty) = super::skin::hearts(Color::new(0.9, 0.15, 0.2, 1.0), Color::new(0.2, 0.2, 0.25, 0.9));
+        super::skin::hearts_plate(Rect::new(tx, y, hearts as f32 * STEP - (STEP - HEART - 2.0), HEART + 2.0));
         for i in 0..hearts {
             let x = tx + i as f32 * STEP;
             draw_heart(x, y, HEART + 2.0, Color::new(0.0, 0.0, 0.0, 0.6));
@@ -1024,11 +1017,7 @@ impl Game {
         if magic {
             let max = self.max_mana().max(1) as f32;
             let (bx, bh) = (tx, 9.0);
-            draw_rectangle(bx - 1.0, y - 1.0, bar_w + 2.0, bh + 2.0, Color::new(0.0, 0.0, 0.0, 0.7));
-            let fill = bar_w * (self.world.mana / max).clamp(0.0, 1.0);
-            draw_rectangle(bx, y, fill, bh, Color::new(0.3, 0.45, 1.0, 1.0));
-            draw_rectangle(bx, y, fill, 3.0, Color::new(0.55, 0.7, 1.0, 1.0));
-            draw_rectangle_lines(bx - 1.0, y - 1.0, bar_w + 2.0, bh + 2.0, 1.0, Color::new(0.6, 0.7, 1.0, 0.8));
+            super::skin::bar(super::skin::Bar::Mana, bx, y, bar_w, bh, self.world.mana / max);
             draw_text(format!("{:.0}", self.world.mana), bx + bar_w + 6.0, y + 9.0, 15.0, Color::new(0.75, 0.82, 1.0, 1.0));
             y += 16.0;
         }
@@ -1037,11 +1026,7 @@ impl Game {
         if levels {
             let (have, need) = self.xp_progress();
             let (bx, bh) = (tx, 6.0);
-            draw_rectangle(bx - 1.0, y - 1.0, bar_w + 2.0, bh + 2.0, Color::new(0.0, 0.0, 0.0, 0.7));
-            let fill = bar_w * (have as f32 / need.max(1) as f32).clamp(0.0, 1.0);
-            draw_rectangle(bx, y, fill, bh, Color::new(0.85, 0.68, 0.2, 1.0));
-            draw_rectangle(bx, y, fill, 2.0, Color::new(1.0, 0.88, 0.5, 1.0));
-            draw_rectangle_lines(bx - 1.0, y - 1.0, bar_w + 2.0, bh + 2.0, 1.0, Color::new(0.85, 0.72, 0.38, 0.8));
+            super::skin::bar(super::skin::Bar::Xp, bx, y, bar_w, bh, have as f32 / need.max(1) as f32);
             draw_text(&level_text, bx + bar_w + 6.0, y + 7.0, 15.0, Color::new(1.0, 0.86, 0.45, 1.0));
             y += 14.0;
         }
@@ -1051,7 +1036,7 @@ impl Game {
             if let Some(s) = &sprite {
                 self.assets.draw_frame_in(&s.sheet, s.frame, Rect::new(tx - 2.0, y - 2.0, 20.0, 20.0), WHITE);
             }
-            let col = if n == 0 { Color::new(1.0, 0.4, 0.4, 1.0) } else { WHITE };
+            let col = if n == 0 { super::skin::text(super::skin::Text::Negative, Color::new(1.0, 0.4, 0.4, 1.0)) } else { super::skin::normal() };
             draw_text(format!("x{n}"), tx + 22.0, y + 13.0, 18.0, col);
         }
     }
@@ -1089,7 +1074,7 @@ pub(super) fn draw_heart_right_half(x: f32, y: f32, s: f32, c: Color) {
     draw_triangle(vec2(x + s * 0.5, y + s * 0.42), vec2(x + s * 0.96, y + s * 0.42), vec2(x + s * 0.5, y + s * 0.92), c);
 }
 
-pub(super) fn draw_heart(x: f32, y: f32, s: f32, c: Color) {
+pub(crate) fn draw_heart(x: f32, y: f32, s: f32, c: Color) {
     let r = s * 0.28;
     draw_circle(x + s * 0.3, y + s * 0.32, r, c);
     draw_circle(x + s * 0.7, y + s * 0.32, r, c);

@@ -157,6 +157,7 @@ pub fn kind_icon(k: rustpg2d_engine::refactor::RefKind) -> &'static str {
         RefKind::Material => ph::PAINT_BRUSH,
         RefKind::Scatter => ph::TREE_EVERGREEN,
         RefKind::Font => ph::TEXT_AA,
+        RefKind::Skin => ph::FRAME_CORNERS,
         RefKind::Map => ph::MAP_TRIFOLD,
     }
 }

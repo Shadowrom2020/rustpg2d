@@ -186,7 +186,7 @@ pub fn expand_keys(text: &str) -> String {
 }
 
 /// A piece of a hint line.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum Seg {
     Text(String),
     /// A button picture.
@@ -236,8 +236,11 @@ pub fn hint_text(template: &str) -> String {
 
 /// Width of a hint line at `size`.
 pub fn measure_hint(template: &str, size: f32) -> f32 {
-    segments(template)
-        .iter()
+    segs_width(&segments(template), size)
+}
+
+fn segs_width(segs: &[Seg], size: f32) -> f32 {
+    segs.iter()
         .map(|s| match s {
             Seg::Text(t) => super::text::measure_plain(t, size).width,
             Seg::Button(p) => pad_width(*p, size) + 2.0,
@@ -245,21 +248,88 @@ pub fn measure_hint(template: &str, size: f32) -> f32 {
         .sum()
 }
 
-/// Draws a hint line with its text baseline at `y`; returns its width.
-pub fn draw_hint(template: &str, x: f32, y: f32, size: f32, color: Color) -> f32 {
+fn draw_segs(segs: &[Seg], x: f32, y: f32, size: f32, color: Color) -> f32 {
     let mut cx = x;
-    for s in segments(template) {
+    for s in segs {
         match s {
-            Seg::Text(t) => cx += super::text::draw_plain(&t, cx, y, size, color).width,
-            Seg::Button(p) => cx += draw_pad(p, cx + 1.0, y - size * 0.3, size) + 2.0,
+            Seg::Text(t) => cx += super::text::draw_plain(t, cx, y, size, color).width,
+            Seg::Button(p) => cx += draw_pad(*p, cx + 1.0, y - size * 0.3, size) + 2.0,
         }
     }
     cx - x
 }
 
-/// The largest font size from `max` down to 12 at which the hint fits into `width`.
-pub fn hint_size(template: &str, width: f32, max: u16) -> f32 {
-    (12..=max).rev().find(|s| measure_hint(template, *s as f32) <= width).unwrap_or(12) as f32
+/// The parts of a hint between its " · " separators, put into lines no wider than `width` at
+/// `size` (a part wider than that gets a line of its own).
+fn hint_lines(segs: Vec<Seg>, size: f32, width: f32) -> Vec<Vec<Seg>> {
+    // Parts are split by " · " (or by wide gaps in hints written that way).
+    let has = |sep: &str| segs.iter().any(|s| matches!(s, Seg::Text(t) if t.contains(sep)));
+    let sep = [" · ", "  -  "].into_iter().find(|s| has(s)).unwrap_or("   ");
+    let mut parts: Vec<Vec<Seg>> = vec![Vec::new()];
+    for seg in segs {
+        match seg {
+            Seg::Text(t) => {
+                for (k, piece) in t.split(sep).enumerate() {
+                    if k > 0 {
+                        parts.push(Vec::new());
+                    }
+                    // (Only a new part loses its leading spaces: the text after a button keeps its gap.)
+                    let piece = if k > 0 { piece.trim_start() } else { piece };
+                    if !piece.is_empty() {
+                        parts.last_mut().unwrap().push(Seg::Text(piece.to_string()));
+                    }
+                }
+            }
+            b => parts.last_mut().unwrap().push(b),
+        }
+    }
+    parts.retain(|p| !p.is_empty());
+    let mut lines: Vec<Vec<Seg>> = Vec::new();
+    for part in parts {
+        if let Some(line) = lines.last_mut() {
+            let mut joined = line.clone();
+            joined.push(Seg::Text(sep.to_string()));
+            joined.extend(part.iter().cloned());
+            if segs_width(&joined, size) <= width {
+                *line = joined;
+                continue;
+            }
+        }
+        lines.push(part);
+    }
+    lines
+}
+
+/// Draws a hint line into `width` pixels, its last line's baseline at `y`: as [`draw_hint`] when
+/// it fits, else smaller (down to 70 % of `size`), else in lines broken between its " · "
+/// parts, the first lines above. Returns how many lines it took.
+pub fn draw_hint_in(template: &str, x: f32, y: f32, size: f32, width: f32, color: Color) -> usize {
+    let segs = segments(template);
+    if segs_width(&segs, size) <= width {
+        draw_segs(&segs, x, y, size, color);
+        return 1;
+    }
+    let min = (size * 0.7).floor().max(10.0);
+    let mut s = size.floor();
+    while s > min {
+        s -= 1.0;
+        if segs_width(&segs, s) <= width {
+            draw_segs(&segs, x, y, s, color);
+            return 1;
+        }
+    }
+    let lines = hint_lines(segs, s, width);
+    let step = (s * 1.15).round();
+    let n = lines.len();
+    for (k, line) in lines.iter().enumerate() {
+        draw_segs(line, x, y - (n - 1 - k) as f32 * step, s, color);
+    }
+    n
+}
+
+/// Draws a hint line with its text baseline at `y`; returns its width.
+pub fn draw_hint(template: &str, x: f32, y: f32, size: f32, color: Color) -> f32 {
+    draw_segs(&segments(template), x, y, size, color)
 }
 
 // ------------------------------------------------------------------ the pictures

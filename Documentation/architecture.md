@@ -379,6 +379,17 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   `Game` fills with item icons. `{name:…}` and `{at:…}` are applied when the box opens; a leading
   `{at:…}` is split off before the translation lookup (`split_box_at`), and `lang::content_texts`
   leaves it out the same way.
+- UI skins (`skin.rs`: `SkinDef` in `defs/skins.ron`, `ProjectConfig.skin` = the game's) are drawn
+  by `runtime/skin.rs`, the one place window chrome comes from: `panel`, `dialog_box`, `name_box`,
+  `hud_frame`, `button_picture` / `button_fill`, `cursor`, `toast_box`, `bar`, `hearts` and
+  `text(kind, builtin)` for window texts. Every function takes the colour its place always used and
+  returns it unchanged unless the skin sets that part, so the built-in look stays pixel for pixel
+  (high contrast always draws the built-in look: `cur()` returns the empty skin then). `install`
+  runs once at game start; it resolves the skin's pictures to textures (sheet frames) and hands its
+  colour names to `dialog_codes::set_skin_colors`. Pictures are nine-slices
+  (`render::draw_nine_slice`, rectangle maths in `skin::nine_parts` / `repeats`). The editor's
+  skin form installs the edited skin and draws `skin::draw_preview` into a render target
+  (`skin_preview.rs`). World drawing (markers, damage numbers, speech bubbles) is not skinned.
 - The hot definition lookups (`db.item(id)`, `prop`, `character`, `sheet`) go through
   an id index that verifies its hits and falls back to a scan, so an index left stale by an
   in-place edit is slower, never wrong; `Database::reindex` refreshes it.

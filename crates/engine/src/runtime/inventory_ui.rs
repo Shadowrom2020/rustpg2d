@@ -9,7 +9,7 @@ use macroquad::prelude::*;
 
 use super::input::{self, Act};
 use super::ui::{panel, slot_grid, slot_grid_size, DragState, SlotEvent, GAP, PAD, SLOT};
-use super::Game;
+use super::{skin, Game};
 use crate::defs::EquipSlot;
 use crate::inventory::{Inventory, ItemStack};
 use super::text::{draw_text, measure_text};
@@ -151,12 +151,14 @@ impl Game {
         let m = input::mouse_pos();
         for (b, r) in self.hud_buttons() {
             let hover = r.contains(m);
-            draw_rectangle(r.x, r.y, r.w, r.h, Color::new(0.06, 0.06, 0.12, if hover { 0.95 } else { 0.7 }));
-            draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, Color::new(0.85, 0.8, 0.6, 1.0));
+            if !skin::button_picture(r, hover) {
+                draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(hover, Color::new(0.06, 0.06, 0.12, if hover { 0.95 } else { 0.7 })));
+                draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, skin::line(1.0));
+            }
             let key = match b {
                 HudButton::Window => {
                     // Head and shoulders with a bag at the side: character, inventory, skills.
-                    let c = Color::new(0.85, 0.8, 0.6, 1.0);
+                    let c = skin::line(1.0);
                     draw_circle(r.x + 22.0, r.y + 18.0, 8.0, c);
                     // Shoulders: the upper half of a disc, ending at the button's bottom edge.
                     let (cx, cy, rad) = (r.x + 22.0, r.y + 46.0, 15.0);
@@ -191,7 +193,7 @@ impl Game {
                     "M"
                 }
             };
-            draw_text(key, r.x + 40.0, r.y + 48.0, 16.0, LIGHTGRAY);
+            draw_text(key, r.x + 40.0, r.y + 48.0, 16.0, skin::dim());
         }
     }
 }
@@ -810,7 +812,7 @@ impl Game {
             let p = g.panel;
             if g.side != Side::Quick {
                 panel(p.x, p.y, p.w, p.h);
-                draw_text(&g.title, p.x + PAD, p.y + 28.0, 26.0, GOLD);
+                draw_text(&g.title, p.x + PAD, p.y + 28.0, 26.0, skin::title());
             }
             if g.side == Side::Equip {
                 self.draw_sheet(g, hover, dragging);
@@ -830,8 +832,10 @@ impl Game {
                 let selected = self.inv.sel == Some(key);
                 let bg = if hover == Some(key) { Color::new(1.0, 1.0, 1.0, 0.16) } else { Color::new(0.0, 0.0, 0.0, 0.35) };
                 draw_rectangle(r.x, r.y, r.w, r.h, bg);
-                let border = if selected { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.35) };
-                draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.0 }, border);
+                if !(selected && skin::cursor_picture(*r)) {
+                    let border = if selected { skin::highlight() } else { skin::line(0.35) };
+                    draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.0 }, border);
+                }
                 let Some(stack) = inv.slots.get(i).cloned().flatten() else { continue };
                 let tint = if dragging == Some(key) { Color::new(1.0, 1.0, 1.0, 0.3) } else { WHITE };
                 if let Some(d) = self.project.db.item(&stack.item) {
@@ -842,19 +846,21 @@ impl Game {
                 if stack.count > 1 {
                     let t = stack.count.to_string();
                     let w = measure_text(&t, None, 18, 1.0).width;
-                    draw_text(&t, r.x + r.w - w - 3.0, r.y + r.h - 4.0, 18.0, WHITE);
+                    draw_text(&t, r.x + r.w - w - 3.0, r.y + r.h - 4.0, 18.0, skin::normal());
                 }
             }
         }
         if let Some(r) = layout.take_all {
             let h = r.contains(m);
-            draw_rectangle(r.x, r.y, r.w, r.h, Color::new(0.3, 0.25, 0.1, if h { 1.0 } else { 0.8 }));
-            draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.0, GOLD);
-            draw_text("Take all (T)", r.x + 6.0, r.y + 18.0, 16.0, WHITE);
+            if !skin::button_picture(r, h) {
+                draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(h, Color::new(0.3, 0.25, 0.1, if h { 1.0 } else { 0.8 })));
+                draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.0, skin::highlight());
+            }
+            draw_text("Take all (T)", r.x + 6.0, r.y + 18.0, 16.0, skin::normal());
         }
         if self.inv.loot.is_some() {
             let c = layout.close;
-            draw_text("x", c.x + 6.0, c.y + 17.0, 24.0, if c.contains(m) { WHITE } else { GRAY });
+            draw_text("x", c.x + 6.0, c.y + 17.0, 24.0, if c.contains(m) { skin::normal() } else { skin::disabled() });
         }
 
         // Details of the hovered or selected stack, and the help line.
@@ -891,7 +897,9 @@ impl Game {
             let selected = self.inv.sel == Some(key);
             let bg = if hover == Some(key) { Color::new(1.0, 1.0, 1.0, 0.16) } else { Color::new(0.0, 0.0, 0.0, 0.35) };
             draw_rectangle(r.x, r.y, r.w, r.h, bg);
-            draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.5 }, if selected { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.6) });
+            if !(selected && skin::cursor_picture(*r)) {
+                draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.5 }, if selected { skin::highlight() } else { skin::line(0.6) });
+            }
             let slot = EQUIP_SLOTS[k];
             let item = self.world.equipment.get(slot).and_then(|s| self.project.db.item(&s.item));
             if let Some(d) = item {
@@ -906,7 +914,7 @@ impl Game {
             // The caption under it (the item's name and numbers are in the details line).
             let caption = equip_caption(slot);
             let w = measure_text(caption, None, 15, 1.0).width;
-            let colour = if item.is_some() { LIGHTGRAY } else { GRAY };
+            let colour = if item.is_some() { skin::dim() } else { skin::disabled() };
             draw_text(caption, (r.x + r.w / 2.0 - w / 2.0).round(), r.y + r.h + 14.0, 15.0, colour);
         }
         let st = self.stats();
@@ -925,11 +933,11 @@ impl Game {
             lines.insert(0, format!("Level       {}  (XP {have} / {need})", self.world.player_level()));
         }
         let y0 = p.y + EQUIP_TOP + 4.0 * EQUIP_STEP + 8.0;
-        draw_line(p.x + PAD, y0 - 12.0, p.x + p.w - PAD, y0 - 12.0, 1.0, Color::new(0.85, 0.8, 0.6, 0.4));
+        draw_line(p.x + PAD, y0 - 12.0, p.x + p.w - PAD, y0 - 12.0, 1.0, skin::line(0.4));
         // (Taller fallback glyphs, e.g. Japanese labels, get the room they need.)
         let mut y = y0 + 8.0;
         for l in &lines {
-            draw_text(l, p.x + PAD, y, 19.0, WHITE);
+            draw_text(l, p.x + PAD, y, 19.0, skin::normal());
             y += super::text::line_step(&crate::lang::tr_ui(l), 19.0, 22.0);
         }
     }
@@ -960,7 +968,7 @@ impl Game {
             draw_rectangle(r.x, r.y, r.w, r.h, bg);
             // While dragging something droppable, highlight the bar.
             let drop_target = dragging.is_some_and(|(s, _)| matches!(s, Side::Player | Side::Equip | Side::Quick));
-            let border = if drop_target { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.5) };
+            let border = if drop_target { skin::highlight() } else { skin::line(0.5) };
             draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, border);
             draw_text((k + 1).to_string(), r.x + 3.0, r.y + 13.0, 15.0, Color::new(1.0, 1.0, 1.0, 0.7));
             let Some(id) = self.quick_item(k) else { continue };
@@ -981,12 +989,12 @@ impl Game {
             let alpha = if dragging == Some((Side::Quick, k)) { 0.3 } else if owned == 0 && !equipped { 0.35 } else { 1.0 };
             self.assets.draw_frame_in(&def.icon.sheet, def.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 28.0, 28.0), Color::new(1.0, 1.0, 1.0, alpha));
             if equipped {
-                draw_text("E", r.x + r.w - 11.0, r.y + 13.0, 15.0, GOLD);
+                draw_text("E", r.x + r.w - 11.0, r.y + 13.0, 15.0, skin::highlight());
             }
             if !(equipped && owned == 0) && (owned != 1 || def.max_stack > 1) {
                 let t = owned.to_string();
                 let w = measure_text(&t, None, 16, 1.0).width;
-                let c = if owned == 0 { Color::new(1.0, 0.45, 0.45, 1.0) } else { WHITE };
+                let c = if owned == 0 { skin::text(skin::Text::Negative, Color::new(1.0, 0.45, 0.45, 1.0)) } else { skin::normal() };
                 draw_text(&t, r.x + r.w - w - 3.0, r.y + r.h - 4.0, 16.0, c);
             }
         }

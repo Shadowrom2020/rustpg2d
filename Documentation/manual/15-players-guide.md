@@ -96,7 +96,8 @@ the first button press makes the pad known to the page.
 
 Photo mode has no button of its own: choose *Photo mode* in the pause menu (Start).
 
-**Hints follow your hands.** The help lines at the bottom of windows and menus name the keys while
+**Hints follow your hands.** The help lines at the bottom of windows and menus (drawn a little
+smaller, or in two lines, when a long translation doesn't fit the window) name the keys while
 you play with the keyboard and mouse, and show your controller's buttons as soon as you press one
 (and back when you press a key or click). The pictures match the controller: coloured A B X Y for
 Xbox pads and the Steam Deck, ✕ ○ □ △ for PlayStation, the Nintendo letters for Switch pads. If the

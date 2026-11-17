@@ -8,7 +8,7 @@ Database says what they are.
 ## Working with definitions
 
 The tabs along the top are *Items, Props, Characters, Races, 3D models, Materials, Scatter sets,
-Sprite sheets, Sounds, Structures, Skills, Spells, Recipes, Quests, Achievements, Project* and
+Sprite sheets, Sounds, Fonts, UI skins, Structures, Skills, Spells, Recipes, Quests, Achievements, Project* and
 *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
 
@@ -252,6 +252,48 @@ text, and how many characters it has. The fonts the project uses also become fal
 editor's own font, so its forms show those scripts too. *Edit › Problems* warns when a text of the game or of one of
 its translations has characters no font of the project covers (players would see empty boxes).
 
+## UI skins
+
+A UI skin restyles the game's windows and menus, the dialog box, the HUD and the toasts without
+code. Pick the one the game uses under *Database › Project › Look*; without one the game has its
+built-in dark blue look. The example uses the **Wood** skin, and the starter library adds **Stone**
+and **Classic** (the built-in look as a skin, to copy and change).
+
+Every part of a skin is optional: a part left empty keeps the built-in look, so a skin can change
+just the text colours, or just the frames. **High contrast** (the players' *Options ›
+Accessibility*) always shows the built-in high-contrast look instead.
+
+**Pictures** are frames of a sprite sheet drawn as *nine-slices*: the four corners keep their size,
+the edges and the middle stretch between them (or repeat, with *Repeat*), so one small picture
+frames a window of any size. Each picture has a **Corner** (the corners' size in the picture's
+pixels) and a **Pixel size** (screen pixels per picture pixel; whole numbers keep pixel art crisp,
+2 = as the game's 16 px art is drawn).
+
+| Picture | Where |
+|---|---|
+| **Window frame** | Every window and menu panel: inventory, character, skills, journal, shop, crafting, map, pause menu, options, minigames |
+| **Dialog box** | The dialog and choice box (empty: the window frame) |
+| **Name box** | A box for the speaker's name on the dialog box's top edge (empty: the name stays inside the box, as built in) |
+| **HUD panel** | The panel with the hero's portrait, hearts and bars (empty: the window frame, or the built-in gold frame) |
+| **Button**, **Button under the pointer** | Buttons, window tabs, close buttons; the second also marks the open tab |
+| **Cursor** | The selected row of menus, lists and choices, and the selected inventory slot |
+| **Toast** | The short messages at the top of the screen |
+| **Behind the hearts**, **Around the mana / experience bar** | A plate behind the row of hearts, frames around the HUD's bars |
+
+**Colours** replace the built-in ones where they are switched on: the panels' **background** and
+**border** (for windows without a frame picture), the fills of buttons, the cursor and toasts, the
+toast text, the texts (**Normal**, **Dim** for hints and descriptions, **Highlight** for the
+selected row, **Disabled**, **Title** for window titles and the speaker's name, **Positive** and
+**Negative** for good and bad news such as *enough coins* / *not enough*), and the HUD's hearts and
+bars. **Colour names for dialogs** add names to the dialog colour codes ([Events › Message
+codes](07-events.md#message-codes)): a skin that defines *ember* lets dialogs write
+`{c:ember}…{/c}`, and a built-in name (*gold*, *red*…) can get another shade.
+
+At the top of the form, a preview shows a menu, the HUD, a toast and a dialog box with a name
+drawn by the game itself with this skin and the project's fonts. *Edit › Problems* warns about a
+picture without a sprite sheet, a corner larger than half its picture, and a project skin that
+doesn't exist.
+
 ## Quests
 
 The quest editor describes a whole quest in one place: who gives it and when, what the giver says,
@@ -333,4 +375,5 @@ These belong to the game systems they drive: [Skills and magic](09-gameplay.md#s
 | **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana, skill points) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |
 | **Languages** | The language the game is written in, translations, *Play-test in* ([Languages](12-languages.md)) |
+| **Look** | The **UI skin** of the game's windows, menus, dialog box and HUD; *Built in* = the dark blue look ([UI skins](#ui-skins)) |
 | **Fonts** | Which font the **windows and menus**, the **dialogs** (and speech bubbles, captions), the **HUD** (bars, quickbar, toasts, clock, damage numbers) and the **title** (the game's name on the title screen) use; empty = the built-in font for windows, the windows' font for the others. **Fallbacks**: fonts tried in order for a character the role's font lacks, before the built-in font (a Japanese font for a Japanese translation) ([Fonts](#fonts)) |

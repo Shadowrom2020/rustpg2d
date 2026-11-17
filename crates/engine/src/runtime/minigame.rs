@@ -5,6 +5,8 @@
 
 use macroquad::prelude::*;
 
+use super::skin;
+
 use super::input::{self, Act};
 use super::{ui::panel, Game, Source};
 use crate::events::runner::ActionHost;
@@ -342,12 +344,12 @@ impl Game {
                 let (x, y) = (((sw - w) / 2.0).round(), ((sh - h) / 2.0).round());
                 draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.0, 0.0, 0.0, 0.35));
                 panel(x, y, w, h);
-                draw_text("Picking the lock", x + 18.0, y + 34.0, 26.0, GOLD);
+                draw_text("Picking the lock", x + 18.0, y + 34.0, 26.0, skin::highlight());
                 // Pins: set ones gold, the current one outlined.
                 for k in 0..PINS {
                     let px = x + w - 30.0 - (PINS - k) as f32 * 30.0;
                     let set = k < l.pin;
-                    draw_rectangle(px, y + 16.0, 18.0, 22.0, if set { GOLD } else { Color::new(0.2, 0.2, 0.25, 1.0) });
+                    draw_rectangle(px, y + 16.0, 18.0, 22.0, if set { skin::highlight() } else { Color::new(0.2, 0.2, 0.25, 1.0) });
                     if k == l.pin {
                         draw_rectangle_lines(px - 2.0, y + 14.0, 22.0, 26.0, 2.0, WHITE);
                     }
@@ -360,13 +362,13 @@ impl Game {
                     let c = l.spots[l.pin];
                     draw_rectangle(bar.x + (c - l.half) * bar.w, bar.y, 2.0 * l.half * bar.w, bar.h, Color::new(0.35, 0.8, 0.35, 0.85));
                 }
-                draw_rectangle_lines(bar.x, bar.y, bar.w, bar.h, 2.0, Color::new(0.85, 0.8, 0.6, 1.0));
+                draw_rectangle_lines(bar.x, bar.y, bar.w, bar.h, 2.0, skin::line(1.0));
                 let mx = bar.x + l.pos * bar.w;
                 draw_rectangle(mx - 2.0, bar.y - 8.0, 4.0, bar.h + 16.0, WHITE);
                 // Misses left.
                 let left = MAX_MISSES.saturating_sub(l.misses);
-                draw_text(format!("Picks left: {left}"), x + 24.0, y + 140.0, 20.0, if left <= 1 { Color::new(1.0, 0.55, 0.5, 1.0) } else { LIGHTGRAY });
-                super::glyphs::draw_hint("{key:confirm}: set the pin while the marker is in the green   {key:cancel}: give up", x + 24.0, y + h - 18.0, 16.0, GRAY);
+                draw_text(format!("Picks left: {left}"), x + 24.0, y + 140.0, 20.0, if left <= 1 { skin::text(skin::Text::Negative, Color::new(1.0, 0.55, 0.5, 1.0)) } else { skin::dim() });
+                super::glyphs::draw_hint_in("{key:confirm}: set the pin while the marker is in the green   {key:cancel}: give up", x + 24.0, y + h - 18.0, 16.0, w - 48.0, skin::disabled());
             }
             Kind::Fishing(f) => {
                 // The line and the bobber in front of the player.
@@ -394,20 +396,20 @@ impl Game {
                     FishPhase::Bite(_) => ("A bite! Strike now!", "{key:confirm}: strike"),
                     FishPhase::Reel => ("Reel it in!", "Hold {key:confirm} to reel, let go before the line turns red"),
                 };
-                draw_text(title, x + 18.0, y + 32.0, 24.0, if bite { GOLD } else { WHITE });
+                draw_text(title, x + 18.0, y + 32.0, 24.0, if bite { skin::highlight() } else { skin::normal() });
                 if f.phase == FishPhase::Reel {
                     let bar = |by: f32, v: f32, c: Color, label: &str| {
-                        draw_text(label, x + 18.0, by + 14.0, 16.0, LIGHTGRAY);
+                        draw_text(label, x + 18.0, by + 14.0, 16.0, skin::dim());
                         let r = Rect::new(x + 90.0, by, w - 110.0, 16.0);
                         draw_rectangle(r.x, r.y, r.w, r.h, Color::new(0.1, 0.1, 0.12, 1.0));
                         draw_rectangle(r.x, r.y, r.w * v.clamp(0.0, 1.0), r.h, c);
-                        draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.0, Color::new(0.85, 0.8, 0.6, 1.0));
+                        draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.0, skin::line(1.0));
                     };
                     let tc = if f.tension > 0.85 { Color::new(0.9, 0.2, 0.15, 1.0) } else if f.tension > 0.6 { Color::new(0.95, 0.7, 0.2, 1.0) } else { Color::new(0.4, 0.8, 0.4, 1.0) };
                     bar(y + 46.0, f.tension, tc, "Tension");
                     bar(y + 70.0, f.progress, Color::new(0.35, 0.6, 0.95, 1.0), "Reeled");
                 }
-                super::glyphs::draw_hint(hint, x + 18.0, y + h - 12.0, 16.0, GRAY);
+                super::glyphs::draw_hint_in(hint, x + 18.0, y + h - 12.0, 16.0, w - 36.0, skin::disabled());
             }
         }
         if let Some((won, _, msg)) = &m.done {

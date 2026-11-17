@@ -8,6 +8,8 @@
 
 use macroquad::prelude::*;
 
+use super::skin;
+
 use super::input::{self, Act};
 use super::ui::{panel, slot_grid, DragState, SlotEvent, PAD, SLOT};
 use super::Game;
@@ -423,7 +425,7 @@ impl Game {
         let titles = [name.clone(), format!("{name}'s bag"), format!("Inventory  {}/{}", self.world.inventory.used_slots(), self.world.inventory.capacity())];
         for (p, t) in l.panels.iter().zip(&titles) {
             panel(p.x, p.y, p.w, p.h);
-            draw_text(t, p.x + PAD, p.y + 28.0, 24.0, GOLD);
+            draw_text(t, p.x + PAD, p.y + 28.0, 24.0, skin::highlight());
         }
         // The companion as dressed now, its HP, defense and weapon.
         let pr = Rect::new(l.panels[0].x + PAD, l.panels[0].y + 50.0, 96.0, 150.0);
@@ -440,17 +442,17 @@ impl Game {
             let key = (Pane::Gear, k);
             self.comp_slot_frame(r, hover == Some(key), w.sel == key);
             let slot = GEAR[k];
-            draw_text(slot.label(), r.x + r.w + 6.0, r.y + 18.0, 16.0, LIGHTGRAY);
+            draw_text(slot.label(), r.x + r.w + 6.0, r.y + 18.0, 16.0, skin::dim());
             match e.equipment.get(slot).and_then(|s| self.project.db.item(&s.item)) {
                 Some(d) => {
                     let tint = if dragging == Some(key) { Color::new(1.0, 1.0, 1.0, 0.3) } else { WHITE };
                     self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 32.0, 32.0), tint);
                     for (n, line) in wrap_text(&d.name, 14, 70.0).iter().take(2).enumerate() {
-                        draw_text(line, r.x + r.w + 6.0, r.y + 33.0 + n as f32 * 12.0, 14.0, WHITE);
+                        draw_text(line, r.x + r.w + 6.0, r.y + 33.0 + n as f32 * 12.0, 14.0, skin::normal());
                     }
                 }
                 None => {
-                    draw_text(if locked { "-" } else { "empty" }, r.x + r.w + 6.0, r.y + 35.0, 14.0, GRAY);
+                    draw_text(if locked { "-" } else { "empty" }, r.x + r.w + 6.0, r.y + 35.0, 14.0, skin::disabled());
                 }
             }
         }
@@ -466,10 +468,10 @@ impl Game {
         }
         let sy = l.gear.last().map_or(pr.bottom(), |r| r.bottom()) + 24.0;
         for (n, t) in stats.iter().enumerate() {
-            draw_text(t, l.panels[0].x + PAD, sy + n as f32 * 20.0, 18.0, WHITE);
+            draw_text(t, l.panels[0].x + PAD, sy + n as f32 * 20.0, 18.0, skin::normal());
         }
         if locked {
-            draw_text("Can't wear gear", l.panels[0].x + PAD, sy + stats.len() as f32 * 20.0 + 4.0, 16.0, GRAY);
+            draw_text("Can't wear gear", l.panels[0].x + PAD, sy + stats.len() as f32 * 20.0 + 4.0, 16.0, skin::disabled());
         }
         for (pane, rects, inv) in [(Pane::Bag, &l.bag, &w.bag), (Pane::Player, &l.player, &self.world.inventory)] {
             for (k, r) in rects.iter().enumerate() {
@@ -483,12 +485,12 @@ impl Game {
                 if s.count > 1 {
                     let t = s.count.to_string();
                     let tw = measure_text(&t, None, 18, 1.0).width;
-                    draw_text(&t, r.right() - tw - 3.0, r.bottom() - 4.0, 18.0, WHITE);
+                    draw_text(&t, r.right() - tw - 3.0, r.bottom() - 4.0, 18.0, skin::normal());
                 }
             }
         }
         let c = l.close;
-        draw_text("x", c.x + 6.0, c.y + 17.0, 24.0, if c.contains(m) { WHITE } else { GRAY });
+        draw_text("x", c.x + 6.0, c.y + 17.0, 24.0, if c.contains(m) { skin::normal() } else { skin::disabled() });
         // Details of the hovered / selected stack (count and stats like the inventory's) and the help line.
         let focus = hover.unwrap_or(w.sel);
         let stack = self.pane_stack(focus.0, focus.1);
@@ -502,7 +504,7 @@ impl Game {
 
     fn comp_slot_frame(&self, r: &Rect, hover: bool, selected: bool) {
         draw_rectangle(r.x, r.y, r.w, r.h, if hover { Color::new(1.0, 1.0, 1.0, 0.16) } else { Color::new(0.0, 0.0, 0.0, 0.35) });
-        draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.0 }, if selected { GOLD } else { Color::new(0.85, 0.8, 0.6, 0.35) });
+        draw_rectangle_lines(r.x, r.y, r.w, r.h, if selected { 3.0 } else { 1.0 }, if selected { skin::highlight() } else { skin::line(0.35) });
     }
 
     /// `status()`: the companion whose window is open, its bag in window order.

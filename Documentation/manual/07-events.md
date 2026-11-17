@@ -137,7 +137,7 @@ Dialog and Choice texts may also carry **message codes**, in the same braces:
 
 | Code | What it does |
 |---|---|
-| `{c:gold}…{/c}` | Colours the text up to `{/c}`. Colour names: `white`, `gray`, `red`, `green`, `blue`, `cyan`, `yellow`, `gold`, `orange`, `purple`, `pink`, `brown`; or `#rrggbb`. |
+| `{c:gold}…{/c}` | Colours the text up to `{/c}`. Colour names: `white`, `gray`, `red`, `green`, `blue`, `cyan`, `yellow`, `gold`, `orange`, `purple`, `pink`, `brown`, plus the names the game's UI skin adds ([UI skins](05-database.md#ui-skins)); or `#rrggbb`. |
 | `{i:room_key}` | Shows an item's icon inside the line (the item's id). |
 | `{w:0.5}` | Pauses the typing for that many seconds (up to 60). |
 | `{s:2}` | Types the rest of the line at that speed: 2 = twice as fast, 0.5 = half as fast. |

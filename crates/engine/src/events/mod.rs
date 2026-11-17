@@ -620,6 +620,54 @@ pub enum Action {
     /// is, following it for a while, and fights whoever it sees on the way: a chief calling
     /// his men.
     RushTo { target: TargetName, to: TargetName },
+    /// Shows a picture on a layer (1 to 100, drawn in number order above the map and below the
+    /// HUD; a picture already there is replaced): a frame of a sprite sheet, placed `x`, `y`
+    /// screen pixels from its `anchor` (like HUD elements), or with `on_map` its middle on map
+    /// tile `x`, `y`. `opacity` 0 to 1, `rotation` in degrees, `tint` multiplies its colours.
+    /// Saved with the game.
+    ShowPicture {
+        layer: u32,
+        sheet: String,
+        #[serde(default)]
+        frame: u32,
+        #[serde(default)]
+        anchor: crate::script_ui::Anchor,
+        #[serde(default)]
+        on_map: bool,
+        #[serde(default)]
+        x: f32,
+        #[serde(default)]
+        y: f32,
+        #[serde(default = "one_f32")]
+        scale: f32,
+        #[serde(default = "one_f32")]
+        opacity: f32,
+        #[serde(default)]
+        rotation: f32,
+        #[serde(default = "white")]
+        tint: [u8; 3],
+        #[serde(default)]
+        blend: crate::pictures::Blend,
+    },
+    /// Moves a picture to new values (each one left out keeps its value) over `seconds` with
+    /// `easing`; `wait`: the event goes on when it is there.
+    MovePicture {
+        layer: u32,
+        #[serde(default)]
+        to: crate::pictures::PictureTargets,
+        #[serde(default = "one_f32")]
+        seconds: f32,
+        #[serde(default)]
+        easing: crate::pictures::Easing,
+        #[serde(default)]
+        wait: bool,
+    },
+    /// Takes the picture of a layer away (0 = every picture).
+    ErasePicture { layer: u32 },
+}
+
+fn white() -> [u8; 3] {
+    [255, 255, 255]
 }
 
 fn yes() -> bool {
@@ -774,6 +822,9 @@ impl Action {
             Action::Carry { .. } => "Carry prop",
             Action::Bark { .. } => "Bark (speech bubble)",
             Action::RushTo { .. } => "Rush to (fighters)",
+            Action::ShowPicture { .. } => "Show picture",
+            Action::MovePicture { .. } => "Move picture",
+            Action::ErasePicture { .. } => "Erase picture",
         }
     }
 
@@ -854,6 +905,22 @@ impl Action {
             Action::Carry { target: "player".into(), prop: String::new() },
             Action::Bark { target: "self".into(), lines: vec!["Fine weather today!".into()], seconds: 0.0 },
             Action::RushTo { target: s(), to: "self".into() },
+            Action::ShowPicture {
+                layer: 1,
+                sheet: s(),
+                frame: 0,
+                anchor: crate::script_ui::Anchor::Center,
+                on_map: false,
+                x: 0.0,
+                y: 0.0,
+                scale: 1.0,
+                opacity: 1.0,
+                rotation: 0.0,
+                tint: white(),
+                blend: crate::pictures::Blend::Normal,
+            },
+            Action::MovePicture { layer: 1, to: crate::pictures::PictureTargets { opacity: Some(0.0), ..Default::default() }, seconds: 1.0, easing: crate::pictures::Easing::InOut, wait: false },
+            Action::ErasePicture { layer: 1 },
         ]
     }
 }

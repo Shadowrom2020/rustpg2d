@@ -3,6 +3,17 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Director's tools
+- **Picture layers**: *Show picture*, *Move picture* and *Erase picture* put up to 100 pictures on
+  numbered layers above the map and below the HUD, on the screen (by an anchor, like HUD
+  elements) or on the map; moves change place, size, opacity, rotation and tint over seconds with
+  an easing (linear, in, out, in-out) and can make the event wait; additive blending for glows.
+  Saved with the game, a move in progress included. Scripts: `picture_show`, `picture_move`,
+  `picture_erase`; `status` prints `pictures=`. The example's intro shows the Emberbrook sign as a
+  title card.
+
 ## 0.25.0 — 2026-11-18
 
 ### Look

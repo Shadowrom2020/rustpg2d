@@ -1793,6 +1793,81 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         Action::HideImage => {
             ui.weak("(takes away the picture of 'Show image')");
         }
+        Action::ShowPicture { layer, sheet, frame, anchor, on_map, x, y, scale, opacity, rotation, tint, blend } => {
+            labeled(ui, "layer", |ui| {
+                ui.add(egui::DragValue::new(layer).range(1..=rustpg2d_engine::pictures::MAX_LAYER)).on_hover_text("1 to 100: higher layers are drawn over lower ones; showing a picture on a layer replaces what it showed");
+                ui.label("picture");
+                suggest(ui, &format!("{id}/sheet"), sheet, &refs.sheets, 130.0);
+                ui.label("frame");
+                ui.add(egui::DragValue::new(frame).range(0..=9999));
+            });
+            labeled(ui, "place", |ui| {
+                ui.checkbox(on_map, "On the map").on_hover_text("On: x, y are a map tile and the picture's middle sits on it, moving with the map. Off: x, y are screen pixels from the anchor");
+                if !*on_map {
+                    egui::ComboBox::from_id_salt(format!("{id}/anchor")).width(100.0).selected_text(anchor.name()).show_ui(ui, |ui| {
+                        for a in rustpg2d_engine::script_ui::Anchor::ALL {
+                            ui.selectable_value(anchor, a, a.name());
+                        }
+                    });
+                }
+                ui.add(egui::DragValue::new(x).speed(1.0).prefix("x "));
+                ui.add(egui::DragValue::new(y).speed(1.0).prefix("y "));
+            });
+            labeled(ui, "look", |ui| {
+                ui.add(egui::DragValue::new(scale).range(0.05..=32.0).speed(0.05).prefix("x "));
+                ui.add(egui::Slider::new(opacity, 0.0..=1.0).text("opacity"));
+                ui.add(egui::DragValue::new(rotation).speed(1.0).suffix("°"));
+                ui.color_edit_button_srgb(tint).on_hover_text("Tint: multiplies the picture's colours (white = as drawn)");
+                let mut add = *blend == rustpg2d_engine::pictures::Blend::Additive;
+                if ui.checkbox(&mut add, "Additive").on_hover_text("Adds its light to what is under it (glows, magic)").changed() {
+                    *blend = if add { rustpg2d_engine::pictures::Blend::Additive } else { rustpg2d_engine::pictures::Blend::Normal };
+                }
+            });
+        }
+        Action::MovePicture { layer, to, seconds, easing, wait } => {
+            labeled(ui, "layer", |ui| {
+                ui.add(egui::DragValue::new(layer).range(1..=rustpg2d_engine::pictures::MAX_LAYER));
+                ui.label("over");
+                ui.add(egui::DragValue::new(seconds).range(0.0..=600.0).speed(0.05).suffix(" s"));
+                egui::ComboBox::from_id_salt(format!("{id}/easing")).width(80.0).selected_text(easing.name()).show_ui(ui, |ui| {
+                    for e in rustpg2d_engine::pictures::Easing::ALL {
+                        ui.selectable_value(easing, e, e.name());
+                    }
+                });
+                ui.checkbox(wait, "Wait").on_hover_text("The event goes on when the picture is there");
+            });
+            ui.weak("(the values to move to; the ones left off stay as they are)");
+            let opt = |ui: &mut Ui, label: &str, v: &mut Option<f32>, start: f32, range: std::ops::RangeInclusive<f32>, speed: f64| {
+                let mut on = v.is_some();
+                if ui.checkbox(&mut on, label).changed() {
+                    *v = on.then_some(start);
+                }
+                if let Some(v) = v {
+                    ui.add(egui::DragValue::new(v).range(range).speed(speed));
+                }
+            };
+            labeled(ui, "to", |ui| {
+                opt(ui, "x", &mut to.x, 0.0, -10000.0..=10000.0, 1.0);
+                opt(ui, "y", &mut to.y, 0.0, -10000.0..=10000.0, 1.0);
+                opt(ui, "scale", &mut to.scale, 1.0, 0.05..=32.0, 0.05);
+            });
+            labeled(ui, "", |ui| {
+                opt(ui, "opacity", &mut to.opacity, 1.0, 0.0..=1.0, 0.01);
+                opt(ui, "rotation", &mut to.rotation, 0.0, -36000.0..=36000.0, 1.0);
+                let mut on = to.tint.is_some();
+                if ui.checkbox(&mut on, "tint").changed() {
+                    to.tint = on.then_some([255, 255, 255]);
+                }
+                if let Some(t) = &mut to.tint {
+                    ui.color_edit_button_srgb(t);
+                }
+            });
+        }
+        Action::ErasePicture { layer } => {
+            labeled(ui, "layer", |ui| {
+                ui.add(egui::DragValue::new(layer).range(0..=rustpg2d_engine::pictures::MAX_LAYER)).on_hover_text("0 = every picture");
+            });
+        }
         Action::ShopStock { target, item, op, count, price } => {
             target_field(ui, id, target, refs);
             ui.horizontal(|ui| {

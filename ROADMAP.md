@@ -136,7 +136,7 @@ can be content as content: the library and example parts of each item.
 
 The event commands creators expect from other makers.
 
-- [ ] Picture layers — `feature/pictures`
+- [x] Picture layers — `feature/pictures`
 
   **Goal.** Several pictures on screen at once, moved, faded, rotated and tinted with easing, like
   RPG Maker's *Show picture* and *Move picture*.
@@ -152,6 +152,15 @@ The event commands creators expect from other makers.
   - **Show image stays** as the full-screen viewer with scrolling.
   - **Saving:** pictures are saved in `WorldState.pictures`.
   - **Scripts:** `picture_show`, `picture_move` and `picture_erase`.
+
+  **Decided while building.**
+  - Screen pictures are placed by the HUD elements' nine anchors (x, y counted inwards from the
+    anchor) instead of an origin: `center` at 0, 0 is the middle of any window. On the map, x, y
+    are a tile and the picture's middle sits on it.
+  - *Move picture* has optional targets: the values left out keep theirs.
+  - Pictures are drawn above the map's lighting and weather and below the fades, so a fade-out
+    covers them.
+  - Blends: normal and additive.
 
   **Engine.** Three appended actions, `runtime/pictures.rs`, the editor fields, the script
   functions.

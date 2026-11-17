@@ -387,6 +387,11 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   and waiting ones stay queued). The title's map is loaded behind it at start and on *Quit to main
   menu* (`title_map`, `Game::title_scene`: camera tile, held hour, music); a picture background and
   the logo are sheets drawn in `draw_menu`.
+- Picture layers (`pictures.rs`): `WorldState.pictures` by layer, each with its look and a move
+  in progress (`PictureMove`: from, to, elapsed, easing), advanced in `update` and drawn in
+  `runtime/pictures.rs` after the world, its lighting and weather (screen pictures by
+  `script_ui::Anchor`, map pictures through the camera), before the fades and the HUD; additive
+  blending uses a material made once.
 - Script UI (`script_ui.rs`): HUD elements live in `WorldState.hud` (by id, saved), set by the
   script functions directly on the world the script holds; `runtime/script_hud.rs` draws them every
   frame with the HUD (texts through `expand_text`, bars reading `script_ui::Source`: a variable, a

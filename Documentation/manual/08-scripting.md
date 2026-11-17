@@ -491,6 +491,29 @@ fn meet_tilda() {
 }                                                    // the portrait goes when the event ends
 ```
 
+#### Picture layers
+
+Up to 100 pictures at once on numbered layers, above the map and below the HUD, moved, faded,
+rotated and tinted with easing ([Events › Picture layers](07-events.md#picture-layers)). Saved with
+the game.
+
+| Function | Description |
+|---|---|
+| `picture_show(layer, sheet, x, y)` | Shows a sprite sheet's frame on a layer (1 to 100), x, y screen pixels from the top left corner. *(queued)* |
+| `picture_show(layer, sheet, x, y, options)` | Options `#{ frame: 0, anchor: "center", on_map: true (x, y = a map tile), scale: 4, opacity: 0, rotation: 45, tint: "gold" (a colour name, "#rrggbb" or [r, g, b]), blend: "add" }`. *(queued)* |
+| `picture_move(layer, options)` | Moves it: `#{ x, y, scale, opacity, rotation, tint` (the targets; the others stay) `, seconds: 1, easing: "in_out"` (`linear`, `in`, `out`, `in_out`) `, wait: true }`. *(queued)* |
+| `picture_erase(layer)` | Takes it away (0 = all). *(queued)* |
+
+```rust
+fn title_card() {
+    picture_show(1, "title_logo", 0, -80, #{ anchor: "center", scale: 4, opacity: 0 });
+    picture_move(1, #{ opacity: 1, seconds: 1.5, wait: true });
+    wait(2.0);
+    picture_move(1, #{ opacity: 0, y: -100, seconds: 1, easing: "in", wait: true });
+    picture_erase(1);
+}
+```
+
 #### HUD elements and windows
 
 Scripts can put their own pieces on the HUD: a coin counter, a quest tracker, a boss's health

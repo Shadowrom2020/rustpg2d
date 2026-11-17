@@ -107,6 +107,7 @@ across map changes and in save games.
   scene**, **Show / hide UI**, **Wait**.
 - **Play sound**, **Play music**, **Shake the screen**.
 - **Show image** / **Hide image**: a picture over the game (below).
+- **Show picture**, **Move picture**, **Erase picture**: picture layers, moved and faded (below).
 - **Play effect** (an animation once), **Fly sprite to point** (a projectile that calls a script on
   arrival), **Light at point**, **Light around player**, **Damage area**, **Damage around player**,
   **Heal area**, **Aim (then run script)**.
@@ -264,6 +265,31 @@ The example's Tilda shows both the first time you enter her shop: her full figur
 her portrait behind her greeting. Her first *Interact* trigger (with *not Flag set* `met_tilda`):
 *Set flag* `met_tilda`, *Show image* `tilda_full` (wait, scroll), *Show image* `tilda_portrait`
 (no wait), *Dialog*, *Dialog*. The portrait goes when the conversation ends and her shop opens.
+
+### Picture layers
+
+For title cards, a portrait sliding in, a glowing rune over a door: up to 100 pictures at once,
+each on a numbered **layer** (higher numbers are drawn over lower ones), above the map and below
+the HUD. They are saved with the game, a move in progress included.
+
+**Show picture** puts a picture on a layer (replacing what it showed):
+
+| Setting | Effect |
+|---|---|
+| **layer** | 1 to 100 |
+| **picture**, **frame** | A sprite sheet and its frame |
+| **place** | On the screen: x, y pixels from an **anchor** (`top_left` … `center` … `bottom_right`; counted inwards from the edges, like HUD elements: with `center` at 0, 0 the picture sits in the middle). **On the map**: x, y are a map tile and the picture's middle sits on it, moving with the map |
+| **look** | Size (x 2 for small pixel art), opacity (0 to 1), rotation (degrees), tint (multiplies its colours; white = as drawn), **Additive** (adds its light: glows, magic) |
+
+**Move picture** changes a picture over some **seconds** with an **easing** (*linear*, *in*:
+starts slowly, *out*: ends slowly, *in_out*): tick the values to change (place, size, opacity,
+rotation, tint); the others stay. **Wait** makes the event wait until the move is done.
+**Erase picture** takes a layer's picture away (layer 0: all of them).
+
+The example's intro shows the *Emberbrook* sign as a title card: *Show picture* (layer 1, anchor
+center, size x 4, opacity 0), *Move picture* (opacity 1 over 1.5 s, wait), *Wait*, *Move picture*
+(opacity 0), *Erase picture*. Scripts: `picture_show`, `picture_move`, `picture_erase`
+([Scripting](08-scripting.md#pictures)).
 
 ### A cut-scene
 

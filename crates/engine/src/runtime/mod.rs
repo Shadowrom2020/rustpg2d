@@ -50,6 +50,7 @@ pub mod input;
 pub mod glyphs;
 pub mod skin;
 mod script_hud;
+mod pictures;
 mod attacks;
 mod defense;
 mod barks;
@@ -1649,6 +1650,7 @@ impl Game {
         self.footsteps();
         self.update_soundscape(dt);
         self.update_juice(dt);
+        self.update_pictures(dt);
         self.update_battle(dt);
         self.update_captions(dt);
         self.after_thumbnail();
@@ -2455,7 +2457,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2519,6 +2521,7 @@ impl Game {
             self.menu_rows_status().1,
             self.script_ui_status().0,
             self.script_ui_status().1,
+            self.pictures_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2856,6 +2859,8 @@ impl Game {
             self.draw_offer_marks(&cam);
             self.draw_damage_numbers(&cam);
         }
+        // Picture layers: above the map, below the HUD (and under fades).
+        self.draw_pictures(&cam);
         let alpha = match &self.fade {
             Fade::None => 0.0,
             Fade::Out { t, .. } => (t / FADE_TIME).min(1.0),
@@ -3120,6 +3125,22 @@ impl ActionHost for Game {
             }
             Action::CompanionOrder { target, order } => {
                 self.order_companion(target, order, ctx.owner);
+                Step::Continue
+            }
+            Action::ShowPicture { layer, sheet, frame, anchor, on_map, x, y, scale, opacity, rotation, tint, blend } => {
+                let look = crate::pictures::PictureLook { x: *x, y: *y, scale: *scale, opacity: *opacity, rotation: *rotation, tint: *tint };
+                self.show_picture(*layer, sheet, *frame, *anchor, *on_map, *blend, look);
+                Step::Continue
+            }
+            Action::MovePicture { layer, to, seconds, easing, wait } => {
+                if self.move_picture(*layer, to, *seconds, *easing) && *wait && *seconds > 0.0 {
+                    Step::Insert(vec![(Action::Wait { seconds: *seconds }, ctx.clone())])
+                } else {
+                    Step::Continue
+                }
+            }
+            Action::ErasePicture { layer } => {
+                self.erase_picture(*layer);
                 Step::Continue
             }
             Action::ShowImage { sheet, wait, scroll, speed, scale } => {

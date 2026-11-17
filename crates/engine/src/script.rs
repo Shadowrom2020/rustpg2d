@@ -368,6 +368,27 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }
     engine.register_fn("say", with!(ctx, |c, speaker: &str, text: &str, opts: rhai::Map| say_with(&mut c, speaker.into(), text, &opts)));
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
+    // Screen tint, flash and fades (queued).
+    fn rgba_of(v: &Dynamic, alpha: u8) -> [u8; 4] {
+        if let Some(a) = v.clone().try_cast::<rhai::Array>() {
+            let c = |k: usize, d: f32| a.get(k).map_or(d, num).clamp(0.0, 255.0) as u8;
+            return [c(0, 255.0), c(1, 255.0), c(2, 255.0), c(3, alpha as f32)];
+        }
+        let s = v.to_string();
+        if let Some(c) = crate::skin::SkinColor::parse(&s).filter(|_| s.trim().starts_with('#')) {
+            return if s.trim().len() == 9 { c.0 } else { [c.0[0], c.0[1], c.0[2], alpha] };
+        }
+        crate::dialog_codes::color(&s).map_or([0, 0, 0, alpha], |[r, g, b]| [r, g, b, alpha])
+    }
+    engine.register_fn("tint_screen", with!(ctx, |c, color: Dynamic, secs: Dynamic| c.actions.push(Action::TintScreen { color: rgba_of(&color, 90), seconds: num(&secs), wait: false })));
+    engine.register_fn("clear_tint", with!(ctx, |c, secs: Dynamic| c.actions.push(Action::TintScreen { color: [0, 0, 0, 0], seconds: num(&secs), wait: false })));
+    engine.register_fn("flash_screen", with!(ctx, |c, color: Dynamic, secs: Dynamic| c.actions.push(Action::FlashScreen { color: rgba_of(&color, 200), seconds: num(&secs) })));
+    engine.register_fn("fade_out", with!(ctx, |c, secs: Dynamic| c.actions.push(Action::FadeOut { seconds: num(&secs), color: [0, 0, 0], wait: true })));
+    engine.register_fn("fade_out", with!(ctx, |c, secs: Dynamic, color: Dynamic| {
+        let [r, g, b, _] = rgba_of(&color, 255);
+        c.actions.push(Action::FadeOut { seconds: num(&secs), color: [r, g, b], wait: true })
+    }));
+    engine.register_fn("fade_in", with!(ctx, |c, secs: Dynamic| c.actions.push(Action::FadeIn { seconds: num(&secs), wait: true })));
     // Picture layers (queued).
     fn pic_tint(v: &Dynamic) -> Option<[u8; 3]> {
         if let Some(a) = v.clone().try_cast::<rhai::Array>() {

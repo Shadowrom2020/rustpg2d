@@ -13,6 +13,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Saved with the game, a move in progress included. Scripts: `picture_show`, `picture_move`,
   `picture_erase`; `status` prints `pictures=`. The example's intro shows the Emberbrook sign as a
   title card.
+- **Screen tint, flash and fade**: *Tint screen* (a colour over the screen that changes over
+  seconds and stays, saved), *Flash screen* (left out when the player turned off screen
+  effects), *Fade out* / *Fade in* (a fade-out lasts across map changes until *Fade in*). Scripts:
+  `tint_screen`, `clear_tint`, `flash_screen`, `fade_out`, `fade_in`; `status` prints `screen=`.
 
 ## 0.25.0 — 2026-11-18
 

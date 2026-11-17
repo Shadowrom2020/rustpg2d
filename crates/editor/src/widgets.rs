@@ -1863,6 +1863,38 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 }
             });
         }
+        Action::TintScreen { color, seconds, wait } => {
+            labeled(ui, "colour", |ui| {
+                ui.color_edit_button_srgba_unmultiplied(color).on_hover_text("Its opacity is how strongly the screen is coloured (0 = no tint: takes a tint away)");
+                ui.label("over");
+                ui.add(egui::DragValue::new(seconds).range(0.0..=600.0).speed(0.05).suffix(" s"));
+                ui.checkbox(wait, "Wait");
+            });
+            ui.weak("(stays until changed, saved with the game; over the world and the pictures, under the HUD)");
+        }
+        Action::FlashScreen { color, seconds } => {
+            labeled(ui, "colour", |ui| {
+                ui.color_edit_button_srgba_unmultiplied(color).on_hover_text("Its opacity is the flash's strength");
+                ui.label("fading over");
+                ui.add(egui::DragValue::new(seconds).range(0.05..=30.0).speed(0.05).suffix(" s"));
+            });
+            ui.weak("(left out when the player turned off screen effects)");
+        }
+        Action::FadeOut { seconds, color, wait } => {
+            labeled(ui, "to", |ui| {
+                ui.color_edit_button_srgb(color);
+                ui.label("over");
+                ui.add(egui::DragValue::new(seconds).range(0.0..=600.0).speed(0.05).suffix(" s"));
+                ui.checkbox(wait, "Wait");
+            });
+            ui.weak("(stays across map changes until 'Fade in'; dialogs show over it)");
+        }
+        Action::FadeIn { seconds, wait } => {
+            labeled(ui, "over", |ui| {
+                ui.add(egui::DragValue::new(seconds).range(0.0..=600.0).speed(0.05).suffix(" s"));
+                ui.checkbox(wait, "Wait");
+            });
+        }
         Action::ErasePicture { layer } => {
             labeled(ui, "layer", |ui| {
                 ui.add(egui::DragValue::new(layer).range(0..=rustpg2d_engine::pictures::MAX_LAYER)).on_hover_text("0 = every picture");

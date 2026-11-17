@@ -144,6 +144,12 @@ pub const API: &[ApiFn] = api! {
     "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
     "stock_of"(target: Target, item: Item) "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
     "show_image"(sheet: Sheet) "Shows a picture over the game (a sprite sheet drawn whole, scaled down to fit the window); the event waits until the player closes it (queued)";
+    "tint_screen"(color: Text, seconds: Num) "Colours the whole screen over seconds: a colour name, \"#rrggbb\" (a light tint), \"#rrggbbaa\" (aa = how strongly) or [r, g, b, a]; stays until changed, saved with the game (queued)";
+    "clear_tint"(seconds: Num) "Takes the screen tint away over seconds (queued)";
+    "flash_screen"(color: Text, seconds: Num) "A flash of a colour fading out over seconds (lightning, magic); left out when the player turned off screen effects (queued)";
+    "fade_out"(seconds: Num) "Fades the screen to black over seconds and waits; it stays black across map changes until fade_in() (dialogs show over it) (queued)";
+    "fade_out"(seconds: Num, color: Text) "Fades to a colour instead of black (queued)";
+    "fade_in"(seconds: Num) "Fades the screen back in over seconds and waits (queued)";
     "picture_show"(layer: Num, sheet: Sheet, x: Num, y: Num) "Shows a picture on a layer (1 to 100, drawn in number order above the map and below the HUD; replaces what the layer showed): a sprite sheet's frame, x, y screen pixels from the top left corner. Saved with the game (queued)";
     "picture_show"(layer: Num, sheet: Sheet, x: Num, y: Num, options: Opts) "Like picture_show(); options #{ frame: 0, anchor: \"center\" (top_left, top, top_right, left, center, right, bottom_left, bottom, bottom_right), on_map: true (x, y = a map tile, the picture's middle on it), scale: 2, opacity: 0.5, rotation: 90 (degrees), tint: \"gold\" (a colour name, \"#rrggbb\" or [r, g, b]), blend: \"add\" } (queued)";
     "picture_move"(layer: Num, options: Opts) "Moves a picture: options #{ x, y, scale, opacity, rotation, tint (the targets; left out = unchanged), seconds: 1, easing: \"in_out\" (linear, in, out, in_out), wait: true (the event waits until it is there) } (queued)";

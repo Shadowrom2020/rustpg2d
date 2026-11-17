@@ -491,6 +491,26 @@ fn meet_tilda() {
 }                                                    // the portrait goes when the event ends
 ```
 
+#### Screen tint, flash and fades
+
+| Function | Description |
+|---|---|
+| `tint_screen(color, seconds)` | Colours the whole screen over `seconds`: a colour name, `"#rrggbb"` (a light tint), `"#rrggbbaa"` (`aa` = how strongly) or `[r, g, b, a]`. Stays until changed; saved. *(queued)* |
+| `clear_tint(seconds)` | Takes the tint away over `seconds`. *(queued)* |
+| `flash_screen(color, seconds)` | A flash fading out over `seconds`; left out when the player turned off screen effects. *(queued)* |
+| `fade_out(seconds)` / `fade_out(seconds, color)` | Fades to black (or a colour) and waits; stays across map changes until `fade_in`; dialogs show over it. *(queued)* |
+| `fade_in(seconds)` | Fades back in and waits. *(queued)* |
+
+```rust
+fn night_falls() {
+    fade_out(1.0);
+    teleport("village", "start");
+    tint_screen("#2030a0", 0);       // a blue night tint
+    fade_in(1.0);
+    flash_screen("white", 0.4);      // lightning
+}
+```
+
 #### Picture layers
 
 Up to 100 pictures at once on numbered layers, above the map and below the HUD, moved, faded,

@@ -84,6 +84,7 @@
         "Please enter a name.": "Wpisz nazwę.",
         "{}-{} of {}": "{}-{} z {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} lub kliknięcie",
+        "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} lub kliknięcie · {key:cancel}: zamknij",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume": "{key:up}/{key:down} + {key:confirm} lub kliknięcie · {key:cancel}: wznów",
         "Pick a save to overwrite, or make a new one · {key:cancel}: back": "Wybierz zapis do nadpisania lub utwórz nowy · {key:cancel}: wstecz",
         "{key:confirm} / click: load · Del: delete · {key:cancel}: back": "{key:confirm} / kliknięcie: wczytaj · Del: usuń · {key:cancel}: wstecz",

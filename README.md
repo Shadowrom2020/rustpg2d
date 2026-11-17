@@ -68,7 +68,7 @@ for how to use it all.
 - Cut-scenes, dialogs with drawn portraits and moods, choices, quests with stages, a journal and achievements.
 - Show pictures from events and scripts: a full-body painting when you meet someone, a letter, a map; scaled to fit, scrolling when tall.
 - Translations built in: export a template, translate it, players pick their language.
-- Your own look: UI skins give every window, menu, dialog box and the HUD your frames and colours, with a live preview in the editor; design the title screen (a map at dusk or a picture, your logo and music) and the menus' entries, with entries of your own.
+- Your own look: UI skins give every window, menu, dialog box and the HUD your frames and colours, with a live preview in the editor; design the title screen (a map at dusk or a picture, your logo and music) and the menus' entries, with entries of your own; scripts add HUD pieces (a coin counter, a boss's health bar) and small windows with buttons.
 - A Problems list of everything broken in the project (unknown ids, missing files, broken portals, script errors, untranslated texts), each a click away.
 
 **Characters**

@@ -386,6 +386,26 @@ pub fn bar(kind: Bar, x: f32, y: f32, w: f32, h: f32, frac: f32) {
     }
 }
 
+/// A script's bar (`hud_bar`): `w` × `h` at `x, y` filled to `frac` in `fill` (none: the
+/// skin's highlight colour), on the skin's bar back, in its mana bar's frame picture (or a thin
+/// outline).
+pub fn color_bar(x: f32, y: f32, w: f32, h: f32, frac: f32, fill: Option<Color>) {
+    let a = cur();
+    draw_rectangle(x - 1.0, y - 1.0, w + 2.0, h + 2.0, over(a.def.mana.back, Color::new(0.0, 0.0, 0.0, 0.7)));
+    let f = fill.unwrap_or_else(highlight);
+    let top = Color::new(f.r + (1.0 - f.r) * 0.35, f.g + (1.0 - f.g) * 0.35, f.b + (1.0 - f.b) * 0.35, f.a);
+    let fw = w * frac.clamp(0.0, 1.0);
+    draw_rectangle(x, y, fw, h, f);
+    draw_rectangle(x, y, fw, (h * 0.3).round().max(1.0), top);
+    match &a.mana {
+        Some(p) => {
+            let pad = (p.corner * p.scale).min(6.0);
+            draw_pic(p, Rect::new(x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad), WHITE);
+        }
+        None => draw_rectangle_lines(x - 1.0, y - 1.0, w + 2.0, h + 2.0, 1.0, line(0.8)),
+    }
+}
+
 /// The colours of full and empty hearts: the skin's health bar colours, else `full` / `empty`.
 pub fn hearts(full: Color, empty: Color) -> (Color, Color) {
     let a = cur();

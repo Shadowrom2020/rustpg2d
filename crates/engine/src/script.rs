@@ -368,6 +368,64 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }
     engine.register_fn("say", with!(ctx, |c, speaker: &str, text: &str, opts: rhai::Map| say_with(&mut c, speaker.into(), text, &opts)));
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
+    // Script UI: HUD elements (saved with the game) and windows.
+    fn hud_opts(e: &mut crate::script_ui::HudElement, opts: &rhai::Map) {
+        if let Some(a) = opts.get("anchor").and_then(|a| crate::script_ui::Anchor::parse(&a.to_string())) {
+            e.anchor = a;
+        }
+        if let Some(v) = opts.get("size").or(opts.get("scale")) {
+            e.size = num(v);
+        }
+        if let Some(v) = opts.get("color").or(opts.get("colour")) {
+            e.color = v.to_string();
+        }
+        if let (Some(l), crate::script_ui::HudKind::Bar { label, .. }) = (opts.get("label"), &mut e.kind) {
+            *label = l.to_string();
+        }
+    }
+    fn hud_set(c: &mut Ctx, id: &str, kind: crate::script_ui::HudKind, x: &Dynamic, y: &Dynamic, opts: &rhai::Map) {
+        let mut e = crate::script_ui::HudElement::new(kind, num(x), num(y));
+        hud_opts(&mut e, opts);
+        c.world.hud.insert(id.to_string(), e);
+    }
+    let text_of = |t: &str| crate::script_ui::HudKind::Text { text: t.to_string() };
+    engine.register_fn("hud_text", with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, t: &str| hud_set(&mut c, id, text_of(t), &x, &y, &rhai::Map::new())));
+    engine.register_fn("hud_text", with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, t: &str, o: rhai::Map| hud_set(&mut c, id, text_of(t), &x, &y, &o)));
+    let image_of = |sheet: &str, frame: &Dynamic| crate::script_ui::HudKind::Image { sheet: sheet.to_string(), frame: num(frame).max(0.0) as u32 };
+    engine.register_fn("hud_image", with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, sheet: &str, f: Dynamic| hud_set(&mut c, id, image_of(sheet, &f), &x, &y, &rhai::Map::new())));
+    engine.register_fn("hud_image", with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, sheet: &str, f: Dynamic, o: rhai::Map| hud_set(&mut c, id, image_of(sheet, &f), &x, &y, &o)));
+    let bar_of = |w: &Dynamic, v: &Dynamic, m: &Dynamic| crate::script_ui::HudKind::Bar { value: v.to_string(), max: m.to_string(), w: num(w).max(1.0), label: String::new() };
+    engine.register_fn("hud_bar",
+        with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, w: Dynamic, v: Dynamic, m: Dynamic, col: &str| {
+            let o: rhai::Map = [("color".into(), Dynamic::from(col.to_string()))].into_iter().collect();
+            hud_set(&mut c, id, bar_of(&w, &v, &m), &x, &y, &o)
+        }),
+    );
+    engine.register_fn("hud_bar",
+        with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, w: Dynamic, v: Dynamic, m: Dynamic, col: &str, o: rhai::Map| {
+            let mut o = o;
+            o.entry("color".into()).or_insert_with(|| Dynamic::from(col.to_string()));
+            hud_set(&mut c, id, bar_of(&w, &v, &m), &x, &y, &o)
+        }),
+    );
+    engine.register_fn("hud_remove", with!(ctx, |c, id: &str| {
+        c.world.hud.remove(id);
+    }));
+    engine.register_fn("hud_clear", with!(ctx, |c| c.world.hud.clear()));
+    engine.register_fn("window_open", with!(ctx, |c, id: &str, title: &str, rows: rhai::Array| {
+        use crate::script_ui::{ScriptWindow, WindowRequest, WindowRow};
+        let rows = rows
+            .into_iter()
+            .map(|r| match r.clone().try_cast::<rhai::Map>() {
+                Some(m) if m.contains_key("button") => WindowRow::Button { label: m["button"].to_string(), call: m.get("run").or(m.get("call")).map(|f| f.to_string()).unwrap_or_default() },
+                Some(m) if m.contains_key("image") => WindowRow::Image { sheet: m["image"].to_string(), frame: m.get("frame").map_or(0.0, num).max(0.0) as u32 },
+                Some(m) => WindowRow::Text(m.get("text").map(|t| t.to_string()).unwrap_or_default()),
+                None => WindowRow::Text(r.to_string()),
+            })
+            .collect();
+        c.world.window_request = Some(WindowRequest::Open(ScriptWindow { id: id.to_string(), title: title.to_string(), rows }));
+    }));
+    engine.register_fn("window_close", with!(ctx, |c| c.world.window_request = Some(crate::script_ui::WindowRequest::Close)));
     // emote(target, "joy"[, #{ seconds, wait }]) / clear_emote(target): an emotion over the head.
     engine.register_fn("emote", with!(ctx, |c, t: &str, e: &str| c.actions.push(Action::Emote { target: t.into(), emotion: e.into(), seconds: 0.0, wait: false })));
     engine.register_fn("used_item", with!(ctx, |c| c.used_item.clone()));

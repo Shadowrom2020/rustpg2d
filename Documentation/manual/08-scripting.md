@@ -491,6 +491,72 @@ fn meet_tilda() {
 }                                                    // the portrait goes when the event ends
 ```
 
+#### HUD elements and windows
+
+Scripts can put their own pieces on the HUD: a coin counter, a quest tracker, a boss's health
+bar. An element is set **once**: it stays on the screen and follows the game by itself (texts
+fill in their placeholders every frame, bars read their values every frame), it is **saved** with
+the game, and it hides with the HUD (H, cut-scenes). Setting an element again with the same id
+replaces it. Elements use the HUD font and the skin's colours ([UI skins](05-database.md#ui-skins)).
+
+`x` and `y` are pixels from the element's **anchor**, counted inwards: from the top left corner
+unless the options say `anchor: "top_right"` (or `top`, `left`, `center`, `right`, `bottom_left`,
+`bottom`, `bottom_right`); with `top`, `center` and `bottom` the element is centred and `x` moves
+it sideways.
+
+| Function | Description |
+|---|---|
+| `hud_text(id, x, y, text)` | A line. Placeholders are filled in every frame: `{coins}` (a variable), `{item:coin}` (how many of an item the player has), `{player}`. Translated like dialogs. *(immediately)* |
+| `hud_text(id, x, y, text, options)` | Options `#{ anchor: "top_right", size: 24, color: "gold" }` (a colour name of the dialog codes or `"#rrggbb"`). *(immediately)* |
+| `hud_image(id, x, y, sheet, frame)` | A frame of a sprite sheet, drawn at 2x. *(immediately)* |
+| `hud_image(id, x, y, sheet, frame, options)` | Options `#{ anchor: "bottom_left", scale: 3 }`. *(immediately)* |
+| `hud_bar(id, x, y, width, value, max, color)` | A bar filled to `value` of `max`, each a variable name, a number, `"hp:NAME"` (a character's HP on this map; `"hp:player"`) or `"max_hp:NAME"`. *(immediately)* |
+| `hud_bar(id, x, y, width, value, max, color, options)` | Options `#{ anchor: "top", label: "Grumbold" }` (a name over the bar). *(immediately)* |
+| `hud_remove(id)` | Takes an element away. *(immediately)* |
+| `hud_clear()` | Takes every element away. *(immediately)* |
+
+A **window** is a panel in the middle of the screen with a title and rows: lines of text,
+pictures and buttons. It pauses the game; Up / Down or the pointer choose a button, E, Enter, a
+click or the gamepad's A press it, Esc or B close the window. A button runs a script function and
+the window stays open: the function can open it again with the same id to show new values (the
+selection stays), or close it. A pause-menu entry of your own
+([Title screen and menus](05-database.md#title-screen-and-menus)) can open a window as a page of
+the pause menu. Windows aren't saved.
+
+| Function | Description |
+|---|---|
+| `window_open(id, title, rows)` | Opens the window. `rows`: an array of strings (lines; placeholders filled in), `#{ image: "sheet", frame: 0 }` (pictures) and `#{ button: "Label", run: "function" }` (buttons). *(after the function)* |
+| `window_close()` | Closes it. *(after the function)* |
+
+```rust
+fn show_coins() {
+    hud_image("coin_icon", 16, 16, "items", 3, #{ anchor: "top_right" });
+    hud_text("coins", 52, 22, "{item:coin}", #{ anchor: "top_right", color: "gold" });
+}
+
+fn boss_bar() {
+    hud_bar("boss", 0, 40, 320, "hp:Grumbold", "max_hp:Grumbold", "red", #{ anchor: "top", label: "Grumbold" });
+}
+
+fn status_page() {
+    window_open("status", "Your journey", [
+        "Coins: {item:coin}",
+        "Days on the road: {days}",
+        #{ button: "Rest a while", run: "rest_a_while" },
+        #{ button: "Close", run: "close_status" },
+    ]);
+}
+
+fn rest_a_while() {
+    add_var("days", 1);
+    status_page();       // the same id: the window shows the new value
+}
+
+fn close_status() {
+    window_close();
+}
+```
+
 ### Saving
 
 The game autosaves to the *Autosave* slot after every map change (once the new map's *Map

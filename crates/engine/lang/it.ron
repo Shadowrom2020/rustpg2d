@@ -83,6 +83,7 @@
         "Please enter a name.": "Inserisci un nome.",
         "{}-{} of {}": "{}-{} di {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} o clic",
+        "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} o clic · {key:cancel}: chiudi",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume": "{key:up}/{key:down} + {key:confirm} o clic · {key:cancel}: riprendi",
         "Pick a save to overwrite, or make a new one · {key:cancel}: back": "Scegli un salvataggio da sovrascrivere o creane uno nuovo · {key:cancel}: indietro",
         "{key:confirm} / click: load · Del: delete · {key:cancel}: back": "{key:confirm} / clic: carica · Canc: elimina · {key:cancel}: indietro",

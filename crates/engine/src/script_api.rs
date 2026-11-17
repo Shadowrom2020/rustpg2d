@@ -144,6 +144,16 @@ pub const API: &[ApiFn] = api! {
     "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
     "stock_of"(target: Target, item: Item) "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
     "show_image"(sheet: Sheet) "Shows a picture over the game (a sprite sheet drawn whole, scaled down to fit the window); the event waits until the player closes it (queued)";
+    "hud_text"(id: Text, x: Num, y: Num, text: Line) "Puts a line on the HUD (replaces the element with this id): x, y = pixels from the top left corner; placeholders such as {coins} (a variable), {item:coin} (how many the player has) or {player} are filled in every frame. Saved with the game (immediately)";
+    "hud_text"(id: Text, x: Num, y: Num, text: Line, options: Opts) "Like hud_text(); options #{ anchor: \"top_right\" (top_left, top, top_right, left, center, right, bottom_left, bottom, bottom_right: x, y count inwards from there), size: 24, color: \"gold\" (a colour name or \"#rrggbb\") } (immediately)";
+    "hud_image"(id: Text, x: Num, y: Num, sheet: Sheet, frame: Num) "Puts a frame of a sprite sheet on the HUD (drawn at 2x); saved with the game (immediately)";
+    "hud_image"(id: Text, x: Num, y: Num, sheet: Sheet, frame: Num, options: Opts) "Like hud_image(); options #{ anchor: \"top_right\", scale: 3 } (immediately)";
+    "hud_bar"(id: Text, x: Num, y: Num, width: Num, value: Text, max: Text, color: Text) "Puts a bar on the HUD: value and max are each a variable name, a number, \"hp:NAME\" (a character's HP on this map; \"hp:player\" the player's) or \"max_hp:NAME\"; it follows them every frame. Saved with the game (immediately)";
+    "hud_bar"(id: Text, x: Num, y: Num, width: Num, value: Text, max: Text, color: Text, options: Opts) "Like hud_bar(); options #{ anchor: \"top\", label: \"Grumbold\" (a name over the bar, translated) } (immediately)";
+    "hud_remove"(id: Text) "Takes a HUD element away (immediately)";
+    "hud_clear"() "Takes every HUD element the scripts set away (immediately)";
+    "window_open"(id: Text, title: Line, rows: List) "Opens a window over the game (it pauses the game; Esc closes it). rows: an array of lines (strings, placeholders filled in), #{ image: \"sheet\", frame: 0 } pictures and #{ button: \"Label\", run: \"function\" } buttons that run a script function (the window stays open: open it again with the same id to refresh it, or call window_close()). Not saved (after the function)";
+    "window_close"() "Closes the window a script opened (after the function)";
     "show_image"(sheet: Sheet, options: Opts) "Like show_image(); options #{ wait: false (stays under the following dialogs until the event ends or hide_image()), scroll: true (a tall picture pans down and back up), speed: pixels per second, scale: 2 (pixel art bigger) } (queued)";
     "hide_image"() "Takes away a picture shown with show_image() (queued)";
     "hide_ui"() "Hides the HUD (status frame, clock, quick bar, buttons), e.g. for a cut-scene; dialogs still show. The player shows it again with H (queued)";
@@ -342,6 +352,7 @@ mod tests {
             ("take_item_from", 1, IdKind::Item),
             ("effect", 0, IdKind::Sheet),
             ("show_image", 0, IdKind::Sheet),
+            ("hud_image", 3, IdKind::Sheet),
             ("add_stock", 1, IdKind::Item),
             ("teach_spell", 1, IdKind::Spell),
             ("npc_knows_spell", 1, IdKind::Spell),

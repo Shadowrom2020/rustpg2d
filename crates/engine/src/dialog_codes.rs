@@ -68,7 +68,7 @@ pub const COLORS: &[(&str, [u8; 3])] = &[
 ];
 
 /// The prefixes of other `{prefix:…}` placeholders (not dialog codes, never "unknown").
-const OTHER_PREFIXES: &[&str] = &["key", "uid"];
+const OTHER_PREFIXES: &[&str] = &["key", "uid", "item"];
 
 thread_local! {
     /// The colour names of the game's UI skin ([`set_skin_colors`]).

@@ -533,6 +533,13 @@ impl Editor {
                     out.push(Problem { severity: Severity::Warning, area: Area::Scripts, place: file.clone(), text: format!("function {}() is also defined in {other} (one of them is ignored)", func.name), target: Target::Script(f.clone(), at) });
                 }
             }
+            // Function names passed as strings (then_call("f"), a window button's run: "f").
+            for a in rustpg2d_engine::script_refs::function_refs(&src) {
+                if !self.refs.functions.contains(&a.value) {
+                    let at = src[..a.span.0.min(src.len())].chars().count();
+                    out.push(Problem { severity: Severity::Error, area: Area::Scripts, place: format!("{file}:{}", a.line), text: format!("{}(): there is no script function {}()", a.func, a.value), target: Target::Script(f.clone(), at) });
+                }
+            }
             for issue in rustpg2d_engine::script_refs::check_script(&src, &self.project.db, &self.refs.maps, &self.refs.spawns) {
                 let at = src[..issue.span.0.min(src.len())].chars().count();
                 out.push(Problem { severity: Severity::Error, area: Area::Scripts, place: format!("{file}:{}", issue.line), text: issue.message, target: Target::Script(f.clone(), at) });

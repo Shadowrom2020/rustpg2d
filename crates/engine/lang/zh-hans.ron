@@ -84,6 +84,7 @@
         "Please enter a name.": "请输入名称。",
         "{}-{} of {}": "{}-{} / 共 {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} 或点击",
+        "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} 或点击 · {key:cancel}：关闭",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume": "{key:up}/{key:down} + {key:confirm} 或点击 · {key:cancel}：继续",
         "Pick a save to overwrite, or make a new one · {key:cancel}: back": "选择要覆盖的存档，或新建一个 · {key:cancel}：返回",
         "{key:confirm} / click: load · Del: delete · {key:cancel}: back": "{key:confirm} / 点击：读取 · Del：删除 · {key:cancel}：返回",

@@ -387,6 +387,14 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   and waiting ones stay queued). The title's map is loaded behind it at start and on *Quit to main
   menu* (`title_map`, `Game::title_scene`: camera tile, held hour, music); a picture background and
   the logo are sheets drawn in `draw_menu`.
+- Script UI (`script_ui.rs`): HUD elements live in `WorldState.hud` (by id, saved), set by the
+  script functions directly on the world the script holds; `runtime/script_hud.rs` draws them every
+  frame with the HUD (texts through `expand_text`, bars reading `script_ui::Source`: a variable, a
+  number, `hp:NAME` / `max_hp:NAME` of a character on the map). `window_open` / `window_close`
+  write `WorldState.window_request` (`#[serde(skip)]`); the game takes it after scripts ran (once
+  per frame, and right after a window button's function) into `Game.script_window`, a modal panel
+  whose update runs before the menus. A button pushes `Action::RunScript` and steps the action
+  runner once, so a function that reopens the window refreshes it at once.
 - UI skins (`skin.rs`: `SkinDef` in `defs/skins.ron`, `ProjectConfig.skin` = the game's) are drawn
   by `runtime/skin.rs`, the one place window chrome comes from: `panel`, `dialog_box`, `name_box`,
   `hud_frame`, `button_picture` / `button_fill`, `cursor`, `toast_box`, `bar`, `hearts` and

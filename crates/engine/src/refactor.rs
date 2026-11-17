@@ -535,6 +535,16 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
         r.fix(RefKind::Font, s);
     }
     r.fix(RefKind::Skin, &mut config.skin);
+    // The title screen's map, pictures and music.
+    let t = &mut config.title;
+    match &mut t.background {
+        crate::menus::TitleBackground::Map { map, .. } => r.fix(RefKind::Map, map),
+        crate::menus::TitleBackground::Picture { sheet } => r.fix(RefKind::Sheet, sheet),
+    }
+    if let Some(l) = &mut t.logo {
+        r.fix(RefKind::Sheet, &mut l.sheet);
+    }
+    r.fix(RefKind::Sound, &mut t.music);
     for d in &mut db.skins {
         for p in d.pictures_mut() {
             r.fix(RefKind::Sheet, &mut p.sheet);
@@ -863,6 +873,9 @@ mod tests {
         map_titles: [("village".to_string(), "Emberbrook".to_string())].into(),
         fonts: crate::fonts::FontRoles { ui: "mono".into(), fallback: vec!["cjk".into()], ..Default::default() },
         skin: "wood".into(),
+        title: Default::default(),
+        menu: Default::default(),
+        credits: String::new(),
         };
         cfg.sfx.pickup = "blip".into();
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "items", "icons"), 1);

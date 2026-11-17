@@ -198,7 +198,7 @@ the menus and the HUD all belong to the creator.
   - With the example's skin, they show its frame.
   - `status` prints `skin=`.
 
-- [ ] Title screen and menus — `feature/title-and-menus`
+- [x] Title screen and menus — `feature/title-and-menus`
 
   **Goal.** Each project designs its title screen and pause menu: background, logo, music, which
   entries appear, their order, and custom entries.
@@ -214,6 +214,19 @@ the menus and the HUD all belong to the creator.
   - **`ProjectConfig.menu`:** the same for the pause menu, with the built-in pages plus custom
     entries.
   - **Credits:** the *Credits* entry shows 0.26's scrolling text (a text page until then).
+
+  **Decided while building.**
+  - `ProjectConfig.title` / `.menu` / `.credits` (`menus.rs`). A map background is a map (empty =
+    start map), the tile the camera looks at, the held hour and a drift switch; a picture is a
+    sprite sheet covering the window; the logo is a sheet with its middle as parts of the window.
+  - A *Darken* setting was added: the built-in 55 % hid the dusk lighting of the example.
+  - Custom entries on the title screen run the function at once with the title staying open
+    (menus pause the game): instant actions happen, waiting ones run when the game starts. In the
+    pause menu the menu closes and the function runs like an event.
+  - The editor preview is a layout sketch in the form plus *Play title screen*, which play-tests
+    from the real title screen (`playtitle` in editor scripts).
+  - The example's logo sheet also went to the starter library (every example asset must).
+  - The selection and the greyed *Continue* follow the row, not its position (custom orders).
 
   **Engine.** The two config blocks. `menu.rs` builds its rows from them (the defaults are today's
   rows). The editor page with a preview.

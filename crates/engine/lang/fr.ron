@@ -92,6 +92,8 @@
         "Enter: add a key or a button · Del: clear the keys · saved right away · Esc: back": "Entrée : ajouter une touche ou un bouton · Suppr : effacer les touches · enregistré aussitôt · Échap : retour",
         "{key:up}/{key:down}: choose · {key:confirm} / click: confirm": "{key:up}/{key:down} : choisir · {key:confirm} / clic : valider",
         "{key:up}/{key:down} or wheel: browse · {key:cancel}: back": "{key:up}/{key:down} ou molette : parcourir · {key:cancel} : retour",
+        "{key:up}/{key:down} or wheel: scroll · {key:cancel}: back": "{key:up}/{key:down} ou molette : faire défiler · {key:cancel} : retour",
+        "Credits": "Crédits",
         "{key:confirm} / click · {key:cancel}: back": "{key:confirm} / clic · {key:cancel} : retour",
         "Press a key or a button...": "Appuyez sur une touche ou un bouton...",
         "That key can't be used.": "Cette touche ne peut pas être utilisée.",

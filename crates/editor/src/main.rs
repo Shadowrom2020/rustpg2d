@@ -379,6 +379,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // play [start]: F5 (from the camera / selected spawn) or F6 (project start); the game
         // inherits the environment, so RUSTPG2D_AUTOPLAY can drive the play-test
         "play" => ed.play(arg(1) != "start"),
+        // playtitle: Project › Title screen › Play title screen (the play-test opens on the title screen).
+        "playtitle" => ed.play_title(),
         // Same code paths as the file dialogs, without the dialog.
         // import tiled FILE [NAME] · import aseprite FILE [ID] [scale=N]: the File › Import…
         // imports (result printed and shown)

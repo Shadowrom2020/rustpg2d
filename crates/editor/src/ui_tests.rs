@@ -372,6 +372,36 @@ fn a_skin_is_defined_and_chosen() {
 }
 
 #[test]
+fn menu_entries_are_changed_and_saved() {
+    use rustpg2d_engine::menus::{MenuEntry, PauseMenu};
+    let root = example_copy("menus");
+    let mut h = harness(&root, Tab::Project, 0);
+    step(&mut h);
+    // The pause menu has the built-in entries: "Change…" copies them to start from.
+    h.get_by(|n| n.role() == Role::Button && n.label().as_deref().is_some_and(|l| l.ends_with("Change…"))).click();
+    step(&mut h);
+    assert_eq!(h.state().project.config.menu.entries, PauseMenu::DEFAULT.to_vec());
+    // Move the second entry (Photo mode) up. Every row has a Move up (the first one's disabled);
+    // the title's entries come first on the page.
+    let ups: Vec<_> = h.get_all_by(|n| n.role() == Role::Button && n.label().as_deref() == Some(egui_phosphor::regular::ARROW_UP)).collect();
+    let before = h.state().project.config.title.entries.len();
+    ups[before + 1].click();
+    step(&mut h);
+    assert_eq!(h.state().project.config.menu.entries[..2], [MenuEntry::Photo, MenuEntry::Resume]);
+    // A custom entry on the title screen (its Add entry comes first).
+    h.get_all_by(|n| n.label().as_deref().is_some_and(|l| l.ends_with("Add entry"))).next().unwrap().click();
+    step(&mut h);
+    h.get_by_label("Custom: runs a script function").click();
+    step(&mut h);
+    assert!(matches!(h.state().project.config.title.entries.last(), Some(MenuEntry::Custom { .. })));
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert_eq!(saved.config.menu.entries[0], MenuEntry::Photo);
+    assert_eq!(saved.config.title.entries.len(), before + 1);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn dialog_codes_are_inserted_and_the_box_placed() {
     let root = example_copy("dialog_codes");
     let chars = root.join("defs/characters.ron");

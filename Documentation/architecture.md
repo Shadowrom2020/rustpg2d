@@ -379,6 +379,14 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   `Game` fills with item icons. `{name:…}` and `{at:…}` are applied when the box opens; a leading
   `{at:…}` is split off before the translation lookup (`split_box_at`), and `lang::content_texts`
   leaves it out the same way.
+- The title screen and the pause menu (`menus.rs`: `ProjectConfig.title`, `.menu`, `.credits`) are
+  built by `runtime/menu.rs::rows()` from their entry lists; an empty list is the built-in one
+  (`TitleScreen::DEFAULT`, `PauseMenu::DEFAULT`), so old projects keep their menus. A custom entry
+  is `Row::Custom(function)`: the pause menu closes and queues `Action::RunScript`; the title screen
+  stays open and steps the action runner once at once (menus pause the game, so instant actions run
+  and waiting ones stay queued). The title's map is loaded behind it at start and on *Quit to main
+  menu* (`title_map`, `Game::title_scene`: camera tile, held hour, music); a picture background and
+  the logo are sheets drawn in `draw_menu`.
 - UI skins (`skin.rs`: `SkinDef` in `defs/skins.ron`, `ProjectConfig.skin` = the game's) are drawn
   by `runtime/skin.rs`, the one place window chrome comes from: `panel`, `dialog_box`, `name_box`,
   `hud_frame`, `button_picture` / `button_fill`, `cursor`, `toast_box`, `bar`, `hearts` and

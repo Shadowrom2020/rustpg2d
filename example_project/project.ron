@@ -187,4 +187,29 @@
         ui: "monogram",
     ),
     skin: "wood",
+    title: (
+        background: Map(
+            at: Some((34.0, 25.0)),
+            hour: Some(20.5),
+            drift: true,
+        ),
+        logo: Some((
+            sheet: "title_logo",
+            x: 0.5,
+            y: 0.17,
+            scale: 4.0,
+        )),
+        music: "music_village",
+        entries: [
+            NewGame,
+            Continue,
+            Load,
+            Options,
+            Achievements,
+            Credits,
+            Exit,
+        ],
+        dim: Some(0.3),
+    ),
+    credits: "Emberbrook\nAn example game for R(ust)PG2D\n\nMade with R(ust)PG2D, a free engine and editor for 2D role-playing games.\n\nArt, characters, sounds and music\nmade for R(ust)PG2D: its example game and starter asset library.\n\nFont\nmonogram by Vinícius Menézio (datagoblin), CC0.\n\nThank you for playing!",
 )

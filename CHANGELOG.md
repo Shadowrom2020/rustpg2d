@@ -3,7 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.25.0 — 2026-11-18
 
 ### Look
 - **UI skins** (*Database › UI skins*, chosen under *Database › Project › Look*): restyle every

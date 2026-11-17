@@ -376,6 +376,8 @@ fn menu_entries_are_changed_and_saved() {
     use rustpg2d_engine::menus::{MenuEntry, PauseMenu};
     let root = example_copy("menus");
     let mut h = harness(&root, Tab::Project, 0);
+    // (The example has its own pause entries: start from the built-in ones.)
+    h.state_mut().project.config.menu.entries.clear();
     step(&mut h);
     // The pause menu has the built-in entries: "Change…" copies them to start from.
     h.get_by(|n| n.role() == Role::Button && n.label().as_deref().is_some_and(|l| l.ends_with("Change…"))).click();

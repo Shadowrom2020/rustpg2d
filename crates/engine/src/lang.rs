@@ -494,6 +494,8 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
                 l.values.iter().for_each(|v| add(v));
             }
         }
+        // Script windows' lines and buttons, HUD bars' labels.
+        crate::script_refs::ui_texts(&src).iter().for_each(|t| add(t));
     }
     out
 }

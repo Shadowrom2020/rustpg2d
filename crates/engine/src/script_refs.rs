@@ -221,7 +221,7 @@ fn tokenize(src: &str) -> Vec<(Tok, usize)> {
                 Lexeme::Str { .. } | Lexeme::Num => (Tok::Other, t.start),
                 Lexeme::Ident => (Tok::Ident(text.to_string()), t.start),
                 Lexeme::Punct => match text.chars().next() {
-                    Some(c @ ('(' | ')' | ',' | '[' | ']' | '{' | '}')) => (Tok::Punct(c), t.start),
+                    Some(c @ ('(' | ')' | ',' | '[' | ']' | '{' | '}' | ':')) => (Tok::Punct(c), t.start),
                     _ => (Tok::Other, t.start),
                 },
             })
@@ -316,6 +316,60 @@ pub fn list_args(src: &str) -> Vec<ListArg> {
             }
         }
     }
+    out
+}
+
+/// Inside the arguments of calls to `func`: the string after `key:` in maps (`#{ run: "f" }`),
+/// with its line and span.
+fn map_values(src: &str, func: &str, key: &str) -> Vec<StrArg> {
+    let toks = tokenize(src);
+    let line_of = |pos: usize| src[..pos].bytes().filter(|&b| b == b'\n').count() + 1;
+    let mut out = Vec::new();
+    for (name, args, _) in calls(&toks) {
+        if name != func {
+            continue;
+        }
+        for (n, a) in args.iter().enumerate() {
+            for w in a.windows(3) {
+                if let (Tok::Ident(k), Tok::Punct(':'), Tok::Str(v, s, e)) = (w[0], w[1], w[2]) {
+                    if k == key {
+                        out.push(StrArg { func: name.clone(), arg: n, value: v.clone(), span: (*s, *e), line: line_of(*s), siblings: Vec::new() });
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The texts players read that sit inside the script UI's arguments: `window_open`'s rows
+/// (the strings in the array, buttons' labels) and `hud_bar`'s `label` option (translations).
+pub fn ui_texts(src: &str) -> Vec<String> {
+    let toks = tokenize(src);
+    let mut out = Vec::new();
+    for (name, args, _) in calls(&toks) {
+        if name == "window_open" {
+            if let Some(rows) = args.get(2) {
+                for (k, t) in rows.iter().enumerate() {
+                    // A row of its own: right after "[" or ",".
+                    if let (Tok::Str(v, _, _), Some(Tok::Punct('[' | ','))) = (t, k.checked_sub(1).map(|p| rows[p])) {
+                        out.push(v.clone());
+                    }
+                }
+            }
+        }
+    }
+    out.extend(map_values(src, "window_open", "button").into_iter().map(|a| a.value));
+    out.extend(map_values(src, "hud_bar", "label").into_iter().map(|a| a.value));
+    out
+}
+
+/// Script function names passed as strings: the function arguments of API calls
+/// (`then_call("f")`, `cutscene("f")`) and window buttons' `run: "f"`.
+pub fn function_refs(src: &str) -> Vec<StrArg> {
+    let func_arg = |f: &str, n: usize| crate::script_api::API.iter().any(|a| a.name == f && a.params.get(n).is_some_and(|p| p.1 == crate::script_api::Arg::Func));
+    let mut out: Vec<StrArg> = string_args(src).into_iter().filter(|a| func_arg(&a.func, a.arg)).collect();
+    out.extend(map_values(src, "window_open", "run"));
     out
 }
 
@@ -531,6 +585,18 @@ mod tests {
         assert_eq!(string_value(src, hi), "hi\n");
         // The unterminated string didn't swallow the next line: both functions are found.
         assert_eq!(functions(src).iter().map(|f| (f.name.as_str(), f.at)).collect::<Vec<_>>(), [("a", 0), ("b", src.rfind("fn b").unwrap())]);
+    }
+
+    #[test]
+    fn script_ui_texts_and_functions() {
+        let src = r#"fn page() {
+    window_open("p", "Title", ["A line", #{ image: "art", frame: 1 }, #{ button: "Rest", run: "rest" }]);
+    hud_bar("b", 0, 0, 100, "hp:X", "max_hp:X", "red", #{ label: "Boss" });
+    cutscene("intro");
+}"#;
+        assert_eq!(ui_texts(src), vec!["A line".to_string(), "Rest".into(), "Boss".into()]);
+        let f: Vec<(String, usize)> = function_refs(src).into_iter().map(|a| (a.value, a.line)).collect();
+        assert!(f.contains(&("rest".into(), 2)) && f.contains(&("intro".into(), 4)), "{f:?}");
     }
 
     #[test]

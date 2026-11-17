@@ -262,6 +262,13 @@ pub struct WorldState {
     /// Characters following the player, in the order they joined.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub companions: Vec<Companion>,
+    /// HUD elements scripts set (`hud_text`, `hud_image`, `hud_bar`), by id.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub hud: BTreeMap<String, crate::script_ui::HudElement>,
+    /// A window a script asked to open or close (`window_open`); the game takes it after the
+    /// call. Not saved.
+    #[serde(skip)]
+    pub window_request: Option<crate::script_ui::WindowRequest>,
     /// Spells characters learned, by where they are placed ("map/uid"): companions cast them.
     /// Kept when a companion is dismissed.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -476,7 +483,8 @@ impl WorldState {
     /// Fills in text placeholders (dialogs, choices, quest texts):
     /// `{player}` = the player's name, `{his|her}` = the first word for a male player, the
     /// second for a female one, `{name}` = the value of variable `name`, `{key:confirm}` = the key
-    /// or gamepad button of an action (any action id; `interact` = confirm). Anything else in
+    /// or gamepad button of an action (any action id; `interact` = confirm), `{item:coin}` = how
+    /// many of an item the player has. Anything else in
     /// braces is kept as it is.
     /// The text in the current language (`lang::tr`, looked up before the placeholders are
     /// filled in) with `{player}`, `{sir|madam}` and `{var}` filled in.
@@ -496,6 +504,9 @@ impl WorldState {
             let ident = !inner.is_empty() && inner.chars().all(|c| c.is_alphanumeric() || c == '_');
             if inner == "player" {
                 out.push_str(&self.player_name);
+            } else if let Some(item) = inner.strip_prefix("item:") {
+                // {item:coin}: how many the player has.
+                out.push_str(&self.inventory.count(item.trim()).to_string());
             } else if let Some(key) = inner.strip_prefix("key:").and_then(crate::runtime::glyphs::key_text) {
                 // {key:confirm}: the key ("E") or, after gamepad use, the button ("A") for it.
                 out.push_str(&key);

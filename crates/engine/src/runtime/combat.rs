@@ -205,6 +205,7 @@ impl Game {
         self.ui = super::Ui::default();
         self.cache.clear();
         self.loaded.map.name.clear();
+        self.script_window = None;
     }
 
     pub(super) fn update_combat(&mut self, dt: f32, frozen: bool, key_consumed: bool) {

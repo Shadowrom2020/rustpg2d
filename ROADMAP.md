@@ -238,7 +238,7 @@ the menus and the HUD all belong to the creator.
   - A custom entry runs its script (check `status` vars).
   - Keyboard and gamepad navigation work over the reordered entries.
 
-- [ ] Script UI — `feature/script-ui`
+- [x] Script UI — `feature/script-ui`
 
   **Goal.** Creators build their own HUD elements and simple windows from scripts: a quest
   tracker, a gold counter, a boss bar, a custom status page.
@@ -256,6 +256,22 @@ the menus and the HUD all belong to the creator.
     A button runs a function.
   - **Pause menu:** 0.25's custom entries open these windows.
   - **Saving:** elements live in `WorldState.hud` (serde default), so they survive saving.
+
+  **Decided while building.**
+  - `hud_bar`'s value and max are sources: a variable, a number, `hp:NAME` or `max_hp:NAME`
+    (a character on the map, `player`): a variable can't follow a fight.
+  - `hud_image` takes a sheet and a frame; options maps carry `anchor`, `size` / `scale`,
+    `color` and a bar's `label`.
+  - Window buttons are `#{ button: "Label", run: "function" }` (`call` is reserved in Rhai). A
+    button's function runs at once and the window stays open, so reopening it with the same id
+    refreshes it (the selection stays).
+  - `{item:ID}` was added to the text placeholders (a coin counter needs it; dialogs can use it).
+  - The window's lines, buttons and bar labels are collected for translation
+    (`script_refs::ui_texts`); *Problems* checks function names passed as strings
+    (`script_refs::function_refs`, also `then_call` and the like).
+  - The boss is a new *Cave troll* definition (30 HP, guards a short leash), since placed
+    characters can't override stats; it went to the starter library. The coin counter stays an
+    example in `08-scripting.md` instead of a library function.
 
   **Engine.** The element store and its drawing, the window, and the script functions in
   `script.rs`, `script_api.rs` and `08-scripting.md`.

@@ -49,6 +49,7 @@ mod photo;
 pub mod input;
 pub mod glyphs;
 pub mod skin;
+mod script_hud;
 mod attacks;
 mod defense;
 mod barks;
@@ -496,6 +497,8 @@ pub struct Game {
     npc_doors: Vec<doors::NpcDoor>,
     journal: journal::Journal,
     worldmap: worldmap::WorldMap,
+    /// The window a script opened (`window_open`), not saved.
+    script_window: Option<script_hud::WindowUi>,
     creator: Option<creator::Creator>,
     menu: menu::Menu,
     pub world: WorldState,
@@ -655,6 +658,7 @@ impl Game {
             npc_doors: Vec::new(),
             journal: Default::default(),
             worldmap: Default::default(),
+            script_window: None,
             creator: None,
             menu: Default::default(),
             world: WorldState::default(),
@@ -1692,6 +1696,11 @@ impl Game {
         if self.update_order_menu() {
             return;
         }
+        // A script's window pauses everything, the menus too.
+        self.take_window_request();
+        if self.update_script_window() {
+            return;
+        }
         if self.update_menu(can_open) {
             return;
         }
@@ -1804,6 +1813,7 @@ impl Game {
         // of characters a 'Damage area' defeats) went to the stand-in runner: keep them.
         let queued = std::mem::replace(&mut self.runner, runner);
         self.runner.append(queued);
+        self.take_window_request();
         self.furniture_answered();
         if !self.on_title() {
             self.check_quest_steps(dt);
@@ -2202,7 +2212,7 @@ impl Game {
 
     /// Gameplay is paused while a dialog or an inventory window is open.
     fn modal(&self) -> bool {
-        self.ui.dialog_open() || self.inventory_open()
+        self.ui.dialog_open() || self.inventory_open() || self.script_window_open()
     }
 
     /// Applies project rules (inventory size, stack limits) to the world state, e.g. after loading.
@@ -2445,7 +2455,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2507,6 +2517,8 @@ impl Game {
             skin::status(),
             self.menu_rows_status().0,
             self.menu_rows_status().1,
+            self.script_ui_status().0,
+            self.script_ui_status().1,
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2859,6 +2871,7 @@ impl Game {
                 self.draw_hud();
                 self.draw_companion_rows();
                 self.draw_clock();
+                self.draw_script_hud();
             }
             self.draw_minigame();
             self.draw_sleep();
@@ -2904,6 +2917,7 @@ impl Game {
         } else {
             self.draw_menu();
         }
+        self.draw_script_window();
         self.draw_achievement_toasts();
         self.draw_console();
         if self.debug {

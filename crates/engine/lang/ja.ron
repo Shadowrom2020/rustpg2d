@@ -84,6 +84,7 @@
         "Please enter a name.": "名前を入力してください。",
         "{}-{} of {}": "{}-{} / {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} またはクリック",
+        "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} またはクリック · {key:cancel}：閉じる",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume": "{key:up}/{key:down} + {key:confirm} またはクリック · {key:cancel}：再開",
         "Pick a save to overwrite, or make a new one · {key:cancel}: back": "上書きするセーブを選ぶか、新しく作ります · {key:cancel}：戻る",
         "{key:confirm} / click: load · Del: delete · {key:cancel}: back": "{key:confirm} / クリック：ロード · Del：削除 · {key:cancel}：戻る",

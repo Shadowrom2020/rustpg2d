@@ -18,6 +18,7 @@ pub mod fog;
 pub mod fonts;
 pub mod skin;
 pub mod menus;
+pub mod script_ui;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub mod glibc_compat;
 pub mod grid;

@@ -125,6 +125,10 @@ crates/engine/src/      library: everything shared by game and editor
                         at a tile / hour or a picture, logo, music, darkening, entries, align, panel),
                         PauseMenu (ProjectConfig.menu), MenuEntry (built-in + Custom = a script function),
                         ProjectConfig.credits; runtime/menu.rs builds its rows from them (empty = built in)
+  script_ui.rs          script UI data: HudElement / HudKind (text, image, bar) / Anchor (WorldState.hud, saved),
+                        Source (a bar's value: variable, number, hp:NAME, max_hp:NAME), ScriptWindow /
+                        WindowRow / WindowRequest (WorldState.window_request, not saved); runtime/script_hud.rs
+                        draws the HUD elements and the modal script window
   skin.rs               UI skins: SkinDef (defs/skins.ron: nine-slice pictures of sheet frames, colours,
                         dialog colour names; every part optional), ProjectConfig.skin; runtime/skin.rs
                         draws every window frame, button, cursor, toast, HUD frame, bar and window text

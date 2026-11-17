@@ -83,6 +83,7 @@
         "Please enter a name.": "Escribe un nombre.",
         "{}-{} of {}": "{}-{} de {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} o clic",
+        "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} o clic · {key:cancel}: cerrar",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume": "{key:up}/{key:down} + {key:confirm} o clic · {key:cancel}: reanudar",
         "Pick a save to overwrite, or make a new one · {key:cancel}: back": "Elige una partida para sobrescribir o crea una nueva · {key:cancel}: volver",
         "{key:confirm} / click: load · Del: delete · {key:cancel}: back": "{key:confirm} / clic: cargar · Supr: borrar · {key:cancel}: volver",

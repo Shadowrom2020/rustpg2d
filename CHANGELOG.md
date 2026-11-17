@@ -33,6 +33,20 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   settings. The example opens on Emberbrook's market square at dusk under its new logo, with
   credits. `status` prints `menu_rows=` and `title_bg=`; the editor script has `playtitle`.
 
+- **Script UI**: scripts put their own pieces on the HUD with `hud_text`, `hud_image` and
+  `hud_bar` (set once, saved with the game, anchored to a corner, an edge or the centre; texts fill
+  in their placeholders every frame, bars follow a variable or a character's HP with
+  `"hp:NAME"`), and open windows with `window_open` (lines, pictures and buttons that run a
+  function; a pause-menu entry of its own can open one as a page). The new placeholder
+  `{item:coin}` counts an item the player has, in dialogs too. `status` prints `hud=` and
+  `script_window=`.
+- The example: Grumbold, a cave troll (the new *Cave troll* character, also in the starter
+  library), guards a corner of the old mine with his health bar at the top of the screen; the
+  pause menu has a *Village life* page (friends, home, achievements).
+- *Edit › Problems* reports script function names passed as strings that don't exist
+  (`then_call("f")`, a window button's `run: "f"`); window lines and button labels go into the
+  translation templates.
+
 ### Fixes
 - Help lines at the bottom of windows no longer run past the window's edge in long translations
   (and a few English ones): they are drawn a little smaller, or in two lines.

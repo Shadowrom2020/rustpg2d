@@ -582,3 +582,49 @@ fn give_gift() {
 fn own_stone_house() {
     set_home("stone_house", true);
 }
+
+// ---- Grumbold, the cave troll of the old mine --------------------------------------------
+// His health bar shows at the top while the player is in his corner of the mine (the zone
+// grumbold_lair) and goes when he is defeated.
+fn grumbold_bar() {
+    if hp_of("grumbold") > 0 {
+        hud_bar("boss", 0, 48, 320, "hp:grumbold", "max_hp:grumbold", "red", #{ anchor: "top", label: "Grumbold, the cave troll" });
+    }
+}
+
+fn grumbold_bar_off() {
+    hud_remove("boss");
+}
+
+// ---- Village life (a page of the pause menu) ----------------------------------------------
+// Database › Project › Pause menu has an entry that runs village_life(): a window with the
+// villagers who know the player, their home and the achievements so far.
+fn village_life() {
+    let known = 0;
+    let close = 0;
+    for name in friend_tastes().keys() {
+        let v = get_var("friend_" + name);
+        if v > 0 { known += 1; }
+        if v >= 50 { close += 1; }
+    }
+    set_var("vl_known", known);
+    set_var("vl_close", close);
+    let got = 0;
+    for a in ["first_blood", "pest_control", "lights_in_the_dark", "seasoned", "naturalist", "hidden_hoard", "cat_person", "festival_baker", "village_healer", "old_debts"] {
+        if achievement_unlocked(a) { got += 1; }
+    }
+    set_var("vl_achievements", got);
+    let home = if is_home("stone_house") { text("Your home: Halvar's old stone house") } else { text("You have no home in Emberbrook yet.") };
+    window_open("village_life", "Village life", [
+        "Villagers who know you: {vl_known}",
+        "Close friends (five hearts): {vl_close}",
+        home,
+        "Achievements: {vl_achievements} of 10",
+        #{ button: "Close", run: "village_life_close" },
+    ]);
+}
+
+fn village_life_close() {
+    window_close();
+}
+

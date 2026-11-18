@@ -1,0 +1,17 @@
+[
+    (
+        id: "calendar_tick",
+        name: "Calendar: keep the date current",
+        trigger: Parallel(
+            flag: "calendar_on",
+        ),
+        actions: [
+            RunScript(
+                function: "calendar_update",
+            ),
+            Wait(
+                seconds: 2.0,
+            ),
+        ],
+    ),
+]

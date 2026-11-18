@@ -65,6 +65,8 @@ impl Editor {
 
     /// Adds (or updates) a plugin from the asset library's `plugins/<id>`.
     pub fn add_plugin_from_library(&mut self, id: &str) -> Result<String> {
+        // (Opening the library first brings the starter's plugins into it.)
+        self.lib.ensure_loaded();
         let lib = rustpg2d_engine::library::library_dir();
         let def = plugins::read_def(&lib, id)?;
         self.check_not_older(id, &def)?;
@@ -171,6 +173,7 @@ impl Editor {
         if !self.plugins_ui.open {
             return;
         }
+        self.lib.ensure_loaded();
         let mut open = true;
         let mut act: Option<Action> = None;
         let mut dialog = None;

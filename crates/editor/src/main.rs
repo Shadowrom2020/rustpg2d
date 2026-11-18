@@ -1310,6 +1310,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "skins" => Tab::Skins,
                 "common_events" | "common" => Tab::CommonEvents,
                 "backgrounds" => Tab::Backgrounds,
+                "classes" => Tab::Classes,
                 "factions" => Tab::Factions,
                 _ => Tab::Items,
             };

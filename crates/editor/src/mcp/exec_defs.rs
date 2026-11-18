@@ -61,6 +61,7 @@ def_facts!(rustpg2d_engine::skin::SkinDef, |d| {
     let colors = d.text.normal.iter().chain(&d.text.highlight).count() + d.colors.len();
     format!("{}; {} colours set", if pics.is_empty() { "no pictures".to_string() } else { pics.join(", ") }, colors)
 });
+def_facts!(rustpg2d_engine::classes::ClassDef, |d| format!("\"{}\"; d{} hit die; saves [{}]; {} skills of [{}]; subclass at {} ({}); {} features", d.name, d.hit_die, d.saves.join(", "), d.skill_choices, d.skill_options.join(", "), d.subclass_level, d.subclasses.iter().map(|s| s.id.as_str()).collect::<Vec<_>>().join(", "), d.features.len()));
 def_facts!(rustpg2d_engine::backgrounds::BackgroundDef, |d| format!("\"{}\"; proficiencies [{}]; {} language(s) to choose; {} starting item(s); feature {}", d.name, d.proficiencies.join(", "), d.language_choices, d.equipment.len(), if d.feature.is_empty() { "-" } else { d.feature.as_str() }));
 def_facts!(rustpg2d_engine::common_events::CommonEventDef, |d| {
     let runs = match &d.trigger {
@@ -289,6 +290,10 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::CommonEvent => (
             val(&rustpg2d_engine::common_events::CommonEventDef { actions: vec![rustpg2d_engine::events::Action::Wait { seconds: 1.0 }], ..rustpg2d_engine::common_events::CommonEventDef::fresh(id) }),
             "A common event: name; trigger: Call (only when an action CallCommon {id} or call_common(\"id\") runs it) | {Parallel: {flag}} (its actions again and again while the flag is set, beside play, in a queue of its own; clearing the flag stops it at once) | {Autorun: {flag}} (queued into the main event queue whenever it is idle while the flag is set: the player waits; clear the flag in its actions to end it); actions: the same actions as triggers (see the actions resource).",
+        ),
+        RefKind::Class => (
+            val(&rustpg2d_engine::classes::ClassDef::fresh(id)),
+            "A class (SRD 5.1; the twelve come from the starter library): hit_die (6-12), saves [str, con], proficiencies (armor / weapon / tool ids), skill_choices + skill_options, equipment [{item, count}], subclass_level + subclass_title, levels (20: {features: [ids], numbers: {rage_count: 2}}), subclasses [{id, name, levels: [[3, [feature ids]]]}], features [{id, name, level, text, effects: [FeatureEffect…], choice}]. Library_add the SRD's rather than writing one.",
         ),
         RefKind::Background => (
             val(&rustpg2d_engine::backgrounds::BackgroundDef { proficiencies: vec!["insight".into(), "religion".into()], language_choices: 1, ..rustpg2d_engine::backgrounds::BackgroundDef::fresh(id) }),
@@ -641,6 +646,7 @@ impl Editor {
             RefKind::Achievement => Some(rustpg2d_engine::script_refs::IdKind::Achievement),
             RefKind::Prop => Some(rustpg2d_engine::script_refs::IdKind::Prop),
             RefKind::CommonEvent => Some(rustpg2d_engine::script_refs::IdKind::CommonEvent),
+            RefKind::Class => Some(rustpg2d_engine::script_refs::IdKind::Class),
             _ => None,
         };
         if let Some(ik) = id_kind {

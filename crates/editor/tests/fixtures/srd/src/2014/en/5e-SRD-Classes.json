@@ -1,0 +1,1094 @@
+[
+  {
+    "index": "fighter",
+    "name": "Fighter",
+    "hit_die": 10,
+    "proficiency_choices": [
+      {
+        "desc": "Choose two skills from Acrobatics, Animal Handling, Athletics, History, Insight, Intimidation, Perception, and Survival",
+        "choose": 2,
+        "type": "proficiencies",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-acrobatics",
+                "name": "Skill: Acrobatics",
+                "url": "/api/2014/proficiencies/skill-acrobatics"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-animal-handling",
+                "name": "Skill: Animal Handling",
+                "url": "/api/2014/proficiencies/skill-animal-handling"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-athletics",
+                "name": "Skill: Athletics",
+                "url": "/api/2014/proficiencies/skill-athletics"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-history",
+                "name": "Skill: History",
+                "url": "/api/2014/proficiencies/skill-history"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-insight",
+                "name": "Skill: Insight",
+                "url": "/api/2014/proficiencies/skill-insight"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-intimidation",
+                "name": "Skill: Intimidation",
+                "url": "/api/2014/proficiencies/skill-intimidation"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-perception",
+                "name": "Skill: Perception",
+                "url": "/api/2014/proficiencies/skill-perception"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-survival",
+                "name": "Skill: Survival",
+                "url": "/api/2014/proficiencies/skill-survival"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "proficiencies": [
+      {
+        "index": "all-armor",
+        "name": "All armor",
+        "url": "/api/2014/proficiencies/all-armor"
+      },
+      {
+        "index": "shields",
+        "name": "Shields",
+        "url": "/api/2014/proficiencies/shields"
+      },
+      {
+        "index": "simple-weapons",
+        "name": "Simple Weapons",
+        "url": "/api/2014/proficiencies/simple-weapons"
+      },
+      {
+        "index": "martial-weapons",
+        "name": "Martial Weapons",
+        "url": "/api/2014/proficiencies/martial-weapons"
+      },
+      {
+        "index": "saving-throw-str",
+        "name": "Saving Throw: STR",
+        "url": "/api/2014/proficiencies/saving-throw-str"
+      },
+      {
+        "index": "saving-throw-con",
+        "name": "Saving Throw: CON",
+        "url": "/api/2014/proficiencies/saving-throw-con"
+      }
+    ],
+    "saving_throws": [
+      {
+        "index": "str",
+        "name": "STR",
+        "url": "/api/2014/ability-scores/str"
+      },
+      {
+        "index": "con",
+        "name": "CON",
+        "url": "/api/2014/ability-scores/con"
+      }
+    ],
+    "starting_equipment": [],
+    "starting_equipment_options": [
+      {
+        "desc": "(a) chain mail or (b) leather armor, longbow, and 20 arrows",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "chain-mail",
+                "name": "Chain Mail",
+                "url": "/api/2014/equipment/chain-mail"
+              }
+            },
+            {
+              "option_type": "multiple",
+              "items": [
+                {
+                  "option_type": "counted_reference",
+                  "count": 1,
+                  "of": {
+                    "index": "leather-armor",
+                    "name": "Leather Armor",
+                    "url": "/api/2014/equipment/leather-armor"
+                  }
+                },
+                {
+                  "option_type": "counted_reference",
+                  "count": 1,
+                  "of": {
+                    "index": "longbow",
+                    "name": "Longbow",
+                    "url": "/api/2014/equipment/longbow"
+                  }
+                },
+                {
+                  "option_type": "counted_reference",
+                  "count": 20,
+                  "of": {
+                    "index": "arrow",
+                    "name": "Arrow",
+                    "url": "/api/2014/equipment/arrow"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "desc": "(a) a martial weapon and a shield or (b) two martial weapons",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "multiple",
+              "items": [
+                {
+                  "option_type": "choice",
+                  "choice": {
+                    "desc": "a martial weapon",
+                    "choose": 1,
+                    "type": "equipment",
+                    "from": {
+                      "option_set_type": "equipment_category",
+                      "equipment_category": {
+                        "index": "martial-weapons",
+                        "name": "Martial Weapons",
+                        "url": "/api/2014/equipment-categories/martial-weapons"
+                      }
+                    }
+                  }
+                },
+                {
+                  "option_type": "counted_reference",
+                  "count": 1,
+                  "of": {
+                    "index": "shield",
+                    "name": "Shield",
+                    "url": "/api/2014/equipment/shield"
+                  }
+                }
+              ]
+            },
+            {
+              "option_type": "choice",
+              "choice": {
+                "desc": "two martial weapons",
+                "choose": 2,
+                "type": "equipment",
+                "from": {
+                  "option_set_type": "equipment_category",
+                  "equipment_category": {
+                    "index": "martial-weapons",
+                    "name": "Martial Weapons",
+                    "url": "/api/2014/equipment-categories/martial-weapons"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "desc": "(a) a light crossbow and 20 bolts or (b) two handaxes",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "multiple",
+              "items": [
+                {
+                  "option_type": "counted_reference",
+                  "count": 1,
+                  "of": {
+                    "index": "crossbow-light",
+                    "name": "Crossbow, light",
+                    "url": "/api/2014/equipment/crossbow-light"
+                  }
+                },
+                {
+                  "option_type": "counted_reference",
+                  "count": 20,
+                  "of": {
+                    "index": "crossbow-bolt",
+                    "name": "Crossbow bolt",
+                    "url": "/api/2014/equipment/crossbow-bolt"
+                  }
+                }
+              ]
+            },
+            {
+              "option_type": "counted_reference",
+              "count": 2,
+              "of": {
+                "index": "handaxe",
+                "name": "Handaxe",
+                "url": "/api/2014/equipment/handaxe"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "desc": "(a) a dungeoneer’s pack or (b) an explorer’s pack",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "dungeoneers-pack",
+                "name": "Dungeoneer's Pack",
+                "url": "/api/2014/equipment/dungeoneers-pack"
+              }
+            },
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "explorers-pack",
+                "name": "Explorer's Pack",
+                "url": "/api/2014/equipment/explorers-pack"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "class_levels": "/api/2014/classes/fighter/levels",
+    "multi_classing": {
+      "prerequisite_options": {
+        "type": "ability-scores",
+        "choose": 1,
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "score_prerequisite",
+              "ability_score": {
+                "index": "str",
+                "name": "STR",
+                "url": "/api/2014/ability-scores/str"
+              },
+              "minimum_score": 13
+            },
+            {
+              "option_type": "score_prerequisite",
+              "ability_score": {
+                "index": "dex",
+                "name": "DEX",
+                "url": "/api/2014/ability-scores/dex"
+              },
+              "minimum_score": 13
+            }
+          ]
+        }
+      },
+      "proficiencies": [
+        {
+          "index": "light-armor",
+          "name": "Light Armor",
+          "url": "/api/2014/proficiencies/light-armor"
+        },
+        {
+          "index": "medium-armor",
+          "name": "Medium Armor",
+          "url": "/api/2014/proficiencies/medium-armor"
+        },
+        {
+          "index": "shields",
+          "name": "Shields",
+          "url": "/api/2014/proficiencies/shields"
+        },
+        {
+          "index": "simple-weapons",
+          "name": "Simple Weapons",
+          "url": "/api/2014/proficiencies/simple-weapons"
+        },
+        {
+          "index": "martial-weapons",
+          "name": "Martial Weapons",
+          "url": "/api/2014/proficiencies/martial-weapons"
+        }
+      ]
+    },
+    "subclasses": [
+      {
+        "index": "champion",
+        "name": "Champion",
+        "url": "/api/2014/subclasses/champion"
+      }
+    ],
+    "url": "/api/2014/classes/fighter"
+  },
+  {
+    "index": "rogue",
+    "name": "Rogue",
+    "hit_die": 8,
+    "proficiency_choices": [
+      {
+        "desc": "Choose four from Acrobatics, Athletics, Deception, Insight, Intimidation, Investigation, Perception, Performance, Persuasion, Sleight of Hand, and Stealth",
+        "choose": 4,
+        "type": "proficiencies",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-acrobatics",
+                "name": "Skill: Acrobatics",
+                "url": "/api/2014/proficiencies/skill-acrobatics"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-athletics",
+                "name": "Skill: Athletics",
+                "url": "/api/2014/proficiencies/skill-athletics"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-deception",
+                "name": "Skill: Deception",
+                "url": "/api/2014/proficiencies/skill-deception"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-insight",
+                "name": "Skill: Insight",
+                "url": "/api/2014/proficiencies/skill-insight"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-intimidation",
+                "name": "Skill: Intimidation",
+                "url": "/api/2014/proficiencies/skill-intimidation"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-investigation",
+                "name": "Skill: Investigation",
+                "url": "/api/2014/proficiencies/skill-investigation"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-perception",
+                "name": "Skill: Perception",
+                "url": "/api/2014/proficiencies/skill-perception"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-performance",
+                "name": "Skill: Performance",
+                "url": "/api/2014/proficiencies/skill-performance"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-persuasion",
+                "name": "Skill: Persuasion",
+                "url": "/api/2014/proficiencies/skill-persuasion"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-sleight-of-hand",
+                "name": "Skill: Sleight of Hand",
+                "url": "/api/2014/proficiencies/skill-sleight-of-hand"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-stealth",
+                "name": "Skill: Stealth",
+                "url": "/api/2014/proficiencies/skill-stealth"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "proficiencies": [
+      {
+        "index": "light-armor",
+        "name": "Light Armor",
+        "url": "/api/2014/proficiencies/light-armor"
+      },
+      {
+        "index": "simple-weapons",
+        "name": "Simple Weapons",
+        "url": "/api/2014/proficiencies/simple-weapons"
+      },
+      {
+        "index": "longswords",
+        "name": "Longswords",
+        "url": "/api/2014/proficiencies/longswords"
+      },
+      {
+        "index": "rapiers",
+        "name": "Rapiers",
+        "url": "/api/2014/proficiencies/rapiers"
+      },
+      {
+        "index": "shortswords",
+        "name": "Shortswords",
+        "url": "/api/2014/proficiencies/shortswords"
+      },
+      {
+        "index": "hand-crossbows",
+        "name": "Hand crossbows",
+        "url": "/api/2014/proficiencies/hand-crossbows"
+      },
+      {
+        "index": "thieves-tools",
+        "name": "Thieves' Tools",
+        "url": "/api/2014/proficiencies/thieves-tools"
+      },
+      {
+        "index": "saving-throw-dex",
+        "name": "Saving Throw: DEX",
+        "url": "/api/2014/proficiencies/saving-throw-dex"
+      },
+      {
+        "index": "saving-throw-int",
+        "name": "Saving Throw: INT",
+        "url": "/api/2014/proficiencies/saving-throw-int"
+      }
+    ],
+    "saving_throws": [
+      {
+        "index": "dex",
+        "name": "DEX",
+        "url": "/api/2014/ability-scores/dex"
+      },
+      {
+        "index": "int",
+        "name": "INT",
+        "url": "/api/2014/ability-scores/int"
+      }
+    ],
+    "starting_equipment": [
+      {
+        "equipment": {
+          "index": "leather-armor",
+          "name": "Leather Armor",
+          "url": "/api/2014/equipment/leather-armor"
+        },
+        "quantity": 1
+      },
+      {
+        "equipment": {
+          "index": "dagger",
+          "name": "Dagger",
+          "url": "/api/2014/equipment/dagger"
+        },
+        "quantity": 2
+      },
+      {
+        "equipment": {
+          "index": "thieves-tools",
+          "name": "Thieves' Tools",
+          "url": "/api/2014/equipment/thieves-tools"
+        },
+        "quantity": 1
+      }
+    ],
+    "starting_equipment_options": [
+      {
+        "desc": "(a) a rapier or (b) a shortsword",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "rapier",
+                "name": "Rapier",
+                "url": "/api/2014/equipment/rapier"
+              }
+            },
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "shortsword",
+                "name": "Shortsword",
+                "url": "/api/2014/equipment/shortsword"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "desc": "(a) a shortbow and quiver of 20 arrows or (b) a shortsword",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "multiple",
+              "items": [
+                {
+                  "option_type": "counted_reference",
+                  "count": 1,
+                  "of": {
+                    "index": "shortbow",
+                    "name": "Shortbow",
+                    "url": "/api/2014/equipment/shortbow"
+                  }
+                },
+                {
+                  "option_type": "counted_reference",
+                  "count": 20,
+                  "of": {
+                    "index": "arrow",
+                    "name": "Arrow",
+                    "url": "/api/2014/equipment/arrow"
+                  }
+                }
+              ]
+            },
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "shortsword",
+                "name": "Shortsword",
+                "url": "/api/2014/equipment/shortsword"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "desc": "(a) a burglar’s pack, (b) a dungeoneer’s pack, or (c) an explorer’s pack",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "burglars-pack",
+                "name": "Burglar's Pack",
+                "url": "/api/2014/equipment/burglars-pack"
+              }
+            },
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "dungeoneers-pack",
+                "name": "Dungeoneer's Pack",
+                "url": "/api/2014/equipment/dungeoneers-pack"
+              }
+            },
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "explorers-pack",
+                "name": "Explorer's Pack",
+                "url": "/api/2014/equipment/explorers-pack"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "class_levels": "/api/2014/classes/rogue/levels",
+    "multi_classing": {
+      "prerequisites": [
+        {
+          "ability_score": {
+            "index": "dex",
+            "name": "DEX",
+            "url": "/api/2014/ability-scores/dex"
+          },
+          "minimum_score": 13
+        }
+      ],
+      "proficiencies": [
+        {
+          "index": "light-armor",
+          "name": "Light Armor",
+          "url": "/api/2014/proficiencies/light-armor"
+        },
+        {
+          "index": "thieves-tools",
+          "name": "Thieves' Tools",
+          "url": "/api/2014/proficiencies/thieves-tools"
+        }
+      ],
+      "proficiency_choices": [
+        {
+          "choose": 1,
+          "type": "proficiencies",
+          "from": {
+            "option_set_type": "options_array",
+            "options": [
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-acrobatics",
+                  "name": "Skill: Acrobatics",
+                  "url": "/api/2014/proficiencies/skill-acrobatics"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-athletics",
+                  "name": "Skill: Athletics",
+                  "url": "/api/2014/proficiencies/skill-athletics"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-deception",
+                  "name": "Skill: Deception",
+                  "url": "/api/2014/proficiencies/skill-deception"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-insight",
+                  "name": "Skill: Insight",
+                  "url": "/api/2014/proficiencies/skill-insight"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-intimidation",
+                  "name": "Skill: Intimidation",
+                  "url": "/api/2014/proficiencies/skill-intimidation"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-investigation",
+                  "name": "Skill: Investigation",
+                  "url": "/api/2014/proficiencies/skill-investigation"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-perception",
+                  "name": "Skill: Perception",
+                  "url": "/api/2014/proficiencies/skill-perception"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-performance",
+                  "name": "Skill: Performance",
+                  "url": "/api/2014/proficiencies/skill-performance"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-persuasion",
+                  "name": "Skill: Persuasion",
+                  "url": "/api/2014/proficiencies/skill-persuasion"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-sleight-of-hand",
+                  "name": "Skill: Sleight of Hand",
+                  "url": "/api/2014/proficiencies/skill-sleight-of-hand"
+                }
+              },
+              {
+                "option_type": "reference",
+                "item": {
+                  "index": "skill-stealth",
+                  "name": "Skill: Stealth",
+                  "url": "/api/2014/proficiencies/skill-stealth"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "subclasses": [
+      {
+        "index": "thief",
+        "name": "Thief",
+        "url": "/api/2014/subclasses/thief"
+      }
+    ],
+    "url": "/api/2014/classes/rogue"
+  },
+  {
+    "index": "wizard",
+    "name": "Wizard",
+    "hit_die": 6,
+    "proficiency_choices": [
+      {
+        "desc": "Choose two from Arcana, History, Insight, Investigation, Medicine, and Religion",
+        "choose": 2,
+        "type": "proficiencies",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-arcana",
+                "name": "Skill: Arcana",
+                "url": "/api/2014/proficiencies/skill-arcana"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-history",
+                "name": "Skill: History",
+                "url": "/api/2014/proficiencies/skill-history"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-insight",
+                "name": "Skill: Insight",
+                "url": "/api/2014/proficiencies/skill-insight"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-investigation",
+                "name": "Skill: Investigation",
+                "url": "/api/2014/proficiencies/skill-investigation"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-medicine",
+                "name": "Skill: Medicine",
+                "url": "/api/2014/proficiencies/skill-medicine"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-religion",
+                "name": "Skill: Religion",
+                "url": "/api/2014/proficiencies/skill-religion"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "proficiencies": [
+      {
+        "index": "daggers",
+        "name": "Daggers",
+        "url": "/api/2014/proficiencies/daggers"
+      },
+      {
+        "index": "darts",
+        "name": "Darts",
+        "url": "/api/2014/proficiencies/darts"
+      },
+      {
+        "index": "slings",
+        "name": "Slings",
+        "url": "/api/2014/proficiencies/slings"
+      },
+      {
+        "index": "quarterstaffs",
+        "name": "Quarterstaffs",
+        "url": "/api/2014/proficiencies/quarterstaffs"
+      },
+      {
+        "index": "crossbows-light",
+        "name": "Crossbows, light",
+        "url": "/api/2014/proficiencies/crossbows-light"
+      },
+      {
+        "index": "saving-throw-int",
+        "name": "Saving Throw: INT",
+        "url": "/api/2014/proficiencies/saving-throw-int"
+      },
+      {
+        "index": "saving-throw-wis",
+        "name": "Saving Throw: WIS",
+        "url": "/api/2014/proficiencies/saving-throw-wis"
+      }
+    ],
+    "saving_throws": [
+      {
+        "index": "int",
+        "name": "INT",
+        "url": "/api/2014/ability-scores/int"
+      },
+      {
+        "index": "wis",
+        "name": "WIS",
+        "url": "/api/2014/ability-scores/wis"
+      }
+    ],
+    "starting_equipment": [
+      {
+        "equipment": {
+          "index": "spellbook",
+          "name": "Spellbook",
+          "url": "/api/2014/equipment/spellbook"
+        },
+        "quantity": 1
+      }
+    ],
+    "starting_equipment_options": [
+      {
+        "desc": "(a) a quarterstaff or (b) a dagger",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "quarterstaff",
+                "name": "Quarterstaff",
+                "url": "/api/2014/equipment/quarterstaff"
+              }
+            },
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "dagger",
+                "name": "Dagger",
+                "url": "/api/2014/equipment/dagger"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "desc": "(a) a component pouch or (b) an arcane focus",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "component-pouch",
+                "name": "Component pouch",
+                "url": "/api/2014/equipment/component-pouch"
+              }
+            },
+            {
+              "option_type": "choice",
+              "choice": {
+                "desc": "arcane focus",
+                "choose": 1,
+                "type": "equipment",
+                "from": {
+                  "option_set_type": "equipment_category",
+                  "equipment_category": {
+                    "index": "arcane-foci",
+                    "name": "Arcane Foci",
+                    "url": "/api/2014/equipment-categories/arcane-foci"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "desc": "(a) a scholar’s pack or (b) an explorer’s pack",
+        "choose": 1,
+        "type": "equipment",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "scholars-pack",
+                "name": "Scholar's Pack",
+                "url": "/api/2014/equipment/scholars-pack"
+              }
+            },
+            {
+              "option_type": "counted_reference",
+              "count": 1,
+              "of": {
+                "index": "explorers-pack",
+                "name": "Explorer's Pack",
+                "url": "/api/2014/equipment/explorers-pack"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "class_levels": "/api/2014/classes/wizard/levels",
+    "multi_classing": {
+      "prerequisites": [
+        {
+          "ability_score": {
+            "index": "int",
+            "name": "INT",
+            "url": "/api/2014/ability-scores/int"
+          },
+          "minimum_score": 13
+        }
+      ],
+      "proficiencies": []
+    },
+    "subclasses": [
+      {
+        "index": "evocation",
+        "name": "Evocation",
+        "url": "/api/2014/subclasses/evocation"
+      }
+    ],
+    "spellcasting": {
+      "level": 1,
+      "spellcasting_ability": {
+        "index": "int",
+        "name": "INT",
+        "url": "/api/2014/ability-scores/int"
+      },
+      "info": [
+        {
+          "name": "Cantrips",
+          "desc": [
+            "At 1st level, you know three cantrips of your choice from the wizard spell list. You learn additional wizard cantrips of your choice at higher levels, as shown in the Cantrips Known column of the Wizard table."
+          ]
+        },
+        {
+          "name": "Spellbook",
+          "desc": [
+            "At 1st level, you have a spellbook containing six 1st- level wizard spells of your choice. Your spellbook is the repository of the wizard spells you know, except your cantrips, which are fixed in your mind."
+          ]
+        },
+        {
+          "name": "Preparing and Casting Spells",
+          "desc": [
+            "The Wizard table shows how many spell slots you have to cast your spells of 1st level and higher. To cast one of these spells, you must expend a slot of the spell's level or higher. You regain all expended spell slots when you finish a long rest.",
+            "You prepare the list of wizard spells that are available for you to cast. To do so, choose a number of wizard spells from your spellbook equal to your Intelligence modifier + your wizard level (minimum of one spell). The spells must be of a level for which you have spell slots.",
+            "For example, if you're a 3rd-level wizard, you have four 1st-level and two 2nd-level spell slots. With an Intelligence of 16, your list of prepared spells can include six spells of 1st or 2nd level, in any combination, chosen from your spellbook. If you prepare the 1st-level spell magic missile, you can cast it using a 1st-level or a 2nd-level slot. Casting the spell doesn't remove it from your list of prepared spells.",
+            "You can change your list of prepared spells when you finish a long rest. Preparing a new list of wizard spells requires time spent studying your spellbook and memorizing the incantations and gestures you must make to cast the spell: at least 1 minute per spell level for each spell on your list."
+          ]
+        },
+        {
+          "name": "Spellcasting Ability",
+          "desc": [
+            "Intelligence is your spellcasting ability for your wizard spells, since you learn your spells through dedicated study and memorization. You use your Intelligence whenever a spell refers to your spellcasting ability. In addition, you use your Intelligence modifier when setting the saving throw DC for a wizard spell you cast and when making an attack roll with one.",
+            "Spell save DC = 8 + your proficiency bonus + your Intelligence modifier.",
+            "Spell attack modifier = your proficiency bonus + your Intelligence modifier."
+          ]
+        },
+        {
+          "name": "Ritual Casting",
+          "desc": [
+            "You can cast a wizard spell as a ritual if that spell has the ritual tag and you have the spell in your spellbook. You don't need to have the spell prepared."
+          ]
+        },
+        {
+          "name": "Spellcasting Focus",
+          "desc": [
+            "You can use an arcane focus as a spellcasting focus for your wizard spells."
+          ]
+        }
+      ]
+    },
+    "spells": "/api/2014/classes/wizard/spells",
+    "url": "/api/2014/classes/wizard"
+  }
+]

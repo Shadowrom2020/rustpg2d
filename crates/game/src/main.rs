@@ -264,6 +264,10 @@ async fn main() {
                 let out = game.turn_command(&line);
                 say!("[turn] {line}: {out}");
             }
+            for line in std::mem::take(&mut a.levelups) {
+                let out = game.levelup_command(&line);
+                say!("[levelup] {line}: {out}");
+            }
             for (cmd, id) in std::mem::take(&mut a.skill_cmds) {
                 match cmd.as_str() {
                     "seed" => rustpg2d_engine::srd::dice::seed(id.trim().parse().unwrap_or(1)),
@@ -322,6 +326,8 @@ struct Autoplay {
     console: Vec<String>,
     /// `turn …` lines, run with the game at hand.
     turns: Vec<String>,
+    /// `levelup …` lines for the pending level-up (Game::levelup_command).
+    levelups: Vec<String>,
     /// `minigame bite`: waiting for that moment (probe name, seconds left), then E.
     until: Option<(&'static str, f32)>,
 }
@@ -333,7 +339,7 @@ impl Autoplay {
             .map(|c| c.split_whitespace().map(str::to_string).collect::<Vec<_>>())
             .filter(|c| !c.is_empty())
             .collect();
-        Autoplay { cmds, timer: 0.0, held: Vec::new(), sticky: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), mouse_held: Vec::new(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), turns: Vec::new(), until: None }
+        Autoplay { cmds, timer: 0.0, held: Vec::new(), sticky: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), mouse_held: Vec::new(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), turns: Vec::new(), levelups: Vec::new(), until: None }
     }
 
     /// Advances the script; returns false to quit.
@@ -582,6 +588,12 @@ impl Autoplay {
                 // `turn action dash`, `turn end`, `turn fast`, …; see Game::turn_command)
                 "turn" => {
                     self.turns.push(cmd[1..].join(" "));
+                    return true;
+                }
+                // levelup [FEATURE VALUE[,VALUE] …]: the pending level-up's picks (`levelup subclass
+                // champion`); alone = the first options. Prints what was applied.
+                "levelup" => {
+                    self.levelups.push(cmd[1..].join(" "));
                     return true;
                 }
                 "console" => {

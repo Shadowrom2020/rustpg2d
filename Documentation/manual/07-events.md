@@ -58,6 +58,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Text variable** | A text variable equals a text (*any case*: "Rosehill" = "rosehill"; an empty text = the variable is empty) |
 | **Player sex** | Male or female |
 | **Player race** | The player's race (*Database › Races*), e.g. goblin; a race holds for its subraces too (*dwarf* for a hill dwarf) |
+| **Has class** | The hero's class or subclass (*Database › Classes*: *fighter*, *champion*; empty = any class) at a level compared with a number (*≥ 3*); false without a class |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
 | **Proficient in** | The hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`, `save:dex`). Until 0.27 *Skill level* |
@@ -188,6 +189,10 @@ across map changes and in save games.
 - **Start fight**: a [turn-based fight](09-gameplay.md#health-and-combat) with the hostile
   characters within 12 tiles of the player (their allies and the party join); nothing without any.
   An ambush: *Set active* shows the bandits, *Start fight* begins it.
+- **Set class** (target, class, level): gives the hero (*player*) or a party member on this map a
+  [class](09-gameplay.md#classes-and-levels): its saving throws and proficiencies; the choices of the
+  levels it has open the level-up window. *Level* 0 keeps the level; a party member joins at a
+  higher one with its experience and hit points to match.
 
 In the example, Tilda's quest reward offers "Ask for a bit more": an *Ability check* (Persuasion,
 DC 13) whose success gives ten more coins.

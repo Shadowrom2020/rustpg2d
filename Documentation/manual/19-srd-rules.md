@@ -12,7 +12,8 @@ uses it, what is still simplified, and what the licence asks of your game. The d
 | **Proficiency** | The bonus by level (+2 to +6) on skills, tools and saving throws the hero is proficient in | [Gameplay › Rules](09-gameplay.md#rules-srd-51) |
 | **Checks and saving throws** | A d20 + modifier (+ proficiency) against a DC, with advantage and disadvantage; events, scripts, locks and crafting roll them; every roll goes into the journal's *Rolls* page | [Events](07-events.md#actions), [Scripting](08-scripting.md#rules-srd-51-dice-abilities-and-checks) |
 | **Races and backgrounds** | The SRD's nine races with their subraces, traits and choices, and the Acolyte | [Characters › Races](06-characters.md#races) |
-| **Levels and hit points** | The SRD's XP table up to level 20; HP from a d10 hit die (average or rolled) + CON | [Gameplay › Experience and levels](09-gameplay.md#experience-and-levels) |
+| **Levels and hit points** | The SRD's XP table up to level 20, split among the classed party; HP from the class's hit die (average or rolled) + CON | [Gameplay › Experience and levels](09-gameplay.md#experience-and-levels) |
+| **Classes** | The twelve classes with their subclass, proficiencies, starting equipment and features to level 20; the level-up window's choices (subclass, ability score improvement or the Grappler feat, expertise, fighting styles); the features that work by themselves act; party members have classes and level too | [Gameplay › Classes and levels](09-gameplay.md#classes-and-levels) |
 | **Armor class** | 10 + DEX + the armor's defense | [Gameplay › Rules](09-gameplay.md#rules-srd-51) |
 | **Conditions** | The 15 conditions with exhaustion's six levels; saving throws keep them off; damage or healing per round of 6 seconds | [Gameplay › Conditions and damage](09-gameplay.md#conditions-and-damage) |
 | **Damage types** | 13 types; resistance halves, immunity stops, vulnerability doubles | [Gameplay › Conditions and damage](09-gameplay.md#conditions-and-damage) |
@@ -26,8 +27,12 @@ built into the engine; the editor shows them as hover texts.
 
 ## What is simplified
 
-- **Classes** arrive with 0.30: until then the hit die is a d10 for every hero, heroes are
-  proficient with every weapon, and there are no spell slots: spells cost mana as before. In a
+- **Classes:** the features used as actions (Rage, Second Wind, Action Surge, Sneak Attack, Ki,
+  Lay on Hands, Channel Divinity…) and reactions arrive next; spellcasting, spell slots and the
+  domain and oath spells with the SRD's spells, Wild Shape with shapes and summons (0.32), so
+  until then those are text and spells cost mana as before. Multiclassing is 0.32 (the classes keep
+  its prerequisites). The only feat is the SRD's Grappler. Heroes without a class (projects without
+  classes) have a d10 hit die. Weapon proficiency doesn't change attack rolls yet (0.31's weapons). In a
   fight a *Bolt* spell is a ranged spell attack (INT + proficiency), a *Blast* a DEX saving throw
   for half damage, *Heal* touches an ally.
 - **Weapons and armor** come with 0.31: weapon properties (finesse, light, heavy, thrown) and the

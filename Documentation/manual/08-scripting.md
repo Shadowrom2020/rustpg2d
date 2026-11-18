@@ -919,6 +919,13 @@ running keeps the longer duration; exhaustion adds a level.
 | `start_combat()` | Starts a [turn-based fight](09-gameplay.md#health-and-combat) with the hostile characters within 12 tiles of the player; their allies and the party join (the *Start fight* action). Nothing without any, or during a fight. *(queued, since 0.29)* |
 | `in_combat()` | Whether a fight is going on. *(since 0.29)* |
 | `combat_round()` | The round of the fight going on (1 = the first; 0 = no fight). *(since 0.29)* |
+| `class()` | The hero's [class](09-gameplay.md#classes-and-levels) id (*Database › Classes*), e.g. `"fighter"`; `""` without one. *(since 0.30)* |
+| `subclass()` | The hero's subclass id (`"champion"`, `"thief"`), `""` before they chose one. *(since 0.30)* |
+| `class_level()` | The hero's level in their class (0 without a class). *(since 0.30)* |
+| `has_feature(feature)` | Whether the hero has a class feature at their level, by its id (*Database › Classes*, the class's features): `has_feature("second-wind")`; chosen options count too (`"fighter-fighting-style-defense"`). *(since 0.30)* |
+| `level_up_pending()` | Whether level-up choices (the hero's or a party member's) wait for the level-up window. *(since 0.30)* |
+| `set_class(target, class)` | Gives the hero (`"player"`) or a party member on this map a class: its saving throws and proficiencies; the choices of the levels it has open the level-up window (the *Set class* action). *(queued, since 0.30)* |
+| `set_class(target, class, level)` | Like above; a party member also gets this level (it joins at it: its experience and hit points follow). The example's `set_class("finn", "ranger", level())` makes Old Finn a ranger at the hero's level. *(queued, since 0.30)* |
 | `apply_effect(target, effect, strength, seconds)` | **Deprecated** since 0.28: use `apply_condition`. The status effects of 0.27 as conditions: `"poison"` = poisoned + poison damage per round (`strength` × 6), `"burn"` = fire damage per round, `"regen"` = healing per round, `"stun"` = stunned, `"slow"` = restrained; `"haste"`, `"strength"`, `"weakness"`, `"shield"` do nothing. *(queued)* |
 | `cure(target, effect)` | **Deprecated** since 0.28: use `remove_condition`. *(queued)* |
 | `cure(target)` | **Deprecated** since 0.28: use `remove_condition(target, "all")`. *(queued)* |

@@ -20,6 +20,9 @@ pub(super) struct HeroChoices {
     pub base: Option<crate::srd::Abilities>,
     pub choices: BTreeMap<String, Vec<String>>,
     pub background: String,
+    /// The class ("" = none) and the class skills picked.
+    pub class: String,
+    pub class_skills: Vec<String>,
 }
 
 impl Game {
@@ -57,6 +60,18 @@ impl Game {
         self.world.player_background = background.as_ref().map(|b| b.id.clone()).unwrap_or_default();
         for s in background.iter().flat_map(|b| b.equipment.iter()).filter(|s| !s.item.is_empty() && s.count > 0) {
             self.world.give_item(&s.item, s.count);
+        }
+        // The class: its proficiencies, the skills picked, its starting equipment; level 1's
+        // choices wait for the level-up window.
+        if !c.class.is_empty() {
+            self.set_hero_class(&c.class);
+            for s in &c.class_skills {
+                self.world.set_proficient(s, true);
+            }
+            let gear: Vec<(String, u32)> = self.project.db.class(&c.class).map(|cl| cl.equipment.iter().filter(|s| !s.item.is_empty() && s.count > 0).map(|s| (s.item.clone(), s.count)).collect()).unwrap_or_default();
+            for (item, n) in gear {
+                self.world.give_item(&item, n);
+            }
         }
         self.init_skills(false);
         self.world.player_hp = Some(self.player_max_hp());

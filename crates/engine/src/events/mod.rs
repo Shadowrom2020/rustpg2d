@@ -318,6 +318,23 @@ pub enum Cond {
         #[serde(default)]
         by: i64,
     },
+    /// The hero's class (`classes::ClassDef`) or subclass, at a level compared with `level`
+    /// (`class` "" = any class; no class = false).
+    Class {
+        class: String,
+        #[serde(default = "cmp_ge")]
+        op: CmpOp,
+        #[serde(default = "one_i64")]
+        level: i64,
+    },
+}
+
+fn cmp_ge() -> CmpOp {
+    CmpOp::Ge
+}
+
+fn one_i64() -> i64 {
+    1
 }
 
 /// Whether `hour` lies in `from..to` (hours 0..24; `from > to` wraps around midnight).
@@ -353,6 +370,7 @@ impl Cond {
             Cond::Timer { .. } => "Timer",
             Cond::TextVar { .. } => "Text variable",
             Cond::CheckPassed { .. } => "Check passed",
+            Cond::Class { .. } => "Has class",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -377,6 +395,7 @@ impl Cond {
             Cond::Timer { name: "timer".into(), op: CmpOp::Gt, seconds: 0 },
             Cond::TextVar { name: String::new(), value: String::new(), ignore_case: true },
             Cond::CheckPassed { by: 0 },
+            Cond::Class { class: String::new(), op: CmpOp::Ge, level: 1 },
         ]
     }
 }
@@ -425,6 +444,9 @@ impl Condition {
                 }
             }
             Cond::CheckPassed { by } => world.last_check.as_ref().is_some_and(|r| r.success == Some(true) && r.margin() >= *by),
+            Cond::Class { class, op, level } => {
+                world.class.as_ref().is_some_and(|c| class.is_empty() || c.class == *class || (!c.subclass.is_empty() && c.subclass == *class)) && op.apply(world.player_level() as i64, *level)
+            }
         };
         v != self.negate
     }
@@ -888,6 +910,15 @@ pub enum Action {
     /// Starts a turn-based fight with the hostile characters near the player (nothing without
     /// any, or during one).
     StartCombat,
+    /// Gives the hero (`target` "player") or a party member a class: its saving throws and
+    /// proficiencies; the level's choices open the level-up window. `level` 0 keeps the level
+    /// (a party member's is set when above 0).
+    SetClass {
+        target: TargetName,
+        class: String,
+        #[serde(default)]
+        level: u32,
+    },
 }
 
 fn eight() -> f32 {
@@ -1089,6 +1120,7 @@ impl Action {
             Action::ShortRest => "Short rest",
             Action::LongRest { .. } => "Long rest",
             Action::StartCombat => "Start fight",
+            Action::SetClass { .. } => "Set class",
         }
     }
 
@@ -1204,6 +1236,7 @@ impl Action {
             Action::ShortRest,
             Action::LongRest { hours: 8.0 },
             Action::StartCombat,
+            Action::SetClass { target: "player".into(), class: "fighter".into(), level: 0 },
         ]
     }
 }

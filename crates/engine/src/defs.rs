@@ -1492,10 +1492,17 @@ pub struct CharacterDef {
     /// Mana it regains per second.
     #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub mana_regen: f32,
-    /// Its SRD stat block (abilities, armor class, hit points, challenge; `None` = none). Shown and
-    /// read by scripts; real-time combat still uses `max_hp`, `damage` and `defense`.
+    /// Its SRD stat block (abilities, armor class, hit points, attacks, challenge; `None` = none):
+    /// fights use it; scripts read it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stats: Option<crate::srd::StatBlock>,
+    /// A party member's class (with its subclass and choices): as a companion it levels with the
+    /// hero and fights with its class features (`None` = none, its stat block alone).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<crate::classes::HeroClass>,
+    /// The level it joins at (with a class; 0 = 1).
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub level: u32,
 }
 
 fn is_zero_f32(v: &f32) -> bool {
@@ -1536,6 +1543,8 @@ impl Default for CharacterDef {
             max_mana: 0,
             mana_regen: 0.0,
             stats: None,
+            class: None,
+            level: 0,
         }
     }
 }
@@ -1708,6 +1717,8 @@ pub struct Database {
     pub common_events: Vec<crate::common_events::CommonEventDef>,
     /// Backgrounds the character creator offers (the SRD's Acolyte, a project's own).
     pub backgrounds: Vec<crate::backgrounds::BackgroundDef>,
+    /// Classes (the SRD's twelve, a project's own): the hero's and party members'.
+    pub classes: Vec<crate::classes::ClassDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1872,6 +1883,10 @@ impl Database {
 
     pub fn background(&self, id: &str) -> Option<&crate::backgrounds::BackgroundDef> {
         self.backgrounds.iter().find(|d| d.id == id)
+    }
+
+    pub fn class(&self, id: &str) -> Option<&crate::classes::ClassDef> {
+        self.classes.iter().find(|d| d.id == id)
     }
 
     pub fn model(&self, id: &str) -> Option<&ModelDef> {
@@ -2044,6 +2059,7 @@ impl_def!(crate::fonts::FontDef, crate::refactor::RefKind::Font, fonts);
 impl_def!(crate::skin::SkinDef, crate::refactor::RefKind::Skin, skins, refs = crate::refactor::refs_of_skin);
 impl_def!(crate::common_events::CommonEventDef, crate::refactor::RefKind::CommonEvent, common_events, refs = crate::refactor::refs_of_common_event);
 impl_def!(crate::backgrounds::BackgroundDef, crate::refactor::RefKind::Background, backgrounds, refs = crate::refactor::refs_of_background);
+impl_def!(crate::classes::ClassDef, crate::refactor::RefKind::Class, classes, refs = crate::refactor::refs_of_class);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map` and `Skill` (a proficiency id), which
@@ -2126,6 +2142,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Background => {
                 type $T = $crate::backgrounds::BackgroundDef;
+                $body
+            }
+            $crate::refactor::RefKind::Class => {
+                type $T = $crate::classes::ClassDef;
                 $body
             }
             $crate::refactor::RefKind::Skill | $crate::refactor::RefKind::Map => $else,

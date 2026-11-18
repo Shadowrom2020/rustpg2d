@@ -124,14 +124,19 @@ Each level adds **hit points** (and heals as many), a **hit die**, mana as set i
 per level*, with magic), and the proficiency bonus grows with it ([Rules](#rules-srd-51)). The SRD
 gives XP by challenge: a commoner is worth 10, a bandit or guard 25, a goblin 50, an orc 100, a
 bandit captain 450, a veteran 700, an adult red dragon 18,000 (the library's monsters carry theirs);
-quests give what their *Experience reward* says. The hero gets all of it, companions don't level (yet).
+quests give what their *Experience reward* says. The XP is **split** equally between the hero and
+the party members on the map that have a [class](#classes-and-levels) (they level too); companions
+without a class leave the hero all of it.
 
-**Hit points** follow the SRD. Until classes arrive (0.30) every hero has a fighter's hit die, a d10:
+**Hit points** follow the SRD and the hero's **class** hit die (a wizard's d6, a fighter's d10, a
+barbarian's d12; a hero without a class, as in projects without classes and saves of 0.29 and
+older, has a d10):
 
-- **Level 1**: 10 + the CON modifier.
-- **Every further level**: the die's average (6) + CON, or with *Hit points per level: Rolled* a d10
-  roll + CON (into the roll log); at least 1 per level.
-- Plus what the race adds (the hill dwarf's *Dwarven Toughness*: +1 per level).
+- **Level 1**: the die's maximum + the CON modifier.
+- **Every further level**: the die's average (d6: 4, d8: 5, d10: 6, d12: 7) + CON, or with *Hit
+  points per level: Rolled* a roll of the die + CON (into the roll log); at least 1 per level.
+- Plus what the race adds (the hill dwarf's *Dwarven Toughness*: +1 per level) and the class (the
+  draconic sorcerer's *Draconic Resilience*: +1 per level).
 
 The max HP follows the CON score: a potion or script that raises CON raises it at once. A save of an
 older version counts its levels as averages.
@@ -139,6 +144,53 @@ older version counts its levels as averages.
 The status frame shows `Lv N` with a gold XP bar, the character sheet *Level N* and *XP a / b*, and a
 message announces every level, with the project's *Level up* fanfare (*Game sounds*) if it has one. Triggers use the *Give experience* action and the *Player level*
 condition; scripts `give_xp(n)`, `xp()` and `level()`.
+
+## Classes and levels
+
+The SRD's twelve **classes** (barbarian, bard, cleric, druid, fighter, monk, paladin, ranger, rogue,
+sorcerer, warlock, wizard) are definitions (*Database › Classes*,
+[Characters › Classes](06-characters.md#classes)) with their subclass, hit die, saving throws,
+proficiencies, skills to choose, starting equipment and their features from level 1 to 20. The
+character creator offers them on its third page; the hero then is a class at their level, and
+*Set class* / `set_class()` give or change one in play.
+
+- **Starting**: the class's saving throws and armor, weapon and tool proficiencies, the skills
+  picked in the creator and its starting equipment in the inventory (the SRD's first options,
+  mapped to the library's items: a fighter's chain mail, iron sword, wooden shield, crossbow and
+  bolts).
+- **Levelling**: every level the hit die adds hit points. When a level brings **choices**, the
+  **level-up window** opens as soon as nothing else is going on (no fight, dialog or cut-scene):
+  the **subclass** at its level (a fighter's *Martial Archetype* at 3, a cleric's *Divine Domain* at
+  1), an **ability score improvement** (+1 to two abilities, +2 to one, or the feat **Grappler**:
+  advantage on attacks against the creature the hero grapples), **expertise** (a rogue's or bard's
+  doubled proficiency), a **fighting style** and other options. Levels with new features but no
+  choice show them in the window too. The hero's level-ups come first, then the party's.
+![The level-up window: a rogue's ability score improvement at level 4](../images/game-levelup.webp)
+
+- **Features** that work by themselves act in play: *Unarmored Defense* (barbarian 10 + DEX + CON,
+  monk 10 + DEX + WIS), the fighting styles (*Archery* +2 to hit with ranged weapons, *Defense* +1 AC
+  in armor, *Dueling* +2 damage one-handed, *Great Weapon Fighting* rerolls 1s and 2s, *Two-Weapon
+  Fighting* adds the modifier to the off-hand attack), *Extra Attack* (two to four attacks),
+  *Improved* / *Superior Critical* (a critical hit on 19 or 18), *Brutal Critical*, *Fast Movement*
+  and *Unarmored Movement*, *Martial Arts* (DEX and the martial arts die for unarmed strikes),
+  *Expertise*, *Jack of All Trades* and *Remarkable Athlete* (half the proficiency bonus), *Reliable
+  Talent* (a d20 under 10 counts as 10 on proficient checks), *Danger Sense* (advantage on DEX
+  saves), *Feral Instinct* (advantage on initiative), *Evasion*, the auras of the paladin
+  (*Aura of Protection*: CHA to the saves of allies within 10 ft; *Aura of Courage*), resistances and
+  immunities (*Purity of Body*, *Diamond Soul*), *Primal Champion*. The features used as actions
+  (Rage, Second Wind, Action Surge, Sneak Attack, Ki…) come next (0.30); spellcasting comes with the
+  spells. The others are their rules text on the sheet.
+- The **character sheet** (K) shows the class, subclass and level, the hit dice by the class's
+  die, and the class's features first in *Features and traits* (their text below the list).
+
+**Party members** have a class too: a character's *Class* and *level* in its form (*Database ›
+Characters*), or given when it joins (*Set class*, `set_class("finn", "ranger", level())`). A party
+member with a class fights with a stat block made from it: its ability scores, the class's hit
+points at its level, armor class from its equipment or the class's unarmored defense, attacks with
+its weapon (proficiency + modifier, its fighting style, extra attacks). It gets its share of the XP,
+levels with its own hit point rolls, and its choices open the level-up window in turn. In the
+example, **Dagny** (the night guard, a fighter) and **Old Finn** (the fisher, a ranger with his old
+hunting bow) join when asked and arrive at the hero's level.
 
 ## Conditions and damage
 

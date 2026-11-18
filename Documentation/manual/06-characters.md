@@ -425,9 +425,18 @@ speed, darkvision and traits.
 - **Background** (*Database › Backgrounds*, [Backgrounds](#backgrounds)) and its languages; its
   skills and feature show below.
 
+![The creator's third page: the rogue, its skills and level-1 features](../images/game-creator-class.webp)
+
+With classes in the project (*Database › Classes*), *Next* opens the third page, **Class**: the
+class (the example's default is the fighter) and a row per **skill** it lets the hero choose (a
+fighter two of eight, a rogue four). Beside them the class's hit die, saving throws and
+proficiencies and its level-1 features with their text.
+
 *Start adventure* makes the hero: the scores with the race's increases (racial increases stop at
-20), the project's, the race's, the chosen and the background's proficiencies, the languages and
-resistances, the background's starting items. Name, sex, model, colours and all of it are kept in
+20), the project's, the race's, the chosen, the background's and the class's proficiencies, the
+languages and resistances, the background's and the class's starting items. Level-1 choices of the
+class (a fighter's fighting style, a rogue's expertise, a cleric's domain) open the
+[level-up window](09-gameplay.md#classes-and-levels) right after. Name, sex, model, colours and all of it are kept in
 save games. The example offers its nine races and three backgrounds with all three methods.
 Play-tests skip the creator and use the default name and the project's *Rules*.
 
@@ -499,6 +508,28 @@ Faithful*) comes from the import; the example and the starter library add two of
 **Farmhand** (Athletics, Animal Handling, Land Vehicles; a hoe and bread; *Harvest Hands*) and
 **Wanderer** (Survival, Nature, one language; a fishing rod and a torch; *Wayfinder*). The
 Acolyte starts with 15 coins. `background()` tells the hero's.
+
+### Classes
+
+*Database › Classes*: the SRD 5.1's twelve classes, imported into the starter library and the
+example by the [SRD import](11-asset-library.md#the-srd-51-data) (*Add from library…* brings them into
+a project). A class has:
+
+- a **name**, a **description** and its **hit die** (d6 to d12);
+- **saving throws** (two abilities) and **proficiencies** (armor, weapons, tools: `light-armor`,
+  `martial-weapons`, `thieves-tools`), the **skills** the hero chooses from and how many;
+- the **subclass** level and title (*Martial Archetype* at 3) and its **subclasses** (the SRD has one
+  per class: Champion, Thief, School of Evocation…) with their features by level;
+- **starting equipment** (library items; what had no item stays out);
+- its **levels** 1 to 20 (each level's features and numbers: rages, ki points, the martial arts die,
+  sneak attack dice, spell slots for 0.30's spells) and its **features**, each with its level, rules
+  text, a **choice** (options such as the fighting styles, expertise, an ability score improvement)
+  and the **effects** that make it act (marked *); the rest is text on the sheet.
+
+Any **character** can have a class and a level (*Class* in its form, with the subclass, or *(chosen
+in play)*): as a party member it then fights with the class's numbers and levels with the hero
+([Gameplay › Classes and levels](09-gameplay.md#classes-and-levels)). The example's Dagny and Finn
+get theirs when they join (`set_class`), at the hero's level.
 
 **Addressing the player**: in dialog, choice and quest texts, `{player}` becomes the player's name
 and `{sir|madam}` the first word for a male player and the second for a female one (any pair works:

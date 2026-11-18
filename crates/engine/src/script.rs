@@ -81,6 +81,8 @@ pub struct PlayerInfo {
     pub hit_dice: u32,
     /// The round of the fight going on (`combat_round()`; 0 = none).
     pub combat_round: u32,
+    /// The hero's class features at their level (`has_feature()`), chosen options included.
+    pub features: Vec<String>,
 }
 
 pub struct ScriptHost {
@@ -897,6 +899,13 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("set_hour", with!(ctx, |c, h: i64| c.actions.push(Action::SetTime { hour: h as f32 })));
     engine.register_fn("player_sex", with!(ctx, |c| c.world.player_sex.key().to_string()));
     engine.register_fn("player_race", with!(ctx, |c| c.world.player_race.clone()));
+    engine.register_fn("class", with!(ctx, |c| c.world.class.as_ref().map_or(String::new(), |h| h.class.clone())));
+    engine.register_fn("subclass", with!(ctx, |c| c.world.class.as_ref().map_or(String::new(), |h| h.subclass.clone())));
+    engine.register_fn("class_level", with!(ctx, |c| if c.world.class.is_some() { c.world.player_level() as i64 } else { 0 }));
+    engine.register_fn("has_feature", with!(ctx, |c, id: &str| c.player.features.iter().any(|f| f == id)));
+    engine.register_fn("level_up_pending", with!(ctx, |c| !c.world.levelups.is_empty()));
+    engine.register_fn("set_class", with!(ctx, |c, t: &str, class: &str| c.actions.push(Action::SetClass { target: t.into(), class: class.into(), level: 0 })));
+    engine.register_fn("set_class", with!(ctx, |c, t: &str, class: &str, l: Dynamic| c.actions.push(Action::SetClass { target: t.into(), class: class.into(), level: num(&l).clamp(0.0, 20.0) as u32 })));
     engine.register_fn("knows_language", with!(ctx, |c, id: &str| c.world.languages.contains(id.trim())));
     engine.register_fn("has_resistance", with!(ctx, |c, kind: &str| c.world.resistances.contains(kind.trim())));
     engine.register_fn("background", with!(ctx, |c| c.world.player_background.clone()));
@@ -1504,7 +1513,7 @@ mod tests {
         let actions = host.call(&mut WorldState::default(), "party", None);
         assert_eq!(actions, vec![Action::Companion { target: "guard".into(), join: true }, Action::Companion { target: "self".into(), join: false }]);
         let mut w = WorldState::default();
-        w.companions.push(crate::state::Companion { ai: false, map: "village".into(), uid: 22, name: "guard".into(), hp: None, down: None, order: Default::default(), post: None, mana: None });
+        w.companions.push(crate::state::Companion { ai: false, map: "village".into(), uid: 22, name: "guard".into(), hp: None, down: None, order: Default::default(), post: None, mana: None, ..Default::default() });
         assert!(host.call(&mut w, "party", None).len() == 1, "already following: only stop_following");
     }
 

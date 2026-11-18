@@ -211,6 +211,8 @@ impl Editor {
                 RefKind::Map => self.maps.iter().any(|m| m == id),
                 // A proficiency: an SRD skill, tool, ability or saving throw (or ability:tool).
                 RefKind::Skill => rustpg2d_engine::srd::abilities::is_known_proficiency(id) || rustpg2d_engine::srd::Spec::parse(id, false).is_some(),
+                // (The *Has class* condition also takes a subclass.)
+                RefKind::Class => self.project.db.class(id).is_some() || self.project.db.classes.iter().any(|c| c.subclass(id).is_some()),
                 _ => self.project.db.has(kind, id),
             }
     }

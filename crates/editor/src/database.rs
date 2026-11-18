@@ -38,6 +38,7 @@ pub enum Tab {
     CommonEvents,
     Backgrounds,
     Factions,
+    Classes,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -61,6 +62,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Skins => db.skins.len(),
         Tab::CommonEvents => db.common_events.len(),
         Tab::Backgrounds => db.backgrounds.len(),
+        Tab::Classes => db.classes.len(),
         Tab::Project | Tab::Scripts | Tab::Factions => 0,
     }
 }
@@ -107,6 +109,7 @@ impl Tab {
             Tab::Skins => RefKind::Skin,
             Tab::CommonEvents => RefKind::CommonEvent,
             Tab::Backgrounds => RefKind::Background,
+            Tab::Classes => RefKind::Class,
             Tab::Project | Tab::Scripts | Tab::Factions => return None,
         })
     }
@@ -132,6 +135,7 @@ impl Tab {
             RefKind::Skin => Tab::Skins,
             RefKind::CommonEvent => Tab::CommonEvents,
             RefKind::Background => Tab::Backgrounds,
+            RefKind::Class => Tab::Classes,
             RefKind::Map | RefKind::Skill => return None,
         })
     }
@@ -241,6 +245,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Skins => ph::FRAME_CORNERS,
         Tab::CommonEvents => ph::LIGHTNING,
         Tab::Backgrounds => ph::IDENTIFICATION_CARD,
+        Tab::Classes => ph::SWORD,
         Tab::Factions => ph::FLAG,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
@@ -320,6 +325,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Characters, "Characters"),
             (Tab::Races, "Races"),
             (Tab::Backgrounds, "Backgrounds"),
+            (Tab::Classes, "Classes"),
             (Tab::Factions, "Factions"),
             (Tab::Models, "3D models"),
             (Tab::Materials, "Materials"),
@@ -382,6 +388,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Skins => db.skins.get(i).map(|d| (RefKind::Skin, d.id.clone())),
             Tab::CommonEvents => db.common_events.get(i).map(|d| (RefKind::CommonEvent, d.id.clone())),
             Tab::Backgrounds => db.backgrounds.get(i).map(|d| (RefKind::Background, d.id.clone())),
+            Tab::Classes => db.classes.get(i).map(|d| (RefKind::Class, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -402,6 +409,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Skins => Some(RefKind::Skin),
                 Tab::CommonEvents => Some(RefKind::CommonEvent),
                 Tab::Backgrounds => Some(RefKind::Background),
+                Tab::Classes => Some(RefKind::Class),
                 _ => None,
             };
             if kind.is_some() {
@@ -567,6 +575,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     sel,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::backgrounds::BackgroundDef::fresh(&unique("background", ids)),
+                    |d| &mut d.id,
+                ),
+                Tab::Classes => list_ui(
+                    ui,
+                    &mut db.classes,
+                    sel,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::classes::ClassDef::fresh(&unique("class", ids)),
                     |d| &mut d.id,
                 ),
                 Tab::Materials => list_ui(
@@ -744,6 +760,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Backgrounds => {
                         if let Some(d) = db.backgrounds.get_mut(i) {
                             background_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Classes => {
+                        if let Some(d) = db.classes.get_mut(i) {
+                            class_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -1771,6 +1792,48 @@ pub fn rename_state_in_triggers(ts: &mut [rustpg2d_engine::events::Trigger], old
     }
 }
 
+/// A party member's class, subclass and level (Database › Classes): as a companion it fights
+/// with the class's numbers and levels with the hero.
+fn class_row(ui: &mut egui::Ui, d: &mut CharacterDef, db: &Database) {
+    ui.horizontal(|ui| {
+        ui.label("Class");
+        let id = d.class.as_ref().map(|c| c.class.clone()).unwrap_or_default();
+        let label = if id.is_empty() { "(none)".to_string() } else { db.class(&id).map_or(format!("{id} (missing)"), |c| c.name.clone()) };
+        let mut pick = id.clone();
+        egui::ComboBox::from_id_salt("chr_class").selected_text(label).show_ui(ui, |ui| {
+            ui.selectable_value(&mut pick, String::new(), "(none)");
+            for c in &db.classes {
+                ui.selectable_value(&mut pick, c.id.clone(), format!("{}  ({})", c.name, c.id));
+            }
+        })
+        .response
+        .on_hover_text("Its class as a party member (Database \u{E13A} Classes): when it joins the player it fights with the class's hit points, armor class and attacks at its level, levels with the hero (the XP is split) and makes its choices in the level-up window. None = its own numbers (Combat, its stat block).");
+        if pick != id {
+            d.class = (!pick.is_empty()).then(|| rustpg2d_engine::classes::HeroClass { class: pick, ..Default::default() });
+            d.level = d.level.max(1);
+        }
+        let Some(hc) = d.class.as_mut() else { return };
+        if let Some(c) = db.class(&hc.class) {
+            if !c.subclasses.is_empty() {
+                let sub = c.subclass(&hc.subclass).map_or("(chosen in play)".to_string(), |s| s.name.clone());
+                egui::ComboBox::from_id_salt("chr_subclass").selected_text(sub).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut hc.subclass, String::new(), "(chosen in play)");
+                    for s in &c.subclasses {
+                        ui.selectable_value(&mut hc.subclass, s.id.clone(), s.name.clone());
+                    }
+                })
+                .response
+                .on_hover_text(format!("{} (from level {}); empty = chosen in the level-up window", if c.subclass_title.is_empty() { "Subclass" } else { c.subclass_title.as_str() }, c.subclass_level));
+            }
+        }
+        ui.label("level");
+        let mut level = d.level.max(1);
+        if ui.add(egui::DragValue::new(&mut level).range(1..=20)).on_hover_text("Its level when it joins; then it levels with the hero").changed() {
+            d.level = level;
+        }
+    });
+}
+
 fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     ui.heading("Character");
     rename_row(ui, RefKind::Character, &d.id, cx.rename);
@@ -1805,6 +1868,9 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             .response
             .on_hover_text("What it is (Database \u{E13A} Races): for the 'Race of' condition, scripts and factions. Its size comes from its body (the race that lists it).");
         });
+    }
+    if !cx.db.classes.is_empty() || d.class.is_some() {
+        class_row(ui, d, cx.db);
     }
     {
         let race_faction = cx.db.race(&d.race).map(|r| r.faction.clone()).filter(|f| !f.is_empty()).map(|f| format!("its race's: {f}")).unwrap_or_default();
@@ -2438,6 +2504,102 @@ fn font_preview(ui: &mut egui::Ui, root: &std::path::Path, d: &rustpg2d_engine::
 
 /// Database › UI skins: a skin's pictures and colours, with the game's own drawing as a preview.
 /// A background: its proficiencies, language choices, starting items and feature.
+/// A class: hit die, proficiencies, skills to choose, starting equipment, the subclass level,
+/// and the features by level with their texts (the SRD's come from the starter library).
+fn class_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::classes::ClassDef, cx: &mut Cx) {
+    ui.heading("Class");
+    rename_row(ui, RefKind::Class, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.label("Description");
+    text_box(ui, &mut d.description, 2, "");
+    ui.weak("The character creator offers every class; party members get one in their character form. The SRD's twelve come from the starter library. Features act by their effects (the import's), the rest is text on the sheet.");
+    egui::Grid::new("class").num_columns(2).show(ui, |ui| {
+        ui.label("Hit die");
+        egui::ComboBox::from_id_salt("class_die").selected_text(format!("d{}", d.hit_die)).show_ui(ui, |ui| {
+            for die in [6, 8, 10, 12] {
+                ui.selectable_value(&mut d.hit_die, die, format!("d{die}"));
+            }
+        });
+        ui.end_row();
+        ui.label("Saving throws");
+        ui.horizontal_wrapped(|ui| {
+            for a in rustpg2d_engine::srd::Ability::ALL {
+                let mut on = d.saves.iter().any(|s| s == a.id());
+                if ui.toggle_value(&mut on, a.short()).changed() {
+                    if on {
+                        d.saves.push(a.id().to_string());
+                    } else {
+                        d.saves.retain(|s| s != a.id());
+                    }
+                }
+            }
+        });
+        ui.end_row();
+        ui.label("Proficiencies").on_hover_text("Armor, weapons and tools (light-armor, simple-weapons, thieves-tools), comma separated");
+        let mut text = d.proficiencies.join(", ");
+        if ui.add(egui::TextEdit::singleline(&mut text).desired_width(360.0)).changed() {
+            d.proficiencies = text.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+        }
+        ui.end_row();
+        ui.label("Skills to choose");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut d.skill_choices).range(0..=6));
+            ui.label("of");
+            let mut text = d.skill_options.join(", ");
+            if ui.add(egui::TextEdit::singleline(&mut text).desired_width(300.0)).changed() {
+                d.skill_options = text.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+            }
+        });
+        ui.end_row();
+        ui.label("Subclass at level");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut d.subclass_level).range(1..=20));
+            ui.add(egui::TextEdit::singleline(&mut d.subclass_title).desired_width(160.0).hint_text("Martial Archetype"));
+            let names: Vec<&str> = d.subclasses.iter().map(|s| s.name.as_str()).collect();
+            ui.weak(names.join(", "));
+        });
+        ui.end_row();
+    });
+    ui.label("Starting equipment").on_hover_text("What a new hero of this class starts with (the creator)");
+    ui.vertical(|ui| {
+        let mut remove = None;
+        for (k, s) in d.equipment.iter_mut().enumerate() {
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(&mut s.count).range(1..=999));
+                widgets::suggest(ui, &format!("cl_item{k}"), &mut s.item, &cx.refs.items, 140.0);
+                if ui.small_button("x").clicked() {
+                    remove = Some(k);
+                }
+            });
+        }
+        if let Some(k) = remove {
+            d.equipment.remove(k);
+        }
+        if ui.small_button("+ Item").clicked() {
+            d.equipment.push(rustpg2d_engine::inventory::ItemStack::new(cx.refs.items.first().map_or("", |s| s.as_str()), 1));
+        }
+    });
+    ui.separator();
+    egui::CollapsingHeader::new(format!("Features ({})", d.features.len())).id_salt("class_features").show(ui, |ui| {
+        for (k, lv) in d.levels.iter().enumerate() {
+            if lv.features.is_empty() {
+                continue;
+            }
+            let names: Vec<String> = lv.features.iter().map(|f| d.features.iter().find(|x| x.id == *f).map_or(f.clone(), |x| if x.effects.is_empty() { x.name.clone() } else { format!("{} *", x.name) })).collect();
+            ui.label(format!("Level {}: {}", k + 1, names.join(", ")));
+        }
+        ui.weak("* = acts in play (its effects); the others are their SRD text on the sheet.");
+        for f in &mut d.features {
+            ui.collapsing(format!("{} ({}, level {})", f.name, f.id, f.level), |ui| {
+                ui.add(egui::TextEdit::multiline(&mut f.text).desired_rows(3).desired_width(f32::INFINITY));
+                if !f.effects.is_empty() {
+                    ui.weak(format!("Effects: {:?}", f.effects));
+                }
+            });
+        }
+    });
+}
+
 fn background_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::backgrounds::BackgroundDef, cx: &mut Cx) {
     ui.heading("Background");
     rename_row(ui, RefKind::Background, &d.id, cx.rename);

@@ -40,12 +40,14 @@ pub enum RefKind {
     CommonEvent,
     /// Background (`backgrounds::BackgroundDef`).
     Background,
+    /// Class (`classes::ClassDef`).
+    Class,
 }
 
 impl RefKind {
     /// Every kind: the definition lists in `defs/` file order ([`crate::project::DEFS`]), with
     /// `Skill` (a proficiency id, no definition) where `skills.ron` was until 0.27, then `Map`.
-    pub const ALL: [RefKind; 20] = [
+    pub const ALL: [RefKind; 21] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -65,10 +67,11 @@ impl RefKind {
         RefKind::Skin,
         RefKind::CommonEvent,
         RefKind::Background,
+        RefKind::Class,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 18] = [
+    pub const DEFS: [RefKind; 19] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -87,6 +90,7 @@ impl RefKind {
         RefKind::Skin,
         RefKind::CommonEvent,
         RefKind::Background,
+        RefKind::Class,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -112,6 +116,7 @@ impl RefKind {
             RefKind::Skin => "skin",
             RefKind::CommonEvent => "common_event",
             RefKind::Background => "background",
+            RefKind::Class => "class",
         }
     }
 
@@ -137,6 +142,7 @@ impl RefKind {
             RefKind::Skin => "skins",
             RefKind::CommonEvent => "common_events",
             RefKind::Background => "backgrounds",
+            RefKind::Class => "classes",
             RefKind::Map => return None,
         })
     }
@@ -164,6 +170,7 @@ impl RefKind {
             RefKind::Skin => "UI skin",
             RefKind::CommonEvent => "Common event",
             RefKind::Background => "Background",
+            RefKind::Class => "Class",
         }
     }
 
@@ -191,6 +198,8 @@ impl RefKind {
             "skin" | "ui skin" | "ui_skin" => RefKind::Skin,
             "common_event" | "common event" | "commonevent" => RefKind::CommonEvent,
             "background" => RefKind::Background,
+            // (Plurals lose their s: "class" and "classes" end up as "cla" and "classe".)
+            "cla" | "classe" => RefKind::Class,
             _ => return None,
         })
     }
@@ -442,6 +451,7 @@ impl Renamer<'_> {
                 Cond::HasItem { item, .. } => self.fix(RefKind::Item, item),
                 Cond::Defeated { character, .. } => self.fix(RefKind::Character, character),
                 Cond::PlayerRace { race } => self.fix(RefKind::Race, race),
+                Cond::Class { class, .. } => self.fix(RefKind::Class, class),
                 _ => {}
             }
         }
@@ -454,6 +464,7 @@ impl Renamer<'_> {
             Action::Teleport { map, .. } | Action::SetSpawners { map, .. } | Action::SetWeather { map, .. } => self.fix(RefKind::Map, map),
             Action::PlaySound { sound, .. } | Action::PlayMusic { sound, .. } | Action::PlayMusicEffect { sound, .. } => self.fix(RefKind::Sound, sound),
             Action::CallCommon { id } => self.fix(RefKind::CommonEvent, id),
+            Action::SetClass { class, .. } => self.fix(RefKind::Class, class),
             Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
             Action::ShowImage { sheet, .. } | Action::ShowPicture { sheet, .. } => self.fix(RefKind::Sheet, sheet),
             Action::TeachSpell { spell, .. } => self.fix(RefKind::Spell, spell),
@@ -607,6 +618,16 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
             r.fix(RefKind::Item, &mut s.item);
         }
     }
+    for d in &mut db.classes {
+        for s in &mut d.equipment {
+            r.fix(RefKind::Item, &mut s.item);
+        }
+    }
+    for c in &mut db.characters {
+        if let Some(hc) = &mut c.class {
+            r.fix(RefKind::Class, &mut hc.class);
+        }
+    }
     // The title screen's map, pictures and music.
     let t = &mut config.title;
     match &mut t.background {
@@ -679,6 +700,11 @@ fn collector() -> Renamer<'static> {
 
 /// The items a background starts the hero with.
 pub fn refs_of_background(d: &crate::backgrounds::BackgroundDef) -> Vec<(RefKind, String)> {
+    d.equipment.iter().filter(|s| !s.item.is_empty()).map(|s| (RefKind::Item, s.item.clone())).collect()
+}
+
+/// The items a class starts with.
+pub fn refs_of_class(d: &crate::classes::ClassDef) -> Vec<(RefKind, String)> {
     d.equipment.iter().filter(|s| !s.item.is_empty()).map(|s| (RefKind::Item, s.item.clone())).collect()
 }
 

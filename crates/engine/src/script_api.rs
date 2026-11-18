@@ -11,7 +11,7 @@ use crate::script_refs::IdKind;
 
 /// The script API's version: the engine's MAJOR.MINOR. Plugins name the version they need
 /// (`PluginDef::api`); a plugin needing a newer one isn't loaded.
-pub const API_VERSION: &str = "0.29";
+pub const API_VERSION: &str = "0.30";
 
 /// What a function argument expects (drives completion inside string arguments).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +64,8 @@ pub enum Arg {
     Num,
     Bool,
     List,
+    /// A class id (Database \u{203A} Classes).
+    Class,
 }
 
 pub struct ApiFn {
@@ -228,6 +230,13 @@ pub const API: &[ApiFn] = api! {
     [since "0.29"] "start_combat"() "Starts a turn-based fight with the hostile characters within 12 tiles of the player; their allies and the party join (queued)";
     [since "0.29"] "in_combat"() "Whether a turn-based fight is going on";
     [since "0.29"] "combat_round"() "The round of the fight going on (1 = the first; 0 = no fight)";
+    [since "0.30"] "class"() "The hero's class id (Database \u{203A} Classes), \"\" without one";
+    [since "0.30"] "subclass"() "The hero's subclass id (\"champion\", \"thief\"), \"\" before they chose one";
+    [since "0.30"] "class_level"() "The hero's level in their class (0 without a class)";
+    [since "0.30"] "has_feature"(feature: Text) "Whether the hero has a class feature at their level, e.g. has_feature(\"second-wind\"); chosen options count (\"fighter-fighting-style-defense\")";
+    [since "0.30"] "level_up_pending"() "Whether level-up choices (the hero's or a party member's) wait for the level-up window";
+    [since "0.30"] "set_class"(target: Target, class: Class) "Gives the hero (\"player\") or a party member a class: its saving throws and proficiencies; the level's choices open the level-up window (queued)";
+    [since "0.30"] "set_class"(target: Target, class: Class, level: Num) "Like set_class(target, class); a party member also gets this level (queued)";
     [deprecated "apply_condition(target, condition, seconds, options)"] "apply_effect"(target: Target, effect: Effect, strength: Num, seconds: Num) "Deprecated: use apply_condition. The status effects of 0.27 as conditions: \"poison\" = poisoned + poison damage per round, \"burn\" = fire damage per round, \"regen\" = healing per round (strength x 6 per round), \"stun\" = stunned, \"slow\" = restrained; \"haste\", \"strength\", \"weakness\", \"shield\" do nothing (queued)";
     [deprecated "remove_condition(target, condition)"] "cure"(target: Target, effect: Effect) "Deprecated: use remove_condition. Ends a condition, e.g. cure(\"player\", \"poison\") (queued)";
     [deprecated "remove_condition(target, \"all\")"] "cure"(target: Target) "Deprecated: use remove_condition. Ends every condition (queued)";
@@ -423,6 +432,7 @@ impl Arg {
             Arg::Achievement => IdKind::Achievement,
             Arg::Prop => IdKind::Prop,
             Arg::Common => IdKind::CommonEvent,
+            Arg::Class => IdKind::Class,
             _ => return None,
         })
     }
@@ -549,6 +559,7 @@ mod tests {
             ("set_home", 0, IdKind::Map),
             ("is_home", 0, IdKind::Map),
             ("call_common", 0, IdKind::CommonEvent),
+            ("set_class", 1, IdKind::Class),
         ];
         let derived: std::collections::BTreeSet<(&str, usize, u8)> = api_ids().iter().map(|(f, i, k)| (*f, *i, *k as u8)).collect();
         let wanted: std::collections::BTreeSet<(&str, usize, u8)> = expected.iter().map(|(f, i, k)| (*f, *i, *k as u8)).collect();

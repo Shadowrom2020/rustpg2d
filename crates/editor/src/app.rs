@@ -881,6 +881,7 @@ impl Editor {
             // Proficiency ids (SRD skills, tools, saving throws) for skill fields.
             skills: rustpg2d_engine::srd::abilities::proficiency_choices(),
             races: self.project.db.races.iter().map(|r| r.id.clone()).collect(),
+            classes: self.project.db.classes.iter().flat_map(|c| std::iter::once(c.id.clone()).chain(c.subclasses.iter().map(|s| s.id.clone()))).collect(),
             common_events: self.project.db.common_events.iter().map(|r| r.id.clone()).collect(),
             factions: self.project.config.factions.list.iter().map(|f| f.id.clone()).collect(),
             spells: self.project.db.spells.iter().map(|q| q.id.clone()).collect(),

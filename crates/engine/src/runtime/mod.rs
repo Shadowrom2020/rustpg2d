@@ -60,6 +60,8 @@ mod input_box;
 mod rest;
 mod routes;
 mod turns;
+mod classes;
+mod levelup;
 mod barks;
 mod markers;
 mod quests;
@@ -441,6 +443,8 @@ pub struct Game {
     combat: PlayerCombat,
     /// The turn-based fight going on (`turns/`; not saved: saving waits for its end).
     fight: Option<Box<turns::Combat>>,
+    /// The level-up window (`levelup.rs`).
+    levelup: Option<levelup::LevelUpWin>,
     /// The AI's turns without pauses (autoplay `turn fast`).
     fight_fast: bool,
     /// Screen shake and the hurt flash.
@@ -674,6 +678,7 @@ impl Game {
             effects: Vec::new(),
             projectiles: Vec::new(),
             fight: None,
+            levelup: None,
             fight_fast: false,
             fx: Vec::new(),
             timed_lights: Vec::new(),
@@ -1798,6 +1803,10 @@ impl Game {
         if self.update_rest() {
             return;
         }
+        // And the level-up window (between fights and dialogs).
+        if self.update_levelup() {
+            return;
+        }
         // So does text rolling up the screen (also over the title screen).
         if self.update_scroll_text(dt) {
             return;
@@ -2570,7 +2579,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} rest={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2694,6 +2703,8 @@ impl Game {
             self.sheet_status(),
             self.statblocks_status(),
             self.encounter_status(),
+            self.class_status(),
+            self.levelup_status(),
             self.rest_status()
         )
     }
@@ -2800,6 +2811,8 @@ impl Game {
             self.world.resistances = hero.resistances;
         }
         self.prepare_world();
+        // (What the class adds to checks isn't saved: it follows from the class.)
+        self.refresh_training();
         self.runner.clear();
         self.reset_common_events();
         self.reset_camera();
@@ -3093,6 +3106,10 @@ impl Game {
         self.draw_image();
         self.draw_captions();
         self.ui.draw_toasts();
+        // (Over the toasts: a level-up's "Level 5!" would cover its title.)
+        if !self.on_title() {
+            self.draw_levelup();
+        }
         self.ui.draw_dialog();
         self.draw_dialog_portrait();
         for (id, r) in &self.ui.icon_spots {
@@ -3722,6 +3739,10 @@ impl ActionHost for Game {
             }
             Action::StartCombat => {
                 self.start_combat(false);
+                Step::Continue
+            }
+            Action::SetClass { target, class, level } => {
+                self.set_class_of(target, class, *level, ctx.owner);
                 Step::Continue
             }
             Action::Lockpick { difficulty, var } => {

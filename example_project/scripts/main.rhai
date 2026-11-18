@@ -715,3 +715,91 @@ fn swiftness_drink() {
     remove_condition("player", "grappled");
     remove_condition("player", "restrained");
 }
+
+// Dagny and Old Finn join the party when asked. Party members with a class share the XP and
+// level up with the hero: set_class(name, class, level) makes Dagny a fighter and Finn a ranger
+// at the hero's level; their choices (a fighting style, the archetype) wait in the level-up window.
+fn dagny_talk() {
+    if is_companion("dagny") {
+        party_menu("dagny", "Dagny");
+        return;
+    }
+    if hour() >= 20.0 || hour() < 6.0 {
+        say("Dagny", "Night watch. Off to bed, {player} - or keep your eyes open with me.");
+    } else {
+        say("Dagny", "The gate stays locked after dark. Orders.");
+    }
+    set_text("party_who", "dagny");
+    choice("Ask Dagny to come along?", ["Come with me", "Carry on"], "party_join");
+    then_call("party_answer");
+}
+
+fn finn_talk() {
+    if is_companion("finn") {
+        party_menu("finn", "Finn");
+        return;
+    }
+    if hour() >= 10.0 && hour() < 14.0 {
+        say("Finn", "Sixty years I've fished this pond. The big trout still laughs at me.");
+    } else {
+        say("Finn", "Shh, they're biting. Come by my stall tomorrow morning - fresh trout, caught today.");
+    }
+    set_text("party_who", "finn");
+    choice("What brings you here, {player}?", ["Let me see your fish", "Come along with me", "Nothing"], "finn_ask");
+    then_call("finn_answer");
+}
+
+// (His stall opens from here: the fisher's shop doesn't open on every talk.)
+fn finn_answer() {
+    let ask = get_var("finn_ask");
+    if ask == 0 {
+        open_shop("finn");
+    } else if ask == 1 {
+        set_var("party_join", 0);
+        party_answer();
+    }
+}
+
+fn party_answer() {
+    if get_var("party_join") != 0 {
+        return;
+    }
+    let who = get_text("party_who");
+    if who == "dagny" {
+        say("Dagny", "The gate can watch itself for a while. Lead on, {player}.");
+        follow("dagny");
+        set_class("dagny", "fighter", level());
+    } else if who == "finn" {
+        say("Finn", "My eyes are old, but my arrows aren't. I'll come.");
+        // (His old hunting bow and leather coat come down from the wall.)
+        equip("finn", "bow");
+        equip("finn", "leather_armor");
+        give_item_to("finn", "arrows", 20);
+        follow("finn");
+        set_class("finn", "ranger", level());
+    }
+}
+
+// What a party member is told: wait or come along, its gear, going home.
+fn party_menu(who, name) {
+    set_text("party_who", who);
+    let wait = if is_staying(who) { "Come along again" } else { "Wait here" };
+    choice("What is it, {player}?", [wait, "Let me see your gear", "Go home", "Nothing"], "party_cmd");
+    then_call("party_orders");
+}
+
+fn party_orders() {
+    let who = get_text("party_who");
+    let cmd = get_var("party_cmd");
+    if cmd == 0 {
+        if is_staying(who) {
+            order(who, "follow");
+        } else {
+            order(who, "stay");
+        }
+    } else if cmd == 1 {
+        open_companion(who);
+    } else if cmd == 2 {
+        stop_following(who);
+    }
+}

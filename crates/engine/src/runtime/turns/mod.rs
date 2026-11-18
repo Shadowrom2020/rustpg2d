@@ -102,7 +102,7 @@ pub(super) struct Turn {
 }
 
 /// An attack, ready to roll.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub(super) struct AttackSpec {
     pub name: String,
     pub bonus: i32,
@@ -119,6 +119,10 @@ pub(super) struct AttackSpec {
     /// A condition a hit gives (a weapon's, a touch's).
     pub effect: Option<ConditionSpec>,
     pub projectile: Option<crate::defs::SpriteRef>,
+    /// Brutal Critical: more weapon dice on a critical melee hit.
+    pub brutal: u32,
+    /// Great Weapon Fighting: damage dice of 1 or 2 are rolled again.
+    pub reroll_low: bool,
 }
 
 pub(super) struct Combat {
@@ -229,6 +233,12 @@ impl Game {
     /// A character's stat block, or one made from its old real-time values (AC 10 + defense,
     /// HP); a block without attacks gets one with its weapon or its damage.
     pub(super) fn who_block(&self, who: Who) -> Option<crate::srd::StatBlock> {
+        // A party member with a class: its class's block.
+        if let Who::Npc(uid) = who {
+            if let Some(b) = self.member_block(uid) {
+                return Some(b);
+            }
+        }
         let i = self.who_index(who)?;
         let e = &self.loaded.entities[i];
         let mut block = self.stat_block(e).cloned().unwrap_or_else(|| crate::srd::StatBlock { ac: 10 + e.defense, hp: e.max_hp, speed_ft: 30, ..Default::default() });
@@ -265,7 +275,8 @@ impl Game {
     /// Speed in feet, after conditions (0 when it can't move).
     fn who_speed(&self, who: Who) -> u32 {
         let base = match who {
-            Who::Player => self.player_race().map_or(30, |r| r.walk_feet()),
+            // (The class: Fast Movement, Unarmored Movement without armor and shield.)
+            Who::Player => self.player_race().map_or(30, |r| r.walk_feet()) + self.class_speed_ft(self.unarmored()),
             // (Flyers fly over the grid: their best speed until 0.32's movement modes.)
             _ => self.who_block(who).map_or(30, |b| b.speed_ft.max(b.speeds.fly)),
         };
@@ -338,7 +349,9 @@ impl Game {
             f.key = self.who_key(f.who);
         }
         for f in &mut order {
-            let roll = crate::srd::dice::die(20) as i32;
+            // (Feral Instinct: advantage on initiative.)
+            let adv = self.who_traits(f.who).is_some_and(|t| t.initiative_advantage);
+            let roll = if adv { crate::srd::dice::die(20).max(crate::srd::dice::die(20)) as i32 } else { crate::srd::dice::die(20) as i32 };
             f.init = roll + f.dex;
         }
         order.sort_by(|a, b| b.init.cmp(&a.init).then(b.dex.cmp(&a.dex)));
@@ -515,7 +528,8 @@ impl Game {
             }
         }
         let speed = self.who_speed(me.who);
-        let multi = if me.who == Who::Player { 1 } else { self.who_block(me.who).map_or(1, |b| b.multiattack.max(1)) };
+        // (Extra Attack: the hero's class; Multiattack, a party member's Extra Attack: the block.)
+        let multi = if me.who == Who::Player { self.hero_traits().map_or(1, |t| t.attacks.max(1)) } else { self.who_block(me.who).map_or(1, |b| b.multiattack.max(1)) };
         let act = conditions::can_act(self.who_conditions(me.who));
         let c = self.fight.as_mut().unwrap();
         c.turn.speed = speed;
@@ -787,15 +801,17 @@ impl Game {
                 let Some(b) = self.who_block(who) else { return Vec::new() };
                 let effect = self.who_index(who).and_then(|i| self.touch_effect(i));
                 let projectile = self.who_index(who).and_then(|i| self.loaded.entities[i].weapon.as_ref().and_then(|w| w.ranged.as_ref().map(|r| r.projectile.clone())));
+                // (A party member's Improved Critical.)
+                let crit_on = self.who_traits(who).map_or(20, |t| t.crit_from);
                 b.attacks
                     .iter()
                     .flat_map(|a| {
                         let mut v = Vec::new();
                         if a.reach_ft > 0 {
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on: 20, effect: effect.clone(), projectile: None });
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ..Default::default() });
                         }
                         if a.range_ft > 0 {
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on: 20, effect: None, projectile: projectile.clone() });
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile: projectile.clone(), ..Default::default() });
                         }
                         v
                     })
@@ -805,26 +821,44 @@ impl Game {
     }
 
     /// The hero's attack with weapon `w` (`offhand`: no ability modifier on the damage).
-    fn hero_spec(&self, w: &crate::defs::Weapon, offhand: bool) -> AttackSpec {
+    pub(super) fn hero_spec(&self, w: &crate::defs::Weapon, offhand: bool) -> AttackSpec {
+        use crate::classes::FightingStyle as F;
+        let t = self.hero_traits().unwrap_or_default();
         let ranged = w.ranged.is_some();
+        let unarmed = self.current_weapon().is_none() && !offhand;
         let ability = if ranged { Ability::Dex } else { Ability::Str };
-        let m = self.world.abilities.modifier(ability);
+        let mut m = self.world.abilities.modifier(ability);
+        let mut base_dice = w.damage_dice();
+        // Martial Arts: an unarmed strike with DEX if better, the class's martial arts die.
+        if unarmed && t.martial_arts {
+            m = m.max(self.world.abilities.modifier(Ability::Dex));
+            let die = self.hero_class().map_or(4, |c| c.number(self.world.player_level(), "martial_arts.dice_value")).max(4);
+            base_dice = format!("1d{die}");
+        }
         let prof = crate::srd::abilities::proficiency_bonus(self.world.player_level());
-        let dmg_mod = if offhand && m > 0 { 0 } else { m };
-        let dice = if dmg_mod == 0 { w.damage_dice() } else { format!("{}{:+}", w.damage_dice(), dmg_mod) };
+        // The off-hand adds a positive modifier only with Two-Weapon Fighting.
+        let dmg_mod = if offhand && m > 0 && !t.styles.contains(&F::TwoWeaponFighting) { 0 } else { m };
+        // Dueling: +2 with a one-handed melee weapon and no weapon in the other hand.
+        let dueling = !ranged && !w.two_handed && !unarmed && t.styles.contains(&F::Dueling) && self.offhand_weapon(Who::Player).is_none();
+        let dmg_mod = dmg_mod + if dueling { 2 } else { 0 };
+        let dice = if dmg_mod == 0 { base_dice } else { format!("{base_dice}{dmg_mod:+}") };
         let (range, long) = w.ranged.as_ref().map_or((0, 0), |r| (r.range.round() as i32, if r.long_range > 0.0 { r.long_range } else { r.range * 2.0 }.round() as i32));
         AttackSpec {
             name: String::new(),
-            bonus: m + prof,
+            // (Archery: +2 to ranged attacks.)
+            bonus: m + prof + if ranged && t.styles.contains(&F::Archery) { 2 } else { 0 },
             dice,
             damage_type: w.damage_type,
             ranged,
             reach: if ranged { 0 } else { w.reach.round().max(1.0) as i32 },
             range,
             long,
-            crit_on: if w.crit >= 0.1 { 19 } else { 20 },
+            // (A keen weapon on 19; Improved / Superior Critical.)
+            crit_on: (if w.crit >= 0.1 { 19 } else { 20 }).min(t.crit_from),
             effect: w.effect.clone(),
             projectile: w.ranged.as_ref().map(|r| r.projectile.clone()),
+            brutal: if ranged { 0 } else { t.brutal_dice },
+            reroll_low: !ranged && w.two_handed && t.styles.contains(&F::GreatWeaponFighting),
         }
     }
 
@@ -915,7 +949,8 @@ impl Game {
             target_helpless: conditions::has(self.who_conditions(target), Condition::Restrained) || them.str_dex_saves_fail || them.blinded,
             target_unseen: them.invisible,
             target_dodging: c.and_then(|c| c.fighter(target)).is_some_and(|f| f.dodging) && conditions::can_act(self.who_conditions(target)),
-            helped: c.is_some_and(|c| c.helped.contains(&target)),
+            // The Grappler feat: advantage against the creature it grapples (counted as a helping hand).
+            helped: c.is_some_and(|c| c.helped.contains(&target)) || (c.and_then(|c| c.fighter(who)).is_some_and(|f| f.grappling == Some(target)) && self.has_grappler(who)),
         }
     }
 
@@ -982,7 +1017,14 @@ impl Game {
             return false;
         }
         let dice = if roll.crit { rules::crit_dice(&spec.dice) } else { spec.dice.clone() };
-        let amount = crate::srd::Expr::parse(&dice).map(|e| e.roll(&crate::srd::dice::NoMods).total.max(1)).unwrap_or(1) as i32;
+        let mut amount = roll_damage(&dice, spec.reroll_low);
+        // Brutal Critical: one more weapon die per step on a critical melee hit.
+        if roll.crit && spec.brutal > 0 {
+            if let Some((n, sides)) = first_dice(&spec.dice) {
+                let _ = n;
+                amount += roll_damage(&format!("{}d{sides}", spec.brutal), spec.reroll_low);
+            }
+        }
         self.combat_damage(target, amount, spec.damage_type, roll.crit, Some(who));
         if let Some(fx) = &spec.effect {
             match target {
@@ -1360,4 +1402,32 @@ impl Game {
         let c = self.fight.as_ref()?;
         c.order.iter().filter(|f| !f.out).map(|f| f.who).find(|w| self.who_key(*w).eq_ignore_ascii_case(key))
     }
+}
+
+/// The first dice of an expression ("1d8+3" -> (1, 8)).
+fn first_dice(expr: &str) -> Option<(u32, u32)> {
+    let t = expr.trim();
+    let end = t.find(['+', '-']).unwrap_or(t.len());
+    let (n, sides) = t[..end].split_once('d')?;
+    Some((if n.is_empty() { 1 } else { n.parse().ok()? }, sides.parse().ok()?))
+}
+
+/// Rolls damage dice ("2d6+3"), at least 1; `reroll_low`: a die showing 1 or 2 is rolled again
+/// once (Great Weapon Fighting).
+fn roll_damage(expr: &str, reroll_low: bool) -> i32 {
+    if reroll_low {
+        if let Some((n, sides)) = first_dice(expr) {
+            let rest: i32 = expr.trim().find(['+', '-']).map_or(0, |k| expr.trim()[k..].replace('+', "").trim().parse().unwrap_or(0));
+            let mut total = 0;
+            for _ in 0..n {
+                let mut d = crate::srd::dice::die(sides);
+                if d <= 2 {
+                    d = crate::srd::dice::die(sides);
+                }
+                total += d as i32;
+            }
+            return (total + rest).max(1);
+        }
+    }
+    crate::srd::Expr::parse(expr).map(|e| e.roll(&crate::srd::dice::NoMods).total.max(1)).unwrap_or(1) as i32
 }

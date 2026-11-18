@@ -219,7 +219,7 @@ impl StatBlock {
     pub fn save(&self, ability: &str, dc: i32) -> Option<super::RollRecord> {
         let spec = super::Spec::parse(ability, true)?;
         let profs: std::collections::BTreeSet<String> = self.proficiencies.iter().cloned().collect();
-        let roller = super::check::Roller { abilities: &self.abilities, proficiencies: &profs, level: self.proficiency_level() };
+        let roller = super::check::Roller { abilities: &self.abilities, proficiencies: &profs, level: self.proficiency_level(), training: None };
         Some(spec.roll(&roller, dc, super::Mode::Normal))
     }
 

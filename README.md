@@ -82,8 +82,9 @@ for how to use it all.
 **Gameplay**
 - The SRD 5.1 rules: ability scores, skills and proficiency, ability checks and saving throws
   (seedable dice, a roll log); **turn-based combat** on the map's tiles (initiative, the action
-  economy, attack rolls against AC, cover, opportunity attacks, death saves), experience and
-  levels, spells, conditions.
+  economy, attack rolls against AC, cover, opportunity attacks, death saves), the **twelve
+  classes** with their subclasses and features to level 20 for the hero and the party (a level-up
+  window for their choices), spells, conditions.
 - Inventory, shops, chests, keys and locks to pick (a DEX check).
 - Crafting, cooking and blacksmithing, gathering and mining, farming, fishing.
 - Keyboard, mouse and gamepad, named save games with pictures, autosave.

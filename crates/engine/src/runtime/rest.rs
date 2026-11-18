@@ -61,7 +61,7 @@ impl Game {
         }
         let left = self.hit_dice_left();
         self.world.hit_dice = Some(left - 1);
-        let gain = self.world.roll_dice(&format!("1d{}+CON", crate::progression::HIT_DIE)).map_or(0, |r| r.total.max(0) as i32);
+        let gain = self.world.roll_dice(&format!("1d{}+CON", self.hit_die())).map_or(0, |r| r.total.max(0) as i32);
         let max = self.player_max_hp();
         let hp = (self.hp() + gain).min(max);
         self.world.player_hp = Some(hp);
@@ -123,7 +123,7 @@ impl Game {
         skin::panel(p.x, p.y, p.w, p.h);
         draw_text("Short rest", p.x + 24.0, p.y + 36.0, 26.0, skin::title());
         let con = self.world.abilities.modifier(crate::srd::Ability::Con);
-        let dice = format!("Hit dice {} / {}   (d{} {})", self.hit_dice_left(), self.world.player_level(), crate::progression::HIT_DIE, crate::srd::abilities::signed(con as i64));
+        let dice = format!("Hit dice {} / {}   (d{} {})", self.hit_dice_left(), self.world.player_level(), self.hit_die(), crate::srd::abilities::signed(con as i64));
         draw_text(&dice, p.x + 24.0, p.y + 70.0, 19.0, skin::normal());
         let hp = format!("Hit points {} / {}", self.hp(), self.player_max_hp());
         draw_text(&hp, p.x + 24.0, p.y + 96.0, 19.0, skin::normal());

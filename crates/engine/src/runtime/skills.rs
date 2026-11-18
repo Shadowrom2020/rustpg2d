@@ -574,7 +574,12 @@ impl Game {
     /// The sheet's features and traits: the race's traits, then the background's feature (name,
     /// rules text).
     pub(super) fn sheet_features(&self) -> Vec<(String, String)> {
-        let mut v: Vec<(String, String)> = self.player_race().map_or(Vec::new(), |r| r.traits.iter().map(|t| (t.name.clone(), t.description.clone())).collect());
+        // The class's and subclass's features at the hero's level (and the options picked).
+        let mut v: Vec<(String, String)> = match (self.hero_class(), self.hero_traits()) {
+            (Some(c), Some(t)) => t.features.iter().filter_map(|id| c.feature(id)).filter(|f| f.choice.is_none() || !f.effects.is_empty() || !f.text.is_empty()).map(|f| (crate::lang::tr(&f.name), crate::lang::tr(&f.text))).collect(),
+            _ => Vec::new(),
+        };
+        v.extend(self.player_race().map_or(Vec::new(), |r| r.traits.iter().map(|t| (t.name.clone(), t.description.clone())).collect::<Vec<_>>()));
         if let Some(b) = self.project.db.background(&self.world.player_background).filter(|b| !b.feature.is_empty()) {
             v.push((b.feature.clone(), b.feature_text.clone()));
         }
@@ -610,6 +615,10 @@ impl Game {
         }
         if let Some(b) = self.project.db.background(&w.player_background) {
             who.push(b.name.clone());
+        }
+        if let (Some(c), Some(hc)) = (self.hero_class(), &w.class) {
+            let sub = c.subclass(&hc.subclass).map_or(String::new(), |s| format!(" ({})", crate::lang::tr(&s.name)));
+            who.push(format!("{}{sub}", crate::lang::tr(&c.name)));
         }
         super::text::draw_plain(&who.join("  -  "), r.x + PAD, r.y + 32.0, 22.0, gold);
         let prof = abilities::proficiency_bonus(w.player_level());
@@ -649,7 +658,7 @@ impl Game {
             ("Initiative", abilities::signed(abilities::modifier(w.abilities.score(Ability::Dex)) as i64)),
             ("Speed", format!("{} ft", (race.as_ref().map_or(30, |r| r.walk_feet()) as f32 * cond.speed).round() as u32)),
             ("Hit points", if hp_max > 0 { format!("{} / {hp_max}", w.player_hp.unwrap_or(hp_max).max(0)) } else { "-".into() }),
-            ("Hit dice", format!("{}/{} d{}", self.hit_dice_left(), level, crate::progression::HIT_DIE)),
+            ("Hit dice", format!("{}/{} d{}", self.hit_dice_left(), level, self.hit_die())),
             // (Disadvantage: -5, the SRD says.)
             ("Passive Perception", (10 + w.check_bonus("perception", false).unwrap_or(0) - if cond.check_disadvantage { 5 } else { 0 }).to_string()),
         ];
@@ -713,8 +722,11 @@ impl Game {
         let features = self.sheet_features();
         let sel = self.skills.sel[0].min(features.len().saturating_sub(1));
         let bottom = r.bottom() - 132.0;
-        for (k, (name, _)) in features.iter().enumerate() {
-            let fr = self.sheet_feature_rect(k);
+        // (A long list scrolls with the selection.)
+        let visible = (((bottom - self.sheet_feature_rect(0).y) / 22.0).floor() as usize).max(1);
+        let first = sel.saturating_sub(visible - 1);
+        for (k, (name, _)) in features.iter().enumerate().skip(first) {
+            let fr = self.sheet_feature_rect(k - first);
             if fr.bottom() > bottom {
                 break;
             }

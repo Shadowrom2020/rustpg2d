@@ -136,6 +136,21 @@ the level). Stat blocks (`srd/statblock.rs`) are data on `CharacterDef::stats` /
 the engine (`include_str!`, parsed once) and written by `srd_import`. Fights fight with them
 (below); the script host gets them as a list per script call (`set_stat_blocks`, `npc_stat`).
 
+Classes (`classes.rs`, `defs/classes.ron`, `RefKind::Class`) are data: `ClassDef` with its levels
+(features, flattened numbers), subclasses and `ClassFeature`s whose `FeatureEffect`s the engine
+acts on (the importer's mapping table decides which) and whose `FeatureChoice`s the level-up window
+asks for. `ClassTraits::of(class, level, HeroClass)` adds the effects up for a level and the picks
+made; the runtime asks it whenever a number depends on the class (`runtime/classes.rs`:
+`class_armor_class`, `class_speed_ft`, `who_traits` for fighters, `refresh_training` for the
+`srd::check::Training` that checks read: expertise, half proficiency, reliable talent, save
+advantage). The hero's `HeroClass` is `WorldState::class` and their hit die replaces the d10
+(`progression::max_hp_die`). Party members carry theirs on `CharacterDef::class` / `level` and,
+once they joined, on the saved `Companion` (xp, level, hp rolls); `member_block` builds their
+stat block from class, level and gear, which fights use instead of the definition's. Level-ups with
+choices wait in `WorldState::levelups` (`player` or a member's home `map:uid`, since a companion's
+runtime uid changes from map to map) for `runtime/levelup.rs`'s window, which opens only when no
+fight, event or dialog runs.
+
 Conditions (`srd/conditions.rs`) replaced the status effects of 0.27: `ConditionSpec` (what weapons,
 touches, actions and scripts apply: a condition, seconds, exhaustion levels, a saving throw,
 damage or healing per round of 6 s) and `ActiveCondition` (the hero's in `WorldState::effects`, a

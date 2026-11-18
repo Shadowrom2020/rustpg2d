@@ -368,6 +368,33 @@ The event commands creators expect from other makers.
 
   **Verify.** `status` `music_fade=` and `sounds=`; a level-up plays its fanfare.
 
+- [x] Faction membership — `feature/faction-membership` (from the backlog)
+
+  **Goal.** Creators define factions in the editor and set who belongs to them.
+
+  **Design.** Factions and their attitudes already existed (Database › Project); character
+  definitions and races had a Faction field. Added:
+  - **Database › Factions**, its own tab, with a *Members* list per faction (races, character
+    definitions, placed characters), changed from the faction's side too.
+  - **Placed characters** get a faction of their own (`EntityInstance::faction`, the inspector).
+  - **Set faction** {target, faction} (appended) and `set_faction` / `faction_of`: a character or
+    the player changes sides in play, saved.
+
+  **Engine.** One appended action, a placed-character field, two saved fields, two script functions.
+
+  **Decided while building.**
+  - "" sets a character back to its own faction (placed, else definition's, else race's); the
+    player's back to their race's. A joined faction counts as the player's own (standing 100
+    unless already changed).
+  - Faction ids stay fixed once added (triggers and scripts name them); names can change.
+  - A character whose side changes becomes solid when it no longer attacks the player and stops
+    hunting them.
+  - Example: Snik, a goblin peddler at the market on the humans' side; Rook, a deserter in the
+    forest who begs for mercy below 60 % HP and, spared, joins the humans (and then hunts the
+    forest's monsters like any human fighter).
+
+  **Verify.** `status` `factions=` lists changed characters; save and load keep them.
+
 ## 0.27.0 — Plugins
 
 Systems become add-ons: scripts can change the engine's outcomes, and plugins package them with
@@ -1171,7 +1198,6 @@ The promise creators need for a commercial release: what works with 1.0 keeps wo
 
 - **Right-to-left text** (Arabic, Hebrew): shaping and bidirectional runs in `runtime/text.rs`,
   after 0.24's fonts.
-- Creators can define factions in the editor and set faction membership for characters in the editor
 - **iOS export:** needs a Mac and an Apple developer account; after Android (0.32).
 - **RPG Maker MV / MZ importer** (moved from 0.32, 2026-11-16: R(ust)PG2D follows the SRD rules,
   not the JRPG model): maps and art through the tile converter, the database mapped onto SRD

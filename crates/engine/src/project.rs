@@ -283,10 +283,14 @@ pub struct GameSfx {
     pub portal: String,
     pub open_container: String,
     pub unlock: String,
+    /// Music effects (fanfares; the music ducks under them): reaching a new level, and the end
+    /// of a fight in which the player defeated enemies.
+    pub level_up: String,
+    pub victory: String,
 }
 
 impl GameSfx {
-    pub fn fields_mut(&mut self) -> [(&'static str, &mut String); 9] {
+    pub fn fields_mut(&mut self) -> [(&'static str, &mut String); 11] {
         [
             ("pickup", &mut self.pickup),
             ("attack", &mut self.attack),
@@ -297,6 +301,8 @@ impl GameSfx {
             ("portal", &mut self.portal),
             ("open container", &mut self.open_container),
             ("unlock", &mut self.unlock),
+            ("level up (fanfare)", &mut self.level_up),
+            ("victory (fanfare)", &mut self.victory),
         ]
     }
 }

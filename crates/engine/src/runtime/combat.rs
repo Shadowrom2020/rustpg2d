@@ -708,6 +708,9 @@ impl Game {
         if xp {
             let n = self.xp_of(&self.loaded.entities[i].def);
             self.give_xp(n as i64);
+            if self.loaded.entities[i].hostile {
+                self.battle.won += 1;
+            }
         }
         // The bestiary counts every character kind the player's side defeated.
         if bestiary && self.loaded.entities[i].kind == crate::entity::EntityKind::Character {

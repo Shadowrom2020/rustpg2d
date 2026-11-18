@@ -179,4 +179,16 @@
         volume: 1.0,
         caption: "Steel in the Woods",
     ),
+    (
+        id: "fanfare_level_up",
+        file: "sounds/fanfare_level_up.ogg",
+        volume: 0.8,
+        caption: "Level-up fanfare",
+    ),
+    (
+        id: "fanfare_victory",
+        file: "sounds/fanfare_victory.ogg",
+        volume: 0.8,
+        caption: "Victory fanfare",
+    ),
 ]

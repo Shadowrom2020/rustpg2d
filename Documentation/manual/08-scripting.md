@@ -742,7 +742,10 @@ fn lift_the_curse() {
 | Function | Description |
 |---|---|
 | `play_sound(sound)` | Plays a sound once. *(queued)* |
+| `play_sound(sound, options)` | Plays it with options `#{ volume: 0.5, pitch: 1.5, pan: -1 }`: volume times the sound's own; pitch 1 = as it is, 2 = an octave higher (and twice as fast), 0.5 = an octave lower (0.25 to 4); pan -1 = left, 0 = both sides, 1 = right. A pitched or panned sound is made once and kept (in the web game it plays as it is), e.g. a coin sound a little higher each time: `play_sound("pickup", #{ pitch: 1.0 + 0.1 * get_var("streak") });` *(queued)* |
 | `play_music(sound)` | Switches the looping music; `""` stops it. *(queued)* |
+| `play_music(sound, seconds)` | Crossfades to the music over `seconds`: the old track fades out while the new one fades in. *(queued)* |
+| `play_music_effect(sound)` / `play_music_effect(sound, options)` | Plays a music effect (a fanfare) once: the music ducks under it and comes back after. Options `#{ wait: true }`: the event waits until it is over. The project's sounds name a *level up* and a *victory* fanfare the game plays by itself. *(queued)* |
 
 ### Skills and magic
 

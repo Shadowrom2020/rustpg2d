@@ -400,6 +400,12 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   per frame, and right after a window button's function) into `Game.script_window`, a modal panel
   whose update runs before the menus. A button pushes `Action::RunScript` and steps the action
   runner once, so a function that reopens the window refreshes it at once.
+- Audio (`audio.rs`) wraps macroquad's mixer, which knows only volume: *Play sound*'s pitch and
+  pan are rendered into stereo variants (`pitch_pan`) cached by id, pitch and pan; *Play music*'s
+  crossfade keeps the old track playing in `music_out` while both gains move; a music effect sets
+  `effect` and `duck` (the music's extra gain) in `tick_music`, which `update_battle_music` calls
+  once a frame. The project's `sfx.level_up` / `sfx.victory` are played as music effects
+  (`progression.rs`, `battle.rs`: `Battle.won` counts the player's defeats in a fight).
 - The camera (`Game::camera`) looks at `camera_focus()`: the player, or a `CamMove` of the
   *Camera* action (`runtime/camera.rs`: from the focus it had, eased toward a point or an entity,
   with a zoom multiplying the view scale). `update_camera` sends it back to the player once the

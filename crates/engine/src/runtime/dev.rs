@@ -328,6 +328,7 @@ impl Game {
                 | Action::SetLocked { .. }
                 | Action::PlaySound { .. }
                 | Action::PlayMusic { .. }
+                | Action::PlayMusicEffect { .. }
         )
     }
 

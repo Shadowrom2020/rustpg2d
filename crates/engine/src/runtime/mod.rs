@@ -2492,7 +2492,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2596,6 +2596,7 @@ impl Game {
             self.sneak_status(),
             self.battle_status(),
             self.audio.music_fade_status(),
+            self.audio.music_effect_status(),
             self.captions_status(),
             self.emotes_status(),
             self.barks_status(),
@@ -3172,17 +3173,27 @@ impl ActionHost for Game {
                 self.transition(map, Arrival::Spawn(spawn.clone()));
                 Step::Block
             }
-            Action::PlaySound { sound } => {
+            Action::PlaySound { sound, volume, pitch, pan } => {
+                let plain = (*volume - 1.0).abs() < 0.001 && (*pitch - 1.0).abs() < 0.001 && pan.abs() < 0.001;
                 // From the character or prop whose trigger plays it: its caption names the side.
                 match ctx.owner.and_then(|u| self.loaded.entities.iter().find(|e| e.uid == u)).map(|e| e.body.pos) {
-                    Some(at) => self.sound_from(sound, at),
-                    None => self.audio.play(sound),
+                    Some(at) if plain => self.sound_from(sound, at),
+                    _ if plain => self.audio.play(sound),
+                    _ => self.audio.play_with(sound, *volume, *pitch, *pan),
                 }
                 Step::Continue
             }
-            Action::PlayMusic { sound } => {
-                self.set_peace_music(sound);
+            Action::PlayMusic { sound, fade } => {
+                self.set_peace_music_fade(sound, *fade);
                 Step::Continue
+            }
+            Action::PlayMusicEffect { sound, wait } => {
+                let secs = self.audio.play_music_effect(sound);
+                if *wait && secs > 0.0 {
+                    Step::Insert(vec![(Action::Wait { seconds: secs }, ctx.clone())])
+                } else {
+                    Step::Continue
+                }
             }
             Action::Heal { amount } => {
                 self.heal(*amount);

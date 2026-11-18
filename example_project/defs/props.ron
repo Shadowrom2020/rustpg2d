@@ -1615,6 +1615,9 @@
                 actions: [
                     PlaySound(
                         sound: "bell",
+                        volume: 1.0,
+                        pitch: 1.0,
+                        pan: 0.0,
                     ),
                 ],
                 once: false,
@@ -2390,6 +2393,9 @@
                 actions: [
                     PlaySound(
                         sound: "bell",
+                        volume: 1.0,
+                        pitch: 1.0,
+                        pan: 0.0,
                     ),
                 ],
                 once: false,

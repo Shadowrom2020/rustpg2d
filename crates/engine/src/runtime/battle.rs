@@ -25,6 +25,10 @@ pub(super) struct Battle {
     pub threat_t: f32,
     /// The music outside combat: the map's track, or one a *Play music* action chose.
     pub peace: String,
+    /// An enemy close by fought the player last frame.
+    pub threatened: bool,
+    /// Enemies the player defeated in this fight (the victory fanfare when it ends).
+    pub won: u32,
 }
 
 impl Game {
@@ -40,6 +44,17 @@ impl Game {
         }
         // (Defeated: the fight is over, whatever the enemies still think.)
         let threat = threat && self.game_over.is_none();
+        // The fight is over with enemies defeated: the project's victory fanfare.
+        if self.battle.threatened && !threat && self.battle.won > 0 && self.game_over.is_none() {
+            let fanfare = self.project.config.sfx.victory.clone();
+            if !fanfare.is_empty() && self.project.db.sound(&fanfare).is_some() {
+                self.audio.play_music_effect(&fanfare);
+            }
+        }
+        if !threat {
+            self.battle.won = 0;
+        }
+        self.battle.threatened = threat;
         let me = self.game_over.is_none() && (self.combat.strike > 0.0 || self.combat.block.is_some() || self.combat.invuln > 0.0);
         self.battle.player_t = if threat || me { HOLD } else { (self.battle.player_t - dt).max(0.0) };
         self.battle.threat_t = if threat { HOLD } else { (self.battle.threat_t - dt).max(0.0) };
@@ -73,9 +88,14 @@ impl Game {
 
     /// The music outside combat (map enter, *Play music*): played now unless a fight is on.
     pub(super) fn set_peace_music(&mut self, id: &str) {
+        self.set_peace_music_fade(id, 0.0);
+    }
+
+    /// Like [`set_peace_music`](Self::set_peace_music), crossfading over `fade` seconds.
+    pub(super) fn set_peace_music_fade(&mut self, id: &str, fade: f32) {
         self.battle.peace = id.to_string();
         if self.battle.threat_t <= 0.0 || self.battle_music().is_empty() {
-            self.audio.play_music(id);
+            self.audio.crossfade_music(id, fade);
         }
     }
 

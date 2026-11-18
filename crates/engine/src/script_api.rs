@@ -245,7 +245,11 @@ pub const API: &[ApiFn] = api! {
     "is_staying"(name: Text) "Whether a companion was told to wait where it is";
     "heal_npc"(target: Target, amount: Num) "Heals a character by name (a companion, \"player\"); a negative amount hurts it (queued)";
     "play_sound"(sound: Sound) "Plays a sound (queued)";
+    "play_sound"(sound: Sound, options: Opts) "Plays a sound with options #{ volume: 0.5 (times its own), pitch: 1.5 (2 = an octave higher and faster, 0.5 = lower), pan: -1 (left) .. 1 (right) } (queued)";
     "play_music"(sound: Sound) "Plays music (queued)";
+    "play_music"(sound: Sound, seconds: Num) "Crossfades to the music over seconds: the old track fades out while the new one fades in (queued)";
+    "play_music_effect"(sound: Sound) "Plays a music effect (a fanfare) once: the music ducks under it and comes back after (queued)";
+    "play_music_effect"(sound: Sound, options: Opts) "Like play_music_effect(); options #{ wait: true } (the event waits until it is over) (queued)";
     "set_locked"(target: Target, locked: Bool) "Locks / unlocks a prop (queued); an unlocked door stays closed";
     "is_locked"(target: Target) "Whether a prop on this map is locked (false without a lock)";
     "open_shop"(target: Target) "Opens a merchant's trade window (queued)";
@@ -365,6 +369,7 @@ mod tests {
             ("enable_spawners", 0, IdKind::Map),
             ("play_sound", 0, IdKind::Sound),
             ("play_music", 0, IdKind::Sound),
+            ("play_music_effect", 0, IdKind::Sound),
             ("start_quest", 0, IdKind::Quest),
             ("advance_quest", 0, IdKind::Quest),
             ("set_quest_stage", 0, IdKind::Quest),

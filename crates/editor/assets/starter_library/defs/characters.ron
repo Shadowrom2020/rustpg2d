@@ -1688,6 +1688,9 @@
                 actions: [
                     PlaySound(
                         sound: "cluck",
+                        volume: 1.0,
+                        pitch: 1.0,
+                        pan: 0.0,
                     ),
                     Dialog(
                         speaker: "Chicken",
@@ -1723,6 +1726,9 @@
                 actions: [
                     PlaySound(
                         sound: "bark",
+                        volume: 1.0,
+                        pitch: 1.0,
+                        pan: 0.0,
                     ),
                     Dialog(
                         speaker: "Dog",
@@ -1758,6 +1764,9 @@
                 actions: [
                     PlaySound(
                         sound: "meow",
+                        volume: 1.0,
+                        pitch: 1.0,
+                        pan: 0.0,
                     ),
                     Dialog(
                         speaker: "Cat",
@@ -1793,6 +1802,9 @@
                 actions: [
                     PlaySound(
                         sound: "meow",
+                        volume: 1.0,
+                        pitch: 1.0,
+                        pan: 0.0,
                     ),
                     Dialog(
                         speaker: "Ginger Cat",
@@ -1828,6 +1840,9 @@
                 actions: [
                     PlaySound(
                         sound: "baa",
+                        volume: 1.0,
+                        pitch: 1.0,
+                        pan: 0.0,
                     ),
                     Dialog(
                         speaker: "Sheep",
@@ -1863,6 +1878,9 @@
                 actions: [
                     PlaySound(
                         sound: "moo",
+                        volume: 1.0,
+                        pitch: 1.0,
+                        pan: 0.0,
                     ),
                     Dialog(
                         speaker: "Cow",

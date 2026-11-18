@@ -1803,11 +1803,29 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         Action::RunScript { function } => {
             labeled(ui, "function", |ui| suggest(ui, id, function, &refs.functions, 130.0));
         }
-        Action::PlaySound { sound } | Action::PlayMusic { sound } => {
+        Action::PlaySound { sound, volume, pitch, pan } => {
             labeled(ui, "sound", |ui| suggest(ui, id, sound, &refs.sounds, 130.0));
-            if matches!(a, Action::PlayMusic { .. }) {
-                ui.weak("(empty = stop music)");
-            }
+            labeled(ui, "volume", |ui| {
+                ui.add(egui::DragValue::new(volume).range(0.0..=2.0).speed(0.01).suffix("x")).on_hover_text("Times the sound's own volume");
+                ui.label("pitch");
+                ui.add(egui::DragValue::new(pitch).range(0.25..=4.0).speed(0.01).suffix("x")).on_hover_text("1 = as it is, 2 = an octave higher (and faster), 0.5 = an octave lower");
+                ui.label("pan");
+                ui.add(egui::Slider::new(pan, -1.0..=1.0).step_by(0.05)).on_hover_text("-1 = left, 0 = both sides, 1 = right");
+            });
+        }
+        Action::PlayMusic { sound, fade } => {
+            labeled(ui, "sound", |ui| suggest(ui, id, sound, &refs.sounds, 130.0));
+            labeled(ui, "crossfade", |ui| {
+                ui.add(egui::DragValue::new(fade).range(0.0..=30.0).speed(0.05).suffix(" s")).on_hover_text("0 = switch at once");
+            });
+            ui.weak("(empty = stop music)");
+        }
+        Action::PlayMusicEffect { sound, wait } => {
+            labeled(ui, "sound", |ui| {
+                suggest(ui, id, sound, &refs.sounds, 130.0);
+                ui.checkbox(wait, "Wait").on_hover_text("The event goes on when it is over");
+            });
+            ui.weak("(a fanfare: the music ducks under it and comes back after)");
         }
         Action::SetLocked { target, locked } => {
             target_field(ui, id, target, refs);

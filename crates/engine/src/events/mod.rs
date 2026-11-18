@@ -449,9 +449,24 @@ pub enum Action {
     /// Call a Rhai function from the project's scripts.
     RunScript { function: String },
     If { conditions: Vec<Condition>, then: Vec<Action>, otherwise: Vec<Action> },
-    PlaySound { sound: String },
-    /// Switch the looping music (empty = stop).
-    PlayMusic { sound: String },
+    PlaySound {
+        sound: String,
+        /// Times its own volume (1 = as set in the Sounds form).
+        #[serde(default = "one_f32")]
+        volume: f32,
+        /// 1 = as it is, 2 = an octave higher (and faster), 0.5 = an octave lower.
+        #[serde(default = "one_f32")]
+        pitch: f32,
+        /// -1 = left, 0 = both sides, 1 = right.
+        #[serde(default)]
+        pan: f32,
+    },
+    /// Switch the looping music (empty = stop); `fade` > 0 crossfades over that many seconds.
+    PlayMusic {
+        sound: String,
+        #[serde(default)]
+        fade: f32,
+    },
     /// Restore (or with a negative amount, remove) player hit points.
     Heal { amount: i32 },
     /// Locks or unlocks a prop without a key (unlocking applies its "on unlock" effect).
@@ -793,6 +808,13 @@ pub enum Action {
         #[serde(default = "opaque_black")]
         background: [u8; 4],
     },
+    /// A music effect (a fanfare): played once while the music ducks, then the music comes back.
+    PlayMusicEffect {
+        sound: String,
+        /// The event waits until it is over.
+        #[serde(default)]
+        wait: bool,
+    },
 }
 
 fn opaque_black() -> [u8; 4] {
@@ -982,6 +1004,7 @@ impl Action {
             Action::CallCommon { .. } => "Call common event",
             Action::Camera { .. } => "Camera",
             Action::ScrollText { .. } => "Scroll text",
+            Action::PlayMusicEffect { .. } => "Play music effect",
         }
     }
 
@@ -1003,8 +1026,8 @@ impl Action {
             Action::Emit { name: s() },
             Action::RunScript { function: s() },
             Action::If { conditions: Vec::new(), then: Vec::new(), otherwise: Vec::new() },
-            Action::PlaySound { sound: s() },
-            Action::PlayMusic { sound: s() },
+            Action::PlaySound { sound: s(), volume: 1.0, pitch: 1.0, pan: 0.0 },
+            Action::PlayMusic { sound: s(), fade: 0.0 },
             Action::Heal { amount: 1 },
             Action::SetLocked { target: "self".into(), locked: false },
             Action::SetState { target: "self".into(), state: String::new() },
@@ -1090,6 +1113,7 @@ impl Action {
             Action::CallCommon { id: s() },
             Action::Camera { aim: crate::camera::CameraAim::Tile { x: 0, y: 0 }, seconds: 1.0, easing: crate::pictures::Easing::InOut, zoom: 1.0, wait: true },
             Action::ScrollText { text: "# The End\n\nThank you for playing!".into(), speed: 40.0, background: [0, 0, 0, 255] },
+            Action::PlayMusicEffect { sound: s(), wait: false },
         ]
     }
 }

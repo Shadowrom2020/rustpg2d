@@ -156,7 +156,7 @@ crates/engine/src/      library: everything shared by game and editor
                         draws shown ones, queues their end; Cond::Timer
   screen_fx.rs          Tint screen / Fade out / Fade in: Overlay (a colour changing over seconds), ScreenFx
                         (WorldState.screen, saved); runtime/juice.rs draws them (+ the unsaved flash)
-  script_ui.rs          script UI data: HudElement / HudKind (text, image, bar) / Anchor (WorldState.hud, saved),
+  script_ui.rs          script UI data: HudElement / HudKind (text, image, bar, minimap: runtime/worldmap.rs draw_minimap from the map screen's picture) / Anchor (WorldState.hud, saved),
                         Source (a bar's value: variable, number, hp:NAME, max_hp:NAME), ScriptWindow /
                         WindowRow / WindowRequest (WorldState.window_request, not saved); runtime/script_hud.rs
                         draws the HUD elements and the modal script window

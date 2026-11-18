@@ -154,6 +154,16 @@
             priority: 0,
         ),
     ],
+    plugins: [
+        (
+            id: "calendar",
+            enabled: true,
+        ),
+        (
+            id: "minimap",
+            enabled: true,
+        ),
+    ],
     skills: (
         enabled: true,
         magic: true,

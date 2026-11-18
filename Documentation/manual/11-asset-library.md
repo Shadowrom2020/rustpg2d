@@ -107,8 +107,9 @@ package…* (library) or *Assets › Import asset package into project…* reads
 
 The library also keeps **plugins** (its `plugins/` folder): add-ons a project uses without copying
 them in ([Plugins](18-plugins.md)). A project's *Assets › Plugins…* window adds them (*Add from
-library*) and sends its own there (*Send to library*). The starter library brings plugins too;
-a newer starter set updates the library's copies of them unless you changed one without raising
+library*) and sends its own there (*Send to library*). The starter library brings four: a calendar,
+hard mode, a minimap and damage-number styles ([The starter plugins](18-plugins.md#the-starter-plugins)).
+A newer starter set updates the library's copies of them unless you changed one without raising
 its version.
 
 ## Scripted assets

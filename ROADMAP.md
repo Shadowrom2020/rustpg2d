@@ -269,7 +269,7 @@ their settings.
 
   **Verify.** A deprecated call warns in the check and still runs.
 
-- [ ] Starter plugins — `feature/starter-plugins`
+- [x] Starter plugins — `feature/starter-plugins`
 
   **Goal.** Show the plugin model with useful examples.
 
@@ -279,7 +279,28 @@ their settings.
   - a calendar HUD;
   - a hard mode (an enemy damage hook with a parameter).
 
-  **Engine.** None (content).
+  **Engine.** None (content) for the calendar and hard mode. Approved by the user (2026-11-18)
+  for the other two: a `Minimap` HUD element kind (+ `hud_minimap`) and a `damage_number` hook.
+
+  **Decided while building.**
+  - Calendar: a `map_enter` hook sets a flag; the plugin's own *Parallel while flag* common event
+    refreshes a text variable every two seconds; its HUD text shows it. Parameters: days per
+    season, season and weekday names, show the year.
+  - Hard mode: `damage` / `heal` hooks at priority 100 for the player and companions (×2, ×0.75
+    by default), a HUD badge (a plugin HUD element: gone when the plugin is off).
+  - Minimap: only a `Minimap` HUD element in its `plugin.ron` (plugin HUD elements take no
+    parameters; a script-set element would be saved and outlive the plugin). It draws the map
+    screen's picture (rendered once per map before drawing), the fog (once a second), quest pins.
+  - Damage number styles: the `damage_number` hook (asked once per number: text, colour, size);
+    styles bold / comic / quiet and a minus on damage taken.
+  - The example uses the Calendar and the Minimap; all four are in the starter library, which
+    copies them into libraries (`STARTER_RULES` 12). The Plugins window opens the library
+    first, so a new library has them.
+
+  **Verify (done).** Autoplay on scratch copies with screenshots: the calendar's line (Moonday,
+  Spring 1 → Tideday, Spring 2 after midnight), hard mode (3 damage → 6, 4 healing → 3, the
+  badge), the minimap in the village (quest pin) and the forest (fog), comic numbers ("OUCH -4");
+  the example with the Calendar and the Minimap.
 
   **Verify.** Each plugin in autoplay with screenshots.
 

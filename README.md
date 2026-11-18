@@ -69,6 +69,7 @@ for how to use it all.
 - Show pictures from events and scripts: a full-body painting when you meet someone, a letter, a map; scaled to fit, scrolling when tall.
 - Translations built in: export a template, translate it, players pick their language.
 - Your own look: UI skins give every window, menu, dialog box and the HUD your frames and colours, with a live preview in the editor; design the title screen (a map at dusk or a picture, your logo and music) and the menus' entries, with entries of your own; scripts add HUD pieces (a coin counter, a boss's health bar) and small windows with buttons.
+- Plugins: add-ons with their own scripts, settings, menu entries and HUD that you switch on, configure and update without touching your content; script hooks let them (and your scripts) change damage, prices, healing and more. The starter library brings a calendar, a minimap, a hard mode and damage-number styles.
 - A Problems list of everything broken in the project (unknown ids, missing files, broken portals, script errors, untranslated texts), each a click away.
 
 **Characters**

@@ -34,6 +34,7 @@ pub const HOOKS: &[(&str, &str, &str)] = &[
     ("save", "slot", "The game is about to be saved to `slot` (variables set here are saved with it)."),
     ("load", "slot", "A game was loaded from `slot`."),
     ("menu_open", "menu, cancel", "A menu is about to open: `menu` is \"pause\", \"character\", \"skills\", \"spells\", \"journal\" or \"map\"; `cancel` keeps it shut."),
+    ("damage_number", "value, kind, text, color, size", "A damage number appears: `kind` is \"hit\", \"crit\" or \"hurt\" (the player's side hurt); set its `text`, `color` (a colour name or #rrggbb; \"\" = the kind's) or `size` (× the usual)."),
     ("effect_apply", "target, effect, strength, seconds, cancel", "A status effect is about to start on \"player\" or a character: change `strength` or `seconds`, or `cancel` it."),
 ];
 

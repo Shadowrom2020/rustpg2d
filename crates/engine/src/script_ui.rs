@@ -108,6 +108,12 @@ pub enum HudKind {
         #[serde(default, skip_serializing_if = "String::is_empty")]
         label: String,
     },
+    /// A small map around the player (like the map screen's): a square of the element's `size`
+    /// in pixels (0 = 160) showing `tiles` tiles across (0 = 24), the player in the middle.
+    Minimap {
+        #[serde(default)]
+        tiles: f32,
+    },
 }
 
 /// A HUD element set by a script (`WorldState::hud`, by id).
@@ -143,6 +149,7 @@ impl HudElement {
             HudKind::Text { .. } => "text",
             HudKind::Image { .. } => "image",
             HudKind::Bar { .. } => "bar",
+            HudKind::Minimap { .. } => "minimap",
         }
     }
 }

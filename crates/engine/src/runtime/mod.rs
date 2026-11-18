@@ -2809,6 +2809,8 @@ impl Game {
         /// Sort keys of flat props are their feet minus this: before everything else.
         const FLAT_FIRST: f32 = 1.0e7;
         self.assets.models.begin_frame();
+        // (Renders into a texture: before any camera is set.)
+        self.prepare_minimap();
         // Options › Accessibility: text size and high contrast, for everything drawn below.
         self.ui.text_scale = self.settings.text_scale();
         ui::set_contrast(self.settings.high_contrast);

@@ -40,10 +40,14 @@ pub(super) enum NumberKind {
 /// A damage number floating up from a hit.
 struct Number {
     pos: Vec2,
-    value: i32,
     kind: NumberKind,
     t: f32,
     drift: f32,
+    /// What it shows, its colour (None = the kind's) and size (× the kind's): the
+    /// `damage_number` script hook may change them.
+    text: String,
+    color: Option<Color>,
+    scale: f32,
 }
 
 #[derive(Default)]
@@ -151,13 +155,31 @@ impl Game {
 
     /// A damage number rising from `pos` (world; above a character's head).
     pub(super) fn damage_number(&mut self, pos: Vec2, value: i32, kind: NumberKind) {
+        let (mut text, mut color, mut scale) = (value.to_string(), None, 1.0);
+        // Script hook: its text, colour and size (asked once, not every frame).
+        if self.hooked("damage_number") {
+            use crate::hooks::{map, num};
+            let k = match kind {
+                NumberKind::Hit => "hit",
+                NumberKind::Crit => "crit",
+                NumberKind::Hurt => "hurt",
+            };
+            let m = self.hook("damage_number", map([("value", (value as i64).into()), ("kind", k.into()), ("text", text.clone().into()), ("color", "".into()), ("size", 1.0_f64.into())]));
+            if let Some(t) = m.get("text").map(|t| t.to_string()) {
+                text = t;
+            }
+            color = m.get("color").and_then(|c| super::script_hud::color_of(&c.to_string()));
+            scale = num(&m, "size", 1.0).clamp(0.2, 4.0) as f32;
+        }
         let j = &mut self.juice;
         let drift = rand::gen_range(-1.0, 1.0);
-        j.numbers.push(Number { pos, value, kind, t: 0.0, drift });
+        j.numbers.push(Number { pos, kind, t: 0.0, drift, text, color, scale });
         if j.numbers.len() > 40 {
             j.numbers.remove(0);
         }
         j.recent.push_back(match kind {
+            // (A hook's own text, as shown.)
+            _ if j.numbers.last().is_some_and(|n| n.text != value.to_string()) => j.numbers.last().map(|n| n.text.clone()).unwrap_or_default(),
             NumberKind::Hit => value.to_string(),
             NumberKind::Crit => format!("{value}!"),
             NumberKind::Hurt => format!("-{value}"),
@@ -187,19 +209,20 @@ impl Game {
                 NumberKind::Crit => (0.62, Color::new(1.0, 0.86, 0.2, alpha)),
                 NumberKind::Hurt => (0.42, Color::new(1.0, 0.32, 0.3, alpha)),
             };
-            let size = (base * ts * scale * pop).round().max(8.0);
-            let text = n.value.to_string();
+            let col = n.color.map_or(col, |c| Color { a: c.a * alpha, ..c });
+            let size = (base * n.scale * ts * scale * pop).round().max(8.0);
+            let text = &n.text;
             let at = cam.world_to_screen(n.pos + vec2(n.drift * ts * 0.25 * p, -rise));
-            let w = measure_text(&text, None, size as u16, 1.0).width;
+            let w = measure_text(text, None, size as u16, 1.0).width;
             let (x, y) = ((at.x - w / 2.0).round(), at.y.round());
             // (High contrast: a thicker outline all round.)
             let contrast = super::ui::contrast();
             let o = (size / if contrast { 7.0 } else { 12.0 }).max(1.0).round();
             let ring: &[(f32, f32)] = if contrast { &[(-o, 0.0), (o, 0.0), (0.0, -o), (0.0, o), (o, o), (-o, -o), (o, -o), (-o, o)] } else { &[(-o, 0.0), (o, 0.0), (0.0, -o), (0.0, o), (o, o)] };
             for (dx, dy) in ring {
-                draw_text(&text, x + dx, y + dy, size, Color::new(0.0, 0.0, 0.0, if contrast { alpha } else { alpha * 0.9 }));
+                draw_text(text, x + dx, y + dy, size, Color::new(0.0, 0.0, 0.0, if contrast { alpha } else { alpha * 0.9 }));
             }
-            draw_text(&text, x, y, size, col);
+            draw_text(text, x, y, size, col);
         }
     }
 

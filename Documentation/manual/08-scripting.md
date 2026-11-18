@@ -149,6 +149,7 @@ fn double_damage(m) {
 | `save` | `slot` | The game is about to be saved; variables set here are saved with it. |
 | `load` | `slot` | A game was loaded. |
 | `menu_open` | `menu`, `cancel` | `"pause"`, `"character"`, `"skills"`, `"spells"`, `"journal"` or `"map"` is about to open: `cancel = true` keeps it shut. |
+| `damage_number` | `value`, `kind`, `text`, `color`, `size` | A damage number appears (`kind`: `"hit"`, `"crit"` or `"hurt"` = the player's side hurt): change its `text`, `color` (a colour name or `"#rrggbb"`; `""` = the usual) or `size` (× the usual). Asked once per number. |
 | `effect_apply` | `target`, `effect`, `strength`, `seconds`, `cancel` | A status effect (`"poison"`, `"stun"`…) is about to start on `"player"` or a character: change its strength or length, or cancel it. |
 
 The SRD 5.1 rules (from 0.28) will add hooks for rolls, checks, saving throws, initiative, turns,
@@ -690,6 +691,8 @@ it sideways.
 | `hud_image(id, x, y, sheet, frame, options)` | Options `#{ anchor: "bottom_left", scale: 3 }`. *(immediately)* |
 | `hud_bar(id, x, y, width, value, max, color)` | A bar filled to `value` of `max`, each a variable name, a number, `"hp:NAME"` (a character's HP on this map; `"hp:player"`) or `"max_hp:NAME"`. *(immediately)* |
 | `hud_bar(id, x, y, width, value, max, color, options)` | Options `#{ anchor: "top", label: "Grumbold" }` (a name over the bar). *(immediately)* |
+| `hud_minimap(id, x, y, size)` | A small map around the player in a square of `size` pixels, like the map screen (M) shows it: the map's picture, the fog of war, quest pins and the player's marker, 24 tiles across. *(immediately, since 0.27)* |
+| `hud_minimap(id, x, y, size, options)` | Options `#{ anchor: "bottom_right", tiles: 32 }` (how many tiles across). *(immediately, since 0.27)* |
 | `hud_remove(id)` | Takes an element away. *(immediately)* |
 | `hud_clear()` | Takes every element away. *(immediately)* |
 

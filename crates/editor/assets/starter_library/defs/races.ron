@@ -277,7 +277,7 @@
             "dragonborn",
         ],
         bodies_female: [
-            "orc_f",
+            "dragonborn_f",
         ],
         faction: "humans",
         ability_bonuses: {

@@ -34,8 +34,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     the example's Farmhand and Wanderer.
   - The races without models of their own reuse the library's (halflings and gnomes smaller,
     tieflings red-skinned); races name default colours for the creator.
-  - **A dragonborn model** (male, Meshy rig: it plays the library's shared clips), in the starter
-    library and the example. His **Draconic Ancestry** colours him: the creator offers it on its
+  - **Dragonborn models**, a man and a woman (Meshy rig: they play the library's shared clips; she
+    has her own walk), in the starter library and the example. His **Draconic Ancestry** colours him: the creator offers it on its
     first page (one *Ancestry* row with the preview) and the ten SRD dragons give the scales their
     colour and the clothes a darker tone of it. Any race choice can do this now: its options name
     colours for the model's colour features (*Races › Choices › Colours the model*).

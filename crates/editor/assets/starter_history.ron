@@ -2596,6 +2596,49 @@
                 ],
             },
         ),
+        "model:dragonborn_f": (
+            defs: [
+                12524024605276632714,
+            ],
+            files: {
+                "models/anim_attack_2h.glb": [
+                    15008027949997193248,
+                ],
+                "models/anim_attack_bow.glb": [
+                    9125555965999913092,
+                ],
+                "models/anim_attack_cast.glb": [
+                    12007683039319719173,
+                ],
+                "models/anim_attack_thrust.glb": [
+                    17709709496434779149,
+                ],
+                "models/anim_attack_unarmed.glb": [
+                    13990564639253314721,
+                ],
+                "models/anim_block_shield.glb": [
+                    2822497810878838616,
+                ],
+                "models/anim_block_weapon.glb": [
+                    14271083851593324773,
+                ],
+                "models/anim_idle_1h.glb": [
+                    16634719790699144471,
+                ],
+                "models/anim_idle_2h.glb": [
+                    482000360397950016,
+                ],
+                "models/dragonborn_f.glb": [
+                    6055229818070628184,
+                ],
+                "models/orc_f_clips.glb": [
+                    7725501264060280147,
+                ],
+                "models/orc_f_sneak.glb": [
+                    116472697044179926,
+                ],
+            },
+        ),
         "model:dwarf": (
             defs: [
                 2489684520567074831,
@@ -6311,6 +6354,7 @@
         "race:dragonborn": (
             defs: [
                 863521325041204075,
+                11053084886546098875,
                 11893275987986540083,
                 12511571673458959973,
             ],

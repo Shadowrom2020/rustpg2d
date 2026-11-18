@@ -87,7 +87,7 @@
             unlock_text: "",
             relock: true,
             lock_text: "",
-            pick_difficulty: 0,
+            pick_dc: 0,
         )),
     ),
     (
@@ -928,7 +928,7 @@
             unlock_text: "The gate swings open.",
             relock: true,
             lock_text: "The gate swings shut.",
-            pick_difficulty: 0,
+            pick_dc: 0,
         )),
     ),
     (
@@ -1092,7 +1092,7 @@
             unlock_text: "",
             relock: true,
             lock_text: "",
-            pick_difficulty: 0,
+            pick_dc: 0,
         )),
     ),
     (
@@ -4333,5 +4333,46 @@
         container: None,
         lock: None,
         door: true,
+    ),
+    (
+        id: "locked_chest",
+        name: "Locked Chest",
+        sprite: (
+            sheet: "props",
+            frame: 0,
+        ),
+        solid: true,
+        default_state: "closed",
+        states: [
+            (
+                name: "open",
+                sprite: (
+                    sheet: "props",
+                    frame: 1,
+                ),
+                solid: true,
+            ),
+        ],
+        hitbox: (28.0, 16.0),
+        triggers: [],
+        container: Some((
+            size: 8,
+            items: [],
+            conditions: [],
+            locked_text: "",
+            open_frame: 0,
+            open_state: "open",
+        )),
+        lock: Some((
+            key: "",
+            consume_key: false,
+            on_unlock: Nothing,
+            locked_text: "",
+            unlock_text: "",
+            relock: false,
+            lock_text: "",
+            pick_dc: 12,
+        )),
+        low: true,
     ),
 ]

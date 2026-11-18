@@ -3,6 +3,43 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### The Rules (SRD 5.1)
+- **Dice, abilities and checks**: every roll in the game is an SRD 5.1 roll. The hero has the six
+  ability scores, the proficiency bonus by level, the 18 SRD skills and the SRD's tools; ability
+  checks and saving throws roll a d20 plus the modifier (plus proficiency), with advantage and
+  disadvantage. Every check shows a line on screen ("Persuasion: 14 vs DC 13 - success") and goes
+  into the journal's new **Rolls** page; the **Skills** tab (K) shows the hero's scores, saving
+  throws and skills. *Database › Project › Rules* sets the new hero's scores and proficiencies.
+  - Events: the actions *Ability check*, *Saving throw* (with *On a success* / *On a failure*
+    actions) and *Roll dice*; the conditions *Check passed* and *Proficient in*; *Set proficiency*.
+  - Scripts (API 0.28): `roll`, `check`, `save`, `modifier`, `ability`, `set_ability`,
+    `proficiency`, `is_proficient`, `set_proficient`. Autoplay `seed N` / `RUSTPG2D_SEED` make the
+    dice repeat; `status` prints `rolls=`, `abilities=`, `prof=` and `profs=`.
+  - **Locks** are picked with a DEX (Thieves' Tools) check against their *Pick DC*; a failed lock
+    can be tried again after ten minutes of game time. The lockpicking minigame is gone.
+  - **Crafting**: a recipe names a tool or skill; its better results roll a check against their DC
+    (a failed roll still makes the plain item), and *proficiency needed* gates a recipe.
+  - The example: the hero's scores and proficiencies, a **Locked Chest** by the river (DC 12, also
+    in the starter library), a Religion check at the shrine's carvings and a Persuasion check to
+    haggle with Tilda after the slime hunt.
+- **Breaking:** the skill tree is gone: skill definitions, skill points (per level, quest rewards),
+  their effects (combat, defense, speed, mana, food, gathering, sneak attack and price bonuses) and
+  the Database's *Skills* tab. The editor converts a project of 0.27 or older once when it opens it
+  (with a backup beside it): skills become SRD proficiencies by effect or name (Lockpicking =
+  Thieves' Tools, Haggling = Persuasion, Smithing = Smith's Tools…), lock difficulties and recipe
+  quality levels become DCs, *Skill level* conditions ask for proficiency. Asset libraries convert
+  on open the same way. Skills nothing fits (combat, magic and script skills) are dropped.
+- **Breaking:** the script functions `skill_points()` and `give_skill_points()` are removed;
+  `skill()` and `set_skill()` are deprecated (`is_proficient`, `set_proficient`). The `level_up`
+  hook has no `points` any more. Saved games of 0.27 load; their hero gets the project's starting
+  scores and proficiencies.
+
+### Fixes
+- Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
+  weren't translated.
+
 ## 0.27.0 — 2026-11-18
 
 ### Plugins

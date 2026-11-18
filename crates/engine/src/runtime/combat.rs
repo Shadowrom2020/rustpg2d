@@ -197,6 +197,10 @@ impl Game {
     /// A fresh world (the start map is entered by the caller).
     pub(super) fn reset_world(&mut self) {
         self.world = WorldState { player_hp: Some(self.combat.max_hp), hour: self.project.config.start_hour, ..Default::default() };
+        // The hero's SRD ability scores and proficiencies (the creator / race may change them).
+        let rules = &self.project.config.rules;
+        self.world.abilities = rules.abilities;
+        self.world.proficiencies = rules.proficiencies.iter().map(|p| crate::srd::abilities::proficiency_id(p)).filter(|p| !p.is_empty()).collect();
         self.clock_seen = None;
         self.slot = None;
         self.order = None;

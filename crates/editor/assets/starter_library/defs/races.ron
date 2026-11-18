@@ -13,7 +13,7 @@
         max_hp: 2,
         skills: [
             (
-                skill: "haggling",
+                skill: "persuasion",
                 level: 1,
             ),
         ],
@@ -32,12 +32,6 @@
         ],
         max_hp: -2,
         speed: 10.0,
-        skills: [
-            (
-                skill: "scavenging",
-                level: 1,
-            ),
-        ],
         faction: "goblins",
     ),
     (
@@ -53,12 +47,6 @@
         ],
         max_hp: -1,
         speed: 5.0,
-        skills: [
-            (
-                skill: "archery",
-                level: 1,
-            ),
-        ],
         faction: "elves",
     ),
     (
@@ -77,11 +65,11 @@
         defense: 1,
         skills: [
             (
-                skill: "mining",
+                skill: "athletics",
                 level: 1,
             ),
             (
-                skill: "smithing",
+                skill: "smiths-tools",
                 level: 1,
             ),
         ],
@@ -99,12 +87,6 @@
             "orc_f",
         ],
         max_hp: 2,
-        skills: [
-            (
-                skill: "swordsmanship",
-                level: 1,
-            ),
-        ],
         faction: "orcs",
     ),
     (
@@ -121,12 +103,6 @@
         max_hp: 6,
         speed: -15.0,
         defense: 1,
-        skills: [
-            (
-                skill: "toughness",
-                level: 2,
-            ),
-        ],
         size: 1.5,
     ),
 ]

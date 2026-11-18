@@ -26,7 +26,6 @@ pub enum Tab {
     Project,
     Scripts,
     Structures,
-    Skills,
     Spells,
     Recipes,
     Achievements,
@@ -50,7 +49,6 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Sounds => db.sounds.len(),
         Tab::Quests => db.quests.len(),
         Tab::Structures => db.structures.len(),
-        Tab::Skills => db.skills.len(),
         Tab::Spells => db.spells.len(),
         Tab::Recipes => db.recipes.len(),
         Tab::Achievements => db.achievements.len(),
@@ -96,7 +94,6 @@ impl Tab {
             Tab::Sounds => RefKind::Sound,
             Tab::Quests => RefKind::Quest,
             Tab::Structures => RefKind::Structure,
-            Tab::Skills => RefKind::Skill,
             Tab::Spells => RefKind::Spell,
             Tab::Recipes => RefKind::Recipe,
             Tab::Achievements => RefKind::Achievement,
@@ -121,7 +118,6 @@ impl Tab {
             RefKind::Sound => Tab::Sounds,
             RefKind::Quest => Tab::Quests,
             RefKind::Structure => Tab::Structures,
-            RefKind::Skill => Tab::Skills,
             RefKind::Spell => Tab::Spells,
             RefKind::Recipe => Tab::Recipes,
             RefKind::Achievement => Tab::Achievements,
@@ -132,7 +128,7 @@ impl Tab {
             RefKind::Font => Tab::Fonts,
             RefKind::Skin => Tab::Skins,
             RefKind::CommonEvent => Tab::CommonEvents,
-            RefKind::Map => return None,
+            RefKind::Map | RefKind::Skill => return None,
         })
     }
 }
@@ -230,7 +226,6 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Sounds => ph::SPEAKER_HIGH,
         Tab::Structures => ph::HOUSE,
         Tab::Quests => ph::SCROLL,
-        Tab::Skills => ph::STAR,
         Tab::Spells => ph::MAGIC_WAND,
         Tab::Recipes => ph::HAMMER,
         Tab::Achievements => ph::TROPHY,
@@ -328,7 +323,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Fonts, "Fonts"),
             (Tab::Skins, "UI skins"),
             (Tab::Structures, "Structures"),
-            (Tab::Skills, "Skills"),
             (Tab::Spells, "Spells"),
             (Tab::Recipes, "Recipes"),
             (Tab::Quests, "Quests"),
@@ -372,7 +366,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Sheets => db.sheets.get(i).map(|d| (RefKind::Sheet, d.id.clone())),
             Tab::Sounds => db.sounds.get(i).map(|d| (RefKind::Sound, d.id.clone())),
             Tab::Structures => db.structures.get(i).map(|d| (RefKind::Structure, d.id.clone())),
-            Tab::Skills => db.skills.get(i).map(|d| (RefKind::Skill, d.id.clone())),
             Tab::Spells => db.spells.get(i).map(|d| (RefKind::Spell, d.id.clone())),
             Tab::Recipes => db.recipes.get(i).map(|d| (RefKind::Recipe, d.id.clone())),
             Tab::Races => db.races.get(i).map(|d| (RefKind::Race, d.id.clone())),
@@ -392,7 +385,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Sheets => Some(RefKind::Sheet),
                 Tab::Sounds => Some(RefKind::Sound),
                 Tab::Structures => Some(RefKind::Structure),
-                Tab::Skills => Some(RefKind::Skill),
                 Tab::Spells => Some(RefKind::Spell),
                 Tab::Recipes => Some(RefKind::Recipe),
                 Tab::Races => Some(RefKind::Race),
@@ -496,14 +488,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     sel,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| StructureDef { id: unique("structure", ids), name: "New structure".into(), w: 6, h: 5, ..Default::default() },
-                    |d| &mut d.id,
-                ),
-                Tab::Skills => list_ui(
-                    ui,
-                    &mut db.skills,
-                    sel,
-                    |d| format!("{}  ({})", d.name, d.id),
-                    |ids| rustpg2d_engine::skills::SkillDef::new(&unique("skill", ids), "New skill", "", SpriteRef::default(), 5, rustpg2d_engine::skills::SkillEffect::None),
                     |d| &mut d.id,
                 ),
                 Tab::Spells => list_ui(
@@ -682,11 +666,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Quests => {
                         if let Some(d) = db.quests.get_mut(i) {
                             crate::quest_form::quest_form(ui, d, cx.refs, cx.db);
-                        }
-                    }
-                    Tab::Skills => {
-                        if let Some(d) = db.skills.get_mut(i) {
-                            skill_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Spells => {
@@ -3121,26 +3100,23 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     menus_form(ed, ui);
     let c = &mut ed.project.config;
     ui.separator();
-    ui.heading("Skills & magic");
+    ui.heading("Rules (SRD 5.1)");
+    rules_form(ui, &mut c.rules, &ed.refs.skills);
+    ui.separator();
+    ui.heading("Magic");
     {
         let s = &mut c.skills;
-        ui.checkbox(&mut s.enabled, "Skills (K opens the Skills screen; skill points buy levels)").on_hover_text("Define skills in Database › Skills. Points come from the 'Give skill points' action or give_skill_points() in scripts.");
-        ui.add_enabled_ui(s.enabled, |ui| {
-            ui.checkbox(&mut s.magic, "Magic (spells learned from items, cast with mana)").on_hover_text("Define spells in Database › Spells; items with 'Teaches spell' are scrolls and books.");
+        ui.checkbox(&mut s.magic, "Magic (spells learned from items, cast with mana)").on_hover_text("Define spells in Database › Spells; items with 'Teaches spell' are scrolls and books. L opens the Spells tab.");
+        if s.magic {
             egui::Grid::new("skills_cfg").num_columns(2).show(ui, |ui| {
-                ui.label("Starting skill points");
-                ui.add(egui::DragValue::new(&mut s.start_points).range(0..=99));
+                ui.label("Max mana");
+                ui.add(egui::DragValue::new(&mut s.max_mana).range(0..=9999)).on_hover_text("At level 1 (levels add the mana per level)");
                 ui.end_row();
-                if s.magic {
-                    ui.label("Max mana");
-                    ui.add(egui::DragValue::new(&mut s.max_mana).range(0..=9999)).on_hover_text("Before skill bonuses");
-                    ui.end_row();
-                    ui.label("Mana regeneration");
-                    ui.add(egui::DragValue::new(&mut s.mana_regen).range(0.0..=100.0).speed(0.05).suffix(" / s"));
-                    ui.end_row();
-                }
+                ui.label("Mana regeneration");
+                ui.add(egui::DragValue::new(&mut s.mana_regen).range(0.0..=100.0).speed(0.05).suffix(" / s"));
+                ui.end_row();
             });
-        });
+        }
     }
     ui.separator();
     ui.heading("Experience and levels");
@@ -3165,9 +3141,6 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
                 ui.end_row();
                 ui.label("Mana per level");
                 ui.add(egui::DragValue::new(&mut p.mana_per_level).range(0..=999)).on_hover_text("With magic");
-                ui.end_row();
-                ui.label("Skill points per level");
-                ui.add(egui::DragValue::new(&mut p.skill_points_per_level).range(0..=99)).on_hover_text("With skills");
                 ui.end_row();
             });
             let steps: Vec<String> = (2..=p.max_level.clamp(1, 6)).map(|l| format!("level {l}: {} XP", p.xp_for_level(l))).collect();
@@ -3914,72 +3887,56 @@ impl Editor {
     }
 }
 
-fn skill_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SkillDef, cx: &mut Cx) {
-    use rustpg2d_engine::skills::SkillEffect;
-    ui.heading("Skill");
-    rename_row(ui, RefKind::Skill, &d.id, cx.rename);
-    name_row(ui, &mut d.name);
-    ui.label("Description");
-    text_box(ui, &mut d.description, 2, "");
+/// Project › Rules: the new hero's ability scores and proficiencies (until the character creator
+/// sets them), and whether checks show a line on screen.
+pub(crate) fn rules_form(ui: &mut egui::Ui, r: &mut rustpg2d_engine::srd::RulesSettings, suggestions: &[String]) {
+    use rustpg2d_engine::srd::abilities::{self, Ability};
+    ui.weak("Every roll in the game follows the SRD 5.1: ability checks and saving throws roll a d20 plus the ability modifier, plus the proficiency bonus (+2 at level 1) when the hero is proficient. The Skills tab (K) shows them to the player.");
+    ui.label("Ability scores of a new hero");
+    egui::Grid::new("rules_abilities").num_columns(6).show(ui, |ui| {
+        for a in Ability::ALL {
+            ui.label(a.short()).on_hover_text(a.name());
+        }
+        ui.end_row();
+        for a in Ability::ALL {
+            let mut v = r.abilities.score(a);
+            if ui.add(egui::DragValue::new(&mut v).range(1..=30)).on_hover_text(format!("{} {} (modifier {})", a.name(), v, abilities::signed(abilities::modifier(v) as i64))).changed() {
+                r.abilities.set(a, v);
+            }
+        }
+        ui.end_row();
+    });
     ui.horizontal(|ui| {
-        ui.label("Max level");
-        ui.add(egui::DragValue::new(&mut d.max_level).range(1..=99));
-    });
-    ui.separator();
-    ui.heading("Effect");
-    let mut idx = d.effect.index();
-    ui.horizontal_wrapped(|ui| {
-        for (i, (name, tip)) in SkillEffect::LABELS.iter().enumerate() {
-            ui.selectable_value(&mut idx, i, *name).on_hover_text(*tip);
+        if ui.small_button("Standard array").on_hover_text("15 14 13 12 10 8").clicked() {
+            r.abilities = rustpg2d_engine::srd::Abilities::STANDARD;
+        }
+        if ui.small_button("All 10").clicked() {
+            r.abilities = rustpg2d_engine::srd::Abilities::default();
         }
     });
-    if idx != d.effect.index() {
-        d.effect = SkillEffect::template(idx);
+    ui.label("Proficiencies of a new hero").on_hover_text("Skills (perception), tools (thieves-tools) and saving throws (save:dex). The player's race adds its own.");
+    let mut remove = None;
+    for (k, p) in r.proficiencies.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            widgets::suggest(ui, &format!("rules_prof{k}"), p, suggestions, 180.0);
+            let id = abilities::proficiency_id(p);
+            if rustpg2d_engine::srd::Spec::parse(&id, false).is_some() || id.starts_with("save:") {
+                ui.weak(abilities::proficiency_name(&id));
+            } else if !p.trim().is_empty() {
+                ui.weak("(not an SRD skill, tool or save)");
+            }
+            if ui.small_button(ph::X).on_hover_text("Remove").clicked() {
+                remove = Some(k);
+            }
+        });
     }
-    egui::Grid::new("skill_effect").num_columns(2).show(ui, |ui| match &mut d.effect {
-        SkillEffect::None | SkillEffect::Lockpick => {}
-        SkillEffect::MeleeDamage { percent } | SkillEffect::RangedDamage { percent } | SkillEffect::SpellDamage { percent } | SkillEffect::Speed { percent } | SkillEffect::Haggle { percent } | SkillEffect::FoodBonus { percent } | SkillEffect::SneakAttack { percent } => {
-            ui.label("Per level");
-            ui.add(egui::DragValue::new(percent).range(0.0..=100.0).speed(0.5).suffix(" %"));
-            ui.end_row();
-        }
-        SkillEffect::Defense { points } => {
-            ui.label("Per level");
-            ui.add(egui::DragValue::new(points).range(0..=99).suffix(" defense"));
-            ui.end_row();
-        }
-        SkillEffect::Mana { points } => {
-            ui.label("Per level");
-            ui.add(egui::DragValue::new(points).range(0..=999).suffix(" mana"));
-            ui.end_row();
-        }
-        SkillEffect::ManaRegen { per_second } => {
-            ui.label("Per level");
-            ui.add(egui::DragValue::new(per_second).range(0.0..=100.0).speed(0.05).suffix(" mana / s"));
-            ui.end_row();
-        }
-        SkillEffect::Script { function } => {
-            ui.label("Function");
-            widgets::suggest(ui, "skill_fn", function, &cx.refs.functions, 160.0);
-            ui.end_row();
-        }
-        SkillEffect::Gather { tool, percent } => {
-            ui.label("Tool kind");
-            let kinds: Vec<String> = cx.db.items.iter().map(|i| i.tool.clone()).filter(|t| !t.is_empty()).collect();
-            widgets::suggest(ui, "skill_tool", tool, &kinds, 140.0);
-            ui.end_row();
-            ui.label("Per level");
-            ui.add(egui::DragValue::new(percent).range(0.0..=80.0).speed(0.5).suffix(" % fewer hits"));
-            ui.end_row();
-        }
-    });
-    if let SkillEffect::Script { function } = &d.effect {
-        ui.weak(format!("Called as {}(level) whenever the level changes (and when a game starts or loads with the skill at level 1 or more). The script applies the effect itself, e.g. with set_var or flags that other scripts and triggers read.", if function.is_empty() { "fn" } else { function.as_str() }));
+    if let Some(k) = remove {
+        r.proficiencies.remove(k);
     }
-    ui.weak(format!("At level {}: {}", d.max_level, d.effect_text(d.max_level)));
-    ui.separator();
-    ui.heading("Icon");
-    widgets::sprite_field(ui, "skill_icon", &mut d.icon, cx.tex, cx.assets, cx.db, false);
+    if ui.small_button(ui::t(ph::PLUS, "Add proficiency")).clicked() {
+        r.proficiencies.push(String::new());
+    }
+    ui.checkbox(&mut r.show_checks, "Show check results on screen (\"Perception: 14 vs DC 12 - success\")").on_hover_text("Every roll is kept in the journal's Rolls page either way.");
 }
 
 fn achievement_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::achievements::AchievementDef, cx: &mut Cx) {
@@ -4047,14 +4004,14 @@ fn race_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mu
         ui.label("Defense");
         ui.add(egui::DragValue::new(&mut d.defense).range(-20..=50)).on_hover_text("Added to the player's defense");
         ui.end_row();
-        ui.label("Starting skills");
+        ui.label("Proficiencies").on_hover_text("Skills, tools and saving throws a hero of this race is proficient in (added to the project's starting ones)");
         ui.vertical(|ui| {
             let mut remove = None;
             for (k, s) in d.skills.iter_mut().enumerate() {
                 ui.horizontal(|ui| {
-                    widgets::suggest(ui, &format!("race_skill{k}"), &mut s.skill, &cx.refs.skills, 120.0);
-                    ui.label("level");
-                    ui.add(egui::DragValue::new(&mut s.level).range(1..=20));
+                    widgets::suggest(ui, &format!("race_skill{k}"), &mut s.skill, &cx.refs.skills, 160.0);
+                    s.level = s.level.max(1);
+                    ui.weak(rustpg2d_engine::srd::abilities::proficiency_name(&rustpg2d_engine::srd::abilities::proficiency_id(&s.skill)));
                     if ui.small_button("x").clicked() {
                         remove = Some(k);
                     }
@@ -4063,8 +4020,8 @@ fn race_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mu
             if let Some(k) = remove {
                 d.skills.remove(k);
             }
-            if ui.small_button("+ Skill").on_hover_text("A skill level the player starts with (Database \u{E13A} Skills)").clicked() {
-                d.skills.push(rustpg2d_engine::races::RaceSkill { skill: cx.refs.skills.first().cloned().unwrap_or_default(), level: 1 });
+            if ui.small_button("+ Proficiency").on_hover_text("A skill, tool or saving throw the hero is proficient in").clicked() {
+                d.skills.push(rustpg2d_engine::races::RaceSkill { skill: "perception".into(), level: 1 });
             }
         });
         ui.end_row();
@@ -4108,14 +4065,18 @@ fn recipe_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::crafting::RecipeDef, 
         .response
         .on_hover_text("Where it is made: the 'Open crafting' action / open_crafting(station) shows the recipes of a station, e.g. on a workbench prop's Interact trigger");
         ui.end_row();
-        ui.label("Requires skill");
+        ui.label("Tool or skill").on_hover_text("The proficiency the recipe is about: a tool (smiths-tools, alchemists-supplies, cooks-utensils) or an SRD skill. Its check decides the better results.");
         ui.horizontal(|ui| {
-            widgets::suggest(ui, "recipe_skill", &mut d.skill, &cx.refs.skills, 120.0);
+            widgets::suggest(ui, "recipe_skill", &mut d.skill, &cx.refs.skills, 160.0);
             if !d.skill.is_empty() {
-                ui.label("at level");
-                ui.add(egui::DragValue::new(&mut d.level).range(0..=99));
+                let mut needed = d.level > 0;
+                if ui.checkbox(&mut needed, "proficiency needed").on_hover_text("Only a hero proficient in it can make the recipe").changed() {
+                    d.level = needed as u32;
+                }
+                let check = rustpg2d_engine::srd::Spec::parse(&d.check_what(), false).map_or(d.check_what(), |s| s.label);
+                ui.weak(format!("check: {check}"));
             } else {
-                ui.weak("(none)");
+                ui.weak("(none: the better results roll an Intelligence check)");
             }
         });
         ui.end_row();
@@ -4152,14 +4113,12 @@ fn recipe_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::crafting::RecipeDef, 
         ui.end_row();
         ui.label("Better results");
         ui.vertical(|ui| {
-            if d.skill.is_empty() {
-                ui.weak("(choose a required skill first: higher levels of it can make better items)");
-            }
+            ui.weak("Making it rolls the tool or skill check; the best result whose DC the roll meets is made (a failed roll still makes the plain item).");
             let mut remove = None;
             for (k, q) in d.quality.iter_mut().enumerate() {
                 ui.horizontal(|ui| {
-                    ui.label("from level");
-                    ui.add(egui::DragValue::new(&mut q.level).range(1..=99));
+                    ui.label("DC");
+                    ui.add(egui::DragValue::new(&mut q.dc).range(1..=30));
                     ui.label("makes");
                     widgets::suggest(ui, &format!("recipe_quality{k}"), &mut q.result, &cx.refs.items, 130.0);
                     if ui.small_button("x").clicked() {
@@ -4170,9 +4129,9 @@ fn recipe_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::crafting::RecipeDef, 
             if let Some(k) = remove {
                 d.quality.remove(k);
             }
-            if ui.add_enabled(!d.skill.is_empty(), egui::Button::new("+ Better result").small()).on_hover_text("From a higher level of the required skill on, the recipe makes another item (e.g. a Fine Iron Sword)").clicked() {
-                let level = d.quality.iter().map(|q| q.level).max().unwrap_or(d.level) + 1;
-                d.quality.push(rustpg2d_engine::crafting::QualityStep { level, result: d.result.clone() });
+            if ui.small_button("+ Better result").on_hover_text("A crafting roll of this DC or more makes another item (e.g. a Fine Iron Sword)").clicked() {
+                let dc = d.quality.iter().map(|q| q.dc + 5).max().unwrap_or(15).min(30);
+                d.quality.push(rustpg2d_engine::crafting::QualityStep { dc, result: d.result.clone() });
             }
         });
         ui.end_row();
@@ -4194,13 +4153,10 @@ fn spell_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SpellDef, cx: 
         ui.label("Cooldown");
         ui.add(egui::DragValue::new(&mut d.cooldown).range(0.0..=600.0).speed(0.1).suffix(" s"));
         ui.end_row();
-        ui.label("Requires skill");
+        ui.label("Requires proficiency").on_hover_text("Only a hero proficient in this skill (arcana, religion) can learn and cast it");
         ui.horizontal(|ui| {
-            widgets::suggest(ui, "spell_skill", &mut d.skill, &cx.refs.skills, 120.0);
-            if !d.skill.is_empty() {
-                ui.label("at level");
-                ui.add(egui::DragValue::new(&mut d.level).range(0..=99));
-            } else {
+            widgets::suggest(ui, "spell_skill", &mut d.skill, &cx.refs.skills, 160.0);
+            if d.skill.is_empty() {
                 ui.weak("(none)");
             }
         });

@@ -275,7 +275,9 @@ pub enum Cond {
     PlayerSex { sex: crate::state::Sex },
     /// The time of day is between `from` and `to` hours (wraps around midnight, e.g. 20 to 6).
     TimeBetween { from: f32, to: f32 },
-    /// A skill's level compared with a value.
+    /// Whether the hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`,
+    /// `save:dex`): 1 when proficient, 0 when not, compared with `level` ("≥ 1" = proficient).
+    /// Until 0.27 a skill tree's level.
     Skill { skill: String, op: CmpOp, level: i64 },
     /// The player has learned the spell.
     KnowsSpell { spell: String },
@@ -297,6 +299,12 @@ pub enum Cond {
     /// A text variable equals a text (`ignore_case`: "Rosehill" = "rosehill"; leading and
     /// trailing spaces never count; an empty `value` = the variable is empty).
     TextVar { name: String, value: String, #[serde(default)] ignore_case: bool },
+    /// The last ability check or saving throw (*Ability check*, `check()`, a lock, crafting)
+    /// succeeded, by at least `by` (0 = just succeeded).
+    CheckPassed {
+        #[serde(default)]
+        by: i64,
+    },
 }
 
 /// Whether `hour` lies in `from..to` (hours 0..24; `from > to` wraps around midnight).
@@ -321,7 +329,7 @@ impl Cond {
             Cond::Quest { .. } => "Quest",
             Cond::PlayerSex { .. } => "Player sex",
             Cond::TimeBetween { .. } => "Time of day",
-            Cond::Skill { .. } => "Skill level",
+            Cond::Skill { .. } => "Proficient in",
             Cond::KnowsSpell { .. } => "Knows spell",
             Cond::Level { .. } => "Player level",
             Cond::HasEffect { .. } => "Player has effect",
@@ -331,6 +339,7 @@ impl Cond {
             Cond::FactionStanding { .. } => "Faction standing",
             Cond::Timer { .. } => "Timer",
             Cond::TextVar { .. } => "Text variable",
+            Cond::CheckPassed { .. } => "Check passed",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -354,6 +363,7 @@ impl Cond {
             Cond::FactionStanding { faction: String::new(), op: CmpOp::Le, value: -20 },
             Cond::Timer { name: "timer".into(), op: CmpOp::Gt, seconds: 0 },
             Cond::TextVar { name: String::new(), value: String::new(), ignore_case: true },
+            Cond::CheckPassed { by: 0 },
         ]
     }
 }
@@ -382,7 +392,7 @@ impl Condition {
             Cond::Quest { quest, check, stage } => world.check_quest(quest, *check, *stage),
             Cond::PlayerSex { sex } => world.player_sex == *sex,
             Cond::TimeBetween { from, to } => hour_between(world.hour, *from, *to),
-            Cond::Skill { skill, op, level } => op.apply(world.skill_level(skill) as i64, *level),
+            Cond::Skill { skill, op, level } => op.apply(world.is_proficient(skill) as i64, *level),
             Cond::KnowsSpell { spell } => world.spells.contains(spell),
             Cond::Level { op, value } => op.apply(world.player_level() as i64, *value),
             Cond::HasEffect { kind } => world.effects.iter().any(|e| e.kind == *kind),
@@ -401,6 +411,7 @@ impl Condition {
                     a == b
                 }
             }
+            Cond::CheckPassed { by } => world.last_check.as_ref().is_some_and(|r| r.success == Some(true) && r.margin() >= *by),
         };
         v != self.negate
     }
@@ -487,9 +498,10 @@ pub enum Action {
     },
     /// Sets the time of day (hours, 0..24).
     SetTime { hour: f32 },
-    /// Skill points the player can spend (negative takes them away).
+    /// Until 0.27: skill points. Does nothing since the SRD rules (no template).
     GiveSkillPoints { amount: i32 },
-    /// Sets a skill to a level directly (no points spent).
+    /// Makes the hero proficient in a skill, tool or saving throw (`level` > 0) or takes the
+    /// proficiency away (0). Until 0.27 a skill tree's level.
     SetSkill { skill: String, level: u32 },
     /// Teaches a spell.
     LearnSpell { spell: String },
@@ -582,8 +594,9 @@ pub enum Action {
     OpenCrafting { station: String, title: String },
     /// Unlocks an achievement (the player's, kept across save games).
     UnlockAchievement { id: String },
-    /// The lockpicking game for a custom puzzle: 1 (picked) or 0 goes into variable `var`;
-    /// blocks until it is over. `difficulty` like a lock's (the player's skill makes it easier).
+    /// A custom lock puzzle: a DEX (Thieves' Tools) check against the DC `difficulty`; 1 (picked)
+    /// or 0 goes into variable `var`. (Until 0.27 the lockpicking game with a skill level as
+    /// difficulty; the editor converts old levels to DCs.)
     Lockpick { difficulty: u32, var: String },
     /// The player sleeps `hours` (camping, an inn's "Rest"): the screen fades, the clock jumps,
     /// HP and mana are restored; blocks until the player is awake again.
@@ -819,6 +832,24 @@ pub enum Action {
     /// own (the placed character's, its definition's, its race's). Saved; who is hostile to whom
     /// is worked out again at once.
     SetFaction { target: TargetName, faction: String },
+    /// Rolls an ability check (`what`: a skill like `persuasion`, an ability like `dex`, or
+    /// ability:tool like `dex:thieves-tools`) or with `save` a saving throw (`what` = the ability)
+    /// against `dc`, writes it into the roll log, remembers it (*Check passed*) and runs `then` on
+    /// a success, `otherwise` on a failure.
+    Check {
+        what: String,
+        #[serde(default)]
+        save: bool,
+        dc: i32,
+        #[serde(default)]
+        mode: crate::srd::Mode,
+        #[serde(default)]
+        then: Vec<Action>,
+        #[serde(default)]
+        otherwise: Vec<Action>,
+    },
+    /// Rolls dice (`2d6+STR`, `1d20`, `8d6`) into variable `var`, and into the roll log.
+    Roll { dice: String, var: String },
 }
 
 fn opaque_black() -> [u8; 4] {
@@ -899,7 +930,7 @@ impl Action {
     /// so nobody has to spell the recursion out.
     pub fn walk<'a>(&'a self, f: &mut dyn FnMut(&'a Action)) {
         f(self);
-        if let Action::If { then, otherwise, .. } = self {
+        if let Action::If { then, otherwise, .. } | Action::Check { then, otherwise, .. } = self {
             for a in then.iter().chain(otherwise) {
                 a.walk(f);
             }
@@ -909,7 +940,7 @@ impl Action {
     /// [`Action::walk`] with mutable access.
     pub fn walk_mut(&mut self, f: &mut dyn FnMut(&mut Action)) {
         f(self);
-        if let Action::If { then, otherwise, .. } = self {
+        if let Action::If { then, otherwise, .. } | Action::Check { then, otherwise, .. } = self {
             for a in then.iter_mut().chain(otherwise.iter_mut()) {
                 a.walk_mut(f);
             }
@@ -942,8 +973,8 @@ impl Action {
             Action::Quest { .. } => "Quest",
             Action::Patrol { .. } => "Patrol",
             Action::SetTime { .. } => "Set time of day",
-            Action::GiveSkillPoints { .. } => "Give skill points",
-            Action::SetSkill { .. } => "Set skill level",
+            Action::GiveSkillPoints { .. } => "Give skill points (unused)",
+            Action::SetSkill { .. } => "Set proficiency",
             Action::LearnSpell { .. } => "Learn spell",
             Action::AddMana { .. } => "Add mana",
             Action::DamageAround { .. } => "Damage around player",
@@ -977,7 +1008,7 @@ impl Action {
             Action::Companion { .. } => "Companion",
             Action::OpenCrafting { .. } => "Open crafting",
             Action::UnlockAchievement { .. } => "Unlock achievement",
-            Action::Lockpick { .. } => "Lockpicking game",
+            Action::Lockpick { .. } => "Pick a lock (DEX check)",
             Action::Sleep { .. } => "Sleep",
             Action::HealCharacter { .. } => "Heal character",
             Action::CompanionOrder { .. } => "Companion order",
@@ -1010,6 +1041,9 @@ impl Action {
             Action::ScrollText { .. } => "Scroll text",
             Action::PlayMusicEffect { .. } => "Play music effect",
             Action::SetFaction { .. } => "Set faction",
+            Action::Check { save: false, .. } => "Ability check",
+            Action::Check { save: true, .. } => "Saving throw",
+            Action::Roll { .. } => "Roll dice",
         }
     }
 
@@ -1040,7 +1074,6 @@ impl Action {
             Action::Quest { quest: s(), op: crate::quest::QuestOp::Start, stage: 0 },
             Action::Patrol { target: "self".into(), active: true, points: Vec::new() },
             Action::SetTime { hour: 8.0 },
-            Action::GiveSkillPoints { amount: 1 },
             Action::SetSkill { skill: String::new(), level: 1 },
             Action::LearnSpell { spell: String::new() },
             Action::AddMana { amount: 10 },
@@ -1074,7 +1107,7 @@ impl Action {
             Action::Companion { target: "self".into(), join: true },
             Action::OpenCrafting { station: s(), title: s() },
             Action::UnlockAchievement { id: s() },
-            Action::Lockpick { difficulty: 1, var: "picked".into() },
+            Action::Lockpick { difficulty: 12, var: "picked".into() },
             Action::Sleep { hours: 8.0 },
             Action::HealCharacter { target: "self".into(), amount: 2 },
             Action::CompanionOrder { target: "self".into(), order: "stay".into() },
@@ -1120,6 +1153,9 @@ impl Action {
             Action::ScrollText { text: "# The End\n\nThank you for playing!".into(), speed: 40.0, background: [0, 0, 0, 255] },
             Action::PlayMusicEffect { sound: s(), wait: false },
             Action::SetFaction { target: "self".into(), faction: String::new() },
+            Action::Check { what: "persuasion".into(), save: false, dc: 12, mode: crate::srd::Mode::Normal, then: Vec::new(), otherwise: Vec::new() },
+            Action::Check { what: "dex".into(), save: true, dc: 12, mode: crate::srd::Mode::Normal, then: Vec::new(), otherwise: Vec::new() },
+            Action::Roll { dice: "1d20".into(), var: "roll".into() },
         ]
     }
 }

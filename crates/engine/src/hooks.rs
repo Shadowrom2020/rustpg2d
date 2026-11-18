@@ -25,7 +25,7 @@ pub const HOOKS: &[(&str, &str, &str)] = &[
     ("heal", "target, amount", "The player or a character is about to be healed by `amount` (set it; 0 = no healing)."),
     ("item_use", "item, cancel", "The player uses an item from the inventory: set `cancel` to true to stop it."),
     ("xp", "amount", "The player is about to gain (or lose) `amount` experience (set it)."),
-    ("level_up", "level, hp, mana, points", "The player reaches `level`: what it gives (max HP is the project's; `hp` heals, `mana`, skill `points`), each can be set."),
+    ("level_up", "level, hp, mana", "The player reaches `level`: what it gives (max HP is the project's; `hp` heals, `mana`), each can be set."),
     ("buy", "item, price, merchant", "The price of one `item` in a merchant's stock (set `price`); asked when the trade window opens and after each trade."),
     ("sell", "item, price, merchant", "What a merchant pays for one `item` (set `price`; -1 = not interested)."),
     ("craft", "recipe, count, cancel", "The player makes a recipe: `count` is how many results one make gives (set it), `cancel` stops it."),

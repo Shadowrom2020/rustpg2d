@@ -40,8 +40,8 @@ debug builds play at full speed; CI's test job overrides it to 0 for speed.
 
 ## 2. Data model
 
-**Project** = a folder: `project.ron` (`ProjectConfig`: name, player, inventory size, skills,
-languages, …), `defs/*.ron` (fifteen lists, `project::DEFS`), `maps/*.map`, `sprites/`, `materials/`, `tilesets/` (pictures of converted tiles),
+**Project** = a folder: `project.ron` (`ProjectConfig`: name, player, inventory size, magic, the
+SRD `rules` and `rules_version`, languages, …), `defs/*.ron` (seventeen lists, `project::DEFS`), `maps/*.map`, `sprites/`, `materials/`, `tilesets/` (pictures of converted tiles),
 `sounds/`, `scripts/*.rhai`, `lang/<code>.ron`, and the ignored `saves/`. `Project::load` reads it
 all into `Database` (`defs.rs`), one `Vec` per kind, referenced by string ids everywhere
 (`refactor.rs` knows every reference for renames and library exports: `refs_of_*`).
@@ -108,6 +108,19 @@ mounts it in `sys` as the `data` folder: `sys::read` / `exists` / `files_in` ser
 from the pack (reading a file by seeking) and fall back to the disk, so the rest of the engine
 doesn't know whether a game is packed. The web game downloads the same format whole
 (`release::read_web_pack`) into `sys`'s in-memory files.
+
+**The SRD 5.1 rules** (`srd/`): `dice.rs` parses and rolls dice expressions (`2d6+STR`) with a
+seedable thread-local xorshift generator (`seed`, `RUSTPG2D_SEED`; automated runs start at 1),
+`abilities.rs` has the six abilities, modifiers, the proficiency bonus by level, the 18 skills and
+the SRD's tools by their SRD index ids, `check.rs` resolves what a check rolls (`Spec`: a skill, an
+ability, `ability:tool`, a saving throw) and the `RollRecord` of the roll log. The hero's
+`abilities`, `proficiencies` and `rolls` live in `WorldState`, which rolls with them
+(`WorldState::check` / `roll_dice`), so the runner, scripts and the game share one path; the
+game shows new rolls by `WorldState::roll_count` (`runtime/rolls.rs`). Locks (`LockSpec::pick_dc`)
+and recipe quality steps (`QualityStep::dc`) read the old skill levels through `serde(from)`
+reprs; `srd_convert.rs` turns a 0.27 project's skill tree into proficiencies once (by
+`ProjectConfig::rules_version`), renaming skill ids with the refactor machinery (`RefKind::Skill`
+is no definition any more: it names a proficiency).
 
 **Translations** (`lang.rs`): `lang/<code>.ron` with `texts` (content: dialogs, names, quest texts,
 collected by `content_texts`) and `ui` (runtime strings; English is the key). The game swaps the
@@ -347,7 +360,8 @@ means per format:
   the format (and the keystream, pinned by a test) must not change without a new magic and a
   reader for the old one.
 - **Saves**: `WorldState` fields all default; unknown fields are ignored, so a newer save loads in
-  an older game minus what it does not know.
+  an older game minus what it does not know. `SAVE_VERSION` (2 since 0.28) lets loading migrate:
+  a save below 2 gets the project's starting SRD scores and proficiencies.
 - **Libraries**: existing libraries only gain new ids from a changed starter set on their own
   (images that are pure extensions are replaced); changed assets arrive through *Update asset
   library*. Bump `STARTER_RULES` when the way starter sets are applied changes, and regenerate

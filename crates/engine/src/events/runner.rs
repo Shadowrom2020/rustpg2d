@@ -124,6 +124,19 @@ impl ActionRunner {
                     let branch = if met { then } else { otherwise };
                     self.push_front(branch.iter().cloned().map(|a| (a, ctx.clone())).collect());
                 }
+                Action::Check { what, save, dc, mode, then, otherwise } => {
+                    let passed = host.world().check(what, *dc, *mode, *save).is_some_and(|r| r.success == Some(true));
+                    let branch = if passed { then } else { otherwise };
+                    self.push_front(branch.iter().cloned().map(|a| (a, ctx.clone())).collect());
+                }
+                Action::Roll { dice, var } => {
+                    let w = host.world();
+                    if let Some(r) = w.roll_dice(dice) {
+                        if !var.trim().is_empty() {
+                            w.set_var(var, r.total);
+                        }
+                    }
+                }
                 Action::SetFlag { name, value } => host.world().set_flag(name, *value),
                 Action::SetVar { name, op, value } => {
                     let w = host.world();
@@ -203,6 +216,37 @@ mod tests {
         fn script_condition(&mut self, f: &str, _: &ActionCtx) -> bool {
             f == "yes"
         }
+    }
+
+    /// *Ability check* rolls once, runs its success or failure branch and is remembered for
+    /// *Check passed*; *Roll dice* puts its total into a variable.
+    #[test]
+    fn checks_branch_and_are_remembered() {
+        let mut host = Host::default();
+        host.world.abilities = crate::srd::Abilities([10, 10, 10, 10, 10, 30]);
+        host.world.set_proficient("persuasion", true);
+        let mut r = ActionRunner::default();
+        let check = |dc| Action::Check {
+            what: "persuasion".into(),
+            save: false,
+            dc,
+            mode: crate::srd::Mode::Normal,
+            then: vec![Action::Emit { name: "won".into() }],
+            otherwise: vec![Action::Emit { name: "lost".into() }],
+        };
+        // CHA 30 (+10) and proficiency (+2): DC 5 always passes, DC 40 never does.
+        r.push(&[check(5), Action::Roll { dice: "2d6+CHA".into(), var: "r".into() }], &ActionCtx::default());
+        r.update(&mut host, 0.016);
+        assert_eq!(host.log, vec!["emit:won"]);
+        assert!(Condition::new(Cond::CheckPassed { by: 0 }).eval(&host.world, &mut |_| false));
+        assert!((12..=22).contains(&host.world.var("r")), "{}", host.world.var("r"));
+        r.push(&[check(40)], &ActionCtx::default());
+        r.update(&mut host, 0.016);
+        assert_eq!(host.log.last().unwrap(), "emit:lost");
+        assert!(!Condition::new(Cond::CheckPassed { by: 0 }).eval(&host.world, &mut |_| false));
+        let log: Vec<String> = host.world.rolls.iter().map(|r| r.status()).collect();
+        assert_eq!(log.len(), 3, "{log:?}");
+        assert!(log[0].starts_with("persuasion:") && log[0].contains(":ok") && log[1].starts_with("2d6"), "{log:?}");
     }
 
     #[test]

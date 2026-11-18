@@ -9,7 +9,7 @@ language when the game offers it.
 1. *Database › Project › Languages*: set the language the game is **written in** (a code like `en`).
 2. **Export translation template** with a language code (`de`, `fr`, `pt-br`…). It writes
    `lang/<code>.ron` into the project with every text players see, each with an empty translation:
-   names and descriptions of items, props, characters, quests and their stages, skills, spells and
+   names and descriptions of items, props, characters, quests and their stages, spells and
    achievements, the game's name, the maps' titles, the menus' own entries and the credits text
    (*Database › Project › Title screen*), the lines and choices of every trigger, the
    lock, container and furniture messages, and the texts scripts pass to `say` and `choice`.

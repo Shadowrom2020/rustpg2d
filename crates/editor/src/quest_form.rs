@@ -90,9 +90,6 @@ pub fn summary(d: &QuestDef, db: &Database) -> String {
     if d.xp > 0 {
         reward.push(format!("{} XP", d.xp));
     }
-    if d.rewards.skill_points > 0 {
-        reward.push(format!("{} skill points", d.rewards.skill_points));
-    }
     if !d.rewards.actions.is_empty() {
         reward.push(format!("{} more action(s)", d.rewards.actions.len()));
     }
@@ -285,9 +282,6 @@ fn rewards_ui(ui: &mut egui::Ui, d: &mut QuestDef, refs: &Refs) {
     egui::Grid::new("quest_rewards").num_columns(2).show(ui, |ui| {
         ui.label("Experience");
         ui.add(egui::DragValue::new(&mut d.xp).range(0..=1_000_000).suffix(" XP")).on_hover_text("Project › Experience and levels must be on.");
-        ui.end_row();
-        ui.label("Skill points");
-        ui.add(egui::DragValue::new(&mut d.rewards.skill_points).range(0..=100));
         ui.end_row();
     });
     actions_section(ui, "Also", "reward_actions", &mut d.rewards.actions, refs);

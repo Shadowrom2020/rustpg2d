@@ -171,7 +171,8 @@ JRPG maker. Things that apply to all four releases:
   - The editor converts what it can on open, with a backup. Characters get stat blocks from their
     old values (HP to hit dice, damage to an attack, defense to AC), races map to SRD races,
     items keep their ids and become SRD equipment where one fits.
-  - Saved games of earlier versions don't load: a *Breaking:* line in each release.
+  - Saved games: a migration where it can be done (0.28's `SAVE_VERSION` 2 gives an old save's
+    hero the project's starting scores); where it can't, they don't load, with a *Breaking:* line.
   - Script functions of the old systems (`skill`, `mana`, `learn_spell`, …) are removed or remapped,
     as listed in `08-scripting.md`.
 - **The example:** Emberbrook moves to the rules release by release.
@@ -186,7 +187,7 @@ JRPG maker. Things that apply to all four releases:
 The core of the SRD: dice, abilities, checks, races, conditions, rests and the character
 sheet.
 
-- [ ] Dice, abilities and checks — `feature/srd-core`
+- [x] Dice, abilities and checks — `feature/srd-core`
 
   **Goal.** Every roll in the game is an SRD roll.
 
@@ -206,17 +207,60 @@ sheet.
   - **Replaces:** the engine's skill tree and skill points (`skills.rs` skill effects), the
     *Skill level* condition and `skill()` (remapped to proficiency).
 
-  **Engine.** A new `srd/` module (dice, abilities, skills, checks), conditions and actions
-  (appended), script functions, the journal's roll log, the conversion of old skills.
+  **Decided while building.**
+  - **Checks are actions, not conditions:** conditions are evaluated for quest markers, choice
+    visibility and editor previews, so rolling inside one would roll again and again. *Ability
+    check* / *Saving throw* are one action with *On a success* / *On a failure* actions; the
+    condition *Check passed* (by at least N) reads the last result. *Roll dice* rolls into a variable.
+  - **What a check rolls** is written as a skill (`persuasion`), an ability (`dex`) or
+    `ability:tool` (`dex:thieves-tools`); saving throws name the ability. Proficiencies are ids:
+    the SRD's index names of skills and tools, `save:dex` for saving throws.
+  - **The hero's data** (`abilities`, `proficiencies`, the last 50 `rolls`) lives in `WorldState`,
+    which also rolls (`check`, `roll_dice`), so scripts, the action runner and the game share one
+    path. The dice generator is thread-local and seedable (`seed N`, `RUSTPG2D_SEED`; autoplay
+    starts at 1).
+  - **Until the creator item**, *Database › Project › Rules* sets the new hero's scores (standard
+    array by default) and proficiencies; races add theirs (`RaceDef.skills` holds proficiency ids).
+  - **The skill tree is removed**, not remapped: skill definitions, points, effects and the Database
+    tab. The K screen's *Skills* tab shows the SRD page instead (scores, saves, the 18 skills,
+    tools); the full character sheet comes with `feature/srd-sheet`. Real-time combat, mana and
+    spells stay (spells need a proficiency instead of a skill level).
+  - **The lockpicking minigame is removed** (the user's decision): picking is a DEX (Thieves' Tools)
+    check against `LockSpec::pick_dc` (old `pick_difficulty` levels convert to DCs on load); a failed
+    lock waits ten game minutes. Fishing keeps its minigame.
+  - **Crafting**: a recipe's `skill` is a proficiency (`level` > 0 = needed); quality steps have
+    DCs and crafting rolls INT with the tool (or the skill's ability); a failed roll still makes the
+    plain item. The example's recipes need no proficiency (nobody can gain one in play yet).
+  - **Conversion** (`srd_convert.rs`, by `ProjectConfig::rules_version`): the editor and libraries
+    convert once, with a backup; skill ids are renamed through the refactor machinery
+    (`RefKind::Skill` = a proficiency id, no definition). Saves get `SAVE_VERSION` 2: older saves
+    load with the project's starting scores (no break for saves after all).
+  - **The example** had no shrine riddle and no haggling: the shrine's first look is a Religion check
+    (DC 12: lore and 15 XP, instead of an elder's line), and Tilda's quest reward offers "Ask for a
+    bit more" (Persuasion, DC 13: ten more coins). A **Locked Chest** (DC 12) stands by the river.
+  - Found on the way: runtime templates failed when a value started with a multi-byte letter
+    ("Überzeugen"); fixed in `lang.rs`.
+
+  **Engine.** The `srd/` module (dice, abilities, skills, tools, checks), `srd_convert.rs`,
+  `Action::Check` / `Action::Roll` and `Cond::CheckPassed` (appended), script functions (API 0.28),
+  the journal's *Rolls* page and the HUD lines (`runtime/rolls.rs`), the SRD Skills tab, lock checks,
+  crafting checks, `ProjectConfig::rules` / `rules_version`, `SAVE_VERSION` 2.
 
   **Example.**
-  - Lockpicking becomes a DEX (Thieves' Tools) check.
-  - The shrine's riddle becomes an INT (Religion) check.
-  - Tilda's haggling becomes CHA (Persuasion).
+  - Lockpicking is a DEX (Thieves' Tools) check: the Locked Chest by the river (DC 12).
+  - The shrine's carvings are an INT (Religion) check.
+  - Tilda's haggling is CHA (Persuasion).
 
-  **Verify.** Unit tests: dice parser and statistics, modifiers, proficiency by level. Autoplay with
-  a fixed seed: a check passes and one fails (`status` prints `rolls=`), and the roll log appears in
-  screenshots.
+  **Verify (done).** Unit tests: the dice parser and errors, fixed-seed statistics (d20, advantage,
+  disadvantage means), modifiers 1-30, proficiency by level, check maths with proficiency and tools,
+  old lock / quality levels to DCs, the skill-to-proficiency table, a 0.27 project converting
+  (fixture `project-0.27.0`), the runner's check branches, the Rules form (UI test). Autoplay with
+  fixed seeds on a scratch copy: the chest failed (7 vs 12), refused within ten minutes, picked
+  after an hour (13 vs 12) and opened; the shrine's Religion check (18 vs 12: lore, +15 XP);
+  Tilda's haggle passing (14 vs 13: +10 coins) and failing (4 vs 13); crafting a Fine Iron Sword
+  (19 vs 12) and a plain one (3); screenshots of the check lines, the Rolls page and the Skills tab
+  in English and German. Editor: the *Ability check* action form, *Project › Rules*, the example's
+  conversion (9 skills mapped, 5 dropped) and the problems list (none).
 
 - [ ] Races and the character creator — `feature/srd-races`
 

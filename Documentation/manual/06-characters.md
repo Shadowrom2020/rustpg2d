@@ -270,7 +270,8 @@ Tick **Merchant** in the character form to make every copy a trader:
 A placed character can *Customize stock & prices* or become a merchant on its own (*Make this a
 merchant*). In the game, talking to a merchant runs its *Interact* triggers (a greeting) and then
 opens the trade window. Items the player sells join the stock, and every merchant's stock is kept
-in save games. The *Haggle* skill effect improves prices.
+in save games. Prices can change with the *buy* and *sell* [script hooks](08-scripting.md#script-hooks)
+(the example's friends' prices), and an *Ability check* (Persuasion) in a dialog makes a haggle.
 
 ![Tilda's shop](../images/game-shop.webp)
 
@@ -359,11 +360,13 @@ A race has:
 - **models** for men and women. The creator offers the race's models of the chosen sex with their
   colour features; without any, the project's playable models;
 - for **a player of this race**: extra **max HP** (negative: fewer), **speed** in percent,
-  **defense**, and **starting skills**, skill levels a new game begins with. In the example a
-  human starts with Haggling 1 and 2 more HP; a goblin with Scavenging 1, 2 fewer HP and 10 %
-  more speed; an elf with Archery 1 (5 % faster, 1 HP less); a dwarf with Mining 1 and Smithing 1
-  (3 more HP, +1 defense, 10 % slower); an orc with Swordsmanship 1 (2 more HP); a troll with
-  Toughness 2 (6 more HP, +1 defense, 15 % slower, size 1.5);
+  **defense**, and **proficiencies**: SRD skills, tools and saving throws (`perception`,
+  `smiths-tools`, `save:con`) the hero adds to the project's starting ones
+  ([Gameplay › Rules](09-gameplay.md#rules-srd-51)). In the example a human is proficient in
+  Persuasion and has 2 more HP; a goblin has 2 fewer HP and 10 % more speed; an elf is 5 % faster
+  with 1 HP less; a dwarf is proficient in Athletics and Smith's Tools (3 more HP, +1 defense, 10 %
+  slower); an orc has 2 more HP; a troll 6 more HP, +1 defense, 15 % slower, size 1.5. (The SRD's
+  races and their traits come with the next item of 0.28.)
 - a **size**: characters whose model belongs to the race are drawn that much larger (or smaller)
   and get a hitbox to match (trolls 1.5);
 - **Playable**: offered in the character creator. In the example humans, elves and dwarves are

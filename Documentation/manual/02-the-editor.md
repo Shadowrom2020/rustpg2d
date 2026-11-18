@@ -152,7 +152,7 @@ within two seconds.
 ```
 project.ron           the game's name, start map and spawn, pixel scale, player character and settings
 defs/                 the definitions: items, props, characters, materials, scatter sets, sprite
-                      sheets, sounds, fonts, quests, skills, spells, recipes, achievements,
+                      sheets, sounds, fonts, quests, spells, recipes, achievements,
                       structures (text files)
 maps/<name>.map       the maps
 scripts/*.rhai        the scripts (all files share one namespace)

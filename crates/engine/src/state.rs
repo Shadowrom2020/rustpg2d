@@ -131,9 +131,9 @@ pub struct PatrolState {
 }
 
 /// The save game layout this version writes (`WorldState::version`). Saves of older versions
-/// carry none (0); every field they lack has a default. The number only gives a future
-/// migration something to branch on.
-pub const SAVE_VERSION: u32 = 1;
+/// carry none (0); every field they lack has a default. 2 (0.28): the SRD rules; older saves get
+/// the project's starting ability scores and proficiencies when they load.
+pub const SAVE_VERSION: u32 = 2;
 
 fn save_version<S: serde::Serializer>(_: &u32, s: S) -> Result<S::Ok, S::Error> {
     s.serialize_u32(SAVE_VERSION)
@@ -225,11 +225,22 @@ pub struct WorldState {
     /// Counter for the uids of placed furniture.
     #[serde(default)]
     pub next_furniture: u32,
-    /// skill id -> level (bought with skill points).
+    /// The hero's ability scores (SRD 5.1), STR to CHA.
     #[serde(default)]
-    pub skills: BTreeMap<String, u32>,
-    #[serde(default)]
-    pub skill_points: u32,
+    pub abilities: crate::srd::Abilities,
+    /// What the hero is proficient in: skills (`stealth`), tools (`thieves-tools`), saving throws
+    /// (`save:dex`); see [`crate::srd::abilities::proficiency_id`].
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub proficiencies: BTreeSet<String>,
+    /// The roll log: the last [`crate::srd::check::LOG_LEN`] rolls, newest last.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rolls: Vec<crate::srd::RollRecord>,
+    /// The last check or saving throw (*Check passed*); not saved.
+    #[serde(skip)]
+    pub last_check: Option<crate::srd::RollRecord>,
+    /// Rolls made so far in this session (the game shows the new ones); not saved.
+    #[serde(skip)]
+    pub roll_count: u64,
     /// Learned spells.
     #[serde(default)]
     pub spells: BTreeSet<String>,
@@ -496,8 +507,70 @@ impl WorldState {
         self.level.max(1)
     }
 
-    pub fn skill_level(&self, id: &str) -> u32 {
-        self.skills.get(id).copied().unwrap_or(0)
+    /// Whether the hero is proficient in a skill, tool or saving throw (`"stealth"`,
+    /// `"Thieves' Tools"`, `"save:dex"`).
+    pub fn is_proficient(&self, what: &str) -> bool {
+        self.proficiencies.contains(&crate::srd::abilities::proficiency_id(what))
+    }
+
+    pub fn set_proficient(&mut self, what: &str, on: bool) {
+        let id = crate::srd::abilities::proficiency_id(what);
+        if id.is_empty() {
+            return;
+        }
+        if on {
+            self.proficiencies.insert(id);
+        } else {
+            self.proficiencies.remove(&id);
+        }
+    }
+
+    /// The hero's scores, proficiencies and level for a roll.
+    pub fn roller(&self) -> crate::srd::check::Roller<'_> {
+        crate::srd::check::Roller { abilities: &self.abilities, proficiencies: &self.proficiencies, level: self.player_level() }
+    }
+
+    /// The hero's bonus to a check (`"stealth"`, `"dex"`, `"dex:thieves-tools"`) or, with `save`,
+    /// a saving throw; `None` = nothing known by that name.
+    pub fn check_bonus(&self, what: &str, save: bool) -> Option<i64> {
+        crate::srd::Spec::parse(what, save).map(|s| s.modifier(&self.roller()))
+    }
+
+    /// Rolls an ability check (or with `save` a saving throw) against `dc`, writes it into the
+    /// roll log and remembers it for *Check passed*. `None` (and an error line) = unknown name.
+    pub fn check(&mut self, what: &str, dc: i32, mode: crate::srd::Mode, save: bool) -> Option<crate::srd::RollRecord> {
+        let Some(spec) = crate::srd::Spec::parse(what, save) else {
+            eprintln!("[rules] '{what}' is no {} (an ability like dex, a skill like stealth, or ability:tool like dex:thieves-tools)", if save { "saving throw" } else { "ability check" });
+            return None;
+        };
+        let rec = spec.roll(&self.roller(), dc, mode);
+        self.last_check = Some(rec.clone());
+        self.log_roll(rec.clone());
+        Some(rec)
+    }
+
+    /// Rolls a dice expression (`2d6+STR`) with the hero's modifiers into the roll log; `None`
+    /// (and an error line) when it doesn't parse.
+    pub fn roll_dice(&mut self, expr: &str) -> Option<crate::srd::RollRecord> {
+        let e = match crate::srd::Expr::parse(expr) {
+            Ok(e) => e,
+            Err(err) => {
+                eprintln!("[rules] {err}");
+                return None;
+            }
+        };
+        let rolled = e.roll(&self.roller());
+        let rec = crate::srd::RollRecord::plain(expr.trim(), &rolled);
+        self.log_roll(rec.clone());
+        Some(rec)
+    }
+
+    /// Adds a roll to the log (keeping the last [`crate::srd::check::LOG_LEN`]).
+    pub fn log_roll(&mut self, rec: crate::srd::RollRecord) {
+        self.rolls.push(rec);
+        let extra = self.rolls.len().saturating_sub(crate::srd::check::LOG_LEN);
+        self.rolls.drain(..extra);
+        self.roll_count += 1;
     }
 
     /// Fills in text placeholders (dialogs, choices, quest texts):

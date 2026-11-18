@@ -370,11 +370,11 @@ pub fn lock_ui(ui: &mut Ui, id: &str, lock: &mut LockSpec, refs: &Refs, tex: &Te
     ui.add_enabled_ui(!disappears, |ui| {
         let label = if lock.key.is_empty() { "Can be closed again" } else { "Can be locked again with the key" };
         ui.horizontal(|ui| {
-            ui.label("Lockpicking");
-            ui.add(egui::DragValue::new(&mut lock.pick_difficulty).range(0..=99))
-                .on_hover_text("A lockpicking skill of this level opens the lock without the key (0 = can't be picked). Without a key item the lock can only be picked.");
-            if lock.pick_difficulty > 0 {
-                ui.weak(format!("needs lockpicking {}", lock.pick_difficulty));
+            ui.label("Pick DC");
+            ui.add(egui::DragValue::new(&mut lock.pick_dc).range(0..=30))
+                .on_hover_text("Picking it without the key: a DEX (Thieves' Tools) check against this DC (0 = it can't be picked; 10 easy, 15 medium, 20 hard). A failed try can be repeated after ten minutes of game time. Without a key item the lock can only be picked.");
+            if lock.pick_dc > 0 {
+                ui.weak("DEX (Thieves' Tools) check");
             }
         });
         ui.checkbox(&mut lock.relock, label).on_hover_text(
@@ -1121,14 +1121,23 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     }
                 }
                 Cond::Skill { skill, op, level } => {
-                    ui.label("skill");
-                    suggest(ui, &format!("{id}/sk"), skill, &refs.skills, 100.0);
-                    egui::ComboBox::from_id_salt(format!("{id}/skop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {
-                        for o in CmpOp::ALL {
-                            ui.selectable_value(op, o, o.symbol());
-                        }
+                    ui.label("proficient in");
+                    suggest(ui, &format!("{id}/sk"), skill, &refs.skills, 130.0);
+                    // (Only 0.27's skill levels compare with something else than "at least 1".)
+                    if !(*op == CmpOp::Ge && *level == 1) {
+                        egui::ComboBox::from_id_salt(format!("{id}/skop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {
+                            for o in CmpOp::ALL {
+                                ui.selectable_value(op, o, o.symbol());
+                            }
+                        });
+                        ui.add(egui::DragValue::new(level).range(0..=1)).on_hover_text("1 = proficient, 0 = not");
+                    }
+                }
+                Cond::CheckPassed { by } => {
+                    ui.label("the last check succeeded");
+                    labeled(ui, "by at least", |ui| {
+                        ui.add(egui::DragValue::new(by).range(0..=30));
                     });
-                    ui.add(egui::DragValue::new(level).range(0..=99));
                 }
                 Cond::Level { op, value } => {
                     ui.label("player level");
@@ -1371,6 +1380,12 @@ fn route_steps_ui(ui: &mut Ui, id: &str, steps: &mut Vec<rustpg2d_engine::routes
     });
 }
 
+/// What an ability check can roll: the skills, the six abilities, and ability:tool for the tools.
+fn check_choices() -> Vec<String> {
+    use rustpg2d_engine::srd::abilities::{Ability, SKILLS, TOOLS};
+    SKILLS.iter().map(|s| s.0.to_string()).chain(Ability::ALL.iter().map(|a| a.id().to_string())).chain(TOOLS.iter().map(|(t, _, a)| format!("{}:{t}", a.id()))).collect()
+}
+
 fn target_field(ui: &mut Ui, id: &str, target: &mut String, refs: &Refs) {
     labeled(ui, "target", |ui| suggest(ui, id, target, &refs.targets, 100.0));
 }
@@ -1462,16 +1477,16 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             target_field(ui, id, target, refs);
             labeled(ui, "state", |ui| suggest(ui, &format!("{id}/state"), state, &refs.states, 100.0));
         }
-        Action::GiveSkillPoints { amount } => {
-            labeled(ui, "points", |ui| {
-                ui.add(egui::DragValue::new(amount).range(-99..=99)).on_hover_text("Negative takes points away");
-            });
+        Action::GiveSkillPoints { .. } => {
+            ui.weak("Skill points are gone since the SRD rules (0.28): this action does nothing. Remove it, or use Set proficiency.");
         }
         Action::SetSkill { skill, level } => {
-            labeled(ui, "skill", |ui| suggest(ui, &format!("{id}/sk"), skill, &refs.skills, 120.0));
-            labeled(ui, "level", |ui| {
-                ui.add(egui::DragValue::new(level).range(0..=99));
-            });
+            labeled(ui, "proficiency", |ui| suggest(ui, &format!("{id}/sk"), skill, &refs.skills, 140.0));
+            let mut on = *level > 0;
+            if ui.checkbox(&mut on, "proficient").on_hover_text("Off takes the proficiency away").changed() {
+                *level = on as u32;
+            }
+            ui.weak("(a skill like stealth, a tool like thieves-tools or a saving throw like save:dex)");
         }
         Action::LearnSpell { spell } => {
             labeled(ui, "spell", |ui| suggest(ui, &format!("{id}/sp"), spell, &refs.spells, 120.0));
@@ -1707,11 +1722,11 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         }
         Action::Lockpick { difficulty, var } => {
             ui.horizontal(|ui| {
-                ui.label("difficulty");
-                ui.add(egui::DragValue::new(difficulty).range(0..=10)).on_hover_text("Like a lock's 'Lockpicking' difficulty: higher = a smaller sweet spot and a faster marker (the player's lockpicking skill makes it easier)");
+                ui.label("DC");
+                ui.add(egui::DragValue::new(difficulty).range(1..=30)).on_hover_text("Like a lock's pick DC: 10 easy, 15 medium, 20 hard");
             });
             labeled(ui, "result into", |ui| suggest(ui, &format!("{id}/lpvar"), var, &refs.vars, 120.0));
-            ui.weak("the lockpicking game; 1 (picked) or 0 goes into the variable, test it with a Variable condition afterwards");
+            ui.weak("a DEX (Thieves' Tools) check; 1 (picked) or 0 goes into the variable (or test it with Check passed)");
         }
         Action::UnlockAchievement { id: ach } => {
             labeled(ui, "achievement", |ui| suggest(ui, &format!("{id}/ach"), ach, &refs.achievements, 140.0));
@@ -2148,6 +2163,38 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 ui.add(egui::DragValue::new(amount).range(-99..=99));
             });
             ui.weak("(\"player\", \"self\" or a character's name; negative = damage)");
+        }
+        Action::Check { what, save, dc, mode, then, otherwise } => {
+            ui.horizontal(|ui| {
+                ui.label(if *save { "saving throw" } else { "check" });
+                let list: Vec<String> = if *save { rustpg2d_engine::srd::Ability::ALL.iter().map(|a| a.id().to_string()).collect() } else { check_choices() };
+                suggest(ui, &format!("{id}/what"), what, &list, 150.0);
+                ui.label("DC");
+                ui.add(egui::DragValue::new(dc).range(1..=30)).on_hover_text("5 very easy, 10 easy, 15 medium, 20 hard, 25 very hard, 30 nearly impossible");
+                egui::ComboBox::from_id_salt(format!("{id}/mode")).width(90.0).selected_text(mode.label()).show_ui(ui, |ui| {
+                    for m in rustpg2d_engine::srd::Mode::ALL {
+                        ui.selectable_value(mode, m, m.label());
+                    }
+                });
+            });
+            match rustpg2d_engine::srd::Spec::parse(what, *save) {
+                Some(s) => ui.weak(format!("{}: d20 + {} modifier{}", s.label, s.ability.short(), if s.proficiency.is_empty() { String::new() } else { format!(" + proficiency when proficient in {}", rustpg2d_engine::srd::abilities::proficiency_name(&s.proficiency)) })),
+                None => ui.colored_label(egui::Color32::from_rgb(230, 120, 90), if *save { "an ability: str, dex, con, int, wis, cha" } else { "a skill (persuasion), an ability (str) or ability:tool (dex:thieves-tools)" }),
+            };
+            ui.label("On a success:");
+            ui.indent(format!("{id}/ct"), |ui| actions_ui(ui, &format!("{id}/then"), then, refs));
+            ui.label("On a failure:");
+            ui.indent(format!("{id}/ce"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
+        }
+        Action::Roll { dice, var } => {
+            labeled(ui, "dice", |ui| {
+                ui.add(egui::TextEdit::singleline(dice).desired_width(110.0).hint_text("2d6+STR"));
+            });
+            labeled(ui, "into", |ui| suggest(ui, &format!("{id}/rollvar"), var, &refs.vars, 120.0));
+            match rustpg2d_engine::srd::Expr::parse(dice) {
+                Ok(_) => ui.weak("(dice like 1d20, 2d6+3, 8d6; STR to CHA = the hero's modifier, PROF = the proficiency bonus)"),
+                Err(e) => ui.colored_label(egui::Color32::from_rgb(230, 120, 90), e),
+            };
         }
         Action::If { conditions, then, otherwise } => {
             ui.label("If all of:");

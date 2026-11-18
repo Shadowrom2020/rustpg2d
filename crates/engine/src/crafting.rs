@@ -21,17 +21,21 @@ pub struct RecipeDef {
     /// Where it is made ("" = the recipes of `open_crafting("")`, e.g. a crafting kit).
     #[serde(default)]
     pub station: String,
-    /// Skill needed (id, "" = none) and its level.
+    /// The proficiency the recipe is about: a tool (`smiths-tools`) or an SRD skill; "" = none.
+    /// Crafting rolls a check with it for the quality steps (Intelligence with a tool, the
+    /// skill's ability with a skill).
     #[serde(default)]
     pub skill: String,
+    /// More than 0: only a hero proficient in `skill` can make it (0.27 and older: the skill
+    /// level needed).
     #[serde(default)]
     pub level: u32,
     /// Tool kinds needed (`ItemDef::tool`, e.g. "hammer"), not used up: in the Tool slot, held
     /// or in the inventory.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<String>,
-    /// Better results at higher levels of `skill` (a *Fine Iron Sword* is its own item): the
-    /// highest step the player's level reaches replaces `result`.
+    /// Better results for better rolls (a *Fine Iron Sword* is its own item): crafting rolls the
+    /// `skill` check, and the highest step whose DC the roll meets replaces `result`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub quality: Vec<QualityStep>,
     /// The state the station's prop must be in (e.g. "lit" for a cooking fire); "" = any.
@@ -39,11 +43,40 @@ pub struct RecipeDef {
     pub station_state: String,
 }
 
-/// From skill level `level` on, a recipe makes `result` instead (`RecipeDef::quality`).
+/// A crafting check of `dc` or more makes `result` instead (`RecipeDef::quality`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(from = "QualityStepRepr")]
 pub struct QualityStep {
-    pub level: u32,
+    pub dc: u32,
     pub result: String,
+}
+
+/// A quality step as files have it: `dc` since 0.28, a skill `level` before (converted to a DC
+/// with [`crate::srd::old_level_dc`]).
+#[derive(Deserialize)]
+struct QualityStepRepr {
+    #[serde(default)]
+    dc: u32,
+    #[serde(default)]
+    level: u32,
+    result: String,
+}
+
+impl From<QualityStepRepr> for QualityStep {
+    fn from(r: QualityStepRepr) -> Self {
+        QualityStep { dc: if r.dc > 0 { r.dc } else { crate::srd::old_level_dc(r.level) }, result: r.result }
+    }
+}
+
+/// What crafting made.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Crafted {
+    /// The item made (a quality step's when the roll met its DC).
+    pub result: String,
+    /// How many didn't fit into the inventory (lost: callers check `fits` first).
+    pub lost: u32,
+    /// The quality check, when the recipe has quality steps.
+    pub roll: Option<crate::srd::RollRecord>,
 }
 
 /// Item id -> tool kind (`Database::tool_kinds`), to tell which tools the player has.
@@ -64,8 +97,8 @@ fn one() -> u32 {
 pub enum Missing {
     /// Ingredients short: (item, have, need).
     Items(Vec<(String, u32, u32)>),
-    /// Skill level too low: (skill, have, need).
-    Skill(String, u32, u32),
+    /// The hero isn't proficient in the recipe's skill or tool.
+    Proficiency(String),
     /// Tools the player doesn't have (tool kinds).
     Tools(Vec<String>),
     /// The station isn't in the state the recipe needs (e.g. the fire isn't "lit").
@@ -77,19 +110,33 @@ impl RecipeDef {
         RecipeDef { id: id.into(), result: result.into(), count, ingredients, station: station.into(), skill: String::new(), level: 0, tools: Vec::new(), quality: Vec::new(), station_state: String::new() }
     }
 
-    /// The item it makes for the player now: the best quality step their skill reaches.
-    pub fn result_for(&self, world: &WorldState) -> &str {
-        if self.skill.is_empty() {
-            return &self.result;
+    /// The item a crafting check of `total` makes: the best quality step it meets, else `result`.
+    pub fn result_for_total(&self, total: i64) -> &str {
+        self.quality.iter().filter(|q| q.dc as i64 <= total && !q.result.is_empty()).max_by_key(|q| q.dc).map_or(self.result.as_str(), |q| q.result.as_str())
+    }
+
+    /// The check crafting rolls for the quality steps: `int:<tool>`, an SRD skill as it is, `int`
+    /// without a skill.
+    pub fn check_what(&self) -> String {
+        let s = self.skill.trim();
+        if s.is_empty() {
+            "int".into()
+        } else if crate::srd::abilities::skill(s).is_some() || s.contains(':') {
+            s.into()
+        } else {
+            format!("int:{s}")
         }
-        let have = world.skill_level(&self.skill);
-        self.quality.iter().filter(|q| q.level <= have && !q.result.is_empty()).max_by_key(|q| q.level).map_or(self.result.as_str(), |q| q.result.as_str())
+    }
+
+    /// Whether the hero needs a proficiency they lack.
+    pub fn needs_proficiency(&self, world: &WorldState) -> bool {
+        self.level > 0 && !self.skill.trim().is_empty() && !world.is_proficient(&self.skill)
     }
 
     /// What is missing to make it once (None = it can be made).
     pub fn missing(&self, world: &WorldState, kinds: &ToolKinds) -> Option<Missing> {
-        if !self.skill.is_empty() && world.skill_level(&self.skill) < self.level {
-            return Some(Missing::Skill(self.skill.clone(), world.skill_level(&self.skill), self.level));
+        if self.needs_proficiency(world) {
+            return Some(Missing::Proficiency(self.skill.clone()));
         }
         let tools: Vec<String> = self.tools.iter().filter(|t| !t.trim().is_empty() && !has_tool(world, kinds, t)).cloned().collect();
         if !tools.is_empty() {
@@ -105,18 +152,24 @@ impl RecipeDef {
         (!short.is_empty()).then_some(Missing::Items(short))
     }
 
-    /// Makes it once: takes the ingredients, gives the result. Returns how many of the result
-    /// didn't fit into the inventory (they are lost: callers check `fits` first), or what is
-    /// missing.
-    pub fn craft(&self, world: &mut WorldState, kinds: &ToolKinds) -> Result<u32, Missing> {
+    /// Makes it once: takes the ingredients, rolls the quality check (recipes with quality
+    /// steps; a failed roll still makes `result`), gives the item. Or what is missing.
+    pub fn craft(&self, world: &mut WorldState, kinds: &ToolKinds) -> Result<Crafted, Missing> {
         if let Some(m) = self.missing(world, kinds) {
             return Err(m);
         }
-        let result = self.result_for(world).to_string();
+        let roll = if self.quality.iter().any(|q| !q.result.is_empty()) {
+            let dc = self.quality.iter().map(|q| q.dc).min().unwrap_or(10) as i32;
+            world.check(&self.check_what(), dc, crate::srd::Mode::Normal, false)
+        } else {
+            None
+        };
+        let result = roll.as_ref().map_or(self.result.as_str(), |r| self.result_for_total(r.total)).to_string();
         for s in self.ingredients.iter().filter(|s| !s.item.is_empty()) {
             world.take_item(&s.item, s.count);
         }
-        Ok(world.give_item(&result, self.count.max(1)))
+        let lost = world.give_item(&result, self.count.max(1));
+        Ok(Crafted { result, lost, roll })
     }
 
     /// Whether the result would fit into the inventory once the ingredients are used up.
@@ -125,7 +178,7 @@ impl RecipeDef {
         for s in self.ingredients.iter().filter(|s| !s.item.is_empty()) {
             w.take_item(&s.item, s.count);
         }
-        w.give_item(self.result_for(world), self.count.max(1)) == 0
+        w.give_item(&self.result, self.count.max(1)) == 0
     }
 }
 
@@ -143,10 +196,12 @@ mod tests {
         assert_eq!(w.item_count("herb"), 3, "nothing used when it fails");
         w.give_item("apple", 1);
         assert!(r.fits(&w));
-        assert_eq!(r.craft(&mut w, &ToolKinds::new()), Ok(0));
+        assert_eq!(r.craft(&mut w, &ToolKinds::new()).map(|c| (c.lost, c.roll.is_none())), Ok((0, true)));
         assert_eq!((w.item_count("herb"), w.item_count("apple"), w.item_count("potion")), (1, 0, 2));
-        let skilled = RecipeDef { skill: "alchemy".into(), level: 2, ..r };
-        assert_eq!(skilled.missing(&w, &ToolKinds::new()), Some(Missing::Skill("alchemy".into(), 0, 2)));
+        let skilled = RecipeDef { skill: "alchemists-supplies".into(), level: 1, ..r };
+        assert_eq!(skilled.missing(&w, &ToolKinds::new()), Some(Missing::Proficiency("alchemists-supplies".into())));
+        w.set_proficient("Alchemist's Supplies", true);
+        assert_eq!(skilled.missing(&w, &ToolKinds::new()), Some(Missing::Items(vec![("herb".into(), 1, 2), ("apple".into(), 0, 1)])));
     }
 
     #[test]
@@ -157,7 +212,7 @@ mod tests {
         w.give_item("ingot", 2);
         assert_eq!(r.missing(&w, &kinds), Some(Missing::Tools(vec!["hammer".into()])));
         w.give_item("smith_hammer", 1);
-        assert_eq!(r.craft(&mut w, &kinds), Ok(0));
+        assert_eq!(r.craft(&mut w, &kinds).map(|c| c.lost), Ok(0));
         assert_eq!((w.item_count("smith_hammer"), w.item_count("ingot")), (1, 1), "the tool stays");
         // Equipped counts too.
         w.take_item("smith_hammer", 1);
@@ -167,20 +222,23 @@ mod tests {
 
     #[test]
     fn quality_steps_and_upgrades() {
-        let mut r = RecipeDef { skill: "smithing".into(), level: 0, ..RecipeDef::new("sword", "iron_sword", 1, vec![ItemStack::new("ingot", 2)], "anvil") };
-        r.quality = vec![QualityStep { level: 2, result: "fine_sword".into() }, QualityStep { level: 4, result: "master_sword".into() }];
+        let mut r = RecipeDef { skill: "smiths-tools".into(), level: 0, ..RecipeDef::new("sword", "iron_sword", 1, vec![ItemStack::new("ingot", 2)], "anvil") };
+        r.quality = vec![QualityStep { dc: 12, result: "fine_sword".into() }, QualityStep { dc: 18, result: "master_sword".into() }];
+        assert_eq!((r.result_for_total(5), r.result_for_total(12), r.result_for_total(17), r.result_for_total(25)), ("iron_sword", "fine_sword", "fine_sword", "master_sword"));
+        assert_eq!(r.check_what(), "int:smiths-tools");
         let mut w = WorldState::default();
         w.give_item("ingot", 6);
-        assert_eq!(r.result_for(&w), "iron_sword");
-        w.skills.insert("smithing".into(), 3);
-        assert_eq!(r.result_for(&w), "fine_sword");
-        assert_eq!(r.craft(&mut w, &ToolKinds::new()), Ok(0));
-        assert_eq!((w.item_count("fine_sword"), w.item_count("iron_sword")), (1, 0));
+        crate::srd::dice::seed(11);
+        let c = r.craft(&mut w, &ToolKinds::new()).unwrap();
+        let roll = c.roll.expect("quality steps roll");
+        assert_eq!(c.result, r.result_for_total(roll.total));
+        assert_eq!(w.item_count(&c.result), 1);
+        assert_eq!(w.rolls.len(), 1, "the roll is in the log");
         // An equipped item can be an ingredient (upgrading it).
         let up = RecipeDef::new("up", "fine_sword", 1, vec![ItemStack::new("sword", 1), ItemStack::new("ingot", 1)], "anvil");
         *w.equipment.slot_mut(crate::defs::EquipSlot::Weapon) = Some(ItemStack::new("sword", 1));
         assert_eq!(up.missing(&w, &ToolKinds::new()), None);
-        assert_eq!(up.craft(&mut w, &ToolKinds::new()), Ok(0));
+        assert_eq!(up.craft(&mut w, &ToolKinds::new()).map(|c| c.lost), Ok(0));
         assert_eq!(w.equipment.get(crate::defs::EquipSlot::Weapon), None);
     }
 
@@ -188,5 +246,14 @@ mod tests {
     fn minimal_recipe_in_ron() {
         let r: RecipeDef = ron::from_str("(id: \"a\", result: \"b\")").unwrap();
         assert_eq!((r.count, r.ingredients.len(), r.station.as_str(), r.level), (1, 0, "", 0));
+    }
+
+    #[test]
+    fn old_quality_levels_become_dcs() {
+        let q: QualityStep = ron::from_str("(level: 2, result: \"fine\")").unwrap();
+        assert_eq!(q, QualityStep { dc: 12, result: "fine".into() });
+        let q: QualityStep = ron::from_str("(dc: 17, result: \"fine\")").unwrap();
+        assert_eq!(q.dc, 17);
+        assert!(ron::to_string(&q).unwrap().contains("dc:17"));
     }
 }

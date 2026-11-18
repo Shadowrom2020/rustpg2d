@@ -59,7 +59,9 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Player race** | The player's race (*Database › Races*), e.g. goblin |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
-| **Skill level**, **Knows spell**, **Player level** | Character progress |
+| **Proficient in** | The hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`, `save:dex`). Until 0.27 *Skill level* |
+| **Check passed** | The last ability check or saving throw (an *Ability check* action, a lock, crafting, `check()` in a script) succeeded, by at least a number (0 = just succeeded) |
+| **Knows spell**, **Player level** | Character progress |
 | **Player has effect** | Poisoned, slowed… |
 | **Defeated count** | How many of a character kind the player has defeated (the bestiary's count) |
 | **Pose** | A character is sitting, lying, at furniture or on its feet |
@@ -104,7 +106,8 @@ across map changes and in save games.
   the player) is, following them for 15 seconds, and fights whoever it sees on the way. In the
   example the bandit chief's *Lads, to me!* brings his two men out of the trees to him.
 - **Open shop**, **Shop stock** (add to or set a merchant's stock), **Open crafting**,
-  **Lockpicking game**, **Sleep** (hours).
+  **Pick a lock (DEX check)** (a DEX (Thieves' Tools) check against a DC; 1 or 0 into a variable),
+  **Sleep** (hours).
 - **Set time of day**, **Set weather**, **Spawners on / off**, **Defeat all enemies**.
 
 **Cut-scenes and effects**
@@ -161,9 +164,23 @@ across map changes and in save games.
   arrival), **Light at point**, **Light around player**, **Damage area**, **Damage around player**,
   **Heal area**, **Aim (then run script)**.
 
-**Skills and magic**
-- **Give skill points**, **Set skill level**, **Learn spell**, **Teach spell** (a character, e.g. a
-  companion), **Add mana**, **Apply effect**, **Cure effect**.
+**Rules (SRD 5.1)**
+- **Ability check**: rolls a check of the hero against a DC (5 very easy, 10 easy, 15 medium, 20
+  hard): a skill (`persuasion`), an ability (`str`) or ability:tool (`dex:thieves-tools`), normal or
+  with advantage / disadvantage, and runs its **On a success** or **On a failure** actions. The
+  result shows on screen, goes into the journal's *Rolls* page, and *Check passed* sees it later.
+- **Saving throw**: the same with an ability's saving throw (`dex`, `wis`…).
+- **Roll dice**: rolls an expression (`2d6+STR`, `1d20`, `8d6`; `STR` to `CHA` = the hero's
+  modifier, `PROF` = the proficiency bonus) into a variable.
+- **Set proficiency**: makes the hero proficient in a skill, tool or saving throw, or takes it
+  away. Until 0.27 *Set skill level*; *Give skill points (unused)* does nothing since then.
+
+In the example, Tilda's quest reward offers "Ask for a bit more": an *Ability check* (Persuasion,
+DC 13) whose success gives ten more coins.
+
+**Magic**
+- **Learn spell**, **Teach spell** (a character, e.g. a companion), **Add mana**, **Apply effect**,
+  **Cure effect**.
 
 AI agents get every event, condition and action with its fields as JSON ([below](#the-json-form-ai-agents-hand-written-files)).
 

@@ -14,7 +14,7 @@ use rustpg2d_engine::events::{Action, Cond, Trigger, TriggerOn, TriggerOwner};
 use rustpg2d_engine::library::{self, AssetRef};
 use rustpg2d_engine::quest::QuestDef;
 use rustpg2d_engine::refactor::RefKind;
-use rustpg2d_engine::skills::{SkillDef, SkillEffect, SpellDef, SpellEffect};
+use rustpg2d_engine::skills::{SpellDef, SpellEffect};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -136,9 +136,8 @@ def_facts!(CharacterDef, |d| format!(
 def_facts!(SoundDef, |d| format!("file {}; volume {}", d.file, d.volume));
 def_facts!(QuestDef, |d| format!("\"{}\"; {} stages [{}]; xp {}", d.title, d.stages.len(), d.stages.join(" | "), d.xp));
 def_facts!(StructureDef, |d| format!("\"{}\"; {}x{} tiles; category {}; {} entities", d.name, d.w, d.h, d.category, d.entities.len()));
-def_facts!(SkillDef, |d| format!("\"{}\"; max level {}; {:?}", d.name, d.max_level, d.effect));
-def_facts!(SpellDef, |d| format!("\"{}\"; mana {}; cooldown {}; needs {} level {}; {:?}", d.name, d.mana, d.cooldown, d.skill, d.level, d.effect));
-def_facts!(RecipeDef, |d| format!("makes {} x{} from [{}]{}{}", d.result, d.count, d.ingredients.iter().map(|i| format!("{} x{}", i.item, i.count)).collect::<Vec<_>>().join(", "), if d.station.is_empty() { String::new() } else { format!(" at {}", d.station) }, if d.skill.is_empty() { String::new() } else { format!("; {} level {}", d.skill, d.level) }));
+def_facts!(SpellDef, |d| format!("\"{}\"; mana {}; cooldown {}; needs proficiency {}; {:?}", d.name, d.mana, d.cooldown, if d.skill.is_empty() { "-" } else { d.skill.as_str() }, d.effect));
+def_facts!(RecipeDef, |d| format!("makes {} x{} from [{}]{}{}", d.result, d.count, d.ingredients.iter().map(|i| format!("{} x{}", i.item, i.count)).collect::<Vec<_>>().join(", "), if d.station.is_empty() { String::new() } else { format!(" at {}", d.station) }, if d.skill.is_empty() { String::new() } else { format!("; {}{}", d.skill, if d.level > 0 { " (proficiency needed)" } else { "" }) }));
 def_facts!(AchievementDef, |d| format!("\"{}\"; {}{} conditions", d.name, if d.hidden { "hidden; " } else { "" }, d.conditions.len()));
 def_facts!(rustpg2d_engine::defs::ModelDef, |d| format!(
     "\"{}\" {}{}; height {} px; clips [{}]; {} colour features{}",
@@ -151,7 +150,7 @@ def_facts!(rustpg2d_engine::defs::ModelDef, |d| format!(
     if d.playable { "; playable" } else { "" }
 ));
 def_facts!(rustpg2d_engine::races::RaceDef, |d| format!(
-    "\"{}\"{}; bodies [{}] / [{}]; hp {:+}, speed {:+}%, defense {:+}; skills [{}]{}",
+    "\"{}\"{}; bodies [{}] / [{}]; hp {:+}, speed {:+}%, defense {:+}; proficiencies [{}]{}",
     d.name,
     if d.playable { "; playable" } else { "" },
     d.bodies_male.join(", "),
@@ -159,7 +158,7 @@ def_facts!(rustpg2d_engine::races::RaceDef, |d| format!(
     d.max_hp,
     d.speed,
     d.defense,
-    d.skills.iter().map(|s| format!("{} {}", s.skill, s.level)).collect::<Vec<_>>().join(", "),
+    d.skills.iter().map(|s| s.skill.clone()).collect::<Vec<_>>().join(", "),
     if d.size != 1.0 { format!("; size {}", d.size) } else { String::new() }
 ));
 
@@ -249,11 +248,10 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
             "stages: the journal lines in order (stage 0 is the first after Start); xp on completion; targets (optional, one per stage): {map, name} = where the stage leads (a placed character, prop or zone by name), shown as a quest marker. Triggers drive it: Action Quest{quest, op: Start|Advance|SetStage|Complete|Fail, stage}, Cond Quest{quest, check: NotStarted|Active|Completed|Failed|AtStage|StageAtLeast, stage}. The quest designer: giver = who offers it and takes it back: a placed character's name (just that one) or a character definition (every character placed from it); giver_name: its name in the dialogs (\"\" = its character's name, e.g. \"Tilda\" for a merchant_f) (\"\" = started by triggers / scripts; then offer, requires and Talk steps to the giver do nothing); requires: conditions (as in triggers) for the offer, e.g. [{cond:{Quest:{quest:\"other\", check:\"Completed\", stage:0}}, negate:false}] for a follow-up; offer: {lines, question (\"\" = starts after the lines), accept, decline, accepted, declined}; steps (one per stage, by index): {done: \"Manual\" | {Conditions:[conditions]} | {Talk:{character (a placed name or definition; \"\" = the giver), lines, when: [conditions, e.g. HasItem for a hand-in], speaker (its name in the dialog; \"\" = its character's / the giver's)}} | \"Reach\" (enter the stage's target zone / interact with its target), giver_line (said by the giver while the step is current), first_to: {map, name} (a Talk step whose `when` doesn't hold yet leads there instead of to its character: the cart with the flour, the oven), on_start / on_done: actions (as in triggers, e.g. {RunScript:{function}})}; rewards: {items: [{item, count}], skill_points, actions} given on completion (xp too). objects: [{map, name}] = placed items / props / characters that belong to the quest: hidden until it is started, then shown once while it is active.",
         ),
         RefKind::Structure => (val(&StructureDef { id: id.into(), name: "New structure".into(), w: 2, h: 2, ..Default::default() }), "w, h: size in tiles; materials: material ids, ground: (w*4) x (h*4) cells row by row (0 = keep the map's, 255 = no ground, else a materials slot + 1); decor_defs: prop ids, decor: decorations {def (slot), x, y (feet, pixels from the top-left), flip, state, layer Flat|Sorted|Above}; clear: w*h bytes (1 = placing removes the map's decorations there); collision: w*h bytes (0 keep, 1 solid, 2 walkable, 3 automatic); entities with positions relative to the top-left. Easier: build it on a map and capture_structure."),
-        RefKind::Skill => (val(&SkillDef { id: id.into(), name: "New skill".into(), description: String::new(), icon: icon.clone(), max_level: 5, effect: SkillEffect::None }), "effect: None | MeleeDamage | RangedDamage | SpellDamage | Defense | Speed | Lockpick | Haggle | Mana | ManaRegen | {Script:{function}} | {Gather:{tool, percent}} | FoodBonus | {SneakAttack:{percent}}; max_level; players spend skill points (K screen)."),
         RefKind::Spell => (val(&SpellDef::new(id, "New spell", "", icon.clone(), 5, 1.0, SpellEffect::Heal { amount: 5 })), "effect: {Heal:{amount}} | {Bolt:{damage, projectile (sheet), speed, range}} | {Blast:{..}} | {Light:{..}} | {Script:{function}}; mana cost; cooldown s; skill + level required to learn (empty skill = none). Items with teaches = this id teach it."),
         RefKind::Recipe => (val(&RecipeDef::new(id, "<item id>", 1, vec![], "")), "result + count from ingredients [{item, count}]; station: a prop id the player must use (empty = anywhere, craftable from the inventory), station_state: the state it must be in (a lit fire); skill + level required; tools: item ids that must be in the inventory; quality: [{level, result}] better results at higher skill."),
         RefKind::Achievement => (val(&AchievementDef { id: id.into(), name: "New achievement".into(), description: String::new(), icon, hidden: false, conditions: vec![] }), "conditions: checked while playing (same shapes as trigger conditions: Quest, Flag, Var, Defeated, Level, HasItem, …); hidden: shown as ??? until unlocked; also unlocked by the UnlockAchievement action / unlock_achievement()."),
-        RefKind::Race => (val(&rustpg2d_engine::races::RaceDef::fresh(id)), "bodies_male / bodies_female: model ids (the creator offers them with a colour row per colour feature, and they get the race's size); max_hp / defense: added for a player of this race, speed: percent; skills: [{skill, level}] starting levels; size: 1 = as drawn (trolls 1.5: bigger sprite and hitbox); playable: offered in the creator. Characters name their race in `race`."),
+        RefKind::Race => (val(&rustpg2d_engine::races::RaceDef::fresh(id)), "bodies_male / bodies_female: model ids (the creator offers them with a colour row per colour feature, and they get the race's size); max_hp / defense: added for a player of this race, speed: percent; skills: [{skill, level: 1}] = proficiencies (SRD skills like perception, tools like smiths-tools, saves like save:con) a hero of the race has; size: 1 = as drawn (trolls 1.5: bigger sprite and hitbox); playable: offered in the creator. Characters name their race in `race`."),
         RefKind::Model => (
             val(&rustpg2d_engine::defs::ModelDef::new(id, "models/<file>.glb")),
             "file: a rigged .glb under models/ (Meshy, Blender…); clip_files: more .glb files with clips of the same rig; shared_clips: clip files of another model with the same bone names, fitted to this one's bones (share_model_clips sets them); height: standing height in world px (40 = a person); clips: [{anim: walk|idle|attack|hurt|sit|sleep|fish|farm|craft|chop|mine|sweep|read|sneak or a weapon animation (attack_1h, attack_2h, attack_thrust, attack_bow, attack_crossbow, attack_cast, attack_unarmed, idle_1h, idle_2h, idle_bow, idle_spear, block_shield, block_weapon, block_2h), clip: the clip's name in the files, fps (12), hit: 0..1 where an attack's blow lands / a block's guard is up (0.42)}]; features: colour features of its texture (as a figure sheet's); playable / female: offered in the character creator. Characters use it with appearance.model.",
@@ -279,6 +277,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
             "A common event: name; trigger: Call (only when an action CallCommon {id} or call_common(\"id\") runs it) | {Parallel: {flag}} (its actions again and again while the flag is set, beside play, in a queue of its own; clearing the flag stops it at once) | {Autorun: {flag}} (queued into the main event queue whenever it is idle while the flag is set: the player waits; clear the flag in its actions to end it); actions: the same actions as triggers (see the actions resource).",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
+        RefKind::Skill => (Value::Null, "skills are the SRD's (perception, stealth, ...): no definitions since 0.28"),
     }
 }
 
@@ -541,8 +540,8 @@ impl Editor {
             }
             RefKind::Spell => {
                 if let Some(s) = db.spell(id) {
-                    if !s.skill.is_empty() && db.skill(&s.skill).is_none() {
-                        return Err(format!("skill \"{}\" doesn't exist", s.skill));
+                    if !s.skill.is_empty() && rustpg2d_engine::srd::Spec::parse(&s.skill, false).is_none() {
+                        return Err(format!("\"{}\" is no SRD skill or tool (arcana, religion, ...)", s.skill));
                     }
                 }
             }
@@ -920,7 +919,7 @@ impl Editor {
             RefKind::Prop => db.prop(&a.1).map(|d| d.name.clone()),
             RefKind::Character => db.character(&a.1).map(|d| d.name.clone()),
             RefKind::Structure => db.structure(&a.1).map(|d| d.name.clone()),
-            RefKind::Skill => db.skill(&a.1).map(|d| d.name.clone()),
+            RefKind::Skill => Some(rustpg2d_engine::srd::abilities::proficiency_name(&a.1)),
             RefKind::Spell => db.spell(&a.1).map(|d| d.name.clone()),
             _ => None,
         }

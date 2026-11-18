@@ -653,9 +653,34 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     })));
     engine.register_fn("player_name", with!(ctx, |c| c.world.player_name.clone()));
     engine.register_fn("hour", with!(ctx, |c| c.world.hour as f64));
-    // Skills and magic.
-    engine.register_fn("skill", with!(ctx, |c, id: &str| c.world.skill_level(id) as i64));
-    engine.register_fn("skill_points", with!(ctx, |c| c.world.skill_points as i64));
+    // The SRD rules: dice, abilities, checks (they roll at once, into the roll log).
+    engine.register_fn("roll", with!(ctx, |c, dice: &str| c.world.roll_dice(dice).map_or(0, |r| r.total)));
+    engine.register_fn("check", with!(ctx, |c, what: &str, dc: i64| c.world.check(what, dc as i32, crate::srd::Mode::Normal, false).is_some_and(|r| r.success == Some(true))));
+    engine.register_fn("check", with!(ctx, |c, what: &str, dc: i64, mode: &str| c.world.check(what, dc as i32, crate::srd::Mode::parse(mode), false).is_some_and(|r| r.success == Some(true))));
+    engine.register_fn("save", with!(ctx, |c, ability: &str, dc: i64| c.world.check(ability, dc as i32, crate::srd::Mode::Normal, true).is_some_and(|r| r.success == Some(true))));
+    engine.register_fn("save", with!(ctx, |c, ability: &str, dc: i64, mode: &str| c.world.check(ability, dc as i32, crate::srd::Mode::parse(mode), true).is_some_and(|r| r.success == Some(true))));
+    engine.register_fn("modifier", with!(ctx, |c, what: &str| {
+        let w = what.trim();
+        match w.strip_prefix("save:") {
+            Some(a) => c.world.check_bonus(a, true),
+            None => c.world.check_bonus(w, false),
+        }
+        .unwrap_or_else(|| {
+            eprintln!("[script] modifier: '{what}' is no ability, skill or tool");
+            0
+        })
+    }));
+    engine.register_fn("ability", with!(ctx, |c, name: &str| crate::srd::Ability::parse(name).map_or(0, |a| c.world.abilities.score(a) as i64)));
+    engine.register_fn("set_ability", with!(ctx, |c, name: &str, score: i64| match crate::srd::Ability::parse(name) {
+        Some(a) => c.world.abilities.set(a, score.clamp(1, 30) as i32),
+        None => eprintln!("[script] set_ability: '{name}' is no ability (str, dex, con, int, wis, cha)"),
+    }));
+    engine.register_fn("proficiency", with!(ctx, |c| crate::srd::abilities::proficiency_bonus(c.world.player_level()) as i64));
+    engine.register_fn("is_proficient", with!(ctx, |c, what: &str| c.world.is_proficient(what)));
+    engine.register_fn("set_proficient", with!(ctx, |c, what: &str, on: bool| c.world.set_proficient(what, on)));
+    // Until 0.27 a skill tree's level; now 1 when the hero is proficient (deprecated).
+    engine.register_fn("skill", with!(ctx, |c, id: &str| c.world.is_proficient(id) as i64));
+    // Magic.
     engine.register_fn("knows_spell", with!(ctx, |c, id: &str| c.world.spells.contains(id)));
     engine.register_fn("mana", with!(ctx, |c| c.world.mana as f64));
     // Experience and levels.
@@ -728,7 +753,6 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("cure", with!(ctx, |c, t: &str| c.actions.push(Action::CureEffect { target: t.into(), kind: None })));
     engine.register_fn("has_effect", with!(ctx, |c, kind: &str| effect_kind(kind).is_some_and(|k| c.world.effects.iter().any(|e| e.kind == k))));
     engine.register_fn("set_skill", with!(ctx, |c, id: &str, l: i64| c.actions.push(Action::SetSkill { skill: id.into(), level: l.max(0) as u32 })));
-    engine.register_fn("give_skill_points", with!(ctx, |c, n: i64| c.actions.push(Action::GiveSkillPoints { amount: n as i32 })));
     engine.register_fn("learn_spell", with!(ctx, |c, id: &str| c.actions.push(Action::LearnSpell { spell: id.into() })));
     engine.register_fn("add_mana", with!(ctx, |c, n: i64| c.actions.push(Action::AddMana { amount: n as i32 })));
     // (Numbers may be integers or floats in any mix.)

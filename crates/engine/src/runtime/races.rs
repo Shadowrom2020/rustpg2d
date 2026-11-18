@@ -13,13 +13,13 @@ impl Game {
         self.project.db.race(&self.world.player_race)
     }
 
-    /// The player's race at the start of a game: its starting skills (they are the player's
-    /// skills then), full HP, its size.
+    /// The player's race at the start of a game: its proficiencies (added to the project's
+    /// starting ones), full HP, its size.
     pub(super) fn begin_as_race(&mut self, race: &str) {
         self.world.player_race = race.to_string();
+        let start = &self.project.config.rules.proficiencies;
         let skills = self.project.db.race(race).map(|r| r.skills.clone()).unwrap_or_default();
-        self.world.skills = skills.into_iter().filter(|s| s.level > 0).map(|s| (s.skill, s.level)).collect();
-        // Script skills (e.g. Scavenging) apply their effect.
+        self.world.proficiencies = start.iter().cloned().chain(skills.into_iter().filter(|s| s.level > 0).map(|s| s.skill)).map(|p| crate::srd::abilities::proficiency_id(&p)).filter(|p| !p.is_empty()).collect();
         self.init_skills(false);
         self.world.player_hp = Some(self.player_max_hp());
         self.refresh_player_size();

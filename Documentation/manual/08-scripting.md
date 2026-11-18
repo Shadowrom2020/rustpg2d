@@ -2,7 +2,7 @@
 
 R(ust)PG2D games are mostly built in the editor: maps, characters, items, triggers and their
 actions. **Scripts** are for everything the editor's actions can't express on their own:
-conversations that remember what was said, counters, quests with conditions, scripted skills
+conversations that remember what was said, counters, quests with conditions, ability checks
 and spells, traps and other effects.
 
 Scripts are written in [Rhai](https://rhai.rs/book/), a small scripting language with a syntax
@@ -60,7 +60,7 @@ function.
 - Put only **functions** (and comments) at the top level of a file. Statements outside functions
   don't keep values between calls; keep lasting state in [flags and variables](#game-state-flags-and-variables).
 - Scripts are part of an exported game (*File › Export game*).
-- **Asset library and packages**: a spell, skill or other asset that uses scripts can go into
+- **Asset library and packages**: a spell or other asset that uses scripts can go into
   the asset library or a `.r2dpack` package together with its functions. The editor asks which
   functions to copy, with the ones the asset needs (and everything they call or pass on as a
   callback) ticked. A project that takes the asset gets the functions appended to
@@ -75,7 +75,6 @@ The game never runs a script on its own. Something in the game calls a script **
 |---|---|---|
 | **Run script** action | Any trigger: on a map, zone, character, prop, item pickup or an item's *On use* | `name()`, `SELF` = the trigger's owner |
 | **Script** condition | The *If all of* list of any trigger, or an *If* action | `name()`, must return `true` / `false` |
-| Skill with the **Script** effect | *Database › Skills* | `name(level)` whenever the skill's level changes, and once when a game starts or is loaded |
 | Spell with the **Script** effect | *Database › Spells* | `name()` when the spell is cast |
 | `then_call("name")` | In a script | `name()` after the actions queued before it |
 | `aim("name")` | In a script | `name(x, y)` with the target the player clicked |
@@ -140,7 +139,7 @@ fn double_damage(m) {
 | `heal` | `target`, `amount` | Healing of the player or a character (items, spells, *Heal* actions); 0 = none. |
 | `item_use` | `item`, `cancel` | The player uses an item from the inventory (also equipping it): `cancel = true` stops it. |
 | `xp` | `amount` | Experience the player is about to gain (or lose). |
-| `level_up` | `level`, `hp`, `mana`, `points` | What reaching `level` gives: HP healed, mana, skill points (max HP follows *Experience and levels*). |
+| `level_up` | `level`, `hp`, `mana` | What reaching `level` gives: HP healed, mana (max HP follows *Experience and levels*). Until 0.27 also skill `points`. |
 | `buy` | `item`, `price`, `merchant` | The price of one item in a merchant's stock. Asked when the trade window opens and after each trade, so the window shows it. `merchant` is the merchant's name on the map. |
 | `sell` | `item`, `price`, `merchant` | What a merchant pays for one item; -1 = not interested (it may be -1 coming in, too). |
 | `craft` | `recipe`, `count`, `cancel` | Making a recipe: `count` results per make; `cancel = true` stops it ("You can't make that now."). |
@@ -165,7 +164,7 @@ This is the most important rule of R(ust)PG2D scripting.
 
 - **Immediate** functions read or change the game state at once, while the function runs:
   `flag`, `set_flag`, `get_var`, `set_var`, `add_var`, `item_count`, `has_item`, `give_item`,
-  `take_item`, and all functions that only read something (`player_hp()`, `hour()`, `skill(…)`,
+  `take_item`, and all functions that only read something (`player_hp()`, `hour()`, `modifier(…)`,
   …).
 - **Queued** functions don't do anything while the function runs. They add an action to a queue,
   and the game performs the queue **after the function has returned, in order**: `say`,
@@ -221,7 +220,7 @@ flag and variable suggestions as soon as a script uses them.
 Rhai variables (`let x = …`) only live while a function runs. Anything that must survive until
 the next call, or a save and load, goes into a flag or variable.
 
-The rest of the game state (inventory, quests, skills, spells, mana, opened chests, defeated
+The rest of the game state (inventory, quests, abilities, proficiencies, spells, mana, opened chests, defeated
 enemies, …) is saved too, and scripts change it through the API functions.
 
 ## Targets and `SELF`
@@ -233,7 +232,7 @@ Functions that act on an entity take a **target**:
 - any other text — the entity with that **name** on the current map (set the name in the
   editor's inspector, e.g. `mira`, `guard`).
 
-`SELF` is a number: the owner's id (uid), or `-1` when there is no owner (spells, skills,
+`SELF` is a number: the owner's id (uid), or `-1` when there is no owner (spells,
 callbacks). `say(SELF, "…")` shows the owner's name as the speaker. `SELF` is only visible in the function the
 trigger calls; a helper function it calls doesn't see it, so pass it on as an argument
 (`helper(SELF, …)`). The target `"self"` works everywhere.
@@ -248,7 +247,7 @@ trigger calls; a helper function it calls doesn't see it, so pass it on as an ar
   Counts, amounts, hit points, levels, quest stages and tile offsets are **whole numbers**
   (`give_item("coin", 3)`, `heal(2)`, `move_by("mira", 2, 0)`). Rhai doesn't convert decimals
   to integers by itself; use `to_int()` if needed: `heal((max / 2.0).to_int())`.
-- **Ids** (items, maps, spawn points, sounds, quests, skills, spells, sprite sheets, prop states)
+- **Ids** (items, maps, spawn points, sounds, quests, proficiencies, spells, sprite sheets, prop states)
   are strings exactly as in the editor's database: `give_item("potion", 1)`.
 - **Text placeholders** work in `say`, `choice` and with `text(…)`:
   - `{player}` — the player's name;
@@ -429,12 +428,12 @@ fn name_the_horse() {
 | `stop_schedule(target)` | The character stops following its daily schedule (set in the editor) and stays where it is. Saved. *(queued)* |
 | `sleep(hours)` | The player sleeps (camping, an inn keeper's "Rest"): the screen fades, the clock moves on, HP and mana are restored, timed effects end, then *Woke up* triggers run. Refused with enemies nearby. *(queued, blocks)* |
 | `is_sitting()` / `is_sleeping()` | Whether the player sits on furniture / lies in a bed (or the night is passing). |
-| `lockpick(difficulty, var)` | Plays the lockpicking game (like a lock with that *Lockpicking* difficulty; the player's skill makes it easier) and puts 1 (picked) or 0 into the variable, e.g. `lockpick(2, "vault"); then_call("vault_result");`. *(queued, blocks until it is over)* |
+| `lockpick(dc, var)` | Picks a lock in a custom puzzle: a DEX (Thieves' Tools) check against the DC; 1 (picked) or 0 goes into the variable, e.g. `lockpick(15, "vault"); then_call("vault_result");`. Until 0.27 the lockpicking game. *(queued)* |
 | `unlock_achievement(id)` | Unlocks an achievement (*Database › Achievements*) for the player: a toast, kept across save games. *(queued)* |
 | `achievement_unlocked(id)` | Whether the player has unlocked an achievement (in any game). |
 | `open_crafting(station)` | Opens the crafting window with the recipes of a station (*Database › Recipes*), e.g. `open_crafting("alchemy")` on an alchemy table's trigger. *(queued)* |
 | `open_crafting(station, title)` | The same with a window title, e.g. `open_crafting("anvil", "Smithy")`. *(queued)* |
-| `can_craft(recipe)` | Whether the player has the ingredients (and the skill level) to make a recipe once. |
+| `can_craft(recipe)` | Whether the player has the ingredients (and the tools and proficiency it needs) to make a recipe once. |
 | `follow(target)` | The character joins the player as a companion: it follows from map to map and fights hostile characters near the player. Only placed, friendly characters can. Saved. *(queued)* |
 | `stop_following(target)` | The companion leaves: on its own map it stays where it is, elsewhere it goes back to where it is placed. *(queued)* |
 | `is_companion(name)` | Whether the character with that name follows the player. |
@@ -756,7 +755,7 @@ one name space with the project's.
 | Function | Description |
 |---|---|
 | `plugin_param(plugin, name)` | A plugin's parameter as the project set it in the *Plugins* window, else the plugin's default: a number (whole numbers come as integers), `true` / `false` or a text; `()` when the plugin is off or has no such parameter. *(immediately, since 0.27)* |
-| `api_version()` | The script API version of this engine, e.g. `"0.27"`: what a script or plugin may count on ([API versions](#api-versions)). *(immediately, since 0.27)* |
+| `api_version()` | The script API version of this engine, e.g. `"0.28"`: what a script or plugin may count on ([API versions](#api-versions)). *(immediately, since 0.27)* |
 
 ### Quests
 
@@ -820,16 +819,39 @@ fn lift_the_curse() {
 | `play_music(sound, seconds)` | Crossfades to the music over `seconds`: the old track fades out while the new one fades in. *(queued)* |
 | `play_music_effect(sound)` / `play_music_effect(sound, options)` | Plays a music effect (a fanfare) once: the music ducks under it and comes back after. Options `#{ wait: true }`: the event waits until it is over. The project's sounds name a *level up* and a *victory* fanfare the game plays by itself. *(queued)* |
 
-### Skills and magic
+### Rules (SRD 5.1): dice, abilities and checks
 
-These only matter in projects with skills (and magic) enabled in *Database › Project*.
+Every roll follows the SRD 5.1 ([Gameplay › Rules](09-gameplay.md#rules-srd-51)). Checks and saving
+throws roll at once: their result is shown on screen (when the project shows checks), kept in the
+journal's *Rolls* page, and a *Check passed* condition sees the last one. What to roll is written as
+a skill (`"persuasion"`, `"sleight-of-hand"`), an ability (`"str"` … `"cha"`) or an ability with a
+tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 
 | Function | Description |
 |---|---|
-| `skill(skill)` | The player's level in a skill (`0` = not learned). |
-| `skill_points()` | Unspent skill points. |
-| `set_skill(skill, level)` | Sets a skill's level without spending points. *(queued)* |
-| `give_skill_points(amount)` | Gives skill points (negative takes them away). *(queued)* |
+| `roll(dice)` | Rolls dice such as `"2d6+3"`, `"1d20+DEX"` or `"8d6"` (`STR` to `CHA` = the hero's ability modifier, `PROF` = the proficiency bonus) and returns the total; the roll goes into the roll log. *(immediately, since 0.28)* |
+| `check(what, dc)` | An ability check of the hero against a DC: d20 + the ability modifier, + the proficiency bonus when proficient in the skill or tool; `true` on a success, e.g. `if check("persuasion", 13) { … }`. *(immediately, since 0.28)* |
+| `check(what, dc, mode)` | Like `check`; mode `"advantage"` or `"disadvantage"` rolls two d20s and keeps the higher or the lower. *(immediately, since 0.28)* |
+| `save(ability, dc)` | A saving throw of the hero (`"dex"`, `"wis"`, …) against a DC; `true` on a success. *(immediately, since 0.28)* |
+| `save(ability, dc, mode)` | Like `save`, with advantage or disadvantage. *(immediately, since 0.28)* |
+| `modifier(what)` | The hero's bonus: an ability's modifier (`"str"`), a skill's or ability:tool's check bonus with proficiency, or a saving throw's (`"save:dex"`). *(since 0.28)* |
+| `ability(ability)` | The hero's ability score, 1 to 30 (`"str"`, `"dex"`, `"con"`, `"int"`, `"wis"`, `"cha"`). *(since 0.28)* |
+| `set_ability(ability, score)` | Sets one of the hero's ability scores (1 to 30). *(immediately, since 0.28)* |
+| `proficiency()` | The hero's proficiency bonus by level: +2 at levels 1-4, +3 at 5-8 … +6 at 17-20. *(since 0.28)* |
+| `is_proficient(what)` | Whether the hero is proficient in a skill (`"stealth"`), a tool (`"thieves-tools"`) or a saving throw (`"save:dex"`). *(since 0.28)* |
+| `set_proficient(what, on)` | Makes the hero proficient in a skill, tool or saving throw (`true`), or takes it away. *(immediately, since 0.28)* |
+| `skill(skill)` | **Deprecated** since 0.28: use `is_proficient`. `1` when the hero is proficient in the skill or tool, else `0` (until 0.27 a skill tree's level). |
+| `set_skill(skill, level)` | **Deprecated** since 0.28: use `set_proficient`. Makes the hero proficient (level above 0) or not. *(queued)* |
+
+**Removed in 0.28** with the skill tree: `skill_points()` and `give_skill_points(amount)`. Scripts
+that call them stop with an error at that line (the script check reports it).
+
+### Magic
+
+These only matter in projects with magic enabled in *Database › Project*.
+
+| Function | Description |
+|---|---|
 | `knows_spell(spell)` | Whether the player has learned a spell. |
 | `learn_spell(spell)` | Teaches a spell. *(queued)* |
 | `mana()` | Current mana. |
@@ -845,8 +867,8 @@ spell; a scroll that is used up when read is used up.
 
 These only matter in projects with *Experience and levels* enabled in *Database › Project*. Defeated
 characters give the experience set in their definition (*Combat › Experience*), completed quests their
-*Experience reward*; enough experience raises the level, which adds max HP, mana and skill points as set
-in the project. *Defeat all enemies* / `defeat_enemies()` gives no experience.
+*Experience reward*; enough experience raises the level, which adds max HP and mana as set in the
+project, and the SRD proficiency bonus grows with it (+3 at level 5, +4 at 9, +5 at 13, +6 at 17). *Defeat all enemies* / `defeat_enemies()` gives no experience.
 
 | Function | Description |
 |---|---|
@@ -914,7 +936,7 @@ Use these to build spells (and traps, cut-scenes, …) in scripts.
 | `fly(sheet, x, y, function, options)` | Like above with [options](#options-maps): `speed`, `frames` or `tag`, `fps`, `scale`, `light`, `color`. *(queued)* |
 | `effect(sheet, x, y)` | Plays the frames of a sprite sheet once, centered on `x, y` (explosions, sparkles). *(queued)* |
 | `effect(sheet, x, y, options)` | Like above with options: `frames` or `tag` (a named animation, e.g. `#{ tag: "explode" }`), `fps`, `scale`, `light`, `color`, `shake` (seconds the screen shakes as it starts). *(queued)* |
-| `damage_area(x, y, radius, damage)` | Damages every character within `radius` tiles of `x, y`. Spell damage skills increase it. Never hurts the player. *(queued)* |
+| `damage_area(x, y, radius, damage)` | Damages every character within `radius` tiles of `x, y`. Never hurts the player. *(queued)* |
 | `damage_around(damage, radius)` | The same around the player. *(queued)* |
 
 **Spell costs**: when a spell's *Script* function calls `aim`, the spell's mana and cooldown are
@@ -1035,21 +1057,28 @@ fn slime_defeated() {
 }
 ```
 
-### A scripted skill
+### An ability check
 
-A skill with the **Script** effect and function `scavenging` (*Database › Skills*). The engine
-calls it with the new level whenever the level changes, and once when a game starts or loads,
-so the function can simply store the level:
+The example's shrine reads its carvings with an Intelligence (Religion) check the first time it is
+examined; `check` rolls at once and says whether the roll met the DC:
 
 ```rust
-fn scavenging(level) {
-    set_var("scavenging", level);
+fn shrine_touch() {
+    if !flag("shrine_studied") {
+        set_flag("shrine_studied", true);
+        if check("religion", 12) {
+            say("The carvings tell of Emberbrook's old harvest rite.");
+            give_xp(15);
+        } else {
+            say("Weathered carvings cover the stone. Their meaning escapes you.");
+        }
+    }
 }
 
-// ... and use it elsewhere:
-fn slime_defeated() {
-    if get_var("scavenging") > 0 {
-        give_item("coin", get_var("scavenging"));
+// A trap: a Dexterity saving throw, and 1d6 damage when it fails.
+fn trap_sprung() {
+    if !save("dex", 13) {
+        heal(-roll("1d6"));
     }
 }
 ```
@@ -1191,7 +1220,7 @@ fn fountain() {
 
 ## API versions
 
-The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.27`); `api_version()` returns it.
+The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.28`); `api_version()` returns it.
 Functions added since versions were kept say *since 0.27* (or later) in this reference, so a script
 or a [plugin](18-plugins.md) knows what it may count on; a plugin names the version it needs
 (`api` in its `plugin.ron`) and isn't loaded by an older engine.

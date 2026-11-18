@@ -16,6 +16,7 @@ loading fails the tests.
 | `quests/quests-0.21.0.ron` | the example's `defs/quests.ron` at tag v0.21.0: quests driven by triggers, before the quest designer (no giver, offer, steps, rewards, objects) |
 | `saves/save-0.22.0.ron` | a quick save in Tilda's shop written by the game of the 0.22.0 save layout (built from `master` after #188, which changed no save fields): before homes and placed furniture |
 | `maps/forest-0.25.0.map` | the example's forest at tag v0.25.0: placed characters before a faction of their own (`EntityInstance::faction`) |
+| `project-0.27.0/` | `project.ron` and `defs/` (skills, recipes, races, props, spells, quests) of the example project at tag v0.27.0: the last release with the skill tree (`skills.ron`, skill levels on races, recipes and spells, skill points); it converts to the SRD rules (`projects_of_0_27_0_convert_to_the_srd_rules`) |
 | `saves/minimal.ron` | only the fields without a default: the oldest save layout |
 
 Add a fixture when a format changes (take the file from the last release's tag), never edit one.

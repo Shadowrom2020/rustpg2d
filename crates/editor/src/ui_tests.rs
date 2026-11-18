@@ -664,3 +664,26 @@ fn script_hooks_are_added_in_the_project_form() {
     assert_eq!(saved.config.hooks.last().unwrap().function, "friend_buy_price");
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// Project › Rules (SRD 5.1): the standard array button, a proficiency added and typed in, saved.
+#[test]
+fn the_heros_rules_are_set_in_the_project_form() {
+    let root = example_copy("srd_rules");
+    let mut h = harness(&root, Tab::Project, 0);
+    h.state_mut().project.config.rules.abilities = rustpg2d_engine::srd::Abilities::default();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("Standard array")).click();
+    step(&mut h);
+    assert_eq!(h.state().project.config.rules.abilities, rustpg2d_engine::srd::Abilities::STANDARD);
+    let before = h.state().project.config.rules.proficiencies.len();
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.ends_with("Add proficiency"))).click();
+    step(&mut h);
+    assert_eq!(h.state().project.config.rules.proficiencies.len(), before + 1);
+    h.state_mut().project.config.rules.proficiencies.last_mut().unwrap().push_str("stealth");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert_eq!(saved.config.rules.abilities, rustpg2d_engine::srd::Abilities::STANDARD);
+    assert_eq!(saved.config.rules.proficiencies.last().map(String::as_str), Some("stealth"));
+    assert_eq!(saved.config.rules_version, rustpg2d_engine::srd::RULES_VERSION);
+    let _ = std::fs::remove_dir_all(&root);
+}

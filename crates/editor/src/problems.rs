@@ -206,7 +206,13 @@ fn entity_refs(e: &rustpg2d_engine::entity::EntityInstance) -> Vec<(RefKind, Str
 impl Editor {
     /// Does `id` of `kind` exist (maps included; an empty id counts as "none chosen")?
     fn problem_id_exists(&self, kind: RefKind, id: &str) -> bool {
-        id.is_empty() || if kind == RefKind::Map { self.maps.iter().any(|m| m == id) } else { self.project.db.has(kind, id) }
+        id.is_empty()
+            || match kind {
+                RefKind::Map => self.maps.iter().any(|m| m == id),
+                // A proficiency: an SRD skill, tool, ability or saving throw (or ability:tool).
+                RefKind::Skill => rustpg2d_engine::srd::Spec::parse(id, false).is_some() || rustpg2d_engine::srd::Spec::parse(id, true).is_some(),
+                _ => self.project.db.has(kind, id),
+            }
     }
 
     /// Placed characters with a faction of their own, on every map (the open one as edited):

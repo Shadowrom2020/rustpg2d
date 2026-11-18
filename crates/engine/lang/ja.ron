@@ -84,6 +84,7 @@
         "Please enter a name.": "名前を入力してください。",
         "{}-{} of {}": "{}-{} / {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} またはクリック",
+        "Hold {key:confirm}: faster · {key:cancel}: skip": "{key:confirm}長押し: 早送り · {key:cancel}: スキップ",
         "Type a number · {key:up}/{key:down}: one more / less · Enter or {key:confirm}: done": "数字を入力 · {key:up}/{key:down}：1つ増やす／減らす · Enter または {key:confirm}：決定",
         "Type · Backspace: delete · Enter: done": "入力 · Backspace：削除 · Enter：決定",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} またはクリック · {key:cancel}：閉じる",

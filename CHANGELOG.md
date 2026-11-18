@@ -40,6 +40,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   until its actions clear the flag). Renames, *Usages*, the script check and library export know
   them; `status` prints `common=`. The example's seven quest rewards share one, `quest_reward`
   (also in the starter library).
+- **Camera and scrolling text**: *Camera* pans (and zooms) to a tile, to a character it follows, or
+  back to the player, over seconds with an easing; it stays while the event or cut-scene runs and
+  then glides back by itself. *Scroll text* rolls credits or a story intro up the screen (headings
+  with `# `, any background colour; hold confirm to speed it up, cancel to skip), also from a
+  title screen entry. Scripts: `camera_to`, `camera_follow`, `camera_reset`, `scroll_text`;
+  `status` prints `camera=` and `scroll=`. The example's intro pans over the village to Elder
+  Rowan, and its title screen's *Credits* roll.
 
 ## 0.25.0 — 2026-11-18
 

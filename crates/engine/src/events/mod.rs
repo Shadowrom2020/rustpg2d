@@ -768,6 +768,35 @@ pub enum Action {
     },
     /// Runs a common event's actions here, as if they stood in this list.
     CallCommon { id: String },
+    /// Pans (and zooms) the camera to a tile, a character it then follows, or back to the
+    /// player, over `seconds`; it returns to the player when the event or cut-scene is over.
+    Camera {
+        #[serde(default)]
+        aim: crate::camera::CameraAim,
+        #[serde(default = "one_f32")]
+        seconds: f32,
+        #[serde(default)]
+        easing: crate::pictures::Easing,
+        /// 1 = the usual size, 2 = twice as close.
+        #[serde(default = "one_f32")]
+        zoom: f32,
+        #[serde(default)]
+        wait: bool,
+    },
+    /// Text rolling up the screen over a background colour (credits, a story intro); the event
+    /// waits until it has gone or the player skips it. Lines starting with `# ` are headings.
+    ScrollText {
+        text: String,
+        /// Screen pixels per second.
+        #[serde(default = "image_speed")]
+        speed: f32,
+        #[serde(default = "opaque_black")]
+        background: [u8; 4],
+    },
+}
+
+fn opaque_black() -> [u8; 4] {
+    [0, 0, 0, 255]
 }
 
 fn nine_nine_nine() -> i64 {
@@ -951,6 +980,8 @@ impl Action {
             Action::InputText { .. } => "Input text",
             Action::MoveRoute { .. } => "Move route",
             Action::CallCommon { .. } => "Call common event",
+            Action::Camera { .. } => "Camera",
+            Action::ScrollText { .. } => "Scroll text",
         }
     }
 
@@ -1057,6 +1088,8 @@ impl Action {
             Action::InputText { text: "What is your name?".into(), var: "name".into(), max_len: 16 },
             Action::MoveRoute { target: "self".into(), steps: vec![crate::routes::RouteStep::Move { dir: crate::entity::Facing::Down, tiles: 1 }], repeat: false, skip_blocked: true, wait: true },
             Action::CallCommon { id: s() },
+            Action::Camera { aim: crate::camera::CameraAim::Tile { x: 0, y: 0 }, seconds: 1.0, easing: crate::pictures::Easing::InOut, zoom: 1.0, wait: true },
+            Action::ScrollText { text: "# The End\n\nThank you for playing!".into(), speed: 40.0, background: [0, 0, 0, 255] },
         ]
     }
 }

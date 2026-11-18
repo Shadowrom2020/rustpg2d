@@ -84,6 +84,7 @@
         "Please enter a name.": "Введите название.",
         "{}-{} of {}": "{}-{} из {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} или щелчок",
+        "Hold {key:confirm}: faster · {key:cancel}: skip": "Удерживайте {key:confirm}: быстрее · {key:cancel}: пропустить",
         "Type a number · {key:up}/{key:down}: one more / less · Enter or {key:confirm}: done": "Введите число · {key:up}/{key:down}: на один больше / меньше · Enter или {key:confirm}: готово",
         "Type · Backspace: delete · Enter: done": "Печатайте · Backspace: стереть · Enter: готово",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} или щелчок · {key:cancel}: закрыть",

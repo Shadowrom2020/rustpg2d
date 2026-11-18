@@ -8,6 +8,7 @@ mod combat;
 mod companion_ui;
 mod companions;
 mod companion_magic;
+mod camera;
 mod common;
 mod cutscene;
 mod dev;
@@ -29,6 +30,7 @@ mod creator;
 mod patrol;
 mod portraits;
 mod schedule;
+mod scroll_text;
 mod progression;
 mod factions;
 mod races;
@@ -508,6 +510,10 @@ pub struct Game {
     input_box: Option<input_box::InputBox>,
     /// Running move routes (not saved: they end with the map).
     routes: Vec<routes::RouteRun>,
+    /// A camera move of an event (`None`: it follows the player).
+    cam: Option<camera::CamMove>,
+    /// *Scroll text* rolling (the event waits).
+    scroll: Option<scroll_text::ScrollText>,
     /// The parallel common events running now (their own queues; not saved).
     common_runs: std::collections::BTreeMap<String, ActionRunner>,
     creator: Option<creator::Creator>,
@@ -673,6 +679,8 @@ impl Game {
             input_box: None,
             routes: Vec::new(),
             common_runs: Default::default(),
+            cam: None,
+            scroll: None,
             creator: None,
             menu: Default::default(),
             world: WorldState::default(),
@@ -971,6 +979,7 @@ impl Game {
 
     fn enter_map(&mut self, mut map: Map, arrival: Arrival) {
         self.clear_routes();
+        self.reset_camera();
         // Doors characters opened on the old map close behind them.
         self.close_npc_doors_now();
         // Furniture the player placed here joins the map's props (containers, states, locks).
@@ -1666,6 +1675,7 @@ impl Game {
         self.update_juice(dt);
         self.update_pictures(dt);
         self.update_routes(dt);
+        self.update_camera(dt);
         self.update_timers(dt);
         self.update_battle(dt);
         self.update_captions(dt);
@@ -1721,6 +1731,10 @@ impl Game {
         }
         // Asking for a number or a text pauses everything too.
         if self.update_input_box() {
+            return;
+        }
+        // So does text rolling up the screen (also over the title screen).
+        if self.update_scroll_text(dt) {
             return;
         }
         if self.update_menu(can_open) {
@@ -2235,7 +2249,7 @@ impl Game {
 
     /// Gameplay is paused while a dialog or an inventory window is open.
     fn modal(&self) -> bool {
-        self.ui.dialog_open() || self.inventory_open() || self.script_window_open() || self.input_open()
+        self.ui.dialog_open() || self.inventory_open() || self.script_window_open() || self.input_open() || self.scroll_open()
     }
 
     /// Applies project rules (inventory size, stack limits) to the world state, e.g. after loading.
@@ -2478,7 +2492,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2549,6 +2563,8 @@ impl Game {
             self.world.texts,
             self.routes_status(),
             self.common_status(),
+            self.camera_status(),
+            self.scroll_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2681,6 +2697,8 @@ impl Game {
         self.prepare_world();
         self.runner.clear();
         self.reset_common_events();
+        self.reset_camera();
+        self.scroll = None;
         self.ui = Ui::default();
         self.inv = Default::default();
         self.game_over = None;
@@ -2710,7 +2728,6 @@ impl Game {
         let ts = self.ts();
         let m = &self.loaded.map;
         let scale = self.view_scale();
-        let (vw, vh) = (screen_width() / scale, screen_height() / scale);
         let (mw, mh) = (m.width as f32 * ts, m.height as f32 * ts);
         let clamp_axis = |p: f32, view: f32, size: f32| {
             if size <= view { size / 2.0 } else { p.clamp(view / 2.0, size - view / 2.0) }
@@ -2720,7 +2737,9 @@ impl Game {
             // when zoomed out).
             return render::pixel_camera(center, scale);
         }
-        let mut focus = vec2(self.player.pos.x, self.player.pos.y - 8.0);
+        let (mut focus, zoom) = self.camera_focus();
+        let scale = scale * zoom;
+        let (vw, vh) = (screen_width() / scale, screen_height() / scale);
         if self.on_title() && self.title_drifts() {
             // The title screen slowly drifts over its map.
             let t = get_time() as f32;
@@ -2970,6 +2989,7 @@ impl Game {
         } else {
             self.draw_menu();
         }
+        self.draw_scroll_text();
         self.draw_script_window();
         self.draw_input_box();
         self.draw_achievement_toasts();
@@ -3193,6 +3213,17 @@ impl ActionHost for Game {
                 Step::Continue
             }
             Action::CallCommon { id } => Step::Insert(self.common_actions(id, ctx)),
+            Action::Camera { aim, seconds, easing, zoom, wait } => {
+                if self.start_camera(aim, ctx.owner, *seconds, *easing, *zoom) && *wait && *seconds > 0.0 {
+                    Step::Insert(vec![(Action::Wait { seconds: *seconds }, ctx.clone())])
+                } else {
+                    Step::Continue
+                }
+            }
+            Action::ScrollText { text, speed, background } => {
+                self.open_scroll_text(text, *speed, *background);
+                Step::Block
+            }
             Action::MoveRoute { target, steps, repeat, skip_blocked, wait } => {
                 if self.start_route(target, ctx.owner, steps, *repeat, *skip_blocked, *wait) {
                     Step::Block
@@ -3639,7 +3670,7 @@ impl ActionHost for Game {
             // Characters that walked up to someone turn to face them.
             self.apply_face_after();
         }
-        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting() || self.input_open() || self.route_waiting()
+        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting() || self.input_open() || self.route_waiting() || self.scroll_open()
     }
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {

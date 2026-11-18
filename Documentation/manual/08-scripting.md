@@ -416,6 +416,11 @@ another one becomes part of it.
 | `walk_to(target, x, y)` | Walks a character (`"player"` too) onto tile `x`, `y`. *(queued, blocks until it arrives)* |
 | `approach(target, other)` | Walks a character up to another one, stopping a tile before it (along the longer axis); then both face each other. *(queued, blocks)* |
 | `place(target, x, y)` | Puts a character (`"player"` too) on tile `x`, `y` at once. Saved for NPCs. *(queued)* |
+| `camera_to(x, y)` | Pans the camera to tile `x`, `y` over a second (easing in and out) and waits. It stays there while the event or cut-scene runs, then glides back to the player; a map change returns it at once. *(queued)* |
+| `camera_to(x, y, options)` | Options `#{ seconds: 2, easing: "in_out", zoom: 2, wait: false }`: easing `linear`, `in`, `out` or `in_out`; zoom 1 = usual, 2 = twice as close (0.25 to 4); `wait: false` goes on at once, e.g. a pan while a title card shows. *(queued)* |
+| `camera_follow(target)` / `camera_follow(target, options)` | Pans to a character (`SELF`, a name) and follows it as it walks; the same options. *(queued)* |
+| `camera_reset()` / `camera_reset(seconds)` | Pans back to the player (0.8 s, or `seconds`; 0 = at once) and waits. *(queued)* |
+| `scroll_text(text)` / `scroll_text(text, options)` | Rolls text up the screen over black and waits until it has gone (credits, a story intro): `"\n"` starts a line, a line starting with `"# "` is a heading; holding confirm speeds it up, cancel skips it. Options `#{ speed: 40, background: "#102030" }` (screen pixels per second; a colour name, `"#rrggbb"`, `"#rrggbbaa"` or `[r, g, b, a]`, see-through shows the map). Translated like dialogs; from a custom title screen entry it rolls over the title screen. *(queued, blocks)* |
 | `dim(amount, seconds)` | Darkens the scene to `amount` (0 = normal, 1 = deep night) over `seconds`, so that lights (`light_at`, glowing effects, lamps) show even by day. A cut-scene's end brightens it again; not saved. *(queued)* |
 
 `move_by`, `face`, `say`, `choice`, `wait`, `teleport`, `play_sound`, `play_music` and every other

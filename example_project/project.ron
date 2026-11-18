@@ -206,7 +206,11 @@
             Load,
             Options,
             Achievements,
-            Credits,
+            Custom(
+                label: "Credits",
+                function: "roll_credits",
+                detail: "Who made this game",
+            ),
             Exit,
         ],
         dim: Some(0.3),

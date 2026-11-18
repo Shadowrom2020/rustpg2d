@@ -315,7 +315,9 @@ Esc opens. Without settings both are the built-in ones.
   line under it, and the script function it runs. In the pause menu, the menu closes and the
   function runs as from an event (dialogs included). On the title screen, the title stays: what the
   function does at once (variables, sounds, a toast) happens, and anything that waits (a dialog, a
-  cut-scene) runs once the game starts.
+  cut-scene) runs once the game starts; *Scroll text* is the exception: it rolls over the title
+  screen at once. The example's title screen has a custom *Credits* entry that runs
+  `roll_credits()`, which rolls its credits up the screen with `scroll_text`.
 - **Credits**: the text of the Credits page, which a menu with a *Credits* entry shows (scrolling
   with Up / Down or the wheel). It is translated like dialogs.
 

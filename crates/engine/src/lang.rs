@@ -345,6 +345,22 @@ pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
     for r in &mut d.races {
         t(&mut r.name);
         t(&mut r.description);
+        for tr in &mut r.traits {
+            t(&mut tr.name);
+            t(&mut tr.description);
+        }
+        for c in &mut r.choices {
+            t(&mut c.label);
+            for n in c.names.values_mut() {
+                t(n);
+            }
+        }
+    }
+    for b in &mut d.backgrounds {
+        t(&mut b.name);
+        t(&mut b.description);
+        t(&mut b.feature);
+        t(&mut b.feature_text);
     }
     for s in &mut d.sounds {
         t(&mut s.caption);
@@ -461,6 +477,22 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for r in &db.races {
         add(&r.name);
         add(&r.description);
+        for tr in &r.traits {
+            add(&tr.name);
+            add(&tr.description);
+        }
+        for c in &r.choices {
+            add(&c.label);
+            for n in c.names.values() {
+                add(n);
+            }
+        }
+    }
+    for b in &db.backgrounds {
+        add(&b.name);
+        add(&b.description);
+        add(&b.feature);
+        add(&b.feature_text);
     }
     for s in &db.sounds {
         add(&s.caption);

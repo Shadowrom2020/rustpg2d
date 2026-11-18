@@ -1670,6 +1670,8 @@ pub struct Database {
     pub skins: Vec<crate::skin::SkinDef>,
     /// Common events: named action lists (*Call common event*, parallel / autorun ones).
     pub common_events: Vec<crate::common_events::CommonEventDef>,
+    /// Backgrounds the character creator offers (the SRD's Acolyte, a project's own).
+    pub backgrounds: Vec<crate::backgrounds::BackgroundDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1824,6 +1826,16 @@ impl Database {
 
     pub fn race(&self, id: &str) -> Option<&crate::races::RaceDef> {
         self.races.iter().find(|d| d.id == id)
+    }
+
+    /// A race with its parent race folded in (a subrace's whole SRD data, [`RaceDef::merged`]).
+    pub fn race_full(&self, id: &str) -> Option<crate::races::RaceDef> {
+        let r = self.race(id)?;
+        Some(r.merged(self.race(&r.parent)))
+    }
+
+    pub fn background(&self, id: &str) -> Option<&crate::backgrounds::BackgroundDef> {
+        self.backgrounds.iter().find(|d| d.id == id)
     }
 
     pub fn model(&self, id: &str) -> Option<&ModelDef> {
@@ -1995,6 +2007,7 @@ impl_def!(crate::decor::ScatterDef, crate::refactor::RefKind::Scatter, scatter, 
 impl_def!(crate::fonts::FontDef, crate::refactor::RefKind::Font, fonts);
 impl_def!(crate::skin::SkinDef, crate::refactor::RefKind::Skin, skins, refs = crate::refactor::refs_of_skin);
 impl_def!(crate::common_events::CommonEventDef, crate::refactor::RefKind::CommonEvent, common_events, refs = crate::refactor::refs_of_common_event);
+impl_def!(crate::backgrounds::BackgroundDef, crate::refactor::RefKind::Background, backgrounds, refs = crate::refactor::refs_of_background);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map` and `Skill` (a proficiency id), which
@@ -2073,6 +2086,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::CommonEvent => {
                 type $T = $crate::common_events::CommonEventDef;
+                $body
+            }
+            $crate::refactor::RefKind::Background => {
+                type $T = $crate::backgrounds::BackgroundDef;
                 $body
             }
             $crate::refactor::RefKind::Skill | $crate::refactor::RefKind::Map => $else,

@@ -79,7 +79,12 @@ crates/engine/src/      library: everything shared by game and editor
                         open): skill ids renamed via refactor (RefKind::Skill = a proficiency id, no definition),
                         refactor::srd_upgrade_db / _map (Skill conditions, SetSkill, Lockpick difficulty)
   races.rs              RaceDef (defs/races.ron): bodies per sex, creator looks, stat changes, proficiencies
-                        (RaceDef.skills), size; runtime/races.rs applies them (WorldState.player_race)
+                        (RaceDef.skills), size, SRD data (parent = subrace's race, merged(), ability_bonuses,
+                        walk_ft, size_category, darkvision_ft, languages, resistances, traits, choices
+                        (RaceChoice/ChoiceKind), colors); build_hero (creator picks -> scores, proficiencies,
+                        languages, resistances); runtime/races.rs applies them (WorldState.player_race)
+  backgrounds.rs        BackgroundDef (defs/backgrounds.ron: proficiencies, language_choices, equipment, feature),
+                        LANGUAGES / language_label (runtime key language:<id>)
   achievements.rs       AchievementDef (defs/achievements.ron), Progress = the player's unlocks
                         (achievements.ron next to settings.ron, not in save games)
   crafting.rs           RecipeDef (defs/recipes.ron): result, ingredients, station, skill level;
@@ -263,6 +268,8 @@ crates/editor/src/      editor binary
   (template chooser: copy a project / library character's model and colours),
   script_editor.rs (Rhai editor: highlighting, completion, API table with params/docs),
   repo_mode.rs (repository mode: started in a checkout, the editor works on example_project and the starter library),
+  srd_import.rs (the SRD 5.1 import from a 5e-database checkout, pinned SRD_COMMIT: races, subraces, traits, choices,
+  backgrounds; run by examples/srd_import.rs, compiled into the binary only for its test),
   ui.rs (icon font, ribbon / tool-button helpers), models_tab.rs (importing 3D models and item
   models, rendering item icons; the form is database::model_form, previews widgets::paint_model),
   new_project.rs (wizard), library_ui.rs (library Browse view, "Add from library" dialog,

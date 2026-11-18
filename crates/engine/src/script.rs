@@ -821,6 +821,10 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("set_hour", with!(ctx, |c, h: i64| c.actions.push(Action::SetTime { hour: h as f32 })));
     engine.register_fn("player_sex", with!(ctx, |c| c.world.player_sex.key().to_string()));
     engine.register_fn("player_race", with!(ctx, |c| c.world.player_race.clone()));
+    engine.register_fn("knows_language", with!(ctx, |c, id: &str| c.world.languages.contains(id.trim())));
+    engine.register_fn("has_resistance", with!(ctx, |c, kind: &str| c.world.resistances.contains(kind.trim())));
+    engine.register_fn("background", with!(ctx, |c| c.world.player_background.clone()));
+    engine.register_fn("race_choice", with!(ctx, |c, id: &str| c.world.choices.get(id).map_or(rhai::Array::new(), |v| v.iter().map(|s| Dynamic::from(s.clone())).collect())));
     engine.register_fn("player_faction", with!(ctx, |c| c.player.faction.clone()));
     engine.register_fn("carry", with!(ctx, |c, t: &str, prop: &str| c.actions.push(Action::Carry { target: t.into(), prop: prop.into() })));
     engine.register_fn("stop_carrying", with!(ctx, |c, t: &str| c.actions.push(Action::Carry { target: t.into(), prop: String::new() })));

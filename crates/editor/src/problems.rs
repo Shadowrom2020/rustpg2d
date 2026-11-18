@@ -210,7 +210,7 @@ impl Editor {
             || match kind {
                 RefKind::Map => self.maps.iter().any(|m| m == id),
                 // A proficiency: an SRD skill, tool, ability or saving throw (or ability:tool).
-                RefKind::Skill => rustpg2d_engine::srd::Spec::parse(id, false).is_some() || rustpg2d_engine::srd::Spec::parse(id, true).is_some(),
+                RefKind::Skill => rustpg2d_engine::srd::abilities::is_known_proficiency(id) || rustpg2d_engine::srd::Spec::parse(id, false).is_some(),
                 _ => self.project.db.has(kind, id),
             }
     }

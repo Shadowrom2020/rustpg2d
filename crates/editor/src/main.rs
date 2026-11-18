@@ -7,6 +7,8 @@
 // No console window on Windows (logs go to the terminal it was started from, if any).
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
+#[cfg(test)]
+mod srd_import;
 mod app;
 mod art;
 mod builder;
@@ -1307,6 +1309,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "fonts" => Tab::Fonts,
                 "skins" => Tab::Skins,
                 "common_events" | "common" => Tab::CommonEvents,
+                "backgrounds" => Tab::Backgrounds,
                 "factions" => Tab::Factions,
                 _ => Tab::Items,
             };
@@ -1326,6 +1329,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Fonts => db.fonts.iter().position(|d| d.id == arg(2)),
                 Tab::Skins => db.skins.iter().position(|d| d.id == arg(2)),
                 Tab::CommonEvents => db.common_events.iter().position(|d| d.id == arg(2)),
+                Tab::Backgrounds => db.backgrounds.iter().position(|d| d.id == arg(2)),
                 _ => None,
             };
             ed.db.sel = by_id.unwrap_or(num(2) as usize);

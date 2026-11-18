@@ -399,7 +399,7 @@ impl Condition {
             Cond::Defeated { character, op, count } => op.apply(world.defeated(character) as i64, *count),
             // Needs the running game (see `conditions_met`).
             Cond::Pose { .. } => false,
-            Cond::PlayerRace { race } => world.player_race == *race,
+            Cond::PlayerRace { race } => world.player_race == *race || (!race.is_empty() && world.player_race_parent == *race),
             // The saved standing; the running game adds the starting one (see `conditions_met`).
             Cond::FactionStanding { faction, op, value } => op.apply(world.standing.get(faction).copied().unwrap_or(0) as i64, *value),
             Cond::Timer { name, op, seconds } => op.apply(world.timers.get(name).map_or(0, |t| t.left.ceil() as i64), *seconds),

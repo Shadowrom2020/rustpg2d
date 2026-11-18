@@ -56,7 +56,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Timer** | A timer's seconds left compared with a value (a timer that isn't running has 0: *> 0* = running) |
 | **Text variable** | A text variable equals a text (*any case*: "Rosehill" = "rosehill"; an empty text = the variable is empty) |
 | **Player sex** | Male or female |
-| **Player race** | The player's race (*Database › Races*), e.g. goblin |
+| **Player race** | The player's race (*Database › Races*), e.g. goblin; a race holds for its subraces too (*dwarf* for a hill dwarf) |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
 | **Proficient in** | The hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`, `save:dex`). Until 0.27 *Skill level* |

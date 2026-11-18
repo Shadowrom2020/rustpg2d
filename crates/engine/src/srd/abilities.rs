@@ -156,10 +156,86 @@ pub const TOOLS: [(&str, &str, Ability); 36] = [
     ("land-vehicles", "Land Vehicles", Ability::Dex),
 ];
 
+/// The SRD's weapon and armor proficiencies (categories and single weapons): id, name.
+pub const GEAR: [(&str, &str); 56] = [
+    ("light-armor", "Light Armor"),
+    ("medium-armor", "Medium Armor"),
+    ("heavy-armor", "Heavy Armor"),
+    ("all-armor", "All armor"),
+    ("padded-armor", "Padded Armor"),
+    ("leather-armor", "Leather Armor"),
+    ("studded-leather-armor", "Studded Leather Armor"),
+    ("hide-armor", "Hide Armor"),
+    ("chain-shirt", "Chain Shirt"),
+    ("scale-mail", "Scale Mail"),
+    ("breastplate", "Breastplate"),
+    ("half-plate-armor", "Half Plate Armor"),
+    ("ring-mail", "Ring Mail"),
+    ("chain-mail", "Chain Mail"),
+    ("splint-armor", "Splint Armor"),
+    ("plate-armor", "Plate Armor"),
+    ("shields", "Shields"),
+    ("simple-weapons", "Simple Weapons"),
+    ("martial-weapons", "Martial Weapons"),
+    ("clubs", "Clubs"),
+    ("daggers", "Daggers"),
+    ("greatclubs", "Greatclubs"),
+    ("handaxes", "Handaxes"),
+    ("javelins", "Javelins"),
+    ("light-hammers", "Light hammers"),
+    ("maces", "Maces"),
+    ("quarterstaffs", "Quarterstaffs"),
+    ("sickles", "Sickles"),
+    ("spears", "Spears"),
+    ("crossbows-light", "Crossbows, light"),
+    ("darts", "Darts"),
+    ("shortbows", "Shortbows"),
+    ("slings", "Slings"),
+    ("battleaxes", "Battleaxes"),
+    ("flails", "Flails"),
+    ("glaives", "Glaives"),
+    ("greataxes", "Greataxes"),
+    ("greatswords", "Greatswords"),
+    ("halberds", "Halberds"),
+    ("lances", "Lances"),
+    ("longswords", "Longswords"),
+    ("mauls", "Mauls"),
+    ("morningstars", "Morningstars"),
+    ("pikes", "Pikes"),
+    ("rapiers", "Rapiers"),
+    ("scimitars", "Scimitars"),
+    ("shortswords", "Shortswords"),
+    ("tridents", "Tridents"),
+    ("war-picks", "War picks"),
+    ("warhammers", "Warhammers"),
+    ("whips", "Whips"),
+    ("blowguns", "Blowguns"),
+    ("hand-crossbows", "Hand crossbows"),
+    ("crossbows-heavy", "Crossbows, heavy"),
+    ("longbows", "Longbows"),
+    ("nets", "Nets"),
+];
+
 /// A tool by id or name (any case; "Thieves' Tools" = "thieves-tools").
 pub fn tool(id: &str) -> Option<(&'static str, &'static str, Ability)> {
     let k = norm(id);
     TOOLS.iter().copied().find(|(i, n, _)| *i == k || norm(n) == k)
+}
+
+/// A weapon or armor proficiency by id or name ("Light hammers" = "light-hammers").
+pub fn gear(id: &str) -> Option<(&'static str, &'static str)> {
+    let k = norm(id);
+    GEAR.iter().copied().find(|(i, n)| *i == k || norm(n) == k)
+}
+
+/// Whether an id is a proficiency the SRD knows: a skill, a tool, a weapon or armor
+/// proficiency, or a saving throw (`save:dex`).
+pub fn is_known_proficiency(id: &str) -> bool {
+    let id = id.trim();
+    match id.strip_prefix("save:") {
+        Some(a) => Ability::parse(a).is_some(),
+        None => skill(id).is_some() || tool(id).is_some() || gear(id).is_some(),
+    }
 }
 
 /// Lowercase, spaces and underscores as dashes, apostrophes dropped.
@@ -177,6 +253,9 @@ pub fn proficiency_id(s: &str) -> String {
     if let Some((id, _, _)) = skill(t).or_else(|| tool(t)) {
         return id.to_string();
     }
+    if let Some((id, _)) = gear(t) {
+        return id.to_string();
+    }
     t.to_ascii_lowercase()
 }
 
@@ -185,12 +264,74 @@ pub fn proficiency_name(id: &str) -> String {
     if let Some(a) = id.strip_prefix("save:").and_then(Ability::parse) {
         return format!("{} saves", a.short());
     }
-    skill(id).or_else(|| tool(id)).map_or_else(|| id.to_string(), |(_, n, _)| n.to_string())
+    skill(id).or_else(|| tool(id)).map(|(_, n, _)| n.to_string()).or_else(|| gear(id).map(|(_, n)| n.to_string())).unwrap_or_else(|| id.to_string())
+}
+
+/// How the character creator sets the base ability scores.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AbilityMethod {
+    /// 15, 14, 13, 12, 10, 8, swapped between the abilities.
+    Standard,
+    /// 27 points, every score 8 to 15.
+    PointBuy,
+    /// 4d6, the lowest die dropped, six times; swapped between the abilities.
+    Roll,
+}
+
+impl AbilityMethod {
+    pub const ALL: [AbilityMethod; 3] = [AbilityMethod::Standard, AbilityMethod::PointBuy, AbilityMethod::Roll];
+    pub fn label(self) -> &'static str {
+        match self {
+            AbilityMethod::Standard => "Standard array",
+            AbilityMethod::PointBuy => "Point buy",
+            AbilityMethod::Roll => "Roll 4d6",
+        }
+    }
+}
+
+/// Points a point-buy budget has.
+pub const POINT_BUY_BUDGET: i32 = 27;
+
+/// What a score costs in point buy (8 = 0 … 13 = 5, 14 = 7, 15 = 9); `None` outside 8-15.
+pub fn point_buy_cost(score: i32) -> Option<i32> {
+    match score {
+        8..=13 => Some(score - 8),
+        14 => Some(7),
+        15 => Some(9),
+        _ => None,
+    }
+}
+
+/// The points six scores cost (scores outside 8-15 count as impossible: `None`).
+pub fn point_buy_spent(scores: &Abilities) -> Option<i32> {
+    scores.0.iter().map(|s| point_buy_cost(*s)).sum()
+}
+
+/// One score rolled the SRD way: 4d6, the lowest die dropped (the seeded dice).
+pub fn roll_score() -> i32 {
+    let mut d: Vec<u32> = (0..4).map(|_| super::dice::die(6)).collect();
+    d.sort_unstable();
+    d[1..].iter().sum::<u32>() as i32
+}
+
+/// Assigning a pool of six values (the standard array, six rolls) to the abilities: ability `i`
+/// takes the next lower (`step` < 0) or higher value of the pool, and the ability that had that
+/// value takes `i`'s. Equal values count as one step.
+pub fn swap_assigned(scores: &mut Abilities, i: usize, step: i32) {
+    let mut values: Vec<i32> = scores.0.to_vec();
+    values.sort_unstable();
+    values.dedup();
+    let cur = scores.0[i];
+    let Some(k) = values.iter().position(|v| *v == cur) else { return };
+    let target = values[(k as i32 + step).rem_euclid(values.len() as i32) as usize];
+    if let Some(j) = scores.0.iter().position(|v| *v == target) {
+        scores.0.swap(i, j);
+    }
 }
 
 /// Every proficiency id: the 18 skills, the tools, the six saving throws (editor suggestions).
 pub fn proficiency_choices() -> Vec<String> {
-    SKILLS.iter().map(|s| s.0.to_string()).chain(TOOLS.iter().map(|t| t.0.to_string())).chain(Ability::ALL.iter().map(|a| format!("save:{}", a.id()))).collect()
+    SKILLS.iter().map(|s| s.0.to_string()).chain(TOOLS.iter().map(|t| t.0.to_string())).chain(Ability::ALL.iter().map(|a| format!("save:{}", a.id()))).chain(GEAR.iter().map(|g| g.0.to_string())).collect()
 }
 
 #[cfg(test)]
@@ -206,6 +347,26 @@ mod tests {
         assert_eq!(Abilities::STANDARD.modifier(Ability::Str), 2);
         assert_eq!(Abilities::STANDARD.modifier(Ability::Cha), -1);
         assert_eq!(Abilities::default().text(), "STR10,DEX10,CON10,INT10,WIS10,CHA10");
+    }
+
+    #[test]
+    fn point_buy_and_swaps() {
+        assert_eq!([8, 9, 13, 14, 15].map(point_buy_cost), [Some(0), Some(1), Some(5), Some(7), Some(9)]);
+        assert_eq!(point_buy_cost(16), None);
+        assert_eq!(point_buy_cost(7), None);
+        // 15 15 15 8 8 8 = 27 points; the standard array costs 27 too.
+        assert_eq!(point_buy_spent(&Abilities([15, 15, 15, 8, 8, 8])), Some(27));
+        assert_eq!(point_buy_spent(&Abilities::STANDARD), Some(27));
+        assert_eq!(point_buy_spent(&Abilities([16, 8, 8, 8, 8, 8])), None);
+        let mut a = Abilities::STANDARD;
+        swap_assigned(&mut a, 5, 1); // CHA 8 takes 10, WIS takes 8
+        assert_eq!(a, Abilities([15, 14, 13, 12, 8, 10]));
+        swap_assigned(&mut a, 0, 1); // STR 15 wraps around to the lowest, 8
+        assert_eq!(a, Abilities([8, 14, 13, 12, 15, 10]));
+        super::super::dice::seed(9);
+        for _ in 0..200 {
+            assert!((3..=18).contains(&roll_score()));
+        }
     }
 
     #[test]
@@ -228,5 +389,9 @@ mod tests {
         assert_eq!(proficiency_name("save:wis"), "WIS saves");
         assert_eq!(proficiency_name("cooks-utensils"), "Cook's Utensils");
         assert!(skill("cooking").is_none());
+        assert_eq!(proficiency_id("Light hammers"), "light-hammers");
+        assert_eq!(proficiency_name("crossbows-light"), "Crossbows, light");
+        assert!(is_known_proficiency("battleaxes") && is_known_proficiency("save:wis") && is_known_proficiency("thieves-tools"));
+        assert!(!is_known_proficiency("swordsmanship") && !is_known_proficiency("save:luck"));
     }
 }

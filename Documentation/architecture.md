@@ -118,7 +118,12 @@ ability, `ability:tool`, a saving throw) and the `RollRecord` of the roll log. T
 (`WorldState::check` / `roll_dice`), so the runner, scripts and the game share one path; the
 game shows new rolls by `WorldState::roll_count` (`runtime/rolls.rs`). Locks (`LockSpec::pick_dc`)
 and recipe quality steps (`QualityStep::dc`) read the old skill levels through `serde(from)`
-reprs; `srd_convert.rs` turns a 0.27 project's skill tree into proficiencies once (by
+reprs. Races carry their SRD data (`races.rs`: a subrace's `parent`, `RaceDef::merged` /
+`Database::race_full`, `build_hero` turns the creator's picks into scores, proficiencies, languages
+and resistances) and backgrounds are a definition kind of their own (`backgrounds.rs`); the
+editor's `srd_import.rs` (run by its `srd_import` example) writes both from a pinned checkout of
+5e-database; the creator (`runtime/creator.rs`) has a second page for scores, choices and the
+background; darkvision lifts the ambient light (`render::lighting::darkvision`). `srd_convert.rs` turns a 0.27 project's skill tree into proficiencies once (by
 `ProjectConfig::rules_version`), renaming skill ids with the refactor machinery (`RefKind::Skill`
 is no definition any more: it names a proficiency).
 

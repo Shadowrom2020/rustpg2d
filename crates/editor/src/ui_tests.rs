@@ -672,7 +672,7 @@ fn the_heros_rules_are_set_in_the_project_form() {
     let mut h = harness(&root, Tab::Project, 0);
     h.state_mut().project.config.rules.abilities = rustpg2d_engine::srd::Abilities::default();
     step(&mut h);
-    h.get_by(|n| n.label().as_deref() == Some("Standard array")).click();
+    h.get_by(|n| n.label().as_deref() == Some("Standard array") && n.role() == Role::Button).click();
     step(&mut h);
     assert_eq!(h.state().project.config.rules.abilities, rustpg2d_engine::srd::Abilities::STANDARD);
     let before = h.state().project.config.rules.proficiencies.len();
@@ -685,5 +685,28 @@ fn the_heros_rules_are_set_in_the_project_form() {
     assert_eq!(saved.config.rules.abilities, rustpg2d_engine::srd::Abilities::STANDARD);
     assert_eq!(saved.config.rules.proficiencies.last().map(String::as_str), Some("stealth"));
     assert_eq!(saved.config.rules_version, rustpg2d_engine::srd::RULES_VERSION);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// Database › Backgrounds: a new background, a proficiency added, its feature typed in, saved
+/// into defs/backgrounds.ron.
+#[test]
+fn a_background_is_added_in_the_backgrounds_tab() {
+    let root = example_copy("backgrounds");
+    let mut h = harness(&root, Tab::Backgrounds, 0);
+    let before = h.state().project.db.backgrounds.len();
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.ends_with("New"))).click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.backgrounds.len(), before + 1);
+    let id = h.state().project.db.backgrounds.last().unwrap().id.clone();
+    assert!(id.starts_with("background"), "{id}");
+    h.get_by(|n| n.label().as_deref() == Some("+ Proficiency")).click();
+    step(&mut h);
+    beside(&h, "Feature", |n| n.role() == Role::TextInput).type_text("Old Friends");
+    step(&mut h);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    let b = saved.db.background(&id).expect("saved");
+    assert_eq!((b.proficiencies.clone(), b.feature.as_str()), (vec!["insight".to_string()], "Old Friends"));
     let _ = std::fs::remove_dir_all(&root);
 }

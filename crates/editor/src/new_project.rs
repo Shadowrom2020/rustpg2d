@@ -167,6 +167,7 @@ impl Editor {
             default_name: w.default_name.trim().to_string(),
             body_male: if has("hero") { "hero".into() } else { String::new() },
             body_female: if has("heroine") { "heroine".into() } else { String::new() },
+            ..Default::default()
         };
         if w.sex == SexChoice::Female {
             if let Some(h) = project.db.characters.iter_mut().find(|d| d.id == "hero") {

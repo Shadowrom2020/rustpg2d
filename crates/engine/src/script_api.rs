@@ -171,7 +171,11 @@ pub const API: &[ApiFn] = api! {
     "player_hp"() "The player's hit points";
     "player_name"() "The player's name";
     "player_sex"() "\"male\" or \"female\"";
-    "player_race"() "The player's race id (Database \u{203A} Races), \"\" without one";
+    "player_race"() "The player's race id (Database \u{203A} Races; a subrace's, e.g. \"hill-dwarf\"), \"\" without one";
+    [since "0.28"] "knows_language"(language: Text) "Whether the hero speaks a language (\"dwarvish\", \"elvish\"…): their race's, the creator's picks and their background's";
+    [since "0.28"] "has_resistance"(damage: Text) "Whether the hero resists a damage type (\"fire\", \"poison\"…): their race's, a dragonborn's ancestry";
+    [since "0.28"] "background"() "The hero's background id (Database \u{203A} Backgrounds), \"\" without one";
+    [since "0.28"] "race_choice"(choice: Text) "What the hero picked for a racial choice in the creator, as an array (e.g. race_choice(\"high-elf-cantrip\") = [\"fire-bolt\"]); empty when nothing was picked";
     "carry"(target: Target, prop: Prop) "A character (or \"player\") carries a prop in both hands, e.g. carry(\"player\", \"crate\"); while carrying it holds nothing else and the player can't attack (queued)";
     "stop_carrying"(target: Target) "Puts down what a character carries (queued)";
     "player_carrying"() "The prop the player carries (\"\" = none)";

@@ -38,12 +38,14 @@ pub enum RefKind {
     Skin,
     /// Common event (`common_events::CommonEventDef`).
     CommonEvent,
+    /// Background (`backgrounds::BackgroundDef`).
+    Background,
 }
 
 impl RefKind {
     /// Every kind: the definition lists in `defs/` file order ([`crate::project::DEFS`]), with
     /// `Skill` (a proficiency id, no definition) where `skills.ron` was until 0.27, then `Map`.
-    pub const ALL: [RefKind; 19] = [
+    pub const ALL: [RefKind; 20] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -62,10 +64,11 @@ impl RefKind {
         RefKind::Font,
         RefKind::Skin,
         RefKind::CommonEvent,
+        RefKind::Background,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 17] = [
+    pub const DEFS: [RefKind; 18] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -83,6 +86,7 @@ impl RefKind {
         RefKind::Font,
         RefKind::Skin,
         RefKind::CommonEvent,
+        RefKind::Background,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -107,6 +111,7 @@ impl RefKind {
             RefKind::Font => "font",
             RefKind::Skin => "skin",
             RefKind::CommonEvent => "common_event",
+            RefKind::Background => "background",
         }
     }
 
@@ -131,6 +136,7 @@ impl RefKind {
             RefKind::Font => "fonts",
             RefKind::Skin => "skins",
             RefKind::CommonEvent => "common_events",
+            RefKind::Background => "backgrounds",
             RefKind::Map => return None,
         })
     }
@@ -157,6 +163,7 @@ impl RefKind {
             RefKind::Font => "Font",
             RefKind::Skin => "UI skin",
             RefKind::CommonEvent => "Common event",
+            RefKind::Background => "Background",
         }
     }
 
@@ -183,6 +190,7 @@ impl RefKind {
             "font" => RefKind::Font,
             "skin" | "ui skin" | "ui_skin" => RefKind::Skin,
             "common_event" | "common event" | "commonevent" => RefKind::CommonEvent,
+            "background" => RefKind::Background,
             _ => return None,
         })
     }
@@ -594,6 +602,11 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
     for d in &mut db.common_events {
         r.actions(&mut d.actions);
     }
+    for d in &mut db.backgrounds {
+        for s in &mut d.equipment {
+            r.fix(RefKind::Item, &mut s.item);
+        }
+    }
     // The title screen's map, pictures and music.
     let t = &mut config.title;
     match &mut t.background {
@@ -661,6 +674,11 @@ fn map_pass(map: &mut Map, kind: RefKind, old: &str, new: &str, srd: bool) -> us
 
 fn collector() -> Renamer<'static> {
     Renamer { kind: RefKind::Map, old: "", new: "", count: 0, found: Some(Vec::new()), srd: false }
+}
+
+/// The items a background starts the hero with.
+pub fn refs_of_background(d: &crate::backgrounds::BackgroundDef) -> Vec<(RefKind, String)> {
+    d.equipment.iter().filter(|s| !s.item.is_empty()).map(|s| (RefKind::Item, s.item.clone())).collect()
 }
 
 /// What a common event's actions use (items, sounds, other common events, ...).

@@ -24,6 +24,20 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - The example: the hero's scores and proficiencies, a **Locked Chest** by the river (DC 12, also
     in the starter library), a Religion check at the shrine's carvings and a Persuasion check to
     haggle with Tilda after the slime hunt.
+- **Races and the character creator**: the nine SRD races with their subraces (Hill Dwarf, High
+  Elf, Lightfoot Halfling, Rock Gnome), their ability increases, speed (dwarves, halflings and
+  gnomes walk slower), size, darkvision (dark places look dim, in grey), languages, resistances,
+  traits and choices. The creator gets a second page: ability scores by standard array, point buy
+  (27 points) or 4d6, the race's choices (a half-elf's +1s and skills, a dwarf's tool, a
+  dragonborn's ancestry, a high elf's cantrip, extra languages) and a background.
+  - **Backgrounds** are a new kind of definition (*Database › Backgrounds*): the SRD's Acolyte, and
+    the example's Farmhand and Wanderer.
+  - The races without models of their own reuse the library's (halflings and gnomes smaller,
+    tieflings red-skinned); races name default colours for the creator.
+  - The data comes from 5e-bits/5e-database by a new import tool (`srd_import`, pinned to a
+    commit); *Player race* conditions match a subrace's race; scripts `knows_language`,
+    `has_resistance`, `background`, `race_choice`; `status` prints `sheet=`.
+  - Goblins, orcs and trolls are races of the world's characters only.
 - **Breaking:** the skill tree is gone: skill definitions, skill points (per level, quest rewards),
   their effects (combat, defense, speed, mana, food, gathering, sneak attack and price bonuses) and
   the Database's *Skills* tab. The editor converts a project of 0.27 or older once when it opens it

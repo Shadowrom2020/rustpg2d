@@ -164,8 +164,9 @@ pub fn default_start_hour() -> f32 {
     8.0
 }
 
-/// The character creator: the player chooses a name, sex and look before a new game.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+/// The character creator: the player chooses a name, sex and look before a new game, then (with
+/// the SRD rules) ability scores, the race's choices and a background.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CharacterCreation {
     pub enabled: bool,
     /// The player character's sex: chosen by the player, or fixed by the game.
@@ -181,6 +182,20 @@ pub struct CharacterCreation {
     pub body_male: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub body_female: String,
+    /// How the player sets the ability scores on the creator's second page (none = the
+    /// project's *Rules* scores).
+    #[serde(default = "all_ability_methods")]
+    pub ability_methods: Vec<crate::srd::abilities::AbilityMethod>,
+}
+
+fn all_ability_methods() -> Vec<crate::srd::abilities::AbilityMethod> {
+    crate::srd::abilities::AbilityMethod::ALL.to_vec()
+}
+
+impl Default for CharacterCreation {
+    fn default() -> Self {
+        CharacterCreation { enabled: false, sex: SexChoice::default(), default_name: String::new(), body_male: String::new(), body_female: String::new(), ability_methods: all_ability_methods() }
+    }
 }
 
 impl CharacterCreation {
@@ -341,7 +356,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 17] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins", "common_events"];
+pub const DEFS: [&str; 18] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins", "common_events", "backgrounds"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -402,6 +417,7 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         fonts: parse_list(r(14)?, DEFS[14], warn)?,
         skins: parse_list(r(15)?, DEFS[15], warn)?,
         common_events: parse_list(r(16)?, DEFS[16], warn)?,
+        backgrounds: parse_list(r(17)?, DEFS[17], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
@@ -537,6 +553,9 @@ impl Project {
         }
         if !self.db.common_events.is_empty() || d(DEFS[16]).exists() {
             write_ron(&d(DEFS[16]), &self.db.common_events)?;
+        }
+        if !self.db.backgrounds.is_empty() || d(DEFS[17]).exists() {
+            write_ron(&d(DEFS[17]), &self.db.backgrounds)?;
         }
         Ok(())
     }

@@ -69,7 +69,7 @@ plugins/hard_mode/
 | `parameters` | Settings the project fills in: `name` (what scripts ask for), `label`, `kind` (`Number`, `Text`, `Flag`, `Sprite`, `Sound`, `Item`, `Map`, `Color`), `default`, for numbers `min` / `max`, and a `help` sentence. |
 | `hooks` | [Script hooks](08-scripting.md#script-hooks): hook, function, priority. |
 | `title_entries`, `pause_entries` | [Menu entries](05-database.md#title-screen-and-menus) added to the title screen (before *Exit*) and the pause menu (before *Save and quit*), usually `Custom(label, function, detail)`. |
-| `hud` | HUD elements shown while the plugin is on, by id, like the ones scripts set with `hud_text` / `hud_image` / `hud_bar` (`kind`: `Text(text)`, `Image(sheet, frame)`, `Bar(…)`; `anchor`, `x`, `y`: how far in from the anchor's edges, `size`, `color`). They aren't saved. |
+| `hud` | HUD elements shown while the plugin is on, by id, like the ones scripts set with `hud_text` / `hud_image` / `hud_bar` / `hud_minimap` (`kind`: `Text(text)`, `Image(sheet, frame)`, `Bar(…)`, `Minimap(tiles)`; `anchor`, `x`, `y`: how far in from the anchor's edges, `size`, `color`). They aren't saved. A text's placeholders (`{coins}`, a text variable `{name}`) are filled in every frame. |
 
 **Scripts**: every `.rhai` file in the plugin's `scripts/` folder. All functions of the project and
 its plugins share one name space, so start a plugin's function names with its id
@@ -91,6 +91,20 @@ they belong to the plugin. Sprite sheets, sounds, materials and fonts find their
 plugin's folder; 3D models aren't supported in plugins yet.
 
 **Not covered yet**: the plugin's texts aren't part of the project's translations.
+
+## The starter plugins
+
+The starter asset library brings four plugins (*Add from library*), each a small example of what
+plugins can do:
+
+| Plugin | What it does | How |
+|---|---|---|
+| **Calendar** | The weekday and the season under the clock: "Moonday, Spring 3". Parameters: days per season, the seasons' and weekdays' names (comma-separated), show the year. | A `map_enter` hook sets the flag `calendar_on`; its own common event (`defs/common_events.ron`, *Parallel while flag*) refreshes the text variable `calendar_text` every two seconds; a HUD text shows `{calendar_text}`. |
+| **Hard mode** | The player and their companions take more damage (×2) and get less healing (×0.75). Parameters: both factors. A red *Hard mode* under the clock. | `damage` and `heal` hooks (priority 100, after the project's own) and a HUD text. |
+| **Minimap** | A small map in the bottom right corner, with the fog of war and quest pins. | A `Minimap` HUD element only; change its size, corner or tiles across in its `plugin.ron`. |
+| **Damage number styles** | The numbers over hits: *bold* (bigger, critical hits with "!"), *comic* ("POW!", "OUCH", colourful) or *quiet* (small, soft). Parameters: the style, a minus on damage taken. | A `damage_number` hook. |
+
+The example game uses the Calendar and the Minimap.
 
 ## Sharing
 

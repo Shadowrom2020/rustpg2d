@@ -1,0 +1,18 @@
+(
+    name: "Minimap",
+    version: "1.0",
+    author: "R(ust)PG2D",
+    description: "A small map in the bottom right corner: the map around the player like the map screen (M) shows it, with the fog of war and quest pins. Its size, place and how many tiles it shows are in its plugin.ron (the hud element \"map\").",
+    api: "0.27",
+    hud: {
+        "map": (
+            kind: Minimap(
+                tiles: 24.0,
+            ),
+            anchor: BottomRight,
+            x: 16.0,
+            y: 76.0,
+            size: 150.0,
+        ),
+    },
+)

@@ -31,6 +31,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   work until 2.0.
 - `heal_character(target, amount)` is the new name of `heal_npc`, which is deprecated (it heals
   the player too).
+- **Starter plugins**: the starter library brings four plugins: **Calendar** (weekday and season
+  under the clock, names and season length as parameters), **Hard mode** (more damage taken, less
+  healing), **Minimap** and **Damage number styles** (bold, comic, quiet). The example game uses
+  the Calendar and the Minimap.
+- **Minimap HUD element**: `hud_minimap(id, x, y, size[, #{anchor, tiles}])` and plugins' `Minimap`
+  HUD elements show the map around the player like the map screen does (fog of war, quest pins).
+- **`damage_number` hook**: changes a damage number's text, colour and size when it appears.
 
 ## 0.26.0 — 2026-11-18
 

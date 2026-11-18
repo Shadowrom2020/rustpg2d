@@ -575,6 +575,17 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     let image_of = |sheet: &str, frame: &Dynamic| crate::script_ui::HudKind::Image { sheet: sheet.to_string(), frame: num(frame).max(0.0) as u32 };
     engine.register_fn("hud_image", with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, sheet: &str, f: Dynamic| hud_set(&mut c, id, image_of(sheet, &f), &x, &y, &rhai::Map::new())));
     engine.register_fn("hud_image", with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, sheet: &str, f: Dynamic, o: rhai::Map| hud_set(&mut c, id, image_of(sheet, &f), &x, &y, &o)));
+    // A minimap: `size` pixels square; options #{ anchor, tiles } (tiles across).
+    let minimap_of = |o: &rhai::Map| crate::script_ui::HudKind::Minimap { tiles: o.get("tiles").map_or(0.0, num).max(0.0) };
+    engine.register_fn("hud_minimap", with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, size: Dynamic| {
+        let o: rhai::Map = [("size".into(), size)].into_iter().collect();
+        hud_set(&mut c, id, minimap_of(&o), &x, &y, &o)
+    }));
+    engine.register_fn("hud_minimap", with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, size: Dynamic, o: rhai::Map| {
+        let mut o = o;
+        o.insert("size".into(), size);
+        hud_set(&mut c, id, minimap_of(&o), &x, &y, &o)
+    }));
     let bar_of = |w: &Dynamic, v: &Dynamic, m: &Dynamic| crate::script_ui::HudKind::Bar { value: v.to_string(), max: m.to_string(), w: num(w).max(1.0), label: String::new() };
     engine.register_fn("hud_bar",
         with!(ctx, |c, id: &str, x: Dynamic, y: Dynamic, w: Dynamic, v: Dynamic, m: Dynamic, col: &str| {

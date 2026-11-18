@@ -1,0 +1,52 @@
+(
+    name: "Calendar",
+    version: "1.0",
+    author: "R(ust)PG2D",
+    description: "Shows the weekday and the season under the clock: \"Moonday, Spring 3\". Seasons and weekdays are yours to name.",
+    api: "0.27",
+    parameters: [
+        (
+            name: "days_per_season",
+            label: "Days per season",
+            default: Some(28.0),
+            min: 1.0,
+            max: 120.0,
+        ),
+        (
+            name: "seasons",
+            label: "Seasons",
+            kind: Text,
+            default: Some("Spring,Summer,Autumn,Winter"),
+            help: "Their names in order, separated by commas",
+        ),
+        (
+            name: "weekdays",
+            label: "Weekdays",
+            kind: Text,
+            default: Some("Moonday,Tideday,Windday,Thunderday,Fireday,Starday,Sunday"),
+            help: "Their names in order, separated by commas (as many as you like)",
+        ),
+        (
+            name: "show_year",
+            label: "Show the year",
+            kind: Flag,
+            default: Some(false),
+        ),
+    ],
+    hooks: [
+        (
+            hook: "map_enter",
+            function: "calendar_enter",
+        ),
+    ],
+    hud: {
+        "date": (
+            kind: Text(
+                text: "{calendar_text}",
+            ),
+            anchor: TopRight,
+            x: 14.0,
+            y: 46.0,
+        ),
+    },
+)

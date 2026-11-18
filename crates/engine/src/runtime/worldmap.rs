@@ -51,6 +51,10 @@ pub(super) struct WorldMap {
     drag: Option<Drag>,
     /// Fog of war: one pixel per tile, opaque where unexplored (`None` on maps without fog).
     fog: Option<Texture2D>,
+    /// The map the picture shows (minimaps render it again on another map) and when the fog
+    /// texture was last made for them (`get_time`).
+    picture_of: String,
+    fog_at: f64,
 }
 
 /// Buttons in the map screen's header.
@@ -362,6 +366,60 @@ impl Game {
         self.draw_decor_layer(DecorLayer::Above, view);
         set_default_camera();
         self.worldmap.picture = Some((rt, ppt));
+        self.worldmap.picture_of = self.loaded.map.name.clone();
+    }
+
+    /// Before drawing (with no camera set): the picture and fog the HUD's minimaps need — the
+    /// picture once per map, the fog once a second.
+    pub(super) fn prepare_minimap(&mut self) {
+        let mini = |e: &crate::script_ui::HudElement| matches!(e.kind, crate::script_ui::HudKind::Minimap { .. });
+        if self.on_title() || !(self.world.hud.values().any(mini) || self.plugin_hud.values().any(mini)) || self.loaded.map.name.is_empty() {
+            return;
+        }
+        if self.worldmap.picture.is_none() || self.worldmap.picture_of != self.loaded.map.name {
+            self.render_map_picture();
+            self.worldmap.fog_at = 0.0;
+        }
+        if get_time() - self.worldmap.fog_at > 1.0 {
+            self.worldmap.fog = self.build_fog();
+            self.worldmap.fog_at = get_time();
+        }
+    }
+
+    /// A minimap HUD element: `r` on the screen showing `tiles` tiles across around the player
+    /// (kept inside the map), with the fog of war, quest pins and the player's marker.
+    pub(super) fn draw_minimap(&self, r: Rect, tiles: f32) {
+        let Some((rt, ppt)) = &self.worldmap.picture else { return };
+        if self.worldmap.picture_of != self.loaded.map.name {
+            return;
+        }
+        let (mw, mh) = (self.loaded.map.width as f32, self.loaded.map.height as f32);
+        let across = if tiles > 0.0 { tiles } else { 24.0 };
+        let zoom = r.w / across;
+        let (vw, vh) = (r.w / zoom, r.h / zoom);
+        let player = self.player.pos / self.ts();
+        // The view's top left in tiles, inside the map (a small map is centred instead).
+        let axis = |p: f32, view: f32, size: f32| if size <= view { (size - view) / 2.0 } else { (p - view / 2.0).clamp(0.0, size - view) };
+        let (ox, oy) = (axis(player.x, vw, mw), axis(player.y, vh, mh));
+        let to_screen = |t: Vec2| vec2(r.x + (t.x - ox) * zoom, r.y + (t.y - oy) * zoom);
+        draw_rectangle(r.x - 3.0, r.y - 3.0, r.w + 6.0, r.h + 6.0, Color::new(0.0, 0.0, 0.0, 0.55));
+        let full = Rect::new(to_screen(Vec2::ZERO).x, to_screen(Vec2::ZERO).y, mw * zoom, mh * zoom);
+        if let Some(vis) = full.intersect(r) {
+            rt.texture.set_filter(if zoom >= *ppt { FilterMode::Nearest } else { FilterMode::Linear });
+            let at = |p: Vec2| vec2((p.x - full.x) / zoom, (p.y - full.y) / zoom);
+            let (a, b) = (at(vis.point()), at(vis.point() + vis.size()));
+            draw_texture_ex(&rt.texture, vis.x, vis.y, WHITE, DrawTextureParams { dest_size: Some(vis.size()), source: Some(Rect::new(a.x * ppt, a.y * ppt, (b.x - a.x) * ppt, (b.y - a.y) * ppt)), ..Default::default() });
+            if let Some(fog) = &self.worldmap.fog {
+                draw_texture_ex(fog, vis.x, vis.y, WHITE, DrawTextureParams { dest_size: Some(vis.size()), source: Some(Rect::new(a.x, a.y, b.x - a.x, b.y - a.y)), ..Default::default() });
+            }
+        }
+        self.draw_quest_pins(r, to_screen);
+        let p = to_screen(player - vec2(0.0, 0.3));
+        if r.contains(p) {
+            draw_circle(p.x, p.y, 4.5, Color::new(0.95, 0.2, 0.15, 1.0));
+            draw_circle_lines(p.x, p.y, 4.5, 1.5, WHITE);
+        }
+        draw_rectangle_lines(r.x - 1.0, r.y - 1.0, r.w + 2.0, r.h + 2.0, 2.0, skin::line(0.8));
     }
 
     /// Exits to other maps: (rect in tiles, target map).

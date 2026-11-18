@@ -24,9 +24,12 @@ const TITLE_H: f32 = 56.0;
 const HUD_TEXT: f32 = 20.0;
 
 /// A colour name (the dialog codes' and the skin's) or `#rrggbb`; `None` for empty / unknown.
-fn color_of(s: &str) -> Option<Color> {
+pub(super) fn color_of(s: &str) -> Option<Color> {
     (!s.trim().is_empty()).then(|| crate::dialog_codes::color(s)).flatten().map(|[r, g, b]| Color::from_rgba(r, g, b, 255))
 }
+
+/// A minimap's side in pixels when its element has no size.
+const MINIMAP_SIZE: f32 = 160.0;
 
 impl Game {
     /// Takes what scripts asked of the window (after they ran).
@@ -153,6 +156,11 @@ impl Game {
                     draw_plain(&text, x + 1.0, y + size * 0.8 + 1.0, size, Color::new(0.0, 0.0, 0.0, 0.7));
                     draw_plain(&text, x, y + size * 0.8, size, col);
                 }
+                HudKind::Minimap { tiles } => {
+                    let side = if e.size > 0.0 { e.size } else { MINIMAP_SIZE };
+                    let (x, y) = e.anchor.place(sw, sh, side, side, e.x, e.y);
+                    self.draw_minimap(Rect::new(x, y, side, side), *tiles);
+                }
                 HudKind::Image { sheet, frame } => {
                     let Some(s) = self.assets.sheets.get(sheet) else { continue };
                     let k = if e.size > 0.0 { e.size } else { 2.0 };
@@ -231,6 +239,7 @@ impl Game {
                     HudKind::Bar { value, max, .. } => format!(":{}/{}", self.source_value(value), self.source_value(max)),
                     HudKind::Text { text } => format!(":{:?}", self.world.expand_text(text)),
                     HudKind::Image { sheet, frame } => format!(":{sheet}#{frame}"),
+                    HudKind::Minimap { tiles } => format!(":{}x{tiles}", if e.size > 0.0 { e.size } else { MINIMAP_SIZE }),
                 };
                 format!("{id}:{}{extra}@{}+{},{}", e.kind_name(), e.anchor.name(), e.x, e.y)
             })

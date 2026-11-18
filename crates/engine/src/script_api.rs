@@ -263,6 +263,8 @@ pub const API: &[ApiFn] = api! {
     "hud_image"(id: Text, x: Num, y: Num, sheet: Sheet, frame: Num, options: Opts) "Like hud_image(); options #{ anchor: \"top_right\", scale: 3 } (immediately)";
     "hud_bar"(id: Text, x: Num, y: Num, width: Num, value: Text, max: Text, color: Text) "Puts a bar on the HUD: value and max are each a variable name, a number, \"hp:NAME\" (a character's HP on this map; \"hp:player\" the player's) or \"max_hp:NAME\"; it follows them every frame. Saved with the game (immediately)";
     "hud_bar"(id: Text, x: Num, y: Num, width: Num, value: Text, max: Text, color: Text, options: Opts) "Like hud_bar(); options #{ anchor: \"top\", label: \"Grumbold\" (a name over the bar, translated) } (immediately)";
+    [since "0.27"] "hud_minimap"(id: Text, x: Num, y: Num, size: Num) "Puts a small map on the HUD: a square of size pixels around the player, like the map screen (24 tiles across). Saved with the game (immediately)";
+    [since "0.27"] "hud_minimap"(id: Text, x: Num, y: Num, size: Num, options: Opts) "Like hud_minimap(); options #{ anchor: \"top_right\", tiles: 32 } (how many tiles across) (immediately)";
     "hud_remove"(id: Text) "Takes a HUD element away (immediately)";
     "hud_clear"() "Takes every HUD element the scripts set away (immediately)";
     "window_open"(id: Text, title: Line, rows: List) "Opens a window over the game (it pauses the game; Esc closes it). rows: an array of lines (strings, placeholders filled in), #{ image: \"sheet\", frame: 0 } pictures and #{ button: \"Label\", run: \"function\" } buttons that run a script function (the window stays open: open it again with the same id to refresh it, or call window_close()). Not saved (after the function)";

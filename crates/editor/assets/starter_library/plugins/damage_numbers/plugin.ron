@@ -1,0 +1,29 @@
+(
+    name: "Damage number styles",
+    version: "1.0",
+    author: "R(ust)PG2D",
+    description: "Restyles the numbers that pop up over hits: bold (bigger, critical hits with \"!\"), comic (POW!, colourful) or quiet (small and soft).",
+    api: "0.27",
+    parameters: [
+        (
+            name: "style",
+            label: "Style",
+            kind: Text,
+            default: Some("bold"),
+            help: "bold, comic or quiet",
+        ),
+        (
+            name: "minus",
+            label: "Minus on damage taken",
+            kind: Flag,
+            default: Some(true),
+            help: "Damage the player's side takes shows as -5",
+        ),
+    ],
+    hooks: [
+        (
+            hook: "damage_number",
+            function: "damage_numbers_style",
+        ),
+    ],
+)

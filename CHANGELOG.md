@@ -3,7 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.27.0 — 2026-11-18
 
 ### Plugins
 - **Script hooks**: scripts change what the engine does. *Database › Project › Script hooks*

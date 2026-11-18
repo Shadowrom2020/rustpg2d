@@ -115,11 +115,14 @@ its version.
 
 ## The SRD 5.1 data
 
-The starter library's races (with their subraces, traits and choices) and the Acolyte background
-come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the data of
+The starter library's races (with their subraces, traits and choices), the Acolyte background and
+the 334 monsters ([Characters › Monsters](06-characters.md#monsters)) come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the data of
 [5e-bits/5e-database](https://github.com/5e-bits/5e-database), pinned to a commit. The import is a
 tool of the repository; running it again updates what it wrote and keeps what the library added
-(models, factions, sizes, colours). Run from the repository, it also writes the SRD's 35 NPC stat
+(models, factions, sizes, colours; a character that already has a monster's id keeps its look,
+behaviour, triggers and loot and takes the SRD's stat block, and a character with a monster's stat
+block keeps its numbers and gains the SRD's size, type, speeds, senses and texts). Run from the
+repository, it also gives the example's characters the same data and writes the SRD's 35 NPC stat
 blocks (commoner, guard, bandit, veteran…) into the engine (`crates/engine/src/srd/npcs.ron`): the
 templates of the [stat blocks](06-characters.md#stat-blocks), and the SRD's own words for
 conditions, damage types, languages, alignments, abilities and skills (`rules.ron`: the editor's

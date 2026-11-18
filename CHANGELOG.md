@@ -154,6 +154,24 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - The example (and starter library): the weapons have their SRD dice (the fine iron sword is
     keen), the templated characters their attacks (the guard's spear, the bandit captain's three
     attacks), wolves and bats the SRD beasts' stat blocks and slimes a weak one of their own.
+- **Monsters and encounters**: the SRD 5.1's 334 monsters are characters in the starter library,
+  from the aboleth to the zombie, with their whole stat block (speeds, senses, attacks and
+  Multiattack, challenge and XP, and the texts of their traits, actions, reactions and legendary
+  actions); a library model where one fits, else the mannequin, drawn at the creature's size. Stat
+  blocks gain *size*, *type*, *speeds*, *senses* and *traits and special actions* (the editor's
+  form edits them; the bestiary shows a stat block's hit points, armor class, challenge, attacks and
+  traits). The import tool writes them (`srd_import`) and gives existing characters of a
+  monster's id or block the SRD's data; *Problems* and the attribution count them as SRD content.
+  - **Encounter zones** (a new zone kind): a listed group of monsters, or with a difficulty (easy,
+    medium, hard, deadly) a group picked from the list within the party's XP budget: per party
+    member at the hero's level, one monster of challenge level/8, /4, /2 or level (the engine's
+    own formula; the SRD has no encounter tables). The same group for a map and zone every time;
+    respawn and loot like spawners. The zone form, *Problems*, renames and the agent server's
+    `add_zone` know it; `status` prints `encounters=`. Flying monsters move at their flying speed
+    in fights.
+  - The example: Whisperwood's *wolf_hollow* (medium: wolves, giant rats, slimes) and the mine's
+    *rat_nest* (easy: bats, giant rats); its wolf, bat, troll, cat and the templated characters
+    took the SRD's data (the bridge troll is the SRD troll now).
 - **Breaking:** real-time combat is gone: wind-ups, swings, lunges, contact damage, blocking and
   parrying with shields, dodge rolls, hit-stop, the attackers' turn-taking and circling, enemy
   shooting and companions' real-time fighting. The *Block* and *Dodge* key bindings are dropped

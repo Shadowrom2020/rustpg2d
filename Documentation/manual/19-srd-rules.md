@@ -17,6 +17,7 @@ uses it, what is still simplified, and what the licence asks of your game. The d
 | **Conditions** | The 15 conditions with exhaustion's six levels; saving throws keep them off; damage or healing per round of 6 seconds | [Gameplay › Conditions and damage](09-gameplay.md#conditions-and-damage) |
 | **Damage types** | 13 types; resistance halves, immunity stops, vulnerability doubles | [Gameplay › Conditions and damage](09-gameplay.md#conditions-and-damage) |
 | **Rests** | Short rests spend hit dice; long rests (a night's sleep) restore HP, hit dice and lower exhaustion | [Gameplay › Rests](09-gameplay.md#rests) |
+| **Monsters** | The 334 SRD monsters as library characters with their stat blocks; encounter zones size groups for the party | [Characters › Monsters](06-characters.md#monsters), [Encounters](04-objects-and-zones.md#encounters) |
 | **Stat blocks** | Any character can have one, from the SRD's 35 NPC templates (commoner, guard, bandit, veteran…) or by hand, with its attacks and Multiattack | [Characters › Stat blocks](06-characters.md#stat-blocks) |
 | **Combat** | Turn-based on the map's tiles (5 ft): initiative, surprise, movement with difficult terrain, the action economy and the SRD's actions, attack rolls against AC with advantage and disadvantage, critical hits, cover, opportunity attacks, two-weapon fighting, grapple and shove, death saving throws | [Gameplay › Health and combat](09-gameplay.md#health-and-combat) |
 
@@ -32,10 +33,11 @@ built into the engine; the editor shows them as hover texts.
 - **Weapons and armor** come with 0.31: weapon properties (finesse, light, heavy, thrown) and the
   SRD's armor table. Until then melee attacks use STR, ranged ones DEX, any weapon in the left hand
   can make the off-hand attack, and armor class is 10 + DEX + the armor's *Defense*.
-- **Monsters** come with *Monsters and encounters* (0.29): characters without a stat block fight
-  with one made from their old values (AC 10 + *Defense*, their *Max HP*, +2 to hit with their
-  weapon or *Damage*). Special actions with recharge, legendary actions and traits such as Pack
-  Tactics or Regeneration don't act yet.
+- **Monsters:** their attacks act; special actions with recharge, legendary actions and traits such
+  as Pack Tactics or Regeneration are texts until 0.32. Large and bigger creatures take one tile.
+  Characters without a stat block fight with one made from their old values (AC 10 + *Defense*,
+  their *Max HP*, +2 to hit with their weapon or *Damage*).
+- **Encounter budgets** are the engine's own formula: the SRD 5.1 has no encounter tables.
 - **Difficult terrain** comes from materials only (not yet from decorations); reach weapons reach
   as far as their *Reach* in tiles (the example's spear: 10 ft).
 - **No breath weapons** or other class and race features beyond what the traits describe.

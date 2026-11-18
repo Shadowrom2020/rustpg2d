@@ -71,7 +71,8 @@ crates/engine/src/      library: everything shared by game and editor
                         RUSTPG2D_SEED, autoplay starts at 1; advantage / disadvantage), abilities.rs (six abilities,
                         modifier, proficiency bonus, the 18 SKILLS and the TOOLS by SRD index id, proficiency_id),
                         check.rs (Spec = what a check rolls: skill / ability / ability:tool / save; RollRecord = the
-                        combat.rs (pure rules of fights: FEET_PER_TILE, AttackSituation / odds, attack rolls, crit_dice,
+                        encounter.rs (Difficulty, EncounterEntry, the SRD's
+                        XP_BY_CR, budget = own formula, pick within it, seed_of); combat.rs (pure rules of fights: FEET_PER_TILE, AttackSituation / odds, attack rolls, crit_dice,
                         Cover::of_lines, DeathSaves, step_cost); statblock.rs StatAttack + multiattack;
                         roll log); conditions.rs (Condition, ConditionSpec / ActiveCondition = WorldState.effects and
                         RtEntity.effects, rules(); 0.27's status effects read through reprs; runtime/effects.rs, rest.rs =
@@ -191,7 +192,7 @@ crates/engine/src/      library: everything shared by game and editor
   state.rs              WorldState = save game (flags, vars, inventory, quests, shops,
                         player name/sex/look), Sex, expand_text() placeholders
   map/                  Map (painted ground, decorations, collision, objects), zones (spawn, portal,
-                        trigger, spawner, transition), io.rs = map file format (postcard ground /
+                        trigger, spawner, encounter, transition), io.rs = map file format (postcard ground /
                         decor + RON `Meta`; v1 / v2 tile maps via decode_tiles for the converter,
                         save_tiles = v2 for the 16 px upgrade)
   events/               GameEvent, TriggerOn, Cond, Action (mod.rs); ActionRunner (runner.rs)
@@ -210,7 +211,8 @@ crates/engine/src/      library: everything shared by game and editor
                         Effect actions: scripted flying sprites and one-shot animations), menu (title/pause/options),
                         worldmap (M map screen), paperdoll (drawing characters: Game::look, model poses),
                         npc_items (NPC equipment / carried items: combat, drops, saved changes), mouse,
-                        spawner, ui (dialogs, toasts), input (+ injection for autoplay), barks (speech
+                        spawner (spawner and encounter zones: groups, SpawnerRt.group, encounter_group = the budget pick;
+                        status encounters=), ui (dialogs, toasts), input (+ injection for autoplay), barks (speech
                         bubbles over heads), soundscape (Ambience zones, footsteps by material), stealth (sneaking:
                         Act::Sneak toggle, light at the player, enemies' player_sight, unaware = surprised)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
@@ -281,6 +283,7 @@ crates/editor/src/      editor binary
   script_editor.rs (Rhai editor: highlighting, completion, API table with params/docs),
   repo_mode.rs (repository mode: started in a checkout, the editor works on example_project and the starter library),
   srd_import.rs (the SRD 5.1 import from a 5e-database checkout, pinned SRD_COMMIT: races, subraces, traits, choices,
+  the 334 monsters as library characters (import_monsters; update_monsters_in = the example's),
   backgrounds; run by examples/srd_import.rs, compiled into the binary only for its test),
   ui.rs (icon font, ribbon / tool-button helpers), models_tab.rs (importing 3D models and item
   models, rendering item icons; the form is database::model_form, previews widgets::paint_model),

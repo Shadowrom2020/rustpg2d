@@ -78,6 +78,7 @@ choose its kind in the inspector:
 | **Portal** | Entering it moves the player to a spawn point on a map (target map and spawn from dropdowns). Good for doors into houses. |
 | **Trigger area** | Runs its triggers when the player enters it, leaves it or presses E inside it. Good for "you feel watched" moments, quest steps and traps. |
 | **Enemy spawner** | Keeps a group of characters alive inside it (below). |
+| **Encounter** | Spawns a group of monsters, listed or picked for the party's level ([below](#encounters)). |
 | **Map transition** | One end of a two-way link between maps (below). |
 | **Fishing spot** | Water where the player can fish ([Gameplay › Fishing](09-gameplay.md#fishing)). |
 | **Ambience** | A looping sound heard here: full **volume** inside the zone, fading to nothing **fades over** that many tiles around it (0 = only inside). Birds over a meadow (a zone over the whole map), a river along its banks, a tavern's murmur over the room. Zones with the same sound play it once, at the loudest; different sounds mix, and they fade in and out as the player walks. Players set their loudness with *Options › Sound › Ambience volume* ([Art and sound › Soundscapes](10-art-and-sound.md#soundscapes-and-footsteps)). |
@@ -126,6 +127,39 @@ Characters appear on random walkable tiles inside the zone, never right next to 
 The *Spawners on / off* action and the scripts `disable_spawners(map)` / `enable_spawners(map)` switch
 spawners off and on (saved); a switched-off spawner's characters vanish. Characters placed directly
 on a map (not by a spawner) stay dead once defeated.
+
+## Encounters
+
+An **Encounter** zone spawns a group of monsters when the map is entered, on random walkable tiles
+inside it (never right next to the player), and respawns them like a spawner (*Never*, *Each time
+the map is entered*, *After a delay*). It lists **monsters** with counts and has a **difficulty**:
+
+- **Fixed group:** the listed monsters, as many as listed (2 wolves and a giant rat).
+- **Easy, Medium, Hard, Deadly:** the list is a pool, and the counts are at most how many of each.
+  The group is picked within the party's **XP budget**: the most expensive monster that fits
+  first, then others at random until nothing more fits (at least one, at most eight). The pick is
+  the same for a map and zone every time.
+
+The budget is the engine's own (the SRD 5.1 has no encounter tables): every party member (the hero
+and the companions on the map) at the hero's level L is worth the experience of one monster of
+challenge **L/8** (easy), **L/4** (medium), **L/2** (hard) or **L** (deadly), from the SRD's
+challenge → XP table:
+
+| Hero's level | Easy | Medium | Hard | Deadly |
+|---|---|---|---|---|
+| 1 | 25 XP | 50 XP | 100 XP | 200 XP |
+| 4 | 100 XP | 200 XP | 450 XP | 1,100 XP |
+| 8 | 200 XP | 450 XP | 1,100 XP | 3,900 XP |
+
+A companion doubles it, two triple it. A monster is worth its *Experience* (the SRD's XP for its
+challenge, from its stat block); defeating it gives that XP to the hero. The SRD's monsters are in the
+asset library ([Characters › Monsters](06-characters.md#monsters)): *Add from library* brings them
+into a project, then name them in the zone. An encounter's *Loot of spawned characters* works like a
+spawner's. `status` prints `encounters=` (each zone with its difficulty, budget and group).
+
+In the example a Medium encounter of wolves, giant rats and slimes waits in Whisperwood's
+south-east (*wolf_hollow*: a wolf for a lone level-1 hero, more with the guard along), and an Easy
+one of bats and giant rats in the mine's side cave.
 
 ## Loot
 

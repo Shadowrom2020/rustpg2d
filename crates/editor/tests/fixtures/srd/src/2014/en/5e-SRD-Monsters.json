@@ -1,388 +1,643 @@
 [
- {
-  "index": "bandit",
-  "name": "Bandit",
-  "desc": "**Bandits** rove in gangs and are sometimes led by thugs, veterans, or spellcasters. Not all bandits are evil. Oppression, drought, disease, or famine can often drive otherwise honest folk to a life of banditry.\n\n**Pirates** are bandits of the high seas. They might be freebooters interested only in treasure and murder, or they might be privateers sanctioned by the crown to attack and plunder an enemy nation’s vessels.",
-  "size": "Medium",
-  "type": "humanoid",
-  "subtype": "any race",
-  "alignment": "any non-lawful alignment",
-  "armor_class": [
-   {
-    "type": "armor",
-    "value": 12,
-    "armor": [
-     {
-      "index": "leather-armor",
-      "name": "Leather Armor",
-      "url": "/api/2014/equipment/leather-armor"
-     }
-    ]
-   }
-  ],
-  "hit_points": 11,
-  "hit_dice": "2d8",
-  "hit_points_roll": "2d8+2",
-  "speed": {
-   "walk": "30 ft."
-  },
-  "strength": 11,
-  "dexterity": 12,
-  "constitution": 12,
-  "intelligence": 10,
-  "wisdom": 10,
-  "charisma": 10,
-  "proficiencies": [],
-  "damage_vulnerabilities": [],
-  "damage_resistances": [],
-  "damage_immunities": [],
-  "condition_immunities": [],
-  "senses": {
-   "passive_perception": 10
-  },
-  "languages": "any one language (usually Common)",
-  "challenge_rating": 0.125,
-  "proficiency_bonus": 2,
-  "xp": 25,
-  "actions": [
-   {
-    "name": "Scimitar",
-    "desc": "Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 4 (1d6 + 1) slashing damage.",
-    "attack_bonus": 3,
-    "damage": [
-     {
-      "damage_type": {
-       "index": "slashing",
-       "name": "Slashing",
-       "url": "/api/2014/damage-types/slashing"
-      },
-      "damage_dice": "1d6+1"
-     }
-    ]
-   },
-   {
-    "name": "Light Crossbow",
-    "desc": "Ranged Weapon Attack: +3 to hit, range 80/320 ft., one target. Hit: 5 (1d8 + 1) piercing damage.",
-    "attack_bonus": 3,
-    "damage": [
-     {
-      "damage_type": {
-       "index": "piercing",
-       "name": "Piercing",
-       "url": "/api/2014/damage-types/piercing"
-      },
-      "damage_dice": "1d8+1"
-     }
-    ]
-   }
-  ],
-  "image": "/api/images/monsters/bandit.png",
-  "url": "/api/2014/monsters/bandit"
- },
- {
-  "index": "guard",
-  "name": "Guard",
-  "desc": "Guards include members of a city watch, sentries in a citadel or fortified town, and the bodyguards of merchants and nobles.",
-  "size": "Medium",
-  "type": "humanoid",
-  "subtype": "any race",
-  "alignment": "any alignment",
-  "armor_class": [
-   {
-    "type": "armor",
-    "value": 16,
-    "armor": [
-     {
-      "index": "chain-shirt",
-      "name": "Chain Shirt",
-      "url": "/api/2014/equipment/chain-shirt"
-     },
-     {
-      "index": "shield",
-      "name": "Shield",
-      "url": "/api/2014/equipment/shield"
-     }
-    ]
-   }
-  ],
-  "hit_points": 11,
-  "hit_dice": "2d8",
-  "hit_points_roll": "2d8+2",
-  "speed": {
-   "walk": "30 ft."
-  },
-  "strength": 13,
-  "dexterity": 12,
-  "constitution": 12,
-  "intelligence": 10,
-  "wisdom": 11,
-  "charisma": 10,
-  "proficiencies": [
-   {
-    "value": 2,
-    "proficiency": {
-     "index": "skill-perception",
-     "name": "Skill: Perception",
-     "url": "/api/2014/proficiencies/skill-perception"
-    }
-   }
-  ],
-  "damage_vulnerabilities": [],
-  "damage_resistances": [],
-  "damage_immunities": [],
-  "condition_immunities": [],
-  "senses": {
-   "passive_perception": 12
-  },
-  "languages": "any one language (usually Common)",
-  "challenge_rating": 0.125,
-  "proficiency_bonus": 2,
-  "xp": 25,
-  "actions": [
-   {
-    "name": "Spear",
-    "desc": "Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage or 5 (1d8 + 1) piercing damage if used with two hands to make a melee attack.",
-    "attack_bonus": 3,
-    "damage": [
-     {
-      "choose": 1,
-      "type": "damage",
-      "from": {
-       "option_set_type": "options_array",
-       "options": [
-        {
-         "option_type": "damage",
-         "notes": "One handed",
-         "damage_type": {
-          "index": "piercing",
-          "name": "Piercing",
-          "url": "/api/2014/damage-types/piercing"
-         },
-         "damage_dice": "1d6+1"
-        },
-        {
-         "option_type": "damage",
-         "notes": "Two handed",
-         "damage_type": {
-          "index": "piercing",
-          "name": "Piercing",
-          "url": "/api/2014/damage-types/piercing"
-         },
-         "damage_dice": "1d8+1"
-        }
-       ]
+  {
+    "index": "bandit",
+    "name": "Bandit",
+    "desc": "**Bandits** rove in gangs and are sometimes led by thugs, veterans, or spellcasters. Not all bandits are evil. Oppression, drought, disease, or famine can often drive otherwise honest folk to a life of banditry.\n\n**Pirates** are bandits of the high seas. They might be freebooters interested only in treasure and murder, or they might be privateers sanctioned by the crown to attack and plunder an enemy nation’s vessels.",
+    "size": "Medium",
+    "type": "humanoid",
+    "subtype": "any race",
+    "alignment": "any non-lawful alignment",
+    "armor_class": [
+      {
+        "type": "armor",
+        "value": 12,
+        "armor": [
+          {
+            "index": "leather-armor",
+            "name": "Leather Armor",
+            "url": "/api/2014/equipment/leather-armor"
+          }
+        ]
       }
-     }
-    ]
-   }
-  ],
-  "image": "/api/images/monsters/guard.png",
-  "url": "/api/2014/monsters/guard"
- },
- {
-  "index": "werewolf-human",
-  "name": "Werewolf, Human Form",
-  "size": "Medium",
-  "type": "humanoid",
-  "subtype": "human",
-  "alignment": "chaotic evil",
-  "armor_class": [
-   {
-    "type": "dex",
-    "value": 11
-   }
-  ],
-  "hit_points": 58,
-  "hit_dice": "9d8",
-  "forms": [
-   {
-    "index": "werewolf-hybrid",
-    "name": "Werewolf, Hybrid Form",
-    "url": "/api/2014/monsters/werewolf-hybrid"
-   },
-   {
-    "index": "werewolf-wolf",
-    "name": "Werewolf, Wolf Form",
-    "url": "/api/2014/monsters/werewolf-wolf"
-   }
-  ],
-  "hit_points_roll": "9d8+18",
-  "speed": {
-   "walk": "30 ft."
-  },
-  "strength": 15,
-  "dexterity": 13,
-  "constitution": 14,
-  "intelligence": 10,
-  "wisdom": 11,
-  "charisma": 10,
-  "proficiencies": [
-   {
-    "value": 4,
-    "proficiency": {
-     "index": "skill-perception",
-     "name": "Skill: Perception",
-     "url": "/api/2014/proficiencies/skill-perception"
-    }
-   }
-  ],
-  "damage_vulnerabilities": [],
-  "damage_resistances": [],
-  "damage_immunities": [
-   "bludgeoning, piercing, and slashing from nonmagical weapons that aren't silvered"
-  ],
-  "condition_immunities": [],
-  "senses": {
-   "passive_perception": 14
-  },
-  "languages": "Common",
-  "challenge_rating": 3,
-  "proficiency_bonus": 2,
-  "xp": 700,
-  "special_abilities": [
-   {
-    "name": "Shapechanger",
-    "desc": "The werewolf can use its action to polymorph into a wolf-humanoid hybrid or into a wolf, or back into its true form, which is humanoid. Its statistics, other than its AC, are the same in each form. Any equipment it is wearing or carrying isn't transformed. It reverts to its true form if it dies."
-   },
-   {
-    "name": "Keen Hearing and Smell",
-    "desc": "The werewolf has advantage on Wisdom (Perception) checks that rely on hearing or smell."
-   }
-  ],
-  "actions": [
-   {
-    "name": "Multiattack",
-    "multiattack_type": "actions",
-    "desc": "The werewolf makes two attacks: two with its spear (humanoid form) or one with its bite and one with its claws (hybrid form).",
+    ],
+    "hit_points": 11,
+    "hit_dice": "2d8",
+    "hit_points_roll": "2d8+2",
+    "speed": {
+      "walk": "30 ft."
+    },
+    "strength": 11,
+    "dexterity": 12,
+    "constitution": 12,
+    "intelligence": 10,
+    "wisdom": 10,
+    "charisma": 10,
+    "proficiencies": [],
+    "damage_vulnerabilities": [],
+    "damage_resistances": [],
+    "damage_immunities": [],
+    "condition_immunities": [],
+    "senses": {
+      "passive_perception": 10
+    },
+    "languages": "any one language (usually Common)",
+    "challenge_rating": 0.125,
+    "proficiency_bonus": 2,
+    "xp": 25,
     "actions": [
-     {
-      "action_name": "Spear",
-      "count": 2,
-      "type": "melee"
-     }
-    ]
-   },
-   {
-    "name": "Spear",
-    "desc": "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 20/60 ft., one creature. Hit: 5 (1d6 + 2) piercing damage, or 6 (1d8 + 2) piercing damage if used with two hands to make a melee attack.",
-    "attack_bonus": 4,
-    "damage": [
-     {
-      "choose": 1,
-      "type": "damage",
-      "from": {
-       "option_set_type": "options_array",
-       "options": [
-        {
-         "option_type": "damage",
-         "notes": "One handed",
-         "damage_type": {
-          "index": "piercing",
-          "name": "Piercing",
-          "url": "/api/2014/damage-types/piercing"
-         },
-         "damage_dice": "1d6+2"
-        },
-        {
-         "option_type": "damage",
-         "notes": "Two handed",
-         "damage_type": {
-          "index": "piercing",
-          "name": "Piercing",
-          "url": "/api/2014/damage-types/piercing"
-         },
-         "damage_dice": "1d8+2"
-        }
-       ]
-      }
-     }
-    ]
-   }
-  ],
-  "image": "/api/images/monsters/werewolf-human.png",
-  "url": "/api/2014/monsters/werewolf-human"
- },
- {
-  "index": "wolf",
-  "name": "Wolf",
-  "size": "Medium",
-  "type": "beast",
-  "alignment": "unaligned",
-  "armor_class": [
-   {
-    "type": "natural",
-    "value": 13
-   }
-  ],
-  "hit_points": 11,
-  "hit_dice": "2d8",
-  "hit_points_roll": "2d8+2",
-  "speed": {
-   "walk": "40 ft."
-  },
-  "strength": 12,
-  "dexterity": 15,
-  "constitution": 12,
-  "intelligence": 3,
-  "wisdom": 12,
-  "charisma": 6,
-  "proficiencies": [
-   {
-    "value": 3,
-    "proficiency": {
-     "index": "skill-perception",
-     "name": "Skill: Perception",
-     "url": "/api/2014/proficiencies/skill-perception"
-    }
-   },
-   {
-    "value": 4,
-    "proficiency": {
-     "index": "skill-stealth",
-     "name": "Skill: Stealth",
-     "url": "/api/2014/proficiencies/skill-stealth"
-    }
-   }
-  ],
-  "damage_vulnerabilities": [],
-  "damage_resistances": [],
-  "damage_immunities": [],
-  "condition_immunities": [],
-  "senses": {
-   "passive_perception": 13
-  },
-  "languages": "",
-  "challenge_rating": 0.25,
-  "proficiency_bonus": 2,
-  "xp": 50,
-  "special_abilities": [
-   {
-    "name": "Keen Hearing and Smell",
-    "desc": "The wolf has advantage on Wisdom (Perception) checks that rely on hearing or smell."
-   },
-   {
-    "name": "Pack Tactics",
-    "desc": "The wolf has advantage on an attack roll against a creature if at least one of the wolf's allies is within 5 ft. of the creature and the ally isn't incapacitated."
-   }
-  ],
-  "actions": [
-   {
-    "name": "Bite",
-    "desc": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 7 (2d4 + 2) piercing damage. If the target is a creature, it must succeed on a DC 11 Strength saving throw or be knocked prone.",
-    "attack_bonus": 4,
-    "damage": [
-     {
-      "damage_type": {
-       "index": "piercing",
-       "name": "Piercing",
-       "url": "/api/2014/damage-types/piercing"
+      {
+        "name": "Scimitar",
+        "desc": "Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 4 (1d6 + 1) slashing damage.",
+        "attack_bonus": 3,
+        "damage": [
+          {
+            "damage_type": {
+              "index": "slashing",
+              "name": "Slashing",
+              "url": "/api/2014/damage-types/slashing"
+            },
+            "damage_dice": "1d6+1"
+          }
+        ]
       },
-      "damage_dice": "2d4+2"
-     }
-    ]
-   }
-  ],
-  "image": "/api/images/monsters/wolf.png",
-  "url": "/api/2014/monsters/wolf"
- }
+      {
+        "name": "Light Crossbow",
+        "desc": "Ranged Weapon Attack: +3 to hit, range 80/320 ft., one target. Hit: 5 (1d8 + 1) piercing damage.",
+        "attack_bonus": 3,
+        "damage": [
+          {
+            "damage_type": {
+              "index": "piercing",
+              "name": "Piercing",
+              "url": "/api/2014/damage-types/piercing"
+            },
+            "damage_dice": "1d8+1"
+          }
+        ]
+      }
+    ],
+    "image": "/api/images/monsters/bandit.png",
+    "url": "/api/2014/monsters/bandit"
+  },
+  {
+    "index": "guard",
+    "name": "Guard",
+    "desc": "Guards include members of a city watch, sentries in a citadel or fortified town, and the bodyguards of merchants and nobles.",
+    "size": "Medium",
+    "type": "humanoid",
+    "subtype": "any race",
+    "alignment": "any alignment",
+    "armor_class": [
+      {
+        "type": "armor",
+        "value": 16,
+        "armor": [
+          {
+            "index": "chain-shirt",
+            "name": "Chain Shirt",
+            "url": "/api/2014/equipment/chain-shirt"
+          },
+          {
+            "index": "shield",
+            "name": "Shield",
+            "url": "/api/2014/equipment/shield"
+          }
+        ]
+      }
+    ],
+    "hit_points": 11,
+    "hit_dice": "2d8",
+    "hit_points_roll": "2d8+2",
+    "speed": {
+      "walk": "30 ft."
+    },
+    "strength": 13,
+    "dexterity": 12,
+    "constitution": 12,
+    "intelligence": 10,
+    "wisdom": 11,
+    "charisma": 10,
+    "proficiencies": [
+      {
+        "value": 2,
+        "proficiency": {
+          "index": "skill-perception",
+          "name": "Skill: Perception",
+          "url": "/api/2014/proficiencies/skill-perception"
+        }
+      }
+    ],
+    "damage_vulnerabilities": [],
+    "damage_resistances": [],
+    "damage_immunities": [],
+    "condition_immunities": [],
+    "senses": {
+      "passive_perception": 12
+    },
+    "languages": "any one language (usually Common)",
+    "challenge_rating": 0.125,
+    "proficiency_bonus": 2,
+    "xp": 25,
+    "actions": [
+      {
+        "name": "Spear",
+        "desc": "Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage or 5 (1d8 + 1) piercing damage if used with two hands to make a melee attack.",
+        "attack_bonus": 3,
+        "damage": [
+          {
+            "choose": 1,
+            "type": "damage",
+            "from": {
+              "option_set_type": "options_array",
+              "options": [
+                {
+                  "option_type": "damage",
+                  "notes": "One handed",
+                  "damage_type": {
+                    "index": "piercing",
+                    "name": "Piercing",
+                    "url": "/api/2014/damage-types/piercing"
+                  },
+                  "damage_dice": "1d6+1"
+                },
+                {
+                  "option_type": "damage",
+                  "notes": "Two handed",
+                  "damage_type": {
+                    "index": "piercing",
+                    "name": "Piercing",
+                    "url": "/api/2014/damage-types/piercing"
+                  },
+                  "damage_dice": "1d8+1"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "image": "/api/images/monsters/guard.png",
+    "url": "/api/2014/monsters/guard"
+  },
+  {
+    "index": "werewolf-human",
+    "name": "Werewolf, Human Form",
+    "size": "Medium",
+    "type": "humanoid",
+    "subtype": "human",
+    "alignment": "chaotic evil",
+    "armor_class": [
+      {
+        "type": "dex",
+        "value": 11
+      }
+    ],
+    "hit_points": 58,
+    "hit_dice": "9d8",
+    "forms": [
+      {
+        "index": "werewolf-hybrid",
+        "name": "Werewolf, Hybrid Form",
+        "url": "/api/2014/monsters/werewolf-hybrid"
+      },
+      {
+        "index": "werewolf-wolf",
+        "name": "Werewolf, Wolf Form",
+        "url": "/api/2014/monsters/werewolf-wolf"
+      }
+    ],
+    "hit_points_roll": "9d8+18",
+    "speed": {
+      "walk": "30 ft."
+    },
+    "strength": 15,
+    "dexterity": 13,
+    "constitution": 14,
+    "intelligence": 10,
+    "wisdom": 11,
+    "charisma": 10,
+    "proficiencies": [
+      {
+        "value": 4,
+        "proficiency": {
+          "index": "skill-perception",
+          "name": "Skill: Perception",
+          "url": "/api/2014/proficiencies/skill-perception"
+        }
+      }
+    ],
+    "damage_vulnerabilities": [],
+    "damage_resistances": [],
+    "damage_immunities": [
+      "bludgeoning, piercing, and slashing from nonmagical weapons that aren't silvered"
+    ],
+    "condition_immunities": [],
+    "senses": {
+      "passive_perception": 14
+    },
+    "languages": "Common",
+    "challenge_rating": 3,
+    "proficiency_bonus": 2,
+    "xp": 700,
+    "special_abilities": [
+      {
+        "name": "Shapechanger",
+        "desc": "The werewolf can use its action to polymorph into a wolf-humanoid hybrid or into a wolf, or back into its true form, which is humanoid. Its statistics, other than its AC, are the same in each form. Any equipment it is wearing or carrying isn't transformed. It reverts to its true form if it dies."
+      },
+      {
+        "name": "Keen Hearing and Smell",
+        "desc": "The werewolf has advantage on Wisdom (Perception) checks that rely on hearing or smell."
+      }
+    ],
+    "actions": [
+      {
+        "name": "Multiattack",
+        "multiattack_type": "actions",
+        "desc": "The werewolf makes two attacks: two with its spear (humanoid form) or one with its bite and one with its claws (hybrid form).",
+        "actions": [
+          {
+            "action_name": "Spear",
+            "count": 2,
+            "type": "melee"
+          }
+        ]
+      },
+      {
+        "name": "Spear",
+        "desc": "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 20/60 ft., one creature. Hit: 5 (1d6 + 2) piercing damage, or 6 (1d8 + 2) piercing damage if used with two hands to make a melee attack.",
+        "attack_bonus": 4,
+        "damage": [
+          {
+            "choose": 1,
+            "type": "damage",
+            "from": {
+              "option_set_type": "options_array",
+              "options": [
+                {
+                  "option_type": "damage",
+                  "notes": "One handed",
+                  "damage_type": {
+                    "index": "piercing",
+                    "name": "Piercing",
+                    "url": "/api/2014/damage-types/piercing"
+                  },
+                  "damage_dice": "1d6+2"
+                },
+                {
+                  "option_type": "damage",
+                  "notes": "Two handed",
+                  "damage_type": {
+                    "index": "piercing",
+                    "name": "Piercing",
+                    "url": "/api/2014/damage-types/piercing"
+                  },
+                  "damage_dice": "1d8+2"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "image": "/api/images/monsters/werewolf-human.png",
+    "url": "/api/2014/monsters/werewolf-human"
+  },
+  {
+    "index": "wolf",
+    "name": "Wolf",
+    "size": "Medium",
+    "type": "beast",
+    "alignment": "unaligned",
+    "armor_class": [
+      {
+        "type": "natural",
+        "value": 13
+      }
+    ],
+    "hit_points": 11,
+    "hit_dice": "2d8",
+    "hit_points_roll": "2d8+2",
+    "speed": {
+      "walk": "40 ft."
+    },
+    "strength": 12,
+    "dexterity": 15,
+    "constitution": 12,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 6,
+    "proficiencies": [
+      {
+        "value": 3,
+        "proficiency": {
+          "index": "skill-perception",
+          "name": "Skill: Perception",
+          "url": "/api/2014/proficiencies/skill-perception"
+        }
+      },
+      {
+        "value": 4,
+        "proficiency": {
+          "index": "skill-stealth",
+          "name": "Skill: Stealth",
+          "url": "/api/2014/proficiencies/skill-stealth"
+        }
+      }
+    ],
+    "damage_vulnerabilities": [],
+    "damage_resistances": [],
+    "damage_immunities": [],
+    "condition_immunities": [],
+    "senses": {
+      "passive_perception": 13
+    },
+    "languages": "",
+    "challenge_rating": 0.25,
+    "proficiency_bonus": 2,
+    "xp": 50,
+    "special_abilities": [
+      {
+        "name": "Keen Hearing and Smell",
+        "desc": "The wolf has advantage on Wisdom (Perception) checks that rely on hearing or smell."
+      },
+      {
+        "name": "Pack Tactics",
+        "desc": "The wolf has advantage on an attack roll against a creature if at least one of the wolf's allies is within 5 ft. of the creature and the ally isn't incapacitated."
+      }
+    ],
+    "actions": [
+      {
+        "name": "Bite",
+        "desc": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 7 (2d4 + 2) piercing damage. If the target is a creature, it must succeed on a DC 11 Strength saving throw or be knocked prone.",
+        "attack_bonus": 4,
+        "damage": [
+          {
+            "damage_type": {
+              "index": "piercing",
+              "name": "Piercing",
+              "url": "/api/2014/damage-types/piercing"
+            },
+            "damage_dice": "2d4+2"
+          }
+        ]
+      }
+    ],
+    "image": "/api/images/monsters/wolf.png",
+    "url": "/api/2014/monsters/wolf"
+  },
+  {
+    "index": "adult-red-dragon",
+    "name": "Adult Red Dragon",
+    "size": "Huge",
+    "type": "dragon",
+    "alignment": "chaotic evil",
+    "armor_class": [
+      {
+        "type": "natural",
+        "value": 19
+      }
+    ],
+    "hit_points": 256,
+    "hit_dice": "19d12",
+    "hit_points_roll": "19d12+133",
+    "speed": {
+      "walk": "40 ft.",
+      "climb": "40 ft.",
+      "fly": "80 ft."
+    },
+    "strength": 27,
+    "dexterity": 10,
+    "constitution": 25,
+    "intelligence": 16,
+    "wisdom": 13,
+    "charisma": 21,
+    "proficiencies": [
+      {
+        "value": 6,
+        "proficiency": {
+          "index": "saving-throw-dex",
+          "name": "Saving Throw: DEX",
+          "url": "/api/2014/proficiencies/saving-throw-dex"
+        }
+      },
+      {
+        "value": 13,
+        "proficiency": {
+          "index": "saving-throw-con",
+          "name": "Saving Throw: CON",
+          "url": "/api/2014/proficiencies/saving-throw-con"
+        }
+      },
+      {
+        "value": 7,
+        "proficiency": {
+          "index": "saving-throw-wis",
+          "name": "Saving Throw: WIS",
+          "url": "/api/2014/proficiencies/saving-throw-wis"
+        }
+      },
+      {
+        "value": 11,
+        "proficiency": {
+          "index": "saving-throw-cha",
+          "name": "Saving Throw: CHA",
+          "url": "/api/2014/proficiencies/saving-throw-cha"
+        }
+      },
+      {
+        "value": 13,
+        "proficiency": {
+          "index": "skill-perception",
+          "name": "Skill: Perception",
+          "url": "/api/2014/proficiencies/skill-perception"
+        }
+      },
+      {
+        "value": 6,
+        "proficiency": {
+          "index": "skill-stealth",
+          "name": "Skill: Stealth",
+          "url": "/api/2014/proficiencies/skill-stealth"
+        }
+      }
+    ],
+    "damage_vulnerabilities": [],
+    "damage_resistances": [],
+    "damage_immunities": [
+      "fire"
+    ],
+    "condition_immunities": [],
+    "senses": {
+      "blindsight": "60 ft.",
+      "darkvision": "120 ft.",
+      "passive_perception": 23
+    },
+    "languages": "Common, Draconic",
+    "challenge_rating": 17,
+    "proficiency_bonus": 6,
+    "xp": 18000,
+    "special_abilities": [
+      {
+        "name": "Legendary Resistance",
+        "desc": "If the dragon fails a saving throw, it can choose to succeed instead.",
+        "usage": {
+          "type": "per day",
+          "times": 3
+        }
+      }
+    ],
+    "actions": [
+      {
+        "name": "Multiattack",
+        "multiattack_type": "actions",
+        "desc": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws.",
+        "actions": [
+          {
+            "action_name": "Frightful Presence",
+            "count": 1,
+            "type": "ability"
+          },
+          {
+            "action_name": "Bite",
+            "count": 1,
+            "type": "melee"
+          },
+          {
+            "action_name": "Claw",
+            "count": 2,
+            "type": "melee"
+          }
+        ]
+      },
+      {
+        "name": "Bite",
+        "desc": "Melee Weapon Attack: +14 to hit, reach 10 ft., one target. Hit: 19 (2d10 + 8) piercing damage plus 7 (2d6) fire damage.",
+        "attack_bonus": 14,
+        "damage": [
+          {
+            "damage_type": {
+              "index": "piercing",
+              "name": "Piercing",
+              "url": "/api/2014/damage-types/piercing"
+            },
+            "damage_dice": "2d10+8"
+          },
+          {
+            "damage_type": {
+              "index": "fire",
+              "name": "Fire",
+              "url": "/api/2014/damage-types/fire"
+            },
+            "damage_dice": "2d6"
+          }
+        ]
+      },
+      {
+        "name": "Claw",
+        "desc": "Melee Weapon Attack: +14 to hit, reach 5 ft., one target. Hit: 15 (2d6 + 8) slashing damage.",
+        "attack_bonus": 14,
+        "damage": [
+          {
+            "damage_type": {
+              "index": "slashing",
+              "name": "Slashing",
+              "url": "/api/2014/damage-types/slashing"
+            },
+            "damage_dice": "2d6+8"
+          }
+        ]
+      },
+      {
+        "name": "Tail",
+        "desc": "Melee Weapon Attack: +14 to hit, reach 15 ft., one target. Hit: 17 (2d8 + 8) bludgeoning damage.",
+        "attack_bonus": 14,
+        "damage": [
+          {
+            "damage_type": {
+              "index": "bludgeoning",
+              "name": "Bludgeoning",
+              "url": "/api/2014/damage-types/bludgeoning"
+            },
+            "damage_dice": "2d8+8"
+          }
+        ]
+      },
+      {
+        "name": "Frightful Presence",
+        "desc": "Each creature of the dragon's choice that is within 120 ft. of the dragon and aware of it must succeed on a DC 19 Wisdom saving throw or become frightened for 1 minute. A creature can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success. If a creature's saving throw is successful or the effect ends for it, the creature is immune to the dragon's Frightful Presence for the next 24 hours.",
+        "dc": {
+          "dc_type": {
+            "index": "wis",
+            "name": "WIS",
+            "url": "/api/2014/ability-scores/wis"
+          },
+          "dc_value": 19,
+          "success_type": "none"
+        }
+      },
+      {
+        "name": "Fire Breath",
+        "desc": "The dragon exhales fire in a 60-foot cone. Each creature in that area must make a DC 21 Dexterity saving throw, taking 63 (18d6) fire damage on a failed save, or half as much damage on a successful one.",
+        "usage": {
+          "type": "recharge on roll",
+          "dice": "1d6",
+          "min_value": 5
+        },
+        "dc": {
+          "dc_type": {
+            "index": "dex",
+            "name": "DEX",
+            "url": "/api/2014/ability-scores/dex"
+          },
+          "dc_value": 21,
+          "success_type": "none"
+        },
+        "damage": [
+          {
+            "damage_type": {
+              "index": "fire",
+              "name": "Fire",
+              "url": "/api/2014/damage-types/fire"
+            },
+            "damage_dice": "18d6"
+          }
+        ]
+      }
+    ],
+    "legendary_actions": [
+      {
+        "name": "Detect",
+        "desc": "The dragon makes a Wisdom (Perception) check."
+      },
+      {
+        "name": "Tail Attack",
+        "desc": "The dragon makes a tail attack."
+      },
+      {
+        "name": "Wing Attack (Costs 2 Actions)",
+        "desc": "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
+        "dc": {
+          "dc_type": {
+            "index": "dex",
+            "name": "DEX",
+            "url": "/api/2014/ability-scores/dex"
+          },
+          "dc_value": 22,
+          "success_type": "none"
+        },
+        "damage": [
+          {
+            "damage_type": {
+              "index": "bludgeoning",
+              "name": "Bludgeoning",
+              "url": "/api/2014/damage-types/bludgeoning"
+            },
+            "damage_dice": "2d6+8"
+          }
+        ]
+      }
+    ],
+    "image": "/api/images/monsters/adult-red-dragon.png",
+    "url": "/api/2014/monsters/adult-red-dragon"
+  }
 ]

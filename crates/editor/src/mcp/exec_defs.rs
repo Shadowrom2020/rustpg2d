@@ -614,6 +614,7 @@ impl Editor {
                     }
                     if kind == RefKind::Character {
                         n += map.zones.iter().filter(|z| matches!(&z.kind, rustpg2d_engine::map::ZoneKind::Spawner { character, .. } if character == id)).count();
+                        n += map.zones.iter().filter(|z| matches!(&z.kind, rustpg2d_engine::map::ZoneKind::Encounter { monsters, .. } if monsters.iter().any(|m| m.character == id))).count();
                     }
                 }
                 RefKind::Material => n += map.materials.iter().filter(|t| *t == id).count(),

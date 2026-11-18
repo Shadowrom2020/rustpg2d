@@ -731,6 +731,11 @@ impl Editor {
                     return Err(format!("spawner character \"{character}\" doesn't exist.{}", suggestions(character, self.project.db.characters.iter().map(|c| c.id.as_str()))));
                 }
             }
+            ZoneKind::Encounter { monsters, .. } => {
+                if let Some(m) = monsters.iter().find(|m| self.project.db.character(&m.character).is_none()) {
+                    return Err(format!("encounter character \"{}\" doesn't exist.{}", m.character, suggestions(&m.character, self.project.db.characters.iter().map(|c| c.id.as_str()))));
+                }
+            }
             ZoneKind::FishingSpot { rod } => {
                 if !rod.is_empty() && self.project.db.item(rod).is_none() {
                     return Err(format!("fishing rod item \"{rod}\" doesn't exist"));

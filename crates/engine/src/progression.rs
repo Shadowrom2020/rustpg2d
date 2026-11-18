@@ -82,9 +82,14 @@ impl Progression {
 /// average) plus CON, at least 1 per level; plus `per_level` for every level (a hill dwarf's
 /// toughness).
 pub fn max_hp(level: u32, con_mod: i32, rolls: &[i32], per_level: i32) -> i32 {
+    max_hp_die(HIT_DIE, level, con_mod, rolls, per_level)
+}
+
+/// [`max_hp`] with a class's hit die (`die` sides).
+pub fn max_hp_die(die: i32, level: u32, con_mod: i32, rolls: &[i32], per_level: i32) -> i32 {
     let level = level.max(1);
-    let avg = HIT_DIE / 2 + 1;
-    let mut hp = (HIT_DIE + con_mod).max(1) + per_level;
+    let avg = die / 2 + 1;
+    let mut hp = (die + con_mod).max(1) + per_level;
     for k in 0..(level - 1) as usize {
         hp += (rolls.get(k).copied().unwrap_or(avg) + con_mod).max(1) + per_level;
     }
@@ -128,6 +133,16 @@ mod tests {
         assert_eq!(max_hp(3, -3, &[1, 1], 0), 7 + 1 + 1, "at least 1 per level");
         // A hill dwarf: +1 per level.
         assert_eq!(max_hp(5, 1, &[], 1), 11 + 4 * 7 + 5);
+    }
+
+    #[test]
+    fn hit_points_follow_the_class_hit_die() {
+        // A wizard (d6): 6 + CON, then 4 + CON; a barbarian (d12): 12 + CON, then 7 + CON.
+        assert_eq!(max_hp_die(6, 3, 1, &[], 0), 7 + 5 + 5);
+        assert_eq!(max_hp_die(12, 2, 2, &[], 0), 14 + 9);
+        // Rolls count from level 2; draconic resilience adds 1 per level.
+        assert_eq!(max_hp_die(8, 3, 0, &[8, 1], 1), 9 + 9 + 2);
+        assert_eq!(max_hp_die(10, 4, 1, &[], 0), max_hp(4, 1, &[], 0), "no class: the d10");
     }
 
     #[test]

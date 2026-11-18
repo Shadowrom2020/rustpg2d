@@ -323,3 +323,19 @@ fn map_and_save_before_faction_membership_load() {
     assert!(w.player_faction.is_empty());
     assert!(w.entities.values().flat_map(|m| m.values()).all(|s| s.faction.is_none()));
 }
+
+#[test]
+fn saves_before_classes_load_classless() {
+    // 0.22.0's save: no class, nothing waiting for the level-up window, companions without
+    // class levels; the hero keeps the d10 of before (no class).
+    let s = std::fs::read_to_string(fixture("saves/save-0.22.0.ron")).unwrap();
+    let mut w = WorldState::from_ron(&s).unwrap();
+    assert!(w.class.is_none() && w.levelups.is_empty());
+    assert!(w.companions.iter().all(|c| c.class.is_none() && c.level == 0 && c.xp == 0));
+    // A class and a waiting level-up are saved and read back.
+    w.class = Some(rustpg2d_engine::classes::HeroClass { class: "rogue".into(), subclass: "thief".into(), picks: [("rogue-expertise-1".to_string(), vec!["stealth".to_string()])].into() });
+    w.levelups.push(rustpg2d_engine::state::PendingLevel { who: "village:130".into(), level: 3 });
+    let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
+    assert_eq!(back.class, w.class);
+    assert_eq!(back.levelups, w.levelups);
+}

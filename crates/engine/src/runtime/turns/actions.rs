@@ -75,19 +75,57 @@ impl Game {
     /// A check (or `save`) of a combatant: the hero's own, a character's from its stat block;
     /// into the roll log ("Grumbold: Athletics").
     pub(super) fn who_check(&mut self, who: Who, what: &str, dc: i32, save: bool) -> Option<RollRecord> {
+        // (Aura of Protection: a paladin's CHA on the saves of allies near it.)
+        let aura = if save { self.aura_bonus(who) } else { 0 };
         if who == Who::Player {
-            return self.world.check(what, dc, Mode::Normal, save);
+            let mut rec = self.world.check(what, dc - aura, Mode::Normal, save)?;
+            if aura != 0 {
+                (rec.modifier, rec.total, rec.dc) = (rec.modifier + aura as i64, rec.total + aura as i64, dc);
+                if let Some(last) = self.world.rolls.last_mut() {
+                    *last = rec.clone();
+                }
+            }
+            return Some(rec);
         }
         let block = self.who_block(who)?;
         let spec = crate::srd::Spec::parse(what, save)?;
         let profs: std::collections::BTreeSet<String> = block.proficiencies.iter().map(|p| crate::srd::abilities::proficiency_id(p)).collect();
-        let roller = crate::srd::check::Roller { abilities: &block.abilities, proficiencies: &profs, level: block.proficiency_level() };
+        let roller = crate::srd::check::Roller { abilities: &block.abilities, proficiencies: &profs, level: block.proficiency_level(), training: None };
         let r = conditions::rules(self.who_conditions(who));
         let mode = if (save && r.save_disadvantage) || (!save && r.check_disadvantage) { Mode::Disadvantage } else { Mode::Normal };
-        let mut rec = spec.roll(&roller, dc, mode);
+        let mut rec = spec.roll(&roller, dc - aura, mode);
+        if aura != 0 {
+            (rec.modifier, rec.total, rec.dc) = (rec.modifier + aura as i64, rec.total + aura as i64, dc);
+        }
         rec.label = format!("{}: {}", self.who_name(who), rec.label);
         self.world.log_roll(rec.clone());
         Some(rec)
+    }
+
+    /// The best aura bonus to `who`'s saving throws: the CHA modifier (at least 1) of a fighter
+    /// on its side with Aura of Protection within the aura's reach (itself included).
+    fn aura_bonus(&self, who: Who) -> i32 {
+        let Some(c) = &self.fight else { return 0 };
+        let side = c.fighter(who).map(|f| f.side);
+        let at = self.who_tile(who);
+        c.order
+            .iter()
+            .filter(|f| Some(f.side) == side && !f.out && !f.down)
+            .filter_map(|f| {
+                let t = self.who_traits(f.who)?;
+                let (feet, bonus, _) = t.aura?;
+                let p = self.who_tile(f.who);
+                if !bonus || (p.0.abs_diff(at.0).max(p.1.abs_diff(at.1)) * 5) > feet {
+                    return None;
+                }
+                let cha = match f.who {
+                    Who::Player => self.world.abilities.modifier(crate::srd::Ability::Cha),
+                    w => self.who_block(w).map_or(0, |b| b.abilities.modifier(crate::srd::Ability::Cha)),
+                };
+                Some(cha.max(1))
+            })
+            .max()
+            .unwrap_or(0)
     }
 
     /// Whether the current fighter can still take `act` (the action / bonus action is free, it
@@ -444,6 +482,7 @@ impl Game {
                     crit_on: 20,
                     effect: None,
                     projectile: Some(projectile.clone()),
+                    ..Default::default()
                 };
                 self.can_attack(who, target, &spec)?;
                 self.pay_spell(&d);
@@ -466,7 +505,16 @@ impl Game {
                 for w in caught {
                     let n = crate::srd::Expr::parse(&dice).map(|e| e.roll(&crate::srd::dice::NoMods).total.max(1)).unwrap_or(1) as i32;
                     let saved = self.who_check(w, "dex", dc, true).is_some_and(|r| r.success == Some(true));
-                    self.combat_damage(w, if saved { n / 2 } else { n }, *damage_type, false, Some(who));
+                    // (Evasion: none on a success, half on a failure.)
+                    let evasion = self.who_traits(w).is_some_and(|t| t.evasion);
+                    let n = match (saved, evasion) {
+                        (true, true) => 0,
+                        (true, false) | (false, true) => n / 2,
+                        (false, false) => n,
+                    };
+                    if n > 0 {
+                        self.combat_damage(w, n, *damage_type, false, Some(who));
+                    }
                 }
                 self.fight_log(format!("{}: {} (DC {dc})", self.who_name(who), d.name));
             }

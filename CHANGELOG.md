@@ -180,6 +180,33 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   dodge). A character's *Attack wind-up* is ignored. `status` loses `attacks=`, `block=`, `dodge=`,
   `attacking=` and `hitstop=`. Hostile characters block the way like everyone else.
 
+### Heroes of the Realm (SRD 5.1 classes)
+- **Classes and levelling up**: the SRD 5.1's twelve classes with their subclass, hit die, saving
+  throws, proficiencies, skill choices, starting equipment and their features from level 1 to 20
+  are a new kind of definition (*Database › Classes*), imported into the starter library and the
+  example. The character creator gets a third page, **Class** (the class and its skills); the hero's
+  hit points follow the class's hit die.
+  - A **level-up window** opens when a level brings choices or new features: the subclass, ability
+    score improvements (or the SRD's feat *Grappler*), expertise, fighting styles and other options,
+    with the features' rules texts. The character sheet shows the class, subclass, the hit dice by
+    the class's die and the class's features.
+  - The **features that work by themselves act**: unarmored defense, fighting styles, extra attacks,
+    improved and superior critical hits, brutal critical, fast and unarmored movement, martial arts,
+    expertise, jack of all trades, remarkable athlete, reliable talent, danger sense, feral instinct,
+    evasion, the paladin's auras, resistances and immunities. The features used as actions follow
+    in the next item; spellcasting with the spells.
+  - **The party levels**: characters have a class and level (their form), or get one when they join
+    (*Set class*); a classed party member fights with a stat block made from its class and level and
+    equipment, takes its share of the XP (split equally) and makes its choices in the level-up
+    window. In the example **Dagny** (fighter) and **Old Finn** (ranger, with his old bow) join the
+    party when asked, at the hero's level; Finn's fish stall opens from his talk now.
+  - Events: the condition *Has class* and the action *Set class*. Scripts (API 0.30): `class`,
+    `subclass`, `class_level`, `has_feature`, `level_up_pending`, `set_class`. Autoplay `levelup …`
+    makes the window's choices; `status` prints `class=` and `levelup=`.
+  - The weapon and armor proficiency names are translated in the nine built-in languages.
+- **Breaking:** a hero with a class takes the class's hit die (a wizard d6, a barbarian d12) instead
+  of everyone's d10; heroes without a class (old saves, projects without classes) keep the d10.
+
 ### Fixes
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.

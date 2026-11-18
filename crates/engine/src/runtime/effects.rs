@@ -26,6 +26,12 @@ impl Game {
         if self.game_over.is_some() || spec.is_nothing() {
             return;
         }
+        // A class feature makes the hero immune (Purity of Body: poisoned; Aura of Courage).
+        if let (Some(c), Some(t)) = (spec.condition, self.hero_traits()) {
+            if t.condition_immunities.iter().any(|i| i == c.id()) || t.aura.as_ref().is_some_and(|a| a.2 == c.id()) {
+                return;
+            }
+        }
         // The saving throw keeps it off (the roll shows on screen and in the journal).
         if let Some(sv) = &spec.save {
             if self.world.check(&sv.ability, sv.dc, crate::srd::Mode::Normal, true).is_some_and(|r| r.success == Some(true)) {

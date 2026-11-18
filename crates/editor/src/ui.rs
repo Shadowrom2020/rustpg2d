@@ -160,6 +160,7 @@ pub fn kind_icon(k: rustpg2d_engine::refactor::RefKind) -> &'static str {
         RefKind::Skin => ph::FRAME_CORNERS,
         RefKind::CommonEvent => ph::LIGHTNING,
         RefKind::Background => ph::IDENTIFICATION_CARD,
+        RefKind::Class => ph::SWORD,
         RefKind::Map => ph::MAP_TRIFOLD,
     }
 }

@@ -591,7 +591,7 @@ SRD combat: initiative, actions, movement on the grid, attacks against AC, death
 
 The twelve SRD classes with their subclass, spellcasting and the spell list.
 
-- [ ] Classes and levelling up — `feature/srd-classes`
+- [~] Classes and levelling up — `feature/srd-classes` (part 1), `feature/srd-class-actions` (part 2)
 
   **Goal.** The player and party members have SRD classes from level 1 to 20.
 
@@ -615,6 +615,31 @@ The twelve SRD classes with their subclass, spellcasting and the spell list.
 
   **Verify.** Autoplay levels a fighter, a rogue and a wizard from 1 to 5 (choices scripted);
   `status` prints `sheet=`; each acting feature in a fight; screenshots of the level-up window.
+
+  **As built (part 1, `feature/srd-classes`).** Two stacked pull requests (your choice, the item
+  being large): this one the data, the creator, levelling, the sheet, the party and the passive
+  features; part 2 the features used as actions (resources, actions, riders, reactions, the AI).
+  Your decisions: every feature that can act acts (subclass ones included), the full party levels
+  (XP split among the classed members), starting equipment mapped to library items.
+  - **Data:** `ClassDef` (`defs/classes.ron`, `RefKind::Class`, a library kind) with levels 1-20
+    (features, numbers flattened from the SRD: `rage_count`, `spellcasting.spell_slots_level_1`…),
+    subclasses, features with `FeatureEffect`s (passive vocabulary) and `FeatureChoice`s
+    (options, expertise, ability scores, skills). The importer maps feature indexes to effects; the
+    rest is text. `HeroClass` (class, subclass, picks) on `WorldState.class`, on
+    `CharacterDef.class` + `level` and on saved `Companion`s (with xp, level, hp rolls).
+  - **Levelling:** HP by the class's hit die (`max_hp_die`); pending level-ups
+    (`WorldState.levelups`, party members by their home `map:uid`) open `runtime/levelup.rs`'s
+    window when nothing else runs. ASI = two +1 rows or the Grappler feat (advantage on attacks
+    against the creature grappled).
+  - **The level-1 choices** are made in the level-up window right after the creator (not on the
+    creator's page): the same window serves every level, and the creator's third page stays short
+    (class and skills).
+  - **Party:** `member_block` makes a classed companion's stat block (scores, HP, AC from gear or
+    unarmored defense, one weapon attack, extra attacks, styles). Dagny and Finn join through
+    their talk scripts (`set_class(name, class, level())`); Finn's stall opens from his talk.
+  - **Events / scripts:** *Has class* (`Cond::Class`, also a subclass id), *Set class*
+    (`Action::SetClass`), API 0.30 `class`, `subclass`, `class_level`, `has_feature`,
+    `level_up_pending`, `set_class` (`Arg::Class`). `resource()` comes with part 2.
 
 - [ ] Spellcasting and the SRD spells — `feature/srd-spells`
 

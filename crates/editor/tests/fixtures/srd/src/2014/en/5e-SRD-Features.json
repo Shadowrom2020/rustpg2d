@@ -1,0 +1,1912 @@
+[
+  {
+    "index": "fighter-fighting-style",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Fighting Style",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "You adopt a particular style of fighting as your specialty. Choose one of the following options. You can't take a Fighting Style option more than once, even if you later get to choose again."
+    ],
+    "feature_specific": {
+      "subfeature_options": {
+        "choose": 1,
+        "type": "feature",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-archery",
+                "name": "Fighting Style: Archery",
+                "url": "/api/2014/features/fighter-fighting-style-archery"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-defense",
+                "name": "Fighting Style: Defense",
+                "url": "/api/2014/features/fighter-fighting-style-defense"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-dueling",
+                "name": "Fighting Style: Dueling",
+                "url": "/api/2014/features/fighter-fighting-style-dueling"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-great-weapon-fighting",
+                "name": "Fighting Style: Great Weapon Fighting",
+                "url": "/api/2014/features/fighter-fighting-style-great-weapon-fighting"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-protection",
+                "name": "Fighting Style: Protection",
+                "url": "/api/2014/features/fighter-fighting-style-protection"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-two-weapon-fighting",
+                "name": "Fighting Style: Two-Weapon Fighting",
+                "url": "/api/2014/features/fighter-fighting-style-two-weapon-fighting"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "url": "/api/2014/features/fighter-fighting-style"
+  },
+  {
+    "index": "fighter-fighting-style-archery",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Fighting Style: Archery",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "You gain a +2 bonus to attack rolls you make with ranged weapons."
+    ],
+    "parent": {
+      "index": "fighter-fighting-style",
+      "name": "Fighting Style",
+      "url": "/api/2014/features/fighter-fighting-style"
+    },
+    "url": "/api/2014/features/fighter-fighting-style-archery"
+  },
+  {
+    "index": "fighter-fighting-style-defense",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Fighting Style: Defense",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "While you are wearing armor, you gain a +1 bonus to AC."
+    ],
+    "parent": {
+      "index": "fighter-fighting-style",
+      "name": "Fighting Style",
+      "url": "/api/2014/features/fighter-fighting-style"
+    },
+    "url": "/api/2014/features/fighter-fighting-style-defense"
+  },
+  {
+    "index": "fighter-fighting-style-dueling",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Fighting Style: Dueling",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "When you are wielding a melee weapon in one hand and no other weapons, you gain a +2 bonus to damage rolls with that weapon."
+    ],
+    "parent": {
+      "index": "fighter-fighting-style",
+      "name": "Fighting Style",
+      "url": "/api/2014/features/fighter-fighting-style"
+    },
+    "url": "/api/2014/features/fighter-fighting-style-dueling"
+  },
+  {
+    "index": "fighter-fighting-style-great-weapon-fighting",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Fighting Style: Great Weapon Fighting",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "When you roll a 1 or 2 on a damage die for an attack you make with a melee weapon that you are wielding with two hands, you can reroll the die and must use the new roll, even if the new roll is a 1 or a 2. The weapon must have the two-handed or versatile property for you to gain this benefit."
+    ],
+    "parent": {
+      "index": "fighter-fighting-style",
+      "name": "Fighting Style",
+      "url": "/api/2014/features/fighter-fighting-style"
+    },
+    "url": "/api/2014/features/fighter-fighting-style-great-weapon-fighting"
+  },
+  {
+    "index": "fighter-fighting-style-protection",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Fighting Style: Protection",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "When a creature you can see attacks a target other than you that is within 5 feet of you, you can use your reaction to impose disadvantage on the attack roll. You must be wielding a shield."
+    ],
+    "parent": {
+      "index": "fighter-fighting-style",
+      "name": "Fighting Style",
+      "url": "/api/2014/features/fighter-fighting-style"
+    },
+    "url": "/api/2014/features/fighter-fighting-style-protection"
+  },
+  {
+    "index": "fighter-fighting-style-two-weapon-fighting",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Fighting Style: Two-Weapon Fighting",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "When you engage in two-weapon fighting, you can add your ability modifier to the damage of the second attack."
+    ],
+    "parent": {
+      "index": "fighter-fighting-style",
+      "name": "Fighting Style",
+      "url": "/api/2014/features/fighter-fighting-style"
+    },
+    "url": "/api/2014/features/fighter-fighting-style-two-weapon-fighting"
+  },
+  {
+    "index": "second-wind",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Second Wind",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level. Once you use this feature, you must finish a short or long rest before you can use it again."
+    ],
+    "url": "/api/2014/features/second-wind"
+  },
+  {
+    "index": "action-surge-1-use",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Action Surge (1 use)",
+    "level": 2,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 2nd level, you can push yourself beyond your normal limits for a moment. On your turn, you can take one additional action on top of your regular action and a possible bonus action.",
+      "Once you use this feature, you must finish a short or long rest before you can use it again. Starting at 17th level, you can use it twice before a rest, but only once on the same turn."
+    ],
+    "url": "/api/2014/features/action-surge-1-use"
+  },
+  {
+    "index": "martial-archetype",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Martial Archetype",
+    "level": 3,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques, such as Champion. The archetype you choose grants you features at 3rd level and again at 7th, 10th, 15th, and 18th level."
+    ],
+    "url": "/api/2014/features/martial-archetype"
+  },
+  {
+    "index": "improved-critical",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "subclass": {
+      "index": "champion",
+      "name": "Champion",
+      "url": "/api/2014/subclasses/champion"
+    },
+    "name": "Improved Critical",
+    "level": 3,
+    "prerequisites": [],
+    "desc": [
+      "Beginning when you choose this archetype at 3rd level, your weapon attacks score a critical hit on a roll of 19 or 20."
+    ],
+    "url": "/api/2014/features/improved-critical"
+  },
+  {
+    "index": "fighter-ability-score-improvement-1",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Ability Score Improvement",
+    "level": 4,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 6th, 8th, 12th, 14th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/fighter-ability-score-improvement-1"
+  },
+  {
+    "index": "extra-attack-1",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Extra Attack",
+    "level": 5,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn. The number of attacks increases to three when you reach 11th level in this class and to four when you reach 20th level in this class."
+    ],
+    "url": "/api/2014/features/extra-attack-1"
+  },
+  {
+    "index": "fighter-ability-score-improvement-2",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Ability Score Improvement",
+    "level": 6,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 6th, 8th, 12th, 14th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/fighter-ability-score-improvement-2"
+  },
+  {
+    "index": "remarkable-athlete",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "subclass": {
+      "index": "champion",
+      "name": "Champion",
+      "url": "/api/2014/subclasses/champion"
+    },
+    "name": "Remarkable Athlete",
+    "level": 7,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 7th level, you can add half your proficiency bonus (round up) to any Strength, Dexterity, or Constitution check you make that doesn't already use your proficiency bonus. In addition, when you make a running long jump, the distance you can cover increases by a number of feet equal to your Strength modifier."
+    ],
+    "url": "/api/2014/features/remarkable-athlete"
+  },
+  {
+    "index": "martial-archetype-improvement-1",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Martial Archetype feature",
+    "level": 7,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques, such as Champion. The archetype you choose grants you features at 3rd level and again at 7th, 10th, 15th, and 18th level."
+    ],
+    "url": "/api/2014/features/martial-archetype-improvement-1"
+  },
+  {
+    "index": "fighter-ability-score-improvement-3",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Ability Score Improvement",
+    "level": 8,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 6th, 8th, 12th, 14th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/fighter-ability-score-improvement-3"
+  },
+  {
+    "index": "indomitable-1-use",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Indomitable (1 use)",
+    "level": 9,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 9th level, you can reroll a saving throw that you fail. If you do so, you must use the new roll, and you can't use this feature again until you finish a long rest. You can use this feature twice between long rests starting at 13th level and three times between long rests starting at 17th level."
+    ],
+    "url": "/api/2014/features/indomitable-1-use"
+  },
+  {
+    "index": "additional-fighting-style",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "subclass": {
+      "index": "champion",
+      "name": "Champion",
+      "url": "/api/2014/subclasses/champion"
+    },
+    "name": "Additional Fighting Style",
+    "level": 10,
+    "prerequisites": [],
+    "desc": [
+      "At 10th level, you can choose a second option from the Fighting Style class feature."
+    ],
+    "feature_specific": {
+      "subfeature_options": {
+        "choose": 1,
+        "type": "feature",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-archery",
+                "name": "Fighting Style: Archery",
+                "url": "/api/2014/features/fighter-fighting-style-archery"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-defense",
+                "name": "Fighting Style: Defense",
+                "url": "/api/2014/features/fighter-fighting-style-defense"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-dueling",
+                "name": "Fighting Style: Dueling",
+                "url": "/api/2014/features/fighter-fighting-style-dueling"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-great-weapon-fighting",
+                "name": "Fighting Style: Great Weapon Fighting",
+                "url": "/api/2014/features/fighter-fighting-style-great-weapon-fighting"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-protection",
+                "name": "Fighting Style: Protection",
+                "url": "/api/2014/features/fighter-fighting-style-protection"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "fighter-fighting-style-two-weapon-fighting",
+                "name": "Fighting Style: Two-Weapon Fighting",
+                "url": "/api/2014/features/fighter-fighting-style-two-weapon-fighting"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "url": "/api/2014/features/additional-fighting-style"
+  },
+  {
+    "index": "martial-archetype-improvement-2",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Martial Archetype feature",
+    "level": 10,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques, such as Champion. The archetype you choose grants you features at 3rd level and again at 7th, 10th, 15th, and 18th level."
+    ],
+    "url": "/api/2014/features/martial-archetype-improvement-2"
+  },
+  {
+    "index": "extra-attack-2",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Extra Attack (2)",
+    "level": 11,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn. The number of attacks increases to three when you reach 11th level in this class and to four when you reach 20th level in this class."
+    ],
+    "url": "/api/2014/features/extra-attack-2"
+  },
+  {
+    "index": "fighter-ability-score-improvement-4",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Ability Score Improvement",
+    "level": 12,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 6th, 8th, 12th, 14th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/fighter-ability-score-improvement-4"
+  },
+  {
+    "index": "indomitable-2-uses",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Indomitable (2 uses)",
+    "level": 13,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 9th level, you can reroll a saving throw that you fail. If you do so, you must use the new roll, and you can't use this feature again until you finish a long rest. You can use this feature twice between long rests starting at 13th level and three times between long rests starting at 17th level."
+    ],
+    "url": "/api/2014/features/indomitable-2-uses"
+  },
+  {
+    "index": "fighter-ability-score-improvement-5",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Ability Score Improvement",
+    "level": 14,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 6th, 8th, 12th, 14th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/fighter-ability-score-improvement-5"
+  },
+  {
+    "index": "superior-critical",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "subclass": {
+      "index": "champion",
+      "name": "Champion",
+      "url": "/api/2014/subclasses/champion"
+    },
+    "name": "Superior Critical",
+    "level": 15,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 15th level, your weapon attacks score a critical hit on a roll of 18-20."
+    ],
+    "url": "/api/2014/features/superior-critical"
+  },
+  {
+    "index": "martial-archetype-improvement-3",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Martial Archetype feature",
+    "level": 15,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques, such as Champion. The archetype you choose grants you features at 3rd level and again at 7th, 10th, 15th, and 18th level."
+    ],
+    "url": "/api/2014/features/martial-archetype-improvement-3"
+  },
+  {
+    "index": "fighter-ability-score-improvement-6",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Ability Score Improvement",
+    "level": 16,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 6th, 8th, 12th, 14th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/fighter-ability-score-improvement-6"
+  },
+  {
+    "index": "action-surge-2-uses",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Action Surge (2 uses)",
+    "level": 17,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 2nd level, you can push yourself beyond your normal limits for a moment. On your turn, you can take one additional action on top of your regular action and a possible bonus action.",
+      "Once you use this feature, you must finish a short or long rest before you can use it again. Starting at 17th level, you can use it twice before a rest, but only once on the same turn."
+    ],
+    "url": "/api/2014/features/action-surge-2-uses"
+  },
+  {
+    "index": "indomitable-3-uses",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Indomitable (3 uses)",
+    "level": 17,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 9th level, you can reroll a saving throw that you fail. If you do so, you must use the new roll, and you can't use this feature again until you finish a long rest. You can use this feature twice between long rests starting at 13th level and three times between long rests starting at 17th level."
+    ],
+    "url": "/api/2014/features/indomitable-3-uses"
+  },
+  {
+    "index": "martial-archetype-improvement-4",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Martial Archetype feature",
+    "level": 18,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques, such as Champion. The archetype you choose grants you features at 3rd level and again at 7th, 10th, 15th, and 18th level."
+    ],
+    "url": "/api/2014/features/martial-archetype-improvement-4"
+  },
+  {
+    "index": "survivor",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "subclass": {
+      "index": "champion",
+      "name": "Champion",
+      "url": "/api/2014/subclasses/champion"
+    },
+    "name": "Survivor",
+    "level": 18,
+    "prerequisites": [],
+    "desc": [
+      "At 18th level, you attain the pinnacle of resilience in battle. At the start of each of your turns, you regain hit points equal to 5 + your Constitution modifier if you have no more than half of your hit points left. You don't gain this benefit if you have 0 hit points."
+    ],
+    "url": "/api/2014/features/survivor"
+  },
+  {
+    "index": "fighter-ability-score-improvement-7",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Ability Score Improvement",
+    "level": 19,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 6th, 8th, 12th, 14th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/fighter-ability-score-improvement-7"
+  },
+  {
+    "index": "extra-attack-3",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Extra Attack (3)",
+    "level": 20,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn. The number of attacks increases to three when you reach 11th level in this class and to four when you reach 20th level in this class."
+    ],
+    "url": "/api/2014/features/extra-attack-3"
+  },
+  {
+    "index": "rogue-expertise-1",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Expertise",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "At 1st level, choose two of your skill proficiencies, or one of your skill proficiencies and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.",
+      "At 6th level, you can choose two more of your proficiencies (in skills or with thieves' tools) to gain this benefit"
+    ],
+    "feature_specific": {
+      "expertise_options": {
+        "choose": 1,
+        "type": "proficiency",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "choice",
+              "choice": {
+                "choose": 2,
+                "type": "proficiency",
+                "from": {
+                  "option_set_type": "options_array",
+                  "options": [
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-acrobatics",
+                        "name": "Skill: Acrobatics",
+                        "url": "/api/2014/proficiencies/skill-acrobatics"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-animal-handling",
+                        "name": "Skill: Animal Handling",
+                        "url": "/api/2014/proficiencies/skill-animal-handling"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-arcana",
+                        "name": "Skill: Arcana",
+                        "url": "/api/2014/proficiencies/skill-arcana"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-athletics",
+                        "name": "Skill: Athletics",
+                        "url": "/api/2014/proficiencies/skill-athletics"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-deception",
+                        "name": "Skill: Deception",
+                        "url": "/api/2014/proficiencies/skill-deception"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-history",
+                        "name": "Skill: History",
+                        "url": "/api/2014/proficiencies/skill-history"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-insight",
+                        "name": "Skill: Insight",
+                        "url": "/api/2014/proficiencies/skill-insight"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-intimidation",
+                        "name": "Skill: Intimidation",
+                        "url": "/api/2014/proficiencies/skill-intimidation"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-investigation",
+                        "name": "Skill: Investigation",
+                        "url": "/api/2014/proficiencies/skill-investigation"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-medicine",
+                        "name": "Skill: Medicine",
+                        "url": "/api/2014/proficiencies/skill-medicine"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-nature",
+                        "name": "Skill: Nature",
+                        "url": "/api/2014/proficiencies/skill-nature"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-perception",
+                        "name": "Skill: Perception",
+                        "url": "/api/2014/proficiencies/skill-perception"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-performance",
+                        "name": "Skill: Performance",
+                        "url": "/api/2014/proficiencies/skill-performance"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-persuasion",
+                        "name": "Skill: Persuasion",
+                        "url": "/api/2014/proficiencies/skill-persuasion"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-religion",
+                        "name": "Skill: Religion",
+                        "url": "/api/2014/proficiencies/skill-religion"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-sleight-of-hand",
+                        "name": "Skill: Sleight of Hand",
+                        "url": "/api/2014/proficiencies/skill-sleight-of-hand"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-stealth",
+                        "name": "Skill: Stealth",
+                        "url": "/api/2014/proficiencies/skill-stealth"
+                      }
+                    },
+                    {
+                      "option_type": "reference",
+                      "item": {
+                        "index": "skill-survival",
+                        "name": "Skill: Survival",
+                        "url": "/api/2014/proficiencies/skill-survival"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "option_type": "multiple",
+              "items": [
+                {
+                  "option_type": "choice",
+                  "choice": {
+                    "choose": 1,
+                    "type": "proficiency",
+                    "from": {
+                      "option_set_type": "options_array",
+                      "options": [
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-acrobatics",
+                            "name": "Skill: Acrobatics",
+                            "url": "/api/2014/proficiencies/skill-acrobatics"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-animal-handling",
+                            "name": "Skill: Animal Handling",
+                            "url": "/api/2014/proficiencies/skill-animal-handling"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-arcana",
+                            "name": "Skill: Arcana",
+                            "url": "/api/2014/proficiencies/skill-arcana"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-athletics",
+                            "name": "Skill: Athletics",
+                            "url": "/api/2014/proficiencies/skill-athletics"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-deception",
+                            "name": "Skill: Deception",
+                            "url": "/api/2014/proficiencies/skill-deception"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-history",
+                            "name": "Skill: History",
+                            "url": "/api/2014/proficiencies/skill-history"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-insight",
+                            "name": "Skill: Insight",
+                            "url": "/api/2014/proficiencies/skill-insight"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-intimidation",
+                            "name": "Skill: Intimidation",
+                            "url": "/api/2014/proficiencies/skill-intimidation"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-investigation",
+                            "name": "Skill: Investigation",
+                            "url": "/api/2014/proficiencies/skill-investigation"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-medicine",
+                            "name": "Skill: Medicine",
+                            "url": "/api/2014/proficiencies/skill-medicine"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-nature",
+                            "name": "Skill: Nature",
+                            "url": "/api/2014/proficiencies/skill-nature"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-perception",
+                            "name": "Skill: Perception",
+                            "url": "/api/2014/proficiencies/skill-perception"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-performance",
+                            "name": "Skill: Performance",
+                            "url": "/api/2014/proficiencies/skill-performance"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-persuasion",
+                            "name": "Skill: Persuasion",
+                            "url": "/api/2014/proficiencies/skill-persuasion"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-religion",
+                            "name": "Skill: Religion",
+                            "url": "/api/2014/proficiencies/skill-religion"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-sleight-of-hand",
+                            "name": "Skill: Sleight of Hand",
+                            "url": "/api/2014/proficiencies/skill-sleight-of-hand"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-stealth",
+                            "name": "Skill: Stealth",
+                            "url": "/api/2014/proficiencies/skill-stealth"
+                          }
+                        },
+                        {
+                          "option_type": "reference",
+                          "item": {
+                            "index": "skill-survival",
+                            "name": "Skill: Survival",
+                            "url": "/api/2014/proficiencies/skill-survival"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "option_type": "reference",
+                  "item": {
+                    "index": "thieves-tools",
+                    "name": "Thieves' Tools",
+                    "url": "/api/2014/proficiencies/thieves-tools"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "url": "/api/2014/features/rogue-expertise-1"
+  },
+  {
+    "index": "sneak-attack",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Sneak Attack",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 1st level, you know how to strike subtly and exploit a foe's distraction. Once per turn, you can deal an extra 1d6 damage to one creature you hit with an attack if you have advantage on the attack roll. The attack must use a finesse or a ranged weapon.",
+      "You don't need advantage on the attack roll if another enemy of the target is within 5 feet of it, that enemy isn't incapacitated, and you don't have disadvantage on the attack roll.",
+      "The amount of the extra damage increases as you gain levels in this class, as shown in the Sneak Attack column of the Rogue table."
+    ],
+    "url": "/api/2014/features/sneak-attack"
+  },
+  {
+    "index": "thieves-cant",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Thieves' Cant",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "During your rogue training you learned thieves' cant, a secret mix of dialect, jargon, and code that allows you to hide messages in seemingly normal conversation. Only another creature that knows thieves' cant understands such messages. It takes four times longer to convey such a message than it does to speak the same idea plainly.",
+      "In addition, you understand a set of secret signs and symbols used to convey short, simple messages, such as whether an area is dangerous or the territory of a thieves' guild, whether loot is nearby, or whether the people in an area are easy marks or will provide a safe house for thieves on the run."
+    ],
+    "url": "/api/2014/features/thieves-cant"
+  },
+  {
+    "index": "cunning-action",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Cunning Action",
+    "level": 2,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 2nd level, your quick thinking and agility allow you to move and act quickly. You can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action."
+    ],
+    "url": "/api/2014/features/cunning-action"
+  },
+  {
+    "index": "roguish-archetype",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Roguish Archetype",
+    "level": 3,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities, such as Thief. Additional archetypes are available in the original source material. Your archetype choice grants you features at 3rd level and then again at 9th, 13th, and 17th level."
+    ],
+    "url": "/api/2014/features/roguish-archetype"
+  },
+  {
+    "index": "fast-hands",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "subclass": {
+      "index": "thief",
+      "name": "Thief",
+      "url": "/api/2014/subclasses/thief"
+    },
+    "name": "Fast Hands",
+    "level": 3,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 3rd level, you can use the bonus action granted by your Cunning Action to make a Dexterity (Sleight of Hand) check, use your thieves' tools to disarm a trap or open a lock, or take the Use an Object action."
+    ],
+    "url": "/api/2014/features/fast-hands"
+  },
+  {
+    "index": "second-story-work",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "subclass": {
+      "index": "thief",
+      "name": "Thief",
+      "url": "/api/2014/subclasses/thief"
+    },
+    "name": "Second-Story Work",
+    "level": 3,
+    "prerequisites": [],
+    "desc": [
+      "When you choose this archetype at 3rd level, you gain the ability to climb faster than normal; climbing no longer costs you extra movement.",
+      "In addition, when you make a running jump, the distance you cover increases by a number of feet equal to your Dexterity modifier."
+    ],
+    "url": "/api/2014/features/second-story-work"
+  },
+  {
+    "index": "rogue-ability-score-improvement-1",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Ability Score Improvement",
+    "level": 4,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 10th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/rogue-ability-score-improvement-1"
+  },
+  {
+    "index": "uncanny-dodge",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Uncanny Dodge",
+    "level": 5,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 5th level, when an attacker that you can see hits you with an attack, you can use your reaction to halve the attack's damage against you."
+    ],
+    "url": "/api/2014/features/uncanny-dodge"
+  },
+  {
+    "index": "rogue-expertise-2",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Expertise",
+    "level": 6,
+    "prerequisites": [],
+    "desc": [
+      "At 1st level, choose two of your skill proficiencies, or one of your skill proficiencies and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.",
+      "At 6th level, you can choose two more of your proficiencies (in skills or with thieves' tools) to gain this benefit"
+    ],
+    "feature_specific": {
+      "expertise_options": {
+        "choose": 2,
+        "type": "proficiency",
+        "from": {
+          "option_set_type": "options_array",
+          "options": [
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-acrobatics",
+                "name": "Skill: Acrobatics",
+                "url": "/api/2014/proficiencies/skill-acrobatics"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-animal-handling",
+                "name": "Skill: Animal Handling",
+                "url": "/api/2014/proficiencies/skill-animal-handling"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-arcana",
+                "name": "Skill: Arcana",
+                "url": "/api/2014/proficiencies/skill-arcana"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-athletics",
+                "name": "Skill: Athletics",
+                "url": "/api/2014/proficiencies/skill-athletics"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-deception",
+                "name": "Skill: Deception",
+                "url": "/api/2014/proficiencies/skill-deception"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-history",
+                "name": "Skill: History",
+                "url": "/api/2014/proficiencies/skill-history"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-insight",
+                "name": "Skill: Insight",
+                "url": "/api/2014/proficiencies/skill-insight"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-intimidation",
+                "name": "Skill: Intimidation",
+                "url": "/api/2014/proficiencies/skill-intimidation"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-investigation",
+                "name": "Skill: Investigation",
+                "url": "/api/2014/proficiencies/skill-investigation"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-medicine",
+                "name": "Skill: Medicine",
+                "url": "/api/2014/proficiencies/skill-medicine"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-nature",
+                "name": "Skill: Nature",
+                "url": "/api/2014/proficiencies/skill-nature"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-perception",
+                "name": "Skill: Perception",
+                "url": "/api/2014/proficiencies/skill-perception"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-performance",
+                "name": "Skill: Performance",
+                "url": "/api/2014/proficiencies/skill-performance"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-persuasion",
+                "name": "Skill: Persuasion",
+                "url": "/api/2014/proficiencies/skill-persuasion"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-religion",
+                "name": "Skill: Religion",
+                "url": "/api/2014/proficiencies/skill-religion"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-sleight-of-hand",
+                "name": "Skill: Sleight of Hand",
+                "url": "/api/2014/proficiencies/skill-sleight-of-hand"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-stealth",
+                "name": "Skill: Stealth",
+                "url": "/api/2014/proficiencies/skill-stealth"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "skill-survival",
+                "name": "Skill: Survival",
+                "url": "/api/2014/proficiencies/skill-survival"
+              }
+            },
+            {
+              "option_type": "reference",
+              "item": {
+                "index": "thieves-tools",
+                "name": "Thieves' Tools",
+                "url": "/api/2014/proficiencies/thieves-tools"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "url": "/api/2014/features/rogue-expertise-2"
+  },
+  {
+    "index": "rogue-evasion",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Evasion",
+    "level": 7,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 7th level, you can nimbly dodge out of the way of certain area effects, such as a red dragon's fiery breath or an ice storm spell. When you are subjected to an effect that allows you to make a Dexterity saving throw to take only half damage, you instead take no damage if you succeed on the saving throw, and only half damage if you fail."
+    ],
+    "url": "/api/2014/features/rogue-evasion"
+  },
+  {
+    "index": "rogue-ability-score-improvement-2",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Ability Score Improvement",
+    "level": 8,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 10th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/rogue-ability-score-improvement-2"
+  },
+  {
+    "index": "roguish-archetype-improvement-1",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Roguish Archetype feature",
+    "level": 9,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities, such as Thief. Additional archetypes are available in the original source material. Your archetype choice grants you features at 3rd level and then again at 9th, 13th, and 17th level."
+    ],
+    "url": "/api/2014/features/roguish-archetype-improvement-1"
+  },
+  {
+    "index": "supreme-sneak",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "subclass": {
+      "index": "thief",
+      "name": "Thief",
+      "url": "/api/2014/subclasses/thief"
+    },
+    "name": "Supreme Sneak",
+    "level": 9,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 9th level, you have advantage on a Dexterity (Stealth) check if you move no more than half your speed on the same turn."
+    ],
+    "url": "/api/2014/features/supreme-sneak"
+  },
+  {
+    "index": "rogue-ability-score-improvement-3",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Ability Score Improvement",
+    "level": 10,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 10th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/rogue-ability-score-improvement-3"
+  },
+  {
+    "index": "reliable-talent",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Reliable Talent",
+    "level": 11,
+    "prerequisites": [],
+    "desc": [
+      "By 11th level, you have refined your chosen skills until they approach perfection. Whenever you make an ability check that lets you add your proficiency bonus, you can treat a d20 roll of 9 or lower as a 10."
+    ],
+    "url": "/api/2014/features/reliable-talent"
+  },
+  {
+    "index": "rogue-ability-score-improvement-4",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Ability Score Improvement",
+    "level": 12,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 10th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/rogue-ability-score-improvement-4"
+  },
+  {
+    "index": "roguish-archetype-improvement-2",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Roguish Archetype feature",
+    "level": 13,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities, such as Thief. Additional archetypes are available in the original source material. Your archetype choice grants you features at 3rd level and then again at 9th, 13th, and 17th level."
+    ],
+    "url": "/api/2014/features/roguish-archetype-improvement-2"
+  },
+  {
+    "index": "use-magic-device",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "subclass": {
+      "index": "thief",
+      "name": "Thief",
+      "url": "/api/2014/subclasses/thief"
+    },
+    "name": "Use Magic Device",
+    "level": 13,
+    "prerequisites": [],
+    "desc": [
+      "By 13th level, you have learned enough about the workings of magic that you can improvise the use of items even when they are not intended for you. You ignore all class, race, and level requirements on the use of magic items."
+    ],
+    "url": "/api/2014/features/use-magic-device"
+  },
+  {
+    "index": "blindsense",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Blindsense",
+    "level": 14,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 14th level, if you are able to hear, you are aware of the location of any hidden or invisible creature within 10 feet of you."
+    ],
+    "url": "/api/2014/features/blindsense"
+  },
+  {
+    "index": "slippery-mind",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Slippery Mind",
+    "level": 15,
+    "prerequisites": [],
+    "desc": [
+      "By 15th level, you have acquired greater mental strength. You gain proficiency in Wisdom saving throws."
+    ],
+    "url": "/api/2014/features/slippery-mind"
+  },
+  {
+    "index": "rogue-ability-score-improvement-5",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Ability Score Improvement",
+    "level": 16,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 10th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/rogue-ability-score-improvement-5"
+  },
+  {
+    "index": "roguish-archetype-improvement-3",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Roguish Archetype feature",
+    "level": 17,
+    "prerequisites": [],
+    "desc": [
+      "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities, such as Thief. Additional archetypes are available in the original source material. Your archetype choice grants you features at 3rd level and then again at 9th, 13th, and 17th level."
+    ],
+    "url": "/api/2014/features/roguish-archetype-improvement-3"
+  },
+  {
+    "index": "thiefs-reflexes",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "subclass": {
+      "index": "thief",
+      "name": "Thief",
+      "url": "/api/2014/subclasses/thief"
+    },
+    "name": "Thief's Reflexes",
+    "level": 17,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 17th level, you have become adept at laying ambushes and quickly escaping danger. You can take two turns during the first round of any combat. You take your first turn at your normal initiative and your second turn at your initiative minus 10. You can't use this feature when you are surprised."
+    ],
+    "url": "/api/2014/features/thiefs-reflexes"
+  },
+  {
+    "index": "elusive",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Elusive",
+    "level": 18,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 18th level, you are so evasive that attackers rarely gain the upper hand against you. No attack roll has advantage against you while you aren't incapacitated."
+    ],
+    "url": "/api/2014/features/elusive"
+  },
+  {
+    "index": "rogue-ability-score-improvement-6",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Ability Score Improvement",
+    "level": 19,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 10th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/rogue-ability-score-improvement-6"
+  },
+  {
+    "index": "stroke-of-luck",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Stroke of Luck",
+    "level": 20,
+    "prerequisites": [],
+    "desc": [
+      "At 20th level, you have an uncanny knack for succeeding when you need to. If your attack misses a target within range, you can turn the miss into a hit. Alternatively, if you fail an ability check, you can treat the d20 roll as a 20.",
+      "Once you use this feature, you can't use it again until you finish a short or long rest."
+    ],
+    "url": "/api/2014/features/stroke-of-luck"
+  },
+  {
+    "index": "spellcasting-wizard",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Spellcasting: Wizard",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "As a student of arcane magic, you have a spellbook containing spells that show the first glimmerings of your true power."
+    ],
+    "reference": "/api/2014/classes/wizard/spellcasting",
+    "url": "/api/2014/features/spellcasting-wizard"
+  },
+  {
+    "index": "arcane-recovery",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Arcane Recovery",
+    "level": 1,
+    "prerequisites": [],
+    "desc": [
+      "You have learned to regain some of your magical energy by studying your spellbook. Once per day when you finish a short rest, you can choose expended spell slots to recover. The spell slots can have a combined level that is equal to or less than half your wizard level (rounded up), and none of the slots can be 6th level or higher.",
+      "For example, if you're a 4th-level wizard, you can recover up to two levels worth of spell slots. You can recover either a 2nd-level spell slot or two 1st-level spell slots."
+    ],
+    "url": "/api/2014/features/arcane-recovery"
+  },
+  {
+    "index": "arcane-tradition",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Arcane Tradition",
+    "level": 2,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic through one of eight schools, such as Evocation.",
+      "Your choice grants you features at 2nd level and again at 6th, 10th, and 14th level."
+    ],
+    "url": "/api/2014/features/arcane-tradition"
+  },
+  {
+    "index": "evocation-savant",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "subclass": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/subclasses/evocation"
+    },
+    "name": "Evocation Savant",
+    "level": 2,
+    "prerequisites": [],
+    "desc": [
+      "Beginning when you select this school at 2nd level, the gold and time you must spend to copy an evocation spell into your spellbook is halved."
+    ],
+    "url": "/api/2014/features/evocation-savant"
+  },
+  {
+    "index": "sculpt-spells",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "subclass": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/subclasses/evocation"
+    },
+    "name": "Sculpt Spells",
+    "level": 2,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 2nd level, you can create pockets of relative safety within the effects of your evocation spells. When you cast an evocation spell that affects other creatures that you can see, you can choose a number of them equal to 1 + the spell's level. The chosen creatures automatically succeed on their saving throws against the spell, and they take no damage if they would normally take half damage on a successful save."
+    ],
+    "url": "/api/2014/features/sculpt-spells"
+  },
+  {
+    "index": "wizard-ability-score-improvement-1",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Ability Score Improvement",
+    "level": 4,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/wizard-ability-score-improvement-1"
+  },
+  {
+    "index": "arcane-tradition-improvement-1",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Arcane Tradition feature",
+    "level": 6,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic through one of eight schools, such as Evocation.",
+      "Your choice grants you features at 2nd level and again at 6th, 10th, and 14th level."
+    ],
+    "url": "/api/2014/features/arcane-tradition-improvement-1"
+  },
+  {
+    "index": "potent-cantrip",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "subclass": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/subclasses/evocation"
+    },
+    "name": "Potent Cantrip",
+    "level": 6,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 6th level, your damaging cantrips affect even creatures that avoid the brunt of the effect. When a creature succeeds on a saving throw against your cantrip, the creature takes half the cantrip's damage (if any) but suffers no additional effect from the cantrip."
+    ],
+    "url": "/api/2014/features/potent-cantrip"
+  },
+  {
+    "index": "wizard-ability-score-improvement-2",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Ability Score Improvement",
+    "level": 8,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/wizard-ability-score-improvement-2"
+  },
+  {
+    "index": "arcane-tradition-improvement-2",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Arcane Tradition feature",
+    "level": 10,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic through one of eight schools, such as Evocation.",
+      "Your choice grants you features at 2nd level and again at 6th, 10th, and 14th level."
+    ],
+    "url": "/api/2014/features/arcane-tradition-improvement-2"
+  },
+  {
+    "index": "empowered-evocation",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "subclass": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/subclasses/evocation"
+    },
+    "name": "Empowered Evocation",
+    "level": 10,
+    "prerequisites": [],
+    "desc": [
+      "Beginning at 10th level, you can add your Intelligence modifier to one damage roll of any wizard evocation spell you cast."
+    ],
+    "url": "/api/2014/features/empowered-evocation"
+  },
+  {
+    "index": "wizard-ability-score-improvement-3",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Ability Score Improvement",
+    "level": 12,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/wizard-ability-score-improvement-3"
+  },
+  {
+    "index": "arcane-tradition-improvement-3",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Arcane Tradition feature",
+    "level": 14,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic through one of eight schools, such as Evocation.",
+      "Your choice grants you features at 2nd level and again at 6th, 10th, and 14th level."
+    ],
+    "url": "/api/2014/features/arcane-tradition-improvement-3"
+  },
+  {
+    "index": "overchannel",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "subclass": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/subclasses/evocation"
+    },
+    "name": "Overchannel",
+    "level": 14,
+    "prerequisites": [],
+    "desc": [
+      "Starting at 14th level, you can increase the power of your simpler spells. When you cast a wizard spell of 1st through 5th level that deals damage, you can deal maximum damage with that spell.",
+      "The first time you do so, you suffer no adverse effect. If you use this feature again before you finish a long rest, you take 2d12 necrotic damage for each level of the spell, immediately after you cast it. Each time you use this feature again before finishing a long rest, the necrotic damage per spell level increases by 1d12. This damage ignores resistance and immunity."
+    ],
+    "url": "/api/2014/features/overchannel"
+  },
+  {
+    "index": "wizard-ability-score-improvement-4",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Ability Score Improvement",
+    "level": 16,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/wizard-ability-score-improvement-4"
+  },
+  {
+    "index": "spell-mastery",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Spell Mastery",
+    "level": 18,
+    "prerequisites": [],
+    "desc": [
+      "At 18th level, you have achieved such mastery over certain spells that you can cast them at will. Choose a 1st-level wizard spell and a 2nd-level wizard spell that are in your spellbook. You can cast those spells at their lowest level without expending a spell slot when you have them prepared. If you want to cast either spell at a higher level, you must expend a spell slot as normal.",
+      "By spending 8 hours in study, you can exchange one or both of the spells you chose for different spells of the same levels."
+    ],
+    "url": "/api/2014/features/spell-mastery"
+  },
+  {
+    "index": "wizard-ability-score-improvement-5",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Ability Score Improvement",
+    "level": 19,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 4th level, and again at 8th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
+    ],
+    "url": "/api/2014/features/wizard-ability-score-improvement-5"
+  },
+  {
+    "index": "signature-spell",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Signature Spell",
+    "level": 20,
+    "prerequisites": [],
+    "desc": [
+      "When you reach 20th level, you gain mastery over two powerful spells and can cast them with little effort. Choose two 3rd-level wizard spells in your spellbook as your signature spells. You always have these spells prepared, they don't count against the number of spells you have prepared, and you can cast each of them once at 3rd level without expending a spell slot. When you do so, you can't do so again until you finish a short or long rest.",
+      "If you want to cast either spell at a higher level, you must expend a spell slot as normal."
+    ],
+    "url": "/api/2014/features/signature-spell"
+  }
+]

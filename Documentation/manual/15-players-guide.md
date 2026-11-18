@@ -49,6 +49,12 @@ with E or a right-click.
 - **Map screen**: arrows, dragging or the wheel scroll; + / − zoom; Space centres on you.
 - **Journal**: Tab or Left / Right switch tabs; the *Dialogs* and *Rolls* tabs scroll with Up / Down,
   PgUp / PgDn, Home / End.
+- **Level-up window** (opens by itself when a level brings choices or new features, for the hero and
+  then each party member with a class, once no fight, dialog or cut-scene is going on): Up / Down
+  select a row, Left / Right (or a click on a row's left or right half) change its choice, Enter /
+  E goes to the next row and on *Done* confirms. The selected choice's rules text shows above the
+  rows. An ability score improvement is two rows of +1 (the same ability twice = +2), or the feat
+  *Grappler* in the first row.
 
 ## Checks and locks
 

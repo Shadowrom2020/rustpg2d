@@ -12,6 +12,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use rustpg2d_engine::backgrounds::BackgroundDef;
+use rustpg2d_engine::classes::ClassDef;
 use rustpg2d_engine::defs::CharacterDef;
 use rustpg2d_engine::races::{ChoiceKind, RaceChoice, RaceDef, RaceSkill, RaceTrait};
 use serde_json::Value;
@@ -32,6 +33,10 @@ pub struct SrdData {
     traits: BTreeMap<String, Value>,
     backgrounds: Vec<Value>,
     monsters: Vec<Value>,
+    classes: Vec<Value>,
+    subclasses: Vec<Value>,
+    levels: Vec<Value>,
+    features: Vec<Value>,
 }
 
 fn list(v: &Value, key: &str) -> Vec<Value> {
@@ -77,7 +82,17 @@ impl SrdData {
             serde_json::from_str(&text).with_context(|| format!("parsing {}", p.display()))
         };
         let traits = read("Traits")?.into_iter().map(|t| (s(&t, "index").to_string(), t)).collect();
-        Ok(SrdData { races: read("Races")?, subraces: read("Subraces")?, traits, backgrounds: read("Backgrounds")?, monsters: read("Monsters")? })
+        Ok(SrdData {
+            races: read("Races")?,
+            subraces: read("Subraces")?,
+            traits,
+            backgrounds: read("Backgrounds")?,
+            monsters: read("Monsters")?,
+            classes: read("Classes")?,
+            subclasses: read("Subclasses")?,
+            levels: read("Levels")?,
+            features: read("Features")?,
+        })
     }
 
     /// Traits, fixed proficiencies, resistances, darkvision and the choices of a list of trait
@@ -318,6 +333,246 @@ impl SrdData {
     }
 }
 
+impl SrdData {
+    /// The SRD's classes with their subclasses, levels and features into `classes`: existing ones
+    /// (by id) are replaced but keep the content fields the SRD doesn't have (description,
+    /// equipment a project mapped by hand); new ones added. Returns (added, updated) and the SRD
+    /// items the starting equipment had that no library item stands for.
+    pub fn import_classes(&self, classes: &mut Vec<ClassDef>) -> (usize, usize, Vec<String>) {
+        let (mut added, mut updated, mut unmapped) = (0, 0, Vec::new());
+        for c in &self.classes {
+            let id = s(c, "index").to_string();
+            let mut def = self.class_def(c, &mut unmapped);
+            match classes.iter_mut().find(|d| d.id == id) {
+                Some(old) => {
+                    if !old.description.is_empty() {
+                        def.description = old.description.clone();
+                    }
+                    if *old != def {
+                        *old = def;
+                        updated += 1;
+                    }
+                }
+                None => {
+                    classes.push(def);
+                    added += 1;
+                }
+            }
+        }
+        unmapped.sort();
+        unmapped.dedup();
+        (added, updated, unmapped)
+    }
+
+    fn class_def(&self, c: &Value, unmapped: &mut Vec<String>) -> ClassDef {
+        use rustpg2d_engine::classes::{ClassLevel, SubclassDef};
+        let id = s(c, "index");
+        let profs = list(c, "proficiencies");
+        let (choose, options) = list(c, "proficiency_choices").first().map(options).unwrap_or((0, Vec::new()));
+        let saves = list(c, "saving_throws").iter().map(|a| s(a, "index").to_string()).collect();
+        let proficiencies = profs.iter().map(|p| s(p, "index")).filter(|p| !p.starts_with("saving-throw-")).map(prof_id).collect();
+        // Levels 1-20 of the class (not a subclass's), with the class's numbers flattened.
+        let mut levels: Vec<ClassLevel> = (0..20).map(|_| ClassLevel::default()).collect();
+        for l in self.levels.iter().filter(|l| l.pointer("/class/index").and_then(Value::as_str) == Some(id) && l.get("subclass").is_none()) {
+            let n = l.get("level").and_then(Value::as_u64).unwrap_or(1).clamp(1, 20) as usize;
+            let lv = &mut levels[n - 1];
+            lv.features = list(l, "features").iter().map(|f| s(f, "index").to_string()).collect();
+            for (key, prefix) in [("class_specific", ""), ("spellcasting", "spellcasting")] {
+                if let Some(o) = l.get(key) {
+                    flatten_numbers(prefix, o, &mut lv.numbers);
+                }
+            }
+        }
+        let mut subclasses = Vec::new();
+        let mut subclass_level = 0;
+        let mut subclass_title = String::new();
+        for sc in self.subclasses.iter().filter(|x| x.pointer("/class/index").and_then(Value::as_str) == Some(id)) {
+            let sid = s(sc, "index");
+            let mut lv: Vec<(u32, Vec<String>)> = self
+                .levels
+                .iter()
+                .filter(|l| l.pointer("/subclass/index").and_then(Value::as_str) == Some(sid))
+                .map(|l| (l.get("level").and_then(Value::as_u64).unwrap_or(1) as u32, list(l, "features").iter().map(|f| s(f, "index").to_string()).collect()))
+                .collect();
+            lv.sort_by_key(|(l, _)| *l);
+            subclass_title = s(sc, "subclass_flavor").to_string();
+            subclasses.push(SubclassDef { id: sid.into(), name: s(sc, "name").into(), description: desc(sc), levels: lv });
+        }
+        // The level the subclass is chosen at: the class feature that names it ("primal-path").
+        let flavor = subclass_title.to_ascii_lowercase().replace(' ', "-");
+        if let Some((k, _)) = levels.iter().enumerate().find(|(_, l)| l.features.iter().any(|f| f.ends_with(&flavor) || *f == flavor)) {
+            subclass_level = k as u32 + 1;
+        }
+        if subclass_level == 0 {
+            subclass_level = subclasses.iter().flat_map(|s| s.levels.iter().map(|(l, _)| *l)).min().unwrap_or(3);
+        }
+        let features = self.features.iter().filter(|f| f.pointer("/class/index").and_then(Value::as_str) == Some(id)).map(class_feature).collect();
+        // Starting equipment: the fixed items and the first option of every choice.
+        let mut equipment = Vec::new();
+        let mut add = |index: &str, count: u32, equipment: &mut Vec<rustpg2d_engine::inventory::ItemStack>| match library_item(index) {
+            Some(item) => match equipment.iter_mut().find(|i: &&mut rustpg2d_engine::inventory::ItemStack| i.item == item) {
+                Some(st) => st.count += count,
+                None => equipment.push(rustpg2d_engine::inventory::ItemStack { item: item.into(), count }),
+            },
+            None => unmapped.push(index.to_string()),
+        };
+        for e in list(c, "starting_equipment") {
+            add(e.pointer("/equipment/index").and_then(Value::as_str).unwrap_or(""), e.get("quantity").and_then(Value::as_u64).unwrap_or(1) as u32, &mut equipment);
+        }
+        for set in list(c, "starting_equipment_options") {
+            if let Some(first) = set.pointer("/from/options/0") {
+                for (index, count) in option_items(first) {
+                    add(&index, count, &mut equipment);
+                }
+            }
+        }
+        let multiclass = c
+            .pointer("/multi_classing/prerequisites")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().map(|p| (p.pointer("/ability_score/index").and_then(Value::as_str).unwrap_or("").to_string(), p.get("minimum_score").and_then(Value::as_i64).unwrap_or(13) as i32)).collect())
+            .unwrap_or_default();
+        ClassDef {
+            id: id.into(),
+            name: s(c, "name").into(),
+            description: String::new(),
+            hit_die: c.get("hit_die").and_then(Value::as_u64).unwrap_or(8) as u32,
+            saves,
+            proficiencies,
+            skill_choices: choose,
+            skill_options: options.iter().map(|(o, _)| prof_id(o)).collect(),
+            equipment,
+            multiclass,
+            subclass_level,
+            subclass_title,
+            levels,
+            subclasses,
+            features,
+        }
+    }
+}
+
+/// `{"sneak_attack": {"dice_count": 3}}` as `sneak_attack.dice_count = 3` (numbers only).
+fn flatten_numbers(prefix: &str, v: &Value, out: &mut BTreeMap<String, i64>) {
+    match v {
+        Value::Object(o) => {
+            for (k, x) in o {
+                let key = if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") };
+                flatten_numbers(&key, x, out);
+            }
+        }
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                out.insert(prefix.to_string(), i);
+            }
+        }
+        Value::Bool(b) => {
+            out.insert(prefix.to_string(), *b as i64);
+        }
+        _ => {}
+    }
+}
+
+/// The SRD equipment (and categories) a starting option names, with counts.
+fn option_items(o: &Value) -> Vec<(String, u32)> {
+    match s(o, "option_type") {
+        "counted_reference" => vec![(o.pointer("/of/index").and_then(Value::as_str).unwrap_or("").to_string(), o.get("count").and_then(Value::as_u64).unwrap_or(1) as u32)],
+        "reference" => vec![(o.pointer("/item/index").and_then(Value::as_str).unwrap_or("").to_string(), 1)],
+        "multiple" => list(o, "items").iter().flat_map(option_items).collect(),
+        "choice" => {
+            let n = o.pointer("/choice/choose").and_then(Value::as_u64).unwrap_or(1) as u32;
+            match o.pointer("/choice/from/equipment_category/index").and_then(Value::as_str) {
+                Some(cat) => vec![(cat.to_string(), n)],
+                None => o.pointer("/choice/from/options/0").map(option_items).unwrap_or_default(),
+            }
+        }
+        _ => Vec::new(),
+    }
+}
+
+/// The library item standing for an SRD item or equipment category (until 0.31's equipment).
+fn library_item(index: &str) -> Option<&'static str> {
+    Some(match index {
+        "chain-mail" | "scale-mail" | "ring-mail" | "splint-armor" | "plate-armor" => "chainmail",
+        "leather-armor" | "studded-leather-armor" | "hide-armor" | "padded-armor" => "leather_armor",
+        "shield" => "wooden_shield",
+        "longsword" | "martial-weapons" | "martial-melee-weapons" => "iron_sword",
+        "shortsword" | "scimitar" | "rapier" => "sword",
+        "greataxe" | "battleaxe" | "handaxe" => "axe",
+        "spear" | "javelin" | "simple-weapons" | "simple-melee-weapons" | "trident" | "pike" | "halberd" | "glaive" => "spear",
+        "shortbow" | "longbow" => "bow",
+        "crossbow-light" | "crossbow-heavy" | "crossbow-hand" => "crossbow",
+        "arrow" => "arrows",
+        "crossbow-bolt" => "bolts",
+        _ => return None,
+    })
+}
+
+/// An SRD feature: its text, the choice it asks for, and what of it acts ([`feature_effects`]).
+fn class_feature(f: &Value) -> rustpg2d_engine::classes::ClassFeature {
+    use rustpg2d_engine::classes::{ClassFeature, FeatureChoice};
+    let id = s(f, "index");
+    let choice = if id.contains("ability-score-improvement") {
+        Some(FeatureChoice::AbilityScores)
+    } else if f.pointer("/feature_specific/expertise_options").is_some() {
+        Some(FeatureChoice::Expertise { count: 2 })
+    } else if let Some(set) = f.pointer("/feature_specific/subfeature_options") {
+        let choose = set.get("choose").and_then(Value::as_u64).unwrap_or(1) as u32;
+        let options = set.pointer("/from/options").and_then(Value::as_array).map(|a| a.iter().filter_map(|o| o.pointer("/item/index").and_then(Value::as_str)).map(str::to_string).collect()).unwrap_or_default();
+        Some(FeatureChoice::Options { choose, options })
+    } else if id == "bonus-proficiencies" {
+        Some(FeatureChoice::Skills { count: 3 })
+    } else {
+        None
+    };
+    ClassFeature { id: id.into(), name: s(f, "name").into(), level: f.get("level").and_then(Value::as_u64).unwrap_or(1) as u32, text: desc(f), effects: feature_effects(id), choice }
+}
+
+/// What of an SRD feature acts (the rest stays its text): the engine's vocabulary by feature.
+fn feature_effects(id: &str) -> Vec<rustpg2d_engine::classes::FeatureEffect> {
+    use rustpg2d_engine::classes::{FeatureEffect as E, FightingStyle as F};
+    use rustpg2d_engine::srd::Ability as A;
+    let style = |st| vec![E::FightingStyle { style: st }];
+    let saves = |a: &[&str]| a.iter().map(|x| E::Proficient { what: format!("save:{x}") }).collect::<Vec<_>>();
+    match id {
+        "barbarian-unarmored-defense" => vec![E::ArmorClass { base: 10, abilities: vec![A::Dex, A::Con], shield: true }],
+        "monk-unarmored-defense" => vec![E::ArmorClass { base: 10, abilities: vec![A::Dex, A::Wis], shield: false }],
+        "draconic-resilience" => vec![E::ArmorClass { base: 13, abilities: vec![A::Dex], shield: true }, E::HpPerLevel { hp: 1 }],
+        "fast-movement" => vec![E::Speed { feet: 10, unarmored: false }],
+        // (The monk's bonus grows with the class's `unarmored_movement` number: 0 = that number.)
+        "unarmored-movement-1" => vec![E::Speed { feet: 0, unarmored: true }],
+        "jack-of-all-trades" => vec![E::HalfProficiency { abilities: Vec::new() }],
+        "remarkable-athlete" => vec![E::HalfProficiency { abilities: vec![A::Str, A::Dex, A::Con] }],
+        "reliable-talent" => vec![E::ReliableTalent],
+        "improved-critical" => vec![E::CritRange { from: 19 }],
+        "superior-critical" => vec![E::CritRange { from: 18 }],
+        "extra-attack-1" | "barbarian-extra-attack" | "monk-extra-attack" | "paladin-extra-attack" | "ranger-extra-attack" => vec![E::ExtraAttacks { attacks: 2 }],
+        "extra-attack-2" => vec![E::ExtraAttacks { attacks: 3 }],
+        "extra-attack-3" => vec![E::ExtraAttacks { attacks: 4 }],
+        "brutal-critical-1-die" => vec![E::BrutalCritical { dice: 1 }],
+        "brutal-critical-2-dice" => vec![E::BrutalCritical { dice: 2 }],
+        "brutal-critical-3-dice" => vec![E::BrutalCritical { dice: 3 }],
+        x if x.ends_with("fighting-style-archery") => style(F::Archery),
+        x if x.ends_with("fighting-style-defense") => style(F::Defense),
+        x if x.ends_with("fighting-style-dueling") => style(F::Dueling),
+        x if x.ends_with("fighting-style-great-weapon-fighting") => style(F::GreatWeaponFighting),
+        x if x.ends_with("fighting-style-protection") => style(F::Protection),
+        x if x.ends_with("fighting-style-two-weapon-fighting") => style(F::TwoWeaponFighting),
+        "monk-evasion" | "rogue-evasion" => vec![E::Evasion],
+        "danger-sense" => vec![E::SaveAdvantage { ability: A::Dex }],
+        "feral-instinct" => vec![E::InitiativeAdvantage],
+        "purity-of-body" => vec![E::ConditionImmunity { conditions: vec!["poisoned".into()] }, E::Immunity { types: vec!["poison".into()] }],
+        "aura-of-protection" => vec![E::Aura { feet: 10, save_bonus: true, immunity: String::new() }],
+        "aura-of-courage" => vec![E::Aura { feet: 10, save_bonus: false, immunity: "frightened".into() }],
+        "aura-improvements" => vec![E::Aura { feet: 30, save_bonus: false, immunity: String::new() }],
+        "primal-champion" => vec![E::AbilityBonus { ability: A::Str, amount: 4, max: 24 }, E::AbilityBonus { ability: A::Con, amount: 4, max: 24 }],
+        "diamond-soul" => saves(&["str", "dex", "con", "int", "wis", "cha"]),
+        "slippery-mind" => saves(&["wis"]),
+        "bonus-proficiency" => vec![E::Proficient { what: "heavy-armor".into() }],
+        "martial-arts" => vec![E::MartialArts],
+        _ => Vec::new(),
+    }
+}
+
 /// The look of a monster without one of its own: a library model where one fits, else the
 /// mannequin (the library's `mannequin` model) until models for the monsters come.
 fn monster_model(m: &Value) -> &'static str {
@@ -544,7 +799,8 @@ pub fn write_rules(checkout: &Path, out: &Path) -> Result<()> {
 }
 
 /// Gives the characters of a project (the example) the SRD's monster data, without adding
-/// monsters (`SrdData::import_monsters`); returns how many changed.
+/// monsters (`SrdData::import_monsters`), and the SRD's classes; returns how many characters
+/// changed.
 pub fn update_monsters_in(checkout: &Path, root: &Path) -> Result<usize> {
     let data = SrdData::read(checkout)?;
     let mut p = rustpg2d_engine::project::Project::load(root)?;
@@ -552,6 +808,8 @@ pub fn update_monsters_in(checkout: &Path, root: &Path) -> Result<usize> {
     if updated > 0 {
         std::fs::write(root.join("defs/characters.ron"), rustpg2d_engine::project::ron_text(&p.db.characters)?)?;
     }
+    data.import_classes(&mut p.db.classes);
+    std::fs::write(root.join("defs/classes.ron"), rustpg2d_engine::project::ron_text(&p.db.classes)?)?;
     Ok(updated)
 }
 
@@ -561,18 +819,21 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     let mut p = rustpg2d_engine::project::Project::load(root)?;
     let (added, updated) = data.import(&mut p.db.races, &mut p.db.backgrounds);
     let (m_added, m_updated) = data.import_monsters(&mut p.db.characters, true);
+    let (c_added, c_updated, unmapped) = data.import_classes(&mut p.db.classes);
     let defs = root.join("defs");
     std::fs::write(defs.join("races.ron"), rustpg2d_engine::project::ron_text(&p.db.races)?)?;
     std::fs::write(defs.join("backgrounds.ron"), rustpg2d_engine::project::ron_text(&p.db.backgrounds)?)?;
     if m_added + m_updated > 0 {
         std::fs::write(defs.join("characters.ron"), rustpg2d_engine::project::ron_text(&p.db.characters)?)?;
     }
+    std::fs::write(defs.join("classes.ron"), rustpg2d_engine::project::ron_text(&p.db.classes)?)?;
     Ok(format!(
-        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters)",
+        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {})",
         root.display(),
         p.db.races.len(),
         p.db.backgrounds.len(),
-        p.db.characters.len()
+        p.db.characters.len(),
+        if unmapped.is_empty() { "-".to_string() } else { unmapped.join(", ") }
     ))
 }
 
@@ -723,6 +984,39 @@ mod tests {
         let mut only = vec![CharacterDef::fresh("wolf")];
         assert_eq!(data.import_monsters(&mut only, false), (0, 1));
         assert_eq!(only.len(), 1);
+    }
+
+
+    #[test]
+    fn classes_import_with_their_levels_features_and_subclasses() {
+        use rustpg2d_engine::classes::{ClassTraits, FeatureChoice, FeatureEffect, FightingStyle, HeroClass};
+        let data = SrdData::read(&fixture()).unwrap();
+        let mut classes = Vec::new();
+        let (added, updated, unmapped) = data.import_classes(&mut classes);
+        assert_eq!((added, updated), (3, 0));
+        assert!(!unmapped.is_empty(), "packs and daggers have no library item yet");
+        let f = classes.iter().find(|c| c.id == "fighter").unwrap();
+        assert_eq!((f.hit_die, f.saves.clone(), f.subclass_level, f.subclass_title.as_str()), (10, vec!["str".to_string(), "con".to_string()], 3, "Martial Archetype"));
+        assert_eq!(f.skill_choices, 2);
+        assert!(f.equipment.iter().any(|i| i.item == "chainmail") && f.equipment.iter().any(|i| i.item == "iron_sword"), "{:?}", f.equipment);
+        assert_eq!(f.feature("fighter-fighting-style").and_then(|x| x.choice.clone()).map(|c| matches!(c, FeatureChoice::Options { choose: 1, .. })), Some(true));
+        assert_eq!(f.feature("fighter-fighting-style-archery").unwrap().effects, vec![FeatureEffect::FightingStyle { style: FightingStyle::Archery }]);
+        assert!(f.improvement_at(4) && f.improvement_at(6) && !f.improvement_at(5));
+        // A level-5 champion with archery: two attacks, crits on 19.
+        let hc = HeroClass { class: "fighter".into(), subclass: "champion".into(), picks: [("fighter-fighting-style".to_string(), vec!["fighter-fighting-style-archery".to_string()])].into() };
+        let t = ClassTraits::of(f, 5, &hc);
+        assert_eq!((t.attacks, t.crit_from, t.styles.clone()), (2, 19, vec![FightingStyle::Archery]));
+        // The rogue's numbers: sneak attack dice by level; expertise is a choice.
+        let r = classes.iter().find(|c| c.id == "rogue").unwrap();
+        assert_eq!((r.number(1, "sneak_attack.dice_count"), r.number(5, "sneak_attack.dice_count"), r.hit_die), (1, 3, 8));
+        assert_eq!(r.feature("rogue-expertise-1").and_then(|x| x.choice.clone()), Some(FeatureChoice::Expertise { count: 2 }));
+        let w = classes.iter().find(|c| c.id == "wizard").unwrap();
+        assert_eq!((w.hit_die, w.subclass_level, w.subclasses[0].id.as_str()), (6, 2, "evocation"));
+        assert!(w.number(1, "spellcasting.spell_slots_level_1") >= 2, "the slots for the spells item");
+        // A second run changes nothing.
+        let before = classes.clone();
+        assert_eq!(data.import_classes(&mut classes).1, 0);
+        assert_eq!(classes, before);
     }
 
 }

@@ -289,6 +289,15 @@ pub struct WorldState {
     /// Hit dice left to spend on short rests (None = all of them: the level).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hit_dice: Option<u32>,
+    /// The hero's class (its subclass and choices; `None` = none: a d10 hit die, no features).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<crate::classes::HeroClass>,
+    /// Level-ups waiting for their choices (the level-up window): "player" or a companion's uid.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub levelups: Vec<PendingLevel>,
+    /// What the class adds to checks (computed from the class; not saved).
+    #[serde(skip)]
+    pub training: crate::srd::check::Training,
     /// The hero's conditions (poisoned, prone, exhaustion…) and ongoing damage or healing; until
     /// 0.27 status effects, which read as their nearest condition.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -333,7 +342,7 @@ pub struct WorldState {
 
 /// A placed character that follows the player from map to map. Its look, items and triggers
 /// come from where it is placed (`map`, `uid`); dismissed, it goes back there.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Companion {
     pub map: String,
     pub uid: u32,
@@ -358,6 +367,33 @@ pub struct Companion {
     /// In fights the AI plays its turns (else the player does).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ai: bool,
+    /// A party member with a class: its class (choices), experience, level and HP rolls (as the
+    /// hero's; `None` = its definition's class at its level).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<crate::classes::HeroClass>,
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub xp: u64,
+    #[serde(default, skip_serializing_if = "is_zero_u32_ref")]
+    pub level: u32,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hp_rolls: Vec<i32>,
+}
+
+fn is_zero_u64(n: &u64) -> bool {
+    *n == 0
+}
+
+fn is_zero_u32_ref(n: &u32) -> bool {
+    *n == 0
+}
+
+/// A level-up whose choices wait for the level-up window.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PendingLevel {
+    /// "player", or a companion's uid (its `Companion::uid`).
+    pub who: String,
+    pub level: u32,
 }
 
 /// How a companion fights (`Companion::order`); staying put is separate (`Companion::post`).
@@ -555,7 +591,7 @@ impl WorldState {
 
     /// The hero's scores, proficiencies and level for a roll.
     pub fn roller(&self) -> crate::srd::check::Roller<'_> {
-        crate::srd::check::Roller { abilities: &self.abilities, proficiencies: &self.proficiencies, level: self.player_level() }
+        crate::srd::check::Roller { abilities: &self.abilities, proficiencies: &self.proficiencies, level: self.player_level(), training: Some(&self.training) }
     }
 
     /// The hero's bonus to a check (`"stealth"`, `"dex"`, `"dex:thieves-tools"`) or, with `save`,
@@ -968,7 +1004,7 @@ mod tests {
         assert!(!old.contains("companions"));
         assert!(WorldState::from_ron(&old).unwrap().companions.is_empty());
         let mut w = WorldState::default();
-        w.companions.push(Companion { ai: false, map: "village".into(), uid: 22, name: "guard".into(), hp: Some(5), down: None, order: Order::Defend, post: Some([100.0, 200.0]), mana: None });
+        w.companions.push(Companion { ai: false, map: "village".into(), uid: 22, name: "guard".into(), hp: Some(5), down: None, order: Order::Defend, post: Some([100.0, 200.0]), mana: None, ..Default::default() });
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert_eq!(back.companions, w.companions);
         assert!(back.is_companion("village", 22) && !back.is_companion("forest", 22));

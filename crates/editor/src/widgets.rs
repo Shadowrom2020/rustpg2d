@@ -736,6 +736,8 @@ pub struct Refs {
     pub spells: Vec<String>,
     /// Race ids (Database › Races).
     pub races: Vec<String>,
+    /// Class and subclass ids (Database › Classes).
+    pub classes: Vec<String>,
     /// Common event ids (Database › Common events).
     pub common_events: Vec<String>,
     /// Faction ids (Database › Factions).
@@ -1133,6 +1135,17 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                         });
                         ui.add(egui::DragValue::new(level).range(0..=1)).on_hover_text("1 = proficient, 0 = not");
                     }
+                }
+                Cond::Class { class, op, level } => {
+                    ui.label("player's class");
+                    suggest(ui, &format!("{id}/class"), class, &refs.classes, 100.0);
+                    ui.label("level");
+                    egui::ComboBox::from_id_salt(format!("{id}/clop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {
+                        for o in CmpOp::ALL {
+                            ui.selectable_value(op, o, o.symbol());
+                        }
+                    });
+                    ui.add(egui::DragValue::new(level).range(1..=20));
                 }
                 Cond::CheckPassed { by } => {
                     ui.label("the last check succeeded");
@@ -1883,6 +1896,14 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             target_field(ui, id, target, refs);
             labeled(ui, "prop", |ui| suggest(ui, &format!("{id}/carry"), prop, &refs.props, 120.0));
             ui.weak("(carried in both hands, drawn in the character's hands; empty = puts it down. While carrying it holds nothing else and the player can't attack)");
+        }
+        Action::SetClass { target, class, level } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "class", |ui| suggest(ui, &format!("{id}/setclass"), class, &refs.classes, 120.0));
+            labeled(ui, "level", |ui| {
+                ui.add(egui::DragValue::new(level).range(0..=20)).on_hover_text("0 = keep the level (a party member's is set when above 0)");
+            });
+            ui.weak("(\"player\" or a party member on this map: the class's saving throws and proficiencies; its choices open the level-up window; Database › Classes)");
         }
         Action::SetFaction { target, faction } => {
             target_field(ui, id, target, refs);

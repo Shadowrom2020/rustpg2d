@@ -843,3 +843,44 @@ fn a_stat_block_shows_and_gets_its_traits() {
     assert_eq!((saved.features.len(), saved.size), (before + 1, rustpg2d_engine::srd::Size::Medium));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn a_class_is_edited_and_a_character_gets_one() {
+    let root = example_copy("classes");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.classes.iter().position(|c| c.id == "wizard").expect("the example's wizard");
+    let mut h = harness(&root, Tab::Classes, k);
+    step(&mut h);
+    // The hit die: d6 to d8; a saving throw more.
+    beside(&h, "Hit die", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("d8").click();
+    step(&mut h);
+    h.get_by_label("CON").click();
+    step(&mut h);
+    let w = h.state().project.db.classes[k].clone();
+    assert_eq!(w.hit_die, 8);
+    assert!(w.saves.iter().any(|s| s == "con"), "{:?}", w.saves);
+    h.state_mut().save_all();
+    // A character becomes a party member with a class: the ranger at level 3.
+    let c = db.characters.iter().position(|c| c.id == "villager").expect("the example's villager");
+    let mut h = harness(&root, Tab::Characters, c);
+    step(&mut h);
+    beside(&h, "Class", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Ranger  (ranger)").click();
+    step(&mut h);
+    let d = h.state().project.db.characters[c].clone();
+    assert_eq!((d.class.as_ref().map(|x| x.class.as_str()), d.level), (Some("ranger"), 1));
+    beside(&h, "level", |n| n.role() == Role::SpinButton).click();
+    step(&mut h);
+    h.get_by(|n| n.is_focused()).type_text("3");
+    step(&mut h);
+    h.press_key(egui::Key::Enter);
+    step(&mut h);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    assert_eq!(saved.class("wizard").map(|w| w.hit_die), Some(8));
+    assert_eq!((saved.characters[c].class.as_ref().map(|x| x.class.clone()), saved.characters[c].level), (Some("ranger".to_string()), 3));
+    let _ = std::fs::remove_dir_all(&root);
+}

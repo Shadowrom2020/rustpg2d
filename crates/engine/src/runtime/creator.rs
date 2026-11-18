@@ -54,6 +54,10 @@ enum Row {
     Background,
     /// Page 2: a language the background lets the hero choose (slot).
     BgLanguage(usize),
+    /// Page 3: the class.
+    Class,
+    /// Page 3: a skill the class lets the hero choose (slot).
+    ClassSkill(usize),
     Start,
     Back,
 }
@@ -82,6 +86,10 @@ pub(super) struct Creator {
     background: usize,
     /// Picked languages of the background (indices into `bg_language_options`).
     bg_langs: Vec<usize>,
+    /// Index into the classes.
+    class: usize,
+    /// Picked skills of the class (indices into its options).
+    class_skills: Vec<usize>,
 }
 
 struct Layout {
@@ -366,6 +374,30 @@ impl Game {
         crate::races::build_hero(race.as_ref(), &self.project.config.rules, base, &self.creator_choices(c), self.creator_background(c))
     }
 
+    /// The chosen class (None = the project has none).
+    fn creator_class(&self, c: &Creator) -> Option<&crate::classes::ClassDef> {
+        self.project.db.classes.get(c.class)
+    }
+
+    /// The class's skills the creator picked (distinct, as many as the class lets choose).
+    fn class_skills_picked(c: &Creator, choose: usize, n: usize) -> Vec<usize> {
+        let mut picks = c.class_skills.clone();
+        picks.truncate(choose.min(n));
+        let mut next = 0;
+        while picks.len() < choose.min(n) {
+            while picks.contains(&next) {
+                next += 1;
+            }
+            picks.push(next);
+        }
+        picks
+    }
+
+    /// Whether the creator has a third page: the project has classes.
+    fn creator_has_page3(&self) -> bool {
+        !self.project.db.classes.is_empty()
+    }
+
     /// Whether the creator has a second page: ability methods, racial choices or backgrounds.
     fn creator_has_page2(&self, c: &Creator) -> bool {
         !self.creator_methods().is_empty() || self.creator_race(c).is_some_and(|r| !r.choices.is_empty()) || !self.project.db.backgrounds.is_empty()
@@ -384,7 +416,7 @@ impl Game {
             Row::Reroll => String::new(),
             // (Page 1: a choice that colours the model, "Ancestry".)
             Row::Choice(ci, _) if c.page == 0 => self.creator_race(c).and_then(|r| r.choices.get(ci).map(|ch| crate::lang::tr_ui(ch.kind.label()).into_owned())).unwrap_or_default(),
-            Row::Choice(..) | Row::Background | Row::BgLanguage(_) => String::new(),
+            Row::Choice(..) | Row::Background | Row::BgLanguage(_) | Row::Class | Row::ClassSkill(_) => String::new(),
             Row::Start | Row::Back => String::new(),
         }
     }
@@ -404,6 +436,11 @@ impl Game {
             }
             rows.extend(self.color_choices(c).into_iter().map(|ci| Row::Choice(ci, 0)));
             rows.extend(self.creator_features(c).into_iter().map(|f| Row::Feature(f.0)));
+        } else if c.page == 2 {
+            if let Some(cl) = self.creator_class(c) {
+                rows.push(Row::Class);
+                rows.extend((0..(cl.skill_choices as usize).min(cl.skill_options.len())).map(Row::ClassSkill));
+            }
         } else {
             if let Some(m) = self.creator_method(c) {
                 rows.push(Row::Method);
@@ -472,7 +509,7 @@ impl Game {
         let own = self.project.db.character(&self.project.config.player).map(|d| d.race.clone()).unwrap_or_default();
         let race = self.creator_races().iter().position(|r| r.id == own).unwrap_or(0);
         let base = self.creator_methods().first().map_or(self.project.config.rules.abilities, |m| Self::method_start(*m));
-        self.creator = Some(Creator { name: self.default_player_name(), race, sex, body: [0, 0], colors: Vec::new(), row: 0, time: 0.0, page: 0, method: 0, base, picks: BTreeMap::new(), background: 0, bg_langs: Vec::new() });
+        self.creator = Some(Creator { name: self.default_player_name(), race, sex, body: [0, 0], colors: Vec::new(), row: 0, time: 0.0, page: 0, method: 0, base, picks: BTreeMap::new(), background: 0, bg_langs: Vec::new(), class: self.project.db.classes.iter().position(|c| c.id == "fighter").unwrap_or(0), class_skills: Vec::new() });
     }
 
     /// Steps the choice of a row.
@@ -486,6 +523,7 @@ impl Game {
             Row::Feature(k) => self.creator_features(c).into_iter().find(|f| f.0 == k).map_or(0, |f| f.2.len() + 1),
             Row::Method => self.creator_methods().len(),
             Row::Background => self.project.db.backgrounds.len() + 1,
+            Row::Class => self.project.db.classes.len(),
             _ => 0,
         }
         .max(1) as i32;
@@ -497,6 +535,7 @@ impl Game {
         };
         let bg_opts = Self::bg_language_options(c, race.as_ref()).len();
         let bg_choose = self.creator_background(c).map_or(0, |b| b.language_choices as usize);
+        let (cl_choose, cl_n) = self.creator_class(c).map_or((0, 0), |cl| (cl.skill_choices as usize, cl.skill_options.len()));
         let fixed = self.project.config.creation.sex.fixed().is_some();
         let c = self.creator.as_mut().unwrap();
         let cycle = |v: &mut usize| *v = (*v as i32 + step).rem_euclid(n) as usize;
@@ -563,6 +602,24 @@ impl Game {
                 cycle(&mut c.background);
                 c.bg_langs.clear();
             }
+            Row::Class => {
+                cycle(&mut c.class);
+                c.class_skills.clear();
+            }
+            Row::ClassSkill(slot) => {
+                let mut picks = Self::class_skills_picked(c, cl_choose, cl_n);
+                if cl_n > picks.len() && slot < picks.len() {
+                    let mut k = picks[slot];
+                    loop {
+                        k = (k as i32 + step).rem_euclid(cl_n as i32) as usize;
+                        if !picks.iter().enumerate().any(|(s, p)| s != slot && *p == k) {
+                            break;
+                        }
+                    }
+                    picks[slot] = k;
+                }
+                c.class_skills = picks;
+            }
             Row::BgLanguage(slot) => {
                 let mut picks = Self::bg_picked(c, bg_choose, bg_opts);
                 if bg_opts > picks.len() && slot < picks.len() {
@@ -584,20 +641,27 @@ impl Game {
     /// Start (page 1: on to page 2 when there is one).
     fn creator_forward(&mut self) {
         let Some(c) = &self.creator else { return };
-        if c.page == 0 && self.creator_has_page2(c) {
-            let c = self.creator.as_mut().unwrap();
-            c.page = 1;
-            c.row = 0;
-        } else {
-            self.start_created();
+        let next = match c.page {
+            0 if self.creator_has_page2(c) => Some(1),
+            0 | 1 if self.creator_has_page3() => Some(2),
+            _ => None,
+        };
+        match next {
+            Some(page) => {
+                let c = self.creator.as_mut().unwrap();
+                c.page = page;
+                c.row = 0;
+            }
+            None => self.start_created(),
         }
     }
 
     /// Back (page 2: to page 1; page 1: to the title screen).
     fn creator_backward(&mut self) {
+        let page2 = self.creator.as_ref().is_some_and(|c| self.creator_has_page2(c));
         match &mut self.creator {
             Some(c) if c.page > 0 => {
-                c.page = 0;
+                c.page = if c.page == 2 && page2 { 1 } else { 0 };
                 c.row = 0;
             }
             _ => self.creator = None,
@@ -611,12 +675,14 @@ impl Game {
         let base = self.creator_method(&c).map(|_| c.base);
         let choices = self.creator_choices(&c);
         let background = self.creator_background(&c).map(|b| b.id.clone()).unwrap_or_default();
+        let class = self.creator_class(&c).map(|cl| cl.id.clone()).unwrap_or_default();
+        let class_skills: Vec<String> = self.creator_class(&c).map(|cl| Self::class_skills_picked(&c, cl.skill_choices as usize, cl.skill_options.len()).iter().filter_map(|k| cl.skill_options.get(*k).cloned()).collect()).unwrap_or_default();
         let name = c.name.trim().to_string();
         self.new_game();
         self.world.player_name = if name.is_empty() { self.default_player_name() } else { name };
         self.world.player_sex = c.sex;
         self.world.player_appearance = Some(appearance);
-        self.begin_as_hero(super::races::HeroChoices { race, base, choices, background });
+        self.begin_as_hero(super::races::HeroChoices { race, base, choices, background, class, class_skills });
         self.close_title();
     }
 
@@ -734,8 +800,12 @@ impl Game {
         let race = self.creator_race(c).map_or("-".to_string(), |r| r.id.clone());
         let hero = self.creator_hero(c);
         let picks: Vec<String> = self.creator_choices(c).iter().map(|(k, v)| format!("{k}={}", v.join("+"))).collect();
+        let class = self.creator_class(c).map_or("-".to_string(), |cl| {
+            let skills: Vec<String> = Self::class_skills_picked(c, cl.skill_choices as usize, cl.skill_options.len()).iter().filter_map(|k| cl.skill_options.get(*k).cloned()).collect();
+            format!("{}({})", cl.id, skills.join("+"))
+        });
         Some(format!(
-            "{}|{}|{:?}|{}|p{} {} base {} total {} picks[{}] bg:{}",
+            "{}|{}|{:?}|{}|p{} {} base {} total {} picks[{}] bg:{} class:{}",
             c.name,
             race,
             c.sex,
@@ -745,7 +815,8 @@ impl Game {
             c.base.text(),
             hero.abilities.text(),
             picks.join(";"),
-            self.creator_background(c).map_or("-", |b| b.id.as_str())
+            self.creator_background(c).map_or("-", |b| b.id.as_str()),
+            class
         ))
     }
 
@@ -759,18 +830,22 @@ impl Game {
         let sel = rows.get(c.row).copied();
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.6));
         panel(p.x, p.y, p.w, p.h);
-        let title = if c.page == 0 { "Create your character" } else { "Abilities and background" };
+        let title = match c.page {
+            0 => "Create your character",
+            1 => "Abilities and background",
+            _ => "Class",
+        };
         let tw = measure_text(title, None, 34, 1.0).width;
         draw_text(title, p.x + (p.w - tw) / 2.0, p.y + 46.0, 34.0, skin::highlight());
-        if c.page == 0 {
-            self.draw_creator_page1(c, &choice_rows, &l, sel, m);
-        } else {
-            self.draw_creator_page2(c, &choice_rows, &l, sel, m);
+        match c.page {
+            0 => self.draw_creator_page1(c, &choice_rows, &l, sel, m),
+            1 => self.draw_creator_page2(c, &choice_rows, &l, sel, m),
+            _ => self.draw_creator_page3(c, &choice_rows, &l, sel, m),
         }
-        let more = c.page == 0 && self.creator_has_page2(c);
+        let more = (c.page == 0 && self.creator_has_page2(c)) || (c.page < 2 && self.creator_has_page3());
         button(l.start, if more { "Next" } else { "Start adventure" }, sel == Some(Row::Start), false, l.start.contains(m));
         button(l.back, "Back", sel == Some(Row::Back), false, l.back.contains(m));
-        let hint = if c.page == 0 {
+        let hint = if c.page == 0 || more {
             "Type a name  -  {key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: next  -  {key:cancel}: back"
         } else {
             "{key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: start  -  {key:cancel}: back"
@@ -1016,4 +1091,42 @@ impl Game {
             wrapped(&format!("{} {}", crate::lang::tr_ui("Languages:"), langs.join(", ")), x, y + 4.0, w, 16.0, skin::dim(), room(y + 4.0, 16.0).min(2));
         }
     }
+
+    /// Page 3: the class and its skills on the right, what the class is on the left (hit die,
+    /// saving throws, proficiencies, level 1's features).
+    fn draw_creator_page3(&self, c: &Creator, choice_rows: &[Row], l: &Layout, sel: Option<Row>, m: Vec2) {
+        let p = l.panel;
+        let Some(cl) = self.creator_class(c) else { return };
+        let picks = Self::class_skills_picked(c, cl.skill_choices as usize, cl.skill_options.len());
+        for (k, row) in choice_rows.iter().enumerate() {
+            let r = l.rows[k];
+            let active = sel == Some(*row);
+            match row {
+                Row::Class => Self::draw_choice_control(r, active, m, &format!("{}: {}", crate::lang::tr_ui("Class"), crate::lang::tr(&cl.name)), None),
+                Row::ClassSkill(slot) => {
+                    let skill = picks.get(*slot).and_then(|k| cl.skill_options.get(*k)).map_or(String::new(), |id| crate::lang::tr_ui(&abilities::proficiency_name(&abilities::proficiency_id(id))).into_owned());
+                    Self::draw_choice_control(r, active, m, &format!("{}: {skill}", crate::lang::tr_ui("Skill")), None);
+                }
+                _ => {}
+            }
+        }
+        let (x, w) = (p.x + 30.0, 330.0);
+        let room = |y: f32, size: f32| (((l.back.y - 6.0) - y) / (size + 2.0)).max(0.0) as usize;
+        let mut y = p.y + 96.0;
+        let saves: Vec<String> = cl.saves.iter().filter_map(|a| Ability::parse(a)).map(|a| a.short().to_string()).collect();
+        y = wrapped(&format!("{} d{}   {} {}", crate::lang::tr_ui("Hit die"), cl.hit_die, crate::lang::tr_ui("Saves"), saves.join(", ")), x, y, w, 18.0, skin::highlight(), 1) + 4.0;
+        let profs: Vec<String> = cl.proficiencies.iter().map(|id| crate::lang::tr_ui(&abilities::proficiency_name(id)).into_owned()).collect();
+        if !profs.is_empty() {
+            y = wrapped(&profs.join(", "), x, y, w, 16.0, skin::dim(), room(y, 16.0).min(3)) + 8.0;
+        }
+        for id in cl.levels.first().map(|l| l.features.clone()).unwrap_or_default() {
+            let Some(f) = cl.feature(&id) else { continue };
+            if room(y, 17.0) < 2 {
+                break;
+            }
+            y = wrapped(&crate::lang::tr(&f.name), x, y, w, 17.0, skin::normal(), 1);
+            y = wrapped(&crate::lang::tr(&f.text), x, y, w, 15.0, skin::dim(), room(y, 15.0).min(3)) + 6.0;
+        }
+    }
+
 }

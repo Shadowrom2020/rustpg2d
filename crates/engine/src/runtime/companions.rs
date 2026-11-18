@@ -111,6 +111,11 @@ impl Game {
 
     /// Puts the companions on free spots behind the player (entering a map, catching up).
     pub(super) fn place_companions(&mut self) {
+        // Party members with a class: hit points by their class and level.
+        let classed: Vec<u32> = self.loaded.entities.iter().filter(|e| e.companion.is_some()).map(|e| e.uid).collect();
+        for uid in classed {
+            self.refresh_member(uid);
+        }
         for i in 0..self.loaded.entities.len() {
             if self.loaded.entities[i].companion.as_ref().is_some_and(|l| l.down.is_none() && l.post.is_none()) {
                 self.place_companion(i);
@@ -297,8 +302,22 @@ impl Game {
         let Some(inst) = self.loaded.map.entity(e.uid).cloned() else { return };
         // Its runtime uid: one past the companions here (uids stay unique on this map).
         let k = self.loaded.entities.iter().filter(|e| (COMPANION_UID_BASE..super::schedule::VISITOR_UID_BASE).contains(&e.uid)).map(|e| e.uid - COMPANION_UID_BASE + 1).max().unwrap_or(0) as usize;
-        self.world.companions.push(Companion { ai: false, map: map.clone(), uid: e.uid, name: e.name.clone(), hp: (e.hp < e.max_hp).then_some(e.hp), down: None, order: Default::default(), post: None, mana: None });
+        self.world.companions.push(Companion { ai: false, map: map.clone(), uid: e.uid, name: e.name.clone(), hp: (e.hp < e.max_hp).then_some(e.hp), down: None, order: Default::default(), post: None, mana: None, ..Default::default() });
         make_companion(&mut self.loaded.entities[i], &map, inst.triggers, k);
+        // A party member with a class: its hit points, and the choices of its levels so far that
+        // its definition doesn't make (the level-up window asks for them).
+        let uid = self.loaded.entities[i].uid;
+        if let (Some((hc, level)), Some(key)) = (self.member_class(uid), self.member_key(uid)) {
+            if let Some(c) = self.project.db.class(&hc.class).cloned() {
+                for l in 1..=level {
+                    let open = Self::level_choices(&c, l).iter().any(|(f, _)| if f == "subclass" { hc.subclass.is_empty() } else { !hc.picks.contains_key(f) });
+                    if open {
+                        self.world.levelups.push(crate::state::PendingLevel { who: key.clone(), level: l });
+                    }
+                }
+            }
+            self.refresh_member(uid);
+        }
         let max_mana = self.npc_max_mana(i);
         if let Some(l) = self.loaded.entities[i].companion.as_mut() {
             l.mana = max_mana;

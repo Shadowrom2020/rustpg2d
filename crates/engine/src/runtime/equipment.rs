@@ -47,7 +47,17 @@ impl Game {
     /// The hero's armor class (SRD): 10 + the DEX modifier + the defense of the armor worn
     /// (until the SRD's armor arrives with 0.31).
     pub(super) fn armor_class(&self) -> i32 {
-        10 + self.world.abilities.modifier(crate::srd::Ability::Dex) + self.armor_pieces().map(|a| a.defense).sum::<i32>()
+        let worn = 10 + self.world.abilities.modifier(crate::srd::Ability::Dex) + self.armor_pieces().map(|a| a.defense).sum::<i32>();
+        // The class: an unarmored formula without body armor, the Defense style's +1 in it.
+        let piece = |s: EquipSlot| self.world.equipment.item(s).and_then(|id| self.project.db.item(id)?.armor.as_ref()).map(|a| a.defense);
+        let body = piece(EquipSlot::Body).is_some();
+        let shield = piece(EquipSlot::Offhand).unwrap_or(0);
+        self.class_armor_class(worn, body, shield)
+    }
+
+    /// Whether the hero wears no body armor and holds no shield (unarmored features).
+    pub(super) fn unarmored(&self) -> bool {
+        [EquipSlot::Body, EquipSlot::Offhand].into_iter().all(|s| self.world.equipment.item(s).and_then(|id| self.project.db.item(id)?.armor.as_ref()).is_none())
     }
 
     pub(super) fn player_defense(&self) -> i32 {
@@ -62,7 +72,11 @@ impl Game {
         if crate::srd::conditions::rules(&self.world.effects).resist_all {
             resistances.push("all".into());
         }
-        crate::srd::Defenses { resistances, ..Default::default() }
+        // The class's (Purity of Body: poison).
+        let t = self.hero_traits();
+        resistances.extend(t.iter().flat_map(|t| t.resistances.iter().cloned()));
+        let immunities = t.map(|t| t.immunities).unwrap_or_default();
+        crate::srd::Defenses { resistances, immunities, ..Default::default() }
     }
 
     /// Movement speed factor from armor (heavy armor slows down).

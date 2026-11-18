@@ -9,11 +9,26 @@ use serde::{Deserialize, Serialize};
 use super::abilities::{self, Abilities, Ability};
 use super::dice::{Mode, Modifiers, D20};
 
-/// What a character brings to a roll: scores, proficiencies, level.
+/// What a character brings to a roll: scores, proficiencies, level, and what its class adds.
 pub struct Roller<'a> {
     pub abilities: &'a Abilities,
     pub proficiencies: &'a BTreeSet<String>,
     pub level: u32,
+    pub training: Option<&'a Training>,
+}
+
+/// What class features add to checks (`classes::ClassTraits`): expertise doubles the proficiency
+/// bonus, half proficiency (Jack of All Trades: every ability; Remarkable Athlete: STR, DEX, CON)
+/// adds half of it to checks without proficiency, Reliable Talent makes a d20 below 10 a 10 on
+/// proficient checks.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Training {
+    pub expertise: BTreeSet<String>,
+    pub half: Vec<Ability>,
+    pub half_all: bool,
+    pub reliable: bool,
+    /// Saving throws with advantage (Danger Sense).
+    pub save_advantage: Vec<Ability>,
 }
 
 impl Modifiers for Roller<'_> {
@@ -69,15 +84,34 @@ impl Spec {
         None
     }
 
-    /// The bonus the roller adds: the ability modifier, plus proficiency when they have it.
+    /// The bonus the roller adds: the ability modifier, plus proficiency when they have it
+    /// (twice with expertise; half without it for a half-proficient ability check).
     pub fn modifier(&self, r: &Roller) -> i64 {
-        let prof = !self.proficiency.is_empty() && r.proficiencies.contains(&self.proficiency);
-        r.ability_mod(self.ability) + if prof { r.proficiency() } else { 0 }
+        let prof = self.proficient(r);
+        let t = r.training;
+        let bonus = if prof {
+            if t.is_some_and(|t| t.expertise.contains(&self.proficiency)) { 2 * r.proficiency() } else { r.proficiency() }
+        } else if !self.save && t.is_some_and(|t| t.half_all || t.half.contains(&self.ability)) {
+            r.proficiency() / 2
+        } else {
+            0
+        };
+        r.ability_mod(self.ability) + bonus
+    }
+
+    fn proficient(&self, r: &Roller) -> bool {
+        !self.proficiency.is_empty() && r.proficiencies.contains(&self.proficiency)
     }
 
     /// Rolls it against `dc`.
     pub fn roll(&self, r: &Roller, dc: i32, mode: Mode) -> RollRecord {
-        let d = D20::roll(mode);
+        // (Danger Sense: advantage on the save.)
+        let mode = if self.save && r.training.is_some_and(|t| t.save_advantage.contains(&self.ability)) { mode.combine(Mode::Advantage) } else { mode };
+        let mut d = D20::roll(mode);
+        // Reliable Talent: a proficient check's d20 is at least 10.
+        if !self.save && self.proficient(r) && r.training.is_some_and(|t| t.reliable) && d.kept < 10 {
+            d.kept = 10;
+        }
         let modifier = self.modifier(r);
         let total = d.kept as i64 + modifier;
         RollRecord {
@@ -172,8 +206,8 @@ mod tests {
     #[test]
     fn modifiers_add_proficiency_only_when_proficient() {
         let (a, p) = hero();
-        let lvl1 = Roller { abilities: &a, proficiencies: &p, level: 1 };
-        let lvl5 = Roller { abilities: &a, proficiencies: &p, level: 5 };
+        let lvl1 = Roller { abilities: &a, proficiencies: &p, level: 1, training: None };
+        let lvl5 = Roller { abilities: &a, proficiencies: &p, level: 5, training: None };
         assert_eq!(Spec::parse("persuasion", false).unwrap().modifier(&lvl1), 2 + 2);
         assert_eq!(Spec::parse("persuasion", false).unwrap().modifier(&lvl5), 2 + 3);
         assert_eq!(Spec::parse("deception", false).unwrap().modifier(&lvl1), 2);
@@ -186,7 +220,7 @@ mod tests {
     #[test]
     fn rolls_meet_the_dc_and_report_naturals() {
         let (a, p) = hero();
-        let r = Roller { abilities: &a, proficiencies: &p, level: 1 };
+        let r = Roller { abilities: &a, proficiencies: &p, level: 1, training: None };
         let s = Spec::parse("persuasion", false).unwrap();
         seed(3);
         let mut seen = (false, false);

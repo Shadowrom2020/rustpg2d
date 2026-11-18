@@ -20,7 +20,8 @@ impl Game {
         let race = self.player_race();
         let level = if self.progression_on() { self.world.player_level() } else { 1 };
         let con = self.world.abilities.modifier(crate::srd::Ability::Con);
-        let hp = crate::progression::max_hp(level, con, &self.world.hp_rolls, race.as_ref().map_or(0, |r| r.hp_per_level));
+        let per_level = race.as_ref().map_or(0, |r| r.hp_per_level) + self.hero_traits().map_or(0, |t| t.hp_per_level);
+        let hp = crate::progression::max_hp_die(self.hit_die(), level, con, &self.world.hp_rolls, per_level);
         let hp = (hp + race.as_ref().map_or(0, |r| r.max_hp)).max(1);
         // Exhaustion 4 and up halves it.
         if crate::srd::conditions::exhaustion(&self.world.effects) >= 4 {
@@ -54,8 +55,13 @@ impl Game {
             .iter()
             .filter(|e| e.active && e.body.pos.distance(self.player.pos) <= reach)
             .filter_map(|e| {
+                let name = if e.name.is_empty() { &e.def } else { &e.name };
+                // A party member with a class: the block fights use (`class-ranger`).
+                if let (Some((hc, _)), Some(b)) = (self.member_class(e.uid), self.member_block(e.uid)) {
+                    return Some(format!("{name}:class-{}:{}/{}", hc.class, b.hp, b.ac));
+                }
                 let s = self.stat_block(e)?;
-                Some(format!("{}:{}:{}/{}", if e.name.is_empty() { &e.def } else { &e.name }, if s.template.is_empty() { "-" } else { &s.template }, s.hp, s.ac))
+                Some(format!("{name}:{}:{}/{}", if s.template.is_empty() { "-" } else { &s.template }, s.hp, s.ac))
             })
             .collect()
     }
@@ -80,6 +86,12 @@ impl Game {
         if n == 0 {
             return;
         }
+        // Split among the party members who level (the hero and companions with a class here).
+        let members = self.levelling_members();
+        let n = if n > 0 && !members.is_empty() { n / (members.len() as i64 + 1) } else { n };
+        for uid in members {
+            self.member_xp(uid, n);
+        }
         self.world.xp = if n > 0 { self.world.xp.saturating_add(n as u64) } else { self.world.xp.saturating_sub(n.unsigned_abs()) };
         let p = self.project.config.progression.clone();
         while self.world.player_level() < p.max_level.max(1) && self.world.xp >= p.xp_for_level(self.world.player_level() + 1) {
@@ -92,17 +104,18 @@ impl Game {
         self.world.level = before + 1;
         // The hit die for this level: its average or a roll (the SRD); the levels before that a
         // save of an older version has no roll for count as averages.
-        let avg = crate::progression::HIT_DIE / 2 + 1;
+        let hit_die = self.hit_die();
+        let avg = hit_die / 2 + 1;
         while self.world.hp_rolls.len() + 1 < before as usize {
             self.world.hp_rolls.push(avg);
         }
         let die = match p.hit_points {
             crate::progression::HitPoints::Average => avg,
             // (Into the roll log, like every other roll.)
-            crate::progression::HitPoints::Rolled => self.world.roll_dice(&format!("1d{}", crate::progression::HIT_DIE)).map_or(avg, |r| r.total as i32),
+            crate::progression::HitPoints::Rolled => self.world.roll_dice(&format!("1d{hit_die}")).map_or(avg, |r| r.total as i32),
         };
         let con = self.world.abilities.modifier(crate::srd::Ability::Con);
-        let per_level = self.player_race().map_or(0, |r| r.hp_per_level);
+        let per_level = self.player_race().map_or(0, |r| r.hp_per_level) + self.hero_traits().map_or(0, |t| t.hp_per_level);
         // Script hook: what the level gives can change.
         let (mut hp_gain, mut mana_gain) = ((die + con).max(1) + per_level, p.mana_per_level);
         if self.hooked("level_up") {
@@ -130,6 +143,23 @@ impl Game {
         }
         let msg = if gains.is_empty() { format!("Level {}!", self.world.level) } else { format!("Level {}!  {}", self.world.level, gains.join(", ")) };
         self.ui.toast(msg);
+        // A class: the level's choices wait for the level-up window; its features count now.
+        if let Some(c) = self.hero_class().cloned() {
+            let level = self.world.level;
+            if self.level_has_choices(&c, level) || !c.levels.get(level as usize - 1).is_none_or(|l| l.features.is_empty()) {
+                self.world.levelups.push(crate::state::PendingLevel { who: "player".into(), level });
+            }
+            // Features that raise scores (Primal Champion: STR and CON +4, to 24) do it now.
+            for f in c.levels.get(level as usize - 1).map(|l| l.features.clone()).unwrap_or_default() {
+                for e in c.feature(&f).map(|x| x.effects.clone()).unwrap_or_default() {
+                    if let crate::classes::FeatureEffect::AbilityBonus { ability, amount, max } = e {
+                        let v = self.world.abilities.score(ability);
+                        self.world.abilities.set(ability, (v + amount).min(max));
+                    }
+                }
+            }
+            self.refresh_training();
+        }
         // The project's level-up fanfare (a music effect), else the pickup sound.
         let fanfare = self.project.config.sfx.level_up.clone();
         if !fanfare.is_empty() && self.project.db.sound(&fanfare).is_some() {
@@ -137,6 +167,45 @@ impl Game {
         } else {
             self.audio.play(&self.project.config.sfx.pickup);
         }
+    }
+
+    /// A party member's share of experience: its own level-ups (HP by its class's hit die), whose
+    /// choices wait for the level-up window like the hero's.
+    fn member_xp(&mut self, uid: u32, n: i64) {
+        let Some((hc, level)) = self.member_class(uid) else { return };
+        let Some(c) = self.project.db.class(&hc.class).cloned() else { return };
+        let Some(link) = self.loaded.entities.iter().find(|e| e.uid == uid).and_then(|e| e.companion.as_ref()).map(|l| (l.map.clone(), l.uid)) else { return };
+        let p = self.project.config.progression.clone();
+        let Some(k) = self.world.companions.iter().position(|x| x.map == link.0 && x.uid == link.1) else { return };
+        let comp = &mut self.world.companions[k];
+        if comp.class.is_none() {
+            comp.class = Some(hc.clone());
+        }
+        if comp.level == 0 {
+            comp.level = level;
+            comp.xp = comp.xp.max(p.xp_for_level(level));
+            comp.hp_rolls.resize((level as usize).saturating_sub(1).max(comp.hp_rolls.len()), c.hit_die as i32 / 2 + 1);
+        }
+        comp.xp = if n > 0 { comp.xp.saturating_add(n as u64) } else { comp.xp.saturating_sub(n.unsigned_abs()) };
+        let name = self.entity_display_name(uid).unwrap_or_default();
+        loop {
+            let comp = &mut self.world.companions[k];
+            if comp.level >= p.max_level.max(1) || comp.xp < p.xp_for_level(comp.level + 1) {
+                break;
+            }
+            comp.level += 1;
+            let level = comp.level;
+            let roll = match p.hit_points {
+                crate::progression::HitPoints::Average => c.hit_die as i32 / 2 + 1,
+                crate::progression::HitPoints::Rolled => crate::srd::dice::die(c.hit_die) as i32,
+            };
+            comp.hp_rolls.push(roll);
+            if self.level_has_choices(&c, level) {
+                self.world.levelups.push(crate::state::PendingLevel { who: format!("{}:{}", link.0, link.1), level });
+            }
+            self.ui.toast(format!("{name}: level {level}!"));
+        }
+        self.refresh_member(uid);
     }
 
     /// The XP a defeated character gives.

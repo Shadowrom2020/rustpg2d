@@ -2,6 +2,7 @@
 
 pub mod achievements;
 pub mod backgrounds;
+pub mod classes;
 pub mod audio;
 pub mod crafting;
 #[cfg(not(target_arch = "wasm32"))]

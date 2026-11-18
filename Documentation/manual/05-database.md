@@ -8,7 +8,7 @@ Database says what they are.
 ## Working with definitions
 
 The tabs along the top are *Items, Props, Characters, Races, Factions, 3D models, Materials, Scatter sets,
-Sprite sheets, Sounds, Fonts, UI skins, Structures, Spells, Recipes, Backgrounds, Quests, Achievements, Common events, Project* and
+Sprite sheets, Sounds, Fonts, UI skins, Structures, Spells, Recipes, Backgrounds, Classes, Quests, Achievements, Common events, Project* and
 *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
 
@@ -169,6 +169,12 @@ See [Characters › Races](06-characters.md#races).
 What the hero did before the adventure: proficiencies, languages to choose, starting items and a
 feature. The creator offers them on its second page. See
 [Characters › Backgrounds](06-characters.md#backgrounds).
+
+## Classes
+
+The SRD's twelve classes: hit die, saving throws, proficiencies, skills to choose, starting
+equipment, subclasses and their features by level. The creator offers them on its third page;
+characters have one as party members. See [Characters › Classes](06-characters.md#classes).
 
 ## Factions
 

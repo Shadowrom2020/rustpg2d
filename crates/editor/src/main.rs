@@ -1285,6 +1285,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "fonts" => Tab::Fonts,
                 "skins" => Tab::Skins,
                 "common_events" | "common" => Tab::CommonEvents,
+                "factions" => Tab::Factions,
                 _ => Tab::Items,
             };
             // tab KIND N, or tab KIND ID (sheets, items, props, characters, …).

@@ -124,6 +124,8 @@ pub struct Problems {
     /// What loading the definitions left out (kept until they are saved again).
     pub defs_warnings: Vec<String>,
     maps: HashMap<String, MapFile>,
+    /// When the maps were last read for Database › Factions (`ui::now()`).
+    factions_read: f64,
 }
 
 impl Problems {
@@ -205,6 +207,25 @@ impl Editor {
     /// Does `id` of `kind` exist (maps included; an empty id counts as "none chosen")?
     fn problem_id_exists(&self, kind: RefKind, id: &str) -> bool {
         id.is_empty() || if kind == RefKind::Map { self.maps.iter().any(|m| m == id) } else { self.project.db.has(kind, id) }
+    }
+
+    /// Placed characters with a faction of their own, on every map (the open one as edited):
+    /// (map, uid, label, faction). Reads changed map files at most every two seconds.
+    pub fn placed_factions(&mut self) -> Vec<(String, u32, String, String)> {
+        let now = crate::ui::now();
+        if now - self.problems.factions_read > 2.0 || self.problems.maps.is_empty() {
+            self.problems.factions_read = now;
+            self.problem_maps();
+        }
+        let open = self.doc.as_ref().map(|d| &d.map);
+        let mut maps: Vec<&Map> = self.problems.maps.values().filter_map(|f| f.map.as_ref()).filter(|m| open.is_none_or(|o| o.name != m.name)).collect();
+        maps.extend(open);
+        let mut out: Vec<(String, u32, String, String)> = maps
+            .into_iter()
+            .flat_map(|m| m.entities.iter().filter(|e| e.kind == EntityKind::Character && !e.faction.is_empty()).map(|e| (m.name.clone(), e.uid, e.label(), e.faction.clone())))
+            .collect();
+        out.sort();
+        out
     }
 
     /// Reads the maps whose files changed since the last check.
@@ -344,7 +365,7 @@ impl Editor {
                 // (A project without factions leaves the fields dormant: library characters name theirs.)
                 let factions = &self.project.config.factions;
                 if let Some(f) = faction.filter(|f| !f.is_empty() && !factions.is_empty() && factions.get(f).is_none()) {
-                    out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("belongs to the faction \"{f}\", which isn't in Database › Project › Factions (it has no faction until it is added there)"), target: target.clone() });
+                    out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("belongs to the faction \"{f}\", which isn't in Database › Factions (it has no faction until it is added there)"), target: target.clone() });
                 }
                 if k == RefKind::Quest && db.quest(&id).is_some_and(|q| q.stages.is_empty()) {
                     out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: "has no stages: the journal shows nothing while it is active".into(), target: target.clone() });
@@ -444,6 +465,9 @@ impl Editor {
                     out.push(Problem { severity: Severity::Error, area: Area::Maps, place: format!("map {name}: {who}"), text: format!("its {} \"{}\" doesn't exist", def_kind.name(), e.def), target: target.clone() });
                 }
                 unknown(&who, &target, entity_refs(e), out, to);
+                if !e.faction.is_empty() && self.project.config.factions.get(&e.faction).is_none() {
+                    out.push(Problem { severity: Severity::Warning, area: Area::Maps, place: format!("map {name}: {who}"), text: format!("belongs to the faction \"{}\", which isn't in Database › Factions (it has its definition's until it is added there)", e.faction), target: target.clone() });
+                }
                 self.trigger_problems(&e.triggers, Area::Maps, &format!("map {name}: {who}"), &target, out);
             }
             for z in &m.zones {

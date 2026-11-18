@@ -37,6 +37,7 @@ pub enum Tab {
     Fonts,
     Skins,
     CommonEvents,
+    Factions,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -60,7 +61,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Fonts => db.fonts.len(),
         Tab::Skins => db.skins.len(),
         Tab::CommonEvents => db.common_events.len(),
-        Tab::Project | Tab::Scripts => 0,
+        Tab::Project | Tab::Scripts | Tab::Factions => 0,
     }
 }
 
@@ -106,7 +107,7 @@ impl Tab {
             Tab::Fonts => RefKind::Font,
             Tab::Skins => RefKind::Skin,
             Tab::CommonEvents => RefKind::CommonEvent,
-            Tab::Project | Tab::Scripts => return None,
+            Tab::Project | Tab::Scripts | Tab::Factions => return None,
         })
     }
 
@@ -240,6 +241,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Fonts => ph::TEXT_AA,
         Tab::Skins => ph::FRAME_CORNERS,
         Tab::CommonEvents => ph::LIGHTNING,
+        Tab::Factions => ph::FLAG,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
     }
@@ -307,7 +309,7 @@ fn list_ui<T: Clone>(
 pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
     let library = ed.library_mode;
     LIBRARY_MODE.with(|m| m.set(library));
-    if library && matches!(ed.db.tab, Tab::Quests | Tab::Achievements | Tab::Project | Tab::Scripts) {
+    if library && matches!(ed.db.tab, Tab::Quests | Tab::Achievements | Tab::Project | Tab::Scripts | Tab::Factions) {
         ed.db.tab = Tab::Items;
     }
     // Wraps onto a second line in narrow windows (instead of widening the forms below).
@@ -317,6 +319,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Props, "Props"),
             (Tab::Characters, "Characters"),
             (Tab::Races, "Races"),
+            (Tab::Factions, "Factions"),
             (Tab::Models, "3D models"),
             (Tab::Materials, "Materials"),
             (Tab::Scatter, "Scatter sets"),
@@ -335,7 +338,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Scripts, "Scripts"),
         ];
         for (t, l) in tabs {
-            if library && matches!(t, Tab::Quests | Tab::Achievements | Tab::Project | Tab::Scripts) {
+            if library && matches!(t, Tab::Quests | Tab::Achievements | Tab::Project | Tab::Scripts | Tab::Factions) {
                 continue; // the library only holds assets
             }
             if ui.selectable_label(ed.db.tab == t, ui::t(tab_icon(t), l)).clicked() && ed.db.tab != t {
@@ -435,9 +438,10 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
     let mut place_structure: Option<String> = None;
     let tab = ed.db.tab;
     let sel_before = ed.db.sel;
-    if matches!(tab, Tab::Project | Tab::Scripts) {
+    if matches!(tab, Tab::Project | Tab::Scripts | Tab::Factions) {
         egui::CentralPanel::default().show_inside(ui, |ui| match tab {
             Tab::Project => project_ui(ed, ui),
+            Tab::Factions => factions_ui(ed, ui),
             _ => scripts_ui(ed, ui),
         });
     } else {
@@ -1785,9 +1789,9 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             .on_hover_text("What it is (Database \u{E13A} Races): for the 'Race of' condition, scripts and factions. Its size comes from its body (the race that lists it).");
         });
     }
-    if !cx.refs.factions.is_empty() || !d.faction.is_empty() {
-        let race_faction = cx.db.race(&d.race).map(|r| r.faction.clone()).unwrap_or_default();
-        faction_combo(ui, "chr_faction", &mut d.faction, &cx.refs.factions, &race_faction, "Who it sides with (Database \u{E13A} Project \u{E13A} Factions): characters of hostile factions fight each other, and it attacks the player when the player's standing with its faction is -20 or below. Empty = its race's faction.");
+    {
+        let race_faction = cx.db.race(&d.race).map(|r| r.faction.clone()).filter(|f| !f.is_empty()).map(|f| format!("its race's: {f}")).unwrap_or_default();
+        faction_combo(ui, "chr_faction", &mut d.faction, &cx.refs.factions, &race_faction, "Who it sides with (Database \u{E13A} Factions): characters of hostile factions fight each other, and it attacks the player when the player's standing with its faction is -20 or below. Empty = its race's faction. A placed character can have its own (the map's inspector).");
     }
     // The look: assembled in the character builder (body, colors, hair, clothes, gear).
     ui.separator();
@@ -3234,8 +3238,6 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     }
     ui.weak("Dialogs address the player with {player} (name) and {sir|madam} (male|female); conditions have 'Player sex'; scripts have player_name(), player_sex(), is_female(), is_male(), text(\"...\").");
     ui.separator();
-    factions_form(ui, &mut ed.project.config.factions);
-    ui.separator();
     match &ed.project_file {
         Some(pf) => {
             ui.label(format!("Project file: {}", pf.path.display()));
@@ -3247,16 +3249,21 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     }
 }
 
-/// A *Faction* field: the project's factions; `inherited` = what "(none)" stands for.
-fn faction_combo(ui: &mut egui::Ui, salt: &str, v: &mut String, factions: &[String], inherited: &str, help: &str) {
+/// A *Faction* field: the project's factions; `inherited` = what "(none)" stands for ("its
+/// race's: humans"); *New faction…* switches to the Factions tab.
+pub fn faction_combo(ui: &mut egui::Ui, salt: &str, v: &mut String, factions: &[String], inherited: &str, help: &str) {
     ui.horizontal(|ui| {
         ui.label("Faction");
-        let none = if inherited.is_empty() { "(none)".to_string() } else { format!("(its race's: {inherited})") };
+        let none = if inherited.is_empty() { "(none)".to_string() } else { format!("({inherited})") };
         let label = if v.is_empty() { none.clone() } else if factions.contains(v) { v.clone() } else { format!("{v} (missing)") };
         egui::ComboBox::from_id_salt(salt).selected_text(label).show_ui(ui, |ui| {
             ui.selectable_value(v, String::new(), none);
             for f in factions {
                 ui.selectable_value(v, f.clone(), f);
+            }
+            ui.separator();
+            if ui.button(crate::ui::t(ph::PLUS, "New faction…")).on_hover_text("Opens Database \u{E13A} Factions to add one").clicked() {
+                OPEN_FACTIONS.with(|o| o.set(true));
             }
         })
         .response
@@ -3264,7 +3271,116 @@ fn faction_combo(ui: &mut egui::Ui, salt: &str, v: &mut String, factions: &[Stri
     });
 }
 
-/// *Factions* in Database › Project: the list (ids are fixed once added: triggers and scripts
+thread_local! {
+    /// *New faction…* in a Faction field: the Database switches to the Factions tab.
+    static OPEN_FACTIONS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Whether a *New faction…* entry was clicked since the last call.
+pub fn take_open_factions() -> bool {
+    OPEN_FACTIONS.with(|o| o.replace(false))
+}
+
+/// Database › Factions: the factions, their attitudes and who belongs to each (races, character
+/// definitions and placed characters), membership changed from the faction's side too.
+fn factions_ui(ed: &mut Editor, ui: &mut egui::Ui) {
+    let placed = ed.placed_factions();
+    let mut jump = None;
+    let mut area = egui::ScrollArea::vertical().id_salt("factions_scroll").auto_shrink(false);
+    if let Some(y) = ed.db.form_scroll.take() {
+        area = area.vertical_scroll_offset(y);
+    }
+    let (config, db) = (&mut ed.project.config, &mut ed.project.db);
+    area.show(ui, |ui| {
+        factions_form(ui, &mut config.factions);
+        if config.factions.is_empty() {
+            return;
+        }
+        ui.separator();
+        ui.heading("Members");
+        ui.weak("Who belongs to each faction: a character belongs to its own Faction (Database \u{E13A} Characters), else its race's; a placed character can have one of its own (the map's inspector). In play the 'Set faction' action and set_faction() move characters and the player into another faction.");
+        let ids: Vec<(String, String)> = config.factions.list.iter().map(|f| (f.id.clone(), f.name.clone())).collect();
+        for (id, name) in &ids {
+            let races: Vec<usize> = (0..db.races.len()).filter(|&k| db.races[k].faction == *id).collect();
+            let own: Vec<usize> = (0..db.characters.len()).filter(|&k| db.characters[k].faction == *id).collect();
+            let by_race: Vec<String> = db.characters.iter().filter(|c| c.faction.is_empty() && db.races.iter().any(|r| r.id == c.race && r.faction == *id)).map(|c| c.id.clone()).collect();
+            let here: Vec<&(String, u32, String, String)> = placed.iter().filter(|p| p.3 == *id).collect();
+            let n = |k: usize, one: &str, many: &str| format!("{k} {}", if k == 1 { one } else { many });
+            let title = format!("{name} ({id}): {}, {}, {} placed", n(races.len(), "race", "races"), n(own.len() + by_race.len(), "character", "characters"), here.len());
+            egui::CollapsingHeader::new(title).id_salt(("faction_members", id)).default_open(true).show(ui, |ui| {
+                // Races.
+                ui.horizontal_wrapped(|ui| {
+                    ui.strong("Races:");
+                    let mut out = None;
+                    for &k in &races {
+                        if ui.button(crate::ui::t(ph::X, &db.races[k].name)).on_hover_text(format!("Take the race '{}' out of {name}", db.races[k].id)).clicked() {
+                            out = Some(k);
+                        }
+                    }
+                    if let Some(k) = out {
+                        db.races[k].faction.clear();
+                    }
+                    let mut add = None;
+                    egui::ComboBox::from_id_salt(("faction_add_race", id)).selected_text("Add a race…").show_ui(ui, |ui| {
+                        for (k, r) in db.races.iter().enumerate().filter(|(_, r)| r.faction != *id) {
+                            let from = if r.faction.is_empty() { String::new() } else { format!(" (now {})", r.faction) };
+                            if ui.selectable_label(false, format!("{}{from}", r.name)).clicked() {
+                                add = Some(k);
+                            }
+                        }
+                    });
+                    if let Some(k) = add {
+                        db.races[k].faction = id.clone();
+                    }
+                });
+                // Character definitions: their own faction, or their race's.
+                ui.horizontal_wrapped(|ui| {
+                    ui.strong("Characters:");
+                    let mut out = None;
+                    for &k in &own {
+                        if ui.button(crate::ui::t(ph::X, &db.characters[k].name)).on_hover_text(format!("Take the character '{}' out of {name} (it then belongs to its race's faction)", db.characters[k].id)).clicked() {
+                            out = Some(k);
+                        }
+                    }
+                    for c in &by_race {
+                        ui.weak(format!("{c} (by race)")).on_hover_text("Belongs to it through its race (Database \u{E13A} Races)");
+                    }
+                    if let Some(k) = out {
+                        db.characters[k].faction.clear();
+                    }
+                    let mut add = None;
+                    egui::ComboBox::from_id_salt(("faction_add_char", id)).selected_text("Add a character…").show_ui(ui, |ui| {
+                        for (k, c) in db.characters.iter().enumerate().filter(|(_, c)| c.faction != *id) {
+                            let from = if c.faction.is_empty() { String::new() } else { format!(" (now {})", c.faction) };
+                            if ui.selectable_label(false, format!("{} [{}]{from}", c.name, c.id)).clicked() {
+                                add = Some(k);
+                            }
+                        }
+                    });
+                    if let Some(k) = add {
+                        db.characters[k].faction = id.clone();
+                    }
+                });
+                // Placed characters with this faction of their own (set in the map's inspector).
+                if !here.is_empty() {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.strong("Placed:");
+                        for (map, uid, label, _) in &here {
+                            if ui.link(format!("{label} on {map}")).on_hover_text("Show it on the map (its Faction is in the inspector)").clicked() {
+                                jump = Some(crate::search::Target::Entity(map.clone(), *uid));
+                            }
+                        }
+                    });
+                }
+            });
+        }
+    });
+    if let Some(t) = jump {
+        ed.jump_to(&t);
+    }
+}
+
+/// The faction list and attitude table of Database › Factions: the list (ids are fixed once added: triggers and scripts
 /// name them) and the attitude table, symmetric, every cell cycling hostile / neutral / friendly.
 fn factions_form(ui: &mut egui::Ui, f: &mut rustpg2d_engine::factions::Factions) {
     use rustpg2d_engine::factions::{Attitude, Faction};
@@ -3857,7 +3973,7 @@ fn race_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mu
     ui.label("Description").on_hover_text("Shown in the character creator under the race.");
     text_box(ui, &mut d.description, 2, "Shown in the character creator");
     ui.checkbox(&mut d.playable, "Playable: offered in the character creator");
-    if !cx.refs.factions.is_empty() || !d.faction.is_empty() {
+    {
         faction_combo(ui, "race_faction", &mut d.faction, &cx.refs.factions, "", "The faction of its characters (those without their own) and of players of this race: they start friendly with it and with its friends, and are attacked by the factions hostile to it.");
     }
     ui.separator();

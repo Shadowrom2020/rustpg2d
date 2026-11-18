@@ -37,6 +37,8 @@ struct Ctx {
     achievements: std::collections::BTreeSet<String>,
     /// The project's factions (`standing()` where the save holds none).
     factions: crate::factions::Factions,
+    /// Characters on the current map and their factions: (uid, name, faction id) (`faction_of`).
+    character_factions: Vec<(u32, String, String)>,
     /// Props with a lock on the current map: (uid, name, locked) (`is_locked`).
     locks: Vec<(u32, String, bool)>,
     /// Consumable item ids (`is_consumable`).
@@ -137,6 +139,11 @@ impl ScriptHost {
 
     pub fn set_characters(&mut self, characters: Vec<(u32, String, i32)>) {
         self.ctx.borrow_mut().characters = characters;
+    }
+
+    /// The current map's characters and their factions, as (uid, name, faction id), for `faction_of()`.
+    pub fn set_character_factions(&mut self, list: Vec<(u32, String, String)>) {
+        self.ctx.borrow_mut().character_factions = list;
     }
 
     /// The current map's characters that learned spells, for `npc_knows_spell()`.
@@ -744,6 +751,14 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("player_carrying", with!(ctx, |c| c.world.player_carrying.clone()));
     engine.register_fn("standing", with!(ctx, |c, f: &str| c.world.standing.get(f).copied().unwrap_or_else(|| c.factions.base_standing(&c.player.faction, f)) as i64));
     engine.register_fn("change_standing", with!(ctx, |c, f: &str, amount: i64| c.actions.push(Action::ChangeStanding { faction: f.into(), amount: amount as i32 })));
+    // Faction membership: "player", "self" (also SELF) or a name on this map.
+    engine.register_fn("set_faction", with!(ctx, |c, t: &str, f: &str| c.actions.push(Action::SetFaction { target: t.into(), faction: f.into() })));
+    engine.register_fn("faction_of", with!(ctx, |c, t: &str| match t {
+        "player" => c.player.faction.clone(),
+        "" | "self" => c.owner.and_then(|u| c.character_factions.iter().find(|ch| ch.0 == u)).map_or(String::new(), |ch| ch.2.clone()),
+        name => c.character_factions.iter().find(|ch| ch.1 == name).map_or(String::new(), |ch| ch.2.clone()),
+    }));
+    engine.register_fn("faction_of", with!(ctx, |c, uid: i64| c.character_factions.iter().find(|ch| ch.0 as i64 == uid).map_or(String::new(), |ch| ch.2.clone())));
     engine.register_fn("is_female", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Female));
     engine.register_fn("is_male", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Male));
     // Placeholders like in dialog texts: "{player}", "{sir|madam}", "{var}".
@@ -1053,6 +1068,19 @@ mod tests {
         assert_eq!(host.take_printed(), vec!["hi".to_string()]);
         assert!(host.eval(&mut w, "nope(").0.is_err());
         assert!(host.eval(&mut w, "missing()").0.is_err());
+    }
+
+    #[test]
+    fn faction_membership_from_scripts() {
+        let mut host = ScriptHost::new();
+        host.load_source(r#"fn who() { [faction_of("player"), faction_of("self"), faction_of(SELF), faction_of("Rook"), faction_of("nobody")] } fn turn() { set_faction("Rook", "humans"); set_faction("player", "") }"#).unwrap();
+        host.set_player(PlayerInfo { faction: "elves".into(), ..Default::default() });
+        host.set_character_factions(vec![(7, "Rook".into(), "bandits".into()), (9, String::new(), "wild".into())]);
+        let mut w = WorldState::default();
+        let list: Vec<String> = host.call_inner(&mut w, "who", vec![], Some(9)).unwrap().into_array().unwrap().into_iter().map(|v| v.into_string().unwrap()).collect();
+        assert_eq!(list, ["elves", "wild", "wild", "bandits", ""]);
+        let actions = host.call(&mut w, "turn", None);
+        assert_eq!(actions, vec![Action::SetFaction { target: "Rook".into(), faction: "humans".into() }, Action::SetFaction { target: "player".into(), faction: String::new() }]);
     }
 
     #[test]

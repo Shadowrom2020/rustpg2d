@@ -935,7 +935,6 @@ The promise creators need for a commercial release: what works with 1.0 keeps wo
 
 - **Right-to-left text** (Arabic, Hebrew): shaping and bidirectional runs in `runtime/text.rs`,
   after 0.24's fonts.
-- Creators can define factions in the editor and set faction membership for characters in the editor
 - **iOS export:** needs a Mac and an Apple developer account; after Android (0.32).
 - **RPG Maker MV / MZ importer** (moved from 0.32, 2026-11-16: R(ust)PG2D follows the SRD rules,
   not the JRPG model): maps and art through the tile converter, the database mapped onto SRD

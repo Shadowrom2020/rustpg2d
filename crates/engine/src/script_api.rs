@@ -48,7 +48,7 @@ pub enum Arg {
     Station,
     /// A prop definition id.
     Prop,
-    /// A faction id (Database \u{203A} Project \u{203A} Factions).
+    /// A faction id (Database \u{203A} Factions).
     Faction,
     /// A common event id.
     Common,
@@ -99,6 +99,8 @@ pub const API: &[ApiFn] = api! {
     "player_faction"() "The player's faction id (their race's, else the player character's; \"\" without one)";
     "standing"(faction: Faction) "The player's standing with a faction (-100..100; at -20 or below its characters attack the player)";
     "change_standing"(faction: Faction, amount: Num) "Raises (or with a negative amount lowers) the player's standing with a faction; its characters turn hostile or calm down at once (queued)";
+    "set_faction"(target: Target, faction: Faction) "A character on this map (\"self\", a name) or \"player\" joins a faction; \"\" = back to its own (the placed character's, its definition's, its race's). Saved; who attacks whom changes at once (queued)";
+    "faction_of"(target: Target) "The faction id a character belongs to now: \"player\", \"self\" (also SELF) or a name on this map; \"\" = none";
     "is_female"() "Whether the player character is female";
     "is_male"() "Whether the player character is male";
     "hour"() "Time of day in hours (0..24, e.g. 13.5 = half past one in the afternoon)";

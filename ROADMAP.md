@@ -170,7 +170,7 @@ The event commands creators expect from other makers.
   **Verify.** `status` prints `pictures=layer:sprite@x,y:alpha`; screenshots mid-move; save and
   load keep the pictures.
 
-- [ ] Screen tint, flash and fade — `feature/screen-effects`
+- [x] Screen tint, flash and fade — `feature/screen-effects`
 
   **Goal.** Colour the whole screen for a mood, a flash or a transition.
 
@@ -182,6 +182,13 @@ The event commands creators expect from other makers.
   - **Map changes:** a fade-out lasts across a map change until *Fade in*, as with RPG Maker's
     transfer with fade.
   - **Existing actions:** *Shake* and *Dim* stay.
+
+  **Decided while building.**
+  - Tint and fade cover are saved in `WorldState.screen` (`screen_fx.rs`); a flash isn't.
+  - The tint goes over the lit world and the pictures; a flash and the fade cover over those;
+    dialogs and the HUD stay over everything (text on black works).
+  - *Flash screen* obeys the player's *Screen effects* option, like the hurt flash.
+  - *Fade out* / *Fade in* wait by default; *Tint screen* doesn't.
 
   **Engine.** Four appended actions, the drawing in `runtime/juice.rs` / `lights.rs`, script
   functions.

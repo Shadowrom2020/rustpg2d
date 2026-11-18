@@ -2457,7 +2457,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2522,6 +2522,7 @@ impl Game {
             self.script_ui_status().0,
             self.script_ui_status().1,
             self.pictures_status(),
+            self.screen_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2859,8 +2860,11 @@ impl Game {
             self.draw_offer_marks(&cam);
             self.draw_damage_numbers(&cam);
         }
-        // Picture layers: above the map, below the HUD (and under fades).
+        // Picture layers: above the map, below the HUD (and under fades); the screen tint over
+        // both, then a flash and the fade cover.
         self.draw_pictures(&cam);
+        self.draw_screen_tint();
+        self.draw_screen_cover();
         let alpha = match &self.fade {
             Fade::None => 0.0,
             Fade::Out { t, .. } => (t / FADE_TIME).min(1.0),
@@ -3142,6 +3146,35 @@ impl ActionHost for Game {
             Action::ErasePicture { layer } => {
                 self.erase_picture(*layer);
                 Step::Continue
+            }
+            Action::TintScreen { color, seconds, wait } => {
+                self.world.screen.tint_to(color.map(|v| v as f32 / 255.0), *seconds);
+                if *wait && *seconds > 0.0 {
+                    Step::Insert(vec![(Action::Wait { seconds: *seconds }, ctx.clone())])
+                } else {
+                    Step::Continue
+                }
+            }
+            Action::FlashScreen { color, seconds } => {
+                self.flash_screen(*color, *seconds);
+                Step::Continue
+            }
+            Action::FadeOut { seconds, color, wait } => {
+                self.world.screen.fade_out(color.map(|v| v as f32 / 255.0), *seconds);
+                if *wait && *seconds > 0.0 {
+                    Step::Insert(vec![(Action::Wait { seconds: *seconds }, ctx.clone())])
+                } else {
+                    Step::Continue
+                }
+            }
+            Action::FadeIn { seconds, wait } => {
+                let covered = self.world.screen.cover.is_some();
+                self.world.screen.fade_in(*seconds);
+                if covered && *wait && *seconds > 0.0 {
+                    Step::Insert(vec![(Action::Wait { seconds: *seconds }, ctx.clone())])
+                } else {
+                    Step::Continue
+                }
             }
             Action::ShowImage { sheet, wait, scroll, speed, scale } => {
                 if self.show_image(sheet, *wait, *scroll, *speed, *scale) && *wait {

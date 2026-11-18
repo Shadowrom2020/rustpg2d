@@ -108,6 +108,12 @@ across map changes and in save games.
 - **Play sound**, **Play music**, **Shake the screen**.
 - **Show image** / **Hide image**: a picture over the game (below).
 - **Show picture**, **Move picture**, **Erase picture**: picture layers, moved and faded (below).
+- **Tint screen** (a colour over the whole screen, its opacity = how strongly, changing over some
+  seconds; it stays until changed and is saved; opacity 0 takes it away), **Flash screen** (a
+  colour fading out: lightning, a spell; left out when the player turned off screen effects),
+  **Fade out** / **Fade in** (cover the screen with a colour and uncover it; a fade-out lasts
+  across map changes until *Fade in*, so a *Teleport* between them changes maps unseen; dialogs
+  and the HUD stay over it). The tint goes over the world and the pictures, under the HUD.
 - **Play effect** (an animation once), **Fly sprite to point** (a projectile that calls a script on
   arrival), **Light at point**, **Light around player**, **Damage area**, **Damage around player**,
   **Heal area**, **Aim (then run script)**.

@@ -66,6 +66,8 @@ pub(super) struct Juice {
     white: std::cell::OnceCell<Option<Material>>,
     /// Autoplay `crit`: always / never critical (None = by chance).
     pub crit_mode: Option<bool>,
+    /// *Flash screen*: colour (alpha = strength), seconds left, seconds in all.
+    screen_flash: Option<([f32; 4], f32, f32)>,
 }
 
 const WHITE_VERTEX: &str = r#"#version 100
@@ -116,6 +118,13 @@ impl Game {
         let j = &mut self.juice;
         j.shake = (j.shake - dt).max(0.0);
         j.flash = (j.flash - dt).max(0.0);
+        if let Some((_, left, _)) = &mut j.screen_flash {
+            *left -= dt;
+            if *left <= 0.0 {
+                j.screen_flash = None;
+            }
+        }
+        self.world.screen.update(dt);
         for n in &mut j.numbers {
             n.t += dt;
         }
@@ -233,6 +242,56 @@ impl Game {
         if self.juice.flash > 0.0 && self.settings.screen_effects {
             let a = 0.32 * self.juice.flash / HURT_FLASH;
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.85, 0.05, 0.05, a));
+        }
+    }
+
+    /// *Flash screen* (left out when the player turned off screen effects).
+    pub(super) fn flash_screen(&mut self, rgba: [u8; 4], seconds: f32) {
+        if self.settings.screen_effects && seconds > 0.0 {
+            self.juice.screen_flash = Some((rgba.map(|v| v as f32 / 255.0), seconds, seconds));
+        }
+    }
+
+    /// The tint (over the world and the pictures).
+    pub(super) fn draw_screen_tint(&self) {
+        if let Some(t) = &self.world.screen.tint {
+            let [r, g, b, a] = t.now();
+            if a > 0.0 {
+                draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(r, g, b, a));
+            }
+        }
+    }
+
+    /// The flash and the fade cover (over the tint, under dialogs and the HUD).
+    pub(super) fn draw_screen_cover(&self) {
+        if let Some(([r, g, b, a], left, total)) = self.juice.screen_flash {
+            draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(r, g, b, a * (left / total).clamp(0.0, 1.0)));
+        }
+        if let Some(c) = &self.world.screen.cover {
+            let [r, g, b, a] = c.now();
+            if a > 0.0 {
+                draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(r, g, b, a));
+            }
+        }
+    }
+
+    /// For `status()`: `tint:r,g,b,a;flash:a;cover:a` of what is showing, `-` for nothing.
+    pub(super) fn screen_status(&self) -> String {
+        let f = |c: [f32; 4]| format!("{:.0},{:.0},{:.0},{:.2}", c[0] * 255.0, c[1] * 255.0, c[2] * 255.0, c[3]);
+        let mut parts = Vec::new();
+        if let Some(t) = &self.world.screen.tint {
+            parts.push(format!("tint:{}", f(t.now())));
+        }
+        if let Some((c, left, total)) = self.juice.screen_flash {
+            parts.push(format!("flash:{:.2}", c[3] * left / total));
+        }
+        if let Some(c) = &self.world.screen.cover {
+            parts.push(format!("cover:{:.2}", c.now()[3]));
+        }
+        if parts.is_empty() {
+            "-".into()
+        } else {
+            parts.join(";")
         }
     }
 

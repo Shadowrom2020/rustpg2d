@@ -664,6 +664,44 @@ pub enum Action {
     },
     /// Takes the picture of a layer away (0 = every picture).
     ErasePicture { layer: u32 },
+    /// Colours the whole screen (over the lit world and the pictures, under the HUD) with
+    /// `color` (its alpha = how strongly; 0 = no tint) over `seconds`; stays until changed and is
+    /// saved. `wait`: the event goes on when it is there.
+    TintScreen {
+        color: [u8; 4],
+        #[serde(default = "one_f32")]
+        seconds: f32,
+        #[serde(default)]
+        wait: bool,
+    },
+    /// A flash of `color` (alpha = its strength) fading out over `seconds` (lightning, a spell).
+    /// Left out when the player turned off screen effects.
+    FlashScreen {
+        color: [u8; 4],
+        #[serde(default = "half_second")]
+        seconds: f32,
+    },
+    /// Covers the screen with `color` over `seconds` (dialogs and the HUD stay over it); it lasts
+    /// across map changes until *Fade in*. `wait`: the event goes on when it is covered.
+    FadeOut {
+        #[serde(default = "one_f32")]
+        seconds: f32,
+        #[serde(default)]
+        color: [u8; 3],
+        #[serde(default = "yes")]
+        wait: bool,
+    },
+    /// Uncovers the screen of *Fade out* over `seconds`.
+    FadeIn {
+        #[serde(default = "one_f32")]
+        seconds: f32,
+        #[serde(default = "yes")]
+        wait: bool,
+    },
+}
+
+fn half_second() -> f32 {
+    0.5
 }
 
 fn white() -> [u8; 3] {
@@ -825,6 +863,10 @@ impl Action {
             Action::ShowPicture { .. } => "Show picture",
             Action::MovePicture { .. } => "Move picture",
             Action::ErasePicture { .. } => "Erase picture",
+            Action::TintScreen { .. } => "Tint screen",
+            Action::FlashScreen { .. } => "Flash screen",
+            Action::FadeOut { .. } => "Fade out",
+            Action::FadeIn { .. } => "Fade in",
         }
     }
 
@@ -921,6 +963,10 @@ impl Action {
             },
             Action::MovePicture { layer: 1, to: crate::pictures::PictureTargets { opacity: Some(0.0), ..Default::default() }, seconds: 1.0, easing: crate::pictures::Easing::InOut, wait: false },
             Action::ErasePicture { layer: 1 },
+            Action::TintScreen { color: [255, 140, 60, 70], seconds: 2.0, wait: false },
+            Action::FlashScreen { color: [255, 255, 255, 200], seconds: 0.5 },
+            Action::FadeOut { seconds: 1.0, color: [0, 0, 0], wait: true },
+            Action::FadeIn { seconds: 1.0, wait: true },
         ]
     }
 }

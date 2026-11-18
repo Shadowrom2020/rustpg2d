@@ -24,5 +24,10 @@ fn main() -> anyhow::Result<()> {
         eprintln!("[srd_import] warning: the checkout is at {head:?}, the data is pinned to {} (git checkout it, or update SRD_COMMIT on purpose)", srd_import::SRD_COMMIT);
     }
     println!("[srd_import] {}", srd_import::import_into(&checkout, &root)?);
+    // The NPC stat block templates the engine builds in (run from the repository's root).
+    let npcs = PathBuf::from("crates/engine/src/srd/npcs.ron");
+    if npcs.exists() {
+        println!("[srd_import] {}: {} NPC templates", npcs.display(), srd_import::write_npcs(&checkout, &npcs)?);
+    }
     Ok(())
 }

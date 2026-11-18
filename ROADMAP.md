@@ -324,7 +324,7 @@ sheet.
   dwarf walking 9 tiles where a human walks 11. Screenshots of both creator pages and of the
   editor's race form and Backgrounds tab.
 
-- [ ] The character sheet — `feature/srd-sheet`
+- [x] The character sheet — `feature/srd-sheet`
 
   **Goal.** The character window shows an SRD character sheet.
 
@@ -342,8 +342,39 @@ sheet.
   **Engine.** `progression.rs` replaced, the character window (`charwin.rs`, `inventory_ui.rs`),
   `CharacterDef` stat block fields (appended; old fields converted), the editor form.
 
-  **Verify.** Screenshots of the sheet at levels 1 and 5; XP thresholds (unit test); conversion of
-  the example's characters (a compat test with a 0.27 project).
+  **Decided while building.**
+  - **Stat blocks are data for now** (the maintainer's choice): `CharacterDef::stats` /
+    `EntityInstance::stats` (`srd::StatBlock`: template, abilities, AC, HP, hit dice, speed,
+    darkvision, proficiencies, languages, CR, XP). Real-time combat keeps `max_hp`, `damage`,
+    `defense`; the turn-based combat of 0.29 takes the stat blocks. No conversion of the old fields.
+  - **Templates** are the SRD's 35 humanoid NPCs (not the lycanthropes' forms), written by
+    `srd_import` into `crates/engine/src/srd/npcs.ron` and built into the engine; the monsters come
+    with `srd-monsters`. The agent server fills `stats: {template: "guard", …}` from the template.
+  - **The hero's HP** are derived, not stored: `WorldState::hp_rolls` (what each level's die gave;
+    missing = the average, so old saves load) + the current CON modifier + the race's new
+    `hp_per_level` (hill dwarf) + its old `max_hp`. The hit die is a d10 for everyone until
+    classes. Rolled HP go into the roll log. `hit_dice` is counted (spent with rests, item 4).
+  - **AC** = 10 + DEX + the worn armor's defense until 0.31's armor.
+  - **The HUD** shows a red HP bar with "hp / max" instead of hearts (the maintainer's choice); the
+    skin's `hp` colours and frame dress it.
+  - The **Skills tab became the Sheet** (K; `wintab sheet`, `skills` still works); features and
+    traits (race traits, background feature) are selectable with their text at the bottom.
+  - The importer clears the 0.27 example's HP / defense bonuses of the SRD races (they would count
+    twice).
+  - **XP rebalanced** in the example: quests 50-300 (the elder's Strange Lights 300; all ten give
+    1,450), the shrine's lore 50, defeated characters their template's XP (bandit 25, goblin 50,
+    orc 100, bandit chief 450, Rook the veteran 700), monsters on the same scale for now (wolf 50,
+    bat and slime 10, trolls 700). The story's fixed fights and quests give about 4,500 XP: level 2
+    after the first village quests, level 3 in Whisperwood, level 4 around the mine.
+
+  **Verify (done).** Unit tests: the XP table at every threshold, HP by level (average, rolled, CON,
+  at least 1, hill dwarf), the templates (35, guard AC 16 HP 11), the importer writing them, the
+  scripts (`armor_class`, `hit_dice`, `npc_stat`), the 0.27 project's progression and 0.16
+  characters loading (compat). UI test: a stat block from the Guard template, a proficiency
+  toggled, saved, removed. Autoplay on a scratch copy: the sheet at levels 1 and 5 (an acolyte hill
+  dwarf: HP 54 at level 5, Religion +3), the HP bar in the wood skin, rolled level-ups (seed 7:
+  `rolls=1d10:3,1d10:1`, max HP 23 at level 3), `statblocks=` beside the guard. Screenshots of the
+  sheet and the editor's stat block section.
 
 - [ ] Conditions, damage types and rests — `feature/srd-conditions`
 

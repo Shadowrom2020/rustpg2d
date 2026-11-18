@@ -163,6 +163,9 @@ pub struct RaceDef {
     /// Darkvision in feet (0 = none): the hero sees dim and dark places brighter.
     #[serde(default, skip_serializing_if = "is_zero_u")]
     pub darkvision_ft: u32,
+    /// Extra hit points per level (a hill dwarf's Dwarven Toughness: 1).
+    #[serde(default, skip_serializing_if = "is_zero_i")]
+    pub hp_per_level: i32,
     /// Languages a hero of the race speaks (`common`, `dwarvish`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub languages: Vec<String>,
@@ -204,6 +207,7 @@ impl Default for RaceDef {
             walk_ft: 0,
             size_category: String::new(),
             darkvision_ft: 0,
+            hp_per_level: 0,
             languages: Vec::new(),
             resistances: Vec::new(),
             traits: Vec::new(),
@@ -299,6 +303,7 @@ impl RaceDef {
             r.colors.entry(k.clone()).or_insert(*v);
         }
         r.max_hp += p.max_hp;
+        r.hp_per_level += p.hp_per_level;
         r.defense += p.defense;
         r.speed += p.speed;
         r

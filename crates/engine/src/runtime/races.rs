@@ -86,14 +86,15 @@ impl Game {
         }
     }
 
-    /// `sheet=` for `status`: race|scores|bg:background|lang:…|res:…|dv:feet|speed:feet|choices.
+    /// `sheet=` for `status`: race|scores|bg:background|lang:…|res:…|dv:feet|speed:feet|choices|
+    /// level:N|ac:N|hp:now/max|hd:left/level.
     pub(super) fn sheet_status(&self) -> String {
         let w = &self.world;
         let join = |s: &std::collections::BTreeSet<String>| s.iter().cloned().collect::<Vec<_>>().join(",");
         let race = self.player_race();
         let choices: Vec<String> = w.choices.iter().map(|(k, v)| format!("{k}={}", v.join("+"))).collect();
         format!(
-            "{}|{}|bg:{}|lang:{}|res:{}|dv:{}|speed:{}|choices:{}",
+            "{}|{}|bg:{}|lang:{}|res:{}|dv:{}|speed:{}|choices:{}|level:{}|ac:{}|hp:{}/{}|hd:{}/{}",
             if w.player_race.is_empty() { "-" } else { &w.player_race },
             w.abilities.text(),
             if w.player_background.is_empty() { "-" } else { &w.player_background },
@@ -101,7 +102,13 @@ impl Game {
             join(&w.resistances),
             race.as_ref().map_or(0, |r| r.darkvision_ft),
             race.as_ref().map_or(30, |r| r.walk_feet()),
-            choices.join(";")
+            choices.join(";"),
+            w.player_level(),
+            self.armor_class(),
+            self.hp(),
+            self.player_max_hp(),
+            self.hit_dice_left(),
+            w.player_level()
         )
     }
 }

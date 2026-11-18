@@ -38,6 +38,31 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     commit); *Player race* conditions match a subrace's race; scripts `knows_language`,
     `has_resistance`, `background`, `race_choice`; `status` prints `sheet=`.
   - Goblins, orcs and trolls are races of the world's characters only.
+- **The character sheet**: the *Skills* tab (K) becomes the **Sheet**, laid out like an SRD
+  character sheet: name, race, background, level, XP and proficiency bonus; scores, saving throws,
+  armor class, initiative, speed, hit points, hit dice and passive Perception; the 18 skills;
+  languages, proficiencies, and the race's and background's features and traits with their rules
+  text (Up / Down).
+  - **Levels** follow the SRD's experience table (300 XP for level 2, 900 for 3 … 355,000 for 20).
+  - **Hit points** are the SRD's: 10 + CON at level 1, then per level the hit die's average (6) or a
+    d10 roll (*Experience and levels › Hit points per level*) plus CON, plus what the race adds
+    (the hill dwarf's *Dwarven Toughness*, a new *HP per level* race field). The max HP follows the
+    CON score. **Armor class** = 10 + DEX + the worn armor's defense.
+  - The HUD shows the hit points as a **bar with numbers** (`34 / 44`) instead of hearts; a UI
+    skin's health colours and frame dress it.
+  - **Stat blocks**: characters (and placed characters, on their own) can have an SRD stat block:
+    abilities, AC, hit points, hit dice, speed, darkvision, proficiencies, languages, challenge and
+    XP, from the SRD's 35 NPC templates (commoner, guard, bandit, veteran, priest, goblin, orc…)
+    built into the engine, or by hand (*Characters › Stat block*). Real-time combat still uses *Max
+    HP*, *Damage* and *Defense*; the turn-based combat of 0.29 takes the stat blocks.
+  - Scripts (API 0.28): `armor_class`, `hit_dice`, `npc_stat`; `status` prints `statblocks=` and
+    `sheet=` adds level, AC, HP and hit dice; autoplay `wintab sheet`.
+  - The example's (and starter library's) villagers, guards, outlaws, the bandit chief, Rook, the
+    elven ranger, the priest, the elder, goblins and orcs have stat blocks, and their XP and the
+    quests' rewards are on the SRD's scale (quests 50 to 300 XP, a goblin 50, the bandit chief 450).
+- **Breaking:** the XP curve of 0.27 (*XP for level 2*, *Growth*, *HP per level*) is gone: projects
+  load with the SRD table, and a saved hero's max HP is recomputed from the level and CON. The SRD
+  races lose the example's 0.27 HP and defense bonuses (their HP come from the hit die now).
 - **Breaking:** the skill tree is gone: skill definitions, skill points (per level, quest rewards),
   their effects (combat, defense, speed, mana, food, gathering, sneak attack and price bonuses) and
   the Database's *Skills* tab. The editor converts a project of 0.27 or older once when it opens it

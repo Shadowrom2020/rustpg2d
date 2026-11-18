@@ -1461,6 +1461,10 @@ pub struct CharacterDef {
     /// Mana it regains per second.
     #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub mana_regen: f32,
+    /// Its SRD stat block (abilities, armor class, hit points, challenge; `None` = none). Shown and
+    /// read by scripts; real-time combat still uses `max_hp`, `damage` and `defense`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stats: Option<crate::srd::StatBlock>,
 }
 
 fn is_zero_f32(v: &f32) -> bool {
@@ -1500,6 +1504,7 @@ impl Default for CharacterDef {
             moods: Default::default(),
             max_mana: 0,
             mana_regen: 0.0,
+            stats: None,
         }
     }
 }

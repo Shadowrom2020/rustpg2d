@@ -46,6 +46,12 @@ impl Game {
             .filter_map(|id| self.project.db.item(id)?.armor.as_ref())
     }
 
+    /// The hero's armor class (SRD): 10 + the DEX modifier + the defense of the armor worn
+    /// (until the SRD's armor arrives with 0.31).
+    pub(super) fn armor_class(&self) -> i32 {
+        10 + self.world.abilities.modifier(crate::srd::Ability::Dex) + self.armor_pieces().map(|a| a.defense).sum::<i32>()
+    }
+
     pub(super) fn player_defense(&self) -> i32 {
         self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + crate::effects::defense_bonus(&self.world.effects) + self.player_race().map_or(0, |r| r.defense)
     }

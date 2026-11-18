@@ -8,7 +8,7 @@
             "Open the east gate and find the old shrine deep in Whisperwood.",
             "Return to Elder Rowan.",
         ],
-        xp: 80,
+        xp: 300,
         targets: [
             (
                 map: "house",
@@ -107,7 +107,7 @@
             "Defeat slimes in Whisperwood ({pest_slimes}/5).",
             "Return to Tilda\'s shop for the reward.",
         ],
-        xp: 40,
+        xp: 100,
         targets: [
             (
                 map: "forest",
@@ -240,7 +240,7 @@
             "Search the old mill across the river.",
             "Bring Mira the good news.",
         ],
-        xp: 30,
+        xp: 50,
         targets: [
             (
                 map: "",
@@ -350,7 +350,7 @@
             "Recover three sacks of flour from the raided cart on the forest road, beyond the east gate.",
             "Bake a Festival Loaf at Bram\'s oven (two flour, an egg, a jar of honey) and bring it to Bram.",
         ],
-        xp: 60,
+        xp: 100,
         targets: [
             (
                 map: "bakery",
@@ -475,7 +475,7 @@
             "Gather feverleaf (by the forest path), bitterroot (on the pond bank) and a moonpetal (it opens only at night, in the graveyard), and bring them to Wren.",
             "Brew the Herbal Remedy at Wren\'s alchemy table and bring it to Pip.",
         ],
-        xp: 70,
+        xp: 150,
         targets: [
             (
                 map: "apothecary",
@@ -624,7 +624,7 @@
             "Ask Brom the smith about Halvar.",
             "Find Halvar\'s silver locket in the old mine and bring it to Brom.",
         ],
-        xp: 90,
+        xp: 200,
         targets: [
             (
                 map: "smithy",
@@ -697,7 +697,7 @@
         stages: [
             "Bring the elven herbalist in the Wilds two wolf pelts.",
         ],
-        xp: 50,
+        xp: 150,
         targets: [
             (
                 map: "wilds",
@@ -765,7 +765,7 @@
             "Leave the honey at the shrine in Whisperwood.",
             "Tell Elder Rowan.",
         ],
-        xp: 50,
+        xp: 150,
         targets: [
             (
                 map: "village",
@@ -866,7 +866,7 @@
             "Clear the junk out of the old stone house ({junk_cleared}/3).",
             "Pay Elder Rowan 100 coins for the house.",
         ],
-        xp: 80,
+        xp: 200,
         targets: [
             (
                 map: "smithy",
@@ -1002,7 +1002,7 @@
         stages: [
             "Bring Greta\'s pumpkin stew to Elder Rowan before it goes cold.",
         ],
-        xp: 20,
+        xp: 50,
         targets: [
             (
                 map: "village",

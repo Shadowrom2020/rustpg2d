@@ -130,6 +130,9 @@ pub struct EntityInstance {
     /// Characters: the faction it belongs to instead of its definition's (or race's); "" = theirs.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub faction: String,
+    /// Characters: its own SRD stat block instead of its definition's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stats: Option<crate::srd::StatBlock>,
 }
 
 fn yes() -> bool {
@@ -334,6 +337,7 @@ impl EntityInstance {
             activity: None,
             loot: None,
             faction: String::new(),
+            stats: None,
         }
     }
 

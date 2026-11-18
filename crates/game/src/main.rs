@@ -465,7 +465,7 @@ impl Autoplay {
                     click(&mut self.mouse_frames, p, MouseButton::Left);
                     return true;
                 }
-                // wintab character|skills|spells: click a tab of the open character window
+                // wintab character|sheet|spells (skills = sheet): click a tab of the open character window
                 "wintab" => {
                     let Some(p) = game.window_tab_pos(arg(1)) else {
                         say!("[autoplay] wintab: no such tab (or the window is closed)");

@@ -109,6 +109,10 @@ fn projects_of_0_27_0_convert_to_the_srd_rules() {
     let p = Project::load(&root).unwrap();
     assert_eq!(p.config.rules_version, rustpg2d_engine::srd::RULES_VERSION);
     assert!(p.config.skills.magic_on(), "magic stays on");
+    // The XP curve of 0.27 gives way to the SRD's table; the levels stay on.
+    let prog = &p.config.progression;
+    assert_eq!((prog.enabled, prog.max_level, prog.hit_points, prog.mana_per_level), (true, 20, rustpg2d_engine::progression::HitPoints::Average, 2));
+    assert_eq!(prog.level_for(300), 2);
     let fine = p.db.recipes.iter().find(|r| r.quality.iter().any(|q| q.result == "fine_iron_sword")).expect("the sword recipe");
     assert_eq!((fine.skill.as_str(), fine.quality[0].dc), ("smiths-tools", 12));
     let known: Vec<String> = rustpg2d_engine::srd::abilities::proficiency_choices();
@@ -262,6 +266,8 @@ fn definitions_of_0_16_0_load_without_races() {
     assert!(!db.characters.is_empty() && !db.sheets.is_empty());
     assert!(db.races.is_empty());
     assert!(db.characters.iter().all(|c| c.race.is_empty()));
+    // (and without SRD stat blocks, 0.28)
+    assert!(db.characters.iter().all(|c| c.stats.is_none()));
     // Its figure sheets load as plain sprites (characters are 3D models now).
     assert!(db.sheets.iter().all(|s| s.kind != rustpg2d_engine::defs::SheetKind::Emotions || !s.tags.is_empty()));
     let w = WorldState::from_ron(&std::fs::read_to_string(fixture("saves/save-0.12.0.ron")).unwrap()).unwrap();

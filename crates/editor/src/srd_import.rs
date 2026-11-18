@@ -18,6 +18,9 @@ use serde_json::Value;
 /// The 5e-database commit the data is pinned to (updating it is a deliberate step with a diff).
 pub const SRD_COMMIT: &str = "a6212beb4b278917c2cff41c2b04c4ef4f3e0d6f";
 
+/// Traits that give hit points per level (they say so only in their text).
+const HP_PER_LEVEL: [(&str, i32); 1] = [("dwarven-toughness", 1)];
+
 /// Damage types the SRD's traits give resistance to (they say so only in their text).
 const RESISTANCES: [(&str, &str); 2] = [("dwarven-resilience", "poison"), ("hellish-resistance", "fire")];
 
@@ -27,6 +30,7 @@ pub struct SrdData {
     subraces: Vec<Value>,
     traits: BTreeMap<String, Value>,
     backgrounds: Vec<Value>,
+    monsters: Vec<Value>,
 }
 
 fn list(v: &Value, key: &str) -> Vec<Value> {
@@ -72,7 +76,7 @@ impl SrdData {
             serde_json::from_str(&text).with_context(|| format!("parsing {}", p.display()))
         };
         let traits = read("Traits")?.into_iter().map(|t| (s(&t, "index").to_string(), t)).collect();
-        Ok(SrdData { races: read("Races")?, subraces: read("Subraces")?, traits, backgrounds: read("Backgrounds")? })
+        Ok(SrdData { races: read("Races")?, subraces: read("Subraces")?, traits, backgrounds: read("Backgrounds")?, monsters: read("Monsters")? })
     }
 
     /// Traits, fixed proficiencies, resistances, darkvision and the choices of a list of trait
@@ -82,6 +86,7 @@ impl SrdData {
         r.skills.clear();
         r.resistances.clear();
         r.darkvision_ft = 0;
+        r.hp_per_level = 0;
         let mut choices = Vec::new();
         for t in refs.iter().filter_map(|t| self.traits.get(s(t, "index"))) {
             let id = s(t, "index");
@@ -97,6 +102,9 @@ impl SrdData {
             }
             if id == "darkvision" {
                 r.darkvision_ft = 60;
+            }
+            if let Some((_, n)) = HP_PER_LEVEL.iter().find(|(t, _)| *t == id) {
+                r.hp_per_level += n;
             }
             if let Some(set) = t.get("proficiency_choices") {
                 let (choose, opts) = options(set);
@@ -161,6 +169,9 @@ impl SrdData {
             r.ability_bonuses = list(j, "ability_bonuses").iter().map(|b| (b.pointer("/ability_score/index").and_then(Value::as_str).unwrap_or("").to_string(), b.get("bonus").and_then(Value::as_i64).unwrap_or(0) as i32)).collect();
             r.walk_ft = j.get("speed").and_then(Value::as_u64).unwrap_or(30) as u32;
             r.speed = 0.0;
+            // Hit points and armor class follow the SRD rules (0.27's race bonuses would count twice).
+            r.max_hp = 0;
+            r.defense = 0;
             r.size_category = s(j, "size").into();
             r.languages = list(j, "languages").iter().map(|l| s(l, "index").to_string()).collect();
             let subraces = !list(j, "subraces").is_empty();
@@ -197,6 +208,8 @@ impl SrdData {
             r.description = desc(j);
             r.walk_ft = 0;
             r.speed = 0.0;
+            r.max_hp = 0;
+            r.defense = 0;
             r.languages.clear();
             if new {
                 r.playable = true;
@@ -230,6 +243,56 @@ impl SrdData {
     }
 }
 
+impl SrdData {
+    /// The SRD's NPC humanoids as stat block templates (not the lycanthropes' forms).
+    pub fn npc_templates(&self) -> Vec<rustpg2d_engine::srd::StatBlock> {
+        let feet = |v: Option<&str>| v.and_then(|s| s.split_whitespace().next()).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0);
+        self.monsters
+            .iter()
+            .filter(|m| s(m, "type") == "humanoid" && !s(m, "index").starts_with("were"))
+            .map(|m| {
+                let score = |k: &str| m.get(k).and_then(Value::as_i64).unwrap_or(10) as i32;
+                let cr = m.get("challenge_rating").and_then(Value::as_f64).unwrap_or(0.0);
+                let cr = match cr {
+                    c if (c - 0.125).abs() < 1e-6 => "1/8".to_string(),
+                    c if (c - 0.25).abs() < 1e-6 => "1/4".to_string(),
+                    c if (c - 0.5).abs() < 1e-6 => "1/2".to_string(),
+                    c => format!("{}", c as i64),
+                };
+                let proficiencies = list(m, "proficiencies")
+                    .iter()
+                    .filter_map(|p| p.pointer("/proficiency/index").and_then(Value::as_str))
+                    .map(|p| match p.strip_prefix("saving-throw-") {
+                        Some(a) => format!("save:{a}"),
+                        None => prof_id(p),
+                    })
+                    .collect();
+                rustpg2d_engine::srd::StatBlock {
+                    template: s(m, "index").into(),
+                    name: s(m, "name").into(),
+                    abilities: rustpg2d_engine::srd::Abilities([score("strength"), score("dexterity"), score("constitution"), score("intelligence"), score("wisdom"), score("charisma")]),
+                    ac: m.pointer("/armor_class/0/value").and_then(Value::as_i64).unwrap_or(10) as i32,
+                    hp: m.get("hit_points").and_then(Value::as_i64).unwrap_or(1) as i32,
+                    hit_dice: m.get("hit_points_roll").and_then(Value::as_str).unwrap_or(s(m, "hit_dice")).to_string(),
+                    speed_ft: feet(m.pointer("/speed/walk").and_then(Value::as_str)),
+                    darkvision_ft: feet(m.pointer("/senses/darkvision").and_then(Value::as_str)),
+                    proficiencies,
+                    languages: s(m, "languages").into(),
+                    cr,
+                    xp: m.get("xp").and_then(Value::as_u64).unwrap_or(0) as u32,
+                }
+            })
+            .collect()
+    }
+}
+
+/// Writes the NPC templates the engine builds in (`crates/engine/src/srd/npcs.ron`).
+pub fn write_npcs(checkout: &Path, out: &Path) -> Result<usize> {
+    let t = SrdData::read(checkout)?.npc_templates();
+    std::fs::write(out, rustpg2d_engine::project::ron_text(&t)?).with_context(|| format!("writing {}", out.display()))?;
+    Ok(t.len())
+}
+
 /// Imports into the `defs/` of a library or project folder; returns a one-line report.
 pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     let data = SrdData::read(checkout)?;
@@ -252,13 +315,14 @@ mod tests {
     #[test]
     fn races_and_backgrounds_import_and_a_second_run_changes_nothing() {
         let data = SrdData::read(&fixture()).unwrap();
-        // An existing dwarf keeps its looks and faction; its old speed percent goes.
-        let mut races = vec![RaceDef { id: "dwarf".into(), name: "Dwarf".into(), playable: true, bodies_male: vec!["dwarf".into()], faction: "dwarves".into(), speed: -10.0, ..Default::default() }];
+        // An existing dwarf keeps its looks and faction; its old speed percent, HP and defense go.
+        let mut races = vec![RaceDef { id: "dwarf".into(), name: "Dwarf".into(), playable: true, bodies_male: vec!["dwarf".into()], faction: "dwarves".into(), speed: -10.0, max_hp: 3, defense: 1, ..Default::default() }];
         let mut bgs = Vec::new();
         let (added, updated) = data.import(&mut races, &mut bgs);
         assert_eq!((added, updated), (4, 1), "{:?}", races.iter().map(|r| &r.id).collect::<Vec<_>>());
         let dwarf = races.iter().find(|r| r.id == "dwarf").unwrap();
         assert_eq!((dwarf.bodies_male.len(), dwarf.faction.as_str(), dwarf.speed, dwarf.walk_ft, dwarf.playable), (1, "dwarves", 0.0, 25, false));
+        assert_eq!((dwarf.max_hp, dwarf.defense), (0, 0));
         assert_eq!(dwarf.ability_bonuses.get("con"), Some(&2));
         assert_eq!((dwarf.darkvision_ft, dwarf.resistances.clone()), (60, vec!["poison".to_string()]));
         assert!(dwarf.skills.iter().any(|s| s.skill == "battleaxes"));
@@ -268,6 +332,7 @@ mod tests {
         assert_eq!((hill.parent.as_str(), hill.playable), ("dwarf", true));
         let merged = hill.merged(Some(dwarf));
         assert_eq!((merged.ability_bonuses.get("con"), merged.ability_bonuses.get("wis")), (Some(&2), Some(&1)));
+        assert_eq!(merged.hp_per_level, 1, "Dwarven Toughness");
         let half_elf = races.iter().find(|r| r.id == "half-elf").unwrap();
         let kinds: Vec<(ChoiceKind, u32)> = half_elf.choices.iter().map(|c| (c.kind, c.choose)).collect();
         assert_eq!(kinds, vec![(ChoiceKind::Ability, 2), (ChoiceKind::Language, 1), (ChoiceKind::Skill, 2)]);
@@ -298,5 +363,22 @@ mod tests {
         let loaded = rustpg2d_engine::project::Project::load(&root).unwrap();
         assert_eq!((loaded.db.races.len(), loaded.db.backgrounds.len()), (4, 1));
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn npc_templates_come_from_the_humanoids() {
+        let t = SrdData::read(&fixture()).unwrap().npc_templates();
+        let names: Vec<&str> = t.iter().map(|s| s.template.as_str()).collect();
+        assert_eq!(names, ["bandit", "guard"], "no lycanthropes, no beasts");
+        let g = &t[1];
+        assert_eq!((g.ac, g.hp, g.hit_dice.as_str(), g.speed_ft, g.cr.as_str(), g.xp), (16, 11, "2d8+2", 30, "1/8", 25));
+        assert_eq!(g.proficiencies, vec!["perception"]);
+        // Written as the engine reads them, and the same as the built-in guard.
+        let out = std::env::temp_dir().join(format!("rustpg2d_npcs_{}.ron", std::process::id()));
+        assert_eq!(write_npcs(&fixture(), &out).unwrap(), 2);
+        let back: Vec<rustpg2d_engine::srd::StatBlock> = ron::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+        let _ = std::fs::remove_file(&out);
+        assert_eq!(back, t);
+        assert_eq!(Some(&back[1]), rustpg2d_engine::srd::npc_template("guard"));
     }
 }

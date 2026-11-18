@@ -39,6 +39,8 @@ struct Ctx {
     factions: crate::factions::Factions,
     /// Characters on the current map and their factions: (uid, name, faction id) (`faction_of`).
     character_factions: Vec<(u32, String, String)>,
+    /// Characters on the current map with an SRD stat block: (uid, name, block) (`npc_stat`).
+    stat_blocks: Vec<(u32, String, crate::srd::StatBlock)>,
     /// The enabled plugins' parameters (`plugin_param`).
     plugin_params: std::collections::BTreeMap<String, std::collections::BTreeMap<String, crate::plugins::ParamValue>>,
     /// Props with a lock on the current map: (uid, name, locked) (`is_locked`).
@@ -69,6 +71,10 @@ pub struct PlayerInfo {
     pub faction: String,
     /// Sneaking (`is_sneaking()`).
     pub sneaking: bool,
+    /// The hero's armor class (`armor_class()`).
+    pub armor_class: i32,
+    /// The hero's hit dice left (`hit_dice()`).
+    pub hit_dice: u32,
 }
 
 pub struct ScriptHost {
@@ -164,6 +170,11 @@ impl ScriptHost {
     /// The current map's characters and their factions, as (uid, name, faction id), for `faction_of()`.
     pub fn set_character_factions(&mut self, list: Vec<(u32, String, String)>) {
         self.ctx.borrow_mut().character_factions = list;
+    }
+
+    /// The current map's characters with an SRD stat block, for `npc_stat()`.
+    pub fn set_stat_blocks(&mut self, list: Vec<(u32, String, crate::srd::StatBlock)>) {
+        self.ctx.borrow_mut().stat_blocks = list;
     }
 
     /// The current map's characters that learned spells, for `npc_knows_spell()`.
@@ -841,6 +852,17 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         name => c.character_factions.iter().find(|ch| ch.1 == name).map_or(String::new(), |ch| ch.2.clone()),
     }));
     engine.register_fn("faction_of", with!(ctx, |c, uid: i64| c.character_factions.iter().find(|ch| ch.0 as i64 == uid).map_or(String::new(), |ch| ch.2.clone())));
+    // SRD: the hero's armor class and hit dice, a character's stat block (-1 without one).
+    engine.register_fn("armor_class", with!(ctx, |c| c.player.armor_class as i64));
+    engine.register_fn("hit_dice", with!(ctx, |c| c.player.hit_dice as i64));
+    engine.register_fn("npc_stat", with!(ctx, |c, t: &str, field: &str| {
+        let who = match t {
+            "" | "self" => c.owner.and_then(|u| c.stat_blocks.iter().find(|s| s.0 == u)),
+            name => c.stat_blocks.iter().find(|s| s.1 == name),
+        };
+        who.and_then(|s| s.2.field(field)).unwrap_or(-1)
+    }));
+    engine.register_fn("npc_stat", with!(ctx, |c, uid: i64, field: &str| c.stat_blocks.iter().find(|s| s.0 as i64 == uid).and_then(|s| s.2.field(field)).unwrap_or(-1)));
     engine.register_fn("is_female", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Female));
     engine.register_fn("is_male", with!(ctx, |c| c.world.player_sex == crate::state::Sex::Male));
     // Placeholders like in dialog texts: "{player}", "{sir|madam}", "{var}".
@@ -1193,6 +1215,19 @@ mod tests {
         assert_eq!(list, ["elves", "wild", "wild", "bandits", ""]);
         let actions = host.call(&mut w, "turn", None);
         assert_eq!(actions, vec![Action::SetFaction { target: "Rook".into(), faction: "humans".into() }, Action::SetFaction { target: "player".into(), faction: String::new() }]);
+    }
+
+    #[test]
+    fn stat_blocks_from_scripts() {
+        let mut host = ScriptHost::new();
+        host.load_source(r#"fn s() { [armor_class(), hit_dice(), npc_stat("Brom", "ac"), npc_stat(SELF, "str"), npc_stat("self", "xp"), npc_stat("Brom", "luck"), npc_stat("nobody", "hp")] }"#).unwrap();
+        host.set_player(PlayerInfo { armor_class: 13, hit_dice: 2, ..Default::default() });
+        let guard = crate::srd::npc_template("guard").unwrap().clone();
+        let bandit = crate::srd::npc_template("bandit").unwrap().clone();
+        host.set_stat_blocks(vec![(7, "Brom".into(), guard), (9, String::new(), bandit)]);
+        let mut w = WorldState::default();
+        let v = host.call_inner(&mut w, "s", vec![], Some(9)).unwrap_or_else(|| panic!("{:?}", host.errors)).into_typed_array::<i64>().unwrap();
+        assert_eq!(v, [13, 2, 16, 11, 25, -1, -1]);
     }
 
     #[test]

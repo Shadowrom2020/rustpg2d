@@ -267,6 +267,40 @@ fn character_form_takes_a_race_and_a_speed() {
 }
 
 #[test]
+fn a_stat_block_comes_from_a_template() {
+    let root = example_copy("statblock");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.characters.iter().position(|c| c.id == "villager").expect("the example's villager");
+    let mut h = harness(&root, Tab::Characters, k);
+    step(&mut h);
+    h.state_mut().project.db.characters[k].stats = None;
+    step(&mut h);
+    // The Template chooser beside "Template": the SRD's guard.
+    beside(&h, "Template", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Guard  (CR 1/8, 25 XP)").click();
+    step(&mut h);
+    let c = &h.state().project.db.characters[k];
+    let s = c.stats.as_ref().expect("a stat block");
+    assert_eq!((s.template.as_str(), s.ac, s.hp, s.hit_dice.as_str(), c.xp), ("guard", 16, 11, "2d8+2", 25));
+    assert!(!s.proficiencies.contains(&"stealth".to_string()));
+    // A proficiency toggled on.
+    h.get_by_label("Stealth").click();
+    step(&mut h);
+    assert!(h.state().project.db.characters[k].stats.as_ref().unwrap().proficiencies.contains(&"stealth".to_string()));
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    let s = saved.characters[k].stats.as_ref().expect("saved");
+    assert_eq!((s.template.as_str(), s.ac, saved.characters[k].xp), ("guard", 16, 25));
+    assert!(s.proficiencies.contains(&"stealth".to_string()));
+    // Removed again.
+    h.get_by_label(&crate::ui::t(egui_phosphor::regular::TRASH, "Remove stat block")).click();
+    step(&mut h);
+    assert!(h.state().project.db.characters[k].stats.is_none());
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn character_size_is_typed_in_percent() {
     let root = example_copy("char_size");
     let db = Project::load(&root).unwrap().db;

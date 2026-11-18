@@ -5,10 +5,12 @@
 pub mod abilities;
 pub mod check;
 pub mod dice;
+pub mod statblock;
 
 pub use abilities::{Abilities, Ability};
 pub use check::{RollRecord, Spec};
 pub use dice::{Expr, Mode};
+pub use statblock::{npc_template, npc_templates, StatBlock};
 
 /// The rules' conversion version of projects made or converted by this editor
 /// (`ProjectConfig::rules_version`): 1 = the skill tree became SRD proficiencies (0.28).

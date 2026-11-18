@@ -115,16 +115,16 @@ pub struct TextColors {
     pub negative: Option<SkinColor>,
 }
 
-/// The look of a HUD bar (hearts for health). Empty = built-in.
+/// The look of a HUD bar (hit points, mana, experience). Empty = built-in.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BarStyle {
-    /// The filled part (health: full hearts).
+    /// The filled part.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fill: Option<SkinColor>,
-    /// The empty part (health: empty hearts).
+    /// The empty part.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub back: Option<SkinColor>,
-    /// A picture drawn around the bar (not for hearts).
+    /// A picture drawn around the bar.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame: Option<NineSlice>,
 }

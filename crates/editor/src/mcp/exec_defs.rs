@@ -125,10 +125,11 @@ def_facts!(PropDef, |d| {
     f.join("; ")
 });
 def_facts!(CharacterDef, |d| format!(
-    "\"{}\"; hp {}; {:?}{}{}{}{}",
+    "\"{}\"; hp {}; {:?}{}{}{}{}{}",
     d.name,
     d.max_hp,
     d.behavior,
+    d.stats.as_ref().map_or(String::new(), |s| format!("; stat block {} (AC {}, HP {}, CR {})", if s.template.is_empty() { "by hand" } else { &s.template }, s.ac, s.hp, s.cr)),
     if d.hostile { "; hostile" } else { "" },
     if d.shop.is_some() { "; shop" } else { "" },
     if d.triggers.is_empty() { String::new() } else { format!("; {} triggers", d.triggers.len()) },
@@ -199,12 +200,24 @@ fn upsert<T: DefFacts>(list: &mut Vec<T>, def: Value, merge: bool) -> Result<(St
         (true, None) => return Err(format!("merge: no {id} exists yet; send the whole definition (def_template) without merge")),
         (false, _) => def,
     };
+    let value = with_stat_template(value);
     let parsed: T = serde_json::from_value(value).map_err(|e| format!("the definition isn't valid: {e}. def_template shows the shape"))?;
     match pos {
         Some(i) => list[i] = parsed,
         None => list.push(parsed),
     }
     Ok((id, pos.is_some()))
+}
+
+/// A character's `stats: {template: "guard", hp: 20}`: the SRD template's block with the given
+/// fields over it (so an agent needn't copy the whole stat block).
+fn with_stat_template(mut value: Value) -> Value {
+    let Some(stats) = value.get_mut("stats").filter(|s| s.is_object()) else { return value };
+    let Some(t) = stats.get("template").and_then(|t| t.as_str()).and_then(rustpg2d_engine::srd::npc_template) else { return value };
+    let mut base = serde_json::to_value(t).unwrap_or_default();
+    super::patch::merge(&mut base, stats);
+    *stats = base;
+    value
 }
 
 fn remove<T: DefFacts>(list: &mut Vec<T>, id: &str) -> bool {
@@ -229,7 +242,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
             val(&PropDef::fresh(id)),
             "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot; carry: how characters carry it {grip, points, scale} (none: middle of its lower half, horizontal along the hands, 0.6).",
         ),
-        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {model (a 3D model id; none: the mannequin), colors: {feature: [r,g,b]} (the model's colour features; missing = as made)}; equipment / inventory: the items it wears and carries (count in play; weapon, left hand and tools show in its hands: items' `model` or `held` picture); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light."),
+        RefKind::Character => (val(&crate::builder::default_character(db, id, "New character")), "appearance: {model (a 3D model id; none: the mannequin), colors: {feature: [r,g,b]} (the model's colour features; missing = as made)}; equipment / inventory: the items it wears and carries (count in play; weapon, left hand and tools show in its hands: items' `model` or `held` picture); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies (an armed enemy winds up and swings its melee weapon, an unarmed chaser lunges; windup: seconds, 0 = standard 0.4 / 0.3); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light; stats: its SRD stat block (abilities [str,dex,con,int,wis,cha], ac, hp, hit_dice \"2d8+2\", speed_ft, darkvision_ft, proficiencies [perception, save:dex], languages, cr \"1/8\", xp; template = one of the SRD NPCs: acolyte, bandit, bandit-captain, commoner, guard, knight, mage, noble, orc, goblin, priest, scout, thug, veteran…: {template: \"guard\"} fills in the template's values, fields given beside it change them; null = none). Real-time combat still uses max_hp / damage / defense."),
         RefKind::Sound => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0, caption: String::new() }), "file: WAV or Ogg Vorbis under the project; volume 0..1; caption: what it sounds like for players with Captions on (\"Door creaks\"; music: the track's name; translated; empty = none). Used by PlaySound / PlayMusic, map music, battle music and the project's built-in sounds."),
         RefKind::Quest => (
             val(&QuestDef {

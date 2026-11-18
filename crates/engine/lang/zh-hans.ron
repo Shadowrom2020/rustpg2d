@@ -413,6 +413,7 @@
         "Needs a {}": "需要 {}",
         "Needs it {}": "需要处于 {} 状态",
         "Your inventory is full.": "你的物品栏已满。",
+        "You can't make that now.": "现在无法制作。",
         "Made {} {}": "制作了 {} {}",
         "Made {}": "制作了 {}",
         "Nothing can be made here.": "这里什么也做不了。",

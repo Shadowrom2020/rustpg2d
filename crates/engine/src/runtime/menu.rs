@@ -1048,7 +1048,7 @@ impl Game {
     /// Handles Esc and the open menu. Returns true while the game is paused by it.
     pub(super) fn update_menu(&mut self, can_open: bool) -> bool {
         if !self.menu.open {
-            if can_open && input::act_pressed(Act::Pause) {
+            if can_open && input::act_pressed(Act::Pause) && self.menu_allowed("pause") {
                 self.menu = Menu { open: true, ..Default::default() };
                 self.go(Page::Main);
                 return true;

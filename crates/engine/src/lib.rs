@@ -30,6 +30,7 @@ pub mod glibc_compat;
 pub mod grid;
 pub mod ground;
 pub mod hash;
+pub mod hooks;
 pub mod icon;
 pub mod imageio;
 pub mod inventory;

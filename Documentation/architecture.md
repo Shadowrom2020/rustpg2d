@@ -198,6 +198,13 @@ Insert (more actions). Scripts (`script.rs`) run in a Rhai engine limited to 2 m
 and 64 call levels; the `WorldState` is moved into the script context and back around each call.
 Queued script functions (`say`, `walk_to`, …) become actions on the runner; immediate ones read and
 change state directly.
+Script hooks (`hooks.rs`, `ProjectConfig::hooks`) turn this around: the engine calls them.
+`Game::hook(name, map)` (`runtime/hooks.rs`) runs the functions of a hook in priority order through
+`ScriptHost::call_hook` (200 000 operations each), passing each the map the one before returned, and
+pushes the actions they queue onto the runner (kept even while the runner runs: `update` appends the
+stand-in runner's queue). Call sites check `hooked(name)` before building a map, so unregistered
+hooks cost nothing. Shop prices are drawn every frame, so `buy` / `sell` run when the trade window
+opens and after each trade, into a price cache (`ShopUi::hooked`) that `shop_rows` reads.
 
 Quests described in the quest editor (`QuestDef::giver`, `offer`, `steps`, `rewards`) are played
 by `runtime/quests.rs` as ordinary actions: talking to a character (`interact_entity`, after its

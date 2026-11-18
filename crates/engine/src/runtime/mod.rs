@@ -33,6 +33,7 @@ mod schedule;
 mod scroll_text;
 mod progression;
 mod factions;
+mod hooks;
 mod races;
 mod paperdoll;
 mod npc_items;
@@ -418,6 +419,9 @@ pub struct Game {
     db_original: crate::defs::Database,
     /// The project's factions by index (who fights whom).
     factions: crate::factions::Table,
+    /// The project's script hooks (`hooks.rs`) and how often each ran (`status` `hooks=`).
+    hooks: crate::hooks::HookTable,
+    hook_calls: std::collections::BTreeMap<String, u64>,
     /// The languages the game offers (code, name) and the current one.
     languages: Vec<(String, String)>,
     lang_code: String,
@@ -614,6 +618,8 @@ impl Game {
         let mut game = Game {
             db_original: project.db.clone(),
             factions: crate::factions::Table::new(&project.config.factions),
+            hooks: crate::hooks::HookTable::new(&project.config.hooks),
+            hook_calls: Default::default(),
             lang_code: project.config.language.clone(),
             languages,
             light_pass: None,
@@ -990,6 +996,8 @@ impl Game {
     }
 
     fn enter_map(&mut self, mut map: Map, arrival: Arrival) {
+        // (For the map_enter hook: "" after loading or a new game, which clear it.)
+        let from = self.loaded.map.name.clone();
         self.clear_routes();
         self.reset_camera();
         // Doors characters opened on the old map close behind them.
@@ -1106,6 +1114,10 @@ impl Game {
             self.pending_events.retain(|(e, _)| !matches!(e, GameEvent::MapEnter));
         } else {
             self.pending_events.push((GameEvent::MapEnter, Source::Map));
+        }
+        if self.hooked("map_enter") {
+            let name = self.loaded.map.name.clone();
+            self.hook("map_enter", crate::hooks::map([("map", name.into()), ("from", from.into())]));
         }
     }
 
@@ -2323,6 +2335,13 @@ impl Game {
     }
 
     fn use_item(&mut self, item: &str) {
+        // Script hook: a use can be stopped.
+        if self.hooked("item_use") {
+            let m = self.hook("item_use", crate::hooks::map([("item", item.into()), ("cancel", false.into())]));
+            if crate::hooks::flag(&m, "cancel") {
+                return;
+            }
+        }
         if self.project.db.item(item).is_some_and(|d| d.equip_slot().is_some()) {
             self.equip_item(item);
             return;
@@ -2505,7 +2524,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2541,6 +2560,7 @@ impl Game {
             format!("{}|{:?}|{}", self.world.player_name, self.world.player_sex, self.player_appearance().map_or("-".to_string(), |a| a.body)),
             self.race_status(),
             self.factions_status(),
+            self.hooks_status(),
             self.creator_status(),
             self.world.quests.iter().map(|(k, q)| format!("{k}:{}:{:?}", q.stage, q.status)).collect::<Vec<_>>(),
             self.achievements_status(),
@@ -2662,6 +2682,9 @@ impl Game {
             return Err(anyhow!("can't save during an event"));
         }
         self.sync_world();
+        if self.hooked("save") {
+            self.hook("save", crate::hooks::map([("slot", slot.into())]));
+        }
         self.world.saved_at = menu::now_secs();
         let dir = self.project.saves_dir();
         crate::sys::write(&dir.join(format!("{slot}.ron")), self.world.to_ron()?.as_bytes())?;
@@ -2732,6 +2755,9 @@ impl Game {
         self.leave_hold = 0.0;
         self.fade = Fade::Out { t: 0.0, map, arrival: Arrival::Pos(pos) };
         self.ui.toast("Game loaded".into());
+        if self.hooked("load") {
+            self.hook("load", crate::hooks::map([("slot", slot.into())]));
+        }
         Ok(())
     }
 

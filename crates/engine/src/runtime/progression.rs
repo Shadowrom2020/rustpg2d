@@ -40,6 +40,11 @@ impl Game {
         if !self.progression_on() || n == 0 {
             return;
         }
+        // Script hook: the amount can change.
+        let n = if self.hooked("xp") { crate::hooks::int(&self.hook("xp", crate::hooks::map([("amount", n.into())])), "amount", n) } else { n };
+        if n == 0 {
+            return;
+        }
         self.world.xp = if n > 0 { self.world.xp.saturating_add(n as u64) } else { self.world.xp.saturating_sub(n.unsigned_abs()) };
         let p = self.project.config.progression.clone();
         while self.world.player_level() < p.max_level.max(1) && self.world.xp >= p.xp_for_level(self.world.player_level() + 1) {
@@ -49,19 +54,29 @@ impl Game {
 
     fn level_up(&mut self, p: &crate::progression::Progression) {
         self.world.level = self.world.player_level() + 1;
+        // Script hook: what the level gives can change (max HP follows the project's table).
+        let (mut hp_gain, mut mana_gain, mut points) = (p.hp_per_level, p.mana_per_level, p.skill_points_per_level);
+        if self.hooked("level_up") {
+            use crate::hooks::{int, map};
+            let level = self.world.level as i64;
+            let m = self.hook("level_up", map([("level", level.into()), ("hp", (hp_gain as i64).into()), ("mana", (mana_gain as i64).into()), ("points", (points as i64).into())]));
+            hp_gain = int(&m, "hp", hp_gain as i64) as i32;
+            mana_gain = int(&m, "mana", mana_gain as i64).max(0) as u32;
+            points = int(&m, "points", points as i64).max(0) as u32;
+        }
         let mut gains = Vec::new();
-        if self.combat.enabled() && p.hp_per_level != 0 {
+        if self.combat.enabled() && hp_gain != 0 {
             let max = self.player_max_hp();
             let hp = self.world.player_hp.unwrap_or(max);
-            self.world.player_hp = Some((hp + p.hp_per_level).clamp(1, max));
-            gains.push(format!("{:+} HP", p.hp_per_level));
+            self.world.player_hp = Some((hp + hp_gain).clamp(1, max));
+            gains.push(format!("{:+} HP", hp_gain));
         }
-        if self.magic_on() && p.mana_per_level > 0 {
-            self.world.mana = (self.world.mana + p.mana_per_level as f32).min(self.max_mana() as f32);
-            gains.push(format!("+{} mana", p.mana_per_level));
+        if self.magic_on() && mana_gain > 0 {
+            self.world.mana = (self.world.mana + mana_gain as f32).min(self.max_mana() as f32);
+            gains.push(format!("+{} mana", mana_gain));
         }
-        if self.skills_on() && p.skill_points_per_level > 0 {
-            let n = p.skill_points_per_level;
+        if self.skills_on() && points > 0 {
+            let n = points;
             self.world.skill_points += n;
             gains.push(format!("+{n} skill point{}", if n == 1 { "" } else { "s" }));
         }

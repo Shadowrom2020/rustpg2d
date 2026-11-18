@@ -137,7 +137,7 @@ can be content as content: the library and example parts of each item.
 Systems become add-ons: scripts can change the engine's outcomes, and plugins package them with
 their settings.
 
-- [ ] Script hooks — `feature/script-hooks`
+- [x] Script hooks — `feature/script-hooks`
 
   **Goal.** Scripts change what the engine does: damage, healing, item use, levels, prices,
   saving.
@@ -155,6 +155,27 @@ their settings.
 
   **Engine.** `Script::call_hook` returning a value (today's `call` / `call_args` return actions),
   the call sites, `08-scripting.md`.
+
+  **Decided while building.**
+  - Registration is `ProjectConfig.hooks` ({hook, function, priority}) edited in *Database ›
+    Project › Script hooks*; plugins add theirs in the next item. Lower priorities run first.
+  - The maps: `damage` {attacker ("player" or ""), target, target_def, amount (after defense), crit},
+    `heal` {target, amount}, `item_use` {item, cancel}, `xp` {amount}, `level_up` {level, hp,
+    mana, points}, `buy` / `sell` {item, price, merchant} (-1 = not interested), `craft` {recipe,
+    count, cancel}, `map_enter` {map, from}, `new_game` {}, `save` / `load` {slot}, `menu_open`
+    {menu, cancel}, `effect_apply` {target, effect, strength, seconds, cancel}. No `element`
+    (the engine has no elements yet). Poison ticks aren't hits.
+  - Hooks may change the world and queue actions; the queued actions run after the current ones.
+    The operation limit per hook call is 200 000 (2 million for ordinary calls).
+  - Shop prices go through the hooks when the window opens and after each trade (a cache), since
+    they are drawn every frame.
+  - The SRD hooks come with their rules (0.28 to 0.30).
+  - Example: friends (five hearts) sell 10 % cheaper and pay 10 % more (`buy` / `sell`).
+
+  **Verify (done).** Autoplay on a scratch copy: a damage-doubling hook (hit numbers 4 instead of
+  2, Rook 10 → 8 from a 1-point area), a hook keeping the player unhurt, the journal kept shut,
+  XP × 10, poison lengthened to 30 s, the friends' prices (bread 6 → 5 at Jorun's); ten damage
+  hooks in a slime fight: `update_ms` 0.1 as without hooks (60 hook calls).
 
   **Verify.**
   - A damage-doubling hook in autoplay: `status` hp.

@@ -523,6 +523,23 @@ fn friend_reward(name) {
     give_item(friend_tastes()[name].reward, 1);
 }
 
+// Script hooks "buy" and "sell" (Database › Project › Script hooks): merchants who count the
+// player a friend (five hearts) sell 10 % cheaper and pay 10 % more. `m.merchant` is the
+// merchant's name on the map, as in friend_tastes().
+fn friend_buy_price(m) {
+    if m.price > 1 && get_var("friend_" + m.merchant) >= 50 {
+        m.price = (m.price * 9 + 5) / 10;
+        return m;
+    }
+}
+
+fn friend_sell_price(m) {
+    if m.price > 0 && get_var("friend_" + m.merchant) >= 50 {
+        m.price = (m.price * 11 + 5) / 10;
+        return m;
+    }
+}
+
 // The character's name as a speaker: "tomas" -> "Tomas" (a definition's name would be "Villager").
 fn friend_speaker() {
     let n = self_name();

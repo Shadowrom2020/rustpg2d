@@ -419,6 +419,8 @@ The starter library's villagers (and the example's) come with friendship as cont
   love +15, like +8, anything else +3, a gift they dislike -8, each with a reply and an emotion.
   One gift a day: a second one is handed back.
 - **Five hearts**: they give the player something once ("You're a true friend...").
+- **Friends' prices** (the example only): merchants who count the player a friend sell 10 %
+  cheaper and pay 10 % more, through the `buy` and `sell` [script hooks](08-scripting.md#script-hooks).
 
 What each villager loves, likes, dislikes and gives back is one list in the script function
 `friend_tastes()` (by their names on the map); the villager definitions' *Interact* and *Use item*

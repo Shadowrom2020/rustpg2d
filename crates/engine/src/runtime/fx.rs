@@ -101,8 +101,11 @@ impl Game {
             self.heal(amount);
         }
         for i in 0..self.loaded.entities.len() {
-            let e = &mut self.loaded.entities[i];
+            let e = &self.loaded.entities[i];
             if e.active && !e.hostile && e.max_hp > 0 && e.body.pos.distance(center) <= r {
+                let target = e.name.clone();
+                let amount = self.heal_hook(&target, amount);
+                let e = &mut self.loaded.entities[i];
                 e.hp = (e.hp + amount).min(e.max_hp);
                 self.companion_healed(i);
             }

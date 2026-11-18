@@ -279,7 +279,7 @@ impl Game {
                 None => {}
                 Some(c) => {
                     if let Some(fx) = &w.effect {
-                        crate::effects::apply(&mut self.loaded.entities[c].effects, fx);
+                        self.apply_entity_effect(c, fx);
                     }
                     self.npc_hits(c, damage, from, w.knockback);
                 }

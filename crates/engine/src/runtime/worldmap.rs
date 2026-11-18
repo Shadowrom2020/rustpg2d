@@ -239,7 +239,9 @@ impl Game {
                 && self.game_over.is_none()
                 && !self.aiming();
             if can_open && input::act_pressed(Act::Map) {
-                self.open_world_map();
+                if self.menu_allowed("map") {
+                    self.open_world_map();
+                }
                 return true;
             }
             return false;

@@ -44,6 +44,9 @@ pub struct ProjectConfig {
     /// Factions and their attitudes (who fights whom); empty = only `hostile` decides.
     #[serde(default, skip_serializing_if = "crate::factions::Factions::is_empty")]
     pub factions: crate::factions::Factions,
+    /// Script hooks: script functions that change what the engine does (`hooks.rs`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hooks: Vec<crate::hooks::HookDef>,
     /// Skills and magic (both off by default).
     #[serde(default)]
     pub skills: crate::skills::SkillSettings,
@@ -233,6 +236,7 @@ impl ProjectConfig {
             day_minutes: default_day_minutes(),
             start_hour: default_start_hour(),
             factions: Default::default(),
+            hooks: Vec::new(),
             skills: Default::default(),
             progression: Default::default(),
             dialog_portraits: true,

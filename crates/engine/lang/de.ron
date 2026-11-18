@@ -412,6 +412,7 @@
         "Needs a {}": "Braucht: {}",
         "Needs it {}": "Muss {} sein",
         "Your inventory is full.": "Dein Inventar ist voll.",
+        "You can't make that now.": "Das kannst du jetzt nicht herstellen.",
         "Made {} {}": "{} {} hergestellt",
         "Made {}": "{} hergestellt",
         "Nothing can be made here.": "Hier lässt sich nichts herstellen.",

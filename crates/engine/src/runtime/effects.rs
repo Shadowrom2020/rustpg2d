@@ -15,7 +15,7 @@ impl Game {
         if target == "player" {
             self.apply_player_effect(spec);
         } else if let Some(i) = self.entity_index(target, owner) {
-            effects::apply(&mut self.loaded.entities[i].effects, spec);
+            self.apply_entity_effect(i, spec);
         } else {
             eprintln!("[events] Apply effect: no character '{target}' on this map");
         }
@@ -23,8 +23,37 @@ impl Game {
 
     pub(super) fn apply_player_effect(&mut self, spec: &EffectSpec) {
         if self.game_over.is_none() {
-            effects::apply(&mut self.world.effects, spec);
+            if let Some(spec) = self.effect_hook("player", spec) {
+                effects::apply(&mut self.world.effects, &spec);
+            }
         }
+    }
+
+    /// Starts an effect on character `i`.
+    pub(super) fn apply_entity_effect(&mut self, i: usize, spec: &EffectSpec) {
+        let target = self.loaded.entities[i].name.clone();
+        if let Some(spec) = self.effect_hook(&target, spec) {
+            if let Some(e) = self.loaded.entities.get_mut(i) {
+                effects::apply(&mut e.effects, &spec);
+            }
+        }
+    }
+
+    /// The `effect_apply` script hook: the effect as it starts (strength, seconds), or None when
+    /// a hook cancelled it.
+    fn effect_hook(&mut self, target: &str, spec: &EffectSpec) -> Option<EffectSpec> {
+        if !self.hooked("effect_apply") {
+            return Some(*spec);
+        }
+        use crate::hooks::{flag, map, num};
+        let m = self.hook(
+            "effect_apply",
+            map([("target", target.into()), ("effect", spec.kind.id().into()), ("strength", (spec.strength as f64).into()), ("seconds", (spec.seconds as f64).into()), ("cancel", false.into())]),
+        );
+        if flag(&m, "cancel") {
+            return None;
+        }
+        Some(EffectSpec { kind: spec.kind, strength: num(&m, "strength", spec.strength as f64) as f32, seconds: num(&m, "seconds", spec.seconds as f64).max(0.0) as f32 })
     }
 
     /// Ends an effect (`None` = all) on `target`.

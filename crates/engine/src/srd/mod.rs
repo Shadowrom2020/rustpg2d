@@ -7,6 +7,7 @@ pub mod check;
 pub mod conditions;
 pub mod damage;
 pub mod dice;
+pub mod rules;
 pub mod statblock;
 
 pub use abilities::{Abilities, Ability};
@@ -14,6 +15,7 @@ pub use check::{RollRecord, Spec};
 pub use conditions::{ActiveCondition, Condition, ConditionSpec};
 pub use damage::{DamageType, Defenses};
 pub use dice::{Expr, Mode};
+pub use rules::{ATTRIBUTION, ATTRIBUTION_FILE};
 pub use statblock::{npc_template, npc_templates, StatBlock};
 
 /// The rules' conversion version of projects made or converted by this editor

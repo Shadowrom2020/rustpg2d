@@ -18,7 +18,7 @@ interest you.
 6. [Characters](06-characters.md): the character builder, the player and the character creator, behaviour, routines, merchants, companions, portraits
 7. [Events](07-events.md): triggers, conditions and actions, cut-scenes, the Events graph
 8. [Scripting](08-scripting.md): Rhai scripts, the script editor, live reload, the console, and every script function with recipes
-9. [Gameplay systems](09-gameplay.md): combat, levels, the SRD 5.1 rules (abilities, checks), magic, status effects, inventory, crafting, farming, fishing, lockpicking, furniture, time of day, achievements
+9. [Gameplay systems](09-gameplay.md): combat, levels, the SRD 5.1 rules (abilities, checks), conditions, damage types, rests, magic, inventory, crafting, farming, fishing, lockpicking, furniture, time of day, achievements
 10. [Art and sound](10-art-and-sound.md): sprite sheets, the pixel editor, new assets, importing from Tiled and Aseprite, sounds and music
 11. [The asset library](11-asset-library.md): shared assets, the Asset Library window, packages, scripted assets
 12. [Languages](12-languages.md): translating a game
@@ -28,6 +28,7 @@ interest you.
 16. [Troubleshooting](16-troubleshooting.md): common problems and their fixes
 17. [Testing your game](17-testing.md): driving the game from a script (autoplay), the `status` line
 18. [Plugins](18-plugins.md): add-ons with their own scripts, hooks, menu entries, HUD and settings; using, making and sharing them
+19. [The SRD 5.1 rules](19-srd-rules.md): how the rules work in the engine, what is simplified, and what the SRD's licence asks of your game
 
 ## For developers
 

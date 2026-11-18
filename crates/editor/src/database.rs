@@ -2830,6 +2830,9 @@ fn menus_form(ed: &mut Editor, ui: &mut egui::Ui) {
         ui.heading("Credits");
         ui.weak("The text of the Credits page (add a Credits entry to a menu to show it). Translated like dialogs.");
         ui.add(egui::TextEdit::multiline(&mut c.credits).desired_rows(6).desired_width(f32::INFINITY).hint_text("Made by …"));
+        ui.checkbox(&mut c.srd, "Uses SRD 5.1 content").on_hover_text(
+            "The game uses material of the System Reference Document 5.1 (CC BY 4.0): SRD races, backgrounds, stat blocks. The Credits page then ends with the SRD's attribution, and srd_attribution() returns it for scripted credits. (Exports always carry SRD-5.1-ATTRIBUTION.txt: the game runner's rules include SRD text.)",
+        );
     }
     if play {
         ed.play_title();
@@ -3437,6 +3440,9 @@ pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_
         ui.end_row();
         ui.label("Languages");
         ui.add(egui::TextEdit::singleline(&mut s.languages).desired_width(320.0));
+        ui.end_row();
+        ui.label("Alignment");
+        ui.add(egui::TextEdit::singleline(&mut s.alignment).desired_width(200.0).hint_text("any alignment")).on_hover_text("As the SRD writes it: lawful good, neutral, chaotic evil, any alignment…");
         ui.end_row();
         ui.label("Challenge");
         ui.horizontal(|ui| {

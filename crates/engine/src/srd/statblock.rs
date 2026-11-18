@@ -27,6 +27,9 @@ pub struct StatBlock {
     pub proficiencies: Vec<String>,
     /// As the SRD writes them ("any one language (usually Common)").
     pub languages: String,
+    /// As the SRD writes it ("any alignment", "lawful evil").
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub alignment: String,
     /// Challenge rating: "0", "1/8", "2".
     pub cr: String,
     /// The experience it is worth.
@@ -46,7 +49,7 @@ pub struct StatBlock {
 
 impl Default for StatBlock {
     fn default() -> Self {
-        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new() }
+        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new() }
     }
 }
 

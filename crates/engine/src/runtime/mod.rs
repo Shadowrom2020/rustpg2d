@@ -611,6 +611,7 @@ impl Game {
         scripts.set_extra_dirs(plugins.script_dirs.clone());
         scripts.load_dir(&project.scripts_dir());
         scripts.set_plugin_params(plugins.params.clone());
+        scripts.set_srd_attribution(if project.config.srd { crate::srd::ATTRIBUTION } else { "" });
         let ts = assets.tile_size;
         let (hitbox, speed) = match project.db.character(&project.config.player) {
             Some(c) => (vec2(c.hitbox[0], c.hitbox[1]), c.speed),

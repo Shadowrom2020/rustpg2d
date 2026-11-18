@@ -213,3 +213,10 @@ engine, the game runner, the editor and the example project with its art and mus
 for your maps, art, scripts or story. An exported game's executable is the R(ust)PG2D game runner,
 so every export includes the engine's license as `rustpg2d-LICENSE.txt`, which is all the MIT
 License asks for.
+
+**The rules** follow the System Reference Document 5.1 by Wizards of the Coast LLC, licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode): the engine includes SRD text
+(see [SRD-5.1-ATTRIBUTION.txt](SRD-5.1-ATTRIBUTION.txt)), and every export carries that
+attribution. The data comes from [5e-bits/5e-database](https://github.com/5e-bits/5e-database)
+(MIT). R(ust)PG2D isn't affiliated with Wizards of the Coast; see the manual's [SRD 5.1
+rules](Documentation/manual/19-srd-rules.md) chapter for what your game needs.

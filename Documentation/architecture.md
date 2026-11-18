@@ -148,7 +148,10 @@ reprs, and `Condition`'s `#[serde(other)] Any` catches old effect names that hav
 `hurt_player_by`) and meet the hero's defenses (`player_defenses`: race, armor, petrified) or a
 stat block's. Rests are `runtime/rest.rs` (the short rest's window, `long_rest_effects`, which a
 night's sleep in `furniture.rs` runs). `srd_convert` (RULES_VERSION 2) takes out what 0.27's haste,
-strength, weakness and shield became (`drop_lost_effects`).
+strength, weakness and shield became (`drop_lost_effects`). `srd/rules.rs` builds in `rules.ron` (the SRD's texts and
+its race / background ids, written by `srd_import` like `npcs.ron`); `srd::ATTRIBUTION` goes into
+every export (`release.rs`, the packages) and, with `ProjectConfig::srd`, the Credits page and
+`srd_attribution()`.
 
 **Translations** (`lang.rs`): `lang/<code>.ron` with `texts` (content: dialogs, names, quest texts,
 collected by `content_texts`) and `ui` (runtime strings; English is the key). The game swaps the

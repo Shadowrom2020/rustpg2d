@@ -55,6 +55,8 @@ fn game_spec(folder: &Path, slug: &str, name: &str, app_id: &str, runtime: &str,
             Entry { dest: format!("{lib}/{slug}"), src: Source::Path(folder.join(slug)), exec: true },
             // The engine's license (the game runner is R(ust)PG2D); the game's own license is its creator's choice.
             Entry { dest: format!("share/licenses/{slug}/{ENGINE_LICENSE_FILE}"), src: Source::Bytes(ENGINE_LICENSE.as_bytes().to_vec()), exec: false },
+            // The runner's rules include SRD 5.1 text (CC BY 4.0).
+            Entry { dest: format!("share/licenses/{slug}/{}", rustpg2d_engine::srd::ATTRIBUTION_FILE), src: Source::Bytes(rustpg2d_engine::srd::ATTRIBUTION.as_bytes().to_vec()), exec: false },
         ],
         bin: vec![(slug.into(), format!("{lib}/{slug}"))],
         icon: icon.to_vec(),
@@ -135,8 +137,8 @@ mod tests {
         let dests: Vec<(&str, bool)> = s.files.iter().map(|e| (e.dest.as_str(), e.exec)).collect();
         assert_eq!(
             dests,
-            [("lib/knight-tales/knight-tales", true), ("share/licenses/knight-tales/rustpg2d-LICENSE.txt", false), ("lib/knight-tales/data/maps/start.map", false)],
-            "the game, the engine's license and the data; no README"
+            [("lib/knight-tales/knight-tales", true), ("share/licenses/knight-tales/rustpg2d-LICENSE.txt", false), ("share/licenses/knight-tales/SRD-5.1-ATTRIBUTION.txt", false), ("lib/knight-tales/data/maps/start.map", false)],
+            "the game, the engine's license, the SRD's attribution and the data; no README"
         );
         assert_eq!(s.bin, [("knight-tales".to_string(), "lib/knight-tales/knight-tales".to_string())]);
         let _ = std::fs::remove_dir_all(&tmp);

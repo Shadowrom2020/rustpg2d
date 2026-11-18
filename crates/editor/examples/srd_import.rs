@@ -28,6 +28,9 @@ fn main() -> anyhow::Result<()> {
     let npcs = PathBuf::from("crates/engine/src/srd/npcs.ron");
     if npcs.exists() {
         println!("[srd_import] {}: {} NPC templates", npcs.display(), srd_import::write_npcs(&checkout, &npcs)?);
+        let rules = PathBuf::from("crates/engine/src/srd/rules.ron");
+        srd_import::write_rules(&checkout, &rules)?;
+        println!("[srd_import] {}: conditions, damage types, languages, alignments, abilities, skills", rules.display());
     }
     Ok(())
 }

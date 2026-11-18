@@ -52,4 +52,5 @@
     auto_emotions: true,
     companion_down: StaysDown,
     language: "en",
+    srd: true,
 )

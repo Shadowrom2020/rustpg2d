@@ -151,7 +151,10 @@ impl Editor {
                 None => notes.push("asset library not available: no starter assets".into()),
             }
         }
+        // Starter assets of the SRD (races, backgrounds): the credits carry its attribution.
+        let srd = !rustpg2d_engine::srd::rules::srd_content(&project.db).is_empty();
         let c = &mut project.config;
+        c.srd = srd;
         c.name = w.name.trim().to_string();
         c.scale = w.scale;
         c.inventory_size = w.inventory;

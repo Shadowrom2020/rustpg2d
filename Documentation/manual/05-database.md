@@ -341,6 +341,10 @@ Esc opens. Without settings both are the built-in ones.
   `roll_credits()`, which rolls its credits up the screen with `scroll_text`.
 - **Credits**: the text of the Credits page, which a menu with a *Credits* entry shows (scrolling
   with Up / Down or the wheel). It is translated like dialogs.
+- **Uses SRD 5.1 content**: the game uses SRD races, backgrounds or stat blocks; the Credits page
+  then ends with the SRD's attribution and `srd_attribution()` returns it (the example's
+  `roll_credits` shows it through a `{credits_srd}` text variable). *Edit › Problems* asks for it
+  when the project has SRD content ([The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs)).
 
 A sketch at the top shows the background, the logo and the entries in their place; **Play title
 screen** play-tests the game from its real title screen. *Edit › Problems* reports a missing map,

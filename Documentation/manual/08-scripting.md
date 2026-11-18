@@ -911,6 +911,7 @@ running keeps the longer duration; exhaustion adds a level.
 | `remove_condition(target, condition)` | Ends a condition (all levels of exhaustion); `""` or `"all"` = every condition and the damage per round. *(queued, since 0.28)* |
 | `has_condition(condition)` | Whether the hero has it (`"any"` = any condition). *(since 0.28)* |
 | `has_condition(target, condition)` | Whether `"player"`, `"self"` (or `SELF`) or a character on this map has it. *(since 0.28)* |
+| `srd_attribution()` | The SRD 5.1's attribution (CC BY 4.0) when the project uses SRD content (*Project › Uses SRD 5.1 content*), else `""`: for credits a script rolls. *(since 0.28)* |
 | `exhaustion()` | The hero's exhaustion level (0-6). *(since 0.28)* |
 | `set_exhaustion(level)` | Sets it (0 = none; 6 is death). *(immediately, since 0.28)* |
 | `short_rest()` | Opens the rest window: the hero spends hit dice. *(queued, since 0.28)* |

@@ -962,6 +962,7 @@ mod tests {
         title: Default::default(),
         menu: Default::default(),
         credits: String::new(),
+        srd: false,
         };
         cfg.sfx.pickup = "blip".into();
         assert_eq!(rename_in_db(&mut db, &mut cfg, RefKind::Sheet, "items", "icons"), 1);

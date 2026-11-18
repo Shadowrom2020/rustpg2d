@@ -188,7 +188,8 @@ timer), the Swiftness Potion takes off a level of exhaustion and frees you from 
 ![The character sheet: abilities, saving throws, the 18 skills, languages, proficiencies and traits](../images/game-sheet.webp)
 
 R(ust)PG2D's rules follow the **System Reference Document 5.1** (SRD 5.1, by Wizards of the Coast,
-CC BY 4.0): every roll in the game is an SRD roll.
+CC BY 4.0): every roll in the game is an SRD roll. [The SRD 5.1 rules](19-srd-rules.md) sums them up,
+with what is simplified and what the licence asks of your game.
 
 - **Ability scores**: Strength, Dexterity, Constitution, Intelligence, Wisdom and Charisma, 1 to 30.
   Each gives a **modifier**: (score − 10) / 2, rounded down (8-9 = −1, 10-11 = +0, 14-15 = +2).

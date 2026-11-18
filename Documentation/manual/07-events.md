@@ -53,6 +53,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Player HP** | The player's HP compared with a value |
 | **Prop state** | A prop is in a state (*open*, *lit*…) |
 | **Quest** | Not started, active, completed, failed, at a stage, at a stage or later |
+| **Timer** | A timer's seconds left compared with a value (a timer that isn't running has 0: *> 0* = running) |
 | **Player sex** | Male or female |
 | **Player race** | The player's race (*Database › Races*), e.g. goblin |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
@@ -108,6 +109,13 @@ across map changes and in save games.
 - **Play sound**, **Play music**, **Shake the screen**.
 - **Show image** / **Hide image**: a picture over the game (below).
 - **Show picture**, **Move picture**, **Erase picture**: picture layers, moved and faded (below).
+- **Start timer** / **Stop timer**: a named countdown, **shown** at the top of the screen (minutes
+  and seconds, the last ten in red) or hidden; when it runs out it runs a script function and / or
+  fires a custom event. Timers pause while a menu or a dialog is open and are saved; starting one
+  again restarts it; *Stop timer* ends it without running anything. The example's *Hot Soup*
+  errand (Greta, in the tavern) starts a shown timer in its first quest step: Elder Rowan's
+  *Talk* step only counts while the timer runs, and running out calls `soup_gone_cold()`, which
+  fails the quest.
 - **Tint screen** (a colour over the whole screen, its opacity = how strongly, changing over some
   seconds; it stays until changed and is saved; opacity 0 takes it away), **Flash screen** (a
   colour fading out: lightning, a spell; left out when the player turned off screen effects),

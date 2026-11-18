@@ -51,6 +51,7 @@ pub mod glyphs;
 pub mod skin;
 mod script_hud;
 mod pictures;
+mod timers;
 mod attacks;
 mod defense;
 mod barks;
@@ -1651,6 +1652,7 @@ impl Game {
         self.update_soundscape(dt);
         self.update_juice(dt);
         self.update_pictures(dt);
+        self.update_timers(dt);
         self.update_battle(dt);
         self.update_captions(dt);
         self.after_thumbnail();
@@ -2457,7 +2459,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2523,6 +2525,7 @@ impl Game {
             self.script_ui_status().1,
             self.pictures_status(),
             self.screen_status(),
+            self.timers_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2881,6 +2884,7 @@ impl Game {
                 self.draw_companion_rows();
                 self.draw_clock();
                 self.draw_script_hud();
+                self.draw_timers();
             }
             self.draw_minigame();
             self.draw_sleep();
@@ -3145,6 +3149,14 @@ impl ActionHost for Game {
             }
             Action::ErasePicture { layer } => {
                 self.erase_picture(*layer);
+                Step::Continue
+            }
+            Action::StartTimer { name, seconds, shown, function, event } => {
+                self.start_timer(name, *seconds, *shown, function, event);
+                Step::Continue
+            }
+            Action::StopTimer { name } => {
+                self.world.timers.remove(name);
                 Step::Continue
             }
             Action::TintScreen { color, seconds, wait } => {

@@ -634,3 +634,14 @@ fn village_life_close() {
     window_close();
 }
 
+// ---- Hot soup (Greta's errand) -----------------------------------------------------------
+// The quest's first step starts the timer "soup" (shown at the top of the screen); when it runs
+// out before the player reaches Elder Rowan, the stew has gone cold.
+fn soup_gone_cold() {
+    if quest_active("hot_soup") {
+        take_item("pumpkin_stew", 1);
+        fail_quest("hot_soup");
+        say("The stew has gone cold. Greta will be disappointed.");
+    }
+}
+

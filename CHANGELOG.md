@@ -17,6 +17,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   seconds and stays, saved), *Flash screen* (left out when the player turned off screen
   effects), *Fade out* / *Fade in* (a fade-out lasts across map changes until *Fade in*). Scripts:
   `tint_screen`, `clear_tint`, `flash_screen`, `fade_out`, `fade_in`; `status` prints `screen=`.
+- **Timers**: *Start timer* / *Stop timer* and the *Timer* condition: named countdowns, shown at the
+  top of the screen in the skin's style or hidden, that run a function or fire a custom event when
+  they run out; they pause in menus and dialogs and are saved. Scripts: `timer_start`,
+  `timer_left`, `timer_stop`; `status` prints `timers=`. The example has a new errand, *Hot Soup*:
+  bring Greta's stew to Elder Rowan before it goes cold.
 
 ## 0.25.0 — 2026-11-18
 

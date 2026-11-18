@@ -144,6 +144,10 @@ pub const API: &[ApiFn] = api! {
     "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
     "stock_of"(target: Target, item: Item) "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
     "show_image"(sheet: Sheet) "Shows a picture over the game (a sprite sheet drawn whole, scaled down to fit the window); the event waits until the player closes it (queued)";
+    "timer_start"(name: Text, seconds: Num) "Starts (or restarts) a hidden timer; when it runs out nothing runs (check it with timer_left()). Timers pause while a menu or a dialog is open, and are saved (immediately)";
+    "timer_start"(name: Text, seconds: Num, options: Opts) "Like timer_start(); options #{ shown: true (at the top of the screen), run: \"function\" (runs when it runs out), event: \"name\" (fires that custom event) } (immediately)";
+    "timer_left"(name: Text) "Seconds left on a timer (0 when it isn't running)";
+    "timer_stop"(name: Text) "Stops a timer: nothing runs (immediately)";
     "tint_screen"(color: Text, seconds: Num) "Colours the whole screen over seconds: a colour name, \"#rrggbb\" (a light tint), \"#rrggbbaa\" (aa = how strongly) or [r, g, b, a]; stays until changed, saved with the game (queued)";
     "clear_tint"(seconds: Num) "Takes the screen tint away over seconds (queued)";
     "flash_screen"(color: Text, seconds: Num) "A flash of a colour fading out over seconds (lightning, magic); left out when the player turned off screen effects (queued)";

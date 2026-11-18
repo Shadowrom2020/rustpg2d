@@ -262,6 +262,9 @@ pub struct WorldState {
     /// Characters following the player, in the order they joined.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub companions: Vec<Companion>,
+    /// Running timers (*Start timer*), by name.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub timers: BTreeMap<String, crate::timers::Timer>,
     /// *Tint screen* and *Fade out*: colours over the whole screen.
     #[serde(default, skip_serializing_if = "crate::screen_fx::ScreenFx::is_empty")]
     pub screen: crate::screen_fx::ScreenFx,

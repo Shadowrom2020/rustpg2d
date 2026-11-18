@@ -469,7 +469,7 @@ sheet.
 
 SRD combat: initiative, actions, movement on the grid, attacks against AC, death saves.
 
-- [ ] Turn-based combat — `feature/srd-combat`
+- [x] Turn-based combat — `feature/srd-combat`
 
   **Goal.** Fights follow the SRD's combat rules in turns, on the map where they happen.
 
@@ -517,6 +517,31 @@ SRD combat: initiative, actions, movement on the grid, attacks against AC, death
     cover, a surprise round. Screenshots of each UI part.
   - **Unit tests:** attack maths, crits, death saves.
   - **Perf:** a 10-creature fight stays at 60 fps (`update_ms`).
+
+  **As built.**
+  - **Engine:** `runtime/turns/` (`mod.rs` the fight's state, start / join / end, turns, the walk
+    with opportunity and readied attacks, attacks, damage, death saves, status; `actions.rs` the
+    action economy and the SRD's actions with their checks; `ai.rs`; `ui.rs` input and drawing) on
+    the pure rules of `srd/combat.rs` (odds, attack rolls, crits, cover, death saves, unit-tested).
+    `Game.fight` is not saved: saving waits for the end. Walks use the bodies' move targets (5
+    tiles a second). Characters without a stat block get one from their old values; a stat block
+    without attacks gets one from the weapon / *Damage*. Damage from scripts, spells and areas
+    goes through the fight's damage while one is on (0 HP = unconscious for the party).
+  - **Kept:** battle stance and battle music now follow the fight; projectiles fly as the look of
+    ranged attacks and spells; the real-time chase stays for noticing (it starts or joins fights)
+    and for characters of hostile factions away from the player (they close in, no damage).
+  - **Not yet:** difficult terrain from decorations, special actions with recharge, the AI-played
+    companions' spells in fights, stabilizing with a Medicine check (healing gets them up). The
+    example's fights are SRD-lethal for a lone level-1 hero; sizing them is *Monsters and
+    encounters*'s.
+
+  **Verify (done).** Unit tests of the odds, attack rolls, crits, cover and death saves; autoplay
+  with fixed seeds on a scratch copy: a fight won (bats: XP, autosave, exploration resumes), one
+  lost with death saves (stable, then the *defeated* menu), an opportunity attack, three-quarters
+  cover in the log, a surprise round from sneaking, a companion's turn played and then handed to
+  the AI, a late joiner (the orc chief), grapple / hide / help, keys, clicks and the action bar,
+  saving refused in a fight; screenshots of the order bar, the action bar, the overlays, the hit
+  chance and the log. Perf: a fight of four at `update_ms` 2.2.
 
 - [ ] Monsters and encounters — `feature/srd-monsters`
 

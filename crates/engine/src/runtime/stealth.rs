@@ -30,7 +30,7 @@ impl Game {
 
     /// The sneak key toggles sneaking (call with the other combat input).
     pub(super) fn update_sneak(&mut self, key_consumed: bool) {
-        if !key_consumed && input::act_pressed(Act::Sneak) && !self.player_stunned() && !self.rolling() {
+        if !key_consumed && input::act_pressed(Act::Sneak) && !self.player_stunned() {
             self.combat.sneak = !self.combat.sneak;
         }
     }

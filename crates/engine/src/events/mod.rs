@@ -39,6 +39,9 @@ pub enum GameEvent {
     /// The clock moved forward from `from` to `to` (hours of the day; `to` < `from` when it
     /// passed midnight).
     Hour { from: f32, to: f32 },
+    /// A turn-based fight started / ended (map triggers, and each fighting character's own).
+    CombatStart,
+    CombatEnd,
 }
 
 /// Which events a trigger reacts to.
@@ -64,6 +67,10 @@ pub enum TriggerOn {
     /// The clock reached `hour` (0-24, e.g. 12.0 = noon, 5.5 = half past five) while the player
     /// is on the map: also when time jumps forward past it (sleeping, Set time). Map triggers.
     Hour { hour: f32 },
+    /// A fight started on the map (map triggers; a character's own when it fights in it).
+    CombatStart,
+    /// The fight is over (no enemy fights on; map triggers and the fighters' own).
+    CombatEnd,
 }
 
 /// Where a trigger lives. The game only sends some events to each kind of owner (see
@@ -91,9 +98,9 @@ impl TriggerOwner {
         match (self, on) {
             // emit() / "Emit event" reach the map, its zones and its entities.
             (O::Map | O::Zone | O::Character | O::Prop | O::Pickup, T::Custom { .. }) => true,
-            (O::Map, T::MapEnter | T::Sleep | T::Hour { .. }) => true,
+            (O::Map, T::MapEnter | T::Sleep | T::Hour { .. } | T::CombatStart | T::CombatEnd) => true,
             (O::Zone, T::Enter | T::Leave | T::Interact) => true,
-            (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. }) => true,
+            (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. } | T::CombatStart | T::CombatEnd) => true,
             (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep) => true,
             (O::Pickup, T::Interact | T::UseItem { .. }) => true,
             (O::ItemUse, T::UseItem { .. }) => true,
@@ -149,7 +156,9 @@ impl TriggerOn {
             | (TriggerOn::Defeat, GameEvent::Defeat)
             | (TriggerOn::Unlock, GameEvent::Unlock)
             | (TriggerOn::Lock, GameEvent::Lock)
-            | (TriggerOn::Sleep, GameEvent::Sleep) => true,
+            | (TriggerOn::Sleep, GameEvent::Sleep)
+            | (TriggerOn::CombatStart, GameEvent::CombatStart)
+            | (TriggerOn::CombatEnd, GameEvent::CombatEnd) => true,
             (TriggerOn::UseItem { item: want }, GameEvent::UseItem { item }) => {
                 want.is_empty() || want == item
             }
@@ -186,6 +195,8 @@ impl TriggerOn {
             TriggerOn::HpBelow { .. } => "HP below %",
             TriggerOn::Sleep => "Woke up",
             TriggerOn::Hour { .. } => "Time reached",
+            TriggerOn::CombatStart => "Fight starts",
+            TriggerOn::CombatEnd => "Fight ends",
         }
     }
 
@@ -203,6 +214,8 @@ impl TriggerOn {
             TriggerOn::HpBelow { percent: 50 },
             TriggerOn::Sleep,
             TriggerOn::Hour { hour: 12.0 },
+            TriggerOn::CombatStart,
+            TriggerOn::CombatEnd,
         ]
     }
 }
@@ -872,6 +885,9 @@ pub enum Action {
         #[serde(default = "eight")]
         hours: f32,
     },
+    /// Starts a turn-based fight with the hostile characters near the player (nothing without
+    /// any, or during one).
+    StartCombat,
 }
 
 fn eight() -> f32 {
@@ -1072,6 +1088,7 @@ impl Action {
             Action::Roll { .. } => "Roll dice",
             Action::ShortRest => "Short rest",
             Action::LongRest { .. } => "Long rest",
+            Action::StartCombat => "Start fight",
         }
     }
 
@@ -1186,6 +1203,7 @@ impl Action {
             Action::Roll { dice: "1d20".into(), var: "roll".into() },
             Action::ShortRest,
             Action::LongRest { hours: 8.0 },
+            Action::StartCombat,
         ]
     }
 }
@@ -1351,7 +1369,8 @@ mod tests {
         assert!(TriggerOwner::Prop.allows(&TriggerOn::Unlock) && !TriggerOwner::Character.allows(&TriggerOn::Unlock));
         assert!(TriggerOwner::Character.allows(&TriggerOn::Defeat) && !TriggerOwner::Prop.allows(&TriggerOn::Defeat));
         assert!(!TriggerOwner::ItemUse.allows(&TriggerOn::Custom { name: "x".into() }));
-        assert_eq!(TriggerOwner::Map.templates().iter().map(|t| t.label()).collect::<Vec<_>>(), vec!["Map enter", "Custom event", "Woke up", "Time reached"]);
+        assert_eq!(TriggerOwner::Map.templates().iter().map(|t| t.label()).collect::<Vec<_>>(), vec!["Map enter", "Custom event", "Woke up", "Time reached", "Fight starts", "Fight ends"]);
+        assert!(TriggerOwner::Character.allows(&TriggerOn::CombatStart) && !TriggerOwner::Prop.allows(&TriggerOn::CombatEnd));
         assert_eq!(TriggerOwner::Map.replacement(&TriggerOn::Enter), TriggerOn::MapEnter);
         assert_eq!(TriggerOwner::Zone.replacement(&TriggerOn::MapEnter), TriggerOn::Enter);
     }

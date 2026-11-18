@@ -59,8 +59,7 @@ mod timers;
 mod input_box;
 mod rest;
 mod routes;
-mod attacks;
-mod defense;
+mod turns;
 mod barks;
 mod markers;
 mod quests;
@@ -102,6 +101,8 @@ use text::{draw_text};
 type TriggerSink<'a> = dyn FnMut(String, &[Trigger], Option<u32>) + 'a;
 
 /// Speed factor on ladders.
+/// Tiles a second a walk in a fight goes at least.
+const FIGHT_WALK: f32 = 5.0;
 const CLIMB_SPEED: f32 = 0.6;
 /// Seconds the player walks into a friendly character before it steps aside ([`Game::push_past`]).
 const STEP_ASIDE_AFTER: f32 = 0.4;
@@ -242,16 +243,15 @@ struct RtEntity {
     low: bool,
     /// A flat prop (`PropDef::flat`): drawn on the ground under everyone.
     flat: bool,
-    /// A weapon swing or lunge in progress (`attacks.rs`; not saved).
-    attack: Option<attacks::Attack>,
+    /// The attack animation (a fight's attack): seconds left of it, and how long it lasts.
+    strike: f32,
+    strike_len: f32,
     /// Seconds it stays battle-ready (`battle.rs`): a stance, its weapon drawn.
     combat_t: f32,
     /// The emotion shown over its head (`emotions.rs`; not saved).
     emote: Option<Box<emotions::Emote>>,
     /// A line it is saying (`barks.rs`).
     bark: Option<Box<barks::Bark>>,
-    /// Its definition's wind-up (`CharacterDef::windup`; 0 = the standard one).
-    windup: f32,
     behavior: Behavior,
     wander_timer: f32,
     wander_dir: Vec2,
@@ -302,7 +302,6 @@ struct RtEntity {
     knock: Vec2,
     /// Ranged attack for hostile shooters.
     weapon: Option<Weapon>,
-    attack_cd: f32,
     /// Spawner zone uid for characters created by a spawner (not saved).
     spawned_by: Option<u32>,
     /// Stack size of item pickups.
@@ -440,6 +439,10 @@ pub struct Game {
     pub assets: Assets,
     pub audio: Audio,
     combat: PlayerCombat,
+    /// The turn-based fight going on (`turns/`; not saved: saving waits for its end).
+    fight: Option<Box<turns::Combat>>,
+    /// The AI's turns without pauses (autoplay `turn fast`).
+    fight_fast: bool,
     /// Screen shake and the hurt flash.
     juice: juice::Juice,
     /// Photo mode (`photo.rs`).
@@ -670,6 +673,8 @@ impl Game {
             game_over: None,
             effects: Vec::new(),
             projectiles: Vec::new(),
+            fight: None,
+            fight_fast: false,
             fx: Vec::new(),
             timed_lights: Vec::new(),
             order: None,
@@ -823,7 +828,11 @@ impl Game {
             EntityKind::Item => (vec2(ts * 0.75, ts * 0.75), 0.0, false, Behavior::Static),
         };
         let (max_hp, hostile, damage, weapon, defense) = match (kind, self.project.db.character(def)) {
-            (EntityKind::Character, Some(d)) => (d.max_hp.max(0), self.hostile_to_player(def, &self.project.db.faction_of(def)), d.damage.max(0), d.weapon.clone(), d.defense),
+            // (SRD hit points: a character that can be hurt has its stat block's.)
+            (EntityKind::Character, Some(d)) => {
+                let hp = if d.max_hp > 0 { d.stats.as_ref().map(|s| s.hp).filter(|hp| *hp > 0).unwrap_or(d.max_hp) } else { 0 };
+                (hp, self.hostile_to_player(def, &self.project.db.faction_of(def)), d.damage.max(0), d.weapon.clone(), d.defense)
+            }
             _ => (0, false, 0, None, 0),
         };
         let mut rt = RtEntity {
@@ -836,15 +845,14 @@ impl Game {
             active,
             hidden: false,
             frame,
-            // Hostiles overlap the player (contact damage) instead of blocking.
-            solid: solid && !hostile,
+            solid,
             low,
             flat,
-            attack: None,
+            strike: 0.0,
+            strike_len: 0.5,
             combat_t: 0.0,
             emote: None,
             bark: None,
-            windup: self.project.db.character(def).filter(|_| kind == EntityKind::Character).map_or(0.0, |d| d.windup.max(0.0)),
             behavior,
             wander_timer: rand::gen_range(0.5, 2.0),
             wander_dir: Vec2::ZERO,
@@ -875,7 +883,6 @@ impl Game {
             bar_lag: 0.0,
             knock: Vec2::ZERO,
             weapon,
-            attack_cd: rand::gen_range(0.5, 1.5),
             spawned_by: None,
             count: 1,
             defense,
@@ -962,6 +969,12 @@ impl Game {
         rt.activity = e.activity.clone();
         // (Working all day, it faces the way it is placed, whatever it faced when saved.)
         rt.act_facing = e.facing;
+        // SRD hit points: the placed character's own stat block's (its definition's: `new_rt_entity`).
+        if e.kind == EntityKind::Character && rt.max_hp > 0 {
+            if let Some(hp) = e.stats.as_ref().map(|s| s.hp).filter(|hp| *hp > 0) {
+                (rt.max_hp, rt.hp) = (hp, hp);
+            }
+        }
         if e.kind == EntityKind::Character {
             if let Some(loot) = &e.loot {
                 rt.loot = loot.clone();
@@ -1021,6 +1034,8 @@ impl Game {
     }
 
     fn enter_map(&mut self, mut map: Map, arrival: Arrival) {
+        // (Leaving the map ends a fight: those who fought stay behind.)
+        self.fight = None;
         // (For the map_enter hook: "" after loading or a new game, which clear it.)
         let from = self.loaded.map.name.clone();
         self.clear_routes();
@@ -1691,12 +1706,7 @@ impl Game {
         input::poll_pad();
         input::update_device();
         let real = get_frame_time();
-        let mut dt = real.min(0.05);
-        // Hit-stop: the world stands still a moment (input and drawing go on).
-        if self.juice.hitstop > 0.0 {
-            self.juice.hitstop = (self.juice.hitstop - real).max(0.0);
-            dt = 0.0;
-        }
+        let dt = real.min(0.05);
         let t0 = get_time();
         self.update(dt);
         let t1 = get_time();
@@ -1893,7 +1903,8 @@ impl Game {
         let (inv_key, inv_mouse) = (inv_key || shop_key || j_key, inv_mouse || shop_mouse || j_mouse);
         let (aim_key, aim_mouse) = self.update_aim(input.consumed || inv_key, input.mouse_consumed || inv_mouse);
         let consumed = input.consumed || inv_key || aim_key;
-        if !input.mouse_consumed && !inv_mouse && !aim_mouse && allow_inventory && !self.modal() {
+        // (In a fight the turns take the clicks: `turns/ui.rs`.)
+        if !input.mouse_consumed && !inv_mouse && !aim_mouse && allow_inventory && !self.modal() && self.fight.is_none() {
             self.handle_mouse();
             self.mouse_hold_repeat(dt);
         }
@@ -1922,7 +1933,13 @@ impl Game {
         let frozen = self.runner.busy() || !matches!(self.fade, Fade::None) || self.modal();
         if !frozen && !self.on_title() {
             self.update_skills(dt);
-            self.tick_effects(dt);
+            // (In a fight conditions run by rounds, on each fighter's turn: `turns/`.)
+            if self.fight.is_none() {
+                self.tick_effects(dt);
+            }
+        }
+        if self.fight.is_some() && !frozen {
+            self.update_turns(dt, consumed);
         }
         self.update_player(dt, frozen, consumed);
         self.reveal_fog();
@@ -1966,7 +1983,8 @@ impl Game {
             }
         }
         if let Some(target) = self.player.move_target {
-            let (pos, done) = step_towards(self.player.pos, target, self.player.speed * dt);
+            let speed = if self.fight.is_some() { self.player.speed.max(FIGHT_WALK * ts) } else { self.player.speed };
+            let (pos, done) = step_towards(self.player.pos, target, speed * dt);
             self.player.facing = Facing::from_vec(target.x - pos.x, target.y - pos.y).unwrap_or(self.player.facing);
             self.player.pos = pos;
             self.player.moving = !done;
@@ -1976,7 +1994,8 @@ impl Game {
             }
             return;
         }
-        if frozen {
+        // In a fight the turns move everyone (`turns/`).
+        if frozen || self.fight.is_some() {
             self.player.moving = false;
             return;
         }
@@ -1987,10 +2006,6 @@ impl Game {
         if self.player_stunned() {
             self.player.moving = false;
             self.order = None;
-            return;
-        }
-        // A dodge roll carries the player on its own.
-        if self.update_roll(dt) {
             return;
         }
 
@@ -2018,11 +2033,8 @@ impl Game {
                 return; // the order triggered a transition
             }
         }
-        // Behind a raised shield or sneaking: half speed, by keys and by click alike (sneaking
-        // doesn't run).
-        if self.blocking() {
-            run = 0.5;
-        } else if self.sneaking() {
+        // Sneaking: half speed, by keys and by click alike (sneaking doesn't run).
+        if self.sneaking() {
             run = stealth::SNEAK_SPEED;
         }
         // On a ladder: only up and down, slower, facing the ladder; drawn towards its middle.
@@ -2366,6 +2378,11 @@ impl Game {
         }
     }
 
+    /// Uses an item the hero carries as the inventory's Use does (autoplay `turn use`).
+    pub(super) fn use_item_by_id(&mut self, item: &str) {
+        self.use_item(item);
+    }
+
     fn use_item(&mut self, item: &str) {
         // Script hook: a use can be stopped.
         if self.hooked("item_use") {
@@ -2376,6 +2393,11 @@ impl Game {
         }
         if self.project.db.item(item).is_some_and(|d| d.equip_slot().is_some()) {
             self.equip_item(item);
+            return;
+        }
+        // In a fight using an item is the action of the hero's turn (Use an Object).
+        if let Err(why) = self.fight_item_use() {
+            self.ui.toast(crate::lang::tr_ui(why).into_owned());
             return;
         }
         // Scrolls and spell books teach a spell (consumed if the item is consumable).
@@ -2442,9 +2464,6 @@ impl Game {
 
     fn update_entities(&mut self, dt: f32, frozen: bool) {
         let ts = self.ts();
-        if !frozen {
-            self.assign_attack_slots();
-        }
         for i in 0..self.loaded.entities.len() {
             let e = &self.loaded.entities[i];
             if e.away && !frozen {
@@ -2456,7 +2475,9 @@ impl Game {
                 continue;
             }
             if let Some(target) = e.body.move_target {
-                let (pos, done) = step_towards(e.body.pos, target, e.body.speed.max(30.0) * dt);
+                // (A fight's walks go briskly: turns shouldn't wait for slow walkers.)
+                let speed = if self.fighting(e.uid) { e.body.speed.max(FIGHT_WALK * ts) } else { e.body.speed.max(30.0) };
+                let (pos, done) = step_towards(e.body.pos, target, speed * dt);
                 let e = &mut self.loaded.entities[i];
                 e.body.facing = Facing::from_vec(target.x - e.body.pos.x, target.y - e.body.pos.y)
                     .unwrap_or(e.body.facing);
@@ -2470,7 +2491,8 @@ impl Game {
                 }
                 continue;
             }
-            if frozen {
+            // In a fight its turns move it (`turns/`).
+            if frozen || self.fighting(self.loaded.entities[i].uid) {
                 self.loaded.entities[i].body.moving = false;
                 continue;
             }
@@ -2548,7 +2570,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} rest={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} rest={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2568,7 +2590,6 @@ impl Game {
             self.bestiary_status(),
             self.world.dialog_log.len(),
             input::pad_name(),
-            self.combat.cooldown > 0.0,
             self.juice_status(),
             self.clock_text(),
             self.loaded.map.lighting.mode,
@@ -2649,8 +2670,8 @@ impl Game {
             self.foes_status(),
             input::device(),
             glyphs::style().id(),
-            self.attacks_status(),
-            self.defense_status(),
+            self.combat_status(),
+            self.death_saves_status(),
             self.sneak_status(),
             self.battle_status(),
             self.audio.music_fade_status(),
@@ -2713,6 +2734,10 @@ impl Game {
         if self.runner.busy() {
             return Err(anyhow!("can't save during an event"));
         }
+        // (Fights aren't saved: the save waits for the end of the fight.)
+        if self.fight.is_some() {
+            return Err(anyhow!("can't save during a fight"));
+        }
         self.sync_world();
         if self.hooked("save") {
             self.hook("save", crate::hooks::map([("slot", slot.into())]));
@@ -2727,7 +2752,7 @@ impl Game {
     /// Writes a due autosave once the game is calm: no event, cut-scene, dialog, fade or
     /// defeat in progress.
     fn update_autosave(&mut self) {
-        if !self.autosave_pending || self.runner.busy() || self.ui.dialog_open() || self.game_over.is_some() || !matches!(self.fade, Fade::None) || self.on_title() || self.cutscene_active() {
+        if !self.autosave_pending || self.fight.is_some() || self.runner.busy() || self.ui.dialog_open() || self.game_over.is_some() || !matches!(self.fade, Fade::None) || self.on_title() || self.cutscene_active() {
             return;
         }
         self.autosave_pending = false;
@@ -2961,8 +2986,7 @@ impl Game {
             set_camera(&cam);
         }
         self.draw_combat_world();
-        self.draw_attacks();
-        self.draw_defense();
+        self.draw_fight_world();
         self.draw_emotes();
         self.draw_gather();
         self.draw_activities();
@@ -3036,6 +3060,7 @@ impl Game {
                 self.draw_script_hud();
                 self.draw_timers();
             }
+            self.draw_fight_hud(&cam);
             self.draw_minigame();
             self.draw_sleep();
             if self.companion_win_open() {
@@ -3692,6 +3717,10 @@ impl ActionHost for Game {
             }
             Action::ShortRest => {
                 self.open_short_rest();
+                Step::Continue
+            }
+            Action::StartCombat => {
+                self.start_combat(false);
                 Step::Continue
             }
             Action::Lockpick { difficulty, var } => {

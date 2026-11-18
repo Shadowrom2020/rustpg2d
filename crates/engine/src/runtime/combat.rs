@@ -18,9 +18,9 @@ const HIT_INVULN: f32 = 0.3;
 pub(super) const HURT_INVULN: f32 = 1.0;
 pub(super) const KNOCKBACK: f32 = 190.0;
 const GAME_OVER_TIME: f32 = 2.5;
+/// Attack (or a click on a hostile character) starts a fight with one this near (tiles) and in sight.
+pub(super) const ATTACK_SIGHT: f32 = 8.0;
 const EFFECT_TIME: f32 = 0.35;
-/// Shooters aim this share of the way to where a moving player will be when the shot arrives.
-const LEAD: f32 = 0.7;
 
 /// A flying arrow, bolt, ...
 pub(super) struct Projectile {
@@ -42,6 +42,8 @@ pub(super) struct Projectile {
     at_player: bool,
     /// The shooter's faction: characters of factions hostile to it are hit too.
     faction: Option<u16>,
+    /// Only the look of a fight's ranged attack (the roll already decided): hits nothing.
+    visual: bool,
 }
 
 /// Who dealt a hit, for its feedback (hit-stop, the number's color).
@@ -80,21 +82,12 @@ pub(super) struct PlayerCombat {
     pub swing: f32,
     pub invuln: f32,
     pub knock: Vec2,
-    /// Seconds the shield has been held up (None = not blocking; `defense.rs`).
-    pub block: Option<f32>,
-    /// A dodge roll: its direction and time so far.
-    pub roll: Option<(Vec2, f32)>,
-    /// Seconds until the next roll.
-    pub dodge_cd: f32,
     /// Sneaking (`stealth.rs`).
     pub sneak: bool,
     /// The attack animation: seconds left of it, and how long it lasts (the weapon's cooldown,
     /// 0.3 to 0.6 s; melee and shots alike).
     pub strike: f32,
     pub strike_len: f32,
-    /// The player's smoothed velocity (px/s) and last position, for shooters leading their aim.
-    vel: Vec2,
-    last_pos: Option<Vec2>,
     /// Last melee swing: direction, reach (px) and half-angle (radians), for drawing.
     swing_dir: Vec2,
     swing_reach: f32,
@@ -113,14 +106,9 @@ impl PlayerCombat {
             hold_e: 0.0,
             invuln: 0.0,
             knock: Vec2::ZERO,
-            block: None,
-            roll: None,
-            dodge_cd: 0.0,
             sneak: false,
             strike: 0.0,
             strike_len: 0.5,
-            vel: Vec2::ZERO,
-            last_pos: None,
             swing_dir: vec2(0.0, 1.0),
             swing_reach: 16.0,
             swing_arc: 1.0,
@@ -134,15 +122,7 @@ impl PlayerCombat {
         self.swing = 0.0;
         self.invuln = 0.0;
         self.knock = Vec2::ZERO;
-        self.block = None;
-        self.roll = None;
-        self.dodge_cd = 0.0;
-        self.last_pos = None;
     }
-}
-
-fn inflate(r: Rect, by: f32) -> Rect {
-    Rect::new(r.x - by, r.y - by, r.w + 2.0 * by, r.h + 2.0 * by)
 }
 
 /// Decays a knockback velocity; returns the movement for this frame (`u` = art pixel size).
@@ -216,6 +196,7 @@ impl Game {
         self.prepare_world();
         self.inv = Default::default();
         self.combat.reset();
+        self.fight = None;
         self.runner.clear();
         self.ui = super::Ui::default();
         self.cache.clear();
@@ -234,6 +215,7 @@ impl Game {
             e.invuln = (e.invuln - dt).max(0.0);
             e.flash = (e.flash - dt).max(0.0);
             e.hurt = (e.hurt - dt).max(0.0);
+            e.strike = (e.strike - dt).max(0.0);
             // The bar's lost part waits a moment, then drains to the HP left.
             let frac = if e.max_hp > 0 { e.hp.max(0) as f32 / e.max_hp as f32 } else { 0.0 };
             if e.bar < super::juice::BAR_TIME - 0.3 {
@@ -246,57 +228,28 @@ impl Game {
             fx.1 += dt;
         }
         self.effects.retain(|fx| fx.1 < EFFECT_TIME);
-        if !self.combat.enabled() || frozen {
+        // In a fight the turns take the input (`turns/`).
+        if !self.combat.enabled() || frozen || self.fight.is_some() {
             return;
         }
         if !key_consumed && input::act_pressed(input::Act::SwitchWeapon) {
             self.cycle_weapon();
         }
-        self.update_defense(dt, key_consumed);
         self.update_sneak(key_consumed);
-        // (Options › Accessibility › Hold to repeat: holding Attack keeps attacking, at the weapon's pace.)
+        // (Options › Accessibility › Hold to repeat: holding Attack keeps swinging at a tree or a vein.)
         let attack = input::act_pressed(input::Act::Attack) || (self.settings.hold_repeat && input::act_down(input::Act::Attack));
-        if !key_consumed && self.combat.cooldown <= 0.0 && !self.blocking() && !self.rolling() && attack {
+        if !key_consumed && self.combat.cooldown <= 0.0 && attack {
             self.order = None;
             self.attack_at(None);
         }
-        self.enemy_shooting(dt);
-        self.update_attacks(dt);
-        self.companion_contact_damage();
-        // Contact damage from hostile characters that don't attack in their own way (armed ones
-        // swing, unarmed chasers lunge: `attacks.rs`).
-        if self.combat.invuln <= 0.0 {
-            let me = inflate(self.player.rect(), 1.0);
-            // Stunned characters don't hurt; strength / weakness change the damage.
-            let hit = self
-                .loaded
-                .entities
-                .iter()
-                .position(|e| e.active && e.hostile && e.damage > 0 && !e.ai.harmless() && crate::srd::conditions::can_act(&e.effects) && !crate::srd::conditions::has(&e.effects, crate::srd::Condition::Charmed) && e.body.rect().overlaps(&me) && super::attacks::kind_of(e.weapon.as_ref(), e.damage, &e.behavior).is_none());
-            if let Some(i) = hit {
-                let e = &self.loaded.entities[i];
-                let (dmg, from) = (e.damage, e.body.pos);
-                match self.guard_against(from) {
-                    super::defense::Guard::Open => {
-                        if let Some(fx) = self.touch_effect(i) {
-                            self.apply_player_effect(&fx);
-                        }
-                        self.hurt_player(dmg, from);
-                    }
-                    g => {
-                        self.blocked(g, from, None);
-                        self.combat.invuln = HURT_INVULN / 2.0;
-                    }
-                }
-            }
-        }
     }
 
-    /// Attacks with the equipped weapon (or bare hands). `aim` (world point) sets the
-    /// direction; otherwise the player's facing is used.
+    /// Attack outside a fight: a hostile character near and in sight starts one (the hero struck
+    /// first: those that hadn't noticed them are surprised); otherwise a swing at a gathering
+    /// prop in reach (trees, veins). `aim` (world point) sets the direction.
     pub(super) fn attack_at(&mut self, aim: Option<Vec2>) {
         // Both hands on the rungs.
-        if !self.combat.enabled() || self.combat.cooldown > 0.0 || self.player_stunned() || self.climbing() {
+        if !self.combat.enabled() || self.combat.cooldown > 0.0 || self.player_stunned() || self.climbing() || self.fight.is_some() {
             return;
         }
         // Charmed: the hero won't attack.
@@ -309,101 +262,55 @@ impl Game {
             self.combat.cooldown = 0.5;
             return;
         }
+        if self.hostile_in_sight(ATTACK_SIGHT) && self.start_combat(true) {
+            return;
+        }
         let weapon = self.attack_weapon();
-        let damage = weapon.damage;
-        if damage <= 0 {
-            return;
-        }
         let cooldown = weapon.cooldown.max(0.05);
-        if let Some(r) = weapon.ranged.clone() {
-            if !r.ammo.is_empty() {
-                if self.world.item_count(&r.ammo) == 0 {
-                    let ammo = self.project.db.item(&r.ammo).map_or(r.ammo.clone(), |d| d.name.clone());
-                    self.ui.toast(format!("Out of {ammo}!"));
-                    self.combat.cooldown = 0.5;
-                    return;
-                }
-                self.world.take_item(&r.ammo, 1);
-            }
-            let origin = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0 + 2.0);
-            let dir = match aim {
-                Some(t) => (t - origin).try_normalize().unwrap_or(vec2(1.0, 0.0)),
-                None => Vec2::from(self.player.facing.dir()),
-            };
-            self.combat.cooldown = cooldown;
-            self.start_strike(cooldown);
-            self.audio.play(&self.project.config.sfx.attack);
-            let crit = self.roll_crit(weapon.crit);
-            self.shoot(origin, dir, &r, if crit { damage * 2 } else { damage }, true, None, weapon.effect.clone(), weapon.damage_type);
-            if let Some(p) = self.projectiles.last_mut() {
-                p.crit = crit;
-            }
-            return;
-        }
-        // Melee: everything within reach inside the swing arc.
         let ts = self.ts();
         let center = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
-        let dir = aim
-            .and_then(|t| (t - center).try_normalize())
-            .unwrap_or_else(|| Vec2::from(self.player.facing.dir()));
+        let dir = aim.and_then(|t| (t - center).try_normalize()).unwrap_or_else(|| Vec2::from(self.player.facing.dir()));
         if let Some(f) = Facing::from_vec(dir.x, dir.y) {
             self.player.facing = f;
         }
-        let reach = weapon.reach.max(0.3) * ts;
-        let arc = weapon.arc.clamp(5.0, 180.0).to_radians();
         self.combat.cooldown = cooldown;
         self.start_strike(cooldown);
+        self.audio.play(&self.project.config.sfx.attack);
+        if weapon.ranged.is_some() {
+            return;
+        }
+        let reach = weapon.reach.max(0.3) * ts;
+        let arc = weapon.arc.clamp(5.0, 180.0).to_radians();
         self.combat.swing = SWING_TIME;
         self.combat.swing_dir = dir;
         self.combat.swing_reach = reach;
         self.combat.swing_arc = arc;
-        self.audio.play(&self.project.config.sfx.attack);
-        let targets: Vec<usize> = (0..self.loaded.entities.len())
-            .filter(|&i| {
-                let e = &self.loaded.entities[i];
-                // Only hostile characters (never companions or other friendly characters).
-                if !(e.active && e.hostile && e.max_hp > 0 && e.invuln <= 0.0) {
-                    return false;
-                }
-                let to = (e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0)) - center;
-                let radius = e.body.hitbox.x.max(e.body.hitbox.y) / 2.0 + 2.0;
-                // Touching enemies are always hit; others must be in range and inside the arc.
-                to.length() < ts * 0.5 || (to.length() - radius <= reach && to.angle_between(dir).abs() <= arc)
-            })
-            .collect();
-        let from = self.player.pos;
-        // No enemy in the swing: a gathering prop in it takes a hit (veins, trees).
-        if targets.is_empty() {
-            let prop = (0..self.loaded.entities.len()).filter(|&i| self.loaded.entities[i].kind == crate::entity::EntityKind::Prop && self.loaded.entities[i].active).find(|&i| {
-                let e = &self.loaded.entities[i];
-                let to = (e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0)) - center;
-                let radius = e.body.hitbox.x.max(e.body.hitbox.y) / 2.0 + 2.0;
-                self.project.db.prop(&e.def).is_some_and(|d| d.gather.is_some()) && (to.length() < ts * 0.5 || (to.length() - radius <= reach && to.angle_between(dir).abs() <= arc))
-            });
-            if let Some(i) = prop {
-                self.gather_hit(i);
-            }
-        }
-        for i in targets {
-            if let Some(fx) = &weapon.effect {
-                self.apply_entity_effect(i, fx);
-            }
-            let crit = self.roll_crit(weapon.crit);
-            let (dmg, sneak) = self.sneak_attack(i, if crit { damage * 2 } else { damage });
-            let attacker = Some(self.player.pos);
-            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit: crit || sneak, attacker, damage_type: weapon.damage_type, ..Default::default() });
+        // A gathering prop in the swing takes a hit (veins, trees).
+        let prop = (0..self.loaded.entities.len()).filter(|&i| self.loaded.entities[i].kind == crate::entity::EntityKind::Prop && self.loaded.entities[i].active).find(|&i| {
+            let e = &self.loaded.entities[i];
+            let to = (e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0)) - center;
+            let radius = e.body.hitbox.x.max(e.body.hitbox.y) / 2.0 + 2.0;
+            self.project.db.prop(&e.def).is_some_and(|d| d.gather.is_some()) && (to.length() < ts * 0.5 || (to.length() - radius <= reach && to.angle_between(dir).abs() <= arc))
+        });
+        if let Some(i) = prop {
+            self.gather_hit(i);
         }
     }
 
-    /// Whether a melee swing with the current weapon would reach entity `i` (for mouse attacks).
-    pub(super) fn melee_reaches(&self, i: usize) -> bool {
-        let ts = self.ts();
-        let w = self.attack_weapon();
+    /// A click on hostile character `i` starts a fight from here: near enough and in sight.
+    pub(super) fn starts_fight_with(&self, i: usize) -> bool {
         let e = &self.loaded.entities[i];
-        let center = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
-        let to = (e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0)) - center;
-        let radius = e.body.hitbox.x.max(e.body.hitbox.y) / 2.0 + 2.0;
-        to.length() - radius <= w.reach.max(0.3) * ts * 0.9
+        let eye = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
+        e.body.pos.distance(self.player.pos) <= ATTACK_SIGHT * self.ts() && self.line_clear(eye, e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0))
+    }
+
+    /// A hostile character that can fight within `tiles` and in a clear line.
+    pub(super) fn hostile_in_sight(&self, tiles: f32) -> bool {
+        let ts = self.ts();
+        let eye = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
+        self.loaded.entities.iter().any(|e| {
+            e.active && e.hostile && e.max_hp > 0 && e.hp > 0 && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) <= tiles * ts && self.line_clear(eye, e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0))
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -422,6 +329,7 @@ impl Game {
             crit: false,
             at_player: true,
             faction: None,
+            visual: false,
         });
         // Another character's shot: whom it may hit follows from its shooter.
         if let Some(e) = shooter.filter(|_| !from_player).and_then(|uid| self.loaded.entities.iter().find(|e| e.uid == uid)) {
@@ -433,63 +341,14 @@ impl Game {
         }
     }
 
-    /// Hostile characters with a ranged weapon shoot when the player is in range and in sight.
-    fn enemy_shooting(&mut self, dt: f32) {
-        let ts = self.ts();
-        // How fast the player moves (a jump of more than a few tiles is a teleport, not a step).
-        if dt > 0.0 {
-            let c = &mut self.combat;
-            let v = c.last_pos.map_or(Vec2::ZERO, |p| (self.player.pos - p) / dt);
-            c.vel = if v.length() > 30.0 * ts { Vec2::ZERO } else { c.vel.lerp(v, (dt * 8.0).min(1.0)) };
-            c.last_pos = Some(self.player.pos);
-        }
-        let player = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
-        // The player and companions that can be hurt (for shooters hostile to them), and the
-        // character of a hostile faction a shooter goes for: each aims at the nearest in sight.
-        let mut player_side = vec![player];
-        player_side.extend(self.companion_targets().into_iter().map(|(_, p)| p));
-        let mut shots = Vec::new();
-        for i in 0..self.loaded.entities.len() {
-            if !self.fights(i) {
-                continue;
-            }
-            let mut aims: Vec<Vec2> = if self.loaded.entities[i].hostile { player_side.clone() } else { Vec::new() };
-            if let Some(super::ai::Foe::Npc(uid)) = self.loaded.entities[i].ai.target {
-                if let Some(o) = self.loaded.entities.iter().find(|o| o.uid == uid && o.active && o.hp > 0) {
-                    aims.push(o.body.pos - vec2(0.0, o.body.hitbox.y / 2.0));
-                }
-            }
-            let e = &mut self.loaded.entities[i];
-            if !e.active || e.ai.harmless() || !crate::srd::conditions::can_act(&e.effects) {
-                continue;
-            }
-            let Some(w) = &e.weapon else { continue };
-            let Some(r) = &w.ranged else { continue };
-            e.attack_cd -= dt;
-            if e.attack_cd > 0.0 || e.knock != Vec2::ZERO {
-                continue;
-            }
-            let origin = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0 + 2.0);
-            let range = r.range * ts;
-            let (r, dmg, uid, cd, fx) = (r.clone(), w.damage, e.uid, w.cooldown, (w.effect.clone(), w.damage_type));
-            let mut near: Vec<Vec2> = aims.iter().copied().filter(|a| origin.distance(*a) <= range).collect();
-            near.sort_by(|a, b| origin.distance(*a).total_cmp(&origin.distance(*b)));
-            let Some(target) = near.into_iter().find(|a| self.line_clear(origin, *a)) else { continue };
-            // A moving player: aim a little ahead (most of the way to where they'll be when it arrives).
-            let aim = if target == player && r.speed > 0.0 { target + self.combat.vel * (origin.distance(target) / r.speed) * LEAD } else { target };
-            let e = &mut self.loaded.entities[i];
-            e.attack_cd = cd.max(0.3) + rand::gen_range(0.0, 0.6);
-            let dir = (aim - origin).normalize_or_zero();
-            e.body.facing = Facing::from_vec(dir.x, dir.y).unwrap_or(e.body.facing);
-            shots.push((origin, dir, r, dmg, uid, fx));
-        }
-        for (origin, dir, r, dmg, uid, fx) in shots {
-            self.audio.play(&self.project.config.sfx.attack);
-            self.shoot(origin, dir, &r, dmg, false, Some(uid), fx.0, fx.1);
-        }
+    /// A fight's shot or bolt flying from `from` to `to` (only its look).
+    pub(super) fn fly_visual(&mut self, from: Vec2, to: Vec2, sprite: SpriteRef) {
+        let d = to - from;
+        let dir = d.try_normalize().unwrap_or(vec2(1.0, 0.0));
+        let speed = 14.0 * self.ts();
+        self.projectiles.push(Projectile { pos: from, vel: dir * speed, dist_left: d.length(), traveled: 0.0, damage: 0, from_player: false, shooter: None, sprite, effect: None, damage_type: None, crit: false, at_player: false, faction: None, visual: true });
     }
 
-    /// Moves projectiles in small steps; they stop at walls and hit the first target.
     pub(super) fn update_projectiles(&mut self, dt: f32) {
         let ts = self.ts();
         let companions = self.companion_targets();
@@ -512,6 +371,9 @@ impl Game {
                 }
                 let hit_box = Rect::new(pos.x - 2.0, pos.y - 2.0, 4.0, 4.0);
                 let p = &self.projectiles[i];
+                if p.visual {
+                    continue;
+                }
                 if p.from_player {
                     let target = self.loaded.entities.iter().position(|e| {
                         e.active && e.hostile && e.max_hp > 0 && e.invuln <= 0.0 && Some(e.uid) != p.shooter && {
@@ -576,20 +438,13 @@ impl Game {
                         }
                         let r = self.player.rect();
                         let body = Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8);
-                        // A rolling player lets arrows fly past; a raised shield stops them from the front.
-                        if body.overlaps(&hit_box) && !self.rolling() {
+                        if body.overlaps(&hit_box) {
                             let (dmg, from, fx, damage_type) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect.clone(), p.damage_type);
-                            match self.guard_against(pos - p.vel.normalize_or_zero() * ts * 2.0) {
-                                super::defense::Guard::Open => {
-                                    if self.combat.invuln <= 0.0 {
-                                        if let Some(fx) = fx {
-                                            self.apply_player_effect(&fx);
-                                        }
-                                        self.hurt_player_by(dmg, from, damage_type);
-                                    }
+                            if self.combat.invuln <= 0.0 {
+                                if let Some(fx) = fx {
+                                    self.apply_player_effect(&fx);
                                 }
-                                // (No parry: there is nobody within reach to stun.)
-                                _ => self.blocked(super::defense::Guard::Blocked, from, None),
+                                self.hurt_player_by(dmg, from, damage_type);
                             }
                             alive = false;
                             break;
@@ -622,11 +477,6 @@ impl Game {
         }
     }
 
-    /// A spark where something hit (a wall, a shield).
-    pub(super) fn add_impact(&mut self, at: Vec2) {
-        self.effects.push((at, 0.0));
-    }
-
     /// Applies damage (minus the target's defense, at least 1) with knockback.
     pub(super) fn damage_entity(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32) {
         self.strike_entity(i, dmg, from, knockback, Blow::default());
@@ -635,6 +485,13 @@ impl Game {
     /// [`Self::damage_entity`] with what dealt the blow: the player's own hits pause the world a
     /// moment (longer for a critical hit or a kill), critical ones shake it a little.
     pub(super) fn strike_entity(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32, blow: Blow) {
+        // In a fight: the turns' damage (death saves, the order).
+        let uid = self.loaded.entities[i].uid;
+        if self.fighting(uid) {
+            let by = blow.by_player.then_some(super::turns::Who::Player);
+            self.combat_damage(super::turns::Who::Npc(uid), dmg, blow.damage_type, blow.crit, by);
+            return;
+        }
         let (u, ts) = (self.u(), self.ts());
         // Its damage type against its stat block's resistances (immune: nothing), and a helpless
         // target (paralyzed, unconscious) takes a critical hit.
@@ -685,11 +542,8 @@ impl Game {
         };
         let (head, killed) = (e.body.pos - vec2(0.0, ts * 1.1), e.hp <= 0);
         self.damage_number(head, hit, kind);
-        if blow.by_player {
-            self.hit_stop(blow.crit || killed);
-            if blow.crit {
-                self.shake_screen(0.12, 0.6);
-            }
+        if blow.by_player && blow.crit {
+            self.shake_screen(0.12, 0.6);
         }
         if let Some(at) = blow.attacker.filter(|_| !killed) {
             self.notice_attack(i, at);
@@ -795,8 +649,12 @@ impl Game {
     /// [`Self::hurt_player`] with a damage type: the hero's resistances halve it (an immunity:
     /// nothing).
     pub(super) fn hurt_player_by(&mut self, dmg: i32, from: Vec2, damage_type: Option<crate::srd::DamageType>) {
-        // A dodge roll gets through anything.
-        if !self.combat.enabled() || self.game_over.is_some() || self.rolling() {
+        if !self.combat.enabled() || self.game_over.is_some() {
+            return;
+        }
+        // In a fight: the turns' damage (0 HP = unconscious and death saves).
+        if self.fight.is_some() {
+            self.combat_damage(super::turns::Who::Player, dmg, damage_type, false, None);
             return;
         }
         let dmg = self.player_defenses().apply(dmg, damage_type);
@@ -829,6 +687,7 @@ impl Game {
 
     /// The player's HP reached 0: the game-over screen, then the defeat menu.
     pub(super) fn player_defeated(&mut self) {
+        self.fight = None;
         self.game_over = Some(0.0);
         self.runner.clear();
         self.audio.stop_music();
@@ -847,6 +706,11 @@ impl Game {
         }
         let amount = self.heal_hook("player", amount);
         if amount <= 0 {
+            return;
+        }
+        if self.fight.is_some() {
+            self.combat_heal(super::turns::Who::Player, amount);
+            self.ui.toast(format!("+{amount} HP"));
             return;
         }
         let hp = (self.hp() + amount).min(self.player_max_hp());
@@ -884,7 +748,7 @@ impl Game {
     // ------------------------------------------------------------ drawing
 
     /// Starts the player's attack animation for a weapon with `cooldown` seconds between attacks.
-    fn start_strike(&mut self, cooldown: f32) {
+    pub(super) fn start_strike(&mut self, cooldown: f32) {
         let len = cooldown.clamp(0.3, 0.6);
         (self.combat.strike, self.combat.strike_len) = (len, len);
     }
@@ -1056,22 +920,6 @@ impl Game {
         let tw = measure_text(&hp_text, None, 16, 1.0).width;
         draw_text(&hp_text, tx + (hp_w - tw) / 2.0 + 1.0, y + HEART - 1.0, 16.0, Color::new(0.0, 0.0, 0.0, 0.8));
         draw_text(&hp_text, tx + (hp_w - tw) / 2.0, y + HEART - 2.0, 16.0, WHITE);
-        // The dodge pip after the bar (lit = ready, filling while it recovers), and a shield
-        // while it is raised.
-        {
-            let (px, py, r) = (tx + hp_w + 12.0, y + HEART / 2.0 + 1.0, HEART * 0.32);
-            let ready = self.combat.dodge_cd <= 0.0;
-            draw_circle(px, py, r, Color::new(0.1, 0.1, 0.15, 0.9));
-            let fill = if ready { 1.0 } else { 1.0 - (self.combat.dodge_cd / 1.3).clamp(0.0, 1.0) };
-            draw_circle(px, py, r * fill, if ready { Color::new(0.55, 0.85, 1.0, 1.0) } else { Color::new(0.35, 0.5, 0.65, 1.0) });
-            draw_circle_lines(px, py, r, 1.0, Color::new(0.85, 0.72, 0.38, 1.0));
-            if self.blocking() {
-                let sx = px + r + 6.0;
-                let sh = HEART * 0.9;
-                draw_triangle(vec2(sx, py - sh / 2.0), vec2(sx + sh * 0.8, py - sh / 2.0), vec2(sx + sh * 0.4, py + sh / 2.0), Color::new(0.6, 0.85, 1.0, 1.0));
-                draw_rectangle(sx, py - sh / 2.0, sh * 0.8, sh * 0.35, Color::new(0.6, 0.85, 1.0, 1.0));
-            }
-        }
         y += HEART + 6.0;
 
         // Status effects: a badge each, with the seconds left.

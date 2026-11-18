@@ -11,7 +11,7 @@ use crate::script_refs::IdKind;
 
 /// The script API's version: the engine's MAJOR.MINOR. Plugins name the version they need
 /// (`PluginDef::api`); a plugin needing a newer one isn't loaded.
-pub const API_VERSION: &str = "0.28";
+pub const API_VERSION: &str = "0.29";
 
 /// What a function argument expects (drives completion inside string arguments).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -225,6 +225,9 @@ pub const API: &[ApiFn] = api! {
     [since "0.28"] "short_rest"() "Opens the rest window: the hero spends hit dice (d10 + CON each), an hour passes (queued)";
     [since "0.28"] "long_rest"() "A long rest of 8 hours: full HP, half the hit dice back, one level of exhaustion less, timed conditions over (queued)";
     [since "0.28"] "long_rest"(hours: Num) "Like long_rest(), for some hours (queued)";
+    [since "0.29"] "start_combat"() "Starts a turn-based fight with the hostile characters within 12 tiles of the player; their allies and the party join (queued)";
+    [since "0.29"] "in_combat"() "Whether a turn-based fight is going on";
+    [since "0.29"] "combat_round"() "The round of the fight going on (1 = the first; 0 = no fight)";
     [deprecated "apply_condition(target, condition, seconds, options)"] "apply_effect"(target: Target, effect: Effect, strength: Num, seconds: Num) "Deprecated: use apply_condition. The status effects of 0.27 as conditions: \"poison\" = poisoned + poison damage per round, \"burn\" = fire damage per round, \"regen\" = healing per round (strength x 6 per round), \"stun\" = stunned, \"slow\" = restrained; \"haste\", \"strength\", \"weakness\", \"shield\" do nothing (queued)";
     [deprecated "remove_condition(target, condition)"] "cure"(target: Target, effect: Effect) "Deprecated: use remove_condition. Ends a condition, e.g. cure(\"player\", \"poison\") (queued)";
     [deprecated "remove_condition(target, \"all\")"] "cure"(target: Target) "Deprecated: use remove_condition. Ends every condition (queued)";

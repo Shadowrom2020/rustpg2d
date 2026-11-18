@@ -879,7 +879,7 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
     if character && ui.checkbox(&mut on, "Shoots projectiles").changed() {
         *w = on.then(|| {
             if character {
-                Weapon::ranged(1, 1.5, Ranged { projectile: SpriteRef::default(), speed: 360.0, range: 6.0, ammo: String::new() })
+                Weapon::ranged(1, 1.5, Ranged { projectile: SpriteRef::default(), speed: 360.0, range: 6.0, ammo: String::new(), long_range: 0.0 })
             } else {
                 Weapon::melee(1, 0.4)
             }
@@ -887,15 +887,26 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
     }
     let Some(w) = w else { return };
     egui::Grid::new(format!("{id}/grid")).num_columns(2).show(ui, |ui| {
-        ui.label("Damage");
+        ui.label("Damage dice");
         ui.horizontal(|ui| {
-            ui.add(egui::DragValue::new(&mut w.damage).range(0..=999));
+            let hint = Weapon::melee(w.damage, 1.0).damage_dice();
+            ui.add(egui::TextEdit::singleline(&mut w.dice).desired_width(70.0).hint_text(hint)).on_hover_text("The SRD's damage dice of the weapon (1d6, 1d8, 2d6); the attacker's STR (melee) or DEX (ranged) modifier is added. Empty = from the old damage value: 1 = 1d4, 2 = 1d6, 3 = 1d8, 4 = 1d10, 5+ = 1d12.");
             widgets::damage_type_combo(ui, &format!("{id}/dt"), &mut w.damage_type, "untyped");
             ui.weak("(the type: resistances halve it, immunities stop it)");
         });
         ui.end_row();
-        ui.label("Cooldown (s)");
-        ui.add(egui::DragValue::new(&mut w.cooldown).range(0.05..=10.0).speed(0.05));
+        if !w.dice.trim().is_empty() {
+            if let Err(e) = rustpg2d_engine::srd::Expr::parse(&w.dice) {
+                ui.label("");
+                ui.colored_label(egui::Color32::from_rgb(230, 120, 90), e);
+                ui.end_row();
+            }
+        }
+        ui.label("Old damage");
+        ui.add(egui::DragValue::new(&mut w.damage).range(0..=999)).on_hover_text("The damage of 0.28 and older (scripted damage outside fights, and the dice when Damage dice is empty)");
+        ui.end_row();
+        ui.label("Swing time (s)");
+        ui.add(egui::DragValue::new(&mut w.cooldown).range(0.05..=10.0).speed(0.05)).on_hover_text("Outside fights: how long a swing at a tree or a vein takes");
         ui.end_row();
         if !character {
             ui.label("Type");
@@ -904,7 +915,7 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
                 ui.radio_value(&mut ranged, false, "Melee (swing)");
                 ui.radio_value(&mut ranged, true, "Ranged (projectiles)");
                 if ranged != w.ranged.is_some() {
-                    w.ranged = ranged.then(|| Ranged { projectile: SpriteRef::default(), speed: 440.0, range: 8.0, ammo: String::new() });
+                    w.ranged = ranged.then(|| Ranged { projectile: SpriteRef::default(), speed: 440.0, range: 8.0, ammo: String::new(), long_range: 0.0 });
                 }
             });
             ui.end_row();
@@ -925,13 +936,9 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
             ui.checkbox(&mut w.two_handed, "Two-handed").on_hover_text("Nothing can be held in the left hand (shield, lantern) while this weapon is equipped");
             ui.end_row();
             ui.label("Critical hits");
-            let mut pct = (w.crit * 100.0).round() as i32;
-            if ui
-                .add(egui::DragValue::new(&mut pct).range(0..=100).suffix(" %"))
-                .on_hover_text("Chance that a hit of the player's with this weapon is critical: double damage, a big yellow number. 0 = never.")
-                .changed()
-            {
-                w.crit = pct as f32 / 100.0;
+            let mut keen = w.crit >= 0.1;
+            if ui.checkbox(&mut keen, "On a 19 or 20").on_hover_text("A keen weapon: a natural 19 is a critical hit too (else only a 20); a critical hit rolls the damage dice twice").changed() {
+                w.crit = if keen { 0.1 } else { 0.0 };
             }
             ui.end_row();
         }
@@ -940,7 +947,10 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
             ui.add(egui::DragValue::new(&mut r.speed).range(10.0..=2000.0));
             ui.end_row();
             ui.label("Range (tiles)");
-            ui.add(egui::DragValue::new(&mut r.range).range(0.5..=64.0).speed(0.1));
+            ui.add(egui::DragValue::new(&mut r.range).range(0.5..=64.0).speed(0.1)).on_hover_text("Normal range (a tile = 5 ft); farther shots up to the long range have disadvantage");
+            ui.end_row();
+            ui.label("Long range (tiles)");
+            ui.add(egui::DragValue::new(&mut r.long_range).range(0.0..=128.0).speed(0.1)).on_hover_text("The farthest a shot reaches, with disadvantage beyond the range (0 = twice the range)");
             ui.end_row();
             if !character {
                 ui.label("Ammo item");
@@ -1883,13 +1893,13 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             ui.label("Keep distance");
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(keep_distance).range(0.0..=64.0).speed(0.1).suffix(" tiles"))
-                    .on_hover_text("Shooters (ranged weapon): back off when the player comes closer than this. 0 = they only stop coming closer once the player is well within range.");
+                    .on_hover_text("Shooters (ranged weapon), when they go for a character of a hostile faction outside fights: they back off when it comes closer than this. In fights shooters keep within their range and away from melee.");
                 ui.weak("(shooters)");
             });
             ui.end_row();
             ui.label("Group");
             ui.checkbox(group, "Fights as a group").on_hover_text(
-                "At most two group fighters close in on the player (or a companion) at a time; the others circle at a distance and step in when one falls back. They spread out instead of stacking up, and the badly hurt run to their allies, catch their breath and come back.",
+                "Outside fights: they spread out instead of stacking up, and the badly hurt run to their allies, catch their breath and come back.",
             );
             ui.end_row();
             ui.label("Alert");
@@ -1906,22 +1916,17 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     ui.heading("Combat");
     egui::Grid::new("chr_combat").num_columns(2).show(ui, |ui| {
         ui.label("Max HP");
-        ui.add(egui::DragValue::new(&mut d.max_hp).range(0..=999)).on_hover_text("0 = can't be damaged");
+        ui.add(egui::DragValue::new(&mut d.max_hp).range(0..=999)).on_hover_text("0 = can't be damaged (and doesn't fight). With a stat block its hit points are the stat block's.");
         ui.end_row();
         ui.label("Damage");
-        ui.add(egui::DragValue::new(&mut d.damage).range(0..=999));
+        ui.add(egui::DragValue::new(&mut d.damage).range(0..=999)).on_hover_text("Without attacks in its stat block, its attack's dice come from this (1 = 1d4, 2 = 1d6, 3 = 1d8, 4 = 1d10, 5+ = 1d12), or from its weapon");
         ui.end_row();
         ui.label("Defense");
-        ui.add(egui::DragValue::new(&mut d.defense).range(-99..=99)).on_hover_text("Subtracted from incoming damage (at least 1 always gets through). Player: base defense before armor.");
+        ui.add(egui::DragValue::new(&mut d.defense).range(-99..=99)).on_hover_text("Without a stat block its armor class is 10 + this. Outside fights it is subtracted from damage (scripts, traps).");
         ui.end_row();
         ui.label("Hostile");
         ui.checkbox(&mut d.hostile, "attacks the player").on_hover_text(
-            "With a melee weapon (its equipment) it winds up and swings it; unarmed and chasing it crouches and lunges; with a ranged weapon it shoots; otherwise it hurts by touch. With a faction it leaves players alone who are friends of that faction (standing 20 or more); without 'Hostile' it attacks when the player's standing is -20 or below.",
-        );
-        ui.end_row();
-        ui.label("Attack wind-up");
-        ui.add(egui::DragValue::new(&mut d.windup).range(0.0..=3.0).speed(0.01).suffix(" s")).on_hover_text(
-            "How long it winds up before a weapon swing or a lunge: the time the player has to step out of the way. 0 = standard (0.4 s swing, 0.3 s lunge).",
+            "When it notices the player or a companion, a turn-based fight starts; it attacks with its stat block's attacks (else its weapon or Damage). With a faction it leaves players alone who are friends of that faction (standing 20 or more); without 'Hostile' it attacks when the player's standing is -20 or below.",
         );
         ui.end_row();
         ui.label("As companion");
@@ -1931,7 +1936,7 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
         ui.label("Magic (companion)");
         ui.horizontal(|ui| {
             ui.add(egui::DragValue::new(&mut d.max_mana).range(0..=999).prefix("mana "))
-                .on_hover_text("0 = it can't learn spells. With mana, a companion learns the Heal and Bolt spells of scrolls and spell books the player gives it (or 'Teach spell') and casts them: Heal on whoever is badly hurt, Bolt at its enemy.");
+                .on_hover_text("0 = it can't learn spells. With mana, a companion learns the Heal spells of scrolls and spell books the player gives it (or 'Teach spell') and casts them on whoever is badly hurt between fights.");
             ui.add(egui::DragValue::new(&mut d.mana_regen).range(0.0..=50.0).speed(0.05).suffix(" /s")).on_hover_text("Mana it regains per second");
         });
         ui.end_row();
@@ -1940,19 +1945,19 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             .on_hover_text("What the player gains for defeating this character (Project › Experience and levels must be on). 'Defeat all enemies' gives none.");
         ui.end_row();
     });
-    ui.weak("For the player character, a Max HP above 0 turns combat on (the hero's own HP follow the SRD rules: the hit die, CON and the level), and Damage is the bare-handed attack strength. Defeated characters fire 'Defeated' triggers.");
+    ui.weak("For the player character, a Max HP above 0 turns combat on (the hero's own HP follow the SRD rules: the hit die, CON and the level), and Damage is the bare-handed attack's (1 = 1d4 + STR). Defeated characters fire 'Defeated' triggers; 'Fight starts' / 'Fight ends' triggers run when it fights.");
     widgets::optional_effect_ui(
         ui,
         "chr_touch_fx",
         "On touch:",
-        "A status effect its touch gives the player along with the contact damage (hostile characters), e.g. a poisonous slime. Without one, a melee weapon it holds gives that weapon's effect.",
+        "A condition its melee hits give in fights (hostile characters), e.g. a poisonous slime. Without one, a melee weapon it holds gives that weapon's effect.",
         &mut d.touch_effect,
     );
-    ui.label("Ranged attack (hostile characters shoot at the player when in range and in sight):");
+    ui.label("Ranged attack (without attacks in its stat block it shoots with this in fights):");
     weapon_ui(ui, "chr_weapon", &mut d.weapon, cx, true);
     ui.separator();
     ui.heading("Stat block (SRD 5.1)");
-    ui.weak("What it is by the rules: abilities, armor class, hit points, challenge. Shown to scripts (npc_stat) and the game's status; real-time combat still uses Max HP, Damage and Defense above. A placed character can have its own (the map's inspector).");
+    ui.weak("What it is by the rules: abilities, armor class, hit points, attacks, challenge. Turn-based fights use it (its hit points replace Max HP when that is above 0); scripts read it (npc_stat). A placed character can have its own (the map's inspector).");
     stat_block_ui(ui, "chr_stats", &mut d.stats, Some(&mut d.xp));
     ui.separator();
     ui.heading("Loot");
@@ -3070,6 +3075,9 @@ fn material_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::ground::MaterialDef
                     }
                 });
                 ui.end_row();
+                ui.label("In fights");
+                ui.checkbox(&mut d.difficult, "Difficult terrain").on_hover_text("A step onto it costs double movement in turn-based fights (mud, deep snow, shallow water, rubble)");
+                ui.end_row();
                 ui.label("Footsteps").on_hover_text("Sound played for each step on it (empty: none).");
                 widgets::suggest(ui, "material_step", &mut d.step, &cx.refs.sounds, 200.0);
                 ui.end_row();
@@ -3489,6 +3497,52 @@ pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_
             toggle(ui, id.to_string(), name.to_string());
         }
     });
+    stat_attacks_ui(ui, salt, s);
+}
+
+/// A stat block's attacks in fights (name, attack bonus, damage dice and type, melee reach or a
+/// range) and how many it makes with its Attack action (Multiattack).
+fn stat_attacks_ui(ui: &mut egui::Ui, salt: &str, s: &mut rustpg2d_engine::srd::StatBlock) {
+    ui.horizontal(|ui| {
+        ui.label("Attacks").on_hover_text("What it attacks with in fights. Without any it attacks with its weapon or its old damage (+2).");
+        ui.label("per turn");
+        ui.add(egui::DragValue::new(&mut s.multiattack).range(0..=6)).on_hover_text("Multiattack: how many attacks its Attack action makes (0 or 1 = one)");
+    });
+    let mut remove = None;
+    egui::Grid::new((salt, "attacks")).num_columns(7).show(ui, |ui| {
+        if !s.attacks.is_empty() {
+            for h in ["Name", "Bonus", "Damage", "Type", "Reach", "Range", ""] {
+                ui.weak(h);
+            }
+            ui.end_row();
+        }
+        for (k, a) in s.attacks.iter_mut().enumerate() {
+            ui.add(egui::TextEdit::singleline(&mut a.name).desired_width(90.0).hint_text("Scimitar"));
+            ui.add(egui::DragValue::new(&mut a.bonus).range(-5..=20).prefix("+")).on_hover_text("The attack roll's bonus (ability modifier + proficiency)");
+            let bad = !a.dice.trim().is_empty() && rustpg2d_engine::srd::Expr::parse(&a.dice).is_err();
+            let r = ui.add(egui::TextEdit::singleline(&mut a.dice).desired_width(64.0).hint_text("1d6+2"));
+            if bad {
+                r.on_hover_text("Not a dice expression (like 1d6+2)");
+            }
+            widgets::damage_type_combo(ui, &format!("{salt}/at{k}"), &mut a.damage_type, "untyped");
+            ui.add(egui::DragValue::new(&mut a.reach_ft).range(0..=30).suffix(" ft").speed(5.0)).on_hover_text("Melee reach (5 ft = next to it; 0 = no melee)");
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(&mut a.range_ft).range(0..=600).suffix(" ft").speed(5.0)).on_hover_text("Normal range of a ranged attack (0 = none)");
+                ui.label("/");
+                ui.add(egui::DragValue::new(&mut a.long_ft).range(0..=1200).suffix(" ft").speed(5.0)).on_hover_text("Long range: farther shots have disadvantage");
+            });
+            if ui.small_button(ph::TRASH).on_hover_text("Remove the attack").clicked() {
+                remove = Some(k);
+            }
+            ui.end_row();
+        }
+    });
+    if let Some(k) = remove {
+        s.attacks.remove(k);
+    }
+    if ui.button(crate::ui::t(ph::PLUS, "Add attack")).clicked() {
+        s.attacks.push(rustpg2d_engine::srd::StatAttack { name: "Attack".into(), bonus: 2, dice: "1d6".into(), reach_ft: 5, ..Default::default() });
+    }
 }
 
 /// The 13 damage types as toggles, for a list of type ids (resistances…).

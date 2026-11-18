@@ -4,6 +4,7 @@
 
 pub mod abilities;
 pub mod check;
+pub mod combat;
 pub mod conditions;
 pub mod damage;
 pub mod dice;
@@ -16,7 +17,7 @@ pub use conditions::{ActiveCondition, Condition, ConditionSpec};
 pub use damage::{DamageType, Defenses};
 pub use dice::{Expr, Mode};
 pub use rules::{ATTRIBUTION, ATTRIBUTION_FILE};
-pub use statblock::{npc_template, npc_templates, StatBlock};
+pub use statblock::{npc_template, npc_templates, StatAttack, StatBlock};
 
 /// The rules' conversion version of projects made or converted by this editor
 /// (`ProjectConfig::rules_version`): 1 = the skill tree became SRD proficiencies (0.28); 2 = the

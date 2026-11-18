@@ -99,6 +99,10 @@ pub struct MaterialDef {
     /// Animation frames shown per second (0 = the first frame only).
     #[serde(skip_serializing_if = "is_zero")]
     pub fps: f32,
+    /// Difficult terrain in fights: a step onto it costs double movement (mud, deep snow,
+    /// shallow water, rubble).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub difficult: bool,
 }
 
 impl MaterialDef {
@@ -136,6 +140,7 @@ impl Default for MaterialDef {
             scroll: [0.0, 0.0],
             frames: 1,
             fps: 0.0,
+            difficult: false,
         }
     }
 }

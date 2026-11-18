@@ -260,6 +260,10 @@ async fn main() {
             for line in std::mem::take(&mut a.console) {
                 game.console_command(&line);
             }
+            for line in std::mem::take(&mut a.turns) {
+                let out = game.turn_command(&line);
+                say!("[turn] {line}: {out}");
+            }
             for (cmd, id) in std::mem::take(&mut a.skill_cmds) {
                 match cmd.as_str() {
                     "seed" => rustpg2d_engine::srd::dice::seed(id.trim().parse().unwrap_or(1)),
@@ -316,6 +320,8 @@ struct Autoplay {
     skill_cmds: Vec<(String, String)>,
     /// `console LINE`: applied by the main loop.
     console: Vec<String>,
+    /// `turn …` lines, run with the game at hand.
+    turns: Vec<String>,
     /// `minigame bite`: waiting for that moment (probe name, seconds left), then E.
     until: Option<(&'static str, f32)>,
 }
@@ -327,7 +333,7 @@ impl Autoplay {
             .map(|c| c.split_whitespace().map(str::to_string).collect::<Vec<_>>())
             .filter(|c| !c.is_empty())
             .collect();
-        Autoplay { cmds, timer: 0.0, held: Vec::new(), sticky: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), mouse_held: Vec::new(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), until: None }
+        Autoplay { cmds, timer: 0.0, held: Vec::new(), sticky: Vec::new(), held_pad: Vec::new(), shot: None, mouse: None, mouse_frames: Default::default(), mouse_held: Vec::new(), close: false, hour: None, advance: None, skill_cmds: Vec::new(), console: Vec::new(), turns: Vec::new(), until: None }
     }
 
     /// Advances the script; returns false to quit.
@@ -572,6 +578,12 @@ impl Autoplay {
                 }
                 "status" => say!("[autoplay] {} order={}", game.status(), game.order_debug()),
                 // console LINE: runs a developer console line (needs --dev), like typing it after F4
+                // turn …: plays the current turn of a fight (`turn move X Y`, `turn attack NAME`,
+                // `turn action dash`, `turn end`, `turn fast`, …; see Game::turn_command)
+                "turn" => {
+                    self.turns.push(cmd[1..].join(" "));
+                    return true;
+                }
                 "console" => {
                     self.console.push(cmd[1..].join(" "));
                     // Runs before the next command (e.g. a status right after it).

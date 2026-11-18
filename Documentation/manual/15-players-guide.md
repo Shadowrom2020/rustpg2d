@@ -11,12 +11,11 @@ These are the default keys; players change them in *Options › Gameplay › Con
 |---|---|
 | Arrows / WASD (Shift = run) | Move |
 | E / Enter | Interact, talk, advance a dialog |
-| X | Attack in the facing direction |
-| F (hold) | Block with a shield (see below) |
-| Space | Dodge roll |
+| X | Attack: starts a fight with an enemy in sight; outside fights a swing at a tree or a vein |
 | Left Ctrl / V | Sneak on / off (see below) |
 | Q | Switch weapon (bare hands, then the weapons you own) |
-| 1–8, or a click on a quick bar slot | Use that item or spell |
+| 1–8, or a click on a quick bar slot | Use that item or spell (in a fight: the action bar, see below) |
+| Space | End the turn (in a fight) |
 | C / I | The character window: character sheet and inventory |
 | K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, conditions, languages, features and traits; R there: short rest) and *Spells* tab (if the game has magic) |
 | Tab | Next tab of the open window |
@@ -27,7 +26,7 @@ These are the default keys; players change them in *Options › Gameplay › Con
 | P | Photo mode (see below) |
 | F5 / F9 | Quick save / quick load |
 | Esc | Pause menu; closes windows |
-| Left click | Walk to the tile, attack the enemy under the cursor, advance a dialog |
+| Left click | Walk to the tile, attack (start a fight with) the enemy under the cursor, advance a dialog |
 | Right click | Walk to the character, item or prop under the cursor and interact with it |
 
 Characters behind a counter (one solid tile between, in a straight line) are talked to across it,
@@ -77,26 +76,54 @@ points, half your hit dice back and one level of exhaustion less.
 A **padlock** over a chest or door means it is locked. Without its key, press E to try to pick it
 (a Dexterity check with Thieves' Tools). If it holds, give it ten minutes before you try again.
 
-## Defending yourself
+## Fighting
 
-**Block**: hold F (gamepad: RB) with a shield in your left hand. You walk at half speed and can't
-attack, but blows, arrows and lunges coming **from the front** do no damage, only push you back a
-little. Raise the shield just before a blow lands (the last moment of the enemy's wind-up) to
-**parry**: the attacker is stunned for a second. Without a shield, F only tells you that you need
-one.
+![A fight: the turn order at the top, the reachable tiles, the cursor on a goblin with the chance to hit, the action bar](../images/game-combat.webp)
+
+A fight starts when an enemy notices you, or when you attack one (X, or a click on it). Everyone
+near rolls **initiative**; the **turn order** bar at the top shows who acts when, with everyone's
+hit points (green: your side, red: your enemies). Then everyone acts **in turns**, on the tiles of
+the map (a tile is 5 feet).
+
+**Your turn** (and each companion's, unless you handed it to the AI):
+
+- **Move** up to your speed (30 ft = 6 tiles; the blue tiles show where you reach): move the
+  **cursor** with the arrows (or point with the mouse) and press E / Enter (or click). The line
+  shows the way. Walking away from an enemy next to you lets it strike at you (an **opportunity
+  attack**), unless you *Disengage* first.
+- **Attack**: E / Enter (or a click) on an enemy attacks it, walking next to it first when it isn't
+  in reach. The box at the cursor shows its hit points and armor class, your **chance to hit** and
+  its **cover**.
+- **The action bar** at the bottom: 1–8 or a click picks an action, Tab / Shift+Tab select one and
+  X uses the selected one. One **action** a turn: *Attack*, *Cast* (a spell you know; press it again
+  for the next), *Dash* (move twice as far), *Disengage* (leave without opportunity attacks),
+  *Dodge* (attacks against you get disadvantage until your next turn), *Help* (a companion's next
+  attack against an enemy next to you gets advantage), *Hide* (a Stealth check: hidden enemies can't
+  find you to attack), *Ready* (strike the first enemy that steps next to you), *Search* (find hidden
+  enemies), *Grapple* and *Shove* (wrestle an enemy next to you: grappled can't move; shoved is
+  knocked down or pushed away). Using an item from the inventory (a potion) takes the action too.
+  One **bonus action**: *Off-hand* attacks with a weapon in your left hand after you attacked. The
+  line above the bar shows the movement left and whether the action, the bonus action and your
+  **reaction** (an opportunity attack) are still free.
+- **End the turn** with Space or *End turn* (gamepad: select it with RB / LB and press X). B or a
+  right-click cancels an aimed action.
+
+The **fight log** at the bottom left tells every roll (`Alex > Goblin: d20 (14) +5 = 19 vs AC 15:
+hit`); the journal's *Rolls* tab keeps them. A natural 20 is a **critical hit** (the damage dice
+twice).
+
+**At 0 hit points** you fall unconscious and roll a **death saving throw** at the start of each of
+your turns: 10 or more is a success. Three successes and you are stable, three failures and you
+die; a 20 gets you back up. A companion's healing gets you up too. If nobody of your side is left
+standing, the fight is lost. When the fight is won, those still down get up.
+
+You can't save during a fight; the game autosaves when it is over.
 
 **Sneak**: Left Ctrl or V (gamepad: left stick click) switches sneaking on and off; *Sneaking*
 shows under your HP bar. You walk at half speed and quietly, and enemies notice you only within half
 their sight, less still in the dark (at night, in dark places, away from torches and lamps; your own
-lantern or light spell gives you away). One you bump into notices you anyway. A blow or an arrow
-that hits an enemy who hasn't noticed you is a **sneak attack**: double damage, shown like a
-critical hit. Fighting doesn't end sneaking; enemies who hunt you
-lose track of you sooner while you sneak.
-
-**Dodge**: Space (gamepad: B) rolls you about three tiles in the direction you are moving (or
-facing). Nothing touches you while you roll, so you can roll away from a blow or straight through
-it. Then you need a second before the next roll: the small blue dot after your HP bar lights up
-when you can roll again; a shield symbol next to it shows that your shield is raised.
+lantern or light spell gives you away). One you bump into notices you anyway. Attack enemies who
+haven't noticed you and they are **surprised**: they lose the first round of the fight.
 
 ## Gamepad
 
@@ -109,10 +136,10 @@ the first button press makes the pad known to the page.
 | Left stick / d-pad | Move; navigate menus, windows, the map |
 | A | Interact, talk, advance, choose, use, buy / sell |
 | B | Close a window, go back |
-| X | Attack (while aiming a spell: cast straight ahead) |
+| X | Attack (while aiming a spell: cast straight ahead); in a fight: use the selected action |
 | Y | Character window |
-| RB / LB | Next / previous tab of an open window; on the map: zoom; while playing, RB (held) blocks with a shield and LB opens companion orders |
-| B (while playing) | Dodge roll (while aiming a spell: cancel it) |
+| RB / LB | Next / previous tab of an open window; on the map: zoom; in a fight: select an action of the bar; while exploring LB opens companion orders |
+| B (while playing) | Cancel aiming a spell or an action |
 | LT (hold) | Run; buy / sell ten |
 | RT | Switch weapon |
 | Start | Pause menu |

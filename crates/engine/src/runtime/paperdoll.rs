@@ -12,9 +12,6 @@ pub(super) use crate::render::model::Gear;
 use crate::render::model::{Cell, PoseReq};
 use crate::state::Equipment;
 
-/// Seconds a block takes to come up (then it holds).
-const BLOCK_RAISE: f32 = 0.2;
-
 impl Game {
     /// What a look is drawn as: its model, else the model named like its (old) figure, else the
     /// mannequin.
@@ -109,10 +106,6 @@ impl Game {
             let p = 1.0 - c.strike / c.strike_len.max(0.05);
             return Anim::Strike((p.clamp(0.0, 1.0) * 1000.0) as u16);
         }
-        // Behind a raised shield: the block clip up to its hit point, held there.
-        if let Some(t) = c.block {
-            return Anim::Block(((t / BLOCK_RAISE).min(1.0) * 1000.0) as u16);
-        }
         if c.invuln > super::combat::HURT_INVULN - 0.25 {
             return Anim::Hurt;
         }
@@ -134,8 +127,9 @@ impl Game {
             return a;
         }
         let e = &self.loaded.entities[i];
-        if let Some(a) = e.attack.and_then(|a| a.anim(a.windup_time(e.windup))) {
-            return a;
+        if e.strike > 0.0 {
+            let p = 1.0 - e.strike / e.strike_len.max(0.05);
+            return Anim::Strike((p.clamp(0.0, 1.0) * 1000.0) as u16);
         }
         if e.hurt > 0.0 {
             return Anim::Hurt;

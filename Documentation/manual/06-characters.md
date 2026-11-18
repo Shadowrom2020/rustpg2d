@@ -76,9 +76,8 @@ the named clip plays its plain animation (`attack`, `idle`, `walk`), so items an
 added in any order.
 
 Attacks and blocks have a **hit point** (*hit* beside the frames per second): where in the clip the
-blow lands or the guard is up (0.42 when not set). An enemy winds up to it and swings from there;
-the player's blow lands at once, so the wind-up is hurried and the hit point comes a quarter into
-the strike; a raised shield holds the block clip at its hit point.
+blow lands or the guard is up (0.42 when not set). A fight's attacks play the attack clip as their
+roll is made.
 
 **Clips are shared between models**: *Shared clips › Copy clips* in a model's form (pick a model)
 plays the other model's animations from its clip files, fitted to this model's bones when it loads
@@ -149,13 +148,13 @@ Then set the character's behaviour and combat values in the form.
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
 | **Look & equipment** | The character editor: model, colours, equipment, carried items |
 | **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
-| **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), a condition **On touch** (poisoned, prone…, with a saving throw and damage every round; it also comes with the hits of a weapon it holds), an optional ranged attack for hostile characters |
+| **Combat** | **Max HP** (0 = can't be defeated and doesn't fight; with a stat block its hit points count), **Damage** and **Defense** (without a stat block: its attack's dice, 1 = 1d4 … 5 = 1d12, and armor class 10 + Defense), **Hostile**, a condition **On touch** its melee hits give (poisoned, prone…, with a saving throw and damage every round; it also comes with the hits of a weapon it holds), an optional ranged attack (without attacks in its stat block it shoots with it) |
 | **Experience** | XP the player gets for defeating it |
 | **Stat block (SRD 5.1)** | What it is by the rules, from a template or by hand ([below](#stat-blocks)) |
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
 | **Merchant** | Makes it a trader ([Merchants](#merchants)) |
 | **As companion** | *Can't be given gear*, for animals and creatures |
-| **Magic (companion)** | Mana and mana per second: a companion with mana learns and casts *Heal* and *Bolt* spells |
+| **Magic (companion)** | Mana and mana per second: a companion with mana learns *Heal* spells and casts them between fights |
 | **Light** | Carries a light (a lantern); placed characters can carry their own instead |
 | **Default triggers** | Triggers every copy runs ([Events](07-events.md)) |
 
@@ -169,22 +168,28 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   mage, noble, priest, scout, spy, thug, veteran, and the goblin, hobgoblin, orc, gnoll, kobold and
   the other humanoids). Choosing one fills in the whole block and sets the character's *Experience*
   to the template's XP; change any field afterwards.
+- **Attacks**: what it attacks with in fights: a name, the **attack bonus**, the **damage dice**
+  with the modifier (`1d6+2`) and type, a melee **reach** and / or a **range** (normal / long, in
+  feet; a tile is 5 ft), and **per turn** (Multiattack: how many attacks its Attack action makes).
+  Templates bring the SRD's (the guard's spear, the bandit captain's three attacks); *Add attack*
+  adds one by hand. Without attacks it fights with its weapon or *Damage* (+2 to hit).
 - **Resistant to**, **Immune to**, **Vulnerable to**: damage types it takes half, no or double
-  damage from (they work in real-time combat already: an assassin shrugs off half of the poison);
+  damage from (an assassin shrugs off half of the poison);
   **Can't get**: conditions it is immune to (a grimlock can't be blinded). Saving throws against
   conditions are rolled with its scores and proficiencies. *By hand* starts an empty one, *Remove stat
   block* takes it away.
 - A **placed character** can have its own (the map's inspector, *Stat block (SRD 5.1)* › *Own stat
   block…*): the captain among the guards.
-- Scripts read it (`npc_stat("Brom", "ac")`) and automated runs see it (`statblocks=`). Real-time
-  combat uses its resistances and saving throws, and keeps using *Max HP*, *Damage* and *Defense*. The
-  turn-based combat of 0.29 fights with it, and the monsters' stat blocks (beasts, undead, trolls)
-  come with it.
+- [Turn-based fights](09-gameplay.md#health-and-combat) use it: its armor class, hit points (they
+  replace *Max HP* when that is above 0), speed, DEX for initiative, attacks, resistances and saving
+  throws. Scripts read it (`npc_stat("Brom", "ac")`) and automated runs see it (`statblocks=`). The
+  SRD's monsters (beasts, undead, trolls) come with the next item, *Monsters and encounters*.
 
 In the example (and the starter library) villagers, traders and children are commoners, the town
 guards guards, the elder a noble, the priest a priest, the elven ranger a scout, the outlaws
 bandits, the bandit chief a bandit captain, Rook the deserter a veteran, and goblins and orcs their
-SRD selves (the orc chief an orc with 30 HP, challenge 1). Stat blocks and the SRD's races and
+SRD selves (the orc chief an orc with 30 HP, challenge 1); wolves and bats have the SRD's beasts'
+blocks by hand, and slimes a weak one of their own (AC 8, 5 HP, a 1d4 pseudopod and their poison). Stat blocks and the SRD's races and
 backgrounds are SRD 5.1 material: [The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs)
 says what that asks of a game.
 
@@ -197,18 +202,19 @@ says what that asks of a game.
 | **Chase foes** | Hunts the player and companions when hostile to the player, and characters of hostile factions ([Factions](#factions)). |
 
 **Chase foes** characters notice the player within their **Sight** (tiles) in a clear line; behind
-walls and trees only within half of it. They keep hunting for a few seconds after losing sight,
-walking to where they last saw the player, and slide around obstacles. Per character:
+walls and trees only within half of it. A hostile one that notices the player or a companion
+starts a [turn-based fight](09-gameplay.md#health-and-combat). Per character:
 
-- **Leash**: beyond that many tiles from home they give up and walk back, harmless on the way.
-- **Flee below**: below that share of their HP they run away and stop attacking (group fighters
-  run to an ally instead and come back after a short rest).
-- **Keep distance**: shooters back off when the player comes closer.
-- **Group** (*Fights as a group*, on by default): at most two group fighters close in on the
-  player or a companion at a time, the others circle around and wait for their turn; they spread
-  out instead of stacking. Turn it off for a lone brute that always attacks.
+- **Leash**: beyond that many tiles from home they give up and walk back.
+- **Flee below**: in a fight, below that share of their HP they dash away and leave the fight 15
+  tiles away (outside fights group fighters run to an ally and come back after a short rest).
+- **Keep distance**: shooters going for a character of a hostile faction back off when it comes
+  closer (in fights shooters keep within their range, away from melee).
+- **Group** (*Fights as a group*, on by default): outside fights they spread out instead of
+  stacking, and the badly hurt run to their allies.
 - **Alert** (tiles, default 6): on first seeing the player it alerts others of the same
-  definition (or the same faction) this close; 0 alerts nobody.
+  definition (or the same faction) this close; 0 alerts nobody. Those that come close join the
+  fight.
 
 An *HP below %* trigger lets a character react when it's hurt, e.g. a boss calling for help; scripts
 read any character's HP with `hp_of(target)`. In the example, the goblin archers keep four tiles
@@ -312,12 +318,13 @@ the player:
 
 - Companions walk behind the player, find their way around obstacles, catch up after teleports and
   come along to every map.
-- They fight hostile characters near the player with their weapon (melee or ranged) and are hunted
-  and hurt like the player; they regain HP slowly when nothing hunts them.
+- They fight beside the player in [turn-based fights](09-gameplay.md#health-and-combat): the player
+  plays their turns, or the AI when it was told so; they regain HP slowly when nothing hunts them.
 - Talking to a companion runs its own triggers, e.g. a dialog with orders.
-- **Orders** (G, gamepad LB, the *Companion order* action, `order(name, …)`): *Attack* (the default),
-  *Defend* (only what hunts you or the companion), *Passive* (no fighting), *Stay here* (wait on the
-  spot, back at the post after a fight) and *Follow me*.
+- **Orders** (G, gamepad LB): *I command* (the default: the player plays its turns in fights), *AI
+  fights* (the AI plays them), *Stay here* (wait on the spot, back at the post after a fight),
+  *Follow me* and *Gear…*. The *Companion order* action and `order(name, …)` also know *passive*
+  (an AI-played companion only dodges in fights).
 - **Gear**: clicking a companion's row in the HUD, *Gear…* in the orders menu, or `open_companion`
   opens the companion window: its equipment, its bag and your inventory. Hand items over, equip
   them, take them back. Unless the definition says *Can't be given gear*.
@@ -330,18 +337,19 @@ the player:
   learns the spell of a scroll or spell book you hand it in the companion window (a scroll that
   is used up when read is used up; a book stays in its bag), or from the *Teach spell* action /
   `teach_spell`. It casts *Heal* on the most hurt of you, the companions near it and itself when
-  someone is below half their HP (a knocked-down companion first: the heal gets it up), and *Bolt*
-  spells at the enemy it fights. Mana regenerates; its HUD row shows a blue mana bar, and its window
+  someone is below half their HP (a knocked-down companion first: the heal gets it up) between
+  fights. Mana regenerates; its HUD row shows a blue mana bar, and its window
   lists its mana and spells. Spells stay learned when it is dismissed. In the example the town
   guard has mana: give him Tilda's *Scroll of Healing* or the elder's spell book.
-- **At 0 HP** a companion is **knocked down**: it lies where it fell, enemies leave it alone, and
-  any heal gets it back up. Leaving the map with a downed companion asks whether to leave it behind
+- **At 0 HP** in a fight a companion falls unconscious and rolls death saving throws like the hero;
+  when the fight is won it gets up with 1 HP. Dead (three failures), or at 0 HP outside fights, it
+  is **knocked down**: it lies where it fell, enemies leave it alone, and any heal gets it back up. Leaving the map with a downed companion asks whether to leave it behind
   (it then limps home). *Database › Project › Companions at 0 HP* can instead let it get up by
   itself after some seconds, or send it home at once.
 - **Dismissed** (`stop_following`, or the action with *leaves*), a companion stays where it is on its
   own map or goes home from elsewhere.
 
-Companions, their HP, items and orders are kept in save games. The player's attacks never hit
+Companions, their HP, items, orders and who plays their turns are kept in save games. The player's attacks never hit
 companions or other friendly characters. In the example, the town guard offers to come along once
 you took on the elder's quest.
 
@@ -489,8 +497,8 @@ factions (an id, fixed once added because triggers and scripts name it, and a na
   trades with the humans, one guard in the bandits' pay. The **Members** list of *Database ›
   Factions* shows who belongs to each faction and adds or removes races and characters.
 - **Characters of hostile factions fight each other**: chasers (*Chase foes*) notice foes within
-  their sight like they notice the player, close in, swing, lunge and shoot at them; group fighters
-  share the places around a foe and alert their own faction. Arrows of a shooter fly past its
+  their sight like they notice the player and close in on them; in a fight near the player they
+  take sides (the guards fight beside the player against bandits). Arrows of a shooter fly past its
   friends and the player when it isn't hostile to the player. Characters with 0 max HP (townsfolk)
   can't be attacked.
 - **The player's standing** with each faction runs from -100 to 100. It starts at 100 with the

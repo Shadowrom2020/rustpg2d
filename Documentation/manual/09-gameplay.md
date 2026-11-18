@@ -5,88 +5,108 @@ it with content; most systems are set up in the Database and driven by triggers.
 
 ## Health and combat
 
-![A fight with the bandit chief in Whisperwood](../images/game-combat.webp)
+![A turn-based fight in Whisperwood: the turn order, the reachable tiles and the action bar](../images/game-combat.webp)
 
 The **status frame** at the top left shows a small portrait of the hero as dressed, the name, the
-**HP bar** with the hit points (`34 / 44`), the mana and experience bars, the defense and the ammunition of an
+**HP bar** with the hit points (`34 / 44`), the mana and experience bars and the ammunition of an
 equipped bow or crossbow.
 
-- **Melee weapons** have their own damage, speed, reach, swing arc and knockback (a sword, a spear,
-  an axe). **Ranged weapons** (bow, crossbow) shoot projectiles and use ammunition. Shots fly over
-  low obstacles (fences, rocks, water, barrels) and stop at high ones (walls, tree trunks, statues);
-  enemy archers only shoot when they have such a clear line ([Maps › Low and high
+Fights follow the SRD 5.1's combat rules **in turns**, on the map where they happen; exploring
+stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
+
+- **A fight starts** when a hostile character notices the player or a companion (within its
+  *Sight*; sneaking and darkness shorten it), when the player attacks one in sight (Attack, or a
+  click on it), or with the *Start fight* action / `start_combat()`. Every character within 12
+  tiles that is hostile to the player joins, the companions and characters of factions hostile to
+  the enemies (the village guards against bandits) fight on the player's side. Hostile characters
+  that come close later join at the end of the round.
+- **Surprise:** when the player strikes first, enemies that hadn't noticed them lose the first
+  round. Sneaking up on a camp pays.
+- **Initiative:** everyone rolls d20 + DEX; the turn order bar at the top shows it with everyone's
+  hit points. Everyone steps onto the middle of their tile (a tile is 5 ft).
+- **A turn:** moving up to the speed (30 ft = 6 tiles; the race's speed; conditions slow it),
+  **one action**, **one bonus action** and **one reaction** a round. Diagonal steps cost 5 ft like
+  straight ones; **difficult terrain** (materials with *Difficult terrain*, e.g. mud, deep snow)
+  costs double. Characters can pass through allies, not through foes.
+- **Actions:** *Attack* (stat blocks with Multiattack attack several times), *Cast a Spell*,
+  *Dash* (the speed again), *Disengage* (no opportunity attacks this turn), *Dodge* (attacks
+  against it have disadvantage), *Help* (an ally's next attack against a foe next to you has
+  advantage), *Hide* (Stealth against the foes' passive Perception: unseen until it attacks),
+  *Ready* (an attack when a foe steps into reach), *Search* (Perception against hidden foes),
+  *Use an Object* (an item from the inventory), *Grapple* and *Shove* (Athletics against the
+  target's Athletics or Acrobatics: grappled, or knocked prone / pushed a tile). The **bonus action**
+  is the off-hand attack: a weapon in the left hand attacks after the Attack action, without the
+  ability modifier on its damage.
+- **Attacks** roll d20 + the ability modifier (STR for melee, DEX for ranged) + the proficiency
+  bonus against the target's **armor class**. A natural 20 always hits and is a **critical hit**
+  (the damage dice twice; a *keen* weapon on 19 or 20 too), a natural 1 always misses. Damage is
+  the weapon's **dice** (*Damage dice* on the item form) + the modifier, of its damage type through
+  the target's resistances. Characters attack with their stat block's attacks; without them with
+  their weapon or *Damage* (1 = 1d4 … 5 = 1d12, +2 to hit).
+- **Advantage and disadvantage** come from the SRD's sources: the attacker's conditions
+  (poisoned, prone, restrained, blinded, frightened, exhaustion 3+), the target's (prone:
+  advantage in melee, disadvantage at range; restrained, paralyzed, stunned, unconscious, blinded:
+  advantage; invisible: disadvantage), Dodge, Help, a hidden attacker, and for ranged attacks a foe
+  next to the shooter or a target beyond the normal range (up to the long range: *Long range* on
+  the weapon). Paralyzed or unconscious targets within 5 ft take critical hits.
+- **Cover:** walls, tall props, trees and other creatures between the attacker and the target give
+  **half cover** (+2 AC) or **three-quarters cover** (+5 AC); behind full cover it can't be
+  targeted. Shots fly over low obstacles (fences, rocks, water) ([Maps › Low and high
   obstacles](03-maps.md#low-and-high-obstacles)).
-- **Armor** reduces damage: what gets through is `damage − defense`, at least 1 (after the
-  [damage type](#conditions-and-damage): resistance halves it first). Heavy armor can
-  slow the wearer.
-- Hits knock back (a hard shove that stops quickly) and give a moment of invulnerability. When
-  the player is hurt the screen shakes briefly and flashes red (players can turn this off in
-  *Options › Graphics › Shake & flash*).
-- **Hits feel like hits**: when the player's blow, arrow or spell lands, the world pauses for a
-  few hundredths of a second (longer for a critical hit or a kill; off with *Shake & flash*), the
-  character hit flashes white, and a **damage number** rises from it: white for the player's hits,
-  big and yellow for **critical hits**, red when the player or a companion is hurt (*Options › Gameplay ›
-  Damage numbers*). A **critical hit** does double damage and shakes the view a little; each
-  weapon has its own chance (*Critical hits* on the item form, 5 % by default; in the example
-  the crossbow and the fine iron sword are best at it). Characters show a **health bar** for
-  three seconds after they were hurt; the part the hit took drains away in white.
-- **Hostile characters** chase or shoot at the player ([Characters › Behaviour](06-characters.md#behaviour)),
-  and their attacks can be seen coming:
-  - **Armed** (a melee weapon in their equipment): they stop at their weapon's reach and **wind up**
-    (0.4 s: the weapon raised over the head, a red zone on the ground shows where the swing will
-    land), then **swing** in the direction they locked when the wind-up began, for the weapon's
-    damage, reach, arc and knockback, and **recover** for the weapon's cooldown and a moment more.
-    Stepping out of the red zone during the wind-up dodges the blow. They don't hurt by touch.
-  - **Unarmed chasers** (slimes): close to their target they **crouch** (0.3 s, a red ring
-    tightening around them) and **lunge**, hurting by touch (and its *On touch* effect) only during
-    the hop; then they rest a moment.
-  - **Archers** shoot; other hostile characters (traps, creatures that don't chase) hurt by touch.
-  - They attack companions as well as the player. *Attack wind-up* on the character's form changes
-    the wind-up (a slow, heavy brute; a quick assassin).
-  - **Hit from afar, they come**: an enemy hurt by the player's or a companion's blow, arrow or
-    spell notices the attacker even out of its sight: surprised, it alerts its kind around it and
-    hunts toward where the attack came from until it sees the player (its *Leash* still sends it
-    home). A blow that kills alerts no one, so a silent sneak attack stays silent.
-  - **What they hold shows how they fight**: characters play the animations of their weapon and
-    shield ([Characters › Weapon animations](06-characters.md#weapon-animations)): a guard stance with
-    a sword, a thrust with a spear, a drawn bow, an overhead blow with a two-handed weapon, a punch
-    with bare hands, a raised shield while blocking. The player's strikes too.
-- **Battle stance and battle music**: characters are **in combat** while they hunt someone or fight
-  (companions too), the player while an enemy close by (16 tiles) hunts them or a companion, while
-  striking, blocking or hurt; it ends four seconds after the last of these. In combat characters take
-  their weapon's stance with a one-handed weapon in the hand; out of it they stand upright and
-  relaxed, the one-handed weapon at the left hip (two-handed and ranged weapons, shields and tools
-  stay in the hands). While enemies engage the player or a companion the music crossfades to the
-  **battle music** (*Database › Project › Game sounds › Battle music*; a map can choose another
-  track or none in its properties) and back to the map's music when the fight is over; the
-  player's own swing at nothing draws the sword but doesn't start the music. The example plays
-  *Steel in the Woods* (`music_battle`, in the starter library); `status` prints `battle=` (the
-  player's combat and who is in combat) and `music_fade=`.
-- **Groups fight like groups** (*Group* on the character's form, on by default): at most two
-  enemies close in on the player (or on one companion) at a time; the others **circle** at about
-  two and a half tiles, facing their target, and step in when one of the two falls or falls
-  behind. They spread out instead of stacking up. An enemy that sees the player for the first
-  time **alerts** others of its kind within its *Alert* range (6 tiles), who come over with a
-  surprised look even without seeing the player. **Archers** without a clear shot (a wall or a
-  tall prop in the way) step sideways along it until they have one, and aim a little ahead of a
-  player who keeps walking. **Badly hurt** enemies run to an ally out of the fight instead of
-  just away, tell it (it joins the hunt), catch their breath for three seconds and come back.
-- **Sneaking** (Left Ctrl / V, gamepad left stick click; [Player's guide](15-players-guide.md#defending-yourself)):
-  the player walks at half speed and quietly, and a hostile character notices them within half of
-  its *Sight*, times 0.4 (dark) to 1 (lit) by the light at the player: the map's lighting by the
-  clock plus the light sources around them, their own lantern included. That applies sneaking or
-  not (at night everyone is harder to see); behind walls the usual half of that, and within three
-  quarters of a tile always. A hit on a chasing enemy that hasn't noticed anyone (and isn't fleeing)
-  is a **sneak attack**: double damage, shown like a critical hit. Models play their **sneak** clip while sneaking (*Database › 3D models*; every playable
-  model of the example has a creeping walk), others their walk, slowed. Scripts ask `is_sneaking()`;
-  `status` prints `sneak=on|off:light…:sight10=…` (how far a 10-tile enemy would notice the player).
-  In the example a sign on the way to the bandits' camp in Whisperwood hints at a night approach.
-- **Blocking and dodging**: the player blocks with a shield (frontal hits do no damage; a block
-  raised right before a blow parries it and stuns the attacker) and dodges with a roll that nothing
-  touches ([Player's guide › Defending yourself](15-players-guide.md#defending-yourself)).
-  The player's attacks only hit hostile characters, never companions or friendly villagers; make a
+- **Opportunity attacks:** leaving a foe's reach without *Disengage* gives it a melee attack (its
+  reaction).
+- **0 hit points:** characters die (their *Defeated* triggers run, they drop their loot and
+  gear). The hero and companions fall **unconscious** and roll a **death saving throw** on each of
+  their turns: 10 or more is a success, three successes and they are stable, three failures and
+  they die; a natural 20 brings them back with 1 HP, a natural 1 counts twice. Damage while down is
+  a failure (a critical hit two); any healing brings them back up. Enemies leave the unconscious
+  alone, except those with Multiattack. When nobody of the party stands any more and those down are
+  stable (or dead), the fight is lost: the *defeated* menu. A companion that dies follows the
+  project's rule for companions at 0 HP (lies there, goes home, gets up).
+- **The party:** the player plays the hero's and every companion's turns. The orders menu (G)
+  hands a companion to the AI (*AI fights*) or back (*I command*). Characters on the player's side
+  that aren't companions (the guards) always fight on their own.
+- **The AI** goes for the nearest foe it can reach (those with Multiattack for the most hurt),
+  walks into reach or, with a ranged attack, to a spot within its range with a line to its target,
+  and attacks. Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
+  fight 15 tiles away; it drinks a healing potion it carries when its health is critical.
+- **The end:** when no enemy is left fighting. Companions still down get up with 1 HP, the
+  experience of the defeated is gained, the game autosaves. Saving is refused during a fight (the
+  autosave waits). Leaving the map ends a fight.
+- **Conditions** run by rounds in a fight: damage and healing per round fall on each fighter's
+  turn ([Conditions and damage](#conditions-and-damage)).
+- **Feedback:** every roll goes into the **fight log** at the bottom left and the journal's
+  *Rolls* page. Damage numbers rise from those hit (white for the player's hits, big and yellow
+  for critical hits, red when the player or a companion is hurt, *miss* for a miss; *Options ›
+  Gameplay › Damage numbers*); hit characters flash white and show a **health bar** for three
+  seconds. When the player is hurt the screen shakes briefly and flashes red (*Options › Graphics
+  › Shake & flash*).
+- **What they hold shows how they fight**: characters play the animations of their weapon and
+  shield ([Characters › Weapon animations](06-characters.md#weapon-animations)) when they attack.
+- **Battle stance and battle music**: those in a fight take their weapon's stance with a
+  one-handed weapon in the hand; out of fights it hangs at the left hip (two-handed and ranged
+  weapons, shields and tools stay in the hands). A fight crossfades the music to the **battle
+  music** (*Database › Project › Game sounds › Battle music*; a map can choose another track or
+  none in its properties) and back when it is over, with the *Victory* fanfare when enemies were
+  defeated. The example plays *Steel in the Woods* (`music_battle`, in the starter library).
+- **Sneaking** (Left Ctrl / V, gamepad left stick click): the player walks at half speed and
+  quietly, and a hostile character notices them within half of its *Sight*, times 0.4 (dark) to 1
+  (lit) by the light at the player: the map's lighting by the clock plus the light sources around
+  them, their own lantern included. That applies sneaking or not (at night everyone is harder to
+  see); behind walls the usual half of that, and within three quarters of a tile always. An enemy
+  that hasn't noticed the player when they attack is **surprised**. Models play their **sneak** clip
+  while sneaking (*Database › 3D models*; every playable model of the example has a creeping walk),
+  others their walk, slowed. Scripts ask `is_sneaking()`; `status` prints
+  `sneak=on|off:light…:sight10=…`. In the example a sign on the way to the bandits' camp in
+  Whisperwood hints at a night approach.
+- **Outside fights** the Attack key swings at trees and ore veins in front ([Gathering and
+  mining](#gathering-and-mining)); scripted damage (traps, *Damage area*) subtracts the target's
+  *Defense* there. The player's attacks only start fights with hostile characters; make a
   huntable animal *hostile* with 0 damage.
-- A defeated character runs its *Defeat* triggers and drops its loot and gear.
+- **Scripts and events:** *Fight starts* and *Fight ends* triggers (map triggers, and a
+  character's own when it fights: a boss's words), the *Start fight* action, `start_combat()`,
+  `in_combat()`, `combat_round()` ([Scripting](08-scripting.md)). `status` prints `combat=` and
+  `death_saves=` ([Testing](17-testing.md)).
 - A defeated **player** gets a menu: *Continue from last save* (the newest, autosave included),
   *Start over* (a new game as the same hero) or *Quit to main menu*.
 
@@ -143,14 +163,15 @@ The SRD's **conditions** on the hero and on characters (until 0.27 they were sta
 | **Unconscious** | Lies on the ground, incapacitated; STR and DEX saving throws fail; hits against it are critical |
 | **Exhaustion** | Six levels: 1 disadvantage on ability checks, 2 half speed, 3 disadvantage on saving throws, 4 max HP halved, 5 speed 0, 6 death. A long rest takes one level off |
 
-Disadvantage on attack rolls (poisoned, prone, restrained…) is noted for the turn-based combat of
-0.29. A condition can come with **damage or healing every round** (6 seconds, the first at once):
+In fights the conditions give advantage and disadvantage on attack rolls (poisoned, prone,
+restrained…; [Health and combat](#health-and-combat)). A condition can come with **damage or
+healing every round** (6 seconds while exploring, each fighter's turn in a fight; the first at once):
 the slime's poison, a burning oil flask, a stew that heals on. A **saving throw** can keep a
 condition off: the slime's touch poisons only when a CON save against DC 10 fails; characters roll
 theirs with their [stat block](06-characters.md#stat-blocks) (the roll log shows them, "Guard: CON
 save").
 
-**Where they come from**: weapons **on hit**, hostile characters **on touch** (Database), and
+**Where they come from**: weapons **on hit**, hostile characters' melee hits (**On touch**, Database), and
 potions, traps and scripts with the *Apply condition* / *Remove condition* actions, or
 `apply_condition` / `remove_condition`. Applying a running condition keeps the longer duration;
 exhaustion adds a level. The status frame shows a badge per condition with the seconds left
@@ -161,7 +182,7 @@ of some.
 **Damage types**: the SRD's 13 (acid, bludgeoning, cold, fire, force, lightning, necrotic,
 piercing, poison, psychic, radiant, slashing, thunder). A weapon, a spell's bolt or blast, area
 damage and damage per round can have one. **Resistance** halves it (rounded down), **immunity**
-stops it, **vulnerability** doubles it; the old defense comes off afterwards. The hero resists what
+stops it, **vulnerability** doubles it; outside fights the old defense comes off afterwards. The hero resists what
 their race resists (a dwarf's poison) and what their armor names; characters what their stat block
 says (an assassin resists poison).
 
@@ -251,12 +272,11 @@ little experience) and ask Tilda for a little more after the slime hunt (Persuas
 **Stat blocks**: every character can have an SRD stat block (abilities, armor class, hit points,
 speed, proficiencies, challenge and XP), from the SRD's 35 NPC templates (commoner, guard, bandit,
 veteran, priest, goblin, orc…) or filled in by hand ([Characters › Stat
-blocks](06-characters.md#stat-blocks)). Scripts read them with `npc_stat`, and automated runs see
-them in `statblocks=`; real-time combat still uses a character's *Max HP*, *Damage* and *Defense*
-until the turn-based combat of 0.29 takes the stat blocks.
+blocks](06-characters.md#stat-blocks)). Fights use them ([Health and combat](#health-and-combat)); scripts read them with `npc_stat`, and
+automated runs see them in `statblocks=`.
 
-What isn't there yet: classes and rolls in combat; combat stays real-time until the turn-based
-combat of 0.29.
+What isn't there yet: classes (0.30) and the SRD's weapons and armor (0.31): [The SRD 5.1
+rules › What is simplified](19-srd-rules.md#what-is-simplified).
 
 ### Converting a project of 0.27 or older
 

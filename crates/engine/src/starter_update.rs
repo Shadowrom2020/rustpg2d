@@ -433,7 +433,7 @@ mod tests {
         lib.db.items.iter_mut().find(|d| d.id == "gem").unwrap().name = "My gem".into();
         lib.db.items.iter_mut().find(|d| d.id == "charm").unwrap().name = "My charm".into();
         let mut relic_bow = item("relic_bow", "Relic bow");
-        relic_bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "relic".into() }));
+        relic_bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "relic".into(), long_range: 0.0 }));
         lib.db.items.push(relic_bow);
         lib.save_config().unwrap();
         lib.save_defs().unwrap();
@@ -496,7 +496,7 @@ mod tests {
         let a = |k: RefKind, id: &str| (k, id.to_string());
         // v1's bow shoots relics; v2's bow shoots nothing and the relic is gone.
         let mut bow = item("bow", "Bow");
-        bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "relic".into() }));
+        bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "relic".into(), long_range: 0.0 }));
         let v1 = starter([255, 0, 0, 255], vec![bow.clone(), item("relic", "Relic")], "v1");
         bow.weapon.as_mut().unwrap().ranged.as_mut().unwrap().ammo.clear();
         let v2 = starter([255, 0, 0, 255], vec![bow], "v1");

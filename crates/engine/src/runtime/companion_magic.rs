@@ -155,7 +155,6 @@ impl Game {
                     }
                     None => false,
                 },
-                SpellEffect::Bolt { damage, projectile, speed, range, .. } => self.companion_bolt(i, *damage, projectile, *speed, *range),
                 _ => false,
             };
             if cast {
@@ -188,27 +187,6 @@ impl Game {
             }
         }
         heal_choice(&candidates)
-    }
-
-    /// A *Bolt* from companion `i` at the enemy it fights, when it is in range. True if cast.
-    fn companion_bolt(&mut self, i: usize, damage: i32, projectile: &crate::defs::SpriteRef, speed: f32, range: f32) -> bool {
-        let Some(t) = self.companion_target(i) else { return false };
-        let ts = self.ts();
-        let e = &self.loaded.entities[i];
-        let eye = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0);
-        let o = &self.loaded.entities[t];
-        let aim = o.body.pos - vec2(0.0, o.body.hitbox.y / 2.0);
-        if aim.distance(eye) > range * ts {
-            return false;
-        }
-        let dir = (aim - eye).normalize_or_zero();
-        let uid = e.uid;
-        let e = &mut self.loaded.entities[i];
-        e.body.facing = crate::entity::Facing::from_vec(dir.x, dir.y).unwrap_or(e.body.facing);
-        let ranged = crate::defs::Ranged { projectile: projectile.clone(), speed, range, ammo: String::new() };
-        self.audio.play(&self.project.config.sfx.attack);
-        self.shoot(eye, dir, &ranged, damage, true, Some(uid), None, None);
-        true
     }
 
     /// For `status()`: ":mana=a/b:spells=x,y" of companion `i` (empty without magic).

@@ -14,9 +14,9 @@ Triggers belong to an **owner**, and each owner receives only some events:
 
 | Triggers of | Events they can react to |
 |---|---|
-| a **map** (map settings, nothing selected) | *Map enter*, *Woke up*, *Time reached*, *Custom event* |
+| a **map** (map settings, nothing selected) | *Map enter*, *Woke up*, *Time reached*, *Fight starts*, *Fight ends*, *Custom event* |
 | a **zone** (trigger area) | *Enter*, *Leave*, *Interact*, *Custom event* |
-| a **character** (placed, or its definition) | *Interact*, *Use item*, *Defeat*, *HP below %*, *Custom event* |
+| a **character** (placed, or its definition) | *Interact*, *Use item*, *Defeat*, *HP below %*, *Fight starts*, *Fight ends*, *Custom event* |
 | a **prop** (placed, or its definition) | *Interact*, *Use item*, *Unlocked*, *Locked*, *Woke up* (beds), *Custom event* |
 | an **item lying on a map** | *Interact*, *Use item*, *Custom event* |
 | an **item definition's** *On use* | *Use item* |
@@ -39,6 +39,7 @@ map) or in the Database (definitions).
 | **Unlocked** / **Locked** | The prop's lock was opened with its key, or locked again. |
 | **Woke up** | The player woke up after sleeping: the map's triggers (anywhere on it) and the bed's own. |
 | **Time reached** | The clock reached that hour (12.0 = noon, 5.5 = 5:30) while the player is on the map, every day; also when time jumps past it by sleeping or *Set time*. |
+| **Fight starts** / **Fight ends** | A [turn-based fight](09-gameplay.md#health-and-combat) started on the map / is over (won or fled; not when lost: the *defeated* menu comes). The map's triggers, and a character's own when it takes part (a boss's words when its fight starts; one that joins later fires *Fight starts* as it joins). |
 
 ## Conditions
 
@@ -184,6 +185,9 @@ across map changes and in save games.
 - **Short rest**: opens the rest window, where the hero spends hit dice; an hour passes.
 - **Long rest** (hours, 8): like sleeping without a bed: full HP, half the hit dice back, one level of
   exhaustion less, the timed conditions over ([Gameplay › Rests](09-gameplay.md#rests)).
+- **Start fight**: a [turn-based fight](09-gameplay.md#health-and-combat) with the hostile
+  characters within 12 tiles of the player (their allies and the party join); nothing without any.
+  An ambush: *Set active* shows the bandits, *Start fight* begins it.
 
 In the example, Tilda's quest reward offers "Ask for a bit more": an *Ability check* (Persuasion,
 DC 13) whose success gives ten more coins.

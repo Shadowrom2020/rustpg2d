@@ -2,8 +2,7 @@
 
 R(ust)PG2D plays by the **System Reference Document 5.1** (SRD 5.1) by Wizards of the Coast LLC,
 released under the Creative Commons Attribution 4.0 licence. This chapter sums up how the engine
-uses it, what is simplified while combat is still real-time, and what the licence asks of your
-game. The details are in the chapters the sections link to.
+uses it, what is still simplified, and what the licence asks of your game. The details are in the chapters the sections link to.
 
 ## How the rules work in the engine
 
@@ -18,22 +17,28 @@ game. The details are in the chapters the sections link to.
 | **Conditions** | The 15 conditions with exhaustion's six levels; saving throws keep them off; damage or healing per round of 6 seconds | [Gameplay › Conditions and damage](09-gameplay.md#conditions-and-damage) |
 | **Damage types** | 13 types; resistance halves, immunity stops, vulnerability doubles | [Gameplay › Conditions and damage](09-gameplay.md#conditions-and-damage) |
 | **Rests** | Short rests spend hit dice; long rests (a night's sleep) restore HP, hit dice and lower exhaustion | [Gameplay › Rests](09-gameplay.md#rests) |
-| **Stat blocks** | Any character can have one, from the SRD's 35 NPC templates (commoner, guard, bandit, veteran…) or by hand | [Characters › Stat blocks](06-characters.md#stat-blocks) |
+| **Stat blocks** | Any character can have one, from the SRD's 35 NPC templates (commoner, guard, bandit, veteran…) or by hand, with its attacks and Multiattack | [Characters › Stat blocks](06-characters.md#stat-blocks) |
+| **Combat** | Turn-based on the map's tiles (5 ft): initiative, surprise, movement with difficult terrain, the action economy and the SRD's actions, attack rolls against AC with advantage and disadvantage, critical hits, cover, opportunity attacks, two-weapon fighting, grapple and shove, death saving throws | [Gameplay › Health and combat](09-gameplay.md#health-and-combat) |
 
 The SRD's own words (conditions, damage types, languages, alignments, abilities and skills) are
 built into the engine; the editor shows them as hover texts.
 
-## What is simplified (until 0.29)
+## What is simplified
 
-Combat is real-time until the turn-based combat of 0.29:
-
-- **Attacks** don't roll against armor class yet. Weapons deal their *Damage* minus the target's
-  *Defense*, after its resistances.
-- **Characters** fight with *Max HP*, *Damage* and *Defense*, not their stat block's hit points.
-  Their stat block's resistances, condition immunities and saving throws already count.
-- **Disadvantage on attack rolls** (poisoned, prone, restrained…) waits for attack rolls.
-- **The hit die** is a d10 for every hero until classes arrive (0.30). There are no spell slots yet,
-  and no breath weapons or other class and race features beyond what the traits describe.
+- **Classes** arrive with 0.30: until then the hit die is a d10 for every hero, heroes are
+  proficient with every weapon, and there are no spell slots: spells cost mana as before. In a
+  fight a *Bolt* spell is a ranged spell attack (INT + proficiency), a *Blast* a DEX saving throw
+  for half damage, *Heal* touches an ally.
+- **Weapons and armor** come with 0.31: weapon properties (finesse, light, heavy, thrown) and the
+  SRD's armor table. Until then melee attacks use STR, ranged ones DEX, any weapon in the left hand
+  can make the off-hand attack, and armor class is 10 + DEX + the armor's *Defense*.
+- **Monsters** come with *Monsters and encounters* (0.29): characters without a stat block fight
+  with one made from their old values (AC 10 + *Defense*, their *Max HP*, +2 to hit with their
+  weapon or *Damage*). Special actions with recharge, legendary actions and traits such as Pack
+  Tactics or Regeneration don't act yet.
+- **Difficult terrain** comes from materials only (not yet from decorations); reach weapons reach
+  as far as their *Reach* in tiles (the example's spear: 10 ft).
+- **No breath weapons** or other class and race features beyond what the traits describe.
 
 ## The licence: what your game needs
 

@@ -216,7 +216,7 @@ mod tests {
         let item = |id: &str| ItemDef { id: id.into(), name: id.into(), icon: SpriteRef::new("items", 1), ..Default::default() };
         db.items.push(ItemDef { weapon: Some(Weapon::melee(2, 0.4)), ..item("sword") });
         let mut bow = ItemDef { weapon: Some(Weapon::melee(1, 0.5)), ..item("bow") };
-        bow.weapon.as_mut().unwrap().ranged = Some(crate::defs::Ranged { projectile: SpriteRef::new("items", 2), speed: 100.0, range: 6.0, ammo: String::new() });
+        bow.weapon.as_mut().unwrap().ranged = Some(crate::defs::Ranged { projectile: SpriteRef::new("items", 2), speed: 100.0, range: 6.0, ammo: String::new(), long_range: 0.0 });
         db.items.push(bow);
         db.items.push(item("shield"));
         db.items.push(ItemDef { weapon: Some(Weapon { two_handed: true, ..Weapon::melee(2, 0.5) }), held: Some(HeldSprite { points: -90.0, ..Default::default() }), ..item("spear") });

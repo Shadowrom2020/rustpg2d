@@ -1,11 +1,10 @@
 //! Combat states: who is battle-ready, and the battle music.
 //!
-//! A character is **in combat** while it hunts someone (`ai.rs`: aggro), attacks, or (a companion)
-//! fights; the player while an enemy close by hunts them or a companion, while they strike or
-//! raise a shield, and when hurt. The state lasts [`HOLD`] seconds after the last of these, so it
-//! doesn't flicker. In combat characters stand in their weapon's stance and hold a one-handed
-//! weapon (out of combat it hangs at the hip: `render/model.rs`, `Gear::ready`). Enemies
-//! engaging the player or a companion switch the music to the battle track
+//! A character is **in combat** while it takes part in a fight (`turns/`) or hunts someone
+//! (`ai.rs`: aggro); the player during a fight and while they swing. The state lasts [`HOLD`]
+//! seconds after the last of these, so it doesn't flicker. In combat characters stand in their
+//! weapon's stance and hold a one-handed weapon (out of combat it hangs at the hip:
+//! `render/model.rs`, `Gear::ready`). A fight switches the music to the battle track
 //! (`ProjectConfig::battle_music`, a map may name another or none) and back to the map's own
 //! when it is over.
 
@@ -13,8 +12,6 @@ use super::Game;
 
 /// Seconds a combat state lasts after its last reason.
 pub(super) const HOLD: f32 = 4.0;
-/// Enemies farther than this (tiles) don't put the player in combat however they hunt.
-const NEAR: f32 = 16.0;
 
 #[derive(Default)]
 pub(super) struct Battle {
@@ -25,7 +22,7 @@ pub(super) struct Battle {
     pub threat_t: f32,
     /// The music outside combat: the map's track, or one a *Play music* action chose.
     pub peace: String,
-    /// An enemy close by fought the player last frame.
+    /// A fight was on last frame.
     pub threatened: bool,
     /// Enemies the player defeated in this fight (the victory fanfare when it ends).
     pub won: u32,
@@ -34,14 +31,12 @@ pub(super) struct Battle {
 impl Game {
     /// Counts the combat states down and up again (once a frame, with the world's update).
     pub(super) fn update_battle(&mut self, dt: f32) {
-        let ts = self.ts();
-        let player = self.player.pos;
-        let mut threat = false;
+        let fighters: Vec<u32> = self.loaded.entities.iter().filter(|e| self.fighting(e.uid)).map(|e| e.uid).collect();
         for e in &mut self.loaded.entities {
-            let fighting = e.active && (e.ai.aggro > 0.0 && !e.ai.returning || e.attack.is_some() || e.companion.as_ref().is_some_and(|l| l.fighting));
+            let fighting = e.active && (fighters.contains(&e.uid) || (e.ai.aggro > 0.0 && !e.ai.returning));
             e.combat_t = if fighting { HOLD } else { (e.combat_t - dt).max(0.0) };
-            threat |= fighting && e.hostile && e.companion.is_none() && e.max_hp > 0 && e.body.pos.distance(player) <= NEAR * ts;
         }
+        let threat = self.fight.is_some();
         // (Defeated: the fight is over, whatever the enemies still think.)
         let threat = threat && self.game_over.is_none();
         // The fight is over with enemies defeated: the project's victory fanfare.
@@ -55,7 +50,7 @@ impl Game {
             self.battle.won = 0;
         }
         self.battle.threatened = threat;
-        let me = self.game_over.is_none() && (self.combat.strike > 0.0 || self.combat.block.is_some() || self.combat.invuln > 0.0);
+        let me = self.game_over.is_none() && (threat || self.combat.strike > 0.0);
         self.battle.player_t = if threat || me { HOLD } else { (self.battle.player_t - dt).max(0.0) };
         self.battle.threat_t = if threat { HOLD } else { (self.battle.threat_t - dt).max(0.0) };
         self.update_battle_music(dt);

@@ -76,13 +76,14 @@ for how to use it all.
 - Characters are 3D models drawn in the pixel look: they walk, strike, flinch, sit, sleep and work, and hold what they carry in their hands.
 - New characters imported (Meshy, Blender, Mixamo) or generated with AI from a description; animals and monsters animated with rig templates; colour features (skin, hair, clothing) that NPCs and the player's character creator recolour.
 - Villagers with daily schedules who sit on benches, sleep in their beds, visit other maps and work at their spot.
-- Enemies that notice you, hunt, flee when hurt and give up when lured too far.
-- Companions who follow you, fight, carry and use their own gear, and take orders.
+- Enemies that notice you, fight by their SRD stat block, flee when hurt and give up when lured too far.
+- Companions who follow you, fight at your command or on their own, carry and use their own gear.
 
 **Gameplay**
 - The SRD 5.1 rules: ability scores, skills and proficiency, ability checks and saving throws
-  (seedable dice, a roll log); real-time melee and ranged combat, experience and levels, spells,
-  status effects.
+  (seedable dice, a roll log); **turn-based combat** on the map's tiles (initiative, the action
+  economy, attack rolls against AC, cover, opportunity attacks, death saves), experience and
+  levels, spells, conditions.
 - Inventory, shops, chests, keys and locks to pick (a DEX check).
 - Crafting, cooking and blacksmithing, gathering and mining, farming, fishing.
 - Keyboard, mouse and gamepad, named save games with pictures, autosave.

@@ -759,7 +759,7 @@ one name space with the project's.
 | Function | Description |
 |---|---|
 | `plugin_param(plugin, name)` | A plugin's parameter as the project set it in the *Plugins* window, else the plugin's default: a number (whole numbers come as integers), `true` / `false` or a text; `()` when the plugin is off or has no such parameter. *(immediately, since 0.27)* |
-| `api_version()` | The script API version of this engine, e.g. `"0.28"`: what a script or plugin may count on ([API versions](#api-versions)). *(immediately, since 0.27)* |
+| `api_version()` | The script API version of this engine, e.g. `"0.29"`: what a script or plugin may count on ([API versions](#api-versions)). *(immediately, since 0.27)* |
 
 ### Quests
 
@@ -916,6 +916,9 @@ running keeps the longer duration; exhaustion adds a level.
 | `set_exhaustion(level)` | Sets it (0 = none; 6 is death). *(immediately, since 0.28)* |
 | `short_rest()` | Opens the rest window: the hero spends hit dice. *(queued, since 0.28)* |
 | `long_rest()` / `long_rest(hours)` | A long rest of 8 (or `hours`) hours, like sleeping: full HP, half the hit dice back, one level of exhaustion less, timed conditions over. *(queued, since 0.28)* |
+| `start_combat()` | Starts a [turn-based fight](09-gameplay.md#health-and-combat) with the hostile characters within 12 tiles of the player; their allies and the party join (the *Start fight* action). Nothing without any, or during a fight. *(queued, since 0.29)* |
+| `in_combat()` | Whether a fight is going on. *(since 0.29)* |
+| `combat_round()` | The round of the fight going on (1 = the first; 0 = no fight). *(since 0.29)* |
 | `apply_effect(target, effect, strength, seconds)` | **Deprecated** since 0.28: use `apply_condition`. The status effects of 0.27 as conditions: `"poison"` = poisoned + poison damage per round (`strength` × 6), `"burn"` = fire damage per round, `"regen"` = healing per round, `"stun"` = stunned, `"slow"` = restrained; `"haste"`, `"strength"`, `"weakness"`, `"shield"` do nothing. *(queued)* |
 | `cure(target, effect)` | **Deprecated** since 0.28: use `remove_condition`. *(queued)* |
 | `cure(target)` | **Deprecated** since 0.28: use `remove_condition(target, "all")`. *(queued)* |
@@ -1231,7 +1234,7 @@ fn fountain() {
 
 ## API versions
 
-The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.28`); `api_version()` returns it.
+The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.29`); `api_version()` returns it.
 Functions added since versions were kept say *since 0.27* (or later) in this reference, so a script
 or a [plugin](18-plugins.md) knows what it may count on; a plugin names the version it needs
 (`api` in its `plugin.ron`) and isn't loaded by an older engine.

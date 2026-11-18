@@ -45,11 +45,42 @@ pub struct StatBlock {
     /// Conditions it can't get (`poisoned`, `exhaustion`).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub condition_immunities: Vec<String>,
+    /// Its attacks (the SRD's actions with an attack roll).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attacks: Vec<StatAttack>,
+    /// How many attacks its Attack action makes (Multiattack; 0 = one).
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub multiattack: u32,
+}
+
+fn is_zero_u32(n: &u32) -> bool {
+    *n == 0
+}
+
+/// An attack of a stat block: "Scimitar: +5 to hit, reach 5 ft., 1d6+3 slashing".
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StatAttack {
+    pub name: String,
+    /// The attack roll's bonus.
+    pub bonus: i32,
+    /// The damage dice with the modifier ("1d6+3").
+    pub dice: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub damage_type: Option<super::DamageType>,
+    /// Melee reach in feet (0 = no melee).
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub reach_ft: u32,
+    /// Ranged: the normal and the long range in feet (0 = no ranged attack).
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub range_ft: u32,
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub long_ft: u32,
 }
 
 impl Default for StatBlock {
     fn default() -> Self {
-        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new() }
+        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new(), attacks: Vec::new(), multiattack: 0 }
     }
 }
 

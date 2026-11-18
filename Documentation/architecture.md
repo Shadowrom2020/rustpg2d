@@ -133,8 +133,8 @@ average, so saves of 0.27 load) and the runtime derives the max HP from them and
 modifier (`Game::player_max_hp`) instead of storing it; `hit_dice` counts the dice left (`None` =
 the level). Stat blocks (`srd/statblock.rs`) are data on `CharacterDef::stats` / `EntityInstance::stats`
 (the placed one wins, `Game::stat_block`); the SRD's NPC templates are `srd/npcs.ron`, built into
-the engine (`include_str!`, parsed once) and written by `srd_import`. Real-time combat doesn't read
-them; the script host gets them as a list per script call (`set_stat_blocks`, `npc_stat`).
+the engine (`include_str!`, parsed once) and written by `srd_import`. Fights fight with them
+(below); the script host gets them as a list per script call (`set_stat_blocks`, `npc_stat`).
 
 Conditions (`srd/conditions.rs`) replaced the status effects of 0.27: `ConditionSpec` (what weapons,
 touches, actions and scripts apply: a condition, seconds, exhaustion levels, a saving throw,
@@ -189,14 +189,33 @@ state back into `world.entities[map]`.
    interact, clickable UI);
 8. the action runner (taken out with `mem::take`; actions queued meanwhile are appended);
 9. `frozen` = runner busy, fading or modal;
-10. `update_player`, fog reveal, `update_entities`, `update_combat`, projectiles, spawners,
-    effects and weather, gathering.
+10. `update_turns` while a fight is on, `update_player`, fog reveal, `update_entities`,
+    `update_combat` (timers; outside fights the Attack key), projectiles, spawners, effects and
+    weather, gathering.
 
-`update_entities` handles every character by priority: scripted `move_target`, item use,
-knockback, speed effects, companion, chase AI, schedule, activity, patrol, then a wander fallback.
-Before that loop, `assign_attack_slots` (`ai.rs`) decides once a frame which group fighters may
-close in on each target (two per target; the rest circle), so the chase AI of each character
-only reads its own `Ai::circling` and needs no knowledge of the others' plans.
+`update_entities` handles every character by priority: scripted `move_target`, a fighter's
+turn (it only walks its `move_target`), item use, knockback, speed effects, companion, chase AI,
+schedule, activity, patrol, then a wander fallback. The chase AI (`ai.rs`) notices: a hostile
+character that notices the player or a companion calls `start_combat`.
+
+**Turn-based fights** (`runtime/turns/`, SRD 5.1) live in `Game.fight: Option<Box<Combat>>`, which
+is never saved (`write_save` refuses during a fight, the autosave waits; `enter_map` ends one).
+`start_combat` gathers the fighters within 12 tiles (`Fighter`: `Who::Player | Who::Npc(uid)`, the
+side, initiative, death saves, Dodge / hidden / reaction / readied / grapple state), snaps them to
+tile middles, sorts them by d20 + DEX; later hostiles `join_fight` at the end of the order. Each
+turn (`begin_turn`: conditions tick a round, death saves, standing up from prone) has a `Turn`
+economy; `update_turns` walks the current fighter along its path a tile per move target
+(opportunity and readied attacks on each step), runs the AI (`ai.rs`, one step per pause) or the
+player's input (`ui.rs`). Attacks are `AttackSpec`s (the hero's weapon, a stat block's attacks, a
+derived block for characters without one) rolled by `srd/combat.rs` (pure: `odds`, `attack`,
+`crit_dice`, `Cover::of_lines`, `DeathSaves`); `combat_damage` applies them through the target's
+defenses and the `damage` hook, and `strike_entity` / `hurt_player_by` route every other damage
+(scripts, spells, areas) there while a fight is on. Party members at 0 HP fall (unconscious, death
+saves), others die (`defeat`). `check_over` ends the fight when no enemy fights on, or loses it
+when nobody of the party stands and those down are stable. Movement reach is a Dijkstra over
+tiles (`reachable`: foes block, allies are passed, diagonals past free corners, difficult materials
+cost double), cover counts lines from the attacker's tile middle to the target tile's corners
+through walls, high obstacles and creatures.
 Targets are `Foe::Player`, `Foe::Companion(uid)` and `Foe::Npc(uid)`: factions
 (`factions.rs`, `ProjectConfig::factions`) become a `factions::Table` (faction index per
 `RtEntity::faction`, hostility as a bit matrix) when the game starts, so `npc_foes` / `foes` are
@@ -215,7 +234,7 @@ after a few seconds. The player moves through `try_move` too: solid tiles, solid
 player block; ladders block characters and are climbed by the player (vertical only, slower).
 
 `draw` runs: pixel camera, parallax layers behind, the painted ground, flat decorations, fish
-shadows, entities, the player and sorted decorations Y-sorted, combat / gathering / activity / FX /
+shadows, entities, the player and sorted decorations Y-sorted, combat / the fight's tiles / gathering / activity / FX /
 mouse overlays, decorations above everyone, parallax above, the light pass when it is dark or the weather tints, weather, the save
 thumbnail, the debug overlay, the fade, HUD, windows, dialog, menus, console.
 

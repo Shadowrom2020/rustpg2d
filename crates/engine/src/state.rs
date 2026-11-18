@@ -355,6 +355,9 @@ pub struct Companion {
     /// Its mana (None = full).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mana: Option<f32>,
+    /// In fights the AI plays its turns (else the player does).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ai: bool,
 }
 
 /// How a companion fights (`Companion::order`); staying put is separate (`Companion::post`).
@@ -965,7 +968,7 @@ mod tests {
         assert!(!old.contains("companions"));
         assert!(WorldState::from_ron(&old).unwrap().companions.is_empty());
         let mut w = WorldState::default();
-        w.companions.push(Companion { map: "village".into(), uid: 22, name: "guard".into(), hp: Some(5), down: None, order: Order::Defend, post: Some([100.0, 200.0]), mana: None });
+        w.companions.push(Companion { ai: false, map: "village".into(), uid: 22, name: "guard".into(), hp: Some(5), down: None, order: Order::Defend, post: Some([100.0, 200.0]), mana: None });
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert_eq!(back.companions, w.companions);
         assert!(back.is_companion("village", 22) && !back.is_companion("forest", 22));

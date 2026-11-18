@@ -216,6 +216,15 @@ when nobody of the party stands and those down are stable. Movement reach is a D
 tiles (`reachable`: foes block, allies are passed, diagonals past free corners, difficult materials
 cost double), cover counts lines from the attacker's tile middle to the target tile's corners
 through walls, high obstacles and creatures.
+
+**Spawners and encounters** (`runtime/spawner.rs`) share `SpawnerRt`: a zone, a group (a
+character id per member), respawn timers. A spawner's group is its `count` of one character; an
+encounter's (`ZoneKind::Encounter`) is its list, or with a difficulty a group `srd/encounter.rs`
+picks from it within the party's XP budget (`budget`: the hero's level and the companions on the
+map; `pick` seeded by `seed_of(map, zone)`, so a map shows the same group every visit), computed
+when the map is entered (`setup_spawners`). `missing_member` decides which member a respawn
+brings back. The SRD's monsters are no engine data: `srd_import` writes them as starter library
+characters (`import_monsters`), and `RulesText::monsters` lists their ids for `srd_content`.
 Targets are `Foe::Player`, `Foe::Companion(uid)` and `Foe::Npc(uid)`: factions
 (`factions.rs`, `ProjectConfig::factions`) become a `factions::Table` (faction index per
 `RtEntity::faction`, hostility as a bit matrix) when the game starts, so `npc_foes` / `foes` are

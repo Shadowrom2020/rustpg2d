@@ -78,6 +78,10 @@ pub fn zone_kind(k: &ZoneKind) -> String {
         ZoneKind::Transition { target_map, target_zone } => format!("transition -> {target_map}/{target_zone}"),
         ZoneKind::FishingSpot { rod } => format!("fishing spot (rod {})", if rod.is_empty() { "none" } else { rod }),
         ZoneKind::Ambience { sound, volume, fade } => format!("ambience {sound} {volume:.2} (fades over {fade} tiles)"),
+        ZoneKind::Encounter { monsters, difficulty, respawn } => {
+            let list: Vec<String> = monsters.iter().map(|m| format!("{} x{}", m.character, m.count)).collect();
+            format!("encounter {} [{}] ({respawn:?})", difficulty.id(), list.join(", "))
+        }
     }
 }
 

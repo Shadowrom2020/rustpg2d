@@ -1,4 +1,6 @@
-//! Invisible spawner zones that keep a group of characters (usually enemies) on the map.
+//! Invisible spawner and encounter zones that keep a group of characters (usually enemies) on
+//! the map: a spawner's `count` of one character, an encounter's listed monsters or a group
+//! picked within the party's XP budget (`srd::encounter`).
 
 use macroquad::prelude::*;
 
@@ -15,8 +17,10 @@ const MIN_PLAYER_DIST: f32 = 3.0;
 
 pub(super) struct SpawnerRt {
     zone: u32,
-    character: String,
-    count: u32,
+    /// The group: a character per member.
+    group: Vec<String>,
+    /// An encounter's difficulty and budget (`encounters=`).
+    difficulty: Option<(crate::srd::encounter::Difficulty, u32)>,
     respawn: Respawn,
     rect: (u32, u32, u32, u32),
     /// Pending respawn countdowns (`Respawn::After`).
@@ -85,18 +89,21 @@ impl Game {
             .iter()
             .filter(|z| !self.spawner_off(&map, &z.name))
             .filter_map(|z| match &z.kind {
-                ZoneKind::Spawner { character, count, respawn } => {
-                    Some((z.uid, character.clone(), *count, respawn.clone(), (z.x, z.y, z.w, z.h)))
+                ZoneKind::Spawner { character, count, respawn } => Some((z.uid, vec![character.clone(); *count as usize], None, respawn.clone(), (z.x, z.y, z.w, z.h))),
+                ZoneKind::Encounter { monsters, difficulty, respawn } => {
+                    let (group, budget) = self.encounter_group(&map, z.uid, monsters, *difficulty);
+                    Some((z.uid, group, Some((*difficulty, budget)), respawn.clone(), (z.x, z.y, z.w, z.h)))
                 }
                 _ => None,
             })
             .collect();
-        for (zone, character, count, respawn, rect) in zones {
+        for (zone, group, difficulty, respawn, rect) in zones {
             let killed = match respawn {
                 Respawn::Never => self.world.spawner_kills.get(&map).and_then(|m| m.get(&zone)).copied().unwrap_or(0),
                 _ => 0,
             };
-            self.spawners.push(SpawnerRt { zone, character, count, respawn, rect, timers: Vec::new() });
+            let count = group.len() as u32;
+            self.spawners.push(SpawnerRt { zone, group, difficulty, respawn, rect, timers: Vec::new() });
             let si = self.spawners.len() - 1;
             for _ in 0..count.saturating_sub(killed) {
                 self.spawn_one(si, false);
@@ -104,8 +111,48 @@ impl Game {
         }
     }
 
+    /// An encounter's group: the listed monsters, or (with a difficulty) a group picked from them
+    /// within the XP budget of the party here (the hero and the companions on the map) at the
+    /// hero's level; the same for a map and zone every time. Returns the group and the budget.
+    pub(super) fn encounter_group(&self, map: &str, zone: u32, monsters: &[crate::srd::encounter::EncounterEntry], difficulty: crate::srd::encounter::Difficulty) -> (Vec<String>, u32) {
+        use crate::srd::encounter;
+        if difficulty == encounter::Difficulty::Fixed {
+            return (monsters.iter().flat_map(|m| std::iter::repeat_n(m.character.clone(), m.count as usize)).collect(), 0);
+        }
+        let party = 1 + self.loaded.entities.iter().filter(|e| e.active && e.companion.is_some()).count() as u32;
+        let budget = encounter::budget(difficulty, self.world.player_level(), party);
+        let pool: Vec<(String, u32, u32)> = monsters
+            .iter()
+            .filter(|m| self.project.db.character(&m.character).is_some())
+            .map(|m| (m.character.clone(), self.character_xp(&m.character), m.count.max(1)))
+            .collect();
+        (encounter::pick(&pool, budget, encounter::seed_of(map, zone)), budget)
+    }
+
+    /// What defeating a character of definition `id` is worth: its XP, else its stat block's.
+    fn character_xp(&self, id: &str) -> u32 {
+        self.project.db.character(id).map_or(0, |d| if d.xp > 0 { d.xp } else { d.stats.as_ref().map_or(0, |s| s.xp) })
+    }
+
+    /// The member of spawner `si`'s group that is missing now (the first of the group whose
+    /// definition has fewer alive than the group lists).
+    fn missing_member(&self, si: usize) -> Option<String> {
+        let sp = &self.spawners[si];
+        let alive = |def: &str| self.loaded.entities.iter().filter(|e| e.spawned_by == Some(sp.zone) && e.active && e.def == def).count();
+        let mut seen: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for def in &sp.group {
+            let n = seen.entry(def.as_str()).or_insert(0);
+            *n += 1;
+            if alive(def) < *n {
+                return Some(def.clone());
+            }
+        }
+        None
+    }
+
     /// Spawns one character on a random free tile of the spawner's zone.
     fn spawn_one(&mut self, si: usize, effect: bool) -> bool {
+        let Some(character) = self.missing_member(si) else { return false };
         let ts = self.ts();
         let (x, y, w, h) = self.spawners[si].rect;
         for _ in 0..40 {
@@ -121,7 +168,7 @@ impl Game {
             let uid = self.next_spawn_uid;
             self.next_spawn_uid += 1;
             let sp = &self.spawners[si];
-            let mut e = self.new_rt_entity(EntityKind::Character, &sp.character.clone(), uid, "", pos, Facing::Down, true, 0);
+            let mut e = self.new_rt_entity(EntityKind::Character, &character, uid, "", pos, Facing::Down, true, 0);
             e.spawned_by = Some(sp.zone);
             // The spawner's loot table goes to its characters.
             if let Some(loot) = self.loaded.map.zones.iter().find(|z| z.uid == sp.zone).and_then(|z| z.loot.clone()) {
@@ -162,7 +209,7 @@ impl Game {
             if due == 0 {
                 continue;
             }
-            let (zone, count) = (sp.zone, sp.count);
+            let (zone, count) = (sp.zone, sp.group.len() as u32);
             let alive = self.loaded.entities.iter().filter(|e| e.spawned_by == Some(zone)).count() as u32;
             let mut spawned = 0;
             for _ in 0..due.min(count.saturating_sub(alive) as usize) {
@@ -218,10 +265,22 @@ impl Game {
                 let name = self.loaded.map.zones.iter().find(|z| z.uid == sp.zone).map_or("?", |z| z.name.as_str());
                 let alive = self.loaded.entities.iter().filter(|e| e.spawned_by == Some(sp.zone) && e.active).count();
                 let killed = self.world.spawner_kills.get(&self.loaded.map.name).and_then(|m| m.get(&sp.zone)).copied().unwrap_or(0);
-                format!("{name} {alive}/{} ({} pending, {killed} killed for good)", sp.count, sp.timers.len())
+                format!("{name} {alive}/{} ({} pending, {killed} killed for good)", sp.group.len(), sp.timers.len())
             })
             .collect::<Vec<_>>()
             .join("; ")
+    }
+
+    /// `encounters=` for `status`: each encounter zone as `name:difficulty:budget[member …]`.
+    pub(super) fn encounter_status(&self) -> Vec<String> {
+        self.spawners
+            .iter()
+            .filter_map(|sp| {
+                let (d, budget) = sp.difficulty?;
+                let name = self.loaded.map.zones.iter().find(|z| z.uid == sp.zone).map_or("?", |z| z.name.as_str());
+                Some(format!("{name}:{}:{budget}[{}]", d.id(), sp.group.join(" ")))
+            })
+            .collect()
     }
 
     /// Number of active hostile characters on the map (for status / tests).

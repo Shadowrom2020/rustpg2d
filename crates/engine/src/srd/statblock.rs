@@ -51,6 +51,119 @@ pub struct StatBlock {
     /// How many attacks its Attack action makes (Multiattack; 0 = one).
     #[serde(skip_serializing_if = "is_zero_u32")]
     pub multiattack: u32,
+    /// Its size (scales the look; fights: one tile for everyone until 0.32).
+    #[serde(skip_serializing_if = "Size::is_medium")]
+    pub size: Size,
+    /// The SRD's creature type with the subtype ("beast", "humanoid (goblinoid)").
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub creature_type: String,
+    /// Other speeds than walking, in feet.
+    #[serde(skip_serializing_if = "Speeds::is_none")]
+    pub speeds: Speeds,
+    /// Its senses as the SRD writes them ("blindsight 30 ft., passive Perception 10").
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub senses: String,
+    /// The SRD's texts of its traits and of the actions, reactions and legendary actions that
+    /// aren't plain attacks (they act with 0.32; the editor and the bestiary show them).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<StatFeature>,
+}
+
+/// A creature's size (the SRD's six).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Size {
+    Tiny,
+    Small,
+    #[default]
+    Medium,
+    Large,
+    Huge,
+    Gargantuan,
+}
+
+impl Size {
+    pub const ALL: [Size; 6] = [Size::Tiny, Size::Small, Size::Medium, Size::Large, Size::Huge, Size::Gargantuan];
+
+    fn is_medium(&self) -> bool {
+        *self == Size::Medium
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Size::Tiny => "Tiny",
+            Size::Small => "Small",
+            Size::Medium => "Medium",
+            Size::Large => "Large",
+            Size::Huge => "Huge",
+            Size::Gargantuan => "Gargantuan",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Size> {
+        Size::ALL.into_iter().find(|z| z.name().eq_ignore_ascii_case(s.trim()))
+    }
+
+    /// How big its look is drawn, times a Medium creature's.
+    pub fn scale(self) -> f32 {
+        match self {
+            Size::Tiny => 0.5,
+            Size::Small => 0.75,
+            Size::Medium => 1.0,
+            Size::Large => 1.5,
+            Size::Huge => 2.0,
+            Size::Gargantuan => 3.0,
+        }
+    }
+}
+
+/// Speeds besides walking (feet; 0 = none).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Speeds {
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub fly: u32,
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub swim: u32,
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub climb: u32,
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub burrow: u32,
+}
+
+impl Speeds {
+    fn is_none(&self) -> bool {
+        *self == Speeds::default()
+    }
+}
+
+/// What a stat block feature is.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FeatureKind {
+    #[default]
+    Trait,
+    Action,
+    Reaction,
+    Legendary,
+}
+
+impl FeatureKind {
+    pub fn name(self) -> &'static str {
+        match self {
+            FeatureKind::Trait => "Trait",
+            FeatureKind::Action => "Action",
+            FeatureKind::Reaction => "Reaction",
+            FeatureKind::Legendary => "Legendary action",
+        }
+    }
+}
+
+/// A trait or a special action in the SRD's words ("Pack Tactics: The wolf has advantage…").
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StatFeature {
+    pub kind: FeatureKind,
+    pub name: String,
+    pub text: String,
 }
 
 fn is_zero_u32(n: &u32) -> bool {
@@ -80,7 +193,7 @@ pub struct StatAttack {
 
 impl Default for StatBlock {
     fn default() -> Self {
-        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new(), attacks: Vec::new(), multiattack: 0 }
+        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new(), attacks: Vec::new(), multiattack: 0, size: Size::Medium, creature_type: String::new(), speeds: Speeds::default(), senses: String::new(), features: Vec::new() }
     }
 }
 

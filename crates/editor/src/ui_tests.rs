@@ -824,3 +824,22 @@ fn a_stat_block_gets_an_attack() {
     assert_eq!((saved.attacks.len(), saved.attacks[0].name.as_str(), saved.attacks[0].dice.as_str()), (2, "Spear", "1d6+1"));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn a_stat_block_shows_and_gets_its_traits() {
+    let root = example_copy("traits");
+    let db = Project::load(&root).unwrap().db;
+    let c = db.characters.iter().position(|c| c.id == "wolf").expect("the example's wolf");
+    let before = db.characters[c].stats.as_ref().unwrap().features.len();
+    assert!(before >= 2, "the SRD wolf's Keen Hearing and Smell, Pack Tactics, Bite");
+    let mut h = harness(&root, Tab::Characters, c);
+    step(&mut h);
+    h.get_by_label_contains("Traits and special actions").click();
+    step(&mut h);
+    h.get_by_label_contains("Add trait").click();
+    step(&mut h);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.characters[c].stats.clone().unwrap();
+    assert_eq!((saved.features.len(), saved.size), (before + 1, rustpg2d_engine::srd::Size::Medium));
+    let _ = std::fs::remove_dir_all(&root);
+}

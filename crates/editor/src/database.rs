@@ -3439,12 +3439,33 @@ pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_
             ui.add(egui::TextEdit::singleline(&mut s.hit_dice).desired_width(80.0)).on_hover_text("As the SRD writes them: \"2d8+2\" (the hit points are their average)");
         });
         ui.end_row();
-        ui.label("Speed");
+        ui.label("Size and type");
         ui.horizontal(|ui| {
+            egui::ComboBox::from_id_salt((salt, "size")).selected_text(s.size.name()).show_ui(ui, |ui| {
+                for z in rustpg2d_engine::srd::Size::ALL {
+                    ui.selectable_value(&mut s.size, z, z.name());
+                }
+            })
+            .response
+            .on_hover_text("Scales the character's look: Tiny 50 %, Small 75 %, Large 150 %, Huge 200 %, Gargantuan 300 % (in fights it takes one tile for now)");
+            ui.add(egui::TextEdit::singleline(&mut s.creature_type).desired_width(160.0).hint_text("beast, undead…"));
+        });
+        ui.end_row();
+        ui.label("Speed");
+        ui.horizontal_wrapped(|ui| {
             ui.add(egui::DragValue::new(&mut s.speed_ft).range(0..=120).suffix(" ft"));
+            ui.label("fly");
+            ui.add(egui::DragValue::new(&mut s.speeds.fly).range(0..=200).suffix(" ft")).on_hover_text("Fliers move at their best speed in fights");
+            ui.label("swim");
+            ui.add(egui::DragValue::new(&mut s.speeds.swim).range(0..=200).suffix(" ft"));
+            ui.label("climb");
+            ui.add(egui::DragValue::new(&mut s.speeds.climb).range(0..=200).suffix(" ft"));
             ui.label("darkvision");
             ui.add(egui::DragValue::new(&mut s.darkvision_ft).range(0..=300).suffix(" ft"));
         });
+        ui.end_row();
+        ui.label("Senses");
+        ui.add(egui::TextEdit::singleline(&mut s.senses).desired_width(320.0).hint_text("blindsight 30 ft., passive Perception 10"));
         ui.end_row();
         ui.label("Languages");
         ui.add(egui::TextEdit::singleline(&mut s.languages).desired_width(320.0));
@@ -3498,6 +3519,38 @@ pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_
         }
     });
     stat_attacks_ui(ui, salt, s);
+    stat_features_ui(ui, salt, s);
+}
+
+/// A stat block's traits and special actions in the SRD's words (they act with 0.32; the
+/// bestiary shows them).
+fn stat_features_ui(ui: &mut egui::Ui, salt: &str, s: &mut rustpg2d_engine::srd::StatBlock) {
+    use rustpg2d_engine::srd::{FeatureKind, StatFeature};
+    let title = format!("Traits and special actions ({})", s.features.len());
+    egui::CollapsingHeader::new(title).id_salt((salt, "features")).show(ui, |ui| {
+        ui.weak("Texts only for now: the special abilities that act come with a later release. Attacks are above.");
+        let mut remove = None;
+        for (k, f) in s.features.iter_mut().enumerate() {
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_id_salt((salt, "fk", k)).selected_text(f.kind.name()).show_ui(ui, |ui| {
+                    for kind in [FeatureKind::Trait, FeatureKind::Action, FeatureKind::Reaction, FeatureKind::Legendary] {
+                        ui.selectable_value(&mut f.kind, kind, kind.name());
+                    }
+                });
+                ui.add(egui::TextEdit::singleline(&mut f.name).desired_width(200.0).hint_text("Pack Tactics"));
+                if ui.small_button(ph::TRASH).on_hover_text("Remove").clicked() {
+                    remove = Some(k);
+                }
+            });
+            ui.add(egui::TextEdit::multiline(&mut f.text).desired_rows(2).desired_width(f32::INFINITY));
+        }
+        if let Some(k) = remove {
+            s.features.remove(k);
+        }
+        if ui.button(crate::ui::t(ph::PLUS, "Add trait")).clicked() {
+            s.features.push(StatFeature { name: "Trait".into(), ..Default::default() });
+        }
+    });
 }
 
 /// A stat block's attacks in fights (name, attack bonus, damage dice and type, melee reach or a

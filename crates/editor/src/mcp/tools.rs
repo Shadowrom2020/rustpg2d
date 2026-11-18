@@ -380,7 +380,7 @@ pub struct UpdateParams {
 pub struct AddZoneParams {
     pub map: Option<String>,
     pub name: String,
-    /// ZoneKind JSON: "Spawn", "Trigger", {"Portal":{"target_map":..,"target_spawn":..}}, {"Spawner":{"character":..,"count":..,"respawn":"Never"|"OnEnter"|{"After":{"seconds":..}}}}, {"Transition":{"target_map":..,"target_zone":..}}, {"FishingSpot":{"rod":..}}, {"Ambience":{"sound":..,"volume":0.6,"fade":4.0}} (a looping sound, full inside, fading out over `fade` tiles).
+    /// ZoneKind JSON: "Spawn", "Trigger", {"Portal":{"target_map":..,"target_spawn":..}}, {"Spawner":{"character":..,"count":..,"respawn":"Never"|"OnEnter"|{"After":{"seconds":..}}}}, {"Transition":{"target_map":..,"target_zone":..}}, {"FishingSpot":{"rod":..}}, {"Ambience":{"sound":..,"volume":0.6,"fade":4.0}} (a looping sound, full inside, fading out over `fade` tiles), {"Encounter":{"monsters":[{"character":..,"count":..}],"difficulty":"Fixed"|"Easy"|"Medium"|"Hard"|"Deadly","respawn":..}} (the listed group, or with a difficulty a group picked from the list within the party's XP budget; the SRD's monsters are library characters: library_add them first).
     pub kind: Value,
     pub x: u32,
     pub y: u32,

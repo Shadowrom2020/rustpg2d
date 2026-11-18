@@ -17,8 +17,184 @@
                 14409277978860879828,
             ],
         ),
+        "character:aboleth": (
+            defs: [
+                535419017260650756,
+            ],
+        ),
+        "character:acolyte": (
+            defs: [
+                12729382076014342046,
+            ],
+        ),
+        "character:adult-black-dragon": (
+            defs: [
+                17112976177901061506,
+            ],
+        ),
+        "character:adult-blue-dragon": (
+            defs: [
+                3736443490810031859,
+            ],
+        ),
+        "character:adult-brass-dragon": (
+            defs: [
+                12013820505019581201,
+            ],
+        ),
+        "character:adult-bronze-dragon": (
+            defs: [
+                16289640491463847921,
+            ],
+        ),
+        "character:adult-copper-dragon": (
+            defs: [
+                8074342354344652771,
+            ],
+        ),
+        "character:adult-gold-dragon": (
+            defs: [
+                12397396019063628724,
+            ],
+        ),
+        "character:adult-green-dragon": (
+            defs: [
+                97877635102496711,
+            ],
+        ),
+        "character:adult-red-dragon": (
+            defs: [
+                7038035692205136456,
+            ],
+        ),
+        "character:adult-silver-dragon": (
+            defs: [
+                7198387505793505776,
+            ],
+        ),
+        "character:adult-white-dragon": (
+            defs: [
+                7436315791407812696,
+            ],
+        ),
+        "character:air-elemental": (
+            defs: [
+                5098501637653912666,
+            ],
+        ),
+        "character:ancient-black-dragon": (
+            defs: [
+                554534033094360614,
+            ],
+        ),
+        "character:ancient-blue-dragon": (
+            defs: [
+                6827479766237715932,
+            ],
+        ),
+        "character:ancient-brass-dragon": (
+            defs: [
+                9854369547504490336,
+            ],
+        ),
+        "character:ancient-bronze-dragon": (
+            defs: [
+                5227502647846036185,
+            ],
+        ),
+        "character:ancient-copper-dragon": (
+            defs: [
+                18255536867987069577,
+            ],
+        ),
+        "character:ancient-gold-dragon": (
+            defs: [
+                4599092733176407920,
+            ],
+        ),
+        "character:ancient-green-dragon": (
+            defs: [
+                4115836014684237593,
+            ],
+        ),
+        "character:ancient-red-dragon": (
+            defs: [
+                4164519801664753243,
+            ],
+        ),
+        "character:ancient-silver-dragon": (
+            defs: [
+                12894179493754106146,
+            ],
+        ),
+        "character:ancient-white-dragon": (
+            defs: [
+                5556755798955062926,
+            ],
+        ),
+        "character:androsphinx": (
+            defs: [
+                11093031121760876710,
+            ],
+        ),
+        "character:animated-armor": (
+            defs: [
+                11461902177657760047,
+            ],
+        ),
+        "character:ankheg": (
+            defs: [
+                14141317709107725987,
+            ],
+        ),
+        "character:ape": (
+            defs: [
+                8379095711609587079,
+            ],
+        ),
+        "character:archmage": (
+            defs: [
+                1202777511706806677,
+            ],
+        ),
+        "character:assassin": (
+            defs: [
+                14605275425719189951,
+            ],
+        ),
+        "character:awakened-shrub": (
+            defs: [
+                8342325325940624739,
+            ],
+        ),
+        "character:awakened-tree": (
+            defs: [
+                1400357960493788877,
+            ],
+        ),
+        "character:axe-beak": (
+            defs: [
+                15904074801448859377,
+            ],
+        ),
+        "character:azer": (
+            defs: [
+                15887968311977563296,
+            ],
+        ),
+        "character:baboon": (
+            defs: [
+                7741988687459614262,
+            ],
+        ),
+        "character:badger": (
+            defs: [
+                4243611085726202292,
+            ],
+        ),
         "character:baker": (
             defs: [
+                1829282126059750843,
                 4185986701059336632,
                 5573888760597078594,
                 6957089893119240724,
@@ -29,6 +205,11 @@
                 17246491930907335489,
             ],
         ),
+        "character:balor": (
+            defs: [
+                5001538929355517948,
+            ],
+        ),
         "character:bandit": (
             defs: [
                 1729151308113485596,
@@ -36,11 +217,18 @@
                 9271857665147866239,
                 10639604743136965790,
                 17036455437268453489,
+                17068972666734605622,
+            ],
+        ),
+        "character:bandit-captain": (
+            defs: [
+                2134447178696235055,
             ],
         ),
         "character:bandit_chief": (
             defs: [
                 998244230761731538,
+                1944918509263935504,
                 5813513478952738736,
                 11640125156478543275,
                 13295227698691113554,
@@ -59,9 +247,20 @@
                 18014173228973145178,
             ],
         ),
+        "character:barbed-devil": (
+            defs: [
+                18277505887057263130,
+            ],
+        ),
+        "character:basilisk": (
+            defs: [
+                11614924626109642018,
+            ],
+        ),
         "character:bat": (
             defs: [
                 1666895719868909108,
+                3479974937502975960,
                 4238373677269518195,
                 5980882676542058207,
                 7113476189836361343,
@@ -69,10 +268,41 @@
                 16598630288769743233,
             ],
         ),
+        "character:bearded-devil": (
+            defs: [
+                6042136153190496260,
+            ],
+        ),
+        "character:behir": (
+            defs: [
+                14792429702071294424,
+            ],
+        ),
+        "character:berserker": (
+            defs: [
+                5819360425344282446,
+            ],
+        ),
+        "character:black-bear": (
+            defs: [
+                4223346716869904501,
+            ],
+        ),
+        "character:black-dragon-wyrmling": (
+            defs: [
+                6001238197324329931,
+            ],
+        ),
+        "character:black-pudding": (
+            defs: [
+                9110402170590114652,
+            ],
+        ),
         "character:blacksmith": (
             defs: [
                 141484769900024455,
                 594781073565824292,
+                1927116409505260956,
                 3913022700206030193,
                 4061442111466284651,
                 7700139597913816427,
@@ -91,9 +321,65 @@
                 15675020069925912517,
             ],
         ),
+        "character:blink-dog": (
+            defs: [
+                2466170433810789429,
+            ],
+        ),
+        "character:blood-hawk": (
+            defs: [
+                17654081149890052041,
+            ],
+        ),
+        "character:blue-dragon-wyrmling": (
+            defs: [
+                17738917209101421630,
+            ],
+        ),
+        "character:boar": (
+            defs: [
+                3182194262874967367,
+            ],
+        ),
+        "character:bone-devil": (
+            defs: [
+                3984341802010354991,
+            ],
+        ),
+        "character:brass-dragon-wyrmling": (
+            defs: [
+                7518230509228070580,
+            ],
+        ),
+        "character:bronze-dragon-wyrmling": (
+            defs: [
+                11952745705524619192,
+            ],
+        ),
+        "character:brown-bear": (
+            defs: [
+                4899455552052680010,
+            ],
+        ),
+        "character:bugbear": (
+            defs: [
+                5134599714274830516,
+            ],
+        ),
+        "character:bulette": (
+            defs: [
+                1098111102848355130,
+            ],
+        ),
+        "character:camel": (
+            defs: [
+                12014333769241143816,
+            ],
+        ),
         "character:cat": (
             defs: [
                 4980487596660953403,
+                9077244972994856131,
                 11271541710825141784,
             ],
         ),
@@ -110,6 +396,16 @@
                 14380606876826461052,
             ],
         ),
+        "character:centaur": (
+            defs: [
+                14368062155240858593,
+            ],
+        ),
+        "character:chain-devil": (
+            defs: [
+                4908940135698826077,
+            ],
+        ),
         "character:chicken": (
             defs: [
                 2426519257392370387,
@@ -122,6 +418,7 @@
                 3606207961377534508,
                 7085719468844362188,
                 11707675272426423664,
+                12273026752268948995,
                 18147857304991529734,
             ],
         ),
@@ -132,6 +429,57 @@
                 9074482506237335617,
                 9668764711145592766,
                 12869802385055619142,
+                13159996568358860483,
+            ],
+        ),
+        "character:chimera": (
+            defs: [
+                10097378800533044153,
+            ],
+        ),
+        "character:chuul": (
+            defs: [
+                677676740599126116,
+            ],
+        ),
+        "character:clay-golem": (
+            defs: [
+                6361588393850732363,
+            ],
+        ),
+        "character:cloaker": (
+            defs: [
+                1458163863388281197,
+            ],
+        ),
+        "character:cloud-giant": (
+            defs: [
+                4672833256796532319,
+            ],
+        ),
+        "character:cockatrice": (
+            defs: [
+                11996896342586154823,
+            ],
+        ),
+        "character:commoner": (
+            defs: [
+                3561251215734138226,
+            ],
+        ),
+        "character:constrictor-snake": (
+            defs: [
+                13179678319336248151,
+            ],
+        ),
+        "character:copper-dragon-wyrmling": (
+            defs: [
+                5805047849433445652,
+            ],
+        ),
+        "character:couatl": (
+            defs: [
+                4563391118226036810,
             ],
         ),
         "character:cow": (
@@ -140,11 +488,67 @@
                 14233178564062582701,
             ],
         ),
+        "character:crab": (
+            defs: [
+                16707433888831227789,
+            ],
+        ),
+        "character:crocodile": (
+            defs: [
+                3304687209424647229,
+            ],
+        ),
+        "character:cult-fanatic": (
+            defs: [
+                15845539138711446268,
+            ],
+        ),
+        "character:cultist": (
+            defs: [
+                1208080170221080101,
+            ],
+        ),
+        "character:darkmantle": (
+            defs: [
+                11714754620599918904,
+            ],
+        ),
+        "character:death-dog": (
+            defs: [
+                8130980102476793730,
+            ],
+        ),
+        "character:deep-gnome-svirfneblin": (
+            defs: [
+                4874382728633454048,
+            ],
+        ),
+        "character:deer": (
+            defs: [
+                7660426463359765213,
+            ],
+        ),
         "character:deserter": (
             defs: [
                 61548605959626818,
+                8341972115757441153,
                 13750470156938287576,
                 18171039596383633157,
+            ],
+        ),
+        "character:deva": (
+            defs: [
+                11684025223660666897,
+            ],
+        ),
+        "character:dire-wolf": (
+            defs: [
+                9060090863447052992,
+            ],
+        ),
+        "character:djinni": (
+            defs: [
+                9518962296621531802,
             ],
         ),
         "character:dog": (
@@ -153,18 +557,70 @@
                 13764573268888664638,
             ],
         ),
+        "character:doppelganger": (
+            defs: [
+                17785265744400844344,
+            ],
+        ),
+        "character:draft-horse": (
+            defs: [
+                3334797597072860576,
+            ],
+        ),
+        "character:dragon-turtle": (
+            defs: [
+                3981345730934049678,
+            ],
+        ),
+        "character:dretch": (
+            defs: [
+                2477945668669528511,
+            ],
+        ),
+        "character:drider": (
+            defs: [
+                1537678603715327492,
+            ],
+        ),
+        "character:drow": (
+            defs: [
+                11386644594250808092,
+            ],
+        ),
+        "character:druid": (
+            defs: [
+                12668534717492327219,
+            ],
+        ),
+        "character:dryad": (
+            defs: [
+                1798652343082731845,
+            ],
+        ),
+        "character:duergar": (
+            defs: [
+                10345968415270779699,
+            ],
+        ),
+        "character:dust-mephit": (
+            defs: [
+                11704458883967796395,
+            ],
+        ),
         "character:dwarf": (
             defs: [
                 509332144445378508,
                 4506811000201621630,
                 5201733837934463076,
                 6475062050457762919,
+                12327130392064682689,
             ],
         ),
         "character:dwarf_f": (
             defs: [
                 4795806565241170432,
                 7909602237450139016,
+                8261520103994432695,
                 14972356504856823986,
                 15243672622509756333,
             ],
@@ -175,10 +631,27 @@
                 2997670143200087462,
                 3650542130512409780,
                 4675905835651715156,
+                10439626825312409625,
+            ],
+        ),
+        "character:eagle": (
+            defs: [
+                13230585061901473381,
+            ],
+        ),
+        "character:earth-elemental": (
+            defs: [
+                14409181582289501183,
+            ],
+        ),
+        "character:efreeti": (
+            defs: [
+                10398013525107305435,
             ],
         ),
         "character:elder": (
             defs: [
+                784278923352681490,
                 1596542256789018612,
                 4645039303984836306,
                 5691567408373529942,
@@ -197,11 +670,17 @@
                 18317213443262771395,
             ],
         ),
+        "character:elephant": (
+            defs: [
+                5374872118941032680,
+            ],
+        ),
         "character:elf": (
             defs: [
                 1056399707074250202,
                 2588779181859750083,
                 5185695500058083158,
+                8541866330290786597,
                 16680105128390434600,
             ],
         ),
@@ -211,6 +690,7 @@
                 3628539849252900106,
                 3704413703754422293,
                 12232547686831703232,
+                14890780879981778015,
             ],
         ),
         "character:elf_f_realistic": (
@@ -220,6 +700,7 @@
         ),
         "character:elf_herbalist": (
             defs: [
+                1355030606158315940,
                 11461587156737277160,
                 12281757235139214045,
                 12571757886563137757,
@@ -230,6 +711,7 @@
             defs: [
                 2547986641413607254,
                 3986128043015560361,
+                15058926577690175179,
                 17752871315174529553,
                 17809189145943302756,
             ],
@@ -239,8 +721,29 @@
                 7862854477613579786,
             ],
         ),
+        "character:elk": (
+            defs: [
+                882888143277822072,
+            ],
+        ),
+        "character:erinyes": (
+            defs: [
+                9687577865270446854,
+            ],
+        ),
+        "character:ettercap": (
+            defs: [
+                18368841045565186880,
+            ],
+        ),
+        "character:ettin": (
+            defs: [
+                16077905251506448143,
+            ],
+        ),
         "character:farmer": (
             defs: [
+                1164242523216326805,
                 4464371237374717706,
                 9277199191018429814,
                 9778479896218134220,
@@ -257,15 +760,27 @@
                 4924708318696636219,
                 8540083366210717277,
                 10556080211637567574,
+                12492117173803152658,
                 12845567957917742536,
                 13314016898732058426,
                 15570293008820991424,
                 15756373600539860975,
             ],
         ),
+        "character:fire-elemental": (
+            defs: [
+                31715541372070709,
+            ],
+        ),
+        "character:fire-giant": (
+            defs: [
+                4145734092998465968,
+            ],
+        ),
         "character:fisher": (
             defs: [
                 843580900249129794,
+                1229127120012527527,
                 2417425772523284158,
                 3054001958841024793,
                 9593796206374714402,
@@ -275,11 +790,227 @@
                 17919428269889832932,
             ],
         ),
+        "character:flesh-golem": (
+            defs: [
+                11547114635368784401,
+            ],
+        ),
+        "character:flying-snake": (
+            defs: [
+                12722024361939306361,
+            ],
+        ),
+        "character:flying-sword": (
+            defs: [
+                12198321175902357681,
+            ],
+        ),
+        "character:frog": (
+            defs: [
+                16090141354308271271,
+            ],
+        ),
+        "character:frost-giant": (
+            defs: [
+                16602069676634154340,
+            ],
+        ),
+        "character:gargoyle": (
+            defs: [
+                5233368051996240292,
+            ],
+        ),
+        "character:gelatinous-cube": (
+            defs: [
+                12808061733689079202,
+            ],
+        ),
+        "character:ghast": (
+            defs: [
+                12721047855797234828,
+            ],
+        ),
         "character:ghost": (
             defs: [
                 363511244401210973,
+                788520429025788829,
                 5081381254091582467,
                 14394338512215672056,
+            ],
+        ),
+        "character:ghoul": (
+            defs: [
+                15221865489032692550,
+            ],
+        ),
+        "character:giant-ape": (
+            defs: [
+                16344913458521842019,
+            ],
+        ),
+        "character:giant-badger": (
+            defs: [
+                3186255290730264659,
+            ],
+        ),
+        "character:giant-bat": (
+            defs: [
+                8000555538176482082,
+            ],
+        ),
+        "character:giant-boar": (
+            defs: [
+                13141044929558829839,
+            ],
+        ),
+        "character:giant-centipede": (
+            defs: [
+                14754039988449500672,
+            ],
+        ),
+        "character:giant-constrictor-snake": (
+            defs: [
+                263146088143130883,
+            ],
+        ),
+        "character:giant-crab": (
+            defs: [
+                10274033694523413999,
+            ],
+        ),
+        "character:giant-crocodile": (
+            defs: [
+                1477397815148389469,
+            ],
+        ),
+        "character:giant-eagle": (
+            defs: [
+                944254018189338577,
+            ],
+        ),
+        "character:giant-elk": (
+            defs: [
+                8639757980485839258,
+            ],
+        ),
+        "character:giant-fire-beetle": (
+            defs: [
+                7886671536744875747,
+            ],
+        ),
+        "character:giant-frog": (
+            defs: [
+                13694724439823174809,
+            ],
+        ),
+        "character:giant-goat": (
+            defs: [
+                8532685032593628236,
+            ],
+        ),
+        "character:giant-hyena": (
+            defs: [
+                7846848778833033189,
+            ],
+        ),
+        "character:giant-lizard": (
+            defs: [
+                8910371724866465522,
+            ],
+        ),
+        "character:giant-octopus": (
+            defs: [
+                8100824911870274170,
+            ],
+        ),
+        "character:giant-owl": (
+            defs: [
+                860305371265605007,
+            ],
+        ),
+        "character:giant-poisonous-snake": (
+            defs: [
+                5485479741842674217,
+            ],
+        ),
+        "character:giant-rat": (
+            defs: [
+                15201571990187736114,
+            ],
+        ),
+        "character:giant-rat-diseased": (
+            defs: [
+                553991559780375320,
+            ],
+        ),
+        "character:giant-scorpion": (
+            defs: [
+                9594907653682102338,
+            ],
+        ),
+        "character:giant-sea-horse": (
+            defs: [
+                8052905302631306041,
+            ],
+        ),
+        "character:giant-shark": (
+            defs: [
+                4341423883365974606,
+            ],
+        ),
+        "character:giant-spider": (
+            defs: [
+                985253158823517481,
+            ],
+        ),
+        "character:giant-toad": (
+            defs: [
+                14463742340015784776,
+            ],
+        ),
+        "character:giant-vulture": (
+            defs: [
+                3346397800368389630,
+            ],
+        ),
+        "character:giant-wasp": (
+            defs: [
+                6681134479313075488,
+            ],
+        ),
+        "character:giant-weasel": (
+            defs: [
+                8578521953077150809,
+            ],
+        ),
+        "character:giant-wolf-spider": (
+            defs: [
+                16489058894187917382,
+            ],
+        ),
+        "character:gibbering-mouther": (
+            defs: [
+                18195255497160318280,
+            ],
+        ),
+        "character:glabrezu": (
+            defs: [
+                5104772711414525473,
+            ],
+        ),
+        "character:gladiator": (
+            defs: [
+                3619835504180150654,
+            ],
+        ),
+        "character:gnoll": (
+            defs: [
+                1086082070687293448,
+            ],
+        ),
+        "character:goat": (
+            defs: [
+                11925570201354836791,
             ],
         ),
         "character:goblin": (
@@ -289,6 +1020,7 @@
                 7631672629884920498,
                 7726045407654260760,
                 10821880278102899679,
+                13008207776357099185,
                 16306964806248329981,
                 16958395411601211565,
                 17889402054670994419,
@@ -298,6 +1030,7 @@
             defs: [
                 4509965377188334675,
                 5353020294415324577,
+                6946493248425052049,
                 11167102026802199269,
                 12177157561395701402,
                 12698169955271661727,
@@ -305,10 +1038,51 @@
                 17342343313018953243,
             ],
         ),
+        "character:gold-dragon-wyrmling": (
+            defs: [
+                13188896318280530637,
+            ],
+        ),
+        "character:gorgon": (
+            defs: [
+                10328071058651365330,
+            ],
+        ),
+        "character:gray-ooze": (
+            defs: [
+                768117908746397324,
+            ],
+        ),
+        "character:green-dragon-wyrmling": (
+            defs: [
+                17019947621300257310,
+            ],
+        ),
+        "character:green-hag": (
+            defs: [
+                8486287561216479131,
+            ],
+        ),
+        "character:grick": (
+            defs: [
+                9980456172774568967,
+            ],
+        ),
+        "character:griffon": (
+            defs: [
+                2509527444680703369,
+            ],
+        ),
+        "character:grimlock": (
+            defs: [
+                1229337482361242244,
+            ],
+        ),
         "character:guard": (
             defs: [
                 3266104864309937692,
                 4251327485402634064,
+                5553131502704805547,
                 5761956858817625136,
                 5994680333694118026,
                 6920791626616059273,
@@ -323,6 +1097,7 @@
             defs: [
                 1867308968226295499,
                 8431034899724246455,
+                8984683485289583234,
                 10653896143832872777,
                 10923040511738553138,
                 12648717922168541899,
@@ -332,11 +1107,42 @@
                 18199166479771338197,
             ],
         ),
+        "character:guardian-naga": (
+            defs: [
+                6764334122035728151,
+            ],
+        ),
+        "character:gynosphinx": (
+            defs: [
+                8873234140516572182,
+            ],
+        ),
+        "character:half-red-dragon-veteran": (
+            defs: [
+                8455823850966055391,
+            ],
+        ),
+        "character:harpy": (
+            defs: [
+                6967817679455821383,
+            ],
+        ),
+        "character:hawk": (
+            defs: [
+                17277783031206569473,
+            ],
+        ),
+        "character:hell-hound": (
+            defs: [
+                7166948981371876742,
+            ],
+        ),
         "character:herbalist": (
             defs: [
                 481482856494949460,
                 3457439375352028409,
                 4311971416859507822,
+                6047761695977440123,
                 7229492409155855874,
                 14516067684546031767,
                 16704110052977953640,
@@ -365,6 +1171,66 @@
                 16649050743836881459,
             ],
         ),
+        "character:hezrou": (
+            defs: [
+                2541471315641951911,
+            ],
+        ),
+        "character:hill-giant": (
+            defs: [
+                12807323159352041201,
+            ],
+        ),
+        "character:hippogriff": (
+            defs: [
+                5665050904054480852,
+            ],
+        ),
+        "character:hobgoblin": (
+            defs: [
+                13009581380547074227,
+            ],
+        ),
+        "character:homunculus": (
+            defs: [
+                3901921840720582533,
+            ],
+        ),
+        "character:horned-devil": (
+            defs: [
+                2616561048738995360,
+            ],
+        ),
+        "character:hunter-shark": (
+            defs: [
+                4929296702201251334,
+            ],
+        ),
+        "character:hydra": (
+            defs: [
+                12346148482296991272,
+            ],
+        ),
+        "character:hyena": (
+            defs: [
+                13914593793290826082,
+            ],
+        ),
+        "character:ice-devil": (
+            defs: [
+                10175105037270745650,
+            ],
+        ),
+        "character:ice-mephit": (
+            defs: [
+                1253978883224329275,
+            ],
+        ),
+        "character:imp": (
+            defs: [
+                10915607387298052539,
+            ],
+        ),
         "character:innkeeper": (
             defs: [
                 145081577405153993,
@@ -373,7 +1239,113 @@
                 6723375834689502639,
                 6982307376033619190,
                 10110976088980357763,
+                13880337737538144850,
                 15423512907600672885,
+            ],
+        ),
+        "character:invisible-stalker": (
+            defs: [
+                4784711382467654415,
+            ],
+        ),
+        "character:iron-golem": (
+            defs: [
+                1388958608872345881,
+            ],
+        ),
+        "character:jackal": (
+            defs: [
+                13687952673083989762,
+            ],
+        ),
+        "character:killer-whale": (
+            defs: [
+                4252470105564680642,
+            ],
+        ),
+        "character:knight": (
+            defs: [
+                17257617370820379620,
+            ],
+        ),
+        "character:kobold": (
+            defs: [
+                14195744888734805136,
+            ],
+        ),
+        "character:kraken": (
+            defs: [
+                13849498872569001335,
+            ],
+        ),
+        "character:lamia": (
+            defs: [
+                15051075254247298167,
+            ],
+        ),
+        "character:lemure": (
+            defs: [
+                8279223857787434424,
+            ],
+        ),
+        "character:lich": (
+            defs: [
+                13202510290357880448,
+            ],
+        ),
+        "character:lion": (
+            defs: [
+                3797735854595810185,
+            ],
+        ),
+        "character:lizard": (
+            defs: [
+                11674692653392345076,
+            ],
+        ),
+        "character:lizardfolk": (
+            defs: [
+                12563279656963782757,
+            ],
+        ),
+        "character:mage": (
+            defs: [
+                18020114144399213001,
+            ],
+        ),
+        "character:magma-mephit": (
+            defs: [
+                10213180054983666958,
+            ],
+        ),
+        "character:magmin": (
+            defs: [
+                2239092451087113152,
+            ],
+        ),
+        "character:mammoth": (
+            defs: [
+                11711734765697954865,
+            ],
+        ),
+        "character:manticore": (
+            defs: [
+                13373166484429596416,
+            ],
+        ),
+        "character:marilith": (
+            defs: [
+                14405681253449205207,
+            ],
+        ),
+        "character:mastiff": (
+            defs: [
+                3734136094755532317,
+            ],
+        ),
+        "character:medusa": (
+            defs: [
+                13625500312030277131,
             ],
         ),
         "character:merchant": (
@@ -387,6 +1359,7 @@
         "character:merchant_f": (
             defs: [
                 3025921670924148490,
+                3163344352353981305,
                 3526711588469347899,
                 4771614083227931636,
                 6537325928167587620,
@@ -396,8 +1369,19 @@
                 15873142880257537983,
             ],
         ),
+        "character:merfolk": (
+            defs: [
+                1078958309290242867,
+            ],
+        ),
+        "character:merrow": (
+            defs: [
+                18090213401604368475,
+            ],
+        ),
         "character:miller": (
             defs: [
+                1936275242935147106,
                 4238397051898100607,
                 6224506701558094645,
                 13285415939747906975,
@@ -407,11 +1391,57 @@
                 17246662255145471814,
             ],
         ),
+        "character:mimic": (
+            defs: [
+                7114066672183074383,
+            ],
+        ),
+        "character:minotaur": (
+            defs: [
+                9405226508791273432,
+            ],
+        ),
+        "character:minotaur-skeleton": (
+            defs: [
+                103125332467655890,
+            ],
+        ),
+        "character:mule": (
+            defs: [
+                8352113186515591092,
+            ],
+        ),
+        "character:mummy": (
+            defs: [
+                4270805404486679572,
+            ],
+        ),
+        "character:mummy-lord": (
+            defs: [
+                10022769716008116862,
+            ],
+        ),
+        "character:nalfeshnee": (
+            defs: [
+                6147338954672313690,
+            ],
+        ),
+        "character:night-hag": (
+            defs: [
+                14711329796765638268,
+            ],
+        ),
+        "character:nightmare": (
+            defs: [
+                3201803641839637317,
+            ],
+        ),
         "character:noble": (
             defs: [
                 4298446414822624188,
                 6115486094073520482,
                 7151772127062976563,
+                11890192922713718639,
                 12950612865429037619,
             ],
         ),
@@ -439,10 +1469,36 @@
                 17302433582446758804,
             ],
         ),
+        "character:ochre-jelly": (
+            defs: [
+                13719764888911678621,
+            ],
+        ),
+        "character:octopus": (
+            defs: [
+                16872437896869545329,
+            ],
+        ),
+        "character:ogre": (
+            defs: [
+                9751150478055271766,
+            ],
+        ),
+        "character:ogre-zombie": (
+            defs: [
+                16654165422257549067,
+            ],
+        ),
+        "character:oni": (
+            defs: [
+                12987482573064864421,
+            ],
+        ),
         "character:orc": (
             defs: [
                 3192548276135373758,
                 3666200306737534611,
+                6131775357975519241,
                 12664399374648885782,
                 17357976286136999001,
             ],
@@ -450,6 +1506,7 @@
         "character:orc_chief": (
             defs: [
                 5610844428691944199,
+                6129480714222827300,
                 13523436949234706328,
                 15913072907200101900,
                 16420569035306857387,
@@ -458,9 +1515,15 @@
         "character:orc_f": (
             defs: [
                 3773868468754649533,
+                4006896169927866911,
                 8885561822185920317,
                 16356577270815945488,
                 17401056147369684388,
+            ],
+        ),
+        "character:otyugh": (
+            defs: [
+                3873859845744646578,
             ],
         ),
         "character:outlaw": (
@@ -469,9 +1532,65 @@
                 7821213716929075724,
                 8018153060866947347,
                 8941812597204442471,
+                9625467339344183924,
                 9775173073545745476,
                 15855328439425079375,
                 18163199587610859049,
+            ],
+        ),
+        "character:owl": (
+            defs: [
+                9285146128540700130,
+            ],
+        ),
+        "character:owlbear": (
+            defs: [
+                3163980127909349981,
+            ],
+        ),
+        "character:panther": (
+            defs: [
+                716296726483677249,
+            ],
+        ),
+        "character:pegasus": (
+            defs: [
+                14470972010603672479,
+            ],
+        ),
+        "character:phase-spider": (
+            defs: [
+                1551518250199442904,
+            ],
+        ),
+        "character:pit-fiend": (
+            defs: [
+                839979647535342840,
+            ],
+        ),
+        "character:planetar": (
+            defs: [
+                12951489054951813331,
+            ],
+        ),
+        "character:plesiosaurus": (
+            defs: [
+                9968503289087016919,
+            ],
+        ),
+        "character:poisonous-snake": (
+            defs: [
+                13401931594450014094,
+            ],
+        ),
+        "character:polar-bear": (
+            defs: [
+                17398339220162637125,
+            ],
+        ),
+        "character:pony": (
+            defs: [
+                1365907204414059578,
             ],
         ),
         "character:priest": (
@@ -483,6 +1602,137 @@
                 4345056708286746889,
                 9735087175818540263,
                 15751702900153022624,
+                17224916148150356638,
+            ],
+        ),
+        "character:pseudodragon": (
+            defs: [
+                453553262138961454,
+            ],
+        ),
+        "character:purple-worm": (
+            defs: [
+                12145879768053256864,
+            ],
+        ),
+        "character:quasit": (
+            defs: [
+                17086200865104154385,
+            ],
+        ),
+        "character:quipper": (
+            defs: [
+                10112624553165248358,
+            ],
+        ),
+        "character:rakshasa": (
+            defs: [
+                4788995564779736536,
+            ],
+        ),
+        "character:rat": (
+            defs: [
+                1589695833586752953,
+            ],
+        ),
+        "character:raven": (
+            defs: [
+                5488388127249094278,
+            ],
+        ),
+        "character:red-dragon-wyrmling": (
+            defs: [
+                16344749858626378447,
+            ],
+        ),
+        "character:reef-shark": (
+            defs: [
+                12555781595194156879,
+            ],
+        ),
+        "character:remorhaz": (
+            defs: [
+                6091684702449399094,
+            ],
+        ),
+        "character:rhinoceros": (
+            defs: [
+                596921707106123677,
+            ],
+        ),
+        "character:riding-horse": (
+            defs: [
+                10105909874742485110,
+            ],
+        ),
+        "character:roc": (
+            defs: [
+                9436448147820540997,
+            ],
+        ),
+        "character:roper": (
+            defs: [
+                4093262481725951101,
+            ],
+        ),
+        "character:rug-of-smothering": (
+            defs: [
+                4555898809966208880,
+            ],
+        ),
+        "character:rust-monster": (
+            defs: [
+                8362958790850517643,
+            ],
+        ),
+        "character:saber-toothed-tiger": (
+            defs: [
+                15648195310854905057,
+            ],
+        ),
+        "character:sahuagin": (
+            defs: [
+                12421143156948287780,
+            ],
+        ),
+        "character:salamander": (
+            defs: [
+                274291556555788043,
+            ],
+        ),
+        "character:satyr": (
+            defs: [
+                2111591242073602075,
+            ],
+        ),
+        "character:scorpion": (
+            defs: [
+                15646650559593408016,
+            ],
+        ),
+        "character:scout": (
+            defs: [
+                446894975198014701,
+            ],
+        ),
+        "character:sea-hag": (
+            defs: [
+                16264172469445009,
+            ],
+        ),
+        "character:sea-horse": (
+            defs: [
+                4136857718526246775,
+            ],
+        ),
+        "character:shadow": (
+            defs: [
+                17062445710746342408,
+            ],
+        ),
+        "character:shambling-mound": (
+            defs: [
+                11790131696502252139,
             ],
         ),
         "character:sheep": (
@@ -491,11 +1741,27 @@
                 17732094554888530593,
             ],
         ),
+        "character:shield-guardian": (
+            defs: [
+                5124556944853114092,
+            ],
+        ),
+        "character:shrieker": (
+            defs: [
+                10803982373315095659,
+            ],
+        ),
+        "character:silver-dragon-wyrmling": (
+            defs: [
+                17460887503820629184,
+            ],
+        ),
         "character:skeleton": (
             defs: [
                 1488017093983428017,
                 4377407919086981527,
                 8837777443984115417,
+                13261588552068266293,
                 18207956259692964060,
             ],
         ),
@@ -519,8 +1785,134 @@
                 18198437851997178908,
             ],
         ),
+        "character:solar": (
+            defs: [
+                8250984478676100616,
+            ],
+        ),
+        "character:specter": (
+            defs: [
+                5498643153590170288,
+            ],
+        ),
+        "character:spider": (
+            defs: [
+                11941776204542713060,
+            ],
+        ),
+        "character:spirit-naga": (
+            defs: [
+                1916681890978206068,
+            ],
+        ),
+        "character:sprite": (
+            defs: [
+                7004699192991700759,
+            ],
+        ),
+        "character:spy": (
+            defs: [
+                14417696888900348022,
+            ],
+        ),
+        "character:steam-mephit": (
+            defs: [
+                14842204907734318066,
+            ],
+        ),
+        "character:stirge": (
+            defs: [
+                9981035080551909054,
+            ],
+        ),
+        "character:stone-giant": (
+            defs: [
+                4643826966885469997,
+            ],
+        ),
+        "character:stone-golem": (
+            defs: [
+                2875330475929369084,
+            ],
+        ),
+        "character:storm-giant": (
+            defs: [
+                10146961208484454713,
+            ],
+        ),
+        "character:succubus-incubus": (
+            defs: [
+                10482805222512153216,
+            ],
+        ),
+        "character:swarm-of-bats": (
+            defs: [
+                15246694851625678588,
+            ],
+        ),
+        "character:swarm-of-beetles": (
+            defs: [
+                9974427824867169132,
+            ],
+        ),
+        "character:swarm-of-centipedes": (
+            defs: [
+                269031559015005846,
+            ],
+        ),
+        "character:swarm-of-insects": (
+            defs: [
+                7150213571552430732,
+            ],
+        ),
+        "character:swarm-of-poisonous-snakes": (
+            defs: [
+                5619272464983781754,
+            ],
+        ),
+        "character:swarm-of-quippers": (
+            defs: [
+                17155801964691275801,
+            ],
+        ),
+        "character:swarm-of-rats": (
+            defs: [
+                17594172181893485686,
+            ],
+        ),
+        "character:swarm-of-ravens": (
+            defs: [
+                11116903983241917710,
+            ],
+        ),
+        "character:swarm-of-spiders": (
+            defs: [
+                10483903262060470569,
+            ],
+        ),
+        "character:swarm-of-wasps": (
+            defs: [
+                3936260731707116395,
+            ],
+        ),
+        "character:tarrasque": (
+            defs: [
+                293104839134705397,
+            ],
+        ),
+        "character:thug": (
+            defs: [
+                14718567919628815470,
+            ],
+        ),
+        "character:tiger": (
+            defs: [
+                7295950426316438723,
+            ],
+        ),
         "character:town_crier": (
             defs: [
+                794430333318080514,
                 2174588633217739026,
                 6595189750318553375,
                 10957435306282890821,
@@ -530,12 +1922,63 @@
                 16680599603770352358,
             ],
         ),
+        "character:treant": (
+            defs: [
+                4146204160378027915,
+            ],
+        ),
+        "character:tribal-warrior": (
+            defs: [
+                6962202471817722726,
+            ],
+        ),
+        "character:triceratops": (
+            defs: [
+                11483886853703340513,
+            ],
+        ),
         "character:troll": (
             defs: [
+                4341194567293225330,
                 5459448126631155935,
                 5631028831657643224,
                 10634375948209256094,
                 16933174913983906224,
+            ],
+        ),
+        "character:tyrannosaurus-rex": (
+            defs: [
+                6830271924430802856,
+            ],
+        ),
+        "character:unicorn": (
+            defs: [
+                3595640662555435165,
+            ],
+        ),
+        "character:vampire-bat": (
+            defs: [
+                12898189098035950493,
+            ],
+        ),
+        "character:vampire-mist": (
+            defs: [
+                1151811653771078504,
+            ],
+        ),
+        "character:vampire-spawn": (
+            defs: [
+                6410190512590148696,
+            ],
+        ),
+        "character:vampire-vampire": (
+            defs: [
+                424303054047980300,
+            ],
+        ),
+        "character:veteran": (
+            defs: [
+                13587166222556274500,
             ],
         ),
         "character:villager": (
@@ -543,6 +1986,7 @@
                 403385030205216834,
                 1274048361956317822,
                 2971733833409239556,
+                6200994858052321451,
                 9302443529353609070,
                 10221113123407457532,
                 12142902136913578305,
@@ -555,11 +1999,142 @@
                 1480210246334153876,
                 1880711811159781625,
                 2699575764040149246,
+                3096210187850353978,
                 4091196974290168834,
                 12070916416223556659,
                 13514857864660086775,
                 17773458147556412391,
                 17818158413684917869,
+            ],
+        ),
+        "character:violet-fungus": (
+            defs: [
+                17695323189801525090,
+            ],
+        ),
+        "character:vrock": (
+            defs: [
+                6499995404099655171,
+            ],
+        ),
+        "character:vulture": (
+            defs: [
+                2848151845255224577,
+            ],
+        ),
+        "character:warhorse": (
+            defs: [
+                12346700802701275679,
+            ],
+        ),
+        "character:warhorse-skeleton": (
+            defs: [
+                10221530005078710273,
+            ],
+        ),
+        "character:water-elemental": (
+            defs: [
+                10149298828900507435,
+            ],
+        ),
+        "character:weasel": (
+            defs: [
+                6063954865702973721,
+            ],
+        ),
+        "character:werebear-bear": (
+            defs: [
+                1257117738171116616,
+            ],
+        ),
+        "character:werebear-human": (
+            defs: [
+                6418864941414764881,
+            ],
+        ),
+        "character:werebear-hybrid": (
+            defs: [
+                15716391083969965600,
+            ],
+        ),
+        "character:wereboar-boar": (
+            defs: [
+                7678726034054257748,
+            ],
+        ),
+        "character:wereboar-human": (
+            defs: [
+                2665019778785352508,
+            ],
+        ),
+        "character:wereboar-hybrid": (
+            defs: [
+                10581281859165366821,
+            ],
+        ),
+        "character:wererat-human": (
+            defs: [
+                16353920922139071230,
+            ],
+        ),
+        "character:wererat-hybrid": (
+            defs: [
+                15241037728288497384,
+            ],
+        ),
+        "character:wererat-rat": (
+            defs: [
+                11865724643593191676,
+            ],
+        ),
+        "character:weretiger-human": (
+            defs: [
+                4235437811706027298,
+            ],
+        ),
+        "character:weretiger-hybrid": (
+            defs: [
+                12276288483395902734,
+            ],
+        ),
+        "character:weretiger-tiger": (
+            defs: [
+                5991981596295887631,
+            ],
+        ),
+        "character:werewolf-human": (
+            defs: [
+                860110220111040907,
+            ],
+        ),
+        "character:werewolf-hybrid": (
+            defs: [
+                1849423770556864090,
+            ],
+        ),
+        "character:werewolf-wolf": (
+            defs: [
+                11307917225420560664,
+            ],
+        ),
+        "character:white-dragon-wyrmling": (
+            defs: [
+                15296130647032751010,
+            ],
+        ),
+        "character:wight": (
+            defs: [
+                7133746557202444632,
+            ],
+        ),
+        "character:will-o-wisp": (
+            defs: [
+                9271477833569642542,
+            ],
+        ),
+        "character:winter-wolf": (
+            defs: [
+                8202704700006869957,
             ],
         ),
         "character:wizard": (
@@ -581,10 +2156,86 @@
         "character:wolf": (
             defs: [
                 8821124623052438,
+                424173165051017941,
                 3904974250204994197,
                 3967586837876156114,
                 11224743261432909503,
                 17200867872950165834,
+            ],
+        ),
+        "character:worg": (
+            defs: [
+                17822089317170054510,
+            ],
+        ),
+        "character:wraith": (
+            defs: [
+                17884442321904691552,
+            ],
+        ),
+        "character:wyvern": (
+            defs: [
+                670604206135593516,
+            ],
+        ),
+        "character:xorn": (
+            defs: [
+                8869070476966338446,
+            ],
+        ),
+        "character:young-black-dragon": (
+            defs: [
+                17471912258720369488,
+            ],
+        ),
+        "character:young-blue-dragon": (
+            defs: [
+                2043367085422843013,
+            ],
+        ),
+        "character:young-brass-dragon": (
+            defs: [
+                128453703846117156,
+            ],
+        ),
+        "character:young-bronze-dragon": (
+            defs: [
+                8368982298656181114,
+            ],
+        ),
+        "character:young-copper-dragon": (
+            defs: [
+                12118460307661029763,
+            ],
+        ),
+        "character:young-gold-dragon": (
+            defs: [
+                10440945162122314481,
+            ],
+        ),
+        "character:young-green-dragon": (
+            defs: [
+                15446831685016029185,
+            ],
+        ),
+        "character:young-red-dragon": (
+            defs: [
+                17428790853271080584,
+            ],
+        ),
+        "character:young-silver-dragon": (
+            defs: [
+                6846379588150765460,
+            ],
+        ),
+        "character:young-white-dragon": (
+            defs: [
+                15869794329086551515,
+            ],
+        ),
+        "character:zombie": (
+            defs: [
+                12722078309331360143,
             ],
         ),
         "common_event:quest_reward": (

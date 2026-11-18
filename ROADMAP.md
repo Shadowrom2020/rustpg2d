@@ -543,7 +543,7 @@ SRD combat: initiative, actions, movement on the grid, attacks against AC, death
   saving refused in a fight; screenshots of the order bar, the action bar, the overlays, the hit
   chance and the log. Perf: a fight of four at `update_ms` 2.2.
 
-- [ ] Monsters and encounters — `feature/srd-monsters`
+- [x] Monsters and encounters — `feature/srd-monsters`
 
   **Goal.** SRD monsters as ready-made characters, and encounters sized for the party.
 
@@ -563,6 +563,29 @@ SRD combat: initiative, actions, movement on the grid, attacks against AC, death
 
   **Verify.** Unit tests of XP budgets. Autoplay: an encounter zone spawns a group within budget
   (`status`), and the fight runs.
+
+  **As built.**
+  - **Monsters as library characters** (your choice over built-in templates): `srd_import` writes
+    the 334 into the starter library (`import_monsters`); ids are the SRD's indexes. A library
+    model where one fits (wolf, bat, skeleton for undead, slime for oozes, the NPC models), else
+    the `mannequin` model at the SRD size (`Appearance.size`). Characters that already had a
+    monster's id took its stat block; characters with a monster's block (the templated NPCs) keep
+    their numbers and gain the new fields. `StatBlock` gained size, type, speeds, senses and
+    `features` (texts of traits / actions / reactions / legendary actions; they act in 0.32).
+    `RulesText.monsters` makes them SRD content for the attribution.
+  - **Encounters:** `ZoneKind::Encounter { monsters, difficulty, respawn }`; the budget is the
+    engine's own (per party member at level L: one monster of CR L/8, L/4, L/2, L), because the
+    SRD 5.1 has no encounter tables; `pick` is seeded per map and zone. Spawners and encounters
+    share the runtime. XP goes to the hero alone until companions level (0.30).
+  - **Not yet:** monsters' special actions, multi-tile creatures (0.32); fliers just use their
+    fly speed on the grid.
+
+  **Verify (done).** Unit tests of the budgets and the pick, the monster import (wolf, adult red
+  dragon: size, speeds, attacks, Multiattack, legendary texts; a second run identical; a project
+  only updated), `srd_content`. Autoplay on a scratch copy: the forest encounter picks a wolf (50
+  XP) alone and four monsters (95 of 100 XP) with the guard along; the mine's easy one a giant rat;
+  a fight with it gives 25 XP and a bestiary entry. The library window lists 385 characters at 60
+  fps.
 
 ## 0.30.0 — Classes and Magic
 

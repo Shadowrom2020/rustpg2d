@@ -61,10 +61,12 @@ pub struct RulesText {
     /// attribution when a project has them).
     pub races: Vec<String>,
     pub backgrounds: Vec<String>,
+    /// The ids of its monsters (the starter library's characters of the same ids).
+    pub monsters: Vec<String>,
 }
 
 /// What of a project is SRD content: its races and backgrounds with the SRD's ids, characters
-/// with a stat block from an SRD template ("race hill-dwarf", "background acolyte", "character
+/// with a stat block from an SRD template or of an SRD monster ("race hill-dwarf", "background acolyte", "character
 /// guard (stat block guard)").
 pub fn srd_content(db: &crate::defs::Database) -> Vec<String> {
     let r = rules();
@@ -72,7 +74,7 @@ pub fn srd_content(db: &crate::defs::Database) -> Vec<String> {
     out.extend(db.backgrounds.iter().filter(|b| r.backgrounds.contains(&b.id)).map(|b| format!("background {}", b.id)));
     out.extend(db.characters.iter().filter_map(|c| {
         let t = &c.stats.as_ref()?.template;
-        (!t.is_empty() && super::npc_template(t).is_some()).then(|| format!("character {} (stat block {t})", c.id))
+        (!t.is_empty() && (super::npc_template(t).is_some() || r.monsters.contains(t))).then(|| format!("character {} (stat block {t})", c.id))
     }));
     out
 }
@@ -136,6 +138,11 @@ mod tests {
         assert!(damage_text("fire").is_some());
         assert!(language_text("draconic").unwrap().contains("Exotic"));
         assert!(r.races.contains(&"hill-dwarf".to_string()) && r.backgrounds.contains(&"acolyte".to_string()));
+        assert!(r.monsters.len() == 334 && r.monsters.contains(&"adult-red-dragon".to_string()), "{}", r.monsters.len());
+        // A character with a monster's stat block is SRD content.
+        let mut db = crate::defs::Database::default();
+        db.characters.push(crate::defs::CharacterDef { stats: Some(crate::srd::StatBlock { template: "wolf".into(), ..Default::default() }), ..crate::defs::CharacterDef::fresh("dire") });
+        assert_eq!(srd_content(&db), vec!["character dire (stat block wolf)".to_string()]);
         assert!(!ATTRIBUTION.contains("D&D") && !ATTRIBUTION.contains("Dungeons"), "no trademarks");
         // The repository and the starter library carry the same file.
         assert_eq!(include_str!("../../../../SRD-5.1-ATTRIBUTION.txt"), ATTRIBUTION);

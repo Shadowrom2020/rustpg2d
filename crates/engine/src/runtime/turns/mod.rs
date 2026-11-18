@@ -266,7 +266,8 @@ impl Game {
     fn who_speed(&self, who: Who) -> u32 {
         let base = match who {
             Who::Player => self.player_race().map_or(30, |r| r.walk_feet()),
-            _ => self.who_block(who).map_or(30, |b| b.speed_ft),
+            // (Flyers fly over the grid: their best speed until 0.32's movement modes.)
+            _ => self.who_block(who).map_or(30, |b| b.speed_ft.max(b.speeds.fly)),
         };
         let r = conditions::rules(self.who_conditions(who));
         (base as f32 * r.speed).round() as u32

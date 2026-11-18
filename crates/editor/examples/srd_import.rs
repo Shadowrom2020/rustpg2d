@@ -1,4 +1,4 @@
-//! Imports the SRD 5.1's races, subraces and backgrounds from a checkout of 5e-bits/5e-database
+//! Imports the SRD 5.1's races, subraces, backgrounds and monsters from a checkout of 5e-bits/5e-database
 //! into a library or project folder (default: the editor's starter library); see
 //! `crates/editor/src/srd_import.rs`. The data is pinned to a commit:
 //!
@@ -31,6 +31,12 @@ fn main() -> anyhow::Result<()> {
         let rules = PathBuf::from("crates/engine/src/srd/rules.ron");
         srd_import::write_rules(&checkout, &rules)?;
         println!("[srd_import] {}: conditions, damage types, languages, alignments, abilities, skills", rules.display());
+        // The example's characters of SRD monsters (its wolf, bat, troll) get the same data as
+        // the library's copies.
+        let example = PathBuf::from("example_project");
+        if example.join("project.ron").exists() {
+            println!("[srd_import] {}: {} characters updated", example.display(), srd_import::update_monsters_in(&checkout, &example)?);
+        }
     }
     Ok(())
 }

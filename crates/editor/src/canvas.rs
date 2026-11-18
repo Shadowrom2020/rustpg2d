@@ -1060,6 +1060,10 @@ impl Editor {
                         };
                         format!("{} [{count}x {character}, {r}]", z.name)
                     }
+                    ZoneKind::Encounter { monsters, difficulty, .. } => {
+                        let list: Vec<String> = monsters.iter().map(|m| if m.count > 1 { format!("{}x {}", m.count, m.character) } else { m.character.clone() }).collect();
+                        format!("{} [{}: {}]", z.name, difficulty.label(), list.join(", "))
+                    }
                     _ => z.name.clone(),
                 };
                 // Transitions whose other end is missing or leads elsewhere are flagged.
@@ -1136,6 +1140,7 @@ fn zone_color(k: &ZoneKind) -> Color {
         ZoneKind::Transition { .. } => Color::new(1.0, 0.6, 0.1, 1.0),
         ZoneKind::Trigger => Color::new(1.0, 0.65, 0.2, 1.0),
         ZoneKind::Spawner { .. } => Color::new(1.0, 0.25, 0.3, 1.0),
+        ZoneKind::Encounter { .. } => Color::new(0.85, 0.15, 0.55, 1.0),
         ZoneKind::FishingSpot { .. } => Color::new(0.2, 0.55, 1.0, 1.0),
         ZoneKind::Ambience { .. } => Color::new(0.45, 0.9, 0.55, 1.0),
     }

@@ -368,6 +368,19 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }
     engine.register_fn("say", with!(ctx, |c, speaker: &str, text: &str, opts: rhai::Map| say_with(&mut c, speaker.into(), text, &opts)));
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
+    // Timers (immediately).
+    engine.register_fn("timer_start", with!(ctx, |c, name: &str, secs: Dynamic| {
+        c.world.timers.insert(name.to_string(), crate::timers::Timer::new(num(&secs), false, "", ""));
+    }));
+    engine.register_fn("timer_start", with!(ctx, |c, name: &str, secs: Dynamic, o: rhai::Map| {
+        let s = |k: &str| o.get(k).map(|v| v.to_string()).unwrap_or_default();
+        let shown = o.get("shown").and_then(|v| v.as_bool().ok()).unwrap_or(false);
+        c.world.timers.insert(name.to_string(), crate::timers::Timer::new(num(&secs), shown, &s("run"), &s("event")));
+    }));
+    engine.register_fn("timer_left", with!(ctx, |c, name: &str| c.world.timers.get(name).map_or(0.0, |t| t.left as rhai::FLOAT)));
+    engine.register_fn("timer_stop", with!(ctx, |c, name: &str| {
+        c.world.timers.remove(name);
+    }));
     // Screen tint, flash and fades (queued).
     fn rgba_of(v: &Dynamic, alpha: u8) -> [u8; 4] {
         if let Some(a) = v.clone().try_cast::<rhai::Array>() {

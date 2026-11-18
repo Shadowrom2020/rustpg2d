@@ -949,4 +949,87 @@
             ),
         ],
     ),
+    (
+        id: "hot_soup",
+        title: "Hot Soup",
+        description: "Elder Rowan has a cold. Greta sent me to bring him a bowl of her pumpkin stew while it is still hot.",
+        stages: [
+            "Bring Greta\'s pumpkin stew to Elder Rowan before it goes cold.",
+        ],
+        xp: 20,
+        targets: [
+            (
+                map: "village",
+                name: "elder",
+            ),
+        ],
+        giver: "greta",
+        giver_name: "Greta",
+        offer: (
+            lines: [
+                "Elder Rowan has caught a cold and hasn\'t eaten all day, poor man.",
+                "Would you take him a bowl of my pumpkin stew? But hurry - it\'s only good hot!",
+            ],
+            question: "Will you take it to him?",
+            accept: "On my way",
+            decline: "Not now",
+            accepted: [
+                "Here, mind the bowl. Off you go - quick, quick!",
+            ],
+            declined: [
+                "Then I\'ll keep it warm a while longer.",
+            ],
+        ),
+        steps: [
+            (
+                done: Talk(
+                    character: "elder",
+                    lines: [
+                        "Greta\'s stew, and still steaming! Bless you, {player} - and bless her too.",
+                    ],
+                    when: [
+                        (
+                            cond: Timer(
+                                name: "soup",
+                                op: Gt,
+                                seconds: 0,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                ),
+                giver_line: "Still here? The stew won\'t stay hot forever!",
+                on_start: [
+                    GiveItem(
+                        item: "pumpkin_stew",
+                        count: 1,
+                    ),
+                    StartTimer(
+                        name: "soup",
+                        seconds: 150.0,
+                        shown: true,
+                        function: "soup_gone_cold",
+                        event: "",
+                    ),
+                ],
+                on_done: [
+                    TakeItem(
+                        item: "pumpkin_stew",
+                        count: 1,
+                    ),
+                    StopTimer(
+                        name: "soup",
+                    ),
+                ],
+            ),
+        ],
+        rewards: (
+            items: [
+                (
+                    item: "coin",
+                    count: 15,
+                ),
+            ],
+        ),
+    ),
 ]

@@ -195,7 +195,7 @@ The event commands creators expect from other makers.
 
   **Verify.** Screenshots of the tint, the flash and the fade; `status` prints `screen=`.
 
-- [ ] Timers — `feature/timers`
+- [x] Timers — `feature/timers`
 
   **Goal.** A countdown, shown on screen or hidden, that fires when it runs out.
 
@@ -207,6 +207,14 @@ The event commands creators expect from other makers.
   - **Pausing:** timers pause in menus and dialogs.
   - **Saving:** timers are saved.
   - **Scripts:** `timer_start`, `timer_left` and `timer_stop`.
+
+  **Decided while building.**
+  - A timer ends by running a function and / or firing a custom event (both fields); shown timers
+    sit at the top middle in the skin's toast box, the last ten seconds in its *negative* colour.
+  - Timers pause while a menu or a dialog is open (not in cut-scenes).
+  - The script functions act at once (like `set_var`); the actions queue like any action.
+  - The example's errand is a quest (*Hot Soup*): its step starts the timer, the elder's *Talk*
+    goal has the *Timer* condition.
 
   **Engine.** Two appended actions, one condition, the runtime timers, script functions.
 

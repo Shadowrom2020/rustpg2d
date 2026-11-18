@@ -128,6 +128,9 @@ crates/engine/src/      library: everything shared by game and editor
   pictures.rs           picture layers: Picture / PictureLook / PictureMove / PictureTargets, Easing, Blend
                         (WorldState.pictures, saved); runtime/pictures.rs runs Show / Move / Erase picture
                         and draws them above the map, below the HUD
+  timers.rs             timers: Timer (left, shown, function / event at the end), tick, clock
+                        (WorldState.timers, saved); runtime/timers.rs counts down (not in menus / dialogs),
+                        draws shown ones, queues their end; Cond::Timer
   screen_fx.rs          Tint screen / Fade out / Fade in: Overlay (a colour changing over seconds), ScreenFx
                         (WorldState.screen, saved); runtime/juice.rs draws them (+ the unsaved flash)
   script_ui.rs          script UI data: HudElement / HudKind (text, image, bar) / Anchor (WorldState.hud, saved),

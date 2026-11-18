@@ -1177,6 +1177,17 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     ui.add(egui::DragValue::new(value).range(-100..=100))
                         .on_hover_text("The player's standing: -100..100; at -20 or below the faction's characters attack the player");
                 }
+                Cond::Timer { name, op, seconds } => {
+                    ui.label("timer");
+                    ui.add(egui::TextEdit::singleline(name).desired_width(90.0));
+                    ui.label("seconds left");
+                    egui::ComboBox::from_id_salt(format!("{id}/timop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {
+                        for o in CmpOp::ALL {
+                            ui.selectable_value(op, o, o.symbol());
+                        }
+                    });
+                    ui.add(egui::DragValue::new(seconds).range(0..=86400)).on_hover_text("A timer that isn't running has 0 left: '> 0' = it is running");
+                }
                 Cond::PlayerSex { sex } => {
                     ui.label("player is");
                     egui::ComboBox::from_id_salt(format!("{id}/sex")).selected_text(sex.label()).show_ui(ui, |ui| {
@@ -1861,6 +1872,23 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 if let Some(t) = &mut to.tint {
                     ui.color_edit_button_srgb(t);
                 }
+            });
+        }
+        Action::StartTimer { name, seconds, shown, function, event } => {
+            labeled(ui, "timer", |ui| {
+                ui.add(egui::TextEdit::singleline(name).desired_width(100.0).hint_text("name"));
+                ui.add(egui::DragValue::new(seconds).range(0.0..=86400.0).speed(1.0).suffix(" s"));
+                ui.checkbox(shown, "Shown").on_hover_text("Shown at the top of the screen (minutes and seconds)");
+            });
+            labeled(ui, "at the end run", |ui| suggest(ui, &format!("{id}/fn"), function, &refs.functions, 130.0));
+            labeled(ui, "and fire event", |ui| {
+                ui.add(egui::TextEdit::singleline(event).desired_width(130.0).hint_text("(custom event)"));
+            });
+            ui.weak("(pauses while a menu or a dialog is open; saved; starting it again restarts it)");
+        }
+        Action::StopTimer { name } => {
+            labeled(ui, "timer", |ui| {
+                ui.add(egui::TextEdit::singleline(name).desired_width(100.0));
             });
         }
         Action::TintScreen { color, seconds, wait } => {

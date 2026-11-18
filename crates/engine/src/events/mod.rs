@@ -291,6 +291,9 @@ pub enum Cond {
     PlayerRace { race: String },
     /// The player's standing with a faction (-100..100) compared with a value.
     FactionStanding { faction: String, op: CmpOp, value: i64 },
+    /// A timer's seconds left compared with a value (a timer that isn't running has 0: "> 0" =
+    /// running).
+    Timer { name: String, op: CmpOp, seconds: i64 },
 }
 
 /// Whether `hour` lies in `from..to` (hours 0..24; `from > to` wraps around midnight).
@@ -323,6 +326,7 @@ impl Cond {
             Cond::Pose { .. } => "Pose (sitting, asleep)",
             Cond::PlayerRace { .. } => "Player race",
             Cond::FactionStanding { .. } => "Faction standing",
+            Cond::Timer { .. } => "Timer",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -344,6 +348,7 @@ impl Cond {
             Cond::Pose { target: "self".into(), pose: "lie".into() },
             Cond::PlayerRace { race: String::new() },
             Cond::FactionStanding { faction: String::new(), op: CmpOp::Le, value: -20 },
+            Cond::Timer { name: "timer".into(), op: CmpOp::Gt, seconds: 0 },
         ]
     }
 }
@@ -382,6 +387,7 @@ impl Condition {
             Cond::PlayerRace { race } => world.player_race == *race,
             // The saved standing; the running game adds the starting one (see `conditions_met`).
             Cond::FactionStanding { faction, op, value } => op.apply(world.standing.get(faction).copied().unwrap_or(0) as i64, *value),
+            Cond::Timer { name, op, seconds } => op.apply(world.timers.get(name).map_or(0, |t| t.left.ceil() as i64), *seconds),
         };
         v != self.negate
     }
@@ -698,6 +704,21 @@ pub enum Action {
         #[serde(default = "yes")]
         wait: bool,
     },
+    /// Starts (or restarts) a named timer of `seconds`; `shown`: at the top of the screen. When it
+    /// runs out it runs `function` and / or fires the custom event `event`. Timers pause while a
+    /// menu or a dialog is open, and are saved.
+    StartTimer {
+        name: String,
+        seconds: f32,
+        #[serde(default)]
+        shown: bool,
+        #[serde(default)]
+        function: String,
+        #[serde(default)]
+        event: String,
+    },
+    /// Stops a timer (nothing runs).
+    StopTimer { name: String },
 }
 
 fn half_second() -> f32 {
@@ -867,6 +888,8 @@ impl Action {
             Action::FlashScreen { .. } => "Flash screen",
             Action::FadeOut { .. } => "Fade out",
             Action::FadeIn { .. } => "Fade in",
+            Action::StartTimer { .. } => "Start timer",
+            Action::StopTimer { .. } => "Stop timer",
         }
     }
 
@@ -967,6 +990,8 @@ impl Action {
             Action::FlashScreen { color: [255, 255, 255, 200], seconds: 0.5 },
             Action::FadeOut { seconds: 1.0, color: [0, 0, 0], wait: true },
             Action::FadeIn { seconds: 1.0, wait: true },
+            Action::StartTimer { name: "timer".into(), seconds: 60.0, shown: true, function: s(), event: s() },
+            Action::StopTimer { name: "timer".into() },
         ]
     }
 }

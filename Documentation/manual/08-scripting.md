@@ -491,6 +491,35 @@ fn meet_tilda() {
 }                                                    // the portrait goes when the event ends
 ```
 
+#### Timers
+
+A named countdown, shown at the top of the screen or hidden; when it runs out it runs a function
+and / or fires a custom event. Timers pause while a menu or a dialog is open, and are saved.
+
+| Function | Description |
+|---|---|
+| `timer_start(name, seconds)` | Starts (or restarts) a hidden timer that runs nothing at the end. *(immediately)* |
+| `timer_start(name, seconds, options)` | Options `#{ shown: true, run: "function", event: "name" }`. *(immediately)* |
+| `timer_left(name)` | Seconds left (0 when it isn't running). |
+| `timer_stop(name)` | Stops it; nothing runs. *(immediately)* |
+
+```rust
+fn start_race() {
+    timer_start("race", 60, #{ shown: true, run: "race_lost" });
+}
+
+fn race_lost() {
+    say("Too slow! Try again.");
+}
+
+fn reach_goal() {
+    if timer_left("race") > 0 {
+        timer_stop("race");
+        give_item("coin", 20);
+    }
+}
+```
+
 #### Screen tint, flash and fades
 
 | Function | Description |

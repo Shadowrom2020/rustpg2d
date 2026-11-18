@@ -245,7 +245,7 @@ The event commands creators expect from other makers.
 
   **Verify.** Autoplay `type` / `press`; `status` vars and `texts=`; screenshots.
 
-- [ ] Move routes — `feature/move-routes`
+- [x] Move routes — `feature/move-routes`
 
   **Goal.** Choreograph characters step by step without scripts.
 
@@ -263,6 +263,16 @@ The event commands creators expect from other makers.
     - walk through walls (on / off);
     - run a script.
   - **Editor:** a list editor with one button per step, as in RPG Maker.
+
+  **Decided while building.**
+  - Walking steps are straight one-tile moves (`Body::move_target`), each checked against the
+    tile ahead (solid ground / decoration, a solid prop or character) unless *through* is on;
+    *skip blocked* leaves the whole step out.
+  - Routes aren't saved: they end with the map (a repeating route is restarted by its map's
+    trigger). A new route for the same walker replaces the old one.
+  - A jump is drawn as a hop (the camera shifted for that walker); *Speed* multiplies the usual
+    speed until the route ends; *Animation* plays a model clip for some seconds.
+  - Scripts write steps as short texts (`"move up 2"`), parsed by `RouteStep::parse`.
 
   **Engine.** One appended action, `runtime/routes.rs` (built on `try_move` / `walk_to_tile`), the
   editor's step list.

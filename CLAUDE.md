@@ -128,6 +128,9 @@ crates/engine/src/      library: everything shared by game and editor
   pictures.rs           picture layers: Picture / PictureLook / PictureMove / PictureTargets, Easing, Blend
                         (WorldState.pictures, saved); runtime/pictures.rs runs Show / Move / Erase picture
                         and draws them above the map, below the HUD
+  routes.rs             move routes: RouteStep (move, toward / away, turn, wait, jump, speed, anim, sound,
+                        through, script; summary / parse); runtime/routes.rs runs them (Action::MoveRoute,
+                        routes end with the map, hop drawing, route clips)
   runtime/input_box.rs  Input number / Input text: the window, its input, status input=; WorldState.texts = text
                         variables ({name} placeholders, Cond::TextVar, get_text / set_text)
   timers.rs             timers: Timer (left, shown, function / event at the end), tick, clock

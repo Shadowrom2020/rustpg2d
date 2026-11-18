@@ -144,6 +144,8 @@ pub const API: &[ApiFn] = api! {
     "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
     "stock_of"(target: Target, item: Item) "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
     "show_image"(sheet: Sheet) "Shows a picture over the game (a sprite sheet drawn whole, scaled down to fit the window); the event waits until the player closes it (queued)";
+    "move_route"(target: Target, steps: List) "A character (or \"player\") walks a list of steps; the event waits until it is done: \"move up 2\", \"toward 1\", \"away 1\" (the player), \"turn left\", \"turn random\", \"face player\", \"wait 0.5\", \"jump 1,0\", \"speed 2\" (times its usual speed), \"anim wave 1.5\" (a clip for seconds), \"sound blip\", \"through on\", \"script name\". A step whose tile is taken is left out (queued)";
+    "move_route"(target: Target, steps: List, options: Opts) "Like move_route(); options #{ repeat: true (again and again; the event doesn't wait), skip: false (wait until a taken tile is free), wait: false } (queued)";
     "get_text"(name: Text) "A text variable's value (\"\" when unset); {name} in texts shows it";
     "set_text"(name: Text, value: Text) "Sets a text variable (shown by {name} placeholders; saved) (immediately)";
     "input_number"(text: Line, var: Var, min: Num, max: Num) "Asks the player for a whole number between min and max (a window with the text) and puts it into a variable; the event waits (queued)";

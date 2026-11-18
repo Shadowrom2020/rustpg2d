@@ -101,6 +101,9 @@ impl Game {
 
     /// What the player shows: a strike, blocking, being hurt, sneaking, walking or breathing.
     pub(super) fn player_anim(&self) -> Anim {
+        if let Some(a) = self.route_anim(super::routes::Walker::Player) {
+            return a;
+        }
         let c = &self.combat;
         if c.strike > 0.0 {
             let p = 1.0 - c.strike / c.strike_len.max(0.05);
@@ -126,6 +129,10 @@ impl Game {
 
     /// What character `i`'s frame shows: its attack, being hurt, walking or breathing.
     pub(super) fn npc_anim(&self, i: usize) -> Anim {
+        // A clip of a move route plays over anything else.
+        if let Some(a) = self.route_anim(self.entity_walker(i)) {
+            return a;
+        }
         let e = &self.loaded.entities[i];
         if let Some(a) = e.attack.and_then(|a| a.anim(a.windup_time(e.windup))) {
             return a;

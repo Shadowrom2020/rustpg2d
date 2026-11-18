@@ -752,6 +752,20 @@ pub enum Action {
         #[serde(default = "sixteen")]
         max_len: u32,
     },
+    /// A character (`target`; "player" too) walks a list of steps (`routes::RouteStep`).
+    /// `repeat`: from the start again when done (the event never waits for it); `skip_blocked`:
+    /// a step whose tile is taken is left out (else it waits until it is free); `wait`: the
+    /// event goes on when the route is done.
+    MoveRoute {
+        target: TargetName,
+        steps: Vec<crate::routes::RouteStep>,
+        #[serde(default)]
+        repeat: bool,
+        #[serde(default = "yes")]
+        skip_blocked: bool,
+        #[serde(default)]
+        wait: bool,
+    },
 }
 
 fn nine_nine_nine() -> i64 {
@@ -933,6 +947,7 @@ impl Action {
             Action::StopTimer { .. } => "Stop timer",
             Action::InputNumber { .. } => "Input number",
             Action::InputText { .. } => "Input text",
+            Action::MoveRoute { .. } => "Move route",
         }
     }
 
@@ -1037,6 +1052,7 @@ impl Action {
             Action::StopTimer { name: "timer".into() },
             Action::InputNumber { text: "How many?".into(), var: "answer".into(), digits: 0, min: 0, max: 999 },
             Action::InputText { text: "What is your name?".into(), var: "name".into(), max_len: 16 },
+            Action::MoveRoute { target: "self".into(), steps: vec![crate::routes::RouteStep::Move { dir: crate::entity::Facing::Down, tiles: 1 }], repeat: false, skip_blocked: true, wait: true },
         ]
     }
 }

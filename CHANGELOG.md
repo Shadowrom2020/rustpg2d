@@ -28,6 +28,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   variable* condition and `get_text` / `set_text`; scripts ask with `input_number` / `input_text`.
   `status` prints `input=` and `texts=`. The example: a riddle board by the Whisperwood shrine,
   and naming the old stone house once it is yours.
+- **Move routes**: *Move route* walks a character (or the player) through steps added with one
+  button each, as in RPG Maker: moves, toward / away from the player, turns, waits, jumps (with
+  a hop), speed, animation clips, sounds, walking through walls, scripts; skip blocked steps or
+  wait, repeat, wait for it. Scripts: `move_route(target, ["move right 3", "jump 0,0", …])`;
+  `status` prints `routes=`. The example's guard hops for joy in the intro.
 
 ## 0.25.0 — 2026-11-18
 

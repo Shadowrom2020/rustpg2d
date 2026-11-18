@@ -120,7 +120,7 @@ impl Game {
         if guard == Guard::Parried {
             if let Some(i) = attacker {
                 let stun = crate::effects::EffectSpec { kind: crate::effects::EffectKind::Stun, strength: 0.0, seconds: PARRY_STUN };
-                crate::effects::apply(&mut self.loaded.entities[i].effects, &stun);
+                self.apply_entity_effect(i, &stun);
                 self.loaded.entities[i].attack = None;
             }
             self.ui.toast("Parried!".into());

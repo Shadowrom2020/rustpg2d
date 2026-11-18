@@ -647,3 +647,20 @@ fn faction_members_are_changed_from_the_factions_tab() {
     assert_eq!(saved.db.race("goblin").unwrap().faction, "humans");
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn script_hooks_are_added_in_the_project_form() {
+    let root = example_copy("script_hooks");
+    let mut h = harness(&root, Tab::Project, 0);
+    let before = h.state().project.config.hooks.len();
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.ends_with("Add hook"))).click();
+    step(&mut h);
+    let hooks = &h.state().project.config.hooks;
+    assert_eq!(hooks.len(), before + 1);
+    assert_eq!(hooks.last().unwrap().hook, "damage");
+    h.state_mut().project.config.hooks.last_mut().unwrap().function = "friend_buy_price".into();
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert_eq!(saved.config.hooks.last().unwrap().function, "friend_buy_price");
+    let _ = std::fs::remove_dir_all(&root);
+}

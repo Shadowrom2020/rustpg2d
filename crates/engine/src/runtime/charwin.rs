@@ -27,6 +27,15 @@ pub(super) enum WinTab {
 }
 
 impl WinTab {
+    /// The `menu` value of the `menu_open` script hook.
+    fn hook_name(self) -> &'static str {
+        match self {
+            WinTab::Character => "character",
+            WinTab::Skills => "skills",
+            WinTab::Spells => "spells",
+        }
+    }
+
     fn label(self) -> &'static str {
         match self {
             WinTab::Character => "Character ({key:character})",
@@ -164,6 +173,8 @@ impl Game {
             if let Some(t) = want {
                 if open == Some(t) && step == 0 {
                     self.close_window();
+                } else if open.is_none() && !self.menu_allowed(t.hook_name()) {
+                    // (A script hook kept it shut.)
                 } else {
                     self.open_tab(t);
                     // C opens the character sheet at the equipment, I at the inventory grid.

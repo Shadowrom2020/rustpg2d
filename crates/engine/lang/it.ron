@@ -412,6 +412,7 @@
         "Needs a {}": "Richiede: {}",
         "Needs it {}": "Richiede che sia {}",
         "Your inventory is full.": "Il tuo inventario è pieno.",
+        "You can't make that now.": "Ora non puoi creare questo oggetto.",
         "Made {} {}": "Creato {} {}",
         "Made {}": "Creato {}",
         "Nothing can be made here.": "Qui non si può creare nulla.",

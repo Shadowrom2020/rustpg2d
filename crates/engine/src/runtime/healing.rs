@@ -241,10 +241,24 @@ impl Game {
             return;
         }
         let name = self.entity_display_name(e.uid).unwrap_or_else(|| e.name.clone());
+        let target = e.name.clone();
+        let amount = self.heal_hook(&target, amount);
+        if amount <= 0 {
+            return;
+        }
         let e = &mut self.loaded.entities[i];
         e.hp = (e.hp + amount).min(e.max_hp);
         self.ui.toast(format!("{name} +{amount} HP"));
         self.companion_healed(i);
+    }
+
+    /// The `heal` script hook: how much healing `target` ("player" or a character's name) gets.
+    pub(super) fn heal_hook(&mut self, target: &str, amount: i32) -> i32 {
+        if !self.hooked("heal") {
+            return amount;
+        }
+        let m = self.hook("heal", crate::hooks::map([("target", target.into()), ("amount", (amount as i64).into())]));
+        crate::hooks::int(&m, "amount", amount as i64).clamp(0, i32::MAX as i64) as i32
     }
 
     /// `Action::HealCharacter`: `"player"` heals the player.

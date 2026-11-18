@@ -14,15 +14,16 @@ follow, and every function the engine provides.
 1. [A first script](#a-first-script)
 2. [Where scripts live](#where-scripts-live)
 3. [How scripts are run](#how-scripts-are-run)
-4. [Immediate and queued functions](#immediate-and-queued-functions)
-5. [Game state: flags and variables](#game-state-flags-and-variables)
-6. [Targets and `SELF`](#targets-and-self)
-7. [Positions, numbers and text](#positions-numbers-and-text)
-8. [Writing scripts in the editor](#writing-scripts-in-the-editor)
-9. [API reference](#api-reference)
-10. [Recipes](#recipes)
-11. [Limits, errors and debugging](#limits-errors-and-debugging)
-12. [Rhai in five minutes](#rhai-in-five-minutes)
+4. [Script hooks](#script-hooks)
+5. [Immediate and queued functions](#immediate-and-queued-functions)
+6. [Game state: flags and variables](#game-state-flags-and-variables)
+7. [Targets and `SELF`](#targets-and-self)
+8. [Positions, numbers and text](#positions-numbers-and-text)
+9. [Writing scripts in the editor](#writing-scripts-in-the-editor)
+10. [API reference](#api-reference)
+11. [Recipes](#recipes)
+12. [Limits, errors and debugging](#limits-errors-and-debugging)
+13. [Rhai in five minutes](#rhai-in-five-minutes)
 
 ---
 
@@ -78,6 +79,7 @@ The game never runs a script on its own. Something in the game calls a script **
 | `then_call("name")` | In a script | `name()` after the actions queued before it |
 | `aim("name")` | In a script | `name(x, y)` with the target the player clicked |
 | `fly(…, "name", …)` | In a script | `name(x, y)` when the flying sprite arrives |
+| **Script hook** | *Database › Project › Script hooks* | `name(map)` where the engine decides something: a hit's damage, a price, an item use… ([Script hooks](#script-hooks)) |
 
 Triggers fire on these events: **Interact** (the player presses E in front of an entity, or
 right-clicks it), **Enter** / **Leave** (a zone), **Use item**, **Map enter**, **Custom event**
@@ -100,6 +102,60 @@ fn has_enough_coins() {
 
 A condition should only look at the game, not change it. Actions it queues (`say`, `teleport`,
 …) are thrown away.
+
+## Script hooks
+
+A **script hook** lets a script change what the engine itself does: how much damage a hit deals,
+what a merchant charges, whether an item may be used. Register the function in *Database ›
+Project › Script hooks*: pick the hook, the function and a priority. The engine calls the
+function with a **map** that describes what is about to happen; the function returns the map
+changed, or nothing (`()`) to leave it as it is.
+
+```rust
+// Hook "damage": every hit on a character hurts twice as much (not the player).
+fn double_damage(m) {
+    if m.target != "player" {
+        m.amount *= 2;
+    }
+    m
+}
+```
+
+- **Several functions on one hook** run by priority, lower numbers first (equal ones in the
+  order listed); each gets the map the one before returned.
+- **Only registered hooks are called**: a project without hooks pays nothing for them.
+- **Hooks must be quick**: they run in the middle of the engine's work (every hit, every price
+  in a shop), with a limit of about 200,000 operations per call. A hook that runs out stops with
+  an error and the map stays as it was.
+- **Hooks can use the whole API**: read flags and variables, change them (`set_var`,
+  `give_item` take effect at once) and queue actions (`say`, `teleport`…), which run after the
+  current ones.
+- The editor's *Problems* list warns about a hook the engine doesn't know and errs about a
+  function that doesn't exist; `status` prints how often each hook ran (`hooks=`).
+
+| Hook | The map | What it changes |
+|---|---|---|
+| `damage` | `attacker`, `target`, `target_def`, `amount`, `crit` | A hit on the player or a character: `amount` is the damage after defense; set it (0 = no damage). `attacker` is `"player"` for the player's own hits, else `""`; `target` is `"player"` or the character's name, `target_def` its definition. Poison and burning aren't hits. |
+| `heal` | `target`, `amount` | Healing of the player or a character (items, spells, *Heal* actions); 0 = none. |
+| `item_use` | `item`, `cancel` | The player uses an item from the inventory (also equipping it): `cancel = true` stops it. |
+| `xp` | `amount` | Experience the player is about to gain (or lose). |
+| `level_up` | `level`, `hp`, `mana`, `points` | What reaching `level` gives: HP healed, mana, skill points (max HP follows *Experience and levels*). |
+| `buy` | `item`, `price`, `merchant` | The price of one item in a merchant's stock. Asked when the trade window opens and after each trade, so the window shows it. `merchant` is the merchant's name on the map. |
+| `sell` | `item`, `price`, `merchant` | What a merchant pays for one item; -1 = not interested (it may be -1 coming in, too). |
+| `craft` | `recipe`, `count`, `cancel` | Making a recipe: `count` results per make; `cancel = true` stops it ("You can't make that now."). |
+| `map_enter` | `map`, `from` | The player arrived on `map` (`from` is `""` after loading or a new game). Nothing to change: queue actions. |
+| `new_game` | (empty) | A new game starts, before the start map is entered: give items, set flags and variables. |
+| `save` | `slot` | The game is about to be saved; variables set here are saved with it. |
+| `load` | `slot` | A game was loaded. |
+| `menu_open` | `menu`, `cancel` | `"pause"`, `"character"`, `"skills"`, `"spells"`, `"journal"` or `"map"` is about to open: `cancel = true` keeps it shut. |
+| `effect_apply` | `target`, `effect`, `strength`, `seconds`, `cancel` | A status effect (`"poison"`, `"stun"`…) is about to start on `"player"` or a character: change its strength or length, or cancel it. |
+
+The SRD 5.1 rules (from 0.28) will add hooks for rolls, checks, saving throws, initiative, turns,
+rests and spells.
+
+The example uses two: villagers who count the player a friend (five hearts) sell 10 % cheaper
+and pay 10 % more (`friend_buy_price` and `friend_sell_price` in `main.rhai`, on the `buy` and
+`sell` hooks).
 
 ## Immediate and queued functions
 
@@ -1122,8 +1178,8 @@ fn fountain() {
 
 - **Sandboxed**: scripts can't read or write files, open network connections or start programs.
   They only see the game through the functions above.
-- **Operation limit**: a single call may run about two million operations. An endless loop is
-  stopped with an error instead of freezing the game. Call depth is limited to 64 nested
+- **Operation limit**: a single call may run about two million operations (a script hook about
+  200,000). An endless loop is stopped with an error instead of freezing the game. Call depth is limited to 64 nested
   function calls.
 - **Errors never crash the game**. A script error (a typo in a function name, a wrong argument
   type, calling a function that doesn't exist) is printed on the game's console as

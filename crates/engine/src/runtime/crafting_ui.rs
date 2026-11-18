@@ -124,6 +124,17 @@ impl Game {
     /// Makes up to `n` of recipe row `k`. Returns how many were made.
     fn craft_row(&mut self, k: usize, n: u32) -> u32 {
         let Some(r) = self.crafting_recipes().into_iter().nth(k) else { return 0 };
+        // Script hook: how many results one make gives, or no making at all.
+        let mut count = r.count.max(1);
+        if self.hooked("craft") {
+            use crate::hooks::{flag, int, map};
+            let m = self.hook("craft", map([("recipe", r.id.clone().into()), ("count", (count as i64).into()), ("cancel", false.into())]));
+            if flag(&m, "cancel") {
+                self.crafting_msg("You can't make that now.".into(), false);
+                return 0;
+            }
+            count = int(&m, "count", count as i64).max(0) as u32;
+        }
         let mut made = 0;
         while made < n {
             if let Some(m) = self.recipe_missing(&r) {
@@ -139,8 +150,16 @@ impl Game {
                 }
                 break;
             }
+            let result = r.result_for(&self.world).to_string();
             if r.craft(&mut self.world, &self.project.db.tool_kinds()).is_err() {
                 break;
+            }
+            // (A hook's count: the difference to the recipe's own.)
+            let base = r.count.max(1);
+            if count > base {
+                self.world.give_item(&result, count - base);
+            } else if count < base {
+                self.world.take_item(&result, base - count);
             }
             made += 1;
         }
@@ -148,7 +167,7 @@ impl Game {
             self.audio.play(&self.project.config.sfx.pickup);
             // (The quality the skill reached when it was made.)
             let name = self.item_name(r.result_for(&self.world)).to_string();
-            let total = made * r.count.max(1);
+            let total = made * count;
             self.crafting_msg(if total > 1 { format!("Made {total} {name}") } else { format!("Made {name}") }, true);
         }
         made

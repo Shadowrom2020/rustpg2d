@@ -656,6 +656,18 @@ impl Editor {
         if !c.title.entries.is_empty() && !c.title.entries.iter().any(|e| matches!(e, MenuEntry::NewGame)) {
             bad("the title screen has no New game entry".into(), Severity::Warning);
         }
+        // Script hooks: a hook the engine calls, a function that exists.
+        for h in &c.hooks {
+            let place = "Project › Script hooks".to_string();
+            if !rustpg2d_engine::hooks::known(&h.hook) {
+                out.push(Problem { severity: Severity::Warning, area: Area::Project, place: place.clone(), text: format!("\"{}\" isn't a hook the engine calls (its function never runs)", h.hook), target: Target::Project });
+            }
+            if h.function.is_empty() {
+                out.push(Problem { severity: Severity::Warning, area: Area::Project, place, text: format!("the {} hook has no function", h.hook), target: Target::Project });
+            } else if !self.refs.functions.contains(&h.function) {
+                out.push(Problem { severity: Severity::Error, area: Area::Project, place, text: format!("the {} hook runs the script function \"{}\", which doesn't exist", h.hook, h.function), target: Target::Project });
+            }
+        }
     }
 
     fn translation_problems(&self, out: &mut Vec<Problem>) {

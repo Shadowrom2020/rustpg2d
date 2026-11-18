@@ -440,6 +440,7 @@ quests.
 | **Skills & magic** | Turn on skills and magic; starting skill points, max mana, mana regeneration |
 | **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana, skill points) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |
+| **Script hooks** | Script functions the engine calls to change what it does: a hit's damage, healing, item use, experience, levels, prices, crafting, entering a map, a new game, saving, loading, opening menus, status effects; hook, function and priority ([Scripting › Script hooks](08-scripting.md#script-hooks)) |
 | **Languages** | The language the game is written in, translations, *Play-test in* ([Languages](12-languages.md)) |
 | **Title screen** | What players see first: the background (a map, with the tile the camera looks at, the hour and a slow drift, or a picture), a logo, the music, how dark the background gets, the menu's place, and its entries ([Title screen and menus](#title-screen-and-menus)) |
 | **Pause menu** | The pause menu's place and entries |

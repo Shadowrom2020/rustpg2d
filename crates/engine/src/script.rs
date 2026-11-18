@@ -78,11 +78,17 @@ pub struct ScriptHost {
     printed: Rc<RefCell<Vec<String>>>,
 }
 
+/// Rhai operations a script call may take (a runaway loop stops with an error).
+const MAX_OPERATIONS: u64 = 2_000_000;
+/// Rhai operations one script hook call may take: hooks run inside the engine's own work
+/// (every hit, every price), so they must stay short.
+pub const HOOK_OPERATIONS: u64 = 200_000;
+
 impl ScriptHost {
     pub fn new() -> Self {
         let ctx = Rc::new(RefCell::new(Ctx::default()));
         let mut engine = Engine::new();
-        engine.set_max_operations(2_000_000);
+        engine.set_max_operations(MAX_OPERATIONS);
         engine.set_max_call_levels(64);
         let printed: Rc<RefCell<Vec<String>>> = Rc::default();
         let sink = printed.clone();
@@ -276,6 +282,26 @@ impl ScriptHost {
     pub fn call_args(&mut self, world: &mut WorldState, function: &str, args: Vec<Dynamic>, owner: Option<u32>) -> Vec<Action> {
         self.call_inner(world, function, args, owner);
         std::mem::take(&mut self.ctx.borrow_mut().actions)
+    }
+
+    /// Runs a script hook (`hooks.rs`): `function(map)` under [`HOOK_OPERATIONS`]. Returns the
+    /// changed map (None: it returned `()`, failed or returned something else, so the map stays
+    /// as it was) and the world actions it queued.
+    pub fn call_hook(&mut self, world: &mut WorldState, function: &str, map: rhai::Map) -> (Option<rhai::Map>, Vec<Action>) {
+        self.engine.set_max_operations(HOOK_OPERATIONS);
+        let r = self.call_inner(world, function, vec![Dynamic::from_map(map)], None);
+        self.engine.set_max_operations(MAX_OPERATIONS);
+        let actions = std::mem::take(&mut self.ctx.borrow_mut().actions);
+        let map = match r {
+            Some(v) if v.is_map() => v.try_cast::<rhai::Map>(),
+            Some(v) if v.is_unit() => None,
+            Some(v) => {
+                self.report(format!("hook {function}() returned {} instead of a map or ()", v.type_name()));
+                None
+            }
+            None => None,
+        };
+        (map, actions)
     }
 
     /// Runs a script function used as a condition (must return `bool`).
@@ -1068,6 +1094,33 @@ mod tests {
         assert_eq!(host.take_printed(), vec!["hi".to_string()]);
         assert!(host.eval(&mut w, "nope(").0.is_err());
         assert!(host.eval(&mut w, "missing()").0.is_err());
+    }
+
+    #[test]
+    fn hooks_change_the_map_or_keep_it() {
+        let mut host = ScriptHost::new();
+        host.load_source(
+            r#"
+            fn double(m) { m.amount *= 2; give_item("coin", 1); m }
+            fn keep(m) { }
+            fn wrong(m) { 5 }
+            fn forever(m) { loop { } }
+        "#,
+        )
+        .unwrap();
+        let mut w = WorldState::default();
+        let m = crate::hooks::map([("amount", Dynamic::from(3_i64))]);
+        let (r, actions) = host.call_hook(&mut w, "double", m.clone());
+        assert_eq!(crate::hooks::int(&r.unwrap(), "amount", 0), 6);
+        assert!(actions.is_empty() && w.item_count("coin") == 1);
+        assert!(host.call_hook(&mut w, "keep", m.clone()).0.is_none());
+        assert!(host.call_hook(&mut w, "wrong", m.clone()).0.is_none());
+        // A runaway hook stops at its operation limit (an error, the map unchanged).
+        assert!(host.call_hook(&mut w, "forever", m.clone()).0.is_none());
+        assert!(host.errors.iter().any(|e| e.contains("forever")));
+        // ... and ordinary calls get their own, bigger limit back.
+        host.load_source("fn count() { let n = 0; for i in 0..100000 { n += 1; } n }").unwrap();
+        assert_eq!(host.call_inner(&mut w, "count", vec![], None).and_then(|v| v.as_int().ok()), Some(100000));
     }
 
     #[test]

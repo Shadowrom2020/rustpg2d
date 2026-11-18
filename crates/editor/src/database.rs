@@ -3190,6 +3190,7 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
         ui.end_row();
     });
     ui.separator();
+    hooks_form(ui, &mut c.hooks, &ed.refs.functions);
     ui.separator();
     ui.heading("Character creator");
     let cc = &mut c.creation;
@@ -3246,6 +3247,47 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
         None => {
             ui.label(format!("Project folder: {}", ed.project.root.display()));
         }
+    }
+}
+
+/// *Script hooks* in Database › Project: which script function the engine calls where
+/// (`rustpg2d_engine::hooks`), in priority order.
+fn hooks_form(ui: &mut egui::Ui, list: &mut Vec<rustpg2d_engine::hooks::HookDef>, functions: &[String]) {
+    use rustpg2d_engine::hooks::{HookDef, HOOKS};
+    ui.heading("Script hooks");
+    ui.weak("Script functions that change what the engine does: each gets a map (#{target, amount, …}) and returns it changed, or nothing to keep it. Several on one hook run by priority, lower first. Hover a hook for its map.");
+    let mut remove = None;
+    if !list.is_empty() {
+        egui::Grid::new("hooks").num_columns(4).striped(true).show(ui, |ui| {
+            ui.weak("Hook");
+            ui.weak("Function");
+            ui.weak("Priority");
+            ui.end_row();
+            for (k, h) in list.iter_mut().enumerate() {
+                let help = HOOKS.iter().find(|x| x.0 == h.hook).map_or_else(|| "Not a hook the engine calls".to_string(), |x| format!("#{{{}}}: {}", x.1, x.2));
+                egui::ComboBox::from_id_salt(("hook_name", k))
+                    .selected_text(if rustpg2d_engine::hooks::known(&h.hook) { h.hook.clone() } else { format!("{} (unknown)", h.hook) })
+                    .show_ui(ui, |ui| {
+                        for (name, fields, what) in HOOKS {
+                            ui.selectable_value(&mut h.hook, name.to_string(), *name).on_hover_text(format!("#{{{fields}}}: {what}"));
+                        }
+                    })
+                    .response
+                    .on_hover_text(help);
+                widgets::suggest(ui, &format!("hook_fn{k}"), &mut h.function, functions, 160.0);
+                ui.add(egui::DragValue::new(&mut h.priority).range(-1000..=1000)).on_hover_text("Lower runs first");
+                if crate::ui::icon_button(ui, true, ph::TRASH, "Remove hook", "", "The engine no longer calls the function here").clicked() {
+                    remove = Some(k);
+                }
+                ui.end_row();
+            }
+        });
+    }
+    if let Some(k) = remove {
+        list.remove(k);
+    }
+    if ui.button(crate::ui::t(ph::PLUS, "Add hook")).on_hover_text("Call a script function at one of the engine's hooks").clicked() {
+        list.push(HookDef { hook: "damage".into(), function: String::new(), priority: 0 });
     }
 }
 

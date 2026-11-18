@@ -413,6 +413,7 @@
         "Needs a {}": "{} が必要",
         "Needs it {}": "{} の状態が必要",
         "Your inventory is full.": "持ち物がいっぱいです。",
+        "You can't make that now.": "今はそれを作れません。",
         "Made {} {}": "{} {} を作った",
         "Made {}": "{} を作った",
         "Nothing can be made here.": "ここでは何も作れない。",

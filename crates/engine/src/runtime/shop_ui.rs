@@ -49,6 +49,9 @@ pub(super) struct ShopUi {
     lists: [ScrollList; 2],
     /// Result of the last trade (shown in the footer) and when it happened.
     msg: Option<(String, bool, f64)>,
+    /// Prices the `buy` / `sell` script hooks set, by (merchant side, item): worked out when the
+    /// window opens and after each trade, not every frame (None = not interested).
+    hooked: std::collections::HashMap<(bool, String), Option<u32>>,
 }
 
 impl ShopUi {
@@ -216,7 +219,7 @@ impl Game {
                 .map(|e| Row {
                     item: e.item.clone(),
                     count: (!e.unlimited).then_some(e.count),
-                    price: Some(cheaper(ShopSpec::buy_price(stock, &e.item, db))),
+                    price: self.shop.hooked.get(&(true, e.item.clone())).copied().unwrap_or(Some(cheaper(ShopSpec::buy_price(stock, &e.item, db)))),
                 })
                 .collect(),
             ShopSide::Player => {
@@ -227,12 +230,42 @@ impl Game {
                     }
                     match rows.iter_mut().find(|r| r.item == s.item) {
                         Some(r) => r.count = Some(r.count.unwrap_or(0) + s.count),
-                        None => rows.push(Row { item: s.item.clone(), count: Some(s.count), price: spec.sell_price(stock, &s.item, db).map(better) }),
+                        None => rows.push(Row {
+                            item: s.item.clone(),
+                            count: Some(s.count),
+                            price: self.shop.hooked.get(&(false, s.item.clone())).copied().unwrap_or_else(|| spec.sell_price(stock, &s.item, db).map(better)),
+                        }),
                     }
                 }
                 rows
             }
         }
+    }
+
+    /// Asks the `buy` and `sell` script hooks for the prices of the open window's rows.
+    fn refresh_shop_prices(&mut self) {
+        self.shop.hooked.clear();
+        let Some(uid) = self.shop.open else { return };
+        let (buy, sell) = (self.hooked("buy"), self.hooked("sell"));
+        if !buy && !sell {
+            return;
+        }
+        use crate::hooks::{int, map};
+        let merchant = self.merchant_home(uid).map(|(_, _, e)| e.name.clone()).unwrap_or_default();
+        let mut prices = std::collections::HashMap::new();
+        for (merchant_side, hook, on) in [(true, "buy", buy), (false, "sell", sell)] {
+            if !on {
+                continue;
+            }
+            let side = if merchant_side { ShopSide::Merchant } else { ShopSide::Player };
+            for row in self.shop_rows(side) {
+                let price = row.price.map_or(-1, |p| p as i64);
+                let m = self.hook(hook, map([("item", row.item.clone().into()), ("price", price.into()), ("merchant", merchant.clone().into())]));
+                let p = int(&m, "price", price);
+                prices.insert((merchant_side, row.item), (p >= 0).then_some(p.min(u32::MAX as i64) as u32));
+            }
+        }
+        self.shop.hooked = prices;
     }
 
     fn money(&self) -> (String, u32) {
@@ -272,6 +305,7 @@ impl Game {
                 }
             }
             self.audio.play(&self.project.config.sfx.pickup);
+            self.refresh_shop_prices();
             let name = self.item_name(&row.item);
             self.shop_msg(if bought > 1 { format!("Bought {bought} {name}") } else { format!("Bought {name}") }, true);
         }
@@ -319,6 +353,7 @@ impl Game {
                 }
             }
             self.audio.play(&self.project.config.sfx.pickup);
+            self.refresh_shop_prices();
             let name = self.item_name(&row.item);
             let total = sold * price;
             self.shop_msg(if sold > 1 { format!("Sold {sold} {name} for {total}") } else { format!("Sold {name} for {total}") }, true);
@@ -371,6 +406,7 @@ impl Game {
             self.shop.side = Some(ShopSide::Merchant);
             self.shop.lists = Default::default();
             self.shop.msg = None;
+            self.refresh_shop_prices();
             self.audio.play(&self.project.config.sfx.open_container);
         }
         if !self.shop.is_open() {

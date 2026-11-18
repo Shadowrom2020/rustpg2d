@@ -3,6 +3,18 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Plugins
+- **Script hooks**: scripts change what the engine does. *Database › Project › Script hooks*
+  registers a script function on a hook, with a priority: `damage`, `heal`, `item_use`, `xp`,
+  `level_up`, `buy`, `sell`, `craft`, `map_enter`, `new_game`, `save`, `load`, `menu_open` and
+  `effect_apply`. The engine calls it with a map of what is about to happen (`#{target, amount,
+  …}`) and uses the map it returns (or keeps it on `()`); several run in priority order, under an
+  operation limit of their own. Only registered hooks are called. *Problems* checks hook names and
+  functions; `status` prints `hooks=`. In the example, villagers who count the player a friend sell
+  10 % cheaper and pay 10 % more.
+
 ## 0.26.0 — 2026-11-18
 
 ### Director's tools

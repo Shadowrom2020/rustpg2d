@@ -2,6 +2,7 @@
 
 use macroquad::prelude::*;
 
+use crate::hooks;
 use super::{input, Arrival, Game, Mover, Source};
 use crate::defs::{CharacterDef, Ranged, SpriteRef};
 use crate::entity::Facing;
@@ -184,6 +185,9 @@ impl Game {
     /// Starts over with a fresh world at the project's start map / spawn.
     pub(super) fn new_game(&mut self) {
         self.reset_world();
+        if self.hooked("new_game") {
+            self.hook("new_game", hooks::map([]));
+        }
         self.ui_hidden = false;
         self.reset_cutscene();
         let (map, spawn) = (self.project.config.start_map.clone(), self.project.config.start_spawn.clone());
@@ -367,7 +371,7 @@ impl Game {
         }
         for i in targets {
             if let Some(fx) = &weapon.effect {
-                crate::effects::apply(&mut self.loaded.entities[i].effects, fx);
+                self.apply_entity_effect(i, fx);
             }
             let crit = self.roll_crit(weapon.crit);
             let (dmg, sneak) = self.sneak_attack(i, if crit { damage * 2 } else { damage });
@@ -514,7 +518,7 @@ impl Game {
                             (dmg, blow.crit) = (d, blow.crit || sneak);
                         }
                         if let Some(fx) = fx {
-                            crate::effects::apply(&mut self.loaded.entities[t].effects, &fx);
+                            self.apply_entity_effect(t, &fx);
                         }
                         self.strike_entity(t, dmg, from, 1.0, blow);
                         alive = false;
@@ -533,7 +537,7 @@ impl Game {
                     if let Some(t) = foe {
                         let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
                         if let Some(fx) = fx {
-                            crate::effects::apply(&mut self.loaded.entities[t].effects, &fx);
+                            self.apply_entity_effect(t, &fx);
                         }
                         self.npc_hits(t, dmg, from, 1.0);
                         alive = false;
@@ -548,7 +552,7 @@ impl Game {
                         if let Some(c) = companion {
                             let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
                             if let Some(fx) = fx {
-                                crate::effects::apply(&mut self.loaded.entities[c].effects, &fx);
+                                self.apply_entity_effect(c, &fx);
                             }
                             self.damage_entity(c, dmg, from, 1.0);
                             alive = false;
@@ -616,9 +620,20 @@ impl Game {
     /// moment (longer for a critical hit or a kill), critical ones shake it a little.
     pub(super) fn strike_entity(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32, blow: Blow) {
         let (u, ts) = (self.u(), self.ts());
+        let e = &self.loaded.entities[i];
+        let mut hit = (dmg - e.defense - crate::effects::defense_bonus(&e.effects)).max(1);
+        // Script hook: the damage can change (0 = none).
+        if self.hooked("damage") {
+            let (name, def) = (e.name.clone(), e.def.clone());
+            let attacker = if blow.by_player { "player" } else { "" };
+            let m = self.hook("damage", hooks::map([("attacker", attacker.into()), ("target", name.into()), ("target_def", def.into()), ("amount", (hit as i64).into()), ("crit", blow.crit.into())]));
+            hit = hooks::int(&m, "amount", hit as i64).clamp(0, i32::MAX as i64) as i32;
+            if hit == 0 || i >= self.loaded.entities.len() {
+                return;
+            }
+        }
         let e = &mut self.loaded.entities[i];
         let before = e.hp;
-        let hit = (dmg - e.defense - crate::effects::defense_bonus(&e.effects)).max(1);
         e.hp -= hit;
         e.last_hit = hit;
         e.invuln = HIT_INVULN;
@@ -753,7 +768,15 @@ impl Game {
             return;
         }
         // Armor absorbs damage, but at least 1 always gets through.
-        let taken = (dmg - self.player_defense()).max(1);
+        let mut taken = (dmg - self.player_defense()).max(1);
+        // Script hook: the damage can change (0 = none).
+        if self.hooked("damage") {
+            let m = self.hook("damage", hooks::map([("attacker", "".into()), ("target", "player".into()), ("target_def", "".into()), ("amount", (taken as i64).into()), ("crit", false.into())]));
+            taken = hooks::int(&m, "amount", taken as i64).clamp(0, i32::MAX as i64) as i32;
+            if taken == 0 {
+                return;
+            }
+        }
         let hp = (self.hp() - taken).max(0);
         self.world.player_hp = Some(hp);
         self.combat.invuln = HURT_INVULN;
@@ -784,6 +807,10 @@ impl Game {
             let p = self.player.pos;
             self.hurt_player(-amount, p);
             self.combat.knock = Vec2::ZERO;
+            return;
+        }
+        let amount = self.heal_hook("player", amount);
+        if amount <= 0 {
             return;
         }
         let hp = (self.hp() + amount).min(self.player_max_hp());

@@ -209,6 +209,9 @@ impl Game {
         }
         if !self.journal.open {
             if !key_consumed && input::act_pressed(Act::Journal) {
+                if !self.menu_allowed("journal") {
+                    return (true, false);
+                }
                 self.journal.open = true;
                 self.journal.tab = JournalTab::Quests;
                 self.journal.log_scroll = 0;

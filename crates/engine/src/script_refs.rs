@@ -552,7 +552,8 @@ pub fn check_script(src: &str, db: &Database, maps: &[String], spawns: &HashMap<
             IdKind::Sound => db.sound(v).is_some(),
             IdKind::Quest => db.quest(v).is_some(),
             IdKind::State => states.iter().any(|s| s == v),
-            IdKind::Skill => db.skill(v).is_some(),
+            // A proficiency: an SRD skill, tool, ability, saving throw or ability:tool.
+            IdKind::Skill => crate::srd::Spec::parse(v, false).is_some() || crate::srd::Spec::parse(v, true).is_some() || v.contains(':'),
             IdKind::Spell => db.spell(v).is_some(),
             IdKind::Sheet => db.sheet(v).is_some(),
             IdKind::Character => db.character(v).is_some(),

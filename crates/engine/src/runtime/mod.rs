@@ -68,6 +68,7 @@ mod stealth;
 mod emotions;
 mod mouse;
 mod spawner;
+mod rolls;
 mod thumbs;
 mod weather;
 mod ui;
@@ -425,6 +426,11 @@ pub struct Game {
     /// The enabled plugins (`status` `plugins=`) and the HUD elements they bring (not saved).
     plugin_ids: Vec<String>,
     plugin_hud: std::collections::BTreeMap<String, crate::script_ui::HudElement>,
+    /// Locks a pick failed on: (map, uid) -> the game hour (`WorldState::total_hours`) from which
+    /// it can be tried again.
+    lock_jams: HashMap<(String, u32), f64>,
+    /// Rolls already shown on screen (`WorldState::roll_count`).
+    rolls_shown: u64,
     /// The languages the game offers (code, name) and the current one.
     languages: Vec<(String, String)>,
     lang_code: String,
@@ -629,6 +635,8 @@ impl Game {
             hook_calls: Default::default(),
             plugin_ids: plugins.ids.clone(),
             plugin_hud: plugins.hud.clone(),
+            lock_jams: HashMap::new(),
+            rolls_shown: 0,
             lang_code: project.config.language.clone(),
             languages,
             light_pass: None,
@@ -1711,6 +1719,7 @@ impl Game {
         self.update_routes(dt);
         self.update_camera(dt);
         self.update_timers(dt);
+        self.show_new_rolls();
         self.update_battle(dt);
         self.update_captions(dt);
         self.after_thumbnail();
@@ -2390,20 +2399,12 @@ impl Game {
         self.use_item_now(item);
     }
 
-    /// Runs an item's own *on use* triggers; food heals more with the player's Food skills.
+    /// Runs an item's own *on use* triggers.
     fn fire_item_use(&mut self, item: &str) -> bool {
-        let bonus = if self.project.db.item(item).is_some_and(|d| d.food) {
-            self.skill_sum(|e, l| match e {
-                crate::skills::SkillEffect::FoodBonus { percent } => percent * l as f32,
-                _ => 0.0,
-            })
-        } else {
-            0.0
-        };
         let actions = self.collect(&GameEvent::UseItem { item: item.to_string() }, &Source::Item(item.to_string()));
         let any = !actions.is_empty();
         for (a, ctx) in actions {
-            self.runner.push(&[food_bonus(a, bonus)], &ctx);
+            self.runner.push(&[a], &ctx);
         }
         any
     }
@@ -2533,7 +2534,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2650,7 +2651,11 @@ impl Game {
             self.hits_status(),
             self.anims_status(),
             self.held_status(),
-            self.assets.models.status()
+            self.assets.models.status(),
+            self.rolls_status(),
+            self.world.abilities.text(),
+            crate::srd::abilities::signed(crate::srd::abilities::proficiency_bonus(self.world.player_level()) as i64),
+            self.world.proficiencies.iter().cloned().collect::<Vec<_>>().join(",")
         )
     }
 
@@ -2741,6 +2746,14 @@ impl Game {
         let pos = vec2(world.player_pos.0, world.player_pos.1);
         self.player.facing = world.player_facing;
         self.world = world;
+        // A save from before the SRD rules (0.27 and older): the hero gets the project's starting
+        // ability scores and proficiencies, and their race's.
+        if self.world.version < 2 {
+            let rules = &self.project.config.rules;
+            self.world.abilities = rules.abilities;
+            let race = self.project.db.race(&self.world.player_race).map(|r| r.skills.clone()).unwrap_or_default();
+            self.world.proficiencies = rules.proficiencies.iter().cloned().chain(race.into_iter().map(|s| s.skill)).map(|p| crate::srd::abilities::proficiency_id(&p)).filter(|p| !p.is_empty()).collect();
+        }
         self.prepare_world();
         self.runner.clear();
         self.reset_common_events();
@@ -3165,22 +3178,6 @@ pub(super) fn title_map(c: &crate::project::ProjectConfig) -> Option<String> {
 }
 
 
-/// Healing of food raised by `percent` (the Food skill), also inside *If* actions.
-fn food_bonus(a: Action, percent: f32) -> Action {
-    if percent <= 0.0 {
-        return a;
-    }
-    match a {
-        Action::Heal { amount } if amount > 0 => Action::Heal { amount: (amount as f32 * (1.0 + percent / 100.0)).round() as i32 },
-        Action::If { conditions, then, otherwise } => Action::If {
-            conditions,
-            then: then.into_iter().map(|a| food_bonus(a, percent)).collect(),
-            otherwise: otherwise.into_iter().map(|a| food_bonus(a, percent)).collect(),
-        },
-        a => a,
-    }
-}
-
 fn step_towards(pos: Vec2, target: Vec2, step: f32) -> (Vec2, bool) {
     let d = target - pos;
     if d.length() <= step {
@@ -3500,12 +3497,10 @@ impl ActionHost for Game {
                 self.world.hour = hour.rem_euclid(24.0);
                 Step::Continue
             }
-            Action::GiveSkillPoints { amount } => {
-                self.give_skill_points(*amount);
-                Step::Continue
-            }
+            // Skill points are gone with the skill tree (0.28).
+            Action::GiveSkillPoints { .. } => Step::Continue,
             Action::SetSkill { skill, level } => {
-                self.set_skill_level(skill, *level);
+                self.world.set_proficient(skill, *level > 0);
                 Step::Continue
             }
             Action::LearnSpell { spell } => {
@@ -3666,10 +3661,11 @@ impl ActionHost for Game {
                 }
             }
             Action::Lockpick { difficulty, var } => {
-                // Skill below the difficulty makes it harder (the skill system may be off: 0).
-                let gap = *difficulty as i32 - self.lockpick_level() as i32;
-                self.start_lockpick(minigame::PickTarget::Var(var.clone()), gap);
-                Step::Block
+                let picked = self.pick_check(*difficulty).is_some_and(|r| r.success == Some(true));
+                if !var.trim().is_empty() {
+                    self.world.set_var(var, picked as i64);
+                }
+                Step::Continue
             }
             Action::UnlockAchievement { id } => {
                 self.unlock_achievement(id);
@@ -3726,7 +3722,9 @@ impl ActionHost for Game {
             | Action::SetFlag { .. }
             | Action::SetVar { .. }
             | Action::Wait { .. }
-            | Action::If { .. } => Step::Continue,
+            | Action::If { .. }
+            | Action::Check { .. }
+            | Action::Roll { .. } => Step::Continue,
         }
     }
 
@@ -3776,16 +3774,8 @@ impl ActionHost for Game {
 
 #[cfg(test)]
 mod food_tests {
-    use super::*;
-
     #[test]
-    fn food_heals_more_with_the_skill() {
-        assert_eq!(food_bonus(Action::Heal { amount: 4 }, 50.0), Action::Heal { amount: 6 });
-        assert_eq!(food_bonus(Action::Heal { amount: 4 }, 0.0), Action::Heal { amount: 4 });
-        assert_eq!(food_bonus(Action::Heal { amount: -2 }, 50.0), Action::Heal { amount: -2 }, "damage stays");
-        let Action::If { then, .. } = food_bonus(Action::If { conditions: vec![], then: vec![Action::Heal { amount: 2 }], otherwise: vec![] }, 100.0) else { panic!() };
-        assert_eq!(then, vec![Action::Heal { amount: 4 }]);
-        // Recipes and items from before cooking.
+    fn recipes_and_items_from_before_cooking_load() {
         let r: crate::crafting::RecipeDef = ron::from_str("(id: \"a\", result: \"b\")").unwrap();
         assert_eq!(r.station_state, "");
         let it: crate::defs::ItemDef = ron::from_str(r#"(id: "apple", name: "Apple", icon: (sheet: "items", frame: 3))"#).unwrap();

@@ -145,7 +145,7 @@ impl Game {
 
     /// What follows a quest's change from `before` (stage, status) to its state now: the old
     /// step's done actions, the new step's start actions, and on completion the rewards (items,
-    /// skill points, the reward actions). Run right after the Quest action, with the giver as
+    /// the reward actions). Run right after the Quest action, with the giver as
     /// owner when it is here.
     pub(super) fn quest_follow_up(&mut self, quest: &str, before: Option<(u32, QuestStatus)>) -> Vec<(Action, ActionCtx)> {
         let Some(def) = self.project.db.quest(quest).cloned() else { return Vec::new() };

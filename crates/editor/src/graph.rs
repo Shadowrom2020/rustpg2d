@@ -215,6 +215,8 @@ pub fn action_summary(a: &Action) -> String {
         Action::Emote { target, emotion, .. } => format!("{target} shows {emotion}"),
         Action::Bark { target, lines, .. } => format!("{target}: \"{}\"", lines.first().map_or("", |l| l.as_str())),
         Action::If { conditions, then, otherwise } => format!("if {} ({} then, {} else)", conds_summary(conditions), then.len(), otherwise.len()),
+        Action::Check { what, save, dc, then, otherwise, .. } => format!("{} {what} DC {dc} ({} success, {} failure)", if *save { "save" } else { "check" }, then.len(), otherwise.len()),
+        Action::Roll { dice, var } => format!("roll {dice} {} {var}", ph::ARROW_RIGHT),
         other => other.label().to_string(),
     }
 }
@@ -300,6 +302,12 @@ impl Facts {
                     self.action(key, row, a);
                 }
             }
+            Action::Check { then, otherwise, .. } => {
+                for a in then.iter().chain(otherwise) {
+                    self.action(key, row, a);
+                }
+            }
+            Action::Roll { var, .. } if !var.is_empty() => self.writes.push((key.clone(), r, format!("var:{var}"))),
             _ => {}
         }
     }

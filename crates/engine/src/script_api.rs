@@ -11,7 +11,7 @@ use crate::script_refs::IdKind;
 
 /// The script API's version: the engine's MAJOR.MINOR. Plugins name the version they need
 /// (`PluginDef::api`); a plugin needing a newer one isn't loaded.
-pub const API_VERSION: &str = "0.27";
+pub const API_VERSION: &str = "0.28";
 
 /// What a function argument expects (drives completion inside string arguments).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -188,10 +188,19 @@ pub const API: &[ApiFn] = api! {
     "is_night"() "Whether it is night (dark outdoors)";
     "is_sneaking"() "Whether the player is sneaking (the sneak key: Left Ctrl, V or the left stick)";
     "set_hour"(hour: Num) "Sets the time of day, e.g. set_hour(22) (queued)";
-    "skill"(skill: Skill) "The player's level in a skill (0 = none)";
-    "skill_points"() "Unspent skill points";
-    "set_skill"(skill: Skill, level: Num) "Sets a skill's level without spending points (queued)";
-    "give_skill_points"(amount: Num) "Gives skill points (negative takes them) (queued)";
+    [deprecated "is_proficient(skill)"] "skill"(skill: Skill) "1 when the hero is proficient in a skill or tool, else 0 (until 0.27 a skill tree's level). Deprecated: use is_proficient";
+    [deprecated "set_proficient(skill, on)"] "set_skill"(skill: Skill, level: Num) "Makes the hero proficient in a skill or tool (level above 0) or not (0). Deprecated: use set_proficient (queued)";
+    [since "0.28"] "roll"(dice: Text) "Rolls dice such as \"2d6+3\", \"1d20+DEX\" or \"8d6\" (STR to CHA = the hero's ability modifier, PROF = the proficiency bonus) and returns the total; the roll goes into the roll log (immediately)";
+    [since "0.28"] "check"(what: Skill, dc: Num) "An ability check of the hero against a DC: a skill (\"persuasion\"), an ability (\"str\") or ability:tool (\"dex:thieves-tools\"); true on a success. Rolled at once, shown on screen and in the roll log; Check passed conditions see it (immediately)";
+    [since "0.28"] "check"(what: Skill, dc: Num, mode: Text) "Like check(); mode \"advantage\" or \"disadvantage\" rolls two d20s and keeps the higher or lower (immediately)";
+    [since "0.28"] "save"(ability: Text, dc: Num) "A saving throw of the hero (\"dex\", \"wis\", ...) against a DC; true on a success (immediately)";
+    [since "0.28"] "save"(ability: Text, dc: Num, mode: Text) "Like save(); mode \"advantage\" or \"disadvantage\" (immediately)";
+    [since "0.28"] "modifier"(what: Skill) "The hero's bonus: an ability's modifier (\"str\"), a skill's or ability:tool's check bonus with proficiency, or a saving throw's (\"save:dex\")";
+    [since "0.28"] "ability"(ability: Text) "The hero's ability score: \"str\", \"dex\", \"con\", \"int\", \"wis\" or \"cha\" (1 to 30)";
+    [since "0.28"] "set_ability"(ability: Text, score: Num) "Sets one of the hero's ability scores (1 to 30) (immediately)";
+    [since "0.28"] "proficiency"() "The hero's proficiency bonus by level (+2 at levels 1-4 up to +6 at 17-20)";
+    [since "0.28"] "is_proficient"(what: Skill) "Whether the hero is proficient in a skill (\"stealth\"), a tool (\"thieves-tools\") or a saving throw (\"save:dex\")";
+    [since "0.28"] "set_proficient"(what: Skill, on: Bool) "Makes the hero proficient in a skill, tool or saving throw, or takes it away (immediately)";
     "knows_spell"(spell: Spell) "Whether the player has learned the spell";
     "learn_spell"(spell: Spell) "Teaches a spell (queued)";
     "mana"() "The player's current mana";
@@ -345,7 +354,7 @@ pub const API: &[ApiFn] = api! {
     "sleep"(hours: Num) "The player sleeps that many hours: the night passes, HP and mana are restored (queued, blocks)";
     "is_sitting"() "Whether the player sits on a chair or bench";
     "is_sleeping"() "Whether the player lies in a bed or the night is passing";
-    "lockpick"(difficulty: Num, var: Var) "Plays the lockpicking game; 1 (picked) or 0 goes into the variable (queued, blocks)";
+    "lockpick"(dc: Num, var: Var) "Picks a lock in a custom puzzle: a DEX (Thieves' Tools) check against the DC; 1 (picked) or 0 goes into the variable (queued)";
     "unlock_achievement"(id: Achievement) "Unlocks an achievement for the player (queued; kept across save games)";
     "achievement_unlocked"(id: Achievement) "Whether the player has unlocked an achievement";
     "open_crafting"(station: Station) "Opens the crafting window with the station's recipes (queued)";
@@ -490,6 +499,10 @@ mod tests {
             ("set_state", 1, IdKind::State),
             ("skill", 0, IdKind::Skill),
             ("set_skill", 0, IdKind::Skill),
+            ("check", 0, IdKind::Skill),
+            ("modifier", 0, IdKind::Skill),
+            ("is_proficient", 0, IdKind::Skill),
+            ("set_proficient", 0, IdKind::Skill),
             ("knows_spell", 0, IdKind::Spell),
             ("learn_spell", 0, IdKind::Spell),
             ("fly", 0, IdKind::Sheet),

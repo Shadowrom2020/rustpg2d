@@ -112,10 +112,7 @@ impl Game {
                 let names: Vec<String> = list.iter().map(|(item, have, need)| format!("{} {have}/{need}", self.item_name(item))).collect();
                 format!("Missing: {}", names.join(", "))
             }
-            Missing::Skill(skill, _, need) => {
-                let name = self.project.db.skill(skill).map_or(skill.clone(), |d| d.name.clone());
-                format!("Needs {name} {need}")
-            }
+            Missing::Proficiency(what) => format!("Needs proficiency: {}", crate::srd::abilities::proficiency_name(&crate::srd::abilities::proficiency_id(what))),
             Missing::Tools(kinds) => format!("Needs a {}", kinds.join(" and a ")),
             Missing::StationState(state) => format!("Needs it {state}"),
         }
@@ -136,6 +133,7 @@ impl Game {
             count = int(&m, "count", count as i64).max(0) as u32;
         }
         let mut made = 0;
+        let mut last = r.result.clone();
         while made < n {
             if let Some(m) = self.recipe_missing(&r) {
                 if made == 0 {
@@ -150,10 +148,9 @@ impl Game {
                 }
                 break;
             }
-            let result = r.result_for(&self.world).to_string();
-            if r.craft(&mut self.world, &self.project.db.tool_kinds()).is_err() {
-                break;
-            }
+            let Ok(c) = r.craft(&mut self.world, &self.project.db.tool_kinds()) else { break };
+            let result = c.result;
+            last = result.clone();
             // (A hook's count: the difference to the recipe's own.)
             let base = r.count.max(1);
             if count > base {
@@ -165,8 +162,8 @@ impl Game {
         }
         if made > 0 {
             self.audio.play(&self.project.config.sfx.pickup);
-            // (The quality the skill reached when it was made.)
-            let name = self.item_name(r.result_for(&self.world)).to_string();
+            // (The quality the last roll reached.)
+            let name = self.item_name(&last).to_string();
             let total = made * count;
             self.crafting_msg(if total > 1 { format!("Made {total} {name}") } else { format!("Made {name}") }, true);
         }
@@ -267,17 +264,15 @@ impl Game {
                 draw_rectangle(rr.x, rr.y, rr.w, rr.h, if rr.contains(m) { Color::new(1.0, 1.0, 1.0, 0.1) } else { Color::new(0.0, 0.0, 0.0, 0.25) });
             }
             let dim = if missing.is_some() { skin::text(skin::Text::Disabled, Color::new(1.0, 1.0, 1.0, 0.45)) } else { skin::normal() };
-            // What the player's skill makes of it (quality steps).
-            let result = r.result_for(&self.world);
+            let result = r.result.as_str();
             if let Some(d) = db.item(result) {
                 self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(rr.x + 6.0, rr.y + 9.0, 36.0, 36.0), dim);
             }
             let name = if r.count > 1 { format!("{} x{}", self.item_name(result), r.count) } else { self.item_name(result).to_string() };
-            // The next quality step, as a hint after the name.
-            let have = self.world.skill_level(&r.skill);
-            if let Some(q) = r.quality.iter().filter(|q| q.level > have && !r.skill.is_empty()).min_by_key(|q| q.level) {
-                let skill = db.skill(&r.skill).map_or(r.skill.clone(), |d| d.name.clone());
-                let hint = format!("{skill} {}: {}", q.level, self.item_name(&q.result));
+            // The first quality step, as a hint after the name: the check and its DC.
+            if let Some(q) = r.quality.iter().filter(|q| !q.result.is_empty()).min_by_key(|q| q.dc) {
+                let check = crate::srd::Spec::parse(&r.check_what(), false).map_or(r.check_what(), |s| s.label);
+                let hint = format!("{check} DC {}: {}", q.dc, self.item_name(&q.result));
                 let nw = measure_text(&name, None, 21, 1.0).width;
                 draw_text(&hint, rr.x + 58.0 + nw, rr.y + 20.0, 16.0, skin::text(skin::Text::Dim, Color::new(0.75, 0.75, 0.6, 1.0)));
             }
@@ -308,7 +303,7 @@ impl Game {
                 draw_text(name, x + 22.0, rr.y + 44.0, 17.0, c);
                 x += 30.0 + measure_text(name, None, 17, 1.0).width;
             }
-            if let Some(Missing::Skill(..) | Missing::StationState(..)) = &missing {
+            if let Some(Missing::Proficiency(..) | Missing::StationState(..)) = &missing {
                 draw_text(self.missing_text(missing.as_ref().unwrap()), x + 6.0, rr.y + 44.0, 17.0, skin::text(skin::Text::Negative, Color::new(1.0, 0.55, 0.5, 1.0)));
             }
             // Make button.
@@ -345,7 +340,7 @@ impl Game {
         // Footer: the selected result's description, the last message, help.
         let f = l.foot;
         draw_rectangle(f.x, f.y, f.w, f.h, Color::new(0.0, 0.0, 0.0, 0.25));
-        if let Some(d) = recipes.get(self.crafting.list.sel).and_then(|r| db.item(r.result_for(&self.world))) {
+        if let Some(d) = recipes.get(self.crafting.list.sel).and_then(|r| db.item(&r.result)) {
             draw_text(&d.name, f.x + 10.0, f.y + 22.0, 21.0, skin::highlight());
             for (k, line) in wrap_text(&super::glyphs::expand_keys(&d.description), 17, f.w - 20.0).iter().take(1).enumerate() {
                 draw_text(line, f.x + 10.0, f.y + 42.0 + k as f32 * 17.0, 17.0, skin::dim());

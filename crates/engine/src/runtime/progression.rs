@@ -1,5 +1,5 @@
 //! Experience and levels at runtime: XP for defeated characters and completed quests,
-//! level-ups (max HP, mana, skill points) and the numbers the HUD and the character window
+//! level-ups (max HP, mana) and the numbers the HUD and the character window
 //! show. The settings and the level math are in [`crate::progression`].
 
 use super::Game;
@@ -34,7 +34,7 @@ impl Game {
     }
 
     /// Adds (negative: removes) experience and raises the level as far as it reaches; every
-    /// level gives max HP (healed by as much), mana and skill points, with one message each.
+    /// level gives max HP (healed by as much) and mana, with one message each.
     /// Losing experience never lowers the level.
     pub(super) fn give_xp(&mut self, n: i64) {
         if !self.progression_on() || n == 0 {
@@ -55,14 +55,13 @@ impl Game {
     fn level_up(&mut self, p: &crate::progression::Progression) {
         self.world.level = self.world.player_level() + 1;
         // Script hook: what the level gives can change (max HP follows the project's table).
-        let (mut hp_gain, mut mana_gain, mut points) = (p.hp_per_level, p.mana_per_level, p.skill_points_per_level);
+        let (mut hp_gain, mut mana_gain) = (p.hp_per_level, p.mana_per_level);
         if self.hooked("level_up") {
             use crate::hooks::{int, map};
             let level = self.world.level as i64;
-            let m = self.hook("level_up", map([("level", level.into()), ("hp", (hp_gain as i64).into()), ("mana", (mana_gain as i64).into()), ("points", (points as i64).into())]));
+            let m = self.hook("level_up", map([("level", level.into()), ("hp", (hp_gain as i64).into()), ("mana", (mana_gain as i64).into())]));
             hp_gain = int(&m, "hp", hp_gain as i64) as i32;
             mana_gain = int(&m, "mana", mana_gain as i64).max(0) as u32;
-            points = int(&m, "points", points as i64).max(0) as u32;
         }
         let mut gains = Vec::new();
         if self.combat.enabled() && hp_gain != 0 {
@@ -74,11 +73,6 @@ impl Game {
         if self.magic_on() && mana_gain > 0 {
             self.world.mana = (self.world.mana + mana_gain as f32).min(self.max_mana() as f32);
             gains.push(format!("+{} mana", mana_gain));
-        }
-        if self.skills_on() && points > 0 {
-            let n = points;
-            self.world.skill_points += n;
-            gains.push(format!("+{n} skill point{}", if n == 1 { "" } else { "s" }));
         }
         let msg = if gains.is_empty() { format!("Level {}!", self.world.level) } else { format!("Level {}!  {}", self.world.level, gains.join(", ")) };
         self.ui.toast(msg);

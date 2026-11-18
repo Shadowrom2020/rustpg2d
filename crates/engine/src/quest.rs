@@ -153,8 +153,6 @@ fn one() -> u32 {
 pub struct QuestRewards {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<RewardItem>,
-    #[serde(skip_serializing_if = "is_zero")]
-    pub skill_points: u32,
     /// Anything else: Run script (e.g. friendship with the giver), Change standing…
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub actions: Vec<Action>,
@@ -250,7 +248,7 @@ impl QuestDef {
 
     /// What follows the quest's change from `before` (stage, status; None = not started) to
     /// `now`: the old step's done actions (not when it failed), the new step's start actions,
-    /// and on completion the rewards (items, skill points, the reward actions).
+    /// and on completion the rewards (items, the reward actions).
     pub fn follow_up(&self, before: Option<(u32, QuestStatus)>, now: &QuestProgress) -> Vec<Action> {
         let mut acts: Vec<Action> = Vec::new();
         if let Some((stage, QuestStatus::Active)) = before {
@@ -266,9 +264,6 @@ impl QuestDef {
         if now.status == QuestStatus::Completed && before.is_some_and(|(_, st)| st != QuestStatus::Completed) {
             let r = &self.rewards;
             acts.extend(r.items.iter().filter(|i| !i.item.is_empty() && i.count > 0).map(|i| Action::GiveItem { item: i.item.clone(), count: i.count }));
-            if r.skill_points > 0 {
-                acts.push(Action::GiveSkillPoints { amount: r.skill_points as i32 });
-            }
             acts.extend(r.actions.iter().cloned());
         }
         acts
@@ -449,7 +444,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
-            rewards: QuestRewards { items: vec![RewardItem { item: "coin".into(), count: 25 }], skill_points: 2, actions: vec![Action::RunScript { function: "quest_thanks".into() }] },
+            rewards: QuestRewards { items: vec![RewardItem { item: "coin".into(), count: 25 }], actions: vec![Action::RunScript { function: "quest_thanks".into() }] },
             ..Default::default()
         }
     }
@@ -506,8 +501,8 @@ mod tests {
         assert_eq!(texts(d.follow_up(None, &p(0, QuestStatus::Active))), ["start 0"]);
         // On to stage 1: the first step's done actions.
         assert_eq!(texts(d.follow_up(Some((0, QuestStatus::Active)), &p(1, QuestStatus::Active))), ["done 0"]);
-        // Completed: the rewards (items, skill points, the reward actions).
-        assert_eq!(texts(d.follow_up(Some((1, QuestStatus::Active)), &p(1, QuestStatus::Completed))), ["Give item", "Give skill points", "Run script"]);
+        // Completed: the rewards (items, the reward actions).
+        assert_eq!(texts(d.follow_up(Some((1, QuestStatus::Active)), &p(1, QuestStatus::Completed))), ["Give item", "Run script"]);
         // Failed: nothing.
         assert!(d.follow_up(Some((0, QuestStatus::Active)), &p(0, QuestStatus::Failed)).is_empty());
     }

@@ -165,12 +165,21 @@
         ),
     ],
     skills: (
-        enabled: true,
         magic: true,
-        start_points: 2,
         max_mana: 20,
         mana_regen: 0.5,
     ),
+    rules: (
+        abilities: (15, 14, 13, 10, 12, 8),
+        proficiencies: [
+            "athletics",
+            "perception",
+            "persuasion",
+            "thieves-tools",
+        ],
+        show_checks: true,
+    ),
+    rules_version: 1,
     progression: (
         enabled: true,
         base_xp: 60,
@@ -178,7 +187,6 @@
         max_level: 20,
         hp_per_level: 2,
         mana_per_level: 2,
-        skill_points_per_level: 1,
     ),
     dialog_portraits: true,
     auto_emotions: true,

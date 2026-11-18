@@ -67,7 +67,7 @@ mkdir -p "$WORK/proj/saves"
 cp "$FIXTURES/saves/save-0.11.0.ron" "$WORK/proj/saves/quick.ron"
 line=$(game "wait 1; press f9; wait 2; status; press f5; wait 1; quit" --no-title --map house --spawn start)
 expect "an old save game loads" "$line" "map=house" "fixture_flag" '"potion": 2'
-if grep -q "version: 1" "$WORK/proj/saves/quick.ron" 2>/dev/null; then echo "PASS quick save written"; else echo "FAIL quick save written: saves/quick.ron was not rewritten with version: 1"; failed=$((failed + 1)); fi
+if grep -q "version: 2" "$WORK/proj/saves/quick.ron" 2>/dev/null; then echo "PASS quick save written"; else echo "FAIL quick save written: saves/quick.ron was not rewritten with version: 2"; failed=$((failed + 1)); fi
 
 # The fixture save moved to the village's east edge: load it, step over the edge, autosave.
 sed -e 's/current_map: "house"/current_map: "village"/' -e 's/player_pos: ([^)]*)/player_pos: (2556.0, 1008.0)/' "$FIXTURES/saves/save-0.11.0.ron" > "$WORK/proj/saves/quick.ron"

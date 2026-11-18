@@ -35,9 +35,7 @@ impl Game {
             reach: UNARMED_REACH,
             ..Weapon::melee(self.combat.damage, UNARMED_COOLDOWN)
         });
-        // Combat skills raise the damage: one for melee (and bare hands), one for ranged weapons.
-        let f = if w.ranged.is_some() { self.ranged_damage_factor() } else { self.melee_damage_factor() };
-        w.damage = crate::effects::scale_damage(&self.world.effects, (w.damage as f32 * f).round() as i32);
+        w.damage = crate::effects::scale_damage(&self.world.effects, w.damage);
         w
     }
 
@@ -49,13 +47,13 @@ impl Game {
     }
 
     pub(super) fn player_defense(&self) -> i32 {
-        self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + self.skill_defense() + crate::effects::defense_bonus(&self.world.effects) + self.player_race().map_or(0, |r| r.defense)
+        self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + crate::effects::defense_bonus(&self.world.effects) + self.player_race().map_or(0, |r| r.defense)
     }
 
     /// Movement speed factor from armor (heavy armor slows down).
     pub(super) fn speed_factor(&self) -> f32 {
         let race = self.player_race().map_or(1.0, |r| r.speed_factor());
-        let base = ((1.0 + self.armor_pieces().map(|a| a.speed).sum::<f32>()) * self.skill_speed_factor() * race).clamp(0.3, 2.0);
+        let base = ((1.0 + self.armor_pieces().map(|a| a.speed).sum::<f32>()) * race).clamp(0.3, 2.0);
         base * crate::effects::speed_factor(&self.world.effects)
     }
 

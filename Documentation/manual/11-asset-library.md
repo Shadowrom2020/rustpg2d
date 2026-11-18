@@ -1,7 +1,7 @@
 # 11. The asset library
 
 The **asset library** is your own collection of ground materials, scatter sets, sprite sheets,
-sounds, items, props, characters, structures, skills, spells and recipes, shared by all your projects. Build something
+sounds, items, props, characters, structures, spells and recipes, shared by all your projects. Build something
 once, use it in every game.
 
 ## What's in it
@@ -19,7 +19,8 @@ trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the e
 female version), three **realistic** figures in another style than the example's chibi cast (*Hero
 (realistic)*, *Elf (realistic)*, *Elf woman (realistic)*, drawn at 115 %) and more structures (town
 houses, city walls, dungeon rooms). The starter library
-also includes the scripted Fireball spell and Scavenging skill with their script functions, and
+also includes the scripted Fireball spell with its script functions, a **Locked Chest** (DC 12 to
+pick), and
 fonts: **monogram** (the example's pixel font: Latin, Cyrillic, Greek) and **Fusion Pixel** in its
 Japanese, Korean, Simplified and Traditional Chinese forms (each covers all of Chinese, Japanese and
 Korean; the forms differ in how some characters are drawn), and three UI skins: **Wood** (the
@@ -114,7 +115,7 @@ its version.
 
 ## Scripted assets
 
-Spells and skills with a *Script* effect, and items, props and characters whose triggers run scripts,
+Spells with a *Script* effect, and items, props and characters whose triggers run scripts,
 need their script functions. *Add to library* and *Export…* then open a **Script functions** dialog:
 
 - the functions the assets need are ticked: the spell's function and everything it calls or passes on

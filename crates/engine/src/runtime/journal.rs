@@ -3,7 +3,8 @@
 //! kind of character the player has defeated, with a portrait, the description and its stats.
 //! *Dialogs*: the last dialog lines of the game (newest at the bottom), scrollable. *People*:
 //! the characters the player made friends with (variables `friend_<name>`, 0 to 100 points:
-//! ten hearts), friendliest first.
+//! ten hearts), friendliest first. *Rolls*: the SRD roll log (checks, saving throws, dice), newest
+//! at the bottom, scrollable (`rolls.rs`).
 //! Up/Down or click select, Tab / Left / Right or a click on a tab switch, J / Esc close.
 
 use macroquad::prelude::*;
@@ -27,16 +28,18 @@ pub(super) enum JournalTab {
     Bestiary,
     Dialogs,
     People,
+    Rolls,
 }
 
 impl JournalTab {
-    const ALL: [JournalTab; 4] = [JournalTab::Quests, JournalTab::Bestiary, JournalTab::Dialogs, JournalTab::People];
+    const ALL: [JournalTab; 5] = [JournalTab::Quests, JournalTab::Bestiary, JournalTab::Dialogs, JournalTab::People, JournalTab::Rolls];
     fn label(self) -> &'static str {
         match self {
             JournalTab::Quests => "Quests",
             JournalTab::Bestiary => "Bestiary",
             JournalTab::Dialogs => "Dialogs",
             JournalTab::People => "People",
+            JournalTab::Rolls => "Rolls",
         }
     }
     /// The next (`step` 1) or previous (`step` -1) tab, wrapping around.
@@ -93,8 +96,8 @@ fn display_name(name: &str) -> String {
 type Entry = (Option<String>, String);
 
 /// The tabs at the top of the journal.
-fn tab_rects(r: Rect) -> [(JournalTab, Rect); 4] {
-    let w = 120.0;
+fn tab_rects(r: Rect) -> [(JournalTab, Rect); 5] {
+    let w = 116.0;
     JournalTab::ALL.map(|t| {
         let k = JournalTab::ALL.iter().position(|x| *x == t).unwrap() as f32;
         (t, Rect::new(r.x + 170.0 + k * (w + 8.0), r.y + 12.0, w, 30.0))
@@ -154,7 +157,7 @@ impl Game {
         self.quest_follow_up(quest, before)
     }
 
-    /// "Reward: 25 Coin, 80 XP, 2 skill points" for the journal ("" = none).
+    /// "Reward: 25 Coin, 80 XP" for the journal ("" = none).
     fn reward_text(&self, d: &crate::quest::QuestDef) -> String {
         let mut parts: Vec<String> = d
             .rewards
@@ -168,9 +171,6 @@ impl Game {
             .collect();
         if d.xp > 0 && self.project.config.progression.enabled {
             parts.push(format!("{} XP", d.xp));
-        }
-        if d.rewards.skill_points > 0 {
-            parts.push(crate::lang::tr_ui(&format!("{} skill points", d.rewards.skill_points)).into_owned());
         }
         if parts.is_empty() {
             String::new()
@@ -246,8 +246,9 @@ impl Game {
             self.journal.log_scroll = 0;
             return (true, true);
         }
-        if self.journal.tab == JournalTab::Dialogs {
-            let max = self.journal.log_max.get().min(self.world.dialog_log.len().saturating_sub(1));
+        if matches!(self.journal.tab, JournalTab::Dialogs | JournalTab::Rolls) {
+            let len = if self.journal.tab == JournalTab::Rolls { self.world.rolls.len() } else { self.world.dialog_log.len() };
+            let max = self.journal.log_max.get().min(len.saturating_sub(1));
             let s = &mut self.journal.log_scroll;
             let wheel = input::wheel();
             if input::act_pressed(Act::Up) || wheel > 0.0 {
@@ -323,7 +324,7 @@ impl Game {
         }
         draw_line(c.x + 6.0, c.y + 6.0, c.x + c.w - 6.0, c.y + c.h - 6.0, 2.0, skin::normal());
         draw_line(c.x + c.w - 6.0, c.y + 6.0, c.x + 6.0, c.y + c.h - 6.0, 2.0, skin::normal());
-        let hint = if self.journal.tab == JournalTab::Dialogs {
+        let hint = if matches!(self.journal.tab, JournalTab::Dialogs | JournalTab::Rolls) {
             "{key:up}/{key:down}, wheel, PgUp/PgDn, Home/End: scroll   {key:next_tab}: next tab   {key:journal} / {key:cancel}: close"
         } else {
             "{key:up}/{key:down} or click: select   {key:next_tab}: next tab   {key:journal} / {key:cancel}: close"
@@ -343,6 +344,11 @@ impl Game {
             JournalTab::Bestiary => return self.draw_bestiary(r),
             JournalTab::Dialogs => return self.draw_dialog_log(r),
             JournalTab::People => return self.draw_people(r),
+            JournalTab::Rolls => {
+                let max = self.draw_roll_log(r, self.journal.log_scroll);
+                self.journal.log_max.set(max);
+                return;
+            }
             JournalTab::Quests => {}
         }
 

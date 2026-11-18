@@ -262,7 +262,7 @@ async fn main() {
             }
             for (cmd, id) in std::mem::take(&mut a.skill_cmds) {
                 match cmd.as_str() {
-                    "skillpoint" => game.spend_skill_point(&id),
+                    "seed" => rustpg2d_engine::srd::dice::seed(id.trim().parse().unwrap_or(1)),
                     "call" => game.run_script(&id),
                     "crit" => game.set_crit_mode(match id.as_str() {
                         "always" => Some(true),
@@ -316,7 +316,7 @@ struct Autoplay {
     skill_cmds: Vec<(String, String)>,
     /// `console LINE`: applied by the main loop.
     console: Vec<String>,
-    /// `minigame hit|miss|bite`: waiting for that moment (probe name, seconds left), then E.
+    /// `minigame bite`: waiting for that moment (probe name, seconds left), then E.
     until: Option<(&'static str, f32)>,
 }
 
@@ -501,15 +501,10 @@ impl Autoplay {
                     click(&mut self.mouse_frames, p, MouseButton::Left);
                     return true;
                 }
-                // minigame hit|miss|bite: press E when the lockpick marker is in the sweet spot
-                // (hit) / well outside it (miss), or when a fish bites (bite); waits up to 8 s
+                // minigame bite: press E when a fish bites; waits up to 8 s (the lockpicking game
+                // of 0.27 and older became a DEX check)
                 "minigame" => {
-                    let probe = match arg(1) {
-                        "hit" => "in_spot",
-                        "miss" => "out_spot",
-                        _ => "bite",
-                    };
-                    self.until = Some((probe, 8.0));
+                    self.until = Some(("bite", 8.0));
                     return true;
                 }
                 // craft K: click the Make button of recipe row K in the crafting window
@@ -589,10 +584,10 @@ impl Autoplay {
                     Some(h) => self.advance = h.parse().ok(),
                     None => self.hour = arg(1).parse().ok(),
                 },
-                // skillpoint ID: spend a skill point · cast ID: cast a spell · learn ID: learn a spell
+                // seed N: the SRD dice roll the same from here on · cast ID: cast a spell · learn ID: learn a spell
                 // call FN: runs a script function (its queued actions too)
                 // crit always|never|chance: the player's critical hits forced on / off, or by chance
-                "skillpoint" | "cast" | "learn" | "call" | "crit" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),
+                "seed" | "cast" | "learn" | "call" | "crit" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),
                 "quit" => return false,
                 // close: as if the window's close button was clicked
                 "close" => {

@@ -125,8 +125,10 @@ impl Template {
         let mut out = Vec::new();
         let middle = &self.pieces[1..self.pieces.len() - 1];
         for p in middle {
-            // The value runs to the next piece (the first occurrence after a non-empty value).
-            let at = rest.get(1..)?.find(p.as_str())? + 1;
+            // The value runs to the next piece (the first occurrence after a non-empty value;
+            // its first character may take several bytes: "Überzeugen").
+            let skip = rest.chars().next()?.len_utf8();
+            let at = rest[skip..].find(p.as_str())? + skip;
             out.push(rest[..at].to_string());
             rest = &rest[at + p.len()..];
         }
@@ -332,10 +334,6 @@ pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
             t(s);
         }
     }
-    for s in &mut d.skills {
-        t(&mut s.name);
-        t(&mut s.description);
-    }
     for s in &mut d.spells {
         t(&mut s.name);
         t(&mut s.description);
@@ -452,10 +450,6 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for c in &db.common_events {
         actions(&c.actions, &mut add);
     }
-    for s in &db.skills {
-        add(&s.name);
-        add(&s.description);
-    }
     for s in &db.spells {
         add(&s.name);
         add(&s.description);
@@ -569,6 +563,8 @@ mod tests {
         assert_eq!(t.ui("Not now").as_deref(), Some("Jetzt nicht"));
         assert_eq!(t.ui("a: b"), None, "keys without words of their own are ignored");
         assert_eq!(t.ui("Something else"), None);
+        // A value may start with a letter of several bytes (an already translated skill name).
+        assert_eq!(t.ui("Überzeugen: 3 vs DC 5 - failure").as_deref(), Some("Überzeugen: 3 gegen SG 5 - Fehlschlag"));
         assert_eq!(fill("{0}-{}-{1}{x}", &["a".into(), "b".into()]), "a-a-b{x}");
     }
 

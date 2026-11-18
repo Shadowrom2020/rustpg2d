@@ -10,7 +10,6 @@ use macroquad::prelude::*;
 use super::input::{self, Act};
 use super::text::draw_text;
 use super::Game;
-use crate::skills::SkillEffect;
 
 /// Sight range while sneaking (times the enemy's sight).
 const SNEAK_SIGHT: f32 = 0.5;
@@ -76,11 +75,7 @@ impl Game {
         if !self.unaware(i) {
             return (dmg, false);
         }
-        let bonus = self.skill_sum(|e, l| match e {
-            SkillEffect::SneakAttack { percent } => percent * l as f32,
-            _ => 0.0,
-        });
-        (((dmg as f32) * (SNEAK_ATTACK + bonus / 100.0)).round() as i32, true)
+        (((dmg as f32) * SNEAK_ATTACK).round() as i32, true)
     }
 
     /// "Sneaking" under the HUD's panel while the player sneaks.

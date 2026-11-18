@@ -86,7 +86,6 @@
                     count: 25,
                 ),
             ],
-            skill_points: 2,
             actions: [
                 Emote(
                     target: "self",
@@ -174,10 +173,60 @@
                     count: 1,
                 ),
             ],
-            skill_points: 1,
             actions: [
                 CallCommon(
                     id: "quest_reward",
+                ),
+                Choice(
+                    speaker: "",
+                    text: "Thirty coins and a potion. Ask Tilda for a little more?",
+                    options: [
+                        "Ask for a bit more",
+                        "Thank her",
+                    ],
+                    var: "tilda_haggle",
+                ),
+                If(
+                    conditions: [
+                        (
+                            cond: Var(
+                                name: "tilda_haggle",
+                                op: Eq,
+                                value: 0,
+                            ),
+                            negate: false,
+                        ),
+                    ],
+                    then: [
+                        Check(
+                            what: "persuasion",
+                            save: false,
+                            dc: 13,
+                            mode: Normal,
+                            then: [
+                                Dialog(
+                                    speaker: "Tilda",
+                                    text: "Hah! You drive a hard bargain, {player}. Ten more - and not a coin over.",
+                                ),
+                                GiveItem(
+                                    item: "coin",
+                                    count: 10,
+                                ),
+                            ],
+                            otherwise: [
+                                Dialog(
+                                    speaker: "Tilda",
+                                    text: "Don\'t push your luck. Thirty was the deal.",
+                                ),
+                            ],
+                        ),
+                    ],
+                    otherwise: [
+                        Dialog(
+                            speaker: "Tilda",
+                            text: "You\'re welcome! Come back any time.",
+                        ),
+                    ],
                 ),
             ],
         ),
@@ -397,7 +446,6 @@
                     count: 40,
                 ),
             ],
-            skill_points: 1,
             actions: [
                 CallCommon(
                     id: "quest_reward",
@@ -557,7 +605,6 @@
                     count: 20,
                 ),
             ],
-            skill_points: 1,
             actions: [
                 SetFlag(
                     name: "pip_cured",
@@ -635,7 +682,6 @@
                     count: 50,
                 ),
             ],
-            skill_points: 1,
         ),
         objects: [
             (

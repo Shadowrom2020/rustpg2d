@@ -1,6 +1,6 @@
 //! Experience and levels (optional per project, `ProjectConfig::progression`): defeated
-//! characters and completed quests give XP, and every level raises the player's max HP, mana
-//! and skill points. The player's XP and level are in the save game (`WorldState::xp`,
+//! characters and completed quests give XP, and every level raises the player's max HP and mana
+//! (and the SRD proficiency bonus). The player's XP and level are in the save game (`WorldState::xp`,
 //! `WorldState::level`); the runtime part is `runtime/progression.rs`.
 
 use serde::{Deserialize, Serialize};
@@ -21,13 +21,11 @@ pub struct Progression {
     pub hp_per_level: i32,
     /// Max mana gained per level (with magic).
     pub mana_per_level: u32,
-    /// Skill points gained per level (with skills).
-    pub skill_points_per_level: u32,
 }
 
 impl Default for Progression {
     fn default() -> Self {
-        Progression { enabled: false, base_xp: 100, growth: 1.5, max_level: 20, hp_per_level: 2, mana_per_level: 2, skill_points_per_level: 1 }
+        Progression { enabled: false, base_xp: 100, growth: 1.5, max_level: 20, hp_per_level: 2, mana_per_level: 2 }
     }
 }
 

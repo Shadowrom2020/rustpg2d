@@ -1,0 +1,76 @@
+//! The SRD 5.1 rules (System Reference Document 5.1 by Wizards of the Coast LLC, CC BY 4.0):
+//! dice, ability scores, skills, proficiency, ability checks and saving throws. Pure logic; the
+//! player's scores and proficiencies are in [`crate::state::WorldState`], which rolls with them.
+
+pub mod abilities;
+pub mod check;
+pub mod dice;
+
+pub use abilities::{Abilities, Ability};
+pub use check::{RollRecord, Spec};
+pub use dice::{Expr, Mode};
+
+/// The rules' conversion version of projects made or converted by this editor
+/// (`ProjectConfig::rules_version`): 1 = the skill tree became SRD proficiencies (0.28).
+pub const RULES_VERSION: u32 = 1;
+
+/// A lock or crafting difficulty of the old skill levels (0.27 and older: 1 = easy … 9) as an
+/// SRD DC: 10, 12, 15, 18, 20, 22, 25, 28, 30. 0 stays 0.
+pub fn old_level_dc(level: u32) -> u32 {
+    const DC: [u32; 9] = [10, 12, 15, 18, 20, 22, 25, 28, 30];
+    match level {
+        0 => 0,
+        l => DC[(l as usize - 1).min(8)],
+    }
+}
+
+/// Settings of the rules (`project.ron` `rules`): what a new game's hero starts with until the
+/// character creator sets it.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct RulesSettings {
+    /// Ability scores of a new hero, STR to CHA.
+    pub abilities: Abilities,
+    /// Proficiencies of a new hero: skills (`perception`), tools (`thieves-tools`), saving throws
+    /// (`save:str`).
+    pub proficiencies: Vec<String>,
+    /// A short line on screen for every check and saving throw ("Perception 14 vs DC 12: success").
+    pub show_checks: bool,
+}
+
+impl Default for RulesSettings {
+    fn default() -> Self {
+        RulesSettings { abilities: Abilities::STANDARD, proficiencies: Vec::new(), show_checks: true }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_levels_become_dcs() {
+        assert_eq!([0, 1, 2, 3, 5, 9, 12].map(old_level_dc), [0, 10, 12, 15, 20, 30, 30]);
+    }
+
+    #[test]
+    fn old_lock_levels_become_dcs() {
+        let l: crate::defs::LockSpec = ron::from_str("(key: \"\", pick_difficulty: 2)").unwrap();
+        assert_eq!(l.pick_dc, 12);
+        let l: crate::defs::LockSpec = ron::from_str("(key: \"k\", pick_dc: 14, relock: true)").unwrap();
+        assert_eq!((l.pick_dc, l.relock, l.consume_key), (14, true, true));
+        let text = ron::to_string(&l).unwrap();
+        assert!(text.contains("pick_dc:14") && !text.contains("pick_difficulty"), "{text}");
+        let l: crate::defs::LockSpec = ron::from_str("(key: \"k\")").unwrap();
+        assert_eq!(l, crate::defs::LockSpec { key: "k".into(), ..Default::default() });
+    }
+
+    #[test]
+    fn rules_settings_default_in_old_projects() {
+        let r: RulesSettings = ron::from_str("()").unwrap();
+        assert_eq!(r, RulesSettings::default());
+        let r: RulesSettings = ron::from_str("(abilities: (8, 14, 13, 12, 10, 15), proficiencies: [\"stealth\"])").unwrap();
+        assert_eq!(r.abilities.score(Ability::Cha), 15);
+        assert!(r.show_checks);
+    }
+}

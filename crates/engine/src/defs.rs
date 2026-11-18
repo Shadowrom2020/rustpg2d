@@ -892,8 +892,9 @@ pub enum OnUnlock {
     ToState { state: String },
 }
 
-/// A lock that needs a key item.
+/// A lock that needs a key item, or can be picked.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(from = "LockSpecRepr")]
 pub struct LockSpec {
     /// Item id of the key.
     pub key: String,
@@ -915,9 +916,40 @@ pub struct LockSpec {
     /// Shown when locking it again ("" = "Locked with <key name>." / "Closed.").
     #[serde(default)]
     pub lock_text: String,
-    /// A lockpicking skill of this level opens it without the key (0 = can't be picked).
+    /// Picking it without the key: a DEX (Thieves' Tools) check against this DC (0 = it can't
+    /// be picked).
     #[serde(default)]
-    pub pick_difficulty: u32,
+    pub pick_dc: u32,
+}
+
+/// A lock as files have it: `pick_dc` since 0.28; until then `pick_difficulty`, a lockpicking
+/// skill level, converted with [`crate::srd::old_level_dc`].
+#[derive(Deserialize)]
+struct LockSpecRepr {
+    key: String,
+    #[serde(default = "yes")]
+    consume_key: bool,
+    #[serde(default = "on_unlock_default")]
+    on_unlock: OnUnlock,
+    #[serde(default)]
+    locked_text: String,
+    #[serde(default)]
+    unlock_text: String,
+    #[serde(default)]
+    relock: bool,
+    #[serde(default)]
+    lock_text: String,
+    #[serde(default)]
+    pick_dc: u32,
+    #[serde(default)]
+    pick_difficulty: u32,
+}
+
+impl From<LockSpecRepr> for LockSpec {
+    fn from(r: LockSpecRepr) -> Self {
+        let pick_dc = if r.pick_dc > 0 { r.pick_dc } else { crate::srd::old_level_dc(r.pick_difficulty) };
+        LockSpec { key: r.key, consume_key: r.consume_key, on_unlock: r.on_unlock, locked_text: r.locked_text, unlock_text: r.unlock_text, relock: r.relock, lock_text: r.lock_text, pick_dc }
+    }
 }
 
 fn yes() -> bool {
@@ -942,7 +974,7 @@ impl Default for LockSpec {
             on_unlock: OnUnlock::Nothing,
             locked_text: String::new(),
             unlock_text: String::new(),
-            pick_difficulty: 0,
+            pick_dc: 0,
             relock: false,
             lock_text: String::new(),
         }
@@ -1618,8 +1650,7 @@ pub struct Database {
     pub quests: Vec<crate::quest::QuestDef>,
     /// Multi-tile assets for the editor (houses, walls, rooms…); the game doesn't use them.
     pub structures: Vec<StructureDef>,
-    /// Skills and spells (`ProjectConfig::skills` switches the systems on).
-    pub skills: Vec<crate::skills::SkillDef>,
+    /// Spells (`ProjectConfig::skills.magic` switches magic on).
     pub spells: Vec<crate::skills::SpellDef>,
     /// Crafting recipes.
     pub recipes: Vec<crate::crafting::RecipeDef>,
@@ -1763,9 +1794,6 @@ impl Database {
     }
     pub fn structure(&self, id: &str) -> Option<&StructureDef> {
         self.structures.iter().find(|d| d.id == id)
-    }
-    pub fn skill(&self, id: &str) -> Option<&crate::skills::SkillDef> {
-        self.skills.iter().find(|d| d.id == id)
     }
     pub fn spell(&self, id: &str) -> Option<&crate::skills::SpellDef> {
         self.spells.iter().find(|d| d.id == id)
@@ -1957,7 +1985,6 @@ impl_def!(CharacterDef, crate::refactor::RefKind::Character, characters, refs = 
 impl_def!(SoundDef, crate::refactor::RefKind::Sound, sounds);
 impl_def!(crate::quest::QuestDef, crate::refactor::RefKind::Quest, quests, refs = crate::refactor::refs_of_quest);
 impl_def!(StructureDef, crate::refactor::RefKind::Structure, structures, refs = crate::refactor::refs_of_structure);
-impl_def!(crate::skills::SkillDef, crate::refactor::RefKind::Skill, skills, refs = crate::refactor::refs_of_skill);
 impl_def!(crate::skills::SpellDef, crate::refactor::RefKind::Spell, spells, refs = crate::refactor::refs_of_spell);
 impl_def!(crate::crafting::RecipeDef, crate::refactor::RefKind::Recipe, recipes, refs = crate::refactor::refs_of_recipe);
 impl_def!(crate::achievements::AchievementDef, crate::refactor::RefKind::Achievement, achievements);
@@ -1970,7 +1997,8 @@ impl_def!(crate::skin::SkinDef, crate::refactor::RefKind::Skin, skins, refs = cr
 impl_def!(crate::common_events::CommonEventDef, crate::refactor::RefKind::CommonEvent, common_events, refs = crate::refactor::refs_of_common_event);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
-/// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
+/// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map` and `Skill` (a proficiency id), which
+/// are no definitions.
 ///
 /// ```ignore
 /// let n = with_def_kind!(kind, |T| T::list(&db).len(), else => 0);
@@ -2005,10 +2033,6 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Structure => {
                 type $T = $crate::defs::StructureDef;
-                $body
-            }
-            $crate::refactor::RefKind::Skill => {
-                type $T = $crate::skills::SkillDef;
                 $body
             }
             $crate::refactor::RefKind::Spell => {
@@ -2051,7 +2075,7 @@ macro_rules! with_def_kind {
                 type $T = $crate::common_events::CommonEventDef;
                 $body
             }
-            $crate::refactor::RefKind::Map => $else,
+            $crate::refactor::RefKind::Skill | $crate::refactor::RefKind::Map => $else,
         }
     };
 }

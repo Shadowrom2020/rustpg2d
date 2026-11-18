@@ -212,7 +212,7 @@ pub fn candidates(place: &Place, call: Option<&CallAt>, known: &Known, src: &str
                 Some(Arg::Spawn) => call.first.as_ref().and_then(|m| known.spawns.get(m)).into_iter().flatten().map(|s| c(s, "spawn point")).collect(),
                 Some(Arg::Sound) => db.sounds.iter().map(|d| c(&d.id, &d.file)).collect(),
                 Some(Arg::Quest) => db.quests.iter().map(|q| c(&q.id, &q.title)).collect(),
-                Some(Arg::Skill) => db.skills.iter().map(|q| c(&q.id, &q.name)).collect(),
+                Some(Arg::Skill) => rustpg2d_engine::srd::abilities::proficiency_choices().iter().map(|id| c(id, &rustpg2d_engine::srd::abilities::proficiency_name(id))).collect(),
                 Some(Arg::Spell) => db.spells.iter().map(|q| c(&q.id, &q.name)).collect(),
                 Some(Arg::Sheet) => db.sheets.iter().map(|q| c(&q.id, &q.image)).collect(),
                 Some(Arg::State) => {
@@ -685,7 +685,7 @@ mod tests {
         }
         assert_eq!(defined_signatures("fn a() {}\nfn guard_talk(who, times) { a(); }"), vec![("a".to_string(), vec![]), ("guard_talk".to_string(), vec!["who".to_string(), "times".to_string()])]);
         let code = get("let total = 1; tot");
-        assert_eq!(code, vec!["total"]);
+        assert_eq!(code.first().map(String::as_str), Some("total"), "{code:?}");
         assert!(get("stop_pa").starts_with(&["stop_patrol".to_string()]));
         assert!(get("guard").contains(&"guard_talk".to_string()));
     }

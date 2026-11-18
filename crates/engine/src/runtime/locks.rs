@@ -132,32 +132,29 @@ impl Game {
     /// Unlocks (consuming the key) if possible. Returns true if the entity is now unlocked.
     pub(super) fn try_unlock(&mut self, i: usize, using: Option<&str>) -> bool {
         let Some(lock) = self.active_lock(i) else { return true };
-        // Lockpicking (without the key at hand): an expert (skill two above the difficulty)
-        // opens it at once; with some skill (at least 1, and at most one below the difficulty)
-        // the lockpicking game starts (the lock opens when it is won). The key, if the player
-        // has it, is used instead.
+        // Picking (without the key at hand): a DEX (Thieves' Tools) check against the lock's DC.
+        // A failed lock can be tried again after a while. The key, if the player has it, is
+        // used instead.
         let has_key = !lock.key.is_empty() && self.world.item_count(&lock.key) > 0;
-        let level = self.lockpick_level();
-        if using.is_none() && !has_key && lock.pick_difficulty > 0 && self.skills_on() && level >= min_pick_level(lock.pick_difficulty) {
-            if level >= lock.pick_difficulty + 2 {
-                self.ui.toast("You pick the lock.".into());
-                self.audio.play(&self.project.config.sfx.unlock);
-                self.apply_unlock(i, &lock.on_unlock);
-                let uid = self.loaded.entities[i].uid;
-                self.fire(GameEvent::Unlock, Source::Entity(uid));
-                return true;
-            }
+        if using.is_none() && !has_key && lock.pick_dc > 0 {
             let uid = self.loaded.entities[i].uid;
-            self.start_lockpick(super::minigame::PickTarget::Entity(uid), lock.pick_difficulty as i32 - level as i32);
-            return false;
-        }
-        // Lock without a key that can only be picked.
-        if lock.key.is_empty() && lock.pick_difficulty > 0 {
-            if using.is_none() {
-                let msg = if lock.locked_text.is_empty() { format!("It's locked. A lockpicking skill of {} could open it.", min_pick_level(lock.pick_difficulty)) } else { crate::lang::tr(&lock.locked_text) };
+            let at = (self.loaded.map.name.clone(), uid);
+            if self.lock_jams.get(&at).is_some_and(|until| self.world.total_hours() < *until) {
+                let msg = if lock.locked_text.is_empty() { "The lock won't give. Try again later.".to_string() } else { crate::lang::tr(&lock.locked_text) };
                 self.ui.toast(msg);
+                return false;
             }
-            return false;
+            let picked = self.pick_check(lock.pick_dc).is_some_and(|r| r.success == Some(true));
+            if !picked {
+                self.lock_jams.insert(at, self.world.total_hours() + PICK_RETRY_HOURS);
+                return false;
+            }
+            self.lock_jams.remove(&at);
+            self.ui.toast("You pick the lock.".into());
+            self.audio.play(&self.project.config.sfx.unlock);
+            self.apply_unlock(i, &lock.on_unlock);
+            self.fire(GameEvent::Unlock, Source::Entity(uid));
+            return true;
         }
         // No key item: a door / gate that simply opens when used.
         if lock.key.is_empty() {
@@ -179,8 +176,7 @@ impl Game {
             None => self.world.item_count(&lock.key) > 0,
         };
         if !has_key {
-            let hint = if lock.pick_difficulty > 0 && self.skills_on() { format!(" (or lockpicking {})", min_pick_level(lock.pick_difficulty)) } else { String::new() };
-            let msg = if lock.locked_text.is_empty() { format!("It's locked. You need the {key_name}{hint}.") } else { lock.locked_text.clone() };
+            let msg = if lock.locked_text.is_empty() { format!("It's locked. You need the {key_name}.") } else { lock.locked_text.clone() };
             self.ui.toast(msg);
             return false;
         }
@@ -234,12 +230,17 @@ impl Game {
         }
     }
 
+    /// A lock picking check: DEX (Thieves' Tools) against `dc`, into the roll log.
+    pub(super) fn pick_check(&mut self, dc: u32) -> Option<crate::srd::RollRecord> {
+        self.world.check("dex:thieves-tools", dc as i32, crate::srd::Mode::Normal, false)
+    }
+
     /// Small padlocks over nearby locked props (world space).
     pub(super) fn draw_padlocks(&self) {
         let ts = self.ts();
         for (i, e) in self.loaded.entities.iter().enumerate() {
-            // Doors without a key get no padlock.
-            if !e.active || e.unlocked || e.body.pos.distance(self.player.pos) > PADLOCK_DIST * ts || self.active_lock(i).is_none_or(|l| l.key.is_empty()) {
+            // Doors without a key get no padlock (pickable locks do).
+            if !e.active || e.unlocked || e.body.pos.distance(self.player.pos) > PADLOCK_DIST * ts || self.active_lock(i).is_none_or(|l| l.key.is_empty() && l.pick_dc == 0) {
                 continue;
             }
             let r = self.entity_click_rect(e);
@@ -254,20 +255,5 @@ impl Game {
     }
 }
 
-/// The Lockpick skill level needed to try a lock of `difficulty` (in the lockpicking game): at
-/// least 1, and at most one below the difficulty (that one is the hard version of the game).
-pub(super) fn min_pick_level(difficulty: u32) -> u32 {
-    difficulty.saturating_sub(1).max(1)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn picking_needs_some_skill() {
-        assert_eq!(min_pick_level(1), 1, "no picking without the skill");
-        assert_eq!(min_pick_level(2), 1);
-        assert_eq!(min_pick_level(3), 2);
-    }
-}
+/// Game hours before a lock a pick failed on can be tried again (ten minutes).
+const PICK_RETRY_HOURS: f64 = 10.0 / 60.0;

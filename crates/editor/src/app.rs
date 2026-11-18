@@ -352,6 +352,8 @@ impl Editor {
         }
         // Projects from before painted maps: tiles become ground and decorations (with a backup).
         let tiles = if rustpg2d_engine::convert_tiles::needs_conversion(&root) { Some(convert_tile_project(&root, file)?) } else { None };
+        // Projects from before the SRD rules: the skill tree becomes proficiencies (with a backup).
+        let srd = if rustpg2d_engine::srd_convert::needs_conversion(&root) { Some(convert_srd_project(&root, file)?) } else { None };
         let (project, warnings) = Project::load_with_warnings(&root)?;
         let mut ed = Self::with_project(project, true);
         ed.note_defs_warnings(warnings);
@@ -376,6 +378,10 @@ impl Editor {
             for w in &r.warnings {
                 eprintln!("[editor] converting tiles: {w}");
             }
+            ed.set_status(r.summary());
+        }
+        if let Some(r) = srd {
+            println!("[editor] {}", r.summary());
             ed.set_status(r.summary());
         }
         Ok(ed)
@@ -872,7 +878,8 @@ impl Editor {
                 people
             },
             quest_stages: self.project.db.quests.iter().map(|q| (q.id.clone(), q.stages.clone())).collect(),
-            skills: self.project.db.skills.iter().map(|q| q.id.clone()).collect(),
+            // Proficiency ids (SRD skills, tools, saving throws) for skill fields.
+            skills: rustpg2d_engine::srd::abilities::proficiency_choices(),
             races: self.project.db.races.iter().map(|r| r.id.clone()).collect(),
             common_events: self.project.db.common_events.iter().map(|r| r.id.clone()).collect(),
             factions: self.project.config.factions.list.iter().map(|f| f.id.clone()).collect(),
@@ -2865,7 +2872,13 @@ impl Editor {
                         None => match def_lock {
                             Some(l) => {
                                 let key = db.item(&l.key).map_or(l.key.clone(), |d| d.name.clone());
-                                ui.weak(format!("Uses the definition's lock (key: {key})."));
+                                let opens = match (key.is_empty(), l.pick_dc) {
+                                    (true, 0) => "no key".to_string(),
+                                    (true, dc) => format!("picked with DEX (Thieves' Tools) DC {dc}"),
+                                    (false, 0) => format!("key: {key}"),
+                                    (false, dc) => format!("key: {key}, or picked at DC {dc}"),
+                                };
+                                ui.weak(format!("Uses the definition's lock ({opens})."));
                                 if ui.button("Customize lock (other key, effect, messages)").clicked() {
                                     set_lock = Some(Some(l));
                                 }
@@ -3579,6 +3592,43 @@ fn parallax_ui(ui: &mut egui::Ui, layers: &mut Vec<rustpg2d_engine::map::Paralla
     }
     if ui.button(crate::ui::t(crate::ui::ph::PLUS, "Parallax layer")).clicked() {
         layers.push(ParallaxLayer { sheet: sheets.first().cloned().unwrap_or_default(), ..Default::default() });
+    }
+}
+
+/// The first free `<stem>-backup-<tag>[-N]<ext>` in `dir`.
+fn free_backup(dir: &Path, stem: &str, tag: &str, ext: &str) -> PathBuf {
+    let mut n = 1;
+    loop {
+        let name = if n == 1 { format!("{stem}-backup-{tag}{ext}") } else { format!("{stem}-backup-{tag}-{n}{ext}") };
+        let p = dir.join(name);
+        if !p.exists() {
+            return p;
+        }
+        n += 1;
+    }
+}
+
+/// Converts a project of 0.27 or older to the SRD rules (the skill tree becomes proficiencies):
+/// first copies the project file (`file`) or the project folder beside it as
+/// `<name>-backup-srd`.
+fn convert_srd_project(root: &Path, file: Option<&Path>) -> anyhow::Result<rustpg2d_engine::srd_convert::Report> {
+    use anyhow::Context;
+    match file {
+        Some(f) => {
+            let dir = f.parent().unwrap_or(Path::new("."));
+            let stem = f.file_stem().map_or("project".into(), |s| s.to_string_lossy().into_owned());
+            let ext = f.extension().map_or(String::new(), |e| format!(".{}", e.to_string_lossy()));
+            let backup = free_backup(dir, &stem, "srd", &ext);
+            std::fs::copy(f, &backup).with_context(|| format!("making a backup at {}", backup.display()))?;
+            let mut r = rustpg2d_engine::srd_convert::convert_project(root, None)?;
+            r.backup = Some(backup);
+            Ok(r)
+        }
+        None => {
+            let dir = root.parent().unwrap_or(Path::new("."));
+            let stem = root.file_name().map_or("project".into(), |s| s.to_string_lossy().into_owned());
+            rustpg2d_engine::srd_convert::convert_project(root, Some(&free_backup(dir, &stem, "srd", "")))
+        }
     }
 }
 

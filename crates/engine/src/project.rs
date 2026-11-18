@@ -50,9 +50,16 @@ pub struct ProjectConfig {
     /// The project's plugins (`plugins/<id>/`) in load order: on / off and parameter values.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<crate::plugins::PluginRef>,
-    /// Skills and magic (both off by default).
+    /// Magic (off by default; the name is from when this held the skill tree's settings too).
     #[serde(default)]
     pub skills: crate::skills::SkillSettings,
+    /// The SRD 5.1 rules: what a new hero starts with, check results on screen.
+    #[serde(default)]
+    pub rules: crate::srd::RulesSettings,
+    /// Which conversion to the SRD rules the project has had ([`crate::srd::RULES_VERSION`]); 0 =
+    /// a project of 0.27 or older, which the editor converts on open (`srd_convert`).
+    #[serde(default)]
+    pub rules_version: u32,
     /// Experience and levels (off by default).
     #[serde(default)]
     pub progression: crate::progression::Progression,
@@ -242,6 +249,8 @@ impl ProjectConfig {
             hooks: Vec::new(),
             plugins: Vec::new(),
             skills: Default::default(),
+            rules: Default::default(),
+            rules_version: crate::srd::RULES_VERSION,
             progression: Default::default(),
             dialog_portraits: true,
             auto_emotions: true,
@@ -332,7 +341,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 18] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins", "common_events"];
+pub const DEFS: [&str; 17] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins", "common_events"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -383,17 +392,16 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         sounds: parse_list(r(4)?, DEFS[4], warn)?,
         quests: parse_list(r(5)?, DEFS[5], warn)?,
         structures: parse_list(r(6)?, DEFS[6], warn)?,
-        skills: parse_list(r(7)?, DEFS[7], warn)?,
-        spells: parse_list(r(8)?, DEFS[8], warn)?,
-        recipes: parse_list(r(9)?, DEFS[9], warn)?,
-        achievements: parse_list(r(10)?, DEFS[10], warn)?,
-        races: parse_list(r(11)?, DEFS[11], warn)?,
-        models: parse_list(r(12)?, DEFS[12], warn)?,
-        materials: parse_list(r(13)?, DEFS[13], warn)?,
-        scatter: parse_list(r(14)?, DEFS[14], warn)?,
-        fonts: parse_list(r(15)?, DEFS[15], warn)?,
-        skins: parse_list(r(16)?, DEFS[16], warn)?,
-        common_events: parse_list(r(17)?, DEFS[17], warn)?,
+        spells: parse_list(r(7)?, DEFS[7], warn)?,
+        recipes: parse_list(r(8)?, DEFS[8], warn)?,
+        achievements: parse_list(r(9)?, DEFS[9], warn)?,
+        races: parse_list(r(10)?, DEFS[10], warn)?,
+        models: parse_list(r(11)?, DEFS[11], warn)?,
+        materials: parse_list(r(12)?, DEFS[12], warn)?,
+        scatter: parse_list(r(13)?, DEFS[13], warn)?,
+        fonts: parse_list(r(14)?, DEFS[14], warn)?,
+        skins: parse_list(r(15)?, DEFS[15], warn)?,
+        common_events: parse_list(r(16)?, DEFS[16], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
@@ -500,38 +508,35 @@ impl Project {
         if !self.db.structures.is_empty() || d(DEFS[6]).exists() {
             write_ron(&d(DEFS[6]), &self.db.structures)?;
         }
-        if !self.db.skills.is_empty() || d(DEFS[7]).exists() {
-            write_ron(&d(DEFS[7]), &self.db.skills)?;
+        if !self.db.spells.is_empty() || d(DEFS[7]).exists() {
+            write_ron(&d(DEFS[7]), &self.db.spells)?;
         }
-        if !self.db.spells.is_empty() || d(DEFS[8]).exists() {
-            write_ron(&d(DEFS[8]), &self.db.spells)?;
+        if !self.db.recipes.is_empty() || d(DEFS[8]).exists() {
+            write_ron(&d(DEFS[8]), &self.db.recipes)?;
         }
-        if !self.db.recipes.is_empty() || d(DEFS[9]).exists() {
-            write_ron(&d(DEFS[9]), &self.db.recipes)?;
+        if !self.db.achievements.is_empty() || d(DEFS[9]).exists() {
+            write_ron(&d(DEFS[9]), &self.db.achievements)?;
         }
-        if !self.db.achievements.is_empty() || d(DEFS[10]).exists() {
-            write_ron(&d(DEFS[10]), &self.db.achievements)?;
+        if !self.db.races.is_empty() || d(DEFS[10]).exists() {
+            write_ron(&d(DEFS[10]), &self.db.races)?;
         }
-        if !self.db.races.is_empty() || d(DEFS[11]).exists() {
-            write_ron(&d(DEFS[11]), &self.db.races)?;
+        if !self.db.models.is_empty() || d(DEFS[11]).exists() {
+            write_ron(&d(DEFS[11]), &self.db.models)?;
         }
-        if !self.db.models.is_empty() || d(DEFS[12]).exists() {
-            write_ron(&d(DEFS[12]), &self.db.models)?;
+        if !self.db.materials.is_empty() || d(DEFS[12]).exists() {
+            write_ron(&d(DEFS[12]), &self.db.materials)?;
         }
-        if !self.db.materials.is_empty() || d(DEFS[13]).exists() {
-            write_ron(&d(DEFS[13]), &self.db.materials)?;
+        if !self.db.scatter.is_empty() || d(DEFS[13]).exists() {
+            write_ron(&d(DEFS[13]), &self.db.scatter)?;
         }
-        if !self.db.scatter.is_empty() || d(DEFS[14]).exists() {
-            write_ron(&d(DEFS[14]), &self.db.scatter)?;
+        if !self.db.fonts.is_empty() || d(DEFS[14]).exists() {
+            write_ron(&d(DEFS[14]), &self.db.fonts)?;
         }
-        if !self.db.fonts.is_empty() || d(DEFS[15]).exists() {
-            write_ron(&d(DEFS[15]), &self.db.fonts)?;
+        if !self.db.skins.is_empty() || d(DEFS[15]).exists() {
+            write_ron(&d(DEFS[15]), &self.db.skins)?;
         }
-        if !self.db.skins.is_empty() || d(DEFS[16]).exists() {
-            write_ron(&d(DEFS[16]), &self.db.skins)?;
-        }
-        if !self.db.common_events.is_empty() || d(DEFS[17]).exists() {
-            write_ron(&d(DEFS[17]), &self.db.common_events)?;
+        if !self.db.common_events.is_empty() || d(DEFS[16]).exists() {
+            write_ron(&d(DEFS[16]), &self.db.common_events)?;
         }
         Ok(())
     }

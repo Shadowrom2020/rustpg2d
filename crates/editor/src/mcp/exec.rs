@@ -166,7 +166,7 @@ impl Editor {
             }
         }
         s += &format!(
-            "Definitions: {} materials, {} sprite sheets, {} items, {} props, {} characters, {} sounds, {} quests, {} structures, {} skills, {} spells, {} recipes, {} achievements (list_defs KIND)\n",
+            "Definitions: {} materials, {} sprite sheets, {} items, {} props, {} characters, {} sounds, {} quests, {} structures, {} spells, {} recipes, {} achievements (list_defs KIND)\n",
             db.materials.len(),
             db.sheets.len(),
             db.items.len(),
@@ -175,7 +175,6 @@ impl Editor {
             db.sounds.len(),
             db.quests.len(),
             db.structures.len(),
-            db.skills.len(),
             db.spells.len(),
             db.recipes.len(),
             db.achievements.len()

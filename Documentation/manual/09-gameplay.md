@@ -76,8 +76,7 @@ equipped bow or crossbow.
   clock plus the light sources around them, their own lantern included. That applies sneaking or
   not (at night everyone is harder to see); behind walls the usual half of that, and within three
   quarters of a tile always. A hit on a chasing enemy that hasn't noticed anyone (and isn't fleeing)
-  is a **sneak attack**: double damage, shown like a critical hit, plus the *Sneak attack* skill
-  effect. Models play their **sneak** clip while sneaking (*Database › 3D models*; every playable
+  is a **sneak attack**: double damage, shown like a critical hit. Models play their **sneak** clip while sneaking (*Database › 3D models*; every playable
   model of the example has a creeping walk), others their walk, slowed. Scripts ask `is_sneaking()`;
   `status` prints `sneak=on|off:light…:sight10=…` (how far a 10-tile enemy would notice the player).
   In the example a sign on the way to the bandits' camp in Whisperwood hints at a night approach.
@@ -94,7 +93,8 @@ equipped bow or crossbow.
 
 Optional: *Database › Project › Experience and levels*. Defeated characters give the XP set in their
 definition, completed quests their *Experience reward*. Enough XP raises the level, and each level
-adds max HP (and heals as much), mana and skill points as set in the project. The XP needed starts
+adds max HP (and heals as much) and mana as set in the project, and the SRD proficiency bonus grows
+with it ([Rules](#rules-srd-51)). The XP needed starts
 at *XP for level 2* and grows by *Growth* per level, up to the *Highest level*.
 
 The status frame shows `Lv N` with a gold XP bar, the character window *Level N (XP a / b)*, and a
@@ -120,34 +120,79 @@ again restarts it (the longer duration and the stronger strength win). The statu
 per effect with the seconds left; characters with effects get coloured markers and tints. The
 player's effects are saved.
 
-## Skills and magic
+## Rules (SRD 5.1)
 
-![The Skills tab](../images/game-skills.webp)
+![The Skills tab: ability scores, saving throws and the 18 skills](../images/game-skills.webp)
 
-Turn them on in *Database › Project › Skills & magic*.
+R(ust)PG2D's rules follow the **System Reference Document 5.1** (SRD 5.1, by Wizards of the Coast,
+CC BY 4.0): every roll in the game is an SRD roll.
 
-**Skills** (*Database › Skills*) have a name, description, icon, max level and an **effect** per
-level:
+- **Ability scores**: Strength, Dexterity, Constitution, Intelligence, Wisdom and Charisma, 1 to 30.
+  Each gives a **modifier**: (score − 10) / 2, rounded down (8-9 = −1, 10-11 = +0, 14-15 = +2).
+- **Proficiency bonus** by level: +2 at levels 1-4, +3 at 5-8, +4 at 9-12, +5 at 13-16, +6 at 17-20.
+- **Ability checks**: a d20, plus the ability's modifier, plus the proficiency bonus when the hero is
+  proficient in the skill or tool used. The check succeeds when the total meets the **DC** (5 very
+  easy, 10 easy, 15 medium, 20 hard, 25 very hard, 30 nearly impossible). A natural 20 or 1 is shown
+  but, as in the SRD, doesn't decide a check by itself.
+- **Advantage** / **disadvantage**: two d20s, the higher / the lower counts; both at once cancel out.
+- **Saving throws**: a d20 plus the ability's modifier, plus the proficiency bonus when the hero is
+  proficient in that saving throw.
+- **The 18 skills** and their abilities: Acrobatics (DEX), Animal Handling (WIS), Arcana (INT),
+  Athletics (STR), Deception (CHA), History (INT), Insight (WIS), Intimidation (CHA), Investigation
+  (INT), Medicine (WIS), Nature (INT), Perception (WIS), Performance (CHA), Persuasion (CHA), Religion
+  (INT), Sleight of Hand (DEX), Stealth (DEX), Survival (WIS). **Passive Perception** is 10 plus the
+  Perception bonus.
+- **Tools**: the SRD's tools (Thieves' Tools, Smith's Tools, Alchemist's Supplies, Cook's Utensils,
+  Herbalism Kit, instruments…). A check with a tool names its ability: DEX (Thieves' Tools).
 
-| Effect | Per level |
-|---|---|
-| *Melee damage*, *Ranged damage*, *Spell damage* | + % damage of that kind |
-| *Defense*, *Speed* | + defense points, + % speed |
-| *Lockpick* | Picks locks ([Lockpicking](#lockpicking)) |
-| *Haggle* | Better merchant prices by % |
-| *Mana*, *Mana regen* | More max mana, faster regeneration |
-| *Food* | Food heals more |
-| *Sneak attack* | Sneak attacks do + % of the hit more (on top of double damage); the example's *Sneaking* skill: +25 % per level |
-| *Gathering* (with a tool kind) | Fewer hits to mine or gather |
-| *None* | Nothing by itself; for conditions and scripts |
-| *Script* | Calls a script function `name(level)` when the level changes, so a script can do anything |
+The hero's scores and proficiencies come from *Database › Project › Rules* (the standard array
+15 14 13 12 10 8 by default, until the character creator sets them) and from their race (*Database ›
+Races › Proficiencies*). Players see them on the **Skills** tab of the character window (K): the
+scores with modifiers and saving throws, the proficiency bonus, passive Perception, the 18 skills
+with their bonuses (a dot marks the proficient ones) and the tools.
 
-Players get **skill points** from the *Give skill points* action (quest rewards), from levelling up
-and from the project's *Starting skill points*, and spend them on the **Skills** tab (K).
+Every check shows a line on screen ("Persuasion: 14 vs DC 13 - success"; *Show check results on
+screen* in the project turns it off) and goes into the journal's **Rolls** page: the last 50 checks,
+saving throws and dice rolls with their dice, total, DC and result, kept in the save game.
+
+**Events and scripts**: the *Ability check* and *Saving throw* actions roll and run their *On a
+success* or *On a failure* actions; the *Check passed* condition asks about the last check later;
+*Roll dice* rolls `2d6+STR` into a variable; *Proficient in* and *Set proficiency* ([Events ›
+Actions](07-events.md#actions)). Scripts: `check`, `save`, `roll`, `modifier`, `ability`,
+`proficiency`, `is_proficient` ([Scripting › Rules](08-scripting.md#rules-srd-51-dice-abilities-and-checks)).
+Automated runs make the dice repeat with `seed N` (autoplay) or `RUSTPG2D_SEED`.
+
+**In the example** the hero has STR 15, DEX 14, CON 13, INT 10, WIS 12 and CHA 8, and is proficient
+in Athletics, Perception, Persuasion and Thieves' Tools. They can pick the locked chest by the
+river near the farm (DC 12), read the shrine's carvings in Whisperwood (Religion, DC 12: lore and a
+little experience) and ask Tilda for a little more after the slime hunt (Persuasion, DC 13).
+
+What isn't there yet: conditions such as *poisoned* or *prone*, rests, classes, and rolls in combat;
+combat stays real-time until the turn-based combat of 0.29.
+
+### Converting a project of 0.27 or older
+
+Until 0.27 a skill tree (skill points bought levels of skills such as Lockpicking or Haggling) did
+this. The editor converts a project once when it opens it, after keeping a copy beside it
+(`<name>-backup-srd`):
+
+- Each skill becomes an SRD proficiency, by its effect (*Lockpick* = Thieves' Tools, *Haggle* =
+  Persuasion, *Sneak attack* = Stealth, *Gathering* = Athletics) or by its name (Arcana; Smithing =
+  Smith's Tools, Alchemy = Alchemist's Supplies, Cooking = Cook's Utensils…). Races, recipes,
+  spells, conditions, actions and scripts then use the proficiency. Skills nothing fits (combat and
+  magic skills, script skills) are dropped, and the message names them: classes bring those back.
+- Lock difficulties become DCs (1 = 10, 2 = 12, 3 = 15, 4 = 18, 5 = 20…), and so do recipe quality
+  levels. *Skill level* conditions now ask for proficiency, and *Give skill points* does nothing.
+- Asset libraries are converted the same way when they open.
+- Saved games still load: their hero gets the project's starting scores and proficiencies.
+
+## Magic
+
+Turn it on in *Database › Project › Magic*.
 
 **Magic** adds **mana** (*Max mana*, *Mana regeneration*; a blue bar under the hearts) and
-**spells** (*Database › Spells*): mana cost, cooldown, an optional required skill level, an icon and
-an effect:
+**spells** (*Database › Spells*): mana cost, cooldown, an optional required proficiency (only a
+hero proficient in it, e.g. Arcana, can learn and cast the spell), an icon and an effect:
 
 | Effect | What it does |
 |---|---|
@@ -165,8 +210,8 @@ flies.
 
 ![The Spells tab](../images/game-spells.webp)
 
-Conditions: *Skill level*, *Knows spell*. Actions: *Give skill points*, *Set skill level*, *Learn
-spell*, *Add mana*, *Damage around player*, *Light around player*.
+Conditions: *Knows spell*. Actions: *Learn spell*, *Add mana*, *Damage around player*, *Light
+around player*.
 
 **Companions use magic too**: hand a companion with mana a scroll or a spell book and it learns
 *Heal* and *Bolt* spells, then heals whoever is badly hurt and casts bolts at its enemy
@@ -218,15 +263,15 @@ comes along when you add the fisher or the baker from the asset library.
 | **Makes** | The result and how many |
 | **Ingredients** | Items used up (they can be equipped items, so a recipe can upgrade the sword in hand) |
 | **Station** | A name such as `alchemy`, `anvil` or `oven`; a station shows only its recipes |
-| **Requires skill** | A skill and level needed |
+| **Tool or skill** | The proficiency the recipe is about: a tool (Smith's Tools, Alchemist's Supplies) or an SRD skill; *proficiency needed* lets only proficient heroes make it |
 | **Tools** | Tool kinds needed but not used up (an item with that *Tool kind* equipped, held or carried) |
 | **Station state** | The station prop must be in a state, e.g. a campfire *lit* |
-| **Better results** | From a higher level of the recipe's skill on, it makes another item (a *Fine Iron Sword*) |
+| **Better results** | Making it rolls a check (Intelligence with the tool, or the skill's ability); the best result whose DC the roll meets is made instead (a *Fine Iron Sword* at DC 12). A failed roll still makes the plain item |
 
 The **Open crafting** action (station, window title), typically on a workbench prop's *Interact*
 trigger, or `open_crafting(station)` opens the crafting window with that station's recipes. It lists
 each recipe with its ingredients and what the player has of each (red where short) and a *Make*
-button. Items marked **Food** heal more with a skill with the *Food* effect.
+button.
 
 The example has an alchemy table (potions, the herbal remedy; needs a mortar), a smelter (ingots;
 needs tongs), an anvil (swords, helmets, chainmail, arrows, the woodcutter's axe; needs a hammer and
@@ -244,12 +289,11 @@ with three logs beside it waits by the forest path.
 
 A prop can be **gathered** (*Database › Props › Gathering*): with a tool kind (e.g. `pickaxe`, or bare
 hands) the player presses E or swings at it. After its number of hits (a progress bar shows it, chips
-fly) its loot table rolls and it switches to its *used up* state. A skill with the *Gathering* effect
-needs fewer hits per level. **Regrows** turns the state back after some in-game hours, also while the
+fly) its loot table rolls and it switches to its *used up* state. **Regrows** turns the state back after some in-game hours, also while the
 player is elsewhere, so a mined-out vein refills and a picked bush grows back.
 
 The example's old mine has copper, iron, silver, gem and coal veins that refill after three days, a
-crate with a pickaxe, and a Mining skill.
+crate with a pickaxe.
 
 ### Woodcutting
 
@@ -257,8 +301,7 @@ Trees are gathered the same way, with an axe: the starter library's **Woodcutter
 `axe`; the *Battle Axe* is a weapon and doesn't chop) fells the **Big Oak** and **Big Pine** in five
 strokes (2 to 4 **Logs**, sometimes an apple from the oak) and the smaller **Young Oak** and **Young
 Pine** in three (1 or 2 logs). A felled tree leaves a stump you can walk over, which grows back into
-a tree after four days (three for the young ones). The **Woodcutting** skill takes 20 % fewer strokes
-per level. At a **Sawhorse** (a crafting station) two logs make three **Planks**, and planks make a
+a tree after four days (three for the young ones). At a **Sawhorse** (a crafting station) two logs make three **Planks**, and planks make a
 wooden shield, a fishing rod and, at the anvil with an iron ingot, a new woodcutter's axe. All of it
 is library content: give your own tree props a *Gathering* section with the tool kind `axe` and a
 *stump* state to make them choppable.
@@ -288,17 +331,18 @@ letting go before the tension turns red, or the line snaps.
 
 ## Lockpicking
 
-A lock with a **Lockpicking** difficulty (*Database › Props › Lockable*, or a placed prop's lock) can
-be picked by a player with the *Lockpick* skill effect:
+A lock with a **Pick DC** (*Database › Props › Lockable*, or a placed prop's lock) can be picked:
+E on it without the key rolls a DEX (Thieves' Tools) check against the DC, proficiency in
+Thieves' Tools adding the bonus. On a success the lock opens (a chest then opens too); on a
+failure the same lock can be tried again after ten minutes of game time ("The lock won't give. Try
+again later."). A lock without a key item can only be picked. Nearby locked props with a key or a
+pick DC show a padlock. (Thieves' tools aren't an item yet: the SRD's equipment comes with 0.31.)
 
-- from a skill level one below the difficulty (at least 1) up to one above it, a short game starts: three pins,
-  each set by pressing E while the sweeping marker is in the green spot (smaller and faster the
-  harder the lock); three misses and the lock holds;
-- two levels above the difficulty, the lock opens at once;
-- a lock without a key item can only be picked.
+The **Pick a lock (DEX check)** action and `lockpick(dc, var)` roll it for any puzzle and put 1
+(picked) or 0 into the variable. Until 0.27 lockpicking was a minigame: its difficulty levels
+became DCs.
 
-The **Lockpicking game** action and `lockpick(difficulty, var)` play the game for any puzzle and put 1
-(success) or 0 into the variable.
+In the example, the **Locked Chest** by the river near the farm (DC 12) holds coins and a potion.
 
 ## Doors
 

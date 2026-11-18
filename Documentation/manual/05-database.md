@@ -8,7 +8,7 @@ Database says what they are.
 ## Working with definitions
 
 The tabs along the top are *Items, Props, Characters, Races, Factions, 3D models, Materials, Scatter sets,
-Sprite sheets, Sounds, Fonts, UI skins, Structures, Skills, Spells, Recipes, Quests, Achievements, Common events, Project* and
+Sprite sheets, Sounds, Fonts, UI skins, Structures, Spells, Recipes, Quests, Achievements, Common events, Project* and
 *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
 
@@ -145,8 +145,9 @@ The *Set prop state* action and `set_state(target, "name")` switch states during
 so set, and unlocks it: a chest then opens, a gate disappears or switches state. Locked props show a
 padlock when the player is near. *Can be locked again* lets the player close and lock an opened gate
 again while carrying the key (not while someone stands in it). The *Unlocked* and *Locked again*
-events and the *Set locked* action react to and control locks. With the Lockpicking skill, players
-can pick a lock instead ([Lockpicking](09-gameplay.md#lockpicking)).
+events and the *Set locked* action react to and control locks. A lock with a **Pick DC** can be
+picked instead: a DEX (Thieves' Tools) check ([Lockpicking](09-gameplay.md#lockpicking)).
+The starter library's **Locked Chest** is a chest with a DC 12 lock and no key.
 
 ## Characters
 
@@ -156,7 +157,7 @@ portrait and moods. They have their own chapter: [Characters](06-characters.md).
 ## Races
 
 Humans, goblins, elves…: each race's bodies, the looks the creator offers, what a player of the
-race gets (max HP, speed, defense, starting skills) and its size. See
+race gets (max HP, speed, defense, proficiencies) and its size. See
 [Characters › Races](06-characters.md#races).
 
 ## Factions
@@ -380,7 +381,8 @@ player never saw stays hidden once the quest is over. *Edit › Problems* report
 isn't placed under that name.
 
 **Rewards**, given when the quest is completed, whatever completes it: items with counts,
-**experience** (with experience and levels on), **skill points**, and **also** any actions. The
+**experience** (with experience and levels on), and **also** any actions (an *Ability check* for
+a haggle, like Tilda's in the example). The
 starter library's script function `quest_thanks()` (*Run script*) makes the giver like the player
 more: it runs with the giver as `self`, as do the steps' actions while the giver is on the map. The
 journal shows the giver and the rewards.
@@ -395,9 +397,9 @@ stage*, *set stage*, *complete*, *fail*), the **Quest** condition (*not started*
 steps' actions and the rewards run whichever way a quest moves on. See
 [Events › A quest](07-events.md#a-quest).
 
-## Skills, spells, recipes and achievements
+## Spells, recipes and achievements
 
-These belong to the game systems they drive: [Skills and magic](09-gameplay.md#skills-and-magic),
+These belong to the game systems they drive: [Magic](09-gameplay.md#magic),
 [Crafting](09-gameplay.md#crafting-cooking-and-blacksmithing) and
 [Achievements](09-gameplay.md#achievements).
 
@@ -437,8 +439,9 @@ quests.
 | **Eight facings** | Characters walking diagonally are drawn turned diagonally (on by default); off, they show the four facings only (fewer poses to render) |
 | **Character pose memory** | GPU memory for the rendered poses of 3D characters, 8 to 128 MB (default 32). When it is full, the poses drawn longest ago are rendered again when needed: raise it for many different characters on screen at once, lower it for small GPUs |
 | **Companions at 0 HP** | Knocked down until healed (default), get up after some seconds, or go home ([Companions](06-characters.md#companions)) |
-| **Skills & magic** | Turn on skills and magic; starting skill points, max mana, mana regeneration |
-| **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana, skill points) |
+| **Rules (SRD 5.1)** | The ability scores and proficiencies a new hero starts with (until the character creator sets them; *Standard array* = 15 14 13 12 10 8), and whether checks show a line on screen ([Gameplay › Rules](09-gameplay.md#rules-srd-51)) |
+| **Magic** | Turn on magic; max mana, mana regeneration |
+| **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana; the proficiency bonus follows the level) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |
 | **Script hooks** | Script functions the engine calls to change what it does: a hit's damage, healing, item use, experience, levels, prices, crafting, entering a map, a new game, saving, loading, opening menus, status effects; hook, function and priority ([Scripting › Script hooks](08-scripting.md#script-hooks)) |
 | **Languages** | The language the game is written in, translations, *Play-test in* ([Languages](12-languages.md)) |

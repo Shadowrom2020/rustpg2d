@@ -199,7 +199,7 @@ impl LibState {
             RefKind::Prop => db.prop(&a.1).map(|d| d.sprite.clone()),
             RefKind::Character => None,
             RefKind::Sheet => Some(SpriteRef::new(&a.1, 0)),
-            RefKind::Skill => db.skill(&a.1).map(|d| d.icon.clone()).filter(|i| !i.sheet.is_empty()),
+            RefKind::Skill => None,
             RefKind::Spell => db.spell(&a.1).map(|d| d.icon.clone()).filter(|i| !i.sheet.is_empty()),
             // A recipe shows what it makes.
             RefKind::Recipe => db.recipe(&a.1).and_then(|r| db.item(&r.result)).map(|d| d.icon.clone()),
@@ -266,7 +266,7 @@ fn name_of(db: &Database, a: &AssetRef) -> String {
         RefKind::Item => db.item(&a.1).map(|d| d.name.clone()),
         RefKind::Prop => db.prop(&a.1).map(|d| d.name.clone()),
         RefKind::Character => db.character(&a.1).map(|d| d.name.clone()),
-        RefKind::Skill => db.skill(&a.1).map(|d| d.name.clone()),
+        RefKind::Skill => Some(rustpg2d_engine::srd::abilities::proficiency_name(&a.1)),
         RefKind::Spell => db.spell(&a.1).map(|d| d.name.clone()),
         RefKind::Recipe => db.recipe(&a.1).and_then(|r| db.item(&r.result)).map(|d| format!("{} (recipe)", d.name)),
         RefKind::Race => db.race(&a.1).map(|d| format!("{} (race)", d.name)),

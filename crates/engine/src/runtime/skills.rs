@@ -1,6 +1,6 @@
-//! Skills and magic at runtime: skill bonuses, skill points, mana, learning and casting
-//! spells and the Skills (K) and Spells (L) tabs of the character window (the mana bar is
-//! part of the HUD's status frame, `combat.rs`).
+//! The SRD skills page and magic at runtime: mana, learning and casting spells, and the Skills
+//! (K: ability scores, saving throws, the 18 skills, proficiencies) and Spells (L) tabs of the
+//! character window (the mana bar is part of the HUD's status frame, `combat.rs`).
 
 use std::collections::HashMap;
 
@@ -10,7 +10,8 @@ use super::input::{self, Act};
 use super::{skin, Game};
 use crate::defs::LightSpec;
 use crate::render::wrap_text;
-use crate::skills::{SkillEffect, SpellEffect, SPELL_PREFIX};
+use crate::skills::{SpellEffect, SPELL_PREFIX};
+use crate::srd::abilities::{self, Ability, SKILLS};
 use super::text::{draw_text};
 
 const LIST_W: f32 = 300.0;
@@ -51,83 +52,22 @@ fn row_rect(r: Rect, i: usize) -> Rect {
 }
 
 impl Game {
+    /// The Skills tab (the SRD page) is always there.
     pub(super) fn skills_on(&self) -> bool {
-        self.project.config.skills.enabled
+        true
     }
     pub(super) fn magic_on(&self) -> bool {
         self.project.config.skills.magic_on()
     }
 
-    /// Sum of `f(effect, level)` over the skills the player has at level > 0.
-    pub(super) fn skill_sum(&self, f: impl Fn(&SkillEffect, u32) -> f32) -> f32 {
-        if !self.skills_on() {
-            return 0.0;
-        }
-        self.project.db.skills.iter().map(|d| f(&d.effect, self.world.skill_level(&d.id))).sum()
-    }
-
-    /// Damage multipliers from skills (1 = no bonus): melee weapons, ranged weapons, spells.
-    pub(super) fn melee_damage_factor(&self) -> f32 {
-        1.0 + self.skill_sum(|e, l| match e {
-            SkillEffect::MeleeDamage { percent } => percent * l as f32,
-            _ => 0.0,
-        }) / 100.0
-    }
-    pub(super) fn ranged_damage_factor(&self) -> f32 {
-        1.0 + self.skill_sum(|e, l| match e {
-            SkillEffect::RangedDamage { percent } => percent * l as f32,
-            _ => 0.0,
-        }) / 100.0
-    }
-    pub(super) fn spell_damage_factor(&self) -> f32 {
-        1.0 + self.skill_sum(|e, l| match e {
-            SkillEffect::SpellDamage { percent } => percent * l as f32,
-            _ => 0.0,
-        }) / 100.0
-    }
-    pub(super) fn skill_defense(&self) -> i32 {
-        self.skill_sum(|e, l| match e {
-            SkillEffect::Defense { points } => (*points * l as i32) as f32,
-            _ => 0.0,
-        }) as i32
-    }
-    pub(super) fn skill_speed_factor(&self) -> f32 {
-        1.0 + self.skill_sum(|e, l| match e {
-            SkillEffect::Speed { percent } => percent * l as f32,
-            _ => 0.0,
-        }) / 100.0
-    }
-    /// Highest lock difficulty the player can pick (0 = none).
-    pub(super) fn lockpick_level(&self) -> u32 {
-        if !self.skills_on() {
-            return 0;
-        }
-        self.project.db.skills.iter().filter(|d| d.effect == SkillEffect::Lockpick).map(|d| self.world.skill_level(&d.id)).max().unwrap_or(0)
-    }
-    /// Percent by which buying gets cheaper and selling pays better.
-    pub(super) fn haggle_percent(&self) -> f32 {
-        self.skill_sum(|e, l| match e {
-            SkillEffect::Haggle { percent } => percent * l as f32,
-            _ => 0.0,
-        })
-        .clamp(0.0, 90.0)
-    }
     pub fn max_mana(&self) -> u32 {
         if !self.magic_on() {
             return 0;
         }
-        let bonus = self.skill_sum(|e, l| match e {
-            SkillEffect::Mana { points } => (*points * l) as f32,
-            _ => 0.0,
-        });
-        self.project.config.skills.max_mana + bonus as u32 + self.level_mana()
+        self.project.config.skills.max_mana + self.level_mana()
     }
     fn mana_regen(&self) -> f32 {
         self.project.config.skills.mana_regen
-            + self.skill_sum(|e, l| match e {
-                SkillEffect::ManaRegen { per_second } => per_second * l as f32,
-                _ => 0.0,
-            })
     }
     pub(super) fn spell_light(&self) -> Option<LightSpec> {
         self.skills.light.as_ref().map(|l| l.0.clone())
@@ -152,90 +92,23 @@ impl Game {
         }
     }
 
-    /// New game: starting skill points and full mana. Loading: keeps the save's values.
+    /// New game: full mana. Loading: keeps the save's value.
     pub(super) fn init_skills(&mut self, new_game: bool) {
         self.skills.cooldown.clear();
         self.skills.light = None;
         self.cancel_aim();
         if new_game {
-            self.world.skill_points = self.project.config.skills.start_points;
             self.world.mana = self.max_mana() as f32;
         } else {
             self.world.mana = self.world.mana.min(self.max_mana() as f32);
         }
-        // Script skills apply their effect again (scripts keep nothing between runs).
-        for d in self.project.db.skills.clone() {
-            if let SkillEffect::Script { function } = &d.effect {
-                let level = self.world.skill_level(&d.id);
-                if level > 0 {
-                    self.call_skill_script(function, level);
-                }
-            }
-        }
-    }
-
-    fn call_skill_script(&mut self, function: &str, level: u32) {
-        if function.is_empty() {
-            return;
-        }
-        let actions = self.scripts.call_args(&mut self.world, function, vec![rhai::Dynamic::from(level as i64)], None);
-        if !actions.is_empty() {
-            self.runner.push(&actions, &crate::events::runner::ActionCtx::default());
-        }
-    }
-
-    pub(super) fn give_skill_points(&mut self, n: i32) {
-        if !self.skills_on() {
-            return;
-        }
-        self.world.skill_points = (self.world.skill_points as i32 + n).max(0) as u32;
-        if n > 0 {
-            self.ui.toast(format!("+{n} skill point{}  (K: skills)", if n == 1 { "" } else { "s" }));
-            self.audio.play(&self.project.config.sfx.pickup);
-        }
-    }
-
-    /// Sets a skill's level (clamped to its maximum) and applies a script effect.
-    pub(super) fn set_skill_level(&mut self, id: &str, level: u32) -> bool {
-        let Some(d) = self.project.db.skill(id).cloned() else {
-            eprintln!("[game] unknown skill '{id}'");
-            return false;
-        };
-        let level = level.min(d.max_level.max(1));
-        if self.world.skill_level(id) == level {
-            return true;
-        }
-        self.world.skills.insert(id.to_string(), level);
-        if let SkillEffect::Script { function } = &d.effect {
-            self.call_skill_script(function, level);
-        }
-        true
-    }
-
-    /// Spends one skill point on a skill (the Skills screen).
-    pub fn spend_skill_point(&mut self, id: &str) {
-        let Some(d) = self.project.db.skill(id).cloned() else { return };
-        let level = self.world.skill_level(id);
-        if level >= d.max_level.max(1) {
-            self.ui.toast(format!("{} is at its maximum", d.name));
-            return;
-        }
-        if self.world.skill_points == 0 {
-            self.ui.toast("No skill points left".into());
-            return;
-        }
-        self.world.skill_points -= 1;
-        self.set_skill_level(id, level + 1);
-        self.audio.play(&self.project.config.sfx.pickup);
-        self.ui.toast(format!("{} {}: {}", d.name, level + 1, d.effect_text(level + 1)));
     }
 
     /// Why a spell can't be learned / cast right now.
     fn spell_requirement(&self, id: &str) -> Option<String> {
         let d = self.project.db.spell(id)?;
-        if !d.skill.is_empty() && self.world.skill_level(&d.skill) < d.level {
-            let name = self.project.db.skill(&d.skill).map_or(d.skill.clone(), |s| s.name.clone());
-            return Some(format!("needs {name} {}", d.level));
+        if !d.skill.trim().is_empty() && !self.world.is_proficient(&d.skill) {
+            return Some(format!("needs proficiency in {}", abilities::proficiency_name(&abilities::proficiency_id(&d.skill))));
         }
         None
     }
@@ -379,8 +252,7 @@ impl Game {
                 self.player.facing = f;
             }
             let r = crate::defs::Ranged { projectile: projectile.clone(), speed: *speed, range: *range, ammo: String::new() };
-            let dmg = (*damage as f32 * self.spell_damage_factor()).round() as i32;
-            self.shoot(origin, dir, &r, dmg, true, None, None);
+            self.shoot(origin, dir, &r, *damage, true, None, None);
             self.ui.toast(d.name);
             return;
         };
@@ -472,11 +344,11 @@ impl Game {
         self.damage_at(self.player.pos, damage, radius, cast);
     }
 
-    /// Damages every character within `radius` tiles of `center` (world pixels), scaled by the
-    /// spell damage skills; `cast` = the player's own (see [`Self::damage_around`]).
+    /// Damages every character within `radius` tiles of `center` (world pixels); `cast` = the
+    /// player's own (see [`Self::damage_around`]).
     pub(super) fn damage_at(&mut self, center: Vec2, damage: i32, radius: f32, cast: bool) {
         let ts = self.ts();
-        let dmg = (damage as f32 * self.spell_damage_factor()).round() as i32;
+        let dmg = damage;
         let targets: Vec<usize> = (0..self.loaded.entities.len())
             .filter(|&i| {
                 let e = &self.loaded.entities[i];
@@ -527,10 +399,10 @@ impl Game {
         self.window_content()
     }
 
-    /// Rows of the current tab: skill or spell ids.
+    /// Rows of the current tab: the SRD skills' ids or spell ids.
     fn skill_rows(&self) -> Vec<String> {
         if self.skills.tab == 0 {
-            self.project.db.skills.iter().map(|d| d.id.clone()).collect()
+            SKILLS.iter().map(|(id, _, _)| id.to_string()).collect()
         } else {
             // Learned first, then the rest (greyed out).
             let mut v: Vec<(bool, String)> = self.project.db.spells.iter().map(|d| (!self.world.spells.contains(&d.id), d.id.clone())).collect();
@@ -571,11 +443,7 @@ impl Game {
         let sel = self.skills.sel[tab].min(rows.len().saturating_sub(1));
         let Some(id) = rows.get(sel).cloned() else { return (true, true) };
         let enter = input::act_pressed(Act::Confirm) || (click && Self::button_rect(r).contains(m));
-        if tab == 0 {
-            if enter || (click && Self::plus_rect(row_rect(r, sel)).contains(m)) {
-                self.spend_skill_point(&id);
-            }
-        } else {
+        if tab == 1 {
             if enter && self.cast_spell(&id) {
                 self.skills.open = false;
             }
@@ -590,9 +458,6 @@ impl Game {
         (true, true)
     }
 
-    fn plus_rect(row: Rect) -> Rect {
-        Rect::new(row.x + row.w - 30.0, row.y + 5.0, 26.0, 26.0)
-    }
     fn button_rect(r: Rect) -> Rect {
         Rect::new(r.x + LIST_W + 26.0, r.y + r.h - 70.0, 200.0, 30.0)
     }
@@ -602,20 +467,15 @@ impl Game {
             return;
         }
         // The window frame (panel, tabs, close button) is drawn by `draw_window_frame`.
+        if self.skills.tab == 0 {
+            self.draw_srd_page();
+            return;
+        }
         let r = self.skills_rect();
         let m = input::mouse_pos();
-        let points = self.world.skill_points;
-        let head = if self.skills.tab == 0 {
-            format!("Skill points: {points}")
-        } else {
-            format!("Mana {:.0} / {}   -   spells known: {}", self.world.mana, self.max_mana(), self.world.spells.len())
-        };
-        draw_text(&head, r.x + PAD, r.y + 32.0, 22.0, if self.skills.tab == 0 && points > 0 { skin::highlight() } else { skin::dim() });
-        let help = if self.skills.tab == 0 {
-            "{key:up}/{key:down}: select   {key:confirm} or +: spend a point   {key:next_tab}: next tab   {key:skills} / {key:cancel}: close"
-        } else {
-            "{key:up}/{key:down}: select   {key:confirm}: cast   1-8: put on the quick bar   {key:next_tab}: next tab   {key:spells} / {key:cancel}: close"
-        };
+        let head = format!("Mana {:.0} / {}   -   spells known: {}", self.world.mana, self.max_mana(), self.world.spells.len());
+        draw_text(&head, r.x + PAD, r.y + 32.0, 22.0, skin::dim());
+        let help = "{key:up}/{key:down}: select   {key:confirm}: cast   1-8: put on the quick bar   {key:next_tab}: next tab   {key:spells} / {key:cancel}: close";
         super::glyphs::draw_hint_in(help, r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
         draw_line(r.x + LIST_W + 8.0, r.y + LIST_TOP, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
 
@@ -623,7 +483,7 @@ impl Game {
         let tab = self.skills.tab;
         let sel = self.skills.sel[tab].min(rows.len().saturating_sub(1));
         if rows.is_empty() {
-            draw_text(if tab == 0 { "No skills in this game." } else { "No spells in this game." }, r.x + PAD, r.y + LIST_TOP + 26.0, 22.0, skin::dim());
+            draw_text("No spells in this game.", r.x + PAD, r.y + LIST_TOP + 26.0, 22.0, skin::dim());
             return;
         }
         for (i, id) in rows.iter().enumerate() {
@@ -639,44 +499,22 @@ impl Game {
             } else if rr.contains(m) {
                 draw_rectangle(rr.x, rr.y, rr.w, rr.h, Color::new(1.0, 1.0, 1.0, 0.08));
             }
-            if tab == 0 {
-                let Some(d) = self.project.db.skill(id) else { continue };
-                let level = self.world.skill_level(id);
-                if !d.icon.sheet.is_empty() {
-                    self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(rr.x + 4.0, rr.y + 4.0, 28.0, 28.0), WHITE);
-                }
-                draw_text(&d.name, rr.x + 38.0, rr.y + 17.0, 19.0, skin::normal());
-                // Level pips.
-                let n = d.max_level.max(1);
-                for k in 0..n {
-                    let (x, y) = (rr.x + 38.0 + k as f32 * 14.0, rr.y + 23.0);
-                    draw_rectangle(x, y, 10.0, 8.0, if k < level { skin::highlight() } else { Color::new(1.0, 1.0, 1.0, 0.15) });
-                }
-                let pr = Self::plus_rect(rr);
-                let can = points > 0 && level < n;
-                if !skin::button_picture(pr, can && pr.contains(m)) {
-                    draw_rectangle(pr.x, pr.y, pr.w, pr.h, if can { skin::button_fill(false, Color::new(0.85, 0.7, 0.3, 0.35)) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
-                    draw_rectangle_lines(pr.x, pr.y, pr.w, pr.h, 1.0, if can { skin::highlight() } else { skin::disabled() });
-                }
-                draw_text("+", pr.x + 7.0, pr.y + 20.0, 24.0, if can { skin::normal() } else { skin::disabled() });
-            } else {
-                let Some(d) = self.project.db.spell(id) else { continue };
-                let known = self.world.spells.contains(id);
-                let col = if known { skin::normal() } else { skin::disabled() };
-                if !d.icon.sheet.is_empty() {
-                    self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(rr.x + 4.0, rr.y + 4.0, 28.0, 28.0), Color::new(1.0, 1.0, 1.0, if known { 1.0 } else { 0.4 }));
-                }
-                draw_text(&d.name, rr.x + 38.0, rr.y + 17.0, 19.0, col);
-                let sub = if known {
-                    match self.world.quickbar.iter().position(|q| q == &format!("{SPELL_PREFIX}{id}")) {
-                        Some(k) => format!("{} mana  -  quick slot {}", d.mana, k + 1),
-                        None => format!("{} mana", d.mana),
-                    }
-                } else {
-                    "not learned".to_string()
-                };
-                draw_text(&sub, rr.x + 38.0, rr.y + 32.0, 14.0, skin::disabled());
+            let Some(d) = self.project.db.spell(id) else { continue };
+            let known = self.world.spells.contains(id);
+            let col = if known { skin::normal() } else { skin::disabled() };
+            if !d.icon.sheet.is_empty() {
+                self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(rr.x + 4.0, rr.y + 4.0, 28.0, 28.0), Color::new(1.0, 1.0, 1.0, if known { 1.0 } else { 0.4 }));
             }
+            draw_text(&d.name, rr.x + 38.0, rr.y + 17.0, 19.0, col);
+            let sub = if known {
+                match self.world.quickbar.iter().position(|q| q == &format!("{SPELL_PREFIX}{id}")) {
+                    Some(k) => format!("{} mana  -  quick slot {}", d.mana, k + 1),
+                    None => format!("{} mana", d.mana),
+                }
+            } else {
+                "not learned".to_string()
+            };
+            draw_text(&sub, rr.x + 38.0, rr.y + 32.0, 14.0, skin::disabled());
         }
 
         // Details.
@@ -684,83 +522,106 @@ impl Game {
         let w = r.x + r.w - PAD - x;
         let mut y = r.y + LIST_TOP + 24.0;
         let id = &rows[sel];
-        if tab == 0 {
-            let Some(d) = self.project.db.skill(id) else { return };
-            let level = self.world.skill_level(id);
-            draw_text(&d.name, x, y, 28.0, skin::highlight());
+        let Some(d) = self.project.db.spell(id) else { return };
+        let known = self.world.spells.contains(id);
+        draw_text(&d.name, x, y, 28.0, skin::highlight());
+        y += 26.0;
+        let mut info = format!("{} mana", d.mana);
+        if d.cooldown > 0.0 {
+            info += &format!("  -  {:.1}s cooldown", d.cooldown);
+        }
+        if !d.skill.is_empty() {
+            info += &format!("  -  needs {}", abilities::proficiency_name(&abilities::proficiency_id(&d.skill)));
+        }
+        draw_text(&info, x, y, 18.0, skin::dim());
+        for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
             y += 26.0;
-            draw_text(format!("Level {level} / {}", d.max_level), x, y, 18.0, skin::dim());
-            for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
-                y += 26.0;
-                draw_text(&line, x, y, 20.0, skin::normal());
+            draw_text(&line, x, y, 20.0, skin::normal());
+        }
+        y += 30.0;
+        let effect = match &d.effect {
+            SpellEffect::Heal { amount } => format!("Heals {} heart{}", *amount as f32 / 2.0, if *amount == 2 { "" } else { "s" }),
+            SpellEffect::Bolt { damage, range, .. } => format!("Bolt: {damage} damage, {range:.0} tiles"),
+            SpellEffect::Blast { damage, radius } => format!("Blast: {damage} damage within {radius:.0} tiles"),
+            SpellEffect::Light { radius, seconds } => format!("Light of {radius:.0} tiles for {seconds:.0}s"),
+            SpellEffect::Script { .. } => String::new(),
+        };
+        if !effect.is_empty() {
+            draw_text(&effect, x, y, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 1.0)));
+        }
+        let b = Self::button_rect(r);
+        let ready = known && self.world.mana >= d.mana as f32 && !self.skills.cooldown.contains_key(id) && self.spell_requirement(id).is_none();
+        if !skin::button_picture(b, ready && b.contains(input::mouse_pos())) {
+            draw_rectangle(b.x, b.y, b.w, b.h, if ready { Color::new(0.4, 0.5, 0.9, 0.35) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
+            draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.5, if ready { Color::new(0.6, 0.7, 1.0, 1.0) } else { skin::disabled() });
+        }
+        let label = if !known { "Not learned" } else if self.world.mana < d.mana as f32 { "Not enough mana" } else { "Cast  (Enter)" };
+        draw_text(label, b.x + 12.0, b.y + 21.0, 18.0, if ready { skin::normal() } else { skin::disabled() });
+        let mana = format!("Mana {:.0} / {}", self.world.mana, self.max_mana());
+        draw_text(&mana, b.x + b.w + 16.0, b.y + 21.0, 18.0, Color::new(0.6, 0.7, 1.0, 1.0));
+    }
+
+    /// The Skills tab: the hero's ability scores with modifiers and saving throws, the 18 skills
+    /// with their bonuses (proficient ones marked), the proficiency bonus and other proficiencies.
+    fn draw_srd_page(&self) {
+        let r = self.skills_rect();
+        let w = &self.world;
+        let prof = abilities::proficiency_bonus(w.player_level());
+        let head = format!("Level {}   -   Proficiency bonus {}", w.player_level(), abilities::signed(prof as i64));
+        draw_text(&head, r.x + PAD, r.y + 32.0, 22.0, skin::dim());
+        super::glyphs::draw_hint_in("{key:next_tab}: next tab   {key:skills} / {key:cancel}: close", r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
+        let gold = skin::highlight();
+        // Abilities: score, modifier, save.
+        let (ax, mut y) = (r.x + PAD, r.y + LIST_TOP + 18.0);
+        draw_text("Ability", ax, y, 17.0, skin::disabled());
+        draw_text("Saving throw", ax + 190.0, y, 17.0, skin::disabled());
+        for a in Ability::ALL {
+            y += 34.0;
+            let score = w.abilities.score(a);
+            draw_text(a.short(), ax, y, 22.0, gold);
+            draw_text(format!("{score}"), ax + 56.0, y, 22.0, skin::normal());
+            draw_text(format!("({})", abilities::signed(abilities::modifier(score) as i64)), ax + 92.0, y, 20.0, skin::dim());
+            let save = w.check_bonus(a.id(), true).unwrap_or(0);
+            let proficient = w.is_proficient(&format!("save:{}", a.id()));
+            draw_text(abilities::signed(save), ax + 190.0, y, 20.0, if proficient { gold } else { skin::dim() });
+            if proficient {
+                draw_circle(ax + 180.0, y - 6.0, 3.5, gold);
             }
+        }
+        // Passive Perception and the other proficiencies under the abilities.
+        y += 44.0;
+        let passive = 10 + w.check_bonus("perception", false).unwrap_or(0);
+        draw_text(format!("Passive Perception {passive}"), ax, y, 18.0, skin::normal());
+        let others: Vec<String> = w.proficiencies.iter().filter(|p| abilities::skill(p).is_none() && !p.starts_with("save:")).map(|p| abilities::proficiency_name(p)).collect();
+        if !others.is_empty() {
             y += 30.0;
-            let now = d.effect_text(level);
-            if !now.is_empty() && level > 0 {
-                draw_text(format!("Now: {now}"), x, y, 18.0, skin::dim());
+            draw_text("Tools and other proficiencies", ax, y, 17.0, skin::disabled());
+            for line in wrap_text(&others.join(", "), 18, LIST_W - PAD) {
                 y += 22.0;
+                draw_text(&line, ax, y, 18.0, skin::normal());
             }
-            if level < d.max_level.max(1) {
-                let next = d.effect_text(level + 1);
-                if !next.is_empty() {
-                    draw_text(format!("Next level: {next}"), x, y, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 1.0)));
-                }
+        }
+        // Skills: one row each, the bonus, the ability and the name (a dot = proficient).
+        draw_line(r.x + LIST_W + 8.0, r.y + LIST_TOP, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
+        let cx = r.x + LIST_W + 30.0;
+        let step = ((r.h - LIST_TOP - 60.0) / SKILLS.len() as f32).clamp(20.0, 28.0);
+        for (i, (id, name, a)) in SKILLS.iter().enumerate() {
+            let cy = r.y + LIST_TOP + 18.0 + i as f32 * step;
+            let proficient = w.is_proficient(id);
+            let bonus = w.check_bonus(id, false).unwrap_or(0);
+            if proficient {
+                draw_circle(cx + 4.0, cy - 6.0, 3.5, gold);
             }
-            let b = Self::button_rect(r);
-            let can = points > 0 && level < d.max_level.max(1);
-            if !skin::button_picture(b, can && b.contains(input::mouse_pos())) {
-                draw_rectangle(b.x, b.y, b.w, b.h, if can { skin::button_fill(false, Color::new(0.85, 0.7, 0.3, 0.35)) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
-                draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.5, if can { skin::highlight() } else { skin::disabled() });
-            }
-            draw_text(if level >= d.max_level.max(1) { "Maximum" } else { "Spend a point  (Enter)" }, b.x + 12.0, b.y + 21.0, 18.0, if can { skin::normal() } else { skin::disabled() });
-        } else {
-            let Some(d) = self.project.db.spell(id) else { return };
-            let known = self.world.spells.contains(id);
-            draw_text(&d.name, x, y, 28.0, skin::highlight());
-            y += 26.0;
-            let mut info = format!("{} mana", d.mana);
-            if d.cooldown > 0.0 {
-                info += &format!("  -  {:.1}s cooldown", d.cooldown);
-            }
-            if !d.skill.is_empty() {
-                let s = self.project.db.skill(&d.skill).map_or(d.skill.clone(), |s| s.name.clone());
-                info += &format!("  -  needs {s} {}", d.level);
-            }
-            draw_text(&info, x, y, 18.0, skin::dim());
-            for line in wrap_text(&self.world.expand_text(&d.description), 20, w) {
-                y += 26.0;
-                draw_text(&line, x, y, 20.0, skin::normal());
-            }
-            y += 30.0;
-            let effect = match &d.effect {
-                SpellEffect::Heal { amount } => format!("Heals {} heart{}", *amount as f32 / 2.0, if *amount == 2 { "" } else { "s" }),
-                SpellEffect::Bolt { damage, range, .. } => format!("Bolt: {damage} damage, {range:.0} tiles"),
-                SpellEffect::Blast { damage, radius } => format!("Blast: {damage} damage within {radius:.0} tiles"),
-                SpellEffect::Light { radius, seconds } => format!("Light of {radius:.0} tiles for {seconds:.0}s"),
-                SpellEffect::Script { .. } => String::new(),
-            };
-            if !effect.is_empty() {
-                draw_text(&effect, x, y, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 1.0)));
-            }
-            let b = Self::button_rect(r);
-            let ready = known && self.world.mana >= d.mana as f32 && !self.skills.cooldown.contains_key(id) && self.spell_requirement(id).is_none();
-            if !skin::button_picture(b, ready && b.contains(input::mouse_pos())) {
-                draw_rectangle(b.x, b.y, b.w, b.h, if ready { Color::new(0.4, 0.5, 0.9, 0.35) } else { Color::new(1.0, 1.0, 1.0, 0.06) });
-                draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.5, if ready { Color::new(0.6, 0.7, 1.0, 1.0) } else { skin::disabled() });
-            }
-            let label = if !known { "Not learned" } else if self.world.mana < d.mana as f32 { "Not enough mana" } else { "Cast  (Enter)" };
-            draw_text(label, b.x + 12.0, b.y + 21.0, 18.0, if ready { skin::normal() } else { skin::disabled() });
-            let mana = format!("Mana {:.0} / {}", self.world.mana, self.max_mana());
-            draw_text(&mana, b.x + b.w + 16.0, b.y + 21.0, 18.0, Color::new(0.6, 0.7, 1.0, 1.0));
+            draw_text(abilities::signed(bonus), cx + 14.0, cy, 19.0, if proficient { gold } else { skin::dim() });
+            draw_text(a.short(), cx + 56.0, cy, 15.0, skin::disabled());
+            draw_text(name, cx + 100.0, cy, 19.0, skin::normal());
         }
     }
 
     /// For automated play-throughs.
     pub fn skills_status(&self) -> String {
         format!(
-            "points={} skills={:?} spells={:?} mana={:.0}/{} light={} aiming={:?}",
-            self.world.skill_points,
-            self.world.skills,
+            "spells={:?} mana={:.0}/{} light={} aiming={:?}",
             self.world.spells,
             self.world.mana,
             self.max_mana(),

@@ -43,7 +43,7 @@
         mana: 5,
         cooldown: 0.6,
         skill: "arcana",
-        level: 1,
+        level: 0,
         effect: Bolt(
             damage: 3,
             projectile: (
@@ -65,7 +65,7 @@
         mana: 15,
         cooldown: 4.0,
         skill: "arcana",
-        level: 2,
+        level: 0,
         effect: Blast(
             damage: 4,
             radius: 2.0,
@@ -82,7 +82,7 @@
         mana: 12,
         cooldown: 1.5,
         skill: "arcana",
-        level: 3,
+        level: 0,
         effect: Script(
             function: "cast_fireball",
         ),

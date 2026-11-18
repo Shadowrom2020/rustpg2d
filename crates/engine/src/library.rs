@@ -35,7 +35,7 @@ const PACK_VERSION: u32 = 1;
 pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
-pub const KINDS: [RefKind; 16] = [RefKind::Font, RefKind::Sound, RefKind::Material, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race, RefKind::Skin, RefKind::CommonEvent];
+pub const KINDS: [RefKind; 15] = [RefKind::Font, RefKind::Sound, RefKind::Material, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Spell, RefKind::Recipe, RefKind::Race, RefKind::Skin, RefKind::CommonEvent];
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()
@@ -61,8 +61,6 @@ struct Manifest {
     characters: Vec<CharacterDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     structures: Vec<StructureDef>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    skills: Vec<crate::skills::SkillDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     spells: Vec<crate::skills::SpellDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -172,7 +170,7 @@ pub fn exists(db: &Database, a: &AssetRef) -> bool {
 
 /// Assets `a` refers to directly (only kinds that live in a bundle).
 pub fn deps(db: &Database, a: &AssetRef) -> Vec<AssetRef> {
-    db.refs_of(a.0, &a.1).into_iter().filter(|r| r.0 != RefKind::Map).collect()
+    db.refs_of(a.0, &a.1).into_iter().filter(|r| r.0.is_def()).collect()
 }
 
 /// All assets in a database, in dependency order.
@@ -210,11 +208,6 @@ pub fn script_roots(db: &Database, a: &AssetRef) -> Vec<String> {
     let mut out = Vec::new();
     let id = a.1.as_str();
     match a.0 {
-        RefKind::Skill => {
-            if let Some(crate::skills::SkillEffect::Script { function }) = db.skill(id).map(|d| &d.effect) {
-                out.push(function.clone());
-            }
-        }
         RefKind::Spell => {
             if let Some(crate::skills::SpellEffect::Script { function }) = db.spell(id).map(|d| &d.effect) {
                 out.push(function.clone());
@@ -285,7 +278,6 @@ impl Bundle {
             props: db.props.iter().filter(|d| has(RefKind::Prop, &d.id)).cloned().collect(),
             characters: db.characters.iter().filter(|d| has(RefKind::Character, &d.id)).cloned().collect(),
             structures: db.structures.iter().filter(|d| has(RefKind::Structure, &d.id)).cloned().collect(),
-            skills: db.skills.iter().filter(|d| has(RefKind::Skill, &d.id)).cloned().collect(),
             spells: db.spells.iter().filter(|d| has(RefKind::Spell, &d.id)).cloned().collect(),
             recipes: db.recipes.iter().filter(|d| has(RefKind::Recipe, &d.id)).cloned().collect(),
             races: db.races.iter().filter(|d| has(RefKind::Race, &d.id)).cloned().collect(),
@@ -386,7 +378,6 @@ impl Bundle {
             props: self.db.props.clone(),
             characters: self.db.characters.clone(),
             structures: self.db.structures.clone(),
-            skills: self.db.skills.clone(),
             spells: self.db.spells.clone(),
             recipes: self.db.recipes.clone(),
             races: self.db.races.clone(),
@@ -434,7 +425,7 @@ impl Bundle {
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
         }
-        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, skins: m.skins, common_events: m.common_events, ..Default::default() };
+        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, skins: m.skins, common_events: m.common_events, ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
         for rel in asset_files(&b.db).into_iter().chain(m.tilesets.iter().map(|t| t.image.clone())) {
             if !rel.is_empty() && !b.files.contains_key(&rel) {
@@ -537,14 +528,13 @@ impl Bundle {
         config.tile_size = self.tile_size;
         let mut out = vec![("project.ron".to_string(), crate::project::ron_text(&config)?.into_bytes())];
         let db = &self.db;
-        let defs: [(&str, String); 16] = [
+        let defs: [(&str, String); 15] = [
             ("sheets", crate::project::ron_text(&db.sheets)?),
             ("items", crate::project::ron_text(&db.items)?),
             ("props", crate::project::ron_text(&db.props)?),
             ("characters", crate::project::ron_text(&db.characters)?),
             ("sounds", crate::project::ron_text(&db.sounds)?),
             ("structures", crate::project::ron_text(&db.structures)?),
-            ("skills", crate::project::ron_text(&db.skills)?),
             ("spells", crate::project::ron_text(&db.spells)?),
             ("recipes", crate::project::ron_text(&db.recipes)?),
             ("races", crate::project::ron_text(&db.races)?),
@@ -678,7 +668,6 @@ impl Bundle {
         self.db.props.retain(|d| new(RefKind::Prop, &d.id));
         self.db.characters.retain(|d| new(RefKind::Character, &d.id));
         self.db.structures.retain(|d| new(RefKind::Structure, &d.id));
-        self.db.skills.retain(|d| new(RefKind::Skill, &d.id));
         self.db.spells.retain(|d| new(RefKind::Spell, &d.id));
         self.db.recipes.retain(|d| new(RefKind::Recipe, &d.id));
         self.db.races.retain(|d| new(RefKind::Race, &d.id));
@@ -870,7 +859,7 @@ impl Bundle {
     }
 }
 
-const LIBRARY_SCRIPT_HEADER: &str = "// Script functions that came with assets from the asset library or asset packages\n// (spells, skills, triggers). Edit them like any other script.\n";
+const LIBRARY_SCRIPT_HEADER: &str = "// Script functions that came with assets from the asset library or asset packages\n// (spells, triggers). Edit them like any other script.\n";
 
 /// Removes assets from a project-like store and deletes files nothing refers to anymore.
 /// Refuses (with the list of users) if other remaining assets depend on them.
@@ -891,7 +880,6 @@ pub fn remove_assets(project: &mut Project, assets: &[AssetRef]) -> Result<()> {
     db.props.retain(|d| keep(RefKind::Prop, &d.id));
     db.characters.retain(|d| keep(RefKind::Character, &d.id));
     db.structures.retain(|d| keep(RefKind::Structure, &d.id));
-    db.skills.retain(|d| keep(RefKind::Skill, &d.id));
     db.spells.retain(|d| keep(RefKind::Spell, &d.id));
     db.recipes.retain(|d| keep(RefKind::Recipe, &d.id));
     db.races.retain(|d| keep(RefKind::Race, &d.id));
@@ -1034,6 +1022,19 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
             n += 1;
         }
         let r = crate::convert_tiles::convert_project(dir, Some(&backup))?;
+        println!("[library] {}", r.summary());
+    }
+    // Libraries from before the SRD rules: skills become proficiencies (a copy is kept beside it).
+    if crate::srd_convert::needs_conversion(dir) {
+        let name = dir.file_name().map_or("library".into(), |n| n.to_string_lossy().into_owned());
+        let parent = dir.parent().unwrap_or(Path::new("."));
+        let mut backup = parent.join(format!("{name}-backup-srd"));
+        let mut n = 2;
+        while backup.exists() {
+            backup = parent.join(format!("{name}-backup-srd-{n}"));
+            n += 1;
+        }
+        let r = crate::srd_convert::convert_project(dir, Some(&backup))?;
         println!("[library] {}", r.summary());
     }
     let mut lib = Project::load(dir)?;
@@ -1381,7 +1382,6 @@ mod tests {
             props: vec![],
             characters: vec![],
             structures: vec![st],
-            skills: vec![],
             spells: vec![],
             recipes: vec![],
             races: vec![],

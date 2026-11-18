@@ -80,8 +80,10 @@ for how to use it all.
 - Companions who follow you, fight, carry and use their own gear, and take orders.
 
 **Gameplay**
-- Real-time melee and ranged combat, experience and levels, skills and spells, status effects.
-- Inventory, shops, chests, keys and a lockpicking minigame.
+- The SRD 5.1 rules: ability scores, skills and proficiency, ability checks and saving throws
+  (seedable dice, a roll log); real-time melee and ranged combat, experience and levels, spells,
+  status effects.
+- Inventory, shops, chests, keys and locks to pick (a DEX check).
 - Crafting, cooking and blacksmithing, gathering and mining, farming, fishing.
 - Keyboard, mouse and gamepad, named save games with pictures, autosave.
 

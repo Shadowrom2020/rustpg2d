@@ -1,5 +1,5 @@
 // Script functions that came with assets from the asset library or asset packages
-// (spells, skills, triggers). Edit them like any other script.
+// (spells, triggers). Edit them like any other script.
 
 // Fireball, a scripted spell (Database > Spells > Fireball, effect "Script"). Casting it calls
 // cast_fireball(); aim() lets the player click a target and calls fireball_at(x, y) with it (in
@@ -20,13 +20,6 @@ fn fireball_hit(x, y) {
     damage_area(x, y, 2, 5);
     // Embers glow on for a few seconds.
     light_at(x, y, 2, 4, #{ color: [255, 120, 50], flicker: true });
-}
-
-// Called by the slime's "Defeated" trigger (what slimes drop is set in their loot table).
-// A scripted skill effect (Database > Skills > Scavenging, effect "Script"): the engine calls
-// scavenging(level) whenever the level changes, and once when a game starts or loads.
-fn scavenging(level) {
-    set_var("scavenging", level);
 }
 
 // The baker's apple pies, baked at dawn.

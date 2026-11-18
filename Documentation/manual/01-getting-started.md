@@ -99,8 +99,9 @@ What you'll find in it:
   slime hunt), *The Lost Cat*, *Bread for the Festival*, *The Herbalist's Remedy*, *Rumours at
   the Tavern*, *Friend of the Elves*, *An Offering for the Shrine* and *A Home in Emberbrook*, which
   makes Halvar's old stone house yours to furnish (furniture from the sawhorse and Tilda's shop).
-- Skills, spells (among them a scripted Fireball), crafting, cooking, blacksmithing, mining,
-  farming, fishing, lockpicking, a companion, ten achievements, and a full German translation.
+- The SRD 5.1 rules (ability checks: a locked chest, the shrine's carvings, haggling with Tilda),
+  spells (among them a scripted Fireball), crafting, cooking, blacksmithing, mining, farming,
+  fishing, a companion, ten achievements, and a full German translation.
 
 Every asset of the example is also in your asset library, so you can use its art, characters and
 structures in your own games.

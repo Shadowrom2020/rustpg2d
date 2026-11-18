@@ -208,10 +208,9 @@ impl Game {
         let empty = Vec::new();
         let stock = self.saved_stock(uid).unwrap_or(&empty);
         let db = &self.project.db;
-        // Haggling: buying cheaper, selling better (never below 1).
-        let h = self.haggle_percent() / 100.0;
-        let cheaper = |p: u32| if p == 0 { 0 } else { ((p as f32 * (1.0 - h)).round() as u32).max(1) };
-        let better = |p: u32| ((p as f32 * (1.0 + h)).round() as u32).max(1);
+        // (Haggling is content since the SRD rules: a Persuasion check and the buy / sell hooks.)
+        let cheaper = |p: u32| p;
+        let better = |p: u32| p.max(1);
         match side {
             ShopSide::Merchant => stock
                 .iter()

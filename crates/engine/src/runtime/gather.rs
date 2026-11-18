@@ -10,7 +10,6 @@ use macroquad::prelude::*;
 use super::Game;
 use crate::events::runner::ActionHost;
 use crate::entity::EntityKind;
-use crate::skills::SkillEffect;
 
 /// Hits are forgotten after this many seconds without one.
 const FORGET: f32 = 4.0;
@@ -37,18 +36,9 @@ impl Game {
         (!used_up).then_some(g)
     }
 
-    /// Percent fewer hits for a tool kind from the player's *Gathering* skills.
-    fn gather_bonus(&self, tool: &str) -> f32 {
-        self.skill_sum(|e, l| match e {
-            SkillEffect::Gather { tool: t, percent } if t.is_empty() || t.eq_ignore_ascii_case(tool) => percent * l as f32,
-            _ => 0.0,
-        })
-        .clamp(0.0, 80.0)
-    }
-
-    /// Hits prop `i` needs with the player's skill.
+    /// Hits prop `i` needs.
     fn hits_needed(&self, g: &crate::defs::Gather) -> u32 {
-        ((g.hits.max(1) as f32) * (1.0 - self.gather_bonus(&g.tool) / 100.0)).ceil().max(1.0) as u32
+        g.hits.max(1)
     }
 
     /// E or a swing at prop `i`: a gathering hit if it gathers. Returns true if it does (the

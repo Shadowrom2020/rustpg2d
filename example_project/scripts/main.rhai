@@ -21,7 +21,7 @@
 //               quest_done(id)
 // Player:       player_name() player_sex() ("male"/"female") is_female() is_male()
 //               text("...") fills in placeholders: {player} {sir|madam} {variable}
-// Skills/magic: skill(id) skill_points() knows_spell(id) mana(); queued: set_skill(id, level)
+// Rules (SRD 5.1): check("persuasion", 12) save("dex", 14) roll("2d6") modifier("str") is_proficient(id); magic: knows_spell(id) mana()
 //               give_skill_points(n) learn_spell(id) add_mana(n) damage_around(dmg, radius)
 //               player_light(radius, seconds, #{ color: [r, g, b], flicker })
 //               heal_area(x, y, radius, n) light_at(x, y, radius, seconds, #{ ... })
@@ -72,6 +72,17 @@ fn shrine_touch() {
         say("The shrine glows softly. The forest is calm.");
         return;
     }
+    // The first look: an Intelligence (Religion) check reads its carvings (the SRD rules).
+    if !flag("shrine_studied") {
+        set_flag("shrine_studied", true);
+        if check("religion", 12) {
+            set_flag("shrine_lore", true);
+            say("The carvings tell of Emberbrook's old harvest rite: the shrine wakes for those who come to it in need.");
+            give_xp(15);
+        } else {
+            say("Weathered carvings cover the stone. Their meaning escapes you.");
+        }
+    }
     if !flag("quest_accepted") {
         say("An old stone shrine. It seems dormant.");
         return;
@@ -117,18 +128,8 @@ fn shrine_awakening() {
 }
 
 // Called by the slime's "Defeated" trigger (what slimes drop is set in their loot table).
-// A scripted skill effect (Database > Skills > Scavenging, effect "Script"): the engine calls
-// scavenging(level) whenever the level changes, and once when a game starts or loads.
-fn scavenging(level) {
-    set_var("scavenging", level);
-}
-
 fn slime_defeated() {
     add_var("slimes_defeated", 1);
-    // Scavenging (a scripted skill) adds a coin per level to every slime.
-    if get_var("scavenging") > 0 {
-        give_item("coin", get_var("scavenging"));
-    }
     // Tilda's quest counts slimes once it was accepted (its first step is done at five).
     if quest_active("pest_control") && quest_stage("pest_control") == 0 {
         add_var("pest_slimes", 1);

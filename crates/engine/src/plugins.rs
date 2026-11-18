@@ -386,9 +386,26 @@ pub fn merge_missing(db: &mut crate::defs::Database, from: crate::defs::Database
 
 /// Every file of a plugin folder: paths relative to the folder (`/` separators), sorted.
 pub fn folder_files(root: &Path, id: &str) -> Result<Vec<String>> {
-    crate::pack::dir_files(&plugin_dir(root, id))
+    fn walk(dir: &Path, prefix: &str, out: &mut Vec<String>) -> Result<()> {
+        for e in std::fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
+            let e = e?;
+            let name = e.file_name().to_string_lossy().into_owned();
+            let rel = if prefix.is_empty() { name } else { format!("{prefix}/{name}") };
+            if e.file_type()?.is_dir() {
+                walk(&e.path(), &rel, out)?;
+            } else {
+                out.push(rel);
+            }
+        }
+        Ok(())
+    }
+    let mut out = Vec::new();
+    walk(&plugin_dir(root, id), "", &mut out)?;
+    out.sort();
+    Ok(out)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A `.r2dplugin` of `plugins/<id>`: the folder's files under `<id>/`.
 pub fn pack(root: &Path, id: &str) -> Result<Vec<u8>> {
     let dir = plugin_dir(root, id);
@@ -453,6 +470,7 @@ pub fn install(project: &mut Project, id: &str, def: &PluginDef, files: &[(Strin
     Ok(Installed { id: id.to_string(), name: def.name.clone(), version: def.version.clone(), replaced })
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// Installs the plugin of another folder (the asset library's `plugins/<id>`).
 pub fn install_from(project: &mut Project, from_root: &Path, id: &str) -> Result<Installed> {
     let def = read_def(from_root, id)?;
@@ -470,6 +488,7 @@ pub fn remove(project: &mut Project, id: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// Copies the starter set's plugins into a library folder: those it lacks and newer versions of
 /// those it has (an edited plugin of the same version stays).
 pub fn sync_from_files(files: &crate::library::LibraryFiles, root: &Path) -> Result<Vec<String>> {

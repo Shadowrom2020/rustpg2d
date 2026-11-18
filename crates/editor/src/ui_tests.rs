@@ -372,6 +372,29 @@ fn a_skin_is_defined_and_chosen() {
 }
 
 #[test]
+fn a_common_event_runs_while_a_flag_is_set() {
+    use rustpg2d_engine::common_events::CommonTrigger;
+    let root = example_copy("common");
+    let k = Project::load(&root).unwrap().db.common_events.iter().position(|d| d.id == "quest_reward").expect("the example's common event");
+    let mut h = harness(&root, Tab::CommonEvents, k);
+    step(&mut h);
+    // Its actions are edited like a trigger's.
+    assert!(h.query_by_label("2.").is_some() && h.query_by_label("3.").is_none(), "its two actions are listed");
+    // Runs: parallel while a flag is set.
+    beside(&h, "Runs", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("Parallel while flag") && n.role() != Role::ComboBox).click();
+    step(&mut h);
+    beside(&h, "flag", |n| n.role() == Role::TextInput).type_text("cheering");
+    step(&mut h);
+    unfocus(&mut h);
+    assert_eq!(h.state().project.db.common_events[k].trigger, CommonTrigger::Parallel { flag: "cheering".into() });
+    h.state_mut().save_all();
+    assert_eq!(Project::load(&root).unwrap().db.common_events[k].trigger, CommonTrigger::Parallel { flag: "cheering".into() });
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn menu_entries_are_changed_and_saved() {
     use rustpg2d_engine::menus::{MenuEntry, PauseMenu};
     let root = example_copy("menus");

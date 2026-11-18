@@ -61,6 +61,14 @@ def_facts!(rustpg2d_engine::skin::SkinDef, |d| {
     let colors = d.text.normal.iter().chain(&d.text.highlight).count() + d.colors.len();
     format!("{}; {} colours set", if pics.is_empty() { "no pictures".to_string() } else { pics.join(", ") }, colors)
 });
+def_facts!(rustpg2d_engine::common_events::CommonEventDef, |d| {
+    let runs = match &d.trigger {
+        rustpg2d_engine::common_events::CommonTrigger::Call => "when called".to_string(),
+        rustpg2d_engine::common_events::CommonTrigger::Parallel { flag } => format!("parallel while flag {flag}"),
+        rustpg2d_engine::common_events::CommonTrigger::Autorun { flag } => format!("autorun while flag {flag}"),
+    };
+    format!("{} actions; runs {runs}", d.actions.len())
+});
 def_facts!(SheetDef, |d| {
     let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
     let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
@@ -265,6 +273,10 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Skin => (
             val(&rustpg2d_engine::skin::SkinDef { frame: Some(rustpg2d_engine::skin::NineSlice::new("<sheet>")), ..rustpg2d_engine::skin::SkinDef::fresh(id) }),
             "A UI skin; every part is optional (left out = the built-in look). Pictures are nine-slices {sheet, frame, corner (corner size in picture px, 4), scale (screen px per picture px, 2), tile (repeat edges / middle instead of stretching)} of a sprite sheet: frame (every window and menu panel), dialog (dialog / choice box; none = frame), name_box (a box for the speaker's name on the dialog box's top edge), hud (the HUD panel; none = frame), button, button_hover (also the open tab), cursor (the selection marker of menus, lists, slots), toast, hp.frame (behind the hearts), mana.frame, xp.frame (around those bars). Colours are \"#rrggbb\" or \"#rrggbbaa\": background, border (panels without a picture), button_fill, button_hover_fill, cursor_fill, toast_fill, toast_text, text {normal, dim, highlight, disabled, title, positive, negative}, hp/mana/xp {fill, back} (hp = the hearts), colors: [[name, colour], …] = colour names for dialog texts ({c:name}). The project's `skin` (set_project_config) picks the one the game uses; empty = built in. High contrast (Options) always shows the built-in look.",
+        ),
+        RefKind::CommonEvent => (
+            val(&rustpg2d_engine::common_events::CommonEventDef { actions: vec![rustpg2d_engine::events::Action::Wait { seconds: 1.0 }], ..rustpg2d_engine::common_events::CommonEventDef::fresh(id) }),
+            "A common event: name; trigger: Call (only when an action CallCommon {id} or call_common(\"id\") runs it) | {Parallel: {flag}} (its actions again and again while the flag is set, beside play, in a queue of its own; clearing the flag stops it at once) | {Autorun: {flag}} (queued into the main event queue whenever it is idle while the flag is set: the player waits; clear the flag in its actions to end it); actions: the same actions as triggers (see the actions resource).",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
     }
@@ -610,6 +622,7 @@ impl Editor {
             RefKind::Recipe => Some(rustpg2d_engine::script_refs::IdKind::Recipe),
             RefKind::Achievement => Some(rustpg2d_engine::script_refs::IdKind::Achievement),
             RefKind::Prop => Some(rustpg2d_engine::script_refs::IdKind::Prop),
+            RefKind::CommonEvent => Some(rustpg2d_engine::script_refs::IdKind::CommonEvent),
             _ => None,
         };
         if let Some(ik) = id_kind {

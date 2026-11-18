@@ -131,6 +131,9 @@ crates/engine/src/      library: everything shared by game and editor
   routes.rs             move routes: RouteStep (move, toward / away, turn, wait, jump, speed, anim, sound,
                         through, script; summary / parse); runtime/routes.rs runs them (Action::MoveRoute,
                         routes end with the map, hop drawing, route clips)
+  common_events.rs      CommonEventDef (defs/common_events.ron): name, CommonTrigger (Call | Parallel{flag} |
+                        Autorun{flag}), actions; Action::CallCommon inserts them; runtime/common.rs runs the
+                        parallel ones (own ActionRunner each, Game.common_runs) and queues autorun ones
   runtime/input_box.rs  Input number / Input text: the window, its input, status input=; WorldState.texts = text
                         variables ({name} placeholders, Cond::TextVar, get_text / set_text)
   timers.rs             timers: Timer (left, shown, function / event at the end), tick, clock

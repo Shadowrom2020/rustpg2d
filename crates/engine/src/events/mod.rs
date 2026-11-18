@@ -766,6 +766,8 @@ pub enum Action {
         #[serde(default)]
         wait: bool,
     },
+    /// Runs a common event's actions here, as if they stood in this list.
+    CallCommon { id: String },
 }
 
 fn nine_nine_nine() -> i64 {
@@ -948,6 +950,7 @@ impl Action {
             Action::InputNumber { .. } => "Input number",
             Action::InputText { .. } => "Input text",
             Action::MoveRoute { .. } => "Move route",
+            Action::CallCommon { .. } => "Call common event",
         }
     }
 
@@ -1053,6 +1056,7 @@ impl Action {
             Action::InputNumber { text: "How many?".into(), var: "answer".into(), digits: 0, min: 0, max: 999 },
             Action::InputText { text: "What is your name?".into(), var: "name".into(), max_len: 16 },
             Action::MoveRoute { target: "self".into(), steps: vec![crate::routes::RouteStep::Move { dir: crate::entity::Facing::Down, tiles: 1 }], repeat: false, skip_blocked: true, wait: true },
+            Action::CallCommon { id: s() },
         ]
     }
 }

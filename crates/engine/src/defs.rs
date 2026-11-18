@@ -1637,6 +1637,8 @@ pub struct Database {
     pub fonts: Vec<crate::fonts::FontDef>,
     /// UI skins (`ProjectConfig::skin` picks the one the game uses).
     pub skins: Vec<crate::skin::SkinDef>,
+    /// Common events: named action lists (*Call common event*, parallel / autorun ones).
+    pub common_events: Vec<crate::common_events::CommonEventDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -1776,6 +1778,9 @@ impl Database {
     }
     pub fn skin(&self, id: &str) -> Option<&crate::skin::SkinDef> {
         self.skins.iter().find(|d| d.id == id)
+    }
+    pub fn common_event(&self, id: &str) -> Option<&crate::common_events::CommonEventDef> {
+        self.common_events.iter().find(|d| d.id == id)
     }
 
     pub fn material(&self, id: &str) -> Option<&crate::ground::MaterialDef> {
@@ -1962,6 +1967,7 @@ impl_def!(crate::ground::MaterialDef, crate::refactor::RefKind::Material, materi
 impl_def!(crate::decor::ScatterDef, crate::refactor::RefKind::Scatter, scatter, refs = crate::refactor::refs_of_scatter);
 impl_def!(crate::fonts::FontDef, crate::refactor::RefKind::Font, fonts);
 impl_def!(crate::skin::SkinDef, crate::refactor::RefKind::Skin, skins, refs = crate::refactor::refs_of_skin);
+impl_def!(crate::common_events::CommonEventDef, crate::refactor::RefKind::CommonEvent, common_events, refs = crate::refactor::refs_of_common_event);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map`, which is no definition.
@@ -2039,6 +2045,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Skin => {
                 type $T = $crate::skin::SkinDef;
+                $body
+            }
+            $crate::refactor::RefKind::CommonEvent => {
+                type $T = $crate::common_events::CommonEventDef;
                 $body
             }
             $crate::refactor::RefKind::Map => $else,

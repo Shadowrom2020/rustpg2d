@@ -735,6 +735,8 @@ pub struct Refs {
     pub spells: Vec<String>,
     /// Race ids (Database › Races).
     pub races: Vec<String>,
+    /// Common event ids (Database › Common events).
+    pub common_events: Vec<String>,
     /// Faction ids (Database › Project › Factions).
     pub factions: Vec<String>,
     /// Crafting stations named by recipes.
@@ -1995,6 +1997,9 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 ui.add(egui::TextEdit::singleline(event).desired_width(130.0).hint_text("(custom event)"));
             });
             ui.weak("(pauses while a menu or a dialog is open; saved; starting it again restarts it)");
+        }
+        Action::CallCommon { id: ce } => {
+            labeled(ui, "common event", |ui| suggest(ui, &format!("{id}/ce"), ce, &refs.common_events, 160.0));
         }
         Action::StopTimer { name } => {
             labeled(ui, "timer", |ui| {

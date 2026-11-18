@@ -455,6 +455,7 @@ impl Editor {
             RefKind::Recipe => Some(rustpg2d_engine::script_refs::IdKind::Recipe),
             RefKind::Achievement => Some(rustpg2d_engine::script_refs::IdKind::Achievement),
             RefKind::Prop => Some(rustpg2d_engine::script_refs::IdKind::Prop),
+            RefKind::CommonEvent => Some(rustpg2d_engine::script_refs::IdKind::CommonEvent),
             RefKind::Map => Some(rustpg2d_engine::script_refs::IdKind::Map),
             _ => None,
         };

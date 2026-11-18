@@ -33,6 +33,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   a hop), speed, animation clips, sounds, walking through walls, scripts; skip blocked steps or
   wait, repeat, wait for it. Scripts: `move_route(target, ["move right 3", "jump 0,0", …])`;
   `status` prints `routes=`. The example's guard hops for joy in the intro.
+- **Common events** (*Database › Common events*, `defs/common_events.ron`): named action lists kept
+  once and used anywhere. *Call common event* (and `call_common(id)` in scripts) runs one in place
+  with the caller's *self*; with a flag one also runs by itself: *parallel* (again and again
+  beside play, in its own queue) or *autorun* (whenever no other event runs, holding the player
+  until its actions clear the flag). Renames, *Usages*, the script check and library export know
+  them; `status` prints `common=`. The example's seven quest rewards share one, `quest_reward`
+  (also in the starter library).
 
 ## 0.25.0 — 2026-11-18
 

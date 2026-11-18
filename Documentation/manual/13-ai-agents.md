@@ -110,7 +110,7 @@ bats and a chest".
 ### Definitions
 | Tool | Does |
 |---|---|
-| `list_defs {kind, filter, offset}` | `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `skills`, `spells`, `recipes`, `achievements`, `races`, `models`, `materials`, `scatter`, `fonts`, `skins` (UI skins: their pictures and colours; `def_template skins` explains the fields, `set_project_config {skin}` picks the game's): id and key facts per line. |
+| `list_defs {kind, filter, offset}` | `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `skills`, `spells`, `recipes`, `achievements`, `races`, `models`, `materials`, `scatter`, `fonts`, `skins` (UI skins: their pictures and colours; `def_template skins` explains the fields, `set_project_config {skin}` picks the game's), `common_events` (named action lists: *Call common event*, parallel / autorun while a flag is set): id and key facts per line. |
 | `get_def {kind, id}` | JSON. |
 | `def_template {kind, id}` | A complete new definition to fill in, with notes on the fields. |
 | `upsert_def {kind, def, merge}` | Create or replace (or merge fields into) a definition; checks referenced ids, image / sound files and the definition's own triggers; materials, sheets and sounds reload the editor's textures. |
@@ -147,7 +147,7 @@ screenshots as images. The game opens a real window on the person's screen for t
 ### Asset library
 | Tool | Does |
 |---|---|
-| `library_list {kind, filter, offset}` | Ready-made assets (materials, scatter sets, sheets, items, props, characters, sounds, fonts, UI skins, structures, skills, spells, recipes) with what each needs and whether it is in the project. |
+| `library_list {kind, filter, offset}` | Ready-made assets (materials, scatter sets, sheets, items, props, characters, sounds, fonts, UI skins, common events, structures, skills, spells, recipes) with what each needs and whether it is in the project. |
 | `library_info {kind, id}` | One asset as JSON with its dependencies. |
 | `library_add {assets: [{kind, id}]}` | Copies assets with everything they need (sheets, sounds, script functions) into the project. |
 | `library_send {assets: [{kind, id}], replace, drop_script_triggers}` | Sends project assets with everything they need to the library. An id the library has already gets a numbered copy, or with `replace` its definition, files and script functions are updated. `drop_script_triggers` leaves the triggers of items, props and characters that run the project's script functions behind (story scripts stay with the game). The library is `$RUSTPG2D_LIBRARY` or the user's own one. |

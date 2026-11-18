@@ -117,6 +117,8 @@ across map changes and in save games.
   the event goes on when it is done. A new route replaces the character's current one; routes end
   when the map changes. The example's guard hops for joy in the intro.
 - **Play sound**, **Play music**, **Shake the screen**.
+- **Call common event**: runs a common event's actions here, as if they stood in this list
+  ([The Database › Common events](05-database.md#common-events)).
 - **Show image** / **Hide image**: a picture over the game (below).
 - **Show picture**, **Move picture**, **Erase picture**: picture layers, moved and faded (below).
 - **Input number**: a window asks the player for a whole number (from, to, at most so many digits;

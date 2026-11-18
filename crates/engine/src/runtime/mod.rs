@@ -8,6 +8,7 @@ mod combat;
 mod companion_ui;
 mod companions;
 mod companion_magic;
+mod common;
 mod cutscene;
 mod dev;
 mod effects;
@@ -507,6 +508,8 @@ pub struct Game {
     input_box: Option<input_box::InputBox>,
     /// Running move routes (not saved: they end with the map).
     routes: Vec<routes::RouteRun>,
+    /// The parallel common events running now (their own queues; not saved).
+    common_runs: std::collections::BTreeMap<String, ActionRunner>,
     creator: Option<creator::Creator>,
     menu: menu::Menu,
     pub world: WorldState,
@@ -669,6 +672,7 @@ impl Game {
             script_window: None,
             input_box: None,
             routes: Vec::new(),
+            common_runs: Default::default(),
             creator: None,
             menu: Default::default(),
             world: WorldState::default(),
@@ -1831,6 +1835,7 @@ impl Game {
         // of characters a 'Damage area' defeats) went to the stand-in runner: keep them.
         let queued = std::mem::replace(&mut self.runner, runner);
         self.runner.append(queued);
+        self.update_common_events(dt);
         self.take_window_request();
         self.furniture_answered();
         if !self.on_title() {
@@ -2473,7 +2478,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2543,6 +2548,7 @@ impl Game {
             self.input_status(),
             self.world.texts,
             self.routes_status(),
+            self.common_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2674,6 +2680,7 @@ impl Game {
         self.world = world;
         self.prepare_world();
         self.runner.clear();
+        self.reset_common_events();
         self.ui = Ui::default();
         self.inv = Default::default();
         self.game_over = None;
@@ -3185,6 +3192,7 @@ impl ActionHost for Game {
                 self.erase_picture(*layer);
                 Step::Continue
             }
+            Action::CallCommon { id } => Step::Insert(self.common_actions(id, ctx)),
             Action::MoveRoute { target, steps, repeat, skip_blocked, wait } => {
                 if self.start_route(target, ctx.owner, steps, *repeat, *skip_blocked, *wait) {
                     Step::Block

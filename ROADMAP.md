@@ -280,7 +280,7 @@ The event commands creators expect from other makers.
   **Verify.** `status` prints `routes=who:step/steps`; a route in a cut-scene; a blocked route
   skips on.
 
-- [ ] Common events — `feature/common-events`
+- [x] Common events — `feature/common-events`
 
   **Goal.** Reusable action lists, picked in the editor instead of written as script functions.
 
@@ -298,6 +298,19 @@ The event commands creators expect from other makers.
   runner of parallel / autorun events, the Database tab.
 
   **Example.** A reward routine the example's quests share becomes a common event.
+
+  **Decided while building.**
+  - *Call common event* inserts the actions in place with the caller's context (owner, used
+    item), so `self` and `self_name()` mean the caller: the quests' reward routine still thanks the
+    giver.
+  - Parallel events run in one action queue each (`Game.common_runs`), started again when it is
+    empty; clearing the flag drops the queue at once. Autorun events are pushed into the main
+    queue whenever it is idle, which freezes the player as any event does; the first autorun event
+    with its flag set wins. Neither runs on the title screen; they run on every map and restart
+    after loading (their queues aren't saved).
+  - Script functions refer to common events by id (`Arg::Common`, `IdKind::CommonEvent`): renames,
+    completion and the script check know them. Library bundles carry a common event's script
+    functions (`script_roots`).
 
   **Verify.** A called event, a parallel one and an autorun one in autoplay; `status` prints
   `common=`.

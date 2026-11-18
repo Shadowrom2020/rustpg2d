@@ -94,8 +94,8 @@
                     seconds: 0.0,
                     wait: false,
                 ),
-                RunScript(
-                    function: "quest_thanks",
+                CallCommon(
+                    id: "quest_reward",
                 ),
             ],
         ),
@@ -176,8 +176,8 @@
             ],
             skill_points: 1,
             actions: [
-                RunScript(
-                    function: "quest_thanks",
+                CallCommon(
+                    id: "quest_reward",
                 ),
             ],
         ),
@@ -287,8 +287,8 @@
                 ),
             ],
             actions: [
-                RunScript(
-                    function: "quest_thanks",
+                CallCommon(
+                    id: "quest_reward",
                 ),
             ],
         ),
@@ -399,8 +399,8 @@
             ],
             skill_points: 1,
             actions: [
-                RunScript(
-                    function: "quest_thanks",
+                CallCommon(
+                    id: "quest_reward",
                 ),
             ],
         ),
@@ -563,8 +563,8 @@
                     name: "pip_cured",
                     value: true,
                 ),
-                RunScript(
-                    function: "quest_thanks",
+                CallCommon(
+                    id: "quest_reward",
                 ),
             ],
         ),
@@ -805,8 +805,8 @@
                 ),
             ],
             actions: [
-                RunScript(
-                    function: "quest_thanks",
+                CallCommon(
+                    id: "quest_reward",
                 ),
             ],
         ),
@@ -929,8 +929,8 @@
                 RunScript(
                     function: "own_stone_house",
                 ),
-                RunScript(
-                    function: "quest_thanks",
+                CallCommon(
+                    id: "quest_reward",
                 ),
             ],
         ),

@@ -410,6 +410,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         c.world.timers.insert(name.to_string(), crate::timers::Timer::new(num(&secs), shown, &s("run"), &s("event")));
     }));
     engine.register_fn("timer_left", with!(ctx, |c, name: &str| c.world.timers.get(name).map_or(0.0, |t| t.left as rhai::FLOAT)));
+    engine.register_fn("call_common", with!(ctx, |c, id: &str| c.actions.push(Action::CallCommon { id: id.to_string() })));
     engine.register_fn("timer_stop", with!(ctx, |c, name: &str| {
         c.world.timers.remove(name);
     }));

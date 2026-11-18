@@ -345,6 +345,7 @@ fn name_the_horse() {
 | `choice(text, options, var)` | Asks a question with answers `["Yes", "No"]`; the chosen index (0 = first) goes into variable `var`. *(queued, blocks)* |
 | `wait(seconds)` | Pauses the queue. *(queued, blocks)* |
 | `then_call(function)` | Calls another script function when the queue gets there. *(queued)* |
+| `call_common(id)` | Runs a common event's actions ([The Database › Common events](05-database.md#common-events)) when the queue gets there, e.g. `call_common("quest_reward");`. *(queued)* |
 | `emit(event)` | Fires a custom event: triggers *On Custom event* with that name run before the rest of the queue. *(queued)* |
 | `text(text)` | Returns the text with [placeholders](#positions-numbers-and-text) filled in. |
 | `random(n)` | A random whole number from `0` to `n - 1`. |

@@ -35,7 +35,7 @@ const PACK_VERSION: u32 = 1;
 pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
-pub const KINDS: [RefKind; 15] = [RefKind::Font, RefKind::Sound, RefKind::Material, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race, RefKind::Skin];
+pub const KINDS: [RefKind; 16] = [RefKind::Font, RefKind::Sound, RefKind::Material, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Skill, RefKind::Spell, RefKind::Recipe, RefKind::Race, RefKind::Skin, RefKind::CommonEvent];
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()
@@ -79,6 +79,8 @@ struct Manifest {
     fonts: Vec<crate::fonts::FontDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     skins: Vec<crate::skin::SkinDef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    common_events: Vec<crate::common_events::CommonEventDef>,
     /// Script functions by name (their whole source text).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     scripts: BTreeMap<String, String>,
@@ -221,6 +223,7 @@ pub fn script_roots(db: &Database, a: &AssetRef) -> Vec<String> {
         RefKind::Item => triggers(db.item(id).map_or(&[][..], |d| &d.on_use), &mut out),
         RefKind::Prop => triggers(db.prop(id).map_or(&[][..], |d| &d.triggers), &mut out),
         RefKind::Character => triggers(db.character(id).map_or(&[][..], |d| &d.triggers), &mut out),
+        RefKind::CommonEvent => actions(db.common_event(id).map_or(&[][..], |d| &d.actions), &mut out),
         _ => {}
     }
     out.retain(|f| !f.is_empty());
@@ -291,6 +294,7 @@ impl Bundle {
             scatter: db.scatter.iter().filter(|d| has(RefKind::Scatter, &d.id)).cloned().collect(),
             fonts: db.fonts.iter().filter(|d| has(RefKind::Font, &d.id)).cloned().collect(),
             skins: db.skins.iter().filter(|d| has(RefKind::Skin, &d.id)).cloned().collect(),
+            common_events: db.common_events.iter().filter(|d| has(RefKind::CommonEvent, &d.id)).cloned().collect(),
             quests: Vec::new(),
             achievements: Vec::new(),
             ..Default::default()
@@ -391,6 +395,7 @@ impl Bundle {
             scatter: self.db.scatter.clone(),
             fonts: self.db.fonts.clone(),
             skins: self.db.skins.clone(),
+            common_events: self.db.common_events.clone(),
             scripts: self.scripts.clone(),
         };
         let manifest = crate::project::ron_text(&m)?;
@@ -429,7 +434,7 @@ impl Bundle {
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
         }
-        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, skins: m.skins, ..Default::default() };
+        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, skills: m.skills, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, skins: m.skins, common_events: m.common_events, ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
         for rel in asset_files(&b.db).into_iter().chain(m.tilesets.iter().map(|t| t.image.clone())) {
             if !rel.is_empty() && !b.files.contains_key(&rel) {
@@ -532,7 +537,7 @@ impl Bundle {
         config.tile_size = self.tile_size;
         let mut out = vec![("project.ron".to_string(), crate::project::ron_text(&config)?.into_bytes())];
         let db = &self.db;
-        let defs: [(&str, String); 15] = [
+        let defs: [(&str, String); 16] = [
             ("sheets", crate::project::ron_text(&db.sheets)?),
             ("items", crate::project::ron_text(&db.items)?),
             ("props", crate::project::ron_text(&db.props)?),
@@ -548,6 +553,7 @@ impl Bundle {
             ("scatter", crate::project::ron_text(&db.scatter)?),
             ("fonts", crate::project::ron_text(&db.fonts)?),
             ("skins", crate::project::ron_text(&db.skins)?),
+            ("common_events", crate::project::ron_text(&db.common_events)?),
         ];
         out.extend(defs.into_iter().map(|(n, t)| (format!("defs/{n}.ron"), t.into_bytes())));
         if !self.scripts.is_empty() {
@@ -893,6 +899,7 @@ pub fn remove_assets(project: &mut Project, assets: &[AssetRef]) -> Result<()> {
     db.scatter.retain(|d| keep(RefKind::Scatter, &d.id));
     db.fonts.retain(|d| keep(RefKind::Font, &d.id));
     db.skins.retain(|d| keep(RefKind::Skin, &d.id));
+    db.common_events.retain(|d| keep(RefKind::CommonEvent, &d.id));
     let files_after = files_of(&project.db);
     for f in files_before.difference(&files_after) {
         if safe_rel(f) {
@@ -1377,6 +1384,7 @@ mod tests {
             scatter: vec![],
             fonts: vec![],
             skins: vec![],
+            common_events: vec![],
             scripts: BTreeMap::new(),
         };
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));

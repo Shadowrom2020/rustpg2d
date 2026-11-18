@@ -32,6 +32,8 @@ pub enum IdKind {
     Achievement,
     /// A prop definition.
     Prop,
+    /// A common event.
+    CommonEvent,
 }
 
 impl IdKind {
@@ -50,6 +52,7 @@ impl IdKind {
             IdKind::Recipe => "recipe",
             IdKind::Achievement => "achievement",
             IdKind::Prop => "prop",
+            IdKind::CommonEvent => "common event",
         }
     }
     /// The definition kind renamed together with this id kind.
@@ -64,6 +67,7 @@ impl IdKind {
             IdKind::Character => Some(RefKind::Character),
             IdKind::Recipe => Some(RefKind::Recipe),
             IdKind::Prop => Some(RefKind::Prop),
+            IdKind::CommonEvent => Some(RefKind::CommonEvent),
             _ => None,
         }
     }
@@ -553,6 +557,7 @@ pub fn check_script(src: &str, db: &Database, maps: &[String], spawns: &HashMap<
             IdKind::Recipe => db.recipe(v).is_some(),
             IdKind::Achievement => db.achievement(v).is_some(),
             IdKind::Prop => db.prop(v).is_some(),
+            IdKind::CommonEvent => db.common_event(v).is_some(),
         };
         if !known {
             let extra = match kind {

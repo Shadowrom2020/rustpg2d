@@ -36,12 +36,14 @@ pub enum RefKind {
     Font,
     /// UI skin (`skin::SkinDef`).
     Skin,
+    /// Common event (`common_events::CommonEventDef`).
+    CommonEvent,
 }
 
 impl RefKind {
-    /// Every kind: the seventeen definition lists in `defs/` file order ([`crate::project::DEFS`]),
+    /// Every kind: the eighteen definition lists in `defs/` file order ([`crate::project::DEFS`]),
     /// then `Map`.
-    pub const ALL: [RefKind; 18] = [
+    pub const ALL: [RefKind; 19] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -59,10 +61,11 @@ impl RefKind {
         RefKind::Scatter,
         RefKind::Font,
         RefKind::Skin,
+        RefKind::CommonEvent,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 17] = [
+    pub const DEFS: [RefKind; 18] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -80,6 +83,7 @@ impl RefKind {
         RefKind::Scatter,
         RefKind::Font,
         RefKind::Skin,
+        RefKind::CommonEvent,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -103,6 +107,7 @@ impl RefKind {
             RefKind::Scatter => "scatter",
             RefKind::Font => "font",
             RefKind::Skin => "skin",
+            RefKind::CommonEvent => "common_event",
         }
     }
 
@@ -126,6 +131,7 @@ impl RefKind {
             RefKind::Scatter => "scatter",
             RefKind::Font => "fonts",
             RefKind::Skin => "skins",
+            RefKind::CommonEvent => "common_events",
             RefKind::Map => return None,
         })
     }
@@ -151,6 +157,7 @@ impl RefKind {
             RefKind::Scatter => "Scatter set",
             RefKind::Font => "Font",
             RefKind::Skin => "UI skin",
+            RefKind::CommonEvent => "Common event",
         }
     }
 
@@ -176,6 +183,7 @@ impl RefKind {
             "scatter" | "scatter set" | "scatter_set" => RefKind::Scatter,
             "font" => RefKind::Font,
             "skin" | "ui skin" | "ui_skin" => RefKind::Skin,
+            "common_event" | "common event" | "commonevent" => RefKind::CommonEvent,
             _ => return None,
         })
     }
@@ -428,6 +436,7 @@ impl Renamer<'_> {
             Action::Equip { item, .. } | Action::GiveItemTo { item, .. } | Action::TakeItemFrom { item, .. } | Action::ShopStock { item, .. } => self.fix(RefKind::Item, item),
             Action::Teleport { map, .. } | Action::SetSpawners { map, .. } | Action::SetWeather { map, .. } => self.fix(RefKind::Map, map),
             Action::PlaySound { sound } | Action::PlayMusic { sound } => self.fix(RefKind::Sound, sound),
+            Action::CallCommon { id } => self.fix(RefKind::CommonEvent, id),
             Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
             Action::ShowImage { sheet, .. } | Action::ShowPicture { sheet, .. } => self.fix(RefKind::Sheet, sheet),
             Action::TeachSpell { spell, .. } => self.fix(RefKind::Spell, spell),
@@ -535,6 +544,9 @@ pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind
         r.fix(RefKind::Font, s);
     }
     r.fix(RefKind::Skin, &mut config.skin);
+    for d in &mut db.common_events {
+        r.actions(&mut d.actions);
+    }
     // The title screen's map, pictures and music.
     let t = &mut config.title;
     match &mut t.background {
@@ -598,6 +610,14 @@ pub fn rename_in_map(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usiz
 
 fn collector() -> Renamer<'static> {
     Renamer { kind: RefKind::Map, old: "", new: "", count: 0, found: Some(Vec::new()) }
+}
+
+/// What a common event's actions use (items, sounds, other common events, ...).
+pub fn refs_of_common_event(d: &crate::common_events::CommonEventDef) -> Vec<(RefKind, String)> {
+    let mut acts = d.actions.clone();
+    let mut r = collector();
+    r.actions(&mut acts);
+    r.found.unwrap_or_default()
 }
 
 /// Everything an item definition refers to (icon / projectile sheets, ammo, items and sounds used

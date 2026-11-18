@@ -1,0 +1,18 @@
+[
+    (
+        id: "quest_reward",
+        name: "Quest reward",
+        trigger: Call,
+        actions: [
+            Emote(
+                target: "player",
+                emotion: "joy",
+                seconds: 2.0,
+                wait: false,
+            ),
+            RunScript(
+                function: "quest_thanks",
+            ),
+        ],
+    ),
+]

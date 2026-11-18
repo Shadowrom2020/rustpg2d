@@ -36,6 +36,7 @@ pub enum Tab {
     Scatter,
     Fonts,
     Skins,
+    CommonEvents,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -58,6 +59,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Scatter => db.scatter.len(),
         Tab::Fonts => db.fonts.len(),
         Tab::Skins => db.skins.len(),
+        Tab::CommonEvents => db.common_events.len(),
         Tab::Project | Tab::Scripts => 0,
     }
 }
@@ -103,6 +105,7 @@ impl Tab {
             Tab::Scatter => RefKind::Scatter,
             Tab::Fonts => RefKind::Font,
             Tab::Skins => RefKind::Skin,
+            Tab::CommonEvents => RefKind::CommonEvent,
             Tab::Project | Tab::Scripts => return None,
         })
     }
@@ -127,6 +130,7 @@ impl Tab {
             RefKind::Scatter => Tab::Scatter,
             RefKind::Font => Tab::Fonts,
             RefKind::Skin => Tab::Skins,
+            RefKind::CommonEvent => Tab::CommonEvents,
             RefKind::Map => return None,
         })
     }
@@ -235,6 +239,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Scatter => ph::TREE_EVERGREEN,
         Tab::Fonts => ph::TEXT_AA,
         Tab::Skins => ph::FRAME_CORNERS,
+        Tab::CommonEvents => ph::LIGHTNING,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
     }
@@ -325,6 +330,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Recipes, "Recipes"),
             (Tab::Quests, "Quests"),
             (Tab::Achievements, "Achievements"),
+            (Tab::CommonEvents, "Common events"),
             (Tab::Project, "Project"),
             (Tab::Scripts, "Scripts"),
         ];
@@ -372,6 +378,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Scatter => db.scatter.get(i).map(|d| (RefKind::Scatter, d.id.clone())),
             Tab::Fonts => db.fonts.get(i).map(|d| (RefKind::Font, d.id.clone())),
             Tab::Skins => db.skins.get(i).map(|d| (RefKind::Skin, d.id.clone())),
+            Tab::CommonEvents => db.common_events.get(i).map(|d| (RefKind::CommonEvent, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -391,6 +398,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Scatter => Some(RefKind::Scatter),
                 Tab::Fonts => Some(RefKind::Font),
                 Tab::Skins => Some(RefKind::Skin),
+                Tab::CommonEvents => Some(RefKind::CommonEvent),
                 _ => None,
             };
             if kind.is_some() {
@@ -547,6 +555,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     sel,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::skin::SkinDef::fresh(&unique("skin", ids)),
+                    |d| &mut d.id,
+                ),
+                Tab::CommonEvents => list_ui(
+                    ui,
+                    &mut db.common_events,
+                    sel,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::common_events::CommonEventDef::fresh(&unique("common_event", ids)),
                     |d| &mut d.id,
                 ),
                 Tab::Materials => list_ui(
@@ -719,6 +735,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Skins => {
                         if let Some(d) = db.skins.get_mut(i) {
                             skin_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::CommonEvents => {
+                        if let Some(d) = db.common_events.get_mut(i) {
+                            common_event_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -2396,6 +2417,34 @@ fn font_preview(ui: &mut egui::Ui, root: &std::path::Path, d: &rustpg2d_engine::
 }
 
 /// Database › UI skins: a skin's pictures and colours, with the game's own drawing as a preview.
+fn common_event_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::common_events::CommonEventDef, cx: &mut Cx) {
+    use rustpg2d_engine::common_events::CommonTrigger;
+    ui.heading("Common event");
+    rename_row(ui, RefKind::CommonEvent, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.weak("A list of actions used in many places: the action Call common event (or call_common(\"id\") in a script) runs it as if its actions stood there. With a flag it also runs by itself while the flag is set: parallel = again and again beside play (a clock, a rain dance), autorun = holding the player until its actions clear the flag (a scene that starts when a flag is set).");
+    ui.horizontal(|ui| {
+        ui.label("Runs");
+        let flag = d.trigger.flag().to_string();
+        egui::ComboBox::from_id_salt("ce_trigger").selected_text(d.trigger.label()).show_ui(ui, |ui| {
+            for t in [CommonTrigger::Call, CommonTrigger::Parallel { flag: flag.clone() }, CommonTrigger::Autorun { flag: flag.clone() }] {
+                let on = std::mem::discriminant(&t) == std::mem::discriminant(&d.trigger);
+                let label = t.label();
+                if ui.selectable_label(on, label).clicked() && !on {
+                    d.trigger = t;
+                }
+            }
+        });
+        if let CommonTrigger::Parallel { flag } | CommonTrigger::Autorun { flag } = &mut d.trigger {
+            ui.label("flag");
+            widgets::suggest(ui, "ce_flag", flag, &cx.refs.all_flags, 140.0);
+        }
+    });
+    ui.add_space(4.0);
+    ui.label(ui::t(ph::LIGHTNING, "Actions"));
+    widgets::actions_ui(ui, &format!("ce/{}", d.id), &mut d.actions, cx.refs);
+}
+
 fn skin_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skin::SkinDef, cx: &mut Cx) {
     use rustpg2d_engine::skin::SkinColor;
     ui.heading("UI skin");

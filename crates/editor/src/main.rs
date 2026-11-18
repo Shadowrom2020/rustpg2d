@@ -1284,6 +1284,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "scatter" => Tab::Scatter,
                 "fonts" => Tab::Fonts,
                 "skins" => Tab::Skins,
+                "common_events" | "common" => Tab::CommonEvents,
                 _ => Tab::Items,
             };
             // tab KIND N, or tab KIND ID (sheets, items, props, characters, …).
@@ -1301,6 +1302,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Scatter => db.scatter.iter().position(|d| d.id == arg(2)),
                 Tab::Fonts => db.fonts.iter().position(|d| d.id == arg(2)),
                 Tab::Skins => db.skins.iter().position(|d| d.id == arg(2)),
+                Tab::CommonEvents => db.common_events.iter().position(|d| d.id == arg(2)),
                 _ => None,
             };
             ed.db.sel = by_id.unwrap_or(num(2) as usize);

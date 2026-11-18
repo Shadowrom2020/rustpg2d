@@ -400,6 +400,12 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   per frame, and right after a window button's function) into `Game.script_window`, a modal panel
   whose update runs before the menus. A button pushes `Action::RunScript` and steps the action
   runner once, so a function that reopens the window refreshes it at once.
+- Common events (`common_events.rs`, `defs/common_events.ron`): *Call common event* returns
+  `Step::Insert` of the event's actions with the caller's `ActionCtx`. `runtime/common.rs` runs
+  after the main runner each frame: parallel events keep one `ActionRunner` each in
+  `Game.common_runs` (dropped when the flag is cleared, cleared on load); an autorun event is
+  pushed into the main runner while it is idle and its flag is set, so it freezes the player like
+  any running event.
 - UI skins (`skin.rs`: `SkinDef` in `defs/skins.ron`, `ProjectConfig.skin` = the game's) are drawn
   by `runtime/skin.rs`, the one place window chrome comes from: `panel`, `dialog_box`, `name_box`,
   `hud_frame`, `button_picture` / `button_fill`, `cursor`, `toast_box`, `bar`, `hearts` and

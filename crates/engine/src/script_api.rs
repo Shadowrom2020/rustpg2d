@@ -50,6 +50,8 @@ pub enum Arg {
     Prop,
     /// A faction id (Database \u{203A} Project \u{203A} Factions).
     Faction,
+    /// A common event id.
+    Common,
     /// Any text: a zone, order, mood or slot name.
     Text,
     /// A line players read (dialog, question, title): collected for translation and shown
@@ -150,6 +152,7 @@ pub const API: &[ApiFn] = api! {
     "set_text"(name: Text, value: Text) "Sets a text variable (shown by {name} placeholders; saved) (immediately)";
     "input_number"(text: Line, var: Var, min: Num, max: Num) "Asks the player for a whole number between min and max (a window with the text) and puts it into a variable; the event waits (queued)";
     "input_text"(text: Line, var: Text, max_length: Num) "Asks the player for a text (a name, a password; prefilled with the text variable's value) and puts it into a text variable; the event waits (queued)";
+    "call_common"(id: Common) "Runs a common event's actions (Database \u{203A} Common events), as an action of this event would (queued)";
     "timer_start"(name: Text, seconds: Num) "Starts (or restarts) a hidden timer; when it runs out nothing runs (check it with timer_left()). Timers pause while a menu or a dialog is open, and are saved (immediately)";
     "timer_start"(name: Text, seconds: Num, options: Opts) "Like timer_start(); options #{ shown: true (at the top of the screen), run: \"function\" (runs when it runs out), event: \"name\" (fires that custom event) } (immediately)";
     "timer_left"(name: Text) "Seconds left on a timer (0 when it isn't running)";
@@ -289,6 +292,7 @@ impl Arg {
             Arg::Recipe => IdKind::Recipe,
             Arg::Achievement => IdKind::Achievement,
             Arg::Prop => IdKind::Prop,
+            Arg::Common => IdKind::CommonEvent,
             _ => return None,
         })
     }
@@ -386,6 +390,7 @@ mod tests {
             ("carry", 1, IdKind::Prop),
             ("set_home", 0, IdKind::Map),
             ("is_home", 0, IdKind::Map),
+            ("call_common", 0, IdKind::CommonEvent),
         ];
         let derived: std::collections::BTreeSet<(&str, usize, u8)> = api_ids().iter().map(|(f, i, k)| (*f, *i, *k as u8)).collect();
         let wanted: std::collections::BTreeSet<(&str, usize, u8)> = expected.iter().map(|(f, i, k)| (*f, *i, *k as u8)).collect();

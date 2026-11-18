@@ -8,7 +8,7 @@ Database says what they are.
 ## Working with definitions
 
 The tabs along the top are *Items, Props, Characters, Races, 3D models, Materials, Scatter sets,
-Sprite sheets, Sounds, Fonts, UI skins, Structures, Skills, Spells, Recipes, Quests, Achievements, Project* and
+Sprite sheets, Sounds, Fonts, UI skins, Structures, Skills, Spells, Recipes, Quests, Achievements, Common events, Project* and
 *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
 
@@ -388,6 +388,29 @@ steps' actions and the rewards run whichever way a quest moves on. See
 These belong to the game systems they drive: [Skills and magic](09-gameplay.md#skills-and-magic),
 [Crafting](09-gameplay.md#crafting-cooking-and-blacksmithing) and
 [Achievements](09-gameplay.md#achievements).
+
+## Common events
+
+A **common event** is a list of actions with a name, kept once and used in many places: a reward
+routine, a shop greeting, a scene several characters start. Its form has the same action editor
+as a trigger, and **Runs**:
+
+- **Only when called**: the action *Call common event* (in any trigger, a quest's steps or
+  rewards, another common event) runs its actions right there, as if they stood in that list, with
+  the caller's *self* (so `self_name()` and `"self"` targets mean the caller); a script calls it
+  with `call_common("id")`.
+- **Parallel while flag**: while the flag is set, its actions run again and again beside play, in a
+  queue of their own (put a *Wait* in it); clearing the flag stops it at once. For a clock that
+  ticks, a rain dance, a bell every minute.
+- **Autorun while flag**: while the flag is set, its actions run whenever no other event is
+  running, and the player waits for them. Clear the flag in its actions to end it, or it starts
+  again. For a scene that should begin as soon as something happened, wherever the player is.
+
+Parallel and autorun events run on every map (not on the title screen) and start from the top
+again after loading a game. Renaming a common event fixes every *Call common event*, and assets
+sent to the library take the common events they call along. The example's quests share one:
+`quest_reward` (the hero cheers, and the giver likes them more), called by the rewards of seven
+quests.
 
 ## Project
 

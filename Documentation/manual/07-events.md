@@ -127,7 +127,9 @@ across map changes and in save games.
   screen pixels per second; a see-through background shows the map. The event waits until the last
   line has gone; holding confirm speeds it up, cancel skips it. It also works from a custom title
   screen entry.
-- **Play sound**, **Play music**, **Shake the screen**.
+- **Play sound** (with volume, pitch and pan), **Play music** (with a crossfade time), **Play music
+  effect** (a fanfare: the music ducks under it and comes back after; *Wait* holds the event until
+  it is over), **Shake the screen**.
 - **Call common event**: runs a common event's actions here, as if they stood in this list
   ([The Database › Common events](05-database.md#common-events)).
 - **Show image** / **Hide image**: a picture over the game (below).

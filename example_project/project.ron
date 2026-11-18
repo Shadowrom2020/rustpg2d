@@ -16,6 +16,8 @@
         portal: "door",
         open_container: "creak",
         unlock: "unlock",
+        level_up: "fanfare_level_up",
+        victory: "",
     ),
     inventory_size: 24,
     creation: (

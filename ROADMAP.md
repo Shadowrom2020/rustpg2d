@@ -341,7 +341,7 @@ The event commands creators expect from other makers.
 
   **Verify.** Screenshots mid-pan and mid-credits; `status` prints `camera=`.
 
-- [ ] Music effects and sound control — `feature/music-effects`
+- [x] Music effects and sound control — `feature/music-effects`
 
   **Goal.** Fanfares, plus control over how sounds play.
 
@@ -352,6 +352,19 @@ The event commands creators expect from other makers.
   - **Fanfares:** victory and level-up fanfares in the project's sounds.
 
   **Engine.** One appended action, two fields, `audio` mixing.
+
+  **Decided while building.**
+  - macroquad's mixer has only volume: pitch and pan are rendered into stereo versions of the
+    sound (`audio::pitch_pan`, linear resampling, equal-power pan), made once per sound, pitch
+    (0.01 steps) and pan (0.05 steps) and kept (at most 64). The web game decodes asynchronously,
+    so there they play as the plain sound.
+  - A music effect ducks the music to silence in 0.25 s and brings it back over a second after
+    its length (read from the file's header); the same fanfare already playing isn't restarted
+    (several levels at once). *Wait* inserts a *Wait* of its length.
+  - *Play music* with a fade crossfades (both tracks playing); 0 switches at once as before.
+  - Victory: the frame the last enemy close by stops fighting the player, if the player defeated
+    at least one in that fight. The example sets only the level-up fanfare in its project sounds
+    and plays the victory one on Grumbold's defeat (a fanfare after every slime would tire).
 
   **Verify.** `status` `music_fade=` and `sounds=`; a level-up plays its fanfare.
 

@@ -107,6 +107,19 @@ pub struct Audio {
     recent: std::cell::RefCell<std::collections::VecDeque<String>>,
     /// Sound effects started since the game last asked ([`Audio::take_heard`]: its captions).
     heard: std::cell::RefCell<Vec<String>>,
+    /// Pitched / panned versions of sounds (`play_with`), by `id@pitch/pan`; `None`: couldn't
+    /// be made (the web game), the sound plays as it is.
+    variants: HashMap<String, Option<Sound>>,
+    /// The track fading out under a crossfade (*Play music* with a fade time): id, its gain.
+    music_out: Option<(String, f32)>,
+    /// Seconds the current crossfade / fade-in takes (0 = the usual [`MUSIC_FADE`]).
+    fade_secs: f32,
+    /// A music effect (fanfare) playing: its id and the seconds left; the music is ducked.
+    effect: Option<(String, f32)>,
+    /// How loud the music is under music effects (0..1).
+    duck: f32,
+    /// Lengths of sounds in seconds (music effects), read once.
+    lengths: HashMap<String, f32>,
 }
 
 // The web game: browsers decode sounds asynchronously, so they are loaded (awaited) before the
@@ -157,6 +170,12 @@ impl Audio {
             ambience: 1.0,
             recent: Default::default(),
             heard: Default::default(),
+            variants: HashMap::new(),
+            music_out: None,
+            fade_secs: 0.0,
+            effect: None,
+            duck: 1.0,
+            lengths: HashMap::new(),
         }
     }
 
@@ -230,6 +249,12 @@ impl Audio {
             ambience: 1.0,
             recent: Default::default(),
             heard: Default::default(),
+            variants: HashMap::new(),
+            music_out: None,
+            fade_secs: 0.0,
+            effect: None,
+            duck: 1.0,
+            lengths: HashMap::new(),
         }
     }
 
@@ -362,7 +387,127 @@ impl Audio {
         self.effects = effects.clamp(0.0, 1.0);
         self.music_vol = music.clamp(0.0, 1.0);
         if let Some((s, vol)) = self.music_sound() {
-            set_sound_volume(s, vol * self.music_vol * self.music_gain);
+            set_sound_volume(s, vol * self.music_vol * self.music_gain * self.duck);
+        }
+    }
+
+    /// Plays a sound effect once at `volume` (times its own), `pitch` (1 = as it is, 2 = an
+    /// octave higher and twice as fast) and `pan` (-1 left .. 1 right). Pitched or panned
+    /// versions are made once and kept; where they can't be made (the web game) the sound plays
+    /// as it is.
+    pub fn play_with(&mut self, id: &str, volume: f32, pitch: f32, pan: f32) {
+        let (pitch, pan) = ((pitch.clamp(0.25, 4.0) * 100.0).round() / 100.0, (pan.clamp(-1.0, 1.0) * 20.0).round() / 20.0);
+        if (pitch - 1.0).abs() < 0.001 && pan.abs() < 0.001 {
+            self.play_at(id, volume.max(0.0));
+            return;
+        }
+        if volume <= 0.0 {
+            return;
+        }
+        self.note(id);
+        if !self.enabled {
+            return;
+        }
+        let Some(&(_, vol)) = self.sounds.get(id) else { return };
+        let key = format!("{id}@{pitch}/{pan}");
+        if !self.variants.contains_key(&key) {
+            // (Kept small: a script that picks random pitches mustn't fill the memory.)
+            if self.variants.len() >= 64 {
+                self.variants.clear();
+            }
+            let made = self.files.get(id).and_then(|p| crate::sys::read(p).ok()).and_then(|b| decode(&b).ok()).and_then(|pcm| {
+                let wav = wav_bytes_channels(&pitch_pan(&pcm, pitch, pan), MIX_RATE, 2);
+                poll_now(load_sound_from_bytes(&wav)).and_then(|r| r.ok())
+            });
+            self.variants.insert(key.clone(), made);
+        }
+        let v = volume * vol * self.effects;
+        match self.variants.get(&key) {
+            Some(Some(s)) => play_sound(s, PlaySoundParams { looped: false, volume: v.min(1.0) }),
+            _ => {
+                if let Some((s, _)) = self.sounds.get(id) {
+                    play_sound(s, PlaySoundParams { looped: false, volume: v.min(1.0) });
+                }
+            }
+        }
+    }
+
+    /// A sound's length in seconds (0 when unknown), read from its file once.
+    pub fn length(&mut self, id: &str) -> f32 {
+        if let Some(l) = self.lengths.get(id) {
+            return *l;
+        }
+        let l = self.files.get(id).and_then(|p| crate::sys::read(p).ok()).and_then(|b| header_frames(&b)).map_or(0.0, |(rate, _, frames)| if rate == 0 { 0.0 } else { frames as f32 / rate as f32 });
+        self.lengths.insert(id.to_string(), l);
+        l
+    }
+
+    /// Plays a music effect (a fanfare) once: the music ducks under it and comes back after.
+    /// Returns its length in seconds.
+    pub fn play_music_effect(&mut self, id: &str) -> f32 {
+        // The same fanfare already playing (several levels at once) just goes on.
+        if let Some((now, left)) = &self.effect {
+            if now == id {
+                return *left;
+            }
+        }
+        let len = if self.files.contains_key(id) { self.length(id) } else { 0.0 };
+        self.note(id);
+        if let Some((old, _)) = self.effect.take() {
+            if let Some((s, _)) = self.sounds.get(&old) {
+                stop_sound(s);
+            }
+        }
+        if self.enabled {
+            if let Some((s, vol)) = self.sounds.get(id) {
+                play_sound(s, PlaySoundParams { looped: false, volume: vol * self.music_vol });
+            }
+        }
+        if self.sounds.contains_key(id) || !self.enabled {
+            self.effect = Some((id.to_string(), len));
+        }
+        len
+    }
+
+    /// `status()`: the music effect playing, `id:seconds left`, and how loud the music is under
+    /// it (`-` when none and the music is back).
+    pub fn music_effect_status(&self) -> String {
+        match &self.effect {
+            Some((id, left)) => format!("{id}:{left:.1}@{:.2}", self.duck),
+            None if self.duck < 1.0 => format!("-@{:.2}", self.duck),
+            None => "-".into(),
+        }
+    }
+
+    /// Crossfades the music to `id` over `seconds` (0 = at once): the playing track fades out
+    /// while the new one fades in.
+    pub fn crossfade_music(&mut self, id: &str, seconds: f32) {
+        if seconds <= 0.0 || self.music.as_deref() == Some(id) || self.music.is_none() {
+            self.fade_secs = 0.0;
+            self.play_music(id);
+            return;
+        }
+        // A track still fading out from an earlier crossfade stops now.
+        if let Some((out, _)) = self.music_out.take() {
+            if let Some((s, _)) = self.loop_sound(&out) {
+                stop_sound(s);
+            }
+        }
+        self.music_next = None;
+        let old = self.music.take().unwrap_or_default();
+        self.music_out = Some((old, self.music_gain));
+        self.fade_secs = seconds;
+        self.music_gain = 0.0;
+        if id.is_empty() {
+            return;
+        }
+        self.music = Some(id.to_string());
+        let play = self.enabled && self.sounds.contains_key(id);
+        if play {
+            self.gapless(id);
+        }
+        if let Some((s, _)) = self.music_sound().filter(|_| play) {
+            play_sound(s, PlaySoundParams { looped: true, volume: 0.0 });
         }
     }
 
@@ -405,7 +550,35 @@ impl Audio {
 
     /// Moves a music fade on by `dt` seconds (once a frame).
     pub fn tick_music(&mut self, dt: f32) {
-        let step = dt / MUSIC_FADE;
+        // A music effect ducks the music quickly and lets it come back over a second.
+        let duck_before = self.duck;
+        if let Some((_, left)) = &mut self.effect {
+            *left -= dt;
+            self.duck = (self.duck - dt / 0.25).max(0.0);
+            if *left <= 0.0 {
+                self.effect = None;
+            }
+        } else if self.duck < 1.0 {
+            self.duck = (self.duck + dt).min(1.0);
+        }
+        let ducking = self.duck != duck_before;
+        let crossing = self.music_out.is_some();
+        if let Some((out, gain)) = &mut self.music_out {
+            *gain -= dt / self.fade_secs.max(0.01);
+            let (out, g) = (out.clone(), *gain);
+            if g <= 0.0 {
+                if let Some((s, _)) = self.loop_sound(&out).filter(|_| self.enabled) {
+                    stop_sound(s);
+                }
+                self.music_out = None;
+            } else if let Some((s, vol)) = self.loop_sound(&out).filter(|_| self.enabled) {
+                set_sound_volume(s, vol * self.music_vol * g * self.duck);
+            }
+        }
+        let step = dt / if self.fade_secs > 0.0 { self.fade_secs } else { MUSIC_FADE };
+        if self.music_gain >= 1.0 && self.music_next.is_none() {
+            self.fade_secs = 0.0;
+        }
         if let Some(next) = self.music_next.clone() {
             self.music_gain -= step;
             if self.music_gain <= 0.0 || self.music.is_none() {
@@ -426,25 +599,32 @@ impl Audio {
             }
         } else if self.music_gain < 1.0 {
             self.music_gain = (self.music_gain + step).min(1.0);
-        } else {
+        } else if !ducking && !crossing {
             return;
         }
-        if let Some((s, vol)) = self.music_sound() {
-            set_sound_volume(s, vol * self.music_vol * self.music_gain.max(0.0));
+        if let Some((s, vol)) = self.music_sound().filter(|_| self.enabled) {
+            set_sound_volume(s, vol * self.music_vol * self.music_gain.max(0.0) * self.duck);
         }
     }
 
-    /// `status()`: the track fading in, `>next` while one fades out for it.
+    /// `status()`: the track fading in, `>next` while one fades out for it, `<old:gain` while a
+    /// crossfade fades the old one out.
     pub fn music_fade_status(&self) -> String {
+        let out = self.music_out.as_ref().map_or(String::new(), |(id, g)| format!("<{id}:{g:.2}"));
         match &self.music_next {
-            Some(n) => format!("{:.2}>{n}", self.music_gain),
-            None => format!("{:.2}", self.music_gain),
+            Some(n) => format!("{:.2}>{n}{out}", self.music_gain),
+            None => format!("{:.2}{out}", self.music_gain),
         }
     }
 
     pub fn stop_music(&mut self) {
         if let Some((s, _)) = self.music_sound() {
             stop_sound(s);
+        }
+        if let Some((out, _)) = self.music_out.take() {
+            if let Some((s, _)) = self.loop_sound(&out) {
+                stop_sound(s);
+            }
         }
         self.music = None;
     }
@@ -649,6 +829,33 @@ pub fn wav_bytes_channels(samples: &[f32], sample_rate: u32, channels: u16) -> V
     out
 }
 
+/// A sound at another pitch (1 = as it is; resampled, so it also plays faster or slower) and
+/// pan (-1 left .. 1 right, equal power; a stereo sound is balanced), as interleaved stereo at
+/// the mixer's rate.
+pub fn pitch_pan(pcm: &Pcm, pitch: f32, pan: f32) -> Vec<f32> {
+    let ch = pcm.channels.max(1) as usize;
+    let n = pcm.frames();
+    if n == 0 || pcm.rate == 0 {
+        return Vec::new();
+    }
+    let step = pitch.max(0.01) as f64 * pcm.rate as f64 / MIX_RATE as f64;
+    let out_frames = (n as f64 / step).floor() as usize;
+    let a = (pan.clamp(-1.0, 1.0) + 1.0) * std::f32::consts::FRAC_PI_4;
+    // (Centre = both at full: a mono sound keeps its loudness.)
+    let (gl, gr) = (a.cos() * std::f32::consts::SQRT_2, a.sin() * std::f32::consts::SQRT_2);
+    let at = |frame: usize, c: usize| pcm.samples[frame.min(n - 1) * ch + c.min(ch - 1)];
+    let mut out = Vec::with_capacity(out_frames * 2);
+    for i in 0..out_frames {
+        let pos = i as f64 * step;
+        let (k, f) = (pos.floor() as usize, (pos - pos.floor()) as f32);
+        let s = |c: usize| at(k, c) * (1.0 - f) + at(k + 1, c) * f;
+        let (l, r) = (s(0), s(1));
+        out.push((l * gl.min(1.0)).clamp(-1.0, 1.0));
+        out.push((r * gr.min(1.0)).clamp(-1.0, 1.0));
+    }
+    out
+}
+
 /// Decoded audio: interleaved samples (-1..1).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pcm {
@@ -794,6 +1001,19 @@ pub fn loop_ready(bytes: &[u8]) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pitch_and_pan_make_a_stereo_version() {
+        // A mono second at 22.05 kHz.
+        let pcm = Pcm { rate: 22_050, channels: 1, samples: (0..22_050).map(|i| (i as f32 * 0.05).sin() * 0.5).collect() };
+        let same = pitch_pan(&pcm, 1.0, 0.0);
+        assert_eq!(same.len() / 2, 44_100, "resampled to the mixer's rate, stereo");
+        assert!(same.chunks(2).all(|f| (f[0] - f[1]).abs() < 1e-6), "centred: both sides alike");
+        let high = pitch_pan(&pcm, 2.0, 0.0);
+        assert_eq!(high.len() / 2, 22_050, "an octave up plays in half the time");
+        let left = pitch_pan(&pcm, 1.0, -1.0);
+        assert!(left.chunks(2).all(|f| f[1].abs() < 1e-6) && left.chunks(2).any(|f| f[0].abs() > 0.1), "panned left: the right side is silent");
+    }
 
     #[test]
     fn music_fades_over_to_another_track_and_back() {

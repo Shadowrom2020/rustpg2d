@@ -67,7 +67,13 @@ impl Game {
         }
         let msg = if gains.is_empty() { format!("Level {}!", self.world.level) } else { format!("Level {}!  {}", self.world.level, gains.join(", ")) };
         self.ui.toast(msg);
-        self.audio.play(&self.project.config.sfx.pickup);
+        // The project's level-up fanfare (a music effect), else the pickup sound.
+        let fanfare = self.project.config.sfx.level_up.clone();
+        if !fanfare.is_empty() && self.project.db.sound(&fanfare).is_some() {
+            self.audio.play_music_effect(&fanfare);
+        } else {
+            self.audio.play(&self.project.config.sfx.pickup);
+        }
     }
 
     /// The XP a defeated character gives.

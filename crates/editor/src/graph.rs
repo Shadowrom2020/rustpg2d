@@ -209,7 +209,7 @@ pub fn action_summary(a: &Action) -> String {
         Action::Quest { quest, op, .. } => format!("quest {quest}: {op:?}"),
         Action::SetState { target, state } => format!("{target} {} state {state}", ph::ARROW_RIGHT),
         Action::SetActive { target, active } => format!("{target} {}", if *active { "appears" } else { "disappears" }),
-        Action::PlaySound { sound } => format!("sound {sound}"),
+        Action::PlaySound { sound, .. } => format!("sound {sound}"),
         Action::ShowImage { sheet, wait, scroll, .. } => format!("image {sheet}{}{}", if *scroll { " (scrolls)" } else { "" }, if *wait { "" } else { " behind" }),
         Action::Wait { seconds } => format!("wait {seconds} s"),
         Action::Emote { target, emotion, .. } => format!("{target} shows {emotion}"),

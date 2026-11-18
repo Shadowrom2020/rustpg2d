@@ -188,7 +188,17 @@ a file into `sounds/`.
   is a multiple of 4096 samples at 44.1 kHz plays exactly as it is.
 - **Game sounds** (*Database › Project*) are the sounds the game plays by itself: pickups, attacks,
   hits, dialogs, doors, and the **battle music** while enemies engage the player (crossfaded in and
-  out over 0.8 s; a map may choose another or none). The rain has its own built-in sound.
+  out over 0.8 s; a map may choose another or none). The rain has its own built-in sound. Two of
+  them are **music effects** (fanfares): *Level up* plays when the player reaches a new level,
+  *Victory* when a fight ends in which the player defeated enemies (left empty, there is none).
+  The music ducks under a music effect and comes back after it. The example has both fanfares
+  (`fanfare_level_up`, `fanfare_victory`, also in the starter library); it plays the level-up one
+  by itself and the victory one when Grumbold the cave troll falls, not after every slime.
+- **Sound control in events**: *Play sound* has a **volume** (times the sound's own), a
+  **pitch** (1 = as it is, 2 = an octave higher and faster, 0.5 = an octave lower) and a **pan**
+  (-1 left, 1 right); a pitched or panned sound is made once and kept (the web game plays it as
+  it is). *Play music* has a **crossfade** time: the old track fades out while the new one fades
+  in. *Play music effect* plays a fanfare once while the music ducks.
 - The example's four tracks (*Market Day*, *Whisperwood*, *The Copper Kettle* and the battle music
   *Steel in the Woods*) are composed in a note notation and rendered by a small synthesizer:
   `scripts/sounds/music/` (`cargo run --release -- OUT_DIR [ID…]` in that folder).

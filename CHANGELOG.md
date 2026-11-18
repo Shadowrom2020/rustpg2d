@@ -47,6 +47,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   title screen entry. Scripts: `camera_to`, `camera_follow`, `camera_reset`, `scroll_text`;
   `status` prints `camera=` and `scroll=`. The example's intro pans over the village to Elder
   Rowan, and its title screen's *Credits* roll.
+- **Music effects and sound control**: *Play music effect* plays a fanfare while the music ducks
+  and comes back after; *Play sound* has volume, pitch and pan; *Play music* crossfades over a time
+  of your choice. The project's *Game sounds* gain *Level up* and *Victory* fanfares (the end of a
+  fight with enemies defeated). Scripts: `play_sound(id, #{volume, pitch, pan})`,
+  `play_music(id, seconds)`, `play_music_effect`; `status` prints `music_effect=` and the crossfade
+  in `music_fade=`. The example has a level-up and a victory fanfare (Grumbold's defeat), also in
+  the starter library.
 
 ## 0.25.0 — 2026-11-18
 

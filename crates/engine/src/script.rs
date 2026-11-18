@@ -863,8 +863,15 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         c.locks.iter().any(|l| l.2 && if t.is_empty() || t == "self" { Some(l.0) == owner } else { l.1 == t })
     }));
     engine.register_fn("is_locked", with!(ctx, |c, uid: i64| c.locks.iter().any(|l| l.2 && l.0 as i64 == uid)));
-    engine.register_fn("play_sound", with!(ctx, |c, id: &str| c.actions.push(Action::PlaySound { sound: id.into() })));
-    engine.register_fn("play_music", with!(ctx, |c, id: &str| c.actions.push(Action::PlayMusic { sound: id.into() })));
+    engine.register_fn("play_sound", with!(ctx, |c, id: &str| c.actions.push(Action::PlaySound { sound: id.into(), volume: 1.0, pitch: 1.0, pan: 0.0 })));
+    engine.register_fn("play_sound", with!(ctx, |c, id: &str, o: rhai::Map| {
+        let f = |k: &str, d: f32| o.get(k).map_or(d, num);
+        c.actions.push(Action::PlaySound { sound: id.into(), volume: f("volume", 1.0), pitch: f("pitch", 1.0), pan: f("pan", 0.0) })
+    }));
+    engine.register_fn("play_music", with!(ctx, |c, id: &str| c.actions.push(Action::PlayMusic { sound: id.into(), fade: 0.0 })));
+    engine.register_fn("play_music", with!(ctx, |c, id: &str, secs: Dynamic| c.actions.push(Action::PlayMusic { sound: id.into(), fade: num(&secs).max(0.0) })));
+    engine.register_fn("play_music_effect", with!(ctx, |c, id: &str| c.actions.push(Action::PlayMusicEffect { sound: id.into(), wait: false })));
+    engine.register_fn("play_music_effect", with!(ctx, |c, id: &str, o: rhai::Map| c.actions.push(Action::PlayMusicEffect { sound: id.into(), wait: o.get("wait").and_then(|v| v.as_bool().ok()).unwrap_or(false) })));
     // Continue in another function after the queued actions (e.g. after a choice).
     engine.register_fn("then_call", with!(ctx, |c, f: &str| c.actions.push(Action::RunScript {
         function: f.into()
@@ -1094,7 +1101,7 @@ mod tests {
             actions,
             vec![
                 Action::Heal { amount: 2 },
-                Action::PlaySound { sound: "ding".into() },
+                Action::PlaySound { sound: "ding".into(), volume: 1.0, pitch: 1.0, pan: 0.0 },
                 Action::SetLocked { target: "door".into(), locked: false }
             ]
         );

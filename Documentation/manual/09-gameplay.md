@@ -98,7 +98,7 @@ adds max HP (and heals as much), mana and skill points as set in the project. Th
 at *XP for level 2* and grows by *Growth* per level, up to the *Highest level*.
 
 The status frame shows `Lv N` with a gold XP bar, the character window *Level N (XP a / b)*, and a
-message announces every level. Triggers use the *Give experience* action and the *Player level*
+message announces every level, with the project's *Level up* fanfare (*Game sounds*) if it has one. Triggers use the *Give experience* action and the *Player level*
 condition; scripts `give_xp(n)`, `xp()` and `level()`.
 
 ## Status effects

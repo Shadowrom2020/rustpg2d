@@ -4,7 +4,8 @@ use std::collections::HashMap;
 
 use egui_macroquad::egui::{self, pos2, vec2, Color32, Rect, Sense, Stroke, StrokeKind, TextureHandle, Ui};
 use rustpg2d_engine::defs::{ContainerSpec, LockSpec, LootEntry, OnUnlock, PropDef, ShopEntry, ShopSpec, SpriteRef};
-use rustpg2d_engine::effects::{EffectKind, EffectSpec};
+use rustpg2d_engine::srd::conditions::{Ongoing, SaveDc};
+use rustpg2d_engine::srd::{Condition as SrdCondition, ConditionSpec, DamageType};
 use rustpg2d_engine::inventory::ItemStack;
 use rustpg2d_engine::entity::Facing;
 use rustpg2d_engine::events::{Action, CmpOp, Cond, Condition, Trigger, TriggerOn, TriggerOwner, VarOp};
@@ -1160,7 +1161,10 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                 }
                 Cond::HasEffect { kind } => {
                     ui.label("player has");
-                    effect_kind_combo(ui, &format!("{id}/fx"), kind);
+                    let mut k = Some(*kind).filter(|k| *k != SrdCondition::Any);
+                    if condition_combo(ui, &format!("{id}/fx"), &mut k, "any condition") {
+                        *kind = k.unwrap_or(SrdCondition::Any);
+                    }
                 }
                 Cond::KnowsSpell { spell } => {
                     ui.label("knows");
@@ -1501,9 +1505,10 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 ui.add(egui::DragValue::new(amount).range(-999..=999)).on_hover_text("Negative drains mana");
             });
         }
-        Action::DamageAround { damage, radius } => {
+        Action::DamageAround { damage, radius, damage_type } => {
             labeled(ui, "damage", |ui| {
                 ui.add(egui::DragValue::new(damage).range(0..=999));
+                damage_type_combo(ui, &format!("{id}/dt"), damage_type, "untyped");
             });
             labeled(ui, "radius", |ui| {
                 ui.add(egui::DragValue::new(radius).range(0.5..=32.0).speed(0.1).suffix(" tiles"));
@@ -1525,13 +1530,14 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             fx_sprite_ui(ui, id, sprite, refs, true);
             tile_point_ui(ui, "at", x, y);
         }
-        Action::DamageArea { x, y, radius, damage } => {
+        Action::DamageArea { x, y, radius, damage, damage_type } => {
             tile_point_ui(ui, "at", x, y);
             labeled(ui, "radius", |ui| {
                 ui.add(egui::DragValue::new(radius).range(0.5..=32.0).speed(0.1).suffix(" tiles"));
             });
             labeled(ui, "damage", |ui| {
                 ui.add(egui::DragValue::new(damage).range(0..=999));
+                damage_type_combo(ui, &format!("{id}/dt"), damage_type, "untyped");
             });
         }
         Action::PlayerLight { radius, seconds, color, flicker } => {
@@ -1665,14 +1671,8 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         }
         Action::CureEffect { target, kind } => {
             target_field(ui, id, target, refs);
-            labeled(ui, "effect", |ui| {
-                let text = kind.map_or("all effects", |k| k.label());
-                egui::ComboBox::from_id_salt(format!("{id}/cure")).selected_text(text).show_ui(ui, |ui| {
-                    ui.selectable_value(kind, None, "all effects");
-                    for k in EffectKind::ALL {
-                        ui.selectable_value(kind, Some(k), k.label());
-                    }
-                });
+            labeled(ui, "condition", |ui| {
+                condition_combo(ui, &format!("{id}/cure"), kind, "all (and damage per round)");
             });
         }
         Action::Shake { seconds, strength } => {
@@ -2196,6 +2196,15 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                 Err(e) => ui.colored_label(egui::Color32::from_rgb(230, 120, 90), e),
             };
         }
+        Action::ShortRest => {
+            ui.weak("Opens the rest window: the hero spends hit dice (d10 + CON each), then an hour passes. Refused with enemies nearby.");
+        }
+        Action::LongRest { hours } => {
+            labeled(ui, "hours", |ui| {
+                ui.add(egui::DragValue::new(hours).range(1.0..=48.0).speed(0.1).suffix(" h"));
+            });
+            ui.weak("Like sleeping: the clock moves on, full HP, half the hit dice back, one level of exhaustion less, timed conditions over.");
+        }
         Action::If { conditions, then, otherwise } => {
             ui.label("If all of:");
             ui.indent(format!("{id}/ic"), |ui| conditions_ui(ui, id, conditions, refs));
@@ -2614,42 +2623,89 @@ pub fn character_preview(ui: &mut Ui, assets: &Assets, a: &rustpg2d_engine::defs
     });
 }
 
-/// A combo box of the status effect kinds.
-pub fn effect_kind_combo(ui: &mut egui::Ui, id: &str, kind: &mut EffectKind) -> bool {
+/// A combo box of the SRD conditions; `none` names what `None` / `Any` stands for ("all", "none:
+/// ongoing damage only").
+pub fn condition_combo(ui: &mut egui::Ui, id: &str, kind: &mut Option<SrdCondition>, none: &str) -> bool {
     let before = *kind;
-    egui::ComboBox::from_id_salt(id).selected_text(kind.label()).show_ui(ui, |ui| {
-        for k in EffectKind::ALL {
-            ui.selectable_value(kind, k, k.label()).on_hover_text(k.unit());
+    let text = match kind {
+        Some(c) if *c != SrdCondition::Any => c.name(),
+        _ => none,
+    };
+    egui::ComboBox::from_id_salt(id).selected_text(text).height(420.0).show_ui(ui, |ui| {
+        ui.selectable_value(kind, None, none);
+        for c in SrdCondition::ALL {
+            ui.selectable_value(kind, Some(c), c.name()).on_hover_text(c.rules_text());
         }
     });
     *kind != before
 }
 
-/// A status effect: kind, strength (unless it has none) and duration.
-pub fn effect_spec_ui(ui: &mut egui::Ui, id: &str, spec: &mut EffectSpec) {
-    ui.horizontal(|ui| {
-        if effect_kind_combo(ui, id, &mut spec.kind) {
-            *spec = EffectSpec { seconds: spec.seconds, ..EffectSpec::template(spec.kind) };
+/// A combo box of the SRD's damage types (`None` = `none`: untyped, or healing).
+pub fn damage_type_combo(ui: &mut egui::Ui, id: &str, t: &mut Option<DamageType>, none: &str) -> bool {
+    let before = *t;
+    egui::ComboBox::from_id_salt(id).selected_text(t.map_or(none, |t| t.name())).show_ui(ui, |ui| {
+        ui.selectable_value(t, None, none);
+        for d in DamageType::ALL {
+            ui.selectable_value(t, Some(d), d.name());
         }
-        if spec.kind != EffectKind::Stun {
-            ui.add(egui::DragValue::new(&mut spec.strength).range(0.0..=1000.0).speed(0.1)).on_hover_text(spec.kind.unit());
-            ui.weak(match spec.kind {
-                EffectKind::Poison | EffectKind::Burn | EffectKind::Regen => "HP/s",
-                EffectKind::Shield => "def",
-                _ => "%",
-            });
-        }
-        ui.label("for");
-        ui.add(egui::DragValue::new(&mut spec.seconds).range(0.1..=3600.0).speed(0.1).suffix(" s"));
+    });
+    *t != before
+}
+
+/// A condition to apply: the condition (or none: only ongoing damage / healing), how long, the
+/// exhaustion levels, a saving throw that keeps it off, and damage or healing every round.
+pub fn effect_spec_ui(ui: &mut egui::Ui, id: &str, spec: &mut ConditionSpec) {
+    ui.vertical(|ui| {
+        ui.horizontal(|ui| {
+            condition_combo(ui, &format!("{id}/cond"), &mut spec.condition, "none: per round only");
+            if spec.condition == Some(SrdCondition::Exhaustion) {
+                let mut l = spec.level.max(1);
+                if ui.add(egui::DragValue::new(&mut l).range(1..=6).prefix("+").suffix(" level")).on_hover_text("Levels of exhaustion it adds (6 = death)").changed() {
+                    spec.level = l;
+                }
+            }
+            ui.label("for");
+            ui.add(egui::DragValue::new(&mut spec.seconds).range(0.0..=3600.0).speed(0.1).suffix(" s")).on_hover_text("0 = until it is removed (or a rest ends it)");
+            if spec.seconds <= 0.0 {
+                ui.weak("(until removed)");
+            }
+        });
+        ui.horizontal(|ui| {
+            let mut save = spec.save.is_some();
+            if ui.checkbox(&mut save, "Saving throw").on_hover_text("The target rolls this saving throw against the DC; a success keeps it off").changed() {
+                spec.save = save.then(|| SaveDc { ability: "con".into(), dc: 12 });
+            }
+            if let Some(sv) = &mut spec.save {
+                let current = rustpg2d_engine::srd::Ability::parse(&sv.ability).map_or("?", |a| a.short());
+                egui::ComboBox::from_id_salt(format!("{id}/save")).selected_text(current).width(60.0).show_ui(ui, |ui| {
+                    for a in rustpg2d_engine::srd::Ability::ALL {
+                        if ui.selectable_label(sv.ability == a.id(), a.short()).clicked() {
+                            sv.ability = a.id().to_string();
+                        }
+                    }
+                });
+                ui.add(egui::DragValue::new(&mut sv.dc).range(1..=30).prefix("DC "));
+            }
+        });
+        ui.horizontal(|ui| {
+            let mut on = spec.ongoing.is_some();
+            if ui.checkbox(&mut on, "Every round").on_hover_text("Damage (a type) or healing (Healing) every 6 seconds while it lasts, the first at once").changed() {
+                spec.ongoing = on.then(|| Ongoing { dice: "1d4".into(), damage_type: Some(DamageType::Poison) });
+            }
+            if let Some(o) = &mut spec.ongoing {
+                ui.add(egui::TextEdit::singleline(&mut o.dice).desired_width(60.0)).on_hover_text("Dice like 1d4, 2d6 or a number");
+                damage_type_combo(ui, &format!("{id}/dt"), &mut o.damage_type, "Healing");
+            }
+        });
     });
 }
 
-/// An optional status effect with a checkbox (weapons: on hit, characters: on touch).
-pub fn optional_effect_ui(ui: &mut egui::Ui, id: &str, label: &str, hint: &str, effect: &mut Option<EffectSpec>) {
-    ui.horizontal(|ui| {
+/// An optional condition with a checkbox (weapons: on hit, characters: on touch).
+pub fn optional_effect_ui(ui: &mut egui::Ui, id: &str, label: &str, hint: &str, effect: &mut Option<ConditionSpec>) {
+    ui.horizontal_top(|ui| {
         let mut on = effect.is_some();
         if ui.checkbox(&mut on, label).on_hover_text(hint).changed() {
-            *effect = on.then(|| EffectSpec::template(EffectKind::Poison));
+            *effect = on.then(|| ConditionSpec::template(SrdCondition::Poisoned));
         }
         if let Some(spec) = effect {
             effect_spec_ui(ui, id, spec);

@@ -87,14 +87,14 @@ impl Game {
     }
 
     /// `sheet=` for `status`: race|scores|bg:background|lang:…|res:…|dv:feet|speed:feet|choices|
-    /// level:N|ac:N|hp:now/max|hd:left/level.
+    /// level:N|ac:N|hp:now/max|hd:left/level|cond:poisoned:4.0+exhaustion2.
     pub(super) fn sheet_status(&self) -> String {
         let w = &self.world;
         let join = |s: &std::collections::BTreeSet<String>| s.iter().cloned().collect::<Vec<_>>().join(",");
         let race = self.player_race();
         let choices: Vec<String> = w.choices.iter().map(|(k, v)| format!("{k}={}", v.join("+"))).collect();
         format!(
-            "{}|{}|bg:{}|lang:{}|res:{}|dv:{}|speed:{}|choices:{}|level:{}|ac:{}|hp:{}/{}|hd:{}/{}",
+            "{}|{}|bg:{}|lang:{}|res:{}|dv:{}|speed:{}|choices:{}|level:{}|ac:{}|hp:{}/{}|hd:{}/{}|cond:{}",
             if w.player_race.is_empty() { "-" } else { &w.player_race },
             w.abilities.text(),
             if w.player_background.is_empty() { "-" } else { &w.player_background },
@@ -108,7 +108,8 @@ impl Game {
             self.hp(),
             self.player_max_hp(),
             self.hit_dice_left(),
-            w.player_level()
+            w.player_level(),
+            crate::srd::conditions::describe(&w.effects).join("+")
         )
     }
 }

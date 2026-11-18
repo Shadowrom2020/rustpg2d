@@ -60,6 +60,36 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - The example's (and starter library's) villagers, guards, outlaws, the bandit chief, Rook, the
     elven ranger, the priest, the elder, goblins and orcs have stat blocks, and their XP and the
     quests' rewards are on the SRD's scale (quests 50 to 300 XP, a goblin 50, the bandit chief 450).
+- **Conditions, damage types and rests**: the SRD's 15 conditions (blinded, charmed, deafened,
+  frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained,
+  stunned, unconscious, exhaustion with six levels) replace the status effects. They give
+  disadvantage on checks, fail STR / DEX saving throws, stop or slow movement, keep a character from
+  acting; prone and unconscious characters lie on the ground, the invisible are faint and unnoticed,
+  a blinded hero sees a small circle, charmed characters leave the hero alone, frightened ones run.
+  A condition can come with a **saving throw** that keeps it off and with **damage or healing every
+  round** (6 s). Badges on the HUD and over heads, a *Conditions* line on the sheet.
+  - **Damage types**: the SRD's 13, on weapons, Bolt / Blast spells, area damage and damage per
+    round; resistance halves, immunity stops, vulnerability doubles. The hero resists through the
+    race and armor (new armor *Resistances*), characters through their stat block (new
+    resistances, immunities, vulnerabilities and condition immunities, imported for the NPC
+    templates).
+  - **Rests**: a **short rest** (R on the sheet, the *Short rest* action, `short_rest()`) spends hit
+    dice in a window; a **long rest** (a night's sleep, the *Long rest* action, `long_rest()`) gives
+    full HP, half the hit dice back and one level of exhaustion less.
+  - Events: *Apply condition* / *Remove condition* (the effect actions), *Player has condition*,
+    *Short rest*, *Long rest*; scripts (API 0.28) `apply_condition`, `remove_condition`,
+    `has_condition`, `exhaustion`, `set_exhaustion`, `short_rest`, `long_rest`, a damage type for
+    `damage_area` / `damage_around`; `apply_effect`, `cure` and `has_effect` are deprecated; the
+    `effect_apply` hook gets `condition`. `status` prints conditions in `effects=`, `rest=`, and
+    `sheet=` adds `cond:`.
+  - The example: weapons and spells with damage types, the slime's poison (a CON save, 1 poison a
+    round), Grumbold's blows knock the hero prone, the Elixir of Strength makes Strength 21 for ten
+    minutes, the Swiftness Potion takes off exhaustion and frees the hero; food heals on every
+    round; item texts say HP instead of hearts.
+- **Breaking:** status effects are gone. Projects convert once when they open (rules version 2):
+  poison, burning, regeneration, stun and slow become their conditions or damage / healing per
+  round; haste, strength, weakness and shield have no SRD condition and are taken out (listed in
+  the message). Saved games load with their effects as conditions.
 - **Breaking:** the XP curve of 0.27 (*XP for level 2*, *Growth*, *HP per level*) is gone: projects
   load with the SRD table, and a saved hero's max HP is recomputed from the level and CON. The SRD
   races lose the example's 0.27 HP and defense bonuses (their HP come from the hit die now).

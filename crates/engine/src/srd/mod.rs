@@ -4,17 +4,23 @@
 
 pub mod abilities;
 pub mod check;
+pub mod conditions;
+pub mod damage;
 pub mod dice;
 pub mod statblock;
 
 pub use abilities::{Abilities, Ability};
 pub use check::{RollRecord, Spec};
+pub use conditions::{ActiveCondition, Condition, ConditionSpec};
+pub use damage::{DamageType, Defenses};
 pub use dice::{Expr, Mode};
 pub use statblock::{npc_template, npc_templates, StatBlock};
 
 /// The rules' conversion version of projects made or converted by this editor
-/// (`ProjectConfig::rules_version`): 1 = the skill tree became SRD proficiencies (0.28).
-pub const RULES_VERSION: u32 = 1;
+/// (`ProjectConfig::rules_version`): 1 = the skill tree became SRD proficiencies (0.28); 2 = the
+/// status effects became conditions, and those without one (haste, strength, weakness,
+/// shield) were taken out (0.28).
+pub const RULES_VERSION: u32 = 2;
 
 /// A lock or crafting difficulty of the old skill levels (0.27 and older: 1 = easy … 9) as an
 /// SRD DC: 10, 12, 15, 18, 20, 22, 25, 28, 30. 0 stays 0.

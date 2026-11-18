@@ -124,6 +124,8 @@ impl Game {
         let factions = self.loaded.entities.iter().filter(|e| e.kind == crate::entity::EntityKind::Character).map(|e| (e.uid, e.name.clone(), self.faction_id(e))).collect();
         self.scripts.set_character_factions(factions);
         let blocks = self.loaded.entities.iter().filter_map(|e| Some((e.uid, e.name.clone(), self.stat_block(e)?.clone()))).collect();
+        let conds = self.loaded.entities.iter().filter(|e| !e.effects.is_empty()).map(|e| (e.uid, e.name.clone(), e.effects.clone())).collect();
+        self.scripts.set_npc_conditions(conds);
         self.scripts.set_stat_blocks(blocks);
         let locks = self.lock_list();
         self.scripts.set_locks(locks);

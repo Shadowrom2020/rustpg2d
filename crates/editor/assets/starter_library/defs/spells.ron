@@ -2,7 +2,7 @@
     (
         id: "heal",
         name: "Heal",
-        description: "Mends your wounds: restores 3 hearts.",
+        description: "Mends your wounds: restores 6 HP.",
         icon: (
             sheet: "items",
             frame: 25,
@@ -52,6 +52,7 @@
             ),
             speed: 640.0,
             range: 7.0,
+            damage_type: Some(Force),
         ),
     ),
     (
@@ -69,6 +70,7 @@
         effect: Blast(
             damage: 4,
             radius: 2.0,
+            damage_type: Some(Fire),
         ),
     ),
     (

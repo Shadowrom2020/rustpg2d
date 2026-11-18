@@ -888,7 +888,11 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
     let Some(w) = w else { return };
     egui::Grid::new(format!("{id}/grid")).num_columns(2).show(ui, |ui| {
         ui.label("Damage");
-        ui.add(egui::DragValue::new(&mut w.damage).range(0..=999));
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut w.damage).range(0..=999));
+            widgets::damage_type_combo(ui, &format!("{id}/dt"), &mut w.damage_type, "untyped");
+            ui.weak("(the type: resistances halve it, immunities stop it)");
+        });
         ui.end_row();
         ui.label("Cooldown (s)");
         ui.add(egui::DragValue::new(&mut w.cooldown).range(0.05..=10.0).speed(0.05));
@@ -952,7 +956,7 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
         ui,
         &format!("{id}/fx"),
         "On hit:",
-        "A status effect for whoever this weapon hits (melee swings and projectiles), e.g. a poisoned dagger or a freezing bolt",
+        "A condition (and / or damage every round) for whoever this weapon hits (melee swings and projectiles), e.g. a poisoned dagger: Poisoned, a CON save keeps it off",
         &mut w.effect,
     );
     if let Some(r) = &mut w.ranged {
@@ -1024,7 +1028,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
                     _ => EquipSlot::Offhand,
                 };
                 let defense = if matches!(slot, EquipSlot::Clothing | EquipSlot::Back) { 0 } else { 1 };
-                Some(d.armor.take().map(|a| Armor { slot, ..a }).unwrap_or(Armor { slot, defense, speed: 0.0 }))
+                Some(d.armor.take().map(|a| Armor { slot, ..a }).unwrap_or(Armor { slot, defense, speed: 0.0, resistances: Vec::new() }))
             }
             _ => None,
         };
@@ -1050,13 +1054,16 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     if let Some(a) = &mut d.armor {
         egui::Grid::new("armor").num_columns(2).show(ui, |ui| {
             ui.label("Defense");
-            ui.add(egui::DragValue::new(&mut a.defense).range(-99..=99)).on_hover_text("Subtracted from incoming damage (1 heart = 2 HP)");
+            ui.add(egui::DragValue::new(&mut a.defense).range(-99..=99)).on_hover_text("Subtracted from incoming damage, and added to the armor class");
             ui.end_row();
             ui.label("Speed change");
             let mut pct = a.speed * 100.0;
             if ui.add(egui::DragValue::new(&mut pct).range(-90.0..=100.0).suffix(" %")).changed() {
                 a.speed = pct / 100.0;
             }
+            ui.end_row();
+            ui.label("Resistances").on_hover_text("Damage types its wearer takes half damage from");
+            ui.horizontal_wrapped(|ui| damage_type_toggles(ui, &mut a.resistances));
             ui.end_row();
         });
         ui.weak("Worn items count in play (defense, speed); a character's model shows what it wears.");
@@ -3438,6 +3445,25 @@ pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_
         });
         ui.end_row();
     });
+    ui.label("Resistant to").on_hover_text("Damage types it takes half damage from");
+    ui.horizontal_wrapped(|ui| damage_type_toggles(ui, &mut s.resistances));
+    ui.label("Immune to").on_hover_text("Damage types that don't hurt it");
+    ui.horizontal_wrapped(|ui| damage_type_toggles(ui, &mut s.immunities));
+    ui.label("Vulnerable to").on_hover_text("Damage types it takes double damage from");
+    ui.horizontal_wrapped(|ui| damage_type_toggles(ui, &mut s.vulnerabilities));
+    ui.label("Can't get").on_hover_text("Conditions it is immune to");
+    ui.horizontal_wrapped(|ui| {
+        for c in rustpg2d_engine::srd::Condition::ALL {
+            let mut on = s.condition_immunities.iter().any(|i| i == c.id());
+            if ui.toggle_value(&mut on, c.name()).on_hover_text(c.rules_text()).changed() {
+                if on {
+                    s.condition_immunities.push(c.id().to_string());
+                } else {
+                    s.condition_immunities.retain(|i| i != c.id());
+                }
+            }
+        }
+    });
     ui.label("Proficiencies").on_hover_text("Saving throws and skills it adds its proficiency bonus to");
     ui.horizontal_wrapped(|ui| {
         let mut toggle = |ui: &mut egui::Ui, id: String, label: String| {
@@ -3457,6 +3483,27 @@ pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_
             toggle(ui, id.to_string(), name.to_string());
         }
     });
+}
+
+/// The 13 damage types as toggles, for a list of type ids (resistances…).
+pub fn damage_type_toggles(ui: &mut egui::Ui, list: &mut Vec<String>) {
+    for t in rustpg2d_engine::srd::DamageType::ALL {
+        let mut on = list.iter().any(|r| r == t.id());
+        if ui.toggle_value(&mut on, t.name()).changed() {
+            if on {
+                list.push(t.id().to_string());
+            } else {
+                list.retain(|r| r != t.id());
+            }
+        }
+    }
+    // The SRD's longer entries ("bludgeoning, piercing, and slashing from nonmagical attacks").
+    let other: Vec<String> = list.iter().filter(|r| rustpg2d_engine::srd::DamageType::parse(r).is_none()).cloned().collect();
+    for o in other {
+        if ui.small_button(format!("{o}  {}", ph::X)).on_hover_text("Remove").clicked() {
+            list.retain(|r| *r != o);
+        }
+    }
 }
 
 /// A *Faction* field: the project's factions; `inherited` = what "(none)" stands for ("its
@@ -4523,9 +4570,12 @@ fn spell_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SpellDef, cx: 
             ui.add(egui::DragValue::new(amount).range(1..=999).suffix(" HP")).on_hover_text("1 heart = 2 HP");
             ui.end_row();
         }
-        SpellEffect::Bolt { damage, projectile: p, speed, range } => {
+        SpellEffect::Bolt { damage, projectile: p, speed, range, damage_type } => {
             ui.label("Damage");
-            ui.add(egui::DragValue::new(damage).range(0..=999));
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(damage).range(0..=999));
+                widgets::damage_type_combo(ui, "spell_bolt_dt", damage_type, "untyped");
+            });
             ui.end_row();
             ui.label("Speed (px/s)");
             ui.add(egui::DragValue::new(speed).range(10.0..=2000.0));
@@ -4535,9 +4585,12 @@ fn spell_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SpellDef, cx: 
             ui.end_row();
             projectile = Some(p);
         }
-        SpellEffect::Blast { damage, radius } => {
+        SpellEffect::Blast { damage, radius, damage_type } => {
             ui.label("Damage");
-            ui.add(egui::DragValue::new(damage).range(0..=999));
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(damage).range(0..=999));
+                widgets::damage_type_combo(ui, "spell_blast_dt", damage_type, "untyped");
+            });
             ui.end_row();
             ui.label("Radius (tiles)");
             ui.add(egui::DragValue::new(radius).range(0.5..=32.0).speed(0.1));

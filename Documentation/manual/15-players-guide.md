@@ -18,7 +18,7 @@ These are the default keys; players change them in *Options › Gameplay › Con
 | Q | Switch weapon (bare hands, then the weapons you own) |
 | 1–8, or a click on a quick bar slot | Use that item or spell |
 | C / I | The character window: character sheet and inventory |
-| K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, languages, features and traits) and *Spells* tab (if the game has magic) |
+| K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, conditions, languages, features and traits; R there: short rest) and *Spells* tab (if the game has magic) |
 | Tab | Next tab of the open window |
 | J | Journal: *Quests*, *Bestiary*, *Dialogs*, *People* (the villagers you made friends with, in hearts), *Rolls* (your last checks and dice rolls) |
 | M | The map screen |
@@ -64,6 +64,15 @@ race's and background's features and traits and shows what it does.
 
 Your **hit points** are the red bar at the top left (`34 / 44`). Every level adds a d10's worth plus
 your Constitution modifier (6 + CON in most games).
+
+**Conditions** show as badges under your hit points (`PSN 9` = poisoned for 9 more seconds,
+`PRN` prone, `EXH2` exhaustion level 2) and on the sheet; characters carry theirs over their heads.
+Poison and fear give disadvantage on your checks, prone makes you crawl, stunned and paralyzed hold
+you still, blindness narrows what you see; a saving throw can keep one off when it shows up.
+
+**Resting**: press R on the sheet (gamepad X) for a **short rest** when no enemy is near: spend hit
+dice (each heals d10 + CON) and an hour passes. Sleeping in a bed is a **long rest**: full hit
+points, half your hit dice back and one level of exhaustion less.
 
 A **padlock** over a chest or door means it is locked. Without its key, press E to try to pick it
 (a Dexterity check with Thieves' Tools). If it holds, give it ten minutes before you try again.

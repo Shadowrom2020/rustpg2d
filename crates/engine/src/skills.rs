@@ -38,9 +38,22 @@ pub enum SpellEffect {
     /// Restores HP.
     Heal { amount: i32 },
     /// Shoots a projectile in the facing direction (like a ranged weapon without ammo).
-    Bolt { damage: i32, projectile: SpriteRef, speed: f32, range: f32 },
+    Bolt {
+        damage: i32,
+        projectile: SpriteRef,
+        speed: f32,
+        range: f32,
+        /// What it does (force, fire…; `None` = untyped).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<crate::srd::DamageType>,
+    },
     /// Damages everything within `radius` tiles around the player.
-    Blast { damage: i32, radius: f32 },
+    Blast {
+        damage: i32,
+        radius: f32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<crate::srd::DamageType>,
+    },
     /// A light around the player for `seconds` (radius in tiles).
     Light { radius: f32, seconds: f32 },
     /// Calls the Rhai function (which can use the whole script API: say, heal, give_item,
@@ -67,8 +80,8 @@ impl SpellEffect {
     }
     pub fn template(i: usize) -> SpellEffect {
         match i {
-            1 => SpellEffect::Bolt { damage: 2, projectile: SpriteRef::default(), speed: 300.0, range: 6.0 },
-            2 => SpellEffect::Blast { damage: 3, radius: 2.0 },
+            1 => SpellEffect::Bolt { damage: 2, projectile: SpriteRef::default(), speed: 300.0, range: 6.0, damage_type: Some(crate::srd::DamageType::Force) },
+            2 => SpellEffect::Blast { damage: 3, radius: 2.0, damage_type: Some(crate::srd::DamageType::Force) },
             3 => SpellEffect::Light { radius: 5.0, seconds: 30.0 },
             4 => SpellEffect::Script { function: String::new() },
             _ => SpellEffect::Heal { amount: 4 },

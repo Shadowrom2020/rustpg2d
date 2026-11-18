@@ -60,11 +60,14 @@ is full, assigns it and opens it for drawing.
 **Equipment kinds:**
 
 - **Weapon**: melee (damage, cooldown, reach, swing arc, knockback) or ranged (projectile sprite,
-  speed, range, ammo item). **Two-handed** weapons (spear, bow, crossbow) can't be used with a
-  shield or a light. A weapon can apply a status effect **on hit**. **Critical hits**: the chance
+  speed, range, ammo item). The damage has a **damage type** (slashing, piercing, fire…:
+  resistances halve it; untyped = none applies). **Two-handed** weapons (spear, bow, crossbow)
+  can't be used with a shield or a light. A weapon can apply a **condition on hit** (poisoned,
+  prone…, with a saving throw and damage every round: [Gameplay › Conditions](09-gameplay.md#conditions-and-damage)). **Critical hits**: the chance
   (5 % by default) that a hit of the player's with it is critical: double damage and a big yellow
   number (enemies don't hit critically).
-- **Helmet**, **Body armor**: defense and a speed change (heavy armor slows).
+- **Helmet**, **Body armor**: defense (also added to the armor class), a speed change (heavy armor
+  slows) and **resistances**: damage types its wearer takes half damage from.
 - **Left hand**: shields (defense) or lights (a lantern, a torch: give the item a *Light*).
 - **Clothing**: outfits (defense, speed).
 - **Backpack**: goes into the Back slot and shows on the character's back (its 3D model, held *On

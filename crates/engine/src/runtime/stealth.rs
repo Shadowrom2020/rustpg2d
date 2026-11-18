@@ -59,6 +59,10 @@ impl Game {
     /// How far (pixels) an enemy with `sight` tiles of sight notices the player: less while
     /// sneaking and in the dark, never under [`NEAR_NOTICE`] tiles.
     pub(super) fn player_sight(&self, sight: f32) -> f32 {
+        // Invisible: only noticed up close.
+        if crate::srd::conditions::has(&self.world.effects, crate::srd::Condition::Invisible) {
+            return 0.0;
+        }
         let light = DARK_SIGHT + (1.0 - DARK_SIGHT) * self.light_at_player();
         let sneak = if self.sneaking() { SNEAK_SIGHT } else { 1.0 };
         (sight * light * sneak).max(NEAR_NOTICE.min(sight)) * self.ts()

@@ -1,5 +1,5 @@
 //! Characters use what they carry: a healing item when their health is critical, a cure when
-//! poisoned or burning, a buff (strength, haste, ...) in a fight. Companions (items the player
+//! they have a condition or ongoing damage, a buff (healing over time, invisibility) in a fight. Companions (items the player
 //! gave them) and any other character with items, enemies included. Ranged companions also
 //! shoot ammunition from their bag when the player gave them the bow. What an item does comes
 //! from its *on use* actions, run with the character as "self" (`healing::redirect_heals`);
@@ -7,7 +7,8 @@
 
 use super::Game;
 use super::Source;
-use crate::effects::EffectKind;
+use crate::srd::conditions::{ActiveCondition, ConditionSpec};
+use crate::srd::Condition;
 use crate::events::runner::ActionCtx;
 use crate::events::{Action, GameEvent};
 
@@ -22,15 +23,32 @@ const BUFF_RANGE: f32 = 5.0;
 #[derive(Default, Debug)]
 struct Uses {
     heals: i32,
-    cures: Vec<Option<EffectKind>>,
-    buffs: Vec<EffectKind>,
+    cures: Vec<Option<Condition>>,
+    buffs: Vec<&'static str>,
+}
+
+/// What makes a condition good to have: healing over time, invisibility (`None` = not a buff).
+fn buff_of(condition: Option<Condition>, ongoing: Option<&crate::srd::conditions::Ongoing>) -> Option<&'static str> {
+    match condition {
+        Some(Condition::Invisible) => Some("invisible"),
+        None | Some(Condition::Any) if ongoing.is_some_and(|o| o.damage_type.is_none()) => Some("healing"),
+        _ => None,
+    }
+}
+
+fn spec_buff(s: &ConditionSpec) -> Option<&'static str> {
+    buff_of(s.condition, s.ongoing.as_ref())
+}
+
+fn active_buff(a: &ActiveCondition) -> Option<&'static str> {
+    buff_of(a.condition, a.ongoing.as_ref())
 }
 
 fn scan(actions: &[Action], u: &mut Uses) {
     crate::events::walk_actions(actions, &mut |a| match a {
         Action::Heal { amount } if *amount > 0 => u.heals += amount,
         Action::CureEffect { target, kind } if target == "player" => u.cures.push(*kind),
-        Action::ApplyEffect { target, effect } if target == "player" && is_buff(effect.kind) => u.buffs.push(effect.kind),
+        Action::ApplyEffect { target, effect } if target == "player" => u.buffs.extend(spec_buff(effect)),
         _ => {}
     });
 }
@@ -42,10 +60,6 @@ fn silent(a: Action) -> Option<Action> {
         Action::If { conditions, then, otherwise } => Some(Action::If { conditions, then: then.into_iter().filter_map(silent).collect(), otherwise: otherwise.into_iter().filter_map(silent).collect() }),
         a => Some(a),
     }
-}
-
-fn is_buff(k: EffectKind) -> bool {
-    matches!(k, EffectKind::Regen | EffectKind::Haste | EffectKind::Strength | EffectKind::Shield)
 }
 
 impl Game {
@@ -66,21 +80,22 @@ impl Game {
         let down = self.is_down(i);
         let e = &mut self.loaded.entities[i];
         e.item_cd = (e.item_cd - dt).max(0.0);
-        if e.item_cd > 0.0 || e.inventory.is_empty() || e.max_hp <= 0 || e.hp <= 0 || down || crate::effects::stunned(&e.effects) {
+        if e.item_cd > 0.0 || e.inventory.is_empty() || e.max_hp <= 0 || e.hp <= 0 || down || !crate::srd::conditions::can_act(&e.effects) {
             return;
         }
         let e = &self.loaded.entities[i];
         let hurt = e.hp < e.max_hp && ((e.hp as f32) <= CRITICAL * e.max_hp as f32 || e.hp <= e.last_hit);
-        let bad: Vec<EffectKind> = e.effects.iter().map(|x| x.kind).filter(|k| matches!(k, EffectKind::Poison | EffectKind::Burn | EffectKind::Slow | EffectKind::Weakness)).collect();
+        // The bad ones: conditions (Any stands for ongoing damage, which only "all" cures).
+        let bad: Vec<Condition> = e.effects.iter().filter(|a| active_buff(a).is_none()).map(|a| a.condition.unwrap_or(Condition::Any)).collect();
         let ts = self.ts();
         // In a fight: hostile characters hunting the player; friendly ones with a hunting enemy close.
         let danger = if e.hostile { e.ai.aggro > 0.0 } else { self.loaded.entities.iter().any(|o| o.active && o.hostile && o.max_hp > 0 && o.ai.aggro > 0.0 && o.body.pos.distance(e.body.pos) <= BUFF_RANGE * ts) };
-        let have: Vec<EffectKind> = e.effects.iter().map(|x| x.kind).collect();
+        let have: Vec<&str> = e.effects.iter().filter_map(active_buff).collect();
         let items: Vec<String> = e.inventory.iter().filter(|s| s.count > 0).map(|s| s.item.clone()).collect();
         let pick = items.into_iter().find(|item| {
             let u = self.item_uses(item);
             (hurt && u.heals > 0)
-                || (!bad.is_empty() && u.cures.iter().any(|c| c.is_none_or(|k| bad.contains(&k))))
+                || (!bad.is_empty() && u.cures.iter().any(|c| c.is_none_or(|k| k == Condition::Any || bad.contains(&k))))
                 || (danger && !u.buffs.is_empty() && u.buffs.iter().any(|b| !have.contains(b)))
         });
         match pick {
@@ -130,23 +145,23 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::effects::EffectSpec;
+    use crate::srd::conditions::Ongoing;
 
     #[test]
     fn item_uses_from_on_use_actions() {
         let mut u = Uses::default();
         let actions = vec![
             Action::Heal { amount: 6 },
-            Action::If { conditions: vec![], then: vec![Action::CureEffect { target: "player".into(), kind: Some(EffectKind::Poison) }], otherwise: vec![] },
-            Action::ApplyEffect { target: "player".into(), effect: EffectSpec::new(EffectKind::Strength, 25.0, 30.0) },
-            // Not for the user: an effect on someone else, a harmful one, damage.
-            Action::ApplyEffect { target: "guard".into(), effect: EffectSpec::new(EffectKind::Haste, 25.0, 30.0) },
-            Action::ApplyEffect { target: "player".into(), effect: EffectSpec::new(EffectKind::Poison, 1.0, 5.0) },
+            Action::If { conditions: vec![], then: vec![Action::CureEffect { target: "player".into(), kind: Some(Condition::Poisoned) }], otherwise: vec![] },
+            Action::ApplyEffect { target: "player".into(), effect: ConditionSpec { condition: None, ongoing: Some(Ongoing { dice: "2".into(), damage_type: None }), ..ConditionSpec::new(Condition::Any, 12.0) } },
+            // Not for the user: a condition on someone else, a harmful one, damage.
+            Action::ApplyEffect { target: "guard".into(), effect: ConditionSpec::new(Condition::Invisible, 30.0) },
+            Action::ApplyEffect { target: "player".into(), effect: ConditionSpec::new(Condition::Poisoned, 5.0) },
             Action::Heal { amount: -2 },
         ];
         scan(&actions, &mut u);
         assert_eq!(u.heals, 6);
-        assert_eq!(u.cures, vec![Some(EffectKind::Poison)]);
-        assert_eq!(u.buffs, vec![EffectKind::Strength]);
+        assert_eq!(u.cures, vec![Some(Condition::Poisoned)]);
+        assert_eq!(u.buffs, vec!["healing"]);
     }
 }

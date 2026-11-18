@@ -16,7 +16,8 @@ equipped bow or crossbow.
   low obstacles (fences, rocks, water, barrels) and stop at high ones (walls, tree trunks, statues);
   enemy archers only shoot when they have such a clear line ([Maps › Low and high
   obstacles](03-maps.md#low-and-high-obstacles)).
-- **Armor** reduces damage: what gets through is `damage − defense`, at least 1. Heavy armor can
+- **Armor** reduces damage: what gets through is `damage − defense`, at least 1 (after the
+  [damage type](#conditions-and-damage): resistance halves it first). Heavy armor can
   slow the wearer.
 - Hits knock back (a hard shove that stops quickly) and give a moment of invulnerability. When
   the player is hurt the screen shakes briefly and flashes red (players can turn this off in
@@ -118,24 +119,69 @@ The status frame shows `Lv N` with a gold XP bar, the character sheet *Level N* 
 message announces every level, with the project's *Level up* fanfare (*Game sounds*) if it has one. Triggers use the *Give experience* action and the *Player level*
 condition; scripts `give_xp(n)`, `xp()` and `level()`.
 
-## Status effects
+## Conditions and damage
 
-Timed effects on the player and on characters:
+![Prone: the hero and a town guard lie on the ground, with their badges](../images/game-conditions.webp)
 
-| Effect | What it does |
+The SRD's **conditions** on the hero and on characters (until 0.27 they were status effects):
+
+| Condition | What it does in the game |
 |---|---|
-| **Poison**, **Burning** | HP lost per second; defense doesn't help |
-| **Regeneration** | HP gained per second |
-| **Slow**, **Haste** | Slower / faster movement |
-| **Strength**, **Weakness** | More / less damage dealt |
-| **Shield** | Extra defense |
-| **Stun** | Can't move, attack or interact |
+| **Blinded** | Checks that need sight (Perception, Investigation) fail. The hero sees only a small circle around them; a character sees a tile |
+| **Charmed** | A charmed character leaves the hero alone; a charmed hero doesn't attack |
+| **Deafened** | Checks that need hearing fail |
+| **Frightened** | Disadvantage on ability checks; a frightened character runs from the hero |
+| **Grappled** | Speed 0 |
+| **Incapacitated** | Can't attack, use or interact (and stands still) |
+| **Invisible** | Drawn faint; enemies notice an invisible hero only up close |
+| **Paralyzed** | Incapacitated and can't move; STR and DEX saving throws fail; hits against it are critical |
+| **Petrified** | Like paralyzed, grey, and resistant to all damage |
+| **Poisoned** | Disadvantage on ability checks |
+| **Prone** | Lies on the ground and crawls at half speed |
+| **Restrained** | Speed 0; disadvantage on DEX saving throws |
+| **Stunned** | Incapacitated and can't move; STR and DEX saving throws fail |
+| **Unconscious** | Lies on the ground, incapacitated; STR and DEX saving throws fail; hits against it are critical |
+| **Exhaustion** | Six levels: 1 disadvantage on ability checks, 2 half speed, 3 disadvantage on saving throws, 4 max HP halved, 5 speed 0, 6 death. A long rest takes one level off |
 
-Weapons apply one **on hit**, hostile characters **on touch**, and potions, traps and scripts with
-the *Apply effect* / *Cure effect* actions or `apply_effect` / `cure`. Applying a running effect
-again restarts it (the longer duration and the stronger strength win). The status frame shows a badge
-per effect with the seconds left; characters with effects get coloured markers and tints. The
-player's effects are saved.
+Disadvantage on attack rolls (poisoned, prone, restrained…) is noted for the turn-based combat of
+0.29. A condition can come with **damage or healing every round** (6 seconds, the first at once):
+the slime's poison, a burning oil flask, a stew that heals on. A **saving throw** can keep a
+condition off: the slime's touch poisons only when a CON save against DC 10 fails; characters roll
+theirs with their [stat block](06-characters.md#stat-blocks) (the roll log shows them, "Guard: CON
+save").
+
+**Where they come from**: weapons **on hit**, hostile characters **on touch** (Database), and
+potions, traps and scripts with the *Apply condition* / *Remove condition* actions, or
+`apply_condition` / `remove_condition`. Applying a running condition keeps the longer duration;
+exhaustion adds a level. The status frame shows a badge per condition with the seconds left
+(`PSN 9`, `EXH2`); characters get badges over their heads and tints; the character sheet lists
+them. The hero's conditions are saved, and a stat block's *Can't get* list keeps a character free
+of some.
+
+**Damage types**: the SRD's 13 (acid, bludgeoning, cold, fire, force, lightning, necrotic,
+piercing, poison, psychic, radiant, slashing, thunder). A weapon, a spell's bolt or blast, area
+damage and damage per round can have one. **Resistance** halves it (rounded down), **immunity**
+stops it, **vulnerability** doubles it; the old defense comes off afterwards. The hero resists what
+their race resists (a dwarf's poison) and what their armor names; characters what their stat block
+says (an assassin resists poison).
+
+**In the example** the weapons have their types (swords and axes slashing, spears and bows
+piercing), the Spark spell is force and the Fire Burst and Fireball fire. The slime's touch poisons
+(CON DC 10, 1 poison damage a round: nothing for a dwarf), Grumbold the cave troll's blows knock the
+hero prone (STR DC 13), skeletons restrain, the antidote and the remedy end poison, and food heals
+on for a few rounds. The Elixir of Strength makes Strength 21 for ten minutes (a script with a
+timer), the Swiftness Potion takes off a level of exhaustion and frees you from a grapple.
+
+## Rests
+
+![The short rest's window: spending hit dice](../images/game-rest.webp)
+
+- A **short rest** (R on the character sheet, the *Short rest* action or `short_rest()`) opens a
+  window where the hero spends **hit dice**: each heals d10 + the CON modifier (rolled into the roll
+  log); *Done* lets an hour pass. Not with enemies nearby or in a fight.
+- A **long rest** is a night's sleep (a bed, the *Sleep* or *Long rest* action, `long_rest()`): full
+  HP and mana, half the level's hit dice back (at least one), one level of exhaustion less, and the
+  conditions with a duration are over.
 
 ## Rules (SRD 5.1)
 
@@ -208,9 +254,8 @@ blocks](06-characters.md#stat-blocks)). Scripts read them with `npc_stat`, and a
 them in `statblocks=`; real-time combat still uses a character's *Max HP*, *Damage* and *Defense*
 until the turn-based combat of 0.29 takes the stat blocks.
 
-What isn't there yet: conditions such as *poisoned* or *prone*, rests (hit dice are counted, not yet
-spent), classes, and rolls in combat (resistances are kept for them); combat stays real-time until
-the turn-based combat of 0.29.
+What isn't there yet: classes and rolls in combat; combat stays real-time until the turn-based
+combat of 0.29.
 
 ### Converting a project of 0.27 or older
 
@@ -225,6 +270,11 @@ this. The editor converts a project once when it opens it, after keeping a copy 
   magic skills, script skills) are dropped, and the message names them: classes bring those back.
 - Lock difficulties become DCs (1 = 10, 2 = 12, 3 = 15, 4 = 18, 5 = 20…), and so do recipe quality
   levels. *Skill level* conditions now ask for proficiency, and *Give skill points* does nothing.
+- **Status effects** become conditions: poison = poisoned with poison damage every round, burning
+  = fire damage every round, regeneration = healing every round, stun = stunned, slow = restrained.
+  Haste, strength, weakness and shield have no SRD condition and are taken out (the message lists
+  the items, characters and maps that had them; spells bring them back in 0.30). A project made with
+  0.28 before conditions arrived is converted this way when it opens too.
 - Asset libraries are converted the same way when they open.
 - Saved games still load: their hero gets the project's starting scores and proficiencies.
 
@@ -239,8 +289,8 @@ hero proficient in it, e.g. Arcana, can learn and cast the spell), an icon and a
 | Effect | What it does |
 |---|---|
 | *Heal* | Restores hit points; with companions on the map it asks whom to heal |
-| *Bolt* | A projectile, aimed with the mouse |
-| *Blast* | Damages everything within a radius |
+| *Bolt* | A projectile, aimed with the mouse (with a damage type: force, fire…) |
+| *Blast* | Damages everything within a radius (with a damage type) |
 | *Light* | A glow around the player for a while |
 | *Script* | A script function: aim, throw animated sprites, play effects, damage areas ([the Fireball](08-scripting.md#a-fireball-spell)) |
 
@@ -413,8 +463,8 @@ the side the head is on), for beds the hour sleep lasts until, a **cover** sprit
 user (a blanket, a chair's backrest), and optional conditions with a refusal text (a paid inn room).
 
 E at the furniture sits the player down: HP comes back (1 every 4 s) and mana twice as fast. At a bed
-it asks "Sleep until 07:00?": the screen fades, the clock jumps, HP and mana are restored, effects
-wear off, enemies due to respawn return, scheduled villagers are at their new places; then *Woke up*
+it asks "Sleep until 07:00?": the screen fades, the clock jumps, and the night is a [long
+rest](#rests) (HP and mana, hit dice, exhaustion, timed conditions), enemies due to respawn return, scheduled villagers are at their new places; then *Woke up*
 triggers run and the game autosaves. Not with enemies nearby. A movement key, an attack or E stands
 up. The **Sleep** action and `sleep(hours)` rest without a bed (camping, an inn's "Rest").
 

@@ -244,18 +244,15 @@ impl Game {
         true
     }
 
-    /// What a night's sleep does: the clock moves on, HP and mana are restored, timed effects
-    /// run out, enemies due to respawn are back, scheduled characters are where the hour wants.
+    /// What a night's sleep does: the clock moves on, a long rest (an hour or more: HP and mana,
+    /// hit dice, exhaustion, timed conditions; `rest.rs`), enemies due to respawn are back,
+    /// scheduled characters are where the hour wants.
     fn pass_time(&mut self, hours: f32) {
         self.world.advance_hours(hours);
         self.water_crops(hours);
-        if self.combat.enabled() {
-            self.world.player_hp = Some(self.player_max_hp());
+        if hours >= 1.0 {
+            self.long_rest_effects();
         }
-        if self.magic_on() {
-            self.world.mana = self.max_mana() as f32;
-        }
-        self.world.effects.clear();
         self.spawners_catch_up();
         for i in 0..self.loaded.entities.len() {
             let e = &mut self.loaded.entities[i];

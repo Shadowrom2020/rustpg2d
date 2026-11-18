@@ -34,6 +34,10 @@
         languages: "any six languages",
         cr: "12",
         xp: 8400,
+        resistances: [
+            "damage from spells",
+            "bludgeoning, piercing, and slashing from nonmagical attacks (from stoneskin)",
+        ],
     ),
     (
         template: "assassin",
@@ -55,6 +59,9 @@
         languages: "Thieves\' cant plus any two languages",
         cr: "8",
         xp: 3900,
+        resistances: [
+            "poison",
+        ],
     ),
     (
         template: "bandit",
@@ -236,6 +243,9 @@
         languages: "Dwarvish, Undercommon",
         cr: "1",
         xp: 200,
+        resistances: [
+            "poison",
+        ],
     ),
     (
         template: "gladiator",
@@ -304,6 +314,9 @@
         languages: "Undercommon",
         cr: "1/4",
         xp: 50,
+        condition_immunities: [
+            "blinded",
+        ],
     ),
     (
         template: "guard",
@@ -334,6 +347,9 @@
         languages: "Common, Draconic",
         cr: "5",
         xp: 1800,
+        resistances: [
+            "fire",
+        ],
     ),
     (
         template: "hobgoblin",

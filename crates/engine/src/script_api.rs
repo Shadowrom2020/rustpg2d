@@ -37,7 +37,7 @@ pub enum Arg {
     Func,
     /// "up" / "down" / "left" / "right".
     Dir,
-    /// A status effect: "poison", "haste", ...
+    /// A condition: "poisoned", "prone", "exhaustion"… (until 0.27 a status effect).
     Effect,
     /// A character definition id.
     Character,
@@ -214,9 +214,19 @@ pub const API: &[ApiFn] = api! {
     "add_mana"(amount: Num) "Adds mana (negative drains) (queued)";
     "xp"() "All the experience points the player has gained (experience and levels)";
     "level"() "The player's level (1 = the first)";
-    "apply_effect"(target: Target, effect: Effect, strength: Num, seconds: Num) "Starts a status effect on \"player\" or a character: \"poison\", \"burn\" (HP per second), \"regen\" (HP per second), \"slow\", \"haste\", \"strength\", \"weakness\" (percent), \"shield\" (defense), \"stun\" (queued)";
-    "cure"(target: Target, effect: Effect) "Ends a status effect, e.g. cure(\"player\", \"poison\") (queued)";
-    "cure"(target: Target) "Ends all status effects (queued)";
+    [since "0.28"] "apply_condition"(target: Target, condition: Effect, seconds: Num) "A condition on \"player\" or a character: \"poisoned\", \"prone\", \"stunned\", \"exhaustion\" (one level)… for seconds (0 = until removed or a rest) (queued)";
+    [since "0.28"] "apply_condition"(target: Target, condition: Effect, seconds: Num, options: Opts) "Like apply_condition(); options #{ save: \"con\", dc: 12 (a saving throw keeps it off), damage: \"1d4\", type: \"poison\" (damage every round = 6 s; type \"heal\" = healing), level: 2 (exhaustion levels) }; condition \"\" = only the damage or healing (queued)";
+    [since "0.28"] "remove_condition"(target: Target, condition: Effect) "Ends a condition (all levels of exhaustion); \"\" or \"all\" = every condition and ongoing damage (queued)";
+    [since "0.28"] "has_condition"(condition: Effect) "Whether the hero has a condition (\"any\" = any)";
+    [since "0.28"] "has_condition"(target: Target, condition: Effect) "Whether \"player\", \"self\" (also SELF) or a character on this map has a condition";
+    [since "0.28"] "exhaustion"() "The hero's level of exhaustion (0-6)";
+    [since "0.28"] "set_exhaustion"(level: Num) "Sets the hero's exhaustion (0 = none, 6 = death) (immediately)";
+    [since "0.28"] "short_rest"() "Opens the rest window: the hero spends hit dice (d10 + CON each), an hour passes (queued)";
+    [since "0.28"] "long_rest"() "A long rest of 8 hours: full HP, half the hit dice back, one level of exhaustion less, timed conditions over (queued)";
+    [since "0.28"] "long_rest"(hours: Num) "Like long_rest(), for some hours (queued)";
+    [deprecated "apply_condition(target, condition, seconds, options)"] "apply_effect"(target: Target, effect: Effect, strength: Num, seconds: Num) "Deprecated: use apply_condition. The status effects of 0.27 as conditions: \"poison\" = poisoned + poison damage per round, \"burn\" = fire damage per round, \"regen\" = healing per round (strength x 6 per round), \"stun\" = stunned, \"slow\" = restrained; \"haste\", \"strength\", \"weakness\", \"shield\" do nothing (queued)";
+    [deprecated "remove_condition(target, condition)"] "cure"(target: Target, effect: Effect) "Deprecated: use remove_condition. Ends a condition, e.g. cure(\"player\", \"poison\") (queued)";
+    [deprecated "remove_condition(target, \"all\")"] "cure"(target: Target) "Deprecated: use remove_condition. Ends every condition (queued)";
     "defeated_count"(character: Character) "How many characters of this definition the player has defeated (the bestiary's count), e.g. defeated_count(\"slime\")";
     "shake"(seconds: Num) "Shakes the screen like a hit for a while: earthquakes, explosions (queued)";
     "shake"(seconds: Num, strength: Num) "Shakes the screen; strength 1 = like a hit, 2 = twice as hard (queued)";
@@ -226,9 +236,10 @@ pub const API: &[ApiFn] = api! {
     "weather"() "The current map's weather: \"none\", \"rain\", \"snow\" or \"fog\"";
     "weather_intensity"() "The current weather's strength (0 to 1)";
     "hp_of"(target: Target) "A character's HP right now: \"player\", \"self\" (also SELF), or a name on this map; -1 if there is no such character";
-    "has_effect"(effect: Effect) "Whether the player has a status effect, e.g. has_effect(\"poison\")";
+    [deprecated "has_condition(condition)"] "has_effect"(effect: Effect) "Deprecated: use has_condition. Whether the hero has a condition, e.g. has_effect(\"poison\") (= poisoned)";
     "give_xp"(amount: Num) "Gives experience; enough of it raises the level (negative takes it away, the level never drops) (queued)";
     "damage_around"(damage: Num, radius: Num) "Damages every character within radius tiles of the player (queued)";
+    [since "0.28"] "damage_around"(damage: Num, radius: Num, damage_type: Text) "Like damage_around(), of a damage type (\"fire\", \"cold\"…; resistances halve it) (queued)";
     "player_light"(radius: Num, seconds: Num) "Lights the player's surroundings for a while (queued)";
     "player_light"(radius: Num, seconds: Num, options: Opts) "Like player_light(); options #{ color: [r, g, b], flicker: true } (queued)";
     "light_at"(x: Num, y: Num, radius: Num, seconds: Num) "A light at tile x, y for a while, fading out at the end (queued)";
@@ -298,7 +309,8 @@ pub const API: &[ApiFn] = api! {
     "fly"(sheet: Sheet, x: Num, y: Num, function: Func, options: Opts) "Like fly(); options #{ speed: tiles/s, frames: [first, last] or tag: \"animation\", fps, scale, light: radius, color: [r, g, b] } (queued)";
     "effect"(sheet: Sheet, x: Num, y: Num) "Plays a sprite sheet's frames once, centered on tile x, y (explosions) (queued)";
     "effect"(sheet: Sheet, x: Num, y: Num, options: Opts) "Like effect(); options #{ frames: [first, last] or tag: \"animation\", fps, scale, light: radius, color: [r, g, b], shake: seconds } (queued)";
-    "damage_area"(x: Num, y: Num, radius: Num, damage: Num) "Damages every character within radius tiles of tile x, y (spell damage skills apply) (queued)";
+    "damage_area"(x: Num, y: Num, radius: Num, damage: Num) "Damages every character within radius tiles of tile x, y (queued)";
+    [since "0.28"] "damage_area"(x: Num, y: Num, radius: Num, damage: Num, damage_type: Text) "Like damage_area(), of a damage type (\"fire\"…; resistances halve it) (queued)";
     "text"(text: Line) "Fills in {player}, {sir|madam} and {variable} placeholders";
     "random"(n: Num) "Random integer from 0 to n-1";
     "say"(text: Line) "Shows a dialog (queued)";

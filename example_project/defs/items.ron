@@ -32,7 +32,7 @@
     (
         id: "potion",
         name: "Red Potion",
-        description: "Restores 3 hearts.",
+        description: "Restores 6 HP.",
         icon: (
             sheet: "items",
             frame: 1,
@@ -94,7 +94,7 @@
     (
         id: "apple",
         name: "Apple",
-        description: "Crunchy and sweet. Restores 1 heart.",
+        description: "Crunchy and sweet. Restores 2 HP.",
         icon: (
             sheet: "items",
             frame: 3,
@@ -147,6 +147,7 @@
             knockback: 1.0,
             two_handed: true,
             crit: 0.08,
+            damage_type: Some(Piercing),
         )),
         armor: None,
         max_stack: 1,
@@ -192,6 +193,7 @@
             knockback: 1.0,
             two_handed: true,
             crit: 0.12,
+            damage_type: Some(Piercing),
         )),
         armor: None,
         max_stack: 1,
@@ -212,7 +214,7 @@
     (
         id: "bandage",
         name: "Bandage",
-        description: "Linen for wounds: restores 1 heart. Use it on yourself or a companion.",
+        description: "Linen for wounds: restores 2 HP. Use it on yourself or a companion.",
         icon: (
             sheet: "items",
             frame: 40,
@@ -287,6 +289,7 @@
             knockback: 1.0,
             two_handed: false,
             crit: 0.05,
+            damage_type: Some(Slashing),
         )),
         armor: None,
         max_stack: 1,
@@ -318,6 +321,7 @@
             knockback: 1.0,
             two_handed: false,
             crit: 0.06,
+            damage_type: Some(Slashing),
         )),
         armor: None,
         max_stack: 1,
@@ -349,6 +353,7 @@
             knockback: 1.0,
             two_handed: false,
             crit: 0.12,
+            damage_type: Some(Slashing),
         )),
         armor: None,
         max_stack: 1,
@@ -380,6 +385,7 @@
             knockback: 0.7,
             two_handed: true,
             crit: 0.1,
+            damage_type: Some(Piercing),
         )),
         armor: None,
         max_stack: 1,
@@ -420,6 +426,7 @@
             knockback: 1.8,
             two_handed: false,
             crit: 0.04,
+            damage_type: Some(Slashing),
         )),
         armor: None,
         max_stack: 1,
@@ -710,7 +717,7 @@
                 actions: [
                     CureEffect(
                         target: "player",
-                        kind: Some(Poison),
+                        kind: Some(Poisoned),
                     ),
                 ],
                 once: false,
@@ -724,7 +731,7 @@
     (
         id: "elixir_strength",
         name: "Elixir of Strength",
-        description: "Your blows hit 30% harder for a minute.",
+        description: "Your Strength becomes 21 for ten minutes, like a hill giant\'s.",
         icon: (
             sheet: "items",
             frame: 33,
@@ -737,13 +744,8 @@
                 ),
                 conditions: [],
                 actions: [
-                    ApplyEffect(
-                        target: "player",
-                        effect: (
-                            kind: Strength,
-                            strength: 30.0,
-                            seconds: 60.0,
-                        ),
+                    RunScript(
+                        function: "giant_strength",
                     ),
                 ],
                 once: false,
@@ -757,7 +759,7 @@
     (
         id: "swiftness",
         name: "Swiftness Potion",
-        description: "You move 30% faster for half a minute.",
+        description: "Light on your feet: one level of exhaustion less, and nothing can hold you any more (grappled, restrained).",
         icon: (
             sheet: "items",
             frame: 34,
@@ -770,13 +772,8 @@
                 ),
                 conditions: [],
                 actions: [
-                    ApplyEffect(
-                        target: "player",
-                        effect: (
-                            kind: Haste,
-                            strength: 30.0,
-                            seconds: 30.0,
-                        ),
+                    RunScript(
+                        function: "swiftness_drink",
                     ),
                 ],
                 once: false,
@@ -822,7 +819,7 @@
     (
         id: "trout",
         name: "Trout",
-        description: "A fresh trout. Eating it restores a heart (grilled: two).",
+        description: "A fresh trout. Eating it restores 2 HP (grilled: 4).",
         icon: (
             sheet: "items",
             frame: 38,
@@ -1156,7 +1153,7 @@
     (
         id: "carrot",
         name: "Carrot",
-        description: "Fresh and crunchy. Restores 1 heart.",
+        description: "Fresh and crunchy. Restores 2 HP.",
         icon: (
             sheet: "items",
             frame: 59,
@@ -1200,7 +1197,7 @@
     (
         id: "grilled_trout",
         name: "Grilled Trout",
-        description: "Crispy skin, tender inside. Restores 2 hearts.",
+        description: "Crispy skin, tender inside. Restores 4 HP.",
         icon: (
             sheet: "food",
             frame: 0,
@@ -1229,7 +1226,7 @@
     (
         id: "bread",
         name: "Bread",
-        description: "A warm loaf. Restores 1.5 hearts.",
+        description: "A warm loaf. Restores 3 HP.",
         icon: (
             sheet: "food",
             frame: 1,
@@ -1258,7 +1255,7 @@
     (
         id: "carrot_soup",
         name: "Carrot Soup",
-        description: "Restores 2 hearts and keeps healing a little for a while.",
+        description: "Restores 4 HP, then 1d4 more every round for a little while.",
         icon: (
             sheet: "food",
             frame: 2,
@@ -1277,9 +1274,11 @@
                     ApplyEffect(
                         target: "player",
                         effect: (
-                            kind: Regen,
-                            strength: 1.0,
-                            seconds: 8.0,
+                            condition: None,
+                            seconds: 12.0,
+                            ongoing: Some((
+                                dice: "1d4",
+                            )),
                         ),
                     ),
                 ],
@@ -1295,7 +1294,7 @@
     (
         id: "pumpkin_stew",
         name: "Pumpkin Stew",
-        description: "Hearty: restores 3 hearts, then heals on for a while.",
+        description: "Hearty: restores 6 HP, then 1d4 more every round for a while.",
         icon: (
             sheet: "food",
             frame: 3,
@@ -1314,9 +1313,11 @@
                     ApplyEffect(
                         target: "player",
                         effect: (
-                            kind: Regen,
-                            strength: 1.0,
-                            seconds: 15.0,
+                            condition: None,
+                            seconds: 18.0,
+                            ongoing: Some((
+                                dice: "1d4",
+                            )),
                         ),
                     ),
                 ],
@@ -1332,7 +1333,7 @@
     (
         id: "apple_pie",
         name: "Apple Pie",
-        description: "Restores 2 hearts, and you hit 25% harder for a minute.",
+        description: "Restores 4 HP, then 1d4 more every round for a little while.",
         icon: (
             sheet: "food",
             frame: 4,
@@ -1351,9 +1352,11 @@
                     ApplyEffect(
                         target: "player",
                         effect: (
-                            kind: Strength,
-                            strength: 25.0,
-                            seconds: 60.0,
+                            condition: None,
+                            seconds: 12.0,
+                            ongoing: Some((
+                                dice: "1d4",
+                            )),
                         ),
                     ),
                 ],
@@ -1580,7 +1583,7 @@
     (
         id: "cheese",
         name: "Cheese",
-        description: "A wedge of hard cheese. Restores 1 heart.",
+        description: "A wedge of hard cheese. Restores 2 HP.",
         icon: (
             sheet: "items2",
             frame: 2,
@@ -1609,7 +1612,7 @@
     (
         id: "milk",
         name: "Jug of Milk",
-        description: "Fresh from the cow. Restores half a heart.",
+        description: "Fresh from the cow. Restores 1 HP.",
         icon: (
             sheet: "items2",
             frame: 3,
@@ -1698,7 +1701,7 @@
     (
         id: "remedy",
         name: "Herbal Remedy",
-        description: "Moonpetal, feverleaf and bitterroot, brewed together: cures poison and heals 2 hearts.",
+        description: "Moonpetal, feverleaf and bitterroot, brewed together: cures poison and heals 4 HP.",
         icon: (
             sheet: "items2",
             frame: 8,
@@ -1713,7 +1716,7 @@
                 actions: [
                     CureEffect(
                         target: "player",
-                        kind: Some(Poison),
+                        kind: Some(Poisoned),
                     ),
                     Heal(
                         amount: 4,
@@ -1759,7 +1762,7 @@
     (
         id: "festival_bread",
         name: "Festival Loaf",
-        description: "A braided loaf with a honey glaze, baked for the harvest festival. Restores 2 hearts and heals on for a while.",
+        description: "A braided loaf with a honey glaze, baked for the harvest festival. Restores 4 HP, then 1d4 more every round for a little while.",
         icon: (
             sheet: "items2",
             frame: 10,
@@ -1778,9 +1781,11 @@
                     ApplyEffect(
                         target: "player",
                         effect: (
-                            kind: Regen,
-                            strength: 1.0,
+                            condition: None,
                             seconds: 12.0,
+                            ongoing: Some((
+                                dice: "1d4",
+                            )),
                         ),
                     ),
                 ],
@@ -1796,7 +1801,7 @@
     (
         id: "ale",
         name: "Mug of Ale",
-        description: "Frothy and brown. Restores half a heart.",
+        description: "Frothy and brown. Restores 1 HP.",
         icon: (
             sheet: "items2",
             frame: 11,
@@ -2266,6 +2271,7 @@
             knockback: 1.0,
             two_handed: false,
             crit: 0.03,
+            damage_type: Some(Piercing),
         )),
         armor: None,
         max_stack: 1,

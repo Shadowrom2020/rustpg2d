@@ -120,7 +120,7 @@ impl Game {
         let max = self.npc_max_mana(i);
         let regen = self.project.db.character(&self.loaded.entities[i].def).map_or(0.0, |d| d.mana_regen);
         let e = &mut self.loaded.entities[i];
-        let stunned = crate::effects::stunned(&e.effects);
+        let stunned = !crate::srd::conditions::can_act(&e.effects);
         let Some(l) = e.companion.as_mut() else { return false };
         if max <= 0.0 || l.down.is_some() {
             return false;
@@ -155,7 +155,7 @@ impl Game {
                     }
                     None => false,
                 },
-                SpellEffect::Bolt { damage, projectile, speed, range } => self.companion_bolt(i, *damage, projectile, *speed, *range),
+                SpellEffect::Bolt { damage, projectile, speed, range, .. } => self.companion_bolt(i, *damage, projectile, *speed, *range),
                 _ => false,
             };
             if cast {
@@ -207,7 +207,7 @@ impl Game {
         e.body.facing = crate::entity::Facing::from_vec(dir.x, dir.y).unwrap_or(e.body.facing);
         let ranged = crate::defs::Ranged { projectile: projectile.clone(), speed, range, ammo: String::new() };
         self.audio.play(&self.project.config.sfx.attack);
-        self.shoot(eye, dir, &ranged, damage, true, Some(uid), None);
+        self.shoot(eye, dir, &ranged, damage, true, Some(uid), None, None);
         true
     }
 
@@ -240,8 +240,8 @@ mod tests {
     #[test]
     fn companions_cast_heal_and_bolt_only() {
         assert!(castable(&SpellEffect::Heal { amount: 3 }));
-        assert!(castable(&SpellEffect::Bolt { damage: 2, projectile: Default::default(), speed: 300.0, range: 6.0 }));
-        assert!(!castable(&SpellEffect::Blast { damage: 2, radius: 2.0 }));
+        assert!(castable(&SpellEffect::Bolt { damage_type: None, damage: 2, projectile: Default::default(), speed: 300.0, range: 6.0 }));
+        assert!(!castable(&SpellEffect::Blast { damage: 2, radius: 2.0, damage_type: None }));
         assert!(!castable(&SpellEffect::Light { radius: 4.0, seconds: 30.0 }));
         assert!(!castable(&SpellEffect::Script { function: "f".into() }));
     }

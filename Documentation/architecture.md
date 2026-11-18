@@ -136,6 +136,20 @@ the level). Stat blocks (`srd/statblock.rs`) are data on `CharacterDef::stats` /
 the engine (`include_str!`, parsed once) and written by `srd_import`. Real-time combat doesn't read
 them; the script host gets them as a list per script call (`set_stat_blocks`, `npc_stat`).
 
+Conditions (`srd/conditions.rs`) replaced the status effects of 0.27: `ConditionSpec` (what weapons,
+touches, actions and scripts apply: a condition, seconds, exhaustion levels, a saving throw,
+damage or healing per round of 6 s) and `ActiveCondition` (the hero's in `WorldState::effects`, a
+character's in `RtEntity::effects`); both read 0.27's `{kind, strength, seconds}` through `serde(from)`
+reprs, and `Condition`'s `#[serde(other)] Any` catches old effect names that have no condition.
+`rules(list)` sums up what a list does (disadvantage, failing saves, speed, acting, lying down…);
+`WorldState::check` applies the hero's, `runtime/effects.rs` ticks them and the runtime reads
+`rules` where it moves, attacks, notices and draws. `srd/damage.rs` has the 13 damage types and
+`Defenses::apply`; hits carry their type (`combat::Blow::damage_type`, projectiles,
+`hurt_player_by`) and meet the hero's defenses (`player_defenses`: race, armor, petrified) or a
+stat block's. Rests are `runtime/rest.rs` (the short rest's window, `long_rest_effects`, which a
+night's sleep in `furniture.rs` runs). `srd_convert` (RULES_VERSION 2) takes out what 0.27's haste,
+strength, weakness and shield became (`drop_lost_effects`).
+
 **Translations** (`lang.rs`): `lang/<code>.ron` with `texts` (content: dialogs, names, quest texts,
 collected by `content_texts`) and `ui` (runtime strings; English is the key). The game swaps the
 `Database` for a translated copy (`translate_db`).

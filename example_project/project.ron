@@ -184,7 +184,7 @@
         ],
         show_checks: true,
     ),
-    rules_version: 1,
+    rules_version: 2,
     progression: (
         enabled: true,
         max_level: 20,

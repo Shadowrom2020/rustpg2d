@@ -314,7 +314,7 @@ impl Game {
         }
         let e = &self.loaded.entities[i];
         let Some(w) = e.weapon.clone() else { return false };
-        if w.damage <= 0 || crate::effects::stunned(&e.effects) {
+        if w.damage <= 0 || !crate::srd::conditions::can_act(&e.effects) {
             return false;
         }
         let me = e.body.pos;
@@ -327,15 +327,15 @@ impl Game {
         let e = &mut self.loaded.entities[i];
         e.attack_cd -= dt;
         e.body.facing = Facing::from_vec(dir.x, dir.y).unwrap_or(e.body.facing);
-        let damage = crate::effects::scale_damage(&e.effects, w.damage);
+        let damage = w.damage;
         if let Some(r) = &w.ranged {
             if to.length() <= r.range * ts {
                 e.body.moving = false;
                 if e.attack_cd <= 0.0 {
                     e.attack_cd = w.cooldown.max(0.3) + 0.2;
-                    let (r, uid, fx) = (r.clone(), e.uid, w.effect);
+                    let (r, uid, fx) = (r.clone(), e.uid, w.effect.clone());
                     self.audio.play(&self.project.config.sfx.attack);
-                    self.shoot(eye, (o_mid(&self.loaded.entities[t]) - eye).normalize_or_zero(), &r, damage, true, Some(uid), fx);
+                    self.shoot(eye, (o_mid(&self.loaded.entities[t]) - eye).normalize_or_zero(), &r, damage, true, Some(uid), fx, w.damage_type);
                     if let Some((kind, _)) = &ammo {
                         self.npc_give(i, kind, -1);
                     }
@@ -346,12 +346,12 @@ impl Game {
             e.body.moving = false;
             if e.attack_cd <= 0.0 {
                 e.attack_cd = w.cooldown.max(0.3) + 0.15;
-                let fx = w.effect;
+                let fx = w.effect.clone();
                 self.audio.play(&self.project.config.sfx.attack);
                 if let Some(fx) = &fx {
                     self.apply_entity_effect(t, fx);
                 }
-                self.strike_entity(t, damage, me, w.knockback, super::combat::Blow { attacker: Some(me), ..Default::default() });
+                self.strike_entity(t, damage, me, w.knockback, super::combat::Blow { attacker: Some(me), damage_type: w.damage_type, ..Default::default() });
                 self.show_swing(i, dir);
             }
             return true;
@@ -646,10 +646,10 @@ impl Game {
                 .loaded
                 .entities
                 .iter()
-                .position(|o| o.active && o.hostile && o.damage > 0 && !o.ai.harmless() && !crate::effects::stunned(&o.effects) && o.body.rect().overlaps(&me) && super::attacks::kind_of(o.weapon.as_ref(), o.damage, &o.behavior).is_none());
+                .position(|o| o.active && o.hostile && o.damage > 0 && !o.ai.harmless() && crate::srd::conditions::can_act(&o.effects) && o.body.rect().overlaps(&me) && super::attacks::kind_of(o.weapon.as_ref(), o.damage, &o.behavior).is_none());
             if let Some(h) = hit {
                 let o = &self.loaded.entities[h];
-                let (dmg, from) = (crate::effects::scale_damage(&o.effects, o.damage), o.body.pos);
+                let (dmg, from) = (o.damage, o.body.pos);
                 self.damage_entity(c, dmg, from, 1.0);
             }
         }

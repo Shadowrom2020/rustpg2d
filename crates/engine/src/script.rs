@@ -39,6 +39,8 @@ struct Ctx {
     factions: crate::factions::Factions,
     /// Characters on the current map and their factions: (uid, name, faction id) (`faction_of`).
     character_factions: Vec<(u32, String, String)>,
+    /// Characters on the current map with conditions: (uid, name, conditions) (`has_condition`).
+    npc_conditions: Vec<(u32, String, Vec<crate::srd::ActiveCondition>)>,
     /// Characters on the current map with an SRD stat block: (uid, name, block) (`npc_stat`).
     stat_blocks: Vec<(u32, String, crate::srd::StatBlock)>,
     /// The enabled plugins' parameters (`plugin_param`).
@@ -170,6 +172,11 @@ impl ScriptHost {
     /// The current map's characters and their factions, as (uid, name, faction id), for `faction_of()`.
     pub fn set_character_factions(&mut self, list: Vec<(u32, String, String)>) {
         self.ctx.borrow_mut().character_factions = list;
+    }
+
+    /// The current map's characters with conditions, for `has_condition(target, …)`.
+    pub fn set_npc_conditions(&mut self, list: Vec<(u32, String, Vec<crate::srd::ActiveCondition>)>) {
+        self.ctx.borrow_mut().npc_conditions = list;
     }
 
     /// The current map's characters with an SRD stat block, for `npc_stat()`.
@@ -750,24 +757,61 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("set_map_weather", with!(ctx, |c, map: &str, kind: &str, i: Dynamic| c.actions.push(weather_action(map, kind, num(&i)))));
     engine.register_fn("weather", with!(ctx, |c| c.player.weather.kind.id().to_string()));
     engine.register_fn("weather_intensity", with!(ctx, |c| c.player.weather.intensity as f64));
-    // Status effects.
+    // Conditions (SRD); the status effect functions of 0.27 map onto them.
+    engine.register_fn("apply_condition", with!(ctx, |c, t: &str, cond: &str, secs: Dynamic| {
+        if let Some(k) = condition(cond) {
+            c.actions.push(Action::ApplyEffect { target: t.into(), effect: crate::srd::ConditionSpec::new(k, num(&secs)) });
+        }
+    }));
+    engine.register_fn("apply_condition", with!(ctx, |c, t: &str, cond: &str, secs: Dynamic, o: Map| {
+        let k = if cond.trim().is_empty() { Some(crate::srd::Condition::Any) } else { condition(cond) };
+        if let Some(k) = k {
+            c.actions.push(Action::ApplyEffect { target: t.into(), effect: condition_spec(k, num(&secs), &o) });
+        }
+    }));
+    engine.register_fn("remove_condition", with!(ctx, |c, t: &str, cond: &str| {
+        let k = if cond.trim().is_empty() { Some(crate::srd::Condition::Any) } else { condition(cond) };
+        if let Some(k) = k {
+            c.actions.push(Action::CureEffect { target: t.into(), kind: Some(k) });
+        }
+    }));
+    engine.register_fn("has_condition", with!(ctx, |c, cond: &str| condition(cond).is_some_and(|k| crate::srd::conditions::has(&c.world.effects, k))));
+    engine.register_fn("has_condition", with!(ctx, |c, t: &str, cond: &str| {
+        let Some(k) = condition(cond) else { return false };
+        match t {
+            "player" => crate::srd::conditions::has(&c.world.effects, k),
+            "" | "self" => c.owner.and_then(|u| c.npc_conditions.iter().find(|n| n.0 == u)).is_some_and(|n| crate::srd::conditions::has(&n.2, k)),
+            name => c.npc_conditions.iter().find(|n| n.1 == name).is_some_and(|n| crate::srd::conditions::has(&n.2, k)),
+        }
+    }));
+    engine.register_fn("has_condition", with!(ctx, |c, uid: i64, cond: &str| {
+        let Some(k) = condition(cond) else { return false };
+        c.npc_conditions.iter().find(|n| n.0 as i64 == uid).is_some_and(|n| crate::srd::conditions::has(&n.2, k))
+    }));
+    engine.register_fn("exhaustion", with!(ctx, |c| crate::srd::conditions::exhaustion(&c.world.effects) as i64));
+    engine.register_fn("set_exhaustion", with!(ctx, |c, n: i64| crate::srd::conditions::set_exhaustion(&mut c.world.effects, n.clamp(0, 6) as u8)));
+    engine.register_fn("short_rest", with!(ctx, |c| c.actions.push(Action::ShortRest)));
+    engine.register_fn("long_rest", with!(ctx, |c| c.actions.push(Action::LongRest { hours: 8.0 })));
+    engine.register_fn("long_rest", with!(ctx, |c, h: Dynamic| c.actions.push(Action::LongRest { hours: num(&h).max(0.0) })));
     engine.register_fn("apply_effect", with!(ctx, |c, t: &str, kind: &str, s: Dynamic, secs: Dynamic| {
-        if let Some(k) = effect_kind(kind) {
-            c.actions.push(Action::ApplyEffect { target: t.into(), effect: crate::effects::EffectSpec::new(k, num(&s), num(&secs)) });
+        match crate::srd::conditions::from_effect(kind, num(&s), num(&secs)) {
+            Some(spec) => c.actions.push(Action::ApplyEffect { target: t.into(), effect: spec }),
+            None => eprintln!("[script] unknown effect '{kind}'"),
         }
     }));
     engine.register_fn("cure", with!(ctx, |c, t: &str, kind: &str| {
-        if let Some(k) = effect_kind(kind) {
+        if let Some(k) = condition(kind) {
             c.actions.push(Action::CureEffect { target: t.into(), kind: Some(k) });
         }
     }));
     engine.register_fn("cure", with!(ctx, |c, t: &str| c.actions.push(Action::CureEffect { target: t.into(), kind: None })));
-    engine.register_fn("has_effect", with!(ctx, |c, kind: &str| effect_kind(kind).is_some_and(|k| c.world.effects.iter().any(|e| e.kind == k))));
+    engine.register_fn("has_effect", with!(ctx, |c, kind: &str| condition(kind).is_some_and(|k| crate::srd::conditions::has(&c.world.effects, k))));
     engine.register_fn("set_skill", with!(ctx, |c, id: &str, l: i64| c.actions.push(Action::SetSkill { skill: id.into(), level: l.max(0) as u32 })));
     engine.register_fn("learn_spell", with!(ctx, |c, id: &str| c.actions.push(Action::LearnSpell { spell: id.into() })));
     engine.register_fn("add_mana", with!(ctx, |c, n: i64| c.actions.push(Action::AddMana { amount: n as i32 })));
     // (Numbers may be integers or floats in any mix.)
-    engine.register_fn("damage_around", with!(ctx, |c, d: Dynamic, r: Dynamic| c.actions.push(Action::DamageAround { damage: num(&d).round() as i32, radius: num(&r) })));
+    engine.register_fn("damage_around", with!(ctx, |c, d: Dynamic, r: Dynamic| c.actions.push(Action::DamageAround { damage: num(&d).round() as i32, radius: num(&r), damage_type: None })));
+    engine.register_fn("damage_around", with!(ctx, |c, d: Dynamic, r: Dynamic, t: &str| c.actions.push(Action::DamageAround { damage: num(&d).round() as i32, radius: num(&r), damage_type: damage_type(t) })));
     engine.register_fn("player_light", with!(ctx, |c, r: Dynamic, s: Dynamic| c.actions.push(player_light(&r, &s, &Map::new()))));
     engine.register_fn("player_light", with!(ctx, |c, r: Dynamic, s: Dynamic, o: Map| c.actions.push(player_light(&r, &s, &o))));
     engine.register_fn("light_at", with!(ctx, |c, x: Dynamic, y: Dynamic, r: Dynamic, s: Dynamic| c.actions.push(light_at(&x, &y, &r, &s, &Map::new()))));
@@ -824,7 +868,15 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         x: num(&x),
         y: num(&y),
         radius: num(&r),
-        damage: num(&d).round() as i32
+        damage: num(&d).round() as i32,
+        damage_type: None
+    })));
+    engine.register_fn("damage_area", with!(ctx, |c, x: Dynamic, y: Dynamic, r: Dynamic, d: Dynamic, t: &str| c.actions.push(Action::DamageArea {
+        x: num(&x),
+        y: num(&y),
+        radius: num(&r),
+        damage: num(&d).round() as i32,
+        damage_type: damage_type(t)
     })));
     engine.register_fn("is_night", with!(ctx, |c| crate::render::lighting::is_night(c.world.hour)));
     engine.register_fn("is_sneaking", with!(ctx, |c| c.player.sneaking));
@@ -1007,14 +1059,53 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
 }
 
 /// A script number (integer or float) as `f32` (anything else: 0).
-/// An effect kind by its script name ("poison", "haste", ...); unknown names are logged.
-fn effect_kind(name: &str) -> Option<crate::effects::EffectKind> {
-    let k = crate::effects::EffectKind::from_id(name);
+/// A condition by its id ("poisoned", "prone"…, or a status effect name of 0.27; "all" = any);
+/// unknown names are logged.
+fn condition(name: &str) -> Option<crate::srd::Condition> {
+    let k = crate::srd::Condition::parse(name);
     if k.is_none() {
-        let names: Vec<&str> = crate::effects::EffectKind::ALL.iter().map(|k| k.id()).collect();
-        eprintln!("[script] unknown effect '{name}' (one of: {})", names.join(", "));
+        let names: Vec<&str> = crate::srd::Condition::ALL.iter().map(|k| k.id()).collect();
+        eprintln!("[script] unknown condition '{name}' (one of: {})", names.join(", "));
     }
     k
+}
+
+/// A damage type by its id ("fire"; "" = untyped); unknown ones are logged and untyped.
+fn damage_type(name: &str) -> Option<crate::srd::DamageType> {
+    if name.trim().is_empty() {
+        return None;
+    }
+    let t = crate::srd::DamageType::parse(name);
+    if t.is_none() {
+        eprintln!("[script] unknown damage type '{name}' (acid, bludgeoning, cold, fire, force, lightning, necrotic, piercing, poison, psychic, radiant, slashing, thunder)");
+    }
+    t
+}
+
+/// `apply_condition(target, condition, seconds, #{ save, dc, damage, type, level })`.
+fn condition_spec(k: crate::srd::Condition, seconds: f32, o: &Map) -> crate::srd::ConditionSpec {
+    let text = |key: &str| o.get(key).and_then(|v| v.clone().into_string().ok()).unwrap_or_default();
+    let mut spec = crate::srd::ConditionSpec::new(k, seconds);
+    if k == crate::srd::Condition::Any {
+        spec.condition = None;
+    }
+    if let Some(l) = o.get("level") {
+        spec.level = num(l).clamp(0.0, 6.0) as u8;
+    }
+    let save = text("save");
+    if !save.is_empty() {
+        let dc = o.get("dc").map_or(10.0, num) as i32;
+        spec.save = Some(crate::srd::conditions::SaveDc { ability: save, dc });
+    }
+    let dice = match o.get("damage") {
+        Some(v) if v.is_int() || v.is_float() => format!("{}", num(v).round() as i64),
+        _ => text("damage"),
+    };
+    if !dice.is_empty() {
+        let kind = text("type");
+        spec.ongoing = Some(crate::srd::conditions::Ongoing { dice, damage_type: if kind == "heal" || kind == "healing" { None } else { damage_type(&kind).or(Some(crate::srd::DamageType::Force)) } });
+    }
+    spec
 }
 
 /// `show_image(sheet, #{ wait, scroll, speed, scale })`.
@@ -1348,7 +1439,7 @@ mod tests {
             vec![
                 Action::Fly { sprite: fs("fireball", 0, 3, 2.5), x: 3.5, y: 7.0, speed: 10.0, function: "boom".into() },
                 Action::Effect { sprite: fs("explosion", 0, 0, 0.0), x: 4.0, y: 5.5 },
-                Action::DamageArea { x: 3.5, y: 7.0, radius: 2.0, damage: 4 },
+                Action::DamageArea { x: 3.5, y: 7.0, radius: 2.0, damage: 4, damage_type: None },
             ]
         );
     }

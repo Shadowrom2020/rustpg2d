@@ -283,8 +283,8 @@ pub enum Cond {
     KnowsSpell { spell: String },
     /// The player's level (experience and levels) compared with a value.
     Level { op: CmpOp, value: i64 },
-    /// The player has a status effect.
-    HasEffect { kind: crate::effects::EffectKind },
+    /// The hero has a condition (`Any` = any condition; until 0.27 a status effect).
+    HasEffect { kind: crate::srd::Condition },
     /// How many characters of a definition the player has defeated, compared with a number.
     Defeated { character: String, op: CmpOp, count: i64 },
     /// How a character (or "player") rests on furniture: "sit", "lie", "stand"; "" = on its feet.
@@ -332,7 +332,7 @@ impl Cond {
             Cond::Skill { .. } => "Proficient in",
             Cond::KnowsSpell { .. } => "Knows spell",
             Cond::Level { .. } => "Player level",
-            Cond::HasEffect { .. } => "Player has effect",
+            Cond::HasEffect { .. } => "Player has condition",
             Cond::Defeated { .. } => "Defeated count",
             Cond::Pose { .. } => "Pose (sitting, asleep)",
             Cond::PlayerRace { .. } => "Player race",
@@ -356,7 +356,7 @@ impl Cond {
             Cond::Skill { skill: String::new(), op: CmpOp::Ge, level: 1 },
             Cond::KnowsSpell { spell: String::new() },
             Cond::Level { op: CmpOp::Ge, value: 2 },
-            Cond::HasEffect { kind: crate::effects::EffectKind::Poison },
+            Cond::HasEffect { kind: crate::srd::Condition::Poisoned },
             Cond::Defeated { character: String::new(), op: CmpOp::Ge, count: 10 },
             Cond::Pose { target: "self".into(), pose: "lie".into() },
             Cond::PlayerRace { race: String::new() },
@@ -395,7 +395,7 @@ impl Condition {
             Cond::Skill { skill, op, level } => op.apply(world.is_proficient(skill) as i64, *level),
             Cond::KnowsSpell { spell } => world.spells.contains(spell),
             Cond::Level { op, value } => op.apply(world.player_level() as i64, *value),
-            Cond::HasEffect { kind } => world.effects.iter().any(|e| e.kind == *kind),
+            Cond::HasEffect { kind } => crate::srd::conditions::has(&world.effects, *kind),
             Cond::Defeated { character, op, count } => op.apply(world.defeated(character) as i64, *count),
             // Needs the running game (see `conditions_met`).
             Cond::Pose { .. } => false,
@@ -508,7 +508,12 @@ pub enum Action {
     /// Mana (negative = drain).
     AddMana { amount: i32 },
     /// Damages every character within `radius` tiles of the player (spell effects).
-    DamageAround { damage: i32, radius: f32 },
+    DamageAround {
+        damage: i32,
+        radius: f32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<crate::srd::DamageType>,
+    },
     /// A light around the player for a while (radius in tiles).
     PlayerLight {
         radius: f32,
@@ -530,7 +535,14 @@ pub enum Action {
     Effect { sprite: FxSprite, x: f32, y: f32 },
     /// Damages every character within `radius` tiles of tile point (`x`, `y`) (scaled by the
     /// player's spell damage skills).
-    DamageArea { x: f32, y: f32, radius: f32, damage: i32 },
+    DamageArea {
+        x: f32,
+        y: f32,
+        radius: f32,
+        damage: i32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<crate::srd::DamageType>,
+    },
     /// A light at tile point (`x`, `y`) for `seconds` (radius in tiles; fades out at the end).
     LightAt { x: f32, y: f32, radius: f32, seconds: f32, color: [u8; 3], flicker: bool },
     /// Heals the player and friendly characters within `radius` tiles of tile point (`x`, `y`).
@@ -576,10 +588,12 @@ pub enum Action {
     Autosave,
     /// Gives the player experience (negative takes it away; the level never drops).
     GiveXp { amount: i64 },
-    /// Starts a status effect on the player or a character.
-    ApplyEffect { target: TargetName, effect: crate::effects::EffectSpec },
-    /// Ends a status effect (`None` = all of them) on the player or a character.
-    CureEffect { target: TargetName, kind: Option<crate::effects::EffectKind> },
+    /// *Apply condition*: a condition (and / or ongoing damage) on the player or a character,
+    /// unless its saving throw succeeds (until 0.27 a status effect).
+    ApplyEffect { target: TargetName, effect: crate::srd::ConditionSpec },
+    /// *Remove condition* (`None` or `Any` = all of them, ongoing damage too) from the player or a
+    /// character.
+    CureEffect { target: TargetName, kind: Option<crate::srd::Condition> },
     /// Shakes the screen (`strength` 1 = like a hit) - earthquakes, explosions, a boss landing.
     Shake { seconds: f32, strength: f32 },
     /// Weather of a map ("" = the current one); `None` = back to the map's own weather. Kept
@@ -850,6 +864,18 @@ pub enum Action {
     },
     /// Rolls dice (`2d6+STR`, `1d20`, `8d6`) into variable `var`, and into the roll log.
     Roll { dice: String, var: String },
+    /// A short rest: the rest window, where the hero spends hit dice; an hour passes.
+    ShortRest,
+    /// A long rest of `hours` (8): full HP, half the hit dice back, one level of exhaustion less,
+    /// timed conditions over.
+    LongRest {
+        #[serde(default = "eight")]
+        hours: f32,
+    },
+}
+
+fn eight() -> f32 {
+    8.0
 }
 
 fn opaque_black() -> [u8; 4] {
@@ -1000,8 +1026,8 @@ impl Action {
             Action::DefeatEnemies => "Defeat all enemies",
             Action::Autosave => "Autosave",
             Action::GiveXp { .. } => "Give experience",
-            Action::ApplyEffect { .. } => "Apply effect",
-            Action::CureEffect { .. } => "Cure effect",
+            Action::ApplyEffect { .. } => "Apply condition",
+            Action::CureEffect { .. } => "Remove condition",
             Action::Shake { .. } => "Shake the screen",
             Action::SetWeather { .. } => "Set weather",
             Action::Schedule { .. } => "Schedule",
@@ -1044,6 +1070,8 @@ impl Action {
             Action::Check { save: false, .. } => "Ability check",
             Action::Check { save: true, .. } => "Saving throw",
             Action::Roll { .. } => "Roll dice",
+            Action::ShortRest => "Short rest",
+            Action::LongRest { .. } => "Long rest",
         }
     }
 
@@ -1077,12 +1105,12 @@ impl Action {
             Action::SetSkill { skill: String::new(), level: 1 },
             Action::LearnSpell { spell: String::new() },
             Action::AddMana { amount: 10 },
-            Action::DamageAround { damage: 2, radius: 2.0 },
+            Action::DamageAround { damage: 2, radius: 2.0, damage_type: None },
             Action::PlayerLight { radius: 5.0, seconds: 30.0, color: spell_light_color(), flicker: false },
             Action::Aim { function: s() },
             Action::Fly { sprite: FxSprite::default(), x: 0.0, y: 0.0, speed: 8.0, function: s() },
             Action::Effect { sprite: FxSprite::default(), x: 0.0, y: 0.0 },
-            Action::DamageArea { x: 0.0, y: 0.0, radius: 2.0, damage: 2 },
+            Action::DamageArea { x: 0.0, y: 0.0, radius: 2.0, damage: 2, damage_type: None },
             Action::LightAt { x: 0.0, y: 0.0, radius: 3.0, seconds: 10.0, color: [255, 190, 120], flicker: true },
             Action::HealArea { x: 0.0, y: 0.0, radius: 2.0, amount: 2 },
             Action::Equip { target: "self".into(), item: s() },
@@ -1099,8 +1127,8 @@ impl Action {
             Action::DefeatEnemies,
             Action::Autosave,
             Action::GiveXp { amount: 10 },
-            Action::ApplyEffect { target: "player".into(), effect: crate::effects::EffectSpec::template(crate::effects::EffectKind::Poison) },
-            Action::CureEffect { target: "player".into(), kind: Some(crate::effects::EffectKind::Poison) },
+            Action::ApplyEffect { target: "player".into(), effect: crate::srd::ConditionSpec::template(crate::srd::Condition::Poisoned) },
+            Action::CureEffect { target: "player".into(), kind: Some(crate::srd::Condition::Poisoned) },
             Action::Shake { seconds: 0.5, strength: 1.5 },
             Action::SetWeather { map: s(), weather: Some(crate::map::Weather::new(crate::map::WeatherKind::Rain, 0.6)) },
             Action::Schedule { target: "self".into(), active: false },
@@ -1156,6 +1184,8 @@ impl Action {
             Action::Check { what: "persuasion".into(), save: false, dc: 12, mode: crate::srd::Mode::Normal, then: Vec::new(), otherwise: Vec::new() },
             Action::Check { what: "dex".into(), save: true, dc: 12, mode: crate::srd::Mode::Normal, then: Vec::new(), otherwise: Vec::new() },
             Action::Roll { dice: "1d20".into(), var: "roll".into() },
+            Action::ShortRest,
+            Action::LongRest { hours: 8.0 },
         ]
     }
 }
@@ -1404,10 +1434,14 @@ mod tests {
         w.level = 3;
         assert!(met(&[level(CmpOp::Ge, 3)], &w, &mut no_script));
         assert!(!met(&[level(CmpOp::Lt, 3)], &w, &mut no_script));
-        let poisoned = [Condition::new(Cond::HasEffect { kind: crate::effects::EffectKind::Poison })];
-        assert!(!met(&poisoned, &w, &mut no_script));
-        crate::effects::apply(&mut w.effects, &crate::effects::EffectSpec::new(crate::effects::EffectKind::Poison, 1.0, 3.0));
-        assert!(met(&poisoned, &w, &mut no_script));
+        let poisoned = [Condition::new(Cond::HasEffect { kind: crate::srd::Condition::Poisoned })];
+        let any = [Condition::new(Cond::HasEffect { kind: crate::srd::Condition::Any })];
+        assert!(!met(&poisoned, &w, &mut no_script) && !met(&any, &w, &mut no_script));
+        crate::srd::conditions::apply(&mut w.effects, &crate::srd::ConditionSpec::new(crate::srd::Condition::Poisoned, 3.0));
+        assert!(met(&poisoned, &w, &mut no_script) && met(&any, &w, &mut no_script));
+        // A condition of 0.27 (a status effect's name) reads as the nearest condition.
+        let old: Cond = ron::from_str("HasEffect(kind: Poison)").unwrap();
+        assert_eq!(old, Cond::HasEffect { kind: crate::srd::Condition::Poisoned });
         let slimes = |count| [Condition::new(Cond::Defeated { character: "slime".into(), op: CmpOp::Ge, count })];
         assert!(met(&slimes(0), &w, &mut no_script) && !met(&slimes(1), &w, &mut no_script));
         w.bestiary.insert("slime".into(), 3);

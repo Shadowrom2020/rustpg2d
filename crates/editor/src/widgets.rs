@@ -1177,6 +1177,13 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     ui.add(egui::DragValue::new(value).range(-100..=100))
                         .on_hover_text("The player's standing: -100..100; at -20 or below the faction's characters attack the player");
                 }
+                Cond::TextVar { name, value, ignore_case } => {
+                    ui.label("text");
+                    ui.add(egui::TextEdit::singleline(name).desired_width(90.0));
+                    ui.label("is");
+                    ui.add(egui::TextEdit::singleline(value).desired_width(110.0).hint_text("(empty)"));
+                    ui.checkbox(ignore_case, "any case");
+                }
                 Cond::Timer { name, op, seconds } => {
                     ui.label("timer");
                     ui.add(egui::TextEdit::singleline(name).desired_width(90.0));
@@ -1873,6 +1880,27 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                     ui.color_edit_button_srgb(t);
                 }
             });
+        }
+        Action::InputNumber { text, var, digits, min, max } => {
+            dialog_text_field(ui, &format!("{id}/q"), text, refs);
+            labeled(ui, "into variable", |ui| suggest(ui, &format!("{id}/var"), var, &refs.vars, 110.0));
+            labeled(ui, "from", |ui| {
+                ui.add(egui::DragValue::new(min).speed(1.0));
+                ui.label("to");
+                ui.add(egui::DragValue::new(max).speed(1.0));
+                ui.label("digits");
+                ui.add(egui::DragValue::new(digits).range(0..=12)).on_hover_text("At most this many digits (0 = no limit)");
+            });
+            ui.weak("(a window asks for the number; the event waits; typed, or Up / Down for the gamepad)");
+        }
+        Action::InputText { text, var, max_len } => {
+            dialog_text_field(ui, &format!("{id}/q"), text, refs);
+            labeled(ui, "into text variable", |ui| {
+                ui.add(egui::TextEdit::singleline(var).desired_width(110.0));
+                ui.label("at most");
+                ui.add(egui::DragValue::new(max_len).range(1..=200).suffix(" letters"));
+            });
+            ui.weak("(shown by {name} in texts; the window starts with its value; Enter confirms)");
         }
         Action::StartTimer { name, seconds, shown, function, event } => {
             labeled(ui, "timer", |ui| {

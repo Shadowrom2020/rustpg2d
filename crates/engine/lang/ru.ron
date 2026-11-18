@@ -84,6 +84,8 @@
         "Please enter a name.": "Введите название.",
         "{}-{} of {}": "{}-{} из {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} или щелчок",
+        "Type a number · {key:up}/{key:down}: one more / less · Enter or {key:confirm}: done": "Введите число · {key:up}/{key:down}: на один больше / меньше · Enter или {key:confirm}: готово",
+        "Type · Backspace: delete · Enter: done": "Печатайте · Backspace: стереть · Enter: готово",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} или щелчок · {key:cancel}: закрыть",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume": "{key:up}/{key:down} + {key:confirm} или щелчок · {key:cancel}: продолжить",
         "Pick a save to overwrite, or make a new one · {key:cancel}: back": "Выберите сохранение для перезаписи или создайте новое · {key:cancel}: назад",

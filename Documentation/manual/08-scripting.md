@@ -278,6 +278,17 @@ or only read something. Names in `code` are parameters; overloads are listed sep
 | `set_var(name, value)` | Sets a variable to a whole number. |
 | `add_var(name, amount)` | Adds to a variable (negative subtracts). |
 | `queue_set_var(name, value)` | Sets a variable when the queue reaches it, e.g. after a dialog. *(queued)* |
+| `get_text(name)` | A **text variable** (`""` if unset): a name or a word, shown by `{name}` in texts like number variables (a text variable wins over a number variable of the same name). |
+| `set_text(name, value)` | Sets a text variable; saved. |
+| `input_number(text, var, min, max)` | Asks the player for a whole number between `min` and `max` in a window with `text`, and puts it into variable `var`; the event waits. *(queued)* |
+| `input_text(text, var, max_length)` | Asks the player for a text (a name, a password) of at most `max_length` letters, prefilled with the text variable's value, and puts it into text variable `var`; the event waits. *(queued)* |
+
+```rust
+fn name_the_horse() {
+    input_text("What will you call your horse?", "horse", 12);
+    say("{horse} snorts happily.");
+}
+```
 
 ### Inventory
 

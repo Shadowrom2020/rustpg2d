@@ -222,7 +222,7 @@ The event commands creators expect from other makers.
 
   **Verify.** `status` prints `timers=name:secs`; the end fires (a flag); screenshots.
 
-- [ ] Number and text input — `feature/input-actions`
+- [x] Number and text input — `feature/input-actions`
 
   **Goal.** Ask the player for a number or a word.
 
@@ -231,6 +231,13 @@ The event commands creators expect from other makers.
   - **Input text** {text, text var, max length}. Variables only hold numbers today, so text
     variables come with it: `WorldState.texts` (serde default), shown as `{name}` placeholders,
     plus a *Text variable* condition and the `get_text` / `set_text` script functions.
+
+  **Decided while building.**
+  - A text variable wins over a number variable of the same name in `{name}` placeholders.
+  - Numbers: typed digits, Up / Down one, Left / Right ten (gamepad); Enter, E or A confirm.
+    Text: typed (E types an "e"), Enter or A confirm; it starts with the variable's value, so a
+    gamepad can keep it. No on-screen keyboard.
+  - *Text variable* compares for equality (optionally any case); the prompts are translated.
 
   **Engine.** Two appended actions, text variables, the input windows.
 

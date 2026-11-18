@@ -294,6 +294,9 @@ pub enum Cond {
     /// A timer's seconds left compared with a value (a timer that isn't running has 0: "> 0" =
     /// running).
     Timer { name: String, op: CmpOp, seconds: i64 },
+    /// A text variable equals a text (`ignore_case`: "Rosehill" = "rosehill"; leading and
+    /// trailing spaces never count; an empty `value` = the variable is empty).
+    TextVar { name: String, value: String, #[serde(default)] ignore_case: bool },
 }
 
 /// Whether `hour` lies in `from..to` (hours 0..24; `from > to` wraps around midnight).
@@ -327,6 +330,7 @@ impl Cond {
             Cond::PlayerRace { .. } => "Player race",
             Cond::FactionStanding { .. } => "Faction standing",
             Cond::Timer { .. } => "Timer",
+            Cond::TextVar { .. } => "Text variable",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -349,6 +353,7 @@ impl Cond {
             Cond::PlayerRace { race: String::new() },
             Cond::FactionStanding { faction: String::new(), op: CmpOp::Le, value: -20 },
             Cond::Timer { name: "timer".into(), op: CmpOp::Gt, seconds: 0 },
+            Cond::TextVar { name: String::new(), value: String::new(), ignore_case: true },
         ]
     }
 }
@@ -388,6 +393,14 @@ impl Condition {
             // The saved standing; the running game adds the starting one (see `conditions_met`).
             Cond::FactionStanding { faction, op, value } => op.apply(world.standing.get(faction).copied().unwrap_or(0) as i64, *value),
             Cond::Timer { name, op, seconds } => op.apply(world.timers.get(name).map_or(0, |t| t.left.ceil() as i64), *seconds),
+            Cond::TextVar { name, value, ignore_case } => {
+                let (a, b) = (world.text(name).trim(), value.trim());
+                if *ignore_case {
+                    a.to_lowercase() == b.to_lowercase()
+                } else {
+                    a == b
+                }
+            }
         };
         v != self.negate
     }
@@ -719,6 +732,34 @@ pub enum Action {
     },
     /// Stops a timer (nothing runs).
     StopTimer { name: String },
+    /// Asks the player for a whole number between `min` and `max` (a window with `text` over
+    /// it; `digits` > 0 limits how many) and puts it into variable `var`; the event waits.
+    InputNumber {
+        text: String,
+        var: String,
+        #[serde(default)]
+        digits: u32,
+        #[serde(default)]
+        min: i64,
+        #[serde(default = "nine_nine_nine")]
+        max: i64,
+    },
+    /// Asks the player for a text of at most `max_len` characters (prefilled with the text
+    /// variable's value) and puts it into text variable `var`; the event waits.
+    InputText {
+        text: String,
+        var: String,
+        #[serde(default = "sixteen")]
+        max_len: u32,
+    },
+}
+
+fn nine_nine_nine() -> i64 {
+    999
+}
+
+fn sixteen() -> u32 {
+    16
 }
 
 fn half_second() -> f32 {
@@ -890,6 +931,8 @@ impl Action {
             Action::FadeIn { .. } => "Fade in",
             Action::StartTimer { .. } => "Start timer",
             Action::StopTimer { .. } => "Stop timer",
+            Action::InputNumber { .. } => "Input number",
+            Action::InputText { .. } => "Input text",
         }
     }
 
@@ -992,6 +1035,8 @@ impl Action {
             Action::FadeIn { seconds: 1.0, wait: true },
             Action::StartTimer { name: "timer".into(), seconds: 60.0, shown: true, function: s(), event: s() },
             Action::StopTimer { name: "timer".into() },
+            Action::InputNumber { text: "How many?".into(), var: "answer".into(), digits: 0, min: 0, max: 999 },
+            Action::InputText { text: "What is your name?".into(), var: "name".into(), max_len: 16 },
         ]
     }
 }
@@ -1093,6 +1138,17 @@ pub fn walk_actions_mut(actions: &mut [Action], f: &mut dyn FnMut(&mut Action)) 
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn text_variables_show_and_compare() {
+        let mut w = WorldState::default();
+        w.set_var("house_name", 3);
+        w.texts.insert("house_name".into(), "Rosehill".into());
+        assert_eq!(w.expand_text("Welcome home to {house_name}!"), "Welcome home to Rosehill!", "a text variable wins");
+        let c = |value: &str, ignore_case: bool| Condition::new(Cond::TextVar { name: "house_name".into(), value: value.into(), ignore_case }).eval(&w, &mut |_| false);
+        assert!(c("Rosehill", false) && c(" rosehill ", true) && !c("rosehill", false) && !c("", false));
+        assert!(Condition::new(Cond::TextVar { name: "unset".into(), value: String::new(), ignore_case: false }).eval(&w, &mut |_| false));
+    }
+
     #[test]
     fn time_of_day_condition_wraps_midnight() {
         use crate::state::WorldState;

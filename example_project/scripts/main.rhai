@@ -587,6 +587,13 @@ fn give_gift() {
 // placed there from now on).
 fn own_stone_house() {
     set_home("stone_house", true);
+    // The player names it (a text variable, shown by {house_name}); the window starts with a
+    // name to keep.
+    if get_text("house_name") == "" {
+        set_text("house_name", text("Halvar's House"));
+    }
+    input_text("The old stone house is yours now. What will you call it?", "house_name", 24);
+    say("Welcome home to {house_name}!");
 }
 
 // ---- Grumbold, the cave troll of the old mine --------------------------------------------

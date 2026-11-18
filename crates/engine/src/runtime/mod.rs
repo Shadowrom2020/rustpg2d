@@ -52,6 +52,7 @@ pub mod skin;
 mod script_hud;
 mod pictures;
 mod timers;
+mod input_box;
 mod attacks;
 mod defense;
 mod barks;
@@ -501,6 +502,8 @@ pub struct Game {
     worldmap: worldmap::WorldMap,
     /// The window a script opened (`window_open`), not saved.
     script_window: Option<script_hud::WindowUi>,
+    /// The window of *Input number* / *Input text* (the event waits for it).
+    input_box: Option<input_box::InputBox>,
     creator: Option<creator::Creator>,
     menu: menu::Menu,
     pub world: WorldState,
@@ -661,6 +664,7 @@ impl Game {
             journal: Default::default(),
             worldmap: Default::default(),
             script_window: None,
+            input_box: None,
             creator: None,
             menu: Default::default(),
             world: WorldState::default(),
@@ -1705,6 +1709,10 @@ impl Game {
         if self.update_script_window() {
             return;
         }
+        // Asking for a number or a text pauses everything too.
+        if self.update_input_box() {
+            return;
+        }
         if self.update_menu(can_open) {
             return;
         }
@@ -2216,7 +2224,7 @@ impl Game {
 
     /// Gameplay is paused while a dialog or an inventory window is open.
     fn modal(&self) -> bool {
-        self.ui.dialog_open() || self.inventory_open() || self.script_window_open()
+        self.ui.dialog_open() || self.inventory_open() || self.script_window_open() || self.input_open()
     }
 
     /// Applies project rules (inventory size, stack limits) to the world state, e.g. after loading.
@@ -2459,7 +2467,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2526,6 +2534,8 @@ impl Game {
             self.pictures_status(),
             self.screen_status(),
             self.timers_status(),
+            self.input_status(),
+            self.world.texts,
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2931,6 +2941,7 @@ impl Game {
             self.draw_menu();
         }
         self.draw_script_window();
+        self.draw_input_box();
         self.draw_achievement_toasts();
         self.draw_console();
         if self.debug {
@@ -3150,6 +3161,14 @@ impl ActionHost for Game {
             Action::ErasePicture { layer } => {
                 self.erase_picture(*layer);
                 Step::Continue
+            }
+            Action::InputNumber { text, var, digits, min, max } => {
+                self.open_input(input_box::Ask::Number { min: *min, max: *max, digits: *digits }, text, var);
+                Step::Block
+            }
+            Action::InputText { text, var, max_len } => {
+                self.open_input(input_box::Ask::Text { max_len: (*max_len).max(1) }, text, var);
+                Step::Block
             }
             Action::StartTimer { name, seconds, shown, function, event } => {
                 self.start_timer(name, *seconds, *shown, function, event);
@@ -3582,7 +3601,7 @@ impl ActionHost for Game {
             // Characters that walked up to someone turn to face them.
             self.apply_face_after();
         }
-        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting()
+        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting() || self.input_open()
     }
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {

@@ -144,6 +144,10 @@ pub const API: &[ApiFn] = api! {
     "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
     "stock_of"(target: Target, item: Item) "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
     "show_image"(sheet: Sheet) "Shows a picture over the game (a sprite sheet drawn whole, scaled down to fit the window); the event waits until the player closes it (queued)";
+    "get_text"(name: Text) "A text variable's value (\"\" when unset); {name} in texts shows it";
+    "set_text"(name: Text, value: Text) "Sets a text variable (shown by {name} placeholders; saved) (immediately)";
+    "input_number"(text: Line, var: Var, min: Num, max: Num) "Asks the player for a whole number between min and max (a window with the text) and puts it into a variable; the event waits (queued)";
+    "input_text"(text: Line, var: Text, max_length: Num) "Asks the player for a text (a name, a password; prefilled with the text variable's value) and puts it into a text variable; the event waits (queued)";
     "timer_start"(name: Text, seconds: Num) "Starts (or restarts) a hidden timer; when it runs out nothing runs (check it with timer_left()). Timers pause while a menu or a dialog is open, and are saved (immediately)";
     "timer_start"(name: Text, seconds: Num, options: Opts) "Like timer_start(); options #{ shown: true (at the top of the screen), run: \"function\" (runs when it runs out), event: \"name\" (fires that custom event) } (immediately)";
     "timer_left"(name: Text) "Seconds left on a timer (0 when it isn't running)";

@@ -54,6 +54,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Prop state** | A prop is in a state (*open*, *lit*…) |
 | **Quest** | Not started, active, completed, failed, at a stage, at a stage or later |
 | **Timer** | A timer's seconds left compared with a value (a timer that isn't running has 0: *> 0* = running) |
+| **Text variable** | A text variable equals a text (*any case*: "Rosehill" = "rosehill"; an empty text = the variable is empty) |
 | **Player sex** | Male or female |
 | **Player race** | The player's race (*Database › Races*), e.g. goblin |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
@@ -109,6 +110,13 @@ across map changes and in save games.
 - **Play sound**, **Play music**, **Shake the screen**.
 - **Show image** / **Hide image**: a picture over the game (below).
 - **Show picture**, **Move picture**, **Erase picture**: picture layers, moved and faded (below).
+- **Input number**: a window asks the player for a whole number (from, to, at most so many digits;
+  typed, or Up / Down by one and Left / Right by ten for the gamepad) and puts it into a variable.
+  **Input text**: asks for a text (at most so many letters; typed, the window starts with the
+  current value so a gamepad can confirm it) and puts it into a **text variable**, which `{name}`
+  shows in any text like a number variable. The event waits for the answer. The example's
+  Whisperwood shrine has a riddle stone (*Input number*: the answer 7), and the old stone house
+  asks for its name once it is yours (*Input text*, shown as `{house_name}`).
 - **Start timer** / **Stop timer**: a named countdown, **shown** at the top of the screen (minutes
   and seconds, the last ten in red) or hidden; when it runs out it runs a script function and / or
   fires a custom event. Timers pause while a menu or a dialog is open and are saved; starting one

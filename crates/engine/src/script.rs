@@ -435,6 +435,33 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         c.actions.push(Action::FadeOut { seconds: num(&secs), color: [r, g, b], wait: true })
     }));
     engine.register_fn("fade_in", with!(ctx, |c, secs: Dynamic| c.actions.push(Action::FadeIn { seconds: num(&secs), wait: true })));
+    // The camera and scrolling text (queued).
+    fn cam(c: &mut Ctx, aim: crate::camera::CameraAim, o: &rhai::Map, seconds: f32) {
+        let f = |k: &str, d: f32| o.get(k).map_or(d, num);
+        c.actions.push(Action::Camera {
+            aim,
+            seconds: f("seconds", seconds),
+            easing: o.get("easing").and_then(|e| crate::pictures::Easing::parse(&e.to_string())).unwrap_or(crate::pictures::Easing::InOut),
+            zoom: f("zoom", 1.0),
+            wait: o.get("wait").and_then(|v| v.as_bool().ok()).unwrap_or(true),
+        });
+    }
+    let tile_aim = |x: &Dynamic, y: &Dynamic| crate::camera::CameraAim::Tile { x: num(x).floor() as i32, y: num(y).floor() as i32 };
+    engine.register_fn("camera_to", with!(ctx, |c, x: Dynamic, y: Dynamic| cam(&mut c, tile_aim(&x, &y), &rhai::Map::new(), 1.0)));
+    engine.register_fn("camera_to", with!(ctx, |c, x: Dynamic, y: Dynamic, o: rhai::Map| cam(&mut c, tile_aim(&x, &y), &o, 1.0)));
+    engine.register_fn("camera_follow", with!(ctx, |c, target: &str| cam(&mut c, crate::camera::CameraAim::Follow { target: target.into() }, &rhai::Map::new(), 1.0)));
+    engine.register_fn("camera_follow", with!(ctx, |c, target: &str, o: rhai::Map| cam(&mut c, crate::camera::CameraAim::Follow { target: target.into() }, &o, 1.0)));
+    engine.register_fn("camera_reset", with!(ctx, |c| cam(&mut c, crate::camera::CameraAim::Player, &rhai::Map::new(), 0.8)));
+    engine.register_fn("camera_reset", with!(ctx, |c, secs: Dynamic| cam(&mut c, crate::camera::CameraAim::Player, &rhai::Map::new(), num(&secs))));
+    fn scroll(c: &mut Ctx, text: &str, o: &rhai::Map) {
+        c.actions.push(Action::ScrollText {
+            text: text.to_string(),
+            speed: o.get("speed").map_or(40.0, num),
+            background: o.get("background").map_or([0, 0, 0, 255], |v| rgba_of(v, 255)),
+        });
+    }
+    engine.register_fn("scroll_text", with!(ctx, |c, text: &str| scroll(&mut c, text, &rhai::Map::new())));
+    engine.register_fn("scroll_text", with!(ctx, |c, text: &str, o: rhai::Map| scroll(&mut c, text, &o)));
     // Picture layers (queued).
     fn pic_tint(v: &Dynamic) -> Option<[u8; 3]> {
         if let Some(a) = v.clone().try_cast::<rhai::Array>() {

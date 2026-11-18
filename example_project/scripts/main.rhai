@@ -146,13 +146,17 @@ fn slime_defeated() {
 fn intro_cutscene() {
     place("player", 0, 30);
     face("player", "right");
+    // While the title card shows, the camera glides over the village to the well where Elder
+    // Rowan waits (it doesn't wait for the pan), then comes back to the hero.
+    camera_to(34, 22, #{ seconds: 4.5, wait: false });
     // A title card over the road into town: the Emberbrook sign fades in and out (picture layer 1).
     picture_show(1, "title_logo", 0, -90, #{ anchor: "center", scale: 4, opacity: 0 });
     picture_move(1, #{ opacity: 1, seconds: 1.5, easing: "out", wait: true });
     wait(1.5);
     picture_move(1, #{ opacity: 0, y: -110, seconds: 1, easing: "in", wait: true });
     picture_erase(1);
-    wait(0.3);
+    wait(0.8);
+    camera_reset(2);
     walk_to("player", 5, 30);
     wait(0.4);
     approach("guard", "player");
@@ -164,6 +168,12 @@ fn intro_cutscene() {
     say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the slimes grow bolder every day.");
     say("Guard", "Please, talk to Elder Rowan at once - he is waiting by the well in the middle of town.");
     wait(0.3);
+}
+
+// The title screen's Credits entry (Project > Title screen > Entries: a custom entry): the
+// credits roll up the screen (scroll_text; "# " starts a heading).
+fn roll_credits() {
+    scroll_text("# Emberbrook\nAn example game for R(ust)PG2D\n\n\n# Made with\nR(ust)PG2D, a free engine and editor for 2D role-playing games\n\n\n# Art, characters, sounds and music\nMade for R(ust)PG2D: its example game and starter asset library\n\n\n# Font\nmonogram by Vinícius Menézio (datagoblin), CC0\n\n\n\n# Thank you for playing!", #{ speed: 45 });
 }
 
 // Oswin the town crier calls out the news: a different piece every time he is asked.

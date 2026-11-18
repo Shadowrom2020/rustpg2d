@@ -83,6 +83,7 @@
         "Please enter a name.": "Bitte einen Namen eingeben.",
         "{}-{} of {}": "{}-{} von {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} oder Klick",
+        "Hold {key:confirm}: faster · {key:cancel}: skip": "{key:confirm} halten: schneller · {key:cancel}: überspringen",
         "Type a number · {key:up}/{key:down}: one more / less · Enter or {key:confirm}: done": "Zahl eingeben · {key:up}/{key:down}: eins mehr / weniger · Enter oder {key:confirm}: fertig",
         "Type · Backspace: delete · Enter: done": "Tippen · Rücktaste: löschen · Enter: fertig",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} oder Klick · {key:cancel}: schließen",

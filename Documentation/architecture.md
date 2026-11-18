@@ -400,6 +400,12 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   per frame, and right after a window button's function) into `Game.script_window`, a modal panel
   whose update runs before the menus. A button pushes `Action::RunScript` and steps the action
   runner once, so a function that reopens the window refreshes it at once.
+- The camera (`Game::camera`) looks at `camera_focus()`: the player, or a `CamMove` of the
+  *Camera* action (`runtime/camera.rs`: from the focus it had, eased toward a point or an entity,
+  with a zoom multiplying the view scale). `update_camera` sends it back to the player once the
+  main runner is idle, no cut-scene plays and the move arrived. *Scroll text*
+  (`runtime/scroll_text.rs`) is a modal overlay updated before the menus, so it also rolls over
+  the title screen.
 - Common events (`common_events.rs`, `defs/common_events.ron`): *Call common event* returns
   `Step::Insert` of the event's actions with the caller's `ActionCtx`. `runtime/common.rs` runs
   after the main runner each frame: parallel events keep one `ActionRunner` each in

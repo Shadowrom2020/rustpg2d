@@ -315,7 +315,7 @@ The event commands creators expect from other makers.
   **Verify.** A called event, a parallel one and an autorun one in autoplay; `status` prints
   `common=`.
 
-- [ ] Credits and the camera — `feature/credits-camera`
+- [x] Credits and the camera — `feature/credits-camera`
 
   **Goal.** Scrolling text for credits and story intros, and camera moves for cut-scenes. Today
   the camera always follows the player.
@@ -328,6 +328,16 @@ The event commands creators expect from other makers.
   **Engine.** Two appended actions, a camera target in `runtime/mod.rs`, script functions.
 
   **Example.** Credits from the title screen; the intro pans over the village.
+
+  **Decided while building.**
+  - *Camera* {aim: the player | a tile | follow a target, seconds, easing (the pictures'), zoom,
+    wait}. The camera stays while the main event queue is busy or a cut-scene plays; once that is
+    over and the last move has arrived it glides back to the player (0.8 s). Not saved; a map
+    change or loading returns it at once. Zoom multiplies the view scale (0.25 to 4), clamped to
+    the map like the usual camera.
+  - *Scroll text* is a modal overlay like the input window (updated before the menus), so a
+    custom title screen entry can roll credits over the title; holding confirm speeds it up four
+    times, cancel skips. The built-in *Credits* page stays as it was.
 
   **Verify.** Screenshots mid-pan and mid-credits; `status` prints `camera=`.
 

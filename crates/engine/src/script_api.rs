@@ -163,6 +163,14 @@ pub const API: &[ApiFn] = api! {
     "fade_out"(seconds: Num) "Fades the screen to black over seconds and waits; it stays black across map changes until fade_in() (dialogs show over it) (queued)";
     "fade_out"(seconds: Num, color: Text) "Fades to a colour instead of black (queued)";
     "fade_in"(seconds: Num) "Fades the screen back in over seconds and waits (queued)";
+    "camera_to"(x: Num, y: Num) "Pans the camera to tile x, y over a second and waits; it stays there while the event or cut-scene runs, then glides back to the player (queued)";
+    "camera_to"(x: Num, y: Num, options: Opts) "Like camera_to(); options #{ seconds: 2, easing: \"in_out\" (linear, in, out, in_out), zoom: 2 (twice as close; 1 = usual), wait: false } (queued)";
+    "camera_follow"(target: Target) "Pans the camera to a character (\"self\", a name) and follows it as it moves, while the event runs (queued)";
+    "camera_follow"(target: Target, options: Opts) "Like camera_follow(); options #{ seconds, easing, zoom, wait } (queued)";
+    "camera_reset"() "Pans the camera back to the player (0.8 s) and waits (queued)";
+    "camera_reset"(seconds: Num) "Pans the camera back to the player over seconds (0 = at once) (queued)";
+    "scroll_text"(text: Line) "Rolls text up the screen over black (credits, a story intro; lines starting with \"# \" are headings, \"\\n\" starts a line) and waits until it has gone; holding confirm speeds it up, cancel skips it. Works from a title screen entry too (queued)";
+    "scroll_text"(text: Line, options: Opts) "Like scroll_text(); options #{ speed: 40 (screen pixels per second), background: \"#102030\" (a colour name, \"#rrggbb\", \"#rrggbbaa\" or [r, g, b, a]; a see-through one shows the map) } (queued)";
     "picture_show"(layer: Num, sheet: Sheet, x: Num, y: Num) "Shows a picture on a layer (1 to 100, drawn in number order above the map and below the HUD; replaces what the layer showed): a sprite sheet's frame, x, y screen pixels from the top left corner. Saved with the game (queued)";
     "picture_show"(layer: Num, sheet: Sheet, x: Num, y: Num, options: Opts) "Like picture_show(); options #{ frame: 0, anchor: \"center\" (top_left, top, top_right, left, center, right, bottom_left, bottom, bottom_right), on_map: true (x, y = a map tile, the picture's middle on it), scale: 2, opacity: 0.5, rotation: 90 (degrees), tint: \"gold\" (a colour name, \"#rrggbb\" or [r, g, b]), blend: \"add\" } (queued)";
     "picture_move"(layer: Num, options: Opts) "Moves a picture: options #{ x, y, scale, opacity, rotation, tint (the targets; left out = unchanged), seconds: 1, easing: \"in_out\" (linear, in, out, in_out), wait: true (the event waits until it is there) } (queued)";

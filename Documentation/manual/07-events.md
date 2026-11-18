@@ -116,6 +116,17 @@ across map changes and in save games.
   the tile is free. **Repeat**: from the start again (the event doesn't wait for it); **Wait**:
   the event goes on when it is done. A new route replaces the character's current one; routes end
   when the map changes. The example's guard hops for joy in the intro.
+- **Camera**: the camera pans to **a tile**, to **a character** it then follows (*self* or a name),
+  or back to **the player**, over some seconds with an easing, and can **zoom** (1 = usual, 2 =
+  twice as close); **Wait** holds the event until it is there. It stays where the event put it
+  while the event or cut-scene runs, then glides back to the player by itself; a map change
+  returns it at once. The example's intro pans over the village to Elder Rowan while the title card
+  shows.
+- **Scroll text**: text rolls up the screen over a background colour (credits, a story intro):
+  centred lines, those starting with `# ` as headings in the skin's highlight colour; speed in
+  screen pixels per second; a see-through background shows the map. The event waits until the last
+  line has gone; holding confirm speeds it up, cancel skips it. It also works from a custom title
+  screen entry.
 - **Play sound**, **Play music**, **Shake the screen**.
 - **Call common event**: runs a common event's actions here, as if they stood in this list
   ([The Database › Common events](05-database.md#common-events)).

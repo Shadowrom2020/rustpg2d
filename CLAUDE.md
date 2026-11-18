@@ -134,6 +134,9 @@ crates/engine/src/      library: everything shared by game and editor
   common_events.rs      CommonEventDef (defs/common_events.ron): name, CommonTrigger (Call | Parallel{flag} |
                         Autorun{flag}), actions; Action::CallCommon inserts them; runtime/common.rs runs the
                         parallel ones (own ActionRunner each, Game.common_runs) and queues autorun ones
+  camera.rs             CameraAim (Player | Tile | Follow) of Action::Camera; runtime/camera.rs pans / zooms
+                        (Game.cam, camera_focus feeds Game::camera; back to the player when the event is
+                        over); runtime/scroll_text.rs = Action::ScrollText (modal overlay, also on the title)
   runtime/input_box.rs  Input number / Input text: the window, its input, status input=; WorldState.texts = text
                         variables ({name} placeholders, Cond::TextVar, get_text / set_text)
   timers.rs             timers: Timer (left, shown, function / event at the end), tick, clock

@@ -1998,6 +1998,51 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             });
             ui.weak("(pauses while a menu or a dialog is open; saved; starting it again restarts it)");
         }
+        Action::Camera { aim, seconds, easing, zoom, wait } => {
+            use rustpg2d_engine::camera::CameraAim;
+            labeled(ui, "look at", |ui| {
+                egui::ComboBox::from_id_salt(format!("{id}/aim")).width(130.0).selected_text(aim.label()).show_ui(ui, |ui| {
+                    for a in [CameraAim::Player, CameraAim::Tile { x: 0, y: 0 }, CameraAim::Follow { target: String::new() }] {
+                        let on = std::mem::discriminant(&a) == std::mem::discriminant(aim);
+                        if ui.selectable_label(on, a.label()).clicked() && !on {
+                            *aim = a;
+                        }
+                    }
+                });
+                match aim {
+                    CameraAim::Player => {}
+                    CameraAim::Tile { x, y } => {
+                        ui.label("x");
+                        ui.add(egui::DragValue::new(x).speed(0.2));
+                        ui.label("y");
+                        ui.add(egui::DragValue::new(y).speed(0.2));
+                    }
+                    CameraAim::Follow { target } => suggest(ui, &format!("{id}/follow"), target, &refs.targets, 110.0),
+                }
+            });
+            labeled(ui, "over", |ui| {
+                ui.add(egui::DragValue::new(seconds).range(0.0..=600.0).speed(0.05).suffix(" s"));
+                egui::ComboBox::from_id_salt(format!("{id}/easing")).width(80.0).selected_text(easing.name()).show_ui(ui, |ui| {
+                    for e in rustpg2d_engine::pictures::Easing::ALL {
+                        ui.selectable_value(easing, e, e.name());
+                    }
+                });
+                ui.label("zoom");
+                ui.add(egui::DragValue::new(zoom).range(0.25..=4.0).speed(0.02).suffix("x")).on_hover_text("1 = the usual size, 2 = twice as close");
+                ui.checkbox(wait, "Wait").on_hover_text("The event goes on when the camera is there");
+            });
+            ui.weak("(it stays while the event or cut-scene runs, then glides back to the player)");
+        }
+        Action::ScrollText { text, speed, background } => {
+            ui.label("Text (lines starting with # are headings):");
+            ui.add(egui::TextEdit::multiline(text).desired_rows(5).desired_width(f32::INFINITY));
+            labeled(ui, "speed", |ui| {
+                ui.add(egui::DragValue::new(speed).range(5.0..=600.0).speed(1.0).suffix(" px/s"));
+                ui.label("background");
+                ui.color_edit_button_srgba_unmultiplied(background).on_hover_text("Its opacity: see-through shows the map behind");
+            });
+            ui.weak("(the event waits until it has rolled past; holding confirm speeds it up, cancel skips it)");
+        }
         Action::CallCommon { id: ce } => {
             labeled(ui, "common event", |ui| suggest(ui, &format!("{id}/ce"), ce, &refs.common_events, 160.0));
         }

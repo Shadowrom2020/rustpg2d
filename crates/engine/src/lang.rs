@@ -374,7 +374,7 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
                 add(speaker);
                 add(crate::dialog_codes::split_box_at(text).1);
             }
-            Action::InputNumber { text, .. } | Action::InputText { text, .. } => add(text),
+            Action::InputNumber { text, .. } | Action::InputText { text, .. } | Action::ScrollText { text, .. } => add(text),
             Action::Choice { speaker, text, options, .. } => {
                 add(speaker);
                 add(crate::dialog_codes::split_box_at(text).1);

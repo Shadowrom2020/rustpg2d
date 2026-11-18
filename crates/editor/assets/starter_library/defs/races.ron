@@ -274,7 +274,7 @@
         name: "Dragonborn",
         playable: true,
         bodies_male: [
-            "orc",
+            "dragonborn",
         ],
         bodies_female: [
             "orc_f",

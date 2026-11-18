@@ -409,10 +409,12 @@ Gnome), and goblins, orcs and trolls for the world's characters. A race has:
 
 - a **name** and **description** (the creator shows it under the preview);
 - **models** for men and women. The creator offers the race's models of the chosen sex with their
-  colour features; without any, the project's playable models. The SRD races without models of
-  their own borrow the library's: halflings the hero / heroine and gnomes the dwarf models at size
-  0.75, dragonborn and half-orcs the orc models, half-elves the elf models, tieflings the hero /
-  heroine with a red skin (*Colours*);
+  colour features; without any, the project's playable models. The dragonborn man has a model of
+  his own whose scales take the SRD's ten dragon colours (black, blue, brass, bronze, copper, gold,
+  green, red, silver, white; bronze unless the player picks one) and whose clothes take the usual
+  clothing colours. The SRD races without models of their own borrow the library's: halflings the
+  hero / heroine and gnomes the dwarf models at size 0.75, dragonborn women and half-orcs the orc
+  models, half-elves the elf models, tieflings the hero / heroine with a red skin (*Colours*);
 - for **a player of this race**: extra **max HP** once (negative: fewer; the SRD's races add none),
   **HP per level** (the hill dwarf's *Dwarven Toughness*: +1), **speed** in percent (from 0.27 and
   older; the SRD's speed in feet replaces it) and **defense**, and **proficiencies**:

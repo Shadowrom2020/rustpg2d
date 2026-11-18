@@ -157,6 +157,8 @@ fn intro_cutscene() {
     wait(0.4);
     approach("guard", "player");
     emote("guard", "surprise", #{ wait: true, seconds: 1.2 });
+    // He recognises the hero: a happy hop on the spot (a move route), then he faces them.
+    move_route("guard", ["jump 0,0", "face player"]);
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");
     say("{player}", "I came as fast as I could. What is going on?");
     say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the slimes grow bolder every day.");

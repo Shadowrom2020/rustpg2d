@@ -53,6 +53,7 @@ mod script_hud;
 mod pictures;
 mod timers;
 mod input_box;
+mod routes;
 mod attacks;
 mod defense;
 mod barks;
@@ -504,6 +505,8 @@ pub struct Game {
     script_window: Option<script_hud::WindowUi>,
     /// The window of *Input number* / *Input text* (the event waits for it).
     input_box: Option<input_box::InputBox>,
+    /// Running move routes (not saved: they end with the map).
+    routes: Vec<routes::RouteRun>,
     creator: Option<creator::Creator>,
     menu: menu::Menu,
     pub world: WorldState,
@@ -665,6 +668,7 @@ impl Game {
             worldmap: Default::default(),
             script_window: None,
             input_box: None,
+            routes: Vec::new(),
             creator: None,
             menu: Default::default(),
             world: WorldState::default(),
@@ -962,6 +966,7 @@ impl Game {
     }
 
     fn enter_map(&mut self, mut map: Map, arrival: Arrival) {
+        self.clear_routes();
         // Doors characters opened on the old map close behind them.
         self.close_npc_doors_now();
         // Furniture the player placed here joins the map's props (containers, states, locks).
@@ -1656,6 +1661,7 @@ impl Game {
         self.update_soundscape(dt);
         self.update_juice(dt);
         self.update_pictures(dt);
+        self.update_routes(dt);
         self.update_timers(dt);
         self.update_battle(dt);
         self.update_captions(dt);
@@ -2467,7 +2473,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2536,6 +2542,7 @@ impl Game {
             self.timers_status(),
             self.input_status(),
             self.world.texts,
+            self.routes_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
             self.companion_win_status(),
@@ -2782,7 +2789,13 @@ impl Game {
         );
         order.sort_by(|a, b| a.0.total_cmp(&b.0));
         let t = get_time() as f32;
+        // The camera shifted for a jumping walker; back to normal before the next thing is drawn.
+        let mut lifted_cam = false;
         for (_, drawn) in order {
+            if lifted_cam {
+                set_camera(&cam);
+                lifted_cam = false;
+            }
             let idx = match drawn {
                 Drawn::Projectile(k) => {
                     self.draw_projectile(k);
@@ -2799,6 +2812,13 @@ impl Game {
                 Drawn::Player => None,
                 Drawn::Entity(i) => Some(i),
             };
+            // A walker jumping on a move route: drawn higher (the camera shifted for it alone).
+            let hop = self.route_hop(idx.map_or(routes::Walker::Player, |i| self.entity_walker(i)));
+            if hop > 0.0 {
+                let lifted = Camera2D { target: cam.target + vec2(0.0, hop), zoom: cam.zoom, rotation: cam.rotation, offset: cam.offset, render_target: cam.render_target.clone(), viewport: cam.viewport };
+                set_camera(&lifted);
+                lifted_cam = true;
+            }
             match idx {
                 None if self.on_title() => {}
                 None => {
@@ -2825,6 +2845,9 @@ impl Game {
             }
         }
 
+        if lifted_cam {
+            set_camera(&cam);
+        }
         self.draw_combat_world();
         self.draw_attacks();
         self.draw_defense();
@@ -3161,6 +3184,13 @@ impl ActionHost for Game {
             Action::ErasePicture { layer } => {
                 self.erase_picture(*layer);
                 Step::Continue
+            }
+            Action::MoveRoute { target, steps, repeat, skip_blocked, wait } => {
+                if self.start_route(target, ctx.owner, steps, *repeat, *skip_blocked, *wait) {
+                    Step::Block
+                } else {
+                    Step::Continue
+                }
             }
             Action::InputNumber { text, var, digits, min, max } => {
                 self.open_input(input_box::Ask::Number { min: *min, max: *max, digits: *digits }, text, var);
@@ -3601,7 +3631,7 @@ impl ActionHost for Game {
             // Characters that walked up to someone turn to face them.
             self.apply_face_after();
         }
-        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting() || self.input_open()
+        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting() || self.input_open() || self.route_waiting()
     }
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {

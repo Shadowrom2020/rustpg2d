@@ -502,6 +502,35 @@ fn meet_tilda() {
 }                                                    // the portrait goes when the event ends
 ```
 
+#### Move routes
+
+`move_route(target, steps)` / `move_route(target, steps, options)` walk a character (or
+`"player"`) through a list of steps written as short texts; the event waits until it is done
+([Events › Move route](07-events.md#actions)):
+
+| Step | Does |
+|---|---|
+| `"move up 2"` | Two tiles up (`up`, `down`, `left`, `right`) |
+| `"toward 1"`, `"away 1"` | Tiles toward / away from the player |
+| `"turn left"`, `"turn random"`, `"face player"` | Turns |
+| `"wait 0.5"` | Waits |
+| `"jump 1,0"` | Jumps one tile right (`"jump 0,0"`: on the spot) |
+| `"speed 2"` | Twice its usual speed for the rest of the route |
+| `"anim wave 1.5"` | Plays a clip of its 3D model for 1.5 s |
+| `"sound blip"`, `"script name"` | Plays a sound, runs a function |
+| `"through on"` / `"through off"` | Walks through walls and characters, or not |
+
+Options `#{ repeat: true` (again and again; the event doesn't wait) `, skip: false` (wait until a
+taken tile is free instead of leaving the step out) `, wait: false }`. *(queued)*
+
+```rust
+fn guard_greets() {
+    move_route("guard", ["toward 3", "face player", "jump 0,0"]);
+    say("Guard", "Welcome to Emberbrook!");
+    move_route("guard", ["move up 2", "turn random", "wait 2"], #{ repeat: true });
+}
+```
+
 #### Timers
 
 A named countdown, shown at the top of the screen or hidden; when it runs out it runs a function

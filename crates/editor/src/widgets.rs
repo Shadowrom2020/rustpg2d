@@ -1296,6 +1296,79 @@ pub fn actions_ui(ui: &mut Ui, salt: &str, actions: &mut Vec<Action>, refs: &Ref
     });
 }
 
+/// The steps of a move route: one row per step (its fields, up / down / remove), and a button
+/// per kind of step to add one.
+fn route_steps_ui(ui: &mut Ui, id: &str, steps: &mut Vec<rustpg2d_engine::routes::RouteStep>, refs: &Refs) {
+    use rustpg2d_engine::entity::Facing;
+    use rustpg2d_engine::routes::RouteStep;
+    let facing_combo = |ui: &mut Ui, salt: String, dir: &mut Facing| {
+        egui::ComboBox::from_id_salt(salt).width(60.0).selected_text(format!("{dir:?}").to_lowercase()).show_ui(ui, |ui| {
+            for f in [Facing::Up, Facing::Down, Facing::Left, Facing::Right] {
+                ui.selectable_value(dir, f, format!("{f:?}").to_lowercase());
+            }
+        });
+    };
+    let (mut up, mut remove) = (None, None);
+    for (k, s) in steps.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(format!("{}.", k + 1));
+            if ui.add_enabled(k > 0, egui::Button::new(crate::ui::ph::ARROW_UP).small()).on_hover_text("Move up").clicked() {
+                up = Some(k);
+            }
+            if ui.small_button(crate::ui::ph::TRASH).on_hover_text("Remove").clicked() {
+                remove = Some(k);
+            }
+            ui.label(s.label());
+            let salt = format!("{id}/step{k}");
+            match s {
+                RouteStep::Move { dir, tiles } => {
+                    facing_combo(ui, salt, dir);
+                    ui.add(egui::DragValue::new(tiles).range(0..=100).suffix(" tiles"));
+                }
+                RouteStep::Toward { tiles } | RouteStep::Away { tiles } => {
+                    ui.add(egui::DragValue::new(tiles).range(0..=100).suffix(" tiles"));
+                }
+                RouteStep::Turn { dir } => facing_combo(ui, salt, dir),
+                RouteStep::TurnToPlayer | RouteStep::TurnRandom => {}
+                RouteStep::Wait { seconds } => {
+                    ui.add(egui::DragValue::new(seconds).range(0.0..=600.0).speed(0.05).suffix(" s"));
+                }
+                RouteStep::Jump { dx, dy } => {
+                    ui.add(egui::DragValue::new(dx).range(-10..=10).prefix("x "));
+                    ui.add(egui::DragValue::new(dy).range(-10..=10).prefix("y "));
+                    ui.weak("(tiles; 0, 0 = on the spot)");
+                }
+                RouteStep::Speed { speed } => {
+                    ui.add(egui::DragValue::new(speed).range(0.1..=8.0).speed(0.05).prefix("x ")).on_hover_text("Times its usual speed, for the rest of the route");
+                }
+                RouteStep::Anim { clip, seconds } => {
+                    ui.add(egui::TextEdit::singleline(clip).desired_width(90.0).hint_text("wave")).on_hover_text("A clip of its 3D model (Database › 3D models › clips)");
+                    ui.add(egui::DragValue::new(seconds).range(0.05..=60.0).speed(0.05).suffix(" s"));
+                }
+                RouteStep::Sound { sound } => suggest(ui, &salt, sound, &refs.sounds, 110.0),
+                RouteStep::Through { on } => {
+                    ui.checkbox(on, "on").on_hover_text("Walks through walls and characters until switched off");
+                }
+                RouteStep::Script { function } => suggest(ui, &salt, function, &refs.functions, 110.0),
+            }
+        });
+    }
+    if let Some(k) = up {
+        steps.swap(k, k - 1);
+    }
+    if let Some(k) = remove {
+        steps.remove(k);
+    }
+    ui.horizontal_wrapped(|ui| {
+        ui.weak("Add:");
+        for t in RouteStep::templates() {
+            if ui.small_button(t.label()).clicked() {
+                steps.push(t);
+            }
+        }
+    });
+}
+
 fn target_field(ui: &mut Ui, id: &str, target: &mut String, refs: &Refs) {
     labeled(ui, "target", |ui| suggest(ui, id, target, &refs.targets, 100.0));
 }
@@ -1880,6 +1953,15 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
                     ui.color_edit_button_srgb(t);
                 }
             });
+        }
+        Action::MoveRoute { target, steps, repeat, skip_blocked, wait } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "", |ui| {
+                ui.checkbox(repeat, "Repeat").on_hover_text("Starts over when done (the event doesn't wait for it); a new route for the same character replaces it");
+                ui.checkbox(skip_blocked, "Skip blocked").on_hover_text("A step whose tile is taken (a wall, a prop, someone) is left out; off: it waits until the tile is free");
+                ui.checkbox(wait, "Wait").on_hover_text("The event goes on when the route is done");
+            });
+            route_steps_ui(ui, id, steps, refs);
         }
         Action::InputNumber { text, var, digits, min, max } => {
             dialog_text_field(ui, &format!("{id}/q"), text, refs);

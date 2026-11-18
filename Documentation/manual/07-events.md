@@ -107,6 +107,15 @@ across map changes and in save games.
 **Cut-scenes and effects**
 - **Play cutscene**, **Walk to tile**, **Walk up to character**, **Place at tile**, **Dim the
   scene**, **Show / hide UI**, **Wait**.
+- **Move route**: a character (or the player) walks a list of steps, added with one button each:
+  *Move* (tiles in a direction), *Toward player* / *Away from player* (tiles), *Turn*, *Face
+  player*, *Turn at random*, *Wait*, *Jump* (tiles away, or 0, 0 on the spot; a hop over anything
+  in between), *Speed* (times its usual speed, for the rest of the route), *Animation* (a clip of
+  its 3D model for some seconds), *Sound*, *Through walls* (on / off) and *Script*. **Skip
+  blocked**: a step whose tile is taken (a wall, a prop, someone) is left out; off, it waits until
+  the tile is free. **Repeat**: from the start again (the event doesn't wait for it); **Wait**:
+  the event goes on when it is done. A new route replaces the character's current one; routes end
+  when the map changes. The example's guard hops for joy in the intro.
 - **Play sound**, **Play music**, **Shake the screen**.
 - **Show image** / **Hide image**: a picture over the game (below).
 - **Show picture**, **Move picture**, **Erase picture**: picture layers, moved and faded (below).

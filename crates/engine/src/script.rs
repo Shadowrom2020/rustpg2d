@@ -368,6 +368,25 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }
     engine.register_fn("say", with!(ctx, |c, speaker: &str, text: &str, opts: rhai::Map| say_with(&mut c, speaker.into(), text, &opts)));
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
+    // Move routes (queued).
+    fn route_of(steps: &rhai::Array) -> Vec<crate::routes::RouteStep> {
+        steps
+            .iter()
+            .filter_map(|s| {
+                let t = s.to_string();
+                let step = crate::routes::RouteStep::parse(&t);
+                if step.is_none() {
+                    eprintln!("[script] move_route: '{t}' is not a step (move up 2, toward 1, away 1, turn left, turn random, face player, wait 0.5, jump 1,0, speed 2, anim wave 1, sound blip, through on, script name)");
+                }
+                step
+            })
+            .collect()
+    }
+    engine.register_fn("move_route", with!(ctx, |c, target: &str, steps: rhai::Array| c.actions.push(Action::MoveRoute { target: target.into(), steps: route_of(&steps), repeat: false, skip_blocked: true, wait: true })));
+    engine.register_fn("move_route", with!(ctx, |c, target: &str, steps: rhai::Array, o: rhai::Map| {
+        let b = |k: &str, d: bool| o.get(k).and_then(|v| v.as_bool().ok()).unwrap_or(d);
+        c.actions.push(Action::MoveRoute { target: target.into(), steps: route_of(&steps), repeat: b("repeat", false), skip_blocked: b("skip", true), wait: b("wait", true) })
+    }));
     // Text variables (immediately) and asking the player (queued).
     engine.register_fn("get_text", with!(ctx, |c, name: &str| c.world.text(name).to_string()));
     engine.register_fn("set_text", with!(ctx, |c, name: &str, value: &str| {

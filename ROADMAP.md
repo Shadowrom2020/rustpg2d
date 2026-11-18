@@ -132,11 +132,11 @@ and each item's *Engine* line names the addition. When an item starts, confirm i
 the user in a short plan before changing Rust code (CLAUDE.md, *Content first*). Build whatever
 can be content as content: the library and example parts of each item.
 
-## The SRD 5.1 ruleset (0.28.0 to 0.31.0)
+## The SRD 5.1 ruleset (0.28.0 to 0.32.0)
 
 The user's decision (2026-11-16): R(ust)PG2D's rules follow the **System Reference Document 5.1**
 (SRD 5.1) by Wizards of the Coast, as closely as the engine allows, instead of growing into another
-JRPG maker. Things that apply to all four releases:
+JRPG maker. Things that apply to all five releases:
 
 - **The ruleset replaces the engine's own.** Real-time combat, the skill tree, mana, the
   progression curves, race stat changes and status effects go. The SRD's ability scores, skills,
@@ -550,7 +550,7 @@ SRD combat: initiative, actions, movement on the grid, attacks against AC, death
   **Design.**
   - **Monsters:** the SRD monster list imported (`xtask srd-import`) as character definitions:
     stat block, actions, traits, CR, XP. Each is mapped to a library model, or left without one (a
-    placeholder: the mannequin tinted) until 0.35 brings models.
+    placeholder: the mannequin tinted) until 0.36 brings models.
   - **Encounters:** encounter zones (`ZoneKind::Encounter`, appended) hold a monster list or an
     XP budget by the SRD's encounter difficulty (easy, medium, hard, deadly for the party's
     levels), and spawn their group once or on a timer (spawners exist).
@@ -644,7 +644,7 @@ SRD equipment, magic items and money.
   - **Armour:** light / medium / heavy with the AC formulas, STR requirements and Stealth
     disadvantage; shields.
   - **Other gear:** tools and kits (used by checks), adventuring gear, packs, mounts and vehicles
-    as items (riding them is in the backlog).
+    as items (riding them: 0.32's mounted combat).
   - **Money:** cp, sp, ep, gp, pp, with prices in the SRD's coins; the example's coin becomes gp.
   - **Proficiency:** attacking with a weapon the character isn't proficient with drops the
     proficiency bonus; armour without proficiency gives disadvantage and no spellcasting.
@@ -672,7 +672,173 @@ SRD equipment, magic items and money.
 
   **Verify.** Autoplay: attune, use charges, recharge at dawn; a +1 weapon's maths in a fight.
 
-## 0.32.0 — Everywhere
+## 0.32.0 — SRD missing features
+
+The SRD 5.1's rules that 0.28 to 0.31 leave out, collected so the ruleset is complete before the
+reach releases. The list comes from the SRD's chapters (*Using Ability Scores*, *Adventuring*,
+*Combat*, *Between Adventures*, *Gamemastering*, *Monsters*) compared with what the releases before
+build, and from what the turn-based combat recorded as *Not yet*. Items may move into earlier
+releases when they turn out small; anything still missing when a 0.28-0.31 item is built is added
+here.
+
+- [ ] Combat rules completed — `feature/srd-combat-rules`
+
+  **Goal.** The combat chapter's remaining rules.
+
+  **Design.**
+  - **0 HP:** instant death from massive damage (what remains after 0 HP is at least the max HP);
+    *knocking a creature out* (a melee hit that drops it to 0 can leave it unconscious and stable);
+    **stabilizing** with a Medicine check (DC 10, an action) or a healer's kit, and *Spare the
+    Dying*.
+  - **Grappling completed:** the grappled creature's *escape* action (Athletics or Acrobatics
+    against the grappler's Athletics), dragging or carrying a grappled creature at half speed, the
+    size limit (at most one size larger) for grapple and shove.
+  - **Creature size and space:** Large and bigger creatures take 2×2, 3×3, 4×4 tiles (movement,
+    reach, cover, the overlays); squeezing into a smaller space; moving through a non-hostile
+    creature's space is difficult terrain, through a hostile one's only when two sizes apart.
+  - **Cover on DEX saves** (+2 / +5, like AC) and on area spells.
+  - **Ready any action:** a readied spell (concentration on it), Dash, Disengage, a move; the
+    trigger as the player chooses it.
+  - **Seeing and being seen in fights:** lightly and heavily obscured areas (fog, darkness,
+    foliage) from the lighting, the weather and decorations; unseen attackers and targets; hiding
+    behind cover; the creature's senses (blindsight, tremorsense, truesight) against them.
+  - **Difficult terrain from decorations** (undergrowth, rubble), not only from materials.
+  - **Mounted combat** (mounting, controlled and independent mounts, falling off; riding needs the
+    backlog's *Mounts*, built here when it hasn't been) and **underwater combat** (weapons with
+    disadvantage, resistance to fire). Vehicles stay in the backlog.
+  - **Conditions in full:** frightened can't move closer to the source of its fear, charmed can't
+    attack the charmer, a grappler's speed 0 for the grappled, incapacitated loses concentration.
+  - **The AI's spells:** characters and AI-played companions cast their spells in fights.
+
+  **Engine.** The fight's death and grapple rules, multi-tile creatures in `runtime/turns/`
+  (reach, cover, pathing), obscurement from light / weather / decorations, the Ready choice,
+  mounts.
+
+  **Example.** The bridge troll (Large) holds its bridge; the bandits' camp at night is lightly
+  obscured; Grumbold grapples.
+
+  **Verify.** Unit tests of massive damage, the escape contest, multi-tile reach and cover;
+  autoplay: a Large creature in a corridor, a stabilize by Medicine, an escape from a grapple, an
+  attack from heavy obscurement; screenshots of a Large creature's tiles.
+
+- [ ] Movement, senses and the environment — `feature/srd-environment`
+
+  **Goal.** The *Adventuring* chapter's movement and environment rules, in and out of fights.
+
+  **Design.**
+  - **Movement modes:** climbing and swimming (half speed without a climb / swim speed, Athletics
+    for hard ones), jumping (long and high jump from STR, Athletics to go farther), flying speeds
+    (bats, birds, a *Fly* spell; hovering), crawling.
+  - **Falling:** 1d6 bludgeoning per 10 ft (at most 20d6), prone on landing.
+  - **Breath and suffocation:** holding breath (1 + CON minutes), then CON rounds; underwater
+    areas.
+  - **Vision and light:** bright, dim light and darkness (dim light gives disadvantage on
+    Perception by sight), darkvision exists; blindsight, tremorsense and truesight for creatures;
+    the game shows what the hero can't see.
+  - **Food and water:** days without food or water give exhaustion (an option: *Database ›
+    Project › Rules › Food and water*); the example's food then counts.
+  - **Travel:** forced march (CON saves past eight hours), travel pace (fast: −5 passive
+    Perception, slow: can sneak).
+  - **Carrying capacity and encumbrance:** STR × 15 lb (variant encumbrance as an option),
+    pushing, dragging and lifting; items get a weight.
+
+  **Engine.** Movement modes on the grid and while exploring (zones / materials for water and
+  climbable walls), fall damage on ledges and pits, breath, light levels per tile, weights.
+
+  **Example.** The river can be swum, the mine has a pit to fall into and a ledge to climb, the
+  forest's clearing at night is dim light.
+
+  **Verify.** Unit tests of jump distances, fall damage and carrying capacity; autoplay: swim the
+  river, climb the ledge, fall into the pit (`status` HP and prone), a Perception check in dim
+  light with disadvantage.
+
+- [ ] Objects, traps, poisons, diseases and madness — `feature/srd-hazards`
+
+  **Goal.** The SRD's hazards and the objects of the world by the rules.
+
+  **Design.**
+  - **Objects:** armor class and hit points by material and size (wood, stone, iron), damage
+    thresholds, immunity to poison and psychic; props can be broken (a door, a chest, a barricade:
+    a new *Breakable* part of the prop form) and forced open with a STR check.
+  - **Traps:** the SRD's traps (collapsing roof, falling net, fire-breathing statue, pits, poison
+    darts, poison needle, rolling sphere) as library props / zones: found by Perception or
+    Investigation against their DC (passive Perception while walking), disarmed with Thieves'
+    Tools, set off on a failure; saving throws and damage by severity.
+  - **Poisons:** the SRD's poisons as items (contact, ingested, inhaled, injury), applied to a
+    weapon or ammunition (an action), with their saves and conditions.
+  - **Diseases:** cackle fever, sewer plague, sight rot: caught by a failed save, with their
+    effects over long rests and their cures.
+  - **Madness:** short-, long-term and indefinite madness from the SRD's tables, for events and
+    monsters that cause it.
+
+  **Engine.** Object stats on props, a trap kind (zone or prop) with detect / disarm / trigger,
+  poison coatings on weapons, diseases as long-lasting conditions with a rest-based course.
+
+  **Example.** The mine gets a pit trap and a dart trap, a goblin's poisoned arrows, a sewer rat
+  that may carry sewer plague; the stone house's door can be broken.
+
+  **Verify.** Unit tests of object damage thresholds and disease courses; autoplay: spot and
+  disarm a trap (seeded), set one off, coat a weapon and poison a target, catch and cure a disease
+  over long rests.
+
+- [ ] Between adventures — `feature/srd-downtime`
+
+  **Goal.** The *Between Adventures* chapter and the remaining character rules.
+
+  **Design.**
+  - **Lifestyle expenses** (wretched to aristocratic, per day) and services (inns, food, a
+    messenger), from the SRD's prices.
+  - **Downtime activities:** crafting by the SRD's rule (5 gp of progress a day, half the price in
+    materials; the existing crafting stays for recipes), practicing a profession, recuperating
+    (ends a disease or poison), researching, training (a new language or tool proficiency in 250
+    days and 1 gp a day). A *Downtime* window spends days.
+  - **Selling treasure:** gear at half price, art and gems at full (shops' sell rates).
+  - **Inspiration:** granted by events and scripts, spent for advantage on one roll; the sheet
+    shows it.
+  - **Personality:** the background's personality traits, ideals, bonds and flaws (from the import)
+    on the sheet and the creator, readable by conditions and scripts (a bond's quest).
+  - **Feats:** the SRD's feat (Grappler) and the feat choice instead of an ability score
+    improvement, if *Classes and levelling up* doesn't bring them.
+  - **Multiclassing** by the SRD's rules (prerequisites, proficiencies, spell slots), if *Classes
+    and levelling up* doesn't bring it (moved here from the backlog).
+  - **Lore data:** the SRD's pantheons (a cleric's deity) and the planes, as reference data for
+    texts and choices.
+
+  **Engine.** The downtime window, lifestyle costs per day, inspiration on `WorldState`, the
+  personality fields of backgrounds and the hero.
+
+  **Example.** The inn charges by lifestyle; Brom teaches smith's tools over downtime; the elder
+  grants inspiration for a kind deed.
+
+  **Verify.** Autoplay: spend downtime training a tool and crafting an item (days and gold in
+  `status`), gain and spend inspiration on a check (`rolls=` with advantage).
+
+- [ ] Special abilities of monsters and classes — `feature/srd-special-abilities`
+
+  **Goal.** What the stat block and spell vocabularies of 0.29 and 0.30 leave as text.
+
+  **Design.**
+  - **Monsters:** legendary actions and legendary resistance, recharge actions (*Recharge 5-6*),
+    innate spellcasting, regeneration, pack tactics, swallow, multi-headed traits, damage
+    transfer: the traits of the imported monsters that act, each as a runtime ability or a Rhai
+    hook on the monster.
+  - **Shapes and summons** (moved here from the backlog): Wild Shape and *Polymorph* (a stat block
+    taken over for a while),
+    familiars (*Find Familiar*), conjured and summoned creatures as temporary party members.
+  - **Reactions:** a reaction choice when one is possible (*Shield*, *Uncanny Dodge*, *Hellish
+    Rebuke*, *Protection*), as a prompt in the player's turns and by rule for the AI.
+  - **A count** in the manual of how many SRD monsters' traits act, and which stay text.
+
+  **Engine.** A monster ability runtime (with Rhai for the rest), temporary stat block swaps, the
+  reaction prompt.
+
+  **Example.** The bridge troll regenerates (fire stops it); wolves use pack tactics; the
+  priest's familiar.
+
+  **Verify.** Autoplay: a recharge action, a legendary action between turns, a troll regenerating
+  until burnt, a wild shape and back, a *Shield* reaction prompt.
+
+## 0.33.0 — Everywhere
 
 Touch screens, phones, Steam and signed downloads.
 
@@ -775,7 +941,7 @@ Touch screens, phones, Steam and signed downloads.
   **Verify.** The example on an Android emulator (`emulator -no-window`, `adb exec-out screencap`):
   start, walk, save, load.
 
-## 0.33.0 — Studio Comfort
+## 0.34.0 — Studio Comfort
 
 Faster ways to build what the earlier releases made possible.
 
@@ -852,7 +1018,7 @@ Faster ways to build what the earlier releases made possible.
 
   **Verify.** Each starter animation in autoplay screenshots mid-play; `status` prints `fx=`.
 
-## 0.34.0 — Learning
+## 0.35.0 — Learning
 
 A way in for new creators: tutorials and small games to learn from.
 
@@ -903,7 +1069,7 @@ A way in for new creators: tutorials and small games to learn from.
 
   **Verify.** None.
 
-## 0.35.0 — A Bigger Library
+## 0.36.0 — A Bigger Library
 
 A content release for the starter library. Generating 3D models costs Meshy credits: ask first.
 
@@ -1025,14 +1191,11 @@ The promise creators need for a commercial release: what works with 1.0 keeps wo
 
 - **Right-to-left text** (Arabic, Hebrew): shaping and bidirectional runs in `runtime/text.rs`,
   after 0.24's fonts.
-- **iOS export:** needs a Mac and an Apple developer account; after Android (0.32).
+- **iOS export:** needs a Mac and an Apple developer account; after Android (0.33).
 - **RPG Maker MV / MZ importer** (moved from 0.32, 2026-11-16: R(ust)PG2D follows the SRD rules,
   not the JRPG model): maps and art through the tile converter, the database mapped onto SRD
   definitions where it fits, events onto triggers; the RTP's files skipped (licensed for RPG
   Maker only). The full design block is in git history (ROADMAP.md, 0.32.0).
-- **SRD multiclassing** if it doesn't fit 0.30, and **Wild Shape**, **summons** and the other SRD
-  features that need a creature of their own.
-- **Riding mounts and vehicles** with the SRD's rules (mounted combat).
 - **Vehicles:** a boat, a ship, an airship over the world map; a world-map mode with a smaller
   character and a different scale.
 - **A shortcut sheet in the editor,** and gamepad remapping in its play-test preview.

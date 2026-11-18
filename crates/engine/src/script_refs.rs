@@ -530,8 +530,10 @@ pub fn needed_functions(fns: &[ScriptFn], roots: &[String]) -> BTreeSet<String> 
 pub struct ScriptIssue {
     pub line: usize,
     pub message: String,
-    /// Byte range of the offending string literal.
+    /// Byte range of the offending string literal (a deprecated call: its name).
     pub span: (usize, usize),
+    /// Only a warning: the script works (a deprecated function).
+    pub warning: bool,
 }
 
 /// Reports ids in API calls that don't exist in the project. `spawns`: map -> spawn names.
@@ -564,8 +566,15 @@ pub fn check_script(src: &str, db: &Database, maps: &[String], spawns: &HashMap<
                 IdKind::Spawn => format!(" on map '{}'", a.siblings.first().cloned().flatten().unwrap_or_default()),
                 _ => String::new(),
             };
-            out.push(ScriptIssue { line: a.line, message: format!("{}(\"{v}\"): unknown {}{extra}", a.func, kind.label()), span: a.span });
+            out.push(ScriptIssue { line: a.line, message: format!("{}(\"{v}\"): unknown {}{extra}", a.func, kind.label()), span: a.span, warning: false });
         }
+    }
+    // Deprecated functions: they still work, but have a replacement.
+    let starts: Vec<usize> = std::iter::once(0).chain(src.match_indices('\n').map(|(i, _)| i + 1)).collect();
+    for (line, name, instead) in crate::script_api::deprecated_calls(src) {
+        let start = starts.get(line - 1).copied().unwrap_or(0);
+        let at = src[start..].find(name).map_or(start, |i| start + i);
+        out.push(ScriptIssue { line, message: format!("{name}() is deprecated: use {instead}"), span: (at, at + name.len()), warning: true });
     }
     out
 }

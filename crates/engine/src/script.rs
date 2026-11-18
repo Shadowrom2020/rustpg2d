@@ -910,7 +910,10 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("emit", with!(ctx, |c, n: &str| c.actions.push(Action::Emit { name: n.into() })));
     engine.register_fn("heal", with!(ctx, |c, n: i64| c.actions.push(Action::Heal { amount: n as i32 })));
     // A character ("player" works too): companions, friendly characters, enemies (negative hurts).
+    // (heal_npc is the old name of heal_character: deprecated in 0.27, still works.)
+    engine.register_fn("heal_character", with!(ctx, |c, t: &str, n: i64| c.actions.push(Action::HealCharacter { target: t.into(), amount: n as i32 })));
     engine.register_fn("heal_npc", with!(ctx, |c, t: &str, n: i64| c.actions.push(Action::HealCharacter { target: t.into(), amount: n as i32 })));
+    engine.register_fn("api_version", || crate::script_api::API_VERSION.to_string());
     engine.register_fn("set_locked", with!(ctx, |c, t: &str, locked: bool| c.actions.push(Action::SetLocked {
         target: t.into(),
         locked

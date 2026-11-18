@@ -236,7 +236,7 @@ their settings.
   **Verify.** Install, configure, update and remove a plugin on a scratch project; an exported
   game runs it.
 
-- [ ] A versioned script API — `feature/api-versions`
+- [x] A versioned script API — `feature/api-versions`
 
   **Goal.** Plugins and scripts know which functions they can count on.
 
@@ -251,6 +251,21 @@ their settings.
     functions keep working until 2.0.
 
   **Engine.** The table fields, the checks, the manual generator / test.
+
+  **Decided while building.**
+  - `ApiFn::since` ("" = from before versions were kept) and `ApiFn::deprecated` (the
+    replacement), written as `[since "0.27"]` / `[deprecated "…"]` before a row of the table.
+    `API_VERSION` is the MAJOR.MINOR (0.27).
+  - No manual generator: a test checks that every row with `since` says *since X.Y* in
+    `08-scripting.md` and every deprecated one says **Deprecated**, and that the replacement
+    exists.
+  - The first deprecation: `heal_npc` → `heal_character` (it heals the player too, like the
+    *Heal character* action). The script check (`script_refs::check_script`, a `warning`
+    issue) and Problems warn; completion and the agent's API listing mark it.
+
+  **Verify (done).** A scratch script calling `heal_npc`: Problems shows the warning with the
+  line and the replacement, and the call still hurt the player (12 → 9); `api_version()` gave
+  "0.27". Completion's marking is compile-checked only (the editor script can't open it).
 
   **Verify.** A deprecated call warns in the check and still runs.
 

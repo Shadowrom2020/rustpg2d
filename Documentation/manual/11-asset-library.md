@@ -119,7 +119,9 @@ The starter library's races (with their subraces, traits and choices) and the Ac
 come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the data of
 [5e-bits/5e-database](https://github.com/5e-bits/5e-database), pinned to a commit. The import is a
 tool of the repository; running it again updates what it wrote and keeps what the library added
-(models, factions, sizes, colours):
+(models, factions, sizes, colours). Run from the repository, it also writes the SRD's 35 NPC stat
+blocks (commoner, guard, bandit, veteran…) into the engine (`crates/engine/src/srd/npcs.ron`): the
+templates of the [stat blocks](06-characters.md#stat-blocks).
 
 ```sh
 git clone https://github.com/5e-bits/5e-database /tmp/5e-database

@@ -151,7 +151,7 @@ The starter library's **Locked Chest** is a chest with a DC 12 lock and no key.
 
 ## Characters
 
-Characters have the most settings: look and equipment, behaviour, combat values, loot, a shop, a
+Characters have the most settings: look and equipment, behaviour, combat values, an SRD stat block, loot, a shop, a
 portrait and moods. They have their own chapter: [Characters](06-characters.md).
 
 ## Races
@@ -292,17 +292,17 @@ pixels) and a **Pixel size** (screen pixels per picture pixel; whole numbers kee
 | **Window frame** | Every window and menu panel: inventory, character, skills, journal, shop, crafting, map, pause menu, options, minigames |
 | **Dialog box** | The dialog and choice box (empty: the window frame) |
 | **Name box** | A box for the speaker's name on the dialog box's top edge (empty: the name stays inside the box, as built in) |
-| **HUD panel** | The panel with the hero's portrait, hearts and bars (empty: the window frame, or the built-in gold frame) |
+| **HUD panel** | The panel with the hero's portrait and bars (empty: the window frame, or the built-in gold frame) |
 | **Button**, **Button under the pointer** | Buttons, window tabs, close buttons; the second also marks the open tab |
 | **Cursor** | The selected row of menus, lists and choices, and the selected inventory slot |
 | **Toast** | The short messages at the top of the screen |
-| **Behind the hearts**, **Around the mana / experience bar** | A plate behind the row of hearts, frames around the HUD's bars |
+| **Around the HP / mana / experience bar** | Frames around the HUD's bars |
 
 **Colours** replace the built-in ones where they are switched on: the panels' **background** and
 **border** (for windows without a frame picture), the fills of buttons, the cursor and toasts, the
 toast text, the texts (**Normal**, **Dim** for hints and descriptions, **Highlight** for the
 selected row, **Disabled**, **Title** for window titles and the speaker's name, **Positive** and
-**Negative** for good and bad news such as *enough coins* / *not enough*), and the HUD's hearts and
+**Negative** for good and bad news such as *enough coins* / *not enough*), and the HUD's
 bars. **Colour names for dialogs** add names to the dialog colour codes ([Events › Message
 codes](07-events.md#message-codes)): a skin that defines *ember* lets dialogs write
 `{c:ember}…{/c}`, and a built-in name (*gold*, *red*…) can get another shade.
@@ -448,7 +448,7 @@ quests.
 | **Companions at 0 HP** | Knocked down until healed (default), get up after some seconds, or go home ([Companions](06-characters.md#companions)) |
 | **Rules (SRD 5.1)** | The ability scores and proficiencies a new hero starts with (until the character creator sets them; *Standard array* = 15 14 13 12 10 8), and whether checks show a line on screen ([Gameplay › Rules](09-gameplay.md#rules-srd-51)) |
 | **Magic** | Turn on magic; max mana, mana regeneration |
-| **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana; the proficiency bonus follows the level) |
+| **Experience and levels** | On / off, the highest level (up to 20), **Hit points per level** (*Average*: the hit die's 6, or *Rolled*: a d10, each plus CON) and the mana per level; the SRD's XP table is shown ([Gameplay › Experience and levels](09-gameplay.md#experience-and-levels)) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |
 | **Script hooks** | Script functions the engine calls to change what it does: a hit's damage, healing, item use, experience, levels, prices, crafting, entering a map, a new game, saving, loading, opening menus, status effects; hook, function and priority ([Scripting › Script hooks](08-scripting.md#script-hooks)) |
 | **Languages** | The language the game is written in, translations, *Play-test in* ([Languages](12-languages.md)) |

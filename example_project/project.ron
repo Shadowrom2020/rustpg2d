@@ -187,10 +187,8 @@
     rules_version: 1,
     progression: (
         enabled: true,
-        base_xp: 60,
-        growth: 1.4,
         max_level: 20,
-        hp_per_level: 2,
+        hit_points: Average,
         mana_per_level: 2,
     ),
     dialog_portraits: true,

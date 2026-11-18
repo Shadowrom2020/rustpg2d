@@ -376,7 +376,7 @@ fn name_the_horse() {
 | `set_faction(target, faction)` | A character on this map (`"self"`, a name) or `"player"` joins a faction; `""` = back to its own (the placed character's, its definition's, its race's). Saved; who attacks whom changes at once. *(queued)* |
 | `faction_of(target)` | The faction id a character belongs to now: `"player"`, `"self"` (also `SELF`) or a name on this map; `""` = none. |
 | `is_female()` / `is_male()` | The player character's sex. |
-| `player_hp()` | Current hit points (2 per heart). |
+| `player_hp()` | Current hit points. |
 | `player_max_hp()` | Maximum hit points. |
 | `player_x()` / `player_y()` | Position in tiles (fractional; the feet). |
 | `player_facing()` | `"up"`, `"down"`, `"left"` or `"right"`. |
@@ -844,6 +844,9 @@ tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 | `proficiency()` | The hero's proficiency bonus by level: +2 at levels 1-4, +3 at 5-8 … +6 at 17-20. *(since 0.28)* |
 | `is_proficient(what)` | Whether the hero is proficient in a skill (`"stealth"`), a tool (`"thieves-tools"`) or a saving throw (`"save:dex"`). *(since 0.28)* |
 | `set_proficient(what, on)` | Makes the hero proficient in a skill, tool or saving throw (`true`), or takes it away. *(immediately, since 0.28)* |
+| `armor_class()` | The hero's armor class: 10 + the DEX modifier + the worn armor's defense. *(since 0.28)* |
+| `hit_dice()` | The hit dice the hero has left (one per level; resting spends and regains them). *(since 0.28)* |
+| `npc_stat(target, field)` | A value of a character's SRD stat block: `"str"` to `"cha"`, `"ac"`, `"hp"`, `"speed"` and `"darkvision"` (feet) or `"xp"`; target `"self"` (also `SELF`) or a name on this map. `-1` when it has no stat block. *(since 0.28)* |
 | `skill(skill)` | **Deprecated** since 0.28: use `is_proficient`. `1` when the hero is proficient in the skill or tool, else `0` (until 0.27 a skill tree's level). |
 | `set_skill(skill, level)` | **Deprecated** since 0.28: use `set_proficient`. Makes the hero proficient (level above 0) or not. *(queued)* |
 

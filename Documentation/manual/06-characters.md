@@ -151,12 +151,36 @@ Then set the character's behaviour and combat values in the form.
 | **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
 | **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
 | **Experience** | XP the player gets for defeating it |
+| **Stat block (SRD 5.1)** | What it is by the rules, from a template or by hand ([below](#stat-blocks)) |
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
 | **Merchant** | Makes it a trader ([Merchants](#merchants)) |
 | **As companion** | *Can't be given gear*, for animals and creatures |
 | **Magic (companion)** | Mana and mana per second: a companion with mana learns and casts *Heal* and *Bolt* spells |
 | **Light** | Carries a light (a lantern); placed characters can carry their own instead |
 | **Default triggers** | Triggers every copy runs ([Events](07-events.md)) |
+
+### Stat blocks
+
+A character can have an **SRD stat block**: the six ability scores, **armor class**, **hit points**
+and **hit dice** (`2d8+2`), **speed** and **darkvision** in feet, the saving throws and skills it is
+proficient in, its **languages**, its **challenge** rating and the **XP** it is worth.
+
+- **Template**: the SRD's 35 NPCs (acolyte, bandit, bandit captain, commoner, cultist, guard, knight,
+  mage, noble, priest, scout, spy, thug, veteran, and the goblin, hobgoblin, orc, gnoll, kobold and
+  the other humanoids). Choosing one fills in the whole block and sets the character's *Experience*
+  to the template's XP; change any field afterwards. *By hand* starts an empty one, *Remove stat
+  block* takes it away.
+- A **placed character** can have its own (the map's inspector, *Stat block (SRD 5.1)* › *Own stat
+  block…*): the captain among the guards.
+- For now the stat block is information: scripts read it (`npc_stat("Brom", "ac")`), automated runs
+  see it (`statblocks=`), and real-time combat keeps using *Max HP*, *Damage* and *Defense*. The
+  turn-based combat of 0.29 fights with it, and the monsters' stat blocks (beasts, undead, trolls)
+  come with it.
+
+In the example (and the starter library) villagers, traders and children are commoners, the town
+guards guards, the elder a noble, the priest a priest, the elven ranger a scout, the outlaws
+bandits, the bandit chief a bandit captain, Rook the deserter a veteran, and goblins and orcs their
+SRD selves (the orc chief an orc with 30 HP, challenge 1).
 
 ## Behaviour
 
@@ -385,8 +409,9 @@ Gnome), and goblins, orcs and trolls for the world's characters. A race has:
   their own borrow the library's: halflings the hero / heroine and gnomes the dwarf models at size
   0.75, dragonborn and half-orcs the orc models, half-elves the elf models, tieflings the hero /
   heroine with a red skin (*Colours*);
-- for **a player of this race**: extra **max HP** (negative: fewer), **speed** in percent (from
-  0.27 and older; the SRD's speed in feet replaces it) and **defense**, and **proficiencies**:
+- for **a player of this race**: extra **max HP** once (negative: fewer; the SRD's races add none),
+  **HP per level** (the hill dwarf's *Dwarven Toughness*: +1), **speed** in percent (from 0.27 and
+  older; the SRD's speed in feet replaces it) and **defense**, and **proficiencies**:
   SRD skills, tools, weapon and armor proficiencies and saving throws (`perception`,
   `smiths-tools`, `battleaxes`, `save:con`) the hero adds to the project's starting ones
   ([Gameplay › Rules](09-gameplay.md#rules-srd-51));

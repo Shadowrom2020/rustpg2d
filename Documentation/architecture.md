@@ -127,6 +127,15 @@ background; darkvision lifts the ambient light (`render::lighting::darkvision`).
 `ProjectConfig::rules_version`), renaming skill ids with the refactor machinery (`RefKind::Skill`
 is no definition any more: it names a proficiency).
 
+Levels and the hero's hit points are SRD too (`progression.rs`): the XP table, `max_hp(level, CON,
+rolls, per_level)`. `WorldState::hp_rolls` keeps what each level's hit die gave (missing = the
+average, so saves of 0.27 load) and the runtime derives the max HP from them and the current CON
+modifier (`Game::player_max_hp`) instead of storing it; `hit_dice` counts the dice left (`None` =
+the level). Stat blocks (`srd/statblock.rs`) are data on `CharacterDef::stats` / `EntityInstance::stats`
+(the placed one wins, `Game::stat_block`); the SRD's NPC templates are `srd/npcs.ron`, built into
+the engine (`include_str!`, parsed once) and written by `srd_import`. Real-time combat doesn't read
+them; the script host gets them as a list per script call (`set_stat_blocks`, `npc_stat`).
+
 **Translations** (`lang.rs`): `lang/<code>.ron` with `texts` (content: dialogs, names, quest texts,
 collected by `content_texts`) and `ui` (runtime strings; English is the key). The game swaps the
 `Database` for a translated copy (`translate_db`).
@@ -461,7 +470,7 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   any running event.
 - UI skins (`skin.rs`: `SkinDef` in `defs/skins.ron`, `ProjectConfig.skin` = the game's) are drawn
   by `runtime/skin.rs`, the one place window chrome comes from: `panel`, `dialog_box`, `name_box`,
-  `hud_frame`, `button_picture` / `button_fill`, `cursor`, `toast_box`, `bar`, `hearts` and
+  `hud_frame`, `button_picture` / `button_fill`, `cursor`, `toast_box`, `bar` (HP, mana, XP) and
   `text(kind, builtin)` for window texts. Every function takes the colour its place always used and
   returns it unchanged unless the skin sets that part, so the built-in look stays pixel for pixel
   (high contrast always draws the built-in look: `cur()` returns the empty skin then). `install`

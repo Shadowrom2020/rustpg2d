@@ -2585,6 +2585,24 @@ impl Editor {
                     let inherited = db.faction_of(&e.def);
                     let inherited = if inherited.is_empty() { String::new() } else if d.faction.is_empty() { format!("its race's: {inherited}") } else { format!("its definition's: {inherited}") };
                     crate::database::faction_combo(ui, &format!("ent_faction{}", e.uid), &mut e.faction, &refs.factions, &inherited, "Just this placed character's faction (Database \u{E13A} Factions), instead of its definition's or race's. The 'Set faction' action and set_faction() change it in play.");
+                    // Its own stat block: the guard captain among guards.
+                    egui::CollapsingHeader::new("Stat block (SRD 5.1)").id_salt(("ent_stats", e.uid)).default_open(e.stats.is_some()).show(ui, |ui| {
+                        if e.stats.is_none() {
+                            ui.weak(match &d.stats {
+                                Some(s) if !s.template.is_empty() => format!("The definition's: {} (CR {}).", s.name, s.cr),
+                                Some(_) => "The definition's.".to_string(),
+                                None => "None (the definition has none).".to_string(),
+                            });
+                            if ui.button("Own stat block…").on_hover_text("Give just this placed character its own stat block").clicked() {
+                                e.stats = Some(d.stats.clone().unwrap_or_default());
+                            }
+                        } else {
+                            crate::database::stat_block_ui(ui, &format!("ent_stats{}", e.uid), &mut e.stats, None);
+                            if e.stats.is_some() && ui.button("Use the definition's").clicked() {
+                                e.stats = None;
+                            }
+                        }
+                    });
                                         // A drawn portrait just for this one (dialogs, the companion HUD).
                     egui::CollapsingHeader::new(ui::t(ph::USER_SQUARE, "Portrait")).default_open(e.portrait.is_some()).show(ui, |ui| {
                         match &mut e.portrait {

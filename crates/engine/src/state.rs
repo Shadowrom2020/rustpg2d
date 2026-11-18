@@ -282,6 +282,13 @@ pub struct WorldState {
     /// The player's level; 0 in old saves and fresh worlds means 1 (see [`WorldState::player_level`]).
     #[serde(default)]
     pub level: u32,
+    /// The hit points each level up gave (the hit die's roll; level 2 first; a missing entry =
+    /// the die's average): `progression::max_hp` adds CON to them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hp_rolls: Vec<i32>,
+    /// Hit dice left to spend on short rests (None = all of them: the level).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hit_dice: Option<u32>,
     /// The player's running status effects (poison, haste, ...).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<crate::effects::ActiveEffect>,

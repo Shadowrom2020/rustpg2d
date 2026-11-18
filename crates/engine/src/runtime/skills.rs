@@ -402,7 +402,8 @@ impl Game {
     /// Rows of the current tab: the SRD skills' ids or spell ids.
     fn skill_rows(&self) -> Vec<String> {
         if self.skills.tab == 0 {
-            SKILLS.iter().map(|(id, _, _)| id.to_string()).collect()
+            // The sheet's rows: its features and traits (Up / Down read them).
+            self.sheet_features().into_iter().map(|(name, _)| name).collect()
         } else {
             // Learned first, then the rest (greyed out).
             let mut v: Vec<(bool, String)> = self.project.db.spells.iter().map(|d| (!self.world.spells.contains(&d.id), d.id.clone())).collect();
@@ -435,8 +436,9 @@ impl Game {
         }
         if click {
             for i in 0..rows.len() {
-                if row_rect(r, i).contains(m) {
-                    *sel = i;
+                let hit = if tab == 0 { self.sheet_feature_rect(i) } else { row_rect(r, i) };
+                if hit.contains(m) {
+                    self.skills.sel[tab] = i;
                 }
             }
         }
@@ -563,59 +565,151 @@ impl Game {
 
     /// The Skills tab: the hero's ability scores with modifiers and saving throws, the 18 skills
     /// with their bonuses (proficient ones marked), the proficiency bonus and other proficiencies.
+    /// The sheet's features and traits: the race's traits, then the background's feature (name,
+    /// rules text).
+    pub(super) fn sheet_features(&self) -> Vec<(String, String)> {
+        let mut v: Vec<(String, String)> = self.player_race().map_or(Vec::new(), |r| r.traits.iter().map(|t| (t.name.clone(), t.description.clone())).collect());
+        if let Some(b) = self.project.db.background(&self.world.player_background).filter(|b| !b.feature.is_empty()) {
+            v.push((b.feature.clone(), b.feature_text.clone()));
+        }
+        v
+    }
+
+    /// The sheet's columns: (left x, middle x, right x, top y).
+    fn sheet_columns(&self) -> (f32, f32, f32, f32) {
+        let r = self.skills_rect();
+        (r.x + PAD, r.x + 282.0, r.x + 532.0, r.y + 78.0)
+    }
+
+    /// Where feature `k` is listed (the right column, under languages and proficiencies).
+    fn sheet_feature_rect(&self, k: usize) -> Rect {
+        let r = self.skills_rect();
+        let (_, _, x, top) = self.sheet_columns();
+        Rect::new(x - 6.0, top + 238.0 + k as f32 * 22.0, r.right() - x - PAD + 6.0, 21.0)
+    }
+
+    /// The character sheet (K): who the hero is, the abilities and saving throws, AC, initiative,
+    /// speed, hit points and hit dice, passive Perception, the 18 skills, languages,
+    /// proficiencies, and the features and traits (the selected one's text at the bottom).
     fn draw_srd_page(&self) {
         let r = self.skills_rect();
         let w = &self.world;
-        let prof = abilities::proficiency_bonus(w.player_level());
-        let head = format!("Level {}   -   Proficiency bonus {}", w.player_level(), abilities::signed(prof as i64));
-        draw_text(&head, r.x + PAD, r.y + 32.0, 22.0, skin::dim());
-        super::glyphs::draw_hint_in("{key:next_tab}: next tab   {key:skills} / {key:cancel}: close", r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
         let gold = skin::highlight();
-        // Abilities: score, modifier, save.
-        let (ax, mut y) = (r.x + PAD, r.y + LIST_TOP + 18.0);
-        draw_text("Ability", ax, y, 17.0, skin::disabled());
-        draw_text("Saving throw", ax + 190.0, y, 17.0, skin::disabled());
+        let (lx, mx, rx, top) = self.sheet_columns();
+        // Who.
+        let race = self.player_race();
+        let mut who = vec![w.player_name.clone()];
+        if let Some(r) = &race {
+            who.push(r.name.clone());
+        }
+        if let Some(b) = self.project.db.background(&w.player_background) {
+            who.push(b.name.clone());
+        }
+        super::text::draw_plain(&who.join("  -  "), r.x + PAD, r.y + 32.0, 22.0, gold);
+        let prof = abilities::proficiency_bonus(w.player_level());
+        let line = format!("Level {}   -   Proficiency bonus {}", w.player_level(), abilities::signed(prof as i64));
+        draw_text(&line, r.x + PAD, r.y + 56.0, 17.0, skin::dim());
+        if self.progression_on() {
+            let p = &self.project.config.progression;
+            let xp = format!("XP {} / {}", w.xp, p.xp_for_level(w.player_level() + 1));
+            let tw = super::text::measure_text(&xp, None, 17, 1.0).width;
+            draw_text(&xp, r.right() - PAD - tw, r.y + 56.0, 17.0, skin::dim());
+        }
+        super::glyphs::draw_hint_in("{key:up}/{key:down}: features   {key:next_tab}: next tab   {key:skills} / {key:cancel}: close", r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
+
+        // Left: abilities with modifier and save, then the numbers of a stat block.
+        let mut y = top;
+        draw_text("Ability", lx, y, 15.0, skin::disabled());
+        draw_text("Saving throw", lx + 170.0, y, 15.0, skin::disabled());
         for a in Ability::ALL {
-            y += 34.0;
+            y += 28.0;
             let score = w.abilities.score(a);
-            draw_text(a.short(), ax, y, 22.0, gold);
-            draw_text(format!("{score}"), ax + 56.0, y, 22.0, skin::normal());
-            draw_text(format!("({})", abilities::signed(abilities::modifier(score) as i64)), ax + 92.0, y, 20.0, skin::dim());
+            draw_text(a.short(), lx, y, 21.0, gold);
+            draw_text(format!("{score}"), lx + 50.0, y, 21.0, skin::normal());
+            draw_text(format!("({})", abilities::signed(abilities::modifier(score) as i64)), lx + 84.0, y, 18.0, skin::dim());
             let save = w.check_bonus(a.id(), true).unwrap_or(0);
             let proficient = w.is_proficient(&format!("save:{}", a.id()));
-            draw_text(abilities::signed(save), ax + 190.0, y, 20.0, if proficient { gold } else { skin::dim() });
+            draw_text(abilities::signed(save), lx + 178.0, y, 19.0, if proficient { gold } else { skin::dim() });
             if proficient {
-                draw_circle(ax + 180.0, y - 6.0, 3.5, gold);
+                draw_circle(lx + 168.0, y - 6.0, 3.5, gold);
             }
         }
-        // Passive Perception and the other proficiencies under the abilities.
-        y += 44.0;
-        let passive = 10 + w.check_bonus("perception", false).unwrap_or(0);
-        draw_text(format!("Passive Perception {passive}"), ax, y, 18.0, skin::normal());
-        // (Weapon and armor proficiencies show on the character sheet.)
-        let others: Vec<String> = w.proficiencies.iter().filter(|p| abilities::skill(p).is_none() && abilities::gear(p).is_none() && !p.starts_with("save:")).map(|p| abilities::proficiency_name(p)).collect();
-        if !others.is_empty() {
-            y += 30.0;
-            draw_text("Tools and other proficiencies", ax, y, 17.0, skin::disabled());
-            for line in wrap_text(&others.join(", "), 18, LIST_W - PAD) {
-                y += 22.0;
-                draw_text(&line, ax, y, 18.0, skin::normal());
-            }
+        y += 36.0;
+        let hp_max = self.player_max_hp();
+        let level = w.player_level();
+        let facts = [
+            ("Armor class", self.armor_class().to_string()),
+            ("Initiative", abilities::signed(abilities::modifier(w.abilities.score(Ability::Dex)) as i64)),
+            ("Speed", format!("{} ft", race.as_ref().map_or(30, |r| r.walk_feet()))),
+            ("Hit points", if hp_max > 0 { format!("{} / {hp_max}", w.player_hp.unwrap_or(hp_max).max(0)) } else { "-".into() }),
+            ("Hit dice", format!("{}/{} d{}", self.hit_dice_left(), level, crate::progression::HIT_DIE)),
+            ("Passive Perception", (10 + w.check_bonus("perception", false).unwrap_or(0)).to_string()),
+        ];
+        for (label, value) in facts {
+            draw_text(label, lx, y, 17.0, skin::dim());
+            let vw = super::text::measure_text(&value, None, 19, 1.0).width;
+            draw_text(&value, mx - 24.0 - vw, y, 19.0, skin::normal());
+            y += 23.0;
         }
-        // Skills: one row each, the bonus, the ability and the name (a dot = proficient).
-        draw_line(r.x + LIST_W + 8.0, r.y + LIST_TOP, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
-        let cx = r.x + LIST_W + 30.0;
-        let step = ((r.h - LIST_TOP - 60.0) / SKILLS.len() as f32).clamp(20.0, 28.0);
+
+        // Middle: the 18 skills, the bonus, the ability and the name (a dot = proficient).
+        draw_line(mx - 12.0, top - 10.0, mx - 12.0, r.bottom() - 132.0, 1.0, skin::line(0.4));
+        let step = ((r.bottom() - 140.0 - top) / SKILLS.len() as f32).clamp(18.0, 24.0);
         for (i, (id, name, a)) in SKILLS.iter().enumerate() {
-            let cy = r.y + LIST_TOP + 18.0 + i as f32 * step;
+            let cy = top + 4.0 + i as f32 * step;
             let proficient = w.is_proficient(id);
             let bonus = w.check_bonus(id, false).unwrap_or(0);
             if proficient {
-                draw_circle(cx + 4.0, cy - 6.0, 3.5, gold);
+                draw_circle(mx + 4.0, cy - 6.0, 3.0, gold);
             }
-            draw_text(abilities::signed(bonus), cx + 14.0, cy, 19.0, if proficient { gold } else { skin::dim() });
-            draw_text(a.short(), cx + 56.0, cy, 15.0, skin::disabled());
-            draw_text(name, cx + 100.0, cy, 19.0, skin::normal());
+            draw_text(abilities::signed(bonus), mx + 12.0, cy, 17.0, if proficient { gold } else { skin::dim() });
+            draw_text(a.short(), mx + 46.0, cy, 13.0, skin::disabled());
+            draw_text(name, mx + 82.0, cy, 17.0, skin::normal());
+        }
+
+        // Right: languages, proficiencies (tools, weapons, armor), features and traits.
+        draw_line(rx - 12.0, top - 10.0, rx - 12.0, r.bottom() - 132.0, 1.0, skin::line(0.4));
+        let cw = r.right() - rx - PAD;
+        let langs: Vec<String> = w.languages.iter().map(|id| crate::backgrounds::language_label(id)).collect();
+        draw_text("Languages", rx, top, 15.0, skin::disabled());
+        let mut yy = top + 20.0;
+        for l in wrap_text(&if langs.is_empty() { "-".to_string() } else { langs.join(", ") }, 16, cw).into_iter().take(3) {
+            super::text::draw_plain(&l, rx, yy, 16.0, skin::normal());
+            yy += 18.0;
+        }
+        let profs: Vec<String> = w.proficiencies.iter().filter(|p| abilities::skill(p).is_none() && !p.starts_with("save:")).map(|p| crate::lang::tr_ui(&abilities::proficiency_name(p)).into_owned()).collect();
+        draw_text("Proficiencies", rx, top + 84.0, 15.0, skin::disabled());
+        let mut yy = top + 104.0;
+        for l in wrap_text(&if profs.is_empty() { "-".to_string() } else { profs.join(", ") }, 15, cw).into_iter().take(6) {
+            super::text::draw_plain(&l, rx, yy, 15.0, skin::normal());
+            yy += 17.0;
+        }
+        draw_text("Features and traits", rx, top + 226.0, 15.0, skin::disabled());
+        let features = self.sheet_features();
+        let sel = self.skills.sel[0].min(features.len().saturating_sub(1));
+        let bottom = r.bottom() - 132.0;
+        for (k, (name, _)) in features.iter().enumerate() {
+            let fr = self.sheet_feature_rect(k);
+            if fr.bottom() > bottom {
+                break;
+            }
+            if k == sel && !skin::cursor(fr, Color::new(0.85, 0.7, 0.3, 0.22)) {
+                draw_rectangle_lines(fr.x, fr.y, fr.w, fr.h, 1.5, gold);
+            }
+            super::text::draw_plain(name, fr.x + 6.0, fr.y + 16.0, 17.0, if k == sel { gold } else { skin::normal() });
+        }
+        // The selected feature's rules at the bottom.
+        draw_line(r.x + PAD, bottom + 6.0, r.right() - PAD, bottom + 6.0, 1.0, skin::line(0.4));
+        if let Some((name, text)) = features.get(sel) {
+            super::text::draw_plain(name, r.x + PAD, bottom + 28.0, 18.0, gold);
+            let mut ty = bottom + 48.0;
+            let lines = wrap_text(text, 15, r.w - 2.0 * PAD);
+            let n = lines.len();
+            for (k, l) in lines.into_iter().take(4).enumerate() {
+                let l = if k == 3 && n > 4 { format!("{l}...") } else { l };
+                super::text::draw_plain(&l, r.x + PAD, ty, 15.0, skin::dim());
+                ty += 17.0;
+            }
         }
     }
 

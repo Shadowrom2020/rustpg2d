@@ -349,6 +349,8 @@ pub fn toast_text(alpha: f32) -> Color {
 pub enum Bar {
     Mana,
     Xp,
+    /// The hero's hit points (the skin's `hp` colours and picture).
+    Hp,
 }
 
 /// A bar `w` × `h` at `x, y` filled to `frac` (0 to 1), as the HUD draws mana and experience:
@@ -359,11 +361,13 @@ pub fn bar(kind: Bar, x: f32, y: f32, w: f32, h: f32, frac: f32) {
     let (style, pic) = match kind {
         Bar::Mana => (&a.def.mana, &a.mana),
         Bar::Xp => (&a.def.xp, &a.xp),
+        Bar::Hp => (&a.def.hp, &a.hp),
     };
     // Built in: (fill, top edge, its height, outline).
     let (fill, top, top_h, outline) = match kind {
         Bar::Mana => (Color::new(0.3, 0.45, 1.0, 1.0), Color::new(0.55, 0.7, 1.0, 1.0), 3.0, Color::new(0.6, 0.7, 1.0, 0.8)),
         Bar::Xp => (Color::new(0.85, 0.68, 0.2, 1.0), Color::new(1.0, 0.88, 0.5, 1.0), 2.0, Color::new(0.85, 0.72, 0.38, 0.8)),
+        Bar::Hp => (Color::new(0.82, 0.14, 0.18, 1.0), Color::new(1.0, 0.45, 0.45, 1.0), 4.0, Color::new(0.85, 0.72, 0.38, 0.8)),
     };
     let (fill, top) = match style.fill {
         Some(c) => {
@@ -406,21 +410,6 @@ pub fn color_bar(x: f32, y: f32, w: f32, h: f32, frac: f32, fill: Option<Color>)
     }
 }
 
-/// The colours of full and empty hearts: the skin's health bar colours, else `full` / `empty`.
-pub fn hearts(full: Color, empty: Color) -> (Color, Color) {
-    let a = cur();
-    (over(a.def.hp.fill, full), over(a.def.hp.back, empty))
-}
-
-/// The skin's health picture behind the row of hearts `r` (nothing without one).
-pub fn hearts_plate(r: Rect) {
-    if let Some(p) = &cur().hp {
-        // (Thin: the mana bar sits close under the hearts.)
-        let pad = (p.corner * p.scale / 2.0).min(3.0);
-        draw_pic(p, Rect::new(r.x - pad, r.y - pad, r.w + 2.0 * pad, r.h + 2.0 * pad), WHITE);
-    }
-}
-
 /// The colour a dialog text goes back to after `{/c}` (the skin's normal text colour).
 pub fn dialog_text() -> Color {
     normal()
@@ -431,8 +420,7 @@ fn draw_pic(p: &Pic, dest: Rect, tint: Color) {
 }
 
 /// Draws a sample of the skin into a `w` × `h` area at the origin (the editor's preview, drawn
-/// into a render target): a menu with a selected row and a button, the HUD with hearts and
-/// bars, a toast, and a dialog box with the speaker's name and a choice.
+/// into a render target): a menu with a selected row and a button, the HUD with its bars, a toast, and a dialog box with the speaker's name and a choice.
 pub fn draw_preview(w: f32, h: f32) {
     use super::text::{draw_plain, measure_plain, role, Role};
     clear_background(Color::new(0.16, 0.2, 0.14, 1.0));
@@ -486,15 +474,11 @@ pub fn draw_preview(w: f32, h: f32) {
         let f = Rect::new(248.0, 12.0, 200.0, 98.0);
         hud_frame(f);
         draw_plain("Alex", f.x + 14.0, f.y + 26.0, 22.0, text(Text::Title, Color::new(1.0, 0.86, 0.45, 1.0)));
-        let (full, empty) = hearts(Color::new(0.9, 0.15, 0.2, 1.0), Color::new(0.2, 0.2, 0.25, 0.9));
-        let (hx, hy) = (f.x + 14.0, f.y + 34.0);
-        // (As the HUD: name, hearts, then the bars below.)
-        hearts_plate(Rect::new(hx, hy, 4.0 * 21.0 - 1.0, 20.0));
-        for i in 0..4 {
-            let x = hx + i as f32 * 21.0;
-            super::combat::draw_heart(x, hy, 20.0, Color::new(0.0, 0.0, 0.0, 0.6));
-            super::combat::draw_heart(x + 1.0, hy + 1.0, 18.0, if i < 3 { full } else { empty });
-        }
+        // (As the HUD: name, the HP bar with its numbers, then the mana and XP bars below.)
+        let (hx, hy) = (f.x + 14.0, f.y + 36.0);
+        bar(Bar::Hp, hx, hy, 150.0, 16.0, 34.0 / 44.0);
+        let t = "34 / 44";
+        draw_plain(t, hx + (150.0 - measure_plain(t, 16.0).width) / 2.0, hy + 13.0, 16.0, WHITE);
         bar(Bar::Mana, f.x + 14.0, f.y + 62.0, 120.0, 9.0, 0.7);
         bar(Bar::Xp, f.x + 14.0, f.y + 80.0, 120.0, 6.0, 0.4);
     }

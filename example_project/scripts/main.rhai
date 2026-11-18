@@ -78,7 +78,7 @@ fn shrine_touch() {
         if check("religion", 12) {
             set_flag("shrine_lore", true);
             say("The carvings tell of Emberbrook's old harvest rite: the shrine wakes for those who come to it in need.");
-            give_xp(15);
+            give_xp(50);
         } else {
             say("Weathered carvings cover the stone. Their meaning escapes you.");
         }

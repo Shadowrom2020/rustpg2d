@@ -1933,7 +1933,7 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
             .on_hover_text("What the player gains for defeating this character (Project › Experience and levels must be on). 'Defeat all enemies' gives none.");
         ui.end_row();
     });
-    ui.weak("1 heart = 2 HP. For the player character, Damage is the bare-handed attack strength. Defeated characters fire 'Defeated' triggers.");
+    ui.weak("For the player character, a Max HP above 0 turns combat on (the hero's own HP follow the SRD rules: the hit die, CON and the level), and Damage is the bare-handed attack strength. Defeated characters fire 'Defeated' triggers.");
     widgets::optional_effect_ui(
         ui,
         "chr_touch_fx",
@@ -1943,6 +1943,10 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
     );
     ui.label("Ranged attack (hostile characters shoot at the player when in range and in sight):");
     weapon_ui(ui, "chr_weapon", &mut d.weapon, cx, true);
+    ui.separator();
+    ui.heading("Stat block (SRD 5.1)");
+    ui.weak("What it is by the rules: abilities, armor class, hit points, challenge. Shown to scripts (npc_stat) and the game's status; real-time combat still uses Max HP, Damage and Defense above. A placed character can have its own (the map's inspector).");
+    stat_block_ui(ui, "chr_stats", &mut d.stats, Some(&mut d.xp));
     ui.separator();
     ui.heading("Loot");
     if d.max_hp <= 0 {
@@ -2522,12 +2526,12 @@ fn skin_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skin::SkinDef, cx: &mut
             ("Window frame", "Every window and menu panel.", &mut d.frame),
             ("Dialog box", "The dialog and choice box (empty: the window frame).", &mut d.dialog),
             ("Name box", "A box for the speaker's name on the dialog box's top edge (empty: the name stays inside the box).", &mut d.name_box),
-            ("HUD panel", "The panel with the hero's portrait, hearts and bars (empty: the window frame, or the built-in gold frame).", &mut d.hud),
+            ("HUD panel", "The panel with the hero's portrait and bars (empty: the window frame, or the built-in gold frame).", &mut d.hud),
             ("Button", "Buttons, tabs and close buttons.", &mut d.button),
             ("Button under the pointer", "A button under the pointer and the open tab (empty: the button picture).", &mut d.button_hover),
             ("Cursor", "The selection marker of menus, lists and inventory slots.", &mut d.cursor),
             ("Toast", "The short messages at the top of the screen.", &mut d.toast),
-            ("Behind the hearts", "A plate behind the row of hearts.", &mut d.hp.frame),
+            ("Around the HP bar", "A frame around the hit point bar.", &mut d.hp.frame),
             ("Around the mana bar", "Drawn around the mana bar.", &mut d.mana.frame),
             ("Around the experience bar", "Drawn around the experience bar.", &mut d.xp.frame),
         ];
@@ -2594,8 +2598,8 @@ fn skin_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skin::SkinDef, cx: &mut
         color(ui, "Positive", "Good news: enough money, a quest done.", &mut t.positive, [153, 242, 153, 255]);
         color(ui, "Negative", "Bad news: too expensive, missing.", &mut t.negative, [255, 140, 128, 255]);
         ui.weak("HUD:");
-        color(ui, "Full hearts", "", &mut d.hp.fill, [230, 38, 51, 255]);
-        color(ui, "Empty hearts", "", &mut d.hp.back, [51, 51, 64, 230]);
+        color(ui, "Hit points", "The HP bar's fill.", &mut d.hp.fill, [209, 36, 46, 255]);
+        color(ui, "Hit point bar back", "", &mut d.hp.back, [0, 0, 0, 179]);
         color(ui, "Mana", "The mana bar's fill.", &mut d.mana.fill, [77, 115, 255, 255]);
         color(ui, "Mana bar back", "", &mut d.mana.back, [0, 0, 0, 179]);
         color(ui, "Experience", "The experience bar's fill.", &mut d.xp.fill, [217, 173, 51, 255]);
@@ -3207,26 +3211,23 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
             .on_hover_text("Set the XP per character (Characters › Combat) and per quest (Quests › Experience reward). The HUD shows the level and an XP bar.");
         ui.add_enabled_ui(p.enabled, |ui| {
             egui::Grid::new("progression_cfg").num_columns(2).show(ui, |ui| {
-                ui.label("XP for level 2");
-                ui.add(egui::DragValue::new(&mut p.base_xp).range(1..=1_000_000));
-                ui.end_row();
-                ui.label("Growth per level");
-                ui.add(egui::DragValue::new(&mut p.growth).range(1.0..=10.0).speed(0.01).prefix("x "))
-                    .on_hover_text("Each level needs this many times the XP of the one before");
-                ui.end_row();
                 ui.label("Highest level");
-                ui.add(egui::DragValue::new(&mut p.max_level).range(1..=999));
+                ui.add(egui::DragValue::new(&mut p.max_level).range(1..=20));
                 ui.end_row();
-                ui.label("Max HP per level");
-                ui.add(egui::DragValue::new(&mut p.hp_per_level).range(0..=99)).on_hover_text("1 heart = 2 HP");
+                ui.label("Hit points per level").on_hover_text("The hero's hit die (a d10 until classes): its average (6) or a roll, plus the CON modifier");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut p.hit_points, rustpg2d_engine::progression::HitPoints::Average, "Average");
+                    ui.selectable_value(&mut p.hit_points, rustpg2d_engine::progression::HitPoints::Rolled, "Rolled");
+                });
                 ui.end_row();
                 ui.label("Mana per level");
                 ui.add(egui::DragValue::new(&mut p.mana_per_level).range(0..=999)).on_hover_text("With magic");
                 ui.end_row();
             });
-            let steps: Vec<String> = (2..=p.max_level.clamp(1, 6)).map(|l| format!("level {l}: {} XP", p.xp_for_level(l))).collect();
+            ui.weak("Levels follow the SRD 5.1's experience table:");
+            let steps: Vec<String> = (2..=p.max_level.clamp(1, 8)).map(|l| format!("level {l}: {} XP", p.xp_for_level(l))).collect();
             if !steps.is_empty() {
-                ui.weak(format!("Total experience needed: {}", steps.join(", ")));
+                ui.weak(format!("{}{}", steps.join(", "), if p.max_level > 8 { format!(" … level 20: {} XP", p.xp_for_level(20)) } else { String::new() }));
             }
         });
     }
@@ -3358,6 +3359,104 @@ fn hooks_form(ui: &mut egui::Ui, list: &mut Vec<rustpg2d_engine::hooks::HookDef>
     if ui.button(crate::ui::t(ph::PLUS, "Add hook")).on_hover_text("Call a script function at one of the engine's hooks").clicked() {
         list.push(HookDef { hook: "damage".into(), function: String::new(), priority: 0 });
     }
+}
+
+/// An SRD stat block: a template (the SRD's NPCs: choosing one fills the block and, with `xp`, sets
+/// the character's experience to the template's), *By hand*, the fields and *Remove*.
+pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_engine::srd::StatBlock>, xp: Option<&mut u32>) {
+    use rustpg2d_engine::srd::{abilities, npc_templates, Ability, StatBlock};
+    let mut pick: Option<&StatBlock> = None;
+    ui.horizontal(|ui| {
+        ui.label("Template");
+        let current = match stats.as_ref() {
+            None => "(no stat block)".to_string(),
+            Some(s) if s.template.is_empty() => "(by hand)".to_string(),
+            Some(s) => format!("{} (CR {})", s.name, s.cr),
+        };
+        egui::ComboBox::from_id_salt((salt, "template"))
+            .selected_text(current)
+            .height(420.0)
+            .show_ui(ui, |ui| {
+                for t in npc_templates() {
+                    let on = stats.as_ref().is_some_and(|s| s.template == t.template);
+                    if ui.selectable_label(on, format!("{}  (CR {}, {} XP)", t.name, t.cr, t.xp)).clicked() {
+                        pick = Some(t);
+                    }
+                }
+            })
+            .response
+            .on_hover_text("The SRD 5.1's NPC stat blocks (commoner, guard, bandit, veteran…): choosing one fills in the whole block and sets the character's Experience to the template's XP. Change any field afterwards.");
+        if stats.is_none() && ui.button(crate::ui::t(ph::PLUS, "By hand")).on_hover_text("An empty stat block to fill in").clicked() {
+            *stats = Some(StatBlock::default());
+        }
+        if stats.is_some() && ui.button(crate::ui::t(ph::TRASH, "Remove stat block")).clicked() {
+            *stats = None;
+        }
+    });
+    if let Some(t) = pick {
+        *stats = Some(t.clone());
+        if let Some(x) = xp {
+            *x = t.xp;
+        }
+    }
+    let Some(s) = stats else { return };
+    ui.horizontal_wrapped(|ui| {
+        for a in Ability::ALL {
+            let mut v = s.abilities.score(a);
+            ui.label(a.short());
+            if ui.add(egui::DragValue::new(&mut v).range(1..=30)).on_hover_text(a.name()).changed() {
+                s.abilities.set(a, v);
+            }
+            ui.weak(format!("({})", abilities::signed(s.abilities.modifier(a) as i64)));
+        }
+    });
+    egui::Grid::new((salt, "fields")).num_columns(2).show(ui, |ui| {
+        ui.label("Armor class");
+        ui.add(egui::DragValue::new(&mut s.ac).range(0..=30));
+        ui.end_row();
+        ui.label("Hit points");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut s.hp).range(1..=999));
+            ui.label("hit dice");
+            ui.add(egui::TextEdit::singleline(&mut s.hit_dice).desired_width(80.0)).on_hover_text("As the SRD writes them: \"2d8+2\" (the hit points are their average)");
+        });
+        ui.end_row();
+        ui.label("Speed");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut s.speed_ft).range(0..=120).suffix(" ft"));
+            ui.label("darkvision");
+            ui.add(egui::DragValue::new(&mut s.darkvision_ft).range(0..=300).suffix(" ft"));
+        });
+        ui.end_row();
+        ui.label("Languages");
+        ui.add(egui::TextEdit::singleline(&mut s.languages).desired_width(320.0));
+        ui.end_row();
+        ui.label("Challenge");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut s.cr).desired_width(40.0)).on_hover_text("Challenge rating: 0, 1/8, 1/4, 1/2, 1, 2…");
+            ui.add(egui::DragValue::new(&mut s.xp).range(0..=100_000).suffix(" XP")).on_hover_text("What the SRD says it is worth (the character's Experience under Combat is what defeating it gives)");
+        });
+        ui.end_row();
+    });
+    ui.label("Proficiencies").on_hover_text("Saving throws and skills it adds its proficiency bonus to");
+    ui.horizontal_wrapped(|ui| {
+        let mut toggle = |ui: &mut egui::Ui, id: String, label: String| {
+            let mut on = s.proficiencies.contains(&id);
+            if ui.toggle_value(&mut on, label).changed() {
+                if on {
+                    s.proficiencies.push(id);
+                } else {
+                    s.proficiencies.retain(|p| *p != id);
+                }
+            }
+        };
+        for a in Ability::ALL {
+            toggle(ui, format!("save:{}", a.id()), format!("{} save", a.short()));
+        }
+        for (id, name, _) in abilities::SKILLS {
+            toggle(ui, id.to_string(), name.to_string());
+        }
+    });
 }
 
 /// A *Faction* field: the project's factions; `inherited` = what "(none)" stands for ("its
@@ -4092,7 +4191,10 @@ fn race_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mu
     ui.heading("A player of this race");
     egui::Grid::new("race_stats").num_columns(2).show(ui, |ui| {
         ui.label("Max HP");
-        ui.add(egui::DragValue::new(&mut d.max_hp).range(-50..=100)).on_hover_text("Added to the player's max HP (negative: less)");
+        ui.add(egui::DragValue::new(&mut d.max_hp).range(-50..=100)).on_hover_text("Added to the player's max HP once (negative: less). The SRD's races add none: their hit points come from the hit die and CON");
+        ui.end_row();
+        ui.label("HP per level");
+        ui.add(egui::DragValue::new(&mut d.hp_per_level).range(-5..=10)).on_hover_text("Added to the player's max HP at every level (the hill dwarf's Dwarven Toughness: +1)");
         ui.end_row();
         ui.label("Speed");
         ui.add(egui::DragValue::new(&mut d.speed).range(-50.0..=100.0).suffix(" %")).on_hover_text("Faster (or slower, negative) than other players");

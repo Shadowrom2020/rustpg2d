@@ -201,6 +201,10 @@ impl Game {
         let rules = &self.project.config.rules;
         self.world.abilities = rules.abilities;
         self.world.proficiencies = rules.proficiencies.iter().map(|p| crate::srd::abilities::proficiency_id(p)).filter(|p| !p.is_empty()).collect();
+        // (Full SRD hit points with those scores.)
+        if self.combat.max_hp > 0 {
+            self.world.player_hp = Some(self.player_max_hp());
+        }
         self.clock_seen = None;
         self.slot = None;
         self.order = None;
@@ -933,7 +937,7 @@ impl Game {
 
     /// Hearts in the top-left corner.
     /// The player status in the top-left corner: a framed panel with a small portrait, the
-    /// hero's name, the hearts (1 heart = 2 HP), the mana bar (with magic) and the ammo of a
+    /// hero's name, the HP bar with its numbers, the mana bar (with magic) and the ammo of a
     /// ranged weapon.
     pub(super) fn draw_hud(&self) {
         let _font = super::text::role(super::text::Role::Hud);
@@ -941,11 +945,11 @@ impl Game {
             return;
         }
         const HEART: f32 = 18.0;
-        const STEP: f32 = 21.0;
         const PAD: f32 = 8.0;
         let (x0, y0) = (10.0, 10.0);
         let hp = self.hp();
-        let hearts = (self.player_max_hp() + 1) / 2;
+        let max_hp = self.player_max_hp().max(1);
+        let hp_text = format!("{} / {max_hp}", hp.max(0));
         let name = self.world.player_name.trim().to_string();
         let def = self.player_defense();
         let magic = self.magic_on();
@@ -958,8 +962,10 @@ impl Game {
         let name_w = measure_text(&name, None, 22, 1.0).width;
         let def_text = (def > 0).then(|| format!("DEF {def}"));
         let def_w = def_text.as_ref().map_or(0.0, |t| measure_text(t, None, 16, 1.0).width + 14.0);
-        let hearts_w = hearts as f32 * STEP;
-        let bar_w = hearts_w.max(120.0);
+        // The HP bar: wide enough for its numbers, the dodge pip and the shield after it.
+        let hp_w = (measure_text(&hp_text, None, 16, 1.0).width + 24.0).max(150.0);
+        let hearts_w = hp_w + 40.0;
+        let bar_w = hp_w.max(120.0);
         let level_w = measure_text(&level_text, None, 15, 1.0).width + 6.0;
         let badges_w = self.effect_badges_width();
         let col_w = (name_w + def_w)
@@ -1015,22 +1021,15 @@ impl Game {
         }
         y += 24.0;
 
-        // Hearts.
-        let (full, empty) = super::skin::hearts(Color::new(0.9, 0.15, 0.2, 1.0), Color::new(0.2, 0.2, 0.25, 0.9));
-        super::skin::hearts_plate(Rect::new(tx, y, hearts as f32 * STEP - (STEP - HEART - 2.0), HEART + 2.0));
-        for i in 0..hearts {
-            let x = tx + i as f32 * STEP;
-            draw_heart(x, y, HEART + 2.0, Color::new(0.0, 0.0, 0.0, 0.6));
-            let left = hp - i * 2;
-            draw_heart(x + 1.0, y + 1.0, HEART, if left >= 1 { full } else { empty });
-            if left == 1 {
-                draw_heart_right_half(x + 1.0, y + 1.0, HEART, empty);
-            }
-        }
-        // The dodge pip after the hearts (lit = ready, filling while it recovers), and a shield
+        // HP: a bar with "34 / 44" on it (the SRD's hit points outgrew hearts).
+        super::skin::bar(super::skin::Bar::Hp, tx, y + 1.0, hp_w, HEART, hp as f32 / max_hp as f32);
+        let tw = measure_text(&hp_text, None, 16, 1.0).width;
+        draw_text(&hp_text, tx + (hp_w - tw) / 2.0 + 1.0, y + HEART - 1.0, 16.0, Color::new(0.0, 0.0, 0.0, 0.8));
+        draw_text(&hp_text, tx + (hp_w - tw) / 2.0, y + HEART - 2.0, 16.0, WHITE);
+        // The dodge pip after the bar (lit = ready, filling while it recovers), and a shield
         // while it is raised.
         {
-            let (px, py, r) = (tx + hearts as f32 * STEP + 8.0, y + HEART / 2.0 + 1.0, HEART * 0.32);
+            let (px, py, r) = (tx + hp_w + 12.0, y + HEART / 2.0 + 1.0, HEART * 0.32);
             let ready = self.combat.dodge_cd <= 0.0;
             draw_circle(px, py, r, Color::new(0.1, 0.1, 0.15, 0.9));
             let fill = if ready { 1.0 } else { 1.0 - (self.combat.dodge_cd / 1.3).clamp(0.0, 1.0) };

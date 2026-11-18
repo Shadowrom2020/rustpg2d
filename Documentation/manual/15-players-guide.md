@@ -18,7 +18,7 @@ These are the default keys; players change them in *Options › Gameplay › Con
 | Q | Switch weapon (bare hands, then the weapons you own) |
 | 1–8, or a click on a quick bar slot | Use that item or spell |
 | C / I | The character window: character sheet and inventory |
-| K / L | The character window's *Skills* tab (your ability scores, saving throws and skills) and *Spells* tab (if the game has magic) |
+| K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, languages, features and traits) and *Spells* tab (if the game has magic) |
 | Tab | Next tab of the open window |
 | J | Journal: *Quests*, *Bestiary*, *Dialogs*, *People* (the villagers you made friends with, in hearts), *Rolls* (your last checks and dice rolls) |
 | M | The map screen |
@@ -57,8 +57,13 @@ Games made with R(ust)PG2D follow the SRD 5.1 rules: when something is uncertain
 merchant, reading old carvings, picking a lock), the game rolls a d20, adds your ability modifier
 and, if you are proficient in the skill or tool, your proficiency bonus, and compares the total
 with a difficulty (DC). A line at the top of the screen says how it went ("Persuasion: 14 vs DC 13
-- success"), and the journal's *Rolls* tab keeps the last fifty. Your scores and skills are on the
-*Skills* tab (K); a dot marks the skills you are proficient in.
+- success"), and the journal's *Rolls* tab keeps the last fifty. Your character sheet is the
+*Sheet* tab (K): scores, saving throws and skills (a dot marks the ones you are proficient in),
+armor class, hit points and hit dice, languages and proficiencies; Up / Down picks one of your
+race's and background's features and traits and shows what it does.
+
+Your **hit points** are the red bar at the top left (`34 / 44`). Every level adds a d10's worth plus
+your Constitution modifier (6 + CON in most games).
 
 A **padlock** over a chest or door means it is locked. Without its key, press E to try to pick it
 (a Dexterity check with Thieves' Tools). If it holds, give it ten minutes before you try again.
@@ -72,7 +77,7 @@ little. Raise the shield just before a blow lands (the last moment of the enemy'
 one.
 
 **Sneak**: Left Ctrl or V (gamepad: left stick click) switches sneaking on and off; *Sneaking*
-shows under your hearts. You walk at half speed and quietly, and enemies notice you only within half
+shows under your HP bar. You walk at half speed and quietly, and enemies notice you only within half
 their sight, less still in the dark (at night, in dark places, away from torches and lamps; your own
 lantern or light spell gives you away). One you bump into notices you anyway. A blow or an arrow
 that hits an enemy who hasn't noticed you is a **sneak attack**: double damage, shown like a
@@ -81,7 +86,7 @@ lose track of you sooner while you sneak.
 
 **Dodge**: Space (gamepad: B) rolls you about three tiles in the direction you are moving (or
 facing). Nothing touches you while you roll, so you can roll away from a blow or straight through
-it. Then you need a second before the next roll: the small blue dot after your hearts lights up
+it. Then you need a second before the next roll: the small blue dot after your HP bar lights up
 when you can roll again; a shield symbol next to it shows that your shield is raised.
 
 ## Gamepad

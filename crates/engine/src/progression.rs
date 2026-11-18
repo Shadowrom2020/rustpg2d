@@ -1,65 +1,74 @@
 //! Experience and levels (optional per project, `ProjectConfig::progression`): defeated
-//! characters and completed quests give XP, and every level raises the player's max HP and mana
-//! (and the SRD proficiency bonus). The player's XP and level are in the save game (`WorldState::xp`,
-//! `WorldState::level`); the runtime part is `runtime/progression.rs`.
+//! characters and completed quests give XP, levels follow the SRD 5.1's experience table, and
+//! every level raises the hero's hit points (a hit die: its average or a roll, plus CON), the
+//! mana (with magic) and the proficiency bonus. The hero's XP and level are in the save game
+//! (`WorldState::xp`, `WorldState::level`); the runtime part is `runtime/progression.rs`.
 
 use serde::{Deserialize, Serialize};
 
-/// Project settings for experience and levels (`project.ron`).
+/// How the hero's hit points grow per level.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HitPoints {
+    /// The hit die's average (6 for a d10), plus CON.
+    #[default]
+    Average,
+    /// A roll of the hit die (the seeded dice), plus CON.
+    Rolled,
+}
+
+/// Project settings for experience and levels (`project.ron`; the XP curve of 0.27 and older,
+/// `base_xp`, `growth` and `hp_per_level`, is ignored: the SRD table replaced it).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Progression {
     /// Off: XP isn't counted, nothing is shown, characters and quests give none.
     pub enabled: bool,
-    /// XP needed to go from level 1 to level 2.
-    pub base_xp: u32,
-    /// Each further level needs this many times the XP of the one before.
-    pub growth: f32,
-    /// The highest level (XP keeps counting there, but no level is gained).
+    /// The highest level (at most 20; XP keeps counting there, but no level is gained).
     pub max_level: u32,
-    /// Max HP gained per level.
-    pub hp_per_level: i32,
+    /// How hit points grow per level.
+    pub hit_points: HitPoints,
     /// Max mana gained per level (with magic).
     pub mana_per_level: u32,
 }
 
 impl Default for Progression {
     fn default() -> Self {
-        Progression { enabled: false, base_xp: 100, growth: 1.5, max_level: 20, hp_per_level: 2, mana_per_level: 2 }
+        Progression { enabled: false, max_level: 20, hit_points: HitPoints::Average, mana_per_level: 2 }
     }
 }
 
+/// The SRD's experience table: the XP a character needs for levels 1 to 20.
+pub const XP_TABLE: [u64; 20] = [0, 300, 900, 2_700, 6_500, 14_000, 23_000, 34_000, 48_000, 64_000, 85_000, 100_000, 120_000, 140_000, 165_000, 195_000, 225_000, 265_000, 305_000, 355_000];
+
+/// The hit die every hero has until classes arrive (a fighter's d10).
+pub const HIT_DIE: i32 = 10;
+
 impl Progression {
-    /// XP needed to go from `level` to `level + 1`: `base_xp · growth^(level-1)`, at least 1.
+    fn top(&self) -> u32 {
+        self.max_level.clamp(1, 20)
+    }
+
+    /// XP needed to go from `level` to `level + 1`.
     pub fn xp_to_next(&self, level: u32) -> u64 {
-        let n = self.base_xp as f64 * (self.growth.max(1.0) as f64).powi(level.max(1) as i32 - 1);
-        (n.round() as u64).max(1)
+        let l = level.clamp(1, 19) as usize;
+        XP_TABLE[l] - XP_TABLE[l - 1]
     }
 
     /// Total XP needed to reach `level` (level 1 = 0).
     pub fn xp_for_level(&self, level: u32) -> u64 {
-        (1..level.max(1)).map(|l| self.xp_to_next(l)).fold(0u64, |a, b| a.saturating_add(b))
+        XP_TABLE[level.clamp(1, 20) as usize - 1]
     }
 
     /// The level a total of `xp` reaches (1 ..= max_level).
     pub fn level_for(&self, xp: u64) -> u32 {
-        let mut level = 1;
-        let mut need = 0u64;
-        while level < self.max_level.max(1) {
-            need = need.saturating_add(self.xp_to_next(level));
-            if xp < need {
-                break;
-            }
-            level += 1;
-        }
-        level
+        (1..=self.top()).rev().find(|l| xp >= self.xp_for_level(*l)).unwrap_or(1)
     }
 
     /// Progress inside the current level: (XP gained since reaching it, XP the next level
     /// needs). At the highest level both are the last step's XP (a full bar).
     pub fn progress(&self, level: u32, xp: u64) -> (u64, u64) {
         let level = level.max(1);
-        if level >= self.max_level.max(1) {
+        if level >= self.top() {
             let n = self.xp_to_next(level.saturating_sub(1).max(1));
             return (n, n);
         }
@@ -68,37 +77,65 @@ impl Progression {
     }
 }
 
+/// The hero's max HP at `level` (SRD): the hit die's maximum plus the CON modifier at level 1,
+/// then per level the HP that level gave (`rolls[k]` for level k + 2; missing = the die's
+/// average) plus CON, at least 1 per level; plus `per_level` for every level (a hill dwarf's
+/// toughness).
+pub fn max_hp(level: u32, con_mod: i32, rolls: &[i32], per_level: i32) -> i32 {
+    let level = level.max(1);
+    let avg = HIT_DIE / 2 + 1;
+    let mut hp = (HIT_DIE + con_mod).max(1) + per_level;
+    for k in 0..(level - 1) as usize {
+        hp += (rolls.get(k).copied().unwrap_or(avg) + con_mod).max(1) + per_level;
+    }
+    hp
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn levels() {
-        let p = Progression::default();
-        assert_eq!(p.xp_to_next(1), 100);
-        assert_eq!(p.xp_to_next(2), 150);
-        assert_eq!(p.xp_to_next(3), 225);
+    fn levels_follow_the_srd_table() {
+        let p = Progression { enabled: true, ..Default::default() };
+        assert_eq!(p.xp_to_next(1), 300);
+        assert_eq!(p.xp_to_next(2), 600);
         assert_eq!(p.xp_for_level(1), 0);
-        assert_eq!(p.xp_for_level(3), 250);
-        assert_eq!(p.level_for(0), 1);
-        assert_eq!(p.level_for(99), 1);
-        assert_eq!(p.level_for(100), 2);
-        assert_eq!(p.level_for(249), 2);
-        assert_eq!(p.level_for(250), 3);
+        assert_eq!(p.xp_for_level(5), 6_500);
+        assert_eq!(p.xp_for_level(20), 355_000);
+        for (k, xp) in XP_TABLE.iter().enumerate() {
+            assert_eq!(p.level_for(*xp), k as u32 + 1, "{xp} XP");
+            if *xp > 0 {
+                assert_eq!(p.level_for(xp - 1), k as u32, "{} XP", xp - 1);
+            }
+        }
         assert_eq!(p.level_for(u64::MAX), 20);
-        assert_eq!(p.progress(2, 130), (30, 150));
+        assert_eq!(p.progress(2, 400), (100, 600));
         let top = p.progress(20, u64::MAX);
         assert_eq!(top.0, top.1);
-        // Degenerate settings stay sane.
-        let flat = Progression { base_xp: 0, growth: 0.0, max_level: 0, ..p };
-        assert_eq!(flat.xp_to_next(5), 1);
-        assert_eq!(flat.level_for(1000), 1);
+        let capped = Progression { max_level: 5, ..p.clone() };
+        assert_eq!(capped.level_for(1_000_000), 5);
+        let zero = Progression { max_level: 0, ..p };
+        assert_eq!(zero.level_for(1000), 1);
     }
 
     #[test]
-    fn old_projects_have_it_off() {
+    fn hit_points_by_level() {
+        // Level 1: 10 + CON; each level the average 6 + CON, or the roll.
+        assert_eq!(max_hp(1, 2, &[], 0), 12);
+        assert_eq!(max_hp(5, 2, &[], 0), 12 + 4 * 8);
+        assert_eq!(max_hp(3, 1, &[2, 10], 0), 11 + 3 + 11);
+        assert_eq!(max_hp(3, -3, &[1, 1], 0), 7 + 1 + 1, "at least 1 per level");
+        // A hill dwarf: +1 per level.
+        assert_eq!(max_hp(5, 1, &[], 1), 11 + 4 * 7 + 5);
+    }
+
+    #[test]
+    fn old_projects_have_it_off_and_their_curve_is_ignored() {
         let p: Progression = ron::from_str("()").unwrap();
         assert_eq!(p, Progression::default());
         assert!(!p.enabled);
+        let old: Progression = ron::from_str("(enabled: true, base_xp: 60, growth: 1.4, max_level: 20, hp_per_level: 2, mana_per_level: 2)").unwrap();
+        assert_eq!((old.enabled, old.hit_points, old.mana_per_level), (true, HitPoints::Average, 2));
     }
 }

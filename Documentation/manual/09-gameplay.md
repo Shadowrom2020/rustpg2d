@@ -8,7 +8,7 @@ it with content; most systems are set up in the Database and driven by triggers.
 ![A fight with the bandit chief in Whisperwood](../images/game-combat.webp)
 
 The **status frame** at the top left shows a small portrait of the hero as dressed, the name, the
-**hearts** (one heart = 2 HP), the mana and experience bars, the defense and the ammunition of an
+**HP bar** with the hit points (`34 / 44`), the mana and experience bars, the defense and the ammunition of an
 equipped bow or crossbow.
 
 - **Melee weapons** have their own damage, speed, reach, swing arc and knockback (a sword, a spear,
@@ -92,12 +92,29 @@ equipped bow or crossbow.
 ## Experience and levels
 
 Optional: *Database › Project › Experience and levels*. Defeated characters give the XP set in their
-definition, completed quests their *Experience reward*. Enough XP raises the level, and each level
-adds max HP (and heals as much) and mana as set in the project, and the SRD proficiency bonus grows
-with it ([Rules](#rules-srd-51)). The XP needed starts
-at *XP for level 2* and grows by *Growth* per level, up to the *Highest level*.
+definition, completed quests their *Experience reward*. Levels follow the SRD's experience table, up
+to the project's *Highest level* (20 at most):
 
-The status frame shows `Lv N` with a gold XP bar, the character window *Level N (XP a / b)*, and a
+| Level | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | … | 20 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Total XP | 300 | 900 | 2,700 | 6,500 | 14,000 | 23,000 | 34,000 | 48,000 | 64,000 | 85,000 | 100,000 | … | 355,000 |
+
+Each level adds **hit points** (and heals as many), a **hit die**, mana as set in the project (*Mana
+per level*, with magic), and the proficiency bonus grows with it ([Rules](#rules-srd-51)). The SRD
+gives XP by challenge: a commoner is worth 10, a bandit or guard 25, a goblin 50, an orc 100, a
+bandit captain 450, a veteran 700; quests give what their *Experience reward* says.
+
+**Hit points** follow the SRD. Until classes arrive (0.30) every hero has a fighter's hit die, a d10:
+
+- **Level 1**: 10 + the CON modifier.
+- **Every further level**: the die's average (6) + CON, or with *Hit points per level: Rolled* a d10
+  roll + CON (into the roll log); at least 1 per level.
+- Plus what the race adds (the hill dwarf's *Dwarven Toughness*: +1 per level).
+
+The max HP follows the CON score: a potion or script that raises CON raises it at once. A save of an
+older version counts its levels as averages.
+
+The status frame shows `Lv N` with a gold XP bar, the character sheet *Level N* and *XP a / b*, and a
 message announces every level, with the project's *Level up* fanfare (*Game sounds*) if it has one. Triggers use the *Give experience* action and the *Player level*
 condition; scripts `give_xp(n)`, `xp()` and `level()`.
 
@@ -122,7 +139,7 @@ player's effects are saved.
 
 ## Rules (SRD 5.1)
 
-![The Skills tab: ability scores, saving throws and the 18 skills](../images/game-skills.webp)
+![The character sheet: abilities, saving throws, the 18 skills, languages, proficiencies and traits](../images/game-sheet.webp)
 
 R(ust)PG2D's rules follow the **System Reference Document 5.1** (SRD 5.1, by Wizards of the Coast,
 CC BY 4.0): every roll in the game is an SRD roll.
@@ -150,10 +167,18 @@ an SRD race (or subrace) with its ability increases, speed, size, darkvision, la
 resistances and traits ([Races](06-characters.md#races)), base scores by the standard array, point
 buy or 4d6, the race's choices and a [background](06-characters.md#backgrounds). Without the
 creator, the scores and proficiencies come from *Database › Project › Rules* (the standard array
-15 14 13 12 10 8 by default) and the player character's race. Players see them on the **Skills**
-tab of the character window (K): the scores with modifiers and saving throws, the proficiency
-bonus, passive Perception, the 18 skills with their bonuses (a dot marks the proficient ones) and
-the tools.
+15 14 13 12 10 8 by default) and the player character's race. Players see them on the **Sheet**
+tab of the character window (K), laid out like an SRD character sheet:
+
+- **At the top**: name, race and background, the level, the proficiency bonus and the XP towards the
+  next level.
+- **Left**: the six scores with their modifiers and saving throws (a dot marks a proficient save),
+  then **armor class** (10 + the DEX modifier + the worn armor's defense, until the SRD's armor
+  arrives in 0.31), **initiative** (the DEX modifier), **speed** in feet, **hit points**, **hit dice**
+  (left / level, d10) and **passive Perception**.
+- **Middle**: the 18 skills with their bonuses (a dot marks the proficient ones).
+- **Right**: languages, the other proficiencies (tools, weapons, armor) and the **features and
+  traits** of the race and the background. Up / Down picks one; its rules text shows at the bottom.
 
 - **Speed**: a hero walks at their race's speed / 30 ft (dwarves, halflings and gnomes at 25 ft
   are a sixth slower).
@@ -176,8 +201,16 @@ in Athletics, Perception, Persuasion and Thieves' Tools. They can pick the locke
 river near the farm (DC 12), read the shrine's carvings in Whisperwood (Religion, DC 12: lore and a
 little experience) and ask Tilda for a little more after the slime hunt (Persuasion, DC 13).
 
-What isn't there yet: conditions such as *poisoned* or *prone*, rests, classes, and rolls in combat
-(resistances are kept for them); combat stays real-time until the turn-based combat of 0.29.
+**Stat blocks**: every character can have an SRD stat block (abilities, armor class, hit points,
+speed, proficiencies, challenge and XP), from the SRD's 35 NPC templates (commoner, guard, bandit,
+veteran, priest, goblin, orc…) or filled in by hand ([Characters › Stat
+blocks](06-characters.md#stat-blocks)). Scripts read them with `npc_stat`, and automated runs see
+them in `statblocks=`; real-time combat still uses a character's *Max HP*, *Damage* and *Defense*
+until the turn-based combat of 0.29 takes the stat blocks.
+
+What isn't there yet: conditions such as *poisoned* or *prone*, rests (hit dice are counted, not yet
+spent), classes, and rolls in combat (resistances are kept for them); combat stays real-time until
+the turn-based combat of 0.29.
 
 ### Converting a project of 0.27 or older
 
@@ -199,13 +232,13 @@ this. The editor converts a project once when it opens it, after keeping a copy 
 
 Turn it on in *Database › Project › Magic*.
 
-**Magic** adds **mana** (*Max mana*, *Mana regeneration*; a blue bar under the hearts) and
+**Magic** adds **mana** (*Max mana*, *Mana regeneration*; a blue bar under the HP bar) and
 **spells** (*Database › Spells*): mana cost, cooldown, an optional required proficiency (only a
 hero proficient in it, e.g. Arcana, can learn and cast the spell), an icon and an effect:
 
 | Effect | What it does |
 |---|---|
-| *Heal* | Restores hearts; with companions on the map it asks whom to heal |
+| *Heal* | Restores hit points; with companions on the map it asks whom to heal |
 | *Bolt* | A projectile, aimed with the mouse |
 | *Blast* | Damages everything within a radius |
 | *Light* | A glow around the player for a while |

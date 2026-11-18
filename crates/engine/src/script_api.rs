@@ -205,6 +205,9 @@ pub const API: &[ApiFn] = api! {
     [since "0.28"] "proficiency"() "The hero's proficiency bonus by level (+2 at levels 1-4 up to +6 at 17-20)";
     [since "0.28"] "is_proficient"(what: Skill) "Whether the hero is proficient in a skill (\"stealth\"), a tool (\"thieves-tools\") or a saving throw (\"save:dex\")";
     [since "0.28"] "set_proficient"(what: Skill, on: Bool) "Makes the hero proficient in a skill, tool or saving throw, or takes it away (immediately)";
+    [since "0.28"] "armor_class"() "The hero's armor class: 10 + the DEX modifier + the worn armor's defense";
+    [since "0.28"] "hit_dice"() "The hit dice the hero has left (one per level; spent and regained by resting)";
+    [since "0.28"] "npc_stat"(target: Target, field: Text) "A value of a character's SRD stat block: \"str\" to \"cha\", \"ac\", \"hp\", \"speed\" (feet), \"darkvision\" (feet) or \"xp\"; target \"self\" (also SELF) or a name on this map; -1 without a stat block";
     "knows_spell"(spell: Spell) "Whether the player has learned the spell";
     "learn_spell"(spell: Spell) "Teaches a spell (queued)";
     "mana"() "The player's current mana";

@@ -39,14 +39,14 @@ impl WinTab {
     fn label(self) -> &'static str {
         match self {
             WinTab::Character => "Character ({key:character})",
-            WinTab::Skills => "Skills ({key:skills})",
+            WinTab::Skills => "Sheet ({key:skills})",
             WinTab::Spells => "Spells ({key:spells})",
         }
     }
     fn parse(s: &str) -> Option<WinTab> {
         Some(match s {
             "character" | "inventory" | "bag" => WinTab::Character,
-            "skills" => WinTab::Skills,
+            "skills" | "sheet" => WinTab::Skills,
             "spells" | "magic" => WinTab::Spells,
             _ => return None,
         })

@@ -119,7 +119,7 @@ impl Game {
         self.audio.play(&self.project.config.sfx.hit);
         if guard == Guard::Parried {
             if let Some(i) = attacker {
-                let stun = crate::effects::EffectSpec { kind: crate::effects::EffectKind::Stun, strength: 0.0, seconds: PARRY_STUN };
+                let stun = crate::srd::ConditionSpec::new(crate::srd::Condition::Stunned, PARRY_STUN);
                 self.apply_entity_effect(i, &stun);
                 self.loaded.entities[i].attack = None;
             }

@@ -31,12 +31,10 @@ impl Game {
 
     /// The weapon used for attacks: the equipped one, or bare hands (player damage).
     pub(super) fn attack_weapon(&self) -> Weapon {
-        let mut w = self.current_weapon().unwrap_or(Weapon {
+        self.current_weapon().unwrap_or(Weapon {
             reach: UNARMED_REACH,
             ..Weapon::melee(self.combat.damage, UNARMED_COOLDOWN)
-        });
-        w.damage = crate::effects::scale_damage(&self.world.effects, w.damage);
-        w
+        })
     }
 
     fn armor_pieces(&self) -> impl Iterator<Item = &crate::defs::Armor> {
@@ -53,14 +51,25 @@ impl Game {
     }
 
     pub(super) fn player_defense(&self) -> i32 {
-        self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + crate::effects::defense_bonus(&self.world.effects) + self.player_race().map_or(0, |r| r.defense)
+        self.combat.defense + self.armor_pieces().map(|a| a.defense).sum::<i32>() + self.player_race().map_or(0, |r| r.defense)
+    }
+
+    /// What the hero does with damage of a type: the race's resistances, the armor's, and every
+    /// type while petrified.
+    pub(super) fn player_defenses(&self) -> crate::srd::Defenses {
+        let mut resistances: Vec<String> = self.world.resistances.iter().cloned().collect();
+        resistances.extend(self.armor_pieces().flat_map(|a| a.resistances.iter().cloned()));
+        if crate::srd::conditions::rules(&self.world.effects).resist_all {
+            resistances.push("all".into());
+        }
+        crate::srd::Defenses { resistances, ..Default::default() }
     }
 
     /// Movement speed factor from armor (heavy armor slows down).
     pub(super) fn speed_factor(&self) -> f32 {
         let race = self.player_race().map_or(1.0, |r| r.speed_factor());
         let base = ((1.0 + self.armor_pieces().map(|a| a.speed).sum::<f32>()) * race).clamp(0.3, 2.0);
-        base * crate::effects::speed_factor(&self.world.effects)
+        base * crate::srd::conditions::rules(&self.world.effects).speed
     }
 
     pub(super) fn stats(&self) -> Stats {

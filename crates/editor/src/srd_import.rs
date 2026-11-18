@@ -280,10 +280,19 @@ impl SrdData {
                     languages: s(m, "languages").into(),
                     cr,
                     xp: m.get("xp").and_then(Value::as_u64).unwrap_or(0) as u32,
+                    resistances: strings(m, "damage_resistances"),
+                    immunities: strings(m, "damage_immunities"),
+                    vulnerabilities: strings(m, "damage_vulnerabilities"),
+                    condition_immunities: list(m, "condition_immunities").iter().map(|c| s(c, "index").to_string()).collect(),
                 }
             })
             .collect()
     }
+}
+
+/// A list of texts of a JSON object ("damage_resistances": ["poison"]).
+fn strings(v: &Value, key: &str) -> Vec<String> {
+    list(v, key).iter().filter_map(Value::as_str).map(str::to_string).collect()
 }
 
 /// Writes the NPC templates the engine builds in (`crates/engine/src/srd/npcs.ron`).

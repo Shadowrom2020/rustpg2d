@@ -31,15 +31,51 @@ pub struct StatBlock {
     pub cr: String,
     /// The experience it is worth.
     pub xp: u32,
+    /// Damage types it takes half / no / double damage from (`fire`, or the SRD's words
+    /// "bludgeoning, piercing, and slashing from nonmagical attacks").
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub resistances: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub immunities: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub vulnerabilities: Vec<String>,
+    /// Conditions it can't get (`poisoned`, `exhaustion`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub condition_immunities: Vec<String>,
 }
 
 impl Default for StatBlock {
     fn default() -> Self {
-        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), cr: "0".into(), xp: 10 }
+        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new() }
     }
 }
 
 impl StatBlock {
+    /// What it does with damage of a type.
+    pub fn defenses(&self) -> super::Defenses {
+        super::Defenses { resistances: self.resistances.clone(), immunities: self.immunities.clone(), vulnerabilities: self.vulnerabilities.clone() }
+    }
+
+    /// Whether it can't get condition `c`.
+    pub fn immune_to(&self, c: super::Condition) -> bool {
+        self.condition_immunities.iter().any(|i| i.trim().eq_ignore_ascii_case(c.id()))
+    }
+
+    /// The level whose proficiency bonus matches its challenge rating (CR 0-4: +2, 5-8: +3…).
+    pub fn proficiency_level(&self) -> u32 {
+        let cr = self.cr.split('/').next().and_then(|n| n.trim().parse::<u32>().ok()).filter(|_| !self.cr.contains('/')).unwrap_or(0);
+        cr.max(1)
+    }
+
+    /// Rolls a saving throw (`con`) against `dc`: its ability modifier, plus its proficiency
+    /// bonus when it is proficient in that save.
+    pub fn save(&self, ability: &str, dc: i32) -> Option<super::RollRecord> {
+        let spec = super::Spec::parse(ability, true)?;
+        let profs: std::collections::BTreeSet<String> = self.proficiencies.iter().cloned().collect();
+        let roller = super::check::Roller { abilities: &self.abilities, proficiencies: &profs, level: self.proficiency_level() };
+        Some(spec.roll(&roller, dc, super::Mode::Normal))
+    }
+
     /// A field by name for scripts and status: str…cha, ac, hp, speed, darkvision, xp (`None` =
     /// no such field).
     pub fn field(&self, name: &str) -> Option<i64> {
@@ -91,6 +127,7 @@ mod tests {
         let commoner = npc_template("commoner").unwrap();
         assert_eq!((commoner.hp, commoner.xp), (4, 10));
         assert!(npc_template("werewolf-human").is_none(), "no lycanthropes");
+        assert_eq!((guard.proficiency_level(), npc_template("veteran").unwrap().proficiency_level()), (1, 3));
         let s: StatBlock = ron::from_str("(template: \"x\")").unwrap();
         assert_eq!(s, StatBlock { template: "x".into(), ..Default::default() });
     }

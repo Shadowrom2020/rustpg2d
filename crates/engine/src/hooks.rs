@@ -35,7 +35,7 @@ pub const HOOKS: &[(&str, &str, &str)] = &[
     ("load", "slot", "A game was loaded from `slot`."),
     ("menu_open", "menu, cancel", "A menu is about to open: `menu` is \"pause\", \"character\", \"skills\", \"spells\", \"journal\" or \"map\"; `cancel` keeps it shut."),
     ("damage_number", "value, kind, text, color, size", "A damage number appears: `kind` is \"hit\", \"crit\" or \"hurt\" (the player's side hurt); set its `text`, `color` (a colour name or #rrggbb; \"\" = the kind's) or `size` (× the usual)."),
-    ("effect_apply", "target, effect, strength, seconds, cancel", "A status effect is about to start on \"player\" or a character: change `strength` or `seconds`, or `cancel` it."),
+    ("effect_apply", "target, condition, seconds, cancel", "A condition is about to start on \"player\" or a character (after its saving throw failed): change `condition` (\"prone\"…) or `seconds`, or `cancel` it. (`effect` is the condition too, as until 0.27.)"),
 ];
 
 /// Whether `name` is a hook the engine calls.
@@ -84,6 +84,11 @@ pub fn num(m: &rhai::Map, key: &str, default: f64) -> f64 {
 /// A whole number of a hook map (rounded).
 pub fn int(m: &rhai::Map, key: &str, default: i64) -> i64 {
     num(m, key, default as f64).round() as i64
+}
+
+/// A text of a hook map (`default` when missing or not a text).
+pub fn text(m: &rhai::Map, key: &str, default: &str) -> String {
+    m.get(key).and_then(|v| v.clone().into_string().ok()).unwrap_or_else(|| default.to_string())
 }
 
 /// An on / off value of a hook map (false when missing).

@@ -142,6 +142,39 @@ fn item_form_edits_save_and_undo() {
 }
 
 #[test]
+fn a_weapon_gets_a_damage_type_and_a_touch_a_condition() {
+    use rustpg2d_engine::srd::{Condition, DamageType};
+    let root = example_copy("damage");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "sword").expect("the example's sword");
+    assert_eq!(db.items[k].weapon.as_ref().unwrap().damage_type, Some(DamageType::Slashing));
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    // The damage type beside the weapon's damage.
+    // (egui gives a combo box no accessible text: it is the one beside "Damage".)
+    beside(&h, "Damage", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Bludgeoning").click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.items[k].weapon.as_ref().unwrap().damage_type, Some(DamageType::Bludgeoning));
+    h.state_mut().save_all();
+    assert_eq!(Project::load(&root).unwrap().db.items[k].weapon.as_ref().unwrap().damage_type, Some(DamageType::Bludgeoning));
+    // The slime's touch: Poisoned becomes Prone; its saving throw stays.
+    let c = db.characters.iter().position(|c| c.id == "slime").expect("the example's slime");
+    let mut h = harness(&root, Tab::Characters, c);
+    step(&mut h);
+    beside(&h, "On touch:", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Prone").click();
+    step(&mut h);
+    let fx = h.state().project.db.characters[c].touch_effect.clone().expect("a touch");
+    assert_eq!((fx.condition, fx.save.as_ref().map(|s| s.dc)), (Some(Condition::Prone), Some(10)));
+    h.state_mut().save_all();
+    assert_eq!(Project::load(&root).unwrap().db.characters[c].touch_effect.as_ref().unwrap().condition, Some(Condition::Prone));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn item_animations_are_named_estimated_and_saved() {
     let root = example_copy("item_anims");
     let db = Project::load(&root).unwrap().db;

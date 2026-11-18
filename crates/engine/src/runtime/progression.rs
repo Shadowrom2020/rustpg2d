@@ -21,7 +21,13 @@ impl Game {
         let level = if self.progression_on() { self.world.player_level() } else { 1 };
         let con = self.world.abilities.modifier(crate::srd::Ability::Con);
         let hp = crate::progression::max_hp(level, con, &self.world.hp_rolls, race.as_ref().map_or(0, |r| r.hp_per_level));
-        (hp + race.as_ref().map_or(0, |r| r.max_hp)).max(1)
+        let hp = (hp + race.as_ref().map_or(0, |r| r.max_hp)).max(1);
+        // Exhaustion 4 and up halves it.
+        if crate::srd::conditions::exhaustion(&self.world.effects) >= 4 {
+            (hp / 2).max(1)
+        } else {
+            hp
+        }
     }
 
     /// Hit dice the hero has left (rests spend and regain them).

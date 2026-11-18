@@ -192,7 +192,7 @@ impl Game {
         match &d.effect {
             SpellEffect::Heal { amount } => self.heal(*amount),
             SpellEffect::Bolt { .. } => {}
-            SpellEffect::Blast { damage, radius } => self.damage_around(*damage, *radius, true),
+            SpellEffect::Blast { damage, radius, damage_type } => self.damage_around(*damage, *radius, true, *damage_type),
             SpellEffect::Light { radius, seconds } => self.player_light_for(*radius, *seconds, crate::events::spell_light_color(), false),
             SpellEffect::Script { .. } => {}
         }
@@ -245,14 +245,14 @@ impl Game {
         let Some(function) = script else {
             // A bolt spell.
             let Some(d) = def else { return };
-            let SpellEffect::Bolt { damage, projectile, speed, range } = &d.effect else { return };
+            let SpellEffect::Bolt { damage, projectile, speed, range, damage_type } = &d.effect else { return };
             self.pay_spell(&d);
             let dir = aim.and_then(|t| (t - origin).try_normalize()).unwrap_or_else(|| Vec2::from(self.player.facing.dir()));
             if let Some(f) = crate::entity::Facing::from_vec(dir.x, dir.y) {
                 self.player.facing = f;
             }
             let r = crate::defs::Ranged { projectile: projectile.clone(), speed: *speed, range: *range, ammo: String::new() };
-            self.shoot(origin, dir, &r, *damage, true, None, None);
+            self.shoot(origin, dir, &r, *damage, true, None, None, *damage_type);
             self.ui.toast(d.name);
             return;
         };
@@ -340,13 +340,13 @@ impl Game {
 
     /// Damages every character within `radius` tiles of the player (`cast`: the player's spell,
     /// which the characters hurt notice; a scripted blast isn't).
-    pub(super) fn damage_around(&mut self, damage: i32, radius: f32, cast: bool) {
-        self.damage_at(self.player.pos, damage, radius, cast);
+    pub(super) fn damage_around(&mut self, damage: i32, radius: f32, cast: bool, damage_type: Option<crate::srd::DamageType>) {
+        self.damage_at(self.player.pos, damage, radius, cast, damage_type);
     }
 
     /// Damages every character within `radius` tiles of `center` (world pixels); `cast` = the
     /// player's own (see [`Self::damage_around`]).
-    pub(super) fn damage_at(&mut self, center: Vec2, damage: i32, radius: f32, cast: bool) {
+    pub(super) fn damage_at(&mut self, center: Vec2, damage: i32, radius: f32, cast: bool, damage_type: Option<crate::srd::DamageType>) {
         let ts = self.ts();
         let dmg = damage;
         let targets: Vec<usize> = (0..self.loaded.entities.len())
@@ -357,7 +357,7 @@ impl Game {
             .collect();
         let attacker = cast.then_some(self.player.pos);
         for i in targets {
-            self.strike_entity(i, dmg, center, 1.2, super::combat::Blow { attacker, ..Default::default() });
+            self.strike_entity(i, dmg, center, 1.2, super::combat::Blow { attacker, damage_type, ..Default::default() });
         }
         self.effects.push((center, 0.0));
     }
@@ -441,6 +441,12 @@ impl Game {
                     self.skills.sel[tab] = i;
                 }
             }
+        }
+        // The sheet: R (gamepad X) takes a short rest.
+        if tab == 0 && (input::pressed(KeyCode::R) || input::pad_pressed(input::Pad::West)) && self.combat.enabled() {
+            self.skills.open = false;
+            self.open_short_rest();
+            return (true, true);
         }
         let sel = self.skills.sel[tab].min(rows.len().saturating_sub(1));
         let Some(id) = rows.get(sel).cloned() else { return (true, true) };
@@ -544,7 +550,7 @@ impl Game {
         let effect = match &d.effect {
             SpellEffect::Heal { amount } => format!("Heals {} heart{}", *amount as f32 / 2.0, if *amount == 2 { "" } else { "s" }),
             SpellEffect::Bolt { damage, range, .. } => format!("Bolt: {damage} damage, {range:.0} tiles"),
-            SpellEffect::Blast { damage, radius } => format!("Blast: {damage} damage within {radius:.0} tiles"),
+            SpellEffect::Blast { damage, radius, .. } => format!("Blast: {damage} damage within {radius:.0} tiles"),
             SpellEffect::Light { radius, seconds } => format!("Light of {radius:.0} tiles for {seconds:.0}s"),
             SpellEffect::Script { .. } => String::new(),
         };
@@ -615,7 +621,7 @@ impl Game {
             let tw = super::text::measure_text(&xp, None, 17, 1.0).width;
             draw_text(&xp, r.right() - PAD - tw, r.y + 56.0, 17.0, skin::dim());
         }
-        super::glyphs::draw_hint_in("{key:up}/{key:down}: features   {key:next_tab}: next tab   {key:skills} / {key:cancel}: close", r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
+        super::glyphs::draw_hint_in("{key:up}/{key:down}: features   R: short rest   {key:next_tab}: next tab   {key:skills} / {key:cancel}: close", r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
 
         // Left: abilities with modifier and save, then the numbers of a stat block.
         let mut y = top;
@@ -637,19 +643,38 @@ impl Game {
         y += 36.0;
         let hp_max = self.player_max_hp();
         let level = w.player_level();
+        let cond = crate::srd::conditions::rules(&w.effects);
         let facts = [
             ("Armor class", self.armor_class().to_string()),
             ("Initiative", abilities::signed(abilities::modifier(w.abilities.score(Ability::Dex)) as i64)),
-            ("Speed", format!("{} ft", race.as_ref().map_or(30, |r| r.walk_feet()))),
+            ("Speed", format!("{} ft", (race.as_ref().map_or(30, |r| r.walk_feet()) as f32 * cond.speed).round() as u32)),
             ("Hit points", if hp_max > 0 { format!("{} / {hp_max}", w.player_hp.unwrap_or(hp_max).max(0)) } else { "-".into() }),
             ("Hit dice", format!("{}/{} d{}", self.hit_dice_left(), level, crate::progression::HIT_DIE)),
-            ("Passive Perception", (10 + w.check_bonus("perception", false).unwrap_or(0)).to_string()),
+            // (Disadvantage: -5, the SRD says.)
+            ("Passive Perception", (10 + w.check_bonus("perception", false).unwrap_or(0) - if cond.check_disadvantage { 5 } else { 0 }).to_string()),
         ];
         for (label, value) in facts {
             draw_text(label, lx, y, 17.0, skin::dim());
             let vw = super::text::measure_text(&value, None, 19, 1.0).width;
             draw_text(&value, mx - 24.0 - vw, y, 19.0, skin::normal());
             y += 23.0;
+        }
+        // The conditions (exhaustion with its level) and what goes on every round.
+        y += 6.0;
+        draw_text("Conditions", lx, y, 15.0, skin::disabled());
+        let names: Vec<String> = w
+            .effects
+            .iter()
+            .map(|a| match a.condition {
+                Some(crate::srd::Condition::Exhaustion) => format!("{} {}", crate::lang::tr_ui("Exhaustion"), a.level),
+                Some(c) if c != crate::srd::Condition::Any => crate::lang::tr_ui(c.name()).into_owned(),
+                _ => a.badge().split(' ').next().unwrap_or("").to_string(),
+            })
+            .collect();
+        let text = if names.is_empty() { crate::lang::tr_ui("None").into_owned() } else { names.join(", ") };
+        for l in wrap_text(&text, 16, mx - lx - 24.0).into_iter().take(2) {
+            y += 19.0;
+            super::text::draw_plain(&l, lx, y, 16.0, if names.is_empty() { skin::dim() } else { skin::highlight() });
         }
 
         // Middle: the 18 skills, the bonus, the ability and the name (a dot = proficient).

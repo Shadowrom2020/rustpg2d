@@ -161,7 +161,7 @@ impl Game {
                 }
                 continue;
             }
-            let ready = e.active && !e.ai.harmless() && !crate::effects::stunned(&e.effects) && self.game_over.is_none();
+            let ready = e.active && !e.ai.harmless() && crate::srd::conditions::can_act(&e.effects) && self.game_over.is_none();
             let ready = ready && self.fights(i);
             let e = &mut self.loaded.entities[i];
             if !ready {
@@ -257,10 +257,12 @@ impl Game {
         let center = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0);
         let reach = w.reach.max(0.5) * ts;
         let arc = w.arc.clamp(5.0, 180.0).to_radians();
-        let damage = crate::effects::scale_damage(&e.effects, w.damage.max(1));
+        let damage = w.damage.max(1);
         let from = e.body.pos;
         let swing = self.project.config.sfx.attack.clone();
         self.sound_from(&swing, from);
+        // Its definition's touch (a troll's blow knocks prone), else the weapon's.
+        let effect = self.touch_effect(i);
         for (who, _, mid, r) in self.attack_targets(i) {
             let to = mid - center;
             if !(to.length() < ts * 0.5 || (to.length() - r <= reach && to.angle_between(dir).abs() <= arc)) {
@@ -269,19 +271,19 @@ impl Game {
             match who {
                 None if self.combat.invuln <= 0.0 => match self.guard_against(from) {
                     super::defense::Guard::Open => {
-                        if let Some(fx) = w.effect {
-                            self.apply_player_effect(&fx);
+                        if let Some(fx) = &effect {
+                            self.apply_player_effect(fx);
                         }
-                        self.hurt_player(damage, from);
+                        self.hurt_player_by(damage, from, w.damage_type);
                     }
                     g => self.blocked(g, from, Some(i)),
                 },
                 None => {}
                 Some(c) => {
-                    if let Some(fx) = &w.effect {
+                    if let Some(fx) = &effect {
                         self.apply_entity_effect(c, fx);
                     }
-                    self.npc_hits(c, damage, from, w.knockback);
+                    self.npc_hits(c, damage, from, w.knockback, w.damage_type);
                 }
             }
         }
@@ -291,7 +293,7 @@ impl Game {
     fn lunge_hit(&mut self, i: usize) {
         let e = &self.loaded.entities[i];
         let me = e.body.rect();
-        let (dmg, from) = (crate::effects::scale_damage(&e.effects, e.damage), e.body.pos);
+        let (dmg, from) = (e.damage, e.body.pos);
         let player_hit = self.combat.invuln <= 0.0 && me.overlaps(&Rect::new(self.player.rect().x - 2.0, self.player.rect().y - 2.0, self.player.rect().w + 4.0, self.player.rect().h + 4.0));
         if player_hit && self.rolling() {
             return;
@@ -307,7 +309,7 @@ impl Game {
                 g => self.blocked(g, from, Some(i)),
             }
         } else if let Some(c) = self.attack_targets(i).into_iter().filter_map(|t| t.0).find(|&c| self.loaded.entities[c].invuln <= 0.0 && self.loaded.entities[c].body.rect().overlaps(&me)) {
-            self.npc_hits(c, dmg, from, 1.0);
+            self.npc_hits(c, dmg, from, 1.0, None);
         } else {
             return;
         }
@@ -412,6 +414,7 @@ mod tests {
             two_handed: false,
             effect: None,
             crit: 0.05,
+            damage_type: None,
         }
     }
 

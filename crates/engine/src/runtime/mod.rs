@@ -57,6 +57,7 @@ mod script_hud;
 mod pictures;
 mod timers;
 mod input_box;
+mod rest;
 mod routes;
 mod attacks;
 mod defense;
@@ -328,7 +329,7 @@ struct RtEntity {
     equipment: crate::state::Equipment,
     inventory: Vec<crate::inventory::ItemStack>,
     /// Running status effects (not saved, like the HP).
-    effects: Vec<crate::effects::ActiveEffect>,
+    effects: Vec<crate::srd::ActiveCondition>,
     /// Chasing characters: hunting, returning home, fleeing (not saved).
     ai: ai::Ai,
 }
@@ -527,6 +528,8 @@ pub struct Game {
     script_window: Option<script_hud::WindowUi>,
     /// The window of *Input number* / *Input text* (the event waits for it).
     input_box: Option<input_box::InputBox>,
+    /// The short rest's window (spending hit dice).
+    rest: Option<rest::ShortRest>,
     /// Running move routes (not saved: they end with the map).
     routes: Vec<routes::RouteRun>,
     /// A camera move of an event (`None`: it follows the player).
@@ -707,6 +710,7 @@ impl Game {
             worldmap: Default::default(),
             script_window: None,
             input_box: None,
+            rest: None,
             routes: Vec::new(),
             common_runs: Default::default(),
             cam: None,
@@ -1779,6 +1783,10 @@ impl Game {
         if self.update_input_box() {
             return;
         }
+        // And the short rest's window.
+        if self.update_rest() {
+            return;
+        }
         // So does text rolling up the screen (also over the title screen).
         if self.update_scroll_text(dt) {
             return;
@@ -2295,7 +2303,7 @@ impl Game {
 
     /// Gameplay is paused while a dialog or an inventory window is open.
     fn modal(&self) -> bool {
-        self.ui.dialog_open() || self.inventory_open() || self.script_window_open() || self.input_open() || self.scroll_open()
+        self.ui.dialog_open() || self.inventory_open() || self.script_window_open() || self.input_open() || self.scroll_open() || self.rest_open()
     }
 
     /// Applies project rules (inventory size, stack limits) to the world state, e.g. after loading.
@@ -2539,7 +2547,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} rest={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2662,7 +2670,8 @@ impl Game {
             crate::srd::abilities::signed(crate::srd::abilities::proficiency_bonus(self.world.player_level()) as i64),
             self.world.proficiencies.iter().cloned().collect::<Vec<_>>().join(","),
             self.sheet_status(),
-            self.statblocks_status()
+            self.statblocks_status(),
+            self.rest_status()
         )
     }
 
@@ -2927,9 +2936,11 @@ impl Game {
                         continue;
                     }
                     let anim = self.player_anim();
-                    let tint = Self::effect_tint(&self.world.effects).unwrap_or(WHITE);
+                    let mut tint = Self::effect_tint(&self.world.effects).unwrap_or(WHITE);
+                    tint.a *= Self::effect_alpha(&self.world.effects);
                     let gear = self.player_gear();
-                    let drawn = self.draw_seated_player(tint) || self.player_appearance().is_some_and(|a| self.draw_character_turned(&a, &gear, (self.player.facing, anim), self.walk_turn(&self.player, anim), self.player.pos, tint));
+                    let lying = !self.world.effects.is_empty() && crate::srd::conditions::rules(&self.world.effects).lying;
+                    let drawn = self.draw_seated_player(tint) || (lying && self.player_appearance().is_some_and(|a| self.draw_lying(&a, self.player.pos, tint))) || self.player_appearance().is_some_and(|a| self.draw_character_turned(&a, &gear, (self.player.facing, anim), self.walk_turn(&self.player, anim), self.player.pos, tint));
                     if !drawn {
                         let r = self.player.rect();
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
@@ -3014,6 +3025,7 @@ impl Game {
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0., 0., 0., alpha));
         }
         self.draw_hurt_flash();
+        self.draw_blinded();
         self.assets.models.debug_draw();
         if !self.on_title() {
             if !self.ui_hidden {
@@ -3070,6 +3082,7 @@ impl Game {
         self.draw_scroll_text();
         self.draw_script_window();
         self.draw_input_box();
+        self.draw_rest();
         self.draw_achievement_toasts();
         self.draw_console();
         if self.debug {
@@ -3089,7 +3102,9 @@ impl Game {
         let ts = self.ts();
         let db = &self.project.db;
         let e = &self.loaded.entities[i];
-        let tint = Self::effect_tint(&e.effects).unwrap_or(WHITE);
+        let mut tint = Self::effect_tint(&e.effects).unwrap_or(WHITE);
+        tint.a *= Self::effect_alpha(&e.effects);
+        let lying = !e.effects.is_empty() && crate::srd::conditions::rules(&e.effects).lying;
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
                 let ok = self.assets.draw_sprite(&d.sprite_at(e.state, get_time()), e.frame, e.body.pos, WHITE);
@@ -3099,6 +3114,7 @@ impl Game {
                 ok
             }),
             EntityKind::Character if e.companion.as_ref().is_some_and(|l| l.down.is_some()) => self.draw_downed(e),
+            EntityKind::Character if lying => self.draw_lying(&e.appearance, e.body.pos, tint),
             EntityKind::Character => {
                 let ok = self.draw_character_entity(i, tint);
                 // Just hit: the white flash over it.
@@ -3524,8 +3540,8 @@ impl ActionHost for Game {
                 self.add_mana(*amount);
                 Step::Continue
             }
-            Action::DamageAround { damage, radius } => {
-                self.damage_around(*damage, *radius, false);
+            Action::DamageAround { damage, radius, damage_type } => {
+                self.damage_around(*damage, *radius, false, *damage_type);
                 Step::Continue
             }
             Action::PlayerLight { radius, seconds, color, flicker } => {
@@ -3544,9 +3560,9 @@ impl ActionHost for Game {
                 self.spawn_effect(sprite.clone(), vec2(*x, *y));
                 Step::Continue
             }
-            Action::DamageArea { x, y, radius, damage } => {
+            Action::DamageArea { x, y, radius, damage, damage_type } => {
                 let ts = self.ts();
-                self.damage_at(vec2(*x, *y) * ts, *damage, *radius, false);
+                self.damage_at(vec2(*x, *y) * ts, *damage, *radius, false, *damage_type);
                 Step::Continue
             }
             Action::LightAt { x, y, radius, seconds, color, flicker } => {
@@ -3666,12 +3682,16 @@ impl ActionHost for Game {
                 };
                 Step::Continue
             }
-            Action::Sleep { hours } => {
+            Action::Sleep { hours } | Action::LongRest { hours } => {
                 if self.start_sleep(*hours) {
                     Step::Block
                 } else {
                     Step::Continue
                 }
+            }
+            Action::ShortRest => {
+                self.open_short_rest();
+                Step::Continue
             }
             Action::Lockpick { difficulty, var } => {
                 let picked = self.pick_check(*difficulty).is_some_and(|r| r.success == Some(true));
@@ -3747,7 +3767,7 @@ impl ActionHost for Game {
             // Characters that walked up to someone turn to face them.
             self.apply_face_after();
         }
-        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting() || self.input_open() || self.route_waiting() || self.scroll_open()
+        self.ui.dialog_open() || !matches!(self.fade, Fade::None) || walking || self.minigame_open() || self.sleeping() || self.image_waiting() || self.input_open() || self.route_waiting() || self.scroll_open() || self.rest_open()
     }
 
     fn script_condition(&mut self, function: &str, ctx: &ActionCtx) -> bool {

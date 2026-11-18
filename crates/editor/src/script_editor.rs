@@ -237,7 +237,7 @@ pub fn candidates(place: &Place, call: Option<&CallAt>, known: &Known, src: &str
                     v.dedup();
                     v.iter().map(|s| c(s, "crafting station")).collect()
                 }
-                Some(Arg::Effect) => rustpg2d_engine::effects::EffectKind::ALL.iter().map(|k| c(k.id(), k.label())).collect(),
+                Some(Arg::Effect) => rustpg2d_engine::srd::Condition::ALL.iter().map(|k| c(k.id(), k.name())).collect(),
                 Some(Arg::Weather) => {
                     let mut v: Vec<Cand> = rustpg2d_engine::map::WeatherKind::ALL.iter().map(|k| c(k.id(), k.label())).collect();
                     v.push(c("default", "the map's own weather"));

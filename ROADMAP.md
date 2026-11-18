@@ -376,7 +376,7 @@ sheet.
   `rolls=1d10:3,1d10:1`, max HP 23 at level 3), `statblocks=` beside the guard. Screenshots of the
   sheet and the editor's stat block section.
 
-- [ ] Conditions, damage types and rests — `feature/srd-conditions`
+- [x] Conditions, damage types and rests — `feature/srd-conditions`
 
   **Goal.** The SRD's conditions and damage rules replace status effects.
 
@@ -396,8 +396,43 @@ sheet.
   **Engine.** `effects.rs` reworked into conditions, damage in `combat.rs`, the rest actions and
   beds (`furniture.rs` sleep), script functions.
 
-  **Verify.** Unit tests of each condition's rule flags. Autoplay: poisoned gives disadvantage on a
-  check; a long rest restores HP and hit dice; exhaustion levels are shown.
+  **Decided while building.**
+  - **Effects replaced now** (the maintainer's choice): `srd/conditions.rs` (`Condition`,
+    `ConditionSpec`, `ActiveCondition`, `rules`) took `effects.rs`'s place. Old data reads through
+    reprs: poison = poisoned + poison per round (strength × 6), burn = fire per round, regen =
+    healing per round, stun = stunned, slow = restrained; haste, strength, weakness and shield =
+    nothing. The variants `ApplyEffect`, `CureEffect`, `HasEffect` and `WorldState::effects` keep
+    their names (map and save compatibility); `Condition`'s `#[serde(other)] Any` reads old names
+    without a condition. RULES_VERSION 2 converts projects once (with a backup) and takes out what
+    became nothing, listing where.
+  - **A spec** = condition (or none), seconds (0 = until removed), exhaustion levels, a saving throw
+    that keeps it off, damage (a type) or healing (none) per round of 6 s, the first at once.
+  - **In real time:** speed (0 / half), can't act, lying down (prone, unconscious), invisible
+    (faint, unnoticed except close), blinded (the hero's circle; a character's 1-tile sight),
+    charmed (no attacks on the hero / by the hero), frightened (flees), hits on paralyzed or
+    unconscious are critical, exhaustion 4 halves max HP and 6 kills. Attack-roll disadvantage is a
+    flag for 0.29. Checks and saves (`WorldState::check`) apply disadvantage and automatic failures.
+    The Sheet shows conditions, speed and passive Perception (−5 with disadvantage) follow them.
+  - **Damage types for everyone now** (the maintainer's choice): weapons, Bolt / Blast,
+    area damage, ongoing damage; the hero's race and armor resistances, petrified = all; stat
+    blocks got resistances, immunities, vulnerabilities and condition immunities (imported), used
+    in real time. Resistance comes before the old defense.
+  - **Rests:** the short rest is a window (R on the sheet, gamepad X) as the maintainer chose; any
+    sleep of an hour or more is a long rest (the bed's full heal stayed). Spell slots and class
+    features come with 0.30.
+  - **Content:** the elixir of strength (STR 21 with a timer), swiftness potion (exhaustion,
+    grapples) and apple pie were rebuilt as content; food heals per round; item texts say HP.
+
+  **Verify (done).** Unit tests: each condition's rules, exhaustion's levels, ongoing rounds,
+  applying again, the 0.27 reprs (specs, saved effects, old names), checks with poisoned / stunned /
+  blinded, damage types and defenses, NPC saves (proficiency by CR), the converter taking out
+  haste / strength, the scripts. UI test: a weapon's damage type and a touch condition. Autoplay
+  on a scratch copy: poisoned + exhaustion 2 on the HUD and the Sheet, a short rest (1d10+CON = 7,
+  +1 hour) and a long rest (exhaustion 2 → 1, poison over, hit dice back), prone hero and guard
+  lying down, blindness, invisibility and a frightened guard, the slime's CON save and poison (a
+  hill dwarf takes none of it), an armed swing knocking prone with a STR save. The example
+  converted (its report lists the elixir, the swiftness potion and the apple pie). Screenshots of
+  conditions, the rest window and the editor's condition fields.
 
 - [ ] SRD data import and attribution — `feature/srd-data`
 

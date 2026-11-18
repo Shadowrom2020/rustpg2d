@@ -531,7 +531,7 @@ impl Game {
             }
         }
         if let Some(fx) = &d.touch_effect {
-            lines.push(format!("Touch       {}", fx.kind.label()));
+            lines.push(format!("Touch       {}", fx.summary()));
         }
         for (k, l) in lines.iter().enumerate() {
             draw_text(l, sx, top + 54.0 + k as f32 * 21.0, 18.0, if k == 0 { skin::normal() } else { skin::dim() });

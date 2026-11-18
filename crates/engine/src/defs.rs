@@ -492,12 +492,16 @@ pub struct Weapon {
     /// Needs both hands: nothing can be held in the left hand at the same time.
     #[serde(default)]
     pub two_handed: bool,
-    /// A status effect for whoever the weapon hits (melee or projectile).
+    /// A condition (and / or ongoing damage) for whoever the weapon hits (melee or projectile);
+    /// until 0.27 a status effect.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub effect: Option<crate::effects::EffectSpec>,
+    pub effect: Option<crate::srd::ConditionSpec>,
     /// Chance (0..1) that a hit of the player's is critical: double damage.
     #[serde(default = "default_crit")]
     pub crit: f32,
+    /// What its hits do: slashing, piercing, fire… (`None` = untyped: no resistance applies).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub damage_type: Option<crate::srd::DamageType>,
 }
 
 fn default_crit() -> f32 {
@@ -516,7 +520,7 @@ fn default_knockback() -> f32 {
 impl Weapon {
     /// A melee weapon with default reach / arc / knockback.
     pub fn melee(damage: i32, cooldown: f32) -> Self {
-        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None, crit: default_crit() }
+        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None, crit: default_crit(), damage_type: None }
     }
     pub fn ranged(damage: i32, cooldown: f32, ranged: Ranged) -> Self {
         Weapon { ranged: Some(ranged), ..Weapon::melee(damage, cooldown) }
@@ -580,6 +584,9 @@ pub struct Armor {
     /// Movement speed change, e.g. -0.1 = 10% slower.
     #[serde(default)]
     pub speed: f32,
+    /// Damage types its wearer resists (half damage): `fire`, `poison`…
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resistances: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -1417,7 +1424,7 @@ pub struct CharacterDef {
     pub xp: u32,
     /// A status effect its touch gives the player (hostile characters, with contact damage).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub touch_effect: Option<crate::effects::EffectSpec>,
+    pub touch_effect: Option<crate::srd::ConditionSpec>,
     /// Seconds a hostile character winds up before its weapon swing or lunge (0 = the standard
     /// 0.4 s swing / 0.3 s lunge): the time the player has to step out of the way.
     #[serde(default, skip_serializing_if = "is_zero_f32")]
@@ -2420,7 +2427,7 @@ mod tests {
         let mut item: ItemDef = ron::from_str(r#"(id: "cap", name: "Cap", icon: (sheet: "items", frame: 0))"#).unwrap();
         assert_eq!(item.equip_slot(), None);
         assert_eq!(item.max_stack, crate::inventory::DEFAULT_STACK);
-        item.armor = Some(Armor { slot: EquipSlot::Head, defense: 1, speed: 0.0 });
+        item.armor = Some(Armor { slot: EquipSlot::Head, defense: 1, speed: 0.0, resistances: Vec::new() });
         assert_eq!(item.equip_slot(), Some(EquipSlot::Head));
         item.weapon = Some(Weapon::melee(1, 0.3));
         assert_eq!(item.equip_slot(), Some(EquipSlot::Weapon));

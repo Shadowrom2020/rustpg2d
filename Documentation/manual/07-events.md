@@ -62,7 +62,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Proficient in** | The hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`, `save:dex`). Until 0.27 *Skill level* |
 | **Check passed** | The last ability check or saving throw (an *Ability check* action, a lock, crafting, `check()` in a script) succeeded, by at least a number (0 = just succeeded) |
 | **Knows spell**, **Player level** | Character progress |
-| **Player has effect** | Poisoned, slowed… |
+| **Player has condition** | Poisoned, prone, exhausted… (or any condition); until 0.27 *Player has effect* |
 | **Defeated count** | How many of a character kind the player has defeated (the bestiary's count) |
 | **Pose** | A character is sitting, lying, at furniture or on its feet |
 | **Script** | A script function returning yes / no |
@@ -161,8 +161,8 @@ across map changes and in save games.
   across map changes until *Fade in*, so a *Teleport* between them changes maps unseen; dialogs
   and the HUD stay over it). The tint goes over the world and the pictures, under the HUD.
 - **Play effect** (an animation once), **Fly sprite to point** (a projectile that calls a script on
-  arrival), **Light at point**, **Light around player**, **Damage area**, **Damage around player**,
-  **Heal area**, **Aim (then run script)**.
+  arrival), **Light at point**, **Light around player**, **Damage area**, **Damage around player**
+  (both with a damage type: fire, cold…), **Heal area**, **Aim (then run script)**.
 
 **Rules (SRD 5.1)**
 - **Ability check**: rolls a check of the hero against a DC (5 very easy, 10 easy, 15 medium, 20
@@ -174,13 +174,22 @@ across map changes and in save games.
   modifier, `PROF` = the proficiency bonus) into a variable.
 - **Set proficiency**: makes the hero proficient in a skill, tool or saving throw, or takes it
   away. Until 0.27 *Set skill level*; *Give skill points (unused)* does nothing since then.
+- **Apply condition**: a [condition](09-gameplay.md#conditions-and-damage) on the player or a
+  character (poisoned, prone, exhaustion with its levels…) for some seconds (0 = until removed),
+  with an optional **saving throw** that keeps it off (ability and DC) and **every round** damage
+  of a type or healing (`1d4` fire, `2` healing). *None* as the condition = only the per-round part.
+  Until 0.27 *Apply effect*.
+- **Remove condition**: one condition, or all of them with their damage per round. Until 0.27
+  *Cure effect*.
+- **Short rest**: opens the rest window, where the hero spends hit dice; an hour passes.
+- **Long rest** (hours, 8): like sleeping without a bed: full HP, half the hit dice back, one level of
+  exhaustion less, the timed conditions over ([Gameplay › Rests](09-gameplay.md#rests)).
 
 In the example, Tilda's quest reward offers "Ask for a bit more": an *Ability check* (Persuasion,
 DC 13) whose success gives ten more coins.
 
 **Magic**
-- **Learn spell**, **Teach spell** (a character, e.g. a companion), **Add mana**, **Apply effect**,
-  **Cure effect**.
+- **Learn spell**, **Teach spell** (a character, e.g. a companion), **Add mana**.
 
 AI agents get every event, condition and action with its fields as JSON ([below](#the-json-form-ai-agents-hand-written-files)).
 

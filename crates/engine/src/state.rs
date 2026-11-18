@@ -289,9 +289,10 @@ pub struct WorldState {
     /// Hit dice left to spend on short rests (None = all of them: the level).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hit_dice: Option<u32>,
-    /// The player's running status effects (poison, haste, ...).
+    /// The hero's conditions (poisoned, prone, exhaustion…) and ongoing damage or healing; until
+    /// 0.27 status effects, which read as their nearest condition.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub effects: Vec<crate::effects::ActiveEffect>,
+    pub effects: Vec<crate::srd::ActiveCondition>,
     /// Bestiary: character definition id -> how many the player has defeated.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub bestiary: BTreeMap<String, u32>,
@@ -567,7 +568,19 @@ impl WorldState {
             eprintln!("[rules] '{what}' is no {} (an ability like dex, a skill like stealth, or ability:tool like dex:thieves-tools)", if save { "saving throw" } else { "ability check" });
             return None;
         };
-        let rec = spec.roll(&self.roller(), dc, mode);
+        // The hero's conditions: disadvantage (poisoned, frightened, exhaustion…), or a check or
+        // save that fails on its own (blinded and looking, stunned and dodging).
+        let rules = crate::srd::conditions::rules(&self.effects);
+        let dex = spec.ability == crate::srd::Ability::Dex;
+        let disadvantage = if save { rules.save_disadvantage || (dex && rules.dex_save_disadvantage) } else { rules.check_disadvantage };
+        let mode = if disadvantage { mode.combine(crate::srd::Mode::Disadvantage) } else { mode };
+        let fails = if save { rules.str_dex_saves_fail && (dex || spec.ability == crate::srd::Ability::Str) } else { rules.sight_checks_fail && crate::srd::conditions::needs_sight(&spec.proficiency) };
+        let mut rec = spec.roll(&self.roller(), dc, mode);
+        if fails {
+            rec.success = Some(false);
+            rec.dice = "fails (condition)".into();
+            rec.natural = 0;
+        }
         self.last_check = Some(rec.clone());
         self.log_roll(rec.clone());
         Some(rec)
@@ -785,6 +798,32 @@ impl WorldState {
 mod tests {
 
     #[test]
+    fn conditions_change_checks_and_saves() {
+        use crate::srd::{conditions, Condition, ConditionSpec, Mode};
+        crate::srd::dice::seed(5);
+        let mut w = WorldState::default();
+        let plain = w.check("athletics", 10, Mode::Normal, false).unwrap();
+        assert!(!plain.dice.contains('/'), "one d20: {}", plain.dice);
+        conditions::apply(&mut w.effects, &ConditionSpec::new(Condition::Poisoned, 30.0));
+        let poisoned = w.check("athletics", 10, Mode::Normal, false).unwrap();
+        assert_eq!(poisoned.mode, Mode::Disadvantage, "two d20s, the lower: {}", poisoned.dice);
+        assert_eq!(w.check("athletics", 10, Mode::Advantage, false).unwrap().mode, Mode::Normal, "they cancel out");
+        assert_eq!(w.check("con", 10, Mode::Normal, true).unwrap().mode, Mode::Normal, "saves aren't poisoned");
+        conditions::apply(&mut w.effects, &ConditionSpec::new(Condition::Stunned, 30.0));
+        let dex = w.check("dex", 1, Mode::Normal, true).unwrap();
+        assert_eq!(dex.success, Some(false), "stunned: DEX saves fail");
+        assert_eq!(w.check("wis", 1, Mode::Normal, true).unwrap().success, Some(true));
+        conditions::apply(&mut w.effects, &ConditionSpec::new(Condition::Blinded, 30.0));
+        assert_eq!(w.check("perception", 1, Mode::Normal, false).unwrap().success, Some(false), "blinded: sight fails");
+        // Saved and loaded again (and 0.27's effects read as conditions).
+        let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
+        assert_eq!(back.effects, w.effects);
+        let old: WorldState = ron::from_str(r#"(flags: [], vars: {}, inventory: {}, entities: {}, fired: [], current_map: "m", player_pos: (0.0, 0.0), player_facing: Down, effects: [(kind: Poison, strength: 0.5, remaining: 4.0, accum: 0.2), (kind: Haste, strength: 30.0, remaining: 9.0)])"#).unwrap();
+        assert!(conditions::has(&old.effects, Condition::Poisoned));
+        assert_eq!(old.effects[0].remaining, Some(4.0));
+    }
+
+    #[test]
     fn dropped_piles() {
         let mut w = WorldState::default();
         let (a, new_a) = w.add_dropped("village", "apple", 2, 100.0, 100.0, 16.0);
@@ -846,7 +885,7 @@ mod tests {
         assert_eq!((old.xp, old.player_level()), (0, 1));
         assert!(old.effects.is_empty() && old.bestiary.is_empty() && old.dialog_log.is_empty());
         let mut w = WorldState { xp: 250, level: 3, ..Default::default() };
-        crate::effects::apply(&mut w.effects, &crate::effects::EffectSpec::new(crate::effects::EffectKind::Haste, 30.0, 12.5));
+        crate::srd::conditions::apply(&mut w.effects, &crate::srd::ConditionSpec::new(crate::srd::Condition::Poisoned, 12.5));
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert_eq!((back.xp, back.player_level()), (250, 3));
         assert_eq!(back.effects, w.effects);

@@ -277,6 +277,11 @@ impl Game {
         let ts = self.ts();
         let e = &self.loaded.entities[i];
         let Some(Chase { sight, leash, flee_below, keep_distance, group, alert }) = chase_of(&e.behavior) else { return false };
+        // Its conditions: blinded it sees a tile, charmed it leaves the player alone, frightened
+        // it runs from them.
+        let rules = (!e.effects.is_empty()).then(|| crate::srd::conditions::rules(&e.effects));
+        let sight = if rules.as_ref().is_some_and(|r| r.blinded) { sight.min(1.0) } else { sight };
+        let (charmed, frightened) = rules.as_ref().map_or((false, false), |r| (r.charmed, r.frightened));
         if self.game_over.is_some() {
             self.loaded.entities[i].ai = Ai::default();
             return false;
@@ -314,7 +319,7 @@ impl Game {
         let player_mid = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
         // The player and companions only when it is hostile to the player. The player is
         // noticed later while sneaking and in the dark (`stealth.rs`).
-        if e.hostile {
+        if e.hostile && !charmed {
             let near = self.player.pos.distance(pos) <= super::stealth::NEAR_NOTICE.min(sight) * ts;
             if near || notices_within(self.player.pos, player_mid, self.player_sight(sight)) {
                 seen.push((Foe::Player, self.player.pos, player_mid));
@@ -337,7 +342,7 @@ impl Game {
         let (foe, target, target_mid) = nearest.map_or((None, self.player.pos, player_mid), |(f, t, m)| (Some(f), t, m));
         let to = target - pos;
         let dist = to.length();
-        let hurt = e.max_hp > 0 && flee_below > 0.0 && (e.hp as f32) < flee_below * e.max_hp as f32;
+        let hurt = frightened || (e.max_hp > 0 && flee_below > 0.0 && (e.hp as f32) < flee_below * e.max_hp as f32);
         let ranged = e.weapon.as_ref().and_then(|w| w.ranged.as_ref()).map(|r| r.range * ts);
         // Sent somewhere (*Rush to*): where that one is now.
         let rush = self.loaded.entities[i].ai.rush.map(|(to, left)| {

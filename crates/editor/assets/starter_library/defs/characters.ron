@@ -277,11 +277,18 @@
         defense: 0,
         xp: 10,
         touch_effect: Some((
-            kind: Poison,
-            strength: 0.5,
-            seconds: 6.0,
+            condition: Some(Poisoned),
+            seconds: 12.0,
+            save: Some((
+                ability: "con",
+                dc: 10,
+            )),
+            ongoing: Some((
+                dice: "1",
+                damage_type: Some(Poison),
+            )),
         )),
-        description: "A wobbling lump of green jelly from the Whisperwood dens. Slow and harmless-looking, but its touch is poisonous - keep an antidote handy.",
+        description: "A wobbling lump of green jelly from the Whisperwood dens. Slow and harmless-looking, but its touch poisons (a CON save avoids it) - keep an antidote handy.",
         triggers: [],
         shop: None,
         loot: [
@@ -2617,8 +2624,7 @@
         defense: 0,
         xp: 20,
         touch_effect: Some((
-            kind: Slow,
-            strength: 40.0,
+            condition: Some(Restrained),
             seconds: 3.0,
         )),
         description: "Restless bones from old graves. Their cold touch slows you down.",
@@ -2658,8 +2664,7 @@
         defense: 0,
         xp: 20,
         touch_effect: Some((
-            kind: Slow,
-            strength: 40.0,
+            condition: Some(Restrained),
             seconds: 3.0,
         )),
         description: "Restless bones from old graves. Their cold touch slows you down.",
@@ -3468,6 +3473,14 @@
         weapon: None,
         defense: 0,
         xp: 700,
+        touch_effect: Some((
+            condition: Some(Prone),
+            seconds: 2.0,
+            save: Some((
+                ability: "str",
+                dc: 13,
+            )),
+        )),
         windup: 0.9,
         description: "A troll that made a corner of a cave its home. It guards it and doesn\'t follow far.",
         triggers: [],

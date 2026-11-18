@@ -461,7 +461,7 @@ is healed above the threshold and falls below it once more; tick *once* to preve
 ```rust
 fn ogre_hurt() {                      // the ogre's "HP below 30 %" trigger runs this
     say(SELF, "You will pay for that!");
-    if hp_of(SELF) < 3 { apply_effect("self", "strength", 50, 20); }
+    if hp_of(SELF) < 3 { apply_condition("self", "frightened", 10); }   // and runs off
 }
 ```
 
@@ -894,41 +894,44 @@ fn trainer_talk() {
 }
 ```
 
-### Status effects
+### Conditions
 
-Timed effects on the player or a character. Weapons can give them on hit and hostile characters
-on touch (set in the Database); these functions start and end them from scripts, like the
-*Apply effect* / *Cure effect* actions. The player's effects are saved; a character's last until
-the map is left. Applying an effect that is already running restarts it with the longer duration
-and the stronger strength.
-
-| Effect | `strength` means |
-|---|---|
-| `"poison"`, `"burn"` | HP lost per second (fractions add up; defense doesn't help) |
-| `"regen"` | HP regained per second |
-| `"slow"`, `"haste"` | percent slower / faster movement |
-| `"strength"`, `"weakness"` | percent more / less damage dealt |
-| `"shield"` | extra defense |
-| `"stun"` | (unused) can't move or attack |
+The SRD's conditions on the hero or a character ([Gameplay › Conditions](09-gameplay.md#conditions-and-damage)):
+`blinded`, `charmed`, `deafened`, `frightened`, `grappled`, `incapacitated`, `invisible`,
+`paralyzed`, `petrified`, `poisoned`, `prone`, `restrained`, `stunned`, `unconscious` and
+`exhaustion` (levels 1 to 6). Weapons give them on hit and hostile characters on touch (set in the
+Database); these functions apply and remove them like the *Apply condition* / *Remove condition*
+actions. The hero's are saved; a character's last until the map is left. Applying one that is
+running keeps the longer duration; exhaustion adds a level.
 
 | Function | Description |
 |---|---|
-| `apply_effect(target, effect, strength, seconds)` | Starts an effect on `"player"`, `"self"` or a character's name. *(queued)* |
-| `cure(target, effect)` | Ends one effect, e.g. `cure("player", "poison")`. *(queued)* |
-| `cure(target)` | Ends all of the target's effects. *(queued)* |
-| `has_effect(effect)` | Whether the player has the effect right now. |
+| `apply_condition(target, condition, seconds)` | A condition on `"player"`, `"self"` or a character's name, for `seconds` (0 = until it is removed or a rest ends it). *(queued, since 0.28)* |
+| `apply_condition(target, condition, seconds, options)` | Like above with [options](#options-maps): `save` and `dc` (`#{ save: "con", dc: 12 }`: the target's saving throw keeps it off), `damage` and `type` (`"1d4"` of a damage type every round of 6 seconds, the first at once; `type: "heal"` heals instead), `level` (exhaustion levels). Condition `""` = only the damage or healing. *(queued, since 0.28)* |
+| `remove_condition(target, condition)` | Ends a condition (all levels of exhaustion); `""` or `"all"` = every condition and the damage per round. *(queued, since 0.28)* |
+| `has_condition(condition)` | Whether the hero has it (`"any"` = any condition). *(since 0.28)* |
+| `has_condition(target, condition)` | Whether `"player"`, `"self"` (or `SELF`) or a character on this map has it. *(since 0.28)* |
+| `exhaustion()` | The hero's exhaustion level (0-6). *(since 0.28)* |
+| `set_exhaustion(level)` | Sets it (0 = none; 6 is death). *(immediately, since 0.28)* |
+| `short_rest()` | Opens the rest window: the hero spends hit dice. *(queued, since 0.28)* |
+| `long_rest()` / `long_rest(hours)` | A long rest of 8 (or `hours`) hours, like sleeping: full HP, half the hit dice back, one level of exhaustion less, timed conditions over. *(queued, since 0.28)* |
+| `apply_effect(target, effect, strength, seconds)` | **Deprecated** since 0.28: use `apply_condition`. The status effects of 0.27 as conditions: `"poison"` = poisoned + poison damage per round (`strength` × 6), `"burn"` = fire damage per round, `"regen"` = healing per round, `"stun"` = stunned, `"slow"` = restrained; `"haste"`, `"strength"`, `"weakness"`, `"shield"` do nothing. *(queued)* |
+| `cure(target, effect)` | **Deprecated** since 0.28: use `remove_condition`. *(queued)* |
+| `cure(target)` | **Deprecated** since 0.28: use `remove_condition(target, "all")`. *(queued)* |
+| `has_effect(effect)` | **Deprecated** since 0.28: use `has_condition`. |
 
 ```rust
 fn swamp_gas() {
-    if !has_effect("poison") {
+    if !has_condition("poisoned") {
         say("The air here burns in your throat.");
     }
-    apply_effect("player", "poison", 1, 5);   // 1 HP per second for 5 seconds
+    // A CON saving throw (DC 12) keeps it off; 1d4 poison damage every round for 12 seconds.
+    apply_condition("player", "poisoned", 12, #{ save: "con", dc: 12, damage: "1d4", type: "poison" });
 }
 
 fn holy_water() {
-    cure("player");                              // every effect
-    apply_effect("player", "regen", 0.5, 10);
+    remove_condition("player", "all");
+    apply_condition("player", "", 18, #{ damage: "2", type: "heal" });   // 2 HP a round, 3 rounds
 }
 ```
 
@@ -943,8 +946,8 @@ Use these to build spells (and traps, cut-scenes, …) in scripts.
 | `fly(sheet, x, y, function, options)` | Like above with [options](#options-maps): `speed`, `frames` or `tag`, `fps`, `scale`, `light`, `color`. *(queued)* |
 | `effect(sheet, x, y)` | Plays the frames of a sprite sheet once, centered on `x, y` (explosions, sparkles). *(queued)* |
 | `effect(sheet, x, y, options)` | Like above with options: `frames` or `tag` (a named animation, e.g. `#{ tag: "explode" }`), `fps`, `scale`, `light`, `color`, `shake` (seconds the screen shakes as it starts). *(queued)* |
-| `damage_area(x, y, radius, damage)` | Damages every character within `radius` tiles of `x, y`. Never hurts the player. *(queued)* |
-| `damage_around(damage, radius)` | The same around the player. *(queued)* |
+| `damage_area(x, y, radius, damage)` / `damage_area(x, y, radius, damage, damage_type)` | Damages every character within `radius` tiles of `x, y`, of a damage type when one is given (`"fire"`, `"cold"`…: resistances halve it, immunities stop it). Never hurts the player. *(queued; the damage type since 0.28)* |
+| `damage_around(damage, radius)` / `damage_around(damage, radius, damage_type)` | The same around the player. *(queued; the damage type since 0.28)* |
 
 **Spell costs**: when a spell's *Script* function calls `aim`, the spell's mana and cooldown are
 spent only once the player has chosen a target; cancelling costs nothing. Without `aim`, they

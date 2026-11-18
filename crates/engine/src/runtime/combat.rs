@@ -33,8 +33,9 @@ pub(super) struct Projectile {
     /// Entity that fired it (never hit by its own shot).
     shooter: Option<u32>,
     sprite: SpriteRef,
-    /// A status effect for whoever it hits.
-    effect: Option<crate::effects::EffectSpec>,
+    /// A condition for whoever it hits.
+    effect: Option<crate::srd::ConditionSpec>,
+    damage_type: Option<crate::srd::DamageType>,
     /// A critical shot of the player's (its damage already doubled).
     crit: bool,
     /// An enemy's shot: it may hit the player and companions (its shooter is hostile to them).
@@ -55,6 +56,8 @@ pub(super) struct Blow {
     /// Where the player's side attacked from (the player's or a companion's feet): an enemy the
     /// blow hurts notices it, however far it came from (`ai.rs` `notice_attack`).
     pub attacker: Option<Vec2>,
+    /// Its damage type (resistances; `None` = untyped).
+    pub damage_type: Option<crate::srd::DamageType>,
 }
 
 impl Projectile {
@@ -269,10 +272,10 @@ impl Game {
                 .loaded
                 .entities
                 .iter()
-                .position(|e| e.active && e.hostile && e.damage > 0 && !e.ai.harmless() && !crate::effects::stunned(&e.effects) && e.body.rect().overlaps(&me) && super::attacks::kind_of(e.weapon.as_ref(), e.damage, &e.behavior).is_none());
+                .position(|e| e.active && e.hostile && e.damage > 0 && !e.ai.harmless() && crate::srd::conditions::can_act(&e.effects) && !crate::srd::conditions::has(&e.effects, crate::srd::Condition::Charmed) && e.body.rect().overlaps(&me) && super::attacks::kind_of(e.weapon.as_ref(), e.damage, &e.behavior).is_none());
             if let Some(i) = hit {
                 let e = &self.loaded.entities[i];
-                let (dmg, from) = (crate::effects::scale_damage(&e.effects, e.damage), e.body.pos);
+                let (dmg, from) = (e.damage, e.body.pos);
                 match self.guard_against(from) {
                     super::defense::Guard::Open => {
                         if let Some(fx) = self.touch_effect(i) {
@@ -294,6 +297,10 @@ impl Game {
     pub(super) fn attack_at(&mut self, aim: Option<Vec2>) {
         // Both hands on the rungs.
         if !self.combat.enabled() || self.combat.cooldown > 0.0 || self.player_stunned() || self.climbing() {
+            return;
+        }
+        // Charmed: the hero won't attack.
+        if crate::srd::conditions::has(&self.world.effects, crate::srd::Condition::Charmed) {
             return;
         }
         // Both hands full.
@@ -327,7 +334,7 @@ impl Game {
             self.start_strike(cooldown);
             self.audio.play(&self.project.config.sfx.attack);
             let crit = self.roll_crit(weapon.crit);
-            self.shoot(origin, dir, &r, if crit { damage * 2 } else { damage }, true, None, weapon.effect);
+            self.shoot(origin, dir, &r, if crit { damage * 2 } else { damage }, true, None, weapon.effect.clone(), weapon.damage_type);
             if let Some(p) = self.projectiles.last_mut() {
                 p.crit = crit;
             }
@@ -384,7 +391,7 @@ impl Game {
             let crit = self.roll_crit(weapon.crit);
             let (dmg, sneak) = self.sneak_attack(i, if crit { damage * 2 } else { damage });
             let attacker = Some(self.player.pos);
-            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit: crit || sneak, attacker, ..Default::default() });
+            self.strike_entity(i, dmg, from, weapon.knockback, Blow { by_player: true, crit: crit || sneak, attacker, damage_type: weapon.damage_type, ..Default::default() });
         }
     }
 
@@ -400,7 +407,7 @@ impl Game {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn shoot(&mut self, origin: Vec2, dir: Vec2, r: &Ranged, damage: i32, from_player: bool, shooter: Option<u32>, effect: Option<crate::effects::EffectSpec>) {
+    pub(super) fn shoot(&mut self, origin: Vec2, dir: Vec2, r: &Ranged, damage: i32, from_player: bool, shooter: Option<u32>, effect: Option<crate::srd::ConditionSpec>, damage_type: Option<crate::srd::DamageType>) {
         self.projectiles.push(Projectile {
             pos: origin + dir * 4.0,
             vel: dir * r.speed.max(10.0),
@@ -411,6 +418,7 @@ impl Game {
             shooter,
             sprite: r.projectile.clone(),
             effect,
+            damage_type,
             crit: false,
             at_player: true,
             faction: None,
@@ -452,7 +460,7 @@ impl Game {
                 }
             }
             let e = &mut self.loaded.entities[i];
-            if !e.active || e.ai.harmless() || crate::effects::stunned(&e.effects) {
+            if !e.active || e.ai.harmless() || !crate::srd::conditions::can_act(&e.effects) {
                 continue;
             }
             let Some(w) = &e.weapon else { continue };
@@ -463,7 +471,7 @@ impl Game {
             }
             let origin = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0 + 2.0);
             let range = r.range * ts;
-            let (r, dmg, uid, cd, fx) = (r.clone(), crate::effects::scale_damage(&e.effects, w.damage), e.uid, w.cooldown, w.effect);
+            let (r, dmg, uid, cd, fx) = (r.clone(), w.damage, e.uid, w.cooldown, (w.effect.clone(), w.damage_type));
             let mut near: Vec<Vec2> = aims.iter().copied().filter(|a| origin.distance(*a) <= range).collect();
             near.sort_by(|a, b| origin.distance(*a).total_cmp(&origin.distance(*b)));
             let Some(target) = near.into_iter().find(|a| self.line_clear(origin, *a)) else { continue };
@@ -477,7 +485,7 @@ impl Game {
         }
         for (origin, dir, r, dmg, uid, fx) in shots {
             self.audio.play(&self.project.config.sfx.attack);
-            self.shoot(origin, dir, &r, dmg, false, Some(uid), fx);
+            self.shoot(origin, dir, &r, dmg, false, Some(uid), fx.0, fx.1);
         }
     }
 
@@ -513,13 +521,13 @@ impl Game {
                         }
                     });
                     if let Some(t) = target {
-                        let (mut dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                        let (mut dmg, from, fx, damage_type) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect.clone(), p.damage_type);
                         // Shot by the player or a companion: the target notices where from.
                         let attacker = match p.shooter {
                             None => Some(self.player.pos),
                             Some(uid) => self.loaded.entities.iter().find(|e| e.uid == uid).map(|e| e.body.pos),
                         };
-                        let mut blow = Blow { by_player: p.shooter.is_none(), crit: p.crit, attacker, ..Default::default() };
+                        let mut blow = Blow { by_player: p.shooter.is_none(), crit: p.crit, attacker, damage_type, ..Default::default() };
                         // The player's own shot (not a companion's) at an enemy that hasn't noticed them.
                         if blow.by_player {
                             let (d, sneak) = self.sneak_attack(t, dmg);
@@ -543,11 +551,11 @@ impl Game {
                         })
                     });
                     if let Some(t) = foe {
-                        let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                        let (dmg, from, fx, damage_type) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect.clone(), p.damage_type);
                         if let Some(fx) = fx {
                             self.apply_entity_effect(t, &fx);
                         }
-                        self.npc_hits(t, dmg, from, 1.0);
+                        self.npc_hits(t, dmg, from, 1.0, damage_type);
                         alive = false;
                         break;
                     }
@@ -558,11 +566,11 @@ impl Game {
                             self.loaded.entities[c].invuln <= 0.0 && Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8).overlaps(&hit_box)
                         });
                         if let Some(c) = companion {
-                            let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                            let (dmg, from, fx, damage_type) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect.clone(), p.damage_type);
                             if let Some(fx) = fx {
                                 self.apply_entity_effect(c, &fx);
                             }
-                            self.damage_entity(c, dmg, from, 1.0);
+                            self.strike_entity(c, dmg, from, 1.0, Blow { damage_type, ..Default::default() });
                             alive = false;
                             break;
                         }
@@ -570,14 +578,14 @@ impl Game {
                         let body = Rect::new(r.x, r.y - ts * 0.8, r.w, r.h + ts * 0.8);
                         // A rolling player lets arrows fly past; a raised shield stops them from the front.
                         if body.overlaps(&hit_box) && !self.rolling() {
-                            let (dmg, from, fx) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect);
+                            let (dmg, from, fx, damage_type) = (p.damage, pos - p.vel.normalize_or_zero() * 8.0, p.effect.clone(), p.damage_type);
                             match self.guard_against(pos - p.vel.normalize_or_zero() * ts * 2.0) {
                                 super::defense::Guard::Open => {
                                     if self.combat.invuln <= 0.0 {
                                         if let Some(fx) = fx {
                                             self.apply_player_effect(&fx);
                                         }
-                                        self.hurt_player(dmg, from);
+                                        self.hurt_player_by(dmg, from, damage_type);
                                     }
                                 }
                                 // (No parry: there is nobody within reach to stun.)
@@ -628,8 +636,21 @@ impl Game {
     /// moment (longer for a critical hit or a kill), critical ones shake it a little.
     pub(super) fn strike_entity(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32, blow: Blow) {
         let (u, ts) = (self.u(), self.ts());
+        // Its damage type against its stat block's resistances (immune: nothing), and a helpless
+        // target (paralyzed, unconscious) takes a critical hit.
+        let defenses = self.stat_block(&self.loaded.entities[i]).map(|s| s.defenses()).unwrap_or_default();
         let e = &self.loaded.entities[i];
-        let mut hit = (dmg - e.defense - crate::effects::defense_bonus(&e.effects)).max(1);
+        let mut blow = blow;
+        let mut dmg = dmg;
+        if !e.effects.is_empty() && crate::srd::conditions::rules(&e.effects).hits_crit && !blow.crit {
+            dmg *= 2;
+            blow.crit = true;
+        }
+        let typed = defenses.apply(dmg, blow.damage_type);
+        if typed <= 0 && dmg > 0 {
+            return;
+        }
+        let mut hit = (typed - e.defense).max(1);
         // Script hook: the damage can change (0 = none).
         if self.hooked("damage") {
             let (name, def) = (e.name.clone(), e.def.clone());
@@ -708,12 +729,9 @@ impl Game {
 
     /// A character (or companion) hit by a character fighting it: companions as by an enemy,
     /// others as a blow of another character (no experience for the player).
-    pub(super) fn npc_hits(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32) {
-        if self.loaded.entities[i].companion.is_some() {
-            self.damage_entity(i, dmg, from, knockback);
-        } else {
-            self.strike_entity(i, dmg, from, knockback, Blow { by_npc: true, ..Default::default() });
-        }
+    pub(super) fn npc_hits(&mut self, i: usize, dmg: i32, from: Vec2, knockback: f32, damage_type: Option<crate::srd::DamageType>) {
+        let by_npc = self.loaded.entities[i].companion.is_none();
+        self.strike_entity(i, dmg, from, knockback, Blow { by_npc, damage_type, ..Default::default() });
     }
 
     fn defeat_with(&mut self, i: usize, xp: bool) {
@@ -771,8 +789,18 @@ impl Game {
     }
 
     pub(super) fn hurt_player(&mut self, dmg: i32, from: Vec2) {
+        self.hurt_player_by(dmg, from, None);
+    }
+
+    /// [`Self::hurt_player`] with a damage type: the hero's resistances halve it (an immunity:
+    /// nothing).
+    pub(super) fn hurt_player_by(&mut self, dmg: i32, from: Vec2, damage_type: Option<crate::srd::DamageType>) {
         // A dodge roll gets through anything.
         if !self.combat.enabled() || self.game_over.is_some() || self.rolling() {
+            return;
+        }
+        let dmg = self.player_defenses().apply(dmg, damage_type);
+        if dmg <= 0 {
             return;
         }
         // Armor absorbs damage, but at least 1 always gets through.
@@ -911,7 +939,9 @@ impl Game {
         // Status effects: small colored squares above the health bar.
         for e in self.loaded.entities.iter().filter(|e| e.active && !e.effects.is_empty()) {
             // Above the head of a full-height (1.5 tiles) character.
-            self.draw_npc_effects(e.body.pos.x, e.body.pos.y - ts * 1.5 - 2.0 * u, &e.effects);
+            // (Over the head; a character lying down has it lower.)
+            let lying = crate::srd::conditions::rules(&e.effects).lying;
+            self.draw_npc_effects(e.body.pos.x, e.body.pos.y - if lying { ts * 0.8 } else { ts * 1.5 + 2.0 * u }, &e.effects);
         }
         for (pos, age) in &self.effects {
             let t = age / EFFECT_TIME;

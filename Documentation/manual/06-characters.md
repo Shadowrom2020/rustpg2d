@@ -149,7 +149,7 @@ Then set the character's behaviour and combat values in the form.
 | **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
 | **Look & equipment** | The character editor: model, colours, equipment, carried items |
 | **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
-| **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), an effect **On touch** (poison, slow…), an optional ranged attack for hostile characters |
+| **Combat** | **Max HP** (0 = can't be defeated), **Damage**, **Defense**, **Hostile**, **Attack wind-up** (seconds before a swing or lunge; 0 = standard), a condition **On touch** (poisoned, prone…, with a saving throw and damage every round; it also comes with the hits of a weapon it holds), an optional ranged attack for hostile characters |
 | **Experience** | XP the player gets for defeating it |
 | **Stat block (SRD 5.1)** | What it is by the rules, from a template or by hand ([below](#stat-blocks)) |
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
@@ -168,12 +168,16 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
 - **Template**: the SRD's 35 NPCs (acolyte, bandit, bandit captain, commoner, cultist, guard, knight,
   mage, noble, priest, scout, spy, thug, veteran, and the goblin, hobgoblin, orc, gnoll, kobold and
   the other humanoids). Choosing one fills in the whole block and sets the character's *Experience*
-  to the template's XP; change any field afterwards. *By hand* starts an empty one, *Remove stat
+  to the template's XP; change any field afterwards.
+- **Resistant to**, **Immune to**, **Vulnerable to**: damage types it takes half, no or double
+  damage from (they work in real-time combat already: an assassin shrugs off half of the poison);
+  **Can't get**: conditions it is immune to (a grimlock can't be blinded). Saving throws against
+  conditions are rolled with its scores and proficiencies. *By hand* starts an empty one, *Remove stat
   block* takes it away.
 - A **placed character** can have its own (the map's inspector, *Stat block (SRD 5.1)* › *Own stat
   block…*): the captain among the guards.
-- For now the stat block is information: scripts read it (`npc_stat("Brom", "ac")`), automated runs
-  see it (`statblocks=`), and real-time combat keeps using *Max HP*, *Damage* and *Defense*. The
+- Scripts read it (`npc_stat("Brom", "ac")`) and automated runs see it (`statblocks=`). Real-time
+  combat uses its resistances and saving throws, and keeps using *Max HP*, *Damage* and *Defense*. The
   turn-based combat of 0.29 fights with it, and the monsters' stat blocks (beasts, undead, trolls)
   come with it.
 

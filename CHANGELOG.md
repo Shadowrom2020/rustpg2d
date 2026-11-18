@@ -22,6 +22,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   they run out; they pause in menus and dialogs and are saved. Scripts: `timer_start`,
   `timer_left`, `timer_stop`; `status` prints `timers=`. The example has a new errand, *Hot Soup*:
   bring Greta's stew to Elder Rowan before it goes cold.
+- **Number and text input**: *Input number* (from, to, digits; typed, or Up / Down for the
+  gamepad) and *Input text* (into a **text variable**, prefilled with its value) ask the player,
+  and the event waits. Text variables show in any text by `{name}`, are saved, and have a *Text
+  variable* condition and `get_text` / `set_text`; scripts ask with `input_number` / `input_text`.
+  `status` prints `input=` and `texts=`. The example: a riddle board by the Whisperwood shrine,
+  and naming the old stone house once it is yours.
 
 ## 0.25.0 — 2026-11-18
 

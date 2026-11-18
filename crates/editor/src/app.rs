@@ -3384,7 +3384,7 @@ pub fn collect_names(ts: &[rustpg2d_engine::events::Trigger], flags: &mut Vec<St
         rustpg2d_engine::events::walk_actions(a, &mut |a| match a {
             Action::SetFlag { name, .. } => flags.push(name.clone()),
             Action::SetVar { name, .. } => vars.push(name.clone()),
-            Action::Choice { var, .. } => vars.push(var.clone()),
+            Action::Choice { var, .. } | Action::InputNumber { var, .. } => vars.push(var.clone()),
             Action::If { conditions, .. } => conds(conditions, flags, vars),
             _ => {}
         });

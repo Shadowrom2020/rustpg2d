@@ -262,6 +262,10 @@ pub struct WorldState {
     /// Characters following the player, in the order they joined.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub companions: Vec<Companion>,
+    /// Text variables (*Input text*, `set_text`): shown by `{name}` placeholders like number
+    /// variables (a text variable wins over a number variable of the same name).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub texts: BTreeMap<String, String>,
     /// Running timers (*Start timer*), by name.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub timers: BTreeMap<String, crate::timers::Timer>,
@@ -523,6 +527,8 @@ impl WorldState {
                 let mut parts = inner.splitn(2, '|');
                 let (m, f) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
                 out.push_str(if self.player_sex == Sex::Female { f } else { m });
+            } else if let Some(t) = self.texts.get(inner).filter(|_| ident) {
+                out.push_str(t);
             } else if ident {
                 out.push_str(&self.var(inner).to_string());
             } else {
@@ -613,6 +619,11 @@ impl WorldState {
             self.flags.remove(name);
         }
     }
+    /// A text variable ("" when unset).
+    pub fn text(&self, name: &str) -> &str {
+        self.texts.get(name).map_or("", String::as_str)
+    }
+
     pub fn var(&self, name: &str) -> i64 {
         self.vars.get(name).copied().unwrap_or(0)
     }

@@ -83,6 +83,8 @@
         "Please enter a name.": "Digite um nome.",
         "{}-{} of {}": "{}-{} de {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} ou clique",
+        "Type a number · {key:up}/{key:down}: one more / less · Enter or {key:confirm}: done": "Digite um número · {key:up}/{key:down}: um a mais / a menos · Enter ou {key:confirm}: pronto",
+        "Type · Backspace: delete · Enter: done": "Digite · Backspace: apagar · Enter: pronto",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} ou clique · {key:cancel}: fechar",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume": "{key:up}/{key:down} + {key:confirm} ou clique · {key:cancel}: retomar",
         "Pick a save to overwrite, or make a new one · {key:cancel}: back": "Escolha um save para sobrescrever ou crie um novo · {key:cancel}: voltar",

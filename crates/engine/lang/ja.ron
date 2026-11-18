@@ -84,6 +84,8 @@
         "Please enter a name.": "名前を入力してください。",
         "{}-{} of {}": "{}-{} / {}",
         "{key:up}/{key:down} + {key:confirm} or click": "{key:up}/{key:down} + {key:confirm} またはクリック",
+        "Type a number · {key:up}/{key:down}: one more / less · Enter or {key:confirm}: done": "数字を入力 · {key:up}/{key:down}：1つ増やす／減らす · Enter または {key:confirm}：決定",
+        "Type · Backspace: delete · Enter: done": "入力 · Backspace：削除 · Enter：決定",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close": "{key:up}/{key:down} + {key:confirm} またはクリック · {key:cancel}：閉じる",
         "{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: resume": "{key:up}/{key:down} + {key:confirm} またはクリック · {key:cancel}：再開",
         "Pick a save to overwrite, or make a new one · {key:cancel}: back": "上書きするセーブを選ぶか、新しく作ります · {key:cancel}：戻る",

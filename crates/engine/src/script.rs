@@ -368,6 +368,19 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }
     engine.register_fn("say", with!(ctx, |c, speaker: &str, text: &str, opts: rhai::Map| say_with(&mut c, speaker.into(), text, &opts)));
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
+    // Text variables (immediately) and asking the player (queued).
+    engine.register_fn("get_text", with!(ctx, |c, name: &str| c.world.text(name).to_string()));
+    engine.register_fn("set_text", with!(ctx, |c, name: &str, value: &str| {
+        c.world.texts.insert(name.to_string(), value.to_string());
+    }));
+    engine.register_fn("input_number", with!(ctx, |c, text: &str, var: &str, min: Dynamic, max: Dynamic| c.actions.push(Action::InputNumber {
+        text: text.into(),
+        var: var.into(),
+        digits: 0,
+        min: num(&min) as i64,
+        max: num(&max) as i64,
+    })));
+    engine.register_fn("input_text", with!(ctx, |c, text: &str, var: &str, max_len: Dynamic| c.actions.push(Action::InputText { text: text.into(), var: var.into(), max_len: num(&max_len).max(1.0) as u32 })));
     // Timers (immediately).
     engine.register_fn("timer_start", with!(ctx, |c, name: &str, secs: Dynamic| {
         c.world.timers.insert(name.to_string(), crate::timers::Timer::new(num(&secs), false, "", ""));

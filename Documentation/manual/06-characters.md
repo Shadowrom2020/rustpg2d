@@ -158,6 +158,23 @@ Then set the character's behaviour and combat values in the form.
 | **Light** | Carries a light (a lantern); placed characters can carry their own instead |
 | **Default triggers** | Triggers every copy runs ([Events](07-events.md)) |
 
+### Monsters
+
+The asset library has the SRD 5.1's **334 monsters** as characters, from the aboleth to the zombie
+(the beasts, undead, dragons, giants, fiends… and the humanoid NPCs), with their whole stat block:
+abilities, armor class, hit points, speeds, senses, attacks and Multiattack, challenge and XP, and
+the texts of their traits, actions, reactions and legendary actions. Monsters attack the player
+(*Hostile*, *Chase foes*); humanoids live among others unless they are evil. Their look is a library
+model where one fits (wolves, bats, skeletons for undead, the slime for oozes, the guard, bandit,
+noble and priest models for those NPCs), else the **mannequin**, drawn at the creature's size (Tiny
+50 %, Small 75 %, Large 150 %, Huge 200 %, Gargantuan 300 %) until models for the monsters come. *Add
+from library* (filter *Characters*, search the name) brings one into a project; place it or name it
+in an [encounter](04-objects-and-zones.md#encounters).
+
+What acts in fights is the stat block's attacks; the traits and special actions (Pack Tactics,
+breath weapons, Regeneration, legendary actions) are texts for now and act in 0.32. Large and bigger
+creatures still take one tile in fights; flying monsters move at their flying speed.
+
 ### Stat blocks
 
 A character can have an **SRD stat block**: the six ability scores, **armor class**, **hit points**
@@ -168,6 +185,10 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   mage, noble, priest, scout, spy, thug, veteran, and the goblin, hobgoblin, orc, gnoll, kobold and
   the other humanoids). Choosing one fills in the whole block and sets the character's *Experience*
   to the template's XP; change any field afterwards.
+- **Size and type**, the **speeds** besides walking (fly, swim, climb) and the **senses** as the
+  SRD writes them; the size scales the look of monsters made by the import.
+- **Traits and special actions**: the SRD's texts (*Trait*, *Action*, *Reaction*, *Legendary
+  action*), shown in the bestiary; they act with a later release.
 - **Attacks**: what it attacks with in fights: a name, the **attack bonus**, the **damage dice**
   with the modifier (`1d6+2`) and type, a melee **reach** and / or a **range** (normal / long, in
   feet; a tile is 5 ft), and **per turn** (Multiattack: how many attacks its Attack action makes).

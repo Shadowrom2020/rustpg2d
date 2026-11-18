@@ -12,6 +12,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use rustpg2d_engine::backgrounds::BackgroundDef;
+use rustpg2d_engine::defs::CharacterDef;
 use rustpg2d_engine::races::{ChoiceKind, RaceChoice, RaceDef, RaceSkill, RaceTrait};
 use serde_json::Value;
 
@@ -256,50 +257,209 @@ impl SrdData {
 impl SrdData {
     /// The SRD's NPC humanoids as stat block templates (not the lycanthropes' forms).
     pub fn npc_templates(&self) -> Vec<rustpg2d_engine::srd::StatBlock> {
-        let feet = |v: Option<&str>| v.and_then(|s| s.split_whitespace().next()).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0);
-        self.monsters
-            .iter()
-            .filter(|m| s(m, "type") == "humanoid" && !s(m, "index").starts_with("were"))
-            .map(|m| {
-                let score = |k: &str| m.get(k).and_then(Value::as_i64).unwrap_or(10) as i32;
-                let cr = m.get("challenge_rating").and_then(Value::as_f64).unwrap_or(0.0);
-                let cr = match cr {
-                    c if (c - 0.125).abs() < 1e-6 => "1/8".to_string(),
-                    c if (c - 0.25).abs() < 1e-6 => "1/4".to_string(),
-                    c if (c - 0.5).abs() < 1e-6 => "1/2".to_string(),
-                    c => format!("{}", c as i64),
-                };
-                let proficiencies = list(m, "proficiencies")
-                    .iter()
-                    .filter_map(|p| p.pointer("/proficiency/index").and_then(Value::as_str))
-                    .map(|p| match p.strip_prefix("saving-throw-") {
-                        Some(a) => format!("save:{a}"),
-                        None => prof_id(p),
-                    })
-                    .collect();
-                rustpg2d_engine::srd::StatBlock {
-                    template: s(m, "index").into(),
-                    name: s(m, "name").into(),
-                    abilities: rustpg2d_engine::srd::Abilities([score("strength"), score("dexterity"), score("constitution"), score("intelligence"), score("wisdom"), score("charisma")]),
-                    ac: m.pointer("/armor_class/0/value").and_then(Value::as_i64).unwrap_or(10) as i32,
-                    hp: m.get("hit_points").and_then(Value::as_i64).unwrap_or(1) as i32,
-                    hit_dice: m.get("hit_points_roll").and_then(Value::as_str).unwrap_or(s(m, "hit_dice")).to_string(),
-                    speed_ft: feet(m.pointer("/speed/walk").and_then(Value::as_str)),
-                    darkvision_ft: feet(m.pointer("/senses/darkvision").and_then(Value::as_str)),
-                    proficiencies,
-                    languages: s(m, "languages").into(),
-                    alignment: s(m, "alignment").into(),
-                    cr,
-                    xp: m.get("xp").and_then(Value::as_u64).unwrap_or(0) as u32,
-                    resistances: strings(m, "damage_resistances"),
-                    immunities: strings(m, "damage_immunities"),
-                    vulnerabilities: strings(m, "damage_vulnerabilities"),
-                    condition_immunities: list(m, "condition_immunities").iter().map(|c| s(c, "index").to_string()).collect(),
-                    attacks: list(m, "actions").iter().filter_map(stat_attack).collect(),
-                    multiattack: list(m, "actions").iter().find(|a| s(a, "name") == "Multiattack").map_or(0, |a| multiattack_count(&desc(a))),
+        self.monsters.iter().filter(|m| s(m, "type") == "humanoid" && !s(m, "index").starts_with("were")).map(monster_block).collect()
+    }
+
+    /// The ids of every SRD monster (`rules.ron`).
+    pub fn monster_ids(&self) -> Vec<String> {
+        self.monsters.iter().map(|m| s(m, "index").to_string()).collect()
+    }
+
+    /// Every SRD monster as a character definition in `chars`: a new one per monster (`add`), and
+    /// the SRD's data for those already there: a definition of the monster's id without a block
+    /// of the SRD's (a hand-made wolf) takes the whole block, its HP and XP; any character with
+    /// an SRD monster's block keeps its numbers (a tougher orc chief) and only gains what it lacks
+    /// (size, type, speeds, senses, features). Returns (added, updated).
+    pub fn import_monsters(&self, chars: &mut Vec<CharacterDef>, add: bool) -> (usize, usize) {
+        let blocks: BTreeMap<String, rustpg2d_engine::srd::StatBlock> = self.monsters.iter().map(|m| (s(m, "index").to_string(), monster_block(m))).collect();
+        let (mut added, mut updated) = (0, 0);
+        for c in chars.iter_mut() {
+            let before = c.clone();
+            let own = c.stats.as_ref().map(|b| b.template.clone()).filter(|t| blocks.contains_key(t));
+            match (own, blocks.get(&c.id)) {
+                (Some(t), _) => {
+                    let src = &blocks[&t];
+                    let b = c.stats.as_mut().unwrap();
+                    b.size = src.size;
+                    b.creature_type = src.creature_type.clone();
+                    b.speeds = src.speeds;
+                    b.senses = src.senses.clone();
+                    b.features = src.features.clone();
+                    if b.attacks.is_empty() {
+                        b.attacks = src.attacks.clone();
+                        b.multiattack = src.multiattack;
+                    }
                 }
-            })
-            .collect()
+                (None, Some(src)) => {
+                    c.stats = Some(src.clone());
+                    if c.max_hp > 0 {
+                        c.max_hp = src.hp;
+                        c.xp = src.xp;
+                    }
+                }
+                (None, None) => {}
+            }
+            if *c != before {
+                updated += 1;
+            }
+        }
+        if !add {
+            return (added, updated);
+        }
+        for m in &self.monsters {
+            let id = s(m, "index");
+            if chars.iter().any(|c| c.id == id) {
+                continue;
+            }
+            chars.push(monster_character(m, &blocks[id]));
+            added += 1;
+        }
+        (added, updated)
+    }
+}
+
+/// The look of a monster without one of its own: a library model where one fits, else the
+/// mannequin (the library's `mannequin` model) until models for the monsters come.
+fn monster_model(m: &Value) -> &'static str {
+    const BY_ID: [(&str, &str); 28] = [
+        ("wolf", "wolf"),
+        ("dire-wolf", "wolf"),
+        ("bat", "bat"),
+        ("giant-bat", "bat"),
+        ("cat", "cat"),
+        ("mastiff", "dog"),
+        ("jackal", "dog"),
+        ("skeleton", "skeleton"),
+        ("minotaur-skeleton", "skeleton"),
+        ("warhorse-skeleton", "skeleton"),
+        ("zombie", "skeleton"),
+        ("ghoul", "skeleton"),
+        ("ghast", "skeleton"),
+        ("ghost", "ghost"),
+        ("specter", "ghost"),
+        ("wraith", "ghost"),
+        ("troll", "troll"),
+        ("ogre", "troll"),
+        ("bandit", "bandit"),
+        ("bandit-captain", "bandit_chief"),
+        ("guard", "guard"),
+        ("knight", "guard"),
+        ("veteran", "guard"),
+        ("noble", "noble"),
+        ("priest", "priest"),
+        ("acolyte", "priest"),
+        ("mage", "wizard"),
+        ("archmage", "wizard"),
+    ];
+    let id = s(m, "index");
+    if let Some((_, model)) = BY_ID.iter().find(|(i, _)| *i == id) {
+        return model;
+    }
+    match s(m, "type") {
+        "ooze" => "slime",
+        "humanoid" if id == "commoner" || id == "cultist" || id == "cult-fanatic" || id == "spy" || id == "thug" => "villager",
+        "humanoid" if id.contains("goblin") => "goblin",
+        "humanoid" if id.contains("orc") => "orc",
+        _ => "mannequin",
+    }
+}
+
+/// A new character definition for an SRD monster.
+fn monster_character(m: &Value, block: &rustpg2d_engine::srd::StatBlock) -> CharacterDef {
+    use rustpg2d_engine::defs::{Appearance, Behavior};
+    let humanoid = s(m, "type") == "humanoid";
+    let evil = s(m, "alignment").contains("evil");
+    // Humanoids live among others (unless evil); beasts and monsters that attack hunt the player.
+    let hostile = !block.attacks.is_empty() && (!humanoid || evil);
+    let behavior = if hostile { Behavior::Chase { sight: 8.0, leash: 20.0, flee_below: 0.0, keep_distance: 0.0, group: true, alert: 6.0 } } else { Behavior::Wander { radius: 3.0 } };
+    let size = (block.size.scale() * 100.0).round() as u16;
+    let description = format!("{} {}, challenge {} ({} XP){}.", block.size.name(), block.creature_type, block.cr, block.xp, if block.alignment.is_empty() { String::new() } else { format!(", {}", block.alignment) });
+    let fresh = CharacterDef::fresh(s(m, "index"));
+    CharacterDef {
+        name: s(m, "name").into(),
+        description,
+        behavior,
+        max_hp: block.hp,
+        hostile,
+        xp: block.xp,
+        // (Faster walkers walk faster: the default speed is for 30 ft.)
+        speed: fresh.speed * (block.speed_ft.max(5) as f32 / 30.0).clamp(0.3, 2.5),
+        appearance: Appearance { model: monster_model(m).into(), size: if size == 100 { 0 } else { size }, ..Default::default() },
+        stats: Some(block.clone()),
+        ..fresh
+    }
+}
+
+/// An SRD monster's stat block: the template / monster id, its numbers, attacks, Multiattack,
+/// size, type, speeds, senses and the texts of its traits and actions.
+fn monster_block(m: &Value) -> rustpg2d_engine::srd::StatBlock {
+    use rustpg2d_engine::srd::{FeatureKind, Size, Speeds, StatFeature};
+    let feet = |v: Option<&str>| v.and_then(|s| s.split_whitespace().next()).and_then(|n| n.parse::<u32>().ok()).unwrap_or(0);
+    let score = |k: &str| m.get(k).and_then(Value::as_i64).unwrap_or(10) as i32;
+    let cr = m.get("challenge_rating").and_then(Value::as_f64).unwrap_or(0.0);
+    let cr = match cr {
+        c if (c - 0.125).abs() < 1e-6 => "1/8".to_string(),
+        c if (c - 0.25).abs() < 1e-6 => "1/4".to_string(),
+        c if (c - 0.5).abs() < 1e-6 => "1/2".to_string(),
+        c => format!("{}", c as i64),
+    };
+    let proficiencies = list(m, "proficiencies")
+        .iter()
+        .filter_map(|p| p.pointer("/proficiency/index").and_then(Value::as_str))
+        .map(|p| match p.strip_prefix("saving-throw-") {
+            Some(a) => format!("save:{a}"),
+            None => prof_id(p),
+        })
+        .collect();
+    let speed = |k: &str| feet(m.pointer(&format!("/speed/{k}")).and_then(Value::as_str));
+    // "blindsight 60 ft., darkvision 120 ft., passive Perception 23"
+    let senses = m
+        .get("senses")
+        .and_then(Value::as_object)
+        .map(|o| {
+            o.iter()
+                .map(|(k, v)| match k.as_str() {
+                    "passive_perception" => format!("passive Perception {}", v.as_i64().unwrap_or(10)),
+                    k => format!("{} {}", k.replace('_', " "), v.as_str().map_or_else(|| v.to_string(), str::to_string)),
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .unwrap_or_default();
+    let feature = |kind: FeatureKind| move |a: &Value| StatFeature { kind, name: s(a, "name").into(), text: desc(a) };
+    let mut features: Vec<StatFeature> = list(m, "special_abilities").iter().map(feature(FeatureKind::Trait)).collect();
+    features.extend(list(m, "actions").iter().map(feature(FeatureKind::Action)));
+    features.extend(list(m, "reactions").iter().map(feature(FeatureKind::Reaction)));
+    features.extend(list(m, "legendary_actions").iter().map(feature(FeatureKind::Legendary)));
+    let creature_type = match s(m, "subtype") {
+        "" => s(m, "type").to_string(),
+        sub => format!("{} ({sub})", s(m, "type")),
+    };
+    rustpg2d_engine::srd::StatBlock {
+        template: s(m, "index").into(),
+        name: s(m, "name").into(),
+        abilities: rustpg2d_engine::srd::Abilities([score("strength"), score("dexterity"), score("constitution"), score("intelligence"), score("wisdom"), score("charisma")]),
+        ac: m.pointer("/armor_class/0/value").and_then(Value::as_i64).unwrap_or(10) as i32,
+        hp: m.get("hit_points").and_then(Value::as_i64).unwrap_or(1) as i32,
+        hit_dice: m.get("hit_points_roll").and_then(Value::as_str).unwrap_or(s(m, "hit_dice")).to_string(),
+        speed_ft: speed("walk"),
+        darkvision_ft: feet(m.pointer("/senses/darkvision").and_then(Value::as_str)),
+        proficiencies,
+        languages: s(m, "languages").into(),
+        alignment: s(m, "alignment").into(),
+        cr,
+        xp: m.get("xp").and_then(Value::as_u64).unwrap_or(0) as u32,
+        resistances: strings(m, "damage_resistances"),
+        immunities: strings(m, "damage_immunities"),
+        vulnerabilities: strings(m, "damage_vulnerabilities"),
+        condition_immunities: list(m, "condition_immunities").iter().map(|c| s(c, "index").to_string()).collect(),
+        attacks: list(m, "actions").iter().filter_map(stat_attack).collect(),
+        multiattack: list(m, "actions").iter().find(|a| s(a, "name") == "Multiattack").map_or(0, |a| multiattack_count(&desc(a))),
+        size: Size::parse(s(m, "size")).unwrap_or_default(),
+        creature_type,
+        speeds: Speeds { fly: speed("fly"), swim: speed("swim"), climb: speed("climb"), burrow: speed("burrow") },
+        senses,
+        features,
     }
 }
 
@@ -373,6 +533,7 @@ pub fn rules_text(checkout: &Path) -> Result<rustpg2d_engine::srd::rules::RulesT
         skills: entries(skills),
         races: data.races.iter().chain(&data.subraces).map(|v| s(v, "index").to_string()).collect(),
         backgrounds: data.backgrounds.iter().map(|v| s(v, "index").to_string()).collect(),
+        monsters: data.monster_ids(),
     })
 }
 
@@ -382,15 +543,37 @@ pub fn write_rules(checkout: &Path, out: &Path) -> Result<()> {
     std::fs::write(out, rustpg2d_engine::project::ron_text(&t)?).with_context(|| format!("writing {}", out.display()))
 }
 
+/// Gives the characters of a project (the example) the SRD's monster data, without adding
+/// monsters (`SrdData::import_monsters`); returns how many changed.
+pub fn update_monsters_in(checkout: &Path, root: &Path) -> Result<usize> {
+    let data = SrdData::read(checkout)?;
+    let mut p = rustpg2d_engine::project::Project::load(root)?;
+    let (_, updated) = data.import_monsters(&mut p.db.characters, false);
+    if updated > 0 {
+        std::fs::write(root.join("defs/characters.ron"), rustpg2d_engine::project::ron_text(&p.db.characters)?)?;
+    }
+    Ok(updated)
+}
+
 /// Imports into the `defs/` of a library or project folder; returns a one-line report.
 pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     let data = SrdData::read(checkout)?;
     let mut p = rustpg2d_engine::project::Project::load(root)?;
     let (added, updated) = data.import(&mut p.db.races, &mut p.db.backgrounds);
+    let (m_added, m_updated) = data.import_monsters(&mut p.db.characters, true);
     let defs = root.join("defs");
     std::fs::write(defs.join("races.ron"), rustpg2d_engine::project::ron_text(&p.db.races)?)?;
     std::fs::write(defs.join("backgrounds.ron"), rustpg2d_engine::project::ron_text(&p.db.backgrounds)?)?;
-    Ok(format!("{}: {added} added, {updated} updated ({} races, {} backgrounds)", root.display(), p.db.races.len(), p.db.backgrounds.len()))
+    if m_added + m_updated > 0 {
+        std::fs::write(defs.join("characters.ron"), rustpg2d_engine::project::ron_text(&p.db.characters)?)?;
+    }
+    Ok(format!(
+        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters)",
+        root.display(),
+        p.db.races.len(),
+        p.db.backgrounds.len(),
+        p.db.characters.len()
+    ))
 }
 
 #[cfg(test)]
@@ -458,8 +641,12 @@ mod tests {
         write_rules(&fixture(), &root.join("rules.ron")).unwrap();
         // A second run writes the same files, byte for byte.
         assert_eq!((read("defs/races.ron"), read("defs/backgrounds.ron"), read("rules.ron")), (races, bgs, rules));
+        let chars = read("defs/characters.ron");
         let loaded = rustpg2d_engine::project::Project::load(&root).unwrap();
-        assert_eq!((loaded.db.races.len(), loaded.db.backgrounds.len()), (4, 1));
+        assert_eq!((loaded.db.races.len(), loaded.db.backgrounds.len(), loaded.db.characters.len()), (4, 1, 5), "the fixture's five monsters");
+        // A project's characters only get the data (the monsters are there already: nothing changes).
+        assert_eq!(update_monsters_in(&fixture(), &root).unwrap(), 0);
+        assert_eq!(read("defs/characters.ron"), chars);
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -499,4 +686,43 @@ mod tests {
         assert_eq!(back, t);
         assert_eq!(Some(&back[1]), rustpg2d_engine::srd::npc_template("guard"));
     }
+
+    #[test]
+    fn monsters_import_as_characters_and_a_second_run_changes_nothing() {
+        use rustpg2d_engine::srd::{FeatureKind, Size};
+        let data = SrdData::read(&fixture()).unwrap();
+        // A hand-made wolf of the library (its look stays) and a templated guard.
+        let mut wolf = CharacterDef::fresh("wolf");
+        (wolf.max_hp, wolf.appearance.model) = (6, "wolf".into());
+        let mut guard = CharacterDef::fresh("town_guard");
+        guard.stats = Some(rustpg2d_engine::srd::StatBlock { template: "guard".into(), hp: 20, ..Default::default() });
+        let mut chars = vec![wolf, guard];
+        let (added, updated) = data.import_monsters(&mut chars, true);
+        assert_eq!((added, updated), (4, 2), "bandit, guard, werewolf, dragon added; wolf and town_guard updated");
+        let w = &chars[0];
+        let b = w.stats.as_ref().unwrap();
+        assert_eq!((w.max_hp, w.xp, b.template.as_str(), b.ac, w.appearance.model.as_str()), (11, 50, "wolf", 13, "wolf"));
+        assert!(b.features.iter().any(|f| f.kind == FeatureKind::Trait && f.name == "Pack Tactics"));
+        assert!(b.senses.contains("passive Perception 13"), "{}", b.senses);
+        // The guard keeps its own hit points and gains the SRD's size, type and texts.
+        let g = chars[1].stats.as_ref().unwrap();
+        assert_eq!((g.hp, g.creature_type.as_str(), g.attacks.is_empty()), (20, "humanoid (any race)", false));
+        // A new monster: the dragon, Huge, flying, three attacks, legendary actions, hostile.
+        let d = chars.iter().find(|c| c.id == "adult-red-dragon").unwrap();
+        let db = d.stats.as_ref().unwrap();
+        assert_eq!((d.name.as_str(), d.hostile, d.appearance.size, db.size, db.speeds.fly, db.speeds.climb, db.multiattack), ("Adult Red Dragon", true, 200, Size::Huge, 80, 40, 3));
+        assert_eq!(db.attacks.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["Bite", "Claw", "Tail"]);
+        assert!(db.features.iter().any(|f| f.kind == FeatureKind::Legendary) && db.senses.contains("blindsight 60 ft."));
+        assert_eq!((d.max_hp, d.xp), (db.hp, db.xp));
+        // Humanoids live among others; a second run changes nothing.
+        assert!(!chars.iter().find(|c| c.id == "guard").unwrap().hostile);
+        let before = chars.clone();
+        assert_eq!(data.import_monsters(&mut chars, true), (0, 0));
+        assert_eq!(chars, before);
+        // Without adding (a project): only what is there gets the SRD's data.
+        let mut only = vec![CharacterDef::fresh("wolf")];
+        assert_eq!(data.import_monsters(&mut only, false), (0, 1));
+        assert_eq!(only.len(), 1);
+    }
+
 }

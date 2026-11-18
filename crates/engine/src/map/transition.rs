@@ -25,6 +25,15 @@ pub enum ZoneKind {
     /// A looping sound heard here: at `volume` (0..1) inside the zone, fading to nothing
     /// `fade` tiles away from it (birds over a meadow, a river, a tavern's murmur).
     Ambience { sound: String, volume: f32, fade: f32 },
+    /// Invisible area where a group of monsters spawns: the listed ones (`Fixed`), or with a
+    /// difficulty a group picked from them within the party's XP budget
+    /// (`srd::encounter`). Respawns like a spawner.
+    Encounter {
+        monsters: Vec<crate::srd::encounter::EncounterEntry>,
+        #[serde(default)]
+        difficulty: crate::srd::encounter::Difficulty,
+        respawn: Respawn,
+    },
 }
 
 /// When defeated spawner characters come back.
@@ -58,6 +67,7 @@ impl ZoneKind {
             ZoneKind::Transition { .. } => "Map transition",
             ZoneKind::FishingSpot { .. } => "Fishing spot",
             ZoneKind::Ambience { .. } => "Ambience",
+            ZoneKind::Encounter { .. } => "Encounter",
         }
     }
 }

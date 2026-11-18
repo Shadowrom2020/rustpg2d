@@ -2944,9 +2944,14 @@ impl Editor {
                     let table = z.loot.get_or_insert_with(Vec::new);
                     widgets::loot_ui(ui, &format!("zfish{uid}"), table, refs, &self.tex, &self.assets, &self.project.db);
                 }
-                if let ZoneKind::Spawner { character, .. } = &z.kind {
+                let spawns = match &z.kind {
+                    ZoneKind::Spawner { character, .. } => Some(character.clone()),
+                    ZoneKind::Encounter { monsters, .. } => Some(monsters.first().map(|m| m.character.clone()).unwrap_or_default()),
+                    _ => None,
+                };
+                if let Some(character) = spawns {
                     let db = &self.project.db;
-                    let def_loot = db.character(character).map(|d| d.loot.clone()).unwrap_or_default();
+                    let def_loot = db.character(&character).map(|d| d.loot.clone()).unwrap_or_default();
                     ui.separator();
                     ui.heading("Loot of spawned characters");
                     let mut set: Option<Option<Vec<rustpg2d_engine::defs::LootEntry>>> = None;
@@ -3202,6 +3207,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
             ZoneKind::Transition { .. } => 4,
             ZoneKind::FishingSpot { .. } => 5,
             ZoneKind::Ambience { .. } => 6,
+            ZoneKind::Encounter { .. } => 7,
         };
         let old = k;
         ui.vertical(|ui| {
@@ -3215,6 +3221,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
                 ui.radio_value(&mut k, 3, "Enemy spawner");
                 ui.radio_value(&mut k, 5, "Fishing spot");
                 ui.radio_value(&mut k, 6, "Ambience");
+                ui.radio_value(&mut k, 7, "Encounter");
             });
         });
         if k != old {
@@ -3225,6 +3232,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
                 4 => ZoneKind::Transition { target_map: String::new(), target_zone: String::new() },
                 5 => ZoneKind::FishingSpot { rod: String::new() },
                 6 => ZoneKind::Ambience { sound: String::new(), volume: 0.6, fade: 4.0 },
+                7 => default_encounter(refs),
                 _ => default_spawner(refs),
             };
         }
@@ -3349,30 +3357,51 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
             ui.add(egui::DragValue::new(count).range(1..=100)).on_hover_text("Characters alive at the same time");
             ui.end_row();
             ui.label("Respawn");
+            respawn_ui(ui, respawn);
+            ui.end_row();
+        }
+        if let ZoneKind::Encounter { monsters, difficulty, respawn } = &mut z.kind {
+            use rustpg2d_engine::srd::encounter::{budget, Difficulty, EncounterEntry};
+            ui.label("Monsters");
             ui.vertical(|ui| {
-                let mut mode = match respawn {
-                    Respawn::Never => 0,
-                    Respawn::OnEnter => 1,
-                    Respawn::After { .. } => 2,
-                };
-                let old = mode;
-                ui.radio_value(&mut mode, 0, "Never (defeated ones stay dead, saved)");
-                ui.radio_value(&mut mode, 1, "Each time the map is entered");
-                ui.radio_value(&mut mode, 2, "After a delay");
-                if mode != old {
-                    *respawn = match mode {
-                        0 => Respawn::Never,
-                        1 => Respawn::OnEnter,
-                        _ => Respawn::After { seconds: 30.0 },
-                    };
-                }
-                if let Respawn::After { seconds } = respawn {
+                let mut remove = None;
+                for (k, m) in monsters.iter_mut().enumerate() {
                     ui.horizontal(|ui| {
-                        ui.label("seconds");
-                        ui.add(egui::DragValue::new(seconds).range(0.5..=3600.0).speed(0.5));
+                        widgets::suggest(ui, &format!("enc_char{k}"), &mut m.character, &refs.characters, 150.0);
+                        ui.add(egui::DragValue::new(&mut m.count).range(1..=20).prefix("x ")).on_hover_text(if *difficulty == Difficulty::Fixed { "How many of it" } else { "At most how many of it" });
+                        if ui.small_button(crate::ui::ph::TRASH).on_hover_text("Remove").clicked() {
+                            remove = Some(k);
+                        }
                     });
                 }
+                if let Some(k) = remove {
+                    monsters.remove(k);
+                }
+                if ui.button(crate::ui::t(crate::ui::ph::PLUS, "Add monster")).clicked() {
+                    monsters.push(EncounterEntry { character: String::new(), count: 1 });
+                }
             });
+            ui.end_row();
+            ui.label("Difficulty");
+            ui.vertical(|ui| {
+                egui::ComboBox::from_id_salt("enc_difficulty").selected_text(difficulty.label()).show_ui(ui, |ui| {
+                    for d in Difficulty::ALL {
+                        ui.selectable_value(difficulty, d, d.label());
+                    }
+                });
+                if *difficulty == Difficulty::Fixed {
+                    ui.weak("The listed monsters, as many as listed.");
+                } else {
+                    ui.weak(format!(
+                        "A group picked from the list within the party's XP budget: {} XP for a level-1 hero alone, {} at level 5 with a companion (each party member at the hero's level is worth one monster of challenge level / 8, / 4, / 2 or level: easy, medium, hard, deadly).",
+                        budget(*difficulty, 1, 1),
+                        budget(*difficulty, 5, 2)
+                    ));
+                }
+            });
+            ui.end_row();
+            ui.label("Respawn");
+            respawn_ui(ui, respawn);
             ui.end_row();
         }
     });
@@ -3383,6 +3412,9 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
         ZoneKind::Spawner { .. } => {
             ui.weak("Invisible in the game. Characters appear on random walkable tiles inside the zone (never right next to the player). Their 'Defeated' triggers come from the character definition.");
         }
+        ZoneKind::Encounter { .. } => {
+            ui.weak("Invisible in the game. The group appears on random walkable tiles inside the zone when the map is entered (never right next to the player); with a difficulty it is picked for the party then (the same group on every visit). The SRD's monsters are in the asset library.");
+        }
         ZoneKind::Ambience { .. } => {
             ui.weak("Invisible in the game: a looping sound heard here, full inside the zone and fading out around it (birds over a meadow, a river along its banks, a tavern's murmur over the whole room). Zones with the same sound play it once, at the loudest. The player's Ambience volume option applies.");
         }
@@ -3391,6 +3423,34 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
         }
         _ => {}
     }
+}
+
+/// When a spawner's or an encounter's defeated characters come back.
+fn respawn_ui(ui: &mut egui::Ui, respawn: &mut Respawn) {
+    ui.vertical(|ui| {
+        let mut mode = match respawn {
+            Respawn::Never => 0,
+            Respawn::OnEnter => 1,
+            Respawn::After { .. } => 2,
+        };
+        let old = mode;
+        ui.radio_value(&mut mode, 0, "Never (defeated ones stay dead, saved)");
+        ui.radio_value(&mut mode, 1, "Each time the map is entered");
+        ui.radio_value(&mut mode, 2, "After a delay");
+        if mode != old {
+            *respawn = match mode {
+                0 => Respawn::Never,
+                1 => Respawn::OnEnter,
+                _ => Respawn::After { seconds: 30.0 },
+            };
+        }
+        if let Respawn::After { seconds } = respawn {
+            ui.horizontal(|ui| {
+                ui.label("seconds");
+                ui.add(egui::DragValue::new(seconds).range(0.5..=3600.0).speed(0.5));
+            });
+        }
+    });
 }
 
 /// "Uses …: Coin 50% (1-3), Apple 10%" for a loot table that isn't customized here.
@@ -3407,6 +3467,12 @@ fn loot_summary(table: &[rustpg2d_engine::defs::LootEntry], db: &rustpg2d_engine
         })
         .collect();
     format!("{prefix}: {}.", parts.join(", "))
+}
+
+/// A new encounter zone: a medium one of the first hostile-sounding characters.
+pub fn default_encounter(refs: &Refs) -> ZoneKind {
+    let ZoneKind::Spawner { character, .. } = default_spawner(refs) else { unreachable!() };
+    ZoneKind::Encounter { monsters: vec![rustpg2d_engine::srd::encounter::EncounterEntry { character, count: 4 }], difficulty: rustpg2d_engine::srd::encounter::Difficulty::Medium, respawn: Respawn::Never }
 }
 
 pub fn default_spawner(refs: &Refs) -> ZoneKind {

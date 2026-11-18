@@ -123,7 +123,8 @@ to the project's *Highest level* (20 at most):
 Each level adds **hit points** (and heals as many), a **hit die**, mana as set in the project (*Mana
 per level*, with magic), and the proficiency bonus grows with it ([Rules](#rules-srd-51)). The SRD
 gives XP by challenge: a commoner is worth 10, a bandit or guard 25, a goblin 50, an orc 100, a
-bandit captain 450, a veteran 700; quests give what their *Experience reward* says.
+bandit captain 450, a veteran 700, an adult red dragon 18,000 (the library's monsters carry theirs);
+quests give what their *Experience reward* says. The hero gets all of it, companions don't level (yet).
 
 **Hit points** follow the SRD. Until classes arrive (0.30) every hero has a fighter's hit die, a d10:
 

@@ -25,6 +25,20 @@
                 reach_ft: 5,
             ),
         ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 12",
+        features: [
+            (
+                kind: Trait,
+                name: "Spellcasting",
+                text: "The acolyte is a 1st-level spellcaster. Its spellcasting ability is Wisdom (spell save DC 12, +4 to hit with spell attacks). The acolyte has following cleric spells prepared:\n\n- Cantrips (at will): light, sacred flame, thaumaturgy\n- 1st level (3 slots): bless, cure wounds, sanctuary",
+            ),
+            (
+                kind: Action,
+                name: "Club",
+                text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 2 (1d4) bludgeoning damage.",
+            ),
+        ],
     ),
     (
         template: "archmage",
@@ -58,6 +72,25 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 12",
+        features: [
+            (
+                kind: Trait,
+                name: "Magic Resistance",
+                text: "The archmage has advantage on saving throws against spells and other magical effects.",
+            ),
+            (
+                kind: Trait,
+                name: "Spellcasting",
+                text: "The archmage is an 18th-level spellcaster. Its spellcasting ability is Intelligence (spell save DC 17, +9 to hit with spell attacks). The archmage can cast disguise self and invisibility at will and has the following wizard spells prepared:\n\n- Cantrips (at will): fire bolt, light, mage hand, prestidigitation, shocking grasp\n- 1st level (4 slots): detect magic, identify, mage armor*, magic missile\n- 2nd level (3 slots): detect thoughts, mirror image, misty step\n- 3rd level (3 slots): counterspell, fly, lightning bolt\n- 4th level (3 slots): banishment, fire shield, stoneskin*\n- 5th level (3 slots): cone of cold, scrying, wall of force\n- 6th level (1 slot): globe of invulnerability\n- 7th level (1 slot): teleport\n- 8th level (1 slot): mind blank*\n- 9th level (1 slot): time stop\n* The archmage casts these spells on itself before combat.",
+            ),
+            (
+                kind: Action,
+                name: "Dagger",
+                text: "Melee or Ranged Weapon Attack: +6 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
             ),
         ],
     ),
@@ -103,6 +136,40 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 13",
+        features: [
+            (
+                kind: Trait,
+                name: "Assassinate",
+                text: "During its first turn, the assassin has advantage on attack rolls against any creature that hasn\'t taken a turn. Any hit the assassin scores against a surprised creature is a critical hit.",
+            ),
+            (
+                kind: Trait,
+                name: "Evasion",
+                text: "If the assassin is subjected to an effect that allows it to make a Dexterity saving throw to take only half damage, the assassin instead takes no damage if it succeeds on the saving throw, and only half damage if it fails.",
+            ),
+            (
+                kind: Trait,
+                name: "Sneak Attack (1/Turn)",
+                text: "The assassin deals an extra 13 (4d6) damage when it hits a target with a weapon attack and has advantage on the attack roll, or when the target is within 5 ft. of an ally of the assassin that isn\'t incapacitated and the assassin doesn\'t have disadvantage on the attack roll.",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The assassin makes two shortsword attacks.",
+            ),
+            (
+                kind: Action,
+                name: "Shortsword",
+                text: "Melee Weapon Attack: +6 to hit, reach 5 ft., one target. Hit: 6 (1d6 + 3) piercing damage, and the target must make a DC 15 Constitution saving throw, taking 24 (7d6) poison damage on a failed save, or half as much damage on a successful one.",
+            ),
+            (
+                kind: Action,
+                name: "Light Crossbow",
+                text: "Ranged Weapon Attack: +6 to hit, range 80/320 ft., one target. Hit: 7 (1d8 + 3) piercing damage, and the target must make a DC 15 Constitution saving throw, taking 24 (7d6) poison damage on a failed save, or half as much damage on a successful one.",
+            ),
+        ],
     ),
     (
         template: "bandit",
@@ -133,6 +200,20 @@
                 damage_type: Some(Piercing),
                 range_ft: 80,
                 long_ft: 320,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 10",
+        features: [
+            (
+                kind: Action,
+                name: "Scimitar",
+                text: "Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 4 (1d6 + 1) slashing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Light Crossbow",
+                text: "Ranged Weapon Attack: +3 to hit, range 80/320 ft., one target. Hit: 5 (1d8 + 1) piercing damage.",
             ),
         ],
     ),
@@ -175,6 +256,30 @@
             ),
         ],
         multiattack: 3,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 10",
+        features: [
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The captain makes three melee attacks: two with its scimitar and one with its dagger. Or the captain makes two ranged attacks with its daggers.",
+            ),
+            (
+                kind: Action,
+                name: "Scimitar",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 6 (1d6 + 3) slashing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Dagger",
+                text: "Melee or Ranged Weapon Attack: +5 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 5 (1d4 + 3) piercing damage.",
+            ),
+            (
+                kind: Reaction,
+                name: "Parry",
+                text: "The captain adds 2 to its AC against one melee attack that would hit it. To do so, the captain must see the attacker and be wielding a melee weapon.",
+            ),
+        ],
     ),
     (
         template: "berserker",
@@ -197,6 +302,20 @@
                 dice: "1d12+3",
                 damage_type: Some(Slashing),
                 reach_ft: 5,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Reckless",
+                text: "At the start of its turn, the berserker can gain advantage on all melee weapon attack rolls during that turn, but attack rolls against it have advantage until the start of its next turn.",
+            ),
+            (
+                kind: Action,
+                name: "Greataxe",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 9 (1d12 + 3) slashing damage.",
             ),
         ],
     ),
@@ -235,6 +354,30 @@
                 long_ft: 120,
             ),
         ],
+        creature_type: "humanoid (goblinoid)",
+        senses: "darkvision 60 ft., passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Brute",
+                text: "A melee weapon deals one extra die of its damage when the bugbear hits with it (included in the attack).",
+            ),
+            (
+                kind: Trait,
+                name: "Surprise Attack",
+                text: "If the bugbear surprises a creature and hits it with an attack during the first round of combat, the target takes an extra 7 (2d6) damage from the attack.",
+            ),
+            (
+                kind: Action,
+                name: "Morningstar",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 11 (2d8 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Javelin",
+                text: "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 30/120 ft., one target. Hit: 9 (2d6 + 2) piercing damage in melee or 5 (1d6 + 2) piercing damage at range.",
+            ),
+        ],
     ),
     (
         template: "commoner",
@@ -257,6 +400,15 @@
                 dice: "1d4",
                 damage_type: Some(Bludgeoning),
                 reach_ft: 5,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 10",
+        features: [
+            (
+                kind: Action,
+                name: "Club",
+                text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 2 (1d4) bludgeoning damage.",
             ),
         ],
     ),
@@ -290,6 +442,30 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 11",
+        features: [
+            (
+                kind: Trait,
+                name: "Dark Devotion",
+                text: "The fanatic has advantage on saving throws against being charmed or frightened.",
+            ),
+            (
+                kind: Trait,
+                name: "Spellcasting",
+                text: "The fanatic is a 4th-level spellcaster. Its spell casting ability is Wisdom (spell save DC 11, +3 to hit with spell attacks). The fanatic has the following cleric spells prepared:\n\nCantrips (at will): light, sacred flame, thaumaturgy\n- 1st level (4 slots): command, inflict wounds, shield of faith\n- 2nd level (3 slots): hold person, spiritual weapon",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The fanatic makes two melee attacks.",
+            ),
+            (
+                kind: Action,
+                name: "Dagger",
+                text: "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 20/60 ft., one creature. Hit: 4 (1d4 + 2) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "cultist",
@@ -315,6 +491,20 @@
                 dice: "1d6+1",
                 damage_type: Some(Slashing),
                 reach_ft: 5,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Dark Devotion",
+                text: "The cultist has advantage on saving throws against being charmed or frightened.",
+            ),
+            (
+                kind: Action,
+                name: "Scimitar",
+                text: "Melee Weapon Attack: +3 to hit, reach 5 ft., one creature. Hit: 4 (1d6 + 1) slashing damage.",
             ),
         ],
     ),
@@ -353,6 +543,36 @@
                 long_ft: 120,
             ),
         ],
+        size: Small,
+        creature_type: "humanoid (gnome)",
+        senses: "darkvision 120 ft., passive Perception 12",
+        features: [
+            (
+                kind: Trait,
+                name: "Stone Camouflage",
+                text: "The gnome has advantage on Dexterity (Stealth) checks made to hide in rocky terrain.",
+            ),
+            (
+                kind: Trait,
+                name: "Gnome Cunning",
+                text: "The gnome has advantage on Intelligence, Wisdom, and Charisma saving throws against magic.",
+            ),
+            (
+                kind: Trait,
+                name: "Innate Spellcasting",
+                text: "The gnome\'s innate spellcasting ability is Intelligence (spell save DC 11). It can innately cast the following spells, requiring no material components:\nAt will: nondetection (self only)\n1/day each: blindness/deafness, blur, disguise self",
+            ),
+            (
+                kind: Action,
+                name: "War Pick",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 6 (1d8 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Poisoned Dart",
+                text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one creature. Hit: 4 (1d4 + 2) piercing damage, and the target must succeed on a DC 12 Constitution saving throw or be poisoned for 1 minute. The target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success",
+            ),
+        ],
     ),
     (
         template: "drow",
@@ -388,6 +608,35 @@
                 long_ft: 120,
             ),
         ],
+        creature_type: "humanoid (elf)",
+        senses: "darkvision 120 ft., passive Perception 12",
+        features: [
+            (
+                kind: Trait,
+                name: "Fey Ancestry",
+                text: "The drow has advantage on saving throws against being charmed, and magic can\'t put the drow to sleep.",
+            ),
+            (
+                kind: Trait,
+                name: "Innate Spellcasting",
+                text: "The drow\'s spellcasting ability is Charisma (spell save DC 11). It can innately cast the following spells, requiring no material components:\nAt will: dancing lights\n1/day each: darkness, faerie fire",
+            ),
+            (
+                kind: Trait,
+                name: "Sunlight Sensitivity",
+                text: "While in sunlight, the drow has disadvantage on attack rolls, as well as on Wisdom (Perception) checks that rely on sight.",
+            ),
+            (
+                kind: Action,
+                name: "Shortsword",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Hand Crossbow",
+                text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one target. Hit: 5 (1d6 + 2) piercing damage, and the target must succeed on a DC 13 Constitution saving throw or be poisoned for 1 hour. If the saving throw fails by 5 or more, the target is also unconscious while poisoned in this way. The target wakes up if it takes damage or if another creature takes an action to shake it awake.",
+            ),
+        ],
     ),
     (
         template: "druid",
@@ -414,6 +663,20 @@
                 dice: "1d6",
                 damage_type: Some(Bludgeoning),
                 reach_ft: 5,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 14",
+        features: [
+            (
+                kind: Trait,
+                name: "Spellcasting",
+                text: "The druid is a 4th-level spellcaster. Its spellcasting ability is Wisdom (spell save DC 12, +4 to hit with spell attacks). It has the following druid spells prepared:\n\n- Cantrips (at will): druidcraft, produce flame, shillelagh\n- 1st level (4 slots): entangle, longstrider, speak with animals, thunderwave\n- 2nd level (3 slots): animal messenger, barkskin",
+            ),
+            (
+                kind: Action,
+                name: "Quarterstaff",
+                text: " Melee Weapon Attack: +2 to hit (+4 to hit with shillelagh), reach 5 ft., one target. Hit: 3 (1d6) bludgeoning damage, 4 (1d8) bludgeoning damage if wielded with two hands, or 6 (1d8 + 2) bludgeoning damage with shillelagh.",
             ),
         ],
     ),
@@ -450,6 +713,40 @@
                 reach_ft: 5,
                 range_ft: 30,
                 long_ft: 120,
+            ),
+        ],
+        creature_type: "humanoid (dwarf)",
+        senses: "darkvision 120 ft., passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Duergar Resilience",
+                text: "The duergar has advantage on saving throws against poison, spells, and illusions, as well as to resist being charmed or paralyzed.",
+            ),
+            (
+                kind: Trait,
+                name: "Sunlight Sensitivity",
+                text: "While in sunlight, the duergar has disadvantage on attack rolls, as well as on Wisdom (Perception) checks that rely on sight.",
+            ),
+            (
+                kind: Action,
+                name: "Enlarge",
+                text: "For 1 minute, the duergar magically increases in size, along with anything it is wearing or carrying. While enlarged, the duergar is Large, doubles its damage dice on Strength-based weapon attacks (included in the attacks), and makes Strength checks and Strength saving throws with advantage. If the duergar lacks the room to become Large, it attains the maximum size possible in the space available.",
+            ),
+            (
+                kind: Action,
+                name: "War Pick",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 6 (1d8 + 2) piercing damage, or 11 (2d8 + 2) piercing damage while enlarged.",
+            ),
+            (
+                kind: Action,
+                name: "Javelin",
+                text: "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 30/120 ft., one target. Hit: 5 (1d6 + 2) piercing damage, or 9 (2d6 + 2) piercing damage while enlarged.",
+            ),
+            (
+                kind: Action,
+                name: "Invisibility",
+                text: "The duergar magically turns invisible until it attacks, casts a spell, or uses its Enlarge, or until its concentration is broken, up to 1 hour (as if concentrating on a spell). Any equipment the duergar wears or carries is invisible with it.",
             ),
         ],
     ),
@@ -492,6 +789,40 @@
             ),
         ],
         multiattack: 3,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 11",
+        features: [
+            (
+                kind: Trait,
+                name: "Brave",
+                text: "The gladiator has advantage on saving throws against being frightened.",
+            ),
+            (
+                kind: Trait,
+                name: "Brute",
+                text: "A melee weapon deals one extra die of its damage when the gladiator hits with it (included in the attack).",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The gladiator makes three melee attacks or two ranged attacks.",
+            ),
+            (
+                kind: Action,
+                name: "Spear",
+                text: "Melee or Ranged Weapon Attack: +7 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 11 (2d6 + 4) piercing damage, or 13 (2d8 + 4) piercing damage if used with two hands to make a melee attack.",
+            ),
+            (
+                kind: Action,
+                name: "Shield Bash",
+                text: "Melee Weapon Attack: +7 to hit, reach 5 ft., one creature. Hit: 9 (2d4 + 4) bludgeoning damage. If the target is a Medium or smaller creature, it must succeed on a DC 15 Strength saving throw or be knocked prone.",
+            ),
+            (
+                kind: Reaction,
+                name: "Parry",
+                text: "The gladiator adds 3 to its AC against one melee attack that would hit it. To do so, the gladiator must see the attacker and be wielding a melee weapon.",
+            ),
+        ],
     ),
     (
         template: "gnoll",
@@ -533,6 +864,30 @@
                 long_ft: 600,
             ),
         ],
+        creature_type: "humanoid (gnoll)",
+        senses: "darkvision 60 ft., passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Rampage",
+                text: "When the gnoll reduces a creature to 0 hit points with a melee attack on its turn, the gnoll can take a bonus action to move up to half its speed and make a bite attack.",
+            ),
+            (
+                kind: Action,
+                name: "Bite",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one creature. Hit: 4 (1d4 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Spear",
+                text: "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 5 (1d6 + 2) piercing damage, or 6 (1d8 + 2) piercing damage if used with two hands to make a melee attack.",
+            ),
+            (
+                kind: Action,
+                name: "Longbow",
+                text: "Ranged Weapon Attack: +3 to hit, range 150/600 ft., one target. Hit: 5 (1d8 + 1) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "goblin",
@@ -567,6 +922,26 @@
                 long_ft: 320,
             ),
         ],
+        size: Small,
+        creature_type: "humanoid (goblinoid)",
+        senses: "darkvision 60 ft., passive Perception 9",
+        features: [
+            (
+                kind: Trait,
+                name: "Nimble Escape",
+                text: "The goblin can take the Disengage or Hide action as a bonus action on each of its turns.",
+            ),
+            (
+                kind: Action,
+                name: "Scimitar",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) slashing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Shortbow",
+                text: "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "grimlock",
@@ -598,6 +973,30 @@
                 reach_ft: 5,
             ),
         ],
+        creature_type: "humanoid (grimlock)",
+        senses: "blindsight 30 ft. or 10 ft. while deafened (blind beyond this radius), passive Perception 13",
+        features: [
+            (
+                kind: Trait,
+                name: "Blind Senses",
+                text: "The grimlock can\'t use its blindsight while deafened and unable to smell.",
+            ),
+            (
+                kind: Trait,
+                name: "Keen Hearing and Smell",
+                text: "The grimlock has advantage on Wisdom (Perception) checks that rely on hearing or smell.",
+            ),
+            (
+                kind: Trait,
+                name: "Stone Camouflage",
+                text: "The grimlock has advantage on Dexterity (Stealth) checks made to hide in rocky terrain.",
+            ),
+            (
+                kind: Action,
+                name: "Spiked Bone Club",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 5 (1d4 + 3) bludgeoning damage plus 2 (1d4) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "guard",
@@ -624,6 +1023,15 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 12",
+        features: [
+            (
+                kind: Action,
+                name: "Spear",
+                text: "Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage or 5 (1d8 + 1) piercing damage if used with two hands to make a melee attack.",
             ),
         ],
     ),
@@ -669,6 +1077,35 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (human)",
+        senses: "blindsight 10 ft., darkvision 60 ft., passive Perception 12",
+        features: [
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The veteran makes two longsword attacks. If it has a shortsword drawn, it can also make a shortsword attack.",
+            ),
+            (
+                kind: Action,
+                name: "Longsword",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 7 (1d8 + 3) slashing damage, or 8 (1d10 + 3) slashing damage if used with two hands.",
+            ),
+            (
+                kind: Action,
+                name: "Shortsword",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 6 (1d6 + 3) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Heavy Crossbow",
+                text: "Ranged Weapon Attack: +3 to hit, range 100/400 ft., one target. Hit: 6 (1d10 + 1) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Fire Breath",
+                text: "The veteran exhales fire in a 15-foot cone. Each creature in that area must make a DC 15 Dexterity saving throw, taking 24 (7d6) fire damage on a failed save, or half as much damage on a successful one.",
+            ),
+        ],
     ),
     (
         template: "hobgoblin",
@@ -699,6 +1136,25 @@
                 damage_type: Some(Piercing),
                 range_ft: 150,
                 long_ft: 600,
+            ),
+        ],
+        creature_type: "humanoid (goblinoid)",
+        senses: "darkvision 60 ft., passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Martial Advantage",
+                text: "Once per turn, the hobgoblin can deal an extra 7 (2d6) damage to a creature it hits with a weapon attack if that creature is within 5 ft. of an ally of the hobgoblin that isn\'t incapacitated.",
+            ),
+            (
+                kind: Action,
+                name: "Longsword",
+                text: "Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 5 (1d8 + 1) slashing damage, or 6 (1d10 + 1) slashing damage if used with two hands.",
+            ),
+            (
+                kind: Action,
+                name: "Longbow",
+                text: "Ranged Weapon Attack: +3 to hit, range 150/600 ft., one target. Hit: 5 (1d8 + 1) piercing damage.",
             ),
         ],
     ),
@@ -737,6 +1193,40 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Brave",
+                text: "The knight has advantage on saving throws against being frightened.",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The knight makes two melee attacks.",
+            ),
+            (
+                kind: Action,
+                name: "Greatsword",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 10 (2d6 + 3) slashing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Heavy Crossbow",
+                text: "Ranged Weapon Attack: +2 to hit, range 100/400 ft., one target. Hit: 5 (1d10) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Leadership",
+                text: "For 1 minute, the knight can utter a special command or warning whenever a nonhostile creature that it can see within 30 ft. of it makes an attack roll or a saving throw. The creature can add a d4 to its roll provided it can hear and understand the knight. A creature can benefit from only one Leadership die at a time. This effect ends if the knight is incapacitated.",
+            ),
+            (
+                kind: Reaction,
+                name: "Parry",
+                text: "The knight adds 2 to its AC against one melee attack that would hit it. To do so, the knight must see the attacker and be wielding a melee weapon.",
+            ),
+        ],
     ),
     (
         template: "kobold",
@@ -767,6 +1257,31 @@
                 damage_type: Some(Bludgeoning),
                 range_ft: 30,
                 long_ft: 120,
+            ),
+        ],
+        size: Small,
+        creature_type: "humanoid (kobold)",
+        senses: "darkvision 60 ft., passive Perception 8",
+        features: [
+            (
+                kind: Trait,
+                name: "Sunlight Sensitivity",
+                text: "While in sunlight, the kobold has disadvantage on attack rolls, as well as on Wisdom (Perception) checks that rely on sight.",
+            ),
+            (
+                kind: Trait,
+                name: "Pack Tactics",
+                text: "The kobold has advantage on an attack roll against a creature if at least one of the kobold\'s allies is within 5 ft. of the creature and the ally isn\'t incapacitated.",
+            ),
+            (
+                kind: Action,
+                name: "Dagger",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Sling",
+                text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one target. Hit: 4 (1d4 + 2) bludgeoning damage.",
             ),
         ],
     ),
@@ -821,6 +1336,43 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (lizardfolk)",
+        speeds: (
+            swim: 30,
+        ),
+        senses: "passive Perception 13",
+        features: [
+            (
+                kind: Trait,
+                name: "Hold Breath",
+                text: "The lizardfolk can hold its breath for 15 minutes.",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The lizardfolk makes two melee attacks, each one with a different weapon.",
+            ),
+            (
+                kind: Action,
+                name: "Bite",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Heavy Club",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) bludgeoning damage.",
+            ),
+            (
+                kind: Action,
+                name: "Javelin",
+                text: "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 30/120 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Spiked Shield",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "mage",
@@ -852,6 +1404,20 @@
                 long_ft: 60,
             ),
         ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 11",
+        features: [
+            (
+                kind: Trait,
+                name: "Spellcasting",
+                text: "The mage is a 9th-level spellcaster. Its spellcasting ability is Intelligence (spell save DC 14, +6 to hit with spell attacks). The mage has the following wizard spells prepared:\n\n- Cantrips (at will): fire bolt, light, mage hand, prestidigitation\n- 1st level (4 slots): detect magic, mage armor, magic missile, shield\n- 2nd level (3 slots): misty step, suggestion\n- 3rd level (3 slots): counterspell, fireball, fly\n- 4th level (3 slots): greater invisibility, ice storm\n- 5th level (1 slot): cone of cold",
+            ),
+            (
+                kind: Action,
+                name: "Dagger",
+                text: "Melee or Ranged Weapon Attack: +5 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "merfolk",
@@ -880,6 +1446,23 @@
                 long_ft: 60,
             ),
         ],
+        creature_type: "humanoid (merfolk)",
+        speeds: (
+            swim: 40,
+        ),
+        senses: "passive Perception 12",
+        features: [
+            (
+                kind: Trait,
+                name: "Amphibious",
+                text: "The merfolk can breathe air and water.",
+            ),
+            (
+                kind: Action,
+                name: "Spear",
+                text: "Melee or Ranged Weapon Attack: +2 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 3 (1d6) piercing damage, or 4 (1d8) piercing damage if used with two hands to make a melee attack.",
+            ),
+        ],
     ),
     (
         template: "noble",
@@ -906,6 +1489,20 @@
                 dice: "1d8+1",
                 damage_type: Some(Piercing),
                 reach_ft: 5,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 12",
+        features: [
+            (
+                kind: Action,
+                name: "Rapier",
+                text: "Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 5 (1d8 + 1) piercing damage.",
+            ),
+            (
+                kind: Reaction,
+                name: "Parry",
+                text: "The noble adds 2 to its AC against one melee attack that would hit it. To do so, the noble must see the attacker and be wielding a melee weapon.",
             ),
         ],
     ),
@@ -943,6 +1540,25 @@
                 long_ft: 120,
             ),
         ],
+        creature_type: "humanoid (orc)",
+        senses: "darkvision 60 ft., passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Aggressive",
+                text: "As a bonus action, the orc can move up to its speed toward a hostile creature that it can see.",
+            ),
+            (
+                kind: Action,
+                name: "Greataxe",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 9 (1d12 + 3) slashing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Javelin",
+                text: "Melee or Ranged Weapon Attack: +5 to hit, reach 5 ft. or range 30/120 ft., one target. Hit: 6 (1d6 + 3) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "priest",
@@ -969,6 +1585,25 @@
                 dice: "1d6",
                 damage_type: Some(Bludgeoning),
                 reach_ft: 5,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 13",
+        features: [
+            (
+                kind: Trait,
+                name: "Divine Eminence",
+                text: "As a bonus action, the priest can expend a spell slot to cause its melee weapon attacks to magically deal an extra 10 (3d6) radiant damage to a target on a hit. This benefit lasts until the end of the turn. If the priest expends a spell slot of 2nd level or higher, the extra damage increases by 1d6 for each level above 1st.",
+            ),
+            (
+                kind: Trait,
+                name: "Spellcasting",
+                text: "The priest is a 5th-level spellcaster. Its spellcasting ability is Wisdom (spell save DC 13, +5 to hit with spell attacks). The priest has the following cleric spells prepared:\n\n- Cantrips (at will): light, sacred flame, thaumaturgy\n- 1st level (4 slots): cure wounds, guiding bolt, sanctuary\n- 2nd level (3 slots): lesser restoration, spiritual weapon\n- 3rd level (2 slots): dispel magic, spirit guardians",
+            ),
+            (
+                kind: Action,
+                name: "Mace",
+                text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 3 (1d6) bludgeoning damage.",
             ),
         ],
     ),
@@ -1014,6 +1649,48 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (sahuagin)",
+        speeds: (
+            swim: 40,
+        ),
+        senses: "darkvision 120 ft., passive Perception 15",
+        features: [
+            (
+                kind: Trait,
+                name: "Blood Frenzy",
+                text: "The sahuagin has advantage on melee attack rolls against any creature that doesn\'t have all its hit points.",
+            ),
+            (
+                kind: Trait,
+                name: "Limited Amphibiousness",
+                text: "The sahuagin can breathe air and water, but it needs to be submerged at least once every 4 hours to avoid suffocating.",
+            ),
+            (
+                kind: Trait,
+                name: "Shark Telepathy",
+                text: "The sahuagin can magically command any shark within 120 feet of it, using a limited telepathy.",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The sahuagin makes two melee attacks: one with its bite and one with its claws or spear.",
+            ),
+            (
+                kind: Action,
+                name: "Bite",
+                text: "Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 3 (1d4 + 1) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Claws",
+                text: "Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 3 (1d4 + 1) slashing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Spear",
+                text: "Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage, or 5 (1d8 + 1) piercing damage if used with two hands to make a melee attack.",
+            ),
+        ],
     ),
     (
         template: "scout",
@@ -1052,6 +1729,30 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 15",
+        features: [
+            (
+                kind: Trait,
+                name: "Keen Hearing and Sight",
+                text: "The scout has advantage on Wisdom (Perception) checks that rely on hearing or sight.",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The scout makes two melee attacks or two ranged attacks.",
+            ),
+            (
+                kind: Action,
+                name: "Shortsword",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Longbow",
+                text: "Ranged Weapon Attack: +4 to hit, range 150/600 ft., one target. Hit: 6 (1d8 + 2) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "spy",
@@ -1092,6 +1793,35 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 16",
+        features: [
+            (
+                kind: Trait,
+                name: "Cunning Action",
+                text: "On each of its turns, the spy can use a bonus action to take the Dash, Disengage, or Hide action.",
+            ),
+            (
+                kind: Trait,
+                name: "Sneak Attack (1/Turn)",
+                text: "The spy deals an extra 7 (2d6) damage when it hits a target with a weapon attack and has advantage on the attack roll, or when the target is within 5 ft. of an ally of the spy that isn\'t incapacitated and the spy doesn\'t have disadvantage on the attack roll.",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The spy makes two melee attacks.",
+            ),
+            (
+                kind: Action,
+                name: "Shortsword",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Hand Crossbow",
+                text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "thug",
@@ -1127,6 +1857,30 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Pack Tactics",
+                text: "The thug has advantage on an attack roll against a creature if at least one of the thug\'s allies is within 5 ft. of the creature and the ally isn\'t incapacitated.",
+            ),
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The thug makes two melee attacks.",
+            ),
+            (
+                kind: Action,
+                name: "Mace",
+                text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one creature. Hit: 5 (1d6 + 2) bludgeoning damage.",
+            ),
+            (
+                kind: Action,
+                name: "Heavy Crossbow",
+                text: "Ranged Weapon Attack: +2 to hit, range 100/400 ft., one target. Hit: 5 (1d10) piercing damage.",
+            ),
+        ],
     ),
     (
         template: "tribal-warrior",
@@ -1151,6 +1905,20 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+            ),
+        ],
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 10",
+        features: [
+            (
+                kind: Trait,
+                name: "Pack Tactics",
+                text: "The warrior has advantage on an attack roll against a creature if at least one of the warrior\'s allies is within 5 ft. of the creature and the ally isn\'t incapacitated.",
+            ),
+            (
+                kind: Action,
+                name: "Spear",
+                text: "Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage, or 5 (1d8 + 1) piercing damage if used with two hands to make a melee attack.",
             ),
         ],
     ),
@@ -1196,5 +1964,29 @@
             ),
         ],
         multiattack: 2,
+        creature_type: "humanoid (any race)",
+        senses: "passive Perception 12",
+        features: [
+            (
+                kind: Action,
+                name: "Multiattack",
+                text: "The veteran makes two longsword attacks. If it has a shortsword drawn, it can also make a shortsword attack.",
+            ),
+            (
+                kind: Action,
+                name: "Longsword",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 7 (1d8 + 3) slashing damage, or 8 (1d10 + 3) slashing damage if used with two hands.",
+            ),
+            (
+                kind: Action,
+                name: "Shortsword",
+                text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 6 (1d6 + 3) piercing damage.",
+            ),
+            (
+                kind: Action,
+                name: "Heavy Crossbow",
+                text: "Ranged Weapon Attack: +3 to hit, range 100/400 ft., one target. Hit: 6 (1d10 + 1) piercing damage.",
+            ),
+        ],
     ),
 ]

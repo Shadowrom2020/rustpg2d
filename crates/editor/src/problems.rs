@@ -504,6 +504,14 @@ impl Editor {
                             out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("spawns character \"{character}\", which doesn't exist"), target: target.clone() });
                         }
                     }
+                    ZoneKind::Encounter { monsters, .. } => {
+                        if monsters.is_empty() {
+                            out.push(Problem { severity: Severity::Warning, area: Area::Maps, place: place.clone(), text: "the encounter lists no monsters".into(), target: target.clone() });
+                        }
+                        for m in monsters.iter().filter(|m| !db.has(RefKind::Character, &m.character)) {
+                            out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("the encounter names character \"{}\", which doesn't exist", m.character), target: target.clone() });
+                        }
+                    }
                     ZoneKind::FishingSpot { rod } => {
                         if !self.problem_id_exists(RefKind::Item, rod) {
                             out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("needs the rod \"{rod}\", which isn't an item"), target: target.clone() });

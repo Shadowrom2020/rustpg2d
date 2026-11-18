@@ -515,15 +515,30 @@ impl Game {
             .filter_map(|s| db.item(d.equipment.item(s)?)?.armor.as_ref().map(|a| a.defense))
             .sum();
         let weapon = d.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|i| db.item(i)).map(|i| (i.name.clone(), i.weapon.clone()));
-        let mut lines = vec![format!("Defeated    {n}"), format!("Health      {}", d.max_hp), format!("Damage      {}", d.damage)];
-        if d.defense + armor != 0 {
-            lines.push(format!("Defense     {}", d.defense + armor));
+        let mut lines = vec![format!("Defeated    {n}")];
+        match &d.stats {
+            // An SRD stat block: what fights use.
+            Some(b) => {
+                lines.push(format!("Hit points  {}", if d.max_hp > 0 { b.hp } else { 0 }));
+                lines.push(format!("Armor class {}", b.ac));
+                lines.push(format!("Challenge   {}", b.cr));
+                for a in b.attacks.iter().take(2) {
+                    lines.push(format!("Attack      {} {:+} {}", a.name, a.bonus, a.dice));
+                }
+            }
+            None => {
+                lines.push(format!("Health      {}", d.max_hp));
+                lines.push(format!("Damage      {}", d.damage));
+                if d.defense + armor != 0 {
+                    lines.push(format!("Defense     {}", d.defense + armor));
+                }
+            }
         }
         if self.progression_on() && d.xp > 0 {
             lines.push(format!("Experience  {} XP", d.xp));
         }
         match weapon {
-            Some((wn, Some(wd))) => lines.push(format!("Weapon      {wn} ({})", wd.damage)),
+            Some((wn, Some(wd))) => lines.push(format!("Weapon      {wn} ({})", wd.damage_dice())),
             _ => {
                 if let Some(wd) = d.weapon.as_ref().filter(|w| w.ranged.is_some()) {
                     lines.push(format!("Shoots      {} damage", wd.damage));
@@ -548,6 +563,19 @@ impl Game {
                 draw_text(&line, x, y, 20.0, skin::dim());
             }
             y += 8.0;
+        }
+        // Its traits by name (the SRD's: Pack Tactics, Regeneration…).
+        let traits: Vec<&str> = d.stats.iter().flat_map(|b| &b.features).filter(|f| f.kind == crate::srd::FeatureKind::Trait).map(|f| f.name.as_str()).collect();
+        if !traits.is_empty() {
+            y += 24.0;
+            draw_text("Traits", x, y, 18.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 0.8)));
+            for line in wrap_text(&traits.join(", "), 18, w) {
+                y += 22.0;
+                if y > r.y + r.h - 50.0 {
+                    return;
+                }
+                super::text::draw_plain(&line, x, y, 18.0, skin::dim());
+            }
         }
         if !d.loot.is_empty() {
             y += 24.0;

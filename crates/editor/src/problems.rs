@@ -566,7 +566,8 @@ impl Editor {
             }
             for issue in rustpg2d_engine::script_refs::check_script(&src, &self.project.db, &self.refs.maps, &self.refs.spawns) {
                 let at = src[..issue.span.0.min(src.len())].chars().count();
-                out.push(Problem { severity: Severity::Error, area: Area::Scripts, place: format!("{file}:{}", issue.line), text: issue.message, target: Target::Script(f.clone(), at) });
+                let severity = if issue.warning { Severity::Warning } else { Severity::Error };
+                out.push(Problem { severity, area: Area::Scripts, place: format!("{file}:{}", issue.line), text: issue.message, target: Target::Script(f.clone(), at) });
             }
         }
         let mut host = rustpg2d_engine::script::ScriptHost::new();

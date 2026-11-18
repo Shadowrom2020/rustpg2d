@@ -364,7 +364,9 @@ itself is still built as content on top of it. The checklist below is for that c
   `runner::conditions_met`, editor fields in `widgets.rs` (action fields / `conditions_ui`),
   `refactor.rs` if it references ids, and a Rhai function in `script.rs` if useful.
 - **New script function:** register it in `script.rs` and add it to the `API` table in
-  `engine/src/script_api.rs` (parameters with their `Arg` kinds, description) — that one table
+  `engine/src/script_api.rs` (parameters with their `Arg` kinds, description, `[since "X.Y"]` = the
+  release's MAJOR.MINOR and *since X.Y* in its manual row; a renamed one keeps the old name with
+  `[deprecated "new(args)"]` and a **Deprecated** manual row, tests check both) — that one table
   drives the editor's completion, the agent server's API resource, renames and the script check
   (id arguments), translation templates (text arguments) and the flag / variable collectors; a
   test fails until `Documentation/manual/08-scripting.md` describes it too. Note `go` and a few other words

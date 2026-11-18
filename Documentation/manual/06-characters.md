@@ -294,7 +294,7 @@ the player:
   healing potion when their health is critical, a cure when poisoned or burning, a buff in a fight.
   A bow you gave a companion shoots arrows from its bag.
 - **Healing**: items and *Heal* spells set to *Use on: Player or companion* ask whom to heal; the
-  *Heal character* action and `heal_npc(name, amount)` heal any character.
+  *Heal character* action and `heal_character(name, amount)` heal any character.
 - **Magic**: a companion whose definition has mana (*Magic (companion)* in the character form)
   learns the spell of a scroll or spell book you hand it in the companion window (a scroll that
   is used up when read is used up; a book stays in its bag), or from the *Teach spell* action /

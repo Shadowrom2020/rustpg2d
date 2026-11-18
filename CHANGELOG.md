@@ -23,6 +23,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   one needing a newer engine is left out and flagged in *Problems*. Exported games carry the
   plugins that are on; the starter library's plugins reach users' libraries (newer versions
   replace older ones). New manual chapter *Plugins*.
+- **A versioned script API**: the script API has a version (0.27, `api_version()`). Functions say
+  since when they exist (*since 0.27* in the manual) and deprecated ones what replaces them: the
+  script check (*Save & check*, *Problems*, the agent server's `check_script`) warns about each
+  call, completion marks them, and they keep working. Plugins name the API version they need.
+  Policy: until 1.0 a function may change (a *Breaking:* line); from 1.0 deprecated functions
+  work until 2.0.
+- `heal_character(target, amount)` is the new name of `heal_npc`, which is deprecated (it heals
+  the player too).
 
 ## 0.26.0 — 2026-11-18
 

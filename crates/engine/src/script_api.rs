@@ -70,12 +70,87 @@ pub struct ApiFn {
     pub name: &'static str,
     pub params: &'static [(&'static str, Arg)],
     pub doc: &'static str,
+    /// The API version that added it ("" = before versions were kept, 0.26 or older).
+    pub since: &'static str,
+    /// Deprecated: what to use instead. It still works (until 2.0 once 1.0 is out); the script
+    /// check warns and completion marks it.
+    pub deprecated: Option<&'static str>,
 }
 
+/// The table's rows: `"name"(param: Kind, …) "description";`, optionally after
+/// `[since "0.27"]` and `[deprecated "what to use instead"]`.
 macro_rules! api {
-    ($($name:literal ( $($p:ident : $k:ident),* ) $doc:literal;)*) => {
-        &[$(ApiFn { name: $name, params: &[$((stringify!($p), Arg::$k)),*], doc: $doc }),*]
+    (@since) => { "" };
+    (@since [since $v:literal] $($rest:tt)*) => { $v };
+    (@since [$other:ident $v:literal] $($rest:tt)*) => { api!(@since $($rest)*) };
+    (@dep) => { None };
+    (@dep [deprecated $v:literal] $($rest:tt)*) => { Some($v) };
+    (@dep [$other:ident $v:literal] $($rest:tt)*) => { api!(@dep $($rest)*) };
+    ($( $([$attr:ident $val:literal])* $name:literal ( $($p:ident : $k:ident),* ) $doc:literal;)*) => {
+        &[$(ApiFn {
+            name: $name,
+            params: &[$((stringify!($p), Arg::$k)),*],
+            doc: $doc,
+            since: api!(@since $([$attr $val])*),
+            deprecated: api!(@dep $([$attr $val])*),
+        }),*]
     };
+}
+
+/// The API version as a script sees it (`api_version()`).
+pub fn api_version() -> &'static str {
+    API_VERSION
+}
+
+/// The deprecated functions a script calls: (line, 1-based; function; what to use instead).
+/// Comments and strings are skipped.
+pub fn deprecated_calls(src: &str) -> Vec<(usize, &'static str, &'static str)> {
+    let mut out = Vec::new();
+    for (k, line) in src.lines().enumerate() {
+        let code = strip_strings_and_comments(line);
+        for f in API.iter().filter(|f| f.deprecated.is_some()) {
+            let mut from = 0;
+            while let Some(i) = code[from..].find(f.name) {
+                let at = from + i;
+                let before = code[..at].chars().next_back();
+                let after = code[at + f.name.len()..].trim_start();
+                let word_start = before.is_none_or(|c| !(c.is_alphanumeric() || c == '_' || c == '.'));
+                if word_start && after.starts_with('(') && !code[..at].trim_end().ends_with("fn") {
+                    out.push((k + 1, f.name, f.deprecated.unwrap_or_default()));
+                    break;
+                }
+                from = at + f.name.len();
+            }
+        }
+    }
+    out
+}
+
+/// A line of Rhai with string contents blanked and a `//` comment cut off.
+fn strip_strings_and_comments(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut in_str = false;
+    let mut prev = ' ';
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        if in_str {
+            if c == '"' && prev != '\\' {
+                in_str = false;
+                out.push('"');
+            } else {
+                out.push(' ');
+            }
+        } else if c == '"' {
+            in_str = true;
+            out.push('"');
+        } else if c == '/' && chars.peek() == Some(&'/') {
+            break;
+        } else {
+            out.push(c);
+        }
+        prev = c;
+    }
+    out
 }
 
 /// The engine's script API (see [`crate::script`]). Overloads are listed separately.
@@ -103,7 +178,7 @@ pub const API: &[ApiFn] = api! {
     "player_faction"() "The player's faction id (their race's, else the player character's; \"\" without one)";
     "standing"(faction: Faction) "The player's standing with a faction (-100..100; at -20 or below its characters attack the player)";
     "change_standing"(faction: Faction, amount: Num) "Raises (or with a negative amount lowers) the player's standing with a faction; its characters turn hostile or calm down at once (queued)";
-    "plugin_param"(plugin: Text, name: Text) "A plugin's parameter as the project set it in the Plugins window (else its default): a number, on / off or a text; () when the plugin or parameter isn't there";
+    [since "0.27"] "plugin_param"(plugin: Text, name: Text) "A plugin's parameter as the project set it in the Plugins window (else its default): a number, on / off or a text; () when the plugin or parameter isn't there";
     "set_faction"(target: Target, faction: Faction) "A character on this map (\"self\", a name) or \"player\" joins a faction; \"\" = back to its own (the placed character's, its definition's, its race's). Saved; who attacks whom changes at once (queued)";
     "faction_of"(target: Target) "The faction id a character belongs to now: \"player\", \"self\" (also SELF) or a name on this map; \"\" = none";
     "is_female"() "Whether the player character is female";
@@ -250,7 +325,9 @@ pub const API: &[ApiFn] = api! {
     "mood"(target: Target, mood: Text) "A character's portrait shows that mood (its definition's mood portrait) until changed or the event ends; \"\" = its usual one (queued)";
     "open_companion"(target: Target) "Opens a companion's window (its gear and bag next to the player's inventory) once the event is over (queued)";
     "is_staying"(name: Text) "Whether a companion was told to wait where it is";
-    "heal_npc"(target: Target, amount: Num) "Heals a character by name (a companion, \"player\"); a negative amount hurts it (queued)";
+    [deprecated "heal_character(target, amount)"] "heal_npc"(target: Target, amount: Num) "Heals a character by name (a companion, \"player\"); a negative amount hurts it. Deprecated: use heal_character (queued)";
+    [since "0.27"] "heal_character"(target: Target, amount: Num) "Heals a character by name (a companion, any character with HP; \"player\" = the player); a negative amount hurts it (queued)";
+    [since "0.27"] "api_version"() "The script API version of this engine, e.g. \"0.27\" (plugins and scripts can check what they may use)";
     "play_sound"(sound: Sound) "Plays a sound (queued)";
     "play_sound"(sound: Sound, options: Opts) "Plays a sound with options #{ volume: 0.5 (times its own), pitch: 1.5 (2 = an octave higher and faster, 0.5 = lower), pan: -1 (left) .. 1 (right) } (queued)";
     "play_music"(sound: Sound) "Plays music (queued)";
@@ -357,6 +434,29 @@ mod tests {
         let doc = include_str!("../../../Documentation/manual/08-scripting.md");
         let undocumented: Vec<&&str> = registered.iter().filter(|n| !doc.contains(&format!("`{n}("))).collect();
         assert!(undocumented.is_empty(), "missing in Documentation/manual/08-scripting.md: {undocumented:?}");
+    }
+
+    /// Functions added since versions were kept say so in the manual, deprecated ones say what
+    /// replaces them.
+    #[test]
+    fn versions_and_deprecations_are_documented() {
+        let doc = include_str!("../../../Documentation/manual/08-scripting.md");
+        let row = |name: &str| doc.lines().find(|l| l.starts_with(&format!("| `{name}("))).unwrap_or_else(|| panic!("no manual row for {name}")).to_string();
+        for f in API.iter().filter(|f| !f.since.is_empty()) {
+            assert!(row(f.name).contains(&format!("since {}", f.since)), "08-scripting.md: {} should say *(since {})*", f.name, f.since);
+        }
+        for f in API.iter().filter(|f| f.deprecated.is_some()) {
+            assert!(row(f.name).contains("Deprecated"), "08-scripting.md: {} should say it is deprecated", f.name);
+            let new = f.deprecated.unwrap().split('(').next().unwrap();
+            assert!(API.iter().any(|g| g.name == new && g.deprecated.is_none()), "{} is replaced by {new}, which the table lacks", f.name);
+        }
+        assert!(API.iter().filter(|f| !f.since.is_empty()).all(|f| crate::plugins::compare_versions(f.since, API_VERSION) != std::cmp::Ordering::Greater));
+    }
+
+    #[test]
+    fn deprecated_calls_are_found() {
+        let src = "fn a() {\n    heal_npc(\"tilda\", 2); // heal_npc(\n    say(\"heal_npc(x)\");\n    my_heal_npc(1);\n}\nfn heal_npc_twice() { heal_character(\"x\", 1) }";
+        assert_eq!(deprecated_calls(src), vec![(2, "heal_npc", "heal_character(target, amount)")]);
     }
 
     /// The id arguments derived from the table are the ones renames and the script check knew

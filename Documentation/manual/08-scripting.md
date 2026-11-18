@@ -22,8 +22,9 @@ follow, and every function the engine provides.
 9. [Writing scripts in the editor](#writing-scripts-in-the-editor)
 10. [API reference](#api-reference)
 11. [Recipes](#recipes)
-12. [Limits, errors and debugging](#limits-errors-and-debugging)
-13. [Rhai in five minutes](#rhai-in-five-minutes)
+12. [API versions](#api-versions)
+13. [Limits, errors and debugging](#limits-errors-and-debugging)
+14. [Rhai in five minutes](#rhai-in-five-minutes)
 
 ---
 
@@ -376,7 +377,8 @@ fn name_the_horse() {
 | `player_x()` / `player_y()` | Position in tiles (fractional; the feet). |
 | `player_facing()` | `"up"`, `"down"`, `"left"` or `"right"`. |
 | `heal(amount)` | Restores hit points; a negative amount hurts the player. *(queued)* |
-| `heal_npc(name, amount)` | Restores a character's hit points (a companion, any character with HP; `"player"` = the player); a negative amount hurts it. *(queued)* |
+| `heal_character(name, amount)` | Restores a character's hit points (a companion, any character with HP; `"player"` = the player); a negative amount hurts it. *(queued, since 0.27)* |
+| `heal_npc(name, amount)` | **Deprecated** since 0.27: use `heal_character` (the same; the old name still works). *(queued)* |
 | `current_map()` | Name of the current map. |
 | `set_home(map, owned)` | Makes a map one of the player's homes (`true`) or no longer (`false`): furniture items can be placed there ([Gameplay › Homes and furniture](09-gameplay.md#homes-and-furniture)). Saved with the game. |
 | `is_home(map)` | Whether a map is one of the player's homes. |
@@ -750,7 +752,8 @@ one name space with the project's.
 
 | Function | Description |
 |---|---|
-| `plugin_param(plugin, name)` | A plugin's parameter as the project set it in the *Plugins* window, else the plugin's default: a number (whole numbers come as integers), `true` / `false` or a text; `()` when the plugin is off or has no such parameter. *(immediately)* |
+| `plugin_param(plugin, name)` | A plugin's parameter as the project set it in the *Plugins* window, else the plugin's default: a number (whole numbers come as integers), `true` / `false` or a text; `()` when the plugin is off or has no such parameter. *(immediately, since 0.27)* |
+| `api_version()` | The script API version of this engine, e.g. `"0.27"`: what a script or plugin may count on ([API versions](#api-versions)). *(immediately, since 0.27)* |
 
 ### Quests
 
@@ -1182,6 +1185,21 @@ fn fountain() {
 ```
 
 ---
+
+## API versions
+
+The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.27`); `api_version()` returns it.
+Functions added since versions were kept say *since 0.27* (or later) in this reference, so a script
+or a [plugin](18-plugins.md) knows what it may count on; a plugin names the version it needs
+(`api` in its `plugin.ron`) and isn't loaded by an older engine.
+
+A **deprecated** function still works, but has a better replacement: the reference says which. The
+editor's completion marks it, and the script check (*Save & check*, *Edit › Problems*, the agent
+server's `check_script`) warns about every call with the line and what to use instead.
+
+- **Until 1.0** a function may still change or go away; the CHANGELOG says so in a *Breaking:*
+  line.
+- **From 1.0** a deprecated function keeps working until 2.0.
 
 ## Limits, errors and debugging
 

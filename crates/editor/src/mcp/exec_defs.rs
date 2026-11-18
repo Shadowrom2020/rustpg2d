@@ -759,7 +759,7 @@ impl Editor {
                 continue;
             }
             for issue in rustpg2d_engine::script_refs::check_script(&src, &self.project.db, &self.refs.maps, &self.refs.spawns) {
-                out.push(format!("{name}:{}: {}", issue.line, issue.message));
+                out.push(format!("{name}:{}: {}{}", issue.line, if issue.warning { "warning: " } else { "" }, issue.message));
             }
         }
         let mut host = rustpg2d_engine::script::ScriptHost::new();
@@ -828,12 +828,17 @@ impl Editor {
         let f = p.filter.unwrap_or_default().to_lowercase();
         let mut out = Vec::new();
         for api in crate::script_editor::API {
-            let line = format!("{}({}) — {}", api.name, api.params.iter().map(|(n, k)| format!("{n}: {k:?}")).collect::<Vec<_>>().join(", "), api.doc);
+            let mark = match (api.deprecated, api.since) {
+                (Some(instead), _) => format!(" [DEPRECATED: use {instead}]"),
+                (None, "") => String::new(),
+                (None, v) => format!(" [since {v}]"),
+            };
+            let line = format!("{}({}){mark} — {}", api.name, api.params.iter().map(|(n, k)| format!("{n}: {k:?}")).collect::<Vec<_>>().join(", "), api.doc);
             if f.is_empty() || line.to_lowercase().contains(&f) {
                 out.push(line);
             }
         }
-        let mut s = format!("Engine functions ({}; parameter kinds say what the string is: Item, Map, Spawn, Sound, Quest, Target = \"self\" | \"player\" | an entity name):\n{}", out.len(), out.join("\n"));
+        let mut s = format!("Script API {} — engine functions ({}; parameter kinds say what the string is: Item, Map, Spawn, Sound, Quest, Target = \"self\" | \"player\" | an entity name):\n{}", rustpg2d_engine::script_api::API_VERSION, out.len(), out.join("\n"));
         if self.project_open {
             let own: Vec<&String> = self.refs.functions.iter().filter(|n| f.is_empty() || n.to_lowercase().contains(&f)).collect();
             if !own.is_empty() {

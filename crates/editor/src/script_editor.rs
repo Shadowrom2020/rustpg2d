@@ -258,7 +258,14 @@ pub fn candidates(place: &Place, call: Option<&CallAt>, known: &Known, src: &str
                     continue;
                 }
                 let sigs: Vec<String> = API.iter().filter(|g| g.name == f.name).map(signature).collect();
-                v.push(Cand { insert: f.name.to_string(), label: sigs.join("  |  "), detail: f.doc.to_string() });
+                // Deprecated ones say so (and what replaces them); new ones since when.
+                let detail = match (f.deprecated, f.since) {
+                    (Some(instead), _) => format!("DEPRECATED: use {instead}. {}", f.doc),
+                    (None, "") => f.doc.to_string(),
+                    (None, v) => format!("{} (since {v})", f.doc),
+                };
+                let label = if f.deprecated.is_some() { format!("{} (deprecated)", sigs.join("  |  ")) } else { sigs.join("  |  ") };
+                v.push(Cand { insert: f.name.to_string(), label, detail });
             }
             for f in known.functions {
                 v.push(Cand { insert: f.clone(), label: format!("{f}()"), detail: "script function".into() });

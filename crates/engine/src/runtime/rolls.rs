@@ -57,7 +57,8 @@ impl Game {
         }
         let new = (count.saturating_sub(self.rolls_shown) as usize).min(self.world.rolls.len());
         self.rolls_shown = count;
-        if !self.project.config.rules.show_checks {
+        // (In a fight the fight's log shows every roll.)
+        if !self.project.config.rules.show_checks || self.fight.is_some() {
             return;
         }
         let lines: Vec<String> = self.world.rolls[self.world.rolls.len() - new..].iter().filter(|r| r.success.is_some()).map(roll_toast).collect();

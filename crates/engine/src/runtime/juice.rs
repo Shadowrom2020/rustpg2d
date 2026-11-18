@@ -16,9 +16,6 @@ const HURT_SHAKE: f32 = 0.25;
 const HURT_FLASH: f32 = 0.15;
 /// Shake strength 1 moves the view up to this many art pixels.
 const SHAKE_PIXELS: f32 = 3.0;
-/// The world pauses this long when the player lands a hit, longer on a critical hit or a kill.
-const HITSTOP: f32 = 0.04;
-const HITSTOP_BIG: f32 = 0.07;
 /// A hit character shows white this long.
 pub(super) const HIT_FLASH: f32 = 0.1;
 /// Damage numbers rise and fade over this many seconds.
@@ -59,16 +56,12 @@ pub(super) struct Juice {
     strength: f32,
     /// Seconds of the red hurt flash left.
     flash: f32,
-    /// Seconds of hit-stop left (the world doesn't move meanwhile).
-    pub hitstop: f32,
-    /// Hit-stops so far (for `status`).
-    stops: u32,
     numbers: Vec<Number>,
     /// The last damage numbers, for `status`.
     recent: std::collections::VecDeque<String>,
     /// Draws a sprite as a white silhouette (the hit flash); made on first use.
     white: std::cell::OnceCell<Option<Material>>,
-    /// Autoplay `crit`: always / never critical (None = by chance).
+    /// Autoplay `crit`: the player's side's hits always / never critical (None = by the dice).
     pub crit_mode: Option<bool>,
     /// *Flash screen*: colour (alpha = strength), seconds left, seconds in all.
     screen_flash: Option<([f32; 4], f32, f32)>,
@@ -135,19 +128,6 @@ impl Game {
         j.numbers.retain(|n| n.t < NUMBER_TIME);
     }
 
-    /// The player landed a blow: the world pauses a moment (longer for `big` ones).
-    pub(super) fn hit_stop(&mut self, big: bool) {
-        if self.settings.screen_effects {
-            self.juice.hitstop = self.juice.hitstop.max(if big { HITSTOP_BIG } else { HITSTOP });
-            self.juice.stops += 1;
-        }
-    }
-
-    /// Whether a hit with critical chance `chance` is critical (autoplay `crit` can force it).
-    pub(super) fn roll_crit(&self, chance: f32) -> bool {
-        self.juice.crit_mode.unwrap_or_else(|| chance > 0.0 && rand::gen_range(0.0, 1.0) < chance)
-    }
-
     /// Autoplay `crit always|never|chance`.
     pub fn set_crit_mode(&mut self, mode: Option<bool>) {
         self.juice.crit_mode = mode;
@@ -184,6 +164,21 @@ impl Game {
             NumberKind::Crit => format!("{value}!"),
             NumberKind::Hurt => format!("-{value}"),
         });
+        if j.recent.len() > 6 {
+            j.recent.pop_front();
+        }
+    }
+
+    /// "miss" rising from `pos` (a fight's attack that missed).
+    pub(super) fn miss_number(&mut self, pos: Vec2) {
+        let text = crate::lang::tr_ui("miss").into_owned();
+        let j = &mut self.juice;
+        let drift = rand::gen_range(-1.0, 1.0);
+        j.numbers.push(Number { pos, kind: NumberKind::Hit, t: 0.0, drift, text, color: Some(Color::new(0.8, 0.8, 0.85, 1.0)), scale: 0.85 });
+        if j.numbers.len() > 40 {
+            j.numbers.remove(0);
+        }
+        j.recent.push_back("miss".into());
         if j.recent.len() > 6 {
             j.recent.pop_front();
         }
@@ -243,10 +238,9 @@ impl Game {
         }
     }
 
-    /// `hitstop=` (seconds left / how many so far) and `numbers=` (the last six; `!` = critical,
-    /// `-` = the player or a companion hurt) for `status`.
+    /// `numbers=` (the last six; `!` = critical, `-` = the player or a companion hurt) for `status`.
     pub(super) fn hits_status(&self) -> String {
-        format!("hitstop={:.2}/{} numbers={:?}", self.juice.hitstop, self.juice.stops, self.juice.recent.iter().collect::<Vec<_>>())
+        format!("numbers={:?}", self.juice.recent.iter().collect::<Vec<_>>())
     }
 
     /// The camera offset of the shake this frame (world pixels; zero when switched off).

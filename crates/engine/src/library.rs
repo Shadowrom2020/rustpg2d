@@ -1128,7 +1128,7 @@ mod tests {
         std::fs::write(root.join("sprites/items.png"), png(32, 16, [255, 0, 0, 255])).unwrap();
         let item = |id: &str| ItemDef { id: id.into(), name: id.into(), icon: SpriteRef::new("items", 0), ..Default::default() };
         let mut bow = item("bow");
-        bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "arrows".into() }));
+        bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "arrows".into(), long_range: 0.0 }));
         let db = Database {
             sheets: vec![SheetDef { id: "items".into(), image: "sprites/items.png".into(), frame_w: 16, frame_h: 16, ..Default::default() }],
             items: vec![item("arrows"), bow],

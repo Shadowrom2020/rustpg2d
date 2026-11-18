@@ -110,7 +110,7 @@
     (
         id: "bow",
         name: "Hunting Bow",
-        description: "Fast shots, uses arrows. Use it from the inventory to equip (or press Q).",
+        description: "A short bow, uses arrows. Use it from the inventory to equip (or press Q).",
         icon: (
             sheet: "icons_3d",
             frame: 0,
@@ -119,6 +119,7 @@
         on_use: [],
         weapon: Some((
             damage: 1,
+            dice: "1d6",
             cooldown: 0.45,
             ranged: Some((
                 projectile: (
@@ -127,13 +128,14 @@
                 ),
                 speed: 480.0,
                 range: 8.0,
+                long_range: 16.0,
                 ammo: "arrows",
             )),
             reach: 1.0,
             arc: 60.0,
             knockback: 1.0,
             two_handed: true,
-            crit: 0.08,
+            crit: 0.0,
             damage_type: Some(Piercing),
         )),
         armor: None,
@@ -165,6 +167,7 @@
         on_use: [],
         weapon: Some((
             damage: 3,
+            dice: "1d8",
             cooldown: 1.1,
             ranged: Some((
                 projectile: (
@@ -173,13 +176,14 @@
                 ),
                 speed: 640.0,
                 range: 10.0,
+                long_range: 20.0,
                 ammo: "bolts",
             )),
             reach: 1.0,
             arc: 60.0,
             knockback: 1.0,
             two_handed: true,
-            crit: 0.12,
+            crit: 0.0,
             damage_type: Some(Piercing),
         )),
         armor: None,
@@ -269,13 +273,14 @@
         on_use: [],
         weapon: Some((
             damage: 2,
+            dice: "1d6",
             cooldown: 0.35,
             ranged: None,
             reach: 1.1,
             arc: 65.0,
             knockback: 1.0,
             two_handed: false,
-            crit: 0.05,
+            crit: 0.0,
             damage_type: Some(Slashing),
         )),
         armor: None,
@@ -301,13 +306,14 @@
         on_use: [],
         weapon: Some((
             damage: 3,
+            dice: "1d8",
             cooldown: 0.35,
             ranged: None,
             reach: 1.2,
             arc: 65.0,
             knockback: 1.0,
             two_handed: false,
-            crit: 0.06,
+            crit: 0.0,
             damage_type: Some(Slashing),
         )),
         armor: None,
@@ -324,7 +330,7 @@
     (
         id: "fine_iron_sword",
         name: "Fine Iron Sword",
-        description: "A masterly forged blade: lighter, sharper, gleaming.",
+        description: "A masterly forged blade: a critical hit on a 19 or 20.",
         icon: (
             sheet: "icons_3d",
             frame: 5,
@@ -333,13 +339,14 @@
         on_use: [],
         weapon: Some((
             damage: 4,
+            dice: "1d8",
             cooldown: 0.3,
             ranged: None,
             reach: 1.2,
             arc: 70.0,
             knockback: 1.0,
             two_handed: false,
-            crit: 0.12,
+            crit: 0.1,
             damage_type: Some(Slashing),
         )),
         armor: None,
@@ -356,7 +363,7 @@
     (
         id: "spear",
         name: "Spear",
-        description: "Hits from two tiles away, but only straight ahead.",
+        description: "Hits from two tiles away.",
         icon: (
             sheet: "icons_3d",
             frame: 6,
@@ -365,13 +372,14 @@
         on_use: [],
         weapon: Some((
             damage: 2,
+            dice: "1d6",
             cooldown: 0.55,
             ranged: None,
             reach: 1.9,
             arc: 22.0,
             knockback: 0.7,
             two_handed: true,
-            crit: 0.1,
+            crit: 0.0,
             damage_type: Some(Piercing),
         )),
         armor: None,
@@ -397,7 +405,7 @@
     (
         id: "axe",
         name: "Battle Axe",
-        description: "Slow, wide swings that send enemies flying.",
+        description: "A heavy battle axe: hard blows.",
         icon: (
             sheet: "icons_3d",
             frame: 7,
@@ -406,13 +414,14 @@
         on_use: [],
         weapon: Some((
             damage: 4,
+            dice: "1d8",
             cooldown: 0.85,
             ranged: None,
             reach: 1.0,
             arc: 85.0,
             knockback: 1.8,
             two_handed: false,
-            crit: 0.04,
+            crit: 0.0,
             damage_type: Some(Slashing),
         )),
         armor: None,
@@ -1479,7 +1488,7 @@
     (
         id: "wooden_shield",
         name: "Wooden Shield",
-        description: "Blocks some damage. Held in the left hand.",
+        description: "Raises your armor class. Held in the left hand.",
         icon: (
             sheet: "icons_3d",
             frame: 15,
@@ -2243,6 +2252,7 @@
         on_use: [],
         weapon: Some((
             damage: 2,
+            dice: "1d6",
             cooldown: 1.6,
             ranged: Some((
                 projectile: (
@@ -2251,13 +2261,14 @@
                 ),
                 speed: 300.0,
                 range: 6.0,
+                long_range: 12.0,
                 ammo: "arrows",
             )),
             reach: 1.0,
             arc: 60.0,
             knockback: 1.0,
             two_handed: false,
-            crit: 0.03,
+            crit: 0.0,
             damage_type: Some(Piercing),
         )),
         armor: None,

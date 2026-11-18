@@ -216,7 +216,7 @@ impl Game {
         // Already next to the target: no path needed.
         let ready = match goal {
             Goal::Interact(u) => self.uid_index(u).is_some_and(|i| self.in_reach(i)),
-            Goal::Attack(u) => self.uid_index(u).is_some_and(|i| self.melee_reaches(i)),
+            Goal::Attack(u) => self.uid_index(u).is_some_and(|i| self.starts_fight_with(i)),
             _ => false,
         };
         if right {
@@ -303,12 +303,7 @@ impl Game {
                 }
                 let e = &self.loaded.entities[i];
                 let target = e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0);
-                let me = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
-                let ranged = self.current_weapon().and_then(|w| w.ranged);
-                let can_hit = match &ranged {
-                    Some(r) => me.distance(target) <= r.range * ts * 0.85 && self.line_clear(me, target),
-                    None => self.melee_reaches(i),
-                };
+                let can_hit = self.starts_fight_with(i);
                 if can_hit {
                     self.face_towards(target + vec2(0.0, e.body.hitbox.y / 2.0));
                     if self.combat.cooldown <= 0.0 {

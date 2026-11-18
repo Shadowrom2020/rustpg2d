@@ -1,0 +1,355 @@
+//! The fight's screen: the turn order bar (top), the action bar with movement and the action /
+//! bonus / reaction marks (bottom), the reachable tiles, the path, the cursor, the hit chance
+//! and cover of the target under it, the fight log; and the player's input on their turns.
+
+use macroquad::prelude::*;
+
+use super::{Aim, Side, TurnAct};
+use crate::grid::TilePos;
+use crate::runtime::input::{self, Act};
+use crate::runtime::skin;
+use crate::runtime::text::{self, draw_plain, draw_text, measure_plain, measure_text, Role};
+use crate::runtime::Game;
+
+const BAR_FONT: f32 = 18.0;
+const LOG_LINES: usize = 6;
+
+impl Game {
+    /// The player's input on a turn they play: the cursor (arrows, mouse), the action bar (1-8,
+    /// Tab / Shift+Tab and Attack, clicks), Confirm on the cursor, End turn.
+    pub(super) fn turn_input(&mut self) {
+        self.refresh_reach();
+        let ts = self.ts();
+        // The action bar: keys and clicks.
+        for (k, act) in Act::QUICK.iter().enumerate() {
+            if input::act_pressed(*act) {
+                self.pick_act(k);
+                return;
+            }
+        }
+        if input::act_pressed(Act::EndTurn) {
+            self.pick_act(TurnAct::BAR.len() - 1);
+            return;
+        }
+        let n = TurnAct::BAR.len();
+        if input::act_pressed(Act::NextTab) {
+            let c = self.fight.as_mut().unwrap();
+            c.selected = (c.selected + 1) % n;
+        }
+        if input::act_pressed(Act::PrevTab) {
+            let c = self.fight.as_mut().unwrap();
+            c.selected = (c.selected + n - 1) % n;
+        }
+        if input::act_pressed(Act::Attack) {
+            let k = self.fight.as_ref().unwrap().selected;
+            self.pick_act(k);
+            return;
+        }
+        let mouse = input::mouse_pos();
+        if input::mouse_pressed(MouseButton::Left) {
+            if let Some(k) = self.bar_layout().iter().position(|r| r.contains(mouse)) {
+                self.pick_act(k);
+                return;
+            }
+        }
+        if input::mouse_pressed(MouseButton::Right) || input::act_pressed(Act::Cancel) {
+            self.fight.as_mut().unwrap().aim = Aim::Move;
+        }
+        // The cursor.
+        let c = self.fight.as_mut().unwrap();
+        let mut moved = false;
+        for (act, d) in [(Act::Left, (-1, 0)), (Act::Right, (1, 0)), (Act::Up, (0, -1)), (Act::Down, (0, 1))] {
+            if input::act_pressed(act) {
+                c.cursor = (c.cursor.0 + d.0, c.cursor.1 + d.1);
+                moved = true;
+            }
+        }
+        let world = self.mouse_world_at(mouse);
+        let c = self.fight.as_mut().unwrap();
+        if !moved && (mouse != c.mouse_last || input::mouse_pressed(MouseButton::Left)) && mouse != Vec2::ZERO {
+            c.cursor = ((world.x / ts).floor() as i32, (world.y / ts).floor() as i32);
+        }
+        c.mouse_last = mouse;
+        if input::act_pressed(Act::Confirm) || input::mouse_pressed(MouseButton::Left) {
+            self.confirm_cursor();
+        }
+    }
+
+    /// Bar entry `k` was chosen: an instant action happens, a targeted one aims the cursor.
+    pub(super) fn pick_act(&mut self, k: usize) {
+        let Some(&act) = TurnAct::BAR.get(k) else { return };
+        if let Some(c) = &mut self.fight {
+            c.selected = k;
+        }
+        if let Err(why) = self.take_act(act) {
+            self.ui.toast(crate::lang::tr_ui(why).into_owned());
+        }
+    }
+
+    /// Confirm on the cursor: the aimed act on whoever stands there; without an aim, walk there
+    /// (a foe: attack it, walking into reach first).
+    pub(super) fn confirm_cursor(&mut self) {
+        let Some(c) = &self.fight else { return };
+        let (cursor, aim, me) = (c.cursor, c.aim.clone(), c.current().clone());
+        let target = self.who_at(cursor).filter(|w| *w != me.who);
+        if aim != Aim::Move {
+            match target {
+                Some(t) => match self.act_on(&aim, t) {
+                    Ok(()) => self.fight.as_mut().unwrap().aim = Aim::Move,
+                    Err(why) => self.ui.toast(crate::lang::tr_ui(why).into_owned()),
+                },
+                None => self.ui.toast(crate::lang::tr_ui("No one there").into_owned()),
+            }
+            return;
+        }
+        let foe = target.filter(|t| self.fight.as_ref().unwrap().fighter(*t).is_some_and(|f| f.side != me.side));
+        if let Some(t) = foe {
+            if self.act_ready(TurnAct::Attack).is_err() {
+                self.ui.toast(crate::lang::tr_ui("Action used").into_owned());
+                return;
+            }
+            let reaches = self.attack_specs(me.who).iter().any(|s| self.can_attack(me.who, t, s).is_ok());
+            if reaches {
+                if let Err(why) = self.act_on(&Aim::Attack, t) {
+                    self.ui.toast(crate::lang::tr_ui(why).into_owned());
+                }
+                return;
+            }
+            // Walk next to it first, then attack.
+            let reach = self.fight.as_ref().unwrap().reach.clone();
+            let here = self.who_tile(me.who);
+            let goal = reach.iter().filter(|(p, _)| p.0.abs_diff(cursor.0) <= 1 && p.1.abs_diff(cursor.1) <= 1).min_by_key(|(_, (cost, _))| *cost).map(|(p, _)| *p);
+            match goal {
+                Some(g) => {
+                    let path = Self::path_to(&reach, here, g);
+                    self.fight.as_mut().unwrap().then_attack = Some(t);
+                    self.walk(path);
+                }
+                None => self.ui.toast(crate::lang::tr_ui("Out of reach").into_owned()),
+            }
+            return;
+        }
+        if target.is_some() {
+            return;
+        }
+        let reach = self.fight.as_ref().unwrap().reach.clone();
+        if reach.contains_key(&cursor) {
+            let here = self.who_tile(me.who);
+            let path = Self::path_to(&reach, here, cursor);
+            self.walk(path);
+        } else {
+            self.ui.toast(crate::lang::tr_ui("Too far").into_owned());
+        }
+    }
+
+    /// Recomputes the current fighter's reachable tiles when its turn or position changed.
+    pub(super) fn refresh_reach(&mut self) {
+        let Some(c) = &self.fight else { return };
+        let who = c.current().who;
+        let key = (c.current, c.round, c.turn.moved, c.turn.speed, self.who_tile(who));
+        if c.reach_key == Some(key) {
+            return;
+        }
+        let reach = self.reachable(who);
+        let c = self.fight.as_mut().unwrap();
+        c.reach = reach;
+        c.reach_key = Some(key);
+    }
+
+    // ---------------------------------------------------------------------------- drawing
+
+    /// The action bar's buttons (screen rectangles).
+    fn bar_layout(&self) -> Vec<Rect> {
+        let _font = text::role(Role::Hud);
+        let gap = 4.0;
+        let widths: Vec<f32> = TurnAct::BAR.iter().enumerate().map(|(k, a)| measure_text(&Self::bar_text(k, *a), None, BAR_FONT as u16, 1.0).width + 16.0).collect();
+        let total: f32 = widths.iter().sum::<f32>() + gap * (widths.len() as f32 - 1.0);
+        // Two rows when the screen is narrow.
+        let rows = if total > screen_width() - 32.0 { 2 } else { 1 };
+        let per = TurnAct::BAR.len().div_ceil(rows);
+        let h = 28.0;
+        let mut out = Vec::new();
+        for r in 0..rows {
+            let ws = &widths[r * per..((r + 1) * per).min(widths.len())];
+            let row_w: f32 = ws.iter().sum::<f32>() + gap * (ws.len() as f32 - 1.0);
+            let mut x = (screen_width() - row_w) / 2.0;
+            let y = screen_height() - 12.0 - (rows - r) as f32 * (h + gap);
+            for w in ws {
+                out.push(Rect::new(x, y, *w, h));
+                x += w + gap;
+            }
+        }
+        out
+    }
+
+    fn bar_text(k: usize, a: TurnAct) -> String {
+        let label = crate::lang::tr_ui(a.label());
+        match k {
+            0..=7 => format!("{} {label}", k + 1),
+            _ if a == TurnAct::EndTurn => format!("{label} [{}]", crate::runtime::glyphs::key_text("end_turn").unwrap_or_default()),
+            _ => label.into_owned(),
+        }
+    }
+
+    /// Overlays on the map (in the world camera): reachable tiles, the path, foes in reach, the
+    /// cursor and whose turn it is.
+    pub(in crate::runtime) fn draw_fight_world(&self) {
+        let Some(c) = &self.fight else { return };
+        let ts = self.ts();
+        let me = c.current();
+        let tile_rect = |t: TilePos| Rect::new(t.0 as f32 * ts, t.1 as f32 * ts, ts, ts);
+        // Everyone's ring: party blue, foes red, the current one gold.
+        for f in c.order.iter().filter(|f| !f.out) {
+            let r = tile_rect(self.who_tile(f.who));
+            let col = if f.who == me.who {
+                Color::new(1.0, 0.85, 0.3, 0.9)
+            } else if f.side == Side::Party {
+                Color::new(0.35, 0.6, 1.0, 0.6)
+            } else {
+                Color::new(1.0, 0.3, 0.25, 0.6)
+            };
+            draw_rectangle_lines(r.x + 2.0, r.y + 2.0, r.w - 4.0, r.h - 4.0, 2.0, col);
+        }
+        if !self.players_turn() {
+            return;
+        }
+        for t in c.reach.keys() {
+            let r = tile_rect(*t);
+            draw_rectangle(r.x + 1.0, r.y + 1.0, r.w - 2.0, r.h - 2.0, Color::new(0.3, 0.6, 1.0, 0.16));
+        }
+        let here = self.who_tile(me.who);
+        if c.aim == Aim::Move && c.reach.contains_key(&c.cursor) && self.who_at(c.cursor).is_none() {
+            let path = Self::path_to(&c.reach, here, c.cursor);
+            let mut prev = vec2((here.0 as f32 + 0.5) * ts, (here.1 as f32 + 0.5) * ts);
+            for t in path {
+                let p = vec2((t.0 as f32 + 0.5) * ts, (t.1 as f32 + 0.5) * ts);
+                draw_line(prev.x, prev.y, p.x, p.y, 3.0, Color::new(1.0, 1.0, 1.0, 0.7));
+                prev = p;
+            }
+        }
+        let r = tile_rect(c.cursor);
+        let col = match c.aim {
+            Aim::Move => Color::new(1.0, 1.0, 1.0, 0.95),
+            _ => Color::new(1.0, 0.55, 0.2, 0.95),
+        };
+        draw_rectangle_lines(r.x, r.y, r.w, r.h, 3.0, col);
+    }
+
+    /// The bars, the log and the target's hit chance (screen space, after the world).
+    pub(in crate::runtime) fn draw_fight_hud(&self, cam: &Camera2D) {
+        let Some(c) = &self.fight else { return };
+        let _font = text::role(Role::Hud);
+        // Turn order (top middle).
+        let alive: Vec<&super::Fighter> = c.order.iter().filter(|f| !f.out).collect();
+        let w = 96.0;
+        let total = alive.len() as f32 * (w + 4.0) - 4.0;
+        let mut x = ((screen_width() - total) / 2.0).max(8.0);
+        let y = 8.0;
+        skin::panel(x - 6.0, y - 4.0, total + 12.0, 46.0);
+        draw_text(format!("{} {}", crate::lang::tr_ui("Round"), c.round), x - 4.0, y + 56.0, 16.0, skin::dim());
+        for f in &alive {
+            let cur = f.who == c.current().who;
+            let r = Rect::new(x, y, w, 38.0);
+            draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(cur, Color::new(0.15, 0.15, 0.2, 0.9)));
+            if cur {
+                skin::cursor(r, Color::new(1.0, 0.86, 0.45, 1.0));
+            }
+            let mut name = self.who_name(f.who);
+            while name.chars().count() > 3 && measure_plain(&name, 15.0).width > w - 8.0 {
+                name.pop();
+            }
+            let color = if f.side == Side::Party { skin::normal() } else { Color::new(1.0, 0.6, 0.55, 1.0) };
+            draw_plain(&name, r.x + 4.0, r.y + 15.0, 15.0, color);
+            let (hp, max) = self.who_hp(f.who);
+            skin::color_bar(r.x + 4.0, r.y + 22.0, w - 8.0, 6.0, if max > 0 { hp.max(0) as f32 / max as f32 } else { 0.0 }, Some(if f.side == Side::Party { Color::new(0.3, 0.8, 0.35, 1.0) } else { Color::new(0.85, 0.25, 0.2, 1.0) }));
+            let mark = if f.down { format!("{} {}/{}", crate::lang::tr_ui("down"), f.saves.successes, f.saves.failures) } else { format!("{}", f.init) };
+            draw_plain(&mark, r.x + 4.0, r.y + 36.0, 12.0, skin::dim());
+            x += w + 4.0;
+        }
+        // The fight log (bottom left, over the map).
+        let lines: Vec<&String> = c.log.iter().rev().take(LOG_LINES).collect();
+        let ly = screen_height() - 90.0 - LOG_LINES as f32 * 18.0;
+        if !lines.is_empty() {
+            let lw = lines.iter().map(|l| measure_plain(l, 16.0).width).fold(0.0, f32::max).min(screen_width() * 0.6) + 12.0;
+            draw_rectangle(6.0, ly - 16.0, lw, lines.len() as f32 * 18.0 + 8.0, Color::new(0.0, 0.0, 0.0, 0.45));
+        }
+        for (k, l) in lines.iter().rev().enumerate() {
+            draw_plain(l, 12.0, ly + k as f32 * 18.0, 16.0, Color::new(1.0, 1.0, 1.0, 0.92));
+        }
+        if !self.players_turn() {
+            let who = self.who_name(c.current().who);
+            let t = format!("{who}...");
+            let tw = measure_plain(&t, 20.0).width;
+            draw_plain(&t, (screen_width() - tw) / 2.0, screen_height() - 24.0, 20.0, skin::highlight());
+            return;
+        }
+        // The action bar with the turn's economy above it.
+        let rects = self.bar_layout();
+        for (k, (act, r)) in TurnAct::BAR.iter().zip(&rects).enumerate() {
+            let ok = self.act_ready(*act).is_ok();
+            let picked = k == c.selected || matches!((&c.aim, act), (Aim::Attack, TurnAct::Attack) | (Aim::Cast(_), TurnAct::Cast) | (Aim::Help, TurnAct::Help) | (Aim::Grapple, TurnAct::Grapple) | (Aim::Shove, TurnAct::Shove) | (Aim::OffHand, TurnAct::OffHand));
+            if !skin::button_picture(*r, picked) {
+                draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(picked, Color::new(0.12, 0.12, 0.18, 0.92)));
+            }
+            if picked {
+                skin::cursor(*r, Color::new(1.0, 0.86, 0.45, 1.0));
+            }
+            draw_text(Self::bar_text(k, *act), r.x + 8.0, r.y + 19.0, BAR_FONT, if ok || picked { skin::normal() } else { skin::disabled() });
+        }
+        let top = rects.first().map_or(screen_height() - 40.0, |r| r.y) - 8.0;
+        let t = &c.turn;
+        let pip = |used: bool| if used { "-" } else { "o" };
+        let me = c.current();
+        let reacted = me.reacted;
+        let econ = format!(
+            "{}: {} {}/{} ft   {} {}   {} {}   {} {}",
+            self.who_name(me.who),
+            crate::lang::tr_ui("Move"),
+            t.speed.saturating_sub(t.moved),
+            t.speed,
+            crate::lang::tr_ui("Action"),
+            pip(t.action),
+            crate::lang::tr_ui("Bonus"),
+            pip(t.bonus),
+            crate::lang::tr_ui("Reaction"),
+            pip(reacted)
+        );
+        let ew = measure_plain(&econ, 18.0).width;
+        draw_plain(&econ, (screen_width() - ew) / 2.0, top, 18.0, skin::highlight());
+        if let Aim::Cast(s) = &c.aim {
+            let name = self.project.db.spell(s).map_or(s.clone(), |d| d.name.clone());
+            let nw = measure_plain(&name, 18.0).width;
+            draw_plain(&name, (screen_width() - nw) / 2.0, top - 20.0, 18.0, skin::normal());
+        }
+        // The target under the cursor: hit chance and cover.
+        if let Some(t) = self.who_at(c.cursor).filter(|t| *t != me.who) {
+            let foe = c.fighter(t).is_some_and(|f| f.side != me.side);
+            let mut lines = vec![self.who_name(t)];
+            let (hp, max) = self.who_hp(t);
+            lines.push(format!("HP {hp}/{max}  AC {}", self.who_ac(t)));
+            if foe && matches!(c.aim, Aim::Move | Aim::Attack | Aim::OffHand) {
+                let spec = if c.aim == Aim::OffHand { self.offhand_weapon(me.who).map(|w| self.hero_spec(&w, true)) } else { self.attack_specs(me.who).into_iter().find(|s| self.can_attack(me.who, t, s).is_ok()).or_else(|| self.attack_specs(me.who).into_iter().next()) };
+                if let Some(s) = spec {
+                    // (Without an aimed action a click on a foe out of melee reach walks there first.)
+                    match self.can_attack(me.who, t, &s) {
+                        Err(why) if c.aim != Aim::Move || s.ranged => lines.push(crate::lang::tr_ui(why).into_owned()),
+                        _ => lines.push(format!("{} {:.0}%", crate::lang::tr_ui("Hit"), self.hit_chance(me.who, t, &s) * 100.0)),
+                    }
+                }
+                let cover = self.cover(me.who, t);
+                if cover != crate::srd::combat::Cover::None {
+                    lines.push(format!("{} {}", crate::lang::tr_ui("Cover:"), crate::lang::tr_ui(cover.id())));
+                }
+            }
+            let ts = self.ts();
+            let p = cam.world_to_screen(vec2((c.cursor.0 as f32 + 1.0) * ts + 4.0, c.cursor.1 as f32 * ts));
+            let w = lines.iter().map(|l| measure_plain(l, 16.0).width).fold(0.0, f32::max) + 36.0;
+            let h = lines.len() as f32 * 18.0 + 12.0;
+            let x = p.x.min(screen_width() - w - 4.0);
+            skin::panel(x, p.y, w, h);
+            for (k, l) in lines.iter().enumerate() {
+                draw_plain(l, x + 10.0, p.y + 20.0 + k as f32 * 18.0, 16.0, if k == 0 { skin::highlight() } else { skin::normal() });
+            }
+        }
+    }
+}

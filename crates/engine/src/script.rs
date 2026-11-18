@@ -79,6 +79,8 @@ pub struct PlayerInfo {
     pub armor_class: i32,
     /// The hero's hit dice left (`hit_dice()`).
     pub hit_dice: u32,
+    /// The round of the fight going on (`combat_round()`; 0 = none).
+    pub combat_round: u32,
 }
 
 pub struct ScriptHost {
@@ -799,6 +801,9 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("exhaustion", with!(ctx, |c| crate::srd::conditions::exhaustion(&c.world.effects) as i64));
     engine.register_fn("set_exhaustion", with!(ctx, |c, n: i64| crate::srd::conditions::set_exhaustion(&mut c.world.effects, n.clamp(0, 6) as u8)));
     engine.register_fn("short_rest", with!(ctx, |c| c.actions.push(Action::ShortRest)));
+    engine.register_fn("start_combat", with!(ctx, |c| c.actions.push(Action::StartCombat)));
+    engine.register_fn("in_combat", with!(ctx, |c| c.player.combat_round > 0));
+    engine.register_fn("combat_round", with!(ctx, |c| c.player.combat_round as i64));
     engine.register_fn("long_rest", with!(ctx, |c| c.actions.push(Action::LongRest { hours: 8.0 })));
     engine.register_fn("long_rest", with!(ctx, |c, h: Dynamic| c.actions.push(Action::LongRest { hours: num(&h).max(0.0) })));
     engine.register_fn("apply_effect", with!(ctx, |c, t: &str, kind: &str, s: Dynamic, secs: Dynamic| {
@@ -1499,7 +1504,7 @@ mod tests {
         let actions = host.call(&mut WorldState::default(), "party", None);
         assert_eq!(actions, vec![Action::Companion { target: "guard".into(), join: true }, Action::Companion { target: "self".into(), join: false }]);
         let mut w = WorldState::default();
-        w.companions.push(crate::state::Companion { map: "village".into(), uid: 22, name: "guard".into(), hp: None, down: None, order: Default::default(), post: None, mana: None });
+        w.companions.push(crate::state::Companion { ai: false, map: "village".into(), uid: 22, name: "guard".into(), hp: None, down: None, order: Default::default(), post: None, mana: None });
         assert!(host.call(&mut w, "party", None).len() == 1, "already following: only stop_following");
     }
 

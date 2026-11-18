@@ -2199,6 +2199,9 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         Action::ShortRest => {
             ui.weak("Opens the rest window: the hero spends hit dice (d10 + CON each), then an hour passes. Refused with enemies nearby.");
         }
+        Action::StartCombat => {
+            ui.weak("Starts a turn-based fight with the hostile characters within 12 tiles of the player (their allies and the party join). Nothing without any.");
+        }
         Action::LongRest { hours } => {
             labeled(ui, "hours", |ui| {
                 ui.add(egui::DragValue::new(hours).range(1.0..=48.0).speed(0.1).suffix(" h"));

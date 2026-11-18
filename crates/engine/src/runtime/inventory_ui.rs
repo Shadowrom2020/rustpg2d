@@ -629,7 +629,10 @@ impl Game {
                     return (false, true);
                 }
             }
-            // Quick bar: keys 1-8 or a click use the item.
+            // Quick bar: keys 1-8 or a click use the item (in a fight they pick the turn's actions).
+            if self.fight.is_some() {
+                return (false, false);
+            }
             if !key_consumed {
                 if let Some(k) = Act::QUICK.iter().position(|a| input::act_pressed(*a)) {
                     self.use_quick(k);
@@ -796,7 +799,7 @@ impl Game {
 
     pub(super) fn draw_inventory_ui(&mut self) {
         let m = input::mouse_pos();
-        if (!self.ui.dialog_open() && !self.ui_hidden) || self.inv.is_open() {
+        if (!self.ui.dialog_open() && !self.ui_hidden && self.fight.is_none()) || self.inv.is_open() {
             self.draw_quickbar();
         }
         if !self.inv.is_open() {

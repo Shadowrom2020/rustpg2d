@@ -58,8 +58,7 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - **Stat blocks**: characters (and placed characters, on their own) can have an SRD stat block:
     abilities, AC, hit points, hit dice, speed, darkvision, proficiencies, languages, challenge and
     XP, from the SRD's 35 NPC templates (commoner, guard, bandit, veteran, priest, goblin, orc…)
-    built into the engine, or by hand (*Characters › Stat block*). Real-time combat still uses *Max
-    HP*, *Damage* and *Defense*; the turn-based combat of 0.29 takes the stat blocks.
+    built into the engine, or by hand (*Characters › Stat block*).
   - Scripts (API 0.28): `armor_class`, `hit_dice`, `npc_stat`; `status` prints `statblocks=` and
     `sheet=` adds level, AC, HP and hit dice; autoplay `wintab sheet`.
   - The example's (and starter library's) villagers, guards, outlaws, the bandit chief, Rook, the
@@ -118,6 +117,50 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   `skill()` and `set_skill()` are deprecated (`is_proficient`, `set_proficient`). The `level_up`
   hook has no `points` any more. Saved games of 0.27 load; their hero gets the project's starting
   scores and proficiencies.
+
+### Turn by Turn (SRD 5.1 combat)
+- **Turn-based combat**: fights follow the SRD's combat rules in turns, on the map where they
+  happen; exploring stays real-time. A fight starts when hostile characters notice the party, when
+  the player attacks one in sight, or with the new *Start fight* action / `start_combat()`.
+  Everyone within 12 tiles rolls initiative (d20 + DEX), enemies that hadn't noticed a hero who
+  struck first are surprised, those that come later join the round. On the tiles (5 ft) each
+  takes its movement (difficult terrain: a new material setting), one action, one bonus action and
+  one reaction: *Attack* (Multiattack), *Cast* (Bolt = a spell attack, Blast = a DEX save for
+  half, Heal), *Dash*, *Disengage*, *Dodge*, *Help*, *Hide*, *Ready*, *Search*, *Use an Object*,
+  *Grapple*, *Shove* and the off-hand attack. Attack rolls against AC with the SRD's advantage and
+  disadvantage (conditions, Dodge, Help, hidden attackers, shooting in melee or at long range),
+  critical hits on a 20 (the dice twice), cover from walls, tall props, trees and creatures (+2 /
+  +5 / no target), opportunity attacks.
+  - **0 HP**: characters die; the hero and companions fall unconscious and roll death saving
+    throws (healing gets them up). The fight is lost when nobody of the party stands and those down
+    are stable.
+  - **The party**: the player plays the hero's and the companions' turns; the orders menu's *AI
+    fights* / *I command* hands a companion to the AI (saved). The AI goes for the nearest foe it
+    reaches, keeps a shooter's range and line, flees by its *Flee below*, drinks a potion when its
+    health is critical.
+  - **The screen**: a turn order bar with hit points, an action bar (keys 1-8, Tab / Shift+Tab + X,
+    clicks; Space or *End turn*), the reachable tiles, the path, a tile cursor (arrows, mouse) with
+    the target's hit chance and cover, and a fight log of every roll (also in the journal's *Rolls*
+    page). Texts in the nine built-in languages.
+  - **Data**: weapons have **damage dice** (`1d8`; empty = from the old damage, 1 = 1d4 … 5 = 1d12)
+    and a **long range**; *Critical hits* becomes *On a 19 or 20*. Stat blocks have **attacks**
+    (bonus, dice and type, reach, range) and **Multiattack**, imported for the 35 NPC templates;
+    characters with a stat block take its hit points. The editor's forms edit them.
+  - **Events and scripts**: *Fight starts* / *Fight ends* triggers (the map's and the fighters'
+    own), the *Start fight* action; scripts (API 0.29) `start_combat`, `in_combat`, `combat_round`.
+    Autoplay `turn …` commands play turns (`turn attack NAME`, `turn move X Y`, `turn end`, `turn
+    fast`…); `status` prints `combat=` and `death_saves=`.
+  - Saving waits for the end of a fight (the autosave follows it); leaving the map ends it.
+  - The example (and starter library): the weapons have their SRD dice (the fine iron sword is
+    keen), the templated characters their attacks (the guard's spear, the bandit captain's three
+    attacks), wolves and bats the SRD beasts' stat blocks and slimes a weak one of their own.
+- **Breaking:** real-time combat is gone: wind-ups, swings, lunges, contact damage, blocking and
+  parrying with shields, dodge rolls, hit-stop, the attackers' turn-taking and circling, enemy
+  shooting and companions' real-time fighting. The *Block* and *Dodge* key bindings are dropped
+  (old settings load); Space ends a turn. The companions' *Attack* / *Defend* / *Passive* orders
+  give way to the AI toggle (`order(name, "passive")` still makes an AI-played companion only
+  dodge). A character's *Attack wind-up* is ignored. `status` loses `attacks=`, `block=`, `dodge=`,
+  `attacking=` and `hitstop=`. Hostile characters block the way like everyone else.
 
 ### Fixes
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")

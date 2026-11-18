@@ -549,10 +549,8 @@ pub enum Act {
     Debug,
     /// The companions' orders menu.
     Command,
-    /// Hold to raise the shield.
-    Block,
-    /// A quick roll.
-    Dodge,
+    /// Ends the turn in a fight (`turns/`).
+    EndTurn,
     /// Sneaking on / off (`stealth.rs`).
     Sneak,
     /// Photo mode on / off (`photo.rs`).
@@ -562,7 +560,7 @@ pub enum Act {
 impl Act {
     pub const QUICK: [Act; 8] = [Act::Quick1, Act::Quick2, Act::Quick3, Act::Quick4, Act::Quick5, Act::Quick6, Act::Quick7, Act::Quick8];
 
-    pub const ALL: [Act; 40] = [
+    pub const ALL: [Act; 39] = [
         Act::Up,
         Act::Down,
         Act::Left,
@@ -570,8 +568,7 @@ impl Act {
         Act::Run,
         Act::Confirm,
         Act::Attack,
-        Act::Block,
-        Act::Dodge,
+        Act::EndTurn,
         Act::Sneak,
         Act::SwitchWeapon,
         Act::Character,
@@ -645,8 +642,7 @@ impl Act {
             Act::QuickLoad => "quick_load",
             Act::Debug => "debug",
             Act::Command => "command",
-            Act::Block => "block",
-            Act::Dodge => "dodge",
+            Act::EndTurn => "end_turn",
             Act::Sneak => "sneak",
         }
     }
@@ -695,8 +691,7 @@ impl Act {
             Act::QuickLoad => "Quick load",
             Act::Debug => "Debug overlay",
             Act::Command => "Companion orders",
-            Act::Block => "Block (hold, with a shield)",
-            Act::Dodge => "Dodge roll",
+            Act::EndTurn => "End turn (in a fight)",
             Act::Sneak => "Sneak (on / off)",
         }
     }
@@ -712,7 +707,7 @@ impl Act {
         match self {
             Act::Up | Act::Down | Act::Left | Act::Right | Act::Run => 1 | 2 | 4,
             Act::Confirm | Act::Character => 1 | 2,
-            // Tab / RB switch tabs of an open window (RB raises the shield while playing).
+            // Tab / RB switch tabs of an open window (and the action bar in a fight).
             Act::NextTab => 2,
             // LB only switches tabs in an open window (it gives companion orders in play).
             Act::PrevTab => 2,
@@ -735,8 +730,7 @@ impl Act {
             Act::Right => &[K::Right, K::D],
             Act::Run => &[K::LeftShift, K::RightShift],
             Act::Confirm => &[K::E, K::Enter],
-            Act::Block => &[K::F],
-            Act::Dodge => &[K::Space],
+            Act::EndTurn => &[K::Space],
             Act::Sneak => &[K::LeftControl, K::V],
             Act::Cancel | Act::Pause => &[K::Escape],
             Act::Attack => &[K::X],
@@ -801,8 +795,6 @@ impl Act {
             Act::ZoomOut => &[Pad::Lb],
             Act::MapCenter => &[Pad::South],
             Act::Command => &[Pad::Lb],
-            Act::Block => &[Pad::Rb],
-            Act::Dodge => &[Pad::East],
             _ => &[],
         }
     }
@@ -1011,7 +1003,9 @@ mod tests {
     #[test]
     fn actions_keep_the_old_keys() {
         assert_eq!(Act::Confirm.default_keys(), &[KeyCode::E, KeyCode::Enter]);
-        assert_eq!((Act::Block.default_keys(), Act::Dodge.default_keys()), (&[KeyCode::F][..], &[KeyCode::Space][..]));
+        // Space ends the turn in a fight (it was the dodge roll; old bindings of block and dodge are skipped).
+        assert_eq!(Act::EndTurn.default_keys(), &[KeyCode::Space][..]);
+        assert_eq!((Act::from_id("block"), Act::from_id("dodge")), (None, None));
         // Sneaking: Left Ctrl / V and the left stick (which no longer hides the interface).
         assert_eq!((Act::Sneak.default_keys(), Act::Sneak.default_pad()), (&[KeyCode::LeftControl, KeyCode::V][..], &[Pad::LStick][..]));
         assert!(Act::HideUi.default_pad().is_empty() && Act::from_id("sneak") == Some(Act::Sneak));

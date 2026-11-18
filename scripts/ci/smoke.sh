@@ -76,6 +76,11 @@ line=$(game "wait 1; press f9; wait 1.5; hold right 0.12; wait 3; status; quit" 
 expect "a map change with its autosave" "$line" "map=forest" "autosave=saved"
 if grep -q 'current_map: "forest"' "$WORK/proj/saves/autosave.ron" 2>/dev/null; then echo "PASS autosave file"; else echo "FAIL autosave file: saves/autosave.ron missing or not on the forest"; failed=$((failed + 1)); fi
 
+# A turn-based fight: next to Whisperwood's goblins one starts; the player's attack is a roll, and the
+# AI plays the enemies' turns (without pauses) until it is the player's turn again.
+line=$(game "seed 5; wait 3; turn fast; turn attack slime; wait 1; turn end; wait 2; status; quit" --no-title --map forest --pos 1168,976)
+expect "a turn-based fight" "$line" "combat=2:player:" "rolls=attack:"
+
 # The editor converts the project folder into a project file beside it and works on its copy.
 line=$(RUSTPG2D_EDITOR_SCRIPT="wait 2; open village; status; quit" timeout 120 "${X[@]}" "$BIN/rustpg2d-editor" "$WORK/proj" 2>&1 | tee -a "$WORK/editor.log" | grep '^\[status\]' | tail -1)
 expect "the editor opens a map" "$line" "open=true" 'map=Some("village")'

@@ -1,12 +1,11 @@
-//! Enemy behaviour for `Behavior::Chase` characters: they chase the player they notice (within
-//! their sight range in a clear line, or within half of it through walls and trees),
-//! remember them for a few seconds after losing sight (walking to where they saw them last),
-//! give up beyond their leash and walk home, flee when badly hurt, and shooters keep their
-//! distance. Group fighters (`group`, the default) take turns: at most [`MAX_ATTACKERS`] close
-//! in on one target, the others circle around it until a place frees up; they spread out
-//! instead of stacking, alert others of their kind (`alert` tiles), and the badly hurt run to an
-//! ally, catch their breath and come back. Shooters without a clear line step sideways to find
-//! one. The state lives in [`Ai`] on each character (not saved).
+//! Enemy behaviour for `Behavior::Chase` characters outside fights: they notice the player and
+//! companions (within their sight range in a clear line, or within half of it through walls and
+//! trees; sneaking and darkness shorten it) and a fight starts (`turns/`). Characters going for a
+//! character of a hostile faction close in on it; they remember a foe for a few seconds after
+//! losing sight (walking to where they saw it last), give up beyond their leash and walk home,
+//! spread out instead of stacking, alert others of their kind (`alert` tiles), and the badly
+//! hurt run to an ally, catch their breath and come back. The state lives in [`Ai`] on each
+//! character (not saved).
 
 use macroquad::prelude::*;
 
@@ -17,11 +16,6 @@ use crate::entity::Facing;
 
 /// Seconds a character keeps hunting after it lost sight of the player.
 const AGGRO_MEMORY: f32 = 4.0;
-/// Group fighters closing in on one target at the same time.
-pub(super) const MAX_ATTACKERS: usize = 2;
-/// Waiting group fighters circle this many tiles from their target, at this share of their speed.
-const CIRCLE: f32 = 2.5;
-const CIRCLE_SPEED: f32 = 0.55;
 /// Chasers closer than this (tiles) push each other apart.
 const SPREAD: f32 = 1.1;
 /// The badly hurt run to allies within this many tiles (not those fighting right at the
@@ -54,11 +48,8 @@ pub(super) struct Ai {
     pub fleeing: bool,
     /// Whom it sees and goes for right now (None while it searches).
     pub target: Option<Foe>,
-    /// A group fighter without a place at its target: it circles and doesn't attack.
-    pub circling: bool,
-    /// Circling direction (1 or -1; 0 = not chosen yet) and the seconds until it may turn.
+    /// Which way a shooter steps to find a clear line (1 or -1; 0 = not chosen yet).
     orbit: f32,
-    orbit_t: f32,
     /// Seconds next to an ally while badly hurt; `rallied` = back in the fight (until it calms down).
     regroup: f32,
     rallied: bool,
@@ -96,22 +87,6 @@ fn chase_of(b: &Behavior) -> Option<Chase> {
 }
 
 impl Game {
-    /// The feet of a foe that is still there.
-    fn foe_pos(&self, foe: Foe) -> Option<Vec2> {
-        match foe {
-            Foe::Player => Some(self.player.pos),
-            Foe::Companion(uid) => self.loaded.entities.iter().find(|e| e.uid == uid && e.active && e.companion.is_some()).map(|e| e.body.pos),
-            Foe::Npc(uid) => self.loaded.entities.iter().find(|e| e.uid == uid && e.active && e.hp > 0).map(|e| e.body.pos),
-        }
-    }
-
-    /// Character `i` fights: it is hostile to the player, or goes for a character of a hostile
-    /// faction.
-    pub(super) fn fights(&self, i: usize) -> bool {
-        let e = &self.loaded.entities[i];
-        e.hostile || matches!(e.ai.target, Some(Foe::Npc(_)))
-    }
-
     /// Characters `i` and `j` are on the same side (the same kind or the same faction).
     fn kin(&self, i: usize, j: usize) -> bool {
         let (a, b) = (&self.loaded.entities[i], &self.loaded.entities[j]);
@@ -134,48 +109,6 @@ impl Game {
                 (j, o.body.pos, o.body.pos - vec2(0.0, o.body.hitbox.y / 2.0))
             })
             .collect()
-    }
-
-    /// A group fighter that fights up close (swings or lunges; shooters don't take turns).
-    fn group_melee(&self, i: usize) -> bool {
-        let e = &self.loaded.entities[i];
-        chase_of(&e.behavior).is_some_and(|c| c.group) && e.weapon.as_ref().is_none_or(|w| w.ranged.is_none()) && self.attack_kind(i).is_some()
-    }
-
-    /// Hands out the places at each target (once a frame, before the characters move): the
-    /// [`MAX_ATTACKERS`] nearest group fighters close in, the others circle. Those already
-    /// attacking keep their place, and those that had one are preferred a little (no swapping
-    /// back and forth when they stand at about the same distance).
-    pub(super) fn assign_attack_slots(&mut self) {
-        let ts = self.ts();
-        let mut wanting: Vec<(Foe, usize, f32)> = Vec::new();
-        for i in 0..self.loaded.entities.len() {
-            let e = &self.loaded.entities[i];
-            if !e.active || !self.fights(i) || e.ai.aggro <= 0.0 || e.ai.harmless() || !self.group_melee(i) {
-                continue;
-            }
-            let Some(foe) = e.ai.target else { continue };
-            let Some(at) = self.foe_pos(foe) else { continue };
-            let mut key = e.body.pos.distance(at);
-            if e.attack.is_some() {
-                key -= 1000.0 * ts;
-            } else if !e.ai.circling {
-                key -= 1.5 * ts;
-            }
-            wanting.push((foe, i, key));
-        }
-        for e in &mut self.loaded.entities {
-            e.ai.circling = false;
-        }
-        wanting.sort_by(|a, b| a.2.total_cmp(&b.2));
-        let mut taken: Vec<(Foe, usize)> = Vec::new();
-        for (foe, i, _) in wanting {
-            match taken.iter_mut().find(|(f, _)| *f == foe) {
-                Some((_, n)) if *n >= MAX_ATTACKERS => self.loaded.entities[i].ai.circling = true,
-                Some((_, n)) => *n += 1,
-                None => taken.push((foe, 1)),
-            }
-        }
     }
 
     /// The push away from other chasers standing too close to character `i` (0 when alone).
@@ -286,12 +219,6 @@ impl Game {
             self.loaded.entities[i].ai = Ai::default();
             return false;
         }
-        // Winding up, swinging, catching its breath: it stands (a lunge's hop is a push).
-        if e.attack.is_some_and(|a| a.holds()) {
-            self.loaded.entities[i].body.moving = false;
-            return true;
-        }
-        let melee_reach = self.strike_reach(i);
         let e = &self.loaded.entities[i];
         let pos = e.body.pos;
         // Gave up: walk home first.
@@ -387,6 +314,10 @@ impl Game {
             self.auto_emote(i, "confused");
         } else if hurt && !was_fleeing && (sees || was_hunting) {
             self.auto_emote(i, "fear");
+        }
+        // The player or a companion noticed (and it doesn't run): a fight starts.
+        if matches!(foe, Some(Foe::Player | Foe::Companion(_))) && !hurt && self.start_combat(false) {
+            return true;
         }
         let e = &mut self.loaded.entities[i];
         if e.ai.aggro <= 0.0 {
@@ -497,28 +428,8 @@ impl Game {
                 return true;
             }
         }
-        // Waiting for a place at the target: circle around it at a distance, facing it.
-        if self.loaded.entities[i].ai.circling && dist < (CIRCLE + 2.0) * ts {
-            let e = &mut self.loaded.entities[i];
-            e.ai.orbit_t -= dt;
-            if e.ai.orbit == 0.0 || e.ai.orbit_t <= 0.0 {
-                e.ai.orbit = if e.ai.orbit == 0.0 || rand::gen_range(0, 3) == 0 { if rand::gen_range(0, 2) == 0 { 1.0 } else { -1.0 } } else { e.ai.orbit };
-                e.ai.orbit_t = rand::gen_range(2.5, 5.0);
-            }
-            let out = -dir;
-            let tangent = vec2(-out.y, out.x) * e.ai.orbit;
-            let radial = ((dist - CIRCLE * ts) / ts).clamp(-1.0, 1.0);
-            let step = (tangent - out * radial + self.spread(i, pos) * 1.5).normalize_or_zero();
-            if self.step_dir(i, step, dt, Some(dir), CIRCLE_SPEED) < 0.2 {
-                // Blocked (a wall, another fighter): go round the other way.
-                let e = &mut self.loaded.entities[i];
-                e.ai.orbit = -e.ai.orbit;
-                e.ai.orbit_t = rand::gen_range(1.5, 3.0);
-            }
-            return true;
-        }
-        // Armed: stop where the weapon reaches (the swing starts in `attacks.rs`).
-        if dist < 1.0 || melee_reach.is_some_and(|r| dist <= r * 0.8) {
+        // Next to its foe: it stands (the fight starts when the player is near).
+        if dist < 1.2 * ts {
             Self::hold(&mut self.loaded.entities[i].body, dir);
             return true;
         }
@@ -632,9 +543,8 @@ impl Game {
         self.fire(crate::events::GameEvent::HpBelow { from, to }, super::Source::Entity(uid));
     }
 
-    /// For `status()`: what the hunting characters are doing (`hunting` = searching or shooting,
-    /// `attack` = a group fighter closing in, `circle` = one waiting for its turn, `regroup` =
-    /// badly hurt, next to an ally).
+    /// For `status()`: what the hunting characters are doing (`hunting` = searching or closing
+    /// in, `regroup` = badly hurt, next to an ally).
     pub(super) fn ai_status(&self) -> Vec<String> {
         let ts = self.ts();
         (0..self.loaded.entities.len())
@@ -650,10 +560,6 @@ impl Game {
                     "regroup"
                 } else if e.ai.fleeing {
                     "fleeing"
-                } else if e.ai.circling {
-                    "circle"
-                } else if e.ai.target.is_some() && self.group_melee(i) {
-                    "attack"
                 } else {
                     "hunting"
                 };

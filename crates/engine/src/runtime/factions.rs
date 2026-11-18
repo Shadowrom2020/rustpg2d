@@ -28,13 +28,12 @@ impl Game {
     }
 
     /// Puts a character into the faction [`faction_id`](Self::faction_id) says: its index, and
-    /// whether it attacks the player (hostile characters overlap the player instead of blocking).
+    /// whether it attacks the player.
     pub(super) fn apply_faction(&self, e: &mut super::RtEntity) {
         let (index, hostile) = self.faction_effect(e);
         e.faction = index;
         if e.companion.is_none() {
             e.hostile = hostile;
-            e.solid = !hostile;
         }
     }
 
@@ -69,7 +68,6 @@ impl Game {
                 e.ai = Default::default();
             }
             e.hostile = hostile;
-            e.solid = !hostile;
         }
         self.persist(i);
     }

@@ -295,10 +295,42 @@ impl SrdData {
                     immunities: strings(m, "damage_immunities"),
                     vulnerabilities: strings(m, "damage_vulnerabilities"),
                     condition_immunities: list(m, "condition_immunities").iter().map(|c| s(c, "index").to_string()).collect(),
+                    attacks: list(m, "actions").iter().filter_map(stat_attack).collect(),
+                    multiattack: list(m, "actions").iter().find(|a| s(a, "name") == "Multiattack").map_or(0, |a| multiattack_count(&desc(a))),
                 }
             })
             .collect()
     }
+}
+
+/// An SRD action with an attack roll as a stat block attack: its bonus, the first damage (of a
+/// choice, the first option: a spear's one-handed damage), reach and range from its text.
+fn stat_attack(a: &Value) -> Option<rustpg2d_engine::srd::StatAttack> {
+    let bonus = a.get("attack_bonus")?.as_i64()? as i32;
+    let dmg = list(a, "damage");
+    let first = dmg.first()?;
+    // A choice ("choose": 1, "from": {"options": [{damage_dice…}]}) or the damage itself.
+    let d = first.pointer("/from/options/0").unwrap_or(first);
+    let dice = s(d, "damage_dice").to_string();
+    if dice.is_empty() {
+        return None;
+    }
+    let damage_type = d.pointer("/damage_type/index").and_then(Value::as_str).and_then(rustpg2d_engine::srd::DamageType::parse);
+    let text = desc(a);
+    let feet_after = |word: &str| -> Option<&str> { text.split(word).nth(1).map(|t| t.trim_start()) };
+    let reach_ft = feet_after("reach ").and_then(|t| t.split(' ').next()).and_then(|n| n.parse().ok()).unwrap_or(0);
+    let (range_ft, long_ft) = feet_after("range ")
+        .and_then(|t| t.split(' ').next())
+        .and_then(|r| r.split_once('/').map(|(a, b)| (a.parse().unwrap_or(0), b.parse().unwrap_or(0))))
+        .unwrap_or((0, 0));
+    Some(rustpg2d_engine::srd::StatAttack { name: s(a, "name").into(), bonus, dice: dice.replace(' ', ""), damage_type, reach_ft, range_ft, long_ft })
+}
+
+/// "The captain makes three melee attacks" -> 3.
+fn multiattack_count(text: &str) -> u32 {
+    const WORDS: [(&str, u32); 5] = [("two", 2), ("three", 3), ("four", 4), ("five", 5), ("six", 6)];
+    let t = text.to_ascii_lowercase();
+    t.split(|c: char| !c.is_ascii_alphanumeric()).find_map(|w| WORDS.iter().find(|(n, _)| *n == w).map(|(_, k)| *k)).unwrap_or(2)
 }
 
 /// A list of texts of a JSON object ("damage_resistances": ["poison"]).
@@ -454,6 +486,11 @@ mod tests {
         let g = &t[1];
         assert_eq!((g.ac, g.hp, g.hit_dice.as_str(), g.speed_ft, g.cr.as_str(), g.xp), (16, 11, "2d8+2", 30, "1/8", 25));
         assert_eq!(g.proficiencies, vec!["perception"]);
+        // Its attack: the spear, one-handed (the first damage option), melee and thrown.
+        let spear = &g.attacks[0];
+        assert_eq!((spear.name.as_str(), spear.bonus, spear.dice.as_str(), spear.reach_ft, spear.range_ft, spear.long_ft), ("Spear", 3, "1d6+1", 5, 20, 60));
+        assert_eq!(spear.damage_type, Some(rustpg2d_engine::srd::DamageType::Piercing));
+        assert_eq!((g.multiattack, multiattack_count("The captain makes three melee attacks")), (0, 3));
         // Written as the engine reads them, and the same as the built-in guard.
         let out = std::env::temp_dir().join(format!("rustpg2d_npcs_{}.ron", std::process::id()));
         assert_eq!(write_npcs(&fixture(), &out).unwrap(), 2);

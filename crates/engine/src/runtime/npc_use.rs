@@ -106,6 +106,29 @@ impl Game {
         }
     }
 
+    /// In a fight, on its turn: character `i` uses something it carries when its health is
+    /// critical or a condition troubles it (the *Use an Object* action); whether it did.
+    pub(super) fn npc_drink_now(&mut self, i: usize) -> bool {
+        let e = &self.loaded.entities[i];
+        if e.inventory.is_empty() || e.max_hp <= 0 || e.hp <= 0 {
+            return false;
+        }
+        let hurt = e.hp < e.max_hp && (e.hp as f32) <= CRITICAL * e.max_hp as f32;
+        let bad: Vec<Condition> = e.effects.iter().filter(|a| active_buff(a).is_none()).map(|a| a.condition.unwrap_or(Condition::Any)).collect();
+        let items: Vec<String> = e.inventory.iter().filter(|s| s.count > 0).map(|s| s.item.clone()).collect();
+        let pick = items.into_iter().find(|item| {
+            let u = self.item_uses(item);
+            (hurt && u.heals > 0) || (!bad.is_empty() && u.cures.iter().any(|c| c.is_none_or(|k| k == Condition::Any || bad.contains(&k))))
+        });
+        match pick {
+            Some(item) => {
+                self.npc_use(i, &item);
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Character `i` uses one `item` it carries: its *on use* actions run on it (without the
     /// item's dialog lines, which are written for the player).
     fn npc_use(&mut self, i: usize, item: &str) {

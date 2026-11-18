@@ -473,7 +473,12 @@ impl SpriteRef {
 /// Makes an item (or a character) a weapon.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Weapon {
+    /// Real-time damage of 0.28 and older; turn-based combat rolls `dice` (empty = dice from this:
+    /// 1 = 1d4, 2 = 1d6, 3 = 1d8, 4 = 1d10, 5+ = 1d12).
     pub damage: i32,
+    /// The SRD damage dice of a hit ("1d8"; the wielder's ability modifier is added).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub dice: String,
     /// Seconds between attacks.
     #[serde(default = "default_cooldown")]
     pub cooldown: f32,
@@ -518,9 +523,24 @@ fn default_knockback() -> f32 {
 }
 
 impl Weapon {
+    /// The damage dice of a hit: `dice`, else from the old damage number.
+    pub fn damage_dice(&self) -> String {
+        if !self.dice.trim().is_empty() {
+            return self.dice.trim().to_string();
+        }
+        match self.damage {
+            i32::MIN..=1 => "1d4",
+            2 => "1d6",
+            3 => "1d8",
+            4 => "1d10",
+            _ => "1d12",
+        }
+        .into()
+    }
+
     /// A melee weapon with default reach / arc / knockback.
     pub fn melee(damage: i32, cooldown: f32) -> Self {
-        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None, crit: default_crit(), damage_type: None }
+        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None, crit: default_crit(), damage_type: None, dice: String::new() }
     }
     pub fn ranged(damage: i32, cooldown: f32, ranged: Ranged) -> Self {
         Weapon { ranged: Some(ranged), ..Weapon::melee(damage, cooldown) }
@@ -596,9 +616,13 @@ pub struct Ranged {
     /// Pixels per second.
     #[serde(default = "default_projectile_speed")]
     pub speed: f32,
-    /// Maximum distance in tiles.
+    /// Maximum distance in tiles (turn-based combat: the normal range; farther than it, up to
+    /// `long_range`, attacks have disadvantage).
     #[serde(default = "default_range")]
     pub range: f32,
+    /// The long range in tiles (0 = twice `range`).
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub long_range: f32,
     /// Item consumed per shot ("" = unlimited).
     #[serde(default)]
     pub ammo: String,

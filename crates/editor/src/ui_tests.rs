@@ -150,18 +150,30 @@ fn a_weapon_gets_a_damage_type_and_a_touch_a_condition() {
     assert_eq!(db.items[k].weapon.as_ref().unwrap().damage_type, Some(DamageType::Slashing));
     let mut h = harness(&root, Tab::Items, k);
     step(&mut h);
-    // The damage type beside the weapon's damage.
-    // (egui gives a combo box no accessible text: it is the one beside "Damage".)
-    beside(&h, "Damage", |n| n.role() == Role::ComboBox).click();
+    // The damage type beside the weapon's damage dice.
+    // (egui gives a combo box no accessible text: it is the one beside "Damage dice".)
+    beside(&h, "Damage dice", |n| n.role() == Role::ComboBox).click();
     step(&mut h);
     h.get_by_label("Bludgeoning").click();
     step(&mut h);
     assert_eq!(h.state().project.db.items[k].weapon.as_ref().unwrap().damage_type, Some(DamageType::Bludgeoning));
+    // The dice: the example's sword rolls 1d6; typed over, 2d4.
+    assert_eq!(h.state().project.db.items[k].weapon.as_ref().unwrap().dice, "1d6");
+    // (Emptied, the field falls back to the old damage's dice; typed, its own.)
+    h.state_mut().project.db.items[k].weapon.as_mut().unwrap().dice.clear();
+    step(&mut h);
+    beside(&h, "Damage dice", |n| n.role() == Role::TextInput).type_text("2d4");
+    step(&mut h);
+    unfocus(&mut h);
+    assert_eq!(h.state().project.db.items[k].weapon.as_ref().unwrap().dice, "2d4");
     h.state_mut().save_all();
-    assert_eq!(Project::load(&root).unwrap().db.items[k].weapon.as_ref().unwrap().damage_type, Some(DamageType::Bludgeoning));
+    let saved = Project::load(&root).unwrap().db.items[k].weapon.clone().unwrap();
+    assert_eq!((saved.damage_type, saved.dice.as_str()), (Some(DamageType::Bludgeoning), "2d4"));
     // The slime's touch: Poisoned becomes Prone; its saving throw stays.
     let c = db.characters.iter().position(|c| c.id == "slime").expect("the example's slime");
     let mut h = harness(&root, Tab::Characters, c);
+    // (Without its stat block: its "Can't get" toggles name the conditions too.)
+    h.state_mut().project.db.characters[c].stats = None;
     step(&mut h);
     beside(&h, "On touch:", |n| n.role() == Role::ComboBox).click();
     step(&mut h);
@@ -792,5 +804,23 @@ fn srd_content_asks_for_its_attribution() {
     ed.project.config.srd = true;
     ed.refresh_problems();
     assert_eq!(srd(&ed), 0);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_stat_block_gets_an_attack() {
+    let root = example_copy("attacks");
+    let db = Project::load(&root).unwrap().db;
+    let c = db.characters.iter().position(|c| c.id == "guard").expect("the example's guard");
+    assert_eq!(db.characters[c].stats.as_ref().unwrap().attacks.len(), 1, "the guard's spear");
+    let mut h = harness(&root, Tab::Characters, c);
+    step(&mut h);
+    h.get_by_label_contains("Add attack").click();
+    step(&mut h);
+    let attacks = h.state().project.db.characters[c].stats.as_ref().unwrap().attacks.clone();
+    assert_eq!((attacks.len(), attacks[1].dice.as_str(), attacks[1].reach_ft), (2, "1d6", 5));
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.characters[c].stats.clone().unwrap();
+    assert_eq!((saved.attacks.len(), saved.attacks[0].name.as_str(), saved.attacks[0].dice.as_str()), (2, "Spear", "1d6+1"));
     let _ = std::fs::remove_dir_all(&root);
 }

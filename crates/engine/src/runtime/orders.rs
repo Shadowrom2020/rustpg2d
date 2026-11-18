@@ -1,6 +1,6 @@
 //! The companions' orders menu (G / pad LB): a bar at the bottom that pauses the game, with the
-//! companion to address (or all of them, when there are several) and the orders: Attack,
-//! Defend, Passive (how they fight), Stay here, Follow me. A click on an order gives it at once;
+//! companion to address (or all of them, when there are several) and the orders: who plays its
+//! turns in fights (AI fights / I command), Stay here, Follow me, Gear. A click on an order gives it at once;
 //! keys: Up / Down between the rows, Left / Right in a row, E gives the order, Esc / G close.
 
 use macroquad::prelude::*;
@@ -9,7 +9,6 @@ use super::skin;
 
 use super::input::{self, Act};
 use super::Game;
-use crate::state::Order;
 use super::text::{draw_text, measure_text};
 
 /// The open menu.
@@ -24,21 +23,23 @@ pub(super) struct OrderMenu {
     mouse: Vec2,
 }
 
-/// What the menu offers: a fighting order, or staying / following.
+/// What the menu offers: who plays its turns in fights, or staying / following.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Choice {
-    Fight(Order),
+    /// The AI plays its turns in fights (true) or the player does.
+    Ai(bool),
     Stay(bool),
     /// Opens the companion window (gear and bag).
     Gear,
 }
 
-const CHOICES: [Choice; 6] = [Choice::Fight(Order::Attack), Choice::Fight(Order::Defend), Choice::Fight(Order::Passive), Choice::Stay(true), Choice::Stay(false), Choice::Gear];
+const CHOICES: [Choice; 5] = [Choice::Ai(false), Choice::Ai(true), Choice::Stay(true), Choice::Stay(false), Choice::Gear];
 
 impl Choice {
     fn label(self) -> &'static str {
         match self {
-            Choice::Fight(o) => o.label(),
+            Choice::Ai(false) => "I command",
+            Choice::Ai(true) => "AI fights",
             Choice::Stay(true) => "Stay here",
             Choice::Stay(false) => "Follow me",
             Choice::Gear => "Gear...",
@@ -80,8 +81,8 @@ impl Game {
         let several = self.order_targets().len() > 1;
         // Start on the order the (first) companion has.
         let first = self.order_targets()[0];
-        let cur = self.loaded.entities[first].companion.as_ref().map_or(Order::Attack, |l| l.order);
-        let sel = CHOICES.iter().position(|c| *c == Choice::Fight(cur)).unwrap_or(0);
+        let cur = self.companion_ai(first);
+        let sel = CHOICES.iter().position(|c| *c == Choice::Ai(cur)).unwrap_or(0);
         self.order_menu = Some(OrderMenu { who: if several { 0 } else { 1 }, sel, on_who: false, mouse: input::mouse_pos() });
         true
     }
@@ -149,16 +150,15 @@ impl Game {
             }
             for &i in &who {
                 match choice {
-                    Choice::Fight(o) => self.give_order(i, Some(o), None),
+                    Choice::Ai(on) => self.set_companion_ai(i, on),
                     Choice::Stay(s) => self.give_order(i, None, Some(s)),
                     Choice::Gear => {}
                 }
             }
             let name = if who.len() == 1 { self.entity_display_name(self.loaded.entities[who[0]].uid).unwrap_or_default() } else { "All of them".into() };
             let (one, many) = match choice {
-                Choice::Fight(Order::Attack) => ("attacks enemies near you", "attack enemies near you"),
-                Choice::Fight(Order::Defend) => ("only fights what attacks you", "only fight what attacks you"),
-                Choice::Fight(Order::Passive) => ("stays out of fights", "stay out of fights"),
+                Choice::Ai(true) => ("fights on its own", "fight on their own"),
+                Choice::Ai(false) => ("follows your commands in fights", "follow your commands in fights"),
                 Choice::Stay(true) => ("waits here", "wait here"),
                 Choice::Stay(false) => ("follows you", "follow you"),
                 Choice::Gear => ("", ""),
@@ -239,7 +239,7 @@ impl Game {
             addressed.iter().all(|&i| {
                 let Some(l) = &self.loaded.entities[i].companion else { return false };
                 match c {
-                    Choice::Fight(o) => l.order == o,
+                    Choice::Ai(on) => l.ai == on,
                     Choice::Stay(s) => l.post.is_some() == s,
                     Choice::Gear => false,
                 }

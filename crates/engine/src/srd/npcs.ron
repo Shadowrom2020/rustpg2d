@@ -16,6 +16,15 @@
         alignment: "any alignment",
         cr: "1/4",
         xp: 50,
+        attacks: [
+            (
+                name: "Club",
+                bonus: 2,
+                dice: "1d4",
+                damage_type: Some(Bludgeoning),
+                reach_ft: 5,
+            ),
+        ],
     ),
     (
         template: "archmage",
@@ -39,6 +48,17 @@
         resistances: [
             "damage from spells",
             "bludgeoning, piercing, and slashing from nonmagical attacks (from stoneskin)",
+        ],
+        attacks: [
+            (
+                name: "Dagger",
+                bonus: 6,
+                dice: "1d4+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
         ],
     ),
     (
@@ -65,6 +85,24 @@
         resistances: [
             "poison",
         ],
+        attacks: [
+            (
+                name: "Shortsword",
+                bonus: 6,
+                dice: "1d6+3",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Light Crossbow",
+                bonus: 6,
+                dice: "1d8+3",
+                damage_type: Some(Piercing),
+                range_ft: 80,
+                long_ft: 320,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "bandit",
@@ -80,6 +118,23 @@
         alignment: "any non-lawful alignment",
         cr: "1/8",
         xp: 25,
+        attacks: [
+            (
+                name: "Scimitar",
+                bonus: 3,
+                dice: "1d6+1",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Light Crossbow",
+                bonus: 3,
+                dice: "1d8+1",
+                damage_type: Some(Piercing),
+                range_ft: 80,
+                long_ft: 320,
+            ),
+        ],
     ),
     (
         template: "bandit-captain",
@@ -101,6 +156,25 @@
         alignment: "any non-lawful alignment",
         cr: "2",
         xp: 450,
+        attacks: [
+            (
+                name: "Scimitar",
+                bonus: 5,
+                dice: "1d6+3",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Dagger",
+                bonus: 5,
+                dice: "1d4+3",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+        ],
+        multiattack: 3,
     ),
     (
         template: "berserker",
@@ -116,6 +190,15 @@
         alignment: "any chaotic alignment",
         cr: "2",
         xp: 450,
+        attacks: [
+            (
+                name: "Greataxe",
+                bonus: 5,
+                dice: "1d12+3",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+        ],
     ),
     (
         template: "bugbear",
@@ -134,6 +217,24 @@
         alignment: "chaotic evil",
         cr: "1",
         xp: 200,
+        attacks: [
+            (
+                name: "Morningstar",
+                bonus: 4,
+                dice: "2d8+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Javelin",
+                bonus: 4,
+                dice: "2d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 30,
+                long_ft: 120,
+            ),
+        ],
     ),
     (
         template: "commoner",
@@ -149,6 +250,15 @@
         alignment: "any alignment",
         cr: "0",
         xp: 10,
+        attacks: [
+            (
+                name: "Club",
+                bonus: 2,
+                dice: "1d4",
+                damage_type: Some(Bludgeoning),
+                reach_ft: 5,
+            ),
+        ],
     ),
     (
         template: "cult-fanatic",
@@ -168,6 +278,18 @@
         alignment: "any non-good alignment",
         cr: "2",
         xp: 450,
+        attacks: [
+            (
+                name: "Dagger",
+                bonus: 4,
+                dice: "1d4+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "cultist",
@@ -186,6 +308,15 @@
         alignment: "any non-good alignment",
         cr: "1/8",
         xp: 25,
+        attacks: [
+            (
+                name: "Scimitar",
+                bonus: 3,
+                dice: "1d6+1",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+        ],
     ),
     (
         template: "deep-gnome-svirfneblin",
@@ -205,6 +336,23 @@
         alignment: "neutral good",
         cr: "1/2",
         xp: 50,
+        attacks: [
+            (
+                name: "War Pick",
+                bonus: 4,
+                dice: "1d8+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Poisoned Dart",
+                bonus: 4,
+                dice: "1d4+2",
+                damage_type: Some(Piercing),
+                range_ft: 30,
+                long_ft: 120,
+            ),
+        ],
     ),
     (
         template: "drow",
@@ -223,6 +371,23 @@
         alignment: "neutral evil",
         cr: "1/4",
         xp: 50,
+        attacks: [
+            (
+                name: "Shortsword",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Hand Crossbow",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                range_ft: 30,
+                long_ft: 120,
+            ),
+        ],
     ),
     (
         template: "druid",
@@ -242,6 +407,15 @@
         alignment: "any alignment",
         cr: "2",
         xp: 450,
+        attacks: [
+            (
+                name: "Quarterstaff",
+                bonus: 2,
+                dice: "1d6",
+                damage_type: Some(Bludgeoning),
+                reach_ft: 5,
+            ),
+        ],
     ),
     (
         template: "duergar",
@@ -259,6 +433,24 @@
         xp: 200,
         resistances: [
             "poison",
+        ],
+        attacks: [
+            (
+                name: "War Pick",
+                bonus: 4,
+                dice: "1d8+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Javelin",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 30,
+                long_ft: 120,
+            ),
         ],
     ),
     (
@@ -281,6 +473,25 @@
         alignment: "any alignment",
         cr: "5",
         xp: 1800,
+        attacks: [
+            (
+                name: "Spear",
+                bonus: 7,
+                dice: "2d6+4",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+            (
+                name: "Shield Bash",
+                bonus: 7,
+                dice: "2d4+4",
+                damage_type: Some(Bludgeoning),
+                reach_ft: 5,
+            ),
+        ],
+        multiattack: 3,
     ),
     (
         template: "gnoll",
@@ -296,6 +507,32 @@
         alignment: "chaotic evil",
         cr: "1/2",
         xp: 100,
+        attacks: [
+            (
+                name: "Bite",
+                bonus: 4,
+                dice: "1d4+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Spear",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+            (
+                name: "Longbow",
+                bonus: 3,
+                dice: "1d8+1",
+                damage_type: Some(Piercing),
+                range_ft: 150,
+                long_ft: 600,
+            ),
+        ],
     ),
     (
         template: "goblin",
@@ -313,6 +550,23 @@
         alignment: "neutral evil",
         cr: "1/4",
         xp: 50,
+        attacks: [
+            (
+                name: "Scimitar",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Shortbow",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                range_ft: 80,
+                long_ft: 320,
+            ),
+        ],
     ),
     (
         template: "grimlock",
@@ -335,6 +589,15 @@
         condition_immunities: [
             "blinded",
         ],
+        attacks: [
+            (
+                name: "Spiked Bone Club",
+                bonus: 5,
+                dice: "1d4+3",
+                damage_type: Some(Bludgeoning),
+                reach_ft: 5,
+            ),
+        ],
     ),
     (
         template: "guard",
@@ -352,6 +615,17 @@
         alignment: "any alignment",
         cr: "1/8",
         xp: 25,
+        attacks: [
+            (
+                name: "Spear",
+                bonus: 3,
+                dice: "1d6+1",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+        ],
     ),
     (
         template: "half-red-dragon-veteran",
@@ -370,6 +644,31 @@
         resistances: [
             "fire",
         ],
+        attacks: [
+            (
+                name: "Longsword",
+                bonus: 5,
+                dice: "1d8+3",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Shortsword",
+                bonus: 5,
+                dice: "1d6+3",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Heavy Crossbow",
+                bonus: 3,
+                dice: "1d10+1",
+                damage_type: Some(Piercing),
+                range_ft: 100,
+                long_ft: 400,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "hobgoblin",
@@ -385,6 +684,23 @@
         alignment: "lawful evil",
         cr: "1/2",
         xp: 100,
+        attacks: [
+            (
+                name: "Longsword",
+                bonus: 3,
+                dice: "1d8+1",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Longbow",
+                bonus: 3,
+                dice: "1d8+1",
+                damage_type: Some(Piercing),
+                range_ft: 150,
+                long_ft: 600,
+            ),
+        ],
     ),
     (
         template: "knight",
@@ -403,6 +719,24 @@
         alignment: "any alignment",
         cr: "3",
         xp: 700,
+        attacks: [
+            (
+                name: "Greatsword",
+                bonus: 5,
+                dice: "2d6+3",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Heavy Crossbow",
+                bonus: 2,
+                dice: "1d10",
+                damage_type: Some(Piercing),
+                range_ft: 100,
+                long_ft: 400,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "kobold",
@@ -418,6 +752,23 @@
         alignment: "lawful evil",
         cr: "1/8",
         xp: 25,
+        attacks: [
+            (
+                name: "Dagger",
+                bonus: 4,
+                dice: "1d4+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Sling",
+                bonus: 4,
+                dice: "1d4+2",
+                damage_type: Some(Bludgeoning),
+                range_ft: 30,
+                long_ft: 120,
+            ),
+        ],
     ),
     (
         template: "lizardfolk",
@@ -437,6 +788,39 @@
         alignment: "neutral",
         cr: "1/2",
         xp: 100,
+        attacks: [
+            (
+                name: "Bite",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Heavy Club",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Bludgeoning),
+                reach_ft: 5,
+            ),
+            (
+                name: "Javelin",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 30,
+                long_ft: 120,
+            ),
+            (
+                name: "Spiked Shield",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "mage",
@@ -457,6 +841,17 @@
         alignment: "any alignment",
         cr: "6",
         xp: 2300,
+        attacks: [
+            (
+                name: "Dagger",
+                bonus: 5,
+                dice: "1d4+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+        ],
     ),
     (
         template: "merfolk",
@@ -474,6 +869,17 @@
         alignment: "neutral",
         cr: "1/8",
         xp: 25,
+        attacks: [
+            (
+                name: "Spear",
+                bonus: 2,
+                dice: "1d6",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+        ],
     ),
     (
         template: "noble",
@@ -493,6 +899,15 @@
         alignment: "any alignment",
         cr: "1/8",
         xp: 25,
+        attacks: [
+            (
+                name: "Rapier",
+                bonus: 3,
+                dice: "1d8+1",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+        ],
     ),
     (
         template: "orc",
@@ -510,6 +925,24 @@
         alignment: "chaotic evil",
         cr: "1/2",
         xp: 100,
+        attacks: [
+            (
+                name: "Greataxe",
+                bonus: 5,
+                dice: "1d12+3",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Javelin",
+                bonus: 5,
+                dice: "1d6+3",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 30,
+                long_ft: 120,
+            ),
+        ],
     ),
     (
         template: "priest",
@@ -529,6 +962,15 @@
         alignment: "any alignment",
         cr: "2",
         xp: 450,
+        attacks: [
+            (
+                name: "Mace",
+                bonus: 2,
+                dice: "1d6",
+                damage_type: Some(Bludgeoning),
+                reach_ft: 5,
+            ),
+        ],
     ),
     (
         template: "sahuagin",
@@ -546,6 +988,32 @@
         alignment: "lawful evil",
         cr: "1/2",
         xp: 100,
+        attacks: [
+            (
+                name: "Bite",
+                bonus: 3,
+                dice: "1d4+1",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Claws",
+                bonus: 3,
+                dice: "1d4+1",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Spear",
+                bonus: 3,
+                dice: "1d6+1",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "scout",
@@ -566,6 +1034,24 @@
         alignment: "any alignment",
         cr: "1/2",
         xp: 100,
+        attacks: [
+            (
+                name: "Shortsword",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Longbow",
+                bonus: 4,
+                dice: "1d8+2",
+                damage_type: Some(Piercing),
+                range_ft: 150,
+                long_ft: 600,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "spy",
@@ -588,6 +1074,24 @@
         alignment: "any alignment",
         cr: "1",
         xp: 200,
+        attacks: [
+            (
+                name: "Shortsword",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Hand Crossbow",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Piercing),
+                range_ft: 30,
+                long_ft: 120,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "thug",
@@ -605,6 +1109,24 @@
         alignment: "any non-good alignment",
         cr: "1/2",
         xp: 100,
+        attacks: [
+            (
+                name: "Mace",
+                bonus: 4,
+                dice: "1d6+2",
+                damage_type: Some(Bludgeoning),
+                reach_ft: 5,
+            ),
+            (
+                name: "Heavy Crossbow",
+                bonus: 2,
+                dice: "1d10",
+                damage_type: Some(Piercing),
+                range_ft: 100,
+                long_ft: 400,
+            ),
+        ],
+        multiattack: 2,
     ),
     (
         template: "tribal-warrior",
@@ -620,6 +1142,17 @@
         alignment: "any alignment",
         cr: "1/8",
         xp: 25,
+        attacks: [
+            (
+                name: "Spear",
+                bonus: 3,
+                dice: "1d6+1",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+                range_ft: 20,
+                long_ft: 60,
+            ),
+        ],
     ),
     (
         template: "veteran",
@@ -638,5 +1171,30 @@
         alignment: "any alignment",
         cr: "3",
         xp: 700,
+        attacks: [
+            (
+                name: "Longsword",
+                bonus: 5,
+                dice: "1d8+3",
+                damage_type: Some(Slashing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Shortsword",
+                bonus: 5,
+                dice: "1d6+3",
+                damage_type: Some(Piercing),
+                reach_ft: 5,
+            ),
+            (
+                name: "Heavy Crossbow",
+                bonus: 3,
+                dice: "1d10+1",
+                damage_type: Some(Piercing),
+                range_ft: 100,
+                long_ft: 400,
+            ),
+        ],
+        multiattack: 2,
     ),
 ]

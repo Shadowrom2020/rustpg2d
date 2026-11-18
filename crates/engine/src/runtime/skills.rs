@@ -105,7 +105,7 @@ impl Game {
     }
 
     /// Why a spell can't be learned / cast right now.
-    fn spell_requirement(&self, id: &str) -> Option<String> {
+    pub(super) fn spell_requirement(&self, id: &str) -> Option<String> {
         let d = self.project.db.spell(id)?;
         if !d.skill.trim().is_empty() && !self.world.is_proficient(&d.skill) {
             return Some(format!("needs proficiency in {}", abilities::proficiency_name(&abilities::proficiency_id(&d.skill))));
@@ -251,7 +251,7 @@ impl Game {
             if let Some(f) = crate::entity::Facing::from_vec(dir.x, dir.y) {
                 self.player.facing = f;
             }
-            let r = crate::defs::Ranged { projectile: projectile.clone(), speed: *speed, range: *range, ammo: String::new() };
+            let r = crate::defs::Ranged { projectile: projectile.clone(), speed: *speed, range: *range, ammo: String::new(), long_range: 0.0 };
             self.shoot(origin, dir, &r, *damage, true, None, None, *damage_type);
             self.ui.toast(d.name);
             return;

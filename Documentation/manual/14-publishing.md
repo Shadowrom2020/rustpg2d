@@ -23,7 +23,9 @@ releases/<game-name>.flatpak            (optional, Linux package)
 ```
 
 Each bundle holds only the images, sounds and fonts the game uses (the fonts of *Database › Project
-› Fonts* with their licence texts), never the project's save games. The game
+› Fonts* with their licence texts) and the folders of the [plugins](18-plugins.md) that are on,
+never the project's save games. A plugin that needs a newer R(ust)PG2D stops the export until it is
+switched off or R(ust)PG2D is updated. The game
 executable is the R(ust)PG2D game runner; it runs the data next to it and titles its window with the
 game's name.
 

@@ -724,6 +724,20 @@ impl Editor {
         for w in check.warnings.iter().filter(|m| !skip(m)) {
             out.push(Problem { severity: Severity::Warning, area: Area::Project, place: "project".into(), text: w.clone(), target: Target::Project });
         }
+        // The enabled plugins' hooks and menu entries run functions that must exist.
+        for (id, d) in rustpg2d_engine::plugins::enabled(&self.project).0 {
+            let place = format!("plugin {id}");
+            let functions = d.hooks.iter().map(|h| h.function.as_str()).chain(d.title_entries.iter().chain(&d.pause_entries).filter_map(|e| match e {
+                rustpg2d_engine::menus::MenuEntry::Custom { function, .. } => Some(function.as_str()),
+                _ => None,
+            }));
+            for f in functions.filter(|f| !f.is_empty() && !self.refs.functions.iter().any(|x| x == f)) {
+                out.push(Problem { severity: Severity::Error, area: Area::Project, place: place.clone(), text: format!("runs the script function \"{f}\", which neither the project nor its plugins have"), target: Target::Project });
+            }
+            for h in d.hooks.iter().filter(|h| !rustpg2d_engine::hooks::known(&h.hook)) {
+                out.push(Problem { severity: Severity::Warning, area: Area::Project, place: place.clone(), text: format!("\"{}\" isn't a hook the engine calls", h.hook), target: Target::Project });
+            }
+        }
     }
 
     /// Rebuilds the list when something was saved (called every frame).

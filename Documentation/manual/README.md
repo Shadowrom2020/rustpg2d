@@ -27,6 +27,7 @@ interest you.
 15. [The player's guide](15-players-guide.md): controls, menus and options, as your players see them
 16. [Troubleshooting](16-troubleshooting.md): common problems and their fixes
 17. [Testing your game](17-testing.md): driving the game from a script (autoplay), the `status` line
+18. [Plugins](18-plugins.md): add-ons with their own scripts, hooks, menu entries, HUD and settings; using, making and sharing them
 
 ## For developers
 

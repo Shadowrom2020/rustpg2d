@@ -206,6 +206,16 @@ stand-in runner's queue). Call sites check `hooked(name)` before building a map,
 hooks cost nothing. Shop prices are drawn every frame, so `buy` / `sell` run when the trade window
 opens and after each trade, into a price cache (`ShopUi::hooked`) that `shop_rows` reads.
 
+Plugins (`plugins.rs`) are folders `plugins/<id>/` beside the project's own content. The editor
+never merges them: its *Plugins* window (`plugins_ui.rs`) installs, orders and configures them
+(`ProjectConfig::plugins`), and its function list includes their scripts. The game merges the
+enabled ones when it starts (`plugins::apply` at the top of `Game::new`): their hooks join the
+project's, their menu entries the title and pause menus, their definitions the database where the
+project has no definition of that id (file paths made relative to the project), and their script
+folders are compiled after the project's (`ScriptHost::set_extra_dirs`, also on hot reload);
+`plugin_param` reads the parameters. Exports add the enabled folders' files; libraries get the
+starter's plugins in `open_library` (`plugins::sync_from_files`, by version).
+
 Quests described in the quest editor (`QuestDef::giver`, `offer`, `steps`, `rewards`) are played
 by `runtime/quests.rs` as ordinary actions: talking to a character (`interact_entity`, after its
 own *Interact* triggers) pushes a Talk step's lines plus a *Quest* advance / complete, or the offer

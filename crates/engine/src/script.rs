@@ -39,6 +39,8 @@ struct Ctx {
     factions: crate::factions::Factions,
     /// Characters on the current map and their factions: (uid, name, faction id) (`faction_of`).
     character_factions: Vec<(u32, String, String)>,
+    /// The enabled plugins' parameters (`plugin_param`).
+    plugin_params: std::collections::BTreeMap<String, std::collections::BTreeMap<String, crate::plugins::ParamValue>>,
     /// Props with a lock on the current map: (uid, name, locked) (`is_locked`).
     locks: Vec<(u32, String, bool)>,
     /// Consumable item ids (`is_consumable`).
@@ -74,6 +76,8 @@ pub struct ScriptHost {
     ast: AST,
     ctx: Rc<RefCell<Ctx>>,
     pub errors: Vec<String>,
+    /// Script folders compiled after the project's: the enabled plugins' ([`Self::set_extra_dirs`]).
+    extra_dirs: Vec<std::path::PathBuf>,
     /// Text printed by scripts since the last `take_printed` (the dev console shows it).
     printed: Rc<RefCell<Vec<String>>>,
 }
@@ -102,7 +106,7 @@ impl ScriptHost {
             p.push(s.to_string());
         });
         register_api(&mut engine, &ctx);
-        ScriptHost { engine, ast: AST::empty(), ctx, errors: Vec::new(), printed }
+        ScriptHost { engine, ast: AST::empty(), ctx, errors: Vec::new(), printed, extra_dirs: Vec::new() }
     }
 
     /// The player's unlocked achievements, for `achievement_unlocked(id)`.
@@ -145,6 +149,16 @@ impl ScriptHost {
 
     pub fn set_characters(&mut self, characters: Vec<(u32, String, i32)>) {
         self.ctx.borrow_mut().characters = characters;
+    }
+
+    /// The enabled plugins' parameter values, for `plugin_param()`.
+    pub fn set_plugin_params(&mut self, params: std::collections::BTreeMap<String, std::collections::BTreeMap<String, crate::plugins::ParamValue>>) {
+        self.ctx.borrow_mut().plugin_params = params;
+    }
+
+    /// Script folders compiled after the project's (the enabled plugins'), also on hot reload.
+    pub fn set_extra_dirs(&mut self, dirs: Vec<std::path::PathBuf>) {
+        self.extra_dirs = dirs;
     }
 
     /// The current map's characters and their factions, as (uid, name, faction id), for `faction_of()`.
@@ -192,7 +206,8 @@ impl ScriptHost {
     fn compile_dir(&self, dir: &Path) -> (AST, Vec<String>) {
         let mut ast = AST::empty();
         let mut errors = Vec::new();
-        for f in crate::project::script_files_in(dir) {
+        let files = std::iter::once(dir.to_path_buf()).chain(self.extra_dirs.iter().cloned()).flat_map(|d| crate::project::script_files_in(&d));
+        for f in files {
             match crate::sys::read_to_string(&f).map_err(|e| e.to_string()).and_then(|src| self.engine.compile(&src).map_err(|e| e.to_string())) {
                 Ok(a) => ast = ast.merge(&a),
                 Err(e) => errors.push(format!("{}: {e}", f.file_name().map_or_else(|| f.display().to_string(), |n| n.to_string_lossy().into_owned()))),
@@ -777,6 +792,8 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("player_carrying", with!(ctx, |c| c.world.player_carrying.clone()));
     engine.register_fn("standing", with!(ctx, |c, f: &str| c.world.standing.get(f).copied().unwrap_or_else(|| c.factions.base_standing(&c.player.faction, f)) as i64));
     engine.register_fn("change_standing", with!(ctx, |c, f: &str, amount: i64| c.actions.push(Action::ChangeStanding { faction: f.into(), amount: amount as i32 })));
+    // Plugins' parameters: () when the plugin or the parameter isn't there.
+    engine.register_fn("plugin_param", with!(ctx, |c, plugin: &str, name: &str| c.plugin_params.get(plugin).and_then(|m| m.get(name)).map_or(Dynamic::UNIT, |v| v.to_dynamic())));
     // Faction membership: "player", "self" (also SELF) or a name on this map.
     engine.register_fn("set_faction", with!(ctx, |c, t: &str, f: &str| c.actions.push(Action::SetFaction { target: t.into(), faction: f.into() })));
     engine.register_fn("faction_of", with!(ctx, |c, t: &str| match t {

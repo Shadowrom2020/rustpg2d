@@ -14,6 +14,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   operation limit of their own. Only registered hooks are called. *Problems* checks hook names and
   functions; `status` prints `hooks=`. In the example, villagers who count the player a friend sell
   10 % cheaper and pay 10 % more.
+- **Plugins**: add-ons with their own scripts, script hooks, menu entries, HUD elements, typed
+  parameters and assets, in a folder of their own (`plugins/<id>/plugin.ron`), apart from the
+  project's content. *Assets › Plugins…* adds them from a `.r2dplugin` file or the asset library
+  (a newer version replaces the old one and keeps its settings), switches them on and off, orders
+  them, fills in their parameters, exports them and sends them to the library. Scripts read
+  parameters with `plugin_param(plugin, name)`. A plugin names the script API it needs (`api`);
+  one needing a newer engine is left out and flagged in *Problems*. Exported games carry the
+  plugins that are on; the starter library's plugins reach users' libraries (newer versions
+  replace older ones). New manual chapter *Plugins*.
 
 ## 0.26.0 — 2026-11-18
 

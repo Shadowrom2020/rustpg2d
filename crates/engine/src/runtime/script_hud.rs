@@ -135,14 +135,14 @@ impl Game {
         true
     }
 
-    /// The HUD elements scripts set (with the HUD: hidden with it).
+    /// The HUD elements scripts set and the enabled plugins bring (with the HUD: hidden with it).
     pub(super) fn draw_script_hud(&self) {
-        if self.world.hud.is_empty() {
+        if self.world.hud.is_empty() && self.plugin_hud.is_empty() {
             return;
         }
         let _font = role(Role::Hud);
         let (sw, sh) = (screen_width(), screen_height());
-        for e in self.world.hud.values() {
+        for e in self.plugin_hud.values().chain(self.world.hud.values()) {
             match &e.kind {
                 HudKind::Text { text } => {
                     let size = if e.size > 0.0 { e.size } else { HUD_TEXT };
@@ -223,9 +223,9 @@ impl Game {
     /// window (`id[rows]`, the selected button starting with `>`, or `-`).
     pub(super) fn script_ui_status(&self) -> (Vec<String>, String) {
         let hud = self
-            .world
-            .hud
+            .plugin_hud
             .iter()
+            .chain(self.world.hud.iter())
             .map(|(id, e)| {
                 let extra = match &e.kind {
                     HudKind::Bar { value, max, .. } => format!(":{}/{}", self.source_value(value), self.source_value(max)),

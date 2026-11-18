@@ -2634,7 +2634,8 @@ pub fn condition_combo(ui: &mut egui::Ui, id: &str, kind: &mut Option<SrdConditi
     egui::ComboBox::from_id_salt(id).selected_text(text).height(420.0).show_ui(ui, |ui| {
         ui.selectable_value(kind, None, none);
         for c in SrdCondition::ALL {
-            ui.selectable_value(kind, Some(c), c.name()).on_hover_text(c.rules_text());
+            let srd = rustpg2d_engine::srd::rules::condition_text(c.id()).map_or(String::new(), |t| format!("\n\nSRD 5.1: {t}"));
+            ui.selectable_value(kind, Some(c), c.name()).on_hover_text(format!("In the game: {}{srd}", c.rules_text()));
         }
     });
     *kind != before
@@ -2646,7 +2647,7 @@ pub fn damage_type_combo(ui: &mut egui::Ui, id: &str, t: &mut Option<DamageType>
     egui::ComboBox::from_id_salt(id).selected_text(t.map_or(none, |t| t.name())).show_ui(ui, |ui| {
         ui.selectable_value(t, None, none);
         for d in DamageType::ALL {
-            ui.selectable_value(t, Some(d), d.name());
+            ui.selectable_value(t, Some(d), d.name()).on_hover_text(rustpg2d_engine::srd::rules::damage_text(d.id()).unwrap_or_default());
         }
     });
     *t != before

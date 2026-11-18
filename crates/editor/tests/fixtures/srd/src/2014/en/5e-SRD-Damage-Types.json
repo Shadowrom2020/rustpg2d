@@ -1,0 +1,18 @@
+[
+  {
+    "index": "fire",
+    "name": "Fire",
+    "desc": [
+      "Red dragons breathe fire, and many spells conjure flames to deal fire damage."
+    ],
+    "url": "/api/2014/damage-types/fire"
+  },
+  {
+    "index": "poison",
+    "name": "Poison",
+    "desc": [
+      "Venomous stings and the toxic gas of a green dragon's breath deal poison damage."
+    ],
+    "url": "/api/2014/damage-types/poison"
+  }
+]

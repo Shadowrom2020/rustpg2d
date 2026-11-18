@@ -498,7 +498,11 @@ impl Game {
 
     /// The credits text in lines that fit the panel.
     fn credits_lines(&self) -> Vec<String> {
-        let text = crate::lang::tr(&self.project.config.credits).to_string();
+        let mut text = crate::lang::tr(&self.project.config.credits).to_string();
+        // A game with SRD content credits it (the licence's wording, in English).
+        if self.project.config.srd {
+            text = format!("{}\n\nSRD 5.1\n{}", text.trim_end(), crate::srd::ATTRIBUTION);
+        }
         let mut out = Vec::new();
         for para in text.lines() {
             if para.trim().is_empty() {

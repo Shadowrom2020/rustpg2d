@@ -288,6 +288,7 @@ impl SrdData {
                     darkvision_ft: feet(m.pointer("/senses/darkvision").and_then(Value::as_str)),
                     proficiencies,
                     languages: s(m, "languages").into(),
+                    alignment: s(m, "alignment").into(),
                     cr,
                     xp: m.get("xp").and_then(Value::as_u64).unwrap_or(0) as u32,
                     resistances: strings(m, "damage_resistances"),
@@ -310,6 +311,43 @@ pub fn write_npcs(checkout: &Path, out: &Path) -> Result<usize> {
     let t = SrdData::read(checkout)?.npc_templates();
     std::fs::write(out, rustpg2d_engine::project::ron_text(&t)?).with_context(|| format!("writing {}", out.display()))?;
     Ok(t.len())
+}
+
+/// The SRD's own words for the engine's constants (`crates/engine/src/srd/rules.ron`):
+/// conditions, damage types, languages, alignments, abilities, skills, and the ids of its races
+/// and backgrounds.
+pub fn rules_text(checkout: &Path) -> Result<rustpg2d_engine::srd::rules::RulesText> {
+    use rustpg2d_engine::srd::rules::{Alignment, Entry, Language, RulesText};
+    let en = checkout.join("src/2014/en");
+    let read = |name: &str| -> Result<Vec<Value>> {
+        let p = en.join(format!("5e-SRD-{name}.json"));
+        let text = std::fs::read_to_string(&p).with_context(|| format!("reading {}", p.display()))?;
+        serde_json::from_str(&text).with_context(|| format!("parsing {}", p.display()))
+    };
+    let entries = |l: Vec<Value>| l.iter().map(|v| Entry { id: s(v, "index").into(), name: s(v, "name").into(), text: desc(v) }).collect::<Vec<_>>();
+    let skills = read("Skills")?;
+    let data = SrdData::read(checkout)?;
+    Ok(RulesText {
+        conditions: entries(read("Conditions")?),
+        damage_types: entries(read("Damage-Types")?),
+        languages: read("Languages")?
+            .iter()
+            .map(|v| Language { id: s(v, "index").into(), name: s(v, "name").into(), kind: s(v, "type").into(), speakers: list(v, "typical_speakers").iter().filter_map(Value::as_str).map(str::to_string).collect(), script: s(v, "script").into() })
+            .collect(),
+        alignments: read("Alignments")?.iter().map(|v| Alignment { id: s(v, "index").into(), name: s(v, "name").into(), abbreviation: s(v, "abbreviation").into(), text: desc(v) }).collect(),
+        // (The abilities by their full name: "Strength".)
+        abilities: read("Ability-Scores")?.iter().map(|v| Entry { id: s(v, "index").into(), name: s(v, "full_name").into(), text: desc(v) }).collect(),
+        skill_abilities: skills.iter().map(|v| (s(v, "index").to_string(), v.pointer("/ability_score/index").and_then(Value::as_str).unwrap_or("").to_string())).collect(),
+        skills: entries(skills),
+        races: data.races.iter().chain(&data.subraces).map(|v| s(v, "index").to_string()).collect(),
+        backgrounds: data.backgrounds.iter().map(|v| s(v, "index").to_string()).collect(),
+    })
+}
+
+/// Writes [`rules_text`] (`crates/engine/src/srd/rules.ron`).
+pub fn write_rules(checkout: &Path, out: &Path) -> Result<()> {
+    let t = rules_text(checkout)?;
+    std::fs::write(out, rustpg2d_engine::project::ron_text(&t)?).with_context(|| format!("writing {}", out.display()))
 }
 
 /// Imports into the `defs/` of a library or project folder; returns a one-line report.
@@ -380,12 +418,32 @@ mod tests {
         p.save_config().unwrap();
         let first = import_into(&fixture(), &root).unwrap();
         assert!(first.contains("5 added"), "{first}");
-        let races = std::fs::read_to_string(root.join("defs/races.ron")).unwrap();
+        let read = |f: &str| std::fs::read(root.join(f)).unwrap();
+        let (races, bgs) = (read("defs/races.ron"), read("defs/backgrounds.ron"));
+        write_rules(&fixture(), &root.join("rules.ron")).unwrap();
+        let rules = read("rules.ron");
         import_into(&fixture(), &root).unwrap();
-        assert_eq!(std::fs::read_to_string(root.join("defs/races.ron")).unwrap(), races, "a second run writes the same file");
+        write_rules(&fixture(), &root.join("rules.ron")).unwrap();
+        // A second run writes the same files, byte for byte.
+        assert_eq!((read("defs/races.ron"), read("defs/backgrounds.ron"), read("rules.ron")), (races, bgs, rules));
         let loaded = rustpg2d_engine::project::Project::load(&root).unwrap();
         assert_eq!((loaded.db.races.len(), loaded.db.backgrounds.len()), (4, 1));
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn the_rules_text_comes_from_the_data() {
+        let t = rules_text(&fixture()).unwrap();
+        let ids = |l: &[rustpg2d_engine::srd::rules::Entry]| l.iter().map(|e| e.id.clone()).collect::<Vec<_>>();
+        assert_eq!(ids(&t.conditions), ["poisoned", "prone"]);
+        assert!(t.conditions[0].text.contains("disadvantage on attack rolls"));
+        assert_eq!(ids(&t.damage_types), ["fire", "poison"]);
+        assert_eq!((t.languages[1].id.as_str(), t.languages[1].kind.as_str(), t.languages[1].script.as_str()), ("draconic", "Exotic", "Draconic"));
+        assert_eq!((t.alignments[0].abbreviation.as_str(), t.abilities[0].name.as_str()), ("LG", "Strength"));
+        assert_eq!(t.skill_abilities.get("stealth").map(String::as_str), Some("dex"));
+        assert!(t.races.contains(&"hill-dwarf".to_string()) && t.backgrounds == ["acolyte"]);
+        // The NPC templates carry their alignment.
+        assert_eq!(SrdData::read(&fixture()).unwrap().npc_templates()[1].alignment, "any alignment");
     }
 
     #[test]

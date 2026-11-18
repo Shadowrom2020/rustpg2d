@@ -219,6 +219,7 @@ pub const API: &[ApiFn] = api! {
     [since "0.28"] "remove_condition"(target: Target, condition: Effect) "Ends a condition (all levels of exhaustion); \"\" or \"all\" = every condition and ongoing damage (queued)";
     [since "0.28"] "has_condition"(condition: Effect) "Whether the hero has a condition (\"any\" = any)";
     [since "0.28"] "has_condition"(target: Target, condition: Effect) "Whether \"player\", \"self\" (also SELF) or a character on this map has a condition";
+    [since "0.28"] "srd_attribution"() "The SRD 5.1's attribution (CC BY 4.0) when the project uses SRD content (Project › Uses SRD 5.1 content), else \"\": for credits a script shows";
     [since "0.28"] "exhaustion"() "The hero's level of exhaustion (0-6)";
     [since "0.28"] "set_exhaustion"(level: Num) "Sets the hero's exhaustion (0 = none, 6 = death) (immediately)";
     [since "0.28"] "short_rest"() "Opens the rest window: the hero spends hit dice (d10 + CON each), an hour passes (queued)";

@@ -184,7 +184,9 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
 In the example (and the starter library) villagers, traders and children are commoners, the town
 guards guards, the elder a noble, the priest a priest, the elven ranger a scout, the outlaws
 bandits, the bandit chief a bandit captain, Rook the deserter a veteran, and goblins and orcs their
-SRD selves (the orc chief an orc with 30 HP, challenge 1).
+SRD selves (the orc chief an orc with 30 HP, challenge 1). Stat blocks and the SRD's races and
+backgrounds are SRD 5.1 material: [The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs)
+says what that asks of a game.
 
 ## Behaviour
 

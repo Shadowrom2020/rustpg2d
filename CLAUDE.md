@@ -73,7 +73,10 @@ crates/engine/src/      library: everything shared by game and editor
                         check.rs (Spec = what a check rolls: skill / ability / ability:tool / save; RollRecord = the
                         roll log); conditions.rs (Condition, ConditionSpec / ActiveCondition = WorldState.effects and
                         RtEntity.effects, rules(); 0.27's status effects read through reprs; runtime/effects.rs, rest.rs =
-                        short / long rest); damage.rs (DamageType, Defenses); statblock.rs (StatBlock = CharacterDef.stats / EntityInstance.stats; npcs.ron = the
+                        short / long rest); damage.rs (DamageType, Defenses); rules.rs (rules.ron = the SRD's
+                        texts of conditions, damage types, languages, alignments, abilities, skills + its race /
+                        background ids, written by srd_import; ATTRIBUTION / ATTRIBUTION_FILE, srd_content(db),
+                        ProjectConfig.srd); statblock.rs (StatBlock = CharacterDef.stats / EntityInstance.stats; npcs.ron = the
                         SRD's 35 NPC templates, written by srd_import: npc_template(id)); RulesSettings (ProjectConfig.rules: the new hero's scores, proficiencies, show
                         checks), RULES_VERSION (ProjectConfig.rules_version), old_level_dc. WorldState.abilities /
                         proficiencies / rolls + check() / roll_dice(); runtime/rolls.rs shows checks, the journal's

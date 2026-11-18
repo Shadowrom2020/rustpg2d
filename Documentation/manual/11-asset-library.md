@@ -121,7 +121,11 @@ come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the 
 tool of the repository; running it again updates what it wrote and keeps what the library added
 (models, factions, sizes, colours). Run from the repository, it also writes the SRD's 35 NPC stat
 blocks (commoner, guard, bandit, veteran…) into the engine (`crates/engine/src/srd/npcs.ron`): the
-templates of the [stat blocks](06-characters.md#stat-blocks).
+templates of the [stat blocks](06-characters.md#stat-blocks), and the SRD's own words for
+conditions, damage types, languages, alignments, abilities and skills (`rules.ron`: the editor's
+hover texts; tests keep the engine's lists equal to the SRD's). A second run writes the same files.
+The starter library is marked *Uses SRD 5.1 content* and carries `SRD-5.1-ATTRIBUTION.txt`
+([The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs)).
 
 ```sh
 git clone https://github.com/5e-bits/5e-database /tmp/5e-database

@@ -268,4 +268,5 @@
         ],
     ),
     credits: "Emberbrook\nAn example game for R(ust)PG2D\n\nMade with R(ust)PG2D, a free engine and editor for 2D role-playing games.\n\nArt, characters, sounds and music\nmade for R(ust)PG2D: its example game and starter asset library.\n\nFont\nmonogram by Vinícius Menézio (datagoblin), CC0.\n\nThank you for playing!",
+    srd: true,
 )

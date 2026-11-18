@@ -1,0 +1,28 @@
+[
+  {
+    "index": "athletics",
+    "name": "Athletics",
+    "desc": [
+      "Your Strength (Athletics) check covers difficult situations you encounter while climbing, jumping, or swimming."
+    ],
+    "ability_score": {
+      "index": "str",
+      "name": "STR",
+      "url": "/api/2014/ability-scores/str"
+    },
+    "url": "/api/2014/skills/athletics"
+  },
+  {
+    "index": "stealth",
+    "name": "Stealth",
+    "desc": [
+      "Make a Dexterity (Stealth) check when you attempt to conceal yourself from enemies, slink past guards, slip away without being noticed, or sneak up on someone without being seen or heard."
+    ],
+    "ability_score": {
+      "index": "dex",
+      "name": "DEX",
+      "url": "/api/2014/ability-scores/dex"
+    },
+    "url": "/api/2014/skills/stealth"
+  }
+]

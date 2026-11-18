@@ -113,6 +113,11 @@ pub struct ProjectConfig {
     /// The text of the Credits page (menus with a Credits entry); translated like dialogs.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub credits: String,
+    /// *Uses SRD 5.1 content* (races, backgrounds, stat blocks of the SRD): the Credits page
+    /// shows the SRD's attribution (`srd::ATTRIBUTION`), `srd_attribution()` returns it, and
+    /// Problems stops asking for it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub srd: bool,
 }
 
 fn is_yes(b: &bool) -> bool {
@@ -281,6 +286,7 @@ impl ProjectConfig {
             title: Default::default(),
             menu: Default::default(),
             credits: String::new(),
+            srd: false,
         }
     }
 }

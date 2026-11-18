@@ -13,7 +13,7 @@ folders are never touched.
 The export dialog suggests a `releases` folder beside the project file.
 
 ```
-releases/<game-name>/                   Linux: the game, data.pack, README.txt, rustpg2d-LICENSE.txt
+releases/<game-name>/                   Linux: the game, data.pack, README.txt, rustpg2d-LICENSE.txt, SRD-5.1-ATTRIBUTION.txt
 releases/<game-name>-windows/           Windows: <game-name>.exe, data.pack, README.txt, the license
 releases/<game-name>-macos/             macOS: <Game Name>.app, README.txt, the license
 releases/<game-name>-web/               Web: index.html and its files
@@ -126,6 +126,9 @@ editor and names the command that rebuilds it, because such a game could fail to
 Games made with R(ust)PG2D are licensed however you decide; R(ust)PG2D sets no terms for your maps,
 art, scripts or story. The game executable is the R(ust)PG2D game runner, released under the MIT
 License, so every export includes the engine's license as `rustpg2d-LICENSE.txt`. That's all the MIT
-License asks for. The example project's art and music are MIT-licensed too, so you may use them in
+License asks for. The game runner's rules include text of the SRD 5.1 (CC BY 4.0), so every export
+also carries its attribution, `SRD-5.1-ATTRIBUTION.txt`; a game that uses SRD races, backgrounds or
+stat blocks shows it in its credits too ([The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs)).
+The example project's art and music are MIT-licensed too, so you may use them in
 your games. Fonts keep their own licences: an export carries each font's licence text (the
 font's *Licence* field), which the SIL Open Font License and most others ask for.

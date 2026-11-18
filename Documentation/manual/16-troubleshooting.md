@@ -13,6 +13,11 @@ Run anyway*. macOS: *System Settings › Privacy & Security › Open Anyway*. Se
 They need a running xdg-desktop-portal (standard on GNOME and KDE desktops). You can always type the
 path instead. On macOS a file dialog is modal: the editor waits until it closes.
 
+**Problems says the project uses SRD 5.1 content.**
+The project has races, backgrounds or stat blocks of the SRD, whose licence (CC BY 4.0) asks for an
+attribution in the game. Tick *Database › Project › Uses SRD 5.1 content*: the Credits page then
+carries it. See [The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs).
+
 **A banner says a file could only be read in part.**
 An entry of a definitions file or a map object couldn't be read (a typo from a hand edit, or written
 by a newer version). The editor left it out and backed the file up next to itself (`items.ron.bak`,

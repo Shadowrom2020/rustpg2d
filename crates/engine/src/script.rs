@@ -39,6 +39,8 @@ struct Ctx {
     factions: crate::factions::Factions,
     /// Characters on the current map and their factions: (uid, name, faction id) (`faction_of`).
     character_factions: Vec<(u32, String, String)>,
+    /// The SRD's attribution when the project uses SRD content (`srd_attribution()`), else "".
+    srd_attribution: String,
     /// Characters on the current map with conditions: (uid, name, conditions) (`has_condition`).
     npc_conditions: Vec<(u32, String, Vec<crate::srd::ActiveCondition>)>,
     /// Characters on the current map with an SRD stat block: (uid, name, block) (`npc_stat`).
@@ -172,6 +174,11 @@ impl ScriptHost {
     /// The current map's characters and their factions, as (uid, name, faction id), for `faction_of()`.
     pub fn set_character_factions(&mut self, list: Vec<(u32, String, String)>) {
         self.ctx.borrow_mut().character_factions = list;
+    }
+
+    /// The SRD's attribution for `srd_attribution()` ("" = the project uses no SRD content).
+    pub fn set_srd_attribution(&mut self, text: &str) {
+        self.ctx.borrow_mut().srd_attribution = text.to_string();
     }
 
     /// The current map's characters with conditions, for `has_condition(target, …)`.
@@ -788,6 +795,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         let Some(k) = condition(cond) else { return false };
         c.npc_conditions.iter().find(|n| n.0 as i64 == uid).is_some_and(|n| crate::srd::conditions::has(&n.2, k))
     }));
+    engine.register_fn("srd_attribution", with!(ctx, |c| c.srd_attribution.clone()));
     engine.register_fn("exhaustion", with!(ctx, |c| crate::srd::conditions::exhaustion(&c.world.effects) as i64));
     engine.register_fn("set_exhaustion", with!(ctx, |c, n: i64| crate::srd::conditions::set_exhaustion(&mut c.world.effects, n.clamp(0, 6) as u8)));
     engine.register_fn("short_rest", with!(ctx, |c| c.actions.push(Action::ShortRest)));

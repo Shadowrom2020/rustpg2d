@@ -6,6 +6,7 @@
 //!   <slug>        the game executable (a copy of rustpg2d-game)
 //!   data/         project.ron, defs/, maps/, scripts/ and the images / sounds in use
 //!   README.txt
+//!   SRD-5.1-ATTRIBUTION.txt the SRD 5.1's attribution (CC BY 4.0): the runner's rules include it
 //!   rustpg2d-LICENSE.txt   the engine's license (MIT): the game executable is R(ust)PG2D's game
 //!                        runner; the game itself is licensed as its creator decides
 //! ```
@@ -149,7 +150,7 @@ impl Platform {
             }
         };
         let line_end = if self == Platform::Windows { "\r\n" } else { "\n" };
-        format!("{name}\n\n{how}\n\nMade with R(ust)PG2D. The game executable is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}.\n").replace('\n', line_end)
+        format!("{name}\n\n{how}\n\nMade with R(ust)PG2D. The game executable is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}. Its rules include material of the System Reference Document 5.1 (CC BY 4.0): see SRD-5.1-ATTRIBUTION.txt.\n").replace('\n', line_end)
     }
 }
 
@@ -528,6 +529,8 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     }
     std::fs::write(folder.join("README.txt"), platform.readme(name.trim(), &slug, pack))?;
     std::fs::write(folder.join(ENGINE_LICENSE_FILE), ENGINE_LICENSE)?;
+    // The runner carries SRD 5.1 text (rules and stat blocks): its attribution goes with it.
+    std::fs::write(folder.join(crate::srd::ATTRIBUTION_FILE), crate::srd::ATTRIBUTION)?;
     let archive = if zip { Some(write_zip(&folder, &slug, &exe_rel, &out_dir.join(platform.archive(&slug)))?) } else { None };
     Ok(Exported { folder, archive, files: files.len() + extra, bytes, warnings: check.warnings })
 }
@@ -582,7 +585,7 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
     packed.push(("project.ron".into(), crate::project::ron_text(&cfg)?.into_bytes()));
     let title = name.trim().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
     let readme = format!(
-        "{name}\n\nThe web version: open index.html through a web server (browsers don't run WebAssembly from file:// pages), e.g. `python3 -m http.server` in this folder and http://localhost:8000, or upload {slug}-web.zip to itch.io as an HTML game.\nSave games and settings stay in the player's browser (local storage of the page's site).\n\nMade with R(ust)PG2D. The game ({WEB_WASM}) is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}; mq_js_bundle.js is macroquad's loader (MIT OR Apache-2.0).\n",
+        "{name}\n\nThe web version: open index.html through a web server (browsers don't run WebAssembly from file:// pages), e.g. `python3 -m http.server` in this folder and http://localhost:8000, or upload {slug}-web.zip to itch.io as an HTML game.\nSave games and settings stay in the player's browser (local storage of the page's site).\n\nMade with R(ust)PG2D. The game ({WEB_WASM}) is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}; mq_js_bundle.js is macroquad's loader (MIT OR Apache-2.0). Its rules include material of the System Reference Document 5.1 (CC BY 4.0): see SRD-5.1-ATTRIBUTION.txt.\n",
         name = name.trim()
     );
     let out: Vec<(&str, Vec<u8>)> = vec![
@@ -593,6 +596,7 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
         ("data.pack", web_pack(&packed)?),
         ("README.txt", readme.into_bytes()),
         (ENGINE_LICENSE_FILE, ENGINE_LICENSE.as_bytes().to_vec()),
+        (crate::srd::ATTRIBUTION_FILE, crate::srd::ATTRIBUTION.as_bytes().to_vec()),
     ];
     let mut bytes = 0u64;
     for (n, b) in &out {
@@ -750,6 +754,7 @@ mod tests {
         assert!(r.warnings.iter().any(|w| w.contains("'fr'")), "a language without its file is reported");
         let lic = std::fs::read_to_string(f.join(ENGINE_LICENSE_FILE)).unwrap();
         assert!(lic.starts_with("MIT License") && lic.contains("Jürgen Herrmann"), "the engine's license ships with the game");
+        assert_eq!(std::fs::read_to_string(f.join(crate::srd::ATTRIBUTION_FILE)).unwrap(), crate::srd::ATTRIBUTION, "and the SRD's attribution (the runner's rules)");
         assert!(!f.join("data/sprites/unused.png").exists(), "only used files");
         assert!(!f.join("data/saves").exists(), "never ship saves");
         assert_eq!(Project::load(&f.join("data")).unwrap().config.name, "Test Quest");
@@ -757,6 +762,7 @@ mod tests {
         let zip_path = r.archive.unwrap();
         let mut za = zip::ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();
         assert!(za.by_name("test-quest/rustpg2d-LICENSE.txt").is_ok());
+        assert!(za.by_name("test-quest/SRD-5.1-ATTRIBUTION.txt").is_ok());
         let exe = za.by_name("test-quest/test-quest").unwrap();
         assert_eq!(exe.unix_mode().map(|m| m & 0o777), Some(0o755));
         drop(exe);

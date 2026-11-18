@@ -91,6 +91,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     round), Grumbold's blows knock the hero prone, the Elixir of Strength makes Strength 21 for ten
     minutes, the Swiftness Potion takes off exhaustion and frees the hero; food heals on every
     round; item texts say HP instead of hearts.
+- **SRD data and attribution**: the import tool also writes the SRD's own words for conditions,
+  damage types, languages, alignments, abilities and skills (the editor's hover texts; tests keep
+  the engine's lists equal to the SRD's) and the NPC templates' alignments; a second run changes
+  nothing. Every export carries `SRD-5.1-ATTRIBUTION.txt` (the runner's rules include SRD text).
+  The new project setting *Uses SRD 5.1 content* ends the Credits page with the attribution,
+  `srd_attribution()` returns it for scripted credits, and *Problems* asks for it when a project
+  has SRD races, backgrounds or stat blocks. New projects from the starter library, the library and
+  the example have it on; the example's credits end with it. The manual's new chapter *The SRD 5.1
+  rules* sums up the rules, what is simplified and the licence.
 - **Breaking:** status effects are gone. Projects convert once when they open (rules version 2):
   poison, burning, regeneration, stun and slow become their conditions or damage / healing per
   round; haste, strength, weakness and shield have no SRD condition and are taken out (listed in

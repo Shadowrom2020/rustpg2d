@@ -777,3 +777,20 @@ fn a_background_is_added_in_the_backgrounds_tab() {
     assert_eq!((b.proficiencies.clone(), b.feature.as_str()), (vec!["insight".to_string()], "Old Friends"));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn srd_content_asks_for_its_attribution() {
+    let root = example_copy("srd_attribution");
+    let mut p = Project::load(&root).unwrap();
+    assert!(p.config.srd, "the example uses SRD content and says so");
+    p.config.srd = false;
+    let mut ed = Editor::headless(p);
+    let srd = |ed: &Editor| ed.problems.list.iter().filter(|x| x.text.contains("SRD 5.1 content")).count();
+    ed.refresh_problems();
+    assert_eq!(srd(&ed), 1, "races, backgrounds and stat blocks of the SRD without the setting");
+    assert!(ed.problems.list.iter().any(|x| x.text.contains("race dwarf") || x.text.contains("race human")));
+    ed.project.config.srd = true;
+    ed.refresh_problems();
+    assert_eq!(srd(&ed), 0);
+    let _ = std::fs::remove_dir_all(&root);
+}

@@ -722,6 +722,20 @@ impl Editor {
     }
 
     fn project_problems(&self, out: &mut Vec<Problem>) {
+        // SRD content wants its attribution in the credits (the licence, CC BY 4.0).
+        if !self.project.config.srd {
+            let srd = rustpg2d_engine::srd::rules::srd_content(&self.project.db);
+            if !srd.is_empty() {
+                let more = if srd.len() > 3 { format!(" and {} more", srd.len() - 3) } else { String::new() };
+                out.push(Problem {
+                    severity: Severity::Warning,
+                    area: Area::Project,
+                    place: "Project › Uses SRD 5.1 content".into(),
+                    text: format!("the project uses SRD 5.1 content ({}{more}): tick *Uses SRD 5.1 content* so the credits carry its attribution (CC BY 4.0)", srd.iter().take(3).cloned().collect::<Vec<_>>().join(", ")),
+                    target: Target::Project,
+                });
+            }
+        }
         let (_, check) = rustpg2d_engine::release::check(&self.project);
         // (Missing art and sound files are listed per definition.)
         let skip = |m: &String| m.contains("' has no file (");

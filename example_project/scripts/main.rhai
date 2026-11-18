@@ -174,7 +174,13 @@ fn intro_cutscene() {
 // The title screen's Credits entry (Project > Title screen > Entries: a custom entry): the
 // credits roll up the screen (scroll_text; "# " starts a heading).
 fn roll_credits() {
-    scroll_text("# Emberbrook\nAn example game for R(ust)PG2D\n\n\n# Made with\nR(ust)PG2D, a free engine and editor for 2D role-playing games\n\n\n# Art, characters, sounds and music\nMade for R(ust)PG2D: its example game and starter asset library\n\n\n# Font\nmonogram by Vinícius Menézio (datagoblin), CC0\n\n\n\n# Thank you for playing!", #{ speed: 45 });
+    // The SRD 5.1 material in the game: its attribution (CC BY 4.0) ends the credits.
+    let srd = srd_attribution();
+    if srd != "" {
+        srd = "# SRD 5.1\n" + srd;
+    }
+    set_text("credits_srd", srd);
+    scroll_text("# Emberbrook\nAn example game for R(ust)PG2D\n\n\n# Made with\nR(ust)PG2D, a free engine and editor for 2D role-playing games\n\n\n# Art, characters, sounds and music\nMade for R(ust)PG2D: its example game and starter asset library\n\n\n# Font\nmonogram by Vinícius Menézio (datagoblin), CC0\n\n\n\n# Thank you for playing!\n\n\n{credits_srd}", #{ speed: 45 });
 }
 
 // Oswin the town crier calls out the news: a different piece every time he is asked.

@@ -434,26 +434,36 @@ sheet.
   converted (its report lists the elixir, the swiftness potion and the apple pie). Screenshots of
   conditions, the rest window and the editor's condition fields.
 
-- [ ] SRD data import and attribution — `feature/srd-data`
+- [x] SRD data import and attribution — `feature/srd-data`
 
   **Goal.** The SRD's content comes into the starter library from the source data, with its
   licence.
 
-  **Design.**
-  - **The import:** `xtask srd-import <5e-database checkout>` writes skills, races, subraces,
-    traits, conditions, damage types, languages, alignments and backgrounds now. Classes, spells,
-    equipment and monsters follow with 0.30 and 0.31. It writes into the starter library's
-    `defs/` and keeps the SRD's index names as ids (`hill-dwarf`), so a re-run updates instead of
-    duplicating.
-  - **Attribution:** the *Uses SRD 5.1 content* project setting; exports write the attribution
-    file; the title screen's credits show it; the starter library carries it.
-  - **Docs:** the manual gets an *SRD 5.1 rules* chapter (how rolls, checks and conditions work in
-    the engine, what's simplified) and the licence note.
+  **Design (as built).**
+  - **The import** is the editor's `srd_import` example (`cargo run -p rustpg2d-editor --example
+    srd_import -- <5e-database checkout> [folder]`), not an xtask command: xtask stays free of the
+    engine, the importer needs its types. It writes races, subraces, traits, choices and
+    backgrounds into a library's or project's `defs/`, and from the repository the NPC templates
+    (`srd/npcs.ron`, with alignments) and `srd/rules.ron`: the SRD's texts of conditions, damage
+    types, languages, alignments, abilities and skills and the ids of its races and backgrounds.
+    It keeps the SRD's index names as ids (`hill-dwarf`); a second run changes nothing (tested
+    byte for byte). Skills, conditions, damage types and languages stay engine constants: a test
+    keeps them equal to the SRD's ids, names and abilities. Classes, spells, equipment and
+    monsters follow with 0.30 and 0.31.
+  - **Attribution:** `srd::ATTRIBUTION` (CC BY 4.0's wording, no trademarks, the data's source).
+    Every export carries `SRD-5.1-ATTRIBUTION.txt` (the runner's rules include SRD text), and so
+    do the AppImage / Flatpak packages, the repository and the starter library. The project setting
+    *Uses SRD 5.1 content* (`ProjectConfig.srd`; on in the example, the library and new projects
+    from it) ends the Credits page with it; `srd_attribution()` returns it for scripted credits
+    (the example's `roll_credits` through a `{credits_srd}` text variable). *Problems* warns when
+    a project has SRD races, backgrounds or template stat blocks and the setting is off.
+  - **Docs:** the manual's chapter 19, *The SRD 5.1 rules*.
 
-  **Engine.** The xtask command, the project setting, export of the attribution file.
-
-  **Verify.** The import is idempotent (a second run changes nothing); an export contains the
-  attribution file; the problems list warns about SRD assets in a project without the setting.
+  **Verify (done).** Importer tests (the rules text, a second run identical, alignments), the
+  constants equal to the SRD, the attribution files equal to the constant, the export test (the
+  file in the folder and the zip), the package layout, a 0.27 project loading with the setting
+  off, the Problems warning on a headless editor. The example's credits rolled on the title
+  (screenshot), an export of a scratch copy.
 
 ## 0.29.0 — Turn by Turn
 

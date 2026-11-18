@@ -35,6 +35,7 @@ mod frame_ops;
 mod material_preview;
 mod skin_preview;
 mod pixel;
+mod plugins_ui;
 mod project_file;
 mod quest_form;
 mod repo_mode;
@@ -650,7 +651,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} ground={} decor={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} ground={} decor={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -685,6 +686,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.search.status(),
             ed.usages.status(),
             ed.problems.status(),
+            ed.plugins_status(),
             ed.lib_update.status(),
             ed.starter_ui.status(),
             ed.art.status(),
@@ -1156,6 +1158,27 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             Ok(()) => println!("[art] redrawing"),
             Err(e) => println!("[art] redo refused: {e:#}"),
         },
+        // Plugins window: pluginwindow · pluginadd FILE | pluginadd lib:ID · pluginon ID on|off · pluginmove ID up|down ·
+        // pluginparam ID NAME VALUE|- · pluginexport ID FILE · pluginlib ID (send to the library) · pluginremove ID
+        "pluginwindow" => ed.plugins_ui.open = true,
+        "pluginadd" | "pluginon" | "pluginmove" | "pluginparam" | "pluginexport" | "pluginlib" | "pluginremove" => {
+            let r = match arg(0) {
+                "pluginadd" => match arg(1).strip_prefix("lib:") {
+                    Some(id) => ed.add_plugin_from_library(id),
+                    None => ed.add_plugin_file(std::path::Path::new(arg(1))),
+                },
+                "pluginon" => ed.set_plugin_enabled(arg(1), arg(2) != "off"),
+                "pluginmove" => ed.move_plugin(arg(1), arg(2) == "up"),
+                "pluginparam" => ed.set_plugin_param(arg(1), arg(2), &cmd.get(3..).map(|r| r.join(" ")).unwrap_or_default()),
+                "pluginexport" => ed.export_plugin(arg(1), std::path::Path::new(arg(2))),
+                "pluginlib" => ed.send_plugin_to_library(arg(1)),
+                _ => ed.remove_plugin(arg(1)),
+            };
+            match r {
+                Ok(m) => println!("[plugins] {m}"),
+                Err(e) => println!("[plugins] refused: {e:#}"),
+            }
+        }
         // problems [AREA]: check the project, print the list (opens the Problems window) · problempick K: click entry K
         "problems" => {
             ed.refresh_problems();

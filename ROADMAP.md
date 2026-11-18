@@ -182,7 +182,7 @@ their settings.
   - A shop price hook.
   - Perf: `update_ms` with ten hooks.
 
-- [ ] Plugin packages — `feature/plugins`
+- [x] Plugin packages — `feature/plugins`
 
   **Goal.** Shareable add-ons with settings, which stay separate from the project's own content
   and can be updated.
@@ -205,6 +205,33 @@ their settings.
 
   **Engine.** Plugin loading (scripts, assets, hooks), the window, the library asset kind,
   export.
+
+  **Decided while building.**
+  - Parameters are read with `plugin_param(plugin, name)`: the project's and its plugins'
+    functions share one Rhai name space, so the plugin is named (and functions start with the
+    plugin's id by convention).
+  - `plugin.ron` holds `title_entries` / `pause_entries` (inserted before *Exit* / *Save and
+    quit*) and `hud` (elements by id, shown while it is on, not saved). Kinds: number, text,
+    on/off, sprite, sound, item, map, colour.
+  - The editor never merges a plugin into the project's files; the game merges the enabled ones
+    when it starts (hooks, menus, definitions the project lacks, scripts after the project's).
+    Definitions' files are relative to the plugin's folder (sheets, sounds, materials, fonts; 3D
+    models not yet). Plugin texts aren't translated yet.
+  - `api` is a MAJOR.MINOR (`script_api::API_VERSION` = 0.27); a newer one keeps the plugin out
+    (game: left out with a warning; editor: Problems error; export: refused).
+  - Updating: adding a plugin with the same or a newer version replaces its folder and keeps the
+    project's settings; an older one is refused. The library's `plugins/` folder is the library
+    asset kind; the starter's plugins are copied into libraries by version (`STARTER_RULES` 12).
+  - Editor: *Assets › Plugins…* (add from file / library, on / off, order, parameters, default,
+    export, send to library, remove); editor script `plugin…` commands; `status` `plugins=`.
+
+  **Verify (done).** On a scratch copy with a demo plugin (damage ×param, a pause page, a HUD
+  text): added from the library, parameter set, exported, removed, added from the file again
+  (`project.ron` keeps id / enabled / parameters); in the game the damage hook tripled a hit
+  (Rook 10 → 7), the pause menu showed *Demo page* before *Save and quit* and opened the
+  plugin's window with its parameter text, the HUD text showed; an exported game ran it.
+  Unit tests: versions / API, parameter defaults, menu placement, pack → install → apply →
+  update → remove.
 
   **Verify.** Install, configure, update and remove a plugin on a scratch project; an exported
   game runs it.

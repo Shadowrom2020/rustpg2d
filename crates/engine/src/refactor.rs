@@ -886,6 +886,7 @@ mod tests {
         companion_down: Default::default(),
         factions: Default::default(),
         hooks: Vec::new(),
+        plugins: Vec::new(),
         player_portrait: Default::default(),
         language: "en".into(),
         languages: vec![],

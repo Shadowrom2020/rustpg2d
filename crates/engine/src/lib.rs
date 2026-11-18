@@ -20,6 +20,7 @@ pub mod skin;
 pub mod menus;
 pub mod script_ui;
 pub mod pictures;
+pub mod plugins;
 pub mod screen_fx;
 pub mod timers;
 pub mod routes;

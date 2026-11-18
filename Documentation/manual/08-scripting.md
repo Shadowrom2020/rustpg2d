@@ -743,6 +743,15 @@ save. Scripts can add autosaves at important moments, e.g. after a boss fight or
 |---|---|
 | `autosave()` | Saves the game to the *Autosave* slot as soon as the running event — its dialogs, waits or cut-scene — has finished, so a save never captures half an event. *(queued)* |
 
+### Plugins
+
+[Plugins](18-plugins.md) are add-ons with their own scripts and settings. Their functions share
+one name space with the project's.
+
+| Function | Description |
+|---|---|
+| `plugin_param(plugin, name)` | A plugin's parameter as the project set it in the *Plugins* window, else the plugin's default: a number (whole numbers come as integers), `true` / `false` or a text; `()` when the plugin is off or has no such parameter. *(immediately)* |
+
 ### Quests
 
 | Function | Description |

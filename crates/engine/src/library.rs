@@ -1013,6 +1013,9 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
         }
         lib.save_config()?;
         lib.save_defs()?;
+        if let Some(f) = starter {
+            crate::plugins::sync_from_files(f, dir)?;
+        }
         if let Some(s) = &stamp {
             std::fs::write(&stamp_file, s)?;
         }
@@ -1043,6 +1046,8 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
             if !report.added.is_empty() || !report.upgraded.is_empty() {
                 lib.save_defs()?;
             }
+            // Plugins it lacks, and newer versions of the starter's plugins.
+            crate::plugins::sync_from_files(files, dir)?;
             std::fs::write(&stamp_file, s)?;
             // Changed assets need the creator's *Update asset library* (the editor offers it).
             std::fs::write(dir.join(crate::starter_update::PENDING_FILE), s)?;
@@ -1061,8 +1066,9 @@ const STARTER_STAMP: &str = "starter.stamp";
 /// solid / ladder / light / animation flags; 8: tilesets and props get the low flags; 9: a
 /// changed starter set also leaves `starter.pending`, so the editor offers *Update asset library*;
 /// 10: files the library's assets use but lacks are added (0.18.0 left items' 3D models out);
-/// 11: painted maps (tilesets and tile structures converted, materials and decorations).
-const STARTER_RULES: u32 = 11;
+/// 11: painted maps (tilesets and tile structures converted, materials and decorations);
+/// 12: the starter's plugins (`plugins/<id>`) are copied, newer versions replace older ones.
+const STARTER_RULES: u32 = 12;
 
 /// 64-bit FNV-1a hash of every path and content (a cheap fingerprint of the starter set that
 /// only changes when the files do).

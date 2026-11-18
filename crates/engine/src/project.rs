@@ -47,6 +47,9 @@ pub struct ProjectConfig {
     /// Script hooks: script functions that change what the engine does (`hooks.rs`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub hooks: Vec<crate::hooks::HookDef>,
+    /// The project's plugins (`plugins/<id>/`) in load order: on / off and parameter values.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugins: Vec<crate::plugins::PluginRef>,
     /// Skills and magic (both off by default).
     #[serde(default)]
     pub skills: crate::skills::SkillSettings,
@@ -237,6 +240,7 @@ impl ProjectConfig {
             start_hour: default_start_hour(),
             factions: Default::default(),
             hooks: Vec::new(),
+            plugins: Vec::new(),
             skills: Default::default(),
             progression: Default::default(),
             dialog_portraits: true,

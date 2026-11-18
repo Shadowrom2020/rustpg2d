@@ -65,7 +65,7 @@ bats and a chest".
 | `editor_state` | Open map, selection, unsaved changes, undo / redo, open script, last status message, server state. |
 | `save` | Saves the open map, definitions and pixel art (writes already save). |
 | `undo {steps}` / `redo {steps}` | Steps on the open map (then unsaved: call `save`). |
-| `set_project_config {patch}` | project.ron: `name`, `start_map`, `start_spawn`, `player`, `language`, `languages`, `day_minutes`, `start_hour`, `inventory_size`, `creation`, `sfx`, `battle_music`, `skills`, `progression`, `dialog_portraits`, `hooks` (script hooks: `[{hook, function, priority}]`), … (`tile_size` can't change). |
+| `set_project_config {patch}` | project.ron: `name`, `start_map`, `start_spawn`, `player`, `language`, `languages`, `day_minutes`, `start_hour`, `inventory_size`, `creation`, `sfx`, `battle_music`, `skills`, `progression`, `dialog_portraits`, `hooks` (script hooks: `[{hook, function, priority}]`), `plugins` (`[{id, enabled, parameters}]`, the plugins' folders are made in the editor's Plugins window), … (`tile_size` can't change). |
 
 ### Reading maps
 | Tool | Does |

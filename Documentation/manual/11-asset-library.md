@@ -103,6 +103,14 @@ with other creators. *Export package…* (library) or *Export…* (Database) wri
 package…* (library) or *Assets › Import asset package into project…* reads one. Packages made for
 16-pixel tiles are enlarged to 32 pixels on import.
 
+## Plugins
+
+The library also keeps **plugins** (its `plugins/` folder): add-ons a project uses without copying
+them in ([Plugins](18-plugins.md)). A project's *Assets › Plugins…* window adds them (*Add from
+library*) and sends its own there (*Send to library*). The starter library brings plugins too;
+a newer starter set updates the library's copies of them unless you changed one without raising
+its version.
+
 ## Scripted assets
 
 Spells and skills with a *Script* effect, and items, props and characters whose triggers run scripts,

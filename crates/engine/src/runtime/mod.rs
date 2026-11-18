@@ -422,6 +422,9 @@ pub struct Game {
     /// The project's script hooks (`hooks.rs`) and how often each ran (`status` `hooks=`).
     hooks: crate::hooks::HookTable,
     hook_calls: std::collections::BTreeMap<String, u64>,
+    /// The enabled plugins (`status` `plugins=`) and the HUD elements they bring (not saved).
+    plugin_ids: Vec<String>,
+    plugin_hud: std::collections::BTreeMap<String, crate::script_ui::HudElement>,
     /// The languages the game offers (code, name) and the current one.
     languages: Vec<(String, String)>,
     lang_code: String,
@@ -574,7 +577,7 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(project: Project, start: StartOptions) -> Result<Game> {
+    pub fn new(mut project: Project, start: StartOptions) -> Result<Game> {
         if project.config.tile_size != crate::project::TILE_SIZE {
             anyhow::bail!(
                 "this project uses {}px tiles; open it once in the R(ust)PG2D editor to convert it to {}px tiles",
@@ -582,6 +585,8 @@ impl Game {
                 crate::project::TILE_SIZE
             );
         }
+        // The enabled plugins join the project for this game (hooks, menus, definitions).
+        let plugins = crate::plugins::apply(&mut project);
         let assets = Assets::load(&project);
         text::install_project(&project);
         let skin = (!project.config.skin.is_empty()).then(|| project.db.skin(&project.config.skin)).flatten();
@@ -592,7 +597,9 @@ impl Game {
         let audio = Audio::load(&project);
         let combat = PlayerCombat::new(project.db.character(&project.config.player));
         let mut scripts = ScriptHost::new();
+        scripts.set_extra_dirs(plugins.script_dirs.clone());
         scripts.load_dir(&project.scripts_dir());
+        scripts.set_plugin_params(plugins.params.clone());
         let ts = assets.tile_size;
         let (hitbox, speed) = match project.db.character(&project.config.player) {
             Some(c) => (vec2(c.hitbox[0], c.hitbox[1]), c.speed),
@@ -620,6 +627,8 @@ impl Game {
             factions: crate::factions::Table::new(&project.config.factions),
             hooks: crate::hooks::HookTable::new(&project.config.hooks),
             hook_calls: Default::default(),
+            plugin_ids: plugins.ids.clone(),
+            plugin_hud: plugins.hud.clone(),
             lang_code: project.config.language.clone(),
             languages,
             light_pass: None,
@@ -2524,7 +2533,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2561,6 +2570,7 @@ impl Game {
             self.race_status(),
             self.factions_status(),
             self.hooks_status(),
+            self.plugin_ids,
             self.creator_status(),
             self.world.quests.iter().map(|(k, q)| format!("{k}:{}:{:?}", q.stage, q.status)).collect::<Vec<_>>(),
             self.achievements_status(),

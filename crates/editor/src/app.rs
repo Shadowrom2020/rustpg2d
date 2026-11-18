@@ -276,6 +276,7 @@ pub struct Editor {
     pub art_settings: crate::art::ArtSettings,
     /// The *Problems* panel (the project check).
     pub problems: crate::problems::Problems,
+    pub plugins_ui: crate::plugins_ui::PluginsUi,
     /// This editor is the Asset Library window (`--library`): `project` is the library.
     pub library_mode: bool,
     /// Lighting preview: renderer and the map's tile lights (refreshed twice a second).
@@ -549,6 +550,7 @@ impl Editor {
             search: Default::default(),
             usages: Default::default(),
             problems: crate::problems::Problems::new(),
+            plugins_ui: Default::default(),
             art: Default::default(),
             art_settings: crate::art::ArtSettings { model: "nano-banana-2-lite".into(), budget: 60, ask: true },
             library_mode: false,
@@ -823,6 +825,8 @@ impl Editor {
             v.dedup();
         }
         let mut scripts = ScriptHost::new();
+        // (The enabled plugins' functions count too: hooks and menu entries may name them.)
+        scripts.set_extra_dirs(rustpg2d_engine::plugins::enabled(&self.project).0.iter().map(|(id, _)| rustpg2d_engine::plugins::plugin_dir(&self.project.root, id).join("scripts")).collect());
         scripts.load_dir(&self.project.scripts_dir());
         let mut targets = vec!["self".to_string(), "player".to_string()];
         let mut flags = Vec::new();
@@ -1204,6 +1208,7 @@ impl Editor {
         let import = |sub: &str| files::import_asset(&root, &path, sub);
         match purpose {
             P::StarterLibrary => self.install_starter_file(&path),
+            P::AddPlugin | P::ExportPlugin(_) => self.plugin_file_chosen(purpose, &path),
             P::ImportPackage { into_library } => {
                 let r = self.import_package(into_library, &path);
                 self.show_result(r);
@@ -1545,6 +1550,7 @@ impl Editor {
         self.search_windows(ctx);
         self.problems_tick();
         self.problems_window(ctx);
+        self.plugins_window(ctx);
         self.art_tick();
         self.art_window(ctx);
         self.settings_window(ctx);
@@ -1836,6 +1842,10 @@ impl Editor {
                     }
                     if ui.button(ui::t(ph::PACKAGE, "Import asset package into project…")).clicked() {
                         self.open_file_dialog(files::Purpose::ImportPackage { into_library: false });
+                        ui.close_menu();
+                    }
+                    if ui.button(ui::t(ph::PUZZLE_PIECE, "Plugins…")).on_hover_text("Add-ons with their own scripts, hooks, menu entries, HUD and settings: add, switch on and off, configure, update").clicked() {
+                        self.plugins_ui.open = true;
                         ui.close_menu();
                     }
                     ui.separator();

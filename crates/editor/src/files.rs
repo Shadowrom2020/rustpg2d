@@ -42,6 +42,9 @@ pub enum Purpose {
     ExportIcon,
     /// File › Import…: a Tiled map, LPC sheet or Aseprite export.
     Import(crate::import::ImportKind),
+    /// Assets › Plugins: a `.r2dplugin` to add, or where to export plugin `id`.
+    AddPlugin,
+    ExportPlugin(String),
 }
 
 /// A file dialog: on a background thread so the editor keeps drawing (macOS: modal on the main thread).
@@ -89,6 +92,8 @@ impl PendingDialog {
                     d.set_title(format!("Import {}", k.label())).add_filter(name, exts).pick_file()
                 }
                 Purpose::ImportPackage { .. } => d.set_title("Import asset package").add_filter("R(ust)PG2D asset package", &["r2dpack"]).pick_file(),
+                Purpose::AddPlugin => d.set_title("Add plugin").add_filter("R(ust)PG2D plugin", &[rustpg2d_engine::plugins::EXTENSION]).pick_file(),
+                Purpose::ExportPlugin(id) => d.set_title("Export plugin").add_filter("R(ust)PG2D plugin", &[rustpg2d_engine::plugins::EXTENSION]).set_file_name(format!("{id}.{}", rustpg2d_engine::plugins::EXTENSION)).save_file(),
                 Purpose::ExportPackage { .. } => d.set_title("Export asset package").add_filter("R(ust)PG2D asset package", &["r2dpack"]).set_file_name("assets.r2dpack").save_file(),
             };
             let _ = tx.send(result);

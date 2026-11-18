@@ -339,6 +339,17 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     for f in project.script_files() {
         files.insert(format!("scripts/{}", f.file_name().unwrap_or_default().to_string_lossy()));
     }
+    // The enabled plugins: their whole folders (the game adds them when it starts).
+    for r in cfg.plugins.iter().filter(|r| r.enabled) {
+        match crate::plugins::read_def(root, &r.id) {
+            Ok(d) if !crate::plugins::api_fits(&d.api) => c.errors.push(format!("The plugin '{}' needs script API {} (this engine has {}); update R(ust)PG2D or switch the plugin off.", r.id, d.api, crate::script_api::API_VERSION)),
+            Ok(_) => match crate::plugins::folder_files(root, &r.id) {
+                Ok(list) => files.extend(list.into_iter().map(|f| format!("{}/{}/{f}", crate::plugins::PLUGINS_DIR, r.id))),
+                Err(e) => c.warnings.push(format!("The plugin '{}' can't be read: {e:#}", r.id)),
+            },
+            Err(_) => c.warnings.push(format!("The plugin '{}' is on but its folder ({}/{}) is missing; it will be left out.", r.id, crate::plugins::PLUGINS_DIR, r.id)),
+        }
+    }
     let db = &project.db;
     let models = db.models.iter().flat_map(|d| std::iter::once(&d.file).chain(d.clip_paths()).map(move |f| (f, "3D model", &d.id)));
     let item_models = db.items.iter().filter_map(|d| d.model.as_ref().map(|m| (&m.file, "item's 3D model", &d.id)));

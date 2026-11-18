@@ -9,6 +9,10 @@ use std::sync::LazyLock;
 
 use crate::script_refs::IdKind;
 
+/// The script API's version: the engine's MAJOR.MINOR. Plugins name the version they need
+/// (`PluginDef::api`); a plugin needing a newer one isn't loaded.
+pub const API_VERSION: &str = "0.27";
+
 /// What a function argument expects (drives completion inside string arguments).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Arg {
@@ -99,6 +103,7 @@ pub const API: &[ApiFn] = api! {
     "player_faction"() "The player's faction id (their race's, else the player character's; \"\" without one)";
     "standing"(faction: Faction) "The player's standing with a faction (-100..100; at -20 or below its characters attack the player)";
     "change_standing"(faction: Faction, amount: Num) "Raises (or with a negative amount lowers) the player's standing with a faction; its characters turn hostile or calm down at once (queued)";
+    "plugin_param"(plugin: Text, name: Text) "A plugin's parameter as the project set it in the Plugins window (else its default): a number, on / off or a text; () when the plugin or parameter isn't there";
     "set_faction"(target: Target, faction: Faction) "A character on this map (\"self\", a name) or \"player\" joins a faction; \"\" = back to its own (the placed character's, its definition's, its race's). Saved; who attacks whom changes at once (queued)";
     "faction_of"(target: Target) "The faction id a character belongs to now: \"player\", \"self\" (also SELF) or a name on this map; \"\" = none";
     "is_female"() "Whether the player character is female";

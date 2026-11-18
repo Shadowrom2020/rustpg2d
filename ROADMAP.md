@@ -709,6 +709,17 @@ here.
   - **Conditions in full:** frightened can't move closer to the source of its fear, charmed can't
     attack the charmer, a grappler's speed 0 for the grappled, incapacitated loses concentration.
   - **The AI's spells:** characters and AI-played companions cast their spells in fights.
+  - **The AI's other actions:** Help, Hide, Search, Grapple and Shove, and shooters that
+    Disengage instead of shooting at disadvantage next to a foe (the AI only attacks, walks, dashes
+    away, dodges and drinks potions now).
+  - **Attacks in full:** several damage parts (a dragon's bite: piercing plus fire; the importer
+    keeps only the first), riders on a hit (the wolf's bite: DC 11 STR save or prone), versatile
+    damage with both hands free; opportunity attacks and Ready at a weapon's full reach (now only
+    from the next tile).
+  - **Surprise by the rules:** the hidden side's Stealth against the other side's passive
+    Perception when a fight starts (now: whoever hadn't noticed the hero who struck first).
+  - **XP for the party:** split among the party members that level, once companions have classes
+    (0.30); now the hero gets it all.
 
   **Engine.** The fight's death and grapple rules, multi-tile creatures in `runtime/turns/`
   (reach, cover, pathing), obscurement from light / weather / decorations, the Ready choice,
@@ -728,7 +739,9 @@ here.
   **Design.**
   - **Movement modes:** climbing and swimming (half speed without a climb / swim speed, Athletics
     for hard ones), jumping (long and high jump from STR, Athletics to go farther), flying speeds
-    (bats, birds, a *Fly* spell; hovering), crawling.
+    (bats, birds, a *Fly* spell; hovering), crawling. Fliers cross water, pits and low obstacles
+    (now they only walk at their flying speed on the grid), swimmers use water, burrowers the
+    ground: the stat blocks' `speeds` already carry them.
   - **Falling:** 1d6 bludgeoning per 10 ft (at most 20d6), prone on landing.
   - **Breath and suffocation:** holding breath (1 + CON minutes), then CON rounds; underwater
     areas.
@@ -821,7 +834,11 @@ here.
   - **Monsters:** legendary actions and legendary resistance, recharge actions (*Recharge 5-6*),
     innate spellcasting, regeneration, pack tactics, swallow, multi-headed traits, damage
     transfer: the traits of the imported monsters that act, each as a runtime ability or a Rhai
-    hook on the monster.
+    hook on the monster. They act from the `features` texts the import keeps on every stat block
+    (0.29); save-based actions (a dragon's breath: a cone, a DEX save for half; a ghoul's
+    paralyzing claws) become actions with an area, a save and their damage.
+  - **Senses:** blindsight, tremorsense and truesight from the stat blocks' `senses` text, against
+    hidden and invisible creatures and darkness.
   - **Shapes and summons** (moved here from the backlog): Wild Shape and *Polymorph* (a stat block
     taken over for a while),
     familiars (*Find Familiar*), conjured and summoned creatures as temporary party members.

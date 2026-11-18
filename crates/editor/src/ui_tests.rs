@@ -623,3 +623,27 @@ fn the_quest_designer_describes_giver_offer_steps_and_rewards() {
     assert!(matches!(saved.steps[1].done, StepGoal::Talk { .. }));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn faction_members_are_changed_from_the_factions_tab() {
+    let root = example_copy("faction_members");
+    let mut h = harness(&root, Tab::Factions, 0);
+    step(&mut h);
+    let race = |h: &Harness<'static, Editor>, id: &str| h.state().project.db.race(id).unwrap().faction.clone();
+    assert_eq!(race(&h, "goblin"), "goblins");
+    // The goblin race's ✕ button under its faction takes it out.
+    h.get_by_label(&format!("{} Goblin", egui_phosphor::regular::X)).click();
+    step(&mut h);
+    assert_eq!(race(&h, "goblin"), "");
+    // "Add a race…" under Humans puts it into theirs (egui gives combo boxes no accessible text:
+    // the tab's first one is the humans' Add a race).
+    h.get_all_by(|n| n.role() == Role::ComboBox).next().unwrap().click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("Goblin") && n.role() != Role::ComboBox).click();
+    step(&mut h);
+    assert_eq!(race(&h, "goblin"), "humans");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert_eq!(saved.db.race("goblin").unwrap().faction, "humans");
+    let _ = std::fs::remove_dir_all(&root);
+}

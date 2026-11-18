@@ -158,7 +158,12 @@ Targets are `Foe::Player`, `Foe::Companion(uid)` and `Foe::Npc(uid)`: factions
 `RtEntity::faction`, hostility as a bit matrix) when the game starts, so `npc_foes` / `foes` are
 lookups. `RtEntity::hostile` stays the one flag "hostile to the player" every system reads; it is
 computed by `hostile_to_player` (the *Hostile* box and the player's standing, `WorldState::standing`)
-and recomputed by `refresh_hostility` when a standing or the player's race changes. Projectiles
+and recomputed by `refresh_hostility` when a standing or the player's race changes. A character's
+faction id (`Game::faction_id`) is what *Set faction* gave it (`RtEntity::faction_set`, saved as
+`EntityState::faction`), else the placed character's own (`EntityInstance::faction`), else its
+definition's or race's (`Database::faction_of`); the player's is `WorldState::player_faction`, else
+their race's. `set_faction` recomputes the one character (`apply_faction`), or all of them for
+the player. Projectiles
 remember whether their shooter was hostile to the player and its faction, so they hit only foes.
 Walking characters share `walk_to_tile` (`patrol.rs`): an A* path (`path.rs`, budget per
 waypoint), one tile at a time through `try_move`, with re-planning when blocked and giving up

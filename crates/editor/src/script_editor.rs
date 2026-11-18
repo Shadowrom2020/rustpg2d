@@ -181,7 +181,7 @@ pub struct Known<'a> {
     pub functions: &'a [String],
     /// The project's script functions with their parameter names (signature hints).
     pub signatures: &'a [(String, Vec<String>)],
-    /// Faction ids (Database › Project › Factions).
+    /// Faction ids (Database › Factions).
     pub factions: &'a [String],
 }
 

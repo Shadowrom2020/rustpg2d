@@ -815,6 +815,10 @@ pub enum Action {
         #[serde(default)]
         wait: bool,
     },
+    /// Changes which faction a character on this map (or "player") belongs to; "" = back to its
+    /// own (the placed character's, its definition's, its race's). Saved; who is hostile to whom
+    /// is worked out again at once.
+    SetFaction { target: TargetName, faction: String },
 }
 
 fn opaque_black() -> [u8; 4] {
@@ -1005,6 +1009,7 @@ impl Action {
             Action::Camera { .. } => "Camera",
             Action::ScrollText { .. } => "Scroll text",
             Action::PlayMusicEffect { .. } => "Play music effect",
+            Action::SetFaction { .. } => "Set faction",
         }
     }
 
@@ -1114,6 +1119,7 @@ impl Action {
             Action::Camera { aim: crate::camera::CameraAim::Tile { x: 0, y: 0 }, seconds: 1.0, easing: crate::pictures::Easing::InOut, zoom: 1.0, wait: true },
             Action::ScrollText { text: "# The End\n\nThank you for playing!".into(), speed: 40.0, background: [0, 0, 0, 255] },
             Action::PlayMusicEffect { sound: s(), wait: false },
+            Action::SetFaction { target: "self".into(), faction: String::new() },
         ]
     }
 }

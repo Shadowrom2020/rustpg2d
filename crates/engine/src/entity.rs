@@ -127,6 +127,9 @@ pub struct EntityInstance {
     /// Characters: what it does all day where it stands (fishing, reading...; only the look).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub activity: Option<Activity>,
+    /// Characters: the faction it belongs to instead of its definition's (or race's); "" = theirs.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub faction: String,
 }
 
 fn yes() -> bool {
@@ -330,6 +333,7 @@ impl EntityInstance {
             portrait: None,
             activity: None,
             loot: None,
+            faction: String::new(),
         }
     }
 

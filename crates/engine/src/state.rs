@@ -97,6 +97,9 @@ pub struct EntityState {
     /// What grows on a farm plot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub planted: Option<Planted>,
+    /// The faction a *Set faction* action gave the character (None = its own).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub faction: Option<String>,
 }
 
 /// A seed planted on a farm plot (`EntityState::planted`).
@@ -203,6 +206,10 @@ pub struct WorldState {
     /// The player's standing with factions that changed (others start from the attitude table).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub standing: BTreeMap<String, i32>,
+    /// The faction the player joined (*Set faction* on "player"); "" = their race's, else the
+    /// player character's.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub player_faction: String,
     /// map -> items the player dropped there (they stay until picked up again).
     #[serde(default)]
     pub dropped: BTreeMap<String, Vec<DroppedItem>>,
@@ -713,7 +720,7 @@ mod tests {
         let b = w.add_furniture("home", "chair", "chair_item", 80.0, 80.0);
         assert!(a >= FURNITURE_UID_BASE && b == a + 1 && b < DROPPED_UID_BASE);
         // Its saved state and contents go with it when it is picked up.
-        w.entities.entry("home".into()).or_default().insert(a, EntityState { active: true, frame: 0, x: 48.0, y: 80.0, facing: Facing::Down, count: None, unlocked: false, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: None, planted: None });
+        w.entities.entry("home".into()).or_default().insert(a, EntityState { active: true, frame: 0, x: 48.0, y: 80.0, facing: Facing::Down, count: None, unlocked: false, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: None, planted: None, faction: None });
         w.containers.entry("home".into()).or_default().insert(a, Inventory::new(4));
         assert_eq!(w.remove_furniture("home", a).map(|f| f.prop), Some("chest".to_string()));
         assert!(!w.entities["home"].contains_key(&a) && !w.containers["home"].contains_key(&a));
@@ -797,7 +804,7 @@ mod tests {
         w.set_entity_state(
             "village",
             7,
-            EntityState { active: false, frame: 1, x: 1.0, y: 2.0, facing: Facing::Up, count: None, unlocked: true, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: Some(30.0), planted: None },
+            EntityState { active: false, frame: 1, x: 1.0, y: 2.0, facing: Facing::Up, count: None, unlocked: true, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: Some(30.0), planted: None, faction: None },
         );
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert!(back.flag("a"));

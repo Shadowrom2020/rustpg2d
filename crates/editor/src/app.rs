@@ -1576,6 +1576,11 @@ impl Editor {
             Mode::Pixel => self.pixel_ui(ctx),
             Mode::Events => self.events_ui(ctx),
         }
+        // *New faction…* in a Faction field (Database forms, the map's inspector).
+        if crate::database::take_open_factions() {
+            self.mode = Mode::Database;
+            self.db.tab = crate::database::Tab::Factions;
+        }
         self.wizard_window(ctx);
         self.builder_window(ctx);
         self.apply_builder_requests();
@@ -2559,7 +2564,11 @@ impl Editor {
                             }
                         });
                     });
-                    // A drawn portrait just for this one (dialogs, the companion HUD).
+                    // Its own side: a goblin peddler who trades with the humans, a turncoat.
+                    let inherited = db.faction_of(&e.def);
+                    let inherited = if inherited.is_empty() { String::new() } else if d.faction.is_empty() { format!("its race's: {inherited}") } else { format!("its definition's: {inherited}") };
+                    crate::database::faction_combo(ui, &format!("ent_faction{}", e.uid), &mut e.faction, &refs.factions, &inherited, "Just this placed character's faction (Database \u{E13A} Factions), instead of its definition's or race's. The 'Set faction' action and set_faction() change it in play.");
+                                        // A drawn portrait just for this one (dialogs, the companion HUD).
                     egui::CollapsingHeader::new(ui::t(ph::USER_SQUARE, "Portrait")).default_open(e.portrait.is_some()).show(ui, |ui| {
                         match &mut e.portrait {
                             Some(p) => {

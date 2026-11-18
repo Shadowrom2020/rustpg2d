@@ -1,4 +1,4 @@
-//! Factions (*Database › Project › Factions*, `ProjectConfig::factions`): who is hostile to whom.
+//! Factions (*Database › Factions*, `ProjectConfig::factions`): who is hostile to whom.
 //!
 //! Each faction has an id and a name; an attitude table says how two factions treat each other
 //! (hostile, neutral — the default — or friendly; a faction is friendly to itself). Characters

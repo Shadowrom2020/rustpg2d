@@ -261,6 +261,10 @@ struct RtEntity {
     carrying: String,
     /// Its faction (index into `Game::factions`).
     faction: Option<u16>,
+    /// The placed character's own faction ("" = its definition's, else its race's).
+    faction_placed: String,
+    /// The faction a *Set faction* action gave it (saved; None = its own).
+    faction_set: Option<String>,
     damage: i32,
     invuln: f32,
     flash: f32,
@@ -788,7 +792,7 @@ impl Game {
             EntityKind::Item => (vec2(ts * 0.75, ts * 0.75), 0.0, false, Behavior::Static),
         };
         let (max_hp, hostile, damage, weapon, defense) = match (kind, self.project.db.character(def)) {
-            (EntityKind::Character, Some(d)) => (d.max_hp.max(0), self.hostile_to_player(def), d.damage.max(0), d.weapon.clone(), d.defense),
+            (EntityKind::Character, Some(d)) => (d.max_hp.max(0), self.hostile_to_player(def, &self.project.db.faction_of(def)), d.damage.max(0), d.weapon.clone(), d.defense),
             _ => (0, false, 0, None, 0),
         };
         let mut rt = RtEntity {
@@ -818,6 +822,8 @@ impl Game {
             hostile,
             carrying: String::new(),
             faction: if kind == EntityKind::Character { self.factions.index(&self.project.db.faction_of(def)) } else { None },
+            faction_placed: String::new(),
+            faction_set: None,
             damage,
             invuln: 0.0,
             last_hit: 0,
@@ -949,6 +955,12 @@ impl Game {
             if let Some(ps) = st.and_then(|s| s.patrol.as_ref()) {
                 let p = rt.patrol.get_or_insert_with(Default::default);
                 p.restore(ps);
+            }
+            // Faction: the placed character's own, then what *Set faction* gave it.
+            rt.faction_placed = e.faction.clone();
+            rt.faction_set = st.and_then(|s| s.faction.clone());
+            if !rt.faction_placed.is_empty() || rt.faction_set.is_some() {
+                self.apply_faction(&mut rt);
             }
             if !e.schedule.is_empty() {
                 let mut s = schedule::Schedule::new(e.schedule.clone(), map);
@@ -1628,6 +1640,7 @@ impl Game {
             schedule_off: e.schedule.as_ref().is_some_and(|s| !s.on),
             changed_at: e.changed_at,
             planted: e.planted.clone(),
+            faction: e.faction_set.clone(),
         };
         let map = self.loaded.map.name.clone();
         let uid = e.uid;
@@ -3334,6 +3347,10 @@ impl ActionHost for Game {
                 } else if let Some(i) = self.entity_index(target, ctx.owner) {
                     self.loaded.entities[i].carrying = prop.clone();
                 }
+                Step::Continue
+            }
+            Action::SetFaction { target, faction } => {
+                self.set_faction(target, faction, ctx.owner);
                 Step::Continue
             }
             Action::ChangeStanding { faction, amount } => {

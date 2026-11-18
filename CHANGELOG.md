@@ -54,6 +54,16 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   `play_music(id, seconds)`, `play_music_effect`; `status` prints `music_effect=` and the crossfade
   in `music_fade=`. The example has a level-up and a victory fanfare (Grumbold's defeat), also in
   the starter library.
+- **Faction membership**: factions have their own *Database › Factions* tab (moved from Project)
+  with a *Members* list per faction: its races, character definitions (own or by race) and placed
+  characters, with *Add a race…* / *Add a character…* and ✕ to change who belongs. A **placed
+  character** can have a faction of its own (the map's inspector); the *Faction* fields always show
+  and offer *New faction…*. In play, the **Set faction** action and `set_faction(target, faction)`
+  move a character or the player into another faction (saved; hostility changes at once);
+  `faction_of(target)` reads it, and `status` lists changed characters in `factions=`. *Problems*
+  checks placed characters' factions. The example has Snik, a goblin peddler at the market who
+  sides with the humans, and Rook, a deserter by a forest campfire who begs for mercy and, if
+  spared, leaves the bandits (the *Deserter* is also in the starter library).
 
 ## 0.25.0 — 2026-11-18
 

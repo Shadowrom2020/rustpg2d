@@ -309,9 +309,11 @@ fn name_the_horse() {
 | `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")`: drawn in the character's hands; while carrying it holds nothing else and the player can't attack. *(queued)* |
 | `stop_carrying(target)` | Puts down what a character carries. *(queued)* |
 | `player_carrying()` | The prop the player carries (`""` = none). |
-| `player_faction()` | The player's faction id (*Database › Project › Factions*): their race's, else the player character's; `""` without one. |
+| `player_faction()` | The player's faction id (*Database › Factions*): their race's, else the player character's; `""` without one. |
 | `standing(faction)` | The player's standing with a faction, -100 to 100. It starts at 100 for the player's own faction, 50 for friendly, 0 for neutral and -50 for hostile factions (the attitude table); at -20 or below the faction's characters attack the player. |
 | `change_standing(faction, amount)` | Raises the standing (a negative amount lowers it); the faction's characters turn hostile or calm down at once. *(queued)* |
+| `set_faction(target, faction)` | A character on this map (`"self"`, a name) or `"player"` joins a faction; `""` = back to its own (the placed character's, its definition's, its race's). Saved; who attacks whom changes at once. *(queued)* |
+| `faction_of(target)` | The faction id a character belongs to now: `"player"`, `"self"` (also `SELF`) or a name on this map; `""` = none. |
 | `is_female()` / `is_male()` | The player character's sex. |
 | `player_hp()` | Current hit points (2 per heart). |
 | `player_max_hp()` | Maximum hit points. |

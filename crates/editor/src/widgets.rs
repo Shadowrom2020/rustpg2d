@@ -737,7 +737,7 @@ pub struct Refs {
     pub races: Vec<String>,
     /// Common event ids (Database › Common events).
     pub common_events: Vec<String>,
-    /// Faction ids (Database › Project › Factions).
+    /// Faction ids (Database › Factions).
     pub factions: Vec<String>,
     /// Crafting stations named by recipes.
     pub stations: Vec<String>,
@@ -1869,12 +1869,17 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             labeled(ui, "prop", |ui| suggest(ui, &format!("{id}/carry"), prop, &refs.props, 120.0));
             ui.weak("(carried in both hands, drawn in the character's hands; empty = puts it down. While carrying it holds nothing else and the player can't attack)");
         }
+        Action::SetFaction { target, faction } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "faction", |ui| suggest(ui, &format!("{id}/setfac"), faction, &refs.factions, 120.0));
+            ui.weak("(a character on this map or \"player\" joins the faction; empty = back to its own. Saved; who attacks whom changes at once; Database › Factions)");
+        }
         Action::ChangeStanding { faction, amount } => {
             labeled(ui, "faction", |ui| suggest(ui, &format!("{id}/fac"), faction, &refs.factions, 120.0));
             labeled(ui, "by", |ui| {
                 ui.add(egui::DragValue::new(amount).range(-200..=200)).on_hover_text("Negative lowers it");
             });
-            ui.weak("(the player's standing, -100..100: at -20 or below the faction's characters attack the player; Database › Project › Factions)");
+            ui.weak("(the player's standing, -100..100: at -20 or below the faction's characters attack the player; Database › Factions)");
         }
         Action::Mood { target, mood } => {
             target_field(ui, id, target, refs);

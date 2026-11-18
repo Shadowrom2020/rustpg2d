@@ -7,7 +7,7 @@ Database says what they are.
 
 ## Working with definitions
 
-The tabs along the top are *Items, Props, Characters, Races, 3D models, Materials, Scatter sets,
+The tabs along the top are *Items, Props, Characters, Races, Factions, 3D models, Materials, Scatter sets,
 Sprite sheets, Sounds, Fonts, UI skins, Structures, Skills, Spells, Recipes, Quests, Achievements, Common events, Project* and
 *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
@@ -158,6 +158,16 @@ portrait and moods. They have their own chapter: [Characters](06-characters.md).
 Humans, goblins, elves…: each race's bodies, the looks the creator offers, what a player of the
 race gets (max HP, speed, defense, starting skills) and its size. See
 [Characters › Races](06-characters.md#races).
+
+## Factions
+
+Who fights whom: the factions (an id and a name), the **attitude table** between them, and a
+**Members** list per faction with its races, its character definitions (their own *Faction*, or
+their race's) and the placed characters that have it as their own (click one to show it on its
+map). *Add a race…* and *Add a character…* put one into the faction, the ✕ on a member takes it
+out again; the *Faction* fields of the Characters and Races forms and of the map's inspector do the
+same from the other side (their *New faction…* entry opens this tab). See
+[Characters › Factions](06-characters.md#factions).
 
 ## Materials
 
@@ -427,7 +437,6 @@ quests.
 | **Eight facings** | Characters walking diagonally are drawn turned diagonally (on by default); off, they show the four facings only (fewer poses to render) |
 | **Character pose memory** | GPU memory for the rendered poses of 3D characters, 8 to 128 MB (default 32). When it is full, the poses drawn longest ago are rendered again when needed: raise it for many different characters on screen at once, lower it for small GPUs |
 | **Companions at 0 HP** | Knocked down until healed (default), get up after some seconds, or go home ([Companions](06-characters.md#companions)) |
-| **Factions** | The factions and the attitude table between them: who fights whom and how they treat the player ([Characters › Factions](06-characters.md#factions)) |
 | **Skills & magic** | Turn on skills and magic; starting skill points, max mana, mana regeneration |
 | **Experience and levels** | XP for level 2, growth per level, highest level, and what each level adds (max HP, mana, skill points) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |

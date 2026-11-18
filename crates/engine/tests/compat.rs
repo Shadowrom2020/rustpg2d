@@ -260,3 +260,26 @@ fn save_of_0_22_0_loads_without_homes() {
     assert_eq!(back.furniture["stone_house"][0].uid, uid);
     assert_eq!(back.furniture["stone_house"][0].item, "chair_item");
 }
+
+#[test]
+fn map_and_save_before_faction_membership_load() {
+    // The forest of 0.25.0: placed characters before a faction of their own.
+    let m = io::load(&fixture("maps/forest-0.25.0.map")).unwrap();
+    assert!(m.entities.iter().any(|e| e.name == "outlaw_1"));
+    assert!(m.entities.iter().all(|e| e.faction.is_empty()));
+    // A placed character's own faction is written and read back.
+    let mut m = m;
+    m.entities.iter_mut().find(|e| e.name == "outlaw_1").unwrap().faction = "humans".into();
+    let dir = std::env::temp_dir().join(format!("rustpg2d_compat_faction_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("forest.map");
+    io::save(&m, &path).unwrap();
+    let back = io::load(&path).unwrap();
+    assert_eq!(back.entities.iter().find(|e| e.name == "outlaw_1").unwrap().faction, "humans");
+    assert!(back.entities.iter().filter(|e| e.name != "outlaw_1").all(|e| e.faction.is_empty()));
+    let _ = std::fs::remove_dir_all(&dir);
+    // A 0.22.0 save: the player joined no faction, nobody's faction was changed.
+    let w = WorldState::from_ron(&std::fs::read_to_string(fixture("saves/save-0.22.0.ron")).unwrap()).unwrap();
+    assert!(w.player_faction.is_empty());
+    assert!(w.entities.values().flat_map(|m| m.values()).all(|s| s.faction.is_none()));
+}

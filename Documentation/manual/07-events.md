@@ -86,8 +86,11 @@ across map changes and in save games.
   hurts), **Heal character**, **Give experience**, **Quest** (start, advance, set stage, complete,
   fail), **Unlock achievement**, **Autosave**.
 - **Change standing**: raises or lowers the player's standing with a faction (*Database ›
-  Project › Factions*); at -20 or below its characters attack the player, above it they calm
+  Factions*); at -20 or below its characters attack the player, above it they calm
   down at once.
+- **Set faction**: a character on this map (*target*: `self`, a name) or `player` joins a faction;
+  empty = back to its own (the placed character's, its definition's, its race's). Saved; who
+  attacks whom changes at once ([Characters › Factions](06-characters.md#factions)).
 - **If / Else**: conditions and two action lists, for branches inside one trigger.
 - **Emit event**: raises a custom event for other triggers. **Run script**: calls a script function.
 

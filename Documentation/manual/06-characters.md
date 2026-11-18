@@ -383,13 +383,16 @@ and `{sir|madam}` the first word for a male player and the second for a female o
 
 ## Factions
 
-Factions decide who fights whom. They are set up in *Database › Project › Factions*: a list of
+Factions decide who fights whom. They are set up in *Database › Factions*: a list of
 factions (an id, fixed once added because triggers and scripts name it, and a name) and an
 **attitude table** where every pair of factions is *hostile*, *neutral* (the default) or
 *friendly*; click a cell to change it, the table reads both ways.
 
 - A character belongs to its own **Faction** (*Database › Characters*), else to its race's
-  (*Database › Races › Faction*). Characters without a faction stay out of it.
+  (*Database › Races › Faction*). Characters without a faction stay out of it. A **placed
+  character** can have a faction of its own (*Faction* in the map's inspector): one goblin who
+  trades with the humans, one guard in the bandits' pay. The **Members** list of *Database ›
+  Factions* shows who belongs to each faction and adds or removes races and characters.
 - **Characters of hostile factions fight each other**: chasers (*Chase foes*) notice foes within
   their sight like they notice the player, close in, swing, lunge and shoot at them; group fighters
   share the places around a foe and alert their own faction. Arrows of a shooter fly past its
@@ -404,7 +407,15 @@ factions (an id, fixed once added because triggers and scripts name it, and a na
 - The **Change standing** action and `change_standing(faction, amount)` raise or lower a standing
   (the faction's characters turn hostile or calm down at once); the **Faction standing** condition,
   `standing(faction)` and `player_faction()` read it. Standings are kept in the save game.
-- *Edit › Problems* warns about characters and races naming a faction the project doesn't have.
+- **Changing sides in play:** the **Set faction** action and `set_faction(target, faction)` move a
+  character on the map, or the player, into another faction (a deserter, a converted cultist, the
+  player joining the thieves); an empty faction puts it back into its own. Who attacks whom changes
+  at once, and the change is kept in the save game. A player who joins a faction counts it as
+  their own: their standing with it starts at 100 and with the others from its attitudes, unless
+  a standing was already changed. `faction_of(target)` reads a character's (or the player's)
+  faction.
+- *Edit › Problems* warns about characters, races and placed characters naming a faction the
+  project doesn't have.
 
 In the example, humans, elves, dwarves, goblin tribes, orc clans, bandits, wild beasts and
 monsters are factions. The villagers of Emberbrook are humans (their race's faction, the same as a

@@ -409,10 +409,12 @@ Gnome), and goblins, orcs and trolls for the world's characters. A race has:
 
 - a **name** and **description** (the creator shows it under the preview);
 - **models** for men and women. The creator offers the race's models of the chosen sex with their
-  colour features; without any, the project's playable models. The SRD races without models of
-  their own borrow the library's: halflings the hero / heroine and gnomes the dwarf models at size
-  0.75, dragonborn and half-orcs the orc models, half-elves the elf models, tieflings the hero /
-  heroine with a red skin (*Colours*);
+  colour features; without any, the project's playable models. The dragonborn man has a model of
+  his own, coloured by his **Draconic Ancestry** (the SRD's ten dragons: black, blue, brass, bronze,
+  copper, gold, green, red, silver, white): the scales in the dragon's colour, the clothes in a
+  darker tone of it. The SRD races without models of their own borrow the library's: halflings the
+  hero / heroine and gnomes the dwarf models at size 0.75, dragonborn women and half-orcs the orc
+  models, half-elves the elf models, tieflings the hero / heroine with a red skin (*Colours*);
 - for **a player of this race**: extra **max HP** once (negative: fewer; the SRD's races add none),
   **HP per level** (the hill dwarf's *Dwarven Toughness*: +1), **speed** in percent (from 0.27 and
   older; the SRD's speed in feet replaces it) and **defense**, and **proficiencies**:
@@ -443,7 +445,12 @@ Gnome), and goblins, orcs and trolls for the world's characters. A race has:
   half-elf's two), *Tool* (a dwarf's artisan's tools), *Language* (a human's, a half-elf's, a high
   elf's extra language), *Ancestry* (a dragonborn's dragon, which gives its damage resistance) and
   *Cantrip* (a high elf's; kept as a choice, `race_choice("high-elf-cantrip")`, until the SRD's
-  spells arrive with 0.30), each with how many to pick and the options.
+  spells arrive with 0.30), each with how many to pick and the options. A choice of one can
+  **colour the model** (*Colours the model*): each option names colours for the colour features of
+  the race's models. The creator then offers it on its first page, with the preview, and the
+  features it colours get no row of their own. The dragonborn's *Draconic Ancestry* does this: red
+  scales and deep red clothes for a red dragon, gold for a gold one, and the same pick gives the
+  ancestry's damage resistance.
 
 The player's race is kept in the save game, with what the creator made of it: scores,
 proficiencies, languages, resistances and choices. The player character's own race (*Race* in its

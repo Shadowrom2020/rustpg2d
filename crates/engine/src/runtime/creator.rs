@@ -266,7 +266,20 @@ impl Game {
             Some(m) => &m.features,
             _ => return Vec::new(),
         };
-        features.iter().enumerate().filter(|(_, f)| !f.colors.is_empty()).map(|(k, f)| (k, f.name.clone(), f.colors.clone(), f.label())).collect()
+        // (Features a race's choice colours, a dragonborn's ancestry, get no row of their own.)
+        let chosen: Vec<String> = self.creator_race(c).map_or(Vec::new(), |r| r.choices.iter().flat_map(|ch| ch.colors.values().flat_map(|m| m.keys().cloned())).collect());
+        features.iter().enumerate().filter(|(_, f)| !f.colors.is_empty() && !chosen.contains(&f.name)).map(|(k, f)| (k, f.name.clone(), f.colors.clone(), f.label())).collect()
+    }
+
+    /// The race's choices that colour the model (picked on page 1): their indices.
+    fn color_choices(&self, c: &Creator) -> Vec<usize> {
+        self.creator_race(c).map_or(Vec::new(), |r| r.choices.iter().enumerate().filter(|(_, ch)| !ch.colors.is_empty() && !ch.options.is_empty()).map(|(ci, _)| ci).collect())
+    }
+
+    /// The colours a colour choice's current pick gives: feature -> colour.
+    fn choice_colors(c: &Creator, ci: usize, ch: &crate::races::RaceChoice) -> std::collections::BTreeMap<String, [u8; 3]> {
+        let pick = Self::picked(c, ci, 1, ch.options.len()).first().copied().unwrap_or(0);
+        ch.options.get(pick).and_then(|o| ch.colors.get(o)).cloned().unwrap_or_default()
     }
 
     /// The project's ability methods.
@@ -369,6 +382,8 @@ impl Game {
             Row::Method => "Scores".into(),
             Row::Ability(i) => Ability::ALL[i].short().into(),
             Row::Reroll => String::new(),
+            // (Page 1: a choice that colours the model, "Ancestry".)
+            Row::Choice(ci, _) if c.page == 0 => self.creator_race(c).and_then(|r| r.choices.get(ci).map(|ch| crate::lang::tr_ui(ch.kind.label()).into_owned())).unwrap_or_default(),
             Row::Choice(..) | Row::Background | Row::BgLanguage(_) => String::new(),
             Row::Start | Row::Back => String::new(),
         }
@@ -387,6 +402,7 @@ impl Game {
             if self.creator_bodies(self.creator_race(c).as_ref(), c.sex).len() > 1 {
                 rows.push(Row::Body);
             }
+            rows.extend(self.color_choices(c).into_iter().map(|ci| Row::Choice(ci, 0)));
             rows.extend(self.creator_features(c).into_iter().map(|f| Row::Feature(f.0)));
         } else {
             if let Some(m) = self.creator_method(c) {
@@ -397,7 +413,7 @@ impl Game {
                 }
             }
             if let Some(r) = self.creator_race(c) {
-                for (ci, ch) in r.choices.iter().enumerate() {
+                for (ci, ch) in r.choices.iter().enumerate().filter(|(_, ch)| ch.colors.is_empty()) {
                     rows.extend((0..(ch.choose as usize).min(ch.options.len())).map(|slot| Row::Choice(ci, slot)));
                 }
             }
@@ -434,6 +450,14 @@ impl Game {
                 }
                 n => {
                     a.colors.insert(name, colors[(n - 1) % colors.len()]);
+                }
+            }
+        }
+        // A choice that colours the model: its pick's colours (a dragonborn's ancestry).
+        if let Some(r) = &race {
+            for ci in self.color_choices(c) {
+                if let Some(ch) = r.choices.get(ci) {
+                    a.colors.extend(Self::choice_colors(c, ci, ch));
                 }
             }
         }
@@ -827,6 +851,22 @@ impl Game {
                                 n => (format!("{}/{}", (n - 1) % colors.len().max(1) + 1, colors.len()), colors.get((n - 1) % colors.len().max(1)).copied()),
                             }
                         }
+                        // A choice that colours the model: the pick's name ("Red") and its first colour.
+                        Row::Choice(ci, _) => match race.as_ref().and_then(|r| r.choices.get(*ci)) {
+                            Some(ch) => {
+                                let pick = Self::picked(c, *ci, 1, ch.options.len()).first().copied().unwrap_or(0);
+                                let id = ch.options.get(pick).cloned().unwrap_or_default();
+                                let n = ch.option_name(&id);
+                                let short = match (n.find('('), n.rfind(')')) {
+                                    (Some(a), Some(b)) if b > a => n[a + 1..b].to_string(),
+                                    _ => n,
+                                };
+                                let colors = Self::choice_colors(c, *ci, ch);
+                                let swatch = colors.get("skin").or_else(|| colors.values().next()).copied();
+                                (crate::lang::tr_ui(&short).into_owned(), swatch)
+                            }
+                            None => (String::new(), None),
+                        },
                         _ => (String::new(), None),
                     };
                     Self::draw_choice_control(r, active, m, &text, swatch);

@@ -81,6 +81,11 @@ pub struct RaceChoice {
     /// Option -> its display name ("Draconic Ancestry (Red)", "Fire Bolt"); else the id.
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub names: std::collections::BTreeMap<String, String>,
+    /// Option -> the colours it gives the model's colour features (a dragonborn's ancestry: red
+    /// scales, deep red clothes). A choice with colours is picked on the creator's first page,
+    /// with the preview, and the features it colours get no row of their own.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub colors: std::collections::BTreeMap<String, std::collections::BTreeMap<String, [u8; 3]>>,
 }
 
 impl RaceChoice {
@@ -403,6 +408,19 @@ mod tests {
         assert!((r.speed_factor() - 0.9).abs() < 1e-6);
         assert_eq!(r.skill_level("mining"), 1);
         assert_eq!(r.skill_level("cooking"), 0);
+    }
+
+    #[test]
+    fn a_choice_can_colour_the_model() {
+        let r: RaceDef = ron::from_str(r#"(id: "dragonborn", name: "Dragonborn", choices: [(id: "draconic-ancestry", label: "Draconic Ancestry", kind: Ancestry, options: ["red", "blue"],
+            colors: {"red": {"skin": (186, 50, 42), "clothing": (93, 25, 21)}})])"#).unwrap();
+        let ch = &r.choices[0];
+        assert_eq!(ch.colors["red"]["skin"], [186, 50, 42]);
+        assert!(!ch.colors.contains_key("blue"), "an option without colours leaves the model as it is");
+        let back: RaceDef = ron::from_str(&ron::to_string(&r).unwrap()).unwrap();
+        assert_eq!(back, r);
+        // Choices without colours write none.
+        assert!(!ron::to_string(&RaceChoice::default()).unwrap().contains("colors"));
     }
 
     #[test]

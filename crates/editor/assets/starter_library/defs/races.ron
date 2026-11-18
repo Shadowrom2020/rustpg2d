@@ -274,7 +274,7 @@
         name: "Dragonborn",
         playable: true,
         bodies_male: [
-            "orc",
+            "dragonborn",
         ],
         bodies_female: [
             "orc_f",
@@ -348,6 +348,48 @@
                     "draconic-ancestry-red": "Draconic Ancestry (Red)",
                     "draconic-ancestry-silver": "Draconic Ancestry (Silver)",
                     "draconic-ancestry-white": "Draconic Ancestry (White)",
+                },
+                colors: {
+                    "draconic-ancestry-black": {
+                        "clothing": (42, 40, 47),
+                        "skin": (84, 80, 94),
+                    },
+                    "draconic-ancestry-blue": {
+                        "clothing": (26, 48, 89),
+                        "skin": (52, 96, 178),
+                    },
+                    "draconic-ancestry-brass": {
+                        "clothing": (99, 81, 41),
+                        "skin": (198, 162, 82),
+                    },
+                    "draconic-ancestry-bronze": {
+                        "clothing": (76, 52, 26),
+                        "skin": (152, 104, 52),
+                    },
+                    "draconic-ancestry-copper": {
+                        "clothing": (94, 53, 31),
+                        "skin": (188, 106, 62),
+                    },
+                    "draconic-ancestry-gold": {
+                        "clothing": (112, 91, 27),
+                        "skin": (224, 182, 54),
+                    },
+                    "draconic-ancestry-green": {
+                        "clothing": (33, 71, 37),
+                        "skin": (66, 142, 74),
+                    },
+                    "draconic-ancestry-red": {
+                        "clothing": (93, 25, 21),
+                        "skin": (186, 50, 42),
+                    },
+                    "draconic-ancestry-silver": {
+                        "clothing": (94, 97, 101),
+                        "skin": (188, 194, 202),
+                    },
+                    "draconic-ancestry-white": {
+                        "clothing": (116, 117, 119),
+                        "skin": (232, 234, 238),
+                    },
                 },
             ),
         ],

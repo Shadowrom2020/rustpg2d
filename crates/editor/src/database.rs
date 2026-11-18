@@ -4382,6 +4382,10 @@ fn race_srd_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx:
         d.traits.push(RaceTrait { id: format!("trait-{}", d.traits.len() + 1), name: "New trait".into(), description: String::new() });
     }
     ui.label(format!("Choices in the creator ({})", d.choices.len())).on_hover_text("What a hero of the race picks: +1 to abilities, skills, a tool, a language, an ancestry, a cantrip");
+    // The colour features of the race's models (a choice can colour them).
+    let mut features: Vec<String> = d.bodies_male.iter().chain(&d.bodies_female).filter_map(|m| cx.db.model(m)).flat_map(|m| m.features.iter().map(|f| f.name.clone())).collect();
+    features.sort();
+    features.dedup();
     let mut remove = None;
     for (k, c) in d.choices.iter_mut().enumerate() {
         ui.horizontal(|ui| {
@@ -4411,6 +4415,44 @@ fn race_srd_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx:
             let bad: Vec<&String> = c.options.iter().filter(|o| !abilities::is_known_proficiency(o)).collect();
             if !bad.is_empty() {
                 ui.colored_label(egui::Color32::from_rgb(230, 120, 90), format!("not SRD proficiencies: {}", bad.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")));
+            }
+        }
+        // Colours per option: the creator then offers the choice on its first page, with the
+        // preview, and the features it colours get no row of their own.
+        if !features.is_empty() && c.choose == 1 && !c.options.is_empty() {
+            let mut on = !c.colors.is_empty();
+            if ui
+                .checkbox(&mut on, "Colours the model")
+                .on_hover_text("Each option gives the race's models colours (a dragonborn's ancestry: red scales, deep red clothes). The creator offers the choice on its first page with the preview, instead of rows for the colour features it sets.")
+                .changed()
+            {
+                c.colors = if on { c.options.iter().map(|o| (o.clone(), features.iter().map(|f| (f.clone(), [128, 128, 128])).collect())).collect() } else { Default::default() };
+            }
+            if on {
+                egui::Grid::new(format!("race_choice_colors{k}")).num_columns(features.len() + 1).show(ui, |ui| {
+                    ui.label("");
+                    for f in &features {
+                        ui.weak(f);
+                    }
+                    ui.end_row();
+                    for o in c.options.clone() {
+                        ui.label(c.option_name(&o));
+                        let row = c.colors.entry(o.clone()).or_default();
+                        for f in &features {
+                            let mut on = row.contains_key(f);
+                            let mut col = row.get(f).copied().unwrap_or([128, 128, 128]);
+                            ui.horizontal(|ui| {
+                                if ui.checkbox(&mut on, "").on_hover_text("This option colours the feature").changed() && !on {
+                                    row.remove(f);
+                                }
+                                if on && (ui.color_edit_button_srgb(&mut col).changed() || !row.contains_key(f)) {
+                                    row.insert(f.clone(), col);
+                                }
+                            });
+                        }
+                        ui.end_row();
+                    }
+                });
             }
         }
     }

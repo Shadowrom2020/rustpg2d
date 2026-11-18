@@ -138,8 +138,16 @@ impl SrdData {
             }
         }
         // Choices of the race itself (ability increases, languages) come first.
-        let own: Vec<RaceChoice> = r.choices.drain(..).filter(|c| c.id.ends_with("-ability-increase") || c.id.ends_with("-language-choice")).collect();
-        r.choices = own.into_iter().chain(choices).collect();
+        let old: Vec<RaceChoice> = std::mem::take(&mut r.choices);
+        let own = old.iter().filter(|c| c.id.ends_with("-ability-increase") || c.id.ends_with("-language-choice")).cloned();
+        // The colours a project gave a choice's options (a dragonborn's ancestry) stay.
+        let choices = choices.into_iter().map(|mut c| {
+            if let Some(o) = old.iter().find(|o| o.id == c.id) {
+                c.colors = o.colors.clone();
+            }
+            c
+        });
+        r.choices = own.chain(choices).collect();
     }
 
     /// Writes the SRD's races, subraces and backgrounds into `races` / `backgrounds`: existing
@@ -193,6 +201,8 @@ impl SrdData {
                 let (choose, opts) = options(set);
                 own.push(RaceChoice { id: format!("{id}-language-choice"), label: "Extra Language".into(), kind: ChoiceKind::Language, choose, options: opts.into_iter().map(|(o, _)| o).collect(), ..Default::default() });
             }
+            // (Choices the project gave colours to are handed on: apply_traits keeps their colours.)
+            own.extend(r.choices.drain(..).filter(|c| !c.colors.is_empty()));
             r.choices = own;
             let traits = list(j, "traits");
             self.apply_traits(&traits, r);
@@ -214,7 +224,7 @@ impl SrdData {
             if new {
                 r.playable = true;
             }
-            r.choices.clear();
+            r.choices.retain(|c| !c.colors.is_empty());
             let traits = list(j, "racial_traits");
             self.apply_traits(&traits, r);
         }
@@ -350,6 +360,10 @@ mod tests {
         assert_eq!(anc.grants.get("draconic-ancestry-red").map(String::as_str), Some("fire"));
         assert_eq!(bgs[0].proficiencies, vec!["insight", "religion"]);
         assert_eq!((bgs[0].language_choices, bgs[0].feature.as_str()), (2, "Shelter of the Faithful"));
+        // A project's colours for the ancestry's options stay through another run.
+        let anc_k = races.iter().position(|r| r.id == "dragonborn").unwrap();
+        let ci = races[anc_k].choices.iter().position(|c| c.kind == ChoiceKind::Ancestry).unwrap();
+        races[anc_k].choices[ci].colors.insert("draconic-ancestry-red".into(), [("skin".to_string(), [186, 50, 42])].into());
         // A second run: nothing changes.
         let (r1, b1) = (races.clone(), bgs.clone());
         data.import(&mut races, &mut bgs);

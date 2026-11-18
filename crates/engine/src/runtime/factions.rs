@@ -11,7 +11,7 @@ impl Game {
         if !self.world.player_faction.is_empty() {
             return self.world.player_faction.clone();
         }
-        match self.project.db.race(&self.world.player_race) {
+        match self.player_race() {
             Some(r) => r.faction.clone(),
             None => self.project.db.faction_of(&self.project.config.player),
         }

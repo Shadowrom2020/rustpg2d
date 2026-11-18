@@ -592,7 +592,8 @@ impl Game {
         y += 44.0;
         let passive = 10 + w.check_bonus("perception", false).unwrap_or(0);
         draw_text(format!("Passive Perception {passive}"), ax, y, 18.0, skin::normal());
-        let others: Vec<String> = w.proficiencies.iter().filter(|p| abilities::skill(p).is_none() && !p.starts_with("save:")).map(|p| abilities::proficiency_name(p)).collect();
+        // (Weapon and armor proficiencies show on the character sheet.)
+        let others: Vec<String> = w.proficiencies.iter().filter(|p| abilities::skill(p).is_none() && abilities::gear(p).is_none() && !p.starts_with("save:")).map(|p| abilities::proficiency_name(p)).collect();
         if !others.is_empty() {
             y += 30.0;
             draw_text("Tools and other proficiencies", ax, y, 17.0, skin::disabled());

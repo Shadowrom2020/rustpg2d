@@ -429,6 +429,8 @@ pub struct Game {
     /// Locks a pick failed on: (map, uid) -> the game hour (`WorldState::total_hours`) from which
     /// it can be tried again.
     lock_jams: HashMap<(String, u32), f64>,
+    /// The player's merged race by id ([`Game::player_race`]).
+    race_cache: std::cell::RefCell<Option<(String, Option<std::rc::Rc<crate::races::RaceDef>>)>>,
     /// Rolls already shown on screen (`WorldState::roll_count`).
     rolls_shown: u64,
     /// The languages the game offers (code, name) and the current one.
@@ -636,6 +638,7 @@ impl Game {
             plugin_ids: plugins.ids.clone(),
             plugin_hud: plugins.hud.clone(),
             lock_jams: HashMap::new(),
+            race_cache: Default::default(),
             rolls_shown: 0,
             lang_code: project.config.language.clone(),
             languages,
@@ -2298,6 +2301,8 @@ impl Game {
     /// Applies project rules (inventory size, stack limits) to the world state, e.g. after loading.
     fn prepare_world(&mut self) {
         self.migrate_equipment();
+        // (The race's parent may have changed since the save: a race became a subrace.)
+        self.world.player_race_parent = self.project.db.race(&self.world.player_race).map(|r| r.parent.clone()).unwrap_or_default();
         self.world.renumber_old_drops();
         self.init_skills(self.world.play_time == 0.0 && self.world.current_map.is_empty());
         // Games started without the creator (or saved before it existed) get the default name.
@@ -2534,7 +2539,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} attacking={} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} attacks={:?} {} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2655,7 +2660,8 @@ impl Game {
             self.rolls_status(),
             self.world.abilities.text(),
             crate::srd::abilities::signed(crate::srd::abilities::proficiency_bonus(self.world.player_level()) as i64),
-            self.world.proficiencies.iter().cloned().collect::<Vec<_>>().join(",")
+            self.world.proficiencies.iter().cloned().collect::<Vec<_>>().join(","),
+            self.sheet_status()
         )
     }
 
@@ -2749,10 +2755,12 @@ impl Game {
         // A save from before the SRD rules (0.27 and older): the hero gets the project's starting
         // ability scores and proficiencies, and their race's.
         if self.world.version < 2 {
-            let rules = &self.project.config.rules;
-            self.world.abilities = rules.abilities;
-            let race = self.project.db.race(&self.world.player_race).map(|r| r.skills.clone()).unwrap_or_default();
-            self.world.proficiencies = rules.proficiencies.iter().cloned().chain(race.into_iter().map(|s| s.skill)).map(|p| crate::srd::abilities::proficiency_id(&p)).filter(|p| !p.is_empty()).collect();
+            let race = self.project.db.race_full(&self.world.player_race);
+            let hero = crate::races::build_hero(race.as_ref(), &self.project.config.rules, None, &Default::default(), None);
+            self.world.abilities = hero.abilities;
+            self.world.proficiencies = hero.proficiencies;
+            self.world.languages = hero.languages;
+            self.world.resistances = hero.resistances;
         }
         self.prepare_world();
         self.runner.clear();
@@ -2956,7 +2964,11 @@ impl Game {
         render::parallax::draw(&self.assets, &m.parallax, true, view, get_time() as f32);
 
         // Darkness (map, time of day, cut-scene dimming), then the weather's tint on top.
-        let dark = self.scene_ambient(render::lighting::ambient(self.loaded.map.lighting, self.world.hour));
+        let mut dark = self.scene_ambient(render::lighting::ambient(self.loaded.map.lighting, self.world.hour));
+        // A hero with darkvision sees dark places as dim ones (not during a cut-scene's dimming).
+        if self.darkvision_ft() > 0 && !self.scene_dimmed() {
+            dark = render::lighting::darkvision(dark);
+        }
         let scene_light = self.weather_ambient(dark);
         if let Some(ambient) = scene_light {
             // Lights show only where it is dark: weather alone (by day) just tints the scene.

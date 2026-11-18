@@ -89,6 +89,11 @@ impl Game {
         c.dim_rate = if seconds <= 0.0 { f32::INFINITY } else { (c.dim_target - c.dim).abs() / seconds };
     }
 
+    /// Whether a cut-scene dims the scene now.
+    pub(super) fn scene_dimmed(&self) -> bool {
+        self.cutscene.dim > 0.001
+    }
+
     /// The scene's ambient light with the dimming applied (None = no darkness at all).
     pub(super) fn scene_ambient(&self, ambient: Option<Color>) -> Option<Color> {
         let d = self.cutscene.dim;

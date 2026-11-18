@@ -26,6 +26,11 @@
         default_name: "Alex",
         body_male: "hero",
         body_female: "heroine",
+        ability_methods: [
+            Standard,
+            PointBuy,
+            Roll,
+        ],
     ),
     day_minutes: 24.0,
     start_hour: 8.0,

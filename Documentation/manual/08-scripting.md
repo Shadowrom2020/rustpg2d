@@ -362,7 +362,11 @@ fn name_the_horse() {
 |---|---|
 | `player_name()` | The name the player chose. |
 | `player_sex()` | `"male"` or `"female"`. |
-| `player_race()` | The player's race id (*Database › Races*), e.g. `"goblin"`; `""` without one. |
+| `player_race()` | The player's race id (*Database › Races*), e.g. `"goblin"`, or a subrace's (`"hill-dwarf"`; a *Player race* condition for `dwarf` matches it too); `""` without one. |
+| `knows_language(language)` | Whether the hero speaks a language (`"dwarvish"`, `"elvish"`…): their race's, the creator's picks and their background's. *(since 0.28)* |
+| `has_resistance(damage)` | Whether the hero resists a damage type (`"fire"`, `"poison"`…): their race's, a dragonborn's ancestry. *(since 0.28)* |
+| `background()` | The hero's background id (*Database › Backgrounds*), `""` without one. *(since 0.28)* |
+| `race_choice(choice)` | What the hero picked for a racial choice in the creator, as an array: `race_choice("high-elf-cantrip")` = `["fire-bolt"]`, `race_choice("draconic-ancestry")` = `["draconic-ancestry-red"]`; empty when nothing was picked. *(since 0.28)* |
 | `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")`: drawn in the character's hands; while carrying it holds nothing else and the player can't attack. *(queued)* |
 | `stop_carrying(target)` | Puts down what a character carries. *(queued)* |
 | `player_carrying()` | The prop the player carries (`""` = none). |

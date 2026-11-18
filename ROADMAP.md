@@ -262,7 +262,7 @@ sheet.
   in English and German. Editor: the *Ability check* action form, *Project › Rules*, the example's
   conversion (9 skills mapped, 5 dropped) and the problems list (none).
 
-- [ ] Races and the character creator — `feature/srd-races`
+- [x] Races and the character creator — `feature/srd-races`
 
   **Goal.** The player creates an SRD character: race, ability scores, background, skills.
 
@@ -282,14 +282,47 @@ sheet.
   - **Models:** races map to the library's models. Goblins, orcs and trolls stop being playable
     races (in the SRD they are monsters); half-orcs use the orc models.
 
-  **Engine.** `races.rs` rewritten for SRD races, the creator (`creator.rs`) rows for ability
-  scores and background, darkvision in `lights.rs`, the race import, the conversion of old
-  `RaceDef`s.
+  **Decided while building** (with the user: models reused, the import tool now, all racial
+  choices).
+  - **`RaceDef` grows** instead of being rewritten (old races keep loading as they are): `parent`
+    (a subrace names its race; `RaceDef::merged` / `Database::race_full` fold them together),
+    `ability_bonuses`, `walk_ft`, `size_category`, `darkvision_ft`, `languages`, `resistances`,
+    `traits`, `choices` (kinds Ability +1, Skill, Tool, Language, Ancestry with the damage type it
+    grants, Cantrip) and `colors` (the creator's default colours). Weapon and armor proficiencies
+    (`battleaxes`) are proficiency ids too (`srd::abilities::GEAR`).
+  - **The import tool** is the editor's `srd_import.rs`, run by `cargo run -p rustpg2d-editor
+    --example srd_import -- <checkout> [folder]` (not xtask: it needs the engine's types), pinned
+    to 5e-database `a6212beb`. It merges by id and keeps content fields; a base race with subraces
+    becomes not playable (its subraces are). `srd-data` extends it.
+  - **Backgrounds** are a definition kind (`defs/backgrounds.ron`, `RefKind::Background`, the
+    Database tab), so they travel through the library. The Acolyte's equipment is the SRD's (0.31):
+    the example gives it 15 coins; Farmhand and Wanderer are the example's own.
+  - **The creator has a second page** (*Abilities and background*): method, scores, the race's
+    choices, background and its languages; the project's `CharacterCreation::ability_methods`
+    picks the methods. Its result goes through `races::build_hero`; racial increases stop at 20.
+  - **Darkvision** lifts the ambient light towards a dim grey (`render::lighting::darkvision`),
+    not the lights; speed is `walk_ft / 30`.
+  - **Models**: halfling = hero / heroine at 0.75, gnome = dwarf models at 0.75, dragonborn and
+    half-orc = the orc models (they have no colour features), half-elf = elf models, tiefling =
+    hero / heroine with a red skin.
+  - The HP and the class row stay for the sheet (item 3) and classes (0.30); weapon and armor
+    proficiencies are listed on the sheet, not yet on the Skills tab.
 
-  **Example.** The creator offers the nine races; Emberbrook's elves and dwarves get SRD traits.
+  **Engine.** `races.rs` (SRD fields, merging, `build_hero`), `backgrounds.rs` (a new definition
+  kind), the creator's second page, darkvision in `render/lighting.rs`, the speed factor, script
+  functions, `sheet=`; the editor's `srd_import.rs`, race form, Backgrounds tab.
 
-  **Verify.** Autoplay creates a Hill Dwarf with point buy (`status` prints `sheet=`). Unit tests:
-  point-buy costs, racial bonuses. Screenshots of the creator.
+  **Example.** The creator offers the nine races (the subraces for dwarf, elf, halfling, gnome) and
+  three backgrounds; Emberbrook's elves and dwarves get SRD traits through their races.
+
+  **Verify (done).** Unit tests: point buy and the standard array swap, 4d6 range, subrace merging,
+  `build_hero` (increases capped at 20, choices, background languages), the importer and its second
+  run, backgrounds round trip, darkvision. UI test: a background added. Autoplay on a scratch copy:
+  a Hill Dwarf with point buy (`sheet=` CON 17, WIS 14, dwarvish, poison, darkvision 60, 25 ft,
+  Brewer's Supplies), a Half-Elf with its choices, a red Dragonborn with rolled scores (fire
+  resistance), a Tiefling (red skin in the preview), the mine with and without darkvision, a
+  dwarf walking 9 tiles where a human walks 11. Screenshots of both creator pages and of the
+  editor's race form and Backgrounds tab.
 
 - [ ] The character sheet — `feature/srd-sheet`
 

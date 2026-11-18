@@ -346,38 +346,93 @@ playable races ([Races](#races)), a **look** (a model) among the race's models o
 (without races: the project's default model for that sex and the other models of that sex marked
 *Playable*; the row shows only when there is a choice), and a **colour row for each colour feature**
 of that model that offers colours (*Skin*, *Hair*, *Clothing*…: *As made*, the model's own
-colours or the feature's default colour, or one of the feature's colours). The example offers humans (the hero, the heroine), elves and dwarves with
-skin, hair and clothing colours. An animated preview walks through all four directions. Name, sex,
-model and colours are kept in save games. Play-tests skip the creator and use the default name.
+colours or the feature's default colour, *The race's* colour, or one of the feature's colours). An
+animated preview walks through all four directions; under it the race's ability increases, size,
+speed, darkvision and traits.
+
+*Next* opens the second page (the SRD 5.1 rules; [Gameplay › Rules](09-gameplay.md#rules-srd-51)):
+
+![The creator's second page: a half-elf's scores, choices and background](../images/game-creator-abilities.webp)
+
+- **Scores**: the method the project allows (*Character creator › Ability scores*): the
+  **standard array** (15 14 13 12 10 8: Left / Right on an ability swaps values with another),
+  **point buy** (every score 8 to 15 for 27 points: 13 costs 5, 14 costs 7, 15 costs 9; the points
+  left show beside the method) or **4d6** (each score the best three of four dice, rolled once;
+  *Roll again*). Each ability shows its base, the race's increase, the total and its modifier.
+  Without methods the scores are the project's *Rules*.
+- A row per **racial choice**: the half-elf's two +1s and two skills, the dwarf's tool, the
+  dragonborn's ancestry, the high elf's cantrip and language, the human's and half-elf's language.
+  The selected choice's trait shows under the rows.
+- **Background** (*Database › Backgrounds*, [Backgrounds](#backgrounds)) and its languages; its
+  skills and feature show below.
+
+*Start adventure* makes the hero: the scores with the race's increases (racial increases stop at
+20), the project's, the race's, the chosen and the background's proficiencies, the languages and
+resistances, the background's starting items. Name, sex, model, colours and all of it are kept in
+save games. The example offers its nine races and three backgrounds with all three methods.
+Play-tests skip the creator and use the default name and the project's *Rules*.
 
 ## Races
 
-Races are definitions of their own (*Database › Races*): humans, goblins, elves, dwarves, orcs and
-trolls in the example and the starter library, each with a male and a female model (trolls one).
-A race has:
+Races are definitions of their own (*Database › Races*). The example and the starter library have
+the nine races of the **SRD 5.1** (dwarf, elf, halfling, human, dragonborn, gnome, half-elf,
+half-orc, tiefling) with their four subraces (Hill Dwarf, High Elf, Lightfoot Halfling, Rock
+Gnome), and goblins, orcs and trolls for the world's characters. A race has:
 
 - a **name** and **description** (the creator shows it under the preview);
 - **models** for men and women. The creator offers the race's models of the chosen sex with their
-  colour features; without any, the project's playable models;
-- for **a player of this race**: extra **max HP** (negative: fewer), **speed** in percent,
-  **defense**, and **proficiencies**: SRD skills, tools and saving throws (`perception`,
-  `smiths-tools`, `save:con`) the hero adds to the project's starting ones
-  ([Gameplay › Rules](09-gameplay.md#rules-srd-51)). In the example a human is proficient in
-  Persuasion and has 2 more HP; a goblin has 2 fewer HP and 10 % more speed; an elf is 5 % faster
-  with 1 HP less; a dwarf is proficient in Athletics and Smith's Tools (3 more HP, +1 defense, 10 %
-  slower); an orc has 2 more HP; a troll 6 more HP, +1 defense, 15 % slower, size 1.5. (The SRD's
-  races and their traits come with the next item of 0.28.)
+  colour features; without any, the project's playable models. The SRD races without models of
+  their own borrow the library's: halflings the hero / heroine and gnomes the dwarf models at size
+  0.75, dragonborn and half-orcs the orc models, half-elves the elf models, tieflings the hero /
+  heroine with a red skin (*Colours*);
+- for **a player of this race**: extra **max HP** (negative: fewer), **speed** in percent (from
+  0.27 and older; the SRD's speed in feet replaces it) and **defense**, and **proficiencies**:
+  SRD skills, tools, weapon and armor proficiencies and saving throws (`perception`,
+  `smiths-tools`, `battleaxes`, `save:con`) the hero adds to the project's starting ones
+  ([Gameplay › Rules](09-gameplay.md#rules-srd-51));
 - a **size**: characters whose model belongs to the race are drawn that much larger (or smaller)
   and get a hitbox to match (trolls 1.5);
-- **Playable**: offered in the character creator. In the example humans, elves and dwarves are
-  playable; goblins, orcs and trolls are races of the world's characters only (their player
-  bonuses stay for projects that make them playable).
+- **Playable**: offered in the character creator. A race with subraces is offered as its
+  subraces (Hill Dwarf, not Dwarf); goblins, orcs and trolls are races of the world's characters
+  only.
 
-With more than one playable race, the creator starts with a **Race** row; changing it switches the
-models and their colour rows. The player's race is kept in the save game. The player character's own race
-(*Race* in its form) is the one a game started without the creator has. Other characters name
-their race in the same field (for scripts and [factions](#factions)). The **Player race** condition
-and `player_race()` tell the player's race.
+**SRD 5.1** (the race form's last section; the starter library's races come from the SRD by the
+[import tool](11-asset-library.md#the-srd-51-data)):
+
+- **Subrace of**: a subrace names its race. The game uses both: their ability increases add up,
+  traits, languages and choices join, and the subrace takes the race's models, size, faction,
+  speed and darkvision when it has none. A *Player race* condition for `dwarf` holds for a hill
+  dwarf too.
+- **Ability increases** (+2 CON for a dwarf), **speed** in feet (a hero walks at speed / 30: dwarves,
+  halflings and gnomes, at 25 ft, are slower), the **size** category (Small / Medium) and
+  **darkvision** (a hero with darkvision sees dark places as dim ones: night and caves are lifted
+  towards a dim grey).
+- **Languages** and **resistances** (damage types: a dwarf's poison, a tiefling's fire).
+- **Colours**: the race's colours in the creator (a colour feature of its models and a colour).
+- **Traits**: their names and rules text (the creator lists them; the character sheet shows them).
+- **Choices** the hero makes in the creator: *+1* (to abilities: a half-elf's two), *Skill* (a
+  half-elf's two), *Tool* (a dwarf's artisan's tools), *Language* (a human's, a half-elf's, a high
+  elf's extra language), *Ancestry* (a dragonborn's dragon, which gives its damage resistance) and
+  *Cantrip* (a high elf's; kept as a choice, `race_choice("high-elf-cantrip")`, until the SRD's
+  spells arrive with 0.30), each with how many to pick and the options.
+
+The player's race is kept in the save game, with what the creator made of it: scores,
+proficiencies, languages, resistances and choices. The player character's own race (*Race* in its
+form) is the one a game started without the creator has. Other characters name their race in the
+same field (for scripts and [factions](#factions)). The **Player race** condition and
+`player_race()` tell the player's race; `knows_language()`, `has_resistance()` and
+`race_choice()` what came with it.
+
+### Backgrounds
+
+*Database › Backgrounds*: what the hero did before the adventure. The creator offers every
+background on its second page. A background has proficiencies (skills and tools), a number of
+**languages to choose**, **starting items** (given when the game starts) and a **feature** (its
+name and rule in words). The SRD's **Acolyte** (Insight, Religion, two languages, *Shelter of the
+Faithful*) comes from the import; the example and the starter library add two of their own:
+**Farmhand** (Athletics, Animal Handling, Land Vehicles; a hoe and bread; *Harvest Hands*) and
+**Wanderer** (Survival, Nature, one language; a fishing rod and a torch; *Wayfinder*). The
+Acolyte starts with 15 coins. `background()` tells the hero's.
 
 **Addressing the player**: in dialog, choice and quest texts, `{player}` becomes the player's name
 and `{sir|madam}` the first word for a male player and the second for a female one (any pair works:

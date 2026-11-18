@@ -2,7 +2,7 @@
     (
         id: "human",
         name: "Human",
-        description: "Adaptable folk of the villages and towns: hardy, and good at striking a bargain.",
+        description: "Adaptable folk of the villages and towns: hardy, quick to learn and at home anywhere.",
         playable: true,
         bodies_male: [
             "hero",
@@ -11,13 +11,45 @@
             "heroine",
         ],
         max_hp: 2,
-        skills: [
+        faction: "humans",
+        ability_bonuses: {
+            "cha": 1,
+            "con": 1,
+            "dex": 1,
+            "int": 1,
+            "str": 1,
+            "wis": 1,
+        },
+        walk_ft: 30,
+        size_category: "Medium",
+        languages: [
+            "common",
+        ],
+        choices: [
             (
-                skill: "persuasion",
-                level: 1,
+                id: "human-language-choice",
+                label: "Extra Language",
+                kind: Language,
+                choose: 1,
+                options: [
+                    "dwarvish",
+                    "elvish",
+                    "giant",
+                    "gnomish",
+                    "goblin",
+                    "halfling",
+                    "orc",
+                    "abyssal",
+                    "celestial",
+                    "draconic",
+                    "deep-speech",
+                    "infernal",
+                    "primordial",
+                    "sylvan",
+                    "undercommon",
+                ],
             ),
         ],
-        faction: "humans",
     ),
     (
         id: "goblin",
@@ -38,7 +70,7 @@
         id: "elf",
         name: "Elf",
         description: "Tall, keen-eyed folk of the old forests. Elves are quick and fine archers, though not as sturdy as others.",
-        playable: true,
+        playable: false,
         bodies_male: [
             "elf",
         ],
@@ -46,14 +78,51 @@
             "elf_f",
         ],
         max_hp: -1,
-        speed: 5.0,
+        skills: [
+            (
+                skill: "perception",
+                level: 1,
+            ),
+        ],
         faction: "elves",
+        ability_bonuses: {
+            "dex": 2,
+        },
+        walk_ft: 30,
+        size_category: "Medium",
+        darkvision_ft: 60,
+        languages: [
+            "common",
+            "elvish",
+        ],
+        traits: [
+            (
+                id: "darkvision",
+                name: "Darkvision",
+                description: "You have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You cannot discern color in darkness, only shades of gray.",
+            ),
+            (
+                id: "fey-ancestry",
+                name: "Fey Ancestry",
+                description: "You have advantage on saving throws against being charmed, and magic cannot put you to sleep.",
+            ),
+            (
+                id: "trance",
+                name: "Trance",
+                description: "Elves do not need to sleep. Instead, they meditate deeply, remaining semiconscious, for 4 hours a day. (The Common word for such meditation is \"trance.\") While meditating, you can dream after a fashion; such dreams are actually mental exercises that have become reflexive through years of practice. After resting this way, you gain the same benefit that a human does from 8 hours of sleep.",
+            ),
+            (
+                id: "keen-senses",
+                name: "Keen Senses",
+                description: "You have proficiency in the Perception skill.",
+            ),
+        ],
     ),
     (
         id: "dwarf",
         name: "Dwarf",
         description: "Short, broad and stubborn as rock. Dwarves are born miners and smiths and take a beating well, but they are slow on their feet.",
-        playable: true,
+        playable: false,
         bodies_male: [
             "dwarf",
         ],
@@ -61,19 +130,79 @@
             "dwarf_f",
         ],
         max_hp: 3,
-        speed: -10.0,
         defense: 1,
         skills: [
             (
-                skill: "athletics",
+                skill: "battleaxes",
                 level: 1,
             ),
             (
-                skill: "smiths-tools",
+                skill: "handaxes",
+                level: 1,
+            ),
+            (
+                skill: "light-hammers",
+                level: 1,
+            ),
+            (
+                skill: "warhammers",
                 level: 1,
             ),
         ],
         faction: "dwarves",
+        ability_bonuses: {
+            "con": 2,
+        },
+        walk_ft: 25,
+        size_category: "Medium",
+        darkvision_ft: 60,
+        languages: [
+            "common",
+            "dwarvish",
+        ],
+        resistances: [
+            "poison",
+        ],
+        traits: [
+            (
+                id: "darkvision",
+                name: "Darkvision",
+                description: "You have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You cannot discern color in darkness, only shades of gray.",
+            ),
+            (
+                id: "dwarven-resilience",
+                name: "Dwarven Resilience",
+                description: "You have advantage on saving throws against poison, and you have resistance against poison damage.",
+            ),
+            (
+                id: "stonecunning",
+                name: "Stonecunning",
+                description: "Whenever you make an Intelligence (History) check related to the origin of stonework, you are considered proficient in the History skill and add double your proficiency bonus to the check, instead of your normal proficiency bonus.",
+            ),
+            (
+                id: "dwarven-combat-training",
+                name: "Dwarven Combat Training",
+                description: "You have proficiency with the battleaxe, handaxe, light hammer, and warhammer.",
+            ),
+            (
+                id: "tool-proficiency",
+                name: "Tool Proficiency",
+                description: "You gain proficiency with the artisan\'s tools of your choice: smith\'s tools, brewer\'s supplies, or mason\'s tools.",
+            ),
+        ],
+        choices: [
+            (
+                id: "tool-proficiency",
+                label: "Tool Proficiency",
+                kind: Tool,
+                choose: 1,
+                options: [
+                    "smiths-tools",
+                    "brewers-supplies",
+                    "masons-tools",
+                ],
+            ),
+        ],
     ),
     (
         id: "orc",
@@ -104,5 +233,530 @@
         speed: -15.0,
         defense: 1,
         size: 1.5,
+    ),
+    (
+        id: "halfling",
+        name: "Halfling",
+        playable: false,
+        bodies_male: [
+            "hero",
+        ],
+        bodies_female: [
+            "heroine",
+        ],
+        faction: "humans",
+        size: 0.75,
+        ability_bonuses: {
+            "dex": 2,
+        },
+        walk_ft: 25,
+        size_category: "Small",
+        languages: [
+            "common",
+            "halfling",
+        ],
+        traits: [
+            (
+                id: "brave",
+                name: "Brave",
+                description: "You have advantage on saving throw against being frightened.",
+            ),
+            (
+                id: "halfling-nimbleness",
+                name: "Halfling Nimbleness",
+                description: "You can move through the space of any creature that is of a size larger than yours.",
+            ),
+            (
+                id: "lucky",
+                name: "Lucky",
+                description: "When you roll a 1 on the d20 for an attack roll, ability check, or saving throw, you can reroll the die and must use the new roll.",
+            ),
+        ],
+    ),
+    (
+        id: "dragonborn",
+        name: "Dragonborn",
+        playable: true,
+        bodies_male: [
+            "orc",
+        ],
+        bodies_female: [
+            "orc_f",
+        ],
+        faction: "humans",
+        ability_bonuses: {
+            "cha": 1,
+            "str": 2,
+        },
+        walk_ft: 30,
+        size_category: "Medium",
+        languages: [
+            "common",
+            "draconic",
+        ],
+        traits: [
+            (
+                id: "draconic-ancestry",
+                name: "Draconic Ancestry",
+                description: "You have draconic ancestry. Choose one type of dragon from the Draconic Ancestry table. Your breath weapon and damage resistance are determined by the dragon type, as shown in the table.",
+            ),
+            (
+                id: "breath-weapon",
+                name: "Breath Weapon",
+                description: "You can use your action to exhale destructive energy. Your draconic ancestry determines the size, shape, and damage type of the exhalation. When you use your breath weapon, each creature in the area of the exhalation must make a saving throw, the type of which is determined by your draconic ancestry. The DC for this saving throw equals 8 + your Constitution modifier + your proficiency bonus. A creature takes 2d6 damage on a failed save, and half as much damage on a successful one. The damage increases to 3d6 at 6th level, 4d6 at 11th level, and 5d6 at 16th level. After you use your breath weapon, you cannot use it again until you complete a short or long rest.",
+            ),
+            (
+                id: "damage-resistance",
+                name: "Damage Resistance",
+                description: "You have resistance to the damage type associated with your draconic ancestry.",
+            ),
+        ],
+        choices: [
+            (
+                id: "draconic-ancestry",
+                label: "Draconic Ancestry",
+                kind: Ancestry,
+                choose: 1,
+                options: [
+                    "draconic-ancestry-black",
+                    "draconic-ancestry-blue",
+                    "draconic-ancestry-brass",
+                    "draconic-ancestry-bronze",
+                    "draconic-ancestry-copper",
+                    "draconic-ancestry-gold",
+                    "draconic-ancestry-green",
+                    "draconic-ancestry-red",
+                    "draconic-ancestry-silver",
+                    "draconic-ancestry-white",
+                ],
+                grants: {
+                    "draconic-ancestry-black": "acid",
+                    "draconic-ancestry-blue": "lightning",
+                    "draconic-ancestry-brass": "fire",
+                    "draconic-ancestry-bronze": "lightning",
+                    "draconic-ancestry-copper": "acid",
+                    "draconic-ancestry-gold": "fire",
+                    "draconic-ancestry-green": "poison",
+                    "draconic-ancestry-red": "fire",
+                    "draconic-ancestry-silver": "cold",
+                    "draconic-ancestry-white": "cold",
+                },
+                names: {
+                    "draconic-ancestry-black": "Draconic Ancestry (Black)",
+                    "draconic-ancestry-blue": "Draconic Ancestry (Blue)",
+                    "draconic-ancestry-brass": "Draconic Ancestry (Brass)",
+                    "draconic-ancestry-bronze": "Draconic Ancestry (Bronze)",
+                    "draconic-ancestry-copper": "Draconic Ancestry (Copper)",
+                    "draconic-ancestry-gold": "Draconic Ancestry (Gold)",
+                    "draconic-ancestry-green": "Draconic Ancestry (Green)",
+                    "draconic-ancestry-red": "Draconic Ancestry (Red)",
+                    "draconic-ancestry-silver": "Draconic Ancestry (Silver)",
+                    "draconic-ancestry-white": "Draconic Ancestry (White)",
+                },
+            ),
+        ],
+    ),
+    (
+        id: "gnome",
+        name: "Gnome",
+        playable: false,
+        bodies_male: [
+            "dwarf",
+        ],
+        bodies_female: [
+            "dwarf_f",
+        ],
+        faction: "dwarves",
+        size: 0.75,
+        ability_bonuses: {
+            "int": 2,
+        },
+        walk_ft: 25,
+        size_category: "Small",
+        darkvision_ft: 60,
+        languages: [
+            "common",
+            "gnomish",
+        ],
+        traits: [
+            (
+                id: "darkvision",
+                name: "Darkvision",
+                description: "You have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You cannot discern color in darkness, only shades of gray.",
+            ),
+            (
+                id: "gnome-cunning",
+                name: "Gnome Cunning",
+                description: "You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic.",
+            ),
+        ],
+    ),
+    (
+        id: "half-elf",
+        name: "Half-Elf",
+        playable: true,
+        bodies_male: [
+            "elf",
+        ],
+        bodies_female: [
+            "elf_f",
+        ],
+        faction: "elves",
+        ability_bonuses: {
+            "cha": 2,
+        },
+        walk_ft: 30,
+        size_category: "Medium",
+        darkvision_ft: 60,
+        languages: [
+            "common",
+            "elvish",
+        ],
+        traits: [
+            (
+                id: "darkvision",
+                name: "Darkvision",
+                description: "You have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You cannot discern color in darkness, only shades of gray.",
+            ),
+            (
+                id: "fey-ancestry",
+                name: "Fey Ancestry",
+                description: "You have advantage on saving throws against being charmed, and magic cannot put you to sleep.",
+            ),
+            (
+                id: "skill-versatility",
+                name: "Skill Versatility",
+                description: "You gain proficiency in two skills of your choice.",
+            ),
+        ],
+        choices: [
+            (
+                id: "half-elf-ability-increase",
+                label: "Ability Score Increase",
+                kind: Ability,
+                choose: 2,
+                options: [
+                    "str",
+                    "dex",
+                    "con",
+                    "int",
+                    "wis",
+                ],
+            ),
+            (
+                id: "half-elf-language-choice",
+                label: "Extra Language",
+                kind: Language,
+                choose: 1,
+                options: [
+                    "dwarvish",
+                    "giant",
+                    "gnomish",
+                    "goblin",
+                    "halfling",
+                    "orc",
+                    "abyssal",
+                    "celestial",
+                    "draconic",
+                    "deep-speech",
+                    "infernal",
+                    "primordial",
+                    "sylvan",
+                    "undercommon",
+                ],
+            ),
+            (
+                id: "skill-versatility",
+                label: "Skill Versatility",
+                kind: Skill,
+                choose: 2,
+                options: [
+                    "acrobatics",
+                    "animal-handling",
+                    "arcana",
+                    "athletics",
+                    "deception",
+                    "history",
+                    "insight",
+                    "intimidation",
+                    "investigation",
+                    "medicine",
+                    "nature",
+                    "perception",
+                    "performance",
+                    "persuasion",
+                    "religion",
+                    "sleight-of-hand",
+                    "stealth",
+                    "survival",
+                ],
+            ),
+        ],
+    ),
+    (
+        id: "half-orc",
+        name: "Half-Orc",
+        playable: true,
+        bodies_male: [
+            "orc",
+        ],
+        bodies_female: [
+            "orc_f",
+        ],
+        skills: [
+            (
+                skill: "intimidation",
+                level: 1,
+            ),
+        ],
+        faction: "humans",
+        ability_bonuses: {
+            "con": 1,
+            "str": 2,
+        },
+        walk_ft: 30,
+        size_category: "Medium",
+        darkvision_ft: 60,
+        languages: [
+            "common",
+            "orc",
+        ],
+        traits: [
+            (
+                id: "darkvision",
+                name: "Darkvision",
+                description: "You have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You cannot discern color in darkness, only shades of gray.",
+            ),
+            (
+                id: "savage-attacks",
+                name: "Savage Attacks",
+                description: "When you score a critical hit with a melee weapon attack, you can roll one of the weapon\'s damage dice one additional time and add it to the extra damage of the critical hit.",
+            ),
+            (
+                id: "relentless-endurance",
+                name: "Relentless Endurance",
+                description: "When you are reduced to 0 hit points but not killed outright, you can drop to 1 hit point instead. you cannot use this feature again until you finish a long rest.",
+            ),
+            (
+                id: "menacing",
+                name: "Menacing",
+                description: "You gain proficiency in the Intimidation skill.",
+            ),
+        ],
+    ),
+    (
+        id: "tiefling",
+        name: "Tiefling",
+        playable: true,
+        bodies_male: [
+            "hero",
+        ],
+        bodies_female: [
+            "heroine",
+        ],
+        faction: "humans",
+        ability_bonuses: {
+            "cha": 2,
+            "int": 1,
+        },
+        walk_ft: 30,
+        size_category: "Medium",
+        darkvision_ft: 60,
+        languages: [
+            "common",
+            "infernal",
+        ],
+        resistances: [
+            "fire",
+        ],
+        traits: [
+            (
+                id: "darkvision",
+                name: "Darkvision",
+                description: "You have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You cannot discern color in darkness, only shades of gray.",
+            ),
+            (
+                id: "hellish-resistance",
+                name: "Hellish Resistance",
+                description: "You have resistance to fire damage.",
+            ),
+            (
+                id: "infernal-legacy",
+                name: "Infernal Legacy",
+                description: "You know the thaumaturgy cantrip. When you reach 3rd level, you can cast the hellish rebuke spell as a 2nd-level spell once with this trait and regain the ability to do so when you finish a long rest. When you reach 5th level, you can cast the darkness spell once with this trait and regain the ability to do so when you finish a long rest. Charisma is your spellcasting ability for these spells.",
+            ),
+        ],
+        colors: {
+            "skin": (178, 62, 52),
+        },
+    ),
+    (
+        id: "hill-dwarf",
+        name: "Hill Dwarf",
+        description: "As a hill dwarf, you have keen senses, deep intuition, and remarkable resilience.",
+        playable: true,
+        parent: "dwarf",
+        ability_bonuses: {
+            "wis": 1,
+        },
+        traits: [
+            (
+                id: "dwarven-toughness",
+                name: "Dwarven Toughness",
+                description: "Your hit point maximum increases by 1, and it increases by 1 every time you gain a level.",
+            ),
+        ],
+    ),
+    (
+        id: "high-elf",
+        name: "High Elf",
+        description: "As a high elf, you have a keen mind and a mastery of at least the basics of magic. In many fantasy gaming worlds, there are two kinds of high elves. One type is haughty and reclusive, believing themselves to be superior to non-elves and even other elves. The other type is more common and more friendly, and often encountered among humans and other races.",
+        playable: true,
+        skills: [
+            (
+                skill: "longswords",
+                level: 1,
+            ),
+            (
+                skill: "shortswords",
+                level: 1,
+            ),
+            (
+                skill: "shortbows",
+                level: 1,
+            ),
+            (
+                skill: "longbows",
+                level: 1,
+            ),
+        ],
+        parent: "elf",
+        ability_bonuses: {
+            "int": 1,
+        },
+        traits: [
+            (
+                id: "elf-weapon-training",
+                name: "Elf Weapon Training",
+                description: "You have proficiency with the longsword, shortsword, shortbow, and longbow.",
+            ),
+            (
+                id: "high-elf-cantrip",
+                name: "High Elf Cantrip",
+                description: "You know one cantrip of your choice form the wizard spell list. Intelligence is your spellcasting ability for it.",
+            ),
+            (
+                id: "extra-language",
+                name: "Extra Language",
+                description: "You can speak, read, and write one extra language of your choice.",
+            ),
+        ],
+        choices: [
+            (
+                id: "high-elf-cantrip",
+                label: "High Elf Cantrip",
+                kind: Cantrip,
+                choose: 1,
+                options: [
+                    "light",
+                    "mage-hand",
+                    "mending",
+                    "message",
+                    "minor-illusion",
+                    "acid-splash",
+                    "prestidigitation",
+                    "ray-of-frost",
+                    "shocking-grasp",
+                    "true-strike",
+                    "chill-touch",
+                    "dancing-lights",
+                    "fire-bolt",
+                    "poison-spray",
+                ],
+                names: {
+                    "acid-splash": "Acid Splash",
+                    "chill-touch": "Chill Touch",
+                    "dancing-lights": "Dancing Lights",
+                    "fire-bolt": "Fire Bolt",
+                    "light": "Light",
+                    "mage-hand": "Mage Hand",
+                    "mending": "Mending",
+                    "message": "Message",
+                    "minor-illusion": "Minor Illusion",
+                    "poison-spray": "Poison Spray",
+                    "prestidigitation": "Prestidigitation",
+                    "ray-of-frost": "Ray of Frost",
+                    "shocking-grasp": "Shocking Grasp",
+                    "true-strike": "True Strike",
+                },
+            ),
+            (
+                id: "extra-language",
+                label: "Extra Language",
+                kind: Language,
+                choose: 1,
+                options: [
+                    "dwarvish",
+                    "giant",
+                    "gnomish",
+                    "goblin",
+                    "halfling",
+                    "orc",
+                    "abyssal",
+                    "celestial",
+                    "draconic",
+                    "deep-speech",
+                    "infernal",
+                    "primordial",
+                    "sylvan",
+                    "undercommon",
+                ],
+            ),
+        ],
+    ),
+    (
+        id: "lightfoot-halfling",
+        name: "Lightfoot Halfling",
+        description: "As a lightfoot halfling, you can easily hide from notice, even using other people as cover. You\'re inclined to be affable and get along well with others. Lightfoots are more prone to wanderlust than other halflings, and often dwell alongside other races or take up a nomadic life.",
+        playable: true,
+        parent: "halfling",
+        ability_bonuses: {
+            "cha": 1,
+        },
+        traits: [
+            (
+                id: "naturally-stealthy",
+                name: "Naturally Stealthy",
+                description: "You can attempt to hide even when you are obscured only by a creature that is at least one size larger than you.",
+            ),
+        ],
+    ),
+    (
+        id: "rock-gnome",
+        name: "Rock Gnome",
+        description: "As a rock gnome, you have a natural inventiveness and hardiness beyond that of other gnomes.",
+        playable: true,
+        skills: [
+            (
+                skill: "tinkers-tools",
+                level: 1,
+            ),
+        ],
+        parent: "gnome",
+        ability_bonuses: {
+            "con": 1,
+        },
+        traits: [
+            (
+                id: "artificers-lore",
+                name: "Artificer\'s Lore",
+                description: "Whenever you make an Intelligence (History) check related to magic items, alchemical objects, or technological devices, you can add twice your proficiency bonus, instead of any proficiency bonus you normally apply.",
+            ),
+            (
+                id: "tinker",
+                name: "Tinker",
+                description: "You have proficiency with artisan\'s tools (tinker\'s tools). Using those tools, you can spend 1 hour and 10 gp worth of materials to construct a Tiny clockwork device (AC 5, 1 hp). The device ceases to function after 24 hours (unless you spend 1 hour repairing it to keep the device functioning), or when you use your action to dismantle it; at that time, you can reclaim the materials used to create it. You can have up to three such devices active at a time. When you create a device, choose one of the following options: Clockwork Toy: This toy is a clockwork animal, monster, or person, such as a frog, mouse, bird, dragon, or soldier. When placed on the ground, the toy moves 5 feet across the ground on each of your turns in a random direction. It makes noises as appropriate to the creature it represents. Fire Starter: The device produces a miniature flame, which you can use to light a candle, torch, or campfire. Using the device requires your action. Music Box: When opened, this music box plays a single song at a moderate volume. The box stops playing when it reaches the song\'s end or when it is closed.",
+            ),
+        ],
     ),
 ]

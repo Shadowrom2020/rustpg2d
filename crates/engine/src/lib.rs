@@ -1,6 +1,7 @@
 //! R(ust)PG2D engine: tile maps, entities, events, scripting, rendering and the game runtime.
 
 pub mod achievements;
+pub mod backgrounds;
 pub mod audio;
 pub mod crafting;
 #[cfg(not(target_arch = "wasm32"))]

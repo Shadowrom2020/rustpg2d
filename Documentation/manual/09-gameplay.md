@@ -145,11 +145,20 @@ CC BY 4.0): every roll in the game is an SRD roll.
 - **Tools**: the SRD's tools (Thieves' Tools, Smith's Tools, Alchemist's Supplies, Cook's Utensils,
   Herbalism Kit, instruments…). A check with a tool names its ability: DEX (Thieves' Tools).
 
-The hero's scores and proficiencies come from *Database › Project › Rules* (the standard array
-15 14 13 12 10 8 by default, until the character creator sets them) and from their race (*Database ›
-Races › Proficiencies*). Players see them on the **Skills** tab of the character window (K): the
-scores with modifiers and saving throws, the proficiency bonus, passive Perception, the 18 skills
-with their bonuses (a dot marks the proficient ones) and the tools.
+**The hero** is made in the [character creator](06-characters.md#the-player-character-and-the-character-creator):
+an SRD race (or subrace) with its ability increases, speed, size, darkvision, languages,
+resistances and traits ([Races](06-characters.md#races)), base scores by the standard array, point
+buy or 4d6, the race's choices and a [background](06-characters.md#backgrounds). Without the
+creator, the scores and proficiencies come from *Database › Project › Rules* (the standard array
+15 14 13 12 10 8 by default) and the player character's race. Players see them on the **Skills**
+tab of the character window (K): the scores with modifiers and saving throws, the proficiency
+bonus, passive Perception, the 18 skills with their bonuses (a dot marks the proficient ones) and
+the tools.
+
+- **Speed**: a hero walks at their race's speed / 30 ft (dwarves, halflings and gnomes at 25 ft
+  are a sixth slower).
+- **Darkvision**: a hero whose race has it sees dark places as dim ones: the night and caves are
+  lifted towards a dim grey (the SRD: in darkness only shades of grey), lit places stay as they are.
 
 Every check shows a line on screen ("Persuasion: 14 vs DC 13 - success"; *Show check results on
 screen* in the project turns it off) and goes into the journal's **Rolls** page: the last 50 checks,
@@ -167,8 +176,8 @@ in Athletics, Perception, Persuasion and Thieves' Tools. They can pick the locke
 river near the farm (DC 12), read the shrine's carvings in Whisperwood (Religion, DC 12: lore and a
 little experience) and ask Tilda for a little more after the slime hunt (Persuasion, DC 13).
 
-What isn't there yet: conditions such as *poisoned* or *prone*, rests, classes, and rolls in combat;
-combat stays real-time until the turn-based combat of 0.29.
+What isn't there yet: conditions such as *poisoned* or *prone*, rests, classes, and rolls in combat
+(resistances are kept for them); combat stays real-time until the turn-based combat of 0.29.
 
 ### Converting a project of 0.27 or older
 

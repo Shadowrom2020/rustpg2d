@@ -124,8 +124,11 @@ place is named under the list (*R2 is also Switch weapon*).
 ## Menus
 
 - **Character creator** (after *New game*, when the game has one): type a name, then Up / Down
-  choose a row and Left / Right change it: race (each with its own strengths, described under the
-  picture), sex, body and colours (skin, hair, clothing…). Enter starts the adventure, Esc goes back.
+  choose a row and Left / Right change it: race (its ability increases, speed and traits show
+  under the picture), sex, body and colours (skin, hair, clothing…). Enter goes on to the second
+  page: your ability scores (the standard array, point buy with 27 points, or 4d6 rolls; Left /
+  Right swap or raise a score), what your race lets you choose (skills, a language, a dragon
+  ancestor…) and your background. Enter starts the adventure, Esc goes back a page.
 - **Title screen**: *New game*, *Continue* (the latest save), *Load game*, *Options*, *Achievements*
   (if the game has them), *Exit*. A game may order them differently, leave some out, add a
   *Credits* page (Up / Down or the wheel scroll it) and entries of its own.

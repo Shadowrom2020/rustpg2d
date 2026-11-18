@@ -36,6 +36,7 @@ pub enum Tab {
     Fonts,
     Skins,
     CommonEvents,
+    Backgrounds,
     Factions,
 }
 
@@ -59,6 +60,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Fonts => db.fonts.len(),
         Tab::Skins => db.skins.len(),
         Tab::CommonEvents => db.common_events.len(),
+        Tab::Backgrounds => db.backgrounds.len(),
         Tab::Project | Tab::Scripts | Tab::Factions => 0,
     }
 }
@@ -104,6 +106,7 @@ impl Tab {
             Tab::Fonts => RefKind::Font,
             Tab::Skins => RefKind::Skin,
             Tab::CommonEvents => RefKind::CommonEvent,
+            Tab::Backgrounds => RefKind::Background,
             Tab::Project | Tab::Scripts | Tab::Factions => return None,
         })
     }
@@ -128,6 +131,7 @@ impl Tab {
             RefKind::Font => Tab::Fonts,
             RefKind::Skin => Tab::Skins,
             RefKind::CommonEvent => Tab::CommonEvents,
+            RefKind::Background => Tab::Backgrounds,
             RefKind::Map | RefKind::Skill => return None,
         })
     }
@@ -236,6 +240,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Fonts => ph::TEXT_AA,
         Tab::Skins => ph::FRAME_CORNERS,
         Tab::CommonEvents => ph::LIGHTNING,
+        Tab::Backgrounds => ph::IDENTIFICATION_CARD,
         Tab::Factions => ph::FLAG,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
@@ -314,6 +319,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Props, "Props"),
             (Tab::Characters, "Characters"),
             (Tab::Races, "Races"),
+            (Tab::Backgrounds, "Backgrounds"),
             (Tab::Factions, "Factions"),
             (Tab::Models, "3D models"),
             (Tab::Materials, "Materials"),
@@ -375,6 +381,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Fonts => db.fonts.get(i).map(|d| (RefKind::Font, d.id.clone())),
             Tab::Skins => db.skins.get(i).map(|d| (RefKind::Skin, d.id.clone())),
             Tab::CommonEvents => db.common_events.get(i).map(|d| (RefKind::CommonEvent, d.id.clone())),
+            Tab::Backgrounds => db.backgrounds.get(i).map(|d| (RefKind::Background, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -394,6 +401,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Fonts => Some(RefKind::Font),
                 Tab::Skins => Some(RefKind::Skin),
                 Tab::CommonEvents => Some(RefKind::CommonEvent),
+                Tab::Backgrounds => Some(RefKind::Background),
                 _ => None,
             };
             if kind.is_some() {
@@ -551,6 +559,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     sel,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::common_events::CommonEventDef::fresh(&unique("common_event", ids)),
+                    |d| &mut d.id,
+                ),
+                Tab::Backgrounds => list_ui(
+                    ui,
+                    &mut db.backgrounds,
+                    sel,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::backgrounds::BackgroundDef::fresh(&unique("background", ids)),
                     |d| &mut d.id,
                 ),
                 Tab::Materials => list_ui(
@@ -723,6 +739,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::CommonEvents => {
                         if let Some(d) = db.common_events.get_mut(i) {
                             common_event_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Backgrounds => {
+                        if let Some(d) = db.backgrounds.get_mut(i) {
+                            background_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -2400,6 +2421,66 @@ fn font_preview(ui: &mut egui::Ui, root: &std::path::Path, d: &rustpg2d_engine::
 }
 
 /// Database › UI skins: a skin's pictures and colours, with the game's own drawing as a preview.
+/// A background: its proficiencies, language choices, starting items and feature.
+fn background_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::backgrounds::BackgroundDef, cx: &mut Cx) {
+    ui.heading("Background");
+    rename_row(ui, RefKind::Background, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.label("Description");
+    text_box(ui, &mut d.description, 2, "");
+    ui.weak("The character creator offers every background: what the hero did before the adventure (SRD 5.1). The SRD's Acolyte comes from the starter library.");
+    egui::Grid::new("background").num_columns(2).show(ui, |ui| {
+        ui.label("Proficiencies").on_hover_text("Skills (insight), tools (thieves-tools) the hero gets");
+        ui.vertical(|ui| {
+            let mut remove = None;
+            for (k, p) in d.proficiencies.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    widgets::suggest(ui, &format!("bg_prof{k}"), p, &cx.refs.skills, 160.0);
+                    ui.weak(rustpg2d_engine::srd::abilities::proficiency_name(&rustpg2d_engine::srd::abilities::proficiency_id(p)));
+                    if ui.small_button("x").clicked() {
+                        remove = Some(k);
+                    }
+                });
+            }
+            if let Some(k) = remove {
+                d.proficiencies.remove(k);
+            }
+            if ui.small_button("+ Proficiency").clicked() {
+                d.proficiencies.push("insight".into());
+            }
+        });
+        ui.end_row();
+        ui.label("Languages to choose");
+        ui.add(egui::DragValue::new(&mut d.language_choices).range(0..=4)).on_hover_text("How many languages of their choice the hero learns (the creator asks)");
+        ui.end_row();
+        ui.label("Starting items");
+        ui.vertical(|ui| {
+            let mut remove = None;
+            for (k, s) in d.equipment.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.add(egui::DragValue::new(&mut s.count).range(1..=999));
+                    widgets::suggest(ui, &format!("bg_item{k}"), &mut s.item, &cx.refs.items, 140.0);
+                    if ui.small_button("x").clicked() {
+                        remove = Some(k);
+                    }
+                });
+            }
+            if let Some(k) = remove {
+                d.equipment.remove(k);
+            }
+            if ui.small_button("+ Item").clicked() {
+                d.equipment.push(rustpg2d_engine::inventory::ItemStack::new(cx.refs.items.first().map_or("", |s| s.as_str()), 1));
+            }
+        });
+        ui.end_row();
+        ui.label("Feature");
+        ui.add(egui::TextEdit::singleline(&mut d.feature).desired_width(260.0).hint_text("Shelter of the Faithful"));
+        ui.end_row();
+    });
+    ui.label("What the feature does");
+    text_box(ui, &mut d.feature_text, 3, "");
+}
+
 fn common_event_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::common_events::CommonEventDef, cx: &mut Cx) {
     use rustpg2d_engine::common_events::CommonTrigger;
     ui.heading("Common event");
@@ -3209,6 +3290,21 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
         }
         ui.weak("The creator shows a colour row for each colour feature of the chosen model that offers colours (Database \u{E13A} 3D models \u{E13A} Colour features).");
         ui.weak("New games give the player the player character's equipment (Database \u{E13A} Characters).");
+        ui.horizontal(|ui| {
+            ui.label("Ability scores").on_hover_text("How the player sets the scores on the creator's second page (none: the scores of Rules)");
+            for m in rustpg2d_engine::srd::abilities::AbilityMethod::ALL {
+                let mut on = cc.ability_methods.contains(&m);
+                if ui.checkbox(&mut on, m.label()).changed() {
+                    if on {
+                        cc.ability_methods.push(m);
+                        cc.ability_methods.sort_by_key(|x| rustpg2d_engine::srd::abilities::AbilityMethod::ALL.iter().position(|y| y == x));
+                    } else {
+                        cc.ability_methods.retain(|x| *x != m);
+                    }
+                }
+            }
+        });
+        ui.weak("The creator's second page: the scores, the race's choices (Database \u{E13A} Races) and a background (Database \u{E13A} Backgrounds).");
     }
     ui.weak("Dialogs address the player with {player} (name) and {sir|madam} (male|female); conditions have 'Player sex'; scripts have player_name(), player_sex(), is_female(), is_male(), text(\"...\").");
     ui.separator();
@@ -4031,6 +4127,151 @@ fn race_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mu
         ui.label("Size");
         ui.add(egui::Slider::new(&mut d.size, 0.5..=2.0).step_by(0.05)).on_hover_text("Characters with this race's bodies are drawn this much larger (and their hitbox grows with them): trolls 1.5");
     });
+    ui.separator();
+    race_srd_form(ui, d, cx);
+}
+
+/// The race's SRD 5.1 data: subrace parent, ability increases, speed, size, darkvision,
+/// languages, resistances, colours, traits and choices.
+fn race_srd_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx: &mut Cx) {
+    use rustpg2d_engine::races::{ChoiceKind, RaceChoice, RaceTrait};
+    use rustpg2d_engine::srd::abilities::{self, Ability};
+    ui.heading("SRD 5.1");
+    ui.weak("The race's rules (the starter library's come from the SRD 5.1 by the srd_import tool). A subrace names its race: the creator offers the subrace, with both races' data.");
+    let races: Vec<String> = cx.db.races.iter().filter(|r| r.id != d.id).map(|r| r.id.clone()).collect();
+    let languages: Vec<String> = rustpg2d_engine::backgrounds::LANGUAGES.iter().map(|(id, _)| id.to_string()).collect();
+    egui::Grid::new("race_srd").num_columns(2).show(ui, |ui| {
+        ui.label("Subrace of").on_hover_text("Its race: a hill dwarf is a dwarf (its increases add up; Player race conditions for the race match it)");
+        widgets::suggest(ui, "race_parent", &mut d.parent, &races, 140.0);
+        ui.end_row();
+        ui.label("Ability increases");
+        ui.horizontal(|ui| {
+            for a in Ability::ALL {
+                let mut v = d.ability_bonuses.get(a.id()).copied().unwrap_or(0);
+                ui.label(a.short());
+                if ui.add(egui::DragValue::new(&mut v).range(-4..=4)).changed() {
+                    if v == 0 {
+                        d.ability_bonuses.remove(a.id());
+                    } else {
+                        d.ability_bonuses.insert(a.id().to_string(), v);
+                    }
+                }
+            }
+        });
+        ui.end_row();
+        ui.label("Speed");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut d.walk_ft).range(0..=60).suffix(" ft")).on_hover_text("Walking speed (0 = 30 ft); the hero moves at speed / 30");
+            ui.label("Size");
+            egui::ComboBox::from_id_salt("race_size_cat").selected_text(if d.size_category.is_empty() { "Medium" } else { d.size_category.as_str() }).show_ui(ui, |ui| {
+                for c in ["Small", "Medium"] {
+                    if ui.selectable_label(d.size_category == c, c).clicked() {
+                        d.size_category = c.to_string();
+                    }
+                }
+            });
+            ui.label("Darkvision");
+            ui.add(egui::DragValue::new(&mut d.darkvision_ft).range(0..=120).suffix(" ft")).on_hover_text("A hero with darkvision sees dark places as dim ones (0 = none)");
+        });
+        ui.end_row();
+        for (label, list, choices, tip) in [("Languages", &mut d.languages, &languages, "common, dwarvish, elvish…"), ("Resistances", &mut d.resistances, &Vec::new(), "Damage types: fire, poison, cold…")] {
+            ui.label(label).on_hover_text(tip);
+            let mut text = list.join(", ");
+            ui.horizontal(|ui| {
+                if ui.add(egui::TextEdit::singleline(&mut text).desired_width(260.0)).changed() {
+                    *list = text.split(',').map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty()).collect();
+                }
+                if !choices.is_empty() {
+                    ui.weak(format!("({})", choices.len()));
+                }
+            });
+            ui.end_row();
+        }
+        ui.label("Colours").on_hover_text("The race's colours in the creator: a colour feature of its models and a colour (a tiefling's red skin)");
+        ui.vertical(|ui| {
+            let mut remove = None;
+            for (k, (name, rgb)) in d.colors.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.label(name.as_str());
+                    ui.color_edit_button_srgb(rgb);
+                    if ui.small_button("x").clicked() {
+                        remove = Some(k);
+                    }
+                });
+            }
+            if let Some(k) = remove {
+                if let Some(key) = d.colors.keys().nth(k).cloned() {
+                    d.colors.remove(&key);
+                }
+            }
+            if ui.small_button("+ Colour").on_hover_text("For the colour feature \"skin\" (rename by removing and adding)").clicked() {
+                d.colors.entry("skin".into()).or_insert([180, 120, 90]);
+            }
+        });
+        ui.end_row();
+    });
+    ui.label(format!("Traits ({})", d.traits.len())).on_hover_text("Its rules in words, shown in the creator and on the character sheet");
+    let mut remove = None;
+    for (k, t) in d.traits.iter_mut().enumerate() {
+        egui::CollapsingHeader::new(if t.name.is_empty() { t.id.clone() } else { t.name.clone() }).id_salt(format!("race_trait{k}")).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Name");
+                ui.add(egui::TextEdit::singleline(&mut t.name).desired_width(200.0));
+                ui.label("Id");
+                ui.add(egui::TextEdit::singleline(&mut t.id).desired_width(140.0));
+                if ui.small_button("Remove").clicked() {
+                    remove = Some(k);
+                }
+            });
+            text_box(ui, &mut t.description, 3, "");
+        });
+    }
+    if let Some(k) = remove {
+        d.traits.remove(k);
+    }
+    if ui.small_button("+ Trait").clicked() {
+        d.traits.push(RaceTrait { id: format!("trait-{}", d.traits.len() + 1), name: "New trait".into(), description: String::new() });
+    }
+    ui.label(format!("Choices in the creator ({})", d.choices.len())).on_hover_text("What a hero of the race picks: +1 to abilities, skills, a tool, a language, an ancestry, a cantrip");
+    let mut remove = None;
+    for (k, c) in d.choices.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            egui::ComboBox::from_id_salt(format!("race_choice_kind{k}")).width(90.0).selected_text(c.kind.label()).show_ui(ui, |ui| {
+                for kind in ChoiceKind::ALL {
+                    ui.selectable_value(&mut c.kind, kind, kind.label());
+                }
+            });
+            ui.add(egui::TextEdit::singleline(&mut c.label).desired_width(150.0)).on_hover_text("What the creator calls it");
+            ui.label("pick");
+            ui.add(egui::DragValue::new(&mut c.choose).range(1..=6));
+            let mut text = c.options.join(", ");
+            if ui.add(egui::TextEdit::singleline(&mut text).desired_width(220.0).hint_text("options: str, dex / stealth / dwarvish")).changed() {
+                c.options = text.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+            }
+            if ui.small_button("x").clicked() {
+                remove = Some(k);
+            }
+        });
+        if c.kind == ChoiceKind::Ability {
+            let bad: Vec<&String> = c.options.iter().filter(|o| Ability::parse(o).is_none()).collect();
+            if !bad.is_empty() {
+                ui.colored_label(egui::Color32::from_rgb(230, 120, 90), format!("not abilities: {}", bad.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")));
+            }
+        }
+        if matches!(c.kind, ChoiceKind::Skill | ChoiceKind::Tool) {
+            let bad: Vec<&String> = c.options.iter().filter(|o| !abilities::is_known_proficiency(o)).collect();
+            if !bad.is_empty() {
+                ui.colored_label(egui::Color32::from_rgb(230, 120, 90), format!("not SRD proficiencies: {}", bad.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")));
+            }
+        }
+    }
+    if let Some(k) = remove {
+        d.choices.remove(k);
+    }
+    if ui.small_button("+ Choice").clicked() {
+        let n = d.choices.len() + 1;
+        d.choices.push(RaceChoice { id: format!("{}-choice-{n}", d.id), label: "Choice".into(), kind: ChoiceKind::Skill, choose: 1, options: vec!["perception".into(), "stealth".into()], ..Default::default() });
+    }
 }
 
 fn recipe_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::crafting::RecipeDef, cx: &mut Cx) {

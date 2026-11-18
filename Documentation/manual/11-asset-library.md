@@ -113,6 +113,20 @@ hard mode, a minimap and damage-number styles ([The starter plugins](18-plugins.
 A newer starter set updates the library's copies of them unless you changed one without raising
 its version.
 
+## The SRD 5.1 data
+
+The starter library's races (with their subraces, traits and choices) and the Acolyte background
+come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the data of
+[5e-bits/5e-database](https://github.com/5e-bits/5e-database), pinned to a commit. The import is a
+tool of the repository; running it again updates what it wrote and keeps what the library added
+(models, factions, sizes, colours):
+
+```sh
+git clone https://github.com/5e-bits/5e-database /tmp/5e-database
+git -C /tmp/5e-database checkout a6212beb4b278917c2cff41c2b04c4ef4f3e0d6f
+cargo run -p rustpg2d-editor --example srd_import -- /tmp/5e-database [library or project folder]
+```
+
 ## Scripted assets
 
 Spells with a *Script* effect, and items, props and characters whose triggers run scripts,

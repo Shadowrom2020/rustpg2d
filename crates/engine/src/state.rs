@@ -200,6 +200,23 @@ pub struct WorldState {
     /// The player's race (`races::RaceDef`; "" = none).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub player_race: String,
+    /// The race of the player's subrace (`dwarf` for a hill dwarf; "" = none): *Player race*
+    /// conditions match it too.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub player_race_parent: String,
+    /// The hero's background (`backgrounds::BackgroundDef`; "" = none).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub player_background: String,
+    /// Languages the hero speaks (`common`, `dwarvish`).
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub languages: BTreeSet<String>,
+    /// Damage types the hero resists (`poison`, `fire`).
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub resistances: BTreeSet<String>,
+    /// The creator's racial choices: choice id -> the picked options (`draconic-ancestry` ->
+    /// `["draconic-ancestry-red"]`, the high elf's cantrip, the background's languages).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub choices: BTreeMap<String, Vec<String>>,
     /// The prop the player carries in both hands ("" = none; `Action::Carry`).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub player_carrying: String,

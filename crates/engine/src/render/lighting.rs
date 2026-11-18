@@ -44,6 +44,17 @@ pub fn ambient(l: MapLighting, hour: f32) -> Option<Color> {
     Some(Color::new(c.x, c.y, c.z, 1.0))
 }
 
+/// The ambient light a hero with darkvision sees: dark places lifted towards a dim, cool grey
+/// (the SRD: darkness as dim light, in shades of grey), bright light unchanged.
+pub fn darkvision(ambient: Option<Color>) -> Option<Color> {
+    let c = ambient?;
+    let v = vec3(c.r, c.g, c.b);
+    let lum = 0.299 * v.x + 0.587 * v.y + 0.114 * v.z;
+    let grey = vec3(lum, lum, lum).lerp(vec3(0.6, 0.62, 0.66), 0.7);
+    let out = v.max(v.lerp(grey, 0.75));
+    Some(Color::new(out.x, out.y, out.z, 1.0))
+}
+
 /// A light source in world pixels.
 #[derive(Clone, Debug)]
 pub struct Light {
@@ -190,6 +201,13 @@ mod tests {
         assert!(is_night(23.0) && !is_night(9.0));
         let out = MapLighting { mode: LightMode::Outdoor, darkness: 0.7 };
         assert!(ambient(out, 12.0).is_none());
+        // Darkvision lifts the night but never darkens.
+        let lit = darkvision(ambient(out, 0.0)).unwrap();
+        let n = ambient(out, 0.0).unwrap();
+        assert!(lit.r > n.r + 0.1 && lit.g >= n.g && lit.b >= n.b, "{lit:?} vs {n:?}");
+        assert_eq!(darkvision(None), None);
+        let cave = darkvision(ambient(MapLighting { mode: LightMode::Dark, darkness: 1.0 }, 12.0)).unwrap();
+        assert!(cave.r > 0.25 && cave.r < 0.5, "a cave stays dim: {cave:?}");
         let night = ambient(out, 0.0).unwrap();
         assert!(night.r < 0.5 && night.b > night.r);
         let dark = MapLighting { mode: LightMode::Dark, darkness: 1.0 };

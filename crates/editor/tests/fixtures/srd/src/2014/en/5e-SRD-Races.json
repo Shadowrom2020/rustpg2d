@@ -1,0 +1,354 @@
+[
+ {
+  "index": "dwarf",
+  "name": "Dwarf",
+  "speed": 25,
+  "ability_bonuses": [
+   {
+    "ability_score": {
+     "index": "con",
+     "name": "CON",
+     "url": "/api/2014/ability-scores/con"
+    },
+    "bonus": 2
+   }
+  ],
+  "alignment": "Most dwarves are lawful, believing firmly in the benefits of a well-ordered society. They tend toward good as well, with a strong sense of fair play and a belief that everyone deserves to share in the benefits of a just order.",
+  "age": "Dwarves mature at the same rate as humans, but they're considered young until they reach the age of 50. On average, they live about 350 years.",
+  "size": "Medium",
+  "size_description": "Dwarves stand between 4 and 5 feet tall and average about 150 pounds. Your size is Medium.",
+  "languages": [
+   {
+    "index": "common",
+    "name": "Common",
+    "url": "/api/2014/languages/common"
+   },
+   {
+    "index": "dwarvish",
+    "name": "Dwarvish",
+    "url": "/api/2014/languages/dwarvish"
+   }
+  ],
+  "language_desc": "You can speak, read, and write Common and Dwarvish. Dwarvish is full of hard consonants and guttural sounds, and those characteristics spill over into whatever other language a dwarf might speak.",
+  "traits": [
+   {
+    "index": "darkvision",
+    "name": "Darkvision",
+    "url": "/api/2014/traits/darkvision"
+   },
+   {
+    "index": "dwarven-resilience",
+    "name": "Dwarven Resilience",
+    "url": "/api/2014/traits/dwarven-resilience"
+   },
+   {
+    "index": "stonecunning",
+    "name": "Stonecunning",
+    "url": "/api/2014/traits/stonecunning"
+   },
+   {
+    "index": "dwarven-combat-training",
+    "name": "Dwarven Combat Training",
+    "url": "/api/2014/traits/dwarven-combat-training"
+   },
+   {
+    "index": "tool-proficiency",
+    "name": "Tool Proficiency",
+    "url": "/api/2014/traits/tool-proficiency"
+   }
+  ],
+  "subraces": [
+   {
+    "index": "hill-dwarf",
+    "name": "Hill Dwarf",
+    "url": "/api/2014/subraces/hill-dwarf"
+   }
+  ],
+  "url": "/api/2014/races/dwarf"
+ },
+ {
+  "index": "dragonborn",
+  "name": "Dragonborn",
+  "speed": 30,
+  "ability_bonuses": [
+   {
+    "ability_score": {
+     "index": "str",
+     "name": "STR",
+     "url": "/api/2014/ability-scores/str"
+    },
+    "bonus": 2
+   },
+   {
+    "ability_score": {
+     "index": "cha",
+     "name": "CHA",
+     "url": "/api/2014/ability-scores/cha"
+    },
+    "bonus": 1
+   }
+  ],
+  "alignment": "Dragonborn tend to extremes, making a conscious choice for one side or the other in the cosmic war between good and evil. Most dragonborn are good, but those who side with evil can be terrible villains.",
+  "age": "Young dragonborn grow quickly. They walk hours after hatching, attain the size and development of a 10-year-old human child by the age of 3, and reach adulthood by 15. They live to be around 80.",
+  "size": "Medium",
+  "size_description": "Dragonborn are taller and heavier than humans, standing well over 6 feet tall and averaging almost 250 pounds. Your size is Medium.",
+  "languages": [
+   {
+    "index": "common",
+    "name": "Common",
+    "url": "/api/2014/languages/common"
+   },
+   {
+    "index": "draconic",
+    "name": "Draconic",
+    "url": "/api/2014/languages/draconic"
+   }
+  ],
+  "language_desc": "You can speak, read, and write Common and Draconic. Draconic is thought to be one of the oldest languages and is often used in the study of magic. The language sounds harsh to most other creatures and includes numerous hard consonants and sibilants.",
+  "traits": [
+   {
+    "index": "draconic-ancestry",
+    "name": "Draconic Ancestry",
+    "url": "/api/2014/traits/draconic-ancestry"
+   },
+   {
+    "index": "breath-weapon",
+    "name": "Breath Weapon",
+    "url": "/api/2014/traits/breath-weapon"
+   },
+   {
+    "index": "damage-resistance",
+    "name": "Damage Resistance",
+    "url": "/api/2014/traits/damage-resistance"
+   }
+  ],
+  "subraces": [],
+  "url": "/api/2014/races/dragonborn"
+ },
+ {
+  "index": "half-elf",
+  "name": "Half-Elf",
+  "speed": 30,
+  "ability_bonuses": [
+   {
+    "ability_score": {
+     "index": "cha",
+     "name": "CHA",
+     "url": "/api/2014/ability-scores/cha"
+    },
+    "bonus": 2
+   }
+  ],
+  "ability_bonus_options": {
+   "choose": 2,
+   "type": "ability_bonuses",
+   "from": {
+    "option_set_type": "options_array",
+    "options": [
+     {
+      "option_type": "ability_bonus",
+      "ability_score": {
+       "index": "str",
+       "name": "STR",
+       "url": "/api/2014/ability-scores/str"
+      },
+      "bonus": 1
+     },
+     {
+      "option_type": "ability_bonus",
+      "ability_score": {
+       "index": "dex",
+       "name": "DEX",
+       "url": "/api/2014/ability-scores/dex"
+      },
+      "bonus": 1
+     },
+     {
+      "option_type": "ability_bonus",
+      "ability_score": {
+       "index": "con",
+       "name": "CON",
+       "url": "/api/2014/ability-scores/con"
+      },
+      "bonus": 1
+     },
+     {
+      "option_type": "ability_bonus",
+      "ability_score": {
+       "index": "int",
+       "name": "INT",
+       "url": "/api/2014/ability-scores/int"
+      },
+      "bonus": 1
+     },
+     {
+      "option_type": "ability_bonus",
+      "ability_score": {
+       "index": "wis",
+       "name": "WIS",
+       "url": "/api/2014/ability-scores/wis"
+      },
+      "bonus": 1
+     }
+    ]
+   }
+  },
+  "alignment": "Half-elves share the chaotic bent of their elven heritage. They value both personal freedom and creative expression, demonstrating neither love of leaders nor desire for followers. They chafe at rules, resent others' demands, and sometimes prove unreliable, or at least unpredictable.",
+  "age": "Half-elves mature at the same rate humans do and reach adulthood around the age of 20. They live much longer than humans, however, often exceeding 180 years.",
+  "size": "Medium",
+  "size_description": "Half-elves are about the same size as humans, ranging from 5 to 6 feet tall. Your size is Medium.",
+  "languages": [
+   {
+    "index": "common",
+    "name": "Common",
+    "url": "/api/2014/languages/common"
+   },
+   {
+    "index": "elvish",
+    "name": "Elvish",
+    "url": "/api/2014/languages/elvish"
+   }
+  ],
+  "language_options": {
+   "choose": 1,
+   "type": "languages",
+   "from": {
+    "option_set_type": "options_array",
+    "options": [
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "dwarvish",
+       "name": "Dwarvish",
+       "url": "/api/2014/languages/dwarvish"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "giant",
+       "name": "Giant",
+       "url": "/api/2014/languages/giant"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "gnomish",
+       "name": "Gnomish",
+       "url": "/api/2014/languages/gnomish"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "goblin",
+       "name": "Goblin",
+       "url": "/api/2014/languages/goblin"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "halfling",
+       "name": "Halfling",
+       "url": "/api/2014/languages/halfling"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "orc",
+       "name": "Orc",
+       "url": "/api/2014/languages/orc"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "abyssal",
+       "name": "Abyssal",
+       "url": "/api/2014/languages/abyssal"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "celestial",
+       "name": "Celestial",
+       "url": "/api/2014/languages/celestial"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "draconic",
+       "name": "Draconic",
+       "url": "/api/2014/languages/draconic"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "deep-speech",
+       "name": "Deep Speech",
+       "url": "/api/2014/languages/deep-speech"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "infernal",
+       "name": "Infernal",
+       "url": "/api/2014/languages/infernal"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "primordial",
+       "name": "Primordial",
+       "url": "/api/2014/languages/primordial"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "sylvan",
+       "name": "Sylvan",
+       "url": "/api/2014/languages/sylvan"
+      }
+     },
+     {
+      "option_type": "reference",
+      "item": {
+       "index": "undercommon",
+       "name": "Undercommon",
+       "url": "/api/2014/languages/undercommon"
+      }
+     }
+    ]
+   }
+  },
+  "language_desc": "You can speak, read, and write Common, Elvish, and one extra language of your choice.",
+  "traits": [
+   {
+    "index": "darkvision",
+    "name": "Darkvision",
+    "url": "/api/2014/traits/darkvision"
+   },
+   {
+    "index": "fey-ancestry",
+    "name": "Fey Ancestry",
+    "url": "/api/2014/traits/fey-ancestry"
+   },
+   {
+    "index": "skill-versatility",
+    "name": "Skill Versatility",
+    "url": "/api/2014/traits/skill-versatility"
+   }
+  ],
+  "subraces": [],
+  "url": "/api/2014/races/half-elf"
+ }
+]

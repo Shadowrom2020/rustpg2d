@@ -368,6 +368,45 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }
     engine.register_fn("say", with!(ctx, |c, speaker: &str, text: &str, opts: rhai::Map| say_with(&mut c, speaker.into(), text, &opts)));
     engine.register_fn("say", with!(ctx, |c, entity: i64, text: &str, opts: rhai::Map| say_with(&mut c, if entity < 0 { String::new() } else { format!("{{uid:{entity}}}") }, text, &opts)));
+    // Picture layers (queued).
+    fn pic_tint(v: &Dynamic) -> Option<[u8; 3]> {
+        if let Some(a) = v.clone().try_cast::<rhai::Array>() {
+            let c = |k: usize| a.get(k).map_or(255.0, num).clamp(0.0, 255.0) as u8;
+            return Some([c(0), c(1), c(2)]);
+        }
+        crate::dialog_codes::color(&v.to_string())
+    }
+    fn pic_show(c: &mut Ctx, layer: &Dynamic, sheet: &str, x: &Dynamic, y: &Dynamic, o: &rhai::Map) {
+        let f = |k: &str, d: f32| o.get(k).map_or(d, num);
+        c.actions.push(Action::ShowPicture {
+            layer: num(layer).max(0.0) as u32,
+            sheet: sheet.to_string(),
+            frame: f("frame", 0.0).max(0.0) as u32,
+            anchor: o.get("anchor").and_then(|a| crate::script_ui::Anchor::parse(&a.to_string())).unwrap_or_default(),
+            on_map: o.get("on_map").and_then(|v| v.as_bool().ok()).unwrap_or(false),
+            x: num(x),
+            y: num(y),
+            scale: f("scale", 1.0),
+            opacity: f("opacity", 1.0),
+            rotation: f("rotation", 0.0),
+            tint: o.get("tint").and_then(pic_tint).unwrap_or([255, 255, 255]),
+            blend: if o.get("blend").is_some_and(|b| b.to_string().starts_with("add")) { crate::pictures::Blend::Additive } else { crate::pictures::Blend::Normal },
+        });
+    }
+    engine.register_fn("picture_show", with!(ctx, |c, layer: Dynamic, sheet: &str, x: Dynamic, y: Dynamic| pic_show(&mut c, &layer, sheet, &x, &y, &rhai::Map::new())));
+    engine.register_fn("picture_show", with!(ctx, |c, layer: Dynamic, sheet: &str, x: Dynamic, y: Dynamic, o: rhai::Map| pic_show(&mut c, &layer, sheet, &x, &y, &o)));
+    engine.register_fn("picture_move", with!(ctx, |c, layer: Dynamic, o: rhai::Map| {
+        let f = |k: &str| o.get(k).map(num);
+        let to = crate::pictures::PictureTargets { x: f("x"), y: f("y"), scale: f("scale"), opacity: f("opacity"), rotation: f("rotation"), tint: o.get("tint").and_then(pic_tint) };
+        c.actions.push(Action::MovePicture {
+            layer: num(&layer).max(0.0) as u32,
+            to,
+            seconds: f("seconds").unwrap_or(1.0),
+            easing: o.get("easing").and_then(|e| crate::pictures::Easing::parse(&e.to_string())).unwrap_or_default(),
+            wait: o.get("wait").and_then(|v| v.as_bool().ok()).unwrap_or(false),
+        });
+    }));
+    engine.register_fn("picture_erase", with!(ctx, |c, layer: Dynamic| c.actions.push(Action::ErasePicture { layer: num(&layer).max(0.0) as u32 })));
     // Script UI: HUD elements (saved with the game) and windows.
     fn hud_opts(e: &mut crate::script_ui::HudElement, opts: &rhai::Map) {
         if let Some(a) = opts.get("anchor").and_then(|a| crate::script_ui::Anchor::parse(&a.to_string())) {

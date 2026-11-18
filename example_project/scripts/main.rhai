@@ -146,7 +146,13 @@ fn slime_defeated() {
 fn intro_cutscene() {
     place("player", 0, 30);
     face("player", "right");
-    wait(0.8);
+    // A title card over the road into town: the Emberbrook sign fades in and out (picture layer 1).
+    picture_show(1, "title_logo", 0, -90, #{ anchor: "center", scale: 4, opacity: 0 });
+    picture_move(1, #{ opacity: 1, seconds: 1.5, easing: "out", wait: true });
+    wait(1.5);
+    picture_move(1, #{ opacity: 0, y: -110, seconds: 1, easing: "in", wait: true });
+    picture_erase(1);
+    wait(0.3);
     walk_to("player", 5, 30);
     wait(0.4);
     approach("guard", "player");

@@ -125,6 +125,9 @@ crates/engine/src/      library: everything shared by game and editor
                         at a tile / hour or a picture, logo, music, darkening, entries, align, panel),
                         PauseMenu (ProjectConfig.menu), MenuEntry (built-in + Custom = a script function),
                         ProjectConfig.credits; runtime/menu.rs builds its rows from them (empty = built in)
+  pictures.rs           picture layers: Picture / PictureLook / PictureMove / PictureTargets, Easing, Blend
+                        (WorldState.pictures, saved); runtime/pictures.rs runs Show / Move / Erase picture
+                        and draws them above the map, below the HUD
   script_ui.rs          script UI data: HudElement / HudKind (text, image, bar) / Anchor (WorldState.hud, saved),
                         Source (a bar's value: variable, number, hp:NAME, max_hp:NAME), ScriptWindow /
                         WindowRow / WindowRequest (WorldState.window_request, not saved); runtime/script_hud.rs

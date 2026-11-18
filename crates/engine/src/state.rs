@@ -262,6 +262,9 @@ pub struct WorldState {
     /// Characters following the player, in the order they joined.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub companions: Vec<Companion>,
+    /// Pictures of *Show picture* by layer (1 to 100), moves in progress included.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub pictures: BTreeMap<u32, crate::pictures::Picture>,
     /// HUD elements scripts set (`hud_text`, `hud_image`, `hud_bar`), by id.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub hud: BTreeMap<String, crate::script_ui::HudElement>,

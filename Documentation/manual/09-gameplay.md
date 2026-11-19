@@ -84,7 +84,8 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   attacks (else an unarmed strike) and walks to its weapon to pick it up when it can. Fighters walk through their allies' tiles, and round trees and walls by the
   walking distance to their foe (not into dead ends). Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
   fight 15 tiles away; it drinks a healing potion it carries when its health is critical.
-- **The end:** when no enemy is left fighting. Companions still down get up with 1 HP, the
+- **The end:** when no enemy is left fighting. A foe that stops being hostile (spared and given a
+  friendly faction with *Set faction*, like the example's deserter) leaves the fight at once. Companions still down get up with 1 HP, the
   experience of the defeated is gained, the game autosaves. Saving is refused during a fight (the
   autosave waits). Leaving the map ends a fight.
 - **Conditions** run by rounds in a fight: damage and healing per round fall on each fighter's

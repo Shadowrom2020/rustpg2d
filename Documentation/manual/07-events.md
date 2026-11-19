@@ -58,6 +58,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Text variable** | A text variable equals a text (*any case*: "Rosehill" = "rosehill"; an empty text = the variable is empty) |
 | **Player sex** | Male or female |
 | **Player race** | The player's race (*Database › Races*), e.g. goblin; a race holds for its subraces too (*dwarf* for a hill dwarf) |
+| **Has money** | The hero's money (every coin carried, in copper pieces: 1 gp = 100) compared with an amount (*≥ 500* = at least 5 gp). Take it with a script (`take_money`): the example's Greta and the stone house do |
 | **Has class** | The hero's class or subclass (*Database › Classes*: *fighter*, *champion*; empty = any class) at a level compared with a number (*≥ 3*); false without a class |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |

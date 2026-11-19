@@ -526,6 +526,8 @@ pub fn loot_ui(ui: &mut Ui, id: &str, table: &mut Vec<LootEntry>, refs: &Refs, t
 
 /// Merchant editor: currency, sell rate, and the stock with quantities and prices.
 pub fn shop_ui(ui: &mut Ui, id: &str, spec: &mut ShopSpec, refs: &Refs, tex: &Textures, assets: &Assets, db: &rustpg2d_engine::defs::Database) {
+    let purse = db.item(&spec.currency).is_some_and(|d| d.coin_cp > 0);
+    let coins = |cp: u32| rustpg2d_engine::srd::equipment::format_cp(cp, ["gp", "sp", "cp"]);
     ui.horizontal(|ui| {
         ui.label("Shop title");
         ui.add(egui::TextEdit::singleline(&mut spec.title).hint_text("(character name)").desired_width(180.0));
@@ -539,6 +541,9 @@ pub fn shop_ui(ui: &mut Ui, id: &str, spec: &mut ShopSpec, refs: &Refs, tex: &Te
         suggest(ui, &format!("{id}/cur"), &mut spec.currency, &refs.items, 110.0);
         if db.item(&spec.currency).is_none() {
             ui.colored_label(Color32::LIGHT_RED, "unknown item");
+        }
+        if purse {
+            ui.weak("(a coin: every coin the player carries counts, change is given, prices in gp / sp / cp)");
         }
     });
     ui.horizontal(|ui| {
@@ -580,8 +585,18 @@ pub fn shop_ui(ui: &mut Ui, id: &str, spec: &mut ShopSpec, refs: &Refs, tex: &Te
                 ui.checkbox(&mut e.unlimited, "unlimited");
             });
             ui.horizontal(|ui| {
-                ui.add(egui::DragValue::new(&mut e.price).range(0..=999_999));
-                if e.price == 0 {
+                ui.add(egui::DragValue::new(&mut e.price).range(0..=999_999)).on_hover_text("In the currency (a coin: so many of it); 0 = the item's cost in coins, else its value");
+                let cost = def.map_or(0, |d| d.cost_cp);
+                if purse {
+                    let worth = db.item(&spec.currency).map_or(1, |d| d.coin_cp);
+                    let cp = match (e.price, cost) {
+                        (p, _) if p > 0 => p * worth,
+                        (_, c) if c > 0 => c,
+                        _ => def.map_or(0, |d| d.value) * worth,
+                    };
+                    let what = if e.price > 0 { "" } else if cost > 0 { "cost " } else { "value " };
+                    ui.weak(if cp > 0 { format!("= {what}{}", coins(cp)) } else { "free!".to_string() }).on_hover_text("0 uses the item's cost in coins (Database > Items), else its Value in the currency");
+                } else if e.price == 0 {
                     let v = def.map_or(0, |d| d.value);
                     ui.weak(if v > 0 { format!("= value {v}") } else { "free!".to_string() })
                         .on_hover_text("0 uses the item's Value (set in Database > Items)");
@@ -1146,6 +1161,15 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                         }
                     });
                     ui.add(egui::DragValue::new(level).range(1..=20));
+                }
+                Cond::Money { op, cp } => {
+                    ui.label("the hero's money");
+                    egui::ComboBox::from_id_salt(format!("{id}/moop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {
+                        for o in CmpOp::ALL {
+                            ui.selectable_value(op, o, o.symbol());
+                        }
+                    });
+                    ui.add(egui::DragValue::new(cp).range(0..=10_000_000).suffix(" cp")).on_hover_text("In copper pieces: 1 gp = 100 cp, 1 sp = 10 cp");
                 }
                 Cond::CheckPassed { by } => {
                     ui.label("the last check succeeded");

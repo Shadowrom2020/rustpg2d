@@ -432,6 +432,10 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
     for s in &mut db.spells {
         s.upgrade();
     }
+    // (Weapons and armor of 0.30 and older: the SRD's categories and properties.)
+    for i in &mut db.items {
+        i.upgrade();
+    }
     db.reindex();
     Ok(db)
 }

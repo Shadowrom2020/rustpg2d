@@ -10,6 +10,10 @@ use super::Game;
 use crate::classes::{CasterKind, ClassDef, Spellcasting};
 use crate::skills::SpellDef;
 
+/// The SRD's component pouch and spellcasting foci (arcane, holy symbols, druidic): one in the
+/// bag lets a caster cast spells with material components.
+use crate::srd::equipment::FOCUS;
+
 impl Game {
     // ------------------------------------------------------------------- the caster
 
@@ -253,8 +257,27 @@ impl Game {
 
     /// What a caster can cast now, with the slot levels it can use: cantrips (slot 0), its
     /// known (a known caster's) or prepared spells at each level with a slot left.
+    /// Why `who` can't cast spell `id` now: armor it isn't trained in, a material component
+    /// without a pouch or focus, no slot left; else `other` (not known or prepared).
+    pub(super) fn cast_refusal(&self, who: Who, id: &str, other: &'static str) -> &'static str {
+        if self.who_armor_untrained(who) {
+            "Untrained armor"
+        } else if !self.has_focus(who) && self.project.db.spell(id).is_some_and(|d| d.components.contains('M')) {
+            "Needs a component pouch or a focus"
+        } else if self.known_or_prepared(who, id) {
+            "No spell slot left"
+        } else {
+            other
+        }
+    }
+
     pub(super) fn cast_options(&self, who: Who) -> Vec<(String, u32)> {
         let Some((_, sc, _)) = self.spellcasting(who) else { return Vec::new() };
+        // (Armor without proficiency: no spells at all.)
+        if self.who_armor_untrained(who) {
+            return Vec::new();
+        }
+        let focus = self.has_focus(who);
         let known = self.known_of(who);
         let leveled: Vec<String> = match sc.kind {
             CasterKind::Known | CasterKind::Pact => known.clone(),
@@ -263,7 +286,7 @@ impl Game {
         let left = self.slots_left(who);
         let mut out = Vec::new();
         for d in &self.project.db.spells {
-            if d.story_only {
+            if d.story_only || (!focus && d.components.contains('M')) {
                 continue;
             }
             if d.level == 0 {
@@ -279,6 +302,19 @@ impl Game {
             }
         }
         out
+    }
+
+    /// Whether a caster has a component pouch or a spellcasting focus (arcane, holy, druidic) for
+    /// spells with material components; a project without such items needs none.
+    pub(super) fn has_focus(&self, who: Who) -> bool {
+        let is_focus = |id: &str| self.project.db.item(id).is_some_and(|d| FOCUS.contains(&d.srd.as_str()));
+        if !self.project.db.items.iter().any(|d| FOCUS.contains(&d.srd.as_str())) {
+            return true;
+        }
+        match who {
+            Who::Player => self.world.inventory.slots.iter().flatten().any(|s| is_focus(&s.item)) || crate::defs::EquipSlot::ALL.iter().any(|s| self.world.equipment.item(*s).is_some_and(is_focus)),
+            Who::Npc(uid) => self.loaded.entities.iter().find(|e| e.uid == uid).is_some_and(|e| e.inventory.iter().any(|s| is_focus(&s.item)) || crate::defs::EquipSlot::ALL.iter().any(|s| e.equipment.item(*s).is_some_and(is_focus))),
+        }
     }
 
     /// Whether a caster can cast `id` at all now (a slot left; a cantrip it knows).
@@ -384,7 +420,7 @@ impl Game {
             slot.unwrap_or(d.level)
         } else {
             if !self.can_cast(Who::Player, id) {
-                return Err(if self.known_or_prepared(Who::Player, id) { "No spell slot left" } else { "You can't cast that spell" });
+                return Err(self.cast_refusal(Who::Player, id, "You can't cast that spell"));
             }
             let s = match slot {
                 Some(s) if s >= d.level && self.slots_left(Who::Player)[s.clamp(1, 9) as usize - 1] > 0 => s,

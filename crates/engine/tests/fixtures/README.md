@@ -17,6 +17,7 @@ loading fails the tests.
 | `saves/save-0.22.0.ron` | a quick save in Tilda's shop written by the game of the 0.22.0 save layout (built from `master` after #188, which changed no save fields): before homes and placed furniture |
 | `maps/forest-0.25.0.map` | the example's forest at tag v0.25.0: placed characters before a faction of their own (`EntityInstance::faction`) |
 | `project-0.27.0/` | `project.ron` and `defs/` (skills, recipes, races, props, spells, quests) of the example project at tag v0.27.0: the last release with the skill tree (`skills.ron`, skill levels on races, recipes and spells, skill points); it converts to the SRD rules (`projects_of_0_27_0_convert_to_the_srd_rules`) |
+| `items/items-0.27.0.ron` | the example's `defs/items.ron` at tag v0.27.0 (the last release): weapons without SRD categories or properties, armor with a flat defense, the coin without a worth; it upgrades to the SRD's equipment on read (`items_of_0_27_0_become_the_srd_equipment`) |
 | `saves/minimal.ron` | only the fields without a default: the oldest save layout |
 
 Add a fixture when a format changes (take the file from the last release's tag), never edit one.

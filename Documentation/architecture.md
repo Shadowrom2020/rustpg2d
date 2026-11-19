@@ -180,6 +180,20 @@ casting outside fights; `runtime/turns/casting.rs` resolves a cast in or out of 
 code reads buffs in `who_ac` / `armor_class`, `who_speed`, `make_attack`, `who_check` and
 `combat_damage`.
 
+Equipment is the SRD's since 0.31: `ItemDef` has `srd` (the SRD index it is), `cost_cp`, `weight`
+and `coin_cp`; `Weapon` a `WeaponCategory`, `WeaponProperty`s, versatile dice and a thrown range;
+`Armor` an `ArmorCategory` (Clothing gives no AC), `base_ac`, `dex_max`, `str_min` and Stealth
+disadvantage. Items of 0.30 are upgraded when read (`ItemDef::upgrade`), `RULES_VERSION` 4 writes
+it once. `srd/equipment.rs` holds the pure rules (`armor_class`, `armor_proficient`,
+`weapon_proficient`, `change`, `format_cp`, the `FOCUS` list); `runtime/equipment.rs` applies them to
+the hero (AC, training, the STR minimum through `hero_speed_ft`, `Training::armor_untrained` and
+`stealth_disadvantage` that `WorldState::check` reads) and `turns/mod.rs` `weapon_spec` builds the
+attack (finesse, versatile, reach, thrown, heavy, loading). Money is coins: `WorldState::coins` (the
+project's coin ids by worth, filled when the world is prepared, not saved) lets `money_cp`, `pay_cp`
+(smallest coins first, change back, refused when the change wouldn't fit) and `give_cp` work in
+copper pieces; a shop whose currency has a `coin_cp` prices in cp (`ShopSpec::price`), others keep
+counting their one currency item.
+
 Conditions (`srd/conditions.rs`) replaced the status effects of 0.27: `ConditionSpec` (what weapons,
 touches, actions and scripts apply: a condition, seconds, exhaustion levels, a saving throw,
 damage or healing per round of 6 s) and `ActiveCondition` (the hero's in `WorldState::effects`, a

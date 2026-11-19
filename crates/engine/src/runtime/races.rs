@@ -116,7 +116,7 @@ impl Game {
             join(&w.languages),
             join(&w.resistances),
             race.as_ref().map_or(0, |r| r.darkvision_ft),
-            race.as_ref().map_or(30, |r| r.walk_feet()),
+            self.hero_speed_ft(),
             choices.join(";"),
             w.player_level(),
             self.armor_class(),

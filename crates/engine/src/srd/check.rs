@@ -29,6 +29,10 @@ pub struct Training {
     pub reliable: bool,
     /// Saving throws with advantage (Danger Sense).
     pub save_advantage: Vec<Ability>,
+    /// Armor the hero isn't proficient with: disadvantage on STR and DEX checks and saves.
+    pub armor_untrained: bool,
+    /// Armor with Stealth disadvantage worn.
+    pub stealth_disadvantage: bool,
 }
 
 impl Modifiers for Roller<'_> {

@@ -162,7 +162,7 @@ impl Game {
         for p in &t.proficiencies {
             self.world.set_proficient(p, true);
         }
-        self.world.training = crate::srd::check::Training { expertise: t.expertise.iter().map(|e| crate::srd::abilities::proficiency_id(e)).collect(), half: t.half_prof.clone(), half_all: t.all_half, reliable: t.reliable, save_advantage: t.save_advantage.clone() };
+        self.world.training = crate::srd::check::Training { expertise: t.expertise.iter().map(|e| crate::srd::abilities::proficiency_id(e)).collect(), half: t.half_prof.clone(), half_all: t.all_half, reliable: t.reliable, save_advantage: t.save_advantage.clone(), ..Default::default() };
     }
 
     /// The hero's armor class with the class: an unarmored formula when no body armor is worn
@@ -275,14 +275,10 @@ impl Game {
         let rolls = self.world.companions.iter().find(|x| e.companion.as_ref().is_some_and(|l| l.uid == x.uid && l.map == x.map)).map(|x| x.hp_rolls.clone()).unwrap_or_default();
         b.hp = crate::progression::max_hp_die(c.hit_die as i32, level, m(Ability::Con), &rolls, t.hp_per_level);
         b.hit_dice = format!("{level}d{}", c.hit_die);
-        // Armor class: its gear's armor, else the best unarmored formula.
-        let pieces: Vec<(crate::defs::EquipSlot, i32)> = [crate::defs::EquipSlot::Clothing, crate::defs::EquipSlot::Head, crate::defs::EquipSlot::Body, crate::defs::EquipSlot::Offhand]
-            .into_iter()
-            .filter_map(|s| e.equipment.item(s).and_then(|id| self.project.db.item(id)?.armor.as_ref()).map(|a| (s, a.defense)))
-            .collect();
-        let worn = 10 + m(Ability::Dex) + pieces.iter().map(|p| p.1).sum::<i32>();
-        let body = pieces.iter().any(|p| p.0 == crate::defs::EquipSlot::Body);
-        let shield = pieces.iter().find(|p| p.0 == crate::defs::EquipSlot::Offhand).map_or(0, |p| p.1);
+        // Armor class: its body armor and shield (the SRD's table), else the best unarmored formula.
+        let worn_armor = |s: crate::defs::EquipSlot| e.equipment.item(s).and_then(|id| self.project.db.item(id)?.armor.as_ref());
+        let (worn, body, shield) = crate::srd::equipment::armor_class(worn_armor(crate::defs::EquipSlot::Body), worn_armor(crate::defs::EquipSlot::Offhand), m(Ability::Dex));
+        let worn = worn + shield;
         let mut ac = worn;
         if !body {
             for (base, abilities, shield_ok) in &t.armor {
@@ -301,20 +297,26 @@ impl Game {
         let w = e.weapon.clone();
         let ranged = w.as_ref().is_some_and(|w| w.ranged.is_some());
         let unarmed = w.is_none();
-        let mut ability = if ranged { m(Ability::Dex) } else { m(Ability::Str) };
-        let mut dice = w.as_ref().map_or_else(|| "1".to_string(), |w| w.damage_dice());
+        let has = |p: crate::defs::WeaponProperty| w.as_ref().is_some_and(|w| w.has(p));
+        // (Finesse: the better of STR and DEX; versatile: the larger die with the off-hand free.)
+        let mut ability = if has(crate::defs::WeaponProperty::Finesse) { m(Ability::Str).max(m(Ability::Dex)) } else if ranged { m(Ability::Dex) } else { m(Ability::Str) };
+        let free_hand = e.equipment.item(crate::defs::EquipSlot::Offhand).is_none();
+        let mut dice = w.as_ref().map_or_else(|| "1".to_string(), |w| if w.has(crate::defs::WeaponProperty::Versatile) && !w.versatile.is_empty() && free_hand { w.versatile.clone() } else { w.damage_dice() });
         if unarmed && t.martial_arts {
             ability = ability.max(m(Ability::Dex));
             dice = format!("1d{}", c.number(level, "martial_arts.dice_value").max(4));
         }
-        let mut bonus = prof + ability;
+        // The proficiency bonus only with proficiency in the weapon.
+        let srd = e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map_or(String::new(), |d| d.srd.clone());
+        let proficient = unarmed || w.as_ref().is_none_or(|w| crate::srd::equipment::weapon_proficient(|p| b.proficiencies.iter().any(|x| crate::srd::abilities::proficiency_id(x) == p), w, &srd));
+        let mut bonus = if proficient { prof } else { 0 } + ability;
         if ranged && t.styles.contains(&FightingStyle::Archery) {
             bonus += 2;
         }
         let dmg = ability + if !ranged && !unarmed && t.styles.contains(&FightingStyle::Dueling) { 2 } else { 0 };
         let dice = if dmg == 0 { dice } else { format!("{dice}{dmg:+}") };
         let (range_ft, long_ft) = w.as_ref().and_then(|w| w.ranged.as_ref()).map_or((0, 0), |r| ((r.range.round() as u32) * 5, (if r.long_range > 0.0 { r.long_range } else { r.range * 2.0 }).round() as u32 * 5));
-        let reach_ft = if ranged { 0 } else { w.as_ref().map_or(5, |w| (w.reach.round().max(1.0) as u32) * 5) };
+        let reach_ft = if ranged { 0 } else if has(crate::defs::WeaponProperty::Reach) { 10 } else { w.as_ref().map_or(5, |w| (w.reach.round().max(1.0) as u32) * 5) };
         let name = w.as_ref().map_or("Unarmed strike".to_string(), |_| e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|i| self.project.db.item(i)).map_or("Attack".into(), |i| i.name.clone()));
         b.attacks = vec![crate::srd::StatAttack { name, bonus, dice, damage_type: w.as_ref().and_then(|w| w.damage_type), reach_ft, range_ft, long_ft }];
         b.multiattack = t.attacks;

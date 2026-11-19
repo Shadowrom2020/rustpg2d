@@ -120,7 +120,7 @@ impl Game {
             return Err("Action used");
         }
         if !scroll && !self.cast_options(who).iter().any(|(s, l)| s == id && *l == slot) {
-            return Err(if self.known_or_prepared(who, id) { "No spell slot left" } else { "You can't cast that spell" });
+            return Err(self.cast_refusal(who, id, "You can't cast that spell"));
         }
         let (targets, point) = self.spell_targets(who, &d, slot, at)?;
         if targets.is_empty() && !d.parts.iter().any(|p| matches!(p, SpellPart::Script { .. })) {

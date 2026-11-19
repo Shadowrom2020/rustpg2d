@@ -135,10 +135,14 @@ pub(super) struct AttackSpec {
     pub ability: Option<Ability>,
     /// A spell attack (no weapon riders).
     pub spell: bool,
-    /// A two-handed weapon (no Sneak Attack).
-    pub heavy: bool,
     /// One of Flurry of Blows' strikes (Open Hand Technique).
     pub flurry: bool,
+    /// A finesse weapon (Sneak Attack).
+    pub finesse: bool,
+    /// A loading weapon: one attack with it per action.
+    pub loading: bool,
+    /// Rolled with disadvantage (a heavy weapon in Small hands).
+    pub disadvantage: bool,
 }
 
 pub(super) struct Combat {
@@ -298,7 +302,7 @@ impl Game {
     fn who_speed(&self, who: Who) -> u32 {
         let base = match who {
             // (The class: Fast Movement, Unarmored Movement without armor and shield.)
-            Who::Player => self.player_race().map_or(30, |r| r.walk_feet()) + self.class_speed_ft(self.unarmored()),
+            Who::Player => self.hero_speed_ft(),
             // (Flyers fly over the grid: their best speed until 0.32's movement modes.)
             _ => self.who_block(who).map_or(30, |b| b.speed_ft.max(b.speeds.fly)),
         };
@@ -834,7 +838,12 @@ impl Game {
         match who {
             Who::Player => {
                 let w = self.attack_weapon();
-                vec![self.hero_spec(&w, false)]
+                let mut v = vec![self.hero_spec(&w, false)];
+                // A thrown weapon: a ranged attack too (it stays in hand: a simplification).
+                if w.has(crate::defs::WeaponProperty::Thrown) && w.thrown_ft.is_some() && w.ranged.is_none() {
+                    v.push(self.weapon_spec(&w, false, true));
+                }
+                v
             }
             _ => {
                 let Some(b) = self.who_block(who) else { return Vec::new() };
@@ -844,16 +853,16 @@ impl Game {
                 let crit_on = self.who_traits(who).map_or(20, |t| t.crit_from);
                 // (A party member's weapon: STR in melee, DEX at range; two-handed or not.)
                 let classed = self.who_traits(who).is_some();
-                let heavy = self.who_index(who).is_some_and(|i| self.loaded.entities[i].weapon.as_ref().is_some_and(|w| w.two_handed));
+                let finesse = self.who_index(who).is_some_and(|i| self.loaded.entities[i].weapon.as_ref().is_some_and(|w| w.has(crate::defs::WeaponProperty::Finesse)));
                 b.attacks
                     .iter()
                     .flat_map(|a| {
                         let mut v = Vec::new();
                         if a.reach_ft > 0 {
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ability: classed.then_some(Ability::Str), heavy, ..Default::default() });
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ability: classed.then_some(Ability::Str), finesse, ..Default::default() });
                         }
                         if a.range_ft > 0 {
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile: projectile.clone(), ability: classed.then_some(Ability::Dex), heavy, ..Default::default() });
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile: projectile.clone(), ability: classed.then_some(Ability::Dex), finesse, ..Default::default() });
                         }
                         v
                     })
@@ -864,47 +873,76 @@ impl Game {
 
     /// The hero's attack with weapon `w` (`offhand`: no ability modifier on the damage).
     pub(super) fn hero_spec(&self, w: &crate::defs::Weapon, offhand: bool) -> AttackSpec {
+        self.weapon_spec(w, offhand, false)
+    }
+
+    /// The hero's attack with weapon `w` (`offhand`: no ability modifier on the damage; `thrown`:
+    /// a thrown weapon's ranged attack) by the SRD: finesse (STR or DEX, the better), versatile
+    /// (its larger die with the off-hand free), reach, heavy (disadvantage for the Small),
+    /// loading, the proficiency bonus only with proficiency.
+    pub(super) fn weapon_spec(&self, w: &crate::defs::Weapon, offhand: bool, thrown: bool) -> AttackSpec {
         use crate::classes::FightingStyle as F;
+        use crate::defs::WeaponProperty as P;
         let t = self.hero_traits().unwrap_or_default();
-        let ranged = w.ranged.is_some();
+        let ranged = w.ranged.is_some() || thrown;
         let unarmed = self.current_weapon().is_none() && !offhand;
-        let ability = if ranged { Ability::Dex } else { Ability::Str };
+        let (str_m, dex_m) = (self.world.abilities.modifier(Ability::Str), self.world.abilities.modifier(Ability::Dex));
+        let ability = if w.has(P::Finesse) {
+            if dex_m > str_m { Ability::Dex } else { Ability::Str }
+        } else if w.ranged.is_some() {
+            Ability::Dex
+        } else {
+            Ability::Str
+        };
         let mut m = self.world.abilities.modifier(ability);
-        let mut base_dice = w.damage_dice();
+        let free_hand = self.world.equipment.item(crate::defs::EquipSlot::Offhand).is_none();
+        let mut base_dice = if !offhand && !thrown && w.has(P::Versatile) && !w.versatile.is_empty() && free_hand { w.versatile.clone() } else { w.damage_dice() };
         // Martial Arts: an unarmed strike with DEX if better, the class's martial arts die.
         if unarmed && t.martial_arts {
-            m = m.max(self.world.abilities.modifier(Ability::Dex));
+            m = m.max(dex_m);
             let die = self.hero_class().map_or(4, |c| c.number(self.world.player_level(), "martial_arts.dice_value")).max(4);
             base_dice = format!("1d{die}");
         }
-        let prof = crate::srd::abilities::proficiency_bonus(self.world.player_level());
+        // The proficiency bonus with proficiency in the weapon (bare hands always).
+        let slot = if offhand { crate::defs::EquipSlot::Offhand } else { crate::defs::EquipSlot::Weapon };
+        let srd = self.world.equipment.item(slot).and_then(|id| self.project.db.item(id)).map_or(String::new(), |d| d.srd.clone());
+        let proficient = unarmed || crate::srd::equipment::weapon_proficient(|p| self.world.is_proficient(p), w, &srd);
+        let prof = if proficient { crate::srd::abilities::proficiency_bonus(self.world.player_level()) } else { 0 };
         // The off-hand adds a positive modifier only with Two-Weapon Fighting.
         let dmg_mod = if offhand && m > 0 && !t.styles.contains(&F::TwoWeaponFighting) { 0 } else { m };
         // Dueling: +2 with a one-handed melee weapon and no weapon in the other hand.
-        let dueling = !ranged && !w.two_handed && !unarmed && t.styles.contains(&F::Dueling) && self.offhand_weapon(Who::Player).is_none();
+        let dueling = !ranged && !w.has(P::TwoHanded) && !unarmed && t.styles.contains(&F::Dueling) && self.offhand_weapon(Who::Player).is_none();
         let dmg_mod = dmg_mod + if dueling { 2 } else { 0 };
         let dice = if dmg_mod == 0 { base_dice } else { format!("{base_dice}{dmg_mod:+}") };
-        let (range, long) = w.ranged.as_ref().map_or((0, 0), |r| (r.range.round() as i32, if r.long_range > 0.0 { r.long_range } else { r.range * 2.0 }.round() as i32));
+        let (range, long) = match (&w.ranged, thrown) {
+            (_, true) => w.thrown_ft.map_or((4, 12), |(n, l)| ((n / 5).max(1) as i32, (l / 5).max(1) as i32)),
+            (Some(r), _) => (r.range.round() as i32, if r.long_range > 0.0 { r.long_range } else { r.range * 2.0 }.round() as i32),
+            (None, _) => (0, 0),
+        };
+        let small = self.player_race().is_some_and(|r| r.size_category.eq_ignore_ascii_case("small"));
+        let item_icon = self.world.equipment.item(slot).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone());
         AttackSpec {
             name: String::new(),
             // (Archery: +2 to ranged attacks.)
-            bonus: m + prof + if ranged && t.styles.contains(&F::Archery) { 2 } else { 0 },
+            bonus: m + prof + if w.ranged.is_some() && t.styles.contains(&F::Archery) { 2 } else { 0 },
             dice,
             damage_type: w.damage_type,
             ranged,
-            reach: if ranged { 0 } else { w.reach.round().max(1.0) as i32 },
+            reach: if ranged { 0 } else if w.has(P::Reach) { 2 } else { w.reach.round().max(1.0) as i32 },
             range,
             long,
             // (A keen weapon on 19; Improved / Superior Critical.)
             crit_on: (if w.crit >= 0.1 { 19 } else { 20 }).min(t.crit_from),
             effect: w.effect.clone(),
-            projectile: w.ranged.as_ref().map(|r| r.projectile.clone()),
+            projectile: if thrown { item_icon } else { w.ranged.as_ref().map(|r| r.projectile.clone()) },
             brutal: if ranged { 0 } else { t.brutal_dice },
-            reroll_low: !ranged && w.two_handed && t.styles.contains(&F::GreatWeaponFighting),
+            reroll_low: !ranged && w.has(P::TwoHanded) && t.styles.contains(&F::GreatWeaponFighting),
             ability: Some(ability),
             spell: false,
-            heavy: w.two_handed,
             flurry: false,
+            finesse: w.has(P::Finesse),
+            loading: w.has(P::Loading),
+            disadvantage: small && w.has(P::Heavy),
         }
     }
 
@@ -989,7 +1027,7 @@ impl Game {
             adjacent: dist <= 1,
             enemy_adjacent,
             long_range: spec.ranged && dist > spec.range,
-            attacker_disadvantage: me.attack_disadvantage,
+            attacker_disadvantage: me.attack_disadvantage || spec.disadvantage || (!spec.spell && self.who_armor_untrained(who)),
             attacker_unseen: me.invisible || c.and_then(|c| c.fighter(who)).is_some_and(|f| f.hidden),
             target_prone: conditions::has(self.who_conditions(target), Condition::Prone),
             target_helpless: conditions::has(self.who_conditions(target), Condition::Restrained) || them.str_dex_saves_fail || them.blinded,
@@ -1393,6 +1431,19 @@ impl Game {
                 return "ok".into();
             }
             _ => {}
+        }
+        // The hero's attacks as a fight would roll them (also outside fights): name, bonus, dice,
+        // melee reach or ranged range/long in tiles, finesse, disadvantage.
+        if arg(0) == "specs" {
+            return self
+                .attack_specs(Who::Player)
+                .iter()
+                .map(|s| {
+                    let how = if s.ranged { format!("ranged{}/{}", s.range, s.long) } else { format!("melee{}", s.reach) };
+                    format!("{}:{:+}:{}:{how}{}{}", s.name, s.bonus, s.dice, if s.finesse { ":finesse" } else { "" }, if s.disadvantage { ":dis" } else { "" })
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
         }
         if self.fight.is_none() {
             return "no fight".into();

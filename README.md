@@ -86,8 +86,9 @@ for how to use it all.
   classes** with their subclasses and features to level 20 for the hero and the party (a level-up
   window for their choices; Rage, Action Surge, Sneak Attack, Flurry of Blows, Lay on Hands and the
   rest in the fight's action bar), the SRD's 319 **spells** with slots, areas on the grid,
-  concentration and upcasting, conditions.
-- Inventory, shops, chests, keys and locks to pick (a DEX check).
+  concentration and upcasting, conditions, and the SRD's **equipment**: weapon properties, the
+  armor table, tools, packs and money in five coins with change.
+- Inventory, shops, chests, keys and locks to pick (a DEX check with thieves' tools).
 - Crafting, cooking and blacksmithing, gathering and mining, farming, fishing.
 - Keyboard, mouse and gamepad, named save games with pictures, autosave.
 

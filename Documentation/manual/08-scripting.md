@@ -356,6 +356,32 @@ fn name_the_horse() {
 | `give_item(item, count)` | Gives items to the player. Returns how many did **not** fit into the inventory (`0` = all fit). |
 | `take_item(item, count)` | Takes up to `count` items from the player (also from the equipment slots). Returns how many were taken, which can be fewer: check `item_count` first when the player must pay. |
 
+### Money
+
+Money is the SRD's five coins (since 0.31): items with a *coin worth* in copper pieces (copper 1,
+silver 10, electrum 50, gold 100, platinum 1000). These functions count every coin the player
+carries and give change in the fewest gold, silver and copper pieces, so a script never adds up
+coins itself.
+
+| Function | Description |
+|---|---|
+| `money()` | The player's money in copper pieces: every coin carried by its worth. *(since 0.31)* |
+| `give_money(cp)` | Gives money in the fewest gold, silver and copper pieces: `give_money(250)` = 2 gp 5 sp. *(since 0.31)* |
+| `take_money(cp)` | Takes money from the player's coins and gives the change back; `false` (nothing taken) when they have less. *(since 0.31)* |
+| `format_money(cp)` | A sum as it reads in the player's language: `format_money(150)` = `"1 gp 5 sp"`. Put it into a text variable (`set_text`) to show it in a dialog. *(since 0.31)* |
+
+```rust
+fn buy_map() {
+    if take_money(500) {                   // 5 gp
+        give_item("treasure_map", 1);
+        say("Here, mind the dragons.");
+    } else {
+        set_text("price", format_money(500));
+        say("That's {price}, friend.");
+    }
+}
+```
+
 ### Player
 
 | Function | Description |
@@ -1248,7 +1274,7 @@ fn fountain() {
 
 ## API versions
 
-The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.29`); `api_version()` returns it.
+The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.31`); `api_version()` returns it.
 Functions added since versions were kept say *since 0.27* (or later) in this reference, so a script
 or a [plugin](18-plugins.md) knows what it may count on; a plugin names the version it needs
 (`api` in its `plugin.ron`) and isn't loaded by an older engine.

@@ -512,7 +512,7 @@ impl Game {
         draw_text(name, sx, top + 26.0, 28.0, skin::highlight());
         let armor: i32 = [crate::defs::EquipSlot::Clothing, crate::defs::EquipSlot::Head, crate::defs::EquipSlot::Body, crate::defs::EquipSlot::Offhand]
             .into_iter()
-            .filter_map(|s| db.item(d.equipment.item(s)?)?.armor.as_ref().map(|a| a.defense))
+            .filter_map(|s| db.item(d.equipment.item(s)?)?.armor.as_ref().map(|a| a.ac_bonus()))
             .sum();
         let weapon = d.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|i| db.item(i)).map(|i| (i.name.clone(), i.weapon.clone()));
         let mut lines = vec![format!("Defeated    {n}")];

@@ -456,8 +456,9 @@ impl Game {
                 }
             }
         }
-        let wpn = e.weapon.as_ref().map_or("none".to_string(), |w| format!("{} dmg", w.damage));
-        let mut stats = vec![format!("Health  {} / {}", e.hp, e.max_hp), format!("Defense {}", e.defense), format!("Weapon  {wpn}")];
+        let wpn = e.weapon.as_ref().map_or("none".to_string(), |w| w.damage_dice());
+        let ac = self.who_ac(super::turns::Who::Npc(e.uid));
+        let mut stats = vec![format!("Health  {} / {}", e.hp, e.max_hp), format!("Armor class {}", ac), format!("Weapon  {wpn}")];
         // Its magic: mana and the spells it learned from scrolls and books.
         let max_mana = self.npc_max_mana(i);
         if max_mana > 0.0 {

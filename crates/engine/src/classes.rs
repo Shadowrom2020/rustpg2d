@@ -200,7 +200,7 @@ pub enum FeatureEffect {
         effect: ActEffect,
     },
     /// Sneak Attack: once per turn the class's `sneak_attack.dice_count` d6 more on a hit with a
-    /// ranged or one-handed weapon, with advantage or an ally next to the target.
+    /// finesse or ranged weapon, with advantage or an ally next to the target.
     SneakAttack,
     /// Once per turn more damage on a weapon hit: the dice of the highest level reached (Divine
     /// Strike's 1d8, 2d8 at 14); `hurt_target`: only against a creature below its hit point maximum

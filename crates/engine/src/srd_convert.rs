@@ -123,12 +123,22 @@ pub struct Report {
     pub from_version: u32,
     /// Spells of 0.29 (mana) that became SRD spells.
     pub spells: Vec<String>,
+    /// Weapons and armor of 0.30 that got SRD categories (helmets and clothes: no AC).
+    pub items: Vec<String>,
 }
 
 impl Report {
     pub fn summary(&self) -> String {
         if self.from_version >= 2 {
-            let mut s = format!("Converted to the SRD 5.1's spells: mana is gone, spells are cast with spell slots{}", if self.spells.is_empty() { String::new() } else { format!(" ({} became SRD spells of every casting class)", self.spells.join(", ")) });
+            let mut parts = Vec::new();
+            if self.from_version < 3 {
+                parts.push(format!("Converted to the SRD 5.1's spells: mana is gone, spells are cast with spell slots{}", if self.spells.is_empty() { String::new() } else { format!(" ({} became SRD spells of every casting class)", self.spells.join(", ")) }));
+            }
+            parts.push(format!(
+                "Converted to the SRD 5.1's equipment: weapons have categories and properties, body armor is light armor of the AC it gave, shields add theirs, helmets and clothes give no AC{}",
+                if self.items.is_empty() { String::new() } else { format!(" ({})", self.items.join(", ")) }
+            ));
+            let mut s = parts.join("; ");
             if let Some(b) = &self.backup {
                 s += &format!("; backup: {}", b.display());
             }
@@ -167,6 +177,12 @@ pub fn convert_project(root: &Path, backup: Option<&Path>) -> Result<Report> {
     let mut project = Project::load(root)?;
     let from_version = project.config.rules_version;
     let mut report = Report { backup: backup.map(Path::to_path_buf), from_version, ..Default::default() };
+    // (Weapons and armor of 0.30 were upgraded when the project was read, as were 0.29's spells.)
+    if let Ok(text) = std::fs::read_to_string(root.join("defs").join("items.ron")) {
+        if let Ok(raw) = ron::from_str::<Vec<crate::defs::ItemDef>>(&text) {
+            report.items = raw.iter().filter(|d| d.weapon.as_ref().is_some_and(|w| w.category.is_none()) || d.armor.as_ref().is_some_and(|a| a.category.is_none())).map(|d| d.id.clone()).collect();
+        }
+    }
     // (Spells of 0.29 were upgraded when the project was read; the file still has their mana.)
     if let Ok(text) = std::fs::read_to_string(root.join("defs").join("spells.ron")) {
         if let Ok(raw) = ron::from_str::<Vec<crate::skills::SpellDef>>(&text) {

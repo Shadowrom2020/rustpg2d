@@ -267,11 +267,23 @@ fn guard_answer() {
     }
 }
 
-// (The count goes into a variable for the {coins} placeholder: a text glued together here
-// couldn't be translated.)
+// (The purse goes into a text variable for the {purse} placeholder: a text glued together here
+// couldn't be translated. money() counts every coin in copper pieces; format_money reads it as
+// "12 gp 4 sp".)
 fn count_coins() {
-    set_var("coins", item_count("coin"));
-    say("You have {coins} coins.");
+    set_text("purse", format_money(money()));
+    say("Your purse holds {purse}.");
+}
+
+// Greta's room and her rumours cost five silver (50 cp): take_money pays from any coins and
+// gives change (her triggers check *Has money* first).
+fn pay_greta() {
+    take_money(50);
+}
+
+// The stone house costs a hundred gold pieces (10000 cp), paid from any coins.
+fn pay_house() {
+    take_money(10000);
 }
 
 // Brother Ansel is a cleric of the Life domain (Database > Characters > Priest: class cleric):

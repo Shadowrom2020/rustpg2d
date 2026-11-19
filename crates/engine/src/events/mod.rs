@@ -327,6 +327,12 @@ pub enum Cond {
         #[serde(default = "one_i64")]
         level: i64,
     },
+    /// The hero's money (every coin carried) in copper pieces, compared with `cp`.
+    Money {
+        #[serde(default = "cmp_ge")]
+        op: CmpOp,
+        cp: i64,
+    },
 }
 
 fn cmp_ge() -> CmpOp {
@@ -371,6 +377,7 @@ impl Cond {
             Cond::TextVar { .. } => "Text variable",
             Cond::CheckPassed { .. } => "Check passed",
             Cond::Class { .. } => "Has class",
+            Cond::Money { .. } => "Has money",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -396,6 +403,7 @@ impl Cond {
             Cond::TextVar { name: String::new(), value: String::new(), ignore_case: true },
             Cond::CheckPassed { by: 0 },
             Cond::Class { class: String::new(), op: CmpOp::Ge, level: 1 },
+            Cond::Money { op: CmpOp::Ge, cp: 100 },
         ]
     }
 }
@@ -447,6 +455,7 @@ impl Condition {
             Cond::Class { class, op, level } => {
                 world.class.as_ref().is_some_and(|c| class.is_empty() || c.class == *class || (!c.subclass.is_empty() && c.subclass == *class)) && op.apply(world.player_level() as i64, *level)
             }
+            Cond::Money { op, cp } => op.apply(world.money_cp() as i64, *cp),
         };
         v != self.negate
     }

@@ -218,13 +218,15 @@ impl Game {
                 .map(|e| Row {
                     item: e.item.clone(),
                     count: (!e.unlimited).then_some(e.count),
-                    price: self.shop.hooked.get(&(true, e.item.clone())).copied().unwrap_or(Some(cheaper(ShopSpec::buy_price(stock, &e.item, db)))),
+                    price: self.shop.hooked.get(&(true, e.item.clone())).copied().unwrap_or(Some(cheaper(spec.price(stock, &e.item, db)))),
                 })
                 .collect(),
             ShopSide::Player => {
                 let mut rows: Vec<Row> = Vec::new();
+                let purse = self.currency_worth(&spec.currency) > 0;
                 for s in self.world.inventory.slots.iter().flatten() {
-                    if s.item == spec.currency {
+                    // (The money itself isn't for sale: the currency, any coin in a purse shop.)
+                    if s.item == spec.currency || (purse && db.item(&s.item).is_some_and(|d| d.coin_cp > 0)) {
                         continue;
                     }
                     match rows.iter_mut().find(|r| r.item == s.item) {
@@ -267,10 +269,20 @@ impl Game {
         self.shop.hooked = prices;
     }
 
+    /// The shop's currency and what the hero has of it (a coin currency: the purse in cp).
     fn money(&self) -> (String, u32) {
         let cur = self.shop.open.and_then(|u| self.shop_spec(u)).map_or_else(|| "coin".to_string(), |s| s.currency);
-        let n = self.world.item_count(&cur);
+        let n = if self.currency_worth(&cur) > 0 { self.money_cp() } else { self.world.item_count(&cur) };
         (cur, n)
+    }
+
+    /// A price as the shop shows it (coins: `1 gp 5 sp`).
+    fn price_text(&self, cur: &str, price: u32) -> String {
+        if self.currency_worth(cur) > 0 {
+            Self::format_cp(price)
+        } else {
+            price.to_string()
+        }
     }
 
     /// Buys up to `n` of merchant row `k`. Returns how many were bought.
@@ -293,7 +305,11 @@ impl Game {
                 }
                 break;
             }
-            self.world.take_item(&cur, price);
+            if self.currency_worth(&cur) > 0 {
+                self.pay_cp(price);
+            } else {
+                self.world.take_item(&cur, price);
+            }
             money -= price;
             bought += 1;
         }
@@ -324,13 +340,28 @@ impl Game {
             Some(s) => s.clone(),
             None => return 0,
         };
-        let base = ShopSpec::buy_price(&base, &row.item, &self.project.db);
+        let purse = self.currency_worth(&cur) > 0;
+        // (A purse shop stocks what it bought at the item's own price.)
+        let base = if purse { 0 } else { ShopSpec::buy_price(&base, &row.item, &self.project.db) };
         let mut sold = 0;
         while sold < n && sold < row.count.unwrap_or(0) {
             if self.world.take_item(&row.item, 1) == 0 {
                 break;
             }
             // Payment must fit (normally the freed slot makes room).
+            if purse {
+                let left = self.give_cp(price);
+                if left > 0 {
+                    self.pay_cp(price - left);
+                    self.world.give_item(&row.item, 1);
+                    if sold == 0 {
+                        self.shop_msg("No room for the payment.".into(), false);
+                    }
+                    break;
+                }
+                sold += 1;
+                continue;
+            }
             let left = self.world.give_item(&cur, price);
             if left > 0 {
                 self.world.take_item(&cur, price - left);
@@ -354,7 +385,7 @@ impl Game {
             self.audio.play(&self.project.config.sfx.pickup);
             self.refresh_shop_prices();
             let name = self.item_name(&row.item);
-            let total = sold * price;
+            let total = self.price_text(&cur, sold * price);
             self.shop_msg(if sold > 1 { format!("Sold {sold} {name} for {total}") } else { format!("Sold {name} for {total}") }, true);
         }
         sold
@@ -507,8 +538,8 @@ impl Game {
                 // Price button.
                 let b = button_rect(r);
                 let (label, ok) = match (this, row.price) {
-                    (ShopSide::Merchant, Some(pr)) => (format!("Buy {pr}"), money >= pr),
-                    (ShopSide::Player, Some(pr)) => (format!("Sell {pr}"), true),
+                    (ShopSide::Merchant, Some(pr)) => (format!("Buy {}", self.price_text(&cur, pr)), money >= pr),
+                    (ShopSide::Player, Some(pr)) => (format!("Sell {}", self.price_text(&cur, pr)), true),
                     (_, None) => ("-".to_string(), false),
                 };
                 let hot = ok && b.contains(m);
@@ -548,7 +579,9 @@ impl Game {
         if let Some(d) = self.project.db.item(&cur) {
             self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(f.x + f.w - 150.0, f.y + 8.0, 28.0, 28.0), WHITE);
         }
-        draw_text(format!("{money}"), f.x + f.w - 116.0, f.y + 30.0, 26.0, skin::highlight());
+        let mt = self.price_text(&cur, money);
+        let size = if mt.len() > 8 { 18.0 } else { 26.0 };
+        draw_text(&mt, f.x + f.w - 116.0, f.y + 30.0, size, skin::highlight());
         let sel = self.shop_rows(side).into_iter().nth(self.shop.lists[side.idx()].sel);
         if let Some(d) = sel.as_ref().and_then(|r| self.project.db.item(&r.item)) {
             draw_text(&d.name, f.x + 10.0, f.y + 24.0, 22.0, skin::highlight());

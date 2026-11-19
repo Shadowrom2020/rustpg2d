@@ -727,7 +727,7 @@ The twelve SRD classes with their subclass, spellcasting and the spell list.
 
 SRD equipment, magic items and money.
 
-- [ ] SRD equipment — `feature/srd-equipment`
+- [x] SRD equipment — `feature/srd-equipment`
 
   **Goal.** Weapons, armour and gear follow the SRD.
 
@@ -749,6 +749,30 @@ SRD equipment, magic items and money.
 
   **Verify.** Unit tests of the AC formulas and properties; autoplay buys, equips and attacks with a
   versatile weapon two-handed.
+
+  **As built.** One pull request. Your decisions: five coins with automatic change (the example's
+  coin is the gold piece, prices rescaled), lockpicking requires thieves' tools, helmets are for
+  looks only, all 237 items imported with generic icons.
+  - **Data:** `ItemDef` `srd`, `cost_cp`, `weight`, `coin_cp`; `Weapon` `category`
+    (`WeaponCategory`), `properties` (`WeaponProperty`), `versatile`, `thrown_ft`; `Armor`
+    `category` (`ArmorCategory`: Clothing, Light, Medium, Heavy, Shield), `base_ac`, `dex_max`,
+    `str_min`, `stealth_disadvantage`. `ItemDef::upgrade` in `parse_defs`, `RULES_VERSION` 4
+    (`srd_convert` reports the equipment). `srd/equipment.rs`: the armor class, proficiency,
+    change, prices as text, the focus list.
+  - **Runtime:** `runtime/equipment.rs` (armor class, training, the STR minimum, `weapon=` /
+    `armor=`), `runtime/money.rs` (the purse; `WorldState::money_cp` / `pay_cp` / `give_cp`, coins
+    by worth in `WorldState.coins`), shops in purse mode (`ShopSpec::price`), weapon specs with
+    finesse, versatile, reach, thrown, heavy and loading, two-weapon fighting with light weapons,
+    Sneak Attack by finesse, untrained armor's disadvantage and no casting, material components,
+    thieves' tools for locks, `Armor::ac_bonus` for characters without a stat block.
+  - **Import:** the 237 items and five coins (`import_equipment`; packs unpack by *Give item*
+    actions; `STANDS_FOR` maps library items to SRD indexes; generic icons on `srd_gear.png`, drawn
+    by a script); class equipment through the same table, a focus for casters without one; the
+    example gets the items its classes start with.
+  - **Scripts / events:** `money`, `give_money`, `take_money`, `format_money`; *Has money*
+    (`Cond::Money`). There is no *Take money* action: events check *Has money* and take it with a
+    script (Greta, the stone house).
+  - **Example:** see the CHANGELOG; a dagger, thieves' tools and a component pouch at Tilda's.
 
 - [ ] Magic items — `feature/srd-magic-items`
 

@@ -42,7 +42,10 @@ with E or a right-click.
   **Furniture** (in a home of yours) is placed in front of you when used; E at it later asks
   whether to use it or pick it up again.
 - **Shop**: click *Buy* or *Sell* (or double-click a row, or Enter / E) to trade one, Shift for ten;
-  Tab switches between the merchant's goods and your items.
+  Tab switches between the merchant's goods and your items. Prices read in coins (`1 gp 5 sp`):
+  every coin you carry counts, the merchant takes your smallest coins first and gives change in
+  gold, silver and copper. The bottom right shows your purse; the character window's *Money* line
+  too.
 - **Loot window**: click a stack to take it (right-click: one), click your own to store it; T takes
   everything; Tab switches side.
 - **Crafting window**: *Make* (or Enter / E) makes one, Shift up to ten.
@@ -80,7 +83,14 @@ dice (each heals d10 + CON) and an hour passes. Sleeping in a bed is a **long re
 points, half your hit dice back and one level of exhaustion less.
 
 A **padlock** over a chest or door means it is locked. Without its key, press E to try to pick it
-(a Dexterity check with Thieves' Tools). If it holds, give it ten minutes before you try again.
+(a Dexterity check with Thieves' Tools): you need **thieves' tools** in your bag. If it holds, give
+it ten minutes before you try again.
+
+**Weapons and armor**: the item's line in the character window tells its dice and properties
+(`1d8 (1d10) · Versatile`: more damage with the left hand free) or its armor class (`Heavy armor ·
+AC 16 · STR 13`). Armor you aren't trained in makes you clumsy (disadvantage on Strength and
+Dexterity rolls and attacks) and stops your spells; heavy armor without the Strength it needs
+slows you. A caster needs a component pouch or a focus for spells with material components.
 
 ## Fighting
 

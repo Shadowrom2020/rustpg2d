@@ -147,7 +147,7 @@ fn a_weapon_gets_a_damage_type_and_a_touch_a_condition() {
     let root = example_copy("damage");
     let db = Project::load(&root).unwrap().db;
     let k = db.items.iter().position(|i| i.id == "sword").expect("the example's sword");
-    assert_eq!(db.items[k].weapon.as_ref().unwrap().damage_type, Some(DamageType::Slashing));
+    assert_eq!(db.items[k].weapon.as_ref().unwrap().damage_type, Some(DamageType::Piercing), "the SRD's shortsword");
     let mut h = harness(&root, Tab::Items, k);
     step(&mut h);
     // The damage type beside the weapon's damage dice.
@@ -190,17 +190,17 @@ fn a_weapon_gets_a_damage_type_and_a_touch_a_condition() {
 fn item_animations_are_named_estimated_and_saved() {
     let root = example_copy("item_anims");
     let db = Project::load(&root).unwrap().db;
-    let k = db.items.iter().position(|i| i.id == "spear").expect("the example's spear");
-    assert!(db.items[k].anims.is_empty(), "the example's spear goes by the estimate");
+    let k = db.items.iter().position(|i| i.id == "greataxe").expect("the example's greataxe");
+    assert!(db.items[k].anims.is_empty(), "the example's greataxe goes by the estimate");
     let mut h = harness(&root, Tab::Items, k);
     step(&mut h);
-    // The estimate shows beside the empty fields: a long two-handed weapon thrusts.
-    h.get_by_label_contains("attack_thrust (estimated)");
-    beside(&h, "Attacking with it", |n| n.role() == Role::TextInput).type_text("attack_2h");
+    // The estimate shows beside the empty fields: a two-handed weapon swings overhead.
+    h.get_by_label_contains("attack_2h (estimated)");
+    beside(&h, "Attacking with it", |n| n.role() == Role::TextInput).type_text("attack_thrust");
     step(&mut h);
     unfocus(&mut h);
     let item = |h: &Harness<'static, Editor>| h.state().project.db.items[k].clone();
-    assert_eq!(item(&h).anims.attack, "attack_2h");
+    assert_eq!(item(&h).anims.attack, "attack_thrust");
     assert_eq!(item(&h).anims.idle, "", "the others stay estimated");
     // Estimate empties the names again; typed once more and saved, the file has it.
     h.get_by_label_contains("Estimate animations").click();
@@ -240,6 +240,47 @@ fn an_item_becomes_a_backpack_with_extra_slots() {
     h.state_mut().save_all();
     let saved = Project::load(&root).unwrap().db.items[k].clone();
     assert_eq!((saved.armor.map(|a| a.slot), saved.bag_slots), (Some(EquipSlot::Back), 12));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_weapon_gets_srd_properties_and_armor_a_category() {
+    use rustpg2d_engine::defs::{ArmorCategory, WeaponCategory, WeaponProperty};
+    let root = example_copy("srd_gear");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "dagger").expect("the example's dagger");
+    let w = db.items[k].weapon.clone().unwrap();
+    assert_eq!((w.category, w.thrown_ft), (Some(WeaponCategory::Simple), Some((20, 60))));
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    // Finesse off, Two-handed on (the old two-handed flag follows).
+    h.get_by_label("Finesse").click();
+    step(&mut h);
+    h.get_by_label("Two-handed").click();
+    step(&mut h);
+    let w = h.state().project.db.items[k].weapon.clone().unwrap();
+    assert!(!w.properties.contains(&WeaponProperty::Finesse) && w.properties.contains(&WeaponProperty::TwoHanded) && w.two_handed);
+    // The category: martial.
+    beside(&h, "Category", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Martial").click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.items[k].weapon.as_ref().unwrap().category, Some(WeaponCategory::Martial));
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.items[k].weapon.clone().unwrap();
+    assert!(saved.two_handed && saved.category == Some(WeaponCategory::Martial) && !saved.properties.contains(&WeaponProperty::Finesse));
+    // Leather armor becomes medium armor: 14 + DEX up to 2.
+    let a = db.items.iter().position(|i| i.id == "leather_armor").unwrap();
+    let mut h = harness(&root, Tab::Items, a);
+    step(&mut h);
+    beside(&h, "Category", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Medium armor").click();
+    step(&mut h);
+    let armor = h.state().project.db.items[a].armor.clone().unwrap();
+    assert_eq!((armor.category, armor.base_ac, armor.dex_max), (Some(ArmorCategory::Medium), 14, Some(2)));
+    h.state_mut().save_all();
+    assert_eq!(Project::load(&root).unwrap().db.items[a].armor.as_ref().unwrap().category, Some(ArmorCategory::Medium));
     let _ = std::fs::remove_dir_all(&root);
 }
 

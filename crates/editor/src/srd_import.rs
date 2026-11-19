@@ -39,6 +39,8 @@ pub struct SrdData {
     features: Vec<Value>,
     /// The spells (`5e-SRD-Spells.json`; empty when a checkout has none).
     spells: Vec<Value>,
+    /// The equipment (`5e-SRD-Equipment.json`; empty when a checkout has none).
+    equipment: Vec<Value>,
 }
 
 fn list(v: &Value, key: &str) -> Vec<Value> {
@@ -95,6 +97,7 @@ impl SrdData {
             levels: read("Levels")?,
             features: read("Features")?,
             spells: read("Spells").unwrap_or_default(),
+            equipment: read("Equipment").unwrap_or_default(),
         })
     }
 
@@ -273,6 +276,230 @@ impl SrdData {
 }
 
 impl SrdData {
+    /// The item id an SRD item or equipment category (`martial-weapons`) is given as: the library
+    /// item standing for it, else its index; None when the data hasn't the item.
+    fn item_id(&self, index: &str) -> Option<String> {
+        let known = self.equipment.is_empty() || self.equipment.iter().any(|v| s(v, "index") == index);
+        if let Some(id) = library_item(index).filter(|_| known) {
+            return Some(id.to_string());
+        }
+        if let Some((_, item)) = CATEGORY_ITEM.iter().find(|(c, _)| *c == index) {
+            return self.item_id(item).or_else(|| library_item(item).map(str::to_string));
+        }
+        self.equipment.iter().any(|v| s(v, "index") == index).then(|| index.to_string())
+    }
+
+    /// An SRD item as an item definition (its id: the index).
+    fn equipment_def(&self, v: &Value) -> rustpg2d_engine::defs::ItemDef {
+        use rustpg2d_engine::defs::*;
+        let index = s(v, "index");
+        let mut d = ItemDef::fresh(index);
+        d.name = s(v, "name").into();
+        d.icon = SpriteRef::new(gear::SHEET, gear_icon(v));
+        d.srd = index.into();
+        d.cost_cp = cost_cp(v);
+        d.value = if d.cost_cp == 0 { 0 } else { (d.cost_cp.div_ceil(100)).max(1) };
+        d.weight = v.get("weight").and_then(Value::as_f64).unwrap_or(0.0) as f32;
+        let mut text = vec![desc(v)];
+        let ft = |key: &str, k: &str| v.pointer(&format!("/{key}/{k}")).and_then(Value::as_u64).map(|n| n as u32);
+        let cat = s(v.get("equipment_category").unwrap_or(&Value::Null), "index");
+        d.max_stack = 1;
+        match cat {
+            "weapon" => {
+                let props: Vec<String> = list(v, "properties").iter().map(|p| s(p, "index").to_string()).collect();
+                let properties: Vec<WeaponProperty> = props.iter().filter_map(|p| WeaponProperty::parse(p)).collect();
+                let dice = v.pointer("/damage/damage_dice").and_then(Value::as_str).unwrap_or("0").to_string();
+                let sides = dice.split_once('d').and_then(|(_, n)| n.parse::<i32>().ok()).unwrap_or(4);
+                let mut w = Weapon::melee(((sides - 2) / 2).max(1), 0.5);
+                w.dice = dice;
+                w.damage_type = v.pointer("/damage/damage_type/index").and_then(Value::as_str).and_then(rustpg2d_engine::srd::DamageType::parse);
+                w.category = Some(if s(v, "weapon_category") == "Martial" { WeaponCategory::Martial } else { WeaponCategory::Simple });
+                w.two_handed = properties.contains(&WeaponProperty::TwoHanded);
+                w.versatile = v.pointer("/two_handed_damage/damage_dice").and_then(Value::as_str).unwrap_or("").into();
+                if properties.contains(&WeaponProperty::Thrown) {
+                    w.thrown_ft = ft("throw_range", "normal").map(|n| (n, ft("throw_range", "long").unwrap_or(n * 3)));
+                }
+                if properties.contains(&WeaponProperty::Reach) {
+                    w.reach = 1.9;
+                }
+                if s(v, "weapon_range") == "Ranged" && index != "net" || properties.contains(&WeaponProperty::Ammunition) {
+                    let ammo = match index {
+                        _ if index.contains("crossbow") => "crossbow-bolt",
+                        _ if index.contains("bow") => "arrow",
+                        "sling" => "sling-bullet",
+                        "blowgun" => "blowgun-needle",
+                        _ => "",
+                    };
+                    let projectile = match ammo {
+                        "arrow" => SpriteRef::new("items", 9),
+                        "sling-bullet" => SpriteRef::new(gear::SHEET, gear::BULLET),
+                        _ if ammo.is_empty() => d.icon.clone(),
+                        _ => SpriteRef::new("items", 10),
+                    };
+                    let (normal, long) = (ft("range", "normal").unwrap_or(30), ft("range", "long").unwrap_or(0));
+                    w.ranged = Some(Ranged {
+                        projectile,
+                        speed: 480.0,
+                        range: normal as f32 / 5.0,
+                        long_range: long as f32 / 5.0,
+                        ammo: if ammo.is_empty() { String::new() } else { self.item_id(ammo).unwrap_or_else(|| ammo.to_string()) },
+                    });
+                    w.cooldown = 0.6;
+                }
+                w.properties = properties;
+                text.push(list(v, "special").iter().filter_map(Value::as_str).collect::<Vec<_>>().join(" "));
+                d.weapon = Some(w);
+            }
+            "armor" => {
+                let category = match s(v, "armor_category") {
+                    "Light" => ArmorCategory::Light,
+                    "Medium" => ArmorCategory::Medium,
+                    "Heavy" => ArmorCategory::Heavy,
+                    _ => ArmorCategory::Shield,
+                };
+                let dex = v.pointer("/armor_class/dex_bonus").and_then(Value::as_bool).unwrap_or(false);
+                let max = v.pointer("/armor_class/max_bonus").and_then(Value::as_i64).map(|n| n as i32);
+                d.armor = Some(Armor {
+                    category: Some(category),
+                    base_ac: v.pointer("/armor_class/base").and_then(Value::as_i64).unwrap_or(10) as i32,
+                    dex_max: match (category, dex) {
+                        (ArmorCategory::Shield, _) => None,
+                        (_, false) => Some(0),
+                        (_, true) => max,
+                    },
+                    str_min: v.get("str_minimum").and_then(Value::as_i64).unwrap_or(0) as i32,
+                    stealth_disadvantage: v.get("stealth_disadvantage").and_then(Value::as_bool).unwrap_or(false),
+                    ..Armor::clothing(if category == ArmorCategory::Shield { EquipSlot::Offhand } else { EquipSlot::Body })
+                });
+            }
+            "mounts-and-vehicles" => {
+                let mut extra = Vec::new();
+                if let (Some(n), Some(u)) = (v.pointer("/speed/quantity").and_then(Value::as_f64), v.pointer("/speed/unit").and_then(Value::as_str)) {
+                    extra.push(format!("Speed {n} {u}."));
+                }
+                if let Some(c) = v.get("capacity").and_then(Value::as_str) {
+                    extra.push(format!("Carrying capacity {c}."));
+                }
+                text.push(extra.join(" "));
+            }
+            _ => {
+                let gear_cat = v.pointer("/gear_category/index").and_then(Value::as_str).unwrap_or("");
+                d.max_stack = match gear_cat {
+                    "ammunition" => 50,
+                    "equipment-packs" => 1,
+                    _ if cat == "tools" => 1,
+                    _ => 10,
+                };
+                // Ammunition is sold in bundles (20 arrows for 1 gp): the cost is for one.
+                if let Some(q) = v.get("quantity").and_then(Value::as_u64).filter(|q| *q > 1) {
+                    d.cost_cp = (d.cost_cp / q as u32).max(1);
+                    d.weight /= q as f32;
+                    d.value = 1;
+                }
+                let light = match index {
+                    "torch" => Some(LightSpec::new(4.0, [255, 190, 120], true)),
+                    "candle" => Some(LightSpec::new(2.0, [255, 200, 140], true)),
+                    "lamp" => Some(LightSpec::new(5.0, [255, 210, 150], true)),
+                    "lantern-hooded" => Some(LightSpec::new(5.5, [255, 220, 170], false)),
+                    "lantern-bullseye" => Some(LightSpec::new(6.5, [255, 225, 180], false)),
+                    _ => None,
+                };
+                if light.is_some() {
+                    d.light = light;
+                    d.armor = Some(Armor::clothing(EquipSlot::Offhand));
+                }
+                if index == "backpack" {
+                    d.armor = Some(Armor::clothing(EquipSlot::Back));
+                    d.bag_slots = 6;
+                }
+                // A pack: using it unpacks what it holds.
+                let contents = list(v, "contents");
+                if !contents.is_empty() {
+                    let mut actions = Vec::new();
+                    let mut names = Vec::new();
+                    for c in &contents {
+                        let i = c.pointer("/item/index").and_then(Value::as_str).unwrap_or("");
+                        let n = c.get("quantity").and_then(Value::as_u64).unwrap_or(1) as u32;
+                        let Some(item) = self.item_id(i) else { continue };
+                        let name = c.pointer("/item/name").and_then(Value::as_str).unwrap_or(i);
+                        names.push(if n > 1 { format!("{n} × {name}") } else { name.to_string() });
+                        actions.push(rustpg2d_engine::events::Action::GiveItem { item, count: n });
+                    }
+                    d.consumable = true;
+                    d.on_use = vec![rustpg2d_engine::events::Trigger { actions, ..rustpg2d_engine::events::Trigger::new(rustpg2d_engine::events::TriggerOn::UseItem { item: String::new() }) }];
+                    text.push(format!("Use it to unpack: {}.", names.join(", ")));
+                }
+            }
+        }
+        d.description = text.into_iter().filter(|t| !t.is_empty()).collect::<Vec<_>>().join(" ");
+        d
+    }
+
+    /// The SRD's equipment and the five coins into `items`. Library items standing for an SRD
+    /// item (`STANDS_FOR`) and items of an earlier run (`srd` set) get its numbers and keep their
+    /// own name, text and look; the `coin` becomes the gold piece. New items are added when `add`
+    /// (a library), else only the coins, those in `wanted` (a project's class equipment) and what
+    /// packs among them hold. Returns (added, updated).
+    pub fn import_equipment(&self, items: &mut Vec<rustpg2d_engine::defs::ItemDef>, add: bool, wanted: &[String]) -> (usize, usize) {
+        use rustpg2d_engine::defs::*;
+        let mut defs: Vec<ItemDef> = self.equipment.iter().map(|v| self.equipment_def(v)).collect();
+        // References to a standing library item the project lacks name the SRD item itself.
+        let absent: BTreeMap<&str, &str> = STANDS_FOR.iter().filter(|(_, ids)| !items.iter().any(|d| d.id == ids[0])).map(|(i, ids)| (ids[0], *i)).collect();
+        for d in &mut defs {
+            if let Some(r) = d.weapon.as_mut().and_then(|w| w.ranged.as_mut()) {
+                if let Some(i) = absent.get(r.ammo.as_str()) {
+                    r.ammo = i.to_string();
+                }
+            }
+            for a in d.on_use.iter_mut().flat_map(|t| t.actions.iter_mut()) {
+                if let rustpg2d_engine::events::Action::GiveItem { item, .. } = a {
+                    if let Some(i) = absent.get(item.as_str()) {
+                        *item = i.to_string();
+                    }
+                }
+            }
+        }
+        for (id, name, text, worth, icon) in COINS {
+            let mut d = ItemDef::fresh(id);
+            (d.name, d.description) = (name.into(), text.into());
+            d.icon = SpriteRef::new(gear::SHEET, icon);
+            (d.coin_cp, d.max_stack, d.weight) = (worth, 999, 0.02);
+            defs.push(d);
+        }
+        // What a project needs: the wanted items and the packs' contents among them.
+        let mut need: std::collections::BTreeSet<String> = wanted.iter().cloned().collect();
+        loop {
+            let more: Vec<String> = defs.iter().filter(|d| need.contains(&d.id)).flat_map(|d| d.on_use.iter().flat_map(|t| t.actions.iter())).filter_map(|a| match a {
+                rustpg2d_engine::events::Action::GiveItem { item, .. } => Some(item.clone()),
+                _ => None,
+            }).filter(|i| !need.contains(i)).collect();
+            if more.is_empty() {
+                break;
+            }
+            need.extend(more);
+        }
+        let (mut added, mut updated) = (0, 0);
+        for new in defs {
+            let standing: &[&str] = STANDS_FOR.iter().find(|(i, _)| *i == new.srd).map_or(&[], |(_, ids)| *ids);
+            let mut found = false;
+            for old in items.iter_mut().filter(|d| d.id == new.id || standing.contains(&d.id.as_str()) || (!new.srd.is_empty() && d.srd == new.srd)) {
+                found = true;
+                let before = old.clone();
+                merge_item(old, &new);
+                if *old != before {
+                    updated += 1;
+                }
+            }
+            // (A standing item's id is what references use: it is never added under the index.)
+            let id_taken = standing.iter().any(|s| items.iter().any(|d| d.id == *s));
+            if !found && !id_taken && (add || new.coin_cp > 0 || need.contains(&new.id)) {
+                items.push(new);
+                added += 1;
+            }
+        }
+        (added, updated)
+    }
+
     /// The SRD's NPC humanoids as stat block templates (not the lycanthropes' forms).
     pub fn npc_templates(&self) -> Vec<rustpg2d_engine::srd::StatBlock> {
         self.monsters.iter().filter(|m| s(m, "type") == "humanoid" && !s(m, "index").starts_with("were")).map(monster_block).collect()
@@ -412,10 +639,10 @@ impl SrdData {
         let features = self.features.iter().filter(|f| f.pointer("/class/index").and_then(Value::as_str) == Some(id)).map(class_feature).collect();
         // Starting equipment: the fixed items and the first option of every choice.
         let mut equipment = Vec::new();
-        let mut add = |index: &str, count: u32, equipment: &mut Vec<rustpg2d_engine::inventory::ItemStack>| match library_item(index) {
+        let mut add = |index: &str, count: u32, equipment: &mut Vec<rustpg2d_engine::inventory::ItemStack>| match self.item_id(index) {
             Some(item) => match equipment.iter_mut().find(|i: &&mut rustpg2d_engine::inventory::ItemStack| i.item == item) {
                 Some(st) => st.count += count,
-                None => equipment.push(rustpg2d_engine::inventory::ItemStack { item: item.into(), count }),
+                None => equipment.push(rustpg2d_engine::inventory::ItemStack { item, count }),
             },
             None => unmapped.push(index.to_string()),
         };
@@ -428,6 +655,16 @@ impl SrdData {
                     add(&index, count, &mut equipment);
                 }
             }
+        }
+        // A caster without a focus among its gear gets one (the SRD offers it in a choice whose
+        // first option is something else): its material components need it.
+        if c.get("spellcasting").is_some() && !equipment.iter().any(|i| rustpg2d_engine::srd::equipment::FOCUS.contains(&i.item.as_str())) {
+            let focus = match id {
+                "cleric" | "paladin" => "amulet",
+                "druid" => "sprig-of-mistletoe",
+                _ => "component-pouch",
+            };
+            add(focus, 1, &mut equipment);
         }
         let multiclass = c
             .pointer("/multi_classing/prerequisites")
@@ -699,22 +936,206 @@ fn option_items(o: &Value) -> Vec<(String, u32)> {
     }
 }
 
-/// The library item standing for an SRD item or equipment category (until 0.31's equipment).
+/// Library items that stand for an SRD item (the first one is what class equipment and packs
+/// give): they get its numbers and keep their own name, text and look.
+const STANDS_FOR: [(&str, &[&str]); 17] = [
+    ("longsword", &["iron_sword", "fine_iron_sword"]),
+    ("shortsword", &["sword"]),
+    ("spear", &["spear"]),
+    ("battleaxe", &["axe"]),
+    ("shortbow", &["bow", "crude_bow"]),
+    ("crossbow-light", &["crossbow"]),
+    ("leather-armor", &["leather_armor"]),
+    ("chain-mail", &["chainmail"]),
+    ("shield", &["wooden_shield"]),
+    ("torch", &["torch"]),
+    ("lantern-hooded", &["lantern"]),
+    ("arrow", &["arrows"]),
+    ("crossbow-bolt", &["bolts"]),
+    ("backpack", &["small_backpack"]),
+    ("hammer", &["hammer"]),
+    ("pick-miners", &["pickaxe"]),
+    ("fishing-tackle", &["fishing_rod"]),
+];
+
+/// An equipment category class equipment offers ("any martial weapon"): the item given.
+const CATEGORY_ITEM: [(&str, &str); 9] = [
+    ("martial-weapons", "longsword"),
+    ("martial-melee-weapons", "longsword"),
+    ("simple-weapons", "spear"),
+    ("simple-melee-weapons", "spear"),
+    ("arcane-foci", "crystal"),
+    ("holy-symbols", "amulet"),
+    ("druidic-foci", "sprig-of-mistletoe"),
+    ("musical-instruments", "lute"),
+    ("artisans-tools", "smiths-tools"),
+];
+
+/// The coins (id, name, text, worth in copper pieces, icon); the gold piece keeps the old `coin` id.
+const COINS: [(&str, &str, &str, u32, u32); 5] = [
+    ("copper-piece", "Copper Piece", "The smallest coin: ten make a silver piece.", 1, gear::COPPER),
+    ("silver-piece", "Silver Piece", "A silver coin worth ten copper pieces.", 10, gear::SILVER),
+    ("electrum-piece", "Electrum Piece", "An electrum coin worth five silver pieces.", 50, gear::ELECTRUM),
+    ("coin", "Gold Piece", "A gold coin worth ten silver or a hundred copper pieces.", 100, gear::GOLD),
+    ("platinum-piece", "Platinum Piece", "A platinum coin worth ten gold pieces.", 1000, gear::PLATINUM),
+];
+
+/// The frames of the generic equipment icons (`sprites/srd_gear.png`, sheet `srd_gear`).
+mod gear {
+    pub const SHEET: &str = "srd_gear";
+    pub const KNIFE: u32 = 0;
+    pub const SWORD: u32 = 1;
+    pub const AXE: u32 = 2;
+    pub const POLEARM: u32 = 3;
+    pub const CLUB: u32 = 4;
+    pub const BOW: u32 = 5;
+    pub const CROSSBOW: u32 = 6;
+    pub const SLING: u32 = 7;
+    pub const LIGHT_ARMOR: u32 = 8;
+    pub const MEDIUM_ARMOR: u32 = 9;
+    pub const HEAVY_ARMOR: u32 = 10;
+    pub const SHIELD: u32 = 11;
+    pub const ARTISAN: u32 = 12;
+    pub const INSTRUMENT: u32 = 13;
+    pub const GAMING: u32 = 14;
+    pub const GEAR: u32 = 15;
+    pub const AMMO: u32 = 16;
+    pub const PACK: u32 = 17;
+    pub const MOUNT: u32 = 18;
+    pub const VEHICLE: u32 = 19;
+    pub const SHIP: u32 = 20;
+    pub const ARCANE: u32 = 21;
+    pub const HOLY: u32 = 22;
+    pub const DRUIDIC: u32 = 23;
+    pub const KIT: u32 = 24;
+    pub const LIGHT: u32 = 25;
+    pub const COPPER: u32 = 26;
+    pub const SILVER: u32 = 27;
+    pub const ELECTRUM: u32 = 28;
+    pub const GOLD: u32 = 29;
+    pub const PLATINUM: u32 = 30;
+    pub const LOCKPICKS: u32 = 31;
+    pub const CLOTHES: u32 = 32;
+    pub const VIAL: u32 = 33;
+    pub const ROPE: u32 = 34;
+    pub const BOOK: u32 = 35;
+    pub const FOOD: u32 = 36;
+    pub const CONTAINER: u32 = 37;
+    /// A sling bullet in flight.
+    pub const BULLET: u32 = 38;
+}
+
+/// The library item standing for an SRD item (`STANDS_FOR`), without any data.
 fn library_item(index: &str) -> Option<&'static str> {
-    Some(match index {
-        "chain-mail" | "scale-mail" | "ring-mail" | "splint-armor" | "plate-armor" => "chainmail",
-        "leather-armor" | "studded-leather-armor" | "hide-armor" | "padded-armor" => "leather_armor",
-        "shield" => "wooden_shield",
-        "longsword" | "martial-weapons" | "martial-melee-weapons" => "iron_sword",
-        "shortsword" | "scimitar" | "rapier" => "sword",
-        "greataxe" | "battleaxe" | "handaxe" => "axe",
-        "spear" | "javelin" | "simple-weapons" | "simple-melee-weapons" | "trident" | "pike" | "halberd" | "glaive" => "spear",
-        "shortbow" | "longbow" => "bow",
-        "crossbow-light" | "crossbow-heavy" | "crossbow-hand" => "crossbow",
-        "arrow" => "arrows",
-        "crossbow-bolt" => "bolts",
-        _ => return None,
-    })
+    STANDS_FOR.iter().find(|(i, _)| *i == index).map(|(_, ids)| ids[0])
+}
+
+/// The generic icon of an SRD item.
+fn gear_icon(v: &Value) -> u32 {
+    let id = s(v, "index");
+    let has = |w: &str| id.contains(w);
+    let any = |ws: &[&str]| ws.iter().any(|w| id.contains(w));
+    match s(v.get("equipment_category").unwrap_or(&Value::Null), "index") {
+        "weapon" => match id {
+            _ if has("crossbow") => gear::CROSSBOW,
+            _ if has("bow") => gear::BOW,
+            _ if any(&["dagger", "sickle"]) => gear::KNIFE,
+            _ if any(&["sword", "rapier", "scimitar"]) => gear::SWORD,
+            _ if has("axe") => gear::AXE,
+            _ if any(&["spear", "javelin", "pike", "halberd", "glaive", "lance", "trident", "quarterstaff"]) => gear::POLEARM,
+            _ if any(&["sling", "dart", "net", "blowgun", "whip"]) => gear::SLING,
+            _ => gear::CLUB,
+        },
+        "armor" => match s(v, "armor_category") {
+            "Light" => gear::LIGHT_ARMOR,
+            "Medium" => gear::MEDIUM_ARMOR,
+            "Heavy" => gear::HEAVY_ARMOR,
+            _ => gear::SHIELD,
+        },
+        "tools" => match s(v, "tool_category") {
+            "Musical Instrument" => gear::INSTRUMENT,
+            "Gaming Sets" => gear::GAMING,
+            _ if id == "thieves-tools" => gear::LOCKPICKS,
+            _ if any(&["kit", "navigator"]) => gear::KIT,
+            _ => gear::ARTISAN,
+        },
+        "mounts-and-vehicles" => match s(v, "vehicle_category") {
+            "Mounts and Other Animals" => gear::MOUNT,
+            "Waterborne Vehicles" => gear::SHIP,
+            _ => gear::VEHICLE,
+        },
+        _ => match v.pointer("/gear_category/index").and_then(Value::as_str).unwrap_or("") {
+            "ammunition" => gear::AMMO,
+            "equipment-packs" => gear::PACK,
+            "arcane-foci" => gear::ARCANE,
+            "holy-symbols" => gear::HOLY,
+            "druidic-foci" => gear::DRUIDIC,
+            "kits" => gear::KIT,
+            _ if any(&["lantern", "lamp", "candle", "torch"]) => gear::LIGHT,
+            _ if any(&["clothes", "robes", "vestments"]) => gear::CLOTHES,
+            _ if any(&["vial", "flask", "bottle", "ink-1", "antitoxin"]) => gear::VIAL,
+            _ if any(&["rope", "chain", "string", "manacles"]) => gear::ROPE,
+            _ if any(&["book", "paper", "parchment", "case-map"]) => gear::BOOK,
+            _ if has("rations") => gear::FOOD,
+            _ if any(&["chest", "barrel", "basket", "bucket", "pot-", "jug", "case-crossbow"]) => gear::CONTAINER,
+            _ => gear::GEAR,
+        },
+    }
+}
+
+/// A cost of the data in copper pieces.
+fn cost_cp(v: &Value) -> u32 {
+    let n = v.pointer("/cost/quantity").and_then(Value::as_u64).unwrap_or(0) as u32;
+    n * match v.pointer("/cost/unit").and_then(Value::as_str).unwrap_or("gp") {
+        "cp" => 1,
+        "sp" => 10,
+        "ep" => 50,
+        "pp" => 1000,
+        _ => 100,
+    }
+}
+
+/// An SRD item's data on an item of the project: an item the import made (its id is the index)
+/// takes all of it but its icon; a library item standing for it (and a coin) keeps its
+/// name, text and look.
+fn merge_item(old: &mut rustpg2d_engine::defs::ItemDef, new: &rustpg2d_engine::defs::ItemDef) {
+    if new.coin_cp > 0 {
+        // A coin keeps what it does when used (a story's script); an old one becomes the coin.
+        if old.coin_cp == 0 {
+            (old.name, old.description) = (new.name.clone(), new.description.clone());
+        }
+        (old.coin_cp, old.weight, old.max_stack) = (new.coin_cp, new.weight, old.max_stack.max(new.max_stack));
+        return;
+    }
+    let standing = STANDS_FOR.iter().any(|(_, ids)| ids.contains(&old.id.as_str()));
+    if old.id == new.id && !standing {
+        let icon = old.icon.clone();
+        *old = new.clone();
+        old.icon = icon;
+        return;
+    }
+    (old.srd, old.cost_cp, old.weight) = (new.srd.clone(), new.cost_cp, new.weight);
+    match (&mut old.weapon, &new.weapon) {
+        (Some(o), Some(n)) => {
+            (o.category, o.properties, o.dice, o.versatile, o.thrown_ft, o.two_handed) = (n.category, n.properties.clone(), n.dice.clone(), n.versatile.clone(), n.thrown_ft, n.two_handed);
+            if n.damage_type.is_some() {
+                o.damage_type = n.damage_type;
+            }
+            if let (Some(or), Some(nr)) = (&mut o.ranged, &n.ranged) {
+                (or.range, or.long_range) = (nr.range, nr.long_range);
+            }
+        }
+        (None, Some(n)) => old.weapon = Some(n.clone()),
+        _ => {}
+    }
+    match (&mut old.armor, &new.armor) {
+        (Some(o), Some(n)) => {
+            (o.category, o.base_ac, o.dex_max, o.str_min, o.stealth_disadvantage) = (n.category, n.base_ac, n.dex_max, n.str_min, n.stealth_disadvantage);
+            (o.defense, o.speed) = (0, 0.0);
+        }
+        (None, Some(n)) => old.armor = Some(n.clone()),
+        _ => {}
+    }
 }
 
 /// An SRD feature: its text, the choice it asks for, and what of it acts ([`feature_effects`]).
@@ -1066,7 +1487,22 @@ pub fn update_monsters_in(checkout: &Path, root: &Path) -> Result<usize> {
     }
     data.import_classes(&mut p.db.classes);
     std::fs::write(root.join("defs/classes.ron"), rustpg2d_engine::project::ron_text(&p.db.classes)?)?;
+    // The equipment its classes start with, the coins, and the SRD's numbers on its weapons and armor.
+    let wanted: Vec<String> = p.db.classes.iter().flat_map(|c| c.equipment.iter().map(|i| i.item.clone())).collect();
+    data.import_equipment(&mut p.db.items, false, &wanted);
+    write_items(&mut p, root)?;
     Ok(updated)
+}
+
+/// Writes `defs/items.ron` and, when an item shows a generic equipment icon, adds the
+/// `srd_gear` sheet (its picture `sprites/srd_gear.png` comes with the starter library).
+fn write_items(p: &mut rustpg2d_engine::project::Project, root: &Path) -> Result<()> {
+    if p.db.items.iter().any(|i| i.icon.sheet == gear::SHEET) && !p.db.sheets.iter().any(|s| s.id == gear::SHEET) {
+        p.db.sheets.push(rustpg2d_engine::defs::SheetDef::new(gear::SHEET, "sprites/srd_gear.png", 32, 32));
+        std::fs::write(root.join("defs/sheets.ron"), rustpg2d_engine::project::ron_text(&p.db.sheets)?)?;
+    }
+    std::fs::write(root.join("defs/items.ron"), rustpg2d_engine::project::ron_text(&p.db.items)?)?;
+    Ok(())
 }
 
 /// Imports into the `defs/` of a library or project folder; returns a one-line report.
@@ -1077,6 +1513,10 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     let (m_added, m_updated) = data.import_monsters(&mut p.db.characters, true);
     let (c_added, c_updated, unmapped) = data.import_classes(&mut p.db.classes);
     let (s_added, s_updated, story) = data.import_spells(&mut p.db.spells);
+    let (e_added, e_updated) = data.import_equipment(&mut p.db.items, true, &[]);
+    if e_added + e_updated > 0 {
+        write_items(&mut p, root)?;
+    }
     let defs = root.join("defs");
     if s_added + s_updated > 0 {
         std::fs::write(defs.join("spells.ron"), rustpg2d_engine::project::ron_text(&p.db.spells)?)?;
@@ -1088,7 +1528,7 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     }
     std::fs::write(defs.join("classes.ron"), rustpg2d_engine::project::ron_text(&p.db.classes)?)?;
     Ok(format!(
-        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {}); spells: {s_added} added, {s_updated} updated, {} of {} story only",
+        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {}); spells: {s_added} added, {s_updated} updated, {} of {} story only; equipment: {e_added} added, {e_updated} updated",
         root.display(),
         p.db.races.len(),
         p.db.backgrounds.len(),
@@ -1288,7 +1728,9 @@ mod tests {
         let mut classes = Vec::new();
         let (added, updated, unmapped) = data.import_classes(&mut classes);
         assert_eq!((added, updated), (3, 0));
-        assert!(!unmapped.is_empty(), "packs and daggers have no library item yet");
+        assert!(unmapped.contains(&"dungeoneers-pack".to_string()) && !unmapped.contains(&"dagger".to_string()), "only what the fixture's equipment lacks: {unmapped:?}");
+        let r = classes.iter().find(|c| c.id == "rogue").unwrap();
+        assert!(["thieves-tools", "dagger", "burglars-pack", "arrows"].iter().all(|i| r.equipment.iter().any(|e| e.item == *i)), "{:?}", r.equipment);
         let f = classes.iter().find(|c| c.id == "fighter").unwrap();
         assert_eq!((f.hit_die, f.saves.clone(), f.subclass_level, f.subclass_title.as_str()), (10, vec!["str".to_string(), "con".to_string()], 3, "Martial Archetype"));
         assert_eq!(f.skill_choices, 2);
@@ -1327,6 +1769,61 @@ mod tests {
         let before = classes.clone();
         assert_eq!(data.import_classes(&mut classes).1, 0);
         assert_eq!(classes, before);
+    }
+
+
+    #[test]
+    fn equipment_imports_with_the_srd_rules_and_a_second_run_changes_nothing() {
+        use rustpg2d_engine::defs::*;
+        let data = SrdData::read(&fixture()).unwrap();
+        // A library's iron sword and chainmail stand for the longsword and chain mail; its coin is gold.
+        let mut sword = ItemDef::fresh("iron_sword");
+        (sword.name, sword.icon) = ("Iron Sword".into(), SpriteRef::new("icons_3d", 4));
+        sword.weapon = Some(Weapon { dice: "1d8".into(), ..Weapon::melee(3, 0.35) });
+        let mut mail = ItemDef::fresh("chainmail");
+        mail.armor = Some(Armor { defense: 3, speed: -0.15, ..Armor::clothing(EquipSlot::Body) });
+        let mut items = vec![sword, mail, ItemDef { id: "coin".into(), name: "Coin".into(), ..Default::default() }];
+        let (added, updated) = data.import_equipment(&mut items, true, &[]);
+        assert_eq!((added, updated), (25 - 2 + 4, 3), "{:?}", items.iter().map(|i| &i.id).collect::<Vec<_>>());
+        let get = |items: &[ItemDef], id: &str| items.iter().find(|i| i.id == id).cloned().unwrap();
+        let s = get(&items, "iron_sword");
+        let w = s.weapon.as_ref().unwrap();
+        assert_eq!((s.name.as_str(), s.icon.sheet.as_str(), s.srd.as_str(), s.cost_cp, s.weight), ("Iron Sword", "icons_3d", "longsword", 1500, 3.0));
+        assert_eq!((w.category, w.properties.clone(), w.versatile.as_str()), (Some(WeaponCategory::Martial), vec![WeaponProperty::Versatile], "1d10"));
+        assert!(!items.iter().any(|i| i.id == "longsword"), "the library's sword is the longsword");
+        let m = get(&items, "chainmail").armor.unwrap();
+        assert_eq!((m.category, m.base_ac, m.dex_max, m.str_min, m.stealth_disadvantage, m.speed), (Some(ArmorCategory::Heavy), 16, Some(0), 13, true, 0.0));
+        let hp = get(&items, "half-plate-armor").armor.unwrap();
+        assert_eq!((hp.category, hp.base_ac, hp.dex_max), (Some(ArmorCategory::Medium), 15, Some(2)));
+        assert_eq!(get(&items, "shield").armor.map(|a| (a.slot, a.base_ac)), Some((EquipSlot::Offhand, 2)));
+        // The dagger: simple, finesse, light, thrown 20/60; a crossbow loads and shoots bolts.
+        let d = get(&items, "dagger").weapon.unwrap();
+        assert_eq!((d.category, d.thrown_ft, d.dice.as_str()), (Some(WeaponCategory::Simple), Some((20, 60)), "1d4"));
+        assert!([WeaponProperty::Finesse, WeaponProperty::Light, WeaponProperty::Thrown].iter().all(|p| d.properties.contains(p)));
+        let x = get(&items, "crossbow-light").weapon.unwrap();
+        let r = x.ranged.as_ref().unwrap();
+        assert_eq!((r.range, r.long_range, r.ammo.as_str(), x.two_handed), (16.0, 64.0, "crossbow-bolt", true));
+        assert_eq!(get(&items, "arrow").cost_cp, 5, "20 arrows cost 1 gp");
+        assert_eq!((get(&items, "thieves-tools").srd.as_str(), get(&items, "thieves-tools").cost_cp), ("thieves-tools", 2500));
+        // Coins: the old coin is the gold piece; four more.
+        let coin = get(&items, "coin");
+        assert_eq!((coin.name.as_str(), coin.coin_cp), ("Gold Piece", 100));
+        assert_eq!(items.iter().filter(|i| i.coin_cp > 0).map(|i| i.coin_cp).sum::<u32>(), 1161);
+        // The burglar's pack unpacks what the data has of it (a backpack, candles, a lantern, rations).
+        let pack = get(&items, "burglars-pack");
+        assert!(pack.consumable && pack.description.contains("5 × Candle"), "{}", pack.description);
+        let gives: Vec<(String, u32)> = pack.on_use[0].actions.iter().filter_map(|a| match a { rustpg2d_engine::events::Action::GiveItem { item, count } => Some((item.clone(), *count)), _ => None }).collect();
+        assert_eq!(gives, vec![("backpack".to_string(), 1), ("candle".into(), 5), ("lantern-hooded".into(), 1), ("rations-1-day".into(), 5)]);
+        assert!(get(&items, "lantern-hooded").light.is_some() && get(&items, "backpack").bag_slots == 6);
+        // A second run changes nothing; an icon a project gave an imported item stays.
+        items.iter_mut().find(|i| i.id == "dagger").unwrap().icon = SpriteRef::new("items", 3);
+        let before = items.clone();
+        assert_eq!(data.import_equipment(&mut items, true, &[]), (0, 0));
+        assert_eq!(items, before);
+        // A project gets only what its classes start with (and what packs hold) and the coins.
+        let mut project = vec![ItemDef::fresh("iron_sword")];
+        let (added, _) = data.import_equipment(&mut project, false, &["burglars-pack".to_string(), "dagger".to_string()]);
+        assert_eq!(added, 2 + 4 + 5, "{:?}", project.iter().map(|i| &i.id).collect::<Vec<_>>());
     }
 
 }

@@ -143,6 +143,25 @@ pub(super) struct AttackSpec {
     pub loading: bool,
     /// Rolled with disadvantage (a heavy weapon in Small hands).
     pub disadvantage: bool,
+    /// A melee weapon thrown (a spear, a dagger, a javelin): the AI walks up and strikes instead
+    /// when it can reach a foe this turn.
+    pub thrown: bool,
+}
+
+/// Where a creature can walk this turn: the tiles it may end on (tile -> feet it costs, the tile
+/// before it; the map the overlay, clicks and the AI read) and the allies' tiles it only passes.
+/// (Until 0.31 a path through an ally's tile was lost: the walk didn't happen.)
+#[derive(Clone, Debug, Default)]
+pub(super) struct Reach {
+    pub tiles: std::collections::HashMap<TilePos, (u32, TilePos)>,
+    pub passed: std::collections::HashMap<TilePos, (u32, TilePos)>,
+}
+
+impl std::ops::Deref for Reach {
+    type Target = std::collections::HashMap<TilePos, (u32, TilePos)>;
+    fn deref(&self) -> &Self::Target {
+        &self.tiles
+    }
 }
 
 pub(super) struct Combat {
@@ -172,7 +191,7 @@ pub(super) struct Combat {
     /// An attack to make once the walk there ends (a click on a foe out of reach).
     pub then_attack: Option<Who>,
     /// The current fighter's reachable tiles (the overlay, clicks), and what they were for.
-    pub reach: std::collections::HashMap<TilePos, (u32, TilePos)>,
+    pub reach: Reach,
     pub reach_key: Option<(usize, u32, u32, u32, TilePos)>,
     /// The mouse's last screen position (the cursor follows it when it moves).
     pub mouse_last: Vec2,
@@ -277,7 +296,7 @@ impl Game {
                 bonus,
                 dice: w.damage_dice(),
                 damage_type: w.damage_type,
-                reach_ft: if ranged.is_some() { 0 } else { (w.reach.round().max(1.0) as u32) * 5 },
+                reach_ft: if ranged.is_some() { 0 } else { w.reach_tiles().max(1) as u32 * 5 },
                 range_ft: ranged.map_or(0, |r| r.0),
                 long_ft: ranged.map_or(0, |r| r.1),
             });
@@ -668,11 +687,12 @@ impl Game {
         fighters.iter().any(|(_, s, p)| *p == t && (*s != side || stop))
     }
 
-    /// Where a creature can walk this turn: tile -> (feet it costs, the tile before it).
-    pub(super) fn reachable(&self, who: Who) -> std::collections::HashMap<TilePos, (u32, TilePos)> {
+    /// Where a creature can walk this turn: tile -> (feet it costs, the tile before it); the
+    /// allies' tiles it passes on the way are kept apart (`Reach::passed`).
+    pub(super) fn reachable(&self, who: Who) -> Reach {
         let mut out = std::collections::HashMap::new();
-        let Some(c) = &self.fight else { return out };
-        let Some(me) = c.fighter(who) else { return out };
+        let Some(c) = &self.fight else { return Reach::default() };
+        let Some(me) = c.fighter(who) else { return Reach::default() };
         let left = c.turn.speed.saturating_sub(c.turn.moved);
         let start = self.who_tile(who);
         let fighters = self.fighter_tiles(who);
@@ -702,22 +722,22 @@ impl Game {
                 }
             }
         }
-        // Tiles with an ally on them can be passed, not ended on.
-        out.retain(|t, _| *t == start || !fighters.iter().any(|(_, _, p)| p == t));
-        out
+        // Tiles with an ally on them can be passed, not ended on (kept for the paths through them).
+        let (tiles, passed) = out.into_iter().partition(|(t, _)| *t == start || !fighters.iter().any(|(_, _, p)| p == t));
+        Reach { tiles, passed }
     }
 
-    /// A path from the reach map (excludes the start).
-    pub(super) fn path_to(reach: &std::collections::HashMap<TilePos, (u32, TilePos)>, start: TilePos, goal: TilePos) -> Vec<TilePos> {
+    /// A path from the reach map (excludes the start), also through allies' tiles.
+    pub(super) fn path_to(reach: &Reach, start: TilePos, goal: TilePos) -> Vec<TilePos> {
         let mut path = Vec::new();
         let mut t = goal;
         while t != start {
             // (A reach map of another start tile leads nowhere: no path.)
-            if path.len() > reach.len() {
+            if path.len() > reach.tiles.len() + reach.passed.len() {
                 return Vec::new();
             }
             path.push(t);
-            match reach.get(&t) {
+            match reach.tiles.get(&t).or_else(|| reach.passed.get(&t)) {
                 Some((_, prev)) => t = *prev,
                 None => return Vec::new(),
             }
@@ -854,6 +874,8 @@ impl Game {
                 // (A party member's weapon: STR in melee, DEX at range; two-handed or not.)
                 let classed = self.who_traits(who).is_some();
                 let finesse = self.who_index(who).is_some_and(|i| self.loaded.entities[i].weapon.as_ref().is_some_and(|w| w.has(crate::defs::WeaponProperty::Finesse)));
+                // (A thrown weapon flies as the icon of the weapon in its hand.)
+                let weapon_icon = self.who_index(who).and_then(|i| self.loaded.entities[i].equipment.item(crate::defs::EquipSlot::Weapon)).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone());
                 b.attacks
                     .iter()
                     .flat_map(|a| {
@@ -862,7 +884,10 @@ impl Game {
                             v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ability: classed.then_some(Ability::Str), finesse, ..Default::default() });
                         }
                         if a.range_ft > 0 {
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile: projectile.clone(), ability: classed.then_some(Ability::Dex), finesse, ..Default::default() });
+                            // (Melee or ranged: a thrown weapon.)
+                            let thrown = a.reach_ft > 0;
+                            let projectile = if thrown { weapon_icon.clone().or_else(|| projectile.clone()) } else { projectile.clone() };
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile, ability: classed.then_some(if thrown { Ability::Str } else { Ability::Dex }), finesse, thrown, ..Default::default() });
                         }
                         v
                     })
@@ -928,13 +953,14 @@ impl Game {
             dice,
             damage_type: w.damage_type,
             ranged,
-            reach: if ranged { 0 } else if w.has(P::Reach) { 2 } else { w.reach.round().max(1.0) as i32 },
+            reach: if ranged { 0 } else { w.reach_tiles() },
             range,
             long,
             // (A keen weapon on 19; Improved / Superior Critical.)
             crit_on: (if w.crit >= 0.1 { 19 } else { 20 }).min(t.crit_from),
             effect: w.effect.clone(),
             projectile: if thrown { item_icon } else { w.ranged.as_ref().map(|r| r.projectile.clone()) },
+            thrown,
             brutal: if ranged { 0 } else { t.brutal_dice },
             reroll_low: !ranged && w.has(P::TwoHanded) && t.styles.contains(&F::GreatWeaponFighting),
             ability: Some(ability),
@@ -1620,4 +1646,19 @@ fn roll_damage(expr: &str, reroll_low: bool) -> i32 {
         }
     }
     crate::srd::Expr::parse(expr).map(|e| e.roll(&crate::srd::dice::NoMods).total.max(1)).unwrap_or(1) as i32
+}
+
+#[cfg(test)]
+mod reach_tests {
+    use super::*;
+
+    #[test]
+    fn a_path_leads_through_an_allys_tile() {
+        // Start (0,0); an ally on (1,0) is passed on the way to (2,0), which may be ended on.
+        let tiles = [((0, 0), (0, (0, 0))), ((2, 0), (10, (1, 0)))].into_iter().collect();
+        let passed = [((1, 0), (5, (0, 0)))].into_iter().collect();
+        let reach = Reach { tiles, passed };
+        assert!(!reach.contains_key(&(1, 0)), "an ally's tile isn't a place to stop");
+        assert_eq!(Game::path_to(&reach, (0, 0), (2, 0)), vec![(1, 0), (2, 0)]);
+    }
 }

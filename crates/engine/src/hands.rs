@@ -193,7 +193,7 @@ pub fn held_with(db: &Database, (right, left): (Option<Grip>, Option<Grip>), eq:
         } else {
             match &d.weapon {
                 Some(w) if w.ranged.is_some() => Hand::Left,
-                Some(w) if w.two_handed => Hand::Both,
+                Some(w) if w.two_handed || (w.long() && eq.item(crate::defs::EquipSlot::Offhand).is_none()) => Hand::Both,
                 _ => Hand::Right,
             }
         });
@@ -220,6 +220,8 @@ mod tests {
         db.items.push(bow);
         db.items.push(item("shield"));
         db.items.push(ItemDef { weapon: Some(Weapon { two_handed: true, ..Weapon::melee(2, 0.5) }), held: Some(HeldSprite { points: -90.0, ..Default::default() }), ..item("spear") });
+        // The SRD's spear: versatile, a long reach, not two-handed.
+        db.items.push(ItemDef { weapon: Some(Weapon { reach: 1.9, ..Weapon::melee(2, 0.5) }), ..item("srd_spear") });
         db.props.push(crate::defs::PropDef { id: "crate".into(), sprite: SpriteRef::new("props", 3), ..crate::defs::PropDef::fresh("crate") });
         db
     }
@@ -246,6 +248,11 @@ mod tests {
         let spear = Equipment { weapon: Some(ItemStack::new("spear", 1)), ..Default::default() };
         let h = held_with(&db, (Some(Grip::new(30.0, 40.0, -80.0)), Some(Grip::new(30.0, 60.0, 100.0))), &spear, "", None, Facing::Left);
         assert_eq!((h[0].hand, h[0].at, h[0].rotation), (Hand::Both, (30.0, 50.0), 0.0));
+        // A long weapon that isn't two-handed: both hands while the left is free, else the right.
+        let long = Equipment { weapon: Some(ItemStack::new("srd_spear", 1)), ..Default::default() };
+        assert_eq!(held_with(&db, (r, l), &long, "", None, Facing::Down)[0].hand, Hand::Both);
+        let long_shield = Equipment { offhand: Some(ItemStack::new("shield", 1)), ..long };
+        assert_eq!(held_with(&db, (r, l), &long_shield, "", None, Facing::Down)[0].hand, Hand::Right);
         // Fists close together: the right hand's axis. A carried prop never turns upside down.
         assert_eq!(both_hands(Some(Grip::new(30.0, 40.0, 180.0)), Some(Grip::new(32.0, 41.0, 0.0))).unwrap().angle, 180.0);
         let c = held_with(&db, (Some(Grip::new(30.0, 60.0, 180.0)), None), &eq, "crate", None, Facing::Right);

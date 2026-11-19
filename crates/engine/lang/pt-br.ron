@@ -897,5 +897,6 @@
         "Self": "Pessoal",
         "Touch": "Toque",
         "{} picks up {}": "{} pega: {}",
+        "stops fighting": "para de lutar",
     },
 )

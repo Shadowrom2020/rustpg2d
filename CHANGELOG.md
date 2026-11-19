@@ -302,6 +302,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   it goes by the walking distance now.
 - Fix: a one-tile diagonal step past a foe or a wall corner turned into two steps (provoking an
   opportunity attack): only two walls touching at a corner block a diagonal now.
+- Fix: sparing the deserter (or any foe that stops being hostile: *Set faction*, a script) didn't
+  end the fight; it leaves the fight ("stops fighting"), and the fight ends when no foe is left.
 - Fix: in a fight a foe that died (or moved away) still blocked its tile for the player's moves
   until the turn changed: the reachable tiles are worked out again when anyone's place changes.
 - The move overlay in fights shows the tiles that would leave a foe's reach (an opportunity attack)

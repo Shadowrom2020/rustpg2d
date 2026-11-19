@@ -897,5 +897,6 @@
         "Self": "Incantatore",
         "Touch": "Contatto",
         "{} picks up {}": "{} raccoglie: {}",
+        "stops fighting": "smette di combattere",
     },
 )

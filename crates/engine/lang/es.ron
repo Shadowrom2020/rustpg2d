@@ -897,5 +897,6 @@
         "Self": "Uno mismo",
         "Touch": "Toque",
         "{} picks up {}": "{} recoge: {}",
+        "stops fighting": "deja de luchar",
     },
 )

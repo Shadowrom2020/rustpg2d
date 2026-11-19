@@ -897,5 +897,6 @@
         "Self": "Soi-même",
         "Touch": "Contact",
         "{} picks up {}": "{} ramasse : {}",
+        "stops fighting": "cesse de combattre",
     },
 )

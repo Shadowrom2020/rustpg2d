@@ -532,6 +532,37 @@ impl Game {
         self.autosave_pending = true;
     }
 
+    /// Fighters of the enemy side that are no longer hostile to the player (*Set faction* after
+    /// "Spare him", a script) leave the fight; the fight ends when no enemy is left.
+    fn drop_peaceful(&mut self) {
+        let Some(c) = &self.fight else { return };
+        let calm: Vec<Who> = c
+            .order
+            .iter()
+            .filter(|f| f.side == Side::Enemy && !f.out)
+            .filter(|f| self.who_index(f.who).is_some_and(|i| !self.loaded.entities[i].hostile))
+            .map(|f| f.who)
+            .collect();
+        if calm.is_empty() {
+            return;
+        }
+        let current = c.current().who;
+        for who in &calm {
+            let name = self.who_name(*who);
+            if let Some(c) = &mut self.fight {
+                if let Some(f) = c.fighter_mut(*who) {
+                    (f.out, f.down) = (true, false);
+                }
+                c.log(format!("{name} {}", crate::lang::tr_ui("stops fighting")));
+            }
+        }
+        self.check_over();
+        // (Its own turn: over.)
+        if calm.contains(&current) && self.fight.as_ref().is_some_and(|c| !c.over) {
+            self.next_turn();
+        }
+    }
+
     /// Whether the fight is decided: no enemy can fight on, or the whole party is down.
     fn check_over(&mut self) {
         let Some(c) = &self.fight else { return };
@@ -681,6 +712,8 @@ impl Game {
         if self.update_walk(dt) {
             return;
         }
+        // Foes that made peace (spared, a new faction, charmed out of it) leave the fight.
+        self.drop_peaceful();
         // A click on a foe out of reach: the attack once the walk there is over.
         if let Some(t) = self.fight.as_mut().and_then(|c| c.then_attack.take()) {
             if let Err(why) = self.act_on(&Aim::Attack, t) {

@@ -898,5 +898,6 @@
         "Self": "自身",
         "Touch": "触碰",
         "{} picks up {}": "{}拾起：{}",
+        "stops fighting": "停止了战斗",
     },
 )

@@ -898,5 +898,6 @@
         "Self": "Na siebie",
         "Touch": "Dotyk",
         "{} picks up {}": "{} podnosi: {}",
+        "stops fighting": "przestaje walczyć",
     },
 )

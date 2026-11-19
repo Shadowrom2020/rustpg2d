@@ -87,10 +87,27 @@ impl Game {
             return false;
         }
         let mut choices: Vec<Option<u32>> = self.healable_companions().into_iter().map(|i| Some(self.loaded.entities[i].uid)).collect();
+        // In a fight a potion is given to an ally within reach (the SRD: an action within 5 ft).
+        let fight_far = self.fight.is_some() && matches!(source, HealSource::Item(_)) && !choices.is_empty();
+        if self.fight.is_some() && matches!(source, HealSource::Item(_)) {
+            let me = self.who_tile(super::turns::Who::Player);
+            choices.retain(|c| c.is_some_and(|uid| {
+                let t = self.who_tile(super::turns::Who::Npc(uid));
+                (t.0 - me.0).abs() <= 1 && (t.1 - me.1).abs() <= 1
+            }));
+        }
         if use_on == UseTarget::Choose {
             choices.insert(0, None);
         }
         match choices.len() {
+            0 if fight_far => {
+                // (Nothing given: the turn's action stays.)
+                if let Some(c) = &mut self.fight {
+                    c.turn.action = false;
+                }
+                self.ui.toast(crate::lang::tr_ui("Too far away").into_owned());
+                true
+            }
             0 => {
                 let name = match &source {
                     HealSource::Item(id) => self.project.db.item(id).map_or(id.clone(), |d| d.name.clone()),
@@ -235,8 +252,15 @@ impl Game {
         if amount <= 0 {
             return;
         }
-        let e = &mut self.loaded.entities[i];
-        e.hp = (e.hp + amount).min(e.max_hp);
+        // In a fight a fighter is healed the fight's way: at 0 HP it gets up again (no longer
+        // unconscious, its death saves cleared), and keeps fighting.
+        let who = super::turns::Who::Npc(self.loaded.entities[i].uid);
+        if self.fight.as_ref().is_some_and(|c| c.fighter(who).is_some()) {
+            self.combat_heal(who, amount);
+        } else {
+            let e = &mut self.loaded.entities[i];
+            e.hp = (e.hp + amount).min(e.max_hp);
+        }
         self.ui.toast(format!("{name} +{amount} HP"));
         self.companion_healed(i);
     }

@@ -19,6 +19,10 @@ impl Game {
     /// Tab / Shift+Tab and Attack, clicks), Confirm on the cursor, End turn.
     pub(super) fn turn_input(&mut self) {
         self.refresh_reach();
+        // The choice window (Cast, Class, Attack: strike or throw) takes the input while open.
+        if self.fight_menu_input() {
+            return;
+        }
         let ts = self.ts();
         // The action bar: keys and clicks.
         for (k, act) in Act::QUICK.iter().enumerate() {
@@ -126,7 +130,8 @@ impl Game {
                 self.ui.toast(crate::lang::tr_ui("Action used").into_owned());
                 return;
             }
-            let reaches = self.attack_specs(me.who).iter().any(|s| self.can_attack(me.who, t, s).is_ok());
+            // (A click strikes: walking up rather than throwing the weapon; Attack › Throw throws.)
+            let reaches = self.attack_specs(me.who).iter().filter(|s| !s.thrown).any(|s| self.can_attack(me.who, t, s).is_ok());
             if reaches {
                 if let Err(why) = self.act_on(&Aim::Attack, t) {
                     self.ui.toast(crate::lang::tr_ui(why).into_owned());
@@ -177,7 +182,7 @@ impl Game {
     // ---------------------------------------------------------------------------- drawing
 
     /// The action bar's buttons (screen rectangles).
-    fn bar_layout(&self) -> Vec<Rect> {
+    pub(super) fn bar_layout(&self) -> Vec<Rect> {
         let _font = text::role(Role::Hud);
         let gap = 4.0;
         let widths: Vec<f32> = TurnAct::BAR.iter().enumerate().map(|(k, a)| measure_text(&Self::bar_text(k, *a), None, BAR_FONT as u16, 1.0).width + 16.0).collect();
@@ -359,6 +364,7 @@ impl Game {
                 draw_plain(&line, (screen_width() - nw) / 2.0, top - 20.0, 18.0, if ready.is_ok() { skin::normal() } else { skin::disabled() });
             }
         }
+        self.draw_fight_menu();
         // The target under the cursor: hit chance and cover.
         if let Some(t) = self.who_at(c.cursor).filter(|t| *t != me.who) {
             let foe = c.fighter(t).is_some_and(|f| f.side != me.side);
@@ -366,7 +372,9 @@ impl Game {
             let (hp, max) = self.who_hp(t);
             lines.push(format!("HP {hp}/{max}  AC {}", self.who_ac(t)));
             if foe && matches!(c.aim, Aim::Move | Aim::Attack | Aim::OffHand) {
-                let spec = if c.aim == Aim::OffHand { self.offhand_weapon(me.who).map(|w| self.hero_spec(&w, true)) } else { self.attack_specs(me.who).into_iter().find(|s| self.can_attack(me.who, t, s).is_ok()).or_else(|| self.attack_specs(me.who).into_iter().next()) };
+                let throw = c.aim == Aim::Attack && c.attack_mode == Some(true);
+                let specs: Vec<_> = self.attack_specs(me.who).into_iter().filter(|s| s.thrown == throw || (!throw && !s.thrown)).collect();
+                let spec = if c.aim == Aim::OffHand { self.offhand_weapon(me.who).map(|w| self.hero_spec(&w, true)) } else { specs.iter().find(|s| self.can_attack(me.who, t, s).is_ok()).or_else(|| specs.first()).cloned() };
                 if let Some(s) = spec {
                     // (Without an aimed action a click on a foe out of melee reach walks there first.)
                     match self.can_attack(me.who, t, &s) {

@@ -46,8 +46,8 @@ built into the engine; the editor shows them as hover texts.
   Sleep, Color Spray and the other spells of hit point pools are story only; Power Word Stun ignores
   the target's hit points; the rituals of the SRD are all story spells. A cantrip on a scroll is cast,
   not learned.
-- **Equipment:** a thrown weapon stays in the hand (the throw is an attack, nothing is picked up
-  again); a net and a lance are plain weapons (their special rules are text); helmets give no armor
+- **Equipment:** a stat block's thrown weapon counts as one (the SRD's monsters carry several: here
+  the attack is gone until the weapon is picked up again), and picking up is a step onto it; a net and a lance are plain weapons (their special rules are text); helmets give no armor
   class; mounts and vehicles are items (riding is later), and so are trade goods; weight is recorded
   but there is no carrying limit or encumbrance yet (0.32); paying takes the smallest coins first,
   and change comes in gold, silver and copper. Characters without a stat block add their armor's

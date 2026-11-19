@@ -190,7 +190,12 @@ impl Game {
                 self.next_turn();
                 return Ok(());
             }
+            // Attack with a weapon that can be thrown too: strike or throw? (The choice window.)
+            TurnAct::Attack if self.open_fight_menu(super::menu::MenuKind::Attack, self.attack_rows(who)) => return Ok(()),
             TurnAct::Attack | TurnAct::Help | TurnAct::Grapple | TurnAct::Shove | TurnAct::OffHand => {
+                if let Some(c) = &mut self.fight {
+                    c.attack_mode = None;
+                }
                 let aim = match act {
                     TurnAct::Attack => Aim::Attack,
                     TurnAct::Help => Aim::Help,
@@ -202,27 +207,18 @@ impl Game {
                 return Ok(());
             }
             TurnAct::Cast => {
-                // Each press: the next spell it can cast now, and the next slot level of it (upcasting).
-                let options = self.cast_options(who);
-                let c = self.fight.as_ref().unwrap();
-                let next = match &c.aim {
-                    Aim::Cast(s, l) => options.iter().position(|x| x.0 == *s && x.1 == *l).map_or(0, |k| (k + 1) % options.len()),
-                    _ => 0,
-                };
-                let (spell, slot) = options[next].clone();
-                self.aim_spell(&spell, slot);
+                // The spells in a window: each one it can cast now at each slot level, the others
+                // greyed with the reason.
+                if !self.open_fight_menu(super::menu::MenuKind::Cast, self.cast_rows(who)) {
+                    return Err("No spells");
+                }
                 return Ok(());
             }
             TurnAct::Class => {
-                // Each press: the next class action (those usable now first in line).
-                let acts = self.class_acts(who);
-                let c = self.fight.as_ref().unwrap();
-                let next = match &c.aim {
-                    Aim::Feature(s) => acts.iter().position(|x| x.id == *s).map_or(0, |k| (k + 1) % acts.len()),
-                    _ => acts.iter().position(|a| self.class_act_ready(who, a).is_ok()).unwrap_or(0),
-                };
-                let id = acts[next].id.clone();
-                self.set_aim(Aim::Feature(id));
+                // The class actions in a window (those it can't use now greyed).
+                if !self.open_fight_menu(super::menu::MenuKind::Class, self.class_rows(who)) {
+                    return Err("No class actions");
+                }
                 return Ok(());
             }
             TurnAct::Dash => {
@@ -295,7 +291,7 @@ impl Game {
     }
 
     /// The cursor's aim, and the cursor onto the nearest fitting target.
-    fn set_aim(&mut self, aim: Aim) {
+    pub(super) fn set_aim(&mut self, aim: Aim) {
         let who = self.fight.as_ref().unwrap().current().who;
         let side = self.fight.as_ref().unwrap().current().side;
         let here = self.who_tile(who);
@@ -349,8 +345,10 @@ impl Game {
                 if !foe {
                     return Err("Not a foe");
                 }
-                // The first attack that reaches (melee next to the target, else a shot).
-                let specs = self.attack_specs(me.who);
+                // The first attack that reaches (melee next to the target, else a shot); a weapon
+                // that can be thrown only when Attack › Throw chose it.
+                let throw = self.fight.as_ref().is_some_and(|c| c.attack_mode == Some(true));
+                let specs: Vec<_> = self.attack_specs(me.who).into_iter().filter(|s| if throw { s.thrown } else { !s.thrown }).collect();
                 let spec = specs.iter().filter(|s| self.can_attack(me.who, target, s).is_ok()).min_by_key(|s| if dist <= 1 { s.ranged as i32 } else { !s.ranged as i32 }).cloned();
                 let Some(spec) = spec else { return Err(specs.first().map_or("No attack", |s| self.can_attack(me.who, target, s).err().unwrap_or("Out of reach"))) };
                 if !self.pay_ammo(me.who, &spec) {
@@ -358,6 +356,7 @@ impl Game {
                 }
                 self.make_attack(me.who, target, &spec);
                 let c = self.fight.as_mut().unwrap();
+                c.attack_mode = None;
                 c.turn.attacked = true;
                 // (A loading weapon: one attack with it per action.)
                 c.turn.attacks_left = if spec.loading { 0 } else { c.turn.attacks_left.saturating_sub(1) };

@@ -71,7 +71,8 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   walks into reach or, with a ranged attack, to a spot within its range with a line to its target,
   and attacks. A weapon that can be thrown too (a guard's spear, a javelin, a dagger) is thrown
   only when no foe can be reached in melee this turn; otherwise it walks up and strikes. A throw
-  shows the weapon flying (its icon). Fighters walk through their allies' tiles. Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
+  shows the weapon flying (its icon) and leaves it on the ground: the AI fights on with its other
+  attacks (else an unarmed strike) and walks to its weapon to pick it up when it can. Fighters walk through their allies' tiles. Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
   fight 15 tiles away; it drinks a healing potion it carries when its health is critical.
 - **The end:** when no enemy is left fighting. Companions still down get up with 1 HP, the
   experience of the defeated is gained, the game autosaves. Saving is refused during a fight (the
@@ -181,9 +182,10 @@ character creator offers them on its third page; the hero then is a class at the
   saves), *Feral Instinct* (advantage on initiative), *Evasion*, the auras of the paladin
   (*Aura of Protection*: CHA to the saves of allies within 10 ft; *Aura of Courage*), resistances and
   immunities (*Purity of Body*, *Diamond Soul*), *Primal Champion*.
-- **Class actions** are used in fights with the action bar's **Class** entry (3; each press shows
-  the next one with its cost and uses left, E / Enter or a click uses it: on the hero, or on the
-  ally or foe under the cursor). They cost an action, a bonus action or nothing, and many spend a
+- **Class actions** are used in fights with the action bar's **Class** entry (3): a window lists
+  them with their cost and uses left (those that can't be used now greyed, with why); the one
+  picked is aimed, and E / Enter or a click uses it: on the hero, or on the ally or foe under the
+  cursor. They cost an action, a bonus action or nothing, and many spend a
   **resource** that a rest gives back (*Short rest* or a night's sleep: second wind, action surge,
   ki, channel divinity come back after a short rest; rages, Lay on Hands, Wholeness of Body,
   Indomitable after a long one; bardic inspiration after a long rest, a short one from *Font of
@@ -422,9 +424,11 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 - **Slots come back** after a long rest; a warlock's (pact magic: few slots, all of its highest
   level) after a short rest too. **Rituals**: a bard, cleric, druid or wizard casts a ritual spell
   it knows or prepared without a slot outside fights, and ten minutes pass.
-- **In a fight** the action bar's **Cast** entry (2) aims the next spell it can cast at each slot
-  level it has left (press again for the next: a higher slot **upcasts** it, more damage or more
-  targets); E / Enter or a click casts it at the creature or tile under the cursor. The line above
+- **In a fight** the action bar's **Cast** entry (2) opens a window with every spell it can cast
+  now, a row for each slot level it has left (a higher slot **upcasts** it, more damage or more
+  targets), with its range and area; spells it knows but can't cast now are greyed with why (no
+  slot left, untrained armor, no focus). The spell picked is aimed; E / Enter or a click casts it at
+  the creature or tile under the cursor. The quick bar's spells (1-8) are aimed directly. The line above
   the bar tells the spell, the slot, its area and its save or attack bonus. **Areas** are drawn on
   the grid: spheres and cylinders around the aimed tile (around the caster for a *Self* spell), cubes
   on it, cones and lines from the caster toward it; everyone inside is a target, allies too.
@@ -481,7 +485,7 @@ Items](05-database.md#items)).
   | Heavy | Small heroes (halflings, gnomes) attack with disadvantage. |
   | Two-handed | Nothing can be held in the left hand. |
   | Reach | Reaches 10 ft (two tiles). |
-  | Thrown | The action bar offers a throw: a ranged attack with the same ability, at its thrown range. The weapon stays in hand (a simplification). |
+  | Thrown | *Attack* asks: **Strike** or **Throw** (a ranged attack with the same ability, at its thrown range). A click on a foe always strikes. The thrown weapon lands next to the target: the hand is empty (bare hands, or draw another weapon) until the thrower steps onto it again, which picks it up (free in a fight); after the fight the other characters take theirs back, the hero's lies there. |
   | Ammunition | Each shot uses one of the ammo item (arrows, bolts, sling bullets). |
   | Loading | One attack with it per action, however many attacks the hero has. |
 

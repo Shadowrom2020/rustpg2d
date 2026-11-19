@@ -44,7 +44,8 @@ is full, assigns it and opens it for drawing.
 
 | Section | Settings |
 |---|---|
-| **Basics** | Name, description, **Stack size** (how many fit in one inventory slot), **Value** (the default shop price), **Consumed when used**, **Food** (healing that the *Cooking* skill improves) |
+| **Basics** | Name, description, **Stack size** (how many fit in one inventory slot), **Value** (the default shop price in the shop's currency), **Consumed when used**, **Food** (healing that the *Cooking* skill improves) |
+| **SRD** | **SRD item**: which item of the SRD's equipment it is (`longsword`, `chain-mail`, `thieves-tools`, `component-pouch`): proficiency by the weapon's name, the tools rules. **Cost** in gp / sp / cp (what shops whose currency is a coin ask; 0 = its *Value* in the currency), **Weight** in lb (carrying limits come later), **Money**: a coin's worth (copper, silver, electrum, gold, platinum piece; *not money*) ([Gameplay › Equipment and money](09-gameplay.md#equipment-and-money)) |
 | **Icon** | The inventory picture |
 | **Use on** | *Player* (the default), *Player or companion* (asks whom to heal when a companion is around) or *Companions* |
 | **Equipment** | *None, Weapon, Helmet, Body armor, Left hand, Clothing* or *Tool* (below) |
@@ -61,15 +62,22 @@ is full, assigns it and opens it for drawing.
 
 - **Weapon**: melee (damage, cooldown, reach, swing arc, knockback) or ranged (projectile sprite,
   speed, range, ammo item). The damage has a **damage type** (slashing, piercing, fire…:
-  resistances halve it; untyped = none applies). **Two-handed** weapons (spear, bow, crossbow)
-  can't be used with a shield or a light. A weapon can apply a **condition on hit** (poisoned,
+  resistances halve it; untyped = none applies). The SRD's **Category** (*Simple*, *Martial*: the
+  proficiency it needs) and **Properties** (finesse, versatile, light, heavy, two-handed, reach,
+  thrown, ammunition, loading; hover each for what it does), the **Two-handed dice** of a versatile
+  weapon and the **Thrown range** in feet of a thrown one. **Two-handed** weapons (bow, crossbow,
+  greataxe) can't be used with a shield or a light. A weapon can apply a **condition on hit** (poisoned,
   prone…, with a saving throw and damage every round: [Gameplay › Conditions](09-gameplay.md#conditions-and-damage)). **Critical hits**: the chance
   (5 % by default) that a hit of the player's with it is critical: double damage and a big yellow
   number (enemies don't hit critically).
-- **Helmet**, **Body armor**: defense (also added to the armor class), a speed change (heavy armor
-  slows) and **resistances**: damage types its wearer takes half damage from.
-- **Left hand**: shields (defense) or lights (a lantern, a torch: give the item a *Light*).
-- **Clothing**: outfits (defense, speed).
+- **Helmet**, **Body armor**: the SRD's **Category** (*Clothing*: no armor class, *Light*,
+  *Medium*, *Heavy*), its **Armor class** with the DEX it allows (*+ DEX*, *+ DEX (max 2)*, *no
+  DEX*), the **STR needed** (below it the wearer is 10 ft slower), **Stealth** disadvantage, a
+  speed change and **resistances**: damage types its wearer takes half damage from. Helmets are
+  clothing (since 0.31: they gave defense before).
+- **Left hand**: shields (category *Shield*: what they add to the armor class, +2 for the SRD's)
+  or lights (a lantern, a torch: category *Clothing*, and give the item a *Light*).
+- **Clothing**: outfits (speed).
 - **Backpack**: goes into the Back slot and shows on the character's back (its 3D model, held *On
   the back*); **Extra inventory slots** = how many more slots the player's inventory has while it is
   worn (the example's backpacks: 6, 12, 24).

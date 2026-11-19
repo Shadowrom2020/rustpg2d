@@ -365,3 +365,28 @@ fn spells_with_mana_become_srd_spells() {
     let w = WorldState::from_ron(&s).unwrap();
     assert_eq!((w.slots_spent, w.prepared.len(), w.concentration.is_none()), ([0; 9], 0, true));
 }
+
+#[test]
+fn items_of_0_27_0_become_the_srd_equipment() {
+    use rustpg2d_engine::defs::{ArmorCategory, WeaponCategory, WeaponProperty};
+    let text = std::fs::read_to_string(fixture("items/items-0.27.0.ron")).unwrap();
+    let mut items: Vec<ItemDef> = ron::from_str(&text).unwrap();
+    items.iter_mut().for_each(ItemDef::upgrade);
+    let get = |id: &str| items.iter().find(|i| i.id == id).unwrap();
+    // Weapons: martial from a d8 up; a bow shoots its ammunition with both hands.
+    assert_eq!(get("iron_sword").weapon.as_ref().unwrap().category, Some(WeaponCategory::Martial));
+    let bow = get("bow").weapon.as_ref().unwrap();
+    assert_eq!((bow.category, bow.properties.clone()), (Some(WeaponCategory::Simple), vec![WeaponProperty::TwoHanded, WeaponProperty::Ammunition]));
+    // Body armor keeps the armor class it gave (10 + defense) as light armor; a shield adds its defense; a helmet gives none.
+    let mail = get("chainmail").armor.as_ref().unwrap();
+    assert_eq!((mail.category, mail.base_ac), (Some(ArmorCategory::Light), 13));
+    let shield = get("wooden_shield").armor.as_ref().unwrap();
+    assert_eq!((shield.category, shield.base_ac), (Some(ArmorCategory::Shield), 1));
+    assert_eq!(get("iron_helmet").armor.as_ref().unwrap().category, Some(ArmorCategory::Clothing));
+    // Their money is no coin yet (no worth): shops keep counting the one item.
+    assert_eq!(get("coin").coin_cp, 0);
+    // Upgraded twice: the same.
+    let once = items.clone();
+    items.iter_mut().for_each(ItemDef::upgrade);
+    assert_eq!(items, once);
+}

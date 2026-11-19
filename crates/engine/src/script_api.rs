@@ -11,7 +11,7 @@ use crate::script_refs::IdKind;
 
 /// The script API's version: the engine's MAJOR.MINOR. Plugins name the version they need
 /// (`PluginDef::api`); a plugin needing a newer one isn't loaded.
-pub const API_VERSION: &str = "0.30";
+pub const API_VERSION: &str = "0.31";
 
 /// What a function argument expects (drives completion inside string arguments).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -214,6 +214,10 @@ pub const API: &[ApiFn] = api! {
     "learn_spell"(spell: Spell) "Teaches the hero a spell: only when their class's spell list has it (the SRD's rule; a wizard adds it to the spellbook) (queued)";
     [deprecated "slots_left(level)"] "mana"() "Deprecated: spells use slots since 0.30; always 0";
     [deprecated "restore_slots()"] "add_mana"(amount: Num) "Deprecated: spells use slots since 0.30; does nothing (queued)";
+    [since "0.31"] "money"() "The hero's money in copper pieces: every coin carried by its worth (gp 100, sp 10, cp 1, ep 50, pp 1000)";
+    [since "0.31"] "give_money"(cp: Num) "Gives the hero money in the fewest gold, silver and copper pieces, e.g. give_money(250) = 2 gp 5 sp";
+    [since "0.31"] "take_money"(cp: Num) "Takes money from the hero's coins, the change given back; false (nothing taken) when they have less";
+    [since "0.31"] "format_money"(cp: Num) "A sum in copper pieces as it reads in the player's language: format_money(150) = \"1 gp 5 sp\"";
     [since "0.30"] "spell_slots"(level: Num) "How many spell slots of a level (1-9) the hero has at their class level";
     [since "0.30"] "slots_left"(level: Num) "Spell slots of a level (1-9) the hero has left until a rest";
     [since "0.30"] "restore_slots"() "Gives the hero all their spell slots back (a potion, a shrine)";

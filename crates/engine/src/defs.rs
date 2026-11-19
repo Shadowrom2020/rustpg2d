@@ -507,6 +507,82 @@ pub struct Weapon {
     /// What its hits do: slashing, piercing, fire… (`None` = untyped: no resistance applies).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub damage_type: Option<crate::srd::DamageType>,
+    /// The SRD's category: simple or martial (proficiency); `None` = a weapon of 0.30 or older
+    /// before its upgrade ([`ItemDef::upgrade`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<WeaponCategory>,
+    /// The SRD's weapon properties.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub properties: Vec<WeaponProperty>,
+    /// Versatile: the dice with both hands ("1d10").
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub versatile: String,
+    /// Thrown: the normal and long range in feet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thrown_ft: Option<(u32, u32)>,
+}
+
+/// A weapon's SRD category.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WeaponCategory {
+    Simple,
+    Martial,
+}
+
+/// The SRD's weapon properties. New variants are appended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WeaponProperty {
+    /// Shoots its ammunition (`Ranged::ammo`).
+    Ammunition,
+    /// Attacks with STR or DEX, the better.
+    Finesse,
+    /// Small wielders have disadvantage.
+    Heavy,
+    /// Two light weapons make the off-hand attack.
+    Light,
+    /// One attack with it per action.
+    Loading,
+    /// 10 ft of reach (2 tiles).
+    Reach,
+    /// A ranged attack by throwing it (`Weapon::thrown_ft`), with the melee ability.
+    Thrown,
+    /// Needs both hands.
+    TwoHanded,
+    /// Its larger die with both hands (`Weapon::versatile`).
+    Versatile,
+}
+
+impl WeaponProperty {
+    pub const ALL: [WeaponProperty; 9] = [
+        WeaponProperty::Ammunition,
+        WeaponProperty::Finesse,
+        WeaponProperty::Heavy,
+        WeaponProperty::Light,
+        WeaponProperty::Loading,
+        WeaponProperty::Reach,
+        WeaponProperty::Thrown,
+        WeaponProperty::TwoHanded,
+        WeaponProperty::Versatile,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            WeaponProperty::Ammunition => "Ammunition",
+            WeaponProperty::Finesse => "Finesse",
+            WeaponProperty::Heavy => "Heavy",
+            WeaponProperty::Light => "Light",
+            WeaponProperty::Loading => "Loading",
+            WeaponProperty::Reach => "Reach",
+            WeaponProperty::Thrown => "Thrown",
+            WeaponProperty::TwoHanded => "Two-handed",
+            WeaponProperty::Versatile => "Versatile",
+        }
+    }
+
+    /// By the SRD's index (`two-handed`).
+    pub fn parse(s: &str) -> Option<WeaponProperty> {
+        WeaponProperty::ALL.into_iter().find(|p| p.label().eq_ignore_ascii_case(s) || p.label().to_ascii_lowercase().replace(' ', "-") == s.to_ascii_lowercase())
+    }
 }
 
 fn default_crit() -> f32 {
@@ -523,6 +599,10 @@ fn default_knockback() -> f32 {
 }
 
 impl Weapon {
+    pub fn has(&self, p: WeaponProperty) -> bool {
+        self.properties.contains(&p) || (p == WeaponProperty::TwoHanded && self.two_handed)
+    }
+
     /// The damage dice of a hit: `dice`, else from the old damage number.
     pub fn damage_dice(&self) -> String {
         if !self.dice.trim().is_empty() {
@@ -540,7 +620,23 @@ impl Weapon {
 
     /// A melee weapon with default reach / arc / knockback.
     pub fn melee(damage: i32, cooldown: f32) -> Self {
-        Weapon { damage, cooldown, ranged: None, reach: default_reach(), arc: default_arc(), knockback: default_knockback(), two_handed: false, effect: None, crit: default_crit(), damage_type: None, dice: String::new() }
+        Weapon {
+            damage,
+            cooldown,
+            ranged: None,
+            reach: default_reach(),
+            arc: default_arc(),
+            knockback: default_knockback(),
+            two_handed: false,
+            effect: None,
+            crit: default_crit(),
+            damage_type: None,
+            dice: String::new(),
+            category: None,
+            properties: Vec::new(),
+            versatile: String::new(),
+            thrown_ft: None,
+        }
     }
     pub fn ranged(damage: i32, cooldown: f32, ranged: Ranged) -> Self {
         Weapon { ranged: Some(ranged), ..Weapon::melee(damage, cooldown) }
@@ -607,6 +703,76 @@ pub struct Armor {
     /// Damage types its wearer resists (half damage): `fire`, `poison`…
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resistances: Vec<String>,
+    /// The SRD's armor category: clothing (no AC), light, medium, heavy or a shield; `None` = an
+    /// armor of 0.30 or older before its upgrade ([`ItemDef::upgrade`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<ArmorCategory>,
+    /// Body armor: its armor class (+ DEX up to `dex_max`); a shield: what it adds.
+    #[serde(default)]
+    pub base_ac: i32,
+    /// The DEX modifier it allows at most (`None` = all: light armor; medium 2, heavy 0).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dex_max: Option<i32>,
+    /// The STR it needs, else the wearer is 10 ft slower (heavy armor).
+    #[serde(default)]
+    pub str_min: i32,
+    /// Disadvantage on Stealth checks while worn.
+    #[serde(default)]
+    pub stealth_disadvantage: bool,
+}
+
+/// An armor's SRD category.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ArmorCategory {
+    /// No armor class: clothes, helmets, backpacks, lights.
+    Clothing,
+    Light,
+    Medium,
+    Heavy,
+    Shield,
+}
+
+impl ArmorCategory {
+    pub const ALL: [ArmorCategory; 5] = [ArmorCategory::Clothing, ArmorCategory::Light, ArmorCategory::Medium, ArmorCategory::Heavy, ArmorCategory::Shield];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ArmorCategory::Clothing => "Clothing",
+            ArmorCategory::Light => "Light armor",
+            ArmorCategory::Medium => "Medium armor",
+            ArmorCategory::Heavy => "Heavy armor",
+            ArmorCategory::Shield => "Shield",
+        }
+    }
+
+    /// The proficiency it needs (`light-armor`, `shields`; clothing none).
+    pub fn proficiency(self) -> Option<&'static str> {
+        match self {
+            ArmorCategory::Clothing => None,
+            ArmorCategory::Light => Some("light-armor"),
+            ArmorCategory::Medium => Some("medium-armor"),
+            ArmorCategory::Heavy => Some("heavy-armor"),
+            ArmorCategory::Shield => Some("shields"),
+        }
+    }
+}
+
+impl Armor {
+    /// Armor of a slot with nothing else (clothing).
+    pub fn clothing(slot: EquipSlot) -> Armor {
+        Armor { slot, defense: 0, speed: 0.0, resistances: Vec::new(), category: Some(ArmorCategory::Clothing), base_ac: 0, dex_max: None, str_min: 0, stealth_disadvantage: false }
+    }
+
+    /// What it adds to 10 for a character without abilities (an NPC without a stat block): body
+    /// armor its base above 10, a shield its bonus, clothing nothing (an old one: its defense).
+    pub fn ac_bonus(&self) -> i32 {
+        match self.category {
+            Some(ArmorCategory::Light | ArmorCategory::Medium | ArmorCategory::Heavy) => self.base_ac - 10,
+            Some(ArmorCategory::Shield) => self.base_ac,
+            Some(ArmorCategory::Clothing) => 0,
+            None => self.defense,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -702,6 +868,19 @@ pub struct ItemDef {
     /// on the free tile in front; picking the prop up gives the item back. "" = not furniture.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub furniture: String,
+    /// The SRD equipment it is (`longsword`, `thieves-tools`, `chain-mail`): proficiency by name,
+    /// the tools rules; "" = none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub srd: String,
+    /// Its cost in copper pieces (the SRD's; 0 = its `value` in the shop's currency).
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub cost_cp: u32,
+    /// Its weight in pounds (encumbrance comes with 0.32).
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub weight: f32,
+    /// Money: what one is worth in copper pieces (cp 1, sp 10, ep 50, gp 100, pp 1000); 0 = not money.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub coin_cp: u32,
 }
 
 /// Animation names of an item (`ItemDef::anims`); "" = by its kind ([`ItemAnims::estimate`]),
@@ -744,19 +923,20 @@ impl ItemAnims {
     }
 
     /// The animations an item has by its kind: a ranged weapon shoots (`attack_crossbow` when its
-    /// id or name says crossbow, else `attack_bow`, idling `idle_bow`), a two-handed one with a
-    /// long reach thrusts (`attack_thrust`, `idle_spear`), another two-handed one swings overhead
+    /// id or name says crossbow, else `attack_bow`, idling `idle_bow`), one with a long reach
+    /// thrusts (`attack_thrust`, `idle_spear`), another two-handed one swings overhead
     /// (`attack_2h`, `idle_2h`, parrying `block_2h`), other weapons slash (`attack_1h`, `idle_1h`,
     /// `block_weapon`); a shield (armor with defense in the left hand) blocks (`block_shield`).
     pub fn estimate(item: &ItemDef) -> ItemAnims {
         let named = |w: &str| item.id.to_lowercase().contains(w) || item.name.to_lowercase().contains(w);
         let (attack, idle, block) = match &item.weapon {
             Some(w) if w.ranged.is_some() => (if named("crossbow") { "attack_crossbow" } else { "attack_bow" }, "idle_bow", ""),
-            Some(w) if w.two_handed && w.reach > 1.4 => ("attack_thrust", "idle_spear", "block_2h"),
+            // (A long reach thrusts, also a one-handed spear: the SRD's spear is versatile.)
+            Some(w) if w.reach > 1.4 => ("attack_thrust", "idle_spear", "block_2h"),
             Some(w) if w.two_handed => ("attack_2h", "idle_2h", "block_2h"),
             Some(_) => ("attack_1h", "idle_1h", "block_weapon"),
             // A shield: armor with defense worn in the left hand (lanterns and torches have none).
-            None if item.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand && a.defense > 0) => ("", "", "block_shield"),
+            None if item.is_shield() || item.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Offhand && a.category.is_none() && a.defense > 0) => ("", "", "block_shield"),
             None => ("", "", ""),
         };
         ItemAnims { attack: attack.into(), idle: idle.into(), walk: String::new(), block: block.into() }
@@ -797,6 +977,10 @@ impl Default for ItemDef {
             bag_slots: 0,
             anims: ItemAnims::default(),
             furniture: String::new(),
+            srd: String::new(),
+            cost_cp: 0,
+            weight: 0.0,
+            coin_cp: 0,
         }
     }
 }
@@ -828,6 +1012,44 @@ impl ItemDef {
     /// A new item as the editor creates it.
     pub fn fresh(id: &str) -> Self {
         ItemDef { id: id.into(), name: "New item".into(), ..Default::default() }
+    }
+
+    /// An item of 0.30 or older as the SRD's equipment: a weapon gets its category (martial
+    /// from a d8 up) and properties (two-handed, heavy from a d10, ammunition); body armor
+    /// becomes light armor of 10 + its defense (the AC it gave), an off-hand piece with defense a
+    /// shield of its defense, everything else worn clothing without AC. Upgraded items stay.
+    pub fn upgrade(&mut self) {
+        if let Some(w) = &mut self.weapon {
+            if w.category.is_none() {
+                let sides = w.damage_dice().split_once('d').and_then(|(_, s)| s.split(['+', '-']).next()?.trim().parse::<u32>().ok()).unwrap_or(6);
+                w.category = Some(if sides >= 8 { WeaponCategory::Martial } else { WeaponCategory::Simple });
+                if w.two_handed && !w.properties.contains(&WeaponProperty::TwoHanded) {
+                    w.properties.push(WeaponProperty::TwoHanded);
+                    if sides >= 10 && w.ranged.is_none() {
+                        w.properties.push(WeaponProperty::Heavy);
+                    }
+                }
+                if w.ranged.as_ref().is_some_and(|r| !r.ammo.is_empty()) {
+                    w.properties.push(WeaponProperty::Ammunition);
+                }
+            }
+        }
+        if let Some(a) = &mut self.armor {
+            if a.category.is_none() {
+                let (cat, ac) = match a.slot {
+                    EquipSlot::Body if a.defense > 0 => (ArmorCategory::Light, 10 + a.defense),
+                    EquipSlot::Offhand if a.defense > 0 => (ArmorCategory::Shield, a.defense),
+                    _ => (ArmorCategory::Clothing, 0),
+                };
+                a.category = Some(cat);
+                a.base_ac = ac;
+            }
+        }
+    }
+
+    /// Whether it is a shield (armor of the shield category).
+    pub fn is_shield(&self) -> bool {
+        self.armor.as_ref().is_some_and(|a| a.category == Some(ArmorCategory::Shield))
     }
 }
 
@@ -1664,12 +1886,27 @@ impl ShopSpec {
             _ => db.item(item).map_or(0, |d| d.value),
         }
     }
-    /// What the merchant pays for one `item` (None = won't buy it).
+    /// What the merchant asks for one `item` in this shop: with a coin as the currency in copper
+    /// pieces (the line's price in that coin, else the item's SRD cost, else its value in that
+    /// coin), else in the currency item as [`ShopSpec::buy_price`].
+    pub fn price(&self, stock: &[ShopEntry], item: &str, db: &Database) -> u32 {
+        let worth = db.item(&self.currency).map_or(0, |d| d.coin_cp);
+        if worth == 0 {
+            return Self::buy_price(stock, item, db);
+        }
+        match stock.iter().find(|e| e.item == item) {
+            Some(e) if e.price > 0 => e.price * worth,
+            _ => db.item(item).map_or(0, |d| if d.cost_cp > 0 { d.cost_cp } else { d.value * worth }),
+        }
+    }
+
+    /// What the merchant pays for one `item` (None = won't buy it; money isn't bought).
     pub fn sell_price(&self, stock: &[ShopEntry], item: &str, db: &Database) -> Option<u32> {
-        if self.sell_rate == 0 || item == self.currency {
+        let coin = db.item(item).is_some_and(|d| d.coin_cp > 0) && db.item(&self.currency).is_some_and(|d| d.coin_cp > 0);
+        if self.sell_rate == 0 || item == self.currency || coin {
             return None;
         }
-        let base = Self::buy_price(stock, item, db);
+        let base = self.price(stock, item, db);
         (base > 0).then(|| (base * self.sell_rate / 100).max(1))
     }
 }
@@ -2471,7 +2708,7 @@ mod tests {
         let mut item: ItemDef = ron::from_str(r#"(id: "cap", name: "Cap", icon: (sheet: "items", frame: 0))"#).unwrap();
         assert_eq!(item.equip_slot(), None);
         assert_eq!(item.max_stack, crate::inventory::DEFAULT_STACK);
-        item.armor = Some(Armor { slot: EquipSlot::Head, defense: 1, speed: 0.0, resistances: Vec::new() });
+        item.armor = Some(Armor { defense: 1, ..Armor::clothing(EquipSlot::Head) });
         assert_eq!(item.equip_slot(), Some(EquipSlot::Head));
         item.weapon = Some(Weapon::melee(1, 0.3));
         assert_eq!(item.equip_slot(), Some(EquipSlot::Weapon));

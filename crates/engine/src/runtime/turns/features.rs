@@ -619,8 +619,8 @@ impl Game {
         let Some(t) = self.who_traits(who) else { return 0 };
         let mut extra = 0;
         let mul = if crit { 2 } else { 1 };
-        // Sneak Attack: a ranged or one-handed weapon, advantage or an ally next to the target.
-        if t.riders.contains(&FeatureEffect::SneakAttack) && (spec.ranged || !spec.heavy) && mode != Mode::Disadvantage {
+        // Sneak Attack: a finesse or ranged weapon, advantage or an ally next to the target.
+        if t.riders.contains(&FeatureEffect::SneakAttack) && (spec.ranged || spec.finesse) && mode != Mode::Disadvantage {
             let side = self.fight.as_ref().and_then(|c| c.fighter(who)).map(|f| f.side);
             let tt = self.who_tile(target);
             let ally_near = self.fight.as_ref().is_some_and(|c| {

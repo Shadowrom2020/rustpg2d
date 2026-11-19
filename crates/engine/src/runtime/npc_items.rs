@@ -15,7 +15,7 @@ pub(super) fn apply_gear(db: &Database, e: &mut RtEntity) {
     e.weapon = e.equipment.item(EquipSlot::Weapon).and_then(|id| db.item(id)?.weapon.clone()).or_else(|| d.weapon.clone());
     let armor: i32 = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Offhand]
         .into_iter()
-        .filter_map(|s| db.item(e.equipment.item(s)?)?.armor.as_ref().map(|a| a.defense))
+        .filter_map(|s| db.item(e.equipment.item(s)?)?.armor.as_ref().map(|a| a.ac_bonus()))
         .sum();
     e.defense = d.defense + armor;
 }

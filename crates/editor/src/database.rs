@@ -953,9 +953,7 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
         ui.add(egui::DragValue::new(&mut w.knockback).range(0.0..=5.0).speed(0.05)).on_hover_text("Multiplier");
         ui.end_row();
         if !character {
-            ui.label("Hands");
-            ui.checkbox(&mut w.two_handed, "Two-handed").on_hover_text("Nothing can be held in the left hand (shield, lantern) while this weapon is equipped");
-            ui.end_row();
+            weapon_srd_rows(ui, id, w);
             ui.label("Critical hits");
             let mut keen = w.crit >= 0.1;
             if ui.checkbox(&mut keen, "On a 19 or 20").on_hover_text("A keen weapon: a natural 19 is a critical hit too (else only a 20); a critical hit rolls the damage dice twice").changed() {
@@ -996,6 +994,158 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
     }
 }
 
+/// The SRD row of an item: what SRD item it is, its cost in coins, weight and (money) coin worth.
+fn srd_item_ui(ui: &mut egui::Ui, d: &mut ItemDef) {
+    ui.horizontal_wrapped(|ui| {
+        ui.label("SRD item");
+        ui.add(egui::TextEdit::singleline(&mut d.srd).desired_width(110.0).hint_text("none"))
+            .on_hover_text("The SRD's equipment this is (longsword, chain-mail, thieves-tools): weapon proficiency by name, and the tools rules (picking locks needs thieves-tools, casting spells with material components a component-pouch or a focus)");
+        ui.label("Cost");
+        let (mut gp, mut sp, mut cp) = (d.cost_cp / 100, d.cost_cp % 100 / 10, d.cost_cp % 10);
+        let mut changed = ui.add(egui::DragValue::new(&mut gp).range(0..=99_999).suffix(" gp")).on_hover_text("What shops whose currency is a coin ask for it (the SRD's prices); 0 = its value in the shop's currency").changed();
+        changed |= ui.add(egui::DragValue::new(&mut sp).range(0..=9).suffix(" sp")).changed();
+        changed |= ui.add(egui::DragValue::new(&mut cp).range(0..=9).suffix(" cp")).changed();
+        if changed {
+            d.cost_cp = gp * 100 + sp * 10 + cp;
+        }
+        ui.label("Weight");
+        ui.add(egui::DragValue::new(&mut d.weight).range(0.0..=99_999.0).speed(0.1).suffix(" lb")).on_hover_text("Its weight (carrying limits come with a later version)");
+        ui.label("Money");
+        const WORTH: [(u32, &str); 6] = [(0, "not money"), (1, "copper piece"), (10, "silver piece"), (50, "electrum piece"), (100, "gold piece"), (1000, "platinum piece")];
+        let label = WORTH.iter().find(|(w, _)| *w == d.coin_cp).map_or_else(|| format!("{} cp", d.coin_cp), |(_, l)| l.to_string());
+        egui::ComboBox::from_id_salt("item_coin").selected_text(label).show_ui(ui, |ui| {
+            for (w, l) in WORTH {
+                ui.selectable_value(&mut d.coin_cp, w, l);
+            }
+        })
+        .response
+        .on_hover_text("A coin: shops whose currency is a coin count every coin the player carries by its worth and give change");
+    });
+}
+
+/// The SRD's rows of an item's weapon: category, properties, versatile dice, thrown range.
+fn weapon_srd_rows(ui: &mut egui::Ui, id: &str, w: &mut Weapon) {
+    ui.label("Category");
+    ui.horizontal(|ui| {
+        let label = |c: Option<WeaponCategory>| match c {
+            Some(WeaponCategory::Simple) => "Simple",
+            Some(WeaponCategory::Martial) => "Martial",
+            None => "none",
+        };
+        egui::ComboBox::from_id_salt(format!("{id}/cat")).selected_text(label(w.category)).show_ui(ui, |ui| {
+            for c in [Some(WeaponCategory::Simple), Some(WeaponCategory::Martial)] {
+                ui.selectable_value(&mut w.category, c, label(c));
+            }
+        });
+        ui.weak("(proficiency: simple-weapons / martial-weapons, or the weapon's own name)");
+    });
+    ui.end_row();
+    ui.label("Properties");
+    ui.horizontal_wrapped(|ui| {
+        for p in WeaponProperty::ALL {
+            let mut on = w.has(p);
+            if ui.checkbox(&mut on, p.label()).on_hover_text(property_tip(p)).changed() {
+                if on {
+                    w.properties.push(p);
+                } else {
+                    w.properties.retain(|x| *x != p);
+                }
+                if p == WeaponProperty::TwoHanded {
+                    w.two_handed = on;
+                }
+            }
+        }
+    });
+    ui.end_row();
+    if w.has(WeaponProperty::Versatile) {
+        ui.label("Two-handed dice");
+        ui.add(egui::TextEdit::singleline(&mut w.versatile).desired_width(70.0).hint_text("1d10")).on_hover_text("Versatile: the damage dice with both hands on it (the off hand free)");
+        ui.end_row();
+    }
+    if w.has(WeaponProperty::Thrown) {
+        ui.label("Thrown range (ft)");
+        let (mut n, mut l) = w.thrown_ft.unwrap_or((20, 60));
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut n).range(5..=600).suffix(" ft")).on_hover_text("Normal range");
+            ui.add(egui::DragValue::new(&mut l).range(5..=1200).suffix(" ft")).on_hover_text("Long range (disadvantage beyond the normal one)");
+        });
+        w.thrown_ft = Some((n, l.max(n)));
+        ui.end_row();
+    }
+}
+
+fn property_tip(p: WeaponProperty) -> &'static str {
+    match p {
+        WeaponProperty::Ammunition => "Shoots its ammo item (below), one per attack",
+        WeaponProperty::Finesse => "Attacks with STR or DEX, the better (and Sneak Attack works with it)",
+        WeaponProperty::Heavy => "Small heroes (halflings, gnomes) attack with disadvantage",
+        WeaponProperty::Light => "Two light weapons make the off-hand attack (two-weapon fighting)",
+        WeaponProperty::Loading => "One attack with it per action, however many attacks the wielder has",
+        WeaponProperty::Reach => "Reaches 10 ft (two tiles)",
+        WeaponProperty::Thrown => "Can be thrown: a ranged attack with the same ability (STR, or DEX if finesse)",
+        WeaponProperty::TwoHanded => "Needs both hands: nothing can be held in the left hand (shield, lantern)",
+        WeaponProperty::Versatile => "With the off hand free it rolls its two-handed dice",
+    }
+}
+
+/// The SRD's rows of armor: category, armor class, DEX cap, STR minimum, Stealth disadvantage.
+fn armor_srd_rows(ui: &mut egui::Ui, a: &mut Armor) {
+    ui.label("Category");
+    let label = |c: Option<ArmorCategory>| c.map_or("none (old defense)", |c| c.label());
+    egui::ComboBox::from_id_salt("armor_cat").selected_text(label(a.category)).show_ui(ui, |ui| {
+        for c in ArmorCategory::ALL {
+            if ui.selectable_value(&mut a.category, Some(c), c.label()).changed() {
+                (a.base_ac, a.dex_max) = match c {
+                    ArmorCategory::Light => (11, None),
+                    ArmorCategory::Medium => (14, Some(2)),
+                    ArmorCategory::Heavy => (16, Some(0)),
+                    ArmorCategory::Shield => (2, None),
+                    ArmorCategory::Clothing => (0, None),
+                };
+            }
+        }
+    })
+    .response
+    .on_hover_text("Clothing gives no armor class (outfits, helmets, lights). Wearing armor without its proficiency (light-armor, medium-armor, heavy-armor, shields) gives disadvantage on STR and DEX rolls and attacks, and no spells can be cast.");
+    ui.end_row();
+    match a.category {
+        Some(ArmorCategory::Light | ArmorCategory::Medium | ArmorCategory::Heavy) => {
+            ui.label("Armor class");
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(&mut a.base_ac).range(0..=30)).on_hover_text("The armor class it gives, before DEX");
+                let dex = |m: Option<i32>| match m {
+                    None => "+ DEX".to_string(),
+                    Some(0) => "no DEX".to_string(),
+                    Some(m) => format!("+ DEX (max {m})"),
+                };
+                egui::ComboBox::from_id_salt("armor_dex").selected_text(dex(a.dex_max)).show_ui(ui, |ui| {
+                    for m in [None, Some(2), Some(0)] {
+                        ui.selectable_value(&mut a.dex_max, m, dex(m));
+                    }
+                });
+            });
+            ui.end_row();
+            ui.label("STR needed");
+            ui.add(egui::DragValue::new(&mut a.str_min).range(0..=30)).on_hover_text("Below this Strength the wearer is 10 ft slower (heavy armor; 0 = none)");
+            ui.end_row();
+            ui.label("Stealth");
+            ui.checkbox(&mut a.stealth_disadvantage, "Disadvantage").on_hover_text("Stealth checks (and sneaking) with disadvantage while worn");
+            ui.end_row();
+        }
+        Some(ArmorCategory::Shield) => {
+            ui.label("Armor class");
+            ui.add(egui::DragValue::new(&mut a.base_ac).range(0..=10).prefix("+ ")).on_hover_text("What the shield adds to the armor class");
+            ui.end_row();
+        }
+        Some(ArmorCategory::Clothing) => {}
+        None => {
+            ui.label("Defense");
+            ui.add(egui::DragValue::new(&mut a.defense).range(-99..=99)).on_hover_text("An item of 0.30 and older: its category comes from this when the project is opened");
+            ui.end_row();
+        }
+    }
+}
+
 fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     ui.heading("Item");
     rename_row(ui, RefKind::Item, &d.id, cx.rename);
@@ -1009,8 +1159,9 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         ui.add(egui::DragValue::new(&mut d.max_stack).range(1..=9999)).on_hover_text("How many fit into one inventory slot");
         ui.label("Value");
         ui.add(egui::DragValue::new(&mut d.value).range(0..=999_999))
-            .on_hover_text("Base trade price; merchants use it when their stock has no own price (0 = worthless, can't be sold)");
+            .on_hover_text("Base trade price in the shop's currency; merchants use it when their stock has no own price and the item has no cost in coins (0 = worthless, can't be sold)");
     });
+    srd_item_ui(ui, d);
     ui.horizontal(|ui| {
         ui.label("Use on");
         egui::ComboBox::from_id_salt("item_use_on").selected_text(d.use_on.label()).show_ui(ui, |ui| {
@@ -1041,8 +1192,8 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         ui.radio_value(&mut kind, 1, "Weapon");
         ui.radio_value(&mut kind, 2, "Helmet");
         ui.radio_value(&mut kind, 3, "Body armor");
-        ui.radio_value(&mut kind, 4, "Left hand").on_hover_text("A shield (defense) or a light (lantern, torch: set its light below). Not usable together with a two-handed weapon.");
-        ui.radio_value(&mut kind, 5, "Clothing").on_hover_text("An outfit (defense, speed); the model's art shows what a character wears.");
+        ui.radio_value(&mut kind, 4, "Left hand").on_hover_text("A shield (its armor class) or a light (lantern, torch: category Clothing, its light below). Not usable together with a two-handed weapon.");
+        ui.radio_value(&mut kind, 5, "Clothing").on_hover_text("An outfit (speed); the model's art shows what a character wears.");
         ui.radio_value(&mut kind, 6, "Tool").on_hover_text("Goes into the Tool slot (a fishing rod, later pickaxes, hoes...): held in the right hand while it is used. Activities ask for it, e.g. a fishing spot's 'Needs item'.");
         ui.radio_value(&mut kind, 7, "Backpack").on_hover_text("Goes into the Back slot and shows on the character's back (its 3D model, below); gives the player more inventory slots while worn.");
     });
@@ -1058,8 +1209,13 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
                     7 => EquipSlot::Back,
                     _ => EquipSlot::Offhand,
                 };
-                let defense = if matches!(slot, EquipSlot::Clothing | EquipSlot::Back) { 0 } else { 1 };
-                Some(d.armor.take().map(|a| Armor { slot, ..a }).unwrap_or(Armor { slot, defense, speed: 0.0, resistances: Vec::new() }))
+                // New body armor is light armor (leather: 11 + DEX), a new left-hand piece a shield (+2).
+                let (category, base_ac) = match slot {
+                    EquipSlot::Body => (ArmorCategory::Light, 11),
+                    EquipSlot::Offhand => (ArmorCategory::Shield, 2),
+                    _ => (ArmorCategory::Clothing, 0),
+                };
+                Some(d.armor.take().map(|a| Armor { slot, ..a }).unwrap_or(Armor { category: Some(category), base_ac, ..Armor::clothing(slot) }))
             }
             _ => None,
         };
@@ -1084,9 +1240,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     }
     if let Some(a) = &mut d.armor {
         egui::Grid::new("armor").num_columns(2).show(ui, |ui| {
-            ui.label("Defense");
-            ui.add(egui::DragValue::new(&mut a.defense).range(-99..=99)).on_hover_text("Subtracted from incoming damage, and added to the armor class");
-            ui.end_row();
+            armor_srd_rows(ui, a);
             ui.label("Speed change");
             let mut pct = a.speed * 100.0;
             if ui.add(egui::DragValue::new(&mut pct).range(-90.0..=100.0).suffix(" %")).changed() {
@@ -1097,7 +1251,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
             ui.horizontal_wrapped(|ui| damage_type_toggles(ui, &mut a.resistances));
             ui.end_row();
         });
-        ui.weak("Worn items count in play (defense, speed); a character's model shows what it wears.");
+        ui.weak("Worn items count in play (armor class, speed); a character's model shows what it wears.");
     }
     if !d.tool.is_empty() {
         ui.horizontal(|ui| {

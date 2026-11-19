@@ -69,6 +69,7 @@ impl Game {
 
     /// Once per frame: the light spell's timer, concentration outside fights.
     pub(super) fn update_skills(&mut self, dt: f32) {
+        self.refresh_armor_training();
         if let Some(l) = &mut self.skills.light {
             l.1 -= dt;
             if l.1 <= 0.0 {
@@ -546,7 +547,7 @@ impl Game {
         }
         let slot = if d.level == 0 { 0 } else { (self.skills.slot >= d.level).then_some(self.skills.slot).or_else(|| self.lowest_slot(Who::Player, d.level)).unwrap_or(d.level) };
         let label = if !ready {
-            crate::lang::tr_ui(if self.known_or_prepared(Who::Player, id) { "No spell slot left" } else { "Not prepared" }).into_owned()
+            crate::lang::tr_ui(self.cast_refusal(Who::Player, id, "Not prepared")).into_owned()
         } else if slot >= 1 {
             format!("{}  ({} {slot})", crate::lang::tr_ui("Cast"), crate::lang::tr_ui("slot"))
         } else {
@@ -659,7 +660,7 @@ impl Game {
         let facts = [
             ("Armor class", self.armor_class().to_string()),
             ("Initiative", abilities::signed(abilities::modifier(w.abilities.score(Ability::Dex)) as i64)),
-            ("Speed", format!("{} ft", (race.as_ref().map_or(30, |r| r.walk_feet()) as f32 * cond.speed).round() as u32)),
+            ("Speed", format!("{} ft", (self.hero_speed_ft() as f32 * cond.speed).round() as u32)),
             ("Hit points", if hp_max > 0 { format!("{} / {hp_max}", w.player_hp.unwrap_or(hp_max).max(0)) } else { "-".into() }),
             ("Hit dice", format!("{}/{} d{}", self.hit_dice_left(), level, self.hit_die())),
             // (Disadvantage: -5, the SRD says.)

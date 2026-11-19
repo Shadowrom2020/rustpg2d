@@ -579,12 +579,36 @@ pub(super) fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
     }
     if let Some(w) = &d.weapon {
         return Some(match &w.ranged {
-            Some(r) => format!("Damage {} · every {:.2}s · range {:.0}", w.damage, w.cooldown, r.range),
-            None => format!("Damage {} · every {:.2}s · reach {:.1}", w.damage, w.cooldown, w.reach),
-        });
+            Some(r) => format!("{} · {} ft", w.damage_dice(), (r.range * 5.0).round()),
+            None => {
+                let mut s = w.damage_dice();
+                if !w.versatile.is_empty() {
+                    s.push_str(&format!(" ({})", w.versatile));
+                }
+                if let Some((n, l)) = w.thrown_ft {
+                    s.push_str(&format!(" · {n}/{l} ft"));
+                }
+                s
+            }
+        } + &w.properties.iter().map(|p| format!(" · {}", crate::lang::tr_ui(if *p == crate::defs::WeaponProperty::Light { "Light (weapon)" } else { p.label() }))).collect::<String>()[..]);
     }
     d.armor.as_ref().map(|a| {
-        let mut s = format!("{} · Defense +{}", crate::lang::tr_ui(a.slot.label()), a.defense);
+        use crate::defs::ArmorCategory as C;
+        let mut s = match a.category {
+            Some(C::Light | C::Medium | C::Heavy) => {
+                let dex = match a.dex_max {
+                    Some(0) => String::new(),
+                    Some(m) => format!(" + DEX (max {m})"),
+                    None => " + DEX".to_string(),
+                };
+                format!("{} · AC {}{dex}", crate::lang::tr_ui(a.category.map_or("", |c| c.label())), a.base_ac)
+            }
+            Some(C::Shield) => format!("{} · AC +{}", crate::lang::tr_ui("Shield"), a.base_ac),
+            _ => crate::lang::tr_ui(a.slot.label()).to_string(),
+        };
+        if a.str_min > 0 {
+            s.push_str(&format!(" · STR {}", a.str_min));
+        }
         if a.speed != 0.0 {
             s.push_str(&format!(" · Speed {:+.0}%", a.speed * 100.0));
         }

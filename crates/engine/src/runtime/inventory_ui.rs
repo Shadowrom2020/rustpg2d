@@ -931,11 +931,15 @@ impl Game {
         let mut lines = vec![
             format!("Health      {} / {}", hp, self.player_max_hp()),
             format!("Attack      {}", st.attack),
-            format!("Defense     {}", st.defense),
+            format!("Armor class {}", self.armor_class()),
             format!("Speed       {:.0}", st.speed),
             format!("Attack time {:.2}s", st.cooldown),
             reach,
         ];
+        // The purse: every coin by its worth.
+        if !self.world.coins.is_empty() {
+            lines.push(format!("Money       {}", Self::format_cp(self.money_cp())));
+        }
         if self.progression_on() {
             let (have, need) = self.xp_progress();
             lines.insert(0, format!("Level       {}  (XP {have} / {need})", self.world.player_level()));

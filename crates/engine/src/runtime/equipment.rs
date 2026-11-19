@@ -10,7 +10,6 @@ use crate::inventory::ItemStack;
 /// Player stats shown on the character sheet.
 pub(super) struct Stats {
     pub attack: i32,
-    pub defense: i32,
     pub speed: f32,
     pub cooldown: f32,
     /// Melee reach or ranged range, in tiles.
@@ -44,16 +43,109 @@ impl Game {
             .filter_map(|id| self.project.db.item(id)?.armor.as_ref())
     }
 
-    /// The hero's armor class (SRD): 10 + the DEX modifier + the defense of the armor worn
-    /// (until the SRD's armor arrives with 0.31).
+    /// The armor the hero wears in a slot (its definition's armor part).
+    fn worn_armor(&self, slot: EquipSlot) -> Option<&crate::defs::Armor> {
+        let id = self.world.equipment.item(slot)?;
+        self.project.db.item(id)?.armor.as_ref()
+    }
+
+    /// The hero's armor class (SRD): body armor's base + DEX up to its cap (10 + DEX without),
+    /// a shield's bonus, the class's unarmored formulas and fighting style, the spells' buffs.
     pub(super) fn armor_class(&self) -> i32 {
-        let worn = 10 + self.world.abilities.modifier(crate::srd::Ability::Dex) + self.armor_pieces().map(|a| a.defense).sum::<i32>();
-        // The class: an unarmored formula without body armor, the Defense style's +1 in it.
-        let piece = |s: EquipSlot| self.world.equipment.item(s).and_then(|id| self.project.db.item(id)?.armor.as_ref()).map(|a| a.defense);
-        let body = piece(EquipSlot::Body).is_some();
-        let shield = piece(EquipSlot::Offhand).unwrap_or(0);
+        let dex = self.world.abilities.modifier(crate::srd::Ability::Dex);
+        let (ac, body, shield) = crate::srd::equipment::armor_class(self.worn_armor(EquipSlot::Body), self.worn_armor(EquipSlot::Offhand), dex);
         // (And spells: Mage Armor, Shield of Faith, Haste.)
-        self.buff_ac(super::turns::Who::Player, self.class_armor_class(worn, body, shield))
+        self.buff_ac(super::turns::Who::Player, self.class_armor_class(ac + shield, body, shield))
+    }
+
+    /// Whether the hero is proficient with all the armor and the shield worn.
+    pub(super) fn armor_trained(&self) -> bool {
+        let w = &self.world;
+        [EquipSlot::Body, EquipSlot::Offhand]
+            .into_iter()
+            .filter_map(|s| self.worn_armor(s).and_then(|a| a.category))
+            .all(|c| crate::srd::equipment::armor_proficient(|p| w.is_proficient(p), c))
+    }
+
+    /// Body armor too heavy for the hero's STR: 10 ft slower (not a dwarf: heavy armor doesn't
+    /// slow them).
+    pub(super) fn armor_too_heavy(&self) -> bool {
+        let dwarf = self.world.player_race.contains("dwarf");
+        !dwarf && self.worn_armor(EquipSlot::Body).is_some_and(|a| a.str_min > 0 && self.world.abilities.score(crate::srd::Ability::Str) < a.str_min)
+    }
+
+    /// The hero's walking speed in feet: the race's, the class's (Fast Movement, Unarmored
+    /// Movement), 10 less in armor too heavy.
+    pub(super) fn hero_speed_ft(&self) -> u32 {
+        let base = self.player_race().map_or(30, |r| r.walk_feet()) + self.class_speed_ft(self.unarmored());
+        if self.armor_too_heavy() {
+            base.saturating_sub(10)
+        } else {
+            base
+        }
+    }
+
+    /// Whether a combatant wears armor or a shield it isn't proficient with (disadvantage on STR
+    /// and DEX rolls and attacks, no spells): the hero's, a classed party member's.
+    pub(super) fn who_armor_untrained(&self, who: super::turns::Who) -> bool {
+        match who {
+            super::turns::Who::Player => !self.armor_trained(),
+            super::turns::Who::Npc(uid) => {
+                let Some(e) = self.loaded.entities.iter().find(|e| e.uid == uid) else { return false };
+                let Some(b) = self.member_block(uid) else { return false };
+                [EquipSlot::Body, EquipSlot::Offhand]
+                    .into_iter()
+                    .filter_map(|s| e.equipment.item(s).and_then(|id| self.project.db.item(id)?.armor.as_ref()?.category))
+                    .any(|c| !crate::srd::equipment::armor_proficient(|p| b.proficiencies.iter().any(|x| crate::srd::abilities::proficiency_id(x) == p), c))
+            }
+        }
+    }
+
+    /// `weapon=` for status: the hero's weapon by its SRD name, category and properties, and
+    /// whether they are proficient (`longsword:martial:versatile:prof`; `-` bare-handed).
+    pub(super) fn weapon_status(&self) -> String {
+        let Some(id) = self.world.equipment.item(EquipSlot::Weapon) else { return "-".into() };
+        let Some(d) = self.project.db.item(id) else { return "-".into() };
+        let Some(w) = &d.weapon else { return "-".into() };
+        let cat = match w.category {
+            Some(crate::defs::WeaponCategory::Simple) => "simple",
+            Some(crate::defs::WeaponCategory::Martial) => "martial",
+            None => "-",
+        };
+        let props: Vec<String> = w.properties.iter().map(|p| p.label().to_ascii_lowercase().replace(' ', "-")).collect();
+        let prof = crate::srd::equipment::weapon_proficient(|p| self.world.is_proficient(p), w, &d.srd);
+        format!("{}:{cat}:{}:{}", if d.srd.is_empty() { id } else { &d.srd }, props.join("+"), if prof { "prof" } else { "noprof" })
+    }
+
+    /// `armor=` for status: body armor and shield categories, `untrained`, `heavy` (too heavy).
+    pub(super) fn armor_status(&self) -> String {
+        let cat = |s: EquipSlot| self.worn_armor(s).and_then(|a| a.category).map_or("-".to_string(), |c| c.label().to_ascii_lowercase().replace(' ', "-"));
+        let mut s = format!("{}+{}", cat(EquipSlot::Body), cat(EquipSlot::Offhand));
+        if !self.armor_trained() {
+            s += ":untrained";
+        }
+        if self.armor_too_heavy() {
+            s += ":heavy";
+        }
+        s
+    }
+
+    /// Whether the hero's weapons in both hands are light (two-weapon fighting).
+    pub(super) fn both_light(&self, who: super::turns::Who) -> bool {
+        if who != super::turns::Who::Player {
+            return true;
+        }
+        let light = |s: EquipSlot| self.world.equipment.item(s).and_then(|id| self.project.db.item(id)?.weapon.as_ref()).is_some_and(|w| w.has(crate::defs::WeaponProperty::Light) || w.category.is_none());
+        light(EquipSlot::Weapon) && light(EquipSlot::Offhand)
+    }
+
+    /// Armor and shield worn: the flags checks read (untrained armor: disadvantage on STR and
+    /// DEX; Stealth disadvantage). Once a frame.
+    pub(super) fn refresh_armor_training(&mut self) {
+        let untrained = !self.armor_trained();
+        let stealth = [EquipSlot::Body, EquipSlot::Offhand].into_iter().any(|s| self.worn_armor(s).is_some_and(|a| a.stealth_disadvantage));
+        self.world.training.armor_untrained = untrained;
+        self.world.training.stealth_disadvantage = stealth;
     }
 
     /// Whether the hero wears no body armor and holds no shield (unarmored features).
@@ -91,7 +183,6 @@ impl Game {
         let w = self.attack_weapon();
         Stats {
             attack: w.damage,
-            defense: self.player_defense(),
             speed: self.player.speed * self.speed_factor(),
             cooldown: w.cooldown,
             reach: w.ranged.as_ref().map_or(w.reach, |r| r.range),

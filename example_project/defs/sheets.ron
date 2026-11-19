@@ -375,4 +375,10 @@
         frame_w: 100,
         frame_h: 23,
     ),
+    (
+        id: "srd_gear",
+        image: "sprites/srd_gear.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

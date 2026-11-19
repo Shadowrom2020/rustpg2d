@@ -25,12 +25,20 @@
         ],
         equipment: [
             (
-                item: "spear",
+                item: "explorers-pack",
+                count: 1,
+            ),
+            (
+                item: "javelin",
                 count: 4,
             ),
             (
-                item: "axe",
-                count: 3,
+                item: "greataxe",
+                count: 1,
+            ),
+            (
+                item: "handaxe",
+                count: 2,
             ),
         ],
         multiclass: [
@@ -589,7 +597,19 @@
                 count: 1,
             ),
             (
-                item: "sword",
+                item: "dagger",
+                count: 1,
+            ),
+            (
+                item: "rapier",
+                count: 1,
+            ),
+            (
+                item: "diplomats-pack",
+                count: 1,
+            ),
+            (
+                item: "lute",
                 count: 1,
             ),
         ],
@@ -1347,7 +1367,11 @@
                 count: 1,
             ),
             (
-                item: "chainmail",
+                item: "mace",
+                count: 1,
+            ),
+            (
+                item: "scale-mail",
                 count: 1,
             ),
             (
@@ -1357,6 +1381,14 @@
             (
                 item: "bolts",
                 count: 20,
+            ),
+            (
+                item: "priests-pack",
+                count: 1,
+            ),
+            (
+                item: "amulet",
+                count: 1,
             ),
         ],
         multiclass: [
@@ -2107,11 +2139,19 @@
                 count: 1,
             ),
             (
+                item: "explorers-pack",
+                count: 1,
+            ),
+            (
                 item: "wooden_shield",
                 count: 1,
             ),
             (
-                item: "sword",
+                item: "scimitar",
+                count: 1,
+            ),
+            (
+                item: "sprig-of-mistletoe",
                 count: 1,
             ),
         ],
@@ -2804,6 +2844,10 @@
                 item: "bolts",
                 count: 20,
             ),
+            (
+                item: "dungeoneers-pack",
+                count: 1,
+            ),
         ],
         subclass_level: 3,
         subclass_title: "Martial Archetype",
@@ -3404,7 +3448,15 @@
         ],
         equipment: [
             (
+                item: "dart",
+                count: 10,
+            ),
+            (
                 item: "sword",
+                count: 1,
+            ),
+            (
+                item: "dungeoneers-pack",
                 count: 1,
             ),
         ],
@@ -4079,8 +4131,16 @@
                 count: 1,
             ),
             (
-                item: "spear",
+                item: "javelin",
                 count: 5,
+            ),
+            (
+                item: "priests-pack",
+                count: 1,
+            ),
+            (
+                item: "amulet",
+                count: 1,
             ),
         ],
         multiclass: [
@@ -4726,7 +4786,7 @@
         ],
         equipment: [
             (
-                item: "bow",
+                item: "longbow",
                 count: 1,
             ),
             (
@@ -4734,12 +4794,20 @@
                 count: 20,
             ),
             (
-                item: "chainmail",
+                item: "scale-mail",
                 count: 1,
             ),
             (
                 item: "sword",
                 count: 2,
+            ),
+            (
+                item: "dungeoneers-pack",
+                count: 1,
+            ),
+            (
+                item: "component-pouch",
+                count: 1,
             ),
         ],
         multiclass: [
@@ -5460,7 +5528,15 @@
                 count: 1,
             ),
             (
-                item: "sword",
+                item: "dagger",
+                count: 2,
+            ),
+            (
+                item: "thieves-tools",
+                count: 1,
+            ),
+            (
+                item: "rapier",
                 count: 1,
             ),
             (
@@ -5470,6 +5546,10 @@
             (
                 item: "arrows",
                 count: 20,
+            ),
+            (
+                item: "burglars-pack",
+                count: 1,
             ),
         ],
         multiclass: [
@@ -5929,12 +6009,24 @@
         ],
         equipment: [
             (
+                item: "dagger",
+                count: 2,
+            ),
+            (
                 item: "crossbow",
                 count: 1,
             ),
             (
                 item: "bolts",
                 count: 20,
+            ),
+            (
+                item: "component-pouch",
+                count: 1,
+            ),
+            (
+                item: "dungeoneers-pack",
+                count: 1,
             ),
         ],
         multiclass: [
@@ -6701,6 +6793,10 @@
         ],
         equipment: [
             (
+                item: "dagger",
+                count: 2,
+            ),
+            (
                 item: "leather_armor",
                 count: 1,
             ),
@@ -6711,6 +6807,14 @@
             (
                 item: "bolts",
                 count: 20,
+            ),
+            (
+                item: "component-pouch",
+                count: 1,
+            ),
+            (
+                item: "scholars-pack",
+                count: 1,
             ),
         ],
         multiclass: [
@@ -7581,6 +7685,24 @@
             "investigation",
             "medicine",
             "religion",
+        ],
+        equipment: [
+            (
+                item: "spellbook",
+                count: 1,
+            ),
+            (
+                item: "quarterstaff",
+                count: 1,
+            ),
+            (
+                item: "component-pouch",
+                count: 1,
+            ),
+            (
+                item: "scholars-pack",
+                count: 1,
+            ),
         ],
         multiclass: [
             ("int", 13),

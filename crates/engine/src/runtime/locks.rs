@@ -137,6 +137,12 @@ impl Game {
         // used instead.
         let has_key = !lock.key.is_empty() && self.world.item_count(&lock.key) > 0;
         if using.is_none() && !has_key && lock.pick_dc > 0 {
+            // Picking needs thieves' tools in the bag (the SRD's; a project without them needs none).
+            let tools = |d: &crate::defs::ItemDef| d.srd == "thieves-tools";
+            if self.project.db.items.iter().any(tools) && !self.world.inventory.slots.iter().flatten().any(|s| self.project.db.item(&s.item).is_some_and(tools)) {
+                self.ui.toast(crate::lang::tr_ui("You need thieves' tools to pick this lock.").into_owned());
+                return false;
+            }
             let uid = self.loaded.entities[i].uid;
             let at = (self.loaded.map.name.clone(), uid);
             if self.lock_jams.get(&at).is_some_and(|until| self.world.total_hours() < *until) {

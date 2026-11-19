@@ -247,6 +247,47 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   themselves between fights (they cast in fights when you play their turns; the AI's casting is
   0.32), and only heroes and party members with a casting class cast spells.
 
+### Gear and Treasure (SRD 5.1 equipment)
+- **SRD equipment**: weapons, armor, tools, gear and money follow the SRD 5.1. The starter library
+  has all 237 items of its equipment list (generic icons by kind on a new `srd_gear` sheet) and the
+  five coins; library items that stand for an SRD item (the iron sword is a longsword, the chainmail
+  chain mail, the hunting bow a shortbow…) take its numbers and keep their look.
+  - **Weapons** are simple or martial with the SRD's properties: finesse (the better of STR and DEX,
+    and Sneak Attack works with it), versatile (the two-handed dice with the left hand free), light
+    (two-weapon fighting needs two), heavy (Small heroes attack with disadvantage), two-handed,
+    reach (10 ft), thrown (a ranged attack with the weapon), ammunition, loading (one attack per
+    action). Attacking without proficiency (by category or by the weapon's name) drops the
+    proficiency bonus.
+  - **Armor** is light, medium or heavy with the SRD's armor table (AC + all, up to 2 or none of
+    DEX), Strength minimums (10 ft slower below them; dwarves aren't) and Stealth disadvantage;
+    shields add +2. Armor without its proficiency gives disadvantage on STR and DEX rolls and
+    attacks and stops spellcasting.
+  - **Tools**: picking a lock needs **thieves' tools**; spells with a material component need a
+    **component pouch** or a focus (any arcane focus, holy symbol, druidic focus or instrument).
+    **Packs** unpack their contents when used. The classes start with the SRD's starting equipment
+    (a focus for every caster).
+  - **Money**: copper, silver, electrum, gold and platinum pieces (items with a *Coin worth*). A shop
+    whose currency is a coin counts every coin carried, shows prices as `1 gp 5 sp`, pays from the
+    smallest coins and gives change in gold, silver and copper; the character window shows the
+    purse. Items have a **Cost** in coins and a **Weight** (encumbrance is 0.32).
+  - The **item form** edits the SRD item, cost, weight and coin worth, a weapon's category,
+    properties, two-handed dice and thrown range, armor's category, armor class, DEX cap, STR
+    minimum and Stealth; the shop form shows prices in coins. Item lines in the game tell a
+    weapon's dice and properties and an armor's class.
+  - Events: the condition *Has money*, the actions *Give money* and *Take money*. Scripts (API 0.31): `money`, `give_money`, `take_money`,
+    `format_money`. `status` prints `money=`, `weapon=` and `armor=`; autoplay `turn specs` prints
+    the hero's attacks as a fight rolls them; the developer console's `money CP` / `pay CP`.
+  - The example: the **coin is the gold piece** (same id: quests and saves keep their gold), the
+    other four coins are new; everyday goods cost silver and copper, weapons and armor the SRD's
+    prices; Tilda sells thieves' tools, daggers and a component pouch; Greta's room costs 5 sp and
+    the stone house 100 gp from any coins (*Has money* and *Take money*).
+- **Breaking:** helmets give no armor class (they are clothing), and armor's flat *Defense* is gone:
+  weapons and armor of 0.30 and older are upgraded when read (martial from a d8 up, two-handed and
+  heavy, ammunition; body armor becomes light armor of the AC it gave, an off-hand piece a shield of
+  its defense) and the editor converts the project once with a backup (rules version 4). Projects
+  whose currency item has no coin worth keep their old single-item money. Picking a lock needs
+  thieves' tools and spells with material components need a focus, once a project has such items.
+
 ### Fixes
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.

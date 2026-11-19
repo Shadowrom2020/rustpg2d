@@ -312,6 +312,10 @@ pub struct WorldState {
     /// What the class adds to checks (computed from the class; not saved).
     #[serde(skip)]
     pub training: crate::srd::check::Training,
+    /// The project's coins: (item id, worth in cp), the most valuable first (set by the game from
+    /// the definitions; not saved). Money is what these add up to.
+    #[serde(skip)]
+    pub coins: Vec<(String, u32)>,
     /// The hero's conditions (poisoned, prone, exhaustion…) and ongoing damage or healing; until
     /// 0.27 status effects, which read as their nearest condition.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -617,6 +621,47 @@ impl WorldState {
         }
     }
 
+    /// The hero's money in copper pieces: every coin carried.
+    pub fn money_cp(&self) -> u32 {
+        self.coins.iter().map(|(id, w)| self.item_count(id) * w).sum()
+    }
+
+    /// Gives `cp` in the fewest gold, silver and copper pieces; returns what didn't fit (cp).
+    pub fn give_cp(&mut self, cp: u32) -> u32 {
+        let worths: Vec<u32> = self.coins.iter().map(|k| k.1).collect();
+        let mut left = 0;
+        for (w, n) in crate::srd::equipment::change(cp, &worths) {
+            let Some(id) = self.coins.iter().find(|k| k.1 == w).map(|k| k.0.clone()) else { continue };
+            left += self.give_item(&id, n) * w;
+        }
+        // (A remainder no coin can pay: nothing of that small a worth exists.)
+        left + cp % worths.iter().copied().filter(|w| *w > 0).min().unwrap_or(1)
+    }
+
+    /// Pays `cp` from the coins carried, the smallest first, and takes the change back in the
+    /// fewest coins; false (nothing taken) when short or when the change wouldn't fit.
+    pub fn pay_cp(&mut self, cp: u32) -> bool {
+        if self.money_cp() < cp {
+            return false;
+        }
+        let before = (self.inventory.clone(), self.equipment.clone());
+        let mut kinds = self.coins.clone();
+        kinds.sort_by_key(|k| k.1);
+        let mut paid = 0;
+        for (id, w) in kinds {
+            if paid >= cp || w == 0 {
+                continue;
+            }
+            let n = self.item_count(&id).min((cp - paid).div_ceil(w));
+            paid += self.take_item(&id, n) * w;
+        }
+        if self.give_cp(paid - cp) > 0 {
+            (self.inventory, self.equipment) = before;
+            return false;
+        }
+        true
+    }
+
     /// The hero's scores, proficiencies and level for a roll.
     pub fn roller(&self) -> crate::srd::check::Roller<'_> {
         crate::srd::check::Roller { abilities: &self.abilities, proficiencies: &self.proficiencies, level: self.player_level(), training: Some(&self.training) }
@@ -639,7 +684,10 @@ impl WorldState {
         // save that fails on its own (blinded and looking, stunned and dodging).
         let rules = crate::srd::conditions::rules(&self.effects);
         let dex = spec.ability == crate::srd::Ability::Dex;
-        let disadvantage = if save { rules.save_disadvantage || (dex && rules.dex_save_disadvantage) } else { rules.check_disadvantage };
+        let mut disadvantage = if save { rules.save_disadvantage || (dex && rules.dex_save_disadvantage) } else { rules.check_disadvantage };
+        // Armor: untrained gives disadvantage on STR and DEX; some armor on Stealth.
+        let str_dex = dex || spec.ability == crate::srd::Ability::Str;
+        disadvantage |= (self.training.armor_untrained && str_dex) || (!save && self.training.stealth_disadvantage && spec.proficiency == "stealth");
         let mode = if disadvantage { mode.combine(crate::srd::Mode::Disadvantage) } else { mode };
         let fails = if save { rules.str_dex_saves_fail && (dex || spec.ability == crate::srd::Ability::Str) } else { rules.sight_checks_fail && crate::srd::conditions::needs_sight(&spec.proficiency) };
         let mut rec = spec.roll(&self.roller(), dc, mode);
@@ -993,6 +1041,26 @@ mod tests {
         let mut long = w.clone();
         long.dialog_log.extend(w.dialog_log.iter().take(50).cloned());
         assert_eq!(WorldState::from_ron(&long.to_ron().unwrap()).unwrap().dialog_log.len(), DIALOG_LOG_MAX);
+    }
+
+    #[test]
+    fn money_pays_from_the_smallest_coins_and_gives_change() {
+        let mut w = WorldState { coins: vec![("pp".into(), 1000), ("coin".into(), 100), ("ep".into(), 50), ("sp".into(), 10), ("cp".into(), 1)], ..Default::default() };
+        w.give_item("coin", 1);
+        w.give_item("sp", 12);
+        w.give_item("cp", 5);
+        assert_eq!(w.money_cp(), 225);
+        assert!(!w.pay_cp(300), "short: nothing taken");
+        assert_eq!(w.money_cp(), 225);
+        // 5 cp + 12 sp + the gold piece pay 2 gp; 2 sp 5 cp come back.
+        assert!(w.pay_cp(200));
+        assert_eq!((w.item_count("coin"), w.item_count("sp"), w.item_count("cp")), (0, 2, 5));
+        // A platinum piece breaks into gold, silver and copper (no electrum as change).
+        w.give_item("pp", 1);
+        assert!(w.pay_cp(30));
+        assert_eq!((w.item_count("pp"), w.item_count("coin"), w.item_count("sp"), w.item_count("cp"), w.item_count("ep")), (0, 9, 9, 5, 0));
+        assert_eq!(w.give_cp(1234), 0);
+        assert_eq!((w.money_cp(), w.item_count("coin")), (995 + 1234, 21));
     }
 
     #[test]

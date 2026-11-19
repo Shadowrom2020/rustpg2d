@@ -72,7 +72,10 @@ crates/engine/src/      library: everything shared by game and editor
                         runtime/spells.rs (slots by class level, known / prepared / spellbook, concentration, scrolls,
                         casting out of fights, level-up picks), runtime/turns/casting.rs (Cast in fights: targets,
                         areas, resolve_spell, buffs in AC / speed / rolls); buffs = srd::conditions::Buff on ActiveCondition
-  srd/                  the SRD 5.1 rules: dice.rs (expressions `2d6+STR`, seedable thread-local Rng: `seed`,
+  srd/                  the SRD 5.1 rules: equipment.rs (armor_class, weapon / armor proficiency, coins: change,
+                        format_cp, FOCUS; ItemDef srd / cost_cp / weight / coin_cp, Weapon category + properties,
+                        Armor category / base_ac / dex_max / str_min, ItemDef::upgrade, RULES_VERSION 4;
+                        runtime/equipment.rs, runtime/money.rs = the purse, shops in coins), dice.rs (expressions `2d6+STR`, seedable thread-local Rng: `seed`,
                         RUSTPG2D_SEED, autoplay starts at 1; advantage / disadvantage), abilities.rs (six abilities,
                         modifier, proficiency bonus, the 18 SKILLS and the TOOLS by SRD index id, proficiency_id),
                         check.rs (Spec = what a check rolls: skill / ability / ability:tool / save; RollRecord = the

@@ -196,6 +196,7 @@ impl Game {
                     "call FN            run a script function",
                     "settime H          set the time of day (hours)",
                     "give ITEM [N]      give items / take ITEM [N]",
+                    "money CP  pay CP   give / take money in copper pieces",
                     "flag NAME on|off   set a flag      var NAME V   set a variable",
                     "teleport MAP SPAWN go to a spawn point of a map",
                     "hp N  xp N         set HP / gain experience",
@@ -242,6 +243,10 @@ impl Game {
                 } else {
                     queued.push(Action::TakeItem { item: arg(1).into(), count });
                 }
+            }
+            "money" | "pay" if num(1).is_some() => {
+                let cp = num(1).unwrap_or(0).max(0) as u32;
+                queued.push(if arg(0) == "money" { Action::GiveMoney { cp } } else { Action::TakeMoney { cp } });
             }
             "flag" if !arg(1).is_empty() => {
                 let on = !matches!(arg(2), "off" | "false" | "0");
@@ -311,6 +316,8 @@ impl Game {
             a,
             Action::GiveItem { .. }
                 | Action::TakeItem { .. }
+                | Action::GiveMoney { .. }
+                | Action::TakeMoney { .. }
                 | Action::SetFlag { .. }
                 | Action::SetVar { .. }
                 | Action::Heal { .. }

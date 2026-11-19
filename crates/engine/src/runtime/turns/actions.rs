@@ -161,6 +161,9 @@ impl Game {
                     Err("Attack first")
                 } else if self.offhand_weapon(c.current().who).is_none() {
                     Err("No off-hand weapon")
+                } else if !self.both_light(c.current().who) {
+                    // (Two-weapon fighting: light weapons in both hands.)
+                    Err("Both weapons must be light")
                 } else {
                     Ok(())
                 }
@@ -356,7 +359,8 @@ impl Game {
                 self.make_attack(me.who, target, &spec);
                 let c = self.fight.as_mut().unwrap();
                 c.turn.attacked = true;
-                c.turn.attacks_left = c.turn.attacks_left.saturating_sub(1);
+                // (A loading weapon: one attack with it per action.)
+                c.turn.attacks_left = if spec.loading { 0 } else { c.turn.attacks_left.saturating_sub(1) };
                 c.turn.action = true;
                 Ok(())
             }

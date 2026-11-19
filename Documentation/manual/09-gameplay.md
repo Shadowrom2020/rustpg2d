@@ -36,9 +36,10 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   *Use an Object* (an item from the inventory), *Grapple* and *Shove* (Athletics against the
   target's Athletics or Acrobatics: grappled, or knocked prone / pushed a tile). The **bonus action**
   is the off-hand attack: a weapon in the left hand attacks after the Attack action, without the
-  ability modifier on its damage.
-- **Attacks** roll d20 + the ability modifier (STR for melee, DEX for ranged) + the proficiency
-  bonus against the target's **armor class**. A natural 20 always hits and is a **critical hit**
+  ability modifier on its damage; both weapons must be *light* (two-weapon fighting).
+- **Attacks** roll d20 + the ability modifier (STR for melee, DEX for ranged; a *finesse* weapon
+  the better of both) + the proficiency bonus (only with a weapon the attacker is proficient with,
+  see [Equipment and money](#equipment-and-money)) against the target's **armor class**. A natural 20 always hits and is a **critical hit**
   (the damage dice twice; a *keen* weapon on 19 or 20 too), a natural 1 always misses. Damage is
   the weapon's **dice** (*Damage dice* on the item form) + the modifier, of its damage type through
   the target's resistances. Characters attack with their stat block's attacks; without them with
@@ -411,6 +412,11 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
   prepared.
 - **Save DC and attack**: 8 + proficiency + the spellcasting modifier (INT, WIS or CHA), and
   proficiency + the modifier for spell attacks.
+- **Components** (since 0.31): a spell with a material component (*M*) needs a **component pouch**
+  or a **spellcasting focus** in the caster's bag or hands (an arcane focus, a holy symbol, a druidic
+  focus, a bard's musical instrument; any of them does). The casting classes start with one. Costly
+  materials aren't used up yet. A caster in **armor it isn't proficient with** can't cast at all
+  ("Untrained armor"). A project without any focus item needs none.
 - **Slots come back** after a long rest; a warlock's (pact magic: few slots, all of its highest
   level) after a short rest too. **Rituals**: a bard, cleric, druid or wizard casts a ritual spell
   it knows or prepared without a slot outside fights, and ten minutes pass.
@@ -452,6 +458,62 @@ Conditions: *Knows spell*. Actions: *Learn spell*, *Cast spell*, *Damage around 
 around player*. Party members with a casting class cast in fights when the player plays their
 turns (the AI's casting is 0.32); a scroll handed to one teaches it the spell when its class lists
 it.
+
+## Equipment and money
+
+Weapons, armor, tools and coins are the **SRD 5.1's** (since 0.31): the starter library has all 237
+items of its equipment list ([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data))
+with their costs, weights and rules, and the item form edits them ([Database ›
+Items](05-database.md#items)).
+
+- **Weapons** are *simple* or *martial*; a hero proficient with the category (*simple-weapons*,
+  *martial-weapons*: the class's proficiencies) or with the weapon by name (*longswords*,
+  *hand-crossbows*: an elf's, a dwarf's) adds the proficiency bonus to the attack roll, others not.
+  Their **properties**:
+
+  | Property | In play |
+  |---|---|
+  | Finesse | The better of STR and DEX for the attack and damage; Sneak Attack works with it (and with ranged weapons). |
+  | Versatile | With the left hand free it rolls its two-handed dice (a longsword 1d10 instead of 1d8). |
+  | Light | Two light weapons, one in each hand, make the off-hand attack. |
+  | Heavy | Small heroes (halflings, gnomes) attack with disadvantage. |
+  | Two-handed | Nothing can be held in the left hand. |
+  | Reach | Reaches 10 ft (two tiles). |
+  | Thrown | The action bar offers a throw: a ranged attack with the same ability, at its thrown range. The weapon stays in hand (a simplification). |
+  | Ammunition | Each shot uses one of the ammo item (arrows, bolts, sling bullets). |
+  | Loading | One attack with it per action, however many attacks the hero has. |
+
+- **Armor** is *light*, *medium* or *heavy* body armor, a *shield*, or *clothing* (helmets, outfits,
+  backpacks, lights: no armor class). The **armor class** is the body armor's (leather 11, chain
+  mail 16, plate 18) plus DEX: all of it with light armor, up to +2 with medium, none with heavy;
+  without body armor 10 + DEX (or the class's unarmored defense); a shield adds +2. Heavy armor
+  with a **Strength** below its minimum makes the hero **10 ft slower** (dwarves aren't); armor
+  with *Stealth disadvantage* makes Stealth checks and sneaking harder. Armor without its
+  proficiency (*light-armor*, *medium-armor*, *heavy-armor*, *shields*) gives **disadvantage** on
+  STR and DEX checks, saves and attacks, and no spells can be cast in it.
+- **Tools**: picking a lock needs **thieves' tools** in the bag ([Lockpicking](#lockpicking)); a
+  caster's material components need a component pouch or a focus ([Spellcasting](#spellcasting)).
+  Other tools, instruments and gaming sets are items for proficiencies and the story.
+- **Packs** (Burglar's, Explorer's, Priest's…) unpack when used: their contents go into the bag.
+  The classes start with the SRD's starting equipment.
+- **Money** is the SRD's five coins: **copper** (cp), **silver** (sp = 10 cp), **electrum** (ep = 5
+  sp), **gold** (gp = 10 sp) and **platinum** (pp = 10 gp), items with a *Coin worth*. A shop whose
+  currency is a coin counts **every coin** the hero carries: prices read `15 gp`, `1 gp 5 sp`,
+  `4 cp`, paying takes the smallest coins first and gives **change** in the fewest gold, silver
+  and copper pieces (never electrum or platinum), selling pays the same way. The character window
+  shows the purse (*Money*). A shop line's price counts in its currency (a price of 3 with gold as
+  the currency: 3 gp); without one an item costs its *Cost* in coins, else its *Value* in the
+  currency. Shops of projects of 0.30 and older, whose currency item has no coin worth, count that
+  one item as before. Condition: *Has money*; actions: *Give money*, *Take money*; scripts:
+  `money()`, `give_money`, `take_money`, `format_money`; developer console: `money CP`, `pay CP`.
+
+![Tilda's shop: prices in gold, silver and copper, thieves' tools selected, the purse at the bottom right](../images/game-shop-coins.webp)
+
+In the example the **coin is the gold piece** (its id stays `coin`, so quests and saves keep their
+gold), and the copper, silver, electrum and platinum pieces are new; everyday goods cost silver
+and copper (bread 6 sp, an apple 3 sp), weapons and armor the SRD's prices (an iron sword, a
+longsword, 15 gp). **Tilda** sells thieves' tools, daggers and a component pouch; Greta rents a
+room for 5 sp and the stone house costs 100 gp, paid from any coins.
 
 ## Inventory, quick bar and containers
 
@@ -572,7 +634,9 @@ E on it without the key rolls a DEX (Thieves' Tools) check against the DC, profi
 Thieves' Tools adding the bonus. On a success the lock opens (a chest then opens too); on a
 failure the same lock can be tried again after ten minutes of game time ("The lock won't give. Try
 again later."). A lock without a key item can only be picked. Nearby locked props with a key or a
-pick DC show a padlock. (Thieves' tools aren't an item yet: the SRD's equipment comes with 0.31.)
+pick DC show a padlock. Picking needs **thieves' tools** in the bag (an item whose *SRD item* is
+`thieves-tools`; since 0.31): without them "You need thieves' tools to pick this lock." (A project
+without such an item picks with bare hands.) Rogues start with them; Tilda sells them.
 
 The **Pick a lock (DEX check)** action and `lockpick(dc, var)` roll it for any puzzle and put 1
 (picked) or 0 into the variable. Until 0.27 lockpicking was a minigame: its difficulty levels

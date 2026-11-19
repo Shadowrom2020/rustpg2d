@@ -58,6 +58,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Text variable** | A text variable equals a text (*any case*: "Rosehill" = "rosehill"; an empty text = the variable is empty) |
 | **Player sex** | Male or female |
 | **Player race** | The player's race (*Database › Races*), e.g. goblin; a race holds for its subraces too (*dwarf* for a hill dwarf) |
+| **Has money** | The hero's money (every coin carried, in copper pieces: 1 gp = 100) compared with an amount (*≥ 500* = at least 5 gp). Pair it with *Take money*: the example's Greta and the stone house do |
 | **Has class** | The hero's class or subclass (*Database › Classes*: *fighter*, *champion*; empty = any class) at a level compared with a number (*≥ 3*); false without a class |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
@@ -89,6 +90,10 @@ across map changes and in save games.
 - **Set flag**, **Set variable** (= or +=), **Give item**, **Take item**, **Heal player** (negative
   hurts), **Heal character**, **Give experience**, **Quest** (start, advance, set stage, complete,
   fail), **Unlock achievement**, **Autosave**.
+- **Give money**, **Take money** (gp / sp / cp): the hero's coins, with change in the fewest gold,
+  silver and copper pieces and a toast ("Got 2 gp 5 sp", "Paid 5 sp"). *Take money* takes nothing
+  when the hero has less: check *Has money* first. The project needs coins (items with a *Coin
+  worth*).
 - **Change standing**: raises or lowers the player's standing with a faction (*Database ›
   Factions*); at -20 or below its characters attack the player, above it they calm
   down at once.

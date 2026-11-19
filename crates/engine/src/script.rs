@@ -720,6 +720,13 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     // Magic.
     engine.register_fn("knows_spell", with!(ctx, |c, id: &str| c.world.spells.contains(id) || c.player.prepared.iter().any(|s| s == id)));
     engine.register_fn("mana", with!(ctx, |_c| 0.0f64));
+    // Money in copper pieces (every coin item counts by its worth; change comes back).
+    engine.register_fn("money", with!(ctx, |c| c.world.money_cp() as i64));
+    engine.register_fn("give_money", with!(ctx, |c, cp: i64| {
+        c.world.give_cp(cp.max(0) as u32);
+    }));
+    engine.register_fn("take_money", with!(ctx, |c, cp: i64| c.world.pay_cp(cp.max(0) as u32)));
+    engine.register_fn("format_money", |cp: i64| crate::srd::equipment::format_cp(cp.max(0) as u32, [&crate::lang::tr_ui("gp"), &crate::lang::tr_ui("sp"), &crate::lang::tr_ui("cp")]));
     engine.register_fn("spell_slots", with!(ctx, |c, l: Dynamic| c.player.slots.get((num(&l) as usize).wrapping_sub(1)).map_or(0, |s| s.0 as i64)));
     engine.register_fn("slots_left", with!(ctx, |c, l: Dynamic| c.player.slots.get((num(&l) as usize).wrapping_sub(1)).map_or(0, |s| s.1 as i64)));
     engine.register_fn("restore_slots", with!(ctx, |c| {

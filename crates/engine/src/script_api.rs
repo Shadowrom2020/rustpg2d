@@ -233,6 +233,7 @@ pub const API: &[ApiFn] = api! {
     [since "0.30"] "class"() "The hero's class id (Database \u{203A} Classes), \"\" without one";
     [since "0.30"] "subclass"() "The hero's subclass id (\"champion\", \"thief\"), \"\" before they chose one";
     [since "0.30"] "class_level"() "The hero's level in their class (0 without a class)";
+    [since "0.30"] "resource"(resource: Text) "Uses left of one of the hero's class resources, e.g. resource(\"rage\"), resource(\"ki\"), resource(\"lay-on-hands\") (its hit points); 0 without it. A short or long rest gives them back";
     [since "0.30"] "has_feature"(feature: Text) "Whether the hero has a class feature at their level, e.g. has_feature(\"second-wind\"); chosen options count (\"fighter-fighting-style-defense\")";
     [since "0.30"] "level_up_pending"() "Whether level-up choices (the hero's or a party member's) wait for the level-up window";
     [since "0.30"] "set_class"(target: Target, class: Class) "Gives the hero (\"player\") or a party member a class: its saving throws and proficiencies; the level's choices open the level-up window (queued)";

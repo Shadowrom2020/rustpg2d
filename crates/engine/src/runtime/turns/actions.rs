@@ -14,6 +14,8 @@ use crate::srd::{Mode, RollRecord};
 pub(in crate::runtime) enum TurnAct {
     Attack,
     Cast,
+    /// A class action (Rage, Second Wind…): each press the next one.
+    Class,
     Dash,
     Disengage,
     Dodge,
@@ -28,12 +30,13 @@ pub(in crate::runtime) enum TurnAct {
 }
 
 impl TurnAct {
-    pub const BAR: [TurnAct; 13] = [TurnAct::Attack, TurnAct::Cast, TurnAct::Dash, TurnAct::Disengage, TurnAct::Dodge, TurnAct::Help, TurnAct::Hide, TurnAct::Ready, TurnAct::Search, TurnAct::Grapple, TurnAct::Shove, TurnAct::OffHand, TurnAct::EndTurn];
+    pub const BAR: [TurnAct; 14] = [TurnAct::Attack, TurnAct::Cast, TurnAct::Class, TurnAct::Dash, TurnAct::Disengage, TurnAct::Dodge, TurnAct::Help, TurnAct::Hide, TurnAct::Ready, TurnAct::Search, TurnAct::Grapple, TurnAct::Shove, TurnAct::OffHand, TurnAct::EndTurn];
 
     pub fn label(self) -> &'static str {
         match self {
             TurnAct::Attack => "Attack",
             TurnAct::Cast => "Cast",
+            TurnAct::Class => "Class",
             TurnAct::Dash => "Dash",
             TurnAct::Disengage => "Disengage",
             TurnAct::Dodge => "Dodge",
@@ -52,6 +55,7 @@ impl TurnAct {
         match self {
             TurnAct::Attack => "attack",
             TurnAct::Cast => "cast",
+            TurnAct::Class => "class",
             TurnAct::Dash => "dash",
             TurnAct::Disengage => "disengage",
             TurnAct::Dodge => "dodge",
@@ -77,8 +81,23 @@ impl Game {
     pub(super) fn who_check(&mut self, who: Who, what: &str, dc: i32, save: bool) -> Option<RollRecord> {
         // (Aura of Protection: a paladin's CHA on the saves of allies near it.)
         let aura = if save { self.aura_bonus(who) } else { 0 };
+        let rec = self.who_check_once(who, what, dc, save, aura)?;
+        // A failed save: Bardic Inspiration's die, Indomitable's second roll.
+        if save {
+            let (w, d) = (what.to_string(), dc);
+            if let Some(r) = self.rescue_save(who, &rec, move |g| g.who_check_once(who, &w, d, true, aura)) {
+                return Some(r);
+            }
+        }
+        Some(rec)
+    }
+
+    /// One roll of [`Self::who_check`] (`aura`: the bonus to saves).
+    fn who_check_once(&mut self, who: Who, what: &str, dc: i32, save: bool, aura: i32) -> Option<RollRecord> {
+        // (Rage: advantage on STR checks and saves.)
+        let class_mode = self.class_save_mode(who, what);
         if who == Who::Player {
-            let mut rec = self.world.check(what, dc - aura, Mode::Normal, save)?;
+            let mut rec = self.world.check(what, dc - aura, class_mode, save)?;
             if aura != 0 {
                 (rec.modifier, rec.total, rec.dc) = (rec.modifier + aura as i64, rec.total + aura as i64, dc);
                 if let Some(last) = self.world.rolls.last_mut() {
@@ -92,7 +111,7 @@ impl Game {
         let profs: std::collections::BTreeSet<String> = block.proficiencies.iter().map(|p| crate::srd::abilities::proficiency_id(p)).collect();
         let roller = crate::srd::check::Roller { abilities: &block.abilities, proficiencies: &profs, level: block.proficiency_level(), training: None };
         let r = conditions::rules(self.who_conditions(who));
-        let mode = if (save && r.save_disadvantage) || (!save && r.check_disadvantage) { Mode::Disadvantage } else { Mode::Normal };
+        let mode = if (save && r.save_disadvantage) || (!save && r.check_disadvantage) { class_mode.combine(Mode::Disadvantage) } else { class_mode };
         let mut rec = spec.roll(&roller, dc - aura, mode);
         if aura != 0 {
             (rec.modifier, rec.total, rec.dc) = (rec.modifier + aura as i64, rec.total + aura as i64, dc);
@@ -148,6 +167,9 @@ impl Game {
             }
             TurnAct::Attack if t.attacks_left > 0 && t.attacked => Ok(()),
             TurnAct::Cast if self.known_spells(c.current().who).is_empty() => Err("No spells"),
+            TurnAct::Class if self.class_acts(c.current().who).is_empty() => Err("No class actions"),
+            // (Class actions cost what they cost: some are bonus actions or free.)
+            TurnAct::Class => Ok(()),
             _ if t.action => Err("Action used"),
             _ => Ok(()),
         }
@@ -186,6 +208,18 @@ impl Game {
                 };
                 let spell = spells[next].clone();
                 self.set_aim(Aim::Cast(spell));
+                return Ok(());
+            }
+            TurnAct::Class => {
+                // Each press: the next class action (those usable now first in line).
+                let acts = self.class_acts(who);
+                let c = self.fight.as_ref().unwrap();
+                let next = match &c.aim {
+                    Aim::Feature(s) => acts.iter().position(|x| x.id == *s).map_or(0, |k| (k + 1) % acts.len()),
+                    _ => acts.iter().position(|a| self.class_act_ready(who, a).is_ok()).unwrap_or(0),
+                };
+                let id = acts[next].id.clone();
+                self.set_aim(Aim::Feature(id));
                 return Ok(());
             }
             TurnAct::Dash => {
@@ -241,7 +275,7 @@ impl Game {
     }
 
     /// The highest passive Perception (10 + WIS, + proficiency) of the side against `side`.
-    fn passive_perception(&self, side: Side) -> i32 {
+    pub(super) fn passive_perception(&self, side: Side) -> i32 {
         let Some(c) = &self.fight else { return 10 };
         c.order
             .iter()
@@ -262,7 +296,18 @@ impl Game {
         let who = self.fight.as_ref().unwrap().current().who;
         let side = self.fight.as_ref().unwrap().current().side;
         let here = self.who_tile(who);
-        let allies = matches!(&aim, Aim::Cast(s) if self.spell_heals(s));
+        let feature = match &aim {
+            Aim::Feature(id) => self.class_acts(who).into_iter().find(|a| a.id == *id).map(|a| a.effect.target()),
+            _ => None,
+        };
+        let allies = matches!(&aim, Aim::Cast(s) if self.spell_heals(s)) || matches!(feature, Some(crate::classes::ActTarget::Ally { .. }));
+        // (A class action used on itself: the cursor on the user.)
+        if matches!(feature, Some(crate::classes::ActTarget::Myself)) {
+            let c = self.fight.as_mut().unwrap();
+            c.aim = aim;
+            c.cursor = here;
+            return;
+        }
         let near = self
             .fight
             .as_ref()
@@ -377,6 +422,7 @@ impl Game {
                 Ok(())
             }
             Aim::Cast(spell) => self.cast_in_fight(me.who, spell, target),
+            Aim::Feature(id) => self.use_class_act(id, target),
         }
     }
 
@@ -482,6 +528,7 @@ impl Game {
                     crit_on: 20,
                     effect: None,
                     projectile: Some(projectile.clone()),
+                    spell: true,
                     ..Default::default()
                 };
                 self.can_attack(who, target, &spec)?;

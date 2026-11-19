@@ -193,16 +193,29 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - The **features that work by themselves act**: unarmored defense, fighting styles, extra attacks,
     improved and superior critical hits, brutal critical, fast and unarmored movement, martial arts,
     expertise, jack of all trades, remarkable athlete, reliable talent, danger sense, feral instinct,
-    evasion, the paladin's auras, resistances and immunities. The features used as actions follow
-    in the next item; spellcasting with the spells.
+    evasion, the paladin's auras, resistances and immunities.
+  - **Class actions** in the fight's action bar (*Class*, key 3: each press the next one, with its
+    cost and uses left): Rage, Reckless Attack, Frenzy, Intimidating Presence, Second Wind, Action
+    Surge, Flurry of Blows, the Martial Arts strike, Patient Defense, Step of the Wind, Wholeness of
+    Body, Cunning Action, Lay on Hands, Sacred Weapon, Turn the Unholy, Turn Undead (with Destroy
+    Undead), Preserve Life, Bardic Inspiration. Their **resources** (rages, ki, channel divinity,
+    second wind…) come back after a short or long rest; the sheet shows the uses left.
+  - **Riders and reactions** act by themselves: Sneak Attack, Colossus Slayer, Divine Strike,
+    Stunning Strike, Open Hand Technique, Uncanny Dodge, Deflect Missiles, Relentless Rage,
+    Retaliation, Survivor, Indomitable, Dark One's Blessing (temporary hit points). Party members'
+    AI rages, catches its second wind, surges and strikes with Martial Arts. Spellcasting follows
+    with the spells.
+  - The fight log adds each hit's damage (`hit, 7`).
   - **The party levels**: characters have a class and level (their form), or get one when they join
     (*Set class*); a classed party member fights with a stat block made from its class and level and
     equipment, takes its share of the XP (split equally) and makes its choices in the level-up
     window. In the example **Dagny** (fighter) and **Old Finn** (ranger, with his old bow) join the
     party when asked, at the hero's level; Finn's fish stall opens from his talk now.
   - Events: the condition *Has class* and the action *Set class*. Scripts (API 0.30): `class`,
-    `subclass`, `class_level`, `has_feature`, `level_up_pending`, `set_class`. Autoplay `levelup …`
-    makes the window's choices; `status` prints `class=` and `levelup=`.
+    `subclass`, `class_level`, `has_feature`, `resource`, `level_up_pending`, `set_class`. Autoplay
+    `levelup …` makes the window's choices, `turn class ACT [NAME]` uses a class action and
+    `turn log` prints the fight log; `status` prints `class=`, `levelup=`, `resources=` and
+    `class_fx=`.
   - The weapon and armor proficiency names are translated in the nine built-in languages.
 - **Breaking:** a hero with a class takes the class's hit die (a wizard d6, a barbarian d12) instead
   of everyone's d10; heroes without a class (old saves, projects without classes) keep the d10.

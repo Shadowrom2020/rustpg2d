@@ -295,6 +295,10 @@ pub struct WorldState {
     /// Level-ups waiting for their choices (the level-up window): "player" or a companion's uid.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub levelups: Vec<PendingLevel>,
+    /// Uses of the hero's class resources spent since their rest (resource id -> uses: rages,
+    /// ki, Lay on Hands' hit points; `relentless-rage` counts Relentless Rage's saves).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub spent: BTreeMap<String, i32>,
     /// What the class adds to checks (computed from the class; not saved).
     #[serde(skip)]
     pub training: crate::srd::check::Training,
@@ -377,6 +381,9 @@ pub struct Companion {
     pub level: u32,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub hp_rolls: Vec<i32>,
+    /// Uses of its class resources spent since their rest (as the hero's `spent`).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub spent: BTreeMap<String, i32>,
 }
 
 fn is_zero_u64(n: &u64) -> bool {

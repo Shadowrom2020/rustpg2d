@@ -270,6 +270,22 @@
                 name: "Rage",
                 level: 1,
                 text: "In battle, you fight with primal ferocity. On your turn, you can enter a rage as a bonus action. While raging, you gain the following benefits if you aren\'t wearing heavy armor: - You have advantage on Strength checks and Strength saving throws. - When you make a melee weapon Attack using Strength, you gain a +2 bonus to the damage roll. This bonus increases as you level. - You have Resistance to bludgeoning, piercing, and slashing damage. If you are able to cast Spells, you can\'t cast them or concentrate on them while raging. Your rage lasts for 1 minute. It ends early if you are knocked Unconscious or if Your Turn ends and you haven\'t attacked a hostile creature since your last turn or taken damage since then. You can also end your rage on Your Turn as a Bonus Action. Once you have raged the maximum number of times for your barbarian level, you must finish a Long Rest before you can rage again. You may rage 2 times at 1st level, 3 at 3rd, 4 at 6th, 5 at 12th, and 6 at 17th.",
+                effects: [
+                    Resource(
+                        id: "rage",
+                        count: 0,
+                        number: "rage_count",
+                        per_level: 0,
+                        recharge: LongRest,
+                    ),
+                    Act(
+                        id: "rage",
+                        name: "Rage",
+                        cost: Bonus,
+                        resource: "rage",
+                        effect: Rage,
+                    ),
+                ],
             ),
             (
                 id: "barbarian-unarmored-defense",
@@ -292,6 +308,14 @@
                 name: "Reckless Attack",
                 level: 2,
                 text: "Starting at 2nd level, you can throw aside all concern for defense to attack with fierce desperation. When you make your first attack on your turn, you can decide to attack recklessly. Doing so gives you advantage on melee weapon attack rolls using Strength during this turn, but attack rolls against you have advantage until your next turn.",
+                effects: [
+                    Act(
+                        id: "reckless-attack",
+                        name: "Reckless Attack",
+                        cost: Free,
+                        effect: Reckless,
+                    ),
+                ],
             ),
             (
                 id: "danger-sense",
@@ -315,6 +339,14 @@
                 name: "Frenzy",
                 level: 3,
                 text: "Starting when you choose this path at 3rd level, you can go into a frenzy when you rage. If you do so, for the duration of your rage you can make a single melee weapon attack as a bonus action on each of your turns after this one. When your rage ends, you suffer one level of exhaustion (as described in appendix A).",
+                effects: [
+                    Act(
+                        id: "frenzy",
+                        name: "Frenzy attack",
+                        cost: Bonus,
+                        effect: FrenzyAttack,
+                    ),
+                ],
             ),
             (
                 id: "barbarian-ability-score-improvement-1",
@@ -390,6 +422,22 @@
                 name: "Intimidating Presence",
                 level: 10,
                 text: "Beginning at 10th level, you can use your action to frighten someone with your menacing presence. When you do so, choose one creature that you can see within 30 feet of you. If the creature can see or hear you, it must succeed on a Wisdom saving throw (DC equal to 8 + your proficiency bonus + your Charisma modifier) or be frightened of you until the end of your next turn. On subsequent turns, you can use your action to extend the duration of this effect on the frightened creature until the end of your next turn. This effect ends if the creature ends its turn out of line of sight or more than 60 feet away from you.  If the creature succeeds on its saving throw, you can\'t use this feature on that creature again for 24 hours.",
+                effects: [
+                    Act(
+                        id: "intimidating-presence",
+                        name: "Intimidating Presence",
+                        cost: Action,
+                        effect: AreaSave(
+                            feet: 30,
+                            save: Wis,
+                            ability: Cha,
+                            condition: Frightened,
+                            rounds: 1,
+                            single: true,
+                            destroy: false,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "primal-path-improvement-2",
@@ -402,6 +450,11 @@
                 name: "Relentless Rage",
                 level: 11,
                 text: "Starting at 11th level, your rage can keep you fighting despite grievous wounds. If you drop to 0 hit points while you\'re raging and don\'t die outright, you can make a DC 10 Constitution saving throw. If you succeed, you drop to 1 hit point instead. Each time you use this feature after the first, the DC increases by 5. When you finish a short or long rest, the DC resets to 10.",
+                effects: [
+                    DropTo1(
+                        dc: 10,
+                    ),
+                ],
             ),
             (
                 id: "barbarian-ability-score-improvement-3",
@@ -426,6 +479,9 @@
                 name: "Retaliation",
                 level: 14,
                 text: "Starting at 14th level, when you take damage from a creature that is within 5 feet of you, you can use your reaction to make a melee weapon Attack against that creature.",
+                effects: [
+                    ReactionAttack,
+                ],
             ),
             (
                 id: "primal-path-improvement-3",
@@ -1039,6 +1095,25 @@
                 name: "Bardic Inspiration (d6)",
                 level: 1,
                 text: "You can inspire others through stirring words or music. To do so, you use a bonus action on your turn to choose one creature other than yourself within 60 feet of you who can hear you. That creature gains one Bardic Inspiration die, a d6. Once within the next 10 minutes, the creature can roll the die and add the number rolled to one ability check, attack roll, or saving throw it makes. The creature can wait until after it rolls the d20 before deciding to use the Bardic Inspiration die, but must decide before the GM says whether the roll succeeds or fails. Once the Bardic Inspiration die is rolled, it is lost. A creature can have only one Bardic Inspiration die at a time. You can use this feature a number of times equal to your Charisma modifier (a minimum of once). You regain any expended uses when you finish a long rest.  Your Bardic Inspiration die changes when you reach certain levels in this class. The die becomes a d8 at 5th level, a d10 at 10th level, and a d12 at 15th level.",
+                effects: [
+                    Resource(
+                        id: "bardic-inspiration",
+                        count: 0,
+                        ability: Some(Cha),
+                        per_level: 0,
+                        recharge: LongRest,
+                    ),
+                    Act(
+                        id: "bardic-inspiration",
+                        name: "Bardic Inspiration",
+                        cost: Bonus,
+                        resource: "bardic-inspiration",
+                        effect: GiveDie(
+                            feet: 60,
+                            number: "bardic_inspiration_die",
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "jack-of-all-trades",
@@ -1105,6 +1180,15 @@
                 name: "Font of Inspiration",
                 level: 5,
                 text: "Beginning when you reach 5th level, you regain all of your expended uses of Bardic Inspiration when you finish a short or long rest.",
+                effects: [
+                    Resource(
+                        id: "bardic-inspiration",
+                        count: 0,
+                        ability: Some(Cha),
+                        per_level: 0,
+                        recharge: ShortRest,
+                    ),
+                ],
             ),
             (
                 id: "countercharm",
@@ -1724,12 +1808,41 @@
                 name: "Channel Divinity (1/rest)",
                 level: 2,
                 text: "At 2nd level, you gain the ability to channel divine energy directly from your deity, using that energy to fuel magical effects. You start with two such effects: Turn Undead and an effect determined by your domain. Some domains grant you additional effects as you advance in levels, as noted in the domain description. When you use your Channel Divinity, you choose which effect to create. You must then finish a short or long rest to use your Channel Divinity again. Some Channel Divinity effects require saving throws. When you use such an effect from this class, the DC equals your cleric spell save DC. Beginning at 6th level, you can use your Channel Divinity twice between rests, and beginning at 18th level, you can use it three times between rests. When you finish a short or long rest, you regain your expended uses.",
+                effects: [
+                    Resource(
+                        id: "channel-divinity",
+                        count: 0,
+                        number: "channel_divinity_charges",
+                        per_level: 0,
+                        recharge: ShortRest,
+                    ),
+                ],
             ),
             (
                 id: "channel-divinity-turn-undead",
                 name: "Channel Divinity: Turn Undead",
                 level: 2,
                 text: "As an action, you present your holy symbol and speak a prayer censuring the undead. Each undead that can see or hear you within 30 feet of you must make a Wisdom saving throw. If the creature fails its saving throw, it is turned for 1 minute or until it takes any damage. A turned creature must spend its turns trying to move as far away from you as it can, and it can\'t willingly move to a space within 30 feet of you. It also can\'t take reactions. For its action, it can use only the Dash action or try to escape from an effect that prevents it from moving. If there\'s nowhere to move, the creature can use the Dodge action.",
+                effects: [
+                    Act(
+                        id: "turn-undead",
+                        name: "Turn Undead",
+                        cost: Action,
+                        resource: "channel-divinity",
+                        effect: AreaSave(
+                            feet: 30,
+                            save: Wis,
+                            ability: Wis,
+                            condition: Frightened,
+                            rounds: 10,
+                            types: [
+                                "undead",
+                            ],
+                            single: false,
+                            destroy: true,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "divine-domain-improvement-1",
@@ -1742,6 +1855,18 @@
                 name: "Channel Divinity: Preserve Life",
                 level: 2,
                 text: "Starting at 2nd level, you can use your Channel Divinity to heal the badly injured. As an action, you present your holy symbol and evoke healing energy that can restore a number of hit points equal to five times your cleric level. Choose any creatures within 30 feet of you, and divide those hit points among them. This feature can restore a creature to no more than half of its hit point maximum. You can\'t use this feature on an undead or a construct.",
+                effects: [
+                    Act(
+                        id: "preserve-life",
+                        name: "Preserve Life",
+                        cost: Action,
+                        resource: "channel-divinity",
+                        effect: HealAllies(
+                            feet: 30,
+                            per_level: 5,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "domain-spells-2",
@@ -1767,6 +1892,11 @@
                 name: "Destroy Undead (CR 1/2 or below)",
                 level: 5,
                 text: "Starting at 5th level, when an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below a certain threshold.",
+                effects: [
+                    DestroyUndead(
+                        cr: 0.5,
+                    ),
+                ],
             ),
             (
                 id: "channel-divinity-2-rest",
@@ -1804,6 +1934,11 @@
                 name: "Destroy Undead (CR 1 or below)",
                 level: 8,
                 text: "Starting at 5th level, when an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below a certain threshold.",
+                effects: [
+                    DestroyUndead(
+                        cr: 1.0,
+                    ),
+                ],
             ),
             (
                 id: "divine-domain-improvement-3",
@@ -1816,6 +1951,16 @@
                 name: "Divine Strike",
                 level: 8,
                 text: "At 8th level, you gain the ability to infuse your weapon strikes with divine energy. Once on each of your turns when you hit a creature with a weapon attack, you can cause the attack to deal an extra 1d8 radiant damage to the target. When you reach 14th level, the extra damage increases to 2d8.",
+                effects: [
+                    ExtraDamage(
+                        dice: [
+                            (8, "1d8"),
+                            (14, "2d8"),
+                        ],
+                        damage_type: Some(Radiant),
+                        hurt_target: false,
+                    ),
+                ],
             ),
             (
                 id: "domain-spells-5",
@@ -1834,6 +1979,11 @@
                 name: "Destroy Undead (CR 2 or below)",
                 level: 11,
                 text: "Starting at 5th level, when an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below a certain threshold.",
+                effects: [
+                    DestroyUndead(
+                        cr: 2.0,
+                    ),
+                ],
             ),
             (
                 id: "cleric-ability-score-improvement-3",
@@ -1847,6 +1997,11 @@
                 name: "Destroy Undead (CR 3 or below)",
                 level: 14,
                 text: "Starting at 5th level, when an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below a certain threshold.",
+                effects: [
+                    DestroyUndead(
+                        cr: 3.0,
+                    ),
+                ],
             ),
             (
                 id: "cleric-ability-score-improvement-4",
@@ -1860,6 +2015,11 @@
                 name: "Destroy Undead (CR 4 or below)",
                 level: 17,
                 text: "Starting at 5th level, when an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below a certain threshold.",
+                effects: [
+                    DestroyUndead(
+                        cr: 4.0,
+                    ),
+                ],
             ),
             (
                 id: "divine-domain-improvement-4",
@@ -2946,12 +3106,46 @@
                 name: "Second Wind",
                 level: 1,
                 text: "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level. Once you use this feature, you must finish a short or long rest before you can use it again.",
+                effects: [
+                    Resource(
+                        id: "second-wind",
+                        count: 1,
+                        per_level: 0,
+                        recharge: ShortRest,
+                    ),
+                    Act(
+                        id: "second-wind",
+                        name: "Second Wind",
+                        cost: Bonus,
+                        resource: "second-wind",
+                        effect: Heal(
+                            dice: "1d10",
+                            per_level: 1,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "action-surge-1-use",
                 name: "Action Surge (1 use)",
                 level: 2,
                 text: "Starting at 2nd level, you can push yourself beyond your normal limits for a moment. On your turn, you can take one additional action on top of your regular action and a possible bonus action. Once you use this feature, you must finish a short or long rest before you can use it again. Starting at 17th level, you can use it twice before a rest, but only once on the same turn.",
+                effects: [
+                    Resource(
+                        id: "action-surge",
+                        count: 0,
+                        number: "action_surges",
+                        per_level: 0,
+                        recharge: ShortRest,
+                    ),
+                    Act(
+                        id: "action-surge",
+                        name: "Action Surge",
+                        cost: Free,
+                        resource: "action-surge",
+                        effect: ExtraAction,
+                    ),
+                ],
             ),
             (
                 id: "martial-archetype",
@@ -3028,6 +3222,18 @@
                 name: "Indomitable (1 use)",
                 level: 9,
                 text: "Beginning at 9th level, you can reroll a saving throw that you fail. If you do so, you must use the new roll, and you can\'t use this feature again until you finish a long rest. You can use this feature twice between long rests starting at 13th level and three times between long rests starting at 17th level.",
+                effects: [
+                    Resource(
+                        id: "indomitable",
+                        count: 0,
+                        number: "indomitable_uses",
+                        per_level: 0,
+                        recharge: LongRest,
+                    ),
+                    RerollSave(
+                        resource: "indomitable",
+                    ),
+                ],
             ),
             (
                 id: "additional-fighting-style",
@@ -3130,6 +3336,12 @@
                 name: "Survivor",
                 level: 18,
                 text: "At 18th level, you attain the pinnacle of resilience in battle. At the start of each of your turns, you regain hit points equal to 5 + your Constitution modifier if you have no more than half of your hit points left. You don\'t gain this benefit if you have 0 hit points.",
+                effects: [
+                    StartOfTurnHeal(
+                        base: 5,
+                        ability: Con,
+                    ),
+                ],
             ),
             (
                 id: "fighter-ability-score-improvement-7",
@@ -3461,6 +3673,14 @@
                 text: "At 1st level, your practice of martial arts gives you mastery of combat styles that use unarmed strikes and monk weapons, which are shortswords and any simple melee weapons that don\'t have the two- handed or heavy property. You gain the following benefits while you are unarmed or wielding only monk weapons and you aren\'t wearing armor or wielding a shield: - You can use Dexterity instead of Strength for the attack and damage rolls of your unarmed strikes and monk weapons. - You can roll a d4 in place of the normal damage of your unarmed strike or monk weapon. This die changes as you gain monk levels, as shown in the Martial Arts column of Table: The Monk. - When you use the Attack action with an unarmed strike or a monk weapon on your turn, you can make one unarmed strike as a bonus action. For example, if you take the Attack action and attack with a quarterstaff, you can also make an unarmed strike as a bonus action, assuming you haven\'t already taken a bonus action this turn. Certain monasteries use specialized forms of the monk weapons. For example, you might use a club that is two lengths of wood connected by a short chain (called a nunchaku) or a sickle with a shorter, straighter blade (called a kama). Whatever name you use for a monk weapon, you can use the game statistics provided for the weapon.",
                 effects: [
                     MartialArts,
+                    Act(
+                        id: "martial-arts-strike",
+                        name: "Martial Arts: bonus strike",
+                        cost: Bonus,
+                        effect: UnarmedStrikes(
+                            count: 1,
+                        ),
+                    ),
                 ],
             ),
             (
@@ -3468,24 +3688,75 @@
                 name: "Ki",
                 level: 2,
                 text: "Starting at 2nd level, your training allows you to harness the mystic energy of ki. Your access to this energy is represented by a number of ki points. Your monk level determines the number of points you have, as shown in the Ki Points column of Table: The Monk. You can spend these points to fuel various ki features. You start knowing three such features: Flurry of Blows, Patient Defense, and Step of the Wind. You learn more ki features as you gain levels in this class. When you spend a ki point, it is unavailable until you finish a short or long rest, at the end of which you draw all of your expended ki back into yourself. You must spend at least 30 minutes of the rest meditating to regain your ki points. Some of your ki features require your target to make a saving throw to resist the feature\'s effects. The saving throw DC is calculated as follows: Ki save DC = 8 + your proficiency bonus + your Wisdom modifier",
+                effects: [
+                    Resource(
+                        id: "ki",
+                        count: 0,
+                        number: "ki_points",
+                        per_level: 0,
+                        recharge: ShortRest,
+                    ),
+                ],
             ),
             (
                 id: "flurry-of-blows",
                 name: "Flurry of Blows",
                 level: 2,
                 text: "Immediately after you take the Attack action on your turn, you can spend 1 ki point to make two unarmed strikes as a bonus action.",
+                effects: [
+                    Act(
+                        id: "flurry-of-blows",
+                        name: "Flurry of Blows",
+                        cost: Bonus,
+                        resource: "ki",
+                        effect: UnarmedStrikes(
+                            count: 2,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "patient-defense",
                 name: "Patient Defense",
                 level: 2,
                 text: "You can spend 1 ki point to take the Dodge action as a bonus action on your turn.",
+                effects: [
+                    Act(
+                        id: "patient-defense",
+                        name: "Patient Defense",
+                        cost: Bonus,
+                        resource: "ki",
+                        effect: Basic(
+                            act: "dodge",
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "step-of-the-wind",
                 name: "Step of the Wind",
                 level: 2,
                 text: "You can spend 1 ki point to take the Disengage or Dash action as a bonus action on your turn, and your jump distance is doubled for the turn.",
+                effects: [
+                    Act(
+                        id: "step-of-the-wind-dash",
+                        name: "Step of the Wind: Dash",
+                        cost: Bonus,
+                        resource: "ki",
+                        effect: Basic(
+                            act: "dash",
+                        ),
+                    ),
+                    Act(
+                        id: "step-of-the-wind-disengage",
+                        name: "Step of the Wind: Disengage",
+                        cost: Bonus,
+                        resource: "ki",
+                        effect: Basic(
+                            act: "disengage",
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "unarmored-movement-1",
@@ -3510,12 +3781,29 @@
                 name: "Deflect Missiles",
                 level: 3,
                 text: "Starting at 3rd level, you can use your reaction to deflect or catch the missile when you are hit by a ranged weapon attack. When you do so, the damage you take from the attack is reduced by 1d10 + your Dexterity modifier + your monk level. If you reduce the damage to 0, you can catch the missile if it is small enough for you to hold in one hand and you have at least one hand free. If you catch a missile in this way, you can spend 1 ki point to make a ranged attack with the weapon or piece of ammunition you just caught, as part of the same reaction. You make this attack with proficiency, regardless of your weapon proficiencies, and the missile counts as a monk weapon for the attack, which has a normal range of 20 feet and a long range of 60 feet.",
+                effects: [
+                    ReactionReduceRanged(
+                        dice: "1d10",
+                        ability: Dex,
+                        per_level: 1,
+                    ),
+                ],
             ),
             (
                 id: "open-hand-technique",
                 name: "Open Hand Technique",
                 level: 3,
                 text: "Starting when you choose this tradition at 3rd level, you can manipulate your enemy\'s ki when you harness your own. Whenever you hit a creature with one of the attacks granted by your Flurry of Blows, you can impose one of the following effects on that target: - It must succeed on a Dexterity saving throw or be knocked prone. - It must make a Strength saving throw. If it fails, you can push it up to 15 feet away from you. - It can\'t take reactions until the end of your next turn.",
+                effects: [
+                    OnHitSave(
+                        save: Dex,
+                        ability: Wis,
+                        condition: Prone,
+                        rounds: 0,
+                        melee: false,
+                        flurry: true,
+                    ),
+                ],
             ),
             (
                 id: "monk-ability-score-improvement-1",
@@ -3546,6 +3834,17 @@
                 name: "Stunning Strike",
                 level: 5,
                 text: "Starting at 5th level, you can interfere with the flow of ki in an opponent\'s body. When you hit another creature with a melee weapon attack, you can spend 1 ki point to attempt a stunning strike. The target must succeed on a Constitution saving throw or be stunned until the end of your next turn.",
+                effects: [
+                    OnHitSave(
+                        resource: "ki",
+                        save: Con,
+                        ability: Wis,
+                        condition: Stunned,
+                        rounds: 1,
+                        melee: true,
+                        flurry: false,
+                    ),
+                ],
             ),
             (
                 id: "ki-empowered-strikes",
@@ -3564,6 +3863,23 @@
                 name: "Wholeness of Body",
                 level: 6,
                 text: "At 6th level, you gain the ability to heal yourself. As an action, you can regain hit points equal to three times your monk level. You must finish a long rest before you can use this feature again.",
+                effects: [
+                    Resource(
+                        id: "wholeness-of-body",
+                        count: 1,
+                        per_level: 0,
+                        recharge: LongRest,
+                    ),
+                    Act(
+                        id: "wholeness-of-body",
+                        name: "Wholeness of Body",
+                        cost: Action,
+                        resource: "wholeness-of-body",
+                        effect: Heal(
+                            per_level: 3,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "monk-evasion",
@@ -4052,6 +4368,21 @@
                 name: "Lay on Hands",
                 level: 1,
                 text: "Your blessed touch can heal wounds. You have a pool of healing power that replenishes when you take a long rest. With that pool, you can restore a total number of hit points equal to your paladin level x 5. As an action, you can touch a creature and draw power from the pool to restore a number of hit points to that creature, up to the maximum amount remaining in your pool. Alternatively, you can expend 5 hit points from your pool of healing to cure the target of one disease or neutralize one poison affecting it. You can cure multiple diseases and neutralize multiple poisons with a single use of Lay on Hands, expending hit points separately for each one. This feature has no effect on undead and constructs.",
+                effects: [
+                    Resource(
+                        id: "lay-on-hands",
+                        count: 0,
+                        per_level: 5,
+                        recharge: LongRest,
+                    ),
+                    Act(
+                        id: "lay-on-hands",
+                        name: "Lay on Hands",
+                        cost: Action,
+                        resource: "lay-on-hands",
+                        effect: HealPool,
+                    ),
+                ],
             ),
             (
                 id: "paladin-fighting-style",
@@ -4147,18 +4478,59 @@
                 name: "Channel Divinity",
                 level: 3,
                 text: "Your oath allows you to channel divine energy to fuel magical effects. Each Channel Divinity option provided by your oath explains how to use it. When you use your Channel Divinity, you choose which option to use. You must then finish a short or long rest to use your Channel Divinity again. Some Channel Divinity effects require saving throws. When you use such an effect from this class, the DC equals your paladin spell save DC.",
+                effects: [
+                    Resource(
+                        id: "channel-divinity",
+                        count: 1,
+                        per_level: 0,
+                        recharge: ShortRest,
+                    ),
+                ],
             ),
             (
                 id: "channel-divinity-sacred-weapon",
                 name: "Channel Divinity: Sacred Weapon",
                 level: 3,
                 text: "As an action, you can imbue one weapon that you are holding with positive energy, using your Channel Divinity. For 1 minute, you add your Charisma modifier to attack rolls made with that weapon (with a minimum bonus of +1). The weapon also emits bright light in a 20-foot radius and dim light 20 feet beyond that. If the weapon is not already magical, it becomes magical for the duration. You can end this effect on your turn as part of any other action. If you are no longer holding or carrying this weapon, or if you fall unconscious, this effect ends.",
+                effects: [
+                    Act(
+                        id: "sacred-weapon",
+                        name: "Sacred Weapon",
+                        cost: Action,
+                        resource: "channel-divinity",
+                        effect: WeaponBuff(
+                            ability: Cha,
+                            rounds: 10,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "channel-divinity-turn-the-unholy",
                 name: "Channel Divinity: Turn the Unholy",
                 level: 3,
                 text: "As an action, you present your holy symbol and speak a prayer censuring fiends and undead, using your Channel Divinity. Each fiend or undead that can see or hear you within 30 feet of you must make a Wisdom saving throw. If the creature fails its saving throw, it is turned for 1 minute or until it takes damage. A turned creature must spend its turns trying to move as far away from you as it can, and it can\'t willingly move to a space within 30 feet of you. It also can\'t take reactions. For its action, it can use only the Dash action or try to escape from an effect that prevents it from moving. If there\'s nowhere to move, the creature can use the Dodge action.",
+                effects: [
+                    Act(
+                        id: "turn-the-unholy",
+                        name: "Turn the Unholy",
+                        cost: Action,
+                        resource: "channel-divinity",
+                        effect: AreaSave(
+                            feet: 30,
+                            save: Wis,
+                            ability: Cha,
+                            condition: Frightened,
+                            rounds: 10,
+                            types: [
+                                "fiend",
+                                "undead",
+                            ],
+                            single: false,
+                            destroy: false,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "paladin-ability-score-improvement-1",
@@ -4202,6 +4574,13 @@
                 name: "Aura of Devotion",
                 level: 7,
                 text: "Starting at 7th level, you and friendly creatures within 10 feet of you can\'t be charmed while you are conscious. At 18th level, the range of this aura increases to 30 feet.",
+                effects: [
+                    Aura(
+                        feet: 10,
+                        save_bonus: false,
+                        immunity: "charmed",
+                    ),
+                ],
             ),
             (
                 id: "paladin-ability-score-improvement-2",
@@ -4772,6 +5151,14 @@
                 name: "Hunter\'s Prey: Colossus Slayer",
                 level: 3,
                 text: "Your tenacity can wear down the most potent foes. When you hit a creature with a weapon attack, the creature takes an extra 1d8 damage if it\'s below its hit point maximum. You can deal this extra damage only once per turn.",
+                effects: [
+                    ExtraDamage(
+                        dice: [
+                            (1, "1d8"),
+                        ],
+                        hurt_target: true,
+                    ),
+                ],
             ),
             (
                 id: "hunters-prey-giant-killer",
@@ -4959,6 +5346,9 @@
                 name: "Superior Hunter\'s Defense: Evasion",
                 level: 15,
                 text: "When you are subjected to an effect, such as a red dragon\'s fiery breath or a lightning bolt spell, that allows you to make a Dexterity saving throw to take only half damage, you instead take no damage if you succeed on the saving throw, and only half damage if you fail.",
+                effects: [
+                    Evasion,
+                ],
             ),
             (
                 id: "superior-hunters-defense-stand-against-the-tide",
@@ -4971,6 +5361,9 @@
                 name: "Superior Hunter\'s Defense: Uncanny Dodge",
                 level: 15,
                 text: "When an attacker that you can see hits you with an attack, you can use your reaction to halve the attack\'s damage against you.",
+                effects: [
+                    ReactionHalveDamage,
+                ],
             ),
             (
                 id: "ranger-ability-score-improvement-4",
@@ -5275,6 +5668,9 @@
                 name: "Sneak Attack",
                 level: 1,
                 text: "Beginning at 1st level, you know how to strike subtly and exploit a foe\'s distraction. Once per turn, you can deal an extra 1d6 damage to one creature you hit with an attack if you have advantage on the attack roll. The attack must use a finesse or a ranged weapon. You don\'t need advantage on the attack roll if another enemy of the target is within 5 feet of it, that enemy isn\'t incapacitated, and you don\'t have disadvantage on the attack roll. The amount of the extra damage increases as you gain levels in this class, as shown in the Sneak Attack column of the Rogue table.",
+                effects: [
+                    SneakAttack,
+                ],
             ),
             (
                 id: "thieves-cant",
@@ -5287,6 +5683,32 @@
                 name: "Cunning Action",
                 level: 2,
                 text: "Starting at 2nd level, your quick thinking and agility allow you to move and act quickly. You can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action.",
+                effects: [
+                    Act(
+                        id: "cunning-action-dash",
+                        name: "Cunning Action: Dash",
+                        cost: Bonus,
+                        effect: Basic(
+                            act: "dash",
+                        ),
+                    ),
+                    Act(
+                        id: "cunning-action-disengage",
+                        name: "Cunning Action: Disengage",
+                        cost: Bonus,
+                        effect: Basic(
+                            act: "disengage",
+                        ),
+                    ),
+                    Act(
+                        id: "cunning-action-hide",
+                        name: "Cunning Action: Hide",
+                        cost: Bonus,
+                        effect: Basic(
+                            act: "hide",
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "roguish-archetype",
@@ -5318,6 +5740,9 @@
                 name: "Uncanny Dodge",
                 level: 5,
                 text: "Starting at 5th level, when an attacker that you can see hits you with an attack, you can use your reaction to halve the attack\'s damage against you.",
+                effects: [
+                    ReactionHalveDamage,
+                ],
             ),
             (
                 id: "rogue-expertise-2",
@@ -6745,6 +7170,12 @@
                 name: "Dark One\'s Blessing",
                 level: 1,
                 text: "Starting at 1st level, when you reduce a hostile creature to 0 hit points, you gain temporary hit points equal to your Charisma modifier + your warlock level (minimum of 1).",
+                effects: [
+                    OnKillTempHp(
+                        ability: Cha,
+                        per_level: 1,
+                    ),
+                ],
             ),
             (
                 id: "pact-magic",

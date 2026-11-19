@@ -1506,6 +1506,11 @@
                 ),
             ],
         )),
+        class: Some((
+            class: "cleric",
+            subclass: "life",
+        )),
+        level: 5,
     ),
     (
         id: "miller",

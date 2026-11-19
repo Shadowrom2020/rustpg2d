@@ -8,7 +8,7 @@ it with content; most systems are set up in the Database and driven by triggers.
 ![A turn-based fight in Whisperwood: the turn order, the reachable tiles and the action bar](../images/game-combat.webp)
 
 The **status frame** at the top left shows a small portrait of the hero as dressed, the name, the
-**HP bar** with the hit points (`34 / 44`), the mana and experience bars and the ammunition of an
+**HP bar** with the hit points (`34 / 44`), a caster's spell slots (a pip per slot by level), the experience bar and the ammunition of an
 equipped bow or crossbow.
 
 Fights follow the SRD 5.1's combat rules **in turns**, on the map where they happen; exploring
@@ -120,8 +120,8 @@ to the project's *Highest level* (20 at most):
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Total XP | 300 | 900 | 2,700 | 6,500 | 14,000 | 23,000 | 34,000 | 48,000 | 64,000 | 85,000 | 100,000 | … | 355,000 |
 
-Each level adds **hit points** (and heals as many), a **hit die**, mana as set in the project (*Mana
-per level*, with magic), and the proficiency bonus grows with it ([Rules](#rules-srd-51)). The SRD
+Each level adds **hit points** (and heals as many), a **hit die**, a caster's spell slots, and the
+proficiency bonus grows with it ([Rules](#rules-srd-51)). The SRD
 gives XP by challenge: a commoner is worth 10, a bandit or guard 25, a goblin 50, an orc 100, a
 bandit captain 450, a veteran 700, an adult red dragon 18,000 (the library's monsters carry theirs);
 quests give what their *Experience reward* says. The XP is **split** equally between the hero and
@@ -294,7 +294,7 @@ timer), the Swiftness Potion takes off a level of exhaustion and frees you from 
   window where the hero spends **hit dice**: each heals d10 + the CON modifier (rolled into the roll
   log); *Done* lets an hour pass. Not with enemies nearby or in a fight.
 - A **long rest** is a night's sleep (a bed, the *Sleep* or *Long rest* action, `long_rest()`): full
-  HP and mana, half the level's hit dice back (at least one), one level of exhaustion less, and the
+  HP and spell slots, half the level's hit dice back (at least one), one level of exhaustion less, and the
   conditions with a duration are over.
 
 ## Rules (SRD 5.1)
@@ -392,36 +392,66 @@ this. The editor converts a project once when it opens it, after keeping a copy 
 - Asset libraries are converted the same way when they open.
 - Saved games still load: their hero gets the project's starting scores and proficiencies.
 
-## Magic
+## Spellcasting
 
-Turn it on in *Database › Project › Magic*.
+Spells are the **SRD 5.1's** (since 0.30): *Database › Spells*, the starter library's 319 imported
+with their texts ([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data)). The
+casting classes (bard, cleric, druid, paladin, ranger, sorcerer, warlock, wizard) cast them with
+**spell slots** by their class level (the class's table); a spell of level 1 to 9 takes a slot of
+its level or higher, a **cantrip** (level 0) none and grows with the caster's level. Mana is gone:
+projects of 0.29 and older are converted when the editor opens them (with a backup): their spells
+become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 
-**Magic** adds **mana** (*Max mana*, *Mana regeneration*; a blue bar under the HP bar) and
-**spells** (*Database › Spells*): mana cost, cooldown, an optional required proficiency (only a
-hero proficient in it, e.g. Arcana, can learn and cast the spell), an icon and an effect:
+- **Knowing and preparing**: a bard, ranger, sorcerer and warlock **know** the spells their
+  level-ups choose; a cleric, druid and paladin **prepare** from their class's whole list (the
+  spellcasting modifier + their level, half the level for a paladin); a wizard writes spells into a
+  **spellbook** (six at level 1, two each level, more copied from scrolls and books) and prepares
+  from it. Cantrips are chosen at level-ups. The [level-up window](#classes-and-levels) asks for
+  the new cantrips and spells; a new preparing caster starts with the first spells of its list
+  prepared.
+- **Save DC and attack**: 8 + proficiency + the spellcasting modifier (INT, WIS or CHA), and
+  proficiency + the modifier for spell attacks.
+- **Slots come back** after a long rest; a warlock's (pact magic: few slots, all of its highest
+  level) after a short rest too. **Rituals**: a bard, cleric, druid or wizard casts a ritual spell
+  it knows or prepared without a slot outside fights, and ten minutes pass.
+- **In a fight** the action bar's **Cast** entry (2) aims the next spell it can cast at each slot
+  level it has left (press again for the next: a higher slot **upcasts** it, more damage or more
+  targets); E / Enter or a click casts it at the creature or tile under the cursor. The line above
+  the bar tells the spell, the slot, its area and its save or attack bonus. **Areas** are drawn on
+  the grid: spheres and cylinders around the aimed tile (around the caster for a *Self* spell), cubes
+  on it, cones and lines from the caster toward it; everyone inside is a target, allies too.
+- **What spells do** (their *parts*): a spell attack (the damage on a hit, a critical hit doubles the
+  dice) or a saving throw against the DC (damage halved or none on a success, conditions only on a
+  failure; Evasion counts), damage, healing, temporary hit points, conditions (paralyzed, prone,
+  frightened…), boons and banes (Bless and Bane's d4 on attacks and saves, Shield and Shield of Faith
+  on AC, Mage Armor's AC 13 + DEX, Haste, Longstrider, resistances), light, Knock (the lock within
+  two tiles opens), a script function. The fight log tells each target's save and damage.
+- **Concentration**: a concentration spell lasts while the caster keeps it: one at a time (a new one
+  ends the old), and damage asks for a CON save (DC 10 or half the damage); a failure ends what the
+  spell gave everyone.
+- **Outside fights** the **Spells** tab (L) is the spellbook: the known and preparable spells by
+  level, the slots, the DC, P prepares or unprepares, ←/→ choose the slot, Enter casts (healing,
+  boons, light, Knock; spells that attack wait for a fight), 1-8 put a spell on the quick bar. A heal
+  with companions around asks whom to heal.
+- **Scrolls and books** (items with *Teaches spell*), as the SRD has it: a wizard copies the spell
+  into the spellbook (a spell of a level it has slots of); another caster whose class lists the spell
+  reads a scroll to cast it once without a slot; nobody else can use them. A book only teaches wizards.
 
-| Effect | What it does |
-|---|---|
-| *Heal* | Restores hit points; with companions on the map it asks whom to heal |
-| *Bolt* | A projectile, aimed with the mouse (with a damage type: force, fire…) |
-| *Blast* | Damages everything within a radius (with a damage type) |
-| *Light* | A glow around the player for a while |
-| *Script* | A script function: aim, throw animated sprites, play effects, damage areas ([the Fireball](08-scripting.md#a-fireball-spell)) |
+![The spellbook: a wizard's cantrips and spells, the slots, the DC and spell attack, Mage Armor's text](../images/game-spells.webp)
 
-Spells are learned from items with *Teaches spell* (scrolls that are consumed, books that aren't) or
-the *Learn spell* action, and cast from the **Spells** tab (L) or the quick bar. **Bolt spells are
-aimed**: the cursor turns into a crosshair (gold over an enemy); the next left click fires at what's
-under it, X fires straight ahead, right-click or Esc cancels, and mana is only spent when the bolt
-flies.
+![A Fireball aimed in a fight: its 20 ft sphere on the grid, the slot, the DEX DC](../images/game-spell-area.webp)
 
-![The Spells tab](../images/game-spells.webp)
+**The 319 spells**: 113 act by their parts (the SRD data's attack, save, damage and healing, plus a
+table in the import for conditions, boons, light and Knock); the other 206 are **story only**
+(divination, summoning, travel, illusions: their text is shown, and only events and scripts cast
+them: *Cast spell*, `cast_spell`). The example's spells are Cure Wounds, Light, Fire Bolt, Burning
+Hands, Magic Missile and Fireball (its flying sprite and explosion are the spell's *Look*);
+**Brother Ansel** is a cleric of the Life domain who heals a hurt hero with Cure Wounds once a day.
 
-Conditions: *Knows spell*. Actions: *Learn spell*, *Add mana*, *Damage around player*, *Light
-around player*.
-
-**Companions use magic too**: hand a companion with mana a scroll or a spell book and it learns
-*Heal* and *Bolt* spells, then heals whoever is badly hurt and casts bolts at its enemy
-([Characters › Companions](06-characters.md#companions)).
+Conditions: *Knows spell*. Actions: *Learn spell*, *Cast spell*, *Damage around player*, *Light
+around player*. Party members with a casting class cast in fights when the player plays their
+turns (the AI's casting is 0.32); a scroll handed to one teaches it the spell when its class lists
+it.
 
 ## Inventory, quick bar and containers
 
@@ -576,9 +606,9 @@ spot where the user's feet go (with a preview), the way they face (a chair per d
 the side the head is on), for beds the hour sleep lasts until, a **cover** sprite drawn over the
 user (a blanket, a chair's backrest), and optional conditions with a refusal text (a paid inn room).
 
-E at the furniture sits the player down: HP comes back (1 every 4 s) and mana twice as fast. At a bed
+E at the furniture sits the player down: HP comes back (1 every 4 s). At a bed
 it asks "Sleep until 07:00?": the screen fades, the clock jumps, and the night is a [long
-rest](#rests) (HP and mana, hit dice, exhaustion, timed conditions), enemies due to respawn return, scheduled villagers are at their new places; then *Woke up*
+rest](#rests) (HP and spell slots, hit dice, exhaustion, timed conditions), enemies due to respawn return, scheduled villagers are at their new places; then *Woke up*
 triggers run and the game autosaves. Not with enemies nearby. A movement key, an attack or E stands
 up. The **Sleep** action and `sleep(hours)` rest without a bed (camping, an inn's "Rest").
 

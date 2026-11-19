@@ -52,7 +52,8 @@ impl Game {
         let piece = |s: EquipSlot| self.world.equipment.item(s).and_then(|id| self.project.db.item(id)?.armor.as_ref()).map(|a| a.defense);
         let body = piece(EquipSlot::Body).is_some();
         let shield = piece(EquipSlot::Offhand).unwrap_or(0);
-        self.class_armor_class(worn, body, shield)
+        // (And spells: Mage Armor, Shield of Faith, Haste.)
+        self.buff_ac(super::turns::Who::Player, self.class_armor_class(worn, body, shield))
     }
 
     /// Whether the hero wears no body armor and holds no shield (unarmored features).

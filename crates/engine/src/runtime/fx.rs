@@ -117,7 +117,10 @@ impl Game {
     /// before a script runs (not every frame: it clones every character's name).
     pub(super) fn sync_script_player(&mut self) {
         let ts = self.ts();
-        let info = crate::script::PlayerInfo { x: self.player.pos.x / ts, y: self.player.pos.y / ts, max_hp: self.player_max_hp(), facing: self.player.facing, weather: self.weather(), pose: self.pose_name().into(), sleeping: self.sleeping(), faction: self.player_faction(), sneaking: self.sneaking(), armor_class: self.armor_class(), hit_dice: self.hit_dice_left(), combat_round: self.fight.as_ref().map_or(0, |c| c.round), features: self.hero_features(), resources: self.hero_uses() };
+        let info = crate::script::PlayerInfo { x: self.player.pos.x / ts, y: self.player.pos.y / ts, max_hp: self.player_max_hp(), facing: self.player.facing, weather: self.weather(), pose: self.pose_name().into(), sleeping: self.sleeping(), faction: self.player_faction(), sneaking: self.sneaking(), armor_class: self.armor_class(), hit_dice: self.hit_dice_left(), combat_round: self.fight.as_ref().map_or(0, |c| c.round), features: self.hero_features(), resources: self.hero_uses(), slots: {
+            let (max, left) = (self.slot_max(super::turns::Who::Player), self.slots_left(super::turns::Who::Player));
+            std::array::from_fn(|k| (max[k], left[k]))
+        }, prepared: self.prepared_of(super::turns::Who::Player), preparable: self.preparable(super::turns::Who::Player), prepare_max: self.prepare_max(super::turns::Who::Player) };
         self.scripts.set_player(info);
         let chars = self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0).map(|e| (e.uid, e.name.clone(), e.hp)).collect();
         self.scripts.set_characters(chars);

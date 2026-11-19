@@ -66,14 +66,6 @@ impl Game {
             .collect()
     }
 
-    /// Extra max mana from levels (with magic).
-    pub(super) fn level_mana(&self) -> u32 {
-        if !self.progression_on() {
-            return 0;
-        }
-        (self.world.player_level() - 1) * self.project.config.progression.mana_per_level
-    }
-
     /// Adds (negative: removes) experience and raises the level as far as it reaches; every
     /// level gives max HP (healed by as much) and mana, with one message each.
     /// Losing experience never lowers the level.
@@ -137,10 +129,7 @@ impl Game {
             self.world.player_hp = Some((hp + hp_gain).clamp(1, max));
             gains.push(format!("{:+} HP", hp_gain));
         }
-        if self.magic_on() && mana_gain > 0 {
-            self.world.mana = (self.world.mana + mana_gain as f32).min(self.max_mana() as f32);
-            gains.push(format!("+{} mana", mana_gain));
-        }
+        let _ = mana_gain;
         let msg = if gains.is_empty() { format!("Level {}!", self.world.level) } else { format!("Level {}!  {}", self.world.level, gains.join(", ")) };
         self.ui.toast(msg);
         // A class: the level's choices wait for the level-up window; its features count now.

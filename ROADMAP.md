@@ -661,7 +661,7 @@ The twelve SRD classes with their subclass, spellcasting and the spell list.
   - **Scripts / testing:** `resource(id)`; autoplay `turn class ACT [NAME]`, `turn log [N]`;
     `status` `resources=`, `class_fx=`; the fight log shows each hit's damage.
 
-- [ ] Spellcasting and the SRD spells — `feature/srd-spells`
+- [x] Spellcasting and the SRD spells — `feature/srd-spells`
 
   **Goal.** Spells work as in the SRD.
 
@@ -697,6 +697,31 @@ The twelve SRD classes with their subclass, spellcasting and the spell list.
   **Verify.** Autoplay with fixed seeds for each effect kind (a save for half, an attack spell, an
   area, concentration broken by damage, an upcast). A count of how many of the 319 spells are fully
   mechanical, *script* or *story only* goes in the manual.
+
+  **As built.** One pull request. Your decisions: mana removed with a conversion, scrolls by the
+  strict SRD (only a class with the spell on its list uses one), the AI's casting stays 0.32.
+  - **Data:** `SpellDef` gained the SRD fields (`level` reused, school, `SpellCast`, `SpellRange`,
+    `Area` (`Shape`), components, ritual, concentration, `duration_rounds`, classes, `story_only`,
+    `SpellVisual`) and `parts: Vec<SpellPart>` (Attack, Save, Damage / Heal / TempHp by level with
+    `MOD`, Condition, Targets, Buff (`srd::conditions::Buff` on an `ActiveCondition`), Light,
+    Unlock, Script). `SpellEffect::Parts` (appended, the default); old spells are upgraded when
+    read (`SpellDef::upgrade`) and `RULES_VERSION` 3 converts projects with a backup.
+    `ClassDef.spellcasting` (`Spellcasting`: ability, `CasterKind` Known / Prepared / Spellbook /
+    Pact, half, ritual). `WorldState` `prepared`, `slots_spent`, `concentration`; `Companion`
+    `spells`, `prepared`, `slots_spent`; `ActiveCondition` `source` and `buff`.
+  - **Import:** the 319 spells (113 mechanical, 206 story only, no scripts); a table adds
+    conditions, boons, light and Knock; damage without an attack or save is kept only for Magic
+    Missile (Call Lightning and Flaming Sphere get their DEX save, Scorching Ray an attack).
+  - **Runtime:** `runtime/spells.rs` (slots, known / prepared, concentration, scrolls, casting out
+    of fights, the level-up picks), `runtime/turns/casting.rs` (targets, areas, `resolve_spell`,
+    the CON save on damage, buffs in AC, speed, rolls and resistances); the Spells tab is the
+    spellbook; mana and the companions' real-time magic are gone (`companion_magic.rs` keeps
+    teaching under the class rule). Event action *Cast spell*; scripts `spell_slots`,
+    `slots_left`, `restore_slots`, `prepare_spell`, `is_prepared`, `concentrating`, `cast_spell`
+    (`mana` / `add_mana` deprecated); autoplay `turn cast`, `turn aim`.
+  - **Example:** Cure Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball (renamed from
+    heal, spark, fire_burst); the scrolls and books follow the rule; Brother Ansel (the priest) is a
+    Life cleric who heals a hurt hero once a day (`ansel_blessing`, *Cast spell* free).
 
 ## 0.31.0 — Gear and Treasure
 

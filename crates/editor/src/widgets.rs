@@ -1905,6 +1905,12 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             });
             ui.weak("(\"player\" or a party member on this map: the class's saving throws and proficiencies; its choices open the level-up window; Database › Classes)");
         }
+        Action::CastSpell { spell, target, free } => {
+            labeled(ui, "spell", |ui| suggest(ui, &format!("{id}/castsp"), spell, &refs.spells, 120.0));
+            target_field(ui, id, target, refs);
+            ui.checkbox(free, "free").on_hover_text("Without a spell slot: a scroll, the story's casting");
+            ui.weak("(the hero casts it on the target outside a fight; with a slot unless free; Database › Spells)");
+        }
         Action::SetFaction { target, faction } => {
             target_field(ui, id, target, refs);
             labeled(ui, "faction", |ui| suggest(ui, &format!("{id}/setfac"), faction, &refs.factions, 120.0));

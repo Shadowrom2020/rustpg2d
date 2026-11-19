@@ -45,6 +45,37 @@ pub struct ClassDef {
     /// Every feature of the class and its subclasses (and their options, such as the fighting
     /// styles), by id.
     pub features: Vec<ClassFeature>,
+    /// How it casts spells (`None` = it doesn't); its slots and the cantrips and spells it knows
+    /// are the level's numbers (`spellcasting.spell_slots_level_1`, `cantrips_known`, `spells_known`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spellcasting: Option<Spellcasting>,
+}
+
+/// A class's spellcasting.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Spellcasting {
+    /// The spellcasting ability (`int` for a wizard, `wis` for a cleric, `cha` for a bard).
+    pub ability: Ability,
+    pub kind: CasterKind,
+    /// Prepares half its level's worth (paladin; the ranger knows its spells).
+    #[serde(default)]
+    pub half: bool,
+    /// Casts its ritual spells as rituals (without a slot, 10 minutes longer).
+    #[serde(default)]
+    pub ritual: bool,
+}
+
+/// How a class has its spells.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CasterKind {
+    /// Learns `spells_known` spells at its level-ups (bard, ranger, sorcerer).
+    Known,
+    /// Prepares from its whole list after a rest: the modifier + its level (cleric, druid, paladin).
+    Prepared,
+    /// Learns spells into a spellbook (6 at level 1, 2 a level, scrolls copied) and prepares from it (wizard).
+    Spellbook,
+    /// Knows its spells; its few slots, all of the highest level it has, come back after a short rest (warlock).
+    Pact,
 }
 
 /// What a level of a class brings.
@@ -414,6 +445,27 @@ impl ClassDef {
         ids
     }
 
+    /// The cantrips and spells reaching `level` adds to what a caster knows: new cantrips when
+    /// `cantrips_known` grows; spells when a known caster's `spells_known` grows, a wizard's 6 at
+    /// level 1 and 2 a level (its spellbook); none for a preparing caster.
+    pub fn spell_gains(&self, level: u32) -> (u32, u32) {
+        let Some(sc) = &self.spellcasting else { return (0, 0) };
+        let n = |l: u32, k: &str| if l == 0 { 0 } else { self.number(l, k).max(0) as u32 };
+        let cantrips = n(level, "spellcasting.cantrips_known").saturating_sub(n(level - 1, "spellcasting.cantrips_known"));
+        let spells = match sc.kind {
+            CasterKind::Known | CasterKind::Pact => n(level, "spellcasting.spells_known").saturating_sub(n(level - 1, "spellcasting.spells_known")),
+            CasterKind::Spellbook => {
+                if level == 1 {
+                    6
+                } else {
+                    2
+                }
+            }
+            CasterKind::Prepared => 0,
+        };
+        (cantrips, spells)
+    }
+
     /// Whether `level` brings an ability score improvement.
     pub fn improvement_at(&self, level: u32) -> bool {
         self.levels.get(level.clamp(1, 20) as usize - 1).is_some_and(|l| l.features.iter().any(|f| self.feature(f).is_some_and(|d| d.choice == Some(FeatureChoice::AbilityScores))))
@@ -612,6 +664,26 @@ mod tests {
         assert_eq!(loh.resource_max(&c, "loh", &a), Some(20));
         let back: ClassDef = ron::from_str(&ron::to_string(&c).unwrap()).unwrap();
         assert_eq!(back, c);
+    }
+
+    #[test]
+    fn casters_gain_cantrips_and_spells_by_level() {
+        let mut c = ClassDef::fresh("wizard");
+        c.spellcasting = Some(Spellcasting { ability: Ability::Int, kind: CasterKind::Spellbook, half: false, ritual: true });
+        for (l, n) in [(1, 3), (4, 4), (10, 5)] {
+            for k in l..=20 {
+                c.levels[k - 1].numbers.insert("spellcasting.cantrips_known".into(), n);
+            }
+        }
+        assert_eq!((c.spell_gains(1), c.spell_gains(2), c.spell_gains(4)), ((3, 6), (0, 2), (1, 2)));
+        // A known caster: the growth of spells_known; a preparing one learns no spells.
+        c.spellcasting.as_mut().unwrap().kind = CasterKind::Known;
+        c.levels[0].numbers.insert("spellcasting.spells_known".into(), 4);
+        c.levels[1].numbers.insert("spellcasting.spells_known".into(), 5);
+        assert_eq!((c.spell_gains(1), c.spell_gains(2)), ((3, 4), (0, 1)));
+        c.spellcasting.as_mut().unwrap().kind = CasterKind::Prepared;
+        assert_eq!(c.spell_gains(2), (0, 0));
+        assert_eq!(ClassDef::fresh("fighter").spell_gains(1), (0, 0));
     }
 
     #[test]

@@ -198,7 +198,11 @@ In the example, Tilda's quest reward offers "Ask for a bit more": an *Ability ch
 DC 13) whose success gives ten more coins.
 
 **Magic**
-- **Learn spell**, **Teach spell** (a character, e.g. a companion), **Add mana**.
+- **Learn spell** (only when the hero's class lists the spell), **Teach spell** (a party member
+  whose class lists it), **Add mana** (does nothing since spells use slots).
+- **Cast spell** (spell, target, free): the hero casts a spell outside a fight on *player* or a
+  character on this map; with a slot unless *free* (a scroll, the story's casting: a priest's
+  blessing). Story-only spells act only this way.
 
 AI agents get every event, condition and action with its fields as JSON ([below](#the-json-form-ai-agents-hand-written-files)).
 

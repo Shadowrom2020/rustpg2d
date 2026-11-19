@@ -339,3 +339,29 @@ fn saves_before_classes_load_classless() {
     assert_eq!(back.class, w.class);
     assert_eq!(back.levelups, w.levelups);
 }
+
+#[test]
+fn spells_with_mana_become_srd_spells() {
+    use rustpg2d_engine::skills::{Shape, SpellEffect, SpellPart, SpellRange};
+    // 0.27.0's spells (mana, cooldown, one effect each) read as SRD spells: a heal of level 1
+    // with healing dice, a bolt a cantrip spell attack keeping its projectile, a blast a level 1
+    // DEX save in a sphere around the caster, the light cantrip, a script of level 1.
+    let db = rustpg2d_engine::project::Project::load(&fixture("project-0.27.0")).unwrap().db;
+    let get = |id: &str| db.spell(id).unwrap();
+    assert!(db.spells.iter().all(|d| d.effect == SpellEffect::Parts && !d.parts.is_empty() && d.classes.len() == 8));
+    let heal = get("heal");
+    assert_eq!((heal.level, heal.range), (1, SpellRange::Touch));
+    assert!(matches!(&heal.parts[0], SpellPart::Heal { by_level } if by_level[0].1.ends_with("+ MOD")));
+    let spark = get("spark");
+    assert_eq!(spark.level, 0);
+    assert!(matches!(spark.parts[..], [SpellPart::Attack { ranged: true }, SpellPart::Damage { .. }]) && spark.visual.projectile.is_some());
+    let burst = get("fire_burst");
+    assert_eq!((burst.level, burst.range, burst.area.map(|a| a.shape)), (1, SpellRange::Caster, Some(Shape::Sphere)));
+    assert!(matches!(burst.parts[0], SpellPart::Save { half: true, .. }));
+    assert!(matches!(get("light").parts[..], [SpellPart::Light { .. }]) && get("light").level == 0);
+    assert!(matches!(&get("fireball").parts[..], [SpellPart::Script { function }] if function == "cast_fireball"));
+    // A save of 0.22.0 with mana: it loads, the mana is ignored, no slots spent, nothing prepared.
+    let s = std::fs::read_to_string(fixture("saves/save-0.22.0.ron")).unwrap();
+    let w = WorldState::from_ron(&s).unwrap();
+    assert_eq!((w.slots_spent, w.prepared.len(), w.concentration.is_none()), ([0; 9], 0, true));
+}

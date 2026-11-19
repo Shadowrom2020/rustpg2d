@@ -54,7 +54,7 @@ impl Game {
     }
 
     /// The choice rows of a pending level-up.
-    fn levelup_rows(&self, c: &ClassDef, hc: &HeroClass, level: u32, profs: &[String]) -> Vec<ChoiceRow> {
+    fn levelup_rows(&self, who: &str, c: &ClassDef, hc: &HeroClass, level: u32, profs: &[String]) -> Vec<ChoiceRow> {
         let mut rows = Vec::new();
         for (feature, choice) in Self::level_choices(c, level) {
             match choice {
@@ -98,7 +98,28 @@ impl Game {
                 }
             }
         }
+        // New cantrips and spells from the class's list (known casters, a wizard's spellbook).
+        let (cantrips, spells) = Self::spell_gains(c, level);
+        let known = self.subject_who(who).map_or(Vec::new(), |w| self.known_of(w));
+        for (n, feature, label, cantrip) in [(cantrips, "cantrips", "Cantrip", true), (spells, "spells", "Spell", false)] {
+            let opts = self.spell_options(c, level, cantrip, &known);
+            if opts.is_empty() {
+                continue;
+            }
+            for _ in 0..n {
+                rows.push(ChoiceRow { feature: feature.into(), label: label.into(), options: opts.clone() });
+            }
+        }
         rows
+    }
+
+    /// The combatant a pending level-up's key stands for (`player`, a member's `map:uid`).
+    fn subject_who(&self, who: &str) -> Option<super::turns::Who> {
+        if who == "player" {
+            Some(super::turns::Who::Player)
+        } else {
+            self.member_uid(who).map(super::turns::Who::Npc)
+        }
     }
 
     /// Opens the window for the next pending level-up when nothing else is going on; handles it
@@ -132,9 +153,13 @@ impl Game {
             self.levelup = None;
             return false;
         };
-        let rows = self.levelup_rows(&c, &hc, p.level, &profs);
+        let rows = self.levelup_rows(&p.who, &c, &hc, p.level, &profs);
         let n = rows.len() + 1;
         let w = self.levelup.as_mut().unwrap();
+        // (A new window: rows of the same choice start on different options.)
+        if w.picks.is_empty() {
+            w.picks = rows.iter().enumerate().map(|(k, r)| rows[..k].iter().filter(|o| o.feature == r.feature).count() % r.options.len().max(1)).collect();
+        }
         w.picks.resize(rows.len(), 0);
         if input::nav_pressed(Act::Down) {
             w.sel = (w.sel + 1) % n;
@@ -198,7 +223,17 @@ impl Game {
 
     /// Applies level-up picks: the subclass, the features' choices, ability increases (the hero's
     /// scores; a party member's are added on its stat block from the picks).
-    pub(super) fn apply_level_picks(&mut self, who: &str, chosen: std::collections::BTreeMap<String, Vec<String>>) {
+    pub(super) fn apply_level_picks(&mut self, who: &str, mut chosen: std::collections::BTreeMap<String, Vec<String>>) {
+        // Cantrips and spells go to what the caster knows.
+        let mut spells: Vec<String> = chosen.remove("cantrips").unwrap_or_default();
+        spells.extend(chosen.remove("spells").unwrap_or_default());
+        spells.sort();
+        spells.dedup();
+        if let Some(w) = self.subject_who(who) {
+            if !spells.is_empty() {
+                self.add_known(w, &spells);
+            }
+        }
         let apply = |hc: &mut HeroClass, abilities: Option<&mut crate::srd::Abilities>| {
             let mut abilities = abilities;
             for (feature, v) in chosen.iter() {
@@ -250,7 +285,7 @@ impl Game {
             }
         }
         let Some((c, hc, _, _, profs)) = self.levelup_subject(&p.who) else { return "no class".into() };
-        let rows = self.levelup_rows(&c, &hc, p.level, &profs);
+        let rows = self.levelup_rows(&p.who, &c, &hc, p.level, &profs);
         // Only this level's choices.
         let mut ignored: Vec<String> = chosen.keys().filter(|f| !rows.iter().any(|r| r.feature == **f)).cloned().collect();
         chosen.retain(|f, _| rows.iter().any(|r| r.feature == *f));
@@ -291,7 +326,7 @@ impl Game {
         let (Some(w), Some(p)) = (&self.levelup, self.world.levelups.first()) else { return };
         let Some((c, hc, name, _, profs)) = self.levelup_subject(&p.who) else { return };
         let _font = super::text::role(super::text::Role::Dialog);
-        let rows = self.levelup_rows(&c, &hc, p.level, &profs);
+        let rows = self.levelup_rows(&p.who, &c, &hc, p.level, &profs);
         let (rects, done) = levelup_layout(rows.len());
         let panel = levelup_panel(rows.len());
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.5));
@@ -314,7 +349,7 @@ impl Game {
         let text = rows
             .get(w.sel)
             .and_then(|r| r.options.get(w.picks.get(w.sel).copied().unwrap_or(0)))
-            .and_then(|(id, _)| c.feature(id).map(|f| f.text.clone()).or_else(|| c.subclass(id).map(|s| s.description.clone())))
+            .and_then(|(id, _)| c.feature(id).map(|f| f.text.clone()).or_else(|| c.subclass(id).map(|s| s.description.clone())).or_else(|| self.project.db.spell(id).map(|d| d.description.clone())))
             .or_else(|| c.feature(&sel_feature).map(|f| f.text.clone()))
             .unwrap_or_default();
         for line in super::text::wrap(&crate::lang::tr(&text), 16.0, W - 48.0).into_iter().take(5) {

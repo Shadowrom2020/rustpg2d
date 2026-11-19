@@ -220,6 +220,33 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Breaking:** a hero with a class takes the class's hit die (a wizard d6, a barbarian d12) instead
   of everyone's d10; heroes without a class (old saves, projects without classes) keep the d10.
 
+### Spells of the SRD
+- **Spellcasting**: the SRD 5.1's 319 spells (*Database › Spells*), imported into the starter
+  library with their texts: level, school, casting time, range, area, components, duration,
+  concentration, ritual, the classes that have them, and what they do as **parts** (a spell attack
+  or a saving throw, damage and healing by slot level, temporary hit points, conditions, boons and
+  banes such as Bless, Shield and Mage Armor, light, Knock, a script). 113 act; 206 are story only.
+  - Casters cast with **spell slots** by class level (a warlock's pact slots come back after a short
+    rest), know, prepare or keep spells in a **spellbook** by their class, and choose cantrips and
+    spells in the level-up window. Spell save DC and attack bonus from the spellcasting ability.
+  - **In fights** the *Cast* entry aims each spell at each slot level left (**upcasting**); **areas**
+    (spheres, cubes, cones, lines) are drawn on the grid; **concentration** ends on a failed CON save
+    against damage. The fight log tells every save and the damage.
+  - The **Spells tab** is a spellbook: slots, preparing (P), casting healing, boons, light and Knock
+    outside fights, rituals without a slot. The HUD shows the slots as pips.
+  - **Scrolls and books** by the SRD: a wizard copies the spell, another caster whose class lists it
+    casts it once from a scroll, nobody else can use them.
+  - The example's spells are Cure Wounds, Light, Fire Bolt, Burning Hands, Magic Missile and
+    Fireball; Brother Ansel is a Life cleric who heals a hurt hero once a day.
+  - Events: the action *Cast spell*. Scripts: `spell_slots`, `slots_left`, `restore_slots`,
+    `prepare_spell`, `is_prepared`, `concentrating`, `cast_spell`. Autoplay `turn cast SPELL [NAME |
+    X Y] [slot N]`, `turn aim`; `status` prints the slots, the prepared spells and concentration.
+- **Breaking:** mana is gone. Projects of 0.29 are converted when the editor opens them (with a
+  backup): their spells become SRD spells of level 1 (a bolt a cantrip) that every casting class
+  has; `mana()` and `add_mana()` do nothing (deprecated). Party members no longer heal by
+  themselves between fights (they cast in fights when you play their turns; the AI's casting is
+  0.32), and only heroes and party members with a casting class cast spells.
+
 ### Fixes
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.

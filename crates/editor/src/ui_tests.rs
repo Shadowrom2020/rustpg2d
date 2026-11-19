@@ -884,3 +884,32 @@ fn a_class_is_edited_and_a_character_gets_one() {
     assert_eq!((saved.characters[c].class.as_ref().map(|x| x.class.clone()), saved.characters[c].level), (Some("ranger".to_string()), 3));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn a_spell_gets_a_level_and_parts() {
+    let root = example_copy("spells");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.spells.iter().position(|s| s.id == "burning-hands").expect("the example's Burning Hands");
+    let mut h = harness(&root, Tab::Spells, k);
+    step(&mut h);
+    // Its level: 1 to 2; a condition added to its parts; a ritual.
+    beside(&h, "Level", |n| n.role() == Role::SpinButton).click();
+    step(&mut h);
+    h.get_by(|n| n.is_focused()).type_text("2");
+    step(&mut h);
+    h.press_key(egui::Key::Enter);
+    step(&mut h);
+    h.get_by_label("Condition").click();
+    step(&mut h);
+    h.get_by_label("Ritual").click();
+    step(&mut h);
+    let d = h.state().project.db.spells[k].clone();
+    assert_eq!(d.level, 2);
+    assert!(d.ritual);
+    assert!(matches!(d.parts.last(), Some(rustpg2d_engine::skills::SpellPart::Condition { .. })), "{:?}", d.parts);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    let s = saved.spell("burning-hands").unwrap();
+    assert_eq!((s.level, s.ritual, s.parts.len()), (2, true, d.parts.len()));
+    let _ = std::fs::remove_dir_all(&root);
+}

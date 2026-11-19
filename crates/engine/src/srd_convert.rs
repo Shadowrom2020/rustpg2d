@@ -119,10 +119,21 @@ pub struct Report {
     /// was taken out: "item elixir_strength", "map village".
     pub lost_effects: Vec<String>,
     pub backup: Option<PathBuf>,
+    /// The rules version the project had.
+    pub from_version: u32,
+    /// Spells of 0.29 (mana) that became SRD spells.
+    pub spells: Vec<String>,
 }
 
 impl Report {
     pub fn summary(&self) -> String {
+        if self.from_version >= 2 {
+            let mut s = format!("Converted to the SRD 5.1's spells: mana is gone, spells are cast with spell slots{}", if self.spells.is_empty() { String::new() } else { format!(" ({} became SRD spells of every casting class)", self.spells.join(", ")) });
+            if let Some(b) = &self.backup {
+                s += &format!("; backup: {}", b.display());
+            }
+            return s;
+        }
         let mapped: Vec<String> = self.mapped.iter().map(|(a, b)| format!("{a} = {b}")).collect();
         let mut s = if mapped.is_empty() && self.dropped.is_empty() {
             "Converted to the SRD 5.1 rules: status effects became conditions".to_string()
@@ -155,7 +166,13 @@ pub fn convert_project(root: &Path, backup: Option<&Path>) -> Result<Report> {
     }
     let mut project = Project::load(root)?;
     let from_version = project.config.rules_version;
-    let mut report = Report { backup: backup.map(Path::to_path_buf), ..Default::default() };
+    let mut report = Report { backup: backup.map(Path::to_path_buf), from_version, ..Default::default() };
+    // (Spells of 0.29 were upgraded when the project was read; the file still has their mana.)
+    if let Ok(text) = std::fs::read_to_string(root.join("defs").join("spells.ron")) {
+        if let Ok(raw) = ron::from_str::<Vec<crate::skills::SpellDef>>(&text) {
+            report.spells = raw.iter().filter(|d| !matches!(d.effect, crate::skills::SpellEffect::Parts)).map(|d| d.id.clone()).collect();
+        }
+    }
     let skills_file = root.join("defs").join("skills.ron");
     let old: Vec<OldSkill> = match std::fs::read_to_string(&skills_file) {
         Ok(text) => ron::from_str(&text).with_context(|| format!("reading {}", skills_file.display()))?,

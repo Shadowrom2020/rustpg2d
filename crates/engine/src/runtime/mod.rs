@@ -25,6 +25,7 @@ mod inventory_ui;
 mod journal;
 mod juice;
 mod skills;
+mod spells;
 mod lights;
 mod creator;
 mod patrol;
@@ -2404,16 +2405,18 @@ impl Game {
             self.equip_item(item);
             return;
         }
+        // Scrolls and spell books (the SRD's rule): a wizard copies the spell, another caster
+        // whose list has it casts it once (in a fight it is aimed like Cast), anyone else can't.
+        if let Some(spell) = self.project.db.item(item).map(|d| d.teaches.clone()).filter(|s| !s.is_empty()) {
+            let consumable = self.project.db.item(item).is_some_and(|d| d.consumable);
+            if self.read_scroll(&spell, consumable) && consumable {
+                self.world.take_item(item, 1);
+            }
+            return;
+        }
         // In a fight using an item is the action of the hero's turn (Use an Object).
         if let Err(why) = self.fight_item_use() {
             self.ui.toast(crate::lang::tr_ui(why).into_owned());
-            return;
-        }
-        // Scrolls and spell books teach a spell (consumed if the item is consumable).
-        if let Some(spell) = self.project.db.item(item).map(|d| d.teaches.clone()).filter(|s| !s.is_empty()) {
-            if self.learn_spell(&spell) && self.project.db.item(item).is_some_and(|d| d.consumable) {
-                self.world.take_item(item, 1);
-            }
             return;
         }
         // Using the right key on a locked prop opens it.
@@ -3582,10 +3585,8 @@ impl ActionHost for Game {
                 self.learn_spell(spell);
                 Step::Continue
             }
-            Action::AddMana { amount } => {
-                self.add_mana(*amount);
-                Step::Continue
-            }
+            // Mana went with the SRD's spell slots (0.30).
+            Action::AddMana { .. } => Step::Continue,
             Action::DamageAround { damage, radius, damage_type } => {
                 self.damage_around(*damage, *radius, false, *damage_type);
                 Step::Continue
@@ -3745,6 +3746,10 @@ impl ActionHost for Game {
             }
             Action::SetClass { target, class, level } => {
                 self.set_class_of(target, class, *level, ctx.owner);
+                Step::Continue
+            }
+            Action::CastSpell { spell, target, free } => {
+                self.cast_spell_action(spell, target, *free, ctx.owner);
                 Step::Continue
             }
             Action::Lockpick { difficulty, var } => {

@@ -49,7 +49,7 @@ is full, assigns it and opens it for drawing.
 | **Use on** | *Player* (the default), *Player or companion* (asks whom to heal when a companion is around) or *Companions* |
 | **Equipment** | *None, Weapon, Helmet, Body armor, Left hand, Clothing* or *Tool* (below) |
 | **Seed** | Makes it plantable on farm plots: growth stages with a sprite and hours each, and the harvest ([Farming](09-gameplay.md#farming)) |
-| **Magic** | **Teaches spell**: using it teaches a spell (a scroll that is consumed, a book that isn't) |
+| **Magic** | **Teaches spell**: a spell scroll (consumed) or book: a wizard copies the spell, another caster whose class lists it casts it once from a scroll, nobody else can use it |
 | **Furniture** | **Places prop**: using the item in one of the player's homes puts this prop on the free tile in front; picking the prop up gives the item back ([Homes and furniture](09-gameplay.md#homes-and-furniture)) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
 | **Held** | Weapons, left-hand items and tools without a 3D model: how their picture is held (below) |
@@ -305,7 +305,7 @@ pixels) and a **Pixel size** (screen pixels per picture pixel; whole numbers kee
 | **Button**, **Button under the pointer** | Buttons, window tabs, close buttons; the second also marks the open tab |
 | **Cursor** | The selected row of menus, lists and choices, and the selected inventory slot |
 | **Toast** | The short messages at the top of the screen |
-| **Around the HP / mana / experience bar** | Frames around the HUD's bars |
+| **Around the HP / spell slot / experience bar** | Frames around the HUD's bars (the mana bar's parts draw the spell slots' pips) |
 
 **Colours** replace the built-in ones where they are switched on: the panels' **background** and
 **border** (for windows without a frame picture), the fills of buttons, the cursor and toasts, the
@@ -419,7 +419,15 @@ steps' actions and the rewards run whichever way a quest moves on. See
 
 ## Spells, recipes and achievements
 
-These belong to the game systems they drive: [Magic](09-gameplay.md#magic),
+A **spell** (*Database › Spells*) has a level (0 = a cantrip), school, casting time (action, bonus
+action, reaction or minutes), range (self, touch, feet, sight), an **area** (sphere, cylinder, cube,
+cone or line and its size), components, a duration in rounds with **concentration** and **ritual**,
+the **classes** whose list has it, **story only** (only events and scripts cast it), its **parts**
+(what it does, in order: a spell attack or a saving throw, then damage and healing by slot level as
+`1:1d10,5:2d10` with `MOD` for the spellcasting modifier, temporary hit points, a condition, the
+number of targets, a boon or bane, light, unlocking, a script function `(caster, x, y, slot)`), its
+**look** (a projectile, an impact effect sheet and its scale, a sound) and an icon. Spells, recipes
+and achievements belong to the game systems they drive: [Spellcasting](09-gameplay.md#spellcasting),
 [Crafting](09-gameplay.md#crafting-cooking-and-blacksmithing) and
 [Achievements](09-gameplay.md#achievements).
 
@@ -460,8 +468,8 @@ quests.
 | **Character pose memory** | GPU memory for the rendered poses of 3D characters, 8 to 128 MB (default 32). When it is full, the poses drawn longest ago are rendered again when needed: raise it for many different characters on screen at once, lower it for small GPUs |
 | **Companions at 0 HP** | Knocked down until healed (default), get up after some seconds, or go home ([Companions](06-characters.md#companions)) |
 | **Rules (SRD 5.1)** | The ability scores and proficiencies a new hero starts with (until the character creator sets them; *Standard array* = 15 14 13 12 10 8), and whether checks show a line on screen ([Gameplay › Rules](09-gameplay.md#rules-srd-51)) |
-| **Magic** | Turn on magic; max mana, mana regeneration |
-| **Experience and levels** | On / off, the highest level (up to 20), **Hit points per level** (*Average*: the hit die's 6, or *Rolled*: a d10, each plus CON) and the mana per level; the SRD's XP table is shown ([Gameplay › Experience and levels](09-gameplay.md#experience-and-levels)) |
+| **Magic** | *Spells tab for every hero* (else only casters and heroes who know spells see it); spells use slots since 0.30 |
+| **Experience and levels** | On / off, the highest level (up to 20), **Hit points per level** (*Average*: the hit die's average, or *Rolled*: the die, each plus CON); the SRD's XP table is shown ([Gameplay › Experience and levels](09-gameplay.md#experience-and-levels)) |
 | **Game sounds** | The sounds the game plays by itself: pickups, attacks, hits, dialogs, doors |
 | **Script hooks** | Script functions the engine calls to change what it does: a hit's damage, healing, item use, experience, levels, prices, crafting, entering a map, a new game, saving, loading, opening menus, status effects; hook, function and priority ([Scripting › Script hooks](08-scripting.md#script-hooks)) |
 | **Languages** | The language the game is written in, translations, *Play-test in* ([Languages](12-languages.md)) |

@@ -602,8 +602,8 @@
     ),
     (
         id: "scroll_heal",
-        name: "Scroll of Healing",
-        description: "Reading it teaches the Heal spell. The scroll crumbles afterwards.",
+        name: "Scroll of Cure Wounds",
+        description: "A spell scroll. A bard, cleric, druid, paladin or ranger can read it to cast Cure Wounds once; then it crumbles. Others can make nothing of it.",
         icon: (
             sheet: "items",
             frame: 22,
@@ -614,12 +614,12 @@
         armor: None,
         max_stack: 5,
         value: 20,
-        teaches: "heal",
+        teaches: "cure-wounds",
     ),
     (
         id: "scroll_light",
         name: "Scroll of Light",
-        description: "Teaches the Light spell: a glow around you in dark places.",
+        description: "A spell scroll. A bard, cleric, sorcerer or wizard can read it to cast Light once - handy in the old mine; then it crumbles.",
         icon: (
             sheet: "items",
             frame: 22,
@@ -634,8 +634,8 @@
     ),
     (
         id: "spellbook_spark",
-        name: "Book of Sparks",
-        description: "A worn spell book. Teaches Spark - but it takes some arcane knowledge to understand.",
+        name: "Book of Magic Missile",
+        description: "A worn wizard\'s spell book. A wizard copies Magic Missile from it into their own spellbook; nobody else can learn from it.",
         icon: (
             sheet: "items",
             frame: 23,
@@ -646,12 +646,12 @@
         armor: None,
         max_stack: 1,
         value: 60,
-        teaches: "spark",
+        teaches: "magic-missile",
     ),
     (
         id: "tome_fireball",
         name: "Tome of the Fireball",
-        description: "Teaches Fireball: aim it at a spot and it explodes there. Needs Arcana 3.",
+        description: "A wizard copies Fireball, a 3rd-level spell, from it into their spellbook.",
         icon: (
             sheet: "items",
             frame: 23,
@@ -666,8 +666,8 @@
     ),
     (
         id: "tome_fire",
-        name: "Tome of Fire",
-        description: "Fire Burst: flames around you. Needs a trained arcanist.",
+        name: "Tome of Burning Hands",
+        description: "A wizard copies Burning Hands from it into their spellbook: a cone of flame from the fingertips.",
         icon: (
             sheet: "items",
             frame: 23,
@@ -678,7 +678,7 @@
         armor: None,
         max_stack: 1,
         value: 120,
-        teaches: "fire_burst",
+        teaches: "burning-hands",
     ),
     (
         id: "mana_potion",

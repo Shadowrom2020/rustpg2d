@@ -1601,6 +1601,7 @@
                 4309985264338112434,
                 4345056708286746889,
                 9735087175818540263,
+                11564877933281931337,
                 15751702900153022624,
                 17224916148150356638,
             ],
@@ -2247,17 +2248,20 @@
         "class:bard": (
             defs: [
                 4146482437021989782,
+                9293537986757058121,
                 14040533519108908457,
             ],
         ),
         "class:cleric": (
             defs: [
                 2902139635420599905,
+                3167824343058699887,
                 10507607610650050815,
             ],
         ),
         "class:druid": (
             defs: [
+                2040073481326124897,
                 11766956784692498187,
             ],
         ),
@@ -2277,12 +2281,14 @@
             defs: [
                 9406476539805441575,
                 17224015628407065543,
+                17308319604296364036,
             ],
         ),
         "class:ranger": (
             defs: [
                 12891626966958567605,
                 13205106954093122569,
+                13351834844616050744,
             ],
         ),
         "class:rogue": (
@@ -2293,6 +2299,7 @@
         ),
         "class:sorcerer": (
             defs: [
+                12049731864291640050,
                 17404087467447550196,
             ],
         ),
@@ -2300,10 +2307,12 @@
             defs: [
                 3559844319786253164,
                 6711923322026353003,
+                7367919225984297731,
             ],
         ),
         "class:wizard": (
             defs: [
+                5839940469655038228,
                 7848452208250854118,
             ],
         ),
@@ -2979,11 +2988,13 @@
         ),
         "item:scroll_heal": (
             defs: [
+                13339747294012657178,
                 17233928986560483512,
             ],
         ),
         "item:scroll_light": (
             defs: [
+                2581855033963784236,
                 6071061810780089721,
             ],
         ),
@@ -3024,6 +3035,7 @@
         "item:spellbook_spark": (
             defs: [
                 14195622903084819531,
+                17160313020429730548,
             ],
         ),
         "item:stone_house_key": (
@@ -3051,11 +3063,13 @@
         "item:tome_fire": (
             defs: [
                 2131207410491605855,
+                4998305064004045603,
             ],
         ),
         "item:tome_fireball": (
             defs: [
                 4683677082980510067,
+                8920583383700510892,
             ],
         ),
         "item:tongs": (
@@ -11309,35 +11323,1615 @@
                 ],
             },
         ),
+        "spell:acid-arrow": (
+            defs: [
+                12897961357563996307,
+            ],
+        ),
+        "spell:acid-splash": (
+            defs: [
+                2437386635662205175,
+            ],
+        ),
+        "spell:aid": (
+            defs: [
+                16056485088138529710,
+            ],
+        ),
+        "spell:alarm": (
+            defs: [
+                2833177098019890942,
+            ],
+        ),
+        "spell:alter-self": (
+            defs: [
+                428812978836182668,
+            ],
+        ),
+        "spell:animal-friendship": (
+            defs: [
+                3393248083914640140,
+            ],
+        ),
+        "spell:animal-messenger": (
+            defs: [
+                16487569508821065255,
+            ],
+        ),
+        "spell:animal-shapes": (
+            defs: [
+                18284567441388057033,
+            ],
+        ),
+        "spell:animate-dead": (
+            defs: [
+                1024170005116188124,
+            ],
+        ),
+        "spell:animate-objects": (
+            defs: [
+                13707634626327579954,
+            ],
+        ),
+        "spell:antilife-shell": (
+            defs: [
+                16626834984770150207,
+            ],
+        ),
+        "spell:antimagic-field": (
+            defs: [
+                6732083792784809916,
+            ],
+        ),
+        "spell:antipathy-sympathy": (
+            defs: [
+                13752035040918172550,
+            ],
+        ),
+        "spell:arcane-eye": (
+            defs: [
+                15626077656585755631,
+            ],
+        ),
+        "spell:arcane-hand": (
+            defs: [
+                11520502233386936804,
+            ],
+        ),
+        "spell:arcane-lock": (
+            defs: [
+                10094282106927331204,
+            ],
+        ),
+        "spell:arcane-sword": (
+            defs: [
+                5647395187178074732,
+            ],
+        ),
+        "spell:arcanists-magic-aura": (
+            defs: [
+                5146009409513470232,
+            ],
+        ),
+        "spell:astral-projection": (
+            defs: [
+                18129624586845302470,
+            ],
+        ),
+        "spell:augury": (
+            defs: [
+                604192973379323162,
+            ],
+        ),
+        "spell:awaken": (
+            defs: [
+                16446889773080783325,
+            ],
+        ),
+        "spell:bane": (
+            defs: [
+                7028509076205181156,
+            ],
+        ),
+        "spell:banishment": (
+            defs: [
+                143071310924807019,
+            ],
+        ),
+        "spell:barkskin": (
+            defs: [
+                13614886399929743450,
+            ],
+        ),
+        "spell:beacon-of-hope": (
+            defs: [
+                12148439135506649025,
+            ],
+        ),
+        "spell:bestow-curse": (
+            defs: [
+                13651611858720732369,
+            ],
+        ),
+        "spell:black-tentacles": (
+            defs: [
+                1748893000474226859,
+            ],
+        ),
+        "spell:blade-barrier": (
+            defs: [
+                8952417581606124407,
+            ],
+        ),
+        "spell:bless": (
+            defs: [
+                771401112633824405,
+            ],
+        ),
+        "spell:blight": (
+            defs: [
+                16429339762468482168,
+            ],
+        ),
+        "spell:blindness-deafness": (
+            defs: [
+                9225114298806862040,
+            ],
+        ),
+        "spell:blink": (
+            defs: [
+                3797604034028303570,
+            ],
+        ),
+        "spell:blur": (
+            defs: [
+                804834406831226341,
+            ],
+        ),
+        "spell:branding-smite": (
+            defs: [
+                190496893267977449,
+            ],
+        ),
+        "spell:burning-hands": (
+            defs: [
+                5817790919710083906,
+            ],
+        ),
+        "spell:call-lightning": (
+            defs: [
+                3225695580324244796,
+            ],
+        ),
+        "spell:calm-emotions": (
+            defs: [
+                10710573557910794192,
+            ],
+        ),
+        "spell:chain-lightning": (
+            defs: [
+                7052115451169213855,
+            ],
+        ),
+        "spell:charm-person": (
+            defs: [
+                8526804172375084998,
+            ],
+        ),
+        "spell:chill-touch": (
+            defs: [
+                18024400881330358006,
+            ],
+        ),
+        "spell:circle-of-death": (
+            defs: [
+                46763630490856026,
+            ],
+        ),
+        "spell:clairvoyance": (
+            defs: [
+                7553187014499551835,
+            ],
+        ),
+        "spell:clone": (
+            defs: [
+                18271082875400115501,
+            ],
+        ),
+        "spell:cloudkill": (
+            defs: [
+                1441558472891129898,
+            ],
+        ),
+        "spell:color-spray": (
+            defs: [
+                13643551011715099210,
+            ],
+        ),
+        "spell:command": (
+            defs: [
+                1787748019242758061,
+            ],
+        ),
+        "spell:commune": (
+            defs: [
+                17376663936395457776,
+            ],
+        ),
+        "spell:commune-with-nature": (
+            defs: [
+                14449704285929734789,
+            ],
+        ),
+        "spell:comprehend-languages": (
+            defs: [
+                13542378130706453871,
+            ],
+        ),
+        "spell:compulsion": (
+            defs: [
+                7640776399504535051,
+            ],
+        ),
+        "spell:cone-of-cold": (
+            defs: [
+                17115821560666324376,
+            ],
+        ),
+        "spell:confusion": (
+            defs: [
+                14502276578047526551,
+            ],
+        ),
+        "spell:conjure-animals": (
+            defs: [
+                12906364830612886071,
+            ],
+        ),
+        "spell:conjure-celestial": (
+            defs: [
+                18047396971074827130,
+            ],
+        ),
+        "spell:conjure-elemental": (
+            defs: [
+                5879281844285782218,
+            ],
+        ),
+        "spell:conjure-fey": (
+            defs: [
+                4371407016793696508,
+            ],
+        ),
+        "spell:conjure-minor-elementals": (
+            defs: [
+                8601167276296258847,
+            ],
+        ),
+        "spell:conjure-woodland-beings": (
+            defs: [
+                6769543421088741548,
+            ],
+        ),
+        "spell:contact-other-plane": (
+            defs: [
+                8491743854266381958,
+            ],
+        ),
+        "spell:contagion": (
+            defs: [
+                5044151328583869732,
+            ],
+        ),
+        "spell:contingency": (
+            defs: [
+                16019025884044655950,
+            ],
+        ),
+        "spell:continual-flame": (
+            defs: [
+                4157601473803518104,
+            ],
+        ),
+        "spell:control-water": (
+            defs: [
+                5557253831032958023,
+            ],
+        ),
+        "spell:control-weather": (
+            defs: [
+                11201294373945371361,
+            ],
+        ),
+        "spell:counterspell": (
+            defs: [
+                9058372740082738134,
+            ],
+        ),
+        "spell:create-food-and-water": (
+            defs: [
+                15739175746280125862,
+            ],
+        ),
+        "spell:create-or-destroy-water": (
+            defs: [
+                16128842319236169639,
+            ],
+        ),
+        "spell:create-undead": (
+            defs: [
+                16556855502592626512,
+            ],
+        ),
+        "spell:creation": (
+            defs: [
+                15948691058262193202,
+            ],
+        ),
+        "spell:cure-wounds": (
+            defs: [
+                6999124378870551549,
+            ],
+        ),
+        "spell:dancing-lights": (
+            defs: [
+                10018470153554193750,
+            ],
+        ),
+        "spell:darkness": (
+            defs: [
+                1585652446792491750,
+            ],
+        ),
+        "spell:darkvision": (
+            defs: [
+                6566902142056517510,
+            ],
+        ),
+        "spell:daylight": (
+            defs: [
+                13205994733125373662,
+            ],
+        ),
+        "spell:death-ward": (
+            defs: [
+                7429819019221597047,
+            ],
+        ),
+        "spell:delayed-blast-fireball": (
+            defs: [
+                13004596694745372920,
+            ],
+        ),
+        "spell:demiplane": (
+            defs: [
+                4708968752100080201,
+            ],
+        ),
+        "spell:detect-evil-and-good": (
+            defs: [
+                7010156278156268553,
+            ],
+        ),
+        "spell:detect-magic": (
+            defs: [
+                4365391651018030586,
+            ],
+        ),
+        "spell:detect-poison-and-disease": (
+            defs: [
+                1774835696400659306,
+            ],
+        ),
+        "spell:detect-thoughts": (
+            defs: [
+                2682087397119671563,
+            ],
+        ),
+        "spell:dimension-door": (
+            defs: [
+                12093115432656304544,
+            ],
+        ),
+        "spell:disguise-self": (
+            defs: [
+                2240893026578355040,
+            ],
+        ),
+        "spell:disintegrate": (
+            defs: [
+                10025137852641576624,
+            ],
+        ),
+        "spell:dispel-evil-and-good": (
+            defs: [
+                2396373241291705584,
+            ],
+        ),
+        "spell:dispel-magic": (
+            defs: [
+                1470066684773918500,
+            ],
+        ),
+        "spell:divination": (
+            defs: [
+                7283567139704621339,
+            ],
+        ),
+        "spell:divine-favor": (
+            defs: [
+                3156692582848109467,
+            ],
+        ),
+        "spell:divine-word": (
+            defs: [
+                5695189425533750714,
+            ],
+        ),
+        "spell:dominate-beast": (
+            defs: [
+                16605609683386181280,
+            ],
+        ),
+        "spell:dominate-monster": (
+            defs: [
+                16085915760237954280,
+            ],
+        ),
+        "spell:dominate-person": (
+            defs: [
+                17512474359483112959,
+            ],
+        ),
+        "spell:dream": (
+            defs: [
+                12362534024586793963,
+            ],
+        ),
+        "spell:druidcraft": (
+            defs: [
+                6487780435963559183,
+            ],
+        ),
+        "spell:earthquake": (
+            defs: [
+                5350817434293588543,
+            ],
+        ),
+        "spell:eldritch-blast": (
+            defs: [
+                5516485921705874603,
+            ],
+        ),
+        "spell:enhance-ability": (
+            defs: [
+                9473218508068974741,
+            ],
+        ),
+        "spell:enlarge-reduce": (
+            defs: [
+                13575498986575586466,
+            ],
+        ),
+        "spell:entangle": (
+            defs: [
+                12876310481837529855,
+            ],
+        ),
+        "spell:enthrall": (
+            defs: [
+                11307986557100096373,
+            ],
+        ),
+        "spell:etherealness": (
+            defs: [
+                9192434947714242307,
+            ],
+        ),
+        "spell:expeditious-retreat": (
+            defs: [
+                16139866734954732071,
+            ],
+        ),
+        "spell:eyebite": (
+            defs: [
+                13561282397153153320,
+            ],
+        ),
+        "spell:fabricate": (
+            defs: [
+                2448833455807334738,
+            ],
+        ),
+        "spell:faerie-fire": (
+            defs: [
+                17511576789717320722,
+            ],
+        ),
+        "spell:faithful-hound": (
+            defs: [
+                5319183483232256890,
+            ],
+        ),
+        "spell:false-life": (
+            defs: [
+                5980725560335013528,
+            ],
+        ),
+        "spell:fear": (
+            defs: [
+                8307897031270158123,
+            ],
+        ),
+        "spell:feather-fall": (
+            defs: [
+                13091085701087893658,
+            ],
+        ),
+        "spell:feeblemind": (
+            defs: [
+                8303814903630714607,
+            ],
+        ),
+        "spell:find-familiar": (
+            defs: [
+                17933088027602313527,
+            ],
+        ),
+        "spell:find-steed": (
+            defs: [
+                13144674535362454813,
+            ],
+        ),
+        "spell:find-the-path": (
+            defs: [
+                2938908626076516360,
+            ],
+        ),
+        "spell:find-traps": (
+            defs: [
+                13419766454655035386,
+            ],
+        ),
+        "spell:finger-of-death": (
+            defs: [
+                1389606145484005184,
+            ],
+        ),
+        "spell:fire-bolt": (
+            defs: [
+                12296356846314021074,
+            ],
+        ),
+        "spell:fire-shield": (
+            defs: [
+                13447117567373187648,
+            ],
+        ),
+        "spell:fire-storm": (
+            defs: [
+                14331793643912076331,
+            ],
+        ),
         "spell:fire_burst": (
             defs: [
-                3207549420056827659,
-                8190844918361161652,
-                8678165927296210926,
+                5615852906302123437,
+                18314874873434378256,
             ],
         ),
         "spell:fireball": (
             defs: [
-                5880255751018559795,
-                6863338984097610512,
+                5114628606634262871,
+                5162241897932831363,
+            ],
+        ),
+        "spell:flame-blade": (
+            defs: [
+                1502643928813345546,
+            ],
+        ),
+        "spell:flame-strike": (
+            defs: [
+                5162987033091091298,
+            ],
+        ),
+        "spell:flaming-sphere": (
+            defs: [
+                12571572038862032826,
+            ],
+        ),
+        "spell:flesh-to-stone": (
+            defs: [
+                11813564865130775368,
+            ],
+        ),
+        "spell:floating-disk": (
+            defs: [
+                17527756273418328562,
+            ],
+        ),
+        "spell:fly": (
+            defs: [
+                2176844781157086278,
+            ],
+        ),
+        "spell:fog-cloud": (
+            defs: [
+                6312190672163703284,
+            ],
+        ),
+        "spell:forbiddance": (
+            defs: [
+                10655134157997481501,
+            ],
+        ),
+        "spell:forcecage": (
+            defs: [
+                2708201687701200857,
+            ],
+        ),
+        "spell:foresight": (
+            defs: [
+                15136122817129622909,
+            ],
+        ),
+        "spell:freedom-of-movement": (
+            defs: [
+                3935850298070650496,
+            ],
+        ),
+        "spell:freezing-sphere": (
+            defs: [
+                7815490680271532160,
+            ],
+        ),
+        "spell:gaseous-form": (
+            defs: [
+                8543040387536623920,
+            ],
+        ),
+        "spell:gate": (
+            defs: [
+                4127094994621509890,
+            ],
+        ),
+        "spell:geas": (
+            defs: [
+                9243936768003884907,
+            ],
+        ),
+        "spell:gentle-repose": (
+            defs: [
+                15671457729747183214,
+            ],
+        ),
+        "spell:giant-insect": (
+            defs: [
+                13130820678539868115,
+            ],
+        ),
+        "spell:glibness": (
+            defs: [
+                4248709842548826795,
+            ],
+        ),
+        "spell:globe-of-invulnerability": (
+            defs: [
+                14697743365047957120,
+            ],
+        ),
+        "spell:glyph-of-warding": (
+            defs: [
+                3675559798008290302,
+            ],
+        ),
+        "spell:goodberry": (
+            defs: [
+                5846584848015268305,
+            ],
+        ),
+        "spell:grease": (
+            defs: [
+                7870751569337515324,
+            ],
+        ),
+        "spell:greater-invisibility": (
+            defs: [
+                11149203511206677085,
+            ],
+        ),
+        "spell:greater-restoration": (
+            defs: [
+                2500375932233060330,
+            ],
+        ),
+        "spell:guardian-of-faith": (
+            defs: [
+                12584796216773280408,
+            ],
+        ),
+        "spell:guards-and-wards": (
+            defs: [
+                7065132236358817515,
+            ],
+        ),
+        "spell:guidance": (
+            defs: [
+                2307004366003815528,
+            ],
+        ),
+        "spell:guiding-bolt": (
+            defs: [
+                2577487684085609560,
+            ],
+        ),
+        "spell:gust-of-wind": (
+            defs: [
+                13805924485391255357,
+            ],
+        ),
+        "spell:hallow": (
+            defs: [
+                6127858600772945354,
+            ],
+        ),
+        "spell:hallucinatory-terrain": (
+            defs: [
+                12003714056971740808,
+            ],
+        ),
+        "spell:harm": (
+            defs: [
+                15427471980797782223,
+            ],
+        ),
+        "spell:haste": (
+            defs: [
+                9206936185498917963,
             ],
         ),
         "spell:heal": (
             defs: [
-                3037551293122788256,
-                13148340762616950032,
+                417947412283898812,
+                5958442209615562920,
+                17208586227496365592,
+            ],
+        ),
+        "spell:healing-word": (
+            defs: [
+                10697537578825056937,
+            ],
+        ),
+        "spell:heat-metal": (
+            defs: [
+                15734547869095813631,
+            ],
+        ),
+        "spell:hellish-rebuke": (
+            defs: [
+                6124462501085342266,
+            ],
+        ),
+        "spell:heroes-feast": (
+            defs: [
+                7819873460823483236,
+            ],
+        ),
+        "spell:heroism": (
+            defs: [
+                18046434932319668177,
+            ],
+        ),
+        "spell:hideous-laughter": (
+            defs: [
+                17224742450615255282,
+            ],
+        ),
+        "spell:hold-monster": (
+            defs: [
+                16224003567998827860,
+            ],
+        ),
+        "spell:hold-person": (
+            defs: [
+                9953363588932341462,
+            ],
+        ),
+        "spell:holy-aura": (
+            defs: [
+                14958209941455060531,
+            ],
+        ),
+        "spell:hunters-mark": (
+            defs: [
+                18180737188290250621,
+            ],
+        ),
+        "spell:hypnotic-pattern": (
+            defs: [
+                6325992111282122745,
+            ],
+        ),
+        "spell:ice-storm": (
+            defs: [
+                15521517300817795014,
+            ],
+        ),
+        "spell:identify": (
+            defs: [
+                17719763728422308689,
+            ],
+        ),
+        "spell:illusory-script": (
+            defs: [
+                10687990977046802784,
+            ],
+        ),
+        "spell:imprisonment": (
+            defs: [
+                18084628024187249379,
+            ],
+        ),
+        "spell:incendiary-cloud": (
+            defs: [
+                11734036665850649800,
+            ],
+        ),
+        "spell:inflict-wounds": (
+            defs: [
+                4316664829682311494,
+            ],
+        ),
+        "spell:insect-plague": (
+            defs: [
+                1391640253210209104,
+            ],
+        ),
+        "spell:instant-summons": (
+            defs: [
+                2846397898958776074,
+            ],
+        ),
+        "spell:invisibility": (
+            defs: [
+                4273498278304541042,
+            ],
+        ),
+        "spell:irresistible-dance": (
+            defs: [
+                14203688843462238698,
+            ],
+        ),
+        "spell:jump": (
+            defs: [
+                12055208531945272369,
+            ],
+        ),
+        "spell:knock": (
+            defs: [
+                14816636597816761842,
+            ],
+        ),
+        "spell:legend-lore": (
+            defs: [
+                8206920394558195566,
+            ],
+        ),
+        "spell:lesser-restoration": (
+            defs: [
+                156688503035768723,
+            ],
+        ),
+        "spell:levitate": (
+            defs: [
+                8661940951431420863,
             ],
         ),
         "spell:light": (
             defs: [
-                12788296251322233320,
+                637772284289646132,
+                15555515922449761767,
+            ],
+        ),
+        "spell:lightning-bolt": (
+            defs: [
+                7608508958425569716,
+            ],
+        ),
+        "spell:locate-animals-or-plants": (
+            defs: [
+                16957076265438712546,
+            ],
+        ),
+        "spell:locate-creature": (
+            defs: [
+                15551361608530887139,
+            ],
+        ),
+        "spell:locate-object": (
+            defs: [
+                5297482144612099227,
+            ],
+        ),
+        "spell:longstrider": (
+            defs: [
+                11398399690158454229,
+            ],
+        ),
+        "spell:mage-armor": (
+            defs: [
+                13474863099246744860,
+            ],
+        ),
+        "spell:mage-hand": (
+            defs: [
+                11855638277946974321,
+            ],
+        ),
+        "spell:magic-circle": (
+            defs: [
+                12894159079931643310,
+            ],
+        ),
+        "spell:magic-jar": (
+            defs: [
+                16697855065385225613,
+            ],
+        ),
+        "spell:magic-missile": (
+            defs: [
+                4859816699840830093,
+            ],
+        ),
+        "spell:magic-mouth": (
+            defs: [
+                983508712207550264,
+            ],
+        ),
+        "spell:magic-weapon": (
+            defs: [
+                6728954136123086192,
+            ],
+        ),
+        "spell:magnificent-mansion": (
+            defs: [
+                15980956537291776750,
+            ],
+        ),
+        "spell:major-image": (
+            defs: [
+                4215221366250845299,
+            ],
+        ),
+        "spell:mass-cure-wounds": (
+            defs: [
+                9551661720762880430,
+            ],
+        ),
+        "spell:mass-heal": (
+            defs: [
+                12574778729091327120,
+            ],
+        ),
+        "spell:mass-healing-word": (
+            defs: [
+                4590798593899573146,
+            ],
+        ),
+        "spell:mass-suggestion": (
+            defs: [
+                3982221640300494879,
+            ],
+        ),
+        "spell:maze": (
+            defs: [
+                8242559561092929580,
+            ],
+        ),
+        "spell:meld-into-stone": (
+            defs: [
+                4151704945733835159,
+            ],
+        ),
+        "spell:mending": (
+            defs: [
+                8970490902891009118,
+            ],
+        ),
+        "spell:message": (
+            defs: [
+                16079092729281075176,
+            ],
+        ),
+        "spell:meteor-swarm": (
+            defs: [
+                9841085071816942705,
+            ],
+        ),
+        "spell:mind-blank": (
+            defs: [
+                7536655191105221432,
+            ],
+        ),
+        "spell:minor-illusion": (
+            defs: [
+                17642385071037989835,
+            ],
+        ),
+        "spell:mirage-arcane": (
+            defs: [
+                16074417128592934060,
+            ],
+        ),
+        "spell:mirror-image": (
+            defs: [
+                16116776334367529317,
+            ],
+        ),
+        "spell:mislead": (
+            defs: [
+                14728144325337775136,
+            ],
+        ),
+        "spell:misty-step": (
+            defs: [
+                12749295720202908356,
+            ],
+        ),
+        "spell:modify-memory": (
+            defs: [
+                50388444948690708,
+            ],
+        ),
+        "spell:moonbeam": (
+            defs: [
+                11137786342292053107,
+            ],
+        ),
+        "spell:move-earth": (
+            defs: [
+                3053229955434569469,
+            ],
+        ),
+        "spell:nondetection": (
+            defs: [
+                10166140254179476975,
+            ],
+        ),
+        "spell:pass-without-trace": (
+            defs: [
+                10149065369053361000,
+            ],
+        ),
+        "spell:passwall": (
+            defs: [
+                13263061779228379157,
+            ],
+        ),
+        "spell:phantasmal-killer": (
+            defs: [
+                8069974546680874691,
+            ],
+        ),
+        "spell:phantom-steed": (
+            defs: [
+                13616333814208345280,
+            ],
+        ),
+        "spell:planar-ally": (
+            defs: [
+                4684682851182022378,
+            ],
+        ),
+        "spell:planar-binding": (
+            defs: [
+                16109984169061859685,
+            ],
+        ),
+        "spell:plane-shift": (
+            defs: [
+                8659469700423776736,
+            ],
+        ),
+        "spell:plant-growth": (
+            defs: [
+                14793767124782589001,
+            ],
+        ),
+        "spell:poison-spray": (
+            defs: [
+                8695001641513772320,
+            ],
+        ),
+        "spell:polymorph": (
+            defs: [
+                196691841760726730,
+            ],
+        ),
+        "spell:power-word-kill": (
+            defs: [
+                3904811265272362057,
+            ],
+        ),
+        "spell:power-word-stun": (
+            defs: [
+                14314665188848352605,
+            ],
+        ),
+        "spell:prayer-of-healing": (
+            defs: [
+                12917157620052376255,
+            ],
+        ),
+        "spell:prestidigitation": (
+            defs: [
+                9576240434886194178,
+            ],
+        ),
+        "spell:prismatic-spray": (
+            defs: [
+                17457339820232954963,
+            ],
+        ),
+        "spell:prismatic-wall": (
+            defs: [
+                87051440145979299,
+            ],
+        ),
+        "spell:private-sanctum": (
+            defs: [
+                2071099712197525707,
+            ],
+        ),
+        "spell:produce-flame": (
+            defs: [
+                2852307814342805332,
+            ],
+        ),
+        "spell:programmed-illusion": (
+            defs: [
+                5852851364960622464,
+            ],
+        ),
+        "spell:project-image": (
+            defs: [
+                10901489565342911609,
+            ],
+        ),
+        "spell:protection-from-energy": (
+            defs: [
+                1687717970472693937,
+            ],
+        ),
+        "spell:protection-from-evil-and-good": (
+            defs: [
+                12451865107400443985,
+            ],
+        ),
+        "spell:protection-from-poison": (
+            defs: [
+                13145433384891744996,
+            ],
+        ),
+        "spell:purify-food-and-drink": (
+            defs: [
+                10327325369505452233,
+            ],
+        ),
+        "spell:raise-dead": (
+            defs: [
+                16246343663365783051,
+            ],
+        ),
+        "spell:ray-of-enfeeblement": (
+            defs: [
+                6340210859492889594,
+            ],
+        ),
+        "spell:ray-of-frost": (
+            defs: [
+                13686464307387122858,
+            ],
+        ),
+        "spell:regenerate": (
+            defs: [
+                8965595544611801995,
+            ],
+        ),
+        "spell:reincarnate": (
+            defs: [
+                1689120038976438727,
+            ],
+        ),
+        "spell:remove-curse": (
+            defs: [
+                16799223978731974204,
+            ],
+        ),
+        "spell:resilient-sphere": (
+            defs: [
+                2549822344785267102,
+            ],
+        ),
+        "spell:resistance": (
+            defs: [
+                13186350951525332732,
+            ],
+        ),
+        "spell:resurrection": (
+            defs: [
+                13906957789531895761,
+            ],
+        ),
+        "spell:reverse-gravity": (
+            defs: [
+                15172632270213715521,
+            ],
+        ),
+        "spell:revivify": (
+            defs: [
+                11843721418286477283,
+            ],
+        ),
+        "spell:rope-trick": (
+            defs: [
+                18368873429208773077,
+            ],
+        ),
+        "spell:sacred-flame": (
+            defs: [
+                18191184159035557401,
+            ],
+        ),
+        "spell:sanctuary": (
+            defs: [
+                6700639013645904680,
+            ],
+        ),
+        "spell:scorching-ray": (
+            defs: [
+                18430567737225471671,
+            ],
+        ),
+        "spell:scrying": (
+            defs: [
+                6530125327740029752,
+            ],
+        ),
+        "spell:secret-chest": (
+            defs: [
+                3174375151247734343,
+            ],
+        ),
+        "spell:see-invisibility": (
+            defs: [
+                1236686606821211691,
+            ],
+        ),
+        "spell:seeming": (
+            defs: [
+                15243870351992296605,
+            ],
+        ),
+        "spell:sending": (
+            defs: [
+                254987469443350724,
+            ],
+        ),
+        "spell:sequester": (
+            defs: [
+                12805099256417878315,
+            ],
+        ),
+        "spell:shapechange": (
+            defs: [
+                7351207606143207857,
+            ],
+        ),
+        "spell:shatter": (
+            defs: [
+                311425091085125463,
+            ],
+        ),
+        "spell:shield": (
+            defs: [
+                13733741070235111078,
+            ],
+        ),
+        "spell:shield-of-faith": (
+            defs: [
+                1788414116408685633,
+            ],
+        ),
+        "spell:shillelagh": (
+            defs: [
+                3711749221749145903,
+            ],
+        ),
+        "spell:shocking-grasp": (
+            defs: [
+                14503984549039256997,
+            ],
+        ),
+        "spell:silence": (
+            defs: [
+                7870198921271282823,
+            ],
+        ),
+        "spell:silent-image": (
+            defs: [
+                17174159139178448257,
+            ],
+        ),
+        "spell:simulacrum": (
+            defs: [
+                80142100302776957,
+            ],
+        ),
+        "spell:sleep": (
+            defs: [
+                10881872351681659096,
+            ],
+        ),
+        "spell:sleet-storm": (
+            defs: [
+                13522771852862241371,
+            ],
+        ),
+        "spell:slow": (
+            defs: [
+                9469057039081229857,
+            ],
+        ),
+        "spell:spare-the-dying": (
+            defs: [
+                12809096660623732517,
             ],
         ),
         "spell:spark": (
             defs: [
-                2005154501602538208,
-                7745772695033670349,
-                8778240990533002599,
+                5134327668991259577,
+                16018565761142738823,
+            ],
+        ),
+        "spell:speak-with-animals": (
+            defs: [
+                2495914427397860154,
+            ],
+        ),
+        "spell:speak-with-dead": (
+            defs: [
+                9925515910435190165,
+            ],
+        ),
+        "spell:speak-with-plants": (
+            defs: [
+                6770559329525068276,
+            ],
+        ),
+        "spell:spider-climb": (
+            defs: [
+                12673293392252873557,
+            ],
+        ),
+        "spell:spike-growth": (
+            defs: [
+                6359564480013002149,
+            ],
+        ),
+        "spell:spirit-guardians": (
+            defs: [
+                12061442457554524266,
+            ],
+        ),
+        "spell:spiritual-weapon": (
+            defs: [
+                5100770209499650526,
+            ],
+        ),
+        "spell:stinking-cloud": (
+            defs: [
+                13475115759786072702,
+            ],
+        ),
+        "spell:stone-shape": (
+            defs: [
+                8179062424740035879,
+            ],
+        ),
+        "spell:stoneskin": (
+            defs: [
+                15774437552772966888,
+            ],
+        ),
+        "spell:storm-of-vengeance": (
+            defs: [
+                5617048461542255363,
+            ],
+        ),
+        "spell:suggestion": (
+            defs: [
+                9695038472732362627,
+            ],
+        ),
+        "spell:sunbeam": (
+            defs: [
+                6880112444270609997,
+            ],
+        ),
+        "spell:sunburst": (
+            defs: [
+                11555473715466973234,
+            ],
+        ),
+        "spell:symbol": (
+            defs: [
+                307130505709604915,
+            ],
+        ),
+        "spell:telekinesis": (
+            defs: [
+                12202296694864243663,
+            ],
+        ),
+        "spell:telepathic-bond": (
+            defs: [
+                10301280867834249426,
+            ],
+        ),
+        "spell:teleport": (
+            defs: [
+                17561773681975877504,
+            ],
+        ),
+        "spell:teleportation-circle": (
+            defs: [
+                347472585819937508,
+            ],
+        ),
+        "spell:thaumaturgy": (
+            defs: [
+                8943265365424847908,
+            ],
+        ),
+        "spell:thunderwave": (
+            defs: [
+                1826736499130414722,
+            ],
+        ),
+        "spell:time-stop": (
+            defs: [
+                12493967457273668338,
+            ],
+        ),
+        "spell:tiny-hut": (
+            defs: [
+                16014956448899967429,
+            ],
+        ),
+        "spell:tongues": (
+            defs: [
+                9151356418935336453,
+            ],
+        ),
+        "spell:transport-via-plants": (
+            defs: [
+                17754371158921994813,
+            ],
+        ),
+        "spell:tree-stride": (
+            defs: [
+                13475913485115540378,
+            ],
+        ),
+        "spell:true-polymorph": (
+            defs: [
+                18441718785746976044,
+            ],
+        ),
+        "spell:true-resurrection": (
+            defs: [
+                11025137090070015272,
+            ],
+        ),
+        "spell:true-seeing": (
+            defs: [
+                17469785968136341046,
+            ],
+        ),
+        "spell:true-strike": (
+            defs: [
+                10613582448510165807,
+            ],
+        ),
+        "spell:unseen-servant": (
+            defs: [
+                3982840123543877157,
+            ],
+        ),
+        "spell:vampiric-touch": (
+            defs: [
+                9487524721223415242,
+            ],
+        ),
+        "spell:vicious-mockery": (
+            defs: [
+                15274344540933954384,
+            ],
+        ),
+        "spell:wall-of-fire": (
+            defs: [
+                14157287445691341120,
+            ],
+        ),
+        "spell:wall-of-force": (
+            defs: [
+                3301210969340357617,
+            ],
+        ),
+        "spell:wall-of-ice": (
+            defs: [
+                3239949471461255475,
+            ],
+        ),
+        "spell:wall-of-stone": (
+            defs: [
+                9405283761832494738,
+            ],
+        ),
+        "spell:wall-of-thorns": (
+            defs: [
+                10877191100003318357,
+            ],
+        ),
+        "spell:warding-bond": (
+            defs: [
+                4955696074351559648,
+            ],
+        ),
+        "spell:water-breathing": (
+            defs: [
+                13244037909372385004,
+            ],
+        ),
+        "spell:water-walk": (
+            defs: [
+                12448600497222987378,
+            ],
+        ),
+        "spell:web": (
+            defs: [
+                17951029509358786599,
+            ],
+        ),
+        "spell:weird": (
+            defs: [
+                10821888493489805197,
+            ],
+        ),
+        "spell:wind-walk": (
+            defs: [
+                9446052453443173216,
+            ],
+        ),
+        "spell:wind-wall": (
+            defs: [
+                14454894121738490826,
+            ],
+        ),
+        "spell:wish": (
+            defs: [
+                12839080700194393388,
+            ],
+        ),
+        "spell:word-of-recall": (
+            defs: [
+                11444401975030063328,
+            ],
+        ),
+        "spell:zone-of-truth": (
+            defs: [
+                14868446583454880005,
             ],
         ),
         "structure:animal_pen": (

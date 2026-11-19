@@ -85,6 +85,12 @@ pub struct PlayerInfo {
     pub features: Vec<String>,
     /// The hero's class resources: id -> uses left (`resource()`).
     pub resources: Vec<(String, i64)>,
+    /// The hero's spell slots by level (index 0 = level 1): most, left.
+    pub slots: [(u32, u32); 9],
+    /// Prepared spells, what may be prepared and how many (`prepare_spell`, `is_prepared`).
+    pub prepared: Vec<String>,
+    pub preparable: Vec<String>,
+    pub prepare_max: usize,
 }
 
 pub struct ScriptHost {
@@ -712,8 +718,31 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     // Until 0.27 a skill tree's level; now 1 when the hero is proficient (deprecated).
     engine.register_fn("skill", with!(ctx, |c, id: &str| c.world.is_proficient(id) as i64));
     // Magic.
-    engine.register_fn("knows_spell", with!(ctx, |c, id: &str| c.world.spells.contains(id)));
-    engine.register_fn("mana", with!(ctx, |c| c.world.mana as f64));
+    engine.register_fn("knows_spell", with!(ctx, |c, id: &str| c.world.spells.contains(id) || c.player.prepared.iter().any(|s| s == id)));
+    engine.register_fn("mana", with!(ctx, |_c| 0.0f64));
+    engine.register_fn("spell_slots", with!(ctx, |c, l: Dynamic| c.player.slots.get((num(&l) as usize).wrapping_sub(1)).map_or(0, |s| s.0 as i64)));
+    engine.register_fn("slots_left", with!(ctx, |c, l: Dynamic| c.player.slots.get((num(&l) as usize).wrapping_sub(1)).map_or(0, |s| s.1 as i64)));
+    engine.register_fn("restore_slots", with!(ctx, |c| {
+        c.world.slots_spent = [0; 9];
+        for s in &mut c.player.slots {
+            s.1 = s.0;
+        }
+    }));
+    engine.register_fn("is_prepared", with!(ctx, |c, id: &str| c.player.prepared.iter().any(|s| s == id)));
+    engine.register_fn("prepare_spell", with!(ctx, |c, id: &str| {
+        if c.player.prepared.iter().any(|s| s == id) {
+            return true;
+        }
+        if !c.player.preparable.iter().any(|s| s == id) || c.player.prepared.len() >= c.player.prepare_max {
+            return false;
+        }
+        c.player.prepared.push(id.to_string());
+        c.world.prepared = c.player.prepared.clone();
+        true
+    }));
+    engine.register_fn("concentrating", with!(ctx, |c| c.world.concentration.as_ref().map_or(String::new(), |x| x.0.split('@').next().unwrap_or("").to_string())));
+    engine.register_fn("cast_spell", with!(ctx, |c, id: &str| c.actions.push(Action::CastSpell { spell: id.into(), target: "player".into(), free: false })));
+    engine.register_fn("cast_spell", with!(ctx, |c, id: &str, t: &str, free: bool| c.actions.push(Action::CastSpell { spell: id.into(), target: t.into(), free })));
     // Experience and levels.
     engine.register_fn("xp", with!(ctx, |c| c.world.xp.min(i64::MAX as u64) as i64));
     engine.register_fn("level", with!(ctx, |c| c.world.player_level() as i64));

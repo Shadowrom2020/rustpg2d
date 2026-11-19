@@ -5,7 +5,6 @@
 use super::{Aim, Side, Who};
 use crate::grid::{feet_spot, TilePos};
 use crate::runtime::Game;
-use crate::skills::SpellEffect;
 use crate::srd::conditions::{self, Condition, ConditionSpec};
 use crate::srd::{Mode, RollRecord};
 
@@ -80,7 +79,8 @@ impl Game {
     /// into the roll log ("Grumbold: Athletics").
     pub(super) fn who_check(&mut self, who: Who, what: &str, dc: i32, save: bool) -> Option<RollRecord> {
         // (Aura of Protection: a paladin's CHA on the saves of allies near it.)
-        let aura = if save { self.aura_bonus(who) } else { 0 };
+        // (Bless / Bane on saves: a die, counted like the aura.)
+        let aura = if save { self.aura_bonus(who) + self.buff_roll(who, false) } else { 0 };
         let rec = self.who_check_once(who, what, dc, save, aura)?;
         // A failed save: Bardic Inspiration's die, Indomitable's second roll.
         if save {
@@ -95,7 +95,7 @@ impl Game {
     /// One roll of [`Self::who_check`] (`aura`: the bonus to saves).
     fn who_check_once(&mut self, who: Who, what: &str, dc: i32, save: bool, aura: i32) -> Option<RollRecord> {
         // (Rage: advantage on STR checks and saves.)
-        let class_mode = self.class_save_mode(who, what);
+        let class_mode = if save { self.class_save_mode(who, what).combine(self.buff_save_mode(who, what)) } else { self.class_save_mode(who, what) };
         if who == Who::Player {
             let mut rec = self.world.check(what, dc - aura, class_mode, save)?;
             if aura != 0 {
@@ -166,7 +166,7 @@ impl Game {
                 }
             }
             TurnAct::Attack if t.attacks_left > 0 && t.attacked => Ok(()),
-            TurnAct::Cast if self.known_spells(c.current().who).is_empty() => Err("No spells"),
+            TurnAct::Cast if self.cast_options(c.current().who).is_empty() => Err("No spells"),
             TurnAct::Class if self.class_acts(c.current().who).is_empty() => Err("No class actions"),
             // (Class actions cost what they cost: some are bonus actions or free.)
             TurnAct::Class => Ok(()),
@@ -199,15 +199,15 @@ impl Game {
                 return Ok(());
             }
             TurnAct::Cast => {
-                // Each press: the next spell the caster knows.
-                let spells = self.known_spells(who);
+                // Each press: the next spell it can cast now, and the next slot level of it (upcasting).
+                let options = self.cast_options(who);
                 let c = self.fight.as_ref().unwrap();
                 let next = match &c.aim {
-                    Aim::Cast(s) => spells.iter().position(|x| x == s).map_or(0, |k| (k + 1) % spells.len()),
+                    Aim::Cast(s, l) => options.iter().position(|x| x.0 == *s && x.1 == *l).map_or(0, |k| (k + 1) % options.len()),
                     _ => 0,
                 };
-                let spell = spells[next].clone();
-                self.set_aim(Aim::Cast(spell));
+                let (spell, slot) = options[next].clone();
+                self.aim_spell(&spell, slot);
                 return Ok(());
             }
             TurnAct::Class => {
@@ -300,7 +300,7 @@ impl Game {
             Aim::Feature(id) => self.class_acts(who).into_iter().find(|a| a.id == *id).map(|a| a.effect.target()),
             _ => None,
         };
-        let allies = matches!(&aim, Aim::Cast(s) if self.spell_heals(s)) || matches!(feature, Some(crate::classes::ActTarget::Ally { .. }));
+        let allies = matches!(feature, Some(crate::classes::ActTarget::Ally { .. }));
         // (A class action used on itself: the cursor on the user.)
         if matches!(feature, Some(crate::classes::ActTarget::Myself)) {
             let c = self.fight.as_mut().unwrap();
@@ -421,7 +421,18 @@ impl Game {
                 }
                 Ok(())
             }
-            Aim::Cast(spell) => self.cast_in_fight(me.who, spell, target),
+            Aim::Cast(spell, slot) => {
+                let scroll = self.fight.as_ref().and_then(|c| c.scroll.clone()).is_some_and(|s| s == *spell);
+                let _ = (foe, dist);
+                if scroll {
+                    let t = self.who_tile(target);
+                    if let Some(c) = &mut self.fight {
+                        c.cursor = t;
+                    }
+                    return self.confirm_spell(spell, *slot);
+                }
+                self.cast_spell_in_fight(spell, *slot, super::CastAt::On(target), false)
+            }
             Aim::Feature(id) => self.use_class_act(id, target),
         }
     }
@@ -481,115 +492,6 @@ impl Game {
         }
         let id = self.world.equipment.item(crate::defs::EquipSlot::Offhand)?;
         self.project.db.item(id).and_then(|d| d.weapon.clone())
-    }
-
-    /// The spells a combatant can cast in a fight (the hero's learned ones).
-    pub(super) fn known_spells(&self, who: Who) -> Vec<String> {
-        if who != Who::Player || !self.magic_on() {
-            return Vec::new();
-        }
-        let mut v: Vec<String> = self.project.db.spells.iter().filter(|s| self.world.spells.contains(&s.id)).map(|s| s.id.clone()).collect();
-        v.dedup();
-        v
-    }
-
-    pub(super) fn spell_heals(&self, id: &str) -> bool {
-        self.project.db.spell(id).is_some_and(|d| matches!(d.effect, SpellEffect::Heal { .. }))
-    }
-
-    /// Cast a Spell (the action): a bolt is a ranged spell attack (INT), a blast a DEX save for
-    /// half in its radius around the target, a heal heals the target, a light or script runs.
-    fn cast_in_fight(&mut self, who: Who, id: &str, target: Who) -> Result<(), &'static str> {
-        if self.fight.as_ref().unwrap().turn.action {
-            return Err("Action used");
-        }
-        let d = self.project.db.spell(id).cloned().ok_or("No such spell")?;
-        if let Some(_why) = self.spell_requirement(id) {
-            return Err("Can't cast that now");
-        }
-        if self.world.mana < d.mana as f32 {
-            return Err("Not enough mana");
-        }
-        let int = self.world.abilities.modifier(crate::srd::Ability::Int);
-        let prof = crate::srd::abilities::proficiency_bonus(self.world.player_level());
-        let (a, t) = (self.who_tile(who), self.who_tile(target));
-        let dist = a.0.abs_diff(t.0).max(a.1.abs_diff(t.1)) as f32;
-        match &d.effect {
-            SpellEffect::Bolt { damage, projectile, range, damage_type, .. } => {
-                let spec = super::AttackSpec {
-                    name: d.name.clone(),
-                    bonus: int + prof,
-                    dice: crate::defs::Weapon::melee(*damage, 1.0).damage_dice(),
-                    damage_type: *damage_type,
-                    ranged: true,
-                    reach: 0,
-                    range: range.round().max(1.0) as i32,
-                    long: range.round().max(1.0) as i32,
-                    crit_on: 20,
-                    effect: None,
-                    projectile: Some(projectile.clone()),
-                    spell: true,
-                    ..Default::default()
-                };
-                self.can_attack(who, target, &spec)?;
-                self.pay_spell(&d);
-                self.make_attack(who, target, &spec);
-            }
-            SpellEffect::Blast { damage, radius, damage_type } => {
-                if dist > 12.0 {
-                    return Err("Out of range");
-                }
-                self.pay_spell(&d);
-                let dc = 8 + prof + int;
-                let dice = crate::defs::Weapon::melee(*damage, 1.0).damage_dice();
-                let center = t;
-                let caught: Vec<Who> = self.fight.as_ref().unwrap().order.iter().filter(|f| !f.out && f.who != who).map(|f| f.who).filter(|w| {
-                    let p = self.who_tile(*w);
-                    (p.0.abs_diff(center.0).max(p.1.abs_diff(center.1)) as f32) <= radius.max(0.5)
-                }).collect();
-                let at = feet_spot(center, self.ts());
-                self.effects.push((at, 0.0));
-                for w in caught {
-                    let n = crate::srd::Expr::parse(&dice).map(|e| e.roll(&crate::srd::dice::NoMods).total.max(1)).unwrap_or(1) as i32;
-                    let saved = self.who_check(w, "dex", dc, true).is_some_and(|r| r.success == Some(true));
-                    // (Evasion: none on a success, half on a failure.)
-                    let evasion = self.who_traits(w).is_some_and(|t| t.evasion);
-                    let n = match (saved, evasion) {
-                        (true, true) => 0,
-                        (true, false) | (false, true) => n / 2,
-                        (false, false) => n,
-                    };
-                    if n > 0 {
-                        self.combat_damage(w, n, *damage_type, false, Some(who));
-                    }
-                }
-                self.fight_log(format!("{}: {} (DC {dc})", self.who_name(who), d.name));
-            }
-            SpellEffect::Heal { amount } => {
-                let ally = self.fight.as_ref().unwrap().fighter(target).is_some_and(|f| f.side == self.fight.as_ref().unwrap().current().side);
-                if !ally || dist > 1.0 {
-                    return Err("Touch an ally");
-                }
-                self.pay_spell(&d);
-                self.combat_heal(target, *amount);
-                self.fight_log(format!("{}: {} > {}", self.who_name(who), d.name, self.who_name(target)));
-            }
-            SpellEffect::Light { radius, seconds } => {
-                self.pay_spell(&d);
-                self.player_light_for(*radius, *seconds, crate::events::spell_light_color(), false);
-            }
-            SpellEffect::Script { function } => {
-                self.pay_spell(&d);
-                self.sync_script_player();
-                let ts = self.ts();
-                let p = feet_spot(t, ts);
-                let args = vec![rhai::Dynamic::from((p.x / ts) as f64), rhai::Dynamic::from((p.y / ts) as f64)];
-                let actions = self.scripts.call_args(&mut self.world, function, args, None);
-                self.runner.push(&actions, &crate::events::runner::ActionCtx::default());
-            }
-        }
-        self.fight.as_mut().unwrap().turn.action = true;
-        Ok(())
     }
 
     /// The hero used an item from the inventory during a fight: on their own turn it takes the

@@ -164,6 +164,22 @@ HP, Relentless Rage, then `after_damage`: Dark One's Blessing, Retaliation), `wh
 (rage's advantage, inspiration and Indomitable on a failed save), `begin_turn` (rage upkeep,
 Survivor) and the AI's `ai_class_step`.
 
+Spells (`skills.rs`) are the SRD's since 0.30: a `SpellDef` carries the SRD's fields and its
+mechanics as `SpellPart`s; a spell of 0.29 (mana, one `SpellEffect`) is upgraded when the defs are
+read (`SpellDef::upgrade` in `project::parse_defs`), and `srd::RULES_VERSION` 3 makes the editor
+write that conversion once with a backup. A class's `Spellcasting` says how it has its spells; slots
+come from its level table (`spellcasting.spell_slots_level_N`), spent ones live in
+`WorldState::slots_spent` / `Companion::slots_spent` (rests reset them), known spells in
+`WorldState::spells` / `Companion::spells`, prepared ones in `prepared` (empty = the first ones it
+may prepare). `runtime/spells.rs` answers who casts what (`cast_options`: spell and slot pairs),
+concentration (the hero's in `WorldState::concentration`, party members' in `Skills`), scrolls and
+casting outside fights; `runtime/turns/casting.rs` resolves a cast in or out of a fight
+(`resolve_spell`: attack or save, then the parts per target). What a spell leaves on a creature is an
+`ActiveCondition` with the spell as its `source` (`spell@caster`), either a condition or a
+`Buff`, so concentration ending removes it everywhere and the conditions' ticking ends it; the fight
+code reads buffs in `who_ac` / `armor_class`, `who_speed`, `make_attack`, `who_check` and
+`combat_damage`.
+
 Conditions (`srd/conditions.rs`) replaced the status effects of 0.27: `ConditionSpec` (what weapons,
 touches, actions and scripts apply: a condition, seconds, exhaustion levels, a saving throw,
 damage or healing per round of 6 s) and `ActiveCondition` (the hero's in `WorldState::effects`, a

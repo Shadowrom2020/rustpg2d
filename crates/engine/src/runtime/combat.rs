@@ -4,7 +4,7 @@ use macroquad::prelude::*;
 
 use crate::hooks;
 use super::{input, Arrival, Game, Mover, Source};
-use crate::defs::{CharacterDef, Ranged, SpriteRef};
+use crate::defs::{CharacterDef, SpriteRef};
 use crate::entity::Facing;
 use crate::events::GameEvent;
 use crate::state::WorldState;
@@ -311,34 +311,6 @@ impl Game {
         self.loaded.entities.iter().any(|e| {
             e.active && e.hostile && e.max_hp > 0 && e.hp > 0 && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) <= tiles * ts && self.line_clear(eye, e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0))
         })
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn shoot(&mut self, origin: Vec2, dir: Vec2, r: &Ranged, damage: i32, from_player: bool, shooter: Option<u32>, effect: Option<crate::srd::ConditionSpec>, damage_type: Option<crate::srd::DamageType>) {
-        self.projectiles.push(Projectile {
-            pos: origin + dir * 4.0,
-            vel: dir * r.speed.max(10.0),
-            dist_left: r.range.max(0.5) * self.ts(),
-            traveled: 0.0,
-            damage,
-            from_player,
-            shooter,
-            sprite: r.projectile.clone(),
-            effect,
-            damage_type,
-            crit: false,
-            at_player: true,
-            faction: None,
-            visual: false,
-        });
-        // Another character's shot: whom it may hit follows from its shooter.
-        if let Some(e) = shooter.filter(|_| !from_player).and_then(|uid| self.loaded.entities.iter().find(|e| e.uid == uid)) {
-            let (hostile, faction) = (e.hostile, e.faction);
-            if let Some(p) = self.projectiles.last_mut() {
-                p.at_player = hostile;
-                p.faction = faction;
-            }
-        }
     }
 
     /// A fight's shot or bolt flying from `from` to `to` (only its look).
@@ -925,12 +897,20 @@ impl Game {
         // Status effects: a badge each, with the seconds left.
         y += self.draw_effect_badges(tx, y - 1.0);
 
-        // Mana bar.
-        if magic {
-            let max = self.max_mana().max(1) as f32;
-            let (bx, bh) = (tx, 9.0);
-            super::skin::bar(super::skin::Bar::Mana, bx, y, bar_w, bh, self.world.mana / max);
-            draw_text(format!("{:.0}", self.world.mana), bx + bar_w + 6.0, y + 9.0, 15.0, Color::new(0.75, 0.82, 1.0, 1.0));
+        // Spell slots left (a caster's): a pip per slot by level.
+        if magic && self.spellcasting(super::turns::Who::Player).is_some() {
+            let (max, left) = (self.slot_max(super::turns::Who::Player), self.slots_left(super::turns::Who::Player));
+            let mut x = tx;
+            for k in (0..9).filter(|k| max[*k] > 0) {
+                draw_text(format!("{}", k + 1), x, y + 9.0, 14.0, Color::new(0.75, 0.82, 1.0, 1.0));
+                x += 10.0;
+                for n in 0..max[k] {
+                    let full = n < left[k];
+                    super::skin::bar(super::skin::Bar::Mana, x, y + 1.0, 7.0, 8.0, if full { 1.0 } else { 0.0 });
+                    x += 9.0;
+                }
+                x += 6.0;
+            }
             y += 16.0;
         }
 

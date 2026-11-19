@@ -435,7 +435,12 @@ impl Game {
         let Some(id) = self.quick_item(k) else { return };
         if let Some(spell) = Self::quick_spell(&id).map(str::to_string) {
             self.inv.quick_flash = Some((k, get_time()));
-            self.cast_spell(&spell);
+            // In a fight it is aimed on the hero's turn, like Cast.
+            if self.fight.is_some() {
+                self.aim_quick_spell(&spell);
+            } else {
+                self.cast_spell(&spell);
+            }
             return;
         }
         let name = self.project.db.item(&id).map_or(id.clone(), |d| d.name.clone());
@@ -976,12 +981,13 @@ impl Game {
             draw_text((k + 1).to_string(), r.x + 3.0, r.y + 13.0, 15.0, Color::new(1.0, 1.0, 1.0, 0.7));
             let Some(id) = self.quick_item(k) else { continue };
             if let Some(spell) = Self::quick_spell(&id).and_then(|s| self.project.db.spell(s)) {
-                let ready = self.world.spells.contains(&spell.id) && self.world.mana >= spell.mana as f32;
+                let ready = self.can_cast(super::turns::Who::Player, &spell.id);
                 let alpha = if ready { 1.0 } else { 0.4 };
                 if !spell.icon.sheet.is_empty() {
                     self.assets.draw_frame_in(&spell.icon.sheet, spell.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 28.0, 28.0), Color::new(1.0, 1.0, 1.0, alpha));
                 }
-                let t = spell.mana.to_string();
+                // (The spell's level; C = a cantrip.)
+                let t = if spell.level == 0 { "C".to_string() } else { spell.level.to_string() };
                 let w = measure_text(&t, None, 14, 1.0).width;
                 draw_text(&t, r.x + r.w - w - 3.0, r.y + r.h - 4.0, 14.0, Color::new(0.6, 0.7, 1.0, 1.0));
                 continue;

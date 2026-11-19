@@ -75,6 +75,7 @@ impl Game {
     fn finish_short_rest(&mut self) {
         self.rest = None;
         self.rest_resources(false);
+        self.rest_slots(false);
         self.world.advance_hours(1.0);
         self.ui.toast("An hour passes.".into());
     }
@@ -166,8 +167,6 @@ impl Game {
         if self.combat.enabled() {
             self.world.player_hp = Some(self.player_max_hp());
         }
-        if self.magic_on() {
-            self.world.mana = self.max_mana() as f32;
-        }
+        self.rest_slots(true);
     }
 }

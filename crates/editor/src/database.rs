@@ -1120,7 +1120,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     ui.horizontal(|ui| {
         ui.label("Teaches spell");
         widgets::suggest(ui, "item_teaches", &mut d.teaches, &cx.refs.spells, 140.0);
-        ui.weak("(scrolls, spell books; using the item learns it — tick 'Consumed' for one-use scrolls)");
+        ui.weak("(scrolls, spell books, by the SRD's rule: a wizard copies the spell into the spellbook, another class with it on its list casts it once, anyone else can't — tick 'Consumed' for one-use scrolls)");
     });
     ui.separator();
     ui.heading("Furniture");
@@ -1604,8 +1604,8 @@ fn use_spot_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
         });
     }
     ui.weak(match s.pose {
-        Pose::Sit => "Interacting sits down (when the prop's own triggers did nothing), facing the chosen way (one prop per direction, e.g. chairs around a table); HP and mana come back faster while sitting. Moving, attacking or E stands up.",
-        Pose::Lie => "Interacting asks \"Sleep until …?\": the night passes (HP and mana restored, effects worn off, enemies respawned, scheduled characters moved on), the bed's and the map's 'Woke up' triggers run, the game autosaves. Not with enemies nearby.",
+        Pose::Sit => "Interacting sits down (when the prop's own triggers did nothing), facing the chosen way (one prop per direction, e.g. chairs around a table); HP comes back faster while sitting. Moving, attacking or E stands up.",
+        Pose::Lie => "Interacting asks \"Sleep until …?\": the night passes (HP and spell slots restored, effects worn off, enemies respawned, scheduled characters moved on), the bed's and the map's 'Woke up' triggers run, the game autosaves. Not with enemies nearby.",
         Pose::Stand => "Interacting steps up to it and faces it (counters, anvils, desks).",
     });
 }
@@ -1998,13 +1998,6 @@ fn character_form(ui: &mut egui::Ui, d: &mut CharacterDef, cx: &mut Cx) {
         ui.label("As companion");
         ui.checkbox(&mut d.gear_locked, "can't be given gear")
             .on_hover_text("A companion's window lets the player equip it and hand it items; tick this for animals and creatures that can't wear anything (they still carry items and use potions).");
-        ui.end_row();
-        ui.label("Magic (companion)");
-        ui.horizontal(|ui| {
-            ui.add(egui::DragValue::new(&mut d.max_mana).range(0..=999).prefix("mana "))
-                .on_hover_text("0 = it can't learn spells. With mana, a companion learns the Heal spells of scrolls and spell books the player gives it (or 'Teach spell') and casts them on whoever is badly hurt between fights.");
-            ui.add(egui::DragValue::new(&mut d.mana_regen).range(0.0..=50.0).speed(0.05).suffix(" /s")).on_hover_text("Mana it regains per second");
-        });
         ui.end_row();
         ui.label("Experience");
         ui.add(egui::DragValue::new(&mut d.xp).range(0..=1_000_000).suffix(" XP"))
@@ -2514,6 +2507,32 @@ fn class_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::classes::ClassDef, cx:
     text_box(ui, &mut d.description, 2, "");
     ui.weak("The character creator offers every class; party members get one in their character form. The SRD's twelve come from the starter library. Features act by their effects (the import's), the rest is text on the sheet.");
     egui::Grid::new("class").num_columns(2).show(ui, |ui| {
+        ui.label("Spellcasting").on_hover_text("How the class casts spells: its ability and how it has its spells. Its slots, cantrips and spells known are the level table's numbers (spellcasting.spell_slots_level_1 …)");
+        ui.horizontal(|ui| {
+            use rustpg2d_engine::classes::{CasterKind, Spellcasting};
+            let mut on = d.spellcasting.is_some();
+            if ui.checkbox(&mut on, "").changed() {
+                d.spellcasting = on.then_some(Spellcasting { ability: rustpg2d_engine::srd::Ability::Int, kind: CasterKind::Known, half: false, ritual: false });
+            }
+            if let Some(sc) = &mut d.spellcasting {
+                egui::ComboBox::from_id_salt("class_sc_ab").selected_text(sc.ability.short()).show_ui(ui, |ui| {
+                    for a in rustpg2d_engine::srd::Ability::ALL {
+                        ui.selectable_value(&mut sc.ability, a, a.short());
+                    }
+                });
+                for (k, l, tip) in [
+                    (CasterKind::Known, "Known", "Learns its spells at level-ups (bard, ranger, sorcerer)"),
+                    (CasterKind::Prepared, "Prepared", "Prepares from its whole list: modifier + level (cleric, druid, paladin)"),
+                    (CasterKind::Spellbook, "Spellbook", "Learns spells into a spellbook, copies scrolls, prepares from it (wizard)"),
+                    (CasterKind::Pact, "Pact", "Knows its spells; its slots come back after a short rest (warlock)"),
+                ] {
+                    ui.selectable_value(&mut sc.kind, k, l).on_hover_text(tip);
+                }
+                ui.checkbox(&mut sc.half, "half").on_hover_text("Prepares half its level's worth (paladin)");
+                ui.checkbox(&mut sc.ritual, "rituals").on_hover_text("Casts its ritual spells without a slot (10 minutes)");
+            }
+        });
+        ui.end_row();
         ui.label("Hit die");
         egui::ComboBox::from_id_salt("class_die").selected_text(format!("d{}", d.hit_die)).show_ui(ui, |ui| {
             for die in [6, 8, 10, 12] {
@@ -3371,17 +3390,7 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
     ui.heading("Magic");
     {
         let s = &mut c.skills;
-        ui.checkbox(&mut s.magic, "Magic (spells learned from items, cast with mana)").on_hover_text("Define spells in Database › Spells; items with 'Teaches spell' are scrolls and books. L opens the Spells tab.");
-        if s.magic {
-            egui::Grid::new("skills_cfg").num_columns(2).show(ui, |ui| {
-                ui.label("Max mana");
-                ui.add(egui::DragValue::new(&mut s.max_mana).range(0..=9999)).on_hover_text("At level 1 (levels add the mana per level)");
-                ui.end_row();
-                ui.label("Mana regeneration");
-                ui.add(egui::DragValue::new(&mut s.mana_regen).range(0.0..=100.0).speed(0.05).suffix(" / s"));
-                ui.end_row();
-            });
-        }
+        ui.checkbox(&mut s.magic, "Spells tab for every hero").on_hover_text("The Spells tab (L) shows for heroes of every class (else only for casters and heroes who know spells). Spells are the SRD's (Database › Spells): casters cast them with spell slots by class level.");
     }
     ui.separator();
     ui.heading("Experience and levels");
@@ -3399,9 +3408,6 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
                     ui.selectable_value(&mut p.hit_points, rustpg2d_engine::progression::HitPoints::Average, "Average");
                     ui.selectable_value(&mut p.hit_points, rustpg2d_engine::progression::HitPoints::Rolled, "Rolled");
                 });
-                ui.end_row();
-                ui.label("Mana per level");
-                ui.add(egui::DragValue::new(&mut p.mana_per_level).range(0..=999)).on_hover_text("With magic");
                 ui.end_row();
             });
             ui.weak("Levels follow the SRD 5.1's experience table:");
@@ -4847,97 +4853,296 @@ fn recipe_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::crafting::RecipeDef, 
 }
 
 fn spell_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SpellDef, cx: &mut Cx) {
-    use rustpg2d_engine::skills::SpellEffect;
+    use rustpg2d_engine::skills::{Area, Shape, SpellCast, SpellRange};
     ui.heading("Spell");
     rename_row(ui, RefKind::Spell, &d.id, cx.rename);
     name_row(ui, &mut d.name);
     ui.label("Description");
-    text_box(ui, &mut d.description, 2, "");
-    egui::Grid::new("spell_cost").num_columns(2).show(ui, |ui| {
-        ui.label("Mana");
-        ui.add(egui::DragValue::new(&mut d.mana).range(0..=9999));
+    text_box(ui, &mut d.description, 3, "");
+    egui::Grid::new("spell_srd").num_columns(2).show(ui, |ui| {
+        ui.label("Level").on_hover_text("The SRD spell level: 0 = a cantrip (scales with the caster's level), 1-9 = cast with a slot of that level or higher");
+        ui.add(egui::DragValue::new(&mut d.level).range(0..=9));
         ui.end_row();
-        ui.label("Cooldown");
-        ui.add(egui::DragValue::new(&mut d.cooldown).range(0.0..=600.0).speed(0.1).suffix(" s"));
+        ui.label("School");
+        ui.add(egui::TextEdit::singleline(&mut d.school).desired_width(140.0));
         ui.end_row();
-        ui.label("Requires proficiency").on_hover_text("Only a hero proficient in this skill (arcana, religion) can learn and cast it");
+        ui.label("Casting time");
         ui.horizontal(|ui| {
-            widgets::suggest(ui, "spell_skill", &mut d.skill, &cx.refs.skills, 160.0);
-            if d.skill.is_empty() {
-                ui.weak("(none)");
+            let mut k = match d.casting {
+                SpellCast::Action => 0,
+                SpellCast::Bonus => 1,
+                SpellCast::Reaction => 2,
+                SpellCast::Minutes(_) => 3,
+            };
+            let before = k;
+            for (i, l) in ["Action", "Bonus action", "Reaction", "Minutes"].iter().enumerate() {
+                ui.selectable_value(&mut k, i, *l);
+            }
+            if k != before {
+                d.casting = [SpellCast::Action, SpellCast::Bonus, SpellCast::Reaction, SpellCast::Minutes(1)][k];
+            }
+            if let SpellCast::Minutes(m) = &mut d.casting {
+                ui.add(egui::DragValue::new(m).range(1..=1440).suffix(" min"));
             }
         });
         ui.end_row();
+        ui.label("Range");
+        ui.horizontal(|ui| {
+            let mut k = match d.range {
+                SpellRange::Caster => 0,
+                SpellRange::Touch => 1,
+                SpellRange::Feet(_) => 2,
+                SpellRange::Sight => 3,
+            };
+            let before = k;
+            for (i, l) in ["Self", "Touch", "Feet", "Sight"].iter().enumerate() {
+                ui.selectable_value(&mut k, i, *l);
+            }
+            if k != before {
+                d.range = [SpellRange::Caster, SpellRange::Touch, SpellRange::Feet(30), SpellRange::Sight][k];
+            }
+            if let SpellRange::Feet(f) = &mut d.range {
+                ui.add(egui::DragValue::new(f).range(5..=1000).speed(5).suffix(" ft"));
+            }
+        });
+        ui.end_row();
+        ui.label("Area").on_hover_text("Everyone on the area's tiles is a target: spheres and cylinders around the aimed tile (around the caster for a Self spell), cubes on it, cones and lines from the caster");
+        ui.horizontal(|ui| {
+            let mut on = d.area.is_some();
+            if ui.checkbox(&mut on, "").changed() {
+                d.area = on.then_some(Area { shape: Shape::Sphere, feet: 20 });
+            }
+            if let Some(a) = &mut d.area {
+                egui::ComboBox::from_id_salt("spell_shape").selected_text(format!("{:?}", a.shape)).show_ui(ui, |ui| {
+                    for sh in [Shape::Sphere, Shape::Cylinder, Shape::Cube, Shape::Cone, Shape::Line] {
+                        ui.selectable_value(&mut a.shape, sh, format!("{sh:?}"));
+                    }
+                });
+                ui.add(egui::DragValue::new(&mut a.feet).range(5..=500).speed(5).suffix(" ft"));
+            }
+        });
+        ui.end_row();
+        ui.label("Components");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.components).desired_width(70.0).hint_text("V, S, M"));
+            ui.add(egui::TextEdit::singleline(&mut d.material).desired_width(220.0).hint_text("material"));
+        });
+        ui.end_row();
+        ui.label("Duration");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.duration).desired_width(140.0).hint_text("Up to 1 minute"));
+            ui.add(egui::DragValue::new(&mut d.duration_rounds).range(0..=100_000).suffix(" rounds")).on_hover_text("How long its conditions and boons last, in rounds of 6 seconds (10 = a minute; 0 = instantaneous)");
+            ui.checkbox(&mut d.concentration, "Concentration");
+            ui.checkbox(&mut d.ritual, "Ritual");
+        });
+        ui.end_row();
+        ui.label("Classes").on_hover_text("The classes whose spell list has it (comma separated): they learn, prepare and cast it; scrolls of it work for them");
+        let mut list = d.classes.join(", ");
+        if ui.add(egui::TextEdit::singleline(&mut list).desired_width(300.0).hint_text("wizard, sorcerer")).changed() {
+            d.classes = list.split(',').map(|c| c.trim().to_string()).filter(|c| !c.is_empty()).collect();
+        }
+        ui.end_row();
+        ui.label("Story only").on_hover_text("Its effect is the story's: only events and scripts cast it (Cast spell, cast_spell); it isn't offered at level-ups");
+        ui.checkbox(&mut d.story_only, "");
+        ui.end_row();
     });
     ui.separator();
-    ui.heading("Effect");
-    let mut idx = d.effect.index();
-    ui.horizontal_wrapped(|ui| {
-        for (i, (name, tip)) in SpellEffect::LABELS.iter().enumerate() {
-            ui.selectable_value(&mut idx, i, *name).on_hover_text(*tip);
-        }
+    ui.heading("What it does");
+    ui.weak("The parts act on each target in order: an attack or a save first (damage halves or misses, conditions and boons need a failed save or a hit), then damage, healing, conditions, boons. Dice by level: \"1:1d10,5:2d10\" (slot level; a cantrip's: the caster's level); MOD = the spellcasting modifier.");
+    spell_parts_ui(ui, &mut d.parts, cx);
+    ui.separator();
+    ui.heading("Look");
+    egui::Grid::new("spell_look").num_columns(2).show(ui, |ui| {
+        ui.label("Projectile");
+        ui.horizontal(|ui| {
+            let mut on = d.visual.projectile.is_some();
+            if ui.checkbox(&mut on, "").changed() {
+                d.visual.projectile = on.then(SpriteRef::default);
+            }
+        });
+        ui.end_row();
+        ui.label("Impact effect").on_hover_text("An effect sheet played where it lands (all its frames)");
+        ui.horizontal(|ui| {
+            widgets::suggest(ui, "spell_impact", &mut d.visual.impact, &cx.refs.sheets, 140.0);
+            ui.add(egui::DragValue::new(&mut d.visual.impact_scale).range(0.0..=8.0).speed(0.05).prefix("x"));
+        });
+        ui.end_row();
+        ui.label("Sound");
+        widgets::suggest(ui, "spell_sound", &mut d.visual.sound, &cx.refs.sounds, 140.0);
+        ui.end_row();
     });
-    if idx != d.effect.index() {
-        d.effect = SpellEffect::template(idx);
-    }
-    let mut projectile: Option<&mut SpriteRef> = None;
-    egui::Grid::new("spell_effect").num_columns(2).show(ui, |ui| match &mut d.effect {
-        SpellEffect::Heal { amount } => {
-            ui.label("Heals");
-            ui.add(egui::DragValue::new(amount).range(1..=999).suffix(" HP")).on_hover_text("1 heart = 2 HP");
-            ui.end_row();
-        }
-        SpellEffect::Bolt { damage, projectile: p, speed, range, damage_type } => {
-            ui.label("Damage");
-            ui.horizontal(|ui| {
-                ui.add(egui::DragValue::new(damage).range(0..=999));
-                widgets::damage_type_combo(ui, "spell_bolt_dt", damage_type, "untyped");
-            });
-            ui.end_row();
-            ui.label("Speed (px/s)");
-            ui.add(egui::DragValue::new(speed).range(10.0..=2000.0));
-            ui.end_row();
-            ui.label("Range (tiles)");
-            ui.add(egui::DragValue::new(range).range(0.5..=64.0).speed(0.1));
-            ui.end_row();
-            projectile = Some(p);
-        }
-        SpellEffect::Blast { damage, radius, damage_type } => {
-            ui.label("Damage");
-            ui.horizontal(|ui| {
-                ui.add(egui::DragValue::new(damage).range(0..=999));
-                widgets::damage_type_combo(ui, "spell_blast_dt", damage_type, "untyped");
-            });
-            ui.end_row();
-            ui.label("Radius (tiles)");
-            ui.add(egui::DragValue::new(radius).range(0.5..=32.0).speed(0.1));
-            ui.end_row();
-        }
-        SpellEffect::Light { radius, seconds } => {
-            ui.label("Radius (tiles)");
-            ui.add(egui::DragValue::new(radius).range(0.5..=32.0).speed(0.1));
-            ui.end_row();
-            ui.label("Lasts");
-            ui.add(egui::DragValue::new(seconds).range(0.5..=3600.0).speed(0.5).suffix(" s"));
-            ui.end_row();
-        }
-        SpellEffect::Script { function } => {
-            ui.label("Function");
-            widgets::suggest(ui, "spell_fn", function, &cx.refs.functions, 160.0);
-            ui.end_row();
-        }
-    });
-    if let Some(p) = projectile {
+    if let Some(p) = &mut d.visual.projectile {
         ui.label("Projectile sprite (drawn pointing right, rotated in flight):");
         widgets::sprite_picker(ui, "spell_proj", p, cx.tex, cx.assets);
-    }
-    if matches!(d.effect, SpellEffect::Script { .. }) {
-        ui.weak("Called when the spell is cast (mana and cooldown are already taken). The function can use the whole script API: say, heal, give_item, damage_around, player_light, set_flag ...");
     }
     ui.separator();
     ui.heading("Icon");
     widgets::sprite_field(ui, "spell_icon", &mut d.icon, cx.tex, cx.assets, cx.db, false);
-    ui.weak("Spells are learned from items with 'Teaches spell' (Database › Items) or the 'Learn spell' action; the player casts them from the Magic screen (K) or the quick bar (1-8).");
+    ui.weak("Casters learn it at level-ups or prepare it (Spells tab, L); wizards copy it from scrolls (items with 'Teaches spell'). In fights it is cast from the action bar's Cast entry; the 'Cast spell' action and cast_spell() cast it for the story.");
+}
+
+/// "1:1d10,5:2d10" for dice by level.
+fn by_level_text(v: &[(u32, String)]) -> String {
+    v.iter().map(|(l, d)| format!("{l}:{d}")).collect::<Vec<_>>().join(",")
+}
+
+fn parse_by_level(t: &str) -> Vec<(u32, String)> {
+    t.split(',').filter_map(|e| {
+        let (l, d) = e.split_once(':')?;
+        Some((l.trim().parse().ok()?, d.trim().to_string()))
+    }).collect()
+}
+
+/// The list of a spell's parts: a row each (its kind and fields, remove), and *Add*.
+fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::SpellPart>, cx: &mut Cx) {
+    use rustpg2d_engine::skills::SpellPart as P;
+    use rustpg2d_engine::srd::conditions::{Buff as B, Condition};
+    use rustpg2d_engine::srd::Ability;
+    let mut remove = None;
+    for (k, p) in parts.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            if ui.small_button(crate::ui::ph::TRASH).on_hover_text("Remove this part").clicked() {
+                remove = Some(k);
+            }
+            let by = |ui: &mut egui::Ui, v: &mut Vec<(u32, String)>| {
+                let mut t = by_level_text(v);
+                if ui.add(egui::TextEdit::singleline(&mut t).desired_width(220.0).hint_text("1:1d8 + MOD")).changed() {
+                    *v = parse_by_level(&t);
+                }
+            };
+            match p {
+                P::Attack { ranged } => {
+                    ui.strong("Spell attack");
+                    ui.checkbox(ranged, "ranged");
+                }
+                P::Save { ability, half } => {
+                    ui.strong("Saving throw");
+                    egui::ComboBox::from_id_salt(("sp_save", k)).selected_text(ability.short()).show_ui(ui, |ui| {
+                        for a in Ability::ALL {
+                            ui.selectable_value(ability, a, a.short());
+                        }
+                    });
+                    ui.checkbox(half, "half damage on a success");
+                }
+                P::Damage { by_level, damage_type } => {
+                    ui.strong("Damage");
+                    by(ui, by_level);
+                    widgets::damage_type_combo(ui, &format!("sp_dt{k}"), damage_type, "untyped");
+                }
+                P::Heal { by_level } => {
+                    ui.strong("Healing");
+                    by(ui, by_level);
+                }
+                P::TempHp { by_level } => {
+                    ui.strong("Temporary HP");
+                    by(ui, by_level);
+                }
+                P::Condition { condition, on_fail } => {
+                    ui.strong("Condition");
+                    egui::ComboBox::from_id_salt(("sp_cond", k)).selected_text(condition.name()).show_ui(ui, |ui| {
+                        for c in Condition::ALL.into_iter().filter(|c| *c != Condition::Any) {
+                            ui.selectable_value(condition, c, c.name());
+                        }
+                    });
+                    ui.checkbox(on_fail, "only on a failed save or a hit");
+                }
+                P::Targets { count, per_slot } => {
+                    ui.strong("Targets");
+                    ui.add(egui::DragValue::new(count).range(1..=20));
+                    ui.label("+ per slot level above:");
+                    ui.add(egui::DragValue::new(per_slot).range(0..=10));
+                }
+                P::Buff { buff } => {
+                    ui.strong("Boon / bane");
+                    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance"];
+                    let mut kind = match buff {
+                        B::AttackDie { .. } => 0,
+                        B::SaveDie { .. } => 1,
+                        B::Ac { .. } => 2,
+                        B::AcBase { .. } => 3,
+                        B::Speed { .. } => 4,
+                        B::Haste => 5,
+                        B::Resistance { .. } => 6,
+                    };
+                    let before = kind;
+                    egui::ComboBox::from_id_salt(("sp_buff", k)).selected_text(names[kind]).show_ui(ui, |ui| {
+                        for (i, n) in names.iter().enumerate() {
+                            ui.selectable_value(&mut kind, i, *n);
+                        }
+                    });
+                    if kind != before {
+                        *buff = match kind {
+                            0 => B::AttackDie { dice: "1d4".into(), minus: false },
+                            1 => B::SaveDie { dice: "1d4".into(), minus: false },
+                            2 => B::Ac { bonus: 2 },
+                            3 => B::AcBase { base: 13 },
+                            4 => B::Speed { feet: 10 },
+                            5 => B::Haste,
+                            _ => B::Resistance { types: vec!["fire".into()] },
+                        };
+                    }
+                    match buff {
+                        B::AttackDie { dice, minus } | B::SaveDie { dice, minus } => {
+                            ui.add(egui::TextEdit::singleline(dice).desired_width(50.0));
+                            ui.checkbox(minus, "taken off (a bane)");
+                        }
+                        B::Ac { bonus } => {
+                            ui.add(egui::DragValue::new(bonus).range(-10..=10));
+                        }
+                        B::AcBase { base } => {
+                            ui.add(egui::DragValue::new(base).range(10..=20)).on_hover_text("+ DEX, without body armor");
+                        }
+                        B::Speed { feet } => {
+                            ui.add(egui::DragValue::new(feet).range(-60..=60).speed(5).suffix(" ft"));
+                        }
+                        B::Haste => {}
+                        B::Resistance { types } => {
+                            let mut t = types.join(", ");
+                            if ui.add(egui::TextEdit::singleline(&mut t).desired_width(160.0)).changed() {
+                                *types = t.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
+                            }
+                        }
+                    }
+                }
+                P::Light { radius } => {
+                    ui.strong("Light");
+                    ui.add(egui::DragValue::new(radius).range(0.5..=30.0).speed(0.1).suffix(" tiles"));
+                }
+                P::Unlock => {
+                    ui.strong("Opens the nearest lock");
+                }
+                P::Script { function } => {
+                    ui.strong("Script");
+                    widgets::suggest(ui, &format!("sp_fn{k}"), function, &cx.refs.functions, 160.0);
+                    ui.weak("function(caster, x, y, slot)");
+                }
+            }
+        });
+    }
+    if let Some(k) = remove {
+        parts.remove(k);
+    }
+    ui.horizontal(|ui| {
+        ui.label("Add:");
+        let templates: [(&str, P); 11] = [
+            ("Attack", P::Attack { ranged: true }),
+            ("Save", P::Save { ability: Ability::Dex, half: true }),
+            ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
+            ("Healing", P::Heal { by_level: vec![(1, "1d8 + MOD".into())] }),
+            ("Temp HP", P::TempHp { by_level: vec![(1, "1d4 + 4".into())] }),
+            ("Condition", P::Condition { condition: Condition::Prone, on_fail: true }),
+            ("Targets", P::Targets { count: 3, per_slot: 1 }),
+            ("Boon", P::Buff { buff: B::AttackDie { dice: "1d4".into(), minus: false } }),
+            ("Light", P::Light { radius: 4.0 }),
+            ("Unlock", P::Unlock),
+            ("Script", P::Script { function: String::new() }),
+        ];
+        for (name, t) in templates {
+            if ui.small_button(name).clicked() {
+                parts.push(t);
+            }
+        }
+    });
 }
 
 /// *Languages* of the Project form: the game's own language, its translations (`lang/<code>.ron`,

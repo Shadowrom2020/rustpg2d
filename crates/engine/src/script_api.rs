@@ -210,10 +210,18 @@ pub const API: &[ApiFn] = api! {
     [since "0.28"] "armor_class"() "The hero's armor class: 10 + the DEX modifier + the worn armor's defense";
     [since "0.28"] "hit_dice"() "The hit dice the hero has left (one per level; spent and regained by resting)";
     [since "0.28"] "npc_stat"(target: Target, field: Text) "A value of a character's SRD stat block: \"str\" to \"cha\", \"ac\", \"hp\", \"speed\" (feet), \"darkvision\" (feet) or \"xp\"; target \"self\" (also SELF) or a name on this map; -1 without a stat block";
-    "knows_spell"(spell: Spell) "Whether the player has learned the spell";
-    "learn_spell"(spell: Spell) "Teaches a spell (queued)";
-    "mana"() "The player's current mana";
-    "add_mana"(amount: Num) "Adds mana (negative drains) (queued)";
+    "knows_spell"(spell: Spell) "Whether the hero knows the spell (a cantrip or a known spell, the spellbook's) or has it prepared";
+    "learn_spell"(spell: Spell) "Teaches the hero a spell: only when their class's spell list has it (the SRD's rule; a wizard adds it to the spellbook) (queued)";
+    [deprecated "slots_left(level)"] "mana"() "Deprecated: spells use slots since 0.30; always 0";
+    [deprecated "restore_slots()"] "add_mana"(amount: Num) "Deprecated: spells use slots since 0.30; does nothing (queued)";
+    [since "0.30"] "spell_slots"(level: Num) "How many spell slots of a level (1-9) the hero has at their class level";
+    [since "0.30"] "slots_left"(level: Num) "Spell slots of a level (1-9) the hero has left until a rest";
+    [since "0.30"] "restore_slots"() "Gives the hero all their spell slots back (a potion, a shrine)";
+    [since "0.30"] "prepare_spell"(spell: Spell) "Prepares a spell for the hero (a preparing caster: cleric, druid, paladin, wizard), as far as their count allows; false when it can't";
+    [since "0.30"] "is_prepared"(spell: Spell) "Whether the hero has a spell prepared";
+    [since "0.30"] "concentrating"() "The id of the spell the hero concentrates on, \"\" when none";
+    [since "0.30"] "cast_spell"(spell: Spell) "The hero casts a spell outside a fight on themselves, with a slot (queued)";
+    [since "0.30"] "cast_spell"(spell: Spell, target: Target, free: Bool) "The hero casts a spell on a target (\"player\" or a character on this map), free = without a slot (queued)";
     "xp"() "All the experience points the player has gained (experience and levels)";
     "level"() "The player's level (1 = the first)";
     [since "0.28"] "apply_condition"(target: Target, condition: Effect, seconds: Num) "A condition on \"player\" or a character: \"poisoned\", \"prone\", \"stunned\", \"exhaustion\" (one level)… for seconds (0 = until removed or a rest) (queued)";
@@ -263,7 +271,7 @@ pub const API: &[ApiFn] = api! {
     "unequip"(target: Target, slot: Text) "Takes off what a character wears in \"clothing\", \"head\", \"body\", \"weapon\", \"offhand\" or \"tool\" (into its carried items) (queued)";
     "give_item_to"(target: Target, item: Item, count: Num) "Adds items to what a character carries (dropped when it is defeated) (queued)";
     "take_item_from"(target: Target, item: Item, count: Num) "Takes items from what a character carries (queued)";
-    "teach_spell"(target: Target, spell: Spell) "Teaches a character a spell; a companion casts Heal and Bolt spells from its own mana (queued)";
+    "teach_spell"(target: Target, spell: Spell) "Teaches a party member a spell, when its class's list has it; it casts it in fights when the player plays its turns (queued)";
     "npc_knows_spell"(target: Target, spell: Spell) "Whether a character on the map has learned a spell (teach_spell, or a scroll given to a companion)";
     "add_stock"(target: Target, item: Item, count: Num) "Adds items to a merchant's stock, e.g. what a villager produced (queued)";
     "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
@@ -550,6 +558,9 @@ mod tests {
             ("add_stock", 1, IdKind::Item),
             ("teach_spell", 1, IdKind::Spell),
             ("npc_knows_spell", 1, IdKind::Spell),
+            ("prepare_spell", 0, IdKind::Spell),
+            ("is_prepared", 0, IdKind::Spell),
+            ("cast_spell", 0, IdKind::Spell),
             ("set_stock", 1, IdKind::Item),
             ("stock_of", 1, IdKind::Item),
             ("defeated_count", 0, IdKind::Character),

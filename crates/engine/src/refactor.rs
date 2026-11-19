@@ -298,6 +298,18 @@ impl Renamer<'_> {
         if let crate::skills::SpellEffect::Bolt { projectile, .. } = &mut d.effect {
             self.fix(RefKind::Sheet, &mut projectile.sheet);
         }
+        // The look: its projectile, impact sheet and sound; the classes whose list has it.
+        if let Some(p) = &mut d.visual.projectile {
+            self.fix(RefKind::Sheet, &mut p.sheet);
+        }
+        self.fix(RefKind::Sheet, &mut d.visual.impact);
+        self.fix(RefKind::Sound, &mut d.visual.sound);
+        // (Renamed with their class; not a dependency: a spell travels without the classes.)
+        if self.found.is_none() {
+            for c in &mut d.classes {
+                self.fix(RefKind::Class, c);
+            }
+        }
     }
 
     /// Furniture: the cover sprite (a bed's blanket) and the conditions.
@@ -467,7 +479,7 @@ impl Renamer<'_> {
             Action::SetClass { class, .. } => self.fix(RefKind::Class, class),
             Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
             Action::ShowImage { sheet, .. } | Action::ShowPicture { sheet, .. } => self.fix(RefKind::Sheet, sheet),
-            Action::TeachSpell { spell, .. } => self.fix(RefKind::Spell, spell),
+            Action::TeachSpell { spell, .. } | Action::CastSpell { spell, .. } => self.fix(RefKind::Spell, spell),
             Action::If { conditions, .. } => self.conditions(conditions),
             Action::SetSkill { skill, level } => {
                 self.fix(RefKind::Skill, skill);

@@ -141,7 +141,7 @@ impl Game {
     /// Whether reaching `level` of class `c` asks for choices (subclass, ability scores,
     /// expertise, a fighting style, skills).
     pub(super) fn level_has_choices(&self, c: &ClassDef, level: u32) -> bool {
-        level == c.subclass_level || c.levels.get(level as usize - 1).is_some_and(|l| l.features.iter().any(|f| c.feature(f).is_some_and(|f| f.choice.is_some())))
+        level == c.subclass_level || c.levels.get(level as usize - 1).is_some_and(|l| l.features.iter().any(|f| c.feature(f).is_some_and(|f| f.choice.is_some()))) || Self::spell_gains(c, level) != (0, 0)
     }
 
     /// What the hero's class adds to checks (after every change of class, level or choice, and

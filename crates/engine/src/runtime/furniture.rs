@@ -178,11 +178,6 @@ impl Game {
             if tick && self.combat.enabled() && self.hp() < self.player_max_hp() {
                 self.heal(1);
             }
-            if self.magic_on() {
-                // Mana regenerates once more on top of the usual rate.
-                let max = self.max_mana() as f32;
-                self.world.mana = (self.world.mana + self.project.config.skills.mana_regen * dt).min(max);
-            }
         }
         true
     }

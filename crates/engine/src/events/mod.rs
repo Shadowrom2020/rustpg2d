@@ -425,7 +425,7 @@ impl Condition {
             Cond::PlayerSex { sex } => world.player_sex == *sex,
             Cond::TimeBetween { from, to } => hour_between(world.hour, *from, *to),
             Cond::Skill { skill, op, level } => op.apply(world.is_proficient(skill) as i64, *level),
-            Cond::KnowsSpell { spell } => world.spells.contains(spell),
+            Cond::KnowsSpell { spell } => world.spells.contains(spell) || world.prepared.iter().any(|s| s == spell),
             Cond::Level { op, value } => op.apply(world.player_level() as i64, *value),
             Cond::HasEffect { kind } => crate::srd::conditions::has(&world.effects, *kind),
             Cond::Defeated { character, op, count } => op.apply(world.defeated(character) as i64, *count),
@@ -919,6 +919,19 @@ pub enum Action {
         #[serde(default)]
         level: u32,
     },
+    /// The hero casts a spell outside a fight on `target` ("player" or a character on this map):
+    /// with a slot unless `free` (a scroll, a story's casting: the effect without the cost).
+    CastSpell {
+        spell: String,
+        #[serde(default = "player_target")]
+        target: TargetName,
+        #[serde(default)]
+        free: bool,
+    },
+}
+
+fn player_target() -> TargetName {
+    "player".into()
 }
 
 fn eight() -> f32 {
@@ -1121,6 +1134,7 @@ impl Action {
             Action::LongRest { .. } => "Long rest",
             Action::StartCombat => "Start fight",
             Action::SetClass { .. } => "Set class",
+            Action::CastSpell { .. } => "Cast spell",
         }
     }
 
@@ -1237,6 +1251,7 @@ impl Action {
             Action::LongRest { hours: 8.0 },
             Action::StartCombat,
             Action::SetClass { target: "player".into(), class: "fighter".into(), level: 0 },
+            Action::CastSpell { spell: String::new(), target: "player".into(), free: true },
         ]
     }
 }

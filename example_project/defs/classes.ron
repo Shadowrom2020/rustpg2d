@@ -1312,6 +1312,12 @@
                 text: "At 20th level, when you roll initiative and have no uses of Bardic Inspiration left, you regain one use.",
             ),
         ],
+        spellcasting: Some((
+            ability: Cha,
+            kind: Known,
+            half: false,
+            ritual: true,
+        )),
     ),
     (
         id: "cleric",
@@ -2053,6 +2059,12 @@
                 text: "At 20th level, your call for intervention succeeds automatically, no roll required.",
             ),
         ],
+        spellcasting: Some((
+            ability: Wis,
+            kind: Prepared,
+            half: false,
+            ritual: true,
+        )),
     ),
     (
         id: "druid",
@@ -2739,6 +2751,12 @@
                 text: "At 20th level, you can use your Wild Shape an unlimited number of times. Additionally, you can ignore the verbal and somatic components of your druid spells, as well as any material components that lack a cost and aren\'t consumed by a spell. You gain this benefit in both your normal shape and your beast shape from Wild Shape.",
             ),
         ],
+        spellcasting: Some((
+            ability: Wis,
+            kind: Prepared,
+            half: false,
+            ritual: true,
+        )),
     ),
     (
         id: "fighter",
@@ -4673,6 +4691,12 @@
                 text: "At 20th level, as an action, you can emanate an aura of sunlight. For 1 minute, bright light shines from you in a 30-foot radius, and dim light shines 30 feet beyond that. Whenever an enemy creature starts its turn in the bright light, the creature takes 10 radiant damage. In addition, for the duration, you have advantage on saving throws against spells cast by fiends or undead.",
             ),
         ],
+        spellcasting: Some((
+            ability: Cha,
+            kind: Prepared,
+            half: true,
+            ritual: false,
+        )),
     ),
     (
         id: "ranger",
@@ -5392,6 +5416,12 @@
                 text: "At 20th level, you become an unparalleled hunter of your enemies. Once on each of your turns, you can add your Wisdom modifier to the attack roll or the damage roll of an attack you make against one of your favored enemies. You can choose to use this feature before or after the roll, but before any effects of the roll are applied.",
             ),
         ],
+        spellcasting: Some((
+            ability: Wis,
+            kind: Known,
+            half: false,
+            ritual: false,
+        )),
     ),
     (
         id: "rogue",
@@ -6640,6 +6670,12 @@
                 text: "At 20th level, you regain 4 expended sorcery points whenever you finish a short rest.",
             ),
         ],
+        spellcasting: Some((
+            ability: Cha,
+            kind: Known,
+            half: false,
+            ritual: false,
+        )),
     ),
     (
         id: "warlock",
@@ -7515,6 +7551,12 @@
                 text: "At 20th level, you can draw on your inner reserve of mystical power while entreating your patron to regain expended spell slots. You can spend 1 minute entreating your patron for aid to regain all your expended spell slots from your Pact Magic feature. Once you regain spell slots with this feature, you must finish a long rest before you can do so again.",
             ),
         ],
+        spellcasting: Some((
+            ability: Cha,
+            kind: Pact,
+            half: false,
+            ritual: false,
+        )),
     ),
     (
         id: "wizard",
@@ -8029,5 +8071,11 @@
                 text: "When you reach 20th level, you gain mastery over two powerful spells and can cast them with little effort. Choose two 3rd-level wizard spells in your spellbook as your signature spells. You always have these spells prepared, they don\'t count against the number of spells you have prepared, and you can cast each of them once at 3rd level without expending a spell slot. When you do so, you can\'t do so again until you finish a short or long rest. If you want to cast either spell at a higher level, you must expend a spell slot as normal.",
             ),
         ],
+        spellcasting: Some((
+            ability: Int,
+            kind: Spellbook,
+            half: false,
+            ritual: true,
+        )),
     ),
 ]

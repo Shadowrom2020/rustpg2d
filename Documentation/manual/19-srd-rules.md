@@ -27,9 +27,8 @@ built into the engine; the editor shows them as hover texts.
 
 ## What is simplified
 
-- **Classes:** spellcasting, spell slots and the domain and oath spells come with the SRD's
-  spells, Wild Shape with shapes and summons (0.32), so until then those are text and spells cost
-  mana as before. Reactions (Uncanny Dodge, Deflect Missiles, Retaliation, Indomitable) are taken
+- **Classes:** the domain and oath spells (always prepared) and Wild Shape (shapes and summons,
+  0.32) are text. Reactions (Uncanny Dodge, Deflect Missiles, Retaliation, Indomitable) are taken
   as soon as they fit, without asking (a reaction prompt is 0.32). *Stunning Strike* spends its ki
   on the first melee hit of a turn, *Open Hand Technique* always knocks prone, a turned undead is
   frightened (and so runs), *Lay on Hands* heals all a creature lacks (as far as the pool goes).
@@ -39,8 +38,15 @@ built into the engine; the editor shows them as hover texts.
   Rage, Stroke of Luck, Cutting Words, Quivering Palm…) are text. Multiclassing is 0.32 (the classes keep
   its prerequisites). The only feat is the SRD's Grappler. Heroes without a class (projects without
   classes) have a d10 hit die. Weapon proficiency doesn't change attack rolls yet (0.31's weapons). In a
-  fight a *Bolt* spell is a ranged spell attack (INT + proficiency), a *Blast* a DEX saving throw
-  for half damage, *Heal* touches an ally.
+  fight spells are cast from the action bar ([Spellcasting](09-gameplay.md#spellcasting)).
+- **Spells:** 113 of the 319 act by their parts; the other 206 are story only (their text, cast
+  by events and scripts). Components are shown but not needed until 0.31's equipment (a focus or a
+  component pouch). Characters other than party members don't cast (monsters' spellcasting and the
+  AI's casting are 0.32). Reaction spells (Shield) are cast on the caster's own turn. Areas hit
+  everyone on their tiles (cover on DEX saves is 0.32); Magic Missile's darts strike one target;
+  Sleep, Color Spray and the other spells of hit point pools are story only; Power Word Stun ignores
+  the target's hit points; the rituals of the SRD are all story spells. A cantrip on a scroll is cast,
+  not learned.
 - **Weapons and armor** come with 0.31: weapon properties (finesse, light, heavy, thrown) and the
   SRD's armor table. Until then melee attacks use STR, ranged ones DEX, any weapon in the left hand
   can make the off-hand attack, and armor class is 10 + DEX + the armor's *Defense*.

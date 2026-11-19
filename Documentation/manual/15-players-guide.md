@@ -17,7 +17,7 @@ These are the default keys; players change them in *Options › Gameplay › Con
 | 1–8, or a click on a quick bar slot | Use that item or spell (in a fight: the action bar, see below) |
 | Space | End the turn (in a fight) |
 | C / I | The character window: character sheet and inventory |
-| K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, conditions, languages, features and traits; R there: short rest) and *Spells* tab (if the game has magic) |
+| K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, conditions, languages, features and traits; R there: short rest) and *Spells* tab (your spellbook: slots, prepare with P, cast with Enter; for casters) |
 | Tab | Next tab of the open window |
 | J | Journal: *Quests*, *Bestiary*, *Dialogs*, *People* (the villagers you made friends with, in hearts), *Rolls* (your last checks and dice rolls) |
 | M | The map screen |
@@ -101,8 +101,9 @@ the map (a tile is 5 feet).
   in reach. The box at the cursor shows its hit points and armor class, your **chance to hit** and
   its **cover**.
 - **The action bar** at the bottom: 1–8 or a click picks an action, Tab / Shift+Tab select one and
-  X uses the selected one. One **action** a turn: *Attack*, *Cast* (a spell you know; press it again
-  for the next), *Class* (your class's actions: *Rage*, *Second Wind*, *Action Surge*, *Flurry of
+  X uses the selected one. One **action** a turn: *Attack*, *Cast* (a spell you can cast now; press it again for the next, or the same spell at a higher slot
+  level: the line above the bar tells the slot, the area and the save; an area spell is drawn on the
+  tiles under the cursor), *Class* (your class's actions: *Rage*, *Second Wind*, *Action Surge*, *Flurry of
   Blows*, *Lay on Hands*…; press it again for the next, the line above the bar tells its cost and
   uses left, E / Enter or a click uses it on you or on whoever the cursor is on), *Dash* (move twice as far), *Disengage* (leave without opportunity attacks),
   *Dodge* (attacks against you get disadvantage until your next turn), *Help* (a companion's next

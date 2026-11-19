@@ -21,8 +21,8 @@
 //               quest_done(id)
 // Player:       player_name() player_sex() ("male"/"female") is_female() is_male()
 //               text("...") fills in placeholders: {player} {sir|madam} {variable}
-// Rules (SRD 5.1): check("persuasion", 12) save("dex", 14) roll("2d6") modifier("str") is_proficient(id); magic: knows_spell(id) mana()
-//               give_skill_points(n) learn_spell(id) add_mana(n) damage_around(dmg, radius)
+// Rules (SRD 5.1): check("persuasion", 12) save("dex", 14) roll("2d6") modifier("str") is_proficient(id); spells: knows_spell(id)
+//               slots_left(level) cast_spell(id, target, free) learn_spell(id) damage_around(dmg, radius)
 //               player_light(radius, seconds, #{ color: [r, g, b], flicker })
 //               heal_area(x, y, radius, n) light_at(x, y, radius, seconds, #{ ... })
 // Spell effects (queued; x, y in tiles): aim(fn) calls fn(x, y) with the player's target;
@@ -260,9 +260,9 @@ fn guard_rest() {
 fn guard_answer() {
     if get_var("guard_join") == 0 {
         say("Guard", "Lead the way, {player}!");
-        // Companions learn the spells of scrolls and spell books handed to them (the guard has
-        // mana: Database > Characters > Magic) and cast Heal and Bolt spells.
-        say("Guard", "And if you find a scroll, hand it over. My mother taught me my letters - I can read a spell as well as anyone.");
+        // Party members with a casting class learn the spells of scrolls and books handed to
+        // them when their class's list has them (the SRD's rule); the guard is a fighter.
+        say("Guard", "And if you find a scroll, keep it for someone who can read it. I trust my spear.");
         follow("guard");
     }
 }
@@ -274,25 +274,14 @@ fn count_coins() {
     say("You have {coins} coins.");
 }
 
-// Fireball, a scripted spell (Database > Spells > Fireball, effect "Script"). Casting it calls
-// cast_fireball(); aim() lets the player click a target and calls fireball_at(x, y) with it (in
-// tiles). The spell's mana is only spent once a target is chosen.
-fn cast_fireball() {
-    aim("fireball_at");
-}
-
-fn fireball_at(x, y) {
-    play_sound("fireball");
-    // An animated sprite (all frames of the "fireball" sheet) flies there and glows on the way.
-    fly("fireball", x, y, "fireball_hit", #{ speed: 9, fps: 14, light: 2.5 });
-}
-
-fn fireball_hit(x, y) {
-    play_sound("explosion");
-    effect("explosion", x, y, #{ fps: 14, scale: 2.4, light: 5, shake: 0.3 });
-    damage_area(x, y, 2, 5, "fire");
-    // Embers glow on for a few seconds.
-    light_at(x, y, 2, 4, #{ color: [255, 120, 50], flicker: true });
+// Brother Ansel is a cleric of the Life domain (Database > Characters > Priest: class cleric):
+// once a day he heals a hurt hero with Cure Wounds (the spell cast for the story: free).
+fn ansel_blessing() {
+    if player_hp() >= player_max_hp() { return; }
+    if get_var("ansel_blessing_day") == day() + 1 { return; }
+    set_var("ansel_blessing_day", day() + 1);
+    say("Brother Ansel", "You are hurt, {player}. Be still - the light mends what it can.");
+    cast_spell("cure-wounds", "player", true);
 }
 
 // The Lost Cat (Mira's quest): Bram, Old Finn and Jorun each saw something; two clues lead to

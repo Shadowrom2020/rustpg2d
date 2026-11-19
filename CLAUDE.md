@@ -66,7 +66,12 @@ changes. The modules:
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron
-  skills.rs             SkillSettings (project: magic, mana), SpellDef / SpellEffect (the skill tree went in 0.28)
+  skills.rs             SkillSettings (project: magic), SpellDef (SRD 5.1 spells: level, SpellCast, SpellRange, Area/Shape,
+                        components, concentration, classes, parts: Vec<SpellPart>, story_only, SpellVisual; 0.29's
+                        SpellEffect upgraded on read: SpellDef::upgrade; RULES_VERSION 3 converts projects);
+                        runtime/spells.rs (slots by class level, known / prepared / spellbook, concentration, scrolls,
+                        casting out of fights, level-up picks), runtime/turns/casting.rs (Cast in fights: targets,
+                        areas, resolve_spell, buffs in AC / speed / rolls); buffs = srd::conditions::Buff on ActiveCondition
   srd/                  the SRD 5.1 rules: dice.rs (expressions `2d6+STR`, seedable thread-local Rng: `seed`,
                         RUSTPG2D_SEED, autoplay starts at 1; advantage / disadvantage), abilities.rs (six abilities,
                         modifier, proficiency bonus, the 18 SKILLS and the TOOLS by SRD index id, proficiency_id),
@@ -212,8 +217,8 @@ crates/engine/src/      library: everything shared by game and editor
                         opportunity attacks, attacks, combat_damage, death saves; actions.rs = TurnAct + the SRD's actions;
                         ai.rs; ui.rs = order / action bars, overlays, cursor, log, input; features.rs = class actions
                         (the bar's Class entry, uses in WorldState.spent / Companion.spent, rests), riders, reactions,
-                        ClassFx (rage…), ai_class_step; status combat= / death_saves= / resources= / class_fx=,
-                        autoplay `turn …` = Game::turn_command, `turn class ACT`, `turn log`), equipment, locks,
+                        ClassFx (rage…), ai_class_step; casting.rs = spells (Aim::Cast(spell, slot)); status combat= / death_saves= / resources= / class_fx=,
+                        autoplay `turn …` = Game::turn_command, `turn class ACT`, `turn cast SPELL [NAME|X Y] [slot N]`, `turn aim`, `turn log`), equipment, locks,
                         inventory_ui, shop_ui, crafting_ui (Open crafting window; quality steps roll a check), achievements (checks, toasts), minigame (fishing; locks are DEX checks in locks.rs), furniture (sitting, sleeping: PropDef.use_spot), gather (gathering props with a tool, regrowing prop states), farm (farm plots: planting seeds, crops growing, harvest), activities (characters seen fishing / hammering / reading at their spot), crafting_ui also checks RecipeDef.station_state against the station prop (cooking fires), orders (companion orders menu, G / pad LB: AI fights / I command, stay, follow, gear), companion_ui (a companion's window: gear, bag, the player's inventory), npc_use (characters use the items they carry: potions when critical, cures, buffs; companion ammo), healing ("heal whom?" choice for heal spells / items with ItemDef.use_on, companions' HUD rows, Action::HealCharacter), journal, creator, patrol (routes; walk_to_tile = A* walking shared with schedule = daily routines, stops on other maps = visitors, furniture), companions (follow, carried across maps via WorldState.companions, Companion.ai = the AI plays their turns), lights (light sources,
                         clock), skills (skill bonuses, mana, spells, aiming, K screen), fx (Fly /
                         Effect actions: scripted flying sprites and one-shot animations), menu (title/pause/options),

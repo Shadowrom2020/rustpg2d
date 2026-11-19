@@ -8,10 +8,12 @@
 
 mod actions;
 mod ai;
+mod casting;
 mod features;
 mod ui;
 
 pub(super) use actions::TurnAct;
+pub(super) use casting::CastAt;
 
 use macroquad::prelude::*;
 
@@ -84,7 +86,8 @@ pub(super) enum Aim {
     Help,
     Grapple,
     Shove,
-    Cast(String),
+    /// A spell at a slot level (0 = a cantrip).
+    Cast(String, u32),
     /// A class action (its id).
     Feature(String),
 }
@@ -171,6 +174,8 @@ pub(super) struct Combat {
     pub mouse_last: Vec2,
     /// Once-per-turn features used in the current turn (Sneak Attack…), by whom.
     pub once: Vec<(Who, &'static str)>,
+    /// A scroll being read: its spell is aimed (used up when cast).
+    pub scroll: Option<String>,
 }
 
 /// What a fight log keeps.
@@ -282,8 +287,10 @@ impl Game {
     /// Armor class: the hero's, a stat block's.
     pub(super) fn who_ac(&self, who: Who) -> i32 {
         match who {
+            // (The hero's counts the spells' buffs already.)
             Who::Player => self.armor_class(),
-            _ => self.who_block(who).map_or(10, |b| b.ac),
+            // (Spells: Shield of Faith, Mage Armor, Haste.)
+            _ => self.buff_ac(who, self.who_block(who).map_or(10, |b| b.ac)),
         }
     }
 
@@ -296,7 +303,7 @@ impl Game {
             _ => self.who_block(who).map_or(30, |b| b.speed_ft.max(b.speeds.fly)),
         };
         let r = conditions::rules(self.who_conditions(who));
-        (base as f32 * r.speed).round() as u32
+        (self.buff_speed(who, base) as f32 * r.speed).round() as u32
     }
 
     fn who_dex(&self, who: Who) -> i32 {
@@ -386,7 +393,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, reach: Default::default(), reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new() };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, reach: Default::default(), reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -513,6 +520,16 @@ impl Game {
             return;
         }
         self.class_turn_start(f.who);
+        // (Concentration's time: a round of the caster's.)
+        if let Some(t) = match f.who {
+            Who::Player => self.world.concentration.as_mut().map(|c| &mut c.1),
+            Who::Npc(uid) => self.skills.npc_concentration.get_mut(&uid).map(|c| &mut c.1),
+        } {
+            *t -= conditions::ROUND;
+            if *t <= 0.0 {
+                self.end_concentration(f.who);
+            }
+        }
         let Some(c) = &self.fight else { return };
         if f.surprised && c.round == 1 {
             let line = format!("{} {}", self.who_name(f.who), crate::lang::tr_ui("is surprised"));
@@ -994,7 +1011,10 @@ impl Game {
 
     /// Rolls an attack of `who` on `target` and applies its damage and condition.
     pub(super) fn make_attack(&mut self, who: Who, target: Who, spec: &AttackSpec) -> bool {
-        let spec = &self.buffed(who, spec);
+        let mut spec = self.buffed(who, spec);
+        // (Bless / Bane: a die on the attack roll.)
+        spec.bonus += self.buff_roll(who, true);
+        let spec = &spec;
         let sit = self.situation(who, target, spec);
         let mode = rules::odds(&sit).mode();
         let cover = self.cover(who, target);
@@ -1094,6 +1114,8 @@ impl Game {
             Who::Player => self.player_defenses(),
             _ => self.who_index(target).and_then(|i| self.stat_block(&self.loaded.entities[i]).map(|s| s.defenses())).unwrap_or_default(),
         };
+        let mut defenses = defenses;
+        defenses.resistances.extend(self.buff_resistances(target));
         let mut n = defenses.apply(amount, t);
         // Script hook: the damage can change (0 = none).
         if self.hooked("damage") && n > 0 {
@@ -1173,6 +1195,10 @@ impl Game {
             }
         }
         self.after_damage(target, by);
+        // (Concentration: a CON save, the spell ends on a failure.)
+        if n > 0 {
+            self.concentration_check(target, n);
+        }
     }
 
     /// Healing in a fight: a creature at 0 HP gets up.
@@ -1320,7 +1346,7 @@ impl Game {
             Aim::Help => ":aim=help".into(),
             Aim::Grapple => ":aim=grapple".into(),
             Aim::Shove => ":aim=shove".into(),
-            Aim::Cast(s) => format!(":aim=cast:{s}"),
+            Aim::Cast(s, slot) => format!(":aim=cast:{s}@{slot}"),
             Aim::Feature(s) => format!(":aim=class:{s}"),
         };
         format!(
@@ -1346,7 +1372,7 @@ impl Game {
 
     /// Autoplay `turn …`: plays the current turn from a script (`move X Y`, `attack NAME`,
     /// `action dash|disengage|dodge|hide|ready|search`, `help|grapple|offhand NAME`,
-    /// `shove NAME prone|push`, `cast SPELL [NAME]`, `class ACT [NAME]`, `use ITEM`, `end`, `log [N]`, `ai NAME on|off`,
+    /// `shove NAME prone|push`, `cast SPELL [NAME | X Y] [slot N]`, `aim SPELL [slot N] [X Y]`, `class ACT [NAME]`, `use ITEM`, `end`, `log [N]`, `ai NAME on|off`,
     /// `fast [on|off]`, `start`). Returns what happened (or why not).
     pub fn turn_command(&mut self, line: &str) -> String {
         let a: Vec<&str> = line.split_whitespace().collect();
@@ -1431,13 +1457,52 @@ impl Game {
                 }
                 Err(e) => e,
             },
-            "cast" => {
+            "aim" => {
+                // `aim SPELL [slot N] [X Y]`: the spell aimed, the cursor on the tile (screenshots).
                 let me = self.fight.as_ref().unwrap().current().who;
-                let t = if arg(2).is_empty() { Ok(me) } else { target(self, 2) };
-                match t {
-                    Ok(t) => done(self.act_on(&Aim::Cast(arg(1).to_string()), t)),
-                    Err(e) => e,
+                let level = self.project.db.spell(arg(1)).map_or(1, |d| d.level);
+                let mut words: Vec<&str> = a[2..].to_vec();
+                let mut slot = None;
+                if let Some(k) = words.iter().position(|w| *w == "slot") {
+                    slot = words.get(k + 1).and_then(|n| n.parse::<u32>().ok());
+                    words.drain(k..(k + 2).min(words.len()));
                 }
+                let slot = slot.unwrap_or_else(|| if level == 0 { 0 } else { self.lowest_slot(me, level).unwrap_or(level) });
+                self.aim_spell(arg(1), slot);
+                if let ([x, y], Some(c)) = (words.as_slice(), self.fight.as_mut()) {
+                    c.cursor = (x.parse().unwrap_or(c.cursor.0), y.parse().unwrap_or(c.cursor.1));
+                }
+                "ok".into()
+            }
+            "cast" => {
+                // `cast SPELL [NAME | X Y] [slot N]`: at a fighter, a tile, or the cursor's aim.
+                let me = self.fight.as_ref().unwrap().current().who;
+                let words: Vec<&str> = a[2..].to_vec();
+                let (rest, slot) = match words.iter().position(|w| *w == "slot") {
+                    Some(k) => (words[..k].to_vec(), words.get(k + 1).and_then(|n| n.parse::<u32>().ok())),
+                    None => (words.clone(), None),
+                };
+                let id = arg(1);
+                let level = self.project.db.spell(id).map_or(1, |d| d.level);
+                let slot = slot.unwrap_or_else(|| if level == 0 { 0 } else { self.lowest_slot(me, level).unwrap_or(level) });
+                let at = match rest.as_slice() {
+                    [] => {
+                        self.aim_spell(id, slot);
+                        let cur = self.fight.as_ref().unwrap().cursor;
+                        if self.project.db.spell(id).is_some_and(|d| d.area.is_some() || d.range == crate::skills::SpellRange::Caster) { CastAt::Tile(cur) } else { CastAt::On(self.who_at(cur).unwrap_or(me)) }
+                    }
+                    [x, y] if x.parse::<i32>().is_ok() => CastAt::Tile((x.parse().unwrap_or(0), y.parse().unwrap_or(0))),
+                    [name] => match self.who_by_key(name) {
+                        Some(w) => CastAt::On(w),
+                        None => return format!("no fighter {name}"),
+                    },
+                    _ => return "cast SPELL [NAME | X Y] [slot N]".into(),
+                };
+                let r = self.cast_spell_in_fight(id, slot, at, false);
+                if let Some(c) = &mut self.fight {
+                    c.aim = Aim::Move;
+                }
+                done(r)
             }
             "class" => {
                 // A class action: on the named fighter, else the nearest fitting one, else itself.

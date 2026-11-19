@@ -359,6 +359,43 @@ pub struct ActiveCondition {
     /// Seconds to the next round's ongoing damage or healing.
     #[serde(skip_serializing_if = "is_zero_f32")]
     pub next_round: f32,
+    /// What gave it: a spell's id (concentration ending removes it); "" = anything else.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source: String,
+    /// A spell's boon or bane instead of a condition (Bless, Shield of Faith, Mage Armor).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buff: Option<Buff>,
+}
+
+/// A spell's boon or bane while it lasts (an [`ActiveCondition`] without a condition).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Buff {
+    /// A die added to attack rolls (Bless 1d4), or taken off them (`minus`: Bane).
+    AttackDie { dice: String, #[serde(default)] minus: bool },
+    /// A die added to saving throws, or taken off them.
+    SaveDie { dice: String, #[serde(default)] minus: bool },
+    /// Armor class + `bonus` (Shield of Faith 2, Shield 5).
+    Ac { bonus: i32 },
+    /// Armor class at least `base` + DEX without body armor (Mage Armor 13).
+    AcBase { base: i32 },
+    /// Speed + `feet` (Longstrider 10; negative slows).
+    Speed { feet: i32 },
+    /// Haste: +2 AC, speed doubled, advantage on DEX saves.
+    Haste,
+    /// Resistance to damage types (`fire`; "all" = every type).
+    Resistance { types: Vec<String> },
+}
+
+/// The buffs running in `list`.
+pub fn buffs(list: &[ActiveCondition]) -> impl Iterator<Item = &Buff> {
+    list.iter().filter_map(|a| a.buff.as_ref())
+}
+
+/// Starts a buff for `seconds` (0 = until removed) from `source`; the same source's buff of the
+/// same kind is renewed.
+pub fn apply_buff(list: &mut Vec<ActiveCondition>, buff: Buff, seconds: f32, source: &str) {
+    list.retain(|a| !(a.source == source && a.buff.as_ref().is_some_and(|b| std::mem::discriminant(b) == std::mem::discriminant(&buff))));
+    list.push(ActiveCondition { condition: None, level: 0, remaining: (seconds > 0.0).then_some(seconds), ongoing: None, next_round: 0.0, source: source.to_string(), buff: Some(buff) });
 }
 
 fn is_zero_f32(n: &f32) -> bool {
@@ -375,13 +412,15 @@ struct ActiveRepr {
     remaining: Option<f32>,
     ongoing: Option<Ongoing>,
     next_round: f32,
+    source: String,
+    buff: Option<Buff>,
     kind: OldKind,
     strength: f32,
 }
 
 impl Default for ActiveRepr {
     fn default() -> Self {
-        ActiveRepr { condition: None, level: 0, remaining: None, ongoing: None, next_round: 0.0, kind: OldKind::None, strength: 0.0 }
+        ActiveRepr { condition: None, level: 0, remaining: None, ongoing: None, next_round: 0.0, source: String::new(), buff: None, kind: OldKind::None, strength: 0.0 }
     }
 }
 
@@ -418,11 +457,11 @@ fn seconds_or_none<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<f32>
 impl From<ActiveRepr> for ActiveCondition {
     fn from(r: ActiveRepr) -> Self {
         match r.kind {
-            OldKind::None => ActiveCondition { condition: r.condition, level: r.level, remaining: r.remaining, ongoing: r.ongoing, next_round: r.next_round },
+            OldKind::None => ActiveCondition { condition: r.condition, level: r.level, remaining: r.remaining, ongoing: r.ongoing, next_round: r.next_round, source: r.source, buff: r.buff },
             k => {
                 // (An old effect's `remaining` was a plain number.)
                 let s = from_old(k, r.strength, r.remaining.unwrap_or(0.0));
-                ActiveCondition { condition: s.condition, level: 0, remaining: Some(s.seconds), ongoing: s.ongoing, next_round: ROUND }
+                ActiveCondition { condition: s.condition, level: 0, remaining: Some(s.seconds), ongoing: s.ongoing, next_round: ROUND, source: String::new(), buff: None }
             }
         }
     }
@@ -431,6 +470,13 @@ impl From<ActiveRepr> for ActiveCondition {
 impl ActiveCondition {
     /// `poisoned:11.2`, `exhaustion2`, `ongoing:1d4fire:5.0` (status lines).
     pub fn status(&self) -> String {
+        if self.buff.is_some() {
+            let name = format!("buff:{}", self.source.split('@').next().unwrap_or(""));
+            return match self.remaining {
+                Some(r) => format!("{name}:{r:.1}"),
+                None => name,
+            };
+        }
         let name = match self.condition {
             Some(Condition::Exhaustion) => format!("exhaustion{}", self.level),
             Some(c) if c != Condition::Any => c.id().to_string(),
@@ -450,6 +496,7 @@ impl ActiveCondition {
     /// The badge: `PSN 5`, `EXH2`, `FIR 3`, `REG 3`.
     pub fn badge(&self) -> String {
         let label = match (self.condition, &self.ongoing) {
+            _ if self.buff.is_some() => self.source.split('@').next().unwrap_or("").chars().filter(|c| c.is_ascii_alphabetic()).take(3).collect::<String>().to_ascii_uppercase(),
             (Some(Condition::Exhaustion), _) => format!("EXH{}", self.level),
             (Some(c), _) if c != Condition::Any => c.badge().to_string(),
             (_, Some(o)) => o.damage_type.map_or("REG".to_string(), |t| t.id()[..3].to_ascii_uppercase()),
@@ -463,6 +510,9 @@ impl ActiveCondition {
 
     /// The badge colour.
     pub fn color(&self) -> [u8; 3] {
+        if self.buff.is_some() {
+            return [120, 170, 240];
+        }
         match (self.condition, &self.ongoing) {
             (Some(c), _) if c != Condition::Any => c.color(),
             (_, Some(o)) if o.damage_type.is_none() => [230, 80, 120],
@@ -476,6 +526,11 @@ impl ActiveCondition {
 /// is running lasts the longer of the two; exhaustion adds levels (up to 6); ongoing damage of
 /// the same dice and type restarts.
 pub fn apply(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec) {
+    apply_from(list, spec, "");
+}
+
+/// [`apply`] with what gave it (a spell's id: [`remove_source`] ends it).
+pub fn apply_from(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec, source: &str) {
     if spec.is_nothing() {
         return;
     }
@@ -497,6 +552,9 @@ pub fn apply(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec) {
             if spec.ongoing.is_some() {
                 a.ongoing = spec.ongoing.clone();
             }
+            if !source.is_empty() {
+                a.source = source.to_string();
+            }
         }
         None => list.push(ActiveCondition {
             condition,
@@ -504,8 +562,17 @@ pub fn apply(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec) {
             remaining,
             ongoing: spec.ongoing.clone(),
             next_round: 0.0,
+            source: source.to_string(),
+            buff: None,
         }),
     }
+}
+
+/// Ends the conditions `source` gave (a spell whose concentration ended). Returns how many.
+pub fn remove_source(list: &mut Vec<ActiveCondition>, source: &str) -> usize {
+    let before = list.len();
+    list.retain(|a| source.is_empty() || a.source != source);
+    before - list.len()
 }
 
 /// Ends a condition (`Any` = everything, ongoing damage too). Returns how many ended.
@@ -569,7 +636,7 @@ pub fn tick(list: &mut Vec<ActiveCondition>, dt: f32) -> Vec<Tick> {
         }
     }
     // (An old save's haste or strength is nothing now.)
-    list.retain(|a| a.remaining.is_none_or(|r| r > EPS) && (a.condition.is_some_and(|c| c != Condition::Any) || a.ongoing.is_some()));
+    list.retain(|a| a.remaining.is_none_or(|r| r > EPS) && (a.condition.is_some_and(|c| c != Condition::Any) || a.ongoing.is_some() || a.buff.is_some()));
     out
 }
 
@@ -784,7 +851,7 @@ mod tests {
         let back: ConditionSpec = ron::from_str(&ron::to_string(&s).unwrap()).unwrap();
         assert_eq!(back, s);
         assert_eq!(s.summary(), "Exhaustion +2 + 1d4 acid per round (CON DC 10)");
-        let a = ActiveCondition { condition: Some(Condition::Poisoned), level: 0, remaining: Some(3.0), ongoing: None, next_round: 0.0 };
+        let a = ActiveCondition { condition: Some(Condition::Poisoned), level: 0, remaining: Some(3.0), ongoing: None, next_round: 0.0, source: String::new(), buff: None };
         let back: ActiveCondition = ron::from_str(&ron::to_string(&a).unwrap()).unwrap();
         assert_eq!(back, a);
     }

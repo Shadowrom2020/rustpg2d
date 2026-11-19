@@ -101,6 +101,14 @@ impl Game {
             }
             return;
         }
+        // A spell: at the creature or tile under the cursor.
+        if let Aim::Cast(id, slot) = &aim {
+            match self.confirm_spell(id, *slot) {
+                Ok(()) => self.fight.as_mut().unwrap().aim = Aim::Move,
+                Err(why) => self.ui.toast(crate::lang::tr_ui(why).into_owned()),
+            }
+            return;
+        }
         let target = self.who_at(cursor).filter(|w| *w != me.who);
         if aim != Aim::Move {
             match target {
@@ -237,6 +245,11 @@ impl Game {
                 prev = p;
             }
         }
+        // A spell's area under the cursor.
+        for t in self.aimed_area() {
+            let r = tile_rect(t);
+            draw_rectangle(r.x + 1.0, r.y + 1.0, r.w - 2.0, r.h - 2.0, Color::new(1.0, 0.45, 0.15, 0.28));
+        }
         let r = tile_rect(c.cursor);
         let col = match c.aim {
             Aim::Move => Color::new(1.0, 1.0, 1.0, 0.95),
@@ -297,7 +310,7 @@ impl Game {
         let rects = self.bar_layout();
         for (k, (act, r)) in TurnAct::BAR.iter().zip(&rects).enumerate() {
             let ok = self.act_ready(*act).is_ok();
-            let picked = k == c.selected || matches!((&c.aim, act), (Aim::Attack, TurnAct::Attack) | (Aim::Cast(_), TurnAct::Cast) | (Aim::Feature(_), TurnAct::Class) | (Aim::Help, TurnAct::Help) | (Aim::Grapple, TurnAct::Grapple) | (Aim::Shove, TurnAct::Shove) | (Aim::OffHand, TurnAct::OffHand));
+            let picked = k == c.selected || matches!((&c.aim, act), (Aim::Attack, TurnAct::Attack) | (Aim::Cast(..), TurnAct::Cast) | (Aim::Feature(_), TurnAct::Class) | (Aim::Help, TurnAct::Help) | (Aim::Grapple, TurnAct::Grapple) | (Aim::Shove, TurnAct::Shove) | (Aim::OffHand, TurnAct::OffHand));
             if !skin::button_picture(*r, picked) {
                 draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(picked, Color::new(0.12, 0.12, 0.18, 0.92)));
             }
@@ -326,8 +339,8 @@ impl Game {
         );
         let ew = measure_plain(&econ, 18.0).width;
         draw_plain(&econ, (screen_width() - ew) / 2.0, top, 18.0, skin::highlight());
-        if let Aim::Cast(s) = &c.aim {
-            let name = self.project.db.spell(s).map_or(s.clone(), |d| d.name.clone());
+        if let Aim::Cast(s, slot) = &c.aim {
+            let name = self.spell_aim_line(s, *slot);
             let nw = measure_plain(&name, 18.0).width;
             draw_plain(&name, (screen_width() - nw) / 2.0, top - 20.0, 18.0, skin::normal());
         }

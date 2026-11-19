@@ -37,6 +37,8 @@ pub struct SrdData {
     subclasses: Vec<Value>,
     levels: Vec<Value>,
     features: Vec<Value>,
+    /// The spells (`5e-SRD-Spells.json`; empty when a checkout has none).
+    spells: Vec<Value>,
 }
 
 fn list(v: &Value, key: &str) -> Vec<Value> {
@@ -92,6 +94,7 @@ impl SrdData {
             subclasses: read("Subclasses")?,
             levels: read("Levels")?,
             features: read("Features")?,
+            spells: read("Spells").unwrap_or_default(),
         })
     }
 
@@ -447,7 +450,214 @@ impl SrdData {
             levels,
             subclasses,
             features,
+            spellcasting: class_spellcasting(c),
         }
+    }
+
+    /// Imports the SRD's spells into `spells`: new ones added, existing ones (by id) updated but
+    /// keeping their icon and look. Returns (added, updated, the story-only ids).
+    pub fn import_spells(&self, spells: &mut Vec<rustpg2d_engine::skills::SpellDef>) -> (usize, usize, Vec<String>) {
+        let (mut added, mut updated, mut story) = (0, 0, Vec::new());
+        for v in &self.spells {
+            let mut def = spell_def(v);
+            if def.story_only {
+                story.push(def.id.clone());
+            }
+            match spells.iter_mut().find(|d| d.id == def.id) {
+                Some(old) => {
+                    def.icon = old.icon.clone();
+                    def.visual = old.visual.clone();
+                    if *old != def {
+                        *old = def;
+                        updated += 1;
+                    }
+                }
+                None => {
+                    spells.push(def);
+                    added += 1;
+                }
+            }
+        }
+        (added, updated, story)
+    }
+}
+
+/// A class's spellcasting: its ability from the data, how it has its spells by the SRD's rules.
+fn class_spellcasting(c: &Value) -> Option<rustpg2d_engine::classes::Spellcasting> {
+    use rustpg2d_engine::classes::{CasterKind as K, Spellcasting};
+    let ability = rustpg2d_engine::srd::Ability::parse(c.pointer("/spellcasting/spellcasting_ability/index").and_then(Value::as_str)?)?;
+    let (kind, half, ritual) = match s(c, "index") {
+        "cleric" | "druid" => (K::Prepared, false, true),
+        "paladin" => (K::Prepared, true, false),
+        "wizard" => (K::Spellbook, false, true),
+        "warlock" => (K::Pact, false, false),
+        "bard" => (K::Known, false, true),
+        _ => (K::Known, false, false),
+    };
+    Some(Spellcasting { ability, kind, half, ritual })
+}
+
+/// A duration as rounds of 6 seconds ("Up to 1 minute" = 10; instantaneous and permanent = 0).
+fn duration_rounds(text: &str) -> u32 {
+    let t = text.to_ascii_lowercase();
+    let n: u32 = t.split_whitespace().find_map(|w| w.parse().ok()).unwrap_or(1);
+    let per = if t.contains("round") {
+        1
+    } else if t.contains("minute") {
+        10
+    } else if t.contains("hour") {
+        600
+    } else if t.contains("day") {
+        14_400
+    } else {
+        0
+    };
+    n * per
+}
+
+/// An SRD spell as a definition: its fields, its mechanics from the data and [`spell_extras`].
+fn spell_def(v: &Value) -> rustpg2d_engine::skills::SpellDef {
+    use rustpg2d_engine::skills::{Area, Shape, SpellCast, SpellDef, SpellPart as P, SpellRange};
+    let mut d = SpellDef::fresh(s(v, "index"));
+    d.name = s(v, "name").into();
+    let mut text = desc(v);
+    if let Some(h) = v.get("higher_level").and_then(Value::as_array).filter(|a| !a.is_empty()) {
+        text += &format!(" At Higher Levels. {}", h.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(" "));
+    }
+    d.description = text;
+    d.level = v.get("level").and_then(Value::as_u64).unwrap_or(0) as u32;
+    d.school = v.pointer("/school/index").and_then(Value::as_str).unwrap_or("").into();
+    d.casting = match s(v, "casting_time") {
+        "1 action" => SpellCast::Action,
+        "1 bonus action" => SpellCast::Bonus,
+        "1 reaction" => SpellCast::Reaction,
+        t => SpellCast::Minutes((duration_rounds(t) / 10).max(1)),
+    };
+    let range = s(v, "range");
+    d.range = match range {
+        "Self" => SpellRange::Caster,
+        "Touch" => SpellRange::Touch,
+        r if r.ends_with(" feet") => SpellRange::Feet(r.trim_end_matches(" feet").trim().parse().unwrap_or(30)),
+        _ => SpellRange::Sight,
+    };
+    d.area = v.get("area_of_effect").map(|a| {
+        let shape = match s(a, "type") {
+            "cube" => Shape::Cube,
+            "cone" => Shape::Cone,
+            "line" => Shape::Line,
+            "cylinder" => Shape::Cylinder,
+            _ => Shape::Sphere,
+        };
+        Area { shape, feet: a.get("size").and_then(Value::as_u64).unwrap_or(5) as u32 }
+    });
+    d.components = list(v, "components").iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", ");
+    d.material = s(v, "material").into();
+    d.ritual = v.get("ritual").and_then(Value::as_bool).unwrap_or(false);
+    d.concentration = v.get("concentration").and_then(Value::as_bool).unwrap_or(false);
+    d.duration = s(v, "duration").into();
+    d.duration_rounds = duration_rounds(&d.duration);
+    d.classes = list(v, "classes").iter().map(|c| s(c, "index").to_string()).collect();
+    // The mechanics the data gives: an attack or a save, damage and healing by level.
+    let by_level = |o: Option<&Value>| -> Vec<(u32, String)> {
+        let mut out: Vec<(u32, String)> = o.and_then(Value::as_object).map(|m| m.iter().filter_map(|(k, x)| Some((k.parse().ok()?, x.as_str()?.to_string()))).collect()).unwrap_or_default();
+        out.sort();
+        out
+    };
+    let mut parts = Vec::new();
+    match s(v, "attack_type") {
+        "ranged" => parts.push(P::Attack { ranged: true }),
+        "melee" => parts.push(P::Attack { ranged: false }),
+        _ => {}
+    }
+    if let Some(dc) = v.get("dc") {
+        if let Some(a) = dc.pointer("/dc_type/index").and_then(Value::as_str).and_then(rustpg2d_engine::srd::Ability::parse) {
+            parts.push(P::Save { ability: a, half: s(dc, "dc_success") == "half" });
+        }
+    }
+    if let Some(dmg) = list(v, "damage").first() {
+        let by = by_level(dmg.get("damage_at_slot_level").or_else(|| dmg.get("damage_at_character_level")));
+        if !by.is_empty() {
+            let damage_type = dmg.pointer("/damage_type/index").and_then(Value::as_str).and_then(rustpg2d_engine::srd::DamageType::parse);
+            parts.push(P::Damage { by_level: by, damage_type });
+        }
+    }
+    let heal = by_level(v.get("heal_at_slot_level"));
+    if !heal.is_empty() {
+        parts.push(P::Heal { by_level: heal });
+    }
+    parts.extend(spell_extras(s(v, "index")));
+    // Damage without an attack or a save in the data: Magic Missile's darts hit; Call Lightning and
+    // Flaming Sphere are DEX saves for half, Scorching Ray a ranged attack (one ray); the rest is a
+    // weapon's rider, a smite or Sleep's hit point pool, not damage (left out).
+    let index = s(v, "index");
+    let damaging = parts.iter().any(|p| matches!(p, P::Damage { .. }));
+    if damaging && !parts.iter().any(|p| matches!(p, P::Attack { .. } | P::Save { .. })) {
+        match index {
+            "magic-missile" => {}
+            "call-lightning" | "flaming-sphere" => parts.insert(0, P::Save { ability: rustpg2d_engine::srd::Ability::Dex, half: true }),
+            "scorching-ray" => parts.insert(0, P::Attack { ranged: true }),
+            _ => parts.retain(|p| !matches!(p, P::Damage { .. })),
+        }
+    }
+    // (Light's save is for an object a foe holds: lit by the caster, there is none.)
+    if s(v, "index") == "light" {
+        parts.retain(|p| !matches!(p, P::Save { .. }));
+    }
+    // (A save alone, without anything it keeps off, does nothing: the spell is the story's.)
+    let acts = parts.iter().any(|p| !matches!(p, P::Save { .. } | P::Targets { .. }));
+    d.story_only = !acts;
+    if d.story_only {
+        parts.clear();
+    }
+    d.parts = parts;
+    d
+}
+
+/// What the SRD data doesn't say as numbers: conditions, buffs, targets, light, unlocking and
+/// temporary hit points of the spells the engine can do (by spell index).
+fn spell_extras(index: &str) -> Vec<rustpg2d_engine::skills::SpellPart> {
+    use rustpg2d_engine::skills::SpellPart as P;
+    use rustpg2d_engine::srd::conditions::{Buff as B, Condition as K};
+    let cond = |c: K| P::Condition { condition: c, on_fail: true };
+    let always = |c: K| P::Condition { condition: c, on_fail: false };
+    let buff = |b: B| P::Buff { buff: b };
+    match index {
+        // (Magic Missile's darts: the data's dice are all of them together, at one target.)
+        "bless" => vec![P::Targets { count: 3, per_slot: 1 }, buff(B::AttackDie { dice: "1d4".into(), minus: false }), buff(B::SaveDie { dice: "1d4".into(), minus: false })],
+        "bane" => vec![P::Targets { count: 3, per_slot: 1 }, buff(B::AttackDie { dice: "1d4".into(), minus: true }), buff(B::SaveDie { dice: "1d4".into(), minus: true })],
+        "resistance" => vec![buff(B::SaveDie { dice: "1d4".into(), minus: false })],
+        "shield-of-faith" => vec![buff(B::Ac { bonus: 2 })],
+        "shield" => vec![buff(B::Ac { bonus: 5 })],
+        "mage-armor" => vec![buff(B::AcBase { base: 13 })],
+        "longstrider" => vec![buff(B::Speed { feet: 10 })],
+        "haste" => vec![buff(B::Haste)],
+        "slow" => vec![buff(B::Speed { feet: -15 })],
+        "stoneskin" => vec![buff(B::Resistance { types: vec!["bludgeoning".into(), "piercing".into(), "slashing".into()] })],
+        "ray-of-frost" => vec![buff(B::Speed { feet: -10 })],
+        "hold-person" | "hold-monster" => vec![cond(K::Paralyzed)],
+        "command" => vec![cond(K::Prone)],
+        "hideous-laughter" => vec![cond(K::Prone), cond(K::Incapacitated)],
+        "blindness-deafness" => vec![cond(K::Blinded)],
+        "entangle" | "web" => vec![cond(K::Restrained)],
+        "fear" => vec![cond(K::Frightened)],
+        "charm-person" => vec![cond(K::Charmed)],
+        "power-word-stun" => vec![always(K::Stunned)],
+        "animal-friendship" | "dominate-beast" | "dominate-person" | "suggestion" => vec![cond(K::Charmed)],
+        "hypnotic-pattern" => vec![cond(K::Charmed), cond(K::Incapacitated)],
+        "banishment" | "confusion" | "stinking-cloud" => vec![cond(K::Incapacitated)],
+        "grease" | "sleet-storm" => vec![cond(K::Prone)],
+        "protection-from-poison" => vec![buff(B::Resistance { types: vec!["poison".into()] })],
+        "magic-weapon" => vec![buff(B::AttackDie { dice: "1".into(), minus: false })],
+        "invisibility" | "greater-invisibility" => vec![always(K::Invisible)],
+        "mass-cure-wounds" | "mass-healing-word" | "prayer-of-healing" => vec![P::Targets { count: 6, per_slot: 0 }],
+        "light" | "continual-flame" => vec![P::Light { radius: 4.0 }],
+        "dancing-lights" => vec![P::Light { radius: 2.0 }],
+        "daylight" => vec![P::Light { radius: 12.0 }],
+        "knock" => vec![P::Unlock],
+        "false-life" => vec![P::TempHp { by_level: (1..=9).map(|l| (l, format!("1d4+{}", 4 + 5 * (l - 1)))).collect() }],
+        "aid" => vec![P::TempHp { by_level: (2..=9).map(|l| (l, format!("{}", 5 * (l - 1)))).collect() }],
+        "heroism" => vec![P::TempHp { by_level: vec![(1, "MOD".into())] }],
+        _ => Vec::new(),
     }
 }
 
@@ -866,7 +1076,11 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     let (added, updated) = data.import(&mut p.db.races, &mut p.db.backgrounds);
     let (m_added, m_updated) = data.import_monsters(&mut p.db.characters, true);
     let (c_added, c_updated, unmapped) = data.import_classes(&mut p.db.classes);
+    let (s_added, s_updated, story) = data.import_spells(&mut p.db.spells);
     let defs = root.join("defs");
+    if s_added + s_updated > 0 {
+        std::fs::write(defs.join("spells.ron"), rustpg2d_engine::project::ron_text(&p.db.spells)?)?;
+    }
     std::fs::write(defs.join("races.ron"), rustpg2d_engine::project::ron_text(&p.db.races)?)?;
     std::fs::write(defs.join("backgrounds.ron"), rustpg2d_engine::project::ron_text(&p.db.backgrounds)?)?;
     if m_added + m_updated > 0 {
@@ -874,12 +1088,14 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     }
     std::fs::write(defs.join("classes.ron"), rustpg2d_engine::project::ron_text(&p.db.classes)?)?;
     Ok(format!(
-        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {})",
+        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {}); spells: {s_added} added, {s_updated} updated, {} of {} story only",
         root.display(),
         p.db.races.len(),
         p.db.backgrounds.len(),
         p.db.characters.len(),
-        if unmapped.is_empty() { "-".to_string() } else { unmapped.join(", ") }
+        if unmapped.is_empty() { "-".to_string() } else { unmapped.join(", ") },
+        story.len(),
+        data.spells.len()
     ))
 }
 
@@ -1034,6 +1250,38 @@ mod tests {
 
 
     #[test]
+    fn spells_import_with_their_mechanics() {
+        use rustpg2d_engine::skills::{Shape, SpellPart as P, SpellRange};
+        use rustpg2d_engine::srd::conditions::{Buff, Condition};
+        let data = SrdData::read(&fixture()).unwrap();
+        let mut spells = Vec::new();
+        let (added, updated, story) = data.import_spells(&mut spells);
+        assert_eq!((added, updated), (9, 0));
+        let get = |id: &str| spells.iter().find(|d| d.id == id).unwrap();
+        // Fireball: level 3, 150 ft, a DEX save for half in a 20 ft sphere, 8d6 fire and 1d6 a slot.
+        let fb = get("fireball");
+        assert_eq!((fb.level, fb.range, fb.area.map(|a| (a.shape, a.feet)), fb.classes.clone()), (3, SpellRange::Feet(150), Some((Shape::Sphere, 20)), vec!["sorcerer".to_string(), "wizard".to_string()]));
+        assert!(matches!(&fb.parts[..], [P::Save { half: true, .. }, P::Damage { by_level, .. }] if by_level[0] == (3, "8d6".to_string()) && by_level[1] == (4, "9d6".to_string())));
+        // Fire Bolt: a cantrip spell attack whose dice grow with the caster's level.
+        assert!(matches!(&get("fire-bolt").parts[..], [P::Attack { ranged: true }, P::Damage { by_level, .. }] if by_level.iter().any(|(l, d)| *l == 5 && d == "2d10")));
+        // Cure Wounds heals with the modifier; Hold Person paralyzes on a failed WIS save (with concentration).
+        assert!(matches!(&get("cure-wounds").parts[..], [P::Heal { by_level }] if by_level[0].1 == "1d8 + MOD"));
+        let hp = get("hold-person");
+        assert!(hp.concentration && hp.duration_rounds == 10 && matches!(&hp.parts[..], [P::Save { half: false, .. }, P::Condition { condition: Condition::Paralyzed, on_fail: true }]));
+        // Bless: three creatures and one a slot, a d4 on attacks and saves; Magic Missile hits.
+        assert!(get("bless").parts.contains(&P::Buff { buff: Buff::AttackDie { dice: "1d4".into(), minus: false } }));
+        assert!(matches!(&get("magic-missile").parts[..], [P::Damage { .. }]));
+        // Light without its save; Sleep (its hit point pool) and Detect Magic are the story's.
+        assert!(matches!(&get("light").parts[..], [P::Light { .. }]));
+        assert!(story.contains(&"sleep".to_string()) && story.contains(&"detect-magic".to_string()) && get("sleep").parts.is_empty());
+        // A second run changes nothing; an existing spell keeps its icon.
+        spells.iter_mut().find(|d| d.id == "light").unwrap().icon = rustpg2d_engine::defs::SpriteRef::new("items", 27);
+        let before = spells.clone();
+        assert_eq!(data.import_spells(&mut spells).1, 0);
+        assert_eq!(spells, before);
+    }
+
+    #[test]
     fn classes_import_with_their_levels_features_and_subclasses() {
         use rustpg2d_engine::classes::{ClassTraits, FeatureChoice, FeatureEffect, FightingStyle, HeroClass};
         let data = SrdData::read(&fixture()).unwrap();
@@ -1071,6 +1319,10 @@ mod tests {
         let rt = ClassTraits::of(r, 5, &HeroClass { class: "rogue".into(), ..Default::default() });
         assert!(rt.riders.contains(&FeatureEffect::SneakAttack) && rt.riders.contains(&FeatureEffect::ReactionHalveDamage), "{:?}", rt.riders);
         assert_eq!(rt.acts.iter().filter(|a| a.id.starts_with("cunning-action")).count(), 3);
+        // The wizard casts with INT from a spellbook; a fighter doesn't cast.
+        let sc = w.spellcasting.clone().expect("the wizard casts");
+        assert_eq!((sc.ability, sc.kind, sc.ritual), (rustpg2d_engine::srd::Ability::Int, rustpg2d_engine::classes::CasterKind::Spellbook, true));
+        assert!(f.spellcasting.is_none());
         // A second run changes nothing.
         let before = classes.clone();
         assert_eq!(data.import_classes(&mut classes).1, 0);

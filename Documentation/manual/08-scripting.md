@@ -430,7 +430,7 @@ fn name_the_horse() {
 | `patrol(target, points)` | Patrols the given waypoints `[[x, y], [x, y], …]` (whole tiles); one point = walk there and stay. *(queued)* |
 | `stop_patrol(target)` | Stops a patrol: the character stands where it is. *(queued)* |
 | `stop_schedule(target)` | The character stops following its daily schedule (set in the editor) and stays where it is. Saved. *(queued)* |
-| `sleep(hours)` | The player sleeps (camping, an inn keeper's "Rest"): the screen fades, the clock moves on, HP and mana are restored, timed effects end, then *Woke up* triggers run. Refused with enemies nearby. *(queued, blocks)* |
+| `sleep(hours)` | The player sleeps (camping, an inn keeper's "Rest"): the screen fades, the clock moves on, HP and spell slots are restored, timed effects end, then *Woke up* triggers run. Refused with enemies nearby. *(queued, blocks)* |
 | `is_sitting()` / `is_sleeping()` | Whether the player sits on furniture / lies in a bed (or the night is passing). |
 | `lockpick(dc, var)` | Picks a lock in a custom puzzle: a DEX (Thieves' Tools) check against the DC; 1 (picked) or 0 goes into the variable, e.g. `lockpick(15, "vault"); then_call("vault_result");`. Until 0.27 the lockpicking game. *(queued)* |
 | `unlock_achievement(id)` | Unlocks an achievement (*Database › Achievements*) for the player: a toast, kept across save games. *(queued)* |
@@ -853,22 +853,30 @@ tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 **Removed in 0.28** with the skill tree: `skill_points()` and `give_skill_points(amount)`. Scripts
 that call them stop with an error at that line (the script check reports it).
 
-### Magic
+### Spells
 
-These only matter in projects with magic enabled in *Database › Project*.
+Spells are the SRD's (since 0.30): casters cast them with spell slots by their class level
+([Gameplay › Spellcasting](09-gameplay.md#spellcasting)).
 
 | Function | Description |
 |---|---|
-| `knows_spell(spell)` | Whether the player has learned a spell. |
-| `learn_spell(spell)` | Teaches a spell. *(queued)* |
-| `mana()` | Current mana. |
-| `add_mana(amount)` | Adds mana (negative drains it). *(queued)* |
-| `teach_spell(target, spell)` | Teaches a character a spell. A companion with mana (*Database › Characters › Magic*) casts *Heal* on whoever is badly hurt and *Bolt* at its enemy; others keep it for when they follow the player. *(queued)* |
-| `npc_knows_spell(target, spell)` | Whether a character on the map has learned a spell (from `teach_spell`, or a scroll or spell book given to it as a companion). |
+| `knows_spell(spell)` | Whether the hero knows a spell (a cantrip, a known spell, the spellbook's) or has it prepared. |
+| `learn_spell(spell)` | Teaches the hero a spell, only when their class's list has it (the SRD's rule: a wizard adds it to the spellbook). *(queued)* |
+| `spell_slots(level)` | How many spell slots of a level (1-9) the hero has at their class level. *(since 0.30)* |
+| `slots_left(level)` | The hero's spell slots of a level left until a rest. *(since 0.30)* |
+| `restore_slots()` | Gives the hero all their spell slots back (a potion, a shrine). *(since 0.30)* |
+| `prepare_spell(spell)` | Prepares a spell for a preparing caster (cleric, druid, paladin, wizard) as far as their count allows; `false` when it can't. *(since 0.30)* |
+| `is_prepared(spell)` | Whether the hero has the spell prepared. *(since 0.30)* |
+| `concentrating()` | The id of the spell the hero concentrates on, `""` when none. *(since 0.30)* |
+| `cast_spell(spell)` | The hero casts a spell outside a fight on themselves, with a slot. *(queued; since 0.30)* |
+| `cast_spell(spell, target, free)` | The hero casts a spell on `"player"` or a character on this map; `free` = without a slot (a scroll, the story's casting: a priest's blessing). *(queued; since 0.30)* |
+| `teach_spell(target, spell)` | Teaches a party member a spell when its class's list has it; it casts it in fights when the player plays its turns. *(queued)* |
+| `npc_knows_spell(target, spell)` | Whether a character on the map knows a spell (a party member's class spells, `teach_spell`, a scroll given to it). |
+| `mana()` | **Deprecated** since 0.30: use `slots_left(level)`. Always `0`: spells use slots. |
+| `add_mana(amount)` | **Deprecated** since 0.30: use `restore_slots()`. Does nothing. *(queued)* |
 
-Companions learn spells by themselves too: a scroll or spell book (an item with *Teaches spell*)
-handed to a companion teaches it the spell, if the companion has mana and it is a *Heal* or *Bolt*
-spell; a scroll that is used up when read is used up.
+A scroll or spell book handed to a party member teaches it the spell when its class's list has
+it; a scroll that is used up when read is used up.
 
 ### Experience and levels
 
@@ -961,9 +969,9 @@ Use these to build spells (and traps, cut-scenes, …) in scripts.
 | `damage_area(x, y, radius, damage)` / `damage_area(x, y, radius, damage, damage_type)` | Damages every character within `radius` tiles of `x, y`, of a damage type when one is given (`"fire"`, `"cold"`…: resistances halve it, immunities stop it). Never hurts the player. *(queued; the damage type since 0.28)* |
 | `damage_around(damage, radius)` / `damage_around(damage, radius, damage_type)` | The same around the player. *(queued; the damage type since 0.28)* |
 
-**Spell costs**: when a spell's *Script* function calls `aim`, the spell's mana and cooldown are
-spent only once the player has chosen a target; cancelling costs nothing. Without `aim`, they
-are spent when the spell is cast.
+A spell's *Script* part calls its function with the caster (`"player"` or a name), the aimed tile
+(`x`, `y`) and the slot level, after the slot is spent; `aim` is for triggers and items that let the
+player pick a spot.
 
 A flying sprite doesn't collide with anything on its way: it acts only at its target.
 
@@ -1105,25 +1113,23 @@ fn trap_sprung() {
 }
 ```
 
-### A Fireball spell
+### A scripted spell
 
-A spell with the **Script** effect and function `cast_fireball` (*Database › Spells*), using the
-sprite sheets `fireball` (4 frames, flying to the right) and `explosion` (8 frames):
+A spell with a **Script** part, function `meteor` (*Database › Spells*), using the sprite sheets
+`fireball` (4 frames, flying to the right) and `explosion` (8 frames). The SRD's Fireball needs no
+script (its parts are a DEX save for half and fire damage in a 20 ft sphere); a script is for what
+the parts can't say:
 
 ```rust
-fn cast_fireball() {
-    aim("fireball_at");                // mana is spent once a target is chosen
-}
-
-fn fireball_at(x, y) {
+fn meteor(caster, x, y, slot) {        // the caster, the aimed tile, the slot level
     play_sound("fireball");
-    fly("fireball", x, y, "fireball_hit", #{ speed: 9, fps: 14, light: 2.5 });
+    fly("fireball", x, y, "meteor_hit", #{ speed: 9, fps: 14, light: 2.5 });
 }
 
-fn fireball_hit(x, y) {
+fn meteor_hit(x, y) {
     play_sound("explosion");
     effect("explosion", x, y, #{ fps: 14, scale: 2.4, light: 5, shake: 0.3 });
-    damage_area(x, y, 2, 5);
+    damage_area(x, y, 2, 5, "fire");
     light_at(x, y, 2, 4, #{ color: [255, 120, 50], flicker: true });   // embers
 }
 ```

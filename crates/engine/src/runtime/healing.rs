@@ -14,7 +14,6 @@ use crate::defs::UseTarget;
 use crate::events::runner::ActionCtx;
 use super::Source;
 use crate::events::{Action, GameEvent};
-use crate::skills::SpellEffect;
 use super::text::{draw_text, measure_text};
 
 /// What the chosen character is healed with.
@@ -191,18 +190,8 @@ impl Game {
     fn apply_heal(&mut self, source: &HealSource, target: Option<u32>) {
         match source {
             HealSource::Spell(id) => {
-                let Some(d) = self.project.db.spell(id).cloned() else { return };
-                let SpellEffect::Heal { amount } = d.effect else { return };
-                if self.world.mana < d.mana as f32 {
-                    self.ui.toast("Not enough mana".into());
-                    return;
-                }
-                self.pay_spell(&d);
-                match target.and_then(|uid| self.uid_index(uid)) {
-                    Some(i) => self.heal_entity(i, amount),
-                    None => self.heal(amount),
-                }
-                self.ui.toast(d.name.to_string());
+                let who = target.filter(|uid| self.uid_index(*uid).is_some()).map_or(super::turns::Who::Player, super::turns::Who::Npc);
+                self.cast_heal_on(id, who);
             }
             HealSource::Item(item) => match target.and_then(|uid| self.uid_index(uid)) {
                 None => self.use_item_now(item),

@@ -23,8 +23,9 @@ pub use statblock::{npc_template, npc_templates, FeatureKind, Size, Speeds, Stat
 /// The rules' conversion version of projects made or converted by this editor
 /// (`ProjectConfig::rules_version`): 1 = the skill tree became SRD proficiencies (0.28); 2 = the
 /// status effects became conditions, and those without one (haste, strength, weakness,
-/// shield) were taken out (0.28).
-pub const RULES_VERSION: u32 = 2;
+/// shield) were taken out (0.28); 3 = spells became the SRD's (slots instead of mana: their
+/// old effects as spell parts, 0.30).
+pub const RULES_VERSION: u32 = 3;
 
 /// A lock or crafting difficulty of the old skill levels (0.27 and older: 1 = easy … 9) as an
 /// SRD DC: 10, 12, 15, 18, 20, 22, 25, 28, 30. 0 stays 0.

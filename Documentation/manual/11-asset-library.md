@@ -19,7 +19,8 @@ trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the e
 female version), three **realistic** figures in another style than the example's chibi cast (*Hero
 (realistic)*, *Elf (realistic)*, *Elf woman (realistic)*, drawn at 115 %) and more structures (town
 houses, city walls, dungeon rooms). The starter library
-also includes the scripted Fireball spell with its script functions, a **Locked Chest** (DC 12 to
+also includes the SRD's 319 spells (the example's with their icons; Fireball with its flying sprite
+and explosion), a **Locked Chest** (DC 12 to
 pick), and
 fonts: **monogram** (the example's pixel font: Latin, Cyrillic, Greek) and **Fusion Pixel** in its
 Japanese, Korean, Simplified and Traditional Chinese forms (each covers all of Chinese, Japanese and
@@ -116,9 +117,12 @@ its version.
 ## The SRD 5.1 data
 
 The starter library's races (with their subraces, traits and choices), the Acolyte background,
-the twelve classes with their subclasses, levels and features ([Characters ›
+the twelve classes with their subclasses, levels, features and spellcasting ([Characters ›
 Classes](06-characters.md#classes); the features that act get their effects from a table in the
-import, the starting equipment is mapped to library items) and the 334 monsters ([Characters ›
+import, the starting equipment is mapped to library items), the 319 spells ([Gameplay ›
+Spellcasting](09-gameplay.md#spellcasting): attacks, saves, damage and healing from the data,
+conditions, boons, light and Knock from a table in the import, the rest story only; a spell the
+library had keeps its icon and look) and the 334 monsters ([Characters ›
 Monsters](06-characters.md#monsters)) come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the data of
 [5e-bits/5e-database](https://github.com/5e-bits/5e-database), pinned to a commit. The import is a
 tool of the repository; running it again updates what it wrote and keeps what the library added

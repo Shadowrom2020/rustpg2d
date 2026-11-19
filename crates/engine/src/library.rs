@@ -213,8 +213,8 @@ pub fn script_roots(db: &Database, a: &AssetRef) -> Vec<String> {
     let id = a.1.as_str();
     match a.0 {
         RefKind::Spell => {
-            if let Some(crate::skills::SpellEffect::Script { function }) = db.spell(id).map(|d| &d.effect) {
-                out.push(function.clone());
+            if let Some(d) = db.spell(id) {
+                out.extend(d.scripts().into_iter().map(str::to_string));
             }
         }
         RefKind::Item => triggers(db.item(id).map_or(&[][..], |d| &d.on_use), &mut out),

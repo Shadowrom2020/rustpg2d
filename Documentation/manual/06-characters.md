@@ -154,7 +154,6 @@ Then set the character's behaviour and combat values in the form.
 | **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
 | **Merchant** | Makes it a trader ([Merchants](#merchants)) |
 | **As companion** | *Can't be given gear*, for animals and creatures |
-| **Magic (companion)** | Mana and mana per second: a companion with mana learns *Heal* spells and casts them between fights |
 | **Light** | Carries a light (a lantern); placed characters can carry their own instead |
 | **Default triggers** | Triggers every copy runs ([Events](07-events.md)) |
 
@@ -354,14 +353,10 @@ the player:
   A bow you gave a companion shoots arrows from its bag.
 - **Healing**: items and *Heal* spells set to *Use on: Player or companion* ask whom to heal; the
   *Heal character* action and `heal_character(name, amount)` heal any character.
-- **Magic**: a companion whose definition has mana (*Magic (companion)* in the character form)
-  learns the spell of a scroll or spell book you hand it in the companion window (a scroll that
-  is used up when read is used up; a book stays in its bag), or from the *Teach spell* action /
-  `teach_spell`. It casts *Heal* on the most hurt of you, the companions near it and itself when
-  someone is below half their HP (a knocked-down companion first: the heal gets it up) between
-  fights. Mana regenerates; its HUD row shows a blue mana bar, and its window
-  lists its mana and spells. Spells stay learned when it is dismissed. In the example the town
-  guard has mana: give him Tilda's *Scroll of Healing* or the elder's spell book.
+- **Spells**: a party member with a casting class has spell slots and spells like the hero (its
+  level-ups choose them); a scroll or spell book you hand it in the companion window teaches it the
+  spell when its class lists it (the *Teach spell* action / `teach_spell` too). It casts in fights
+  when you play its turns (its AI off; the AI's casting is 0.32). Its window lists its spells.
 - **At 0 HP** in a fight a companion falls unconscious and rolls death saving throws like the hero;
   when the fight is won it gets up with 1 HP. Dead (three failures), or at 0 HP outside fights, it
   is **knocked down**: it lies where it fell, enemies leave it alone, and any heal gets it back up. Leaving the map with a downed companion asks whether to leave it behind
@@ -522,9 +517,12 @@ a project). A class has:
   per class: Champion, Thief, School of Evocation…) with their features by level;
 - **starting equipment** (library items; what had no item stays out);
 - its **levels** 1 to 20 (each level's features and numbers: rages, ki points, the martial arts die,
-  sneak attack dice, spell slots for 0.30's spells) and its **features**, each with its level, rules
-  text, a **choice** (options such as the fighting styles, expertise, an ability score improvement)
-  and the **effects** that make it act (marked *); the rest is text on the sheet.
+  sneak attack dice, spell slots, cantrips and spells known) and its **features**, each with its
+  level, rules text, a **choice** (options such as the fighting styles, expertise, an ability score
+  improvement) and the **effects** that make it act (marked *); the rest is text on the sheet;
+- its **spellcasting** (casters): the ability (INT, WIS, CHA), how it has its spells (*Known*,
+  *Prepared*, *Spellbook*, *Pact*), *half* (a paladin prepares half its level's worth) and *rituals*
+  ([Gameplay › Spellcasting](09-gameplay.md#spellcasting)).
 
 Any **character** can have a class and a level (*Class* in its form, with the subclass, or *(chosen
 in play)*): as a party member it then fights with the class's numbers and levels with the hero

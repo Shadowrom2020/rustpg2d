@@ -299,6 +299,16 @@ pub struct WorldState {
     /// ki, Lay on Hands' hit points; `relentless-rage` counts Relentless Rage's saves).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub spent: BTreeMap<String, i32>,
+    /// Spells prepared for the day (prepared casters and wizards; `spells` are the known ones,
+    /// cantrips and a wizard's spellbook).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub prepared: Vec<String>,
+    /// Spell slots spent since their rest, by slot level (index 0 = level 1).
+    #[serde(default, skip_serializing_if = "slots_unspent")]
+    pub slots_spent: [u32; 9],
+    /// The spell the hero concentrates on: (its effects' source `spell@player`, seconds left).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub concentration: Option<(String, f32)>,
     /// What the class adds to checks (computed from the class; not saved).
     #[serde(skip)]
     pub training: crate::srd::check::Training,
@@ -384,6 +394,17 @@ pub struct Companion {
     /// Uses of its class resources spent since their rest (as the hero's `spent`).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub spent: BTreeMap<String, i32>,
+    /// Its spells as the hero's: known (cantrips, spellbook), prepared, slots spent.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub spells: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub prepared: Vec<String>,
+    #[serde(default, skip_serializing_if = "slots_unspent")]
+    pub slots_spent: [u32; 9],
+}
+
+fn slots_unspent(s: &[u32; 9]) -> bool {
+    s.iter().all(|n| *n == 0)
 }
 
 fn is_zero_u64(n: &u64) -> bool {

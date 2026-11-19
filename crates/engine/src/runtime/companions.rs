@@ -52,9 +52,8 @@ pub(super) struct Link {
     pub fighting: bool,
     /// The AI plays its turns in fights (else the player; `Companion::ai`).
     pub ai: bool,
-    /// Mana for the spells it learned, and seconds until each can be cast again.
+    /// Mana until 0.29 (unused since spells take slots).
     pub mana: f32,
-    pub cooldowns: Vec<(String, f32)>,
 }
 
 impl Game {
@@ -610,7 +609,6 @@ fn make_companion(rt: &mut RtEntity, map: &str, triggers: Vec<Trigger>, k: usize
         fighting: false,
         ai: false,
         mana: 0.0,
-        cooldowns: Vec::new(),
     }));
 }
 

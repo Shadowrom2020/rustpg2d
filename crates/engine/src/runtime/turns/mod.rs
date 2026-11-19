@@ -10,6 +10,8 @@ mod actions;
 mod ai;
 mod casting;
 mod features;
+mod menu;
+mod throwing;
 mod ui;
 
 pub(super) use actions::TurnAct;
@@ -73,6 +75,8 @@ pub(super) struct Fighter {
     pub grappling: Option<Who>,
     /// What its class features keep going (rage, inspiration, temporary hit points…).
     pub fx: features::ClassFx,
+    /// The weapons it threw and hasn't picked up again.
+    pub thrown: Vec<throwing::Thrown>,
 }
 
 /// What the player-controlled turn's cursor does on Confirm.
@@ -192,6 +196,11 @@ pub(super) struct Combat {
     pub then_attack: Option<Who>,
     /// The current fighter's reachable tiles (the overlay, clicks), and what they were for.
     pub reach: Reach,
+    /// The choice window over the action bar (Cast, Class, Attack: strike or throw).
+    pub menu: Option<menu::FightMenu>,
+    /// How the aimed Attack uses a weapon that can be thrown too: Some(true) = throw it,
+    /// Some(false) or None = strike.
+    pub attack_mode: Option<bool>,
     pub reach_key: Option<(usize, u32, u32, u32, TilePos)>,
     /// The mouse's last screen position (the cursor follows it when it moves).
     pub mouse_last: Vec2,
@@ -209,7 +218,7 @@ impl Combat {
         &self.order[self.current]
     }
 
-    fn fighter(&self, who: Who) -> Option<&Fighter> {
+    pub(in crate::runtime) fn fighter(&self, who: Who) -> Option<&Fighter> {
         self.order.iter().find(|f| f.who == who)
     }
 
@@ -357,7 +366,7 @@ impl Game {
         let here = self.player.pos;
         let near = |p: Vec2| p.distance(here) <= JOIN_TILES * ts;
         let mut order: Vec<Fighter> = Vec::new();
-        let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None, fx: Default::default() };
+        let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None, fx: Default::default(), thrown: Vec::new() };
         order.push(fighter(Who::Player, Side::Party, false));
         let mut enemies = Vec::new();
         for i in 0..self.loaded.entities.len() {
@@ -416,7 +425,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, reach: Default::default(), reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -458,7 +467,7 @@ impl Game {
             e.body.moving = false;
             e.body.pos = feet_spot(feet_tile(e.body.pos, ts), ts);
             self.occupy(i);
-            let f = Fighter { who, key, side: Side::Enemy, init, dex, surprised: false, ai: true, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None, fx: Default::default() };
+            let f = Fighter { who, key, side: Side::Enemy, init, dex, surprised: false, ai: true, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None, fx: Default::default(), thrown: Vec::new() };
             if let Some(c) = &mut self.fight {
                 c.order.push(f);
                 c.log(format!("{name} {} ({init})", crate::lang::tr_ui("joins the fight")));
@@ -479,6 +488,8 @@ impl Game {
 
     /// Ends the fight: party members still down get up on 1 HP, exploration resumes.
     pub(super) fn end_combat(&mut self) {
+        // The survivors take back what they threw (the hero's lies there).
+        self.return_thrown();
         // Rages end with the fight (a frenzy's exhaustion).
         let whos: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| !f.out).map(|f| f.who).collect());
         for w in whos {
@@ -532,6 +543,7 @@ impl Game {
         let f = c.current().clone();
         c.turn = Turn { attacks_left: 1, ..Default::default() };
         c.aim = Aim::Move;
+        (c.menu, c.attack_mode) = (None, None);
         c.helped.retain(|w| *w != f.who);
         if let Some(me) = c.fighter_mut(f.who) {
             me.dodging = false;
@@ -829,6 +841,8 @@ impl Game {
         if let Some(c) = &mut self.fight {
             c.turn.moved += cost;
         }
+        // Its own thrown weapon lying there: picked up (free).
+        self.pick_up_thrown(who, next);
         // Entering a readied foe's reach: its attack.
         let readied: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| f.side != side && f.readied && !f.reacted && !f.out && !f.down).map(|f| f.who).collect());
         for foe in readied {
@@ -876,8 +890,10 @@ impl Game {
                 let finesse = self.who_index(who).is_some_and(|i| self.loaded.entities[i].weapon.as_ref().is_some_and(|w| w.has(crate::defs::WeaponProperty::Finesse)));
                 // (A thrown weapon flies as the icon of the weapon in its hand.)
                 let weapon_icon = self.who_index(who).and_then(|i| self.loaded.entities[i].equipment.item(crate::defs::EquipSlot::Weapon)).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone());
-                b.attacks
+                let gone = self.thrown_attacks(who);
+                let mut specs: Vec<AttackSpec> = b.attacks
                     .iter()
+                    .filter(|a| !gone.contains(&a.name))
                     .flat_map(|a| {
                         let mut v = Vec::new();
                         if a.reach_ft > 0 {
@@ -891,7 +907,14 @@ impl Game {
                         }
                         v
                     })
-                    .collect()
+                    .collect();
+                // Its weapons thrown and nothing else left: an unarmed strike (1 + STR).
+                if specs.is_empty() && !gone.is_empty() {
+                    let m = b.abilities.modifier(Ability::Str);
+                    let bonus = crate::srd::abilities::proficiency_bonus(b.proficiency_level()) + m;
+                    specs.push(AttackSpec { name: crate::lang::tr_ui("Unarmed strike").into_owned(), bonus, dice: (1 + m).max(1).to_string(), damage_type: Some(DamageType::Bludgeoning), ranged: false, reach: 1, crit_on, ability: Some(Ability::Str), ..Default::default() });
+                }
+                specs
             }
         }
     }
@@ -1133,6 +1156,10 @@ impl Game {
             self.fly_visual(from - vec2(0.0, h), to - vec2(0.0, h), p.clone());
         }
         self.audio.play(&self.project.config.sfx.attack);
+        // A thrown weapon leaves the hand and lands next to the target (hit or miss).
+        if spec.thrown {
+            self.after_throw(who, target, spec);
+        }
         if !roll.hit {
             let head = to - vec2(0.0, self.ts() * 1.1);
             self.miss_number(head);
@@ -1412,7 +1439,7 @@ impl Game {
             Aim::Shove => ":aim=shove".into(),
             Aim::Cast(s, slot) => format!(":aim=cast:{s}@{slot}"),
             Aim::Feature(s) => format!(":aim=class:{s}"),
-        };
+        } + c.menu.as_ref().map_or(String::new(), |m| format!(":menu={}:{}/{}", m.kind.id(), m.sel, m.rows.len())).as_str();
         format!(
             "{}:{}:{}/{}:{}{}{}{aim}@{},{}[{}]",
             c.round,
@@ -1501,16 +1528,34 @@ impl Game {
                 self.walk(path);
                 "ok".into()
             }
+            // `attack NAME` strikes (walking up first); `attack NAME throw` throws the weapon
+            // (Attack › Throw), `attack NAME strike` as Attack › Strike.
             "attack" => match target(self, 1) {
                 Ok(t) => {
                     let tile = self.who_tile(t);
                     let c = self.fight.as_mut().unwrap();
-                    c.aim = Aim::Move;
+                    c.menu = None;
                     c.cursor = tile;
-                    self.confirm_cursor();
-                    "ok".into()
+                    match arg(2) {
+                        "throw" | "strike" => {
+                            c.aim = Aim::Attack;
+                            c.attack_mode = Some(arg(2) == "throw");
+                            done(self.act_on(&Aim::Attack, t))
+                        }
+                        _ => {
+                            c.aim = Aim::Move;
+                            self.confirm_cursor();
+                            "ok".into()
+                        }
+                    }
                 }
                 Err(e) => e,
+            },
+            // The choice window: `menu` lists its rows, `pick K` picks row K.
+            "menu" => self.fight_menu_status(),
+            "pick" => match arg(1).parse::<usize>() {
+                Ok(k) => done(self.pick_fight_menu_row(k)),
+                Err(_) => "pick K".into(),
             },
             "action" | "end" => {
                 let id = if arg(0) == "end" { "end" } else { arg(1) };

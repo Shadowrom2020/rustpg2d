@@ -1032,8 +1032,8 @@ impl Game {
     }
 
     /// Puts items on the ground at `pos` on the current map (joining a pile of the same item
-    /// close by). They are saved with the game until picked up.
-    pub(super) fn place_drop(&mut self, item: &str, n: u32, pos: Vec2) {
+    /// close by). They are saved with the game until picked up. Returns the pile's uid.
+    pub(super) fn place_drop(&mut self, item: &str, n: u32, pos: Vec2) -> u32 {
         let map = self.loaded.map.name.clone();
         let (uid, new) = self.world.add_dropped(&map, item, n, pos.x, pos.y, self.ts() * 0.5);
         if new {
@@ -1044,6 +1044,7 @@ impl Game {
             e.count += n;
             e.active = true;
         }
+        uid
     }
 
     /// Drops `count` items (None = the whole stack) of inventory slot `i` on the ground.

@@ -111,16 +111,20 @@ the map (a tile is 5 feet).
   in reach. The box at the cursor shows its hit points and armor class, your **chance to hit** and
   its **cover**.
 - **The action bar** at the bottom: 1–8 or a click picks an action, Tab / Shift+Tab select one and
-  X uses the selected one. One **action** a turn: *Attack*, *Cast* (a spell you can cast now; press it again for the next, or the same spell at a higher slot
-  level: the line above the bar tells the slot, the area and the save; an area spell is drawn on the
-  tiles under the cursor), *Class* (your class's actions: *Rage*, *Second Wind*, *Action Surge*, *Flurry of
-  Blows*, *Lay on Hands*…; press it again for the next, the line above the bar tells its cost and
-  uses left, E / Enter or a click uses it on you or on whoever the cursor is on), *Dash* (move twice as far), *Disengage* (leave without opportunity attacks),
+  X uses the selected one. One **action** a turn: *Attack* (with a spear, dagger or javelin it asks
+  **Strike** or **Throw**; a thrown weapon lands next to the target and you fight bare-handed until
+  you walk onto it again or draw another one: C opens the character window in a fight, equipping is free), *Cast* (a window lists the spells you can cast now,
+  each slot level a row; ↑/↓ or the mouse choose, E / Enter takes it, Esc closes; the line above
+  the bar then tells the slot, the area and the save; an area spell is drawn on the tiles under the
+  cursor), *Class* (a window with your class's actions: *Rage*, *Second Wind*, *Action Surge*,
+  *Flurry of Blows*, *Lay on Hands*…, those you can't use now greyed; E / Enter or a click then uses
+  it on you or on whoever the cursor is on), *Dash* (move twice as far), *Disengage* (leave without opportunity attacks),
   *Dodge* (attacks against you get disadvantage until your next turn), *Help* (a companion's next
   attack against an enemy next to you gets advantage), *Hide* (a Stealth check: hidden enemies can't
   find you to attack), *Ready* (strike the first enemy that steps next to you), *Search* (find hidden
   enemies), *Grapple* and *Shove* (wrestle an enemy next to you: grappled can't move; shoved is
-  knocked down or pushed away). Using an item from the inventory (a potion) takes the action too.
+  knocked down or pushed away). Using an item from the inventory (a potion) takes the action too;
+  you can give a potion to a companion right next to you (a fallen one gets back up).
   One **bonus action**: *Off-hand* attacks with a weapon in your left hand after you attacked (and
   the class actions that are bonus actions). The
   line above the bar shows the movement left and whether the action, the bonus action and your

@@ -144,7 +144,12 @@ impl Game {
             let foe_tiles: Vec<TilePos> = foes.iter().map(|w| self.who_tile(*w)).collect();
             let nearest = foes.iter().copied().min_by_key(|w| dist(here, self.who_tile(*w)));
             let mut best: Option<(i32, TilePos)> = None;
+            // Its thrown weapon lying within this turn's walk: take it back first.
+            let mine = self.thrown_tiles(me.who).into_iter().filter(|t| reach.contains_key(t)).min_by_key(|t| reach[t].0);
             for (t, (cost, _)) in reach.iter() {
+                if mine.is_some() {
+                    break;
+                }
                 let near = foe_tiles.iter().map(|f| dist(*t, *f)).min().unwrap_or(99);
                 let score = if ranged {
                     // Shooters: within their range with a line to the nearest foe, not next to a
@@ -167,6 +172,9 @@ impl Game {
                 if best.is_none_or(|b| score < b.0) {
                     best = Some((score, *t));
                 }
+            }
+            if let Some(t) = mine {
+                best = Some((0, t));
             }
             self.fight.as_mut().unwrap().turn.ai_walked = true;
             if let Some((_, goal)) = best.filter(|b| b.1 != here) {

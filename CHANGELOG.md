@@ -287,6 +287,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - Fix: in fights a weapon reaches 10 ft only with the *Reach* property (the SRD), not by its swing
   reach: the spear reaches 5 ft. Weapons of 0.30 and older whose swing reached two tiles get the
   *Reach* property when read.
+- **Choice windows in fights**: *Cast* opens a window with the spells the caster can cast now, a
+  row per slot level (those it can't cast greyed with why), *Class* one with the class actions, and
+  *Attack* with a weapon that can also be thrown asks **Strike** or **Throw** (a click on a foe always
+  strikes). Autoplay `turn menu`, `turn pick K`, `turn attack NAME throw`; `combat=` shows `:menu=`.
+- **Thrown weapons land on the ground**: a thrown spear, dagger or javelin leaves the thrower's hand
+  and lies next to the target until the thrower steps onto it again (picking up is free in a fight).
+  Characters fight on with their other attacks or an unarmed strike, walk to their weapon when they
+  can, and take it back after the fight; the hero's stays where it fell.
+- Fix: a red potion given to a fallen party member healed it but left it out of the fight (the
+  fight still counted it down); now it gets up and fights on. In a fight a potion can be given only
+  to a party member next to you ("Too far away"; the action isn't spent).
 - Fix: the fight AI threw a melee-or-thrown weapon (the guard's spear) from afar instead of
   walking up; it now throws only when no foe can be reached in melee this turn, and a character's
   throw shows the weapon flying. Fix: a walk whose path passed an ally's tile didn't happen (an AI

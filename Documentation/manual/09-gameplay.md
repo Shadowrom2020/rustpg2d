@@ -177,11 +177,51 @@ character creator offers them on its third page; the hero then is a class at the
   Talent* (a d20 under 10 counts as 10 on proficient checks), *Danger Sense* (advantage on DEX
   saves), *Feral Instinct* (advantage on initiative), *Evasion*, the auras of the paladin
   (*Aura of Protection*: CHA to the saves of allies within 10 ft; *Aura of Courage*), resistances and
-  immunities (*Purity of Body*, *Diamond Soul*), *Primal Champion*. The features used as actions
-  (Rage, Second Wind, Action Surge, Sneak Attack, Ki…) come next (0.30); spellcasting comes with the
-  spells. The others are their rules text on the sheet.
+  immunities (*Purity of Body*, *Diamond Soul*), *Primal Champion*.
+- **Class actions** are used in fights with the action bar's **Class** entry (3; each press shows
+  the next one with its cost and uses left, E / Enter or a click uses it: on the hero, or on the
+  ally or foe under the cursor). They cost an action, a bonus action or nothing, and many spend a
+  **resource** that a rest gives back (*Short rest* or a night's sleep: second wind, action surge,
+  ki, channel divinity come back after a short rest; rages, Lay on Hands, Wholeness of Body,
+  Indomitable after a long one; bardic inspiration after a long rest, a short one from *Font of
+  Inspiration*):
+  - barbarian: *Rage* (bonus action: resistance to bludgeoning, piercing and slashing damage, the
+    rage damage on STR melee hits, advantage on STR checks and saves; 10 rounds, over early after a
+    turn without attacking or being hurt), *Reckless Attack* (advantage on STR melee attacks this
+    turn, attacks against the barbarian too), the Berserker's *Frenzy* attack (a bonus melee attack
+    while raging; a level of exhaustion when the rage ends), *Intimidating Presence*;
+  - fighter: *Second Wind* (bonus action: 1d10 + level hit points), *Action Surge* (another action);
+  - monk: *Flurry of Blows* (1 ki, two unarmed strikes after the Attack action), the *Martial Arts*
+    bonus strike, *Patient Defense* (Dodge) and *Step of the Wind* (Dash or Disengage) for 1 ki,
+    *Wholeness of Body*;
+  - rogue: *Cunning Action* (Dash, Disengage or Hide as a bonus action);
+  - paladin: *Lay on Hands* (a pool of 5 × level hit points: heals what someone it touches lacks),
+    *Sacred Weapon* (CHA to its attack rolls for 10 rounds), *Turn the Unholy*;
+  - cleric: *Turn Undead* (undead within 30 ft make a WIS save or are frightened for 10 rounds; with
+    *Destroy Undead* those of a low challenge rating are destroyed), the Life domain's *Preserve
+    Life* (5 × level hit points shared among the allies within 30 ft, each up to half its maximum);
+  - bard: *Bardic Inspiration* (an ally within 60 ft gets the die for an attack roll or save that
+    would fail).
+
+  ![A barbarian's turn: the Class entry chosen, Rage (a bonus action, 1 of 3 rages left) above the action bar](../images/game-class-actions.webp)
+
+- **Riders and reactions** work by themselves: *Sneak Attack* (once a turn, extra d6s with a ranged
+  or one-handed weapon when the rogue has advantage or an ally stands next to the target), *Colossus
+  Slayer* and *Divine Strike* (extra dice once a turn), *Stunning Strike* (1 ki on the first melee
+  hit of a turn: a CON save or stunned until the monk's next turn is over), *Open Hand Technique*
+  (Flurry's strikes knock prone on a failed DEX save), *Uncanny Dodge* (the reaction halves a hit's
+  damage), *Deflect Missiles* (the reaction lowers a ranged weapon's damage by 1d10 + DEX + level),
+  *Relentless Rage*, *Retaliation*, *Survivor*, *Indomitable* (a failed save rolled again), *Dark
+  One's Blessing* (temporary hit points for a foe brought to 0 HP). Reactions are taken as soon as
+  they fit, while the reaction is free.
+- Party members with a class use theirs on their AI turns: *Rage* when foes are near, *Second
+  Wind* (and other heals) below half their hit points, *Action Surge* when their attacks are spent,
+  the monk's strikes after attacking. Spellcasting comes with the spells; the features that need
+  other systems (Wild Shape, Divine Smite, senses, Favored Enemy's tracking) are their rules text
+  on the sheet.
 - The **character sheet** (K) shows the class, subclass and level, the hit dice by the class's
-  die, and the class's features first in *Features and traits* (their text below the list).
+  die, and the class's features first in *Features and traits* (their text below the list), those
+  with uses with the uses left (*Rage 2/3*).
 
 **Party members** have a class too: a character's *Class* and *level* in its form (*Database ›
 Characters*), or given when it joins (*Set class*, `set_class("finn", "ranger", level())`). A party

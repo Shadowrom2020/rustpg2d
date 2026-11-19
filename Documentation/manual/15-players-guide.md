@@ -102,13 +102,16 @@ the map (a tile is 5 feet).
   its **cover**.
 - **The action bar** at the bottom: 1–8 or a click picks an action, Tab / Shift+Tab select one and
   X uses the selected one. One **action** a turn: *Attack*, *Cast* (a spell you know; press it again
-  for the next), *Dash* (move twice as far), *Disengage* (leave without opportunity attacks),
+  for the next), *Class* (your class's actions: *Rage*, *Second Wind*, *Action Surge*, *Flurry of
+  Blows*, *Lay on Hands*…; press it again for the next, the line above the bar tells its cost and
+  uses left, E / Enter or a click uses it on you or on whoever the cursor is on), *Dash* (move twice as far), *Disengage* (leave without opportunity attacks),
   *Dodge* (attacks against you get disadvantage until your next turn), *Help* (a companion's next
   attack against an enemy next to you gets advantage), *Hide* (a Stealth check: hidden enemies can't
   find you to attack), *Ready* (strike the first enemy that steps next to you), *Search* (find hidden
   enemies), *Grapple* and *Shove* (wrestle an enemy next to you: grappled can't move; shoved is
   knocked down or pushed away). Using an item from the inventory (a potion) takes the action too.
-  One **bonus action**: *Off-hand* attacks with a weapon in your left hand after you attacked. The
+  One **bonus action**: *Off-hand* attacks with a weapon in your left hand after you attacked (and
+  the class actions that are bonus actions). The
   line above the bar shows the movement left and whether the action, the bonus action and your
   **reaction** (an opportunity attack) are still free.
 - **End the turn** with Space or *End turn* (gamepad: select it with RB / LB and press X). B or a

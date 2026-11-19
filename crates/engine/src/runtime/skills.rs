@@ -576,7 +576,18 @@ impl Game {
     pub(super) fn sheet_features(&self) -> Vec<(String, String)> {
         // The class's and subclass's features at the hero's level (and the options picked).
         let mut v: Vec<(String, String)> = match (self.hero_class(), self.hero_traits()) {
-            (Some(c), Some(t)) => t.features.iter().filter_map(|id| c.feature(id)).filter(|f| f.choice.is_none() || !f.effects.is_empty() || !f.text.is_empty()).map(|f| (crate::lang::tr(&f.name), crate::lang::tr(&f.text))).collect(),
+            (Some(c), Some(t)) => t
+                .features
+                .iter()
+                .filter_map(|id| c.feature(id))
+                .filter(|f| f.choice.is_none() || !f.effects.is_empty() || !f.text.is_empty())
+                .map(|f| {
+                    // (A feature with uses shows those left: "Rage 2/3".)
+                    let uses = f.effects.iter().find_map(|e| if let crate::classes::FeatureEffect::Resource { id, .. } = e { self.uses(super::turns::Who::Player, id) } else { None });
+                    let name = crate::lang::tr(&f.name);
+                    (uses.map_or(name.clone(), |(l, m)| format!("{name}  {l}/{m}")), crate::lang::tr(&f.text))
+                })
+                .collect(),
             _ => Vec::new(),
         };
         v.extend(self.player_race().map_or(Vec::new(), |r| r.traits.iter().map(|t| (t.name.clone(), t.description.clone())).collect::<Vec<_>>()));

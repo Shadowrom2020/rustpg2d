@@ -87,6 +87,10 @@ impl Game {
                 }
             }
         }
+        // A party member's class actions (Rage, Second Wind, Action Surge, bonus strikes).
+        if self.ai_class_step(me.who, me.side) {
+            return;
+        }
         let specs = self.attack_specs(me.who);
         let foes = self.ai_foes(me.who, me.side);
         if foes.is_empty() || specs.is_empty() {
@@ -121,6 +125,7 @@ impl Game {
                 self.make_attack(me.who, target, &spec);
                 if let Some(c) = &mut self.fight {
                     c.turn.attacks_left = c.turn.attacks_left.saturating_sub(1);
+                    c.turn.attacked = true;
                     if c.turn.attacks_left == 0 {
                         c.turn.action = true;
                     }

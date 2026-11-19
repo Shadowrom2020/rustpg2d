@@ -531,9 +531,55 @@ fn class_feature(f: &Value) -> rustpg2d_engine::classes::ClassFeature {
 fn feature_effects(id: &str) -> Vec<rustpg2d_engine::classes::FeatureEffect> {
     use rustpg2d_engine::classes::{FeatureEffect as E, FightingStyle as F};
     use rustpg2d_engine::srd::Ability as A;
+    use rustpg2d_engine::classes::{ActCost as C, ActEffect as X, Recharge as R};
+    use rustpg2d_engine::srd::conditions::Condition as K;
     let style = |st| vec![E::FightingStyle { style: st }];
     let saves = |a: &[&str]| a.iter().map(|x| E::Proficient { what: format!("save:{x}") }).collect::<Vec<_>>();
+    // The features that act: resources (uses back after a rest), class actions, riders.
+    let pool = |id: &str, count: i32, number: &str, ability: Option<A>, per_level: i32, recharge: R| E::Resource { id: id.into(), count, number: number.into(), ability, per_level, recharge };
+    let act = |id: &str, name: &str, cost: C, resource: &str, effect: X| E::Act { id: id.into(), name: name.into(), cost, resource: resource.into(), effect };
+    let basic = |id: &str, name: &str, cost: C, resource: &str, what: &str| act(id, name, cost, resource, X::Basic { act: what.into() });
     match id {
+        "rage" => vec![pool("rage", 0, "rage_count", None, 0, R::LongRest), act("rage", "Rage", C::Bonus, "rage", X::Rage)],
+        "reckless-attack" => vec![act("reckless-attack", "Reckless Attack", C::Free, "", X::Reckless)],
+        "frenzy" => vec![act("frenzy", "Frenzy attack", C::Bonus, "", X::FrenzyAttack)],
+        "intimidating-presence" => vec![act("intimidating-presence", "Intimidating Presence", C::Action, "", X::AreaSave { feet: 30, save: A::Wis, ability: A::Cha, condition: K::Frightened, rounds: 1, types: Vec::new(), single: true, destroy: false })],
+        "relentless-rage" => vec![E::DropTo1 { dc: 10 }],
+        "retaliation" => vec![E::ReactionAttack],
+        "bardic-inspiration-d6" => vec![pool("bardic-inspiration", 0, "", Some(A::Cha), 0, R::LongRest), act("bardic-inspiration", "Bardic Inspiration", C::Bonus, "bardic-inspiration", X::GiveDie { feet: 60, number: "bardic_inspiration_die".into() })],
+        "font-of-inspiration" => vec![pool("bardic-inspiration", 0, "", Some(A::Cha), 0, R::ShortRest)],
+        "channel-divinity-1-rest" => vec![pool("channel-divinity", 0, "channel_divinity_charges", None, 0, R::ShortRest)],
+        "channel-divinity-turn-undead" => vec![act("turn-undead", "Turn Undead", C::Action, "channel-divinity", X::AreaSave { feet: 30, save: A::Wis, ability: A::Wis, condition: K::Frightened, rounds: 10, types: vec!["undead".into()], single: false, destroy: true })],
+        "destroy-undead-cr-1-2-or-below" => vec![E::DestroyUndead { cr: 0.5 }],
+        "destroy-undead-cr-1-or-below" => vec![E::DestroyUndead { cr: 1.0 }],
+        "destroy-undead-cr-2-or-below" => vec![E::DestroyUndead { cr: 2.0 }],
+        "destroy-undead-cr-3-or-below" => vec![E::DestroyUndead { cr: 3.0 }],
+        "destroy-undead-cr-4-or-below" => vec![E::DestroyUndead { cr: 4.0 }],
+        "channel-divinity-preserve-life" => vec![act("preserve-life", "Preserve Life", C::Action, "channel-divinity", X::HealAllies { feet: 30, per_level: 5 })],
+        "divine-strike" => vec![E::ExtraDamage { dice: vec![(8, "1d8".into()), (14, "2d8".into())], damage_type: Some(rustpg2d_engine::srd::DamageType::Radiant), hurt_target: false }],
+        "second-wind" => vec![pool("second-wind", 1, "", None, 0, R::ShortRest), act("second-wind", "Second Wind", C::Bonus, "second-wind", X::Heal { dice: "1d10".into(), per_level: 1 })],
+        "action-surge-1-use" => vec![pool("action-surge", 0, "action_surges", None, 0, R::ShortRest), act("action-surge", "Action Surge", C::Free, "action-surge", X::ExtraAction)],
+        "indomitable-1-use" => vec![pool("indomitable", 0, "indomitable_uses", None, 0, R::LongRest), E::RerollSave { resource: "indomitable".into() }],
+        "survivor" => vec![E::StartOfTurnHeal { base: 5, ability: A::Con }],
+        "ki" => vec![pool("ki", 0, "ki_points", None, 0, R::ShortRest)],
+        "flurry-of-blows" => vec![act("flurry-of-blows", "Flurry of Blows", C::Bonus, "ki", X::UnarmedStrikes { count: 2 })],
+        "patient-defense" => vec![basic("patient-defense", "Patient Defense", C::Bonus, "ki", "dodge")],
+        "step-of-the-wind" => vec![basic("step-of-the-wind-dash", "Step of the Wind: Dash", C::Bonus, "ki", "dash"), basic("step-of-the-wind-disengage", "Step of the Wind: Disengage", C::Bonus, "ki", "disengage")],
+        "deflect-missiles" => vec![E::ReactionReduceRanged { dice: "1d10".into(), ability: A::Dex, per_level: 1 }],
+        "open-hand-technique" => vec![E::OnHitSave { resource: String::new(), save: A::Dex, ability: A::Wis, condition: K::Prone, rounds: 0, melee: false, flurry: true }],
+        "stunning-strike" => vec![E::OnHitSave { resource: "ki".into(), save: A::Con, ability: A::Wis, condition: K::Stunned, rounds: 1, melee: true, flurry: false }],
+        "wholeness-of-body" => vec![pool("wholeness-of-body", 1, "", None, 0, R::LongRest), act("wholeness-of-body", "Wholeness of Body", C::Action, "wholeness-of-body", X::Heal { dice: String::new(), per_level: 3 })],
+        "lay-on-hands" => vec![pool("lay-on-hands", 0, "", None, 5, R::LongRest), act("lay-on-hands", "Lay on Hands", C::Action, "lay-on-hands", X::HealPool)],
+        "channel-divinity" => vec![pool("channel-divinity", 1, "", None, 0, R::ShortRest)],
+        "channel-divinity-sacred-weapon" => vec![act("sacred-weapon", "Sacred Weapon", C::Action, "channel-divinity", X::WeaponBuff { ability: A::Cha, rounds: 10 })],
+        "channel-divinity-turn-the-unholy" => vec![act("turn-the-unholy", "Turn the Unholy", C::Action, "channel-divinity", X::AreaSave { feet: 30, save: A::Wis, ability: A::Cha, condition: K::Frightened, rounds: 10, types: vec!["fiend".into(), "undead".into()], single: false, destroy: false })],
+        "aura-of-devotion" => vec![E::Aura { feet: 10, save_bonus: false, immunity: "charmed".into() }],
+        "hunters-prey-colossus-slayer" => vec![E::ExtraDamage { dice: vec![(1, "1d8".into())], damage_type: None, hurt_target: true }],
+        "superior-hunters-defense-evasion" => vec![E::Evasion],
+        "uncanny-dodge" | "superior-hunters-defense-uncanny-dodge" => vec![E::ReactionHalveDamage],
+        "sneak-attack" => vec![E::SneakAttack],
+        "cunning-action" => vec![basic("cunning-action-dash", "Cunning Action: Dash", C::Bonus, "", "dash"), basic("cunning-action-disengage", "Cunning Action: Disengage", C::Bonus, "", "disengage"), basic("cunning-action-hide", "Cunning Action: Hide", C::Bonus, "", "hide")],
+        "dark-ones-blessing" => vec![E::OnKillTempHp { ability: A::Cha, per_level: 1 }],
         "barbarian-unarmored-defense" => vec![E::ArmorClass { base: 10, abilities: vec![A::Dex, A::Con], shield: true }],
         "monk-unarmored-defense" => vec![E::ArmorClass { base: 10, abilities: vec![A::Dex, A::Wis], shield: false }],
         "draconic-resilience" => vec![E::ArmorClass { base: 13, abilities: vec![A::Dex], shield: true }, E::HpPerLevel { hp: 1 }],
@@ -568,7 +614,7 @@ fn feature_effects(id: &str) -> Vec<rustpg2d_engine::classes::FeatureEffect> {
         "diamond-soul" => saves(&["str", "dex", "con", "int", "wis", "cha"]),
         "slippery-mind" => saves(&["wis"]),
         "bonus-proficiency" => vec![E::Proficient { what: "heavy-armor".into() }],
-        "martial-arts" => vec![E::MartialArts],
+        "martial-arts" => vec![E::MartialArts, act("martial-arts-strike", "Martial Arts: bonus strike", C::Bonus, "", X::UnarmedStrikes { count: 1 })],
         _ => Vec::new(),
     }
 }
@@ -1013,6 +1059,18 @@ mod tests {
         let w = classes.iter().find(|c| c.id == "wizard").unwrap();
         assert_eq!((w.hit_die, w.subclass_level, w.subclasses[0].id.as_str()), (6, 2, "evocation"));
         assert!(w.number(1, "spellcasting.spell_slots_level_1") >= 2, "the slots for the spells item");
+        // The features that act: a fighter's Second Wind and Action Surge with their resources, a
+        // rogue's Sneak Attack, Cunning Action and Uncanny Dodge.
+        let abilities = rustpg2d_engine::srd::Abilities::default();
+        let t2 = ClassTraits::of(f, 2, &hc);
+        let acts: Vec<&str> = t2.acts.iter().map(|a| a.id.as_str()).collect();
+        assert_eq!(acts, ["second-wind", "action-surge"]);
+        assert_eq!((t2.resource_max(f, "second-wind", &abilities), t2.resource_max(f, "action-surge", &abilities)), (Some(1), Some(1)));
+        assert_eq!(t2.recharge("action-surge"), rustpg2d_engine::classes::Recharge::ShortRest);
+        assert!(ClassTraits::of(f, 1, &hc).resource_max(f, "action-surge", &abilities).is_none(), "action surge comes at 2");
+        let rt = ClassTraits::of(r, 5, &HeroClass { class: "rogue".into(), ..Default::default() });
+        assert!(rt.riders.contains(&FeatureEffect::SneakAttack) && rt.riders.contains(&FeatureEffect::ReactionHalveDamage), "{:?}", rt.riders);
+        assert_eq!(rt.acts.iter().filter(|a| a.id.starts_with("cunning-action")).count(), 3);
         // A second run changes nothing.
         let before = classes.clone();
         assert_eq!(data.import_classes(&mut classes).1, 0);

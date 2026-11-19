@@ -83,6 +83,8 @@ pub struct PlayerInfo {
     pub combat_round: u32,
     /// The hero's class features at their level (`has_feature()`), chosen options included.
     pub features: Vec<String>,
+    /// The hero's class resources: id -> uses left (`resource()`).
+    pub resources: Vec<(String, i64)>,
 }
 
 pub struct ScriptHost {
@@ -901,6 +903,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("player_race", with!(ctx, |c| c.world.player_race.clone()));
     engine.register_fn("class", with!(ctx, |c| c.world.class.as_ref().map_or(String::new(), |h| h.class.clone())));
     engine.register_fn("subclass", with!(ctx, |c| c.world.class.as_ref().map_or(String::new(), |h| h.subclass.clone())));
+    engine.register_fn("resource", with!(ctx, |c, id: &str| c.player.resources.iter().find(|r| r.0 == id).map_or(0, |r| r.1)));
     engine.register_fn("class_level", with!(ctx, |c| if c.world.class.is_some() { c.world.player_level() as i64 } else { 0 }));
     engine.register_fn("has_feature", with!(ctx, |c, id: &str| c.player.features.iter().any(|f| f == id)));
     engine.register_fn("level_up_pending", with!(ctx, |c| !c.world.levelups.is_empty()));

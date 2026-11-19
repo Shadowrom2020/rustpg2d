@@ -91,6 +91,16 @@ impl Game {
     pub(super) fn confirm_cursor(&mut self) {
         let Some(c) = &self.fight else { return };
         let (cursor, aim, me) = (c.cursor, c.aim.clone(), c.current().clone());
+        // A class action: on whoever the cursor is on, itself included (or itself for those that
+        // need no target).
+        if let Aim::Feature(id) = &aim {
+            let on = self.who_at(cursor).or_else(|| self.class_act_default_target(id)).unwrap_or(me.who);
+            match self.use_class_act(id, on) {
+                Ok(()) => self.fight.as_mut().unwrap().aim = Aim::Move,
+                Err(why) => self.ui.toast(crate::lang::tr_ui(why).into_owned()),
+            }
+            return;
+        }
         let target = self.who_at(cursor).filter(|w| *w != me.who);
         if aim != Aim::Move {
             match target {
@@ -287,7 +297,7 @@ impl Game {
         let rects = self.bar_layout();
         for (k, (act, r)) in TurnAct::BAR.iter().zip(&rects).enumerate() {
             let ok = self.act_ready(*act).is_ok();
-            let picked = k == c.selected || matches!((&c.aim, act), (Aim::Attack, TurnAct::Attack) | (Aim::Cast(_), TurnAct::Cast) | (Aim::Help, TurnAct::Help) | (Aim::Grapple, TurnAct::Grapple) | (Aim::Shove, TurnAct::Shove) | (Aim::OffHand, TurnAct::OffHand));
+            let picked = k == c.selected || matches!((&c.aim, act), (Aim::Attack, TurnAct::Attack) | (Aim::Cast(_), TurnAct::Cast) | (Aim::Feature(_), TurnAct::Class) | (Aim::Help, TurnAct::Help) | (Aim::Grapple, TurnAct::Grapple) | (Aim::Shove, TurnAct::Shove) | (Aim::OffHand, TurnAct::OffHand));
             if !skin::button_picture(*r, picked) {
                 draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(picked, Color::new(0.12, 0.12, 0.18, 0.92)));
             }
@@ -320,6 +330,21 @@ impl Game {
             let name = self.project.db.spell(s).map_or(s.clone(), |d| d.name.clone());
             let nw = measure_plain(&name, 18.0).width;
             draw_plain(&name, (screen_width() - nw) / 2.0, top - 20.0, 18.0, skin::normal());
+        }
+        // The class action chosen: its name, cost, uses left, and why not when it can't be used.
+        if let Aim::Feature(id) = &c.aim {
+            if let Some(a) = self.class_acts(me.who).into_iter().find(|a| a.id == *id) {
+                let mut line = format!("{} ({})", crate::lang::tr(&a.name), crate::lang::tr_ui(a.cost.label()));
+                if let Some((left, max)) = (!a.resource.is_empty()).then(|| self.uses(me.who, &a.resource)).flatten() {
+                    line += &format!("  {left}/{max}");
+                }
+                let ready = self.class_act_ready(me.who, &a);
+                if let Err(why) = ready {
+                    line += &format!("  - {}", crate::lang::tr_ui(why));
+                }
+                let nw = measure_plain(&line, 18.0).width;
+                draw_plain(&line, (screen_width() - nw) / 2.0, top - 20.0, 18.0, if ready.is_ok() { skin::normal() } else { skin::disabled() });
+            }
         }
         // The target under the cursor: hit chance and cover.
         if let Some(t) = self.who_at(c.cursor).filter(|t| *t != me.who) {

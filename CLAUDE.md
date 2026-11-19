@@ -95,8 +95,8 @@ crates/engine/src/      library: everything shared by game and editor
   backgrounds.rs        BackgroundDef (defs/backgrounds.ron: proficiencies, language_choices, equipment, feature),
                         LANGUAGES / language_label (runtime key language:<id>)
   classes.rs            ClassDef (defs/classes.ron: hit die, saves, proficiencies, skill choices, equipment, levels 1-20
-                        with features + numbers, subclasses), ClassFeature (FeatureEffect = the passive vocabulary,
-                        FeatureChoice), HeroClass (class, subclass, picks: WorldState.class, CharacterDef.class + level,
+                        with features + numbers, subclasses), ClassFeature (FeatureEffect = the passive vocabulary +
+                        Resource / Act (ActEffect, ActCost) / riders, FeatureChoice), HeroClass (class, subclass, picks: WorldState.class, CharacterDef.class + level,
                         Companion.class), ClassTraits::of (effects at a level); runtime/classes.rs (hit die, AC, speed,
                         training for checks, member_block = a classed party member's stat block, set_class_of),
                         runtime/levelup.rs (the level-up window over WorldState.levelups; autoplay `levelup`)
@@ -210,8 +210,10 @@ crates/engine/src/      library: everything shared by game and editor
                         cutscene: HUD off, bars, walk_to / approach / place), combat (HP, damage outside fights, defeat, HUD), turns/ (SRD
                         turn-based fights: Game.fight = Combat (not saved), start / join / end, initiative, the walk with
                         opportunity attacks, attacks, combat_damage, death saves; actions.rs = TurnAct + the SRD's actions;
-                        ai.rs; ui.rs = order / action bars, overlays, cursor, log, input; status combat= / death_saves=,
-                        autoplay `turn …` = Game::turn_command), equipment, locks,
+                        ai.rs; ui.rs = order / action bars, overlays, cursor, log, input; features.rs = class actions
+                        (the bar's Class entry, uses in WorldState.spent / Companion.spent, rests), riders, reactions,
+                        ClassFx (rage…), ai_class_step; status combat= / death_saves= / resources= / class_fx=,
+                        autoplay `turn …` = Game::turn_command, `turn class ACT`, `turn log`), equipment, locks,
                         inventory_ui, shop_ui, crafting_ui (Open crafting window; quality steps roll a check), achievements (checks, toasts), minigame (fishing; locks are DEX checks in locks.rs), furniture (sitting, sleeping: PropDef.use_spot), gather (gathering props with a tool, regrowing prop states), farm (farm plots: planting seeds, crops growing, harvest), activities (characters seen fishing / hammering / reading at their spot), crafting_ui also checks RecipeDef.station_state against the station prop (cooking fires), orders (companion orders menu, G / pad LB: AI fights / I command, stay, follow, gear), companion_ui (a companion's window: gear, bag, the player's inventory), npc_use (characters use the items they carry: potions when critical, cures, buffs; companion ammo), healing ("heal whom?" choice for heal spells / items with ItemDef.use_on, companions' HUD rows, Action::HealCharacter), journal, creator, patrol (routes; walk_to_tile = A* walking shared with schedule = daily routines, stops on other maps = visitors, furniture), companions (follow, carried across maps via WorldState.companions, Companion.ai = the AI plays their turns), lights (light sources,
                         clock), skills (skill bonuses, mana, spells, aiming, K screen), fx (Fly /
                         Effect actions: scripted flying sprites and one-shot animations), menu (title/pause/options),

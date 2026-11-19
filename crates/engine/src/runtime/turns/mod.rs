@@ -8,6 +8,7 @@
 
 mod actions;
 mod ai;
+mod features;
 mod ui;
 
 pub(super) use actions::TurnAct;
@@ -68,6 +69,8 @@ pub(super) struct Fighter {
     pub readied: bool,
     /// Who it is grappling.
     pub grappling: Option<Who>,
+    /// What its class features keep going (rage, inspiration, temporary hit points…).
+    pub fx: features::ClassFx,
 }
 
 /// What the player-controlled turn's cursor does on Confirm.
@@ -82,6 +85,8 @@ pub(super) enum Aim {
     Grapple,
     Shove,
     Cast(String),
+    /// A class action (its id).
+    Feature(String),
 }
 
 /// The current turn's economy.
@@ -123,6 +128,14 @@ pub(super) struct AttackSpec {
     pub brutal: u32,
     /// Great Weapon Fighting: damage dice of 1 or 2 are rolled again.
     pub reroll_low: bool,
+    /// The ability it uses (rage's damage: STR); `None` = unknown (a monster's).
+    pub ability: Option<Ability>,
+    /// A spell attack (no weapon riders).
+    pub spell: bool,
+    /// A two-handed weapon (no Sneak Attack).
+    pub heavy: bool,
+    /// One of Flurry of Blows' strikes (Open Hand Technique).
+    pub flurry: bool,
 }
 
 pub(super) struct Combat {
@@ -156,6 +169,8 @@ pub(super) struct Combat {
     pub reach_key: Option<(usize, u32, u32, u32, TilePos)>,
     /// The mouse's last screen position (the cursor follows it when it moves).
     pub mouse_last: Vec2,
+    /// Once-per-turn features used in the current turn (Sneak Attack…), by whom.
+    pub once: Vec<(Who, &'static str)>,
 }
 
 /// What a fight log keeps.
@@ -312,7 +327,7 @@ impl Game {
         let here = self.player.pos;
         let near = |p: Vec2| p.distance(here) <= JOIN_TILES * ts;
         let mut order: Vec<Fighter> = Vec::new();
-        let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None };
+        let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None, fx: Default::default() };
         order.push(fighter(Who::Player, Side::Party, false));
         let mut enemies = Vec::new();
         for i in 0..self.loaded.entities.len() {
@@ -371,7 +386,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, reach: Default::default(), reach_key: None, mouse_last: Vec2::ZERO };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, reach: Default::default(), reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new() };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -413,7 +428,7 @@ impl Game {
             e.body.moving = false;
             e.body.pos = feet_spot(feet_tile(e.body.pos, ts), ts);
             self.occupy(i);
-            let f = Fighter { who, key, side: Side::Enemy, init, dex, surprised: false, ai: true, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None };
+            let f = Fighter { who, key, side: Side::Enemy, init, dex, surprised: false, ai: true, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None, fx: Default::default() };
             if let Some(c) = &mut self.fight {
                 c.order.push(f);
                 c.log(format!("{name} {} ({init})", crate::lang::tr_ui("joins the fight")));
@@ -434,6 +449,11 @@ impl Game {
 
     /// Ends the fight: party members still down get up on 1 HP, exploration resumes.
     pub(super) fn end_combat(&mut self) {
+        // Rages end with the fight (a frenzy's exhaustion).
+        let whos: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| !f.out).map(|f| f.who).collect());
+        for w in whos {
+            self.end_rage(w);
+        }
         let Some(c) = self.fight.take() else { return };
         for f in c.order.iter().filter(|f| f.side == Side::Party && f.down && !f.out) {
             self.revive(f.who, 1);
@@ -492,6 +512,8 @@ impl Game {
             self.next_turn();
             return;
         }
+        self.class_turn_start(f.who);
+        let Some(c) = &self.fight else { return };
         if f.surprised && c.round == 1 {
             let line = format!("{} {}", self.who_name(f.who), crate::lang::tr_ui("is surprised"));
             self.fight_log(line);
@@ -529,7 +551,7 @@ impl Game {
         }
         let speed = self.who_speed(me.who);
         // (Extra Attack: the hero's class; Multiattack, a party member's Extra Attack: the block.)
-        let multi = if me.who == Who::Player { self.hero_traits().map_or(1, |t| t.attacks.max(1)) } else { self.who_block(me.who).map_or(1, |b| b.multiattack.max(1)) };
+        let multi = self.multiattack_of(me.who);
         let act = conditions::can_act(self.who_conditions(me.who));
         let c = self.fight.as_mut().unwrap();
         c.turn.speed = speed;
@@ -803,15 +825,18 @@ impl Game {
                 let projectile = self.who_index(who).and_then(|i| self.loaded.entities[i].weapon.as_ref().and_then(|w| w.ranged.as_ref().map(|r| r.projectile.clone())));
                 // (A party member's Improved Critical.)
                 let crit_on = self.who_traits(who).map_or(20, |t| t.crit_from);
+                // (A party member's weapon: STR in melee, DEX at range; two-handed or not.)
+                let classed = self.who_traits(who).is_some();
+                let heavy = self.who_index(who).is_some_and(|i| self.loaded.entities[i].weapon.as_ref().is_some_and(|w| w.two_handed));
                 b.attacks
                     .iter()
                     .flat_map(|a| {
                         let mut v = Vec::new();
                         if a.reach_ft > 0 {
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ..Default::default() });
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ability: classed.then_some(Ability::Str), heavy, ..Default::default() });
                         }
                         if a.range_ft > 0 {
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile: projectile.clone(), ..Default::default() });
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile: projectile.clone(), ability: classed.then_some(Ability::Dex), heavy, ..Default::default() });
                         }
                         v
                     })
@@ -859,6 +884,10 @@ impl Game {
             projectile: w.ranged.as_ref().map(|r| r.projectile.clone()),
             brutal: if ranged { 0 } else { t.brutal_dice },
             reroll_low: !ranged && w.two_handed && t.styles.contains(&F::GreatWeaponFighting),
+            ability: Some(ability),
+            spell: false,
+            heavy: w.two_handed,
+            flurry: false,
         }
     }
 
@@ -950,12 +979,14 @@ impl Game {
             target_unseen: them.invisible,
             target_dodging: c.and_then(|c| c.fighter(target)).is_some_and(|f| f.dodging) && conditions::can_act(self.who_conditions(target)),
             // The Grappler feat: advantage against the creature it grapples (counted as a helping hand).
-            helped: c.is_some_and(|c| c.helped.contains(&target)) || (c.and_then(|c| c.fighter(who)).is_some_and(|f| f.grappling == Some(target)) && self.has_grappler(who)),
+            // (And Reckless Attack: the attacker's on its STR melee attacks, the target's on all.)
+            helped: c.is_some_and(|c| c.helped.contains(&target)) || (c.and_then(|c| c.fighter(who)).is_some_and(|f| f.grappling == Some(target)) && self.has_grappler(who)) || self.reckless_edge(who, target, spec),
         }
     }
 
     /// The chance (0-1) `spec` hits `target` (the UI).
     pub(super) fn hit_chance(&self, who: Who, target: Who, spec: &AttackSpec) -> f32 {
+        let spec = &self.buffed(who, spec);
         let mode = rules::odds(&self.situation(who, target, spec)).mode();
         let ac = self.who_ac(target) + self.cover(who, target).ac_bonus();
         rules::AttackRoll::chance(spec.bonus, ac, mode)
@@ -963,6 +994,7 @@ impl Game {
 
     /// Rolls an attack of `who` on `target` and applies its damage and condition.
     pub(super) fn make_attack(&mut self, who: Who, target: Who, spec: &AttackSpec) -> bool {
+        let spec = &self.buffed(who, spec);
         let sit = self.situation(who, target, spec);
         let mode = rules::odds(&sit).mode();
         let cover = self.cover(who, target);
@@ -973,6 +1005,11 @@ impl Game {
         let party = self.fight.as_ref().and_then(|c| c.fighter(who)).is_some_and(|f| f.side == Side::Party);
         if let (true, Some(always)) = (party && roll.hit, self.juice.crit_mode) {
             roll.crit = always;
+        }
+        // Bardic Inspiration; attacking keeps a rage going.
+        self.inspire_attack(who, &mut roll);
+        if let Some(fx) = self.fight.as_mut().and_then(|c| c.fighter_mut(who)).map(|f| &mut f.fx) {
+            fx.rage_kept = true;
         }
         // Attacking gives a hidden attacker away; Help is used up.
         if let Some(c) = &mut self.fight {
@@ -994,6 +1031,7 @@ impl Game {
         let line = format!("{aname} > {tname}{weapon}: {}{cover_text}: {result}", roll.text());
         let rec = crate::srd::RollRecord { label: format!("{aname}: {}", crate::lang::tr_ui("attack")), id: "attack".into(), dice: format!("d20 ({})", roll.other.map_or(roll.d20.to_string(), |o| format!("{}/{o}", roll.d20))), modifier: spec.bonus as i64, total: roll.total as i64, dc: ac, success: Some(roll.hit), natural: if roll.d20 == 20 || roll.d20 == 1 { roll.d20 as u8 } else { 0 }, mode };
         self.world.log_roll(rec);
+        let logged = line.clone();
         if let Some(c) = &mut self.fight {
             c.log(line);
         }
@@ -1025,7 +1063,15 @@ impl Game {
                 amount += roll_damage(&format!("{}d{sides}", spec.brutal), spec.reroll_low);
             }
         }
+        // The attacker's riders (Sneak Attack…), the target's reaction (Uncanny Dodge…).
+        amount += self.rider_damage(who, target, spec, mode, roll.crit);
+        let amount = self.react_to_hit(who, target, spec, amount);
+        // The damage onto the attack's line ("hit, 7"; before resistances).
+        if let Some(l) = self.fight.as_mut().and_then(|c| c.log.iter_mut().rev().find(|l| **l == logged)) {
+            l.push_str(&format!(", {amount}"));
+        }
         self.combat_damage(target, amount, spec.damage_type, roll.crit, Some(who));
+        self.on_hit_saves(who, target, spec);
         if let Some(fx) = &spec.effect {
             match target {
                 Who::Player => self.apply_player_effect(fx),
@@ -1064,6 +1110,10 @@ impl Game {
             let m = self.hook("damage", hooks::map([("attacker", attacker.into()), ("target", name.into()), ("target_def", def.into()), ("amount", (n as i64).into()), ("crit", crit.into())]));
             n = hooks::int(&m, "amount", n as i64).clamp(0, i32::MAX as i64) as i32;
         }
+        // Rage's resistance, temporary hit points.
+        if !self.fight.as_ref().and_then(|c| c.fighter(target)).is_some_and(|f| f.down) {
+            n = self.class_absorb(target, n, t);
+        }
         let party = self.fight.as_ref().and_then(|c| c.fighter(target)).is_some_and(|f| f.side == Side::Party);
         let down = self.fight.as_ref().and_then(|c| c.fighter(target)).is_some_and(|f| f.down);
         let head = self.who_pos(target) - vec2(0.0, self.ts() * 1.1);
@@ -1083,7 +1133,10 @@ impl Game {
         self.audio.play(&self.project.config.sfx.hit);
         match target {
             Who::Player => {
-                let hp = (self.hp() - n).max(0);
+                let mut hp = (self.hp() - n).max(0);
+                if hp == 0 && self.relentless(target) {
+                    hp = 1;
+                }
                 self.world.player_hp = Some(hp);
                 self.hurt_feedback();
                 if hp == 0 {
@@ -1095,6 +1148,13 @@ impl Game {
                 let e = &mut self.loaded.entities[i];
                 let before = e.hp;
                 e.hp = (e.hp - n).max(0);
+                if e.hp == 0 && party && self.relentless(target) {
+                    if let Some(i) = self.who_index(target) {
+                        self.loaded.entities[i].hp = 1;
+                    }
+                }
+                let Some(i) = self.who_index(target) else { return };
+                let e = &mut self.loaded.entities[i];
                 e.flash = super::juice::HIT_FLASH;
                 e.hurt = 0.25;
                 if e.bar <= 0.0 && e.max_hp > 0 {
@@ -1112,6 +1172,7 @@ impl Game {
                 }
             }
         }
+        self.after_damage(target, by);
     }
 
     /// Healing in a fight: a creature at 0 HP gets up.
@@ -1260,6 +1321,7 @@ impl Game {
             Aim::Grapple => ":aim=grapple".into(),
             Aim::Shove => ":aim=shove".into(),
             Aim::Cast(s) => format!(":aim=cast:{s}"),
+            Aim::Feature(s) => format!(":aim=class:{s}"),
         };
         format!(
             "{}:{}:{}/{}:{}{}{}{aim}@{},{}[{}]",
@@ -1284,7 +1346,7 @@ impl Game {
 
     /// Autoplay `turn …`: plays the current turn from a script (`move X Y`, `attack NAME`,
     /// `action dash|disengage|dodge|hide|ready|search`, `help|grapple|offhand NAME`,
-    /// `shove NAME prone|push`, `cast SPELL [NAME]`, `use ITEM`, `end`, `ai NAME on|off`,
+    /// `shove NAME prone|push`, `cast SPELL [NAME]`, `class ACT [NAME]`, `use ITEM`, `end`, `log [N]`, `ai NAME on|off`,
     /// `fast [on|off]`, `start`). Returns what happened (or why not).
     pub fn turn_command(&mut self, line: &str) -> String {
         let a: Vec<&str> = line.split_whitespace().collect();
@@ -1308,6 +1370,12 @@ impl Game {
         }
         if self.fight.is_none() {
             return "no fight".into();
+        }
+        // The fight log's last lines (newest last).
+        if arg(0) == "log" {
+            let c = self.fight.as_ref().unwrap();
+            let n: usize = arg(1).parse().unwrap_or(8);
+            return c.log[c.log.len().saturating_sub(n)..].join(" | ");
         }
         if !self.players_turn() {
             return "not the player's turn".into();
@@ -1370,6 +1438,12 @@ impl Game {
                     Ok(t) => done(self.act_on(&Aim::Cast(arg(1).to_string()), t)),
                     Err(e) => e,
                 }
+            }
+            "class" => {
+                // A class action: on the named fighter, else the nearest fitting one, else itself.
+                let me = self.fight.as_ref().unwrap().current().who;
+                let t = if arg(2).is_empty() { self.class_act_default_target(arg(1)).unwrap_or(me) } else { match target(self, 2) { Ok(t) => t, Err(e) => return e } };
+                done(self.use_class_act(arg(1), t))
             }
             "use" => {
                 if self.world.item_count(arg(1)) == 0 {

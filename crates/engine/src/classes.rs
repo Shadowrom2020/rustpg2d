@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::inventory::ItemStack;
+use crate::srd::conditions::Condition;
 use crate::srd::Ability;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -140,6 +141,210 @@ pub enum FeatureEffect {
     MartialArts,
     /// Damage types that don't hurt it.
     Immunity { types: Vec<String> },
+    /// A pool of uses (rages, ki, Lay on Hands' hit points): `count` + the class number `number`
+    /// at the level + `ability`'s modifier (at least 1) + `per_level` × the level; back after a
+    /// short or long rest. A later feature with the same id replaces it (Font of Inspiration).
+    Resource {
+        id: String,
+        #[serde(default)]
+        count: i32,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        number: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ability: Option<Ability>,
+        #[serde(default)]
+        per_level: i32,
+        #[serde(default)]
+        recharge: Recharge,
+    },
+    /// Something the character does in a fight (the action bar's *Class* entry): what it costs of
+    /// the turn, the resource it spends one use of (empty = free to use), what it does.
+    Act {
+        id: String,
+        name: String,
+        #[serde(default)]
+        cost: ActCost,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        resource: String,
+        effect: ActEffect,
+    },
+    /// Sneak Attack: once per turn the class's `sneak_attack.dice_count` d6 more on a hit with a
+    /// ranged or one-handed weapon, with advantage or an ally next to the target.
+    SneakAttack,
+    /// Once per turn more damage on a weapon hit: the dice of the highest level reached (Divine
+    /// Strike's 1d8, 2d8 at 14); `hurt_target`: only against a creature below its hit point maximum
+    /// (Colossus Slayer).
+    ExtraDamage {
+        dice: Vec<(u32, String)>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<crate::srd::DamageType>,
+        #[serde(default)]
+        hurt_target: bool,
+    },
+    /// A hit makes the target save (`save` against 8 + proficiency + `ability`'s modifier) or get
+    /// `condition` for `rounds`: with `resource` (one use, once per turn: Stunning Strike), with a
+    /// melee attack only (`melee`), or only with Flurry of Blows' strikes (`flurry`: Open Hand Technique).
+    OnHitSave {
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        resource: String,
+        save: Ability,
+        ability: Ability,
+        condition: Condition,
+        rounds: u32,
+        #[serde(default)]
+        melee: bool,
+        #[serde(default)]
+        flurry: bool,
+    },
+    /// Bringing a foe to 0 HP gives temporary hit points: `ability`'s modifier + `per_level` × the
+    /// level (Dark One's Blessing).
+    OnKillTempHp { ability: Ability, per_level: i32 },
+    /// While raging, dropping to 0 HP: a CON save against `dc` (+5 for each time since the last
+    /// rest) to stay at 1 HP (Relentless Rage).
+    DropTo1 { dc: i32 },
+    /// At the start of its turn, at half its hit points or fewer (but above 0): `base` + `ability`'s
+    /// modifier back (Survivor).
+    StartOfTurnHeal { base: i32, ability: Ability },
+    /// Its reaction halves an attack's damage (Uncanny Dodge).
+    ReactionHalveDamage,
+    /// Its reaction lowers a ranged weapon attack's damage by `dice` + `ability`'s modifier +
+    /// `per_level` × the level (Deflect Missiles).
+    ReactionReduceRanged { dice: String, ability: Ability, per_level: i32 },
+    /// A failed saving throw is rolled again, spending a use of `resource` (Indomitable).
+    RerollSave { resource: String },
+    /// Its reaction: a melee attack on whoever next to it damaged it (Retaliation).
+    ReactionAttack,
+    /// Turn Undead destroys undead of this challenge rating or lower (Destroy Undead).
+    DestroyUndead { cr: f32 },
+}
+
+/// When a class resource's uses come back.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Recharge {
+    #[default]
+    LongRest,
+    ShortRest,
+}
+
+/// What a class action costs of the turn.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ActCost {
+    #[default]
+    Action,
+    Bonus,
+    Reaction,
+    /// Nothing (Action Surge, Reckless Attack).
+    Free,
+}
+
+impl ActCost {
+    pub fn label(self) -> &'static str {
+        match self {
+            ActCost::Action => "Action",
+            ActCost::Bonus => "Bonus",
+            ActCost::Reaction => "Reaction",
+            ActCost::Free => "Free",
+        }
+    }
+}
+
+/// What a class action does. New variants are appended.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ActEffect {
+    /// Heals the user: `dice` + `per_level` × the class level (Second Wind, Wholeness of Body).
+    Heal {
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        dice: String,
+        #[serde(default)]
+        per_level: i32,
+    },
+    /// Heals a creature it touches (itself too) from the resource's pool, as much as it lacks
+    /// (Lay on Hands).
+    HealPool,
+    /// `per_level` × the level shared among the allies within `feet` (itself too), each up to half
+    /// its hit points at most (Preserve Life).
+    HealAllies { feet: u32, per_level: i32 },
+    /// Another action this turn (Action Surge).
+    ExtraAction,
+    /// Rage: resistance to bludgeoning, piercing and slashing damage, the class's
+    /// `rage_damage_bonus` on STR melee hits, advantage on STR checks and saves; 10 rounds, over
+    /// early after a turn without attacking or being hurt. With Frenzy, a bonus attack each turn.
+    Rage,
+    /// `count` unarmed strikes on a foe within reach, after taking the Attack action (Flurry of
+    /// Blows: 2, Martial Arts: 1).
+    UnarmedStrikes { count: u32 },
+    /// One melee weapon attack, only while raging; exhaustion when the rage ends (Frenzy).
+    FrenzyAttack,
+    /// Dash, Disengage, Dodge or Hide at the act's cost (Cunning Action, Step of the Wind,
+    /// Patient Defense): `dash`, `disengage`, `dodge`, `hide`.
+    Basic { act: String },
+    /// An ally within `feet` gets a die (the class number `number`: its sides) to add to its next
+    /// attack roll or saving throw that would fail (Bardic Inspiration).
+    GiveDie { feet: u32, number: String },
+    /// Creatures within `feet` (of the `types` when listed; `single`: one foe) save `save`
+    /// against 8 + proficiency + `ability`'s modifier or get `condition` for `rounds`; `destroy`:
+    /// undead up to Destroy Undead's challenge rating are destroyed instead (Turn Undead,
+    /// Turn the Unholy, Intimidating Presence).
+    AreaSave {
+        feet: u32,
+        save: Ability,
+        ability: Ability,
+        condition: Condition,
+        rounds: u32,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        types: Vec<String>,
+        #[serde(default)]
+        single: bool,
+        #[serde(default)]
+        destroy: bool,
+    },
+    /// Its weapon attacks add `ability`'s modifier (at least 1) for `rounds` (Sacred Weapon).
+    WeaponBuff { ability: Ability, rounds: u32 },
+    /// Advantage on its STR melee attacks this turn; attacks against it have advantage until its
+    /// next turn (Reckless Attack).
+    Reckless,
+    /// Temporary hit points: `dice` + `per_level` × the level.
+    TempHp {
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        dice: String,
+        #[serde(default)]
+        per_level: i32,
+    },
+    /// A script function (arguments: the user's name and the target's tile x, y).
+    Script { function: String },
+}
+
+/// Who a class action is used on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActTarget {
+    Myself,
+    /// An ally (itself too when `myself`) within `tiles`.
+    Ally { tiles: i32, myself: bool },
+    /// A foe within `tiles`.
+    Foe { tiles: i32 },
+}
+
+impl ActEffect {
+    pub fn target(&self) -> ActTarget {
+        match self {
+            ActEffect::HealPool => ActTarget::Ally { tiles: 1, myself: true },
+            ActEffect::GiveDie { feet, .. } => ActTarget::Ally { tiles: (*feet / 5).max(1) as i32, myself: false },
+            ActEffect::UnarmedStrikes { .. } | ActEffect::FrenzyAttack => ActTarget::Foe { tiles: 1 },
+            ActEffect::AreaSave { feet, single: true, .. } => ActTarget::Foe { tiles: (*feet / 5).max(1) as i32 },
+            _ => ActTarget::Myself,
+        }
+    }
+}
+
+/// A class action a character has (from [`FeatureEffect::Act`]) and the feature it comes from.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClassAct {
+    pub id: String,
+    pub name: String,
+    pub cost: ActCost,
+    pub resource: String,
+    pub effect: ActEffect,
+    pub feature: String,
 }
 
 /// The SRD's fighting styles.
@@ -247,12 +452,45 @@ pub struct ClassTraits {
     pub expertise: Vec<String>,
     /// The feature ids it has.
     pub features: Vec<String>,
+    /// Its class level.
+    pub level: u32,
+    /// Resources (by id, the last definition of an id counts) and class actions.
+    pub resources: Vec<FeatureEffect>,
+    pub acts: Vec<ClassAct>,
+    /// The acting effects that aren't resources or actions (riders, reactions), in level order.
+    pub riders: Vec<FeatureEffect>,
 }
 
 impl ClassTraits {
+    /// The most uses of resource `id` (None = no such resource): `abilities` give the modifier.
+    pub fn resource_max(&self, c: &ClassDef, id: &str, abilities: &crate::srd::Abilities) -> Option<i32> {
+        self.resources.iter().find_map(|r| match r {
+            FeatureEffect::Resource { id: rid, count, number, ability, per_level, .. } if rid == id => {
+                let n = if number.is_empty() { 0 } else { c.number(self.level, number) as i32 };
+                Some(count + n + ability.map_or(0, |a| abilities.modifier(a).max(1)) + per_level * self.level as i32)
+            }
+            _ => None,
+        })
+    }
+
+    /// When resource `id` comes back.
+    pub fn recharge(&self, id: &str) -> Recharge {
+        self.resources.iter().find_map(|r| if let FeatureEffect::Resource { id: rid, recharge, .. } = r { (rid == id).then_some(*recharge) } else { None }).unwrap_or_default()
+    }
+
+    /// The resource ids it has.
+    pub fn resource_ids(&self) -> Vec<String> {
+        self.resources.iter().filter_map(|r| if let FeatureEffect::Resource { id, .. } = r { Some(id.clone()) } else { None }).collect()
+    }
+
+    /// The first rider matching `f`.
+    pub fn rider<T>(&self, f: impl Fn(&FeatureEffect) -> Option<T>) -> Option<T> {
+        self.riders.iter().find_map(f)
+    }
+
     /// The passive effects of a character of `level` in class `c`.
     pub fn of(c: &ClassDef, level: u32, hc: &HeroClass) -> ClassTraits {
-        let mut t = ClassTraits { crit_from: 20, attacks: 1, ..Default::default() };
+        let mut t = ClassTraits { crit_from: 20, attacks: 1, level, ..Default::default() };
         t.features = c.feature_ids(level, &hc.subclass, &hc.picks);
         for id in &t.features {
             let Some(f) = c.feature(id) else { continue };
@@ -291,6 +529,15 @@ impl ClassTraits {
                     FeatureEffect::HpPerLevel { hp } => t.hp_per_level += hp,
                     FeatureEffect::MartialArts => t.martial_arts = true,
                     FeatureEffect::Immunity { types } => t.immunities.extend(types.iter().cloned()),
+                    FeatureEffect::Resource { id: rid, .. } => {
+                        t.resources.retain(|r| !matches!(r, FeatureEffect::Resource { id: x, .. } if x == rid));
+                        t.resources.push(e.clone());
+                    }
+                    FeatureEffect::Act { id: aid, name, cost, resource, effect } => {
+                        t.acts.retain(|a| a.id != *aid);
+                        t.acts.push(ClassAct { id: aid.clone(), name: name.clone(), cost: *cost, resource: resource.clone(), effect: effect.clone(), feature: id.clone() });
+                    }
+                    other => t.riders.push(other.clone()),
                 }
             }
         }
@@ -333,6 +580,36 @@ mod tests {
         assert!(t5.features.contains(&"improved-critical".to_string()) && !t5.features.contains(&"style-defense".to_string()));
         assert!(c.improvement_at(4) && !c.improvement_at(5));
         // The files keep what was set.
+        let back: ClassDef = ron::from_str(&ron::to_string(&c).unwrap()).unwrap();
+        assert_eq!(back, c);
+    }
+
+    #[test]
+    fn acting_features_collect_resources_actions_and_riders() {
+        let mut c = ClassDef::fresh("bard");
+        c.levels[0].features = vec!["inspiration".into()];
+        c.levels[4].features = vec!["font".into(), "strike".into()];
+        c.levels[2].numbers.insert("die".into(), 6);
+        let pool = |recharge| FeatureEffect::Resource { id: "insp".into(), count: 0, number: String::new(), ability: Some(Ability::Cha), per_level: 0, recharge };
+        c.features = vec![
+            ClassFeature { id: "inspiration".into(), level: 1, effects: vec![pool(Recharge::LongRest), FeatureEffect::Act { id: "insp".into(), name: "Inspire".into(), cost: ActCost::Bonus, resource: "insp".into(), effect: ActEffect::GiveDie { feet: 60, number: "die".into() } }], ..Default::default() },
+            // (Font of Inspiration: the same resource back after a short rest.)
+            ClassFeature { id: "font".into(), level: 5, effects: vec![pool(Recharge::ShortRest)], ..Default::default() },
+            ClassFeature { id: "strike".into(), level: 5, effects: vec![FeatureEffect::ExtraDamage { dice: vec![(5, "1d8".into()), (14, "2d8".into())], damage_type: None, hurt_target: true }], ..Default::default() },
+        ];
+        let hc = HeroClass { class: "bard".into(), ..Default::default() };
+        let mut a = crate::srd::Abilities::default();
+        let t1 = ClassTraits::of(&c, 1, &hc);
+        assert_eq!((t1.acts.len(), t1.recharge("insp"), t1.resource_max(&c, "insp", &a)), (1, Recharge::LongRest, Some(1)), "at least 1 from a low CHA");
+        assert_eq!(t1.acts[0].effect.target(), ActTarget::Ally { tiles: 12, myself: false });
+        a.set(Ability::Cha, 16);
+        let t5 = ClassTraits::of(&c, 5, &hc);
+        assert_eq!((t5.resources.len(), t5.recharge("insp"), t5.resource_max(&c, "insp", &a)), (1, Recharge::ShortRest, Some(3)));
+        assert_eq!(t5.riders.len(), 1);
+        assert_eq!(t5.resource_max(&c, "ki", &a), None);
+        // A pool by level (Lay on Hands: 5 per level).
+        let loh = ClassTraits { level: 4, resources: vec![FeatureEffect::Resource { id: "loh".into(), count: 0, number: String::new(), ability: None, per_level: 5, recharge: Recharge::LongRest }], ..Default::default() };
+        assert_eq!(loh.resource_max(&c, "loh", &a), Some(20));
         let back: ClassDef = ron::from_str(&ron::to_string(&c).unwrap()).unwrap();
         assert_eq!(back, c);
     }

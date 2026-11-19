@@ -591,7 +591,7 @@ SRD combat: initiative, actions, movement on the grid, attacks against AC, death
 
 The twelve SRD classes with their subclass, spellcasting and the spell list.
 
-- [~] Classes and levelling up — `feature/srd-classes` (part 1), `feature/srd-class-actions` (part 2)
+- [x] Classes and levelling up — `feature/srd-classes` (part 1), `feature/srd-class-actions` (part 2)
 
   **Goal.** The player and party members have SRD classes from level 1 to 20.
 
@@ -640,6 +640,26 @@ The twelve SRD classes with their subclass, spellcasting and the spell list.
   - **Events / scripts:** *Has class* (`Cond::Class`, also a subclass id), *Set class*
     (`Action::SetClass`), API 0.30 `class`, `subclass`, `class_level`, `has_feature`,
     `level_up_pending`, `set_class` (`Arg::Class`). `resource()` comes with part 2.
+
+  **As built (part 2, `feature/srd-class-actions`).**
+  - **Vocabulary** (`classes.rs`, appended `FeatureEffect`s): `Resource` (count + a class number +
+    an ability modifier + per level; short or long rest; a later feature of the same id replaces it:
+    Font of Inspiration), `Act` (id, name, cost Action / Bonus / Reaction / Free, resource,
+    `ActEffect`: Heal, HealPool, HealAllies, ExtraAction, Rage, UnarmedStrikes, FrenzyAttack, Basic
+    (dash / disengage / dodge / hide), GiveDie, AreaSave, WeaponBuff, Reckless, TempHp, Script), and
+    the riders SneakAttack, ExtraDamage, OnHitSave, OnKillTempHp, DropTo1, StartOfTurnHeal,
+    ReactionHalveDamage, ReactionReduceRanged, RerollSave, ReactionAttack, DestroyUndead.
+    `ClassTraits` collects them (`resources`, `acts`, `riders`). The importer's `feature_effects`
+    maps the SRD features to them.
+  - **Runtime** (`runtime/turns/features.rs`): uses spent in `WorldState.spent` and
+    `Companion.spent` (rests give them back), a fighter's `ClassFx` (rage rounds, frenzy, reckless,
+    an inspiration die, Sacred Weapon, temporary HP; not saved), once-per-turn marks; the action bar's
+    *Class* entry (`TurnAct::Class`, `Aim::Feature`), riders in `make_attack`, absorption and
+    Relentless Rage in `combat_damage`, Indomitable / inspiration in `who_check`, Survivor and rage
+    upkeep at the turn's start, the party AI's `ai_class_step`. Reactions are automatic (the prompt
+    is 0.32).
+  - **Scripts / testing:** `resource(id)`; autoplay `turn class ACT [NAME]`, `turn log [N]`;
+    `status` `resources=`, `class_fx=`; the fight log shows each hit's damage.
 
 - [ ] Spellcasting and the SRD spells — `feature/srd-spells`
 

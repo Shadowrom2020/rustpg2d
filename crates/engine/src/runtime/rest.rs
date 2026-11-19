@@ -74,6 +74,7 @@ impl Game {
     /// Ends the short rest: an hour passes.
     fn finish_short_rest(&mut self) {
         self.rest = None;
+        self.rest_resources(false);
         self.world.advance_hours(1.0);
         self.ui.toast("An hour passes.".into());
     }
@@ -159,6 +160,7 @@ impl Game {
             let back = (level / 2).max(1);
             self.world.hit_dice = Some((self.hit_dice_left() + back).min(level));
         }
+        self.rest_resources(true);
         crate::srd::conditions::lower_exhaustion(&mut self.world.effects, 1);
         crate::srd::conditions::end_timed(&mut self.world.effects);
         if self.combat.enabled() {

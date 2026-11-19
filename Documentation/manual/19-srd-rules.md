@@ -13,7 +13,7 @@ uses it, what is still simplified, and what the licence asks of your game. The d
 | **Checks and saving throws** | A d20 + modifier (+ proficiency) against a DC, with advantage and disadvantage; events, scripts, locks and crafting roll them; every roll goes into the journal's *Rolls* page | [Events](07-events.md#actions), [Scripting](08-scripting.md#rules-srd-51-dice-abilities-and-checks) |
 | **Races and backgrounds** | The SRD's nine races with their subraces, traits and choices, and the Acolyte | [Characters › Races](06-characters.md#races) |
 | **Levels and hit points** | The SRD's XP table up to level 20, split among the classed party; HP from the class's hit die (average or rolled) + CON | [Gameplay › Experience and levels](09-gameplay.md#experience-and-levels) |
-| **Classes** | The twelve classes with their subclass, proficiencies, starting equipment and features to level 20; the level-up window's choices (subclass, ability score improvement or the Grappler feat, expertise, fighting styles); the features that work by themselves act; party members have classes and level too | [Gameplay › Classes and levels](09-gameplay.md#classes-and-levels) |
+| **Classes** | The twelve classes with their subclass, proficiencies, starting equipment and features to level 20; the level-up window's choices (subclass, ability score improvement or the Grappler feat, expertise, fighting styles); the features that work by themselves act, class actions (Rage, Second Wind, Action Surge, Flurry of Blows, Lay on Hands, Turn Undead…) in the fight's action bar with uses back after rests, riders and reactions (Sneak Attack, Stunning Strike, Uncanny Dodge…); party members have classes and level too and use their class actions | [Gameplay › Classes and levels](09-gameplay.md#classes-and-levels) |
 | **Armor class** | 10 + DEX + the armor's defense | [Gameplay › Rules](09-gameplay.md#rules-srd-51) |
 | **Conditions** | The 15 conditions with exhaustion's six levels; saving throws keep them off; damage or healing per round of 6 seconds | [Gameplay › Conditions and damage](09-gameplay.md#conditions-and-damage) |
 | **Damage types** | 13 types; resistance halves, immunity stops, vulnerability doubles | [Gameplay › Conditions and damage](09-gameplay.md#conditions-and-damage) |
@@ -27,10 +27,16 @@ built into the engine; the editor shows them as hover texts.
 
 ## What is simplified
 
-- **Classes:** the features used as actions (Rage, Second Wind, Action Surge, Sneak Attack, Ki,
-  Lay on Hands, Channel Divinity…) and reactions arrive next; spellcasting, spell slots and the
-  domain and oath spells with the SRD's spells, Wild Shape with shapes and summons (0.32), so
-  until then those are text and spells cost mana as before. Multiclassing is 0.32 (the classes keep
+- **Classes:** spellcasting, spell slots and the domain and oath spells come with the SRD's
+  spells, Wild Shape with shapes and summons (0.32), so until then those are text and spells cost
+  mana as before. Reactions (Uncanny Dodge, Deflect Missiles, Retaliation, Indomitable) are taken
+  as soon as they fit, without asking (a reaction prompt is 0.32). *Stunning Strike* spends its ki
+  on the first melee hit of a turn, *Open Hand Technique* always knocks prone, a turned undead is
+  frightened (and so runs), *Lay on Hands* heals all a creature lacks (as far as the pool goes).
+  Until 0.31's weapon properties every ranged or one-handed weapon counts as a finesse weapon for
+  *Sneak Attack*. Party members' AI doesn't use *Frenzy* (its exhaustion). Features that need
+  other systems (Divine Smite, Favored Enemy's tracking, Natural Explorer, Mindless Rage, Persistent
+  Rage, Stroke of Luck, Cutting Words, Quivering Palm…) are text. Multiclassing is 0.32 (the classes keep
   its prerequisites). The only feat is the SRD's Grappler. Heroes without a class (projects without
   classes) have a d10 hit die. Weapon proficiency doesn't change attack rolls yet (0.31's weapons). In a
   fight a *Bolt* spell is a ranged spell attack (INT + proficiency), a *Blast* a DEX saving throw

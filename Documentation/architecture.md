@@ -151,6 +151,19 @@ choices wait in `WorldState::levelups` (`player` or a member's home `map:uid`, s
 runtime uid changes from map to map) for `runtime/levelup.rs`'s window, which opens only when no
 fight, event or dialog runs.
 
+The features that act are effects too: `Resource` (a pool of uses: a count, a class number, an
+ability modifier, per level; back after a short or long rest), `Act` (a class action with its cost,
+resource and `ActEffect`) and riders (Sneak Attack, Stunning Strike, Uncanny Dodge…), collected by
+`ClassTraits` as `resources`, `acts` and `riders`. `runtime/turns/features.rs` runs them: the uses
+spent live in `WorldState::spent` / `Companion::spent` (the most comes from the traits each time,
+so a level-up raises it), what lasts within a fight in the `Fighter`'s `ClassFx` (rage, frenzy,
+reckless, an inspiration die, Sacred Weapon, temporary hit points; not saved), once-per-turn marks
+in `Combat::once`. The fight's code calls in at fixed points: `make_attack` (buffs, inspiration,
+rider damage, the target's reaction, on-hit saves), `combat_damage` (rage's resistance, temporary
+HP, Relentless Rage, then `after_damage`: Dark One's Blessing, Retaliation), `who_check`
+(rage's advantage, inspiration and Indomitable on a failed save), `begin_turn` (rage upkeep,
+Survivor) and the AI's `ai_class_step`.
+
 Conditions (`srd/conditions.rs`) replaced the status effects of 0.27: `ConditionSpec` (what weapons,
 touches, actions and scripts apply: a condition, seconds, exhaustion levels, a saving throw,
 damage or healing per round of 6 s) and `ActiveCondition` (the hero's in `WorldState::effects`, a

@@ -678,18 +678,8 @@ fn soup_gone_cold() {
     }
 }
 
-// Elixir of Strength (the SRD's potion of hill giant strength): Strength 21 for ten minutes, then
-// the hero's own score again. Drinking another while it works only starts the ten minutes anew.
-fn giant_strength() {
-    if timer_left("giant_strength") <= 0 {
-        set_var("giant_strength_was", ability("str"));
-    }
-    if ability("str") < 21 {
-        set_ability("str", 21);
-    }
-    timer_start("giant_strength", 600, #{ run: "giant_strength_end" });
-}
-
+// The Elixir of Strength of 0.30 and older ran a ten-minute timer: a game saved while it worked
+// gets the hero's own Strength back when it runs out (the potion is the SRD's magic item now).
 fn giant_strength_end() {
     let was = get_var("giant_strength_was");
     if was > 0 {

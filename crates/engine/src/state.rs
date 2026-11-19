@@ -25,6 +25,21 @@ pub struct Equipment {
     /// A backpack.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub back: Option<ItemStack>,
+    /// Worn magic items: an amulet, a cloak, a belt, boots, gloves or bracers, two rings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub neck: Option<ItemStack>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cloak: Option<ItemStack>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub belt: Option<ItemStack>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub feet: Option<ItemStack>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hands: Option<ItemStack>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ring: Option<ItemStack>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ring2: Option<ItemStack>,
 }
 
 impl Equipment {
@@ -37,6 +52,13 @@ impl Equipment {
             EquipSlot::Offhand => self.offhand.as_ref(),
             EquipSlot::Tool => self.tool.as_ref(),
             EquipSlot::Back => self.back.as_ref(),
+            EquipSlot::Neck => self.neck.as_ref(),
+            EquipSlot::Cloak => self.cloak.as_ref(),
+            EquipSlot::Belt => self.belt.as_ref(),
+            EquipSlot::Feet => self.feet.as_ref(),
+            EquipSlot::Hands => self.hands.as_ref(),
+            EquipSlot::Ring => self.ring.as_ref(),
+            EquipSlot::Ring2 => self.ring2.as_ref(),
         }
     }
     pub fn slot_mut(&mut self, slot: EquipSlot) -> &mut Option<ItemStack> {
@@ -48,6 +70,13 @@ impl Equipment {
             EquipSlot::Offhand => &mut self.offhand,
             EquipSlot::Tool => &mut self.tool,
             EquipSlot::Back => &mut self.back,
+            EquipSlot::Neck => &mut self.neck,
+            EquipSlot::Cloak => &mut self.cloak,
+            EquipSlot::Belt => &mut self.belt,
+            EquipSlot::Feet => &mut self.feet,
+            EquipSlot::Hands => &mut self.hands,
+            EquipSlot::Ring => &mut self.ring,
+            EquipSlot::Ring2 => &mut self.ring2,
         }
     }
     pub fn item(&self, slot: EquipSlot) -> Option<&str> {
@@ -58,7 +87,24 @@ impl Equipment {
     }
     /// Every equipped stack.
     pub fn stacks_mut(&mut self) -> impl Iterator<Item = &mut ItemStack> {
-        [&mut self.clothing, &mut self.head, &mut self.body, &mut self.weapon, &mut self.offhand].into_iter().filter_map(|s| s.as_mut())
+        [
+            &mut self.clothing,
+            &mut self.head,
+            &mut self.body,
+            &mut self.weapon,
+            &mut self.offhand,
+            &mut self.tool,
+            &mut self.back,
+            &mut self.neck,
+            &mut self.cloak,
+            &mut self.belt,
+            &mut self.feet,
+            &mut self.hands,
+            &mut self.ring,
+            &mut self.ring2,
+        ]
+        .into_iter()
+        .filter_map(|s| s.as_mut())
     }
     pub fn stacks(&self) -> impl Iterator<Item = &ItemStack> {
         EquipSlot::ALL.into_iter().filter_map(|s| self.get(s))
@@ -309,6 +355,17 @@ pub struct WorldState {
     /// The spell the hero concentrates on: (its effects' source `spell@player`, seconds left).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub concentration: Option<(String, f32)>,
+    /// The magic items the hero is attuned to (item ids, at most three).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attuned: Vec<String>,
+    /// The hero's own ability scores while items or buffs raise `abilities` (a Belt of Giant
+    /// Strength); None = `abilities` are their own. Change scores through
+    /// [`WorldState::base_abilities_mut`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ability_base: Option<crate::srd::Abilities>,
+    /// The last dawn the charged items regained charges at (days since the start, from 6:00).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_dawn: Option<i64>,
     /// What the class adds to checks (computed from the class; not saved).
     #[serde(skip)]
     pub training: crate::srd::check::Training,
@@ -405,6 +462,9 @@ pub struct Companion {
     pub prepared: Vec<String>,
     #[serde(default, skip_serializing_if = "slots_unspent")]
     pub slots_spent: [u32; 9],
+    /// The magic items it is attuned to (item ids, at most three).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attuned: Vec<String>,
 }
 
 fn slots_unspent(s: &[u32; 9]) -> bool {
@@ -518,6 +578,9 @@ pub struct DroppedItem {
     pub uid: u32,
     pub item: String,
     pub count: u32,
+    /// A magic item's used charges (such a pile is never joined with another one).
+    #[serde(default, skip_serializing_if = "is_zero_u32_ref")]
+    pub spent: u32,
     /// Feet position in pixels.
     pub x: f32,
     pub y: f32,
@@ -555,6 +618,15 @@ impl WorldState {
     }
 
     /// Moves the clock forward by `hours`, counting the days that pass.
+    /// The hero's own ability scores to change (items' raised scores are put back first; the
+    /// runtime raises them again).
+    pub fn base_abilities_mut(&mut self) -> &mut crate::srd::Abilities {
+        if let Some(b) = self.ability_base.take() {
+            self.abilities = b;
+        }
+        &mut self.abilities
+    }
+
     pub fn advance_hours(&mut self, hours: f32) {
         let t = self.total_hours() + hours.max(0.0) as f64;
         self.day = (t / 24.0).floor() as u32;
@@ -777,15 +849,26 @@ impl WorldState {
     /// Puts dropped items on a map: onto a pile of the same item within `merge` pixels, else
     /// as a new pile. Returns the pile's uid and whether it is new.
     pub fn add_dropped(&mut self, map: &str, item: &str, count: u32, x: f32, y: f32, merge: f32) -> (u32, bool) {
+        self.add_dropped_spent(map, item, count, 0, x, y, merge)
+    }
+
+    /// [`WorldState::add_dropped`] for a stack with `spent` used charges (never joined).
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_dropped_spent(&mut self, map: &str, item: &str, count: u32, spent: u32, x: f32, y: f32, merge: f32) -> (u32, bool) {
         let piles = self.dropped.entry(map.to_string()).or_default();
-        if let Some(p) = piles.iter_mut().find(|p| p.item == item && (p.x - x).hypot(p.y - y) <= merge) {
+        if let Some(p) = piles.iter_mut().find(|p| spent == 0 && p.spent == 0 && p.item == item && (p.x - x).hypot(p.y - y) <= merge) {
             p.count += count;
             return (p.uid, false);
         }
         let uid = DROPPED_UID_BASE + self.next_drop;
         self.next_drop += 1;
-        piles.push(DroppedItem { uid, item: item.to_string(), count, x, y });
+        piles.push(DroppedItem { uid, item: item.to_string(), count, spent, x, y });
         (uid, true)
+    }
+
+    /// The used charges of dropped pile `uid` on `map` (0 = none, or no such pile).
+    pub fn dropped_spent(&self, map: &str, uid: u32) -> u32 {
+        self.dropped.get(map).and_then(|v| v.iter().find(|p| p.uid == uid)).map_or(0, |p| p.spent)
     }
 
     /// Saves from 0.0.5 numbered dropped piles from 0x4000_0000, the range of spawned
@@ -866,6 +949,19 @@ impl WorldState {
     pub fn item_count(&self, item: &str) -> u32 {
         self.inventory.count(item) + self.equipment.count(item)
     }
+    /// The hero's first stack of `item`: worn first, then the bag.
+    pub fn stack_of(&self, item: &str) -> Option<&ItemStack> {
+        self.equipment.stacks().find(|s| s.item == item).or_else(|| self.inventory.slots.iter().flatten().find(|s| s.item == item))
+    }
+
+    /// [`WorldState::stack_of`], to change it.
+    pub fn stack_of_mut(&mut self, item: &str) -> Option<&mut ItemStack> {
+        if self.equipment.stacks().any(|s| s.item == item) {
+            return self.equipment.stacks_mut().find(|s| s.item == item);
+        }
+        self.inventory.slots.iter_mut().flatten().find(|s| s.item == item)
+    }
+
     /// Adds items to the player's inventory; returns how many did not fit.
     pub fn give_item(&mut self, item: &str, count: u32) -> u32 {
         self.inventory.add(item, count)
@@ -954,7 +1050,7 @@ mod tests {
         assert!(!w.dropped.contains_key("village"));
         // Piles of old saves move out of the spawned characters' uid range.
         let mut old = WorldState::default();
-        old.dropped.insert("m".into(), vec![DroppedItem { uid: 0x4000_0000, item: "coin".into(), count: 1, x: 0.0, y: 0.0 }]);
+        old.dropped.insert("m".into(), vec![DroppedItem { uid: 0x4000_0000, item: "coin".into(), count: 1, spent: 0, x: 0.0, y: 0.0 }]);
         old.renumber_old_drops();
         assert_eq!((old.dropped["m"][0].uid, old.next_drop), (DROPPED_UID_BASE, 1));
         // Piles survive a save / load round trip.

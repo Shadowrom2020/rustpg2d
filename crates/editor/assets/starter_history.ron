@@ -701,6 +701,7 @@
         "character:elf_herbalist": (
             defs: [
                 1355030606158315940,
+                5290516490528192019,
                 11461587156737277160,
                 12281757235139214045,
                 12571757886563137757,
@@ -2408,6 +2409,11 @@
                 16833937470197511852,
             ],
         ),
+        "item:adamantine-armor": (
+            defs: [
+                3092609522987138701,
+            ],
+        ),
         "item:alchemists-fire-flask": (
             defs: [
                 1976918913507867965,
@@ -2435,9 +2441,29 @@
                 544756895883110979,
             ],
         ),
+        "item:amulet-of-health": (
+            defs: [
+                13365101485299397701,
+            ],
+        ),
+        "item:amulet-of-proof-against-detection-and-location": (
+            defs: [
+                8351876669523420647,
+            ],
+        ),
+        "item:amulet-of-the-planes": (
+            defs: [
+                12213846664488749775,
+            ],
+        ),
         "item:animal-feed-1-day": (
             defs: [
                 16024708048330975569,
+            ],
+        ),
+        "item:animated-shield": (
+            defs: [
+                14843093949824376518,
             ],
         ),
         "item:antidote": (
@@ -2448,6 +2474,11 @@
         "item:antitoxin-vial": (
             defs: [
                 1158202305347535214,
+            ],
+        ),
+        "item:apparatus-of-the-crab": (
+            defs: [
+                5032038136708481714,
             ],
         ),
         "item:apple": (
@@ -2464,6 +2495,36 @@
                 3753944092474097515,
                 6913766206920727012,
                 11310829533823791978,
+            ],
+        ),
+        "item:armor-of-invulnerability": (
+            defs: [
+                17924218379802183164,
+            ],
+        ),
+        "item:armor-of-resistance": (
+            defs: [
+                563599233971381459,
+            ],
+        ),
+        "item:armor-of-vulnerability": (
+            defs: [
+                11240461324328544776,
+            ],
+        ),
+        "item:arrow-catching-shield": (
+            defs: [
+                9779110150803106041,
+            ],
+        ),
+        "item:arrow-of-slaying": (
+            defs: [
+                6291175195953263719,
+            ],
+        ),
+        "item:arrow-plus-1": (
+            defs: [
+                4388272212707617728,
             ],
         ),
         "item:arrows": (
@@ -2484,6 +2545,36 @@
                 12227297243450216040,
                 14810057377564012142,
                 16573358985991090713,
+            ],
+        ),
+        "item:bag-of-beans": (
+            defs: [
+                15798204131776157073,
+            ],
+        ),
+        "item:bag-of-devouring": (
+            defs: [
+                16851429965355614152,
+            ],
+        ),
+        "item:bag-of-holding": (
+            defs: [
+                12116703864784607638,
+            ],
+        ),
+        "item:bag-of-tricks-gray": (
+            defs: [
+                8288700057141277803,
+            ],
+        ),
+        "item:bag-of-tricks-rust": (
+            defs: [
+                2013895133060312280,
+            ],
+        ),
+        "item:bag-of-tricks-tan": (
+            defs: [
+                9756474766415691562,
             ],
         ),
         "item:bagpipes": (
@@ -2578,6 +2669,11 @@
                 5324342388206974175,
             ],
         ),
+        "item:bead-of-force": (
+            defs: [
+                11324623625597009789,
+            ],
+        ),
         "item:bedroll": (
             defs: [
                 6399745015278917639,
@@ -2586,6 +2682,46 @@
         "item:bell": (
             defs: [
                 15418247721858026223,
+            ],
+        ),
+        "item:belt-of-dwarvenkind": (
+            defs: [
+                7888964688920657115,
+            ],
+        ),
+        "item:belt-of-giant-strength-cloud": (
+            defs: [
+                2844449106654559271,
+            ],
+        ),
+        "item:belt-of-giant-strength-fire": (
+            defs: [
+                5830540985227967215,
+            ],
+        ),
+        "item:belt-of-giant-strength-frost": (
+            defs: [
+                10592156192256328001,
+            ],
+        ),
+        "item:belt-of-giant-strength-hill": (
+            defs: [
+                13452920646319359581,
+            ],
+        ),
+        "item:belt-of-giant-strength-stone": (
+            defs: [
+                11570387452584661797,
+            ],
+        ),
+        "item:belt-of-giant-strength-storm": (
+            defs: [
+                11141620233237936499,
+            ],
+        ),
+        "item:berserker-axe": (
+            defs: [
+                10481732423810440216,
             ],
         ),
         "item:big_backpack": (
@@ -2641,6 +2777,31 @@
                 14454268211410517684,
             ],
         ),
+        "item:boots-of-elvenkind": (
+            defs: [
+                14066193417651168494,
+            ],
+        ),
+        "item:boots-of-levitation": (
+            defs: [
+                526282875966918943,
+            ],
+        ),
+        "item:boots-of-speed": (
+            defs: [
+                10126752862027576958,
+            ],
+        ),
+        "item:boots-of-striding-and-springing": (
+            defs: [
+                12289767466602569392,
+            ],
+        ),
+        "item:boots-of-the-winterlands": (
+            defs: [
+                9053567176483447739,
+            ],
+        ),
         "item:bottle-glass": (
             defs: [
                 10774244252663549344,
@@ -2659,6 +2820,26 @@
                 14499077435364493310,
                 17414261121787270123,
                 17976813948888162627,
+            ],
+        ),
+        "item:bowl-of-commanding-water-elementals": (
+            defs: [
+                6642990304709515920,
+            ],
+        ),
+        "item:bracers-of-archery": (
+            defs: [
+                7591876920014645881,
+            ],
+        ),
+        "item:bracers-of-defense": (
+            defs: [
+                12397701591111415718,
+            ],
+        ),
+        "item:brazier-of-commanding-fire-elementals": (
+            defs: [
+                1203468534861629635,
             ],
         ),
         "item:bread": (
@@ -2684,6 +2865,11 @@
                 7457579498704230871,
             ],
         ),
+        "item:brooch-of-shielding": (
+            defs: [
+                14116692248583357319,
+            ],
+        ),
         "item:broom": (
             defs: [
                 5773278913486905382,
@@ -2692,6 +2878,11 @@
                 17137116418210577840,
                 17465084750045798892,
                 18295483885714838854,
+            ],
+        ),
+        "item:broom-of-flying": (
+            defs: [
+                15975516469258674652,
             ],
         ),
         "item:bucket": (
@@ -2724,9 +2915,39 @@
                 5877537338959377273,
             ],
         ),
+        "item:candle-of-invocation": (
+            defs: [
+                11309915528810320096,
+            ],
+        ),
+        "item:cape-of-the-mountebank": (
+            defs: [
+                16655957053277716465,
+            ],
+        ),
         "item:carpenters-tools": (
             defs: [
                 15738204104504685083,
+            ],
+        ),
+        "item:carpet-of-flying-3x5": (
+            defs: [
+                4454844278489714529,
+            ],
+        ),
+        "item:carpet-of-flying-4x6": (
+            defs: [
+                8739536626262600218,
+            ],
+        ),
+        "item:carpet-of-flying-5x7": (
+            defs: [
+                813675020561036610,
+            ],
+        ),
+        "item:carpet-of-flying-6x9": (
+            defs: [
+                610297388359478769,
             ],
         ),
         "item:carriage": (
@@ -2779,9 +3000,19 @@
                 8466353781202370335,
             ],
         ),
+        "item:censer-of-controlling-air-elementals": (
+            defs: [
+                12111245635966226178,
+            ],
+        ),
         "item:chain-10-feet": (
             defs: [
                 7349646225620881107,
+            ],
+        ),
+        "item:chain-mail-plus-1": (
+            defs: [
+                6828618203448355621,
             ],
         ),
         "item:chain-shirt": (
@@ -2818,9 +3049,49 @@
                 8911924316062995030,
             ],
         ),
+        "item:chime-of-opening": (
+            defs: [
+                6237557885307236022,
+            ],
+        ),
+        "item:circlet-of-blasting": (
+            defs: [
+                7443038593197259192,
+            ],
+        ),
         "item:climbers-kit": (
             defs: [
                 8237829701500711221,
+            ],
+        ),
+        "item:cloak-of-arachnida": (
+            defs: [
+                8118740795462580336,
+            ],
+        ),
+        "item:cloak-of-displacement": (
+            defs: [
+                11131429142050977091,
+            ],
+        ),
+        "item:cloak-of-elvenkind": (
+            defs: [
+                6534668234632545531,
+            ],
+        ),
+        "item:cloak-of-protection": (
+            defs: [
+                8228769780932010960,
+            ],
+        ),
+        "item:cloak-of-the-bat": (
+            defs: [
+                15995839940804205974,
+            ],
+        ),
+        "item:cloak-of-the-manta-ray": (
+            defs: [
+                8984936499415991383,
             ],
         ),
         "item:clothes-common": (
@@ -2944,9 +3215,44 @@
                 13534205568205094162,
             ],
         ),
+        "item:crystal-ball-of-mind-reading": (
+            defs: [
+                6193710527197056327,
+            ],
+        ),
+        "item:crystal-ball-of-telepathy": (
+            defs: [
+                1477995379156765208,
+            ],
+        ),
+        "item:crystal-ball-of-true-seeing": (
+            defs: [
+                13409214586013495650,
+            ],
+        ),
+        "item:cube-of-force": (
+            defs: [
+                11909467933322261528,
+            ],
+        ),
+        "item:cubic-gate": (
+            defs: [
+                17318571989972103860,
+            ],
+        ),
         "item:dagger": (
             defs: [
                 8230218022792589137,
+            ],
+        ),
+        "item:dagger-of-venom": (
+            defs: [
+                8441998459756741581,
+            ],
+        ),
+        "item:dagger-plus-1": (
+            defs: [
+                7622328105193208103,
             ],
         ),
         "item:dagny_key": (
@@ -2954,14 +3260,49 @@
                 12776830438650565690,
             ],
         ),
+        "item:dancing-sword": (
+            defs: [
+                5006767983371265290,
+            ],
+        ),
         "item:dart": (
             defs: [
                 15719835245995208601,
             ],
         ),
+        "item:decanter-of-endless-water": (
+            defs: [
+                16045422160710958251,
+            ],
+        ),
+        "item:deck-of-illusions": (
+            defs: [
+                16690474335251620104,
+            ],
+        ),
+        "item:deck-of-many-things": (
+            defs: [
+                7415276224082931671,
+            ],
+        ),
+        "item:defender": (
+            defs: [
+                7410567978029609971,
+            ],
+        ),
+        "item:demon-armor": (
+            defs: [
+                4428112748145988493,
+            ],
+        ),
         "item:dice-set": (
             defs: [
                 6245931321905456903,
+            ],
+        ),
+        "item:dimensional-shackles": (
+            defs: [
+                7898285976798379516,
             ],
         ),
         "item:diplomats-pack": (
@@ -2979,6 +3320,61 @@
                 13369648967163775770,
             ],
         ),
+        "item:dragon-scale-mail-black": (
+            defs: [
+                2007585279194320506,
+            ],
+        ),
+        "item:dragon-scale-mail-blue": (
+            defs: [
+                9983406662350442620,
+            ],
+        ),
+        "item:dragon-scale-mail-brass": (
+            defs: [
+                15169045775360180334,
+            ],
+        ),
+        "item:dragon-scale-mail-bronze": (
+            defs: [
+                808840515865509604,
+            ],
+        ),
+        "item:dragon-scale-mail-copper": (
+            defs: [
+                5350107485708924186,
+            ],
+        ),
+        "item:dragon-scale-mail-gold": (
+            defs: [
+                10132403840019994776,
+            ],
+        ),
+        "item:dragon-scale-mail-green": (
+            defs: [
+                16751481579528599958,
+            ],
+        ),
+        "item:dragon-scale-mail-red": (
+            defs: [
+                8173718239942286406,
+            ],
+        ),
+        "item:dragon-scale-mail-silver": (
+            defs: [
+                1146587317523187044,
+            ],
+        ),
+        "item:dragon-scale-mail-white": (
+            defs: [
+                3644802942658386310,
+            ],
+        ),
+        "item:dragon-slayer": (
+            defs: [
+                611914464367437995,
+            ],
+        ),
         "item:drum": (
             defs: [
                 3065235611020497540,
@@ -2992,6 +3388,41 @@
         "item:dungeoneers-pack": (
             defs: [
                 2345934671617600100,
+            ],
+        ),
+        "item:dust-of-disappearance": (
+            defs: [
+                10828814428883586670,
+            ],
+        ),
+        "item:dust-of-dryness": (
+            defs: [
+                12145767225059521125,
+            ],
+        ),
+        "item:dust-of-sneezing-and-choking": (
+            defs: [
+                17192963732819402129,
+            ],
+        ),
+        "item:dwarven-plate": (
+            defs: [
+                6048047711331085954,
+            ],
+        ),
+        "item:dwarven-thrower": (
+            defs: [
+                3742346572514426827,
+            ],
+        ),
+        "item:efficient-quiver": (
+            defs: [
+                10152259140562745167,
+            ],
+        ),
+        "item:efreeti-bottle": (
+            defs: [
+                189232039126387726,
             ],
         ),
         "item:egg": (
@@ -3010,6 +3441,26 @@
                 8739023780442306628,
             ],
         ),
+        "item:elemental-gem-air": (
+            defs: [
+                10004028043899017170,
+            ],
+        ),
+        "item:elemental-gem-earth": (
+            defs: [
+                13062593096105580974,
+            ],
+        ),
+        "item:elemental-gem-fire": (
+            defs: [
+                11052751555692586676,
+            ],
+        ),
+        "item:elemental-gem-water": (
+            defs: [
+                2797452269422924366,
+            ],
+        ),
         "item:elephant": (
             defs: [
                 16037186030671167657,
@@ -3018,7 +3469,13 @@
         "item:elixir_strength": (
             defs: [
                 14363560910263493267,
+                15758391406600606204,
                 16205973539546545344,
+            ],
+        ),
+        "item:elven-chain": (
+            defs: [
+                8806246967328893061,
             ],
         ),
         "item:emblem": (
@@ -3031,9 +3488,29 @@
                 797458032945986709,
             ],
         ),
+        "item:eversmoking-bottle": (
+            defs: [
+                16979632591300884909,
+            ],
+        ),
         "item:explorers-pack": (
             defs: [
                 13230673384668611745,
+            ],
+        ),
+        "item:eyes-of-charming": (
+            defs: [
+                5931705869259874355,
+            ],
+        ),
+        "item:eyes-of-minute-seeing": (
+            defs: [
+                5111571983989451340,
+            ],
+        ),
+        "item:eyes-of-the-eagle": (
+            defs: [
+                10659657813648773549,
             ],
         ),
         "item:farm_dress": (
@@ -3046,6 +3523,36 @@
                 11855543885936935807,
             ],
         ),
+        "item:feather-token-anchor": (
+            defs: [
+                7571991333790943904,
+            ],
+        ),
+        "item:feather-token-bird": (
+            defs: [
+                2195114643520537890,
+            ],
+        ),
+        "item:feather-token-fan": (
+            defs: [
+                4826629044309872141,
+            ],
+        ),
+        "item:feather-token-swan-boat": (
+            defs: [
+                10366314835058751244,
+            ],
+        ),
+        "item:feather-token-tree": (
+            defs: [
+                17498665547312757652,
+            ],
+        ),
+        "item:feather-token-whip": (
+            defs: [
+                17883542671108895351,
+            ],
+        ),
         "item:festival_bread": (
             defs: [
                 14826143812782104572,
@@ -3056,6 +3563,51 @@
             defs: [
                 3466965584836866440,
                 14181507640738878350,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-bronze-griffon": (
+            defs: [
+                4063576943087139865,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-ebony-fly": (
+            defs: [
+                1639672087890172121,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-golden-lions": (
+            defs: [
+                5547158808017690916,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-ivory-goats": (
+            defs: [
+                4486174846726295522,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-marble-elephant": (
+            defs: [
+                14735052904007567906,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-obsidian-steed": (
+            defs: [
+                12222641453215695020,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-onyx-dog": (
+            defs: [
+                12445057213066256050,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-serpentine-owl": (
+            defs: [
+                14404685560179444249,
+            ],
+        ),
+        "item:figurine-of-wondrous-power-silver-raven": (
+            defs: [
+                4858419691200818356,
             ],
         ),
         "item:fine_iron_sword": (
@@ -3089,6 +3641,11 @@
                 5501523479630346684,
             ],
         ),
+        "item:flame-tongue": (
+            defs: [
+                8148304048766194988,
+            ],
+        ),
         "item:flask-or-tankard": (
             defs: [
                 2464217263279639243,
@@ -3105,9 +3662,19 @@
                 161938545038788852,
             ],
         ),
+        "item:folding-boat": (
+            defs: [
+                1417765355508221358,
+            ],
+        ),
         "item:forgery-kit": (
             defs: [
                 9157542517807276542,
+            ],
+        ),
+        "item:frost-brand": (
+            defs: [
+                7803575696608342746,
             ],
         ),
         "item:furn_bed": (
@@ -3155,9 +3722,34 @@
                 5849103159981325222,
             ],
         ),
+        "item:gauntlets-of-ogre-power": (
+            defs: [
+                11589241711537008968,
+            ],
+        ),
+        "item:gem-of-brightness": (
+            defs: [
+                7560025995393996355,
+            ],
+        ),
+        "item:gem-of-seeing": (
+            defs: [
+                6963684353802777178,
+            ],
+        ),
+        "item:giant-slayer": (
+            defs: [
+                6457609849315434140,
+            ],
+        ),
         "item:glaive": (
             defs: [
                 12188927828790652175,
+            ],
+        ),
+        "item:glamoured-studded-leather-armor": (
+            defs: [
+                3833286663578691924,
             ],
         ),
         "item:glassblowers-tools": (
@@ -3165,9 +3757,24 @@
                 4723360614981485551,
             ],
         ),
+        "item:gloves-of-missile-snaring": (
+            defs: [
+                17558025523113616076,
+            ],
+        ),
+        "item:gloves-of-swimming-and-climbing": (
+            defs: [
+                5710687209947820943,
+            ],
+        ),
         "item:goblin_rags": (
             defs: [
                 6899919585634454055,
+            ],
+        ),
+        "item:goggles-of-night": (
+            defs: [
+                13868322583359952146,
             ],
         ),
         "item:grappling-hook": (
@@ -3226,6 +3833,11 @@
                 15034416884284119519,
             ],
         ),
+        "item:hammer-of-thunderbolts": (
+            defs: [
+                11208668514481841271,
+            ],
+        ),
         "item:hammer-sledge": (
             defs: [
                 15085634292287841889,
@@ -3236,9 +3848,44 @@
                 5429626844552634959,
             ],
         ),
+        "item:handy-haversack": (
+            defs: [
+                8386424659820087595,
+            ],
+        ),
+        "item:hat-of-disguise": (
+            defs: [
+                5829730361891152379,
+            ],
+        ),
+        "item:headband-of-intellect": (
+            defs: [
+                6549515784791549280,
+            ],
+        ),
         "item:healers-kit": (
             defs: [
                 13719184276792874112,
+            ],
+        ),
+        "item:helm-of-brilliance": (
+            defs: [
+                7525066258051736702,
+            ],
+        ),
+        "item:helm-of-comprehending-languages": (
+            defs: [
+                762597988058662064,
+            ],
+        ),
+        "item:helm-of-telepathy": (
+            defs: [
+                14869266900046376853,
+            ],
+        ),
+        "item:helm-of-teleportation": (
+            defs: [
+                7914197207847157435,
             ],
         ),
         "item:herb": (
@@ -3272,6 +3919,11 @@
                 16559819832284802543,
             ],
         ),
+        "item:holy-avenger": (
+            defs: [
+                11031792815888515797,
+            ],
+        ),
         "item:holy-water-flask": (
             defs: [
                 10270091706366571625,
@@ -3288,6 +3940,31 @@
                 9442776804796185224,
             ],
         ),
+        "item:horn-of-blasting": (
+            defs: [
+                13065979734057356265,
+            ],
+        ),
+        "item:horn-of-valhalla-brass": (
+            defs: [
+                12754845810511010530,
+            ],
+        ),
+        "item:horn-of-valhalla-bronze": (
+            defs: [
+                6642856934107753100,
+            ],
+        ),
+        "item:horn-of-valhalla-iron": (
+            defs: [
+                5252806679693802086,
+            ],
+        ),
+        "item:horn-of-valhalla-silver": (
+            defs: [
+                422947815102068894,
+            ],
+        ),
         "item:horse-draft": (
             defs: [
                 18442649370005060801,
@@ -3298,6 +3975,16 @@
                 5898700722801807184,
             ],
         ),
+        "item:horseshoes-of-a-zephyr": (
+            defs: [
+                17087767498079272999,
+            ],
+        ),
+        "item:horseshoes-of-speed": (
+            defs: [
+                17038209474765890240,
+            ],
+        ),
         "item:hourglass": (
             defs: [
                 3195315477286089053,
@@ -3306,6 +3993,11 @@
         "item:hunting-trap": (
             defs: [
                 7520506554052197895,
+            ],
+        ),
+        "item:immovable-rod": (
+            defs: [
+                15565120140066762963,
             ],
         ),
         "item:ink-1-ounce-bottle": (
@@ -3321,6 +4013,91 @@
         "item:innkeeper_dress": (
             defs: [
                 2276903842559971691,
+            ],
+        ),
+        "item:instant-fortress": (
+            defs: [
+                16162805613557430355,
+            ],
+        ),
+        "item:ioun-stone-of-absorption": (
+            defs: [
+                12206679702046639619,
+            ],
+        ),
+        "item:ioun-stone-of-agility": (
+            defs: [
+                3877086422733060902,
+            ],
+        ),
+        "item:ioun-stone-of-awareness": (
+            defs: [
+                6066388037424832078,
+            ],
+        ),
+        "item:ioun-stone-of-fortitude": (
+            defs: [
+                2694822118832291033,
+            ],
+        ),
+        "item:ioun-stone-of-greater-absorption": (
+            defs: [
+                18239448163550222542,
+            ],
+        ),
+        "item:ioun-stone-of-insight": (
+            defs: [
+                15705783103849193415,
+            ],
+        ),
+        "item:ioun-stone-of-intellect": (
+            defs: [
+                4067350585943714152,
+            ],
+        ),
+        "item:ioun-stone-of-leadership": (
+            defs: [
+                4992078294945760056,
+            ],
+        ),
+        "item:ioun-stone-of-mastery": (
+            defs: [
+                3463760081740422697,
+            ],
+        ),
+        "item:ioun-stone-of-protection": (
+            defs: [
+                7220521757223766684,
+            ],
+        ),
+        "item:ioun-stone-of-regeneration": (
+            defs: [
+                7522193284283047274,
+            ],
+        ),
+        "item:ioun-stone-of-reserve": (
+            defs: [
+                11188494182438962555,
+            ],
+        ),
+        "item:ioun-stone-of-strength": (
+            defs: [
+                6109046221348629977,
+            ],
+        ),
+        "item:ioun-stone-of-sustenance": (
+            defs: [
+                14405139055817922355,
+            ],
+        ),
+        "item:iron-bands-of-binding": (
+            defs: [
+                8191808588735291132,
+            ],
+        ),
+        "item:iron-flask": (
+            defs: [
+                8886183929718332742,
             ],
         ),
         "item:iron_helmet": (
@@ -3355,6 +4132,11 @@
         "item:javelin": (
             defs: [
                 10169591684221884216,
+            ],
+        ),
+        "item:javelin-of-lightning": (
+            defs: [
+                13194004834616031044,
             ],
         ),
         "item:jewelers-tools": (
@@ -3405,6 +4187,11 @@
         "item:lantern-bullseye": (
             defs: [
                 12680091022897143034,
+            ],
+        ),
+        "item:lantern-of-revealing": (
+            defs: [
+                1317390046608108145,
             ],
         ),
         "item:leather_armor": (
@@ -3466,6 +4253,16 @@
                 10216496104129718399,
             ],
         ),
+        "item:longsword-plus-1": (
+            defs: [
+                3596819151059276851,
+            ],
+        ),
+        "item:luck-blade": (
+            defs: [
+                16976397140631570992,
+            ],
+        ),
         "item:lute": (
             defs: [
                 3724850467438191885,
@@ -3479,6 +4276,21 @@
         "item:mace": (
             defs: [
                 2949635177151706307,
+            ],
+        ),
+        "item:mace-of-disruption": (
+            defs: [
+                10211439620598950879,
+            ],
+        ),
+        "item:mace-of-smiting": (
+            defs: [
+                3171752696760052794,
+            ],
+        ),
+        "item:mace-of-terror": (
+            defs: [
+                5272313723283521176,
             ],
         ),
         "item:magic_backpack": (
@@ -3501,6 +4313,51 @@
                 4157307774873871428,
             ],
         ),
+        "item:mantle-of-spell-resistance": (
+            defs: [
+                8109716394823121894,
+            ],
+        ),
+        "item:manual-of-bodily-health": (
+            defs: [
+                13176984067698711479,
+            ],
+        ),
+        "item:manual-of-gainful-exercise": (
+            defs: [
+                14607198426433004525,
+            ],
+        ),
+        "item:manual-of-golems-clay": (
+            defs: [
+                3835839021037337495,
+            ],
+        ),
+        "item:manual-of-golems-flesh": (
+            defs: [
+                11544532308635276726,
+            ],
+        ),
+        "item:manual-of-golems-iron": (
+            defs: [
+                16715229830728470397,
+            ],
+        ),
+        "item:manual-of-golems-stone": (
+            defs: [
+                2574234673481840157,
+            ],
+        ),
+        "item:manual-of-quickness-of-action": (
+            defs: [
+                12337870845541621744,
+            ],
+        ),
+        "item:marvelous-pigments": (
+            defs: [
+                2464265925346207623,
+            ],
+        ),
         "item:masons-tools": (
             defs: [
                 11669156674733412925,
@@ -3514,6 +4371,11 @@
         "item:maul": (
             defs: [
                 12662796953526274681,
+            ],
+        ),
+        "item:medallion-of-thoughts": (
+            defs: [
+                2741526088783070302,
             ],
         ),
         "item:merchant_dress": (
@@ -3538,9 +4400,19 @@
                 3334330666647084268,
             ],
         ),
+        "item:mirror-of-life-trapping": (
+            defs: [
+                1413979277847970401,
+            ],
+        ),
         "item:mirror-steel": (
             defs: [
                 11268786287868151847,
+            ],
+        ),
+        "item:mithral-armor": (
+            defs: [
+                14984250678819693152,
             ],
         ),
         "item:moonpetal": (
@@ -3576,14 +4448,54 @@
                 3581214084190375604,
             ],
         ),
+        "item:necklace-of-adaptation": (
+            defs: [
+                15589134319472700053,
+            ],
+        ),
+        "item:necklace-of-fireballs": (
+            defs: [
+                7602724142183302074,
+            ],
+        ),
+        "item:necklace-of-prayer-beads": (
+            defs: [
+                14841104916607894113,
+            ],
+        ),
         "item:net": (
             defs: [
                 2036023739186202874,
             ],
         ),
+        "item:nine-lives-stealer": (
+            defs: [
+                14827323204513182230,
+            ],
+        ),
+        "item:oathbow": (
+            defs: [
+                15218160914585124159,
+            ],
+        ),
         "item:oil-flask": (
             defs: [
                 8095044574966304281,
+            ],
+        ),
+        "item:oil-of-etherealness": (
+            defs: [
+                12875257368074662158,
+            ],
+        ),
+        "item:oil-of-sharpness": (
+            defs: [
+                3459492908296787040,
+            ],
+        ),
+        "item:oil-of-slipperiness": (
+            defs: [
+                18376629729894779248,
             ],
         ),
         "item:old_boot": (
@@ -3595,6 +4507,11 @@
         "item:orb": (
             defs: [
                 15424947567536921499,
+            ],
+        ),
+        "item:orb-of-dragonkind": (
+            defs: [
+                11574700701492340253,
             ],
         ),
         "item:outfit_bandit": (
@@ -3697,9 +4614,34 @@
                 10772726867451858400,
             ],
         ),
+        "item:pearl-of-power": (
+            defs: [
+                4883960847681495794,
+            ],
+        ),
         "item:perfume-vial": (
             defs: [
                 1438542042451378345,
+            ],
+        ),
+        "item:periapt-of-health": (
+            defs: [
+                829381240059219842,
+            ],
+        ),
+        "item:periapt-of-proof-against-poison": (
+            defs: [
+                1496358206486001599,
+            ],
+        ),
+        "item:periapt-of-wound-closure": (
+            defs: [
+                5807426980346795682,
+            ],
+        ),
+        "item:philter-of-love": (
+            defs: [
+                3493462488965234926,
             ],
         ),
         "item:pickaxe": (
@@ -3717,6 +4659,16 @@
                 5775525891665720343,
             ],
         ),
+        "item:pipes-of-haunting": (
+            defs: [
+                7518656856506991689,
+            ],
+        ),
+        "item:pipes-of-the-sewers": (
+            defs: [
+                5187457996501334751,
+            ],
+        ),
         "item:piton": (
             defs: [
                 7141206732697423041,
@@ -3731,6 +4683,11 @@
         "item:plate-armor": (
             defs: [
                 15947646604268856553,
+            ],
+        ),
+        "item:plate-armor-of-etherealness": (
+            defs: [
+                4636550223920988302,
             ],
         ),
         "item:platinum-piece": (
@@ -3763,6 +4720,11 @@
                 17971092840330309605,
             ],
         ),
+        "item:portable-hole": (
+            defs: [
+                1817650411255154210,
+            ],
+        ),
         "item:pot-iron": (
             defs: [
                 16186654778527503868,
@@ -3771,9 +4733,165 @@
         "item:potion": (
             defs: [
                 4114028278013783156,
+                5471197807860670736,
                 11236604684533587203,
                 11640548938365457763,
                 16632293681709461172,
+            ],
+        ),
+        "item:potion-of-animal-friendship": (
+            defs: [
+                9471856484203057746,
+            ],
+        ),
+        "item:potion-of-clairvoyance": (
+            defs: [
+                8627088616141049546,
+            ],
+        ),
+        "item:potion-of-climbing": (
+            defs: [
+                338984486577539089,
+            ],
+        ),
+        "item:potion-of-diminution": (
+            defs: [
+                4930487907755980964,
+            ],
+        ),
+        "item:potion-of-flying": (
+            defs: [
+                7265175670011555028,
+            ],
+        ),
+        "item:potion-of-gaseous-form": (
+            defs: [
+                15901472593549131718,
+            ],
+        ),
+        "item:potion-of-giant-strength-cloud": (
+            defs: [
+                10984613205448604490,
+            ],
+        ),
+        "item:potion-of-giant-strength-fire": (
+            defs: [
+                3583681670121316406,
+            ],
+        ),
+        "item:potion-of-giant-strength-frost": (
+            defs: [
+                17198017061669213854,
+            ],
+        ),
+        "item:potion-of-giant-strength-stone": (
+            defs: [
+                5239384761629409016,
+            ],
+        ),
+        "item:potion-of-giant-strength-storm": (
+            defs: [
+                12864322453290166371,
+            ],
+        ),
+        "item:potion-of-growth": (
+            defs: [
+                10161753930833034402,
+            ],
+        ),
+        "item:potion-of-healing-greater": (
+            defs: [
+                16848593519662381242,
+            ],
+        ),
+        "item:potion-of-healing-superior": (
+            defs: [
+                3682195089995697413,
+            ],
+        ),
+        "item:potion-of-healing-supreme": (
+            defs: [
+                2309791902351603367,
+            ],
+        ),
+        "item:potion-of-heroism": (
+            defs: [
+                7795752784612945543,
+            ],
+        ),
+        "item:potion-of-invisibility": (
+            defs: [
+                8243250855434032681,
+            ],
+        ),
+        "item:potion-of-mind-reading": (
+            defs: [
+                11645511565724142902,
+            ],
+        ),
+        "item:potion-of-poison": (
+            defs: [
+                15002006268536949027,
+            ],
+        ),
+        "item:potion-of-resistance-acid": (
+            defs: [
+                12483614367049154294,
+            ],
+        ),
+        "item:potion-of-resistance-cold": (
+            defs: [
+                14035027165893404291,
+            ],
+        ),
+        "item:potion-of-resistance-fire": (
+            defs: [
+                15700008655967249389,
+            ],
+        ),
+        "item:potion-of-resistance-force": (
+            defs: [
+                13348108232618082460,
+            ],
+        ),
+        "item:potion-of-resistance-lightning": (
+            defs: [
+                14060098664496912495,
+            ],
+        ),
+        "item:potion-of-resistance-necrotic": (
+            defs: [
+                3116598183319967904,
+            ],
+        ),
+        "item:potion-of-resistance-poison": (
+            defs: [
+                14315745912826796225,
+            ],
+        ),
+        "item:potion-of-resistance-psychic": (
+            defs: [
+                11823322713670717036,
+            ],
+        ),
+        "item:potion-of-resistance-radiant": (
+            defs: [
+                18047335324107640792,
+            ],
+        ),
+        "item:potion-of-resistance-thunder": (
+            defs: [
+                13319007823558265855,
+            ],
+        ),
+        "item:potion-of-speed": (
+            defs: [
+                1895845093255295080,
+            ],
+        ),
+        "item:potion-of-water-breathing": (
+            defs: [
+                11973538003023357348,
             ],
         ),
         "item:potters-tools": (
@@ -3852,9 +4970,209 @@
                 11270726825586995157,
             ],
         ),
+        "item:restorative-ointment": (
+            defs: [
+                13683830394927058047,
+            ],
+        ),
         "item:ring-mail": (
             defs: [
                 8176105162778045374,
+            ],
+        ),
+        "item:ring-of-animal-influence": (
+            defs: [
+                6922841512409616098,
+            ],
+        ),
+        "item:ring-of-djinni-summoning": (
+            defs: [
+                368920713740072752,
+            ],
+        ),
+        "item:ring-of-elemental-command-air": (
+            defs: [
+                1024372295400111342,
+            ],
+        ),
+        "item:ring-of-elemental-command-earth": (
+            defs: [
+                14616342119588600528,
+            ],
+        ),
+        "item:ring-of-elemental-command-fire": (
+            defs: [
+                14080772035302459302,
+            ],
+        ),
+        "item:ring-of-elemental-command-water": (
+            defs: [
+                387083161592259811,
+            ],
+        ),
+        "item:ring-of-evasion": (
+            defs: [
+                11795207019716355305,
+            ],
+        ),
+        "item:ring-of-feather-falling": (
+            defs: [
+                12800660335808446668,
+            ],
+        ),
+        "item:ring-of-free-action": (
+            defs: [
+                17022812778164055975,
+            ],
+        ),
+        "item:ring-of-invisibility": (
+            defs: [
+                14427154190933781677,
+            ],
+        ),
+        "item:ring-of-jumping": (
+            defs: [
+                17307438051338146027,
+            ],
+        ),
+        "item:ring-of-mind-shielding": (
+            defs: [
+                6089184027112674287,
+            ],
+        ),
+        "item:ring-of-protection": (
+            defs: [
+                13480419973534360019,
+            ],
+        ),
+        "item:ring-of-regeneration": (
+            defs: [
+                15471050638439677894,
+            ],
+        ),
+        "item:ring-of-resistance-acid": (
+            defs: [
+                15316678456909472862,
+            ],
+        ),
+        "item:ring-of-resistance-cold": (
+            defs: [
+                13472598725412983477,
+            ],
+        ),
+        "item:ring-of-resistance-fire": (
+            defs: [
+                13845168594519169784,
+            ],
+        ),
+        "item:ring-of-resistance-force": (
+            defs: [
+                683912579897574262,
+            ],
+        ),
+        "item:ring-of-resistance-lightning": (
+            defs: [
+                6664530827431577869,
+            ],
+        ),
+        "item:ring-of-resistance-necrotic": (
+            defs: [
+                9006181413314449571,
+            ],
+        ),
+        "item:ring-of-resistance-poison": (
+            defs: [
+                16715103711721743166,
+            ],
+        ),
+        "item:ring-of-resistance-psychic": (
+            defs: [
+                1036363777593443182,
+            ],
+        ),
+        "item:ring-of-resistance-radiant": (
+            defs: [
+                14029086299391972618,
+            ],
+        ),
+        "item:ring-of-resistance-thunder": (
+            defs: [
+                10488119922984445000,
+            ],
+        ),
+        "item:ring-of-shooting-stars": (
+            defs: [
+                16493140934077923735,
+            ],
+        ),
+        "item:ring-of-spell-storing": (
+            defs: [
+                5885369047946965355,
+            ],
+        ),
+        "item:ring-of-spell-turning": (
+            defs: [
+                9815097554167939893,
+            ],
+        ),
+        "item:ring-of-swimming": (
+            defs: [
+                4431379745558272588,
+            ],
+        ),
+        "item:ring-of-telekinesis": (
+            defs: [
+                6149228735957569846,
+            ],
+        ),
+        "item:ring-of-the-ram": (
+            defs: [
+                16849791045165687360,
+            ],
+        ),
+        "item:ring-of-three-wishes": (
+            defs: [
+                13951790962736089588,
+            ],
+        ),
+        "item:ring-of-warmth": (
+            defs: [
+                14161549673650268742,
+            ],
+        ),
+        "item:ring-of-water-walking": (
+            defs: [
+                13955491202845407207,
+            ],
+        ),
+        "item:ring-of-x-ray-vision": (
+            defs: [
+                17155014734109860079,
+            ],
+        ),
+        "item:robe-of-eyes": (
+            defs: [
+                10490820700448779983,
+            ],
+        ),
+        "item:robe-of-scintillating-colors": (
+            defs: [
+                2960815586311874135,
+            ],
+        ),
+        "item:robe-of-stars": (
+            defs: [
+                14345004740516286247,
+            ],
+        ),
+        "item:robe-of-the-archmagi": (
+            defs: [
+                4533923407942114737,
+            ],
+        ),
+        "item:robe-of-useful-items": (
+            defs: [
+                8325841025720570297,
             ],
         ),
         "item:robes": (
@@ -3867,6 +5185,31 @@
                 16369242451278420700,
             ],
         ),
+        "item:rod-of-absorption": (
+            defs: [
+                8049233874490702113,
+            ],
+        ),
+        "item:rod-of-alertness": (
+            defs: [
+                6634781568582020090,
+            ],
+        ),
+        "item:rod-of-lordly-might": (
+            defs: [
+                9292273815474955545,
+            ],
+        ),
+        "item:rod-of-rulership": (
+            defs: [
+                17302563832182973961,
+            ],
+        ),
+        "item:rod-of-security": (
+            defs: [
+                14310075659843824415,
+            ],
+        ),
         "item:room_key": (
             defs: [
                 13512107994534551019,
@@ -3875,6 +5218,16 @@
         "item:rope-hempen-50-feet": (
             defs: [
                 7479932882056364695,
+            ],
+        ),
+        "item:rope-of-climbing": (
+            defs: [
+                8437212965477619901,
+            ],
+        ),
+        "item:rope-of-entanglement": (
+            defs: [
+                12813536088843107430,
             ],
         ),
         "item:rope-silk-50-feet": (
@@ -3937,6 +5290,11 @@
                 13460720740168407504,
             ],
         ),
+        "item:scarab-of-protection": (
+            defs: [
+                14915055124446975542,
+            ],
+        ),
         "item:scholars-pack": (
             defs: [
                 8918376927251019593,
@@ -3945,6 +5303,11 @@
         "item:scimitar": (
             defs: [
                 15831640120075123188,
+            ],
+        ),
+        "item:scimitar-of-speed": (
+            defs: [
+                16950062913219028297,
             ],
         ),
         "item:scroll_heal": (
@@ -3967,6 +5330,21 @@
         "item:shawm": (
             defs: [
                 4354160312322738620,
+            ],
+        ),
+        "item:shield-of-missile-attraction": (
+            defs: [
+                972744640345057502,
+            ],
+        ),
+        "item:shield-plus-1": (
+            defs: [
+                15842431869213615088,
+            ],
+        ),
+        "item:shortbow-plus-1": (
+            defs: [
+                4063959613540833600,
             ],
         ),
         "item:shovel": (
@@ -4021,6 +5399,11 @@
                 12847202853277377002,
             ],
         ),
+        "item:slippers-of-spider-climbing": (
+            defs: [
+                12515924492245849,
+            ],
+        ),
         "item:small-knife": (
             defs: [
                 17394780121115012184,
@@ -4047,6 +5430,11 @@
                 17031966210168109850,
             ],
         ),
+        "item:sovereign-glue": (
+            defs: [
+                7744307750710802059,
+            ],
+        ),
         "item:spear": (
             defs: [
                 552577084493774782,
@@ -4071,6 +5459,16 @@
             defs: [
                 14195622903084819531,
                 17160313020429730548,
+            ],
+        ),
+        "item:spellguard-shield": (
+            defs: [
+                14212675995277524380,
+            ],
+        ),
+        "item:sphere-of-annihilation": (
+            defs: [
+                17432235121258841649,
             ],
         ),
         "item:spike-iron": (
@@ -4103,6 +5501,76 @@
                 13041470785358346557,
             ],
         ),
+        "item:staff-of-charming": (
+            defs: [
+                16227370025253988777,
+            ],
+        ),
+        "item:staff-of-fire": (
+            defs: [
+                17121363022815037318,
+            ],
+        ),
+        "item:staff-of-frost": (
+            defs: [
+                5984014426333369840,
+            ],
+        ),
+        "item:staff-of-healing": (
+            defs: [
+                11494335979547389230,
+            ],
+        ),
+        "item:staff-of-power": (
+            defs: [
+                3450241962542211637,
+            ],
+        ),
+        "item:staff-of-striking": (
+            defs: [
+                3763022272859990084,
+            ],
+        ),
+        "item:staff-of-swarming-insects": (
+            defs: [
+                18288024253939063351,
+            ],
+        ),
+        "item:staff-of-the-magi": (
+            defs: [
+                13730500688405481164,
+            ],
+        ),
+        "item:staff-of-the-python": (
+            defs: [
+                1228486564568473466,
+            ],
+        ),
+        "item:staff-of-the-woodlands": (
+            defs: [
+                9742256151288126771,
+            ],
+        ),
+        "item:staff-of-thunder-and-lightning": (
+            defs: [
+                7495450894346211077,
+            ],
+        ),
+        "item:staff-of-withering": (
+            defs: [
+                10428750991807969360,
+            ],
+        ),
+        "item:stone-of-controlling-earth-elementals": (
+            defs: [
+                5650499681087714373,
+            ],
+        ),
+        "item:stone-of-good-luck-luckstone": (
+            defs: [
+                5744210222411600500,
+            ],
+        ),
         "item:stone_house_key": (
             defs: [
                 7698138285450433333,
@@ -4116,6 +5584,11 @@
         "item:studded-leather-armor": (
             defs: [
                 8396060068764340836,
+            ],
+        ),
+        "item:sun-blade": (
+            defs: [
+                223778918348912376,
             ],
         ),
         "item:swiftness": (
@@ -4136,6 +5609,36 @@
                 17540418605645396096,
             ],
         ),
+        "item:sword-of-life-stealing": (
+            defs: [
+                7294062341921849601,
+            ],
+        ),
+        "item:sword-of-sharpness": (
+            defs: [
+                8342636969943787847,
+            ],
+        ),
+        "item:sword-of-wounding": (
+            defs: [
+                2859942419053613244,
+            ],
+        ),
+        "item:talisman-of-pure-good": (
+            defs: [
+                1166982999954656976,
+            ],
+        ),
+        "item:talisman-of-the-sphere": (
+            defs: [
+                7537512679006591570,
+            ],
+        ),
+        "item:talisman-of-ultimate-evil": (
+            defs: [
+                2605112970627860610,
+            ],
+        ),
         "item:tent-two-person": (
             defs: [
                 7402420965550871659,
@@ -4154,6 +5657,21 @@
         "item:tinkers-tools": (
             defs: [
                 5296501024977485271,
+            ],
+        ),
+        "item:tome-of-clear-thought": (
+            defs: [
+                6919632553105739871,
+            ],
+        ),
+        "item:tome-of-leadership-and-influence": (
+            defs: [
+                5257172418406347231,
+            ],
+        ),
+        "item:tome-of-understanding": (
+            defs: [
+                12327708174472312511,
             ],
         ),
         "item:tome_fire": (
@@ -4194,6 +5712,11 @@
                 15847954073258472016,
             ],
         ),
+        "item:trident-of-fish-command": (
+            defs: [
+                4889234124089409963,
+            ],
+        ),
         "item:trout": (
             defs: [
                 5800318149947768286,
@@ -4216,6 +5739,11 @@
                 14488492670864628860,
             ],
         ),
+        "item:universal-solvent": (
+            defs: [
+                8488158278826550229,
+            ],
+        ),
         "item:vestments": (
             defs: [
                 17619655802076137897,
@@ -4224,6 +5752,11 @@
         "item:vial": (
             defs: [
                 11225541903652070570,
+            ],
+        ),
+        "item:vicious-weapon": (
+            defs: [
+                5222322256882667219,
             ],
         ),
         "item:villager_clothes": (
@@ -4241,6 +5774,11 @@
                 7137066797783009824,
             ],
         ),
+        "item:vorpal-sword": (
+            defs: [
+                544456998655160846,
+            ],
+        ),
         "item:wagon": (
             defs: [
                 17082617352391675100,
@@ -4249,6 +5787,81 @@
         "item:wand": (
             defs: [
                 5768858699093832724,
+            ],
+        ),
+        "item:wand-of-binding": (
+            defs: [
+                9547539571998934798,
+            ],
+        ),
+        "item:wand-of-enemy-detection": (
+            defs: [
+                10279557730795618515,
+            ],
+        ),
+        "item:wand-of-fear": (
+            defs: [
+                5940830498873833369,
+            ],
+        ),
+        "item:wand-of-fireballs": (
+            defs: [
+                10362865585621401117,
+            ],
+        ),
+        "item:wand-of-lightning-bolts": (
+            defs: [
+                15939584779216601532,
+            ],
+        ),
+        "item:wand-of-magic-detection": (
+            defs: [
+                157114547250767598,
+            ],
+        ),
+        "item:wand-of-magic-missiles": (
+            defs: [
+                3684199258265195589,
+            ],
+        ),
+        "item:wand-of-paralysis": (
+            defs: [
+                11338871763052878548,
+            ],
+        ),
+        "item:wand-of-polymorph": (
+            defs: [
+                13641478112346818850,
+            ],
+        ),
+        "item:wand-of-secrets": (
+            defs: [
+                11943663896214115942,
+            ],
+        ),
+        "item:wand-of-the-war-mage-1": (
+            defs: [
+                657756705306695592,
+            ],
+        ),
+        "item:wand-of-the-war-mage-2": (
+            defs: [
+                11753749776684986921,
+            ],
+        ),
+        "item:wand-of-the-war-mage-3": (
+            defs: [
+                9325425229537981668,
+            ],
+        ),
+        "item:wand-of-web": (
+            defs: [
+                14083321876530613139,
+            ],
+        ),
+        "item:wand-of-wonder": (
+            defs: [
+                16311990960858554502,
             ],
         ),
         "item:war-pick": (
@@ -4281,6 +5894,11 @@
                 3232823059836736,
             ],
         ),
+        "item:well-of-many-worlds": (
+            defs: [
+                9880773831418395266,
+            ],
+        ),
         "item:wheat": (
             defs: [
                 1110191518006933515,
@@ -4301,6 +5919,21 @@
         "item:whip": (
             defs: [
                 15630798210558528691,
+            ],
+        ),
+        "item:wind-fan": (
+            defs: [
+                4097153277138614969,
+            ],
+        ),
+        "item:winged-boots": (
+            defs: [
+                7692645439894879296,
+            ],
+        ),
+        "item:wings-of-flying": (
+            defs: [
+                4323695603376267075,
             ],
         ),
         "item:wolf_pelt": (
@@ -11945,6 +13578,16 @@
             files: {
                 "sprites/srd_gear.png": [
                     1621955145576652130,
+                ],
+            },
+        ),
+        "sheet:srd_magic": (
+            defs: [
+                12316472217472328075,
+            ],
+            files: {
+                "sprites/srd_magic.png": [
+                    10656166669331291122,
                 ],
             },
         ),

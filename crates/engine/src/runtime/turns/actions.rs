@@ -80,7 +80,9 @@ impl Game {
     pub(super) fn who_check(&mut self, who: Who, what: &str, dc: i32, save: bool) -> Option<RollRecord> {
         // (Aura of Protection: a paladin's CHA on the saves of allies near it.)
         // (Bless / Bane on saves: a die, counted like the aura.)
-        let aura = if save { self.aura_bonus(who) + self.buff_roll(who, false) } else { 0 };
+        // (A party member's magic items on saves: the hero's are in its training.)
+        let items = if save && who != Who::Player { self.bonus_of(who, crate::classes::BonusTo::Saves) } else { 0 };
+        let aura = if save { self.aura_bonus(who) + self.buff_roll(who, false) + items } else { 0 };
         let rec = self.who_check_once(who, what, dc, save, aura)?;
         // A failed save: Bardic Inspiration's die, Indomitable's second roll.
         if save {
@@ -169,7 +171,7 @@ impl Game {
                 }
             }
             TurnAct::Attack if t.attacks_left > 0 && t.attacked => Ok(()),
-            TurnAct::Cast if self.cast_options(c.current().who).is_empty() => Err("No spells"),
+            TurnAct::Cast if self.cast_options(c.current().who).is_empty() && self.item_casts(c.current().who).iter().all(|x| x.1.is_some()) => Err("No spells"),
             TurnAct::Class if self.class_acts(c.current().who).is_empty() => Err("No class actions"),
             // (Class actions cost what they cost: some are bonus actions or free.)
             TurnAct::Class => Ok(()),

@@ -375,6 +375,11 @@ pub const API: &[ApiFn] = api! {
     "used_item"() "The item the player used on the trigger's owner (its 'Use item' trigger; \"\" for other events), e.g. for gifts";
     "self_name"() "The name of the placed character or prop whose trigger runs the script (\"\" if it has none)";
     "is_consumable"(item: Item) "Whether an item is used up when used (the game already took one when a 'Use item' trigger reacted to it)";
+    [since "0.31"] "attuned"(item: Item) "Whether the hero is attuned to the magic item";
+    [since "0.31"] "attune"(item: Item) "Attunes the hero to a magic item they carry at once (a story's attunement: no hour passes, anyone may); false when they don't have it, already are, or have three";
+    [since "0.31"] "end_attunement"(item: Item) "Ends the hero's attunement to a magic item; false when they weren't attuned";
+    [since "0.31"] "item_charges"(item: Item) "The charges left on the hero's first stack of a magic item (worn first, then the bag); -1 when they don't have it or it has no charges";
+    [since "0.31"] "set_item_charges"(item: Item, charges: Num) "Sets the charges left on the hero's first stack of a magic item (at most its charges); false when they don't have it or it has no charges";
     "rush_to"(target: Target, to: Target) "A fighting character (Chase behaviour) runs to where another character (or \"player\") is, following it for 15 s, and fights whoever it sees on the way: a chief calling his men (queued)";
     "bark"(target: Target, text: Line) "A short line in a speech bubble over a character's head (\"player\" too) that doesn't stop play; it stays by its length (queued)";
     "bark"(target: Target, text: Line, seconds: Num) "Like bark(), for `seconds` (queued)";
@@ -526,6 +531,11 @@ mod tests {
             ("has_item", 0, IdKind::Item),
             ("item_count", 0, IdKind::Item),
             ("is_consumable", 0, IdKind::Item),
+            ("attuned", 0, IdKind::Item),
+            ("attune", 0, IdKind::Item),
+            ("end_attunement", 0, IdKind::Item),
+            ("item_charges", 0, IdKind::Item),
+            ("set_item_charges", 0, IdKind::Item),
             ("teleport", 0, IdKind::Map),
             ("set_map_weather", 0, IdKind::Map),
             ("teleport", 1, IdKind::Spawn),

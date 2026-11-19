@@ -33,6 +33,10 @@ pub struct Training {
     pub armor_untrained: bool,
     /// Armor with Stealth disadvantage worn.
     pub stealth_disadvantage: bool,
+    /// Skills checked with advantage (Boots of Elvenkind: `stealth`).
+    pub check_advantage: Vec<String>,
+    /// Added to every saving throw (a Ring of Protection's +1).
+    pub save_bonus: i32,
 }
 
 impl Modifiers for Roller<'_> {
@@ -100,7 +104,8 @@ impl Spec {
         } else {
             0
         };
-        r.ability_mod(self.ability) + bonus
+        let items = if self.save { t.map_or(0, |t| t.save_bonus as i64) } else { 0 };
+        r.ability_mod(self.ability) + bonus + items
     }
 
     fn proficient(&self, r: &Roller) -> bool {
@@ -111,6 +116,8 @@ impl Spec {
     pub fn roll(&self, r: &Roller, dc: i32, mode: Mode) -> RollRecord {
         // (Danger Sense: advantage on the save.)
         let mode = if self.save && r.training.is_some_and(|t| t.save_advantage.contains(&self.ability)) { mode.combine(Mode::Advantage) } else { mode };
+        // (Boots of Elvenkind: advantage on Stealth.)
+        let mode = if !self.save && !self.proficiency.is_empty() && r.training.is_some_and(|t| t.check_advantage.contains(&self.proficiency)) { mode.combine(Mode::Advantage) } else { mode };
         let mut d = D20::roll(mode);
         // Reliable Talent: a proficient check's d20 is at least 10.
         if !self.save && self.proficient(r) && r.training.is_some_and(|t| t.reliable) && d.kept < 10 {
@@ -219,6 +226,20 @@ mod tests {
         assert_eq!(Spec::parse("str", false).unwrap().modifier(&lvl1), -1);
         assert_eq!(Spec::parse("con", true).unwrap().modifier(&lvl1), 1 + 2);
         assert_eq!(Spec::parse("dex", true).unwrap().modifier(&lvl1), 2);
+    }
+
+    #[test]
+    fn magic_items_add_to_saves_and_give_advantage_on_checks() {
+        let (a, p) = hero();
+        let t = Training { save_bonus: 1, check_advantage: vec!["stealth".into()], ..Default::default() };
+        let r = Roller { abilities: &a, proficiencies: &p, level: 1, training: Some(&t) };
+        // (A Ring of Protection: +1 to every save, not to checks.)
+        assert_eq!(Spec::parse("con", true).unwrap().modifier(&r), 1 + 2 + 1);
+        assert_eq!(Spec::parse("dex", true).unwrap().modifier(&r), 2 + 1);
+        assert_eq!(Spec::parse("persuasion", false).unwrap().modifier(&r), 2 + 2);
+        // (Boots of Elvenkind: Stealth with advantage.)
+        assert_eq!(Spec::parse("stealth", false).unwrap().roll(&r, 10, Mode::Normal).mode, Mode::Advantage);
+        assert_eq!(Spec::parse("athletics", false).unwrap().roll(&r, 10, Mode::Normal).mode, Mode::Normal);
     }
 
     #[test]

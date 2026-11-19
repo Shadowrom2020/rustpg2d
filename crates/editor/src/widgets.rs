@@ -1162,6 +1162,10 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     });
                     ui.add(egui::DragValue::new(level).range(1..=20));
                 }
+                Cond::Attuned { item } => {
+                    ui.label("the hero is attuned to");
+                    suggest(ui, &id, item, &refs.items, 120.0);
+                }
                 Cond::Money { op, cp } => {
                     ui.label("the hero's money");
                     egui::ComboBox::from_id_salt(format!("{id}/moop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {

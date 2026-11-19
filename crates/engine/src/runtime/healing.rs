@@ -66,7 +66,7 @@ impl Game {
             found
         }
         let ev = GameEvent::UseItem { item: item.to_string() };
-        self.project.db.item(item).is_some_and(|d| d.on_use.iter().any(|t| t.on.matches(&ev) && any_heal(&t.actions)))
+        self.item_use_heals(item) || self.project.db.item(item).is_some_and(|d| d.on_use.iter().any(|t| t.on.matches(&ev) && any_heal(&t.actions)))
     }
 
     /// Starts the target choice for a healing item or a Heal spell when there is someone besides
@@ -222,6 +222,17 @@ impl Game {
     fn use_item_on(&mut self, item: &str, i: usize) {
         let uid = self.loaded.entities[i].uid;
         let actions = self.collect(&GameEvent::UseItem { item: item.to_string() }, &Source::Item(item.to_string()));
+        // A magic item's own effect (a potion's healing) on the character.
+        if self.use_magic_item(item, super::turns::Who::Npc(uid)) {
+            for (a, _) in actions {
+                let a = redirect_heals(a);
+                self.runner.push(&[a], &ActionCtx { owner: Some(uid), ..Default::default() });
+            }
+            if self.project.db.item(item).is_some_and(|d| d.consumable) {
+                self.world.take_item(item, 1);
+            }
+            return;
+        }
         if actions.is_empty() {
             self.ui.toast("Nothing happens.".into());
             return;

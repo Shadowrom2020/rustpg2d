@@ -285,6 +285,39 @@ fn a_weapon_gets_srd_properties_and_armor_a_category() {
 }
 
 #[test]
+fn an_item_becomes_a_magic_ring_with_charges() {
+    use rustpg2d_engine::defs::EquipSlot;
+    let root = example_copy("magic_item");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "apple").expect("the example's apple");
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    // A worn item: a ring.
+    h.get_by_label("Worn item").click();
+    step(&mut h);
+    let item = |h: &Harness<'static, Editor>| h.state().project.db.items[k].clone();
+    assert_eq!(item(&h).armor.map(|a| a.slot), Some(EquipSlot::Ring));
+    // Magic: attunement and three charges.
+    h.get_by_label("Magic item").click();
+    step(&mut h);
+    assert!(item(&h).magic.is_some());
+    h.get_by_label("required").click();
+    step(&mut h);
+    beside(&h, "Charges", |n| n.role() == Role::SpinButton).click();
+    step(&mut h);
+    h.get_by(|n| n.is_focused()).type_text("3");
+    step(&mut h);
+    h.press_key(egui::Key::Enter);
+    step(&mut h);
+    let m = item(&h).magic.unwrap();
+    assert_eq!((m.attunement, m.charges), (true, 3));
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.items[k].clone();
+    assert_eq!((saved.armor.map(|a| a.slot), saved.magic.map(|m| (m.attunement, m.charges))), (Some(EquipSlot::Ring), Some((true, 3))));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn an_item_places_furniture() {
     let root = example_copy("furniture");
     let db = Project::load(&root).unwrap().db;

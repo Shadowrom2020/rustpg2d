@@ -544,9 +544,10 @@ impl ScrollList {
 
 /// The details panel of an inventory-like window: the focused stack's name with its count, its
 /// stats in gold, two lines of description, and the help line (smaller when it doesn't fit).
-pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, stack: Option<&crate::inventory::ItemStack>, hint: &str) {
+pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, stack: Option<&crate::inventory::ItemStack>, hint: &str, attuned: &[String]) {
     panel(d.x, d.y, d.w, d.h);
     if let Some(s) = stack {
+        let spent = s.spent;
         let def = db.item(&s.item);
         let name = def.map_or(s.item.as_str(), |d| d.name.as_str());
         let title = if s.count > 1 { format!("{name}  x{}", s.count) } else { name.to_string() };
@@ -555,7 +556,12 @@ pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, st
         draw_text(&title, d.x + pad, d.y + 24.0 * s, big, super::skin::normal());
         if let Some(def) = def {
             let tw = measure_text(&title, None, big as u16, 1.0).width;
-            if let Some(line) = item_stats_line(def) {
+            let magic = magic_line(def, spent, attuned);
+            let line = match (item_stats_line(def), magic) {
+                (Some(a), Some(b)) => Some(format!("{a} · {b}")),
+                (a, b) => a.or(b),
+            };
+            if let Some(line) = line {
                 draw_text(&line, d.x + pad + tw + 16.0, d.y + 23.0 * s, small, super::skin::highlight());
             }
             let desc = if contrast() { WHITE } else { super::skin::dim() };
@@ -566,6 +572,24 @@ pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, st
     }
     // (The largest size up to 16 that fits; too long even at 70 %: two lines.)
     super::glyphs::draw_hint_in(hint, d.x + pad, d.y + d.h - 8.0, 16.0, d.w - 2.0 * pad, super::skin::disabled());
+}
+
+/// A magic item's part of the numbers: its +N, rarity, attunement and charges left
+/// ("+1 · Rare · Attuned · 5/7 charges").
+pub(super) fn magic_line(d: &crate::defs::ItemDef, spent: u32, attuned: &[String]) -> Option<String> {
+    let m = d.magic.as_ref()?;
+    let mut v = Vec::new();
+    if m.bonus != 0 {
+        v.push(format!("{:+}", m.bonus));
+    }
+    v.push(crate::lang::tr_ui(m.rarity.label()).into_owned());
+    if m.attunement {
+        v.push(crate::lang::tr_ui(if attuned.contains(&d.id) { "Attuned" } else { "Requires attunement" }).into_owned());
+    }
+    if m.charges > 0 {
+        v.push(format!("{}/{} {}", m.charges.saturating_sub(spent), m.charges, crate::lang::tr_ui("charges")));
+    }
+    Some(v.join(" · "))
 }
 
 /// One line of an item's numbers: tool kind, weapon damage / cooldown / reach, armor slot /

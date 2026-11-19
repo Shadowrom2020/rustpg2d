@@ -129,14 +129,20 @@ Monsters](06-characters.md#monsters)) and the 237 items of the equipment list wi
 properties, dice and ranges, armor with its armor class, tools, gear, packs that unpack their
 contents, mounts and vehicles as plain items; generic icons by kind on the `srd_gear` sheet; library
 items that stand for an SRD item, such as the iron sword for the longsword or the chainmail for
-chain mail, take its numbers and keep their name and look, and the coin becomes the gold piece) come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the data of
+chain mail, take its numbers and keep their name and look, and the coin becomes the gold piece), and the
+magic items ([Gameplay › Magic items](09-gameplay.md#magic-items): rarity, attunement, charges and their
+recharge from the SRD's text, a table in the import for the rules of about half of them, the others story
+items; magic weapons and armor are a copy of the library's item for their base, with its look, others get
+generic icons by kind on the `srd_magic` sheet; the SRD's generic +1 / +2 / +3 entries are the *Bonus* of any
+item, and six ready-made ones come with it: +1 Longsword, Dagger, Shortbow, Arrows, Chain Mail and Shield;
+spell scrolls are items that *teach* a spell; the library's potion and Elixir of Strength became the Potion of Healing and the Potion of Hill Giant Strength, keeping their ids, look and price) come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the data of
 [5e-bits/5e-database](https://github.com/5e-bits/5e-database), pinned to a commit. The import is a
 tool of the repository; running it again updates what it wrote and keeps what the library added
 (models, factions, sizes, colours; a character that already has a monster's id keeps its look,
 behaviour, triggers and loot and takes the SRD's stat block, and a character with a monster's stat
 block keeps its numbers and gains the SRD's size, type, speeds, senses and texts). Run from the
 repository, it also gives the example's characters, classes and equipment the same data (the
-example gets the items its classes start with and the coins) and writes the SRD's 35 NPC stat
+example gets the items its classes start with, the coins and the magic items it shows) and writes the SRD's 35 NPC stat
 blocks (commoner, guard, bandit, veteran…) into the engine (`crates/engine/src/srd/npcs.ron`): the
 templates of the [stat blocks](06-characters.md#stat-blocks), and the SRD's own words for
 conditions, damage types, languages, alignments, abilities and skills (`rules.ron`: the editor's

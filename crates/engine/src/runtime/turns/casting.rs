@@ -417,6 +417,9 @@ impl Game {
             CastAt::On(self.who_at(cursor).ok_or("No one there")?)
         };
         let scroll = self.fight.as_ref().and_then(|c| c.scroll.clone()).filter(|s| s == id);
+        if let Some(r) = self.cast_item_spell(id, at) {
+            return r;
+        }
         self.cast_spell_in_fight(id, slot, at, scroll.is_some())?;
         if scroll.is_some() {
             if let Some(item) = self.project.db.items.iter().find(|i| i.teaches == id && self.world.item_count(&i.id) > 0).map(|i| i.id.clone()) {
@@ -428,6 +431,23 @@ impl Game {
         }
         let _ = me;
         Ok(())
+    }
+
+    /// A spell from an item picked in the Cast window (`Combat::item_cast`, when it is `id`): no
+    /// slot (the action), the item's DC while it resolves, then its charges. None = not one.
+    pub(super) fn cast_item_spell(&mut self, id: &str, at: CastAt) -> Option<Result<(), &'static str>> {
+        let cast = self.fight.as_ref().and_then(|c| c.item_cast.clone()).filter(|c| c.spell.spell == id)?;
+        let me = self.fight.as_ref()?.current().who;
+        self.casting_item = Some(cast.clone());
+        let r = self.cast_spell_in_fight(id, cast.slot, at, true);
+        self.casting_item = None;
+        if let Err(e) = r {
+            return Some(Err(e));
+        }
+        if let Some(c) = &mut self.fight {
+            c.item_cast = None;
+        }
+        Some(if cast.charges > 0 { self.spend_charges(me, &cast.item, cast.charges) } else { Ok(()) })
     }
 
     /// The line above the action bar while a spell is aimed: its name, slot, area, save or

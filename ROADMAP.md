@@ -775,7 +775,7 @@ SRD equipment, magic items and money.
     `money CP` / `pay CP`.
   - **Example:** see the CHANGELOG; a dagger, thieves' tools and a component pouch at Tilda's.
 
-- [ ] Magic items — `feature/srd-magic-items`
+- [x] Magic items — `feature/srd-magic-items`
 
   **Goal.** The SRD magic items.
 
@@ -786,9 +786,46 @@ SRD equipment, magic items and money.
   - **Import:** the SRD magic item list.
   - **Library:** items without art get a generic icon per category until the library has art.
 
-  **Engine.** Attunement and charges on items, the import, the item form.
+  **Engine.** Attunement and charges on items, the import, the item form; seven equipment slots
+  for worn items; four new feature effects.
+
+  **Decided while building.** Your decisions: seven new slots (neck, cloak, belt, feet, hands,
+  two rings; not drawn), every item the rules vocabulary covers works (the rest are story items),
+  a bonus field with six ready-made +1 items instead of the SRD's generic +N entries, attunement
+  in the character window taking an hour. Passive effects reuse the class features' vocabulary
+  (not the spell parts); using an item (potions) uses spell parts. A standing library item (the
+  Red Potion) keeps its price. Attunement's key is *Take all*'s T (no new binding). Spell scrolls
+  stay items that *teach* a spell.
+
+  **As built.** One pull request.
+  - **Data:** `srd/magic_items.rs` (`MagicItem`: rarity, attunement, `attune_by`, bonus, effects,
+    charges, recharge, `destroy_on_last`, `spells: Vec<ItemSpell>`, `use_parts`, `use_seconds`;
+    the SRD text parsers; `MAX_ATTUNED`), `ItemDef.magic`, `ItemStack.spent` (charges used: kept
+    by inventory moves, chests and dropped piles, `DroppedItem.spent`), `EquipSlot` Neck, Cloak,
+    Belt, Feet, Hands, Ring, Ring2 + `Equipment` fields, `FeatureEffect` Bonus (`BonusTo`),
+    AbilityScore, CheckAdvantage, Darkvision (`ClassTraits::add_effects`, also used by `of`),
+    `Buff::AbilityScore`, `WorldState.attuned` / `ability_base` (items raise `abilities`; writers
+    use `base_abilities_mut`) / `last_dawn`, `Companion.attuned`, `Training` `check_advantage` /
+    `save_bonus`, `Cond::Attuned` (appended).
+  - **Runtime:** `runtime/magic_items.rs` (items in effect, `hero_traits` / `who_traits` with the
+    items' effects, attunement, charges, dawn, use parts as a transient spell, spells from items:
+    `item_casts`, the Cast window's rows, `Combat.item_cast`, `Game.casting_item` for an item's
+    DC); bonuses in `weapon_spec`, `armor_class`, `member_block`, saves, spell DC / attack; the
+    character window's worn row, details line (`magic_line`) and T key; the companion window's
+    second column.
+  - **Import:** `import_magic_items` (`magic_rules` = the hand table, 112 items with rules; 209
+    story items; `MAGIC_STANDS_FOR`, `PLUS_ONE`, `EXAMPLE_MAGIC`), icons `srd_magic.png` (17
+    frames, drawn by a script).
+  - **Not built** (moved to the *Backlog*: *Magic items, the rest*).
 
   **Verify.** Autoplay: attune, use charges, recharge at dawn; a +1 weapon's maths in a fight.
+  Checked on a scratch copy: three attunements (an hour each), the fourth refused; AC and saves
+  with a Ring and a Cloak of Protection; CON 19 and max HP with an Amulet of Health; a Belt of
+  Giant Strength only while attuned; potions of giant strength (STR 21 for an hour) and of
+  healing; the +1 Longsword's +5 / 1d10+3; the wand's Magic Missile at slot 2 from the Cast
+  window (7 to 5 charges); dawn recharging 1d6+1; screenshots of the character window, the
+  Sheet, the Cast window and a companion's window; the editor's Magic item section (a screenshot
+  and a UI test: a worn ring with attunement and charges, saved).
 
 ## 0.32.0 — SRD missing features
 
@@ -1324,6 +1361,15 @@ The promise creators need for a commercial release: what works with 1.0 keeps wo
 
 ## Backlog (unscheduled ideas)
 
+- **Magic items, the rest** (left out of 0.31's magic items, for later consideration):
+  - charges spent on a hit for more damage (a Staff of Striking's 1d6 force per charge);
+  - items' reactions with charges (a Ring of Evasion: a failed DEX save succeeds, 3 charges; it gives
+    plain Evasion now);
+  - more damage against creature types (Dragon Slayer, Giant Slayer, Mace of Disruption, Holy
+    Avenger: only their +N now; needs riders that check the target's type);
+  - the fight AI casting from wands and staffs and drinking potions other than healing;
+  - the story items' effects as engine features where several items share one (flying, invisibility
+    at will, teleporting, summoning).
 - **Right-to-left text** (Arabic, Hebrew): shaping and bidirectional runs in `runtime/text.rs`,
   after 0.24's fonts.
 - **iOS export:** needs a Mac and an Apple developer account; after Android (0.33).

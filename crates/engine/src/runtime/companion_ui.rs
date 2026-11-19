@@ -22,9 +22,27 @@ use super::text::{draw_text, measure_text};
 pub(super) const BAG_SLOTS: usize = 12;
 const BAG_COLS: usize = 4;
 const PLAYER_COLS: usize = 6;
-const GEAR: [EquipSlot; 6] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool];
-const SHEET_W: f32 = 250.0;
-const HINT: &str = "Click: give / take (right-click: one) · Drag onto a gear slot (or {key:confirm} on a bag item): equip · {key:next_tab}: next panel · {key:cancel}: close";
+/// The gear slots: what it wears and holds (first column), then the worn magic items' slots
+/// (second column).
+const GEAR: [EquipSlot; 13] = [
+    EquipSlot::Clothing,
+    EquipSlot::Head,
+    EquipSlot::Body,
+    EquipSlot::Weapon,
+    EquipSlot::Offhand,
+    EquipSlot::Tool,
+    EquipSlot::Neck,
+    EquipSlot::Cloak,
+    EquipSlot::Belt,
+    EquipSlot::Feet,
+    EquipSlot::Hands,
+    EquipSlot::Ring,
+    EquipSlot::Ring2,
+];
+/// How many gear slots are in the first column.
+const GEAR_COL: usize = 6;
+const SHEET_W: f32 = 380.0;
+const HINT: &str = "Click: give / take (right-click: one) · Drag onto a gear slot (or {key:confirm} on a bag item): equip · {key:take_all}: attune · {key:next_tab}: next panel · {key:cancel}: close";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Pane {
@@ -271,11 +289,12 @@ impl Game {
         let bag_n = self.comp_win.as_ref().map_or(BAG_SLOTS, |w| w.bag.capacity());
         let (_, bag_size) = slot_grid(Vec2::ZERO, bag_n, BAG_COLS);
         let (_, player_size) = slot_grid(Vec2::ZERO, cap, PLAYER_COLS);
-        let h = (40.0 + GEAR.len() as f32 * 50.0 + 120.0).max(bag_size.y).max(player_size.y);
+        let rows = GEAR_COL.max(GEAR.len() - GEAR_COL);
+        let h = (40.0 + rows as f32 * 50.0 + 120.0).max(bag_size.y).max(player_size.y);
         let total = SHEET_W + 16.0 + bag_size.x + 16.0 + player_size.x;
         let x0 = ((sw - total) / 2.0).round();
         let top = ((sh - h - super::ui::detail_h() - 6.0) / 2.0).max(10.0).round();
-        let gear = (0..GEAR.len()).map(|k| Rect::new(x0 + 124.0, top + 50.0 + k as f32 * 50.0, SLOT, SLOT)).collect();
+        let gear = (0..GEAR.len()).map(|k| if k < GEAR_COL { Rect::new(x0 + 124.0, top + 50.0 + k as f32 * 50.0, SLOT, SLOT) } else { Rect::new(x0 + 250.0, top + 50.0 + (k - GEAR_COL) as f32 * 50.0, SLOT, SLOT) }).collect();
         let bx = x0 + SHEET_W + 16.0;
         let (bag, _) = slot_grid(vec2(bx, top), bag_n, BAG_COLS);
         let px = bx + bag_size.x + 16.0;
@@ -350,6 +369,13 @@ impl Game {
         k = j.clamp(0, (n - 1).max(0)) as usize;
         if let Some(w) = self.comp_win.as_mut() {
             w.sel = (pane, k);
+        }
+        if input::act_pressed(Act::TakeAll) && pane == Pane::Gear {
+            // T on a worn magic item: the companion attunes to it / ends it.
+            if let (Some(st), Some(i)) = (self.pane_stack(pane, k), self.comp_index()) {
+                let uid = self.loaded.entities[i].uid;
+                self.toggle_member_attunement(uid, &st.item);
+            }
         }
         if input::act_pressed(Act::Confirm) {
             // Enter on a bag item that can be worn equips it; else it moves over.
@@ -447,6 +473,9 @@ impl Game {
                 Some(d) => {
                     let tint = if dragging == Some(key) { Color::new(1.0, 1.0, 1.0, 0.3) } else { WHITE };
                     self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 32.0, 32.0), tint);
+                    if self.attuned_of(super::turns::Who::Npc(e.uid)).contains(&d.id) {
+                        draw_circle(r.x + r.w - 6.0, r.y + 6.0, 3.5, skin::highlight());
+                    }
                     for (n, line) in wrap_text(&d.name, 14, 70.0).iter().take(2).enumerate() {
                         draw_text(line, r.x + r.w + 6.0, r.y + 33.0 + n as f32 * 12.0, 14.0, skin::normal());
                     }
@@ -467,7 +496,7 @@ impl Game {
             let spells: Vec<String> = self.npc_spell_list(i).iter().map(|s| self.project.db.spell(s).map_or(s.clone(), |d| d.name.clone())).collect();
             stats.push(if spells.is_empty() { "Spells  none (give it a scroll)".to_string() } else { format!("Spells  {}", spells.join(", ")) });
         }
-        let sy = l.gear.last().map_or(pr.bottom(), |r| r.bottom()) + 24.0;
+        let sy = l.gear.iter().map(|r| r.bottom()).fold(pr.bottom(), f32::max) + 24.0;
         for (n, t) in stats.iter().enumerate() {
             draw_text(t, l.panels[0].x + PAD, sy + n as f32 * 20.0, 18.0, skin::normal());
         }
@@ -495,7 +524,7 @@ impl Game {
         // Details of the hovered / selected stack (count and stats like the inventory's) and the help line.
         let focus = hover.unwrap_or(w.sel);
         let stack = self.pane_stack(focus.0, focus.1);
-        super::ui::draw_item_detail(&self.project.db, l.detail, PAD, stack.as_ref(), HINT);
+        super::ui::draw_item_detail(&self.project.db, l.detail, PAD, stack.as_ref(), HINT, &self.world.attuned);
         if let Some((p, s)) = dragging {
             if let Some(def) = self.pane_stack(p, s).and_then(|s| self.project.db.item(&s.item)) {
                 self.assets.draw_frame_in(&def.icon.sheet, def.icon.frame, Rect::new(m.x - 16.0, m.y - 16.0, 32.0, 32.0), WHITE);

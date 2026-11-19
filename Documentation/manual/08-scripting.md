@@ -382,6 +382,28 @@ fn buy_map() {
 }
 ```
 
+#### Magic items
+
+Magic items (since 0.31; see *Magic items* in [Gameplay](09-gameplay.md)) work by their
+definition. These functions let a story attune the hero or play with an item's charges.
+
+| Function | Description |
+|---|---|
+| `attuned(item)` | Whether the hero is attuned to the magic item. *(since 0.31)* |
+| `attune(item)` | Attunes the hero to a magic item they carry at once: a story's attunement, with no hour passing and no class asked. `false` when they don't have it, already are attuned, or have three items. *(since 0.31)* |
+| `end_attunement(item)` | Ends the hero's attunement to a magic item; `false` when they weren't attuned. *(since 0.31)* |
+| `item_charges(item)` | The charges left on the hero's first stack of a magic item (worn first, then the bag); `-1` when they don't have it or it has no charges. *(since 0.31)* |
+| `set_item_charges(item, charges)` | Sets the charges left on the hero's first stack of a magic item (at most its charges); `false` when they don't have it or it has no charges. *(since 0.31)* |
+
+```rust
+fn shrine_blessing() {
+    if item_charges("wand_of_magic_missiles") == 0 {
+        set_item_charges("wand_of_magic_missiles", 7);
+        say("The wand hums with new power.");
+    }
+}
+```
+
 ### Player
 
 | Function | Description |
@@ -531,7 +553,7 @@ triggers.
 | `disable_spawners(map, zone)` | The same for one spawner zone, by its name. *(queued)* |
 | `enable_spawners(map)` | Switches all of a map's spawners on again. *(queued)* |
 | `enable_spawners(map, zone)` | Switches on a spawner zone that was switched off by name. *(queued)* |
-| `defeat_enemies()` | Defeats every hostile character on the current map at once, like in combat: their loot drops and their *Defeated* triggers run (e.g. quest counters). *(queued)* |
+| `defeat_enemies()` | Defeats every hostile character on the current map at once, like in combat: their loot drops and their *Defeated* triggers run (e.g. quest counters); in a fight they leave it, which ends when no foe is left. *(queued)* |
 
 ### Equipment and carried items of characters
 

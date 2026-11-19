@@ -52,13 +52,20 @@ impl Game {
     }
 
     /// The spell save DC: 8 + proficiency + the spellcasting modifier.
+    /// (A spell cast from an item with its own DC: that one.)
     pub(super) fn spell_dc(&self, who: Who) -> i32 {
-        8 + self.spell_prof(who) + self.spell_mod(who)
+        if let Some(dc) = self.item_dc() {
+            return dc as i32;
+        }
+        8 + self.spell_prof(who) + self.spell_mod(who) + self.bonus_of(who, crate::classes::BonusTo::SpellDc)
     }
 
-    /// The spell attack bonus: proficiency + the spellcasting modifier.
+    /// The spell attack bonus: proficiency + the spellcasting modifier (an item's DC - 8).
     pub(super) fn spell_attack_bonus(&self, who: Who) -> i32 {
-        self.spell_prof(who) + self.spell_mod(who)
+        if let Some(dc) = self.item_dc() {
+            return dc as i32 - 8;
+        }
+        self.spell_prof(who) + self.spell_mod(who) + self.bonus_of(who, crate::classes::BonusTo::SpellAttack)
     }
 
     // ------------------------------------------------------------------------ slots
@@ -592,6 +599,7 @@ impl Game {
                         B::Speed { feet } => format!("{} {feet:+} ft", crate::lang::tr_ui("Speed")),
                         B::Haste => crate::lang::tr_ui("Haste").into_owned(),
                         B::Resistance { types } => format!("{} {}", crate::lang::tr_ui("Resistance"), types.join(", ")),
+                        B::AbilityScore { ability, score } => format!("{} {score}", ability.short()),
                     });
                 }
                 P::Light { .. } => out.push(crate::lang::tr_ui("Light").into_owned()),

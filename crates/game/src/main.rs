@@ -280,6 +280,7 @@ async fn main() {
                     "cast" => {
                         game.cast_spell(&id);
                     }
+                    "attune" | "unattune" | "use" | "equip" => say!("[autoplay] {cmd} {id}: {}", game.item_command(&cmd, &id)),
                     _ => {
                         game.learn_spell(&id);
                     }
@@ -611,7 +612,10 @@ impl Autoplay {
                 // seed N: the SRD dice roll the same from here on · cast ID: cast a spell · learn ID: learn a spell
                 // call FN: runs a script function (its queued actions too)
                 // crit always|never|chance: the player's critical hits forced on / off, or by chance
-                "seed" | "cast" | "learn" | "call" | "crit" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),
+                // attune ITEM / unattune ITEM: the hero attunes to a magic item / ends it
+                // use ITEM: uses an item from the bag (a potion, a wand: its spell; equips gear)
+                // equip ITEM: puts an item from the bag on (a ring into a free ring slot)
+                "seed" | "cast" | "learn" | "call" | "crit" | "attune" | "unattune" | "use" | "equip" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),
                 "quit" => return false,
                 // close: as if the window's close button was clicked
                 "close" => {

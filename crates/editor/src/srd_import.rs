@@ -41,6 +41,8 @@ pub struct SrdData {
     spells: Vec<Value>,
     /// The equipment (`5e-SRD-Equipment.json`; empty when a checkout has none).
     equipment: Vec<Value>,
+    /// The magic items (`5e-SRD-Magic-Items.json`; empty when a checkout has none).
+    magic_items: Vec<Value>,
 }
 
 fn list(v: &Value, key: &str) -> Vec<Value> {
@@ -98,6 +100,7 @@ impl SrdData {
             features: read("Features")?,
             spells: read("Spells").unwrap_or_default(),
             equipment: read("Equipment").unwrap_or_default(),
+            magic_items: read("Magic-Items").unwrap_or_default(),
         })
     }
 
@@ -482,7 +485,7 @@ impl SrdData {
         for new in defs {
             let standing: &[&str] = STANDS_FOR.iter().find(|(i, _)| *i == new.srd).map_or(&[], |(_, ids)| *ids);
             let mut found = false;
-            for old in items.iter_mut().filter(|d| d.id == new.id || standing.contains(&d.id.as_str()) || (!new.srd.is_empty() && d.srd == new.srd)) {
+            for old in items.iter_mut().filter(|d| d.id == new.id || standing.contains(&d.id.as_str()) || (!new.srd.is_empty() && d.srd == new.srd && d.magic.is_none())) {
                 found = true;
                 let before = old.clone();
                 merge_item(old, &new);
@@ -642,7 +645,7 @@ impl SrdData {
         let mut add = |index: &str, count: u32, equipment: &mut Vec<rustpg2d_engine::inventory::ItemStack>| match self.item_id(index) {
             Some(item) => match equipment.iter_mut().find(|i: &&mut rustpg2d_engine::inventory::ItemStack| i.item == item) {
                 Some(st) => st.count += count,
-                None => equipment.push(rustpg2d_engine::inventory::ItemStack { item, count }),
+                None => equipment.push(rustpg2d_engine::inventory::ItemStack::new(&item, count)),
             },
             None => unmapped.push(index.to_string()),
         };
@@ -1492,6 +1495,9 @@ pub fn update_monsters_in(checkout: &Path, root: &Path) -> Result<usize> {
     // The equipment its classes start with, the coins, and the SRD's numbers on its weapons and armor.
     let wanted: Vec<String> = p.db.classes.iter().flat_map(|c| c.equipment.iter().map(|i| i.item.clone())).collect();
     data.import_equipment(&mut p.db.items, false, &wanted);
+    // The magic items it shows (and its potion as the Potion of Healing).
+    let wanted: Vec<String> = EXAMPLE_MAGIC.iter().map(|x| x.to_string()).collect();
+    data.import_magic_items(&mut p.db.items, &p.db.spells, false, &wanted);
     write_items(&mut p, root)?;
     Ok(updated)
 }
@@ -1499,8 +1505,14 @@ pub fn update_monsters_in(checkout: &Path, root: &Path) -> Result<usize> {
 /// Writes `defs/items.ron` and, when an item shows a generic equipment icon, adds the
 /// `srd_gear` sheet (its picture `sprites/srd_gear.png` comes with the starter library).
 fn write_items(p: &mut rustpg2d_engine::project::Project, root: &Path) -> Result<()> {
-    if p.db.items.iter().any(|i| i.icon.sheet == gear::SHEET) && !p.db.sheets.iter().any(|s| s.id == gear::SHEET) {
-        p.db.sheets.push(rustpg2d_engine::defs::SheetDef::new(gear::SHEET, "sprites/srd_gear.png", 32, 32));
+    let mut sheets = false;
+    for (sheet, file) in [(gear::SHEET, "sprites/srd_gear.png"), (magic_icon::SHEET, "sprites/srd_magic.png")] {
+        if p.db.items.iter().any(|i| i.icon.sheet == sheet) && !p.db.sheets.iter().any(|s| s.id == sheet) {
+            p.db.sheets.push(rustpg2d_engine::defs::SheetDef::new(sheet, file, 32, 32));
+            sheets = true;
+        }
+    }
+    if sheets {
         std::fs::write(root.join("defs/sheets.ron"), rustpg2d_engine::project::ron_text(&p.db.sheets)?)?;
     }
     std::fs::write(root.join("defs/items.ron"), rustpg2d_engine::project::ron_text(&p.db.items)?)?;
@@ -1516,7 +1528,8 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     let (c_added, c_updated, unmapped) = data.import_classes(&mut p.db.classes);
     let (s_added, s_updated, story) = data.import_spells(&mut p.db.spells);
     let (e_added, e_updated) = data.import_equipment(&mut p.db.items, true, &[]);
-    if e_added + e_updated > 0 {
+    let (mi_added, mi_updated, mi_story) = data.import_magic_items(&mut p.db.items, &p.db.spells, true, &[]);
+    if e_added + e_updated + mi_added + mi_updated > 0 {
         write_items(&mut p, root)?;
     }
     let defs = root.join("defs");
@@ -1530,7 +1543,7 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     }
     std::fs::write(defs.join("classes.ron"), rustpg2d_engine::project::ron_text(&p.db.classes)?)?;
     Ok(format!(
-        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {}); spells: {s_added} added, {s_updated} updated, {} of {} story only; equipment: {e_added} added, {e_updated} updated",
+        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {}); spells: {s_added} added, {s_updated} updated, {} of {} story only; equipment: {e_added} added, {e_updated} updated; magic items: {mi_added} added, {mi_updated} updated, {mi_story} story only",
         root.display(),
         p.db.races.len(),
         p.db.backgrounds.len(),
@@ -1539,6 +1552,460 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
         story.len(),
         data.spells.len()
     ))
+}
+
+/// The frames of the generic magic item icons (`sprites/srd_magic.png`, sheet `srd_magic`).
+mod magic_icon {
+    pub const SHEET: &str = "srd_magic";
+    pub const POTION: u32 = 0;
+    pub const RING: u32 = 1;
+    pub const WAND: u32 = 2;
+    pub const STAFF: u32 = 3;
+    pub const ROD: u32 = 4;
+    pub const SCROLL: u32 = 5;
+    pub const AMULET: u32 = 6;
+    pub const CLOAK: u32 = 7;
+    pub const BELT: u32 = 8;
+    pub const BOOTS: u32 = 9;
+    pub const GLOVES: u32 = 10;
+    pub const BRACERS: u32 = 11;
+    pub const HELM: u32 = 12;
+    pub const WONDROUS: u32 = 13;
+    pub const BAG: u32 = 14;
+    pub const FIGURINE: u32 = 15;
+    pub const STONE: u32 = 16;
+    /// How many frames the sheet has.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub const FRAMES: u32 = 17;
+}
+
+/// The generic +1 items the library gets ready-made (the SRD's +1 / +2 / +3 weapons, armor and
+/// ammunition are a bonus any such item can have): (id, name, the SRD item it is a copy of).
+const PLUS_ONE: [(&str, &str, &str); 6] = [
+    ("longsword-plus-1", "+1 Longsword", "longsword"),
+    ("dagger-plus-1", "+1 Dagger", "dagger"),
+    ("shortbow-plus-1", "+1 Shortbow", "shortbow"),
+    ("arrow-plus-1", "+1 Arrows", "arrow"),
+    ("chain-mail-plus-1", "+1 Chain Mail", "chain-mail"),
+    ("shield-plus-1", "+1 Shield", "shield"),
+];
+
+/// Library items that are an SRD magic item (they keep their id, name, look, triggers and price
+/// and get its rules): (magic item index, library item id).
+const MAGIC_STANDS_FOR: [(&str, &str); 2] = [("potion-of-healing-common", "potion"), ("potion-of-giant-strength-hill", "elixir_strength")];
+
+/// The magic items the example project shows (added to it by the import).
+pub const EXAMPLE_MAGIC: [&str; 3] = ["ring-of-protection", "wand-of-magic-missiles", "longsword-plus-1"];
+
+/// The SRD's generic magic items that are a bonus on any item: not imported (see [`PLUS_ONE`]),
+/// nor the spell scrolls (an item that *teaches* a spell is a scroll of it).
+fn generic_magic(index: &str) -> bool {
+    ["weapon-1", "weapon-2", "weapon-3", "armor-1", "armor-2", "armor-3", "ammunition-1", "ammunition-2", "ammunition-3"].contains(&index) || index.starts_with("spell-scroll")
+}
+
+/// What a magic item does by the rules (the hand-made part of the import): its bonus, passive
+/// effects, spells cast from it, what using it does.
+#[derive(Default)]
+struct MagicRules {
+    bonus: i32,
+    effects: Vec<rustpg2d_engine::classes::FeatureEffect>,
+    /// (spell, charges, slot (0 = its own), up to slot, DC)
+    spells: Vec<(&'static str, u32, u32, u32, u32)>,
+    use_parts: Vec<rustpg2d_engine::skills::SpellPart>,
+    use_seconds: f32,
+    /// A worn item's slot when its name doesn't tell.
+    slot: Option<rustpg2d_engine::defs::EquipSlot>,
+    /// A backpack's extra inventory slots.
+    bag_slots: u32,
+}
+
+/// The rules of SRD magic item `index` (None: a story item, its effect is up to scripts).
+fn magic_rules(index: &str) -> Option<MagicRules> {
+    use rustpg2d_engine::classes::{BonusTo, FeatureEffect as F};
+    use rustpg2d_engine::skills::SpellPart as P;
+    use rustpg2d_engine::srd::conditions::{Buff, Condition};
+    use rustpg2d_engine::srd::Ability as A;
+    let res = |t: &str| F::Resistance { types: vec![t.to_string()] };
+    let score = |a: A, n: i32| F::AbilityScore { ability: a, score: n };
+    let bonus = |to: BonusTo, n: i32| F::Bonus { to, amount: n };
+    let hour = 3600.0;
+    let mut r = MagicRules::default();
+    // The ten damage types of rings, potions and armor of resistance, and the dragons' colours.
+    const TYPES: [&str; 10] = ["acid", "cold", "fire", "force", "lightning", "necrotic", "poison", "psychic", "radiant", "thunder"];
+    const DRAGONS: [(&str, &str); 10] = [("black", "acid"), ("blue", "lightning"), ("brass", "fire"), ("bronze", "lightning"), ("copper", "acid"), ("gold", "fire"), ("green", "poison"), ("red", "fire"), ("silver", "cold"), ("white", "cold")];
+    const GIANTS: [(&str, i32); 6] = [("hill", 21), ("stone", 23), ("frost", 23), ("fire", 25), ("cloud", 27), ("storm", 29)];
+    if let Some(t) = index.strip_prefix("ring-of-resistance-") {
+        r.effects = vec![res(t)];
+        return TYPES.contains(&t).then_some(r);
+    }
+    if let Some(t) = index.strip_prefix("potion-of-resistance-") {
+        r.use_parts = vec![P::Buff { buff: Buff::Resistance { types: vec![t.to_string()] } }];
+        r.use_seconds = hour;
+        return TYPES.contains(&t).then_some(r);
+    }
+    if let Some(c) = index.strip_prefix("dragon-scale-mail-") {
+        let (_, t) = DRAGONS.iter().find(|(d, _)| *d == c)?;
+        (r.bonus, r.effects) = (1, vec![res(t), F::SaveAdvantage { ability: A::Dex }]);
+        return Some(r);
+    }
+    if let Some(g) = index.strip_prefix("belt-of-giant-strength-") {
+        r.effects = vec![score(A::Str, GIANTS.iter().find(|(x, _)| *x == g)?.1)];
+        return Some(r);
+    }
+    if let Some(g) = index.strip_prefix("potion-of-giant-strength-") {
+        r.use_parts = vec![P::Buff { buff: Buff::AbilityScore { ability: A::Str, score: GIANTS.iter().find(|(x, _)| *x == g)?.1 } }];
+        r.use_seconds = hour;
+        return Some(r);
+    }
+    if let Some(n) = index.strip_prefix("wand-of-the-war-mage-") {
+        r.effects = vec![bonus(BonusTo::SpellAttack, n.parse().ok()?)];
+        return Some(r);
+    }
+    match index {
+        // Potions.
+        "potion-of-healing-common" => r.use_parts = vec![P::Heal { by_level: vec![(0, "2d4 + 2".into())] }],
+        "potion-of-healing-greater" => r.use_parts = vec![P::Heal { by_level: vec![(0, "4d4 + 4".into())] }],
+        "potion-of-healing-superior" => r.use_parts = vec![P::Heal { by_level: vec![(0, "8d4 + 8".into())] }],
+        "potion-of-healing-supreme" => r.use_parts = vec![P::Heal { by_level: vec![(0, "10d4 + 20".into())] }],
+        "potion-of-heroism" => {
+            r.use_parts = vec![P::TempHp { by_level: vec![(0, "10".into())] }, P::Buff { buff: Buff::AttackDie { dice: "1d4".into(), minus: false } }, P::Buff { buff: Buff::SaveDie { dice: "1d4".into(), minus: false } }];
+            r.use_seconds = hour;
+        }
+        "potion-of-speed" => {
+            r.use_parts = vec![P::Buff { buff: Buff::Haste }];
+            r.use_seconds = 60.0;
+        }
+        "potion-of-invisibility" => {
+            r.use_parts = vec![P::Condition { condition: Condition::Invisible, on_fail: false }];
+            r.use_seconds = hour;
+        }
+        // Rings.
+        "ring-of-protection" => r.effects = vec![bonus(BonusTo::Ac, 1), bonus(BonusTo::Saves, 1)],
+        "ring-of-evasion" => r.effects = vec![F::Evasion],
+        "ring-of-free-action" => r.effects = vec![F::ConditionImmunity { conditions: vec!["paralyzed".into(), "restrained".into()] }],
+        "ring-of-warmth" => r.effects = vec![res("cold")],
+        "ring-of-invisibility" => r.spells = vec![("invisibility", 0, 0, 0, 0)],
+        "ring-of-animal-influence" => r.spells = vec![("animal-friendship", 1, 0, 0, 13), ("fear", 1, 0, 0, 13)],
+        // Wands.
+        "wand-of-magic-missiles" => r.spells = vec![("magic-missile", 1, 1, 7, 0)],
+        "wand-of-fireballs" => r.spells = vec![("fireball", 1, 3, 9, 15)],
+        "wand-of-lightning-bolts" => r.spells = vec![("lightning-bolt", 1, 3, 9, 15)],
+        "wand-of-web" => r.spells = vec![("web", 1, 0, 0, 15)],
+        "wand-of-fear" => r.spells = vec![("command", 1, 0, 0, 15), ("fear", 2, 0, 0, 15)],
+        "wand-of-binding" => r.spells = vec![("hold-person", 2, 0, 0, 17), ("hold-monster", 5, 0, 0, 17)],
+        // Staffs (also quarterstaffs) and rods.
+        "staff-of-healing" => r.spells = vec![("cure-wounds", 1, 1, 4, 0), ("mass-cure-wounds", 5, 0, 0, 0)],
+        "staff-of-fire" => {
+            r.effects = vec![res("fire")];
+            r.spells = vec![("burning-hands", 1, 0, 0, 0), ("fireball", 3, 0, 0, 0), ("wall-of-fire", 4, 0, 0, 0)];
+        }
+        "staff-of-frost" => {
+            r.effects = vec![res("cold")];
+            r.spells = vec![("ice-storm", 4, 0, 0, 0), ("wall-of-ice", 4, 0, 0, 0), ("cone-of-cold", 5, 0, 0, 0)];
+        }
+        "staff-of-striking" => r.bonus = 3,
+        "staff-of-thunder-and-lightning" => r.bonus = 2,
+        "staff-of-power" => {
+            r.bonus = 2;
+            r.effects = vec![bonus(BonusTo::Ac, 2), bonus(BonusTo::Saves, 2), bonus(BonusTo::SpellAttack, 2)];
+            r.spells = vec![("magic-missile", 1, 1, 0, 0), ("lightning-bolt", 5, 5, 0, 0), ("fireball", 5, 5, 0, 0), ("cone-of-cold", 5, 0, 0, 0), ("hold-monster", 5, 0, 0, 0)];
+        }
+        "staff-of-the-magi" => {
+            r.bonus = 2;
+            r.effects = vec![bonus(BonusTo::SpellAttack, 2)];
+            r.spells = vec![("fireball", 7, 7, 0, 0), ("lightning-bolt", 7, 7, 0, 0), ("ice-storm", 4, 0, 0, 0), ("wall-of-fire", 4, 0, 0, 0), ("web", 2, 0, 0, 0), ("light", 0, 0, 0, 0)];
+        }
+        "staff-of-the-woodlands" => {
+            r.bonus = 2;
+            r.effects = vec![bonus(BonusTo::SpellAttack, 2)];
+        }
+        "staff-of-the-python" => r.bonus = 2,
+        "rod-of-lordly-might" => r.bonus = 3,
+        // Weapons.
+        "flame-tongue" => r.effects = vec![F::ExtraDamage { dice: vec![(1, "2d6".into())], damage_type: Some(rustpg2d_engine::srd::DamageType::Fire), hurt_target: false }],
+        "frost-brand" => r.effects = vec![F::ExtraDamage { dice: vec![(1, "1d6".into())], damage_type: Some(rustpg2d_engine::srd::DamageType::Cold), hurt_target: false }, res("fire")],
+        "dragon-slayer" | "giant-slayer" | "mace-of-smiting" | "dagger-of-venom" => r.bonus = 1,
+        "luck-blade" => (r.bonus, r.effects) = (1, vec![bonus(BonusTo::Saves, 1)]),
+        "berserker-axe" => (r.bonus, r.effects) = (1, vec![F::HpPerLevel { hp: 1 }]),
+        "hammer-of-thunderbolts" => r.bonus = 1,
+        "sun-blade" | "nine-lives-stealer" | "scimitar-of-speed" => r.bonus = 2,
+        "holy-avenger" | "defender" | "vorpal-sword" | "dwarven-thrower" => r.bonus = 3,
+        "defender-1" => r.bonus = 3,
+        // Armor and shields.
+        "dwarven-plate" => r.bonus = 2,
+        "elven-chain" => (r.bonus, r.effects) = (1, vec![F::Proficient { what: "medium-armor".into() }]),
+        "glamoured-studded-leather" | "demon-armor" => r.bonus = 1,
+        "armor-of-invulnerability" => r.effects = vec![F::Resistance { types: vec!["bludgeoning".into(), "piercing".into(), "slashing".into()] }],
+        "mithral-armor" => {}
+        // Wondrous items.
+        "amulet-of-health" => r.effects = vec![score(A::Con, 19)],
+        "gauntlets-of-ogre-power" => r.effects = vec![score(A::Str, 19)],
+        "headband-of-intellect" => r.effects = vec![score(A::Int, 19)],
+        "cloak-of-protection" => r.effects = vec![bonus(BonusTo::Ac, 1), bonus(BonusTo::Saves, 1)],
+        // (+2 AC without armor or shield: an unarmored formula of 12 + DEX.)
+        "bracers-of-defense" => r.effects = vec![F::ArmorClass { base: 12, abilities: vec![A::Dex], shield: false }],
+        "robe-of-the-archmagi" => {
+            r.effects = vec![F::ArmorClass { base: 15, abilities: vec![A::Dex], shield: false }, bonus(BonusTo::SpellDc, 2), bonus(BonusTo::SpellAttack, 2)];
+            r.slot = Some(rustpg2d_engine::defs::EquipSlot::Cloak);
+        }
+        "boots-of-elvenkind" | "cloak-of-elvenkind" => r.effects = vec![F::CheckAdvantage { skill: "stealth".into() }],
+        "boots-of-the-winterlands" => r.effects = vec![res("cold")],
+        "goggles-of-night" => r.effects = vec![F::Darkvision { feet: 60 }],
+        "eyes-of-the-eagle" => r.effects = vec![F::CheckAdvantage { skill: "perception".into() }],
+        "eyes-of-minute-seeing" => r.effects = vec![F::CheckAdvantage { skill: "investigation".into() }],
+        "periapt-of-proof-against-poison" => r.effects = vec![F::Immunity { types: vec!["poison".into()] }, F::ConditionImmunity { conditions: vec!["poisoned".into()] }],
+        "brooch-of-shielding" => r.effects = vec![res("force")],
+        "cloak-of-arachnida" => r.effects = vec![res("poison")],
+        "stone-of-good-luck-luckstone" => {
+            r.effects = vec![bonus(BonusTo::Saves, 1)];
+            r.slot = Some(rustpg2d_engine::defs::EquipSlot::Neck);
+        }
+        "ioun-stone-protection" => r.effects = vec![bonus(BonusTo::Ac, 1)],
+        "ioun-stone-agility" => r.effects = vec![F::AbilityBonus { ability: A::Dex, amount: 2, max: 20 }],
+        "ioun-stone-fortitude" => r.effects = vec![F::AbilityBonus { ability: A::Con, amount: 2, max: 20 }],
+        "ioun-stone-insight" => r.effects = vec![F::AbilityBonus { ability: A::Wis, amount: 2, max: 20 }],
+        "ioun-stone-intellect" => r.effects = vec![F::AbilityBonus { ability: A::Int, amount: 2, max: 20 }],
+        "ioun-stone-leadership" => r.effects = vec![F::AbilityBonus { ability: A::Cha, amount: 2, max: 20 }],
+        "ioun-stone-strength" => r.effects = vec![F::AbilityBonus { ability: A::Str, amount: 2, max: 20 }],
+        "bag-of-holding" => r.bag_slots = 12,
+        "handy-haversack" => r.bag_slots = 8,
+        _ => return None,
+    }
+    Some(r)
+}
+
+/// The SRD weapon or armor a magic weapon / armor is made of, by its first line ("Weapon (any
+/// sword), rare", "Armor (plate), legendary"): an SRD equipment index.
+fn magic_base(index: &str, line: &str) -> &'static str {
+    let l = line.to_ascii_lowercase();
+    let what = l.split_once('(').and_then(|(_, r)| r.split(')').next()).unwrap_or("");
+    match index {
+        "staff-of-the-woodlands" | "staff-of-power" | "staff-of-the-magi" | "staff-of-striking" | "staff-of-thunder-and-lightning" | "staff-of-the-python" | "staff-of-fire" | "staff-of-frost" | "staff-of-healing" | "staff-of-charming" | "staff-of-swarming-insects" | "staff-of-withering" => return "quarterstaff",
+        "rod-of-lordly-might" => return "mace",
+        "elven-chain" => return "chain-shirt",
+        "mithral-armor" | "adamantine-armor" => return "chain-mail",
+        "demon-armor" | "dwarven-plate" | "plate-armor-of-etherealness" | "armor-of-invulnerability" => return "plate-armor",
+        _ => {}
+    }
+    for (word, base) in [
+        ("greatsword", "greatsword"),
+        ("longsword", "longsword"),
+        ("scimitar", "scimitar"),
+        ("dagger", "dagger"),
+        ("javelin", "javelin"),
+        ("warhammer", "warhammer"),
+        ("maul", "maul"),
+        ("trident", "trident"),
+        ("mace", "mace"),
+        ("longbow", "longbow"),
+        ("axe", "battleaxe"),
+        ("sword", "longsword"),
+        ("scale mail", "scale-mail"),
+        ("studded leather", "studded-leather-armor"),
+        ("chain shirt", "chain-shirt"),
+        ("chain mail", "chain-mail"),
+        ("plate", "plate-armor"),
+        ("shield", "shield"),
+        ("ammunition", "arrow"),
+    ] {
+        if what.contains(word) {
+            return base;
+        }
+    }
+    if l.starts_with("armor") {
+        "chain-mail"
+    } else if l.starts_with("weapon") {
+        "longsword"
+    } else {
+        ""
+    }
+}
+
+/// A worn magic item's slot and icon by its name.
+fn magic_kind(index: &str, category: &str) -> (Option<rustpg2d_engine::defs::EquipSlot>, u32) {
+    use rustpg2d_engine::defs::EquipSlot as S;
+    use magic_icon as I;
+    match category {
+        "potion" => return (None, I::POTION),
+        "ring" => return (Some(S::Ring), I::RING),
+        "wand" => return (None, I::WAND),
+        "staff" => return (None, I::STAFF),
+        "rod" => return (None, I::ROD),
+        "scroll" => return (None, I::SCROLL),
+        _ => {}
+    }
+    let has = |w: &[&str]| w.iter().any(|x| index.split('-').any(|p| p == *x));
+    if has(&["amulet", "necklace", "periapt", "medallion", "brooch", "scarab"]) {
+        (Some(S::Neck), I::AMULET)
+    } else if has(&["cloak", "cape", "mantle", "robe"]) {
+        (Some(S::Cloak), I::CLOAK)
+    } else if has(&["belt", "girdle"]) {
+        (Some(S::Belt), I::BELT)
+    } else if has(&["boots", "slippers"]) {
+        (Some(S::Feet), I::BOOTS)
+    } else if has(&["gloves", "gauntlets"]) {
+        (Some(S::Hands), I::GLOVES)
+    } else if has(&["bracers"]) {
+        (Some(S::Hands), I::BRACERS)
+    } else if has(&["helm", "hat", "headband", "circlet", "goggles", "eyes", "ioun"]) {
+        (Some(S::Head), I::HELM)
+    } else if has(&["bag", "haversack", "portable"]) {
+        (None, I::BAG)
+    } else if has(&["figurine"]) {
+        (None, I::FIGURINE)
+    } else if has(&["stone", "gem", "pearl", "bead"]) {
+        (None, I::STONE)
+    } else {
+        (None, I::WONDROUS)
+    }
+}
+
+impl SrdData {
+    /// The SRD's magic items into `items` (after the equipment: magic weapons and armor copy
+    /// their base item, its look included), and the six ready-made +1 items. Items of an earlier
+    /// run (`srd` = the magic item's index) are replaced, keeping their own look; new ones are
+    /// added when `add` (a library), else only those in `wanted`. Spells cast from an item are
+    /// left out when `spells` lacks them. Returns (added, updated, story items).
+    pub fn import_magic_items(&self, items: &mut Vec<rustpg2d_engine::defs::ItemDef>, spells: &[rustpg2d_engine::skills::SpellDef], add: bool, wanted: &[String]) -> (usize, usize, usize) {
+        use rustpg2d_engine::defs::*;
+        use rustpg2d_engine::srd::magic_items::{parse_attunement, parse_charges, ItemSpell, MagicItem, Rarity};
+        // The item an SRD equipment index is in `items` (a library item standing for it).
+        let base_of = |items: &[ItemDef], index: &str| -> Option<ItemDef> {
+            let standing = library_item(index);
+            items.iter().find(|d| d.magic.is_none() && (Some(d.id.as_str()) == standing || d.id == index || d.srd == index)).cloned()
+        };
+        let mut defs: Vec<ItemDef> = Vec::new();
+        let mut story = 0;
+        for v in &self.magic_items {
+            let index = s(v, "index");
+            let has_variants = v.get("variants").and_then(Value::as_array).is_some_and(|a| !a.is_empty());
+            if has_variants || generic_magic(index) {
+                continue;
+            }
+            let lines: Vec<&str> = v.get("desc").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+            let first = lines.first().copied().unwrap_or("");
+            let text = lines.iter().skip(1).copied().collect::<Vec<_>>().join(" ");
+            let category = v.pointer("/equipment_category/index").and_then(Value::as_str).unwrap_or("");
+            let rarity = Rarity::parse(v.pointer("/rarity/name").and_then(Value::as_str).unwrap_or("")).unwrap_or(Rarity::Uncommon);
+            let (attunement, attune_by) = parse_attunement(first);
+            let (charges, recharge) = parse_charges(&text);
+            let rules = magic_rules(index);
+            if rules.is_none() {
+                story += 1;
+            }
+            let rules = rules.unwrap_or_default();
+            // Weapons, armor, staffs and rods are their base item made magic.
+            let base = if matches!(category, "weapon" | "armor" | "ammunition" | "staff") || index == "rod-of-lordly-might" { magic_base(index, first) } else { "" };
+            let mut d = match (!base.is_empty()).then(|| base_of(items, base)).flatten() {
+                Some(b) => ItemDef { id: index.into(), magic: None, cost_cp: 0, ..b },
+                None => ItemDef::fresh(index),
+            };
+            d.name = s(v, "name").into();
+            d.description = text.clone();
+            d.srd = if base.is_empty() { index.into() } else { base.into() };
+            let (slot, icon) = magic_kind(index, category);
+            if base.is_empty() || d.icon.sheet.is_empty() {
+                d.icon = SpriteRef::new(magic_icon::SHEET, icon);
+            }
+            if let Some(slot) = rules.slot.or(slot).filter(|_| d.weapon.is_none() && d.armor.is_none()) {
+                d.armor = Some(Armor { category: Some(ArmorCategory::Clothing), ..Armor::clothing(slot) });
+                d.max_stack = 1;
+            }
+            if rules.bag_slots > 0 {
+                d.armor = Some(Armor { category: Some(ArmorCategory::Clothing), ..Armor::clothing(EquipSlot::Back) });
+                (d.bag_slots, d.max_stack, d.icon) = (rules.bag_slots, 1, SpriteRef::new(magic_icon::SHEET, magic_icon::BAG));
+            }
+            if index == "mithral-armor" {
+                if let Some(a) = &mut d.armor {
+                    (a.str_min, a.stealth_disadvantage) = (0, false);
+                }
+            }
+            if category == "potion" {
+                d.consumable = true;
+                d.max_stack = 10;
+                if rules.use_parts.iter().any(|p| matches!(p, rustpg2d_engine::skills::SpellPart::Heal { .. })) {
+                    d.use_on = UseTarget::Choose;
+                }
+            }
+            if charges > 0 {
+                d.max_stack = 1;
+            }
+            let spells_of: Vec<ItemSpell> = rules
+                .spells
+                .iter()
+                .filter(|(sp, ..)| spells.iter().any(|x| x.id == *sp && !x.story_only))
+                .map(|(sp, ch, slot, up, dc)| ItemSpell { spell: sp.to_string(), charges: *ch, slot: *slot, upcast_to: *up, dc: *dc })
+                .collect();
+            d.magic = Some(MagicItem {
+                rarity,
+                attunement,
+                attune_by,
+                bonus: rules.bonus,
+                effects: rules.effects,
+                charges,
+                recharge,
+                destroy_on_last: text.contains("last charge") && (text.contains("crumbles") || text.contains("destroyed")),
+                spells: spells_of,
+                use_parts: rules.use_parts,
+                use_seconds: rules.use_seconds,
+            });
+            // The SRD's prices: potions of healing its own, the others by rarity.
+            d.cost_cp = match index {
+                "potion-of-healing-common" => 5_000,
+                "potion-of-healing-greater" => 15_000,
+                "potion-of-healing-superior" => 45_000,
+                "potion-of-healing-supreme" => 135_000,
+                _ => rarity.price_cp(),
+            };
+            d.value = d.cost_cp / 100;
+            defs.push(d);
+        }
+        // The ready-made +1 items: copies of their SRD item.
+        for (id, name, base) in PLUS_ONE {
+            let Some(b) = base_of(items, base) else { continue };
+            let mut d = ItemDef { id: id.into(), name: name.into(), ..b };
+            d.description = format!("{} A magic one: +1 to {}.", d.description.trim(), if d.armor.is_some() { "armor class" } else { "attack and damage rolls" }).trim().to_string();
+            d.srd = base.into();
+            d.magic = Some(MagicItem { rarity: Rarity::Uncommon, bonus: 1, ..Default::default() });
+            d.cost_cp = Rarity::Uncommon.price_cp();
+            d.value = d.cost_cp / 100;
+            // (The arrows' +1 counts when they are shot.)
+            defs.push(d);
+        }
+        let (mut added, mut updated) = (0, 0);
+        for new in defs {
+            // A library item standing for it: only the rules (its id, name, look and triggers stay).
+            if let Some((_, id)) = MAGIC_STANDS_FOR.iter().find(|(i, _)| *i == new.id) {
+                if let Some(old) = items.iter_mut().find(|d| d.id == *id) {
+                    let before = old.clone();
+                    // (Its price stays: the project's economy.)
+                    (old.magic, old.srd, old.use_on) = (new.magic.clone(), new.id.clone(), new.use_on);
+                    if *old != before {
+                        updated += 1;
+                    }
+                    continue;
+                }
+            }
+            match items.iter_mut().find(|d| d.id == new.id) {
+                Some(old) => {
+                    // An earlier run's item: the SRD's data, its own look kept.
+                    let (icon, model, held) = (old.icon.clone(), old.model.clone(), old.held.clone());
+                    let before = old.clone();
+                    *old = new;
+                    (old.icon, old.model, old.held) = (icon, model, held);
+                    if *old != before {
+                        updated += 1;
+                    }
+                }
+                None if add || wanted.contains(&new.id) => {
+                    items.push(new);
+                    added += 1;
+                }
+                None => {}
+            }
+        }
+        (added, updated, story)
+    }
 }
 
 #[cfg(test)]
@@ -1773,6 +2240,57 @@ mod tests {
         assert_eq!(classes, before);
     }
 
+
+    #[test]
+    fn magic_items_import_with_their_rules_and_a_second_run_changes_nothing() {
+        use rustpg2d_engine::classes::{BonusTo, FeatureEffect};
+        use rustpg2d_engine::defs::*;
+        use rustpg2d_engine::srd::magic_items::Rarity;
+        let data = SrdData::read(&fixture()).unwrap();
+        let mut sword = ItemDef::fresh("iron_sword");
+        (sword.name, sword.icon) = ("Iron Sword".into(), SpriteRef::new("icons_3d", 4));
+        sword.weapon = Some(Weapon { dice: "1d8".into(), ..Weapon::melee(3, 0.35) });
+        let mut potion = ItemDef::fresh("potion");
+        (potion.name, potion.consumable) = ("Red Potion".into(), true);
+        let mut items = vec![sword, potion];
+        data.import_equipment(&mut items, true, &[]);
+        let spells: Vec<rustpg2d_engine::skills::SpellDef> = ["magic-missile", "cure-wounds"].iter().map(|id| rustpg2d_engine::skills::SpellDef::fresh(id)).collect();
+        let (added, updated, story) = data.import_magic_items(&mut items, &spells, true, &[]);
+        // 12 entries: the potion of healing (variants), the +1 weapon and the scroll aren't items; the
+        // common potion of healing is the library's potion; six ready-made +1 items.
+        assert_eq!((added, updated, story), (12 - 3 - 1 + 6, 1, 1), "{:?}", items.iter().map(|i| &i.id).collect::<Vec<_>>());
+        let get = |id: &str| items.iter().find(|i| i.id == id).cloned().unwrap();
+        let ring = get("ring-of-protection");
+        let m = ring.magic.as_ref().unwrap();
+        assert_eq!((m.rarity, m.attunement, ring.armor.as_ref().map(|a| a.slot)), (Rarity::Rare, true, Some(EquipSlot::Ring)));
+        assert_eq!(m.effects, vec![FeatureEffect::Bonus { to: BonusTo::Ac, amount: 1 }, FeatureEffect::Bonus { to: BonusTo::Saves, amount: 1 }]);
+        assert_eq!(ring.icon.sheet, "srd_magic");
+        let wand = get("wand-of-magic-missiles").magic.unwrap();
+        assert_eq!((wand.charges, wand.recharge.as_str(), wand.destroy_on_last, wand.spells[0].spell.as_str(), wand.spells[0].upcast_to), (7, "1d6+1", true, "magic-missile", 7));
+        // The library's potion keeps its name and gets the healing; the greater one is new.
+        let p = get("potion");
+        assert_eq!((p.name.as_str(), p.srd.as_str(), p.use_on), ("Red Potion", "potion-of-healing-common", UseTarget::Choose));
+        assert!(matches!(&p.magic.unwrap().use_parts[0], rustpg2d_engine::skills::SpellPart::Heal { by_level } if by_level[0].1 == "2d4 + 2"));
+        assert_eq!(get("potion-of-healing-greater").cost_cp, 15_000);
+        // A flaming longsword is the library's sword made magic (its look kept).
+        let ft = get("flame-tongue");
+        assert_eq!((ft.icon.sheet.as_str(), ft.srd.as_str(), ft.weapon.as_ref().map(|w| w.dice.clone())), ("icons_3d", "longsword", Some("1d8".into())));
+        let plus = get("longsword-plus-1");
+        assert_eq!((plus.name.as_str(), plus.magic_bonus(), plus.icon.sheet.as_str()), ("+1 Longsword", 1, "icons_3d"));
+        assert_eq!(get("belt-of-giant-strength-hill").armor.map(|a| a.slot), Some(EquipSlot::Belt));
+        assert!(get("mithral-armor").armor.is_some_and(|a| a.str_min == 0 && !a.stealth_disadvantage));
+        assert!(get("deck-of-many-things").magic.unwrap().story_only());
+        assert!(!items.iter().any(|i| i.id == "weapon-1" || i.id.starts_with("spell-scroll")));
+        // The staff of healing's spells: only those the project has (no mass cure wounds here).
+        assert_eq!(get("staff-of-healing").magic.unwrap().spells.len(), 1);
+        // The equipment import leaves the magic longswords alone.
+        let before = items.clone();
+        data.import_equipment(&mut items, true, &[]);
+        assert_eq!(data.import_magic_items(&mut items, &spells, true, &[]), (0, 0, 1));
+        assert_eq!(items, before);
+        // Every generic icon is on the sheet.
+        assert!(items.iter().filter(|i| i.icon.sheet == magic_icon::SHEET).all(|i| i.icon.frame < magic_icon::FRAMES));
+    }
 
     #[test]
     fn equipment_imports_with_the_srd_rules_and_a_second_run_changes_nothing() {

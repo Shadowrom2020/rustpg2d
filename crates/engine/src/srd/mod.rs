@@ -7,6 +7,7 @@ pub mod check;
 pub mod combat;
 pub mod encounter;
 pub mod equipment;
+pub mod magic_items;
 pub mod conditions;
 pub mod damage;
 pub mod dice;

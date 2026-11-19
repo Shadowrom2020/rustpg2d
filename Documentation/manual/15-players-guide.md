@@ -39,6 +39,10 @@ with E or a right-click.
   double-click or a right-click uses or equips; drag items onto or off the equipment slots, onto the quick bar, or out of the window to
   drop them; G drops the selected stack (Shift+G one item). A **backpack** in the *Backpack* slot
   gives you more inventory slots; to take it off, first make room for what lies in its slots.
+  The row of small slots under the figure takes **rings, an amulet, a cloak, a belt, boots and
+  gloves or bracers**. **T** attunes you to the selected magic item (an hour passes; at most three,
+  not in a fight) or ends it; attuned items show a gold dot. In a companion's window T attunes the
+  companion to an item it wears.
   **Furniture** (in a home of yours) is placed in front of you when used; E at it later asks
   whether to use it or pick it up again.
 - **Shop**: click *Buy* or *Sell* (or double-click a row, or Enter / E) to trade one, Shift for ten;
@@ -91,6 +95,12 @@ it ten minutes before you try again.
 AC 16 · STR 13`). Armor you aren't trained in makes you clumsy (disadvantage on Strength and
 Dexterity rolls and attacks) and stops your spells; heavy armor without the Strength it needs
 slows you. A caster needs a component pouch or a focus for spells with material components.
+
+**Magic items**: the item's line tells its rarity, whether it needs attunement and its charges
+(`Uncommon · 5/7 charges`). Worn magic items work while you wear them (and are attuned to them, when
+they need it). Drink a potion with Use; use a wand outside a fight to cast its spell, or pick its
+spell in the *Cast* window in a fight (it spends charges, not spell slots). Charges come back at
+dawn.
 
 ## Fighting
 

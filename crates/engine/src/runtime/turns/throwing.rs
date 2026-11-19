@@ -189,11 +189,13 @@ impl Game {
         let mut taken = Vec::new();
         for i in self.piles_at(t) {
             let (item, count) = (self.loaded.entities[i].def.clone(), self.loaded.entities[i].count);
+            let spent = self.world.dropped_spent(&self.loaded.map.name, self.loaded.entities[i].uid);
+            let stack = crate::inventory::ItemStack { spent, ..crate::inventory::ItemStack::new(&item, count) };
             let left = match who {
-                Who::Player => self.world.give_item(&item, count),
+                Who::Player => self.world.inventory.add_stack(stack),
                 Who::Npc(_) => match self.who_index(who) {
                     Some(j) => {
-                        self.loaded.entities[j].inventory.push(crate::inventory::ItemStack::new(&item, count));
+                        self.loaded.entities[j].inventory.push(stack);
                         self.persist_npc_items(j);
                         0
                     }

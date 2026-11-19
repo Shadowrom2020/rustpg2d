@@ -268,25 +268,6 @@ fn give_gift() {
     }
 }
 
-// Elixir of Strength (the SRD's potion of hill giant strength): Strength 21 for ten minutes, then
-// the hero's own score again. Drinking another while it works only starts the ten minutes anew.
-fn giant_strength() {
-    if timer_left("giant_strength") <= 0 {
-        set_var("giant_strength_was", ability("str"));
-    }
-    if ability("str") < 21 {
-        set_ability("str", 21);
-    }
-    timer_start("giant_strength", 600, #{ run: "giant_strength_end" });
-}
-
-fn giant_strength_end() {
-    let was = get_var("giant_strength_was");
-    if was > 0 {
-        set_ability("str", was);
-    }
-}
-
 // Swiftness Potion: one level of exhaustion less, and nothing holds the hero any more.
 fn swiftness_drink() {
     if exhaustion() > 0 {

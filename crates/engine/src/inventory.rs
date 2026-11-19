@@ -14,11 +14,19 @@ pub const DEFAULT_CAPACITY: usize = 24;
 pub struct ItemStack {
     pub item: String,
     pub count: u32,
+    /// A magic item's charges used (0 = all left): a stack with used charges never merges with
+    /// another one.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub spent: u32,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 impl ItemStack {
     pub fn new(item: &str, count: u32) -> Self {
-        ItemStack { item: item.to_string(), count }
+        ItemStack { item: item.to_string(), count, spent: 0 }
     }
 }
 
@@ -45,7 +53,7 @@ impl From<InventoryRepr> for Inventory {
         match r {
             InventoryRepr::Slots { slots } => Inventory { slots, limits: Arc::default() },
             InventoryRepr::Legacy(map) => {
-                let slots = map.into_iter().filter(|(_, n)| *n > 0).map(|(item, count)| Some(ItemStack { item, count })).collect();
+                let slots = map.into_iter().filter(|(_, n)| *n > 0).map(|(item, count)| Some(ItemStack::new(&item, count))).collect();
                 let mut inv = Inventory { slots, limits: Arc::default() };
                 inv.resize(DEFAULT_CAPACITY);
                 inv
@@ -75,7 +83,7 @@ impl Inventory {
     pub fn with_stacks(capacity: usize, stacks: &[ItemStack], limits: Arc<HashMap<String, u32>>) -> Self {
         let mut inv = Inventory { slots: vec![None; capacity.max(1)], limits };
         for s in stacks.iter().filter(|s| s.count > 0 && !s.item.is_empty()) {
-            inv.add(&s.item, s.count);
+            inv.add_stack(s.clone());
         }
         inv
     }
@@ -173,7 +181,7 @@ impl Inventory {
             if count == 0 {
                 break;
             }
-            if s.item == item && s.count < max {
+            if s.item == item && s.count < max && s.spent == 0 {
                 let n = count.min(max - s.count);
                 s.count += n;
                 count -= n;
@@ -190,6 +198,21 @@ impl Inventory {
             }
         }
         count
+    }
+
+    /// Adds a whole stack: one with used charges goes into a free slot as it is (never merged;
+    /// all or nothing), others like [`Inventory::add`]. Returns how many did not fit.
+    pub fn add_stack(&mut self, stack: ItemStack) -> u32 {
+        if stack.spent == 0 {
+            return self.add(&stack.item, stack.count);
+        }
+        match self.slots.iter().position(|s| s.is_none()) {
+            Some(k) => {
+                self.slots[k] = Some(stack);
+                0
+            }
+            None => stack.count,
+        }
     }
 
     /// Removes up to `count` items (from the last stacks first). Returns how many were removed.
@@ -222,8 +245,10 @@ impl Inventory {
             return None;
         }
         s.count -= n;
-        let out = ItemStack::new(&s.item, n);
+        let mut out = ItemStack::new(&s.item, n);
         if s.count == 0 {
+            // (The whole stack: its used charges go with it.)
+            out.spent = s.spent;
             *slot = None;
         }
         Some(out)
@@ -235,7 +260,7 @@ impl Inventory {
         if from == to || from >= self.slots.len() || to >= self.slots.len() {
             return;
         }
-        let same_item = matches!((&self.slots[from], &self.slots[to]), (Some(a), Some(b)) if a.item == b.item);
+        let same_item = matches!((&self.slots[from], &self.slots[to]), (Some(a), Some(b)) if a.item == b.item && a.spent == 0 && b.spent == 0);
         if same_item {
             let max = self.max_stack(&self.slots[to].as_ref().unwrap().item);
             let room = max.saturating_sub(self.slots[to].as_ref().unwrap().count);
@@ -255,12 +280,12 @@ impl Inventory {
     /// Returns how many moved; the rest stays in the source slot.
     pub fn transfer(src: &mut Inventory, i: usize, dst: &mut Inventory, count: Option<u32>) -> u32 {
         let Some(stack) = src.take_from_slot(i, count) else { return 0 };
-        let left = dst.add(&stack.item, stack.count);
+        let left = dst.add_stack(stack.clone());
         if left > 0 {
             // Put back what didn't fit, into the same slot.
             match &mut src.slots[i] {
                 Some(s) => s.count += left,
-                slot @ None => *slot = Some(ItemStack::new(&stack.item, left)),
+                slot @ None => *slot = Some(ItemStack { count: left, ..stack.clone() }),
             }
         }
         stack.count - left
@@ -273,7 +298,7 @@ impl Inventory {
             return false;
         }
         match (&src.slots[i], &dst.slots[j]) {
-            (Some(a), Some(b)) if a.item == b.item => {
+            (Some(a), Some(b)) if a.item == b.item && a.spent == 0 && b.spent == 0 => {
                 let room = dst.max_stack(&b.item).saturating_sub(b.count);
                 let n = room.min(a.count);
                 dst.slots[j].as_mut().unwrap().count += n;
@@ -299,6 +324,25 @@ impl Inventory {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stacks_with_used_charges_keep_them_and_never_merge() {
+        let mut inv = Inventory::new(4);
+        inv.add("wand", 1);
+        assert_eq!(inv.add_stack(ItemStack { spent: 3, ..ItemStack::new("wand", 1) }), 0);
+        assert_eq!(inv.slots.iter().flatten().map(|s| s.spent).collect::<Vec<_>>(), vec![0, 3]);
+        // Moving it keeps the charges; it doesn't join the full one.
+        inv.move_slot(1, 0);
+        assert_eq!(inv.slots[0].as_ref().map(|s| (s.count, s.spent)), Some((1, 3)));
+        let mut other = Inventory::new(2);
+        assert_eq!(Inventory::transfer(&mut inv, 0, &mut other, None), 1);
+        assert_eq!(other.slots[0].as_ref().map(|s| s.spent), Some(3));
+        assert_eq!(other.take_from_slot(0, None).map(|s| s.spent), Some(3));
+        // Saves of 0.30 and older: no charges used.
+        let s: ItemStack = ron::from_str("(item: \"potion\", count: 2)").unwrap();
+        assert_eq!(s, ItemStack::new("potion", 2));
+        assert_eq!(ron::to_string(&s).unwrap(), "(item:\"potion\",count:2)");
+    }
 
     fn limits(pairs: &[(&str, u32)]) -> Arc<HashMap<String, u32>> {
         Arc::new(pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect())

@@ -51,6 +51,8 @@ struct Ctx {
     locks: Vec<(u32, String, bool)>,
     /// Consumable item ids (`is_consumable`).
     consumables: std::collections::BTreeSet<String>,
+    /// Magic items' charges by item id (`item_charges`).
+    item_charges: std::collections::BTreeMap<String, u32>,
     /// The trigger's event: the used item and the owner's name (`used_item()`, `self_name()`).
     used_item: String,
     self_name: String,
@@ -141,6 +143,11 @@ impl ScriptHost {
         let mut c = self.ctx.borrow_mut();
         c.recipes = recipes;
         c.tool_kinds = tool_kinds;
+    }
+
+    /// The project's magic items' charges, for `item_charges(id)`.
+    pub fn set_item_charges(&mut self, charges: std::collections::BTreeMap<String, u32>) {
+        self.ctx.borrow_mut().item_charges = charges;
     }
 
     /// The project's consumable items, for `is_consumable(id)`.
@@ -660,6 +667,38 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("used_item", with!(ctx, |c| c.used_item.clone()));
     engine.register_fn("self_name", with!(ctx, |c| c.self_name.clone()));
     engine.register_fn("is_consumable", with!(ctx, |c, item: &str| c.consumables.contains(item)));
+    // Magic items (immediate).
+    engine.register_fn("attuned", with!(ctx, |c, item: &str| c.world.attuned.iter().any(|a| a == item)));
+    engine.register_fn("attune", with!(ctx, |c, item: &str| {
+        let w = &mut c.world;
+        let ok = w.item_count(item) > 0 && !w.attuned.iter().any(|a| a == item) && w.attuned.len() < crate::srd::magic_items::MAX_ATTUNED;
+        if ok {
+            w.attuned.push(item.to_string());
+        }
+        ok
+    }));
+    engine.register_fn("end_attunement", with!(ctx, |c, item: &str| {
+        let before = c.world.attuned.len();
+        c.world.attuned.retain(|a| a != item);
+        c.world.attuned.len() < before
+    }));
+    engine.register_fn("item_charges", with!(ctx, |c, item: &str| {
+        let max = c.item_charges.get(item).copied().unwrap_or(0);
+        match c.world.stack_of(item) {
+            Some(s) if max > 0 => max.saturating_sub(s.spent) as i64,
+            _ => -1,
+        }
+    }));
+    engine.register_fn("set_item_charges", with!(ctx, |c, item: &str, n: i64| {
+        let max = c.item_charges.get(item).copied().unwrap_or(0);
+        match c.world.stack_of_mut(item) {
+            Some(s) if max > 0 => {
+                s.spent = max.saturating_sub((n.max(0) as u32).min(max));
+                true
+            }
+            _ => false,
+        }
+    }));
     engine.register_fn("rush_to", with!(ctx, |c, t: &str, to: &str| c.actions.push(Action::RushTo { target: t.into(), to: to.into() })));
     engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: 0.0 })));
     engine.register_fn("bark", with!(ctx, |c, t: &str, text: &str, seconds: f64| c.actions.push(Action::Bark { target: t.into(), lines: vec![text.into()], seconds: seconds as f32 })));
@@ -709,7 +748,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }));
     engine.register_fn("ability", with!(ctx, |c, name: &str| crate::srd::Ability::parse(name).map_or(0, |a| c.world.abilities.score(a) as i64)));
     engine.register_fn("set_ability", with!(ctx, |c, name: &str, score: i64| match crate::srd::Ability::parse(name) {
-        Some(a) => c.world.abilities.set(a, score.clamp(1, 30) as i32),
+        Some(a) => c.world.base_abilities_mut().set(a, score.clamp(1, 30) as i32),
         None => eprintln!("[script] set_ability: '{name}' is no ability (str, dex, con, int, wis, cha)"),
     }));
     engine.register_fn("proficiency", with!(ctx, |c| crate::srd::abilities::proficiency_bonus(c.world.player_level()) as i64));

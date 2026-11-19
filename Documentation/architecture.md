@@ -194,6 +194,21 @@ project's coin ids by worth, filled when the world is prepared, not saved) lets 
 copper pieces; a shop whose currency has a `coin_cp` prices in cp (`ShopSpec::price`), others keep
 counting their one currency item.
 
+Magic items (0.31) are `ItemDef::magic` (`srd/magic_items.rs` `MagicItem`). Their passive effects are
+`FeatureEffect`s, the class features' vocabulary: `runtime/magic_items.rs` collects the items in effect
+(equipped in any slot but the tool, attuned when they need it) and `hero_traits` / `who_traits` fold
+them into the `ClassTraits` with `add_effects`, so everything that reads traits (AC formulas,
+resistances, speed, evasion, riders) sees them; a hero without a class gets traits only when an item
+has effects. Flat bonuses (`BonusTo`) are read at the sites that add up a number (`armor_class`,
+`weapon_spec`, `member_block`, `spell_dc`, `Training::save_bonus` in `Spec::modifier`). Ability scores
+of items and potions raise `WorldState::abilities` in place once a frame (`refresh_item_abilities`);
+`ability_base` holds the hero's own while they are raised, so code that changes scores goes through
+`WorldState::base_abilities_mut`. Charges are per stack: `ItemStack::spent` (never merged; kept by
+`Inventory::add_stack`, `take_from_slot`, transfers and `DroppedItem::spent`); `check_dawn` compares
+the dawns passed with `WorldState::last_dawn`. Using an item builds a throw-away `SpellDef` from its
+`use_parts` and resolves it like a spell; a spell cast from an item sets `Game::casting_item`
+(`spell_dc` reads its DC) and is cast like a scroll (the action, no slot), the charges spent after it.
+
 Conditions (`srd/conditions.rs`) replaced the status effects of 0.27: `ConditionSpec` (what weapons,
 touches, actions and scripts apply: a condition, seconds, exhaustion levels, a saving throw,
 damage or healing per round of 6 s) and `ActiveCondition` (the hero's in `WorldState::effects`, a

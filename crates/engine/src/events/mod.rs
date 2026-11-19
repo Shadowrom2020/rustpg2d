@@ -333,6 +333,8 @@ pub enum Cond {
         op: CmpOp,
         cp: i64,
     },
+    /// The hero is attuned to the magic item.
+    Attuned { item: String },
 }
 
 fn cmp_ge() -> CmpOp {
@@ -378,6 +380,7 @@ impl Cond {
             Cond::CheckPassed { .. } => "Check passed",
             Cond::Class { .. } => "Has class",
             Cond::Money { .. } => "Has money",
+            Cond::Attuned { .. } => "Is attuned",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -404,6 +407,7 @@ impl Cond {
             Cond::CheckPassed { by: 0 },
             Cond::Class { class: String::new(), op: CmpOp::Ge, level: 1 },
             Cond::Money { op: CmpOp::Ge, cp: 100 },
+            Cond::Attuned { item: String::new() },
         ]
     }
 }
@@ -456,6 +460,7 @@ impl Condition {
                 world.class.as_ref().is_some_and(|c| class.is_empty() || c.class == *class || (!c.subclass.is_empty() && c.subclass == *class)) && op.apply(world.player_level() as i64, *level)
             }
             Cond::Money { op, cp } => op.apply(world.money_cp() as i64, *cp),
+            Cond::Attuned { item } => world.attuned.iter().any(|a| a == item),
         };
         v != self.negate
     }

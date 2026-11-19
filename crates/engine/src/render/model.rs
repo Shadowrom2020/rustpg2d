@@ -173,7 +173,7 @@ fn strike_time(hit: f32, k: u16) -> f32 {
 
 /// The weapon that hangs at the hip instead of being in the hand: out of combat (`!gear.ready`),
 /// not attacking or blocking (`anim`: the clip's animation name), a one-handed melee weapon with
-/// a 3D model.
+/// a 3D model that isn't long (spears stay in the hands: [`crate::defs::Weapon::long`]).
 pub fn sheathed<'a>(db: &Database, gear: &'a Gear, anim: &str) -> Option<&'a str> {
     if gear.ready || anim.starts_with("attack") || anim.starts_with("block") {
         return None;
@@ -181,7 +181,7 @@ pub fn sheathed<'a>(db: &Database, gear: &'a Gear, anim: &str) -> Option<&'a str
     let id = gear.weapon.as_deref()?;
     let d = db.item(id)?;
     let w = d.weapon.as_ref()?;
-    (w.ranged.is_none() && !w.two_handed && d.model.is_some()).then_some(id)
+    (w.ranged.is_none() && !w.two_handed && !w.long() && d.model.is_some()).then_some(id)
 }
 
 /// The animation name an item names for a base animation (`attack`, `idle`, `walk`, `block`).
@@ -1525,5 +1525,19 @@ mod tests {
         assert_eq!((g.weapon.as_deref(), g.offhand.as_deref()), (Some("rod"), Some("shield")));
         assert_eq!(Gear::of(&eq, "crate", None).carrying, "crate");
         assert_eq!(g.equipment().item(crate::defs::EquipSlot::Weapon), Some("rod"));
+    }
+
+    #[test]
+    fn a_short_weapon_hangs_at_the_hip_a_long_one_stays_in_the_hands() {
+        use crate::defs::{ItemDef, ItemModel, Weapon};
+        let mut db = Database::default();
+        let with = |id: &str, w: Weapon| ItemDef { weapon: Some(w), model: Some(ItemModel::new("models/x.glb")), ..ItemDef::fresh(id) };
+        db.items.push(with("sword", Weapon::melee(2, 0.4)));
+        // The SRD's spear: versatile, not two-handed, but long.
+        db.items.push(with("spear", Weapon { reach: 1.9, ..Weapon::melee(2, 0.5) }));
+        let gear = |id: &str| Gear { weapon: Some(id.into()), ..Default::default() };
+        assert_eq!(sheathed(&db, &gear("sword"), "idle"), Some("sword"));
+        assert_eq!(sheathed(&db, &gear("sword"), "attack_1h"), None, "attacking: in the hand");
+        assert_eq!(sheathed(&db, &gear("spear"), "idle"), None);
     }
 }

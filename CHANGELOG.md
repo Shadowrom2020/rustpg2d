@@ -281,6 +281,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     other four coins are new; everyday goods cost silver and copper, weapons and armor the SRD's
     prices; Tilda sells thieves' tools, daggers and a component pouch; Greta's room costs 5 sp and
     the stone house 100 gp from any coins (*Has money* and *Take money*).
+- Fix: the SRD's spear (versatile, no longer two-handed) hung at the hip out of combat. Long
+  weapons (a swing reach above 1.4 tiles: spears, polearms, staffs) stay in the hands, both of
+  them while the left one is free.
+- Fix: in fights a weapon reaches 10 ft only with the *Reach* property (the SRD), not by its swing
+  reach: the spear reaches 5 ft. Weapons of 0.30 and older whose swing reached two tiles get the
+  *Reach* property when read.
+- Fix: the fight AI threw a melee-or-thrown weapon (the guard's spear) from afar instead of
+  walking up; it now throws only when no foe can be reached in melee this turn, and a character's
+  throw shows the weapon flying. Fix: a walk whose path passed an ally's tile didn't happen (an AI
+  stood still behind the hero).
+- The **quarterstaff** has a 3D model (Meshy): carried in both hands like a spear, its icon
+  rendered from it; Tilda sells it.
 - **Breaking:** helmets give no armor class (they are clothing), and armor's flat *Defense* is gone:
   weapons and armor of 0.30 and older are upgraded when read (martial from a d8 up, two-handed and
   heavy, ammunition; body armor becomes light armor of the AC it gave, an off-hand piece a shield of

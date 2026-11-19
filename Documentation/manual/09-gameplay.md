@@ -69,7 +69,9 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   that aren't companions (the guards) always fight on their own.
 - **The AI** goes for the nearest foe it can reach (those with Multiattack for the most hurt),
   walks into reach or, with a ranged attack, to a spot within its range with a line to its target,
-  and attacks. Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
+  and attacks. A weapon that can be thrown too (a guard's spear, a javelin, a dagger) is thrown
+  only when no foe can be reached in melee this turn; otherwise it walks up and strikes. A throw
+  shows the weapon flying (its icon). Fighters walk through their allies' tiles. Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
   fight 15 tiles away; it drinks a healing potion it carries when its health is critical.
 - **The end:** when no enemy is left fighting. Companions still down get up with 1 HP, the
   experience of the defeated is gained, the game autosaves. Saving is refused during a fight (the
@@ -85,8 +87,8 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
 - **What they hold shows how they fight**: characters play the animations of their weapon and
   shield ([Characters › Weapon animations](06-characters.md#weapon-animations)) when they attack.
 - **Battle stance and battle music**: those in a fight take their weapon's stance with a
-  one-handed weapon in the hand; out of fights it hangs at the left hip (two-handed and ranged
-  weapons, shields and tools stay in the hands). A fight crossfades the music to the **battle
+  one-handed weapon in the hand; out of fights it hangs at the left hip (two-handed, ranged and
+  long weapons such as spears, shields and tools stay in the hands). A fight crossfades the music to the **battle
   music** (*Database › Project › Game sounds › Battle music*; a map can choose another track or
   none in its properties) and back when it is over, with the *Victory* fanfare when enemies were
   defeated. The example plays *Steel in the Woods* (`music_battle`, in the starter library).
@@ -512,7 +514,7 @@ Items](05-database.md#items)).
 In the example the **coin is the gold piece** (its id stays `coin`, so quests and saves keep their
 gold), and the copper, silver, electrum and platinum pieces are new; everyday goods cost silver
 and copper (bread 6 sp, an apple 3 sp), weapons and armor the SRD's prices (an iron sword, a
-longsword, 15 gp). **Tilda** sells thieves' tools, daggers and a component pouch; Greta rents a
+longsword, 15 gp). **Tilda** sells thieves' tools, daggers, quarterstaffs (carried like a spear) and a component pouch; Greta rents a
 room for 5 sp and the stone house costs 100 gp, paid from any coins.
 
 ## Inventory, quick bar and containers

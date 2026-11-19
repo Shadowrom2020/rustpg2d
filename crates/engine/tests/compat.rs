@@ -377,6 +377,9 @@ fn items_of_0_27_0_become_the_srd_equipment() {
     assert_eq!(get("iron_sword").weapon.as_ref().unwrap().category, Some(WeaponCategory::Martial));
     let bow = get("bow").weapon.as_ref().unwrap();
     assert_eq!((bow.category, bow.properties.clone()), (Some(WeaponCategory::Simple), vec![WeaponProperty::TwoHanded, WeaponProperty::Ammunition]));
+    // The spear's two-tile swing: the Reach property (10 ft in fights).
+    let spear = get("spear").weapon.as_ref().unwrap();
+    assert!(spear.properties.contains(&WeaponProperty::Reach) && spear.reach_tiles() == 2);
     // Body armor keeps the armor class it gave (10 + defense) as light armor; a shield adds its defense; a helmet gives none.
     let mail = get("chainmail").armor.as_ref().unwrap();
     assert_eq!((mail.category, mail.base_ac), (Some(ArmorCategory::Light), 13));

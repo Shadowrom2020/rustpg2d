@@ -65,7 +65,9 @@ is full, assigns it and opens it for drawing.
   resistances halve it; untyped = none applies). The SRD's **Category** (*Simple*, *Martial*: the
   proficiency it needs) and **Properties** (finesse, versatile, light, heavy, two-handed, reach,
   thrown, ammunition, loading; hover each for what it does), the **Two-handed dice** of a versatile
-  weapon and the **Thrown range** in feet of a thrown one. **Two-handed** weapons (bow, crossbow,
+  weapon and the **Thrown range** in feet of a thrown one. **Reach (tiles)** is the swing outside
+  fights and how it is carried: above 1.4 tiles in both hands like a spear (the example's spear and
+  quarterstaff); in fights a weapon reaches 5 ft, 10 ft with the *Reach* property. **Two-handed** weapons (bow, crossbow,
   greataxe) can't be used with a shield or a light. A weapon can apply a **condition on hit** (poisoned,
   prone…, with a saving throw and damage every round: [Gameplay › Conditions](09-gameplay.md#conditions-and-damage)). **Critical hits**: the chance
   (5 % by default) that a hit of the player's with it is critical: double damage and a big yellow

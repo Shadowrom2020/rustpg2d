@@ -121,6 +121,10 @@ impl Game {
                     options.push((*f, s, if focus { hp } else { d }));
                 }
             }
+            // A thrown weapon only when no foe can be reached in melee this turn: walk up and strike.
+            if options.iter().any(|o| o.1.thrown) && self.melee_reachable(me.who, &specs, &foes, focus) {
+                options.retain(|o| !o.1.thrown);
+            }
             if let Some((target, spec, _)) = options.into_iter().min_by_key(|o| o.2) {
                 self.make_attack(me.who, target, &spec);
                 if let Some(c) = &mut self.fight {
@@ -140,7 +144,7 @@ impl Game {
             let foe_tiles: Vec<TilePos> = foes.iter().map(|w| self.who_tile(*w)).collect();
             let nearest = foes.iter().copied().min_by_key(|w| dist(here, self.who_tile(*w)));
             let mut best: Option<(i32, TilePos)> = None;
-            for (t, (cost, _)) in &reach {
+            for (t, (cost, _)) in reach.iter() {
                 let near = foe_tiles.iter().map(|f| dist(*t, *f)).min().unwrap_or(99);
                 let score = if ranged {
                     // Shooters: within their range with a line to the nearest foe, not next to a
@@ -180,6 +184,17 @@ impl Game {
             }
         }
         self.next_turn();
+    }
+
+    /// Whether `who` can still walk next to one of `foes` this turn and strike it with a melee
+    /// attack of `specs` (foes down at 0 HP count only when it `focus`es on them).
+    fn melee_reachable(&self, who: Who, specs: &[AttackSpec], foes: &[Who], focus: bool) -> bool {
+        let Some(reach) = specs.iter().filter(|s| !s.ranged).map(|s| s.reach).max() else { return false };
+        if self.fight.as_ref().is_none_or(|c| c.turn.ai_walked) {
+            return false;
+        }
+        let tiles: Vec<TilePos> = foes.iter().filter(|f| focus || !self.fight.as_ref().and_then(|c| c.fighter(**f)).is_some_and(|x| x.down)).map(|f| self.who_tile(*f)).collect();
+        self.reachable(who).keys().any(|t| tiles.iter().any(|f| dist(*t, *f) <= reach))
     }
 
     /// Speed (feet) for Dash: the creature's speed.

@@ -938,8 +938,10 @@ fn option_items(o: &Value) -> Vec<(String, u32)> {
 
 /// Library items that stand for an SRD item (the first one is what class equipment and packs
 /// give): they get its numbers and keep their own name, text and look.
-const STANDS_FOR: [(&str, &[&str]); 17] = [
+const STANDS_FOR: [(&str, &[&str]); 18] = [
     ("longsword", &["iron_sword", "fine_iron_sword"]),
+    // (Its own 3D model, carried like a spear: a long swing.)
+    ("quarterstaff", &["quarterstaff"]),
     ("shortsword", &["sword"]),
     ("spear", &["spear"]),
     ("battleaxe", &["axe"]),

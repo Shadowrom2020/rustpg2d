@@ -603,6 +603,25 @@ impl Weapon {
         self.properties.contains(&p) || (p == WeaponProperty::TwoHanded && self.two_handed)
     }
 
+    /// A long melee weapon (a swing reach above 1.4 tiles: spears, polearms). Characters carry it
+    /// in both hands while the left one is free, and never hang it at the hip, also when it is
+    /// versatile rather than two-handed (the SRD's spear).
+    pub fn long(&self) -> bool {
+        self.ranged.is_none() && self.reach > 1.4
+    }
+
+    /// How far it reaches in fights, in tiles (0 for a ranged weapon): 2 (10 ft) with the *Reach*
+    /// property, else 1. `reach` (the swing, the look) counts only for a weapon of 0.30 and older
+    /// without a category (a character's own weapon).
+    pub fn reach_tiles(&self) -> i32 {
+        match () {
+            _ if self.ranged.is_some() => 0,
+            _ if self.has(WeaponProperty::Reach) => 2,
+            _ if self.category.is_none() => self.reach.round().max(1.0) as i32,
+            _ => 1,
+        }
+    }
+
     /// The damage dice of a hit: `dice`, else from the old damage number.
     pub fn damage_dice(&self) -> String {
         if !self.dice.trim().is_empty() {
@@ -1015,7 +1034,8 @@ impl ItemDef {
     }
 
     /// An item of 0.30 or older as the SRD's equipment: a weapon gets its category (martial
-    /// from a d8 up) and properties (two-handed, heavy from a d10, ammunition); body armor
+    /// from a d8 up) and properties (two-handed, heavy from a d10, ammunition, reach when its swing
+    /// reached two tiles); body armor
     /// becomes light armor of 10 + its defense (the AC it gave), an off-hand piece with defense a
     /// shield of its defense, everything else worn clothing without AC. Upgraded items stay.
     pub fn upgrade(&mut self) {
@@ -1031,6 +1051,10 @@ impl ItemDef {
                 }
                 if w.ranged.as_ref().is_some_and(|r| !r.ammo.is_empty()) {
                     w.properties.push(WeaponProperty::Ammunition);
+                }
+                // (A long swing reached two tiles in fights: it keeps them as the Reach property.)
+                if w.ranged.is_none() && w.reach.round() >= 2.0 {
+                    w.properties.push(WeaponProperty::Reach);
                 }
             }
         }
@@ -2492,6 +2516,19 @@ impl Database {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fights_reach_ten_feet_only_with_the_reach_property() {
+        let mut w = Weapon { reach: 1.9, ..Weapon::melee(2, 0.5) };
+        assert_eq!(w.reach_tiles(), 2, "an old weapon without a category: its swing");
+        w.category = Some(WeaponCategory::Simple);
+        assert!(w.long() && w.reach_tiles() == 1, "the SRD's spear (or a staff): carried long, reaches 5 ft");
+        w.properties.push(WeaponProperty::Reach);
+        assert_eq!(w.reach_tiles(), 2, "a glaive");
+        let mut old = ItemDef { weapon: Some(Weapon { reach: 1.9, ..Weapon::melee(2, 0.5) }), ..ItemDef::fresh("pike") };
+        old.upgrade();
+        assert_eq!(old.weapon.unwrap().reach_tiles(), 2, "an old long weapon keeps its reach");
+    }
 
     #[test]
     fn items_name_their_animations_or_go_by_their_kind() {

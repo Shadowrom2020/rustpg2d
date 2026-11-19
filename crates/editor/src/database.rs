@@ -943,7 +943,7 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
         }
         if w.ranged.is_none() {
             ui.label("Reach (tiles)");
-            ui.add(egui::DragValue::new(&mut w.reach).range(0.3..=6.0).speed(0.05)).on_hover_text("How far the swing reaches");
+            ui.add(egui::DragValue::new(&mut w.reach).range(0.3..=6.0).speed(0.05)).on_hover_text("How far the swing reaches outside fights and how it is carried: above 1.4 tiles in both hands like a spear (and never at the hip). In fights a weapon reaches 5 ft, 10 ft with the Reach property");
             ui.end_row();
             ui.label("Arc (degrees)");
             ui.add(egui::DragValue::new(&mut w.arc).range(5.0..=180.0)).on_hover_text("Half-angle of the swing: 20 = narrow thrust, 90 = everything in front");

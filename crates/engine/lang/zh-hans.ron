@@ -886,5 +886,7 @@
         "Heavy armor": "重甲",
         "Untrained armor": "未受训的护甲",
         "Needs a component pouch or a focus": "需要材料包或法器",
+        "Paid {}": "支付了{}",
+        "Inventory full: {} lost": "背包已满：失去了{}",
     },
 )

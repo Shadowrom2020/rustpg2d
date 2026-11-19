@@ -957,8 +957,8 @@
                 ),
                 giver_line: "The house is yours for a hundred coins, {player}. Come back when you have them.",
                 on_done: [
-                    RunScript(
-                        function: "pay_house",
+                    TakeMoney(
+                        cp: 10000,
                     ),
                 ],
             ),

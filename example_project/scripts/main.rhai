@@ -275,17 +275,6 @@ fn count_coins() {
     say("Your purse holds {purse}.");
 }
 
-// Greta's room and her rumours cost five silver (50 cp): take_money pays from any coins and
-// gives change (her triggers check *Has money* first).
-fn pay_greta() {
-    take_money(50);
-}
-
-// The stone house costs a hundred gold pieces (10000 cp), paid from any coins.
-fn pay_house() {
-    take_money(10000);
-}
-
 // Brother Ansel is a cleric of the Life domain (Database > Characters > Priest: class cleric):
 // once a day he heals a hurt hero with Cure Wounds (the spell cast for the story: free).
 fn ansel_blessing() {

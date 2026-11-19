@@ -937,6 +937,11 @@ pub enum Action {
         #[serde(default)]
         free: bool,
     },
+    /// Gives the hero money (`cp` copper pieces) in the fewest gold, silver and copper pieces.
+    GiveMoney { cp: u32 },
+    /// Takes money (`cp` copper pieces) from the hero's coins, the change given back; nothing
+    /// when they have less (check *Has money* first).
+    TakeMoney { cp: u32 },
 }
 
 fn player_target() -> TargetName {
@@ -1144,6 +1149,8 @@ impl Action {
             Action::StartCombat => "Start fight",
             Action::SetClass { .. } => "Set class",
             Action::CastSpell { .. } => "Cast spell",
+            Action::GiveMoney { .. } => "Give money",
+            Action::TakeMoney { .. } => "Take money",
         }
     }
 
@@ -1261,6 +1268,8 @@ impl Action {
             Action::StartCombat,
             Action::SetClass { target: "player".into(), class: "fighter".into(), level: 0 },
             Action::CastSpell { spell: String::new(), target: "player".into(), free: true },
+            Action::GiveMoney { cp: 100 },
+            Action::TakeMoney { cp: 100 },
         ]
     }
 }

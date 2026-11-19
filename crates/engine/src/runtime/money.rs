@@ -47,4 +47,32 @@ impl Game {
             self.money_cp().to_string()
         }
     }
+
+    /// *Give money*: the coins, with the pickup sound and a toast ("Got 2 gp 5 sp").
+    pub(super) fn give_money_action(&mut self, cp: u32) {
+        if self.coin_kinds().is_empty() {
+            eprintln!("[events] Give money: the project has no coins (items with a coin worth)");
+            return;
+        }
+        let lost = self.give_cp(cp);
+        if cp > lost {
+            self.audio.play(&self.project.config.sfx.pickup);
+            self.ui.toast(crate::lang::tr_ui("Got {}").replacen("{}", &Self::format_cp(cp - lost), 1));
+        }
+        if lost > 0 {
+            self.ui.toast(crate::lang::tr_ui("Inventory full: {} lost").replacen("{}", &Self::format_cp(lost), 1));
+        }
+    }
+
+    /// *Take money*: pays from the hero's coins (change back) with a toast ("Paid 5 sp"); nothing
+    /// when they have less.
+    pub(super) fn take_money_action(&mut self, cp: u32) {
+        if self.pay_cp(cp) {
+            if cp > 0 {
+                self.ui.toast(crate::lang::tr_ui("Paid {}").replacen("{}", &Self::format_cp(cp), 1));
+            }
+        } else {
+            eprintln!("[events] Take money: the hero has {} cp of {cp} (or the change doesn't fit): nothing taken", self.money_cp());
+        }
+    }
 }

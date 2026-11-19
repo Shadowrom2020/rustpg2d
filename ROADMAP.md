@@ -770,8 +770,9 @@ SRD equipment, magic items and money.
     by a script); class equipment through the same table, a focus for casters without one; the
     example gets the items its classes start with.
   - **Scripts / events:** `money`, `give_money`, `take_money`, `format_money`; *Has money*
-    (`Cond::Money`). There is no *Take money* action: events check *Has money* and take it with a
-    script (Greta, the stone house).
+    (`Cond::Money`), *Give money* / *Take money* (`Action::GiveMoney` / `TakeMoney`, appended; added
+    after the first review to close the gap: events check *Has money*, then take it); console
+    `money CP` / `pay CP`.
   - **Example:** see the CHANGELOG; a dagger, thieves' tools and a component pouch at Tilda's.
 
 - [ ] Magic items — `feature/srd-magic-items`

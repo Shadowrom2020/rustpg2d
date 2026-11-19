@@ -3757,6 +3757,14 @@ impl ActionHost for Game {
                 self.cast_spell_action(spell, target, *free, ctx.owner);
                 Step::Continue
             }
+            Action::GiveMoney { cp } => {
+                self.give_money_action(*cp);
+                Step::Continue
+            }
+            Action::TakeMoney { cp } => {
+                self.take_money_action(*cp);
+                Step::Continue
+            }
             Action::Lockpick { difficulty, var } => {
                 let picked = self.pick_check(*difficulty).is_some_and(|r| r.success == Some(true));
                 if !var.trim().is_empty() {

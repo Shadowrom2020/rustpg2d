@@ -886,5 +886,7 @@
         "Heavy armor": "Тяжёлый доспех",
         "Untrained armor": "Доспех без владения",
         "Needs a component pouch or a focus": "Нужен мешочек компонентов или фокусировка",
+        "Paid {}": "Оплачено: {}",
+        "Inventory full: {} lost": "Инвентарь полон: {} потеряно",
     },
 )

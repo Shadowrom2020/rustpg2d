@@ -886,5 +886,7 @@
         "Heavy armor": "重装鎧",
         "Untrained armor": "習熟のない鎧",
         "Needs a component pouch or a focus": "構成要素ポーチか焦点具が必要",
+        "Paid {}": "{}を支払った",
+        "Inventory full: {} lost": "持ち物がいっぱい: {}を失った",
     },
 )

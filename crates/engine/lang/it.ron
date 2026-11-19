@@ -885,5 +885,7 @@
         "Heavy armor": "Armatura pesante",
         "Untrained armor": "Armatura senza competenza",
         "Needs a component pouch or a focus": "Serve una borsa delle componenti o un focus",
+        "Paid {}": "Pagato: {}",
+        "Inventory full: {} lost": "Inventario pieno: {} perso",
     },
 )

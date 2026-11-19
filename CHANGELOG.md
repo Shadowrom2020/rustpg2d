@@ -274,13 +274,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     properties, two-handed dice and thrown range, armor's category, armor class, DEX cap, STR
     minimum and Stealth; the shop form shows prices in coins. Item lines in the game tell a
     weapon's dice and properties and an armor's class.
-  - Events: the condition *Has money*. Scripts (API 0.31): `money`, `give_money`, `take_money`,
+  - Events: the condition *Has money*, the actions *Give money* and *Take money*. Scripts (API 0.31): `money`, `give_money`, `take_money`,
     `format_money`. `status` prints `money=`, `weapon=` and `armor=`; autoplay `turn specs` prints
-    the hero's attacks as a fight rolls them.
+    the hero's attacks as a fight rolls them; the developer console's `money CP` / `pay CP`.
   - The example: the **coin is the gold piece** (same id: quests and saves keep their gold), the
     other four coins are new; everyday goods cost silver and copper, weapons and armor the SRD's
     prices; Tilda sells thieves' tools, daggers and a component pouch; Greta's room costs 5 sp and
-    the stone house 100 gp from any coins (`take_money`).
+    the stone house 100 gp from any coins (*Has money* and *Take money*).
 - **Breaking:** helmets give no armor class (they are clothing), and armor's flat *Defense* is gone:
   weapons and armor of 0.30 and older are upgraded when read (martial from a d8 up, two-handed and
   heavy, ammunition; body armor becomes light armor of the AC it gave, an off-hand piece a shield of

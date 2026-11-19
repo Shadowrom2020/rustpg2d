@@ -885,5 +885,7 @@
         "Heavy armor": "Armadura pesada",
         "Untrained armor": "Armadura sin competencia",
         "Needs a component pouch or a focus": "Necesita una bolsa de componentes o un canalizador",
+        "Paid {}": "Pagado: {}",
+        "Inventory full: {} lost": "Inventario lleno: {} perdido",
     },
 )

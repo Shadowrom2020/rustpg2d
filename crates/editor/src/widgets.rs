@@ -1929,6 +1929,16 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             });
             ui.weak("(\"player\" or a party member on this map: the class's saving throws and proficiencies; its choices open the level-up window; Database › Classes)");
         }
+        Action::GiveMoney { cp } | Action::TakeMoney { cp } => {
+            let (mut gp, mut sp, mut c) = (*cp / 100, *cp % 100 / 10, *cp % 10);
+            let mut changed = ui.add(egui::DragValue::new(&mut gp).range(0..=999_999).suffix(" gp")).changed();
+            changed |= ui.add(egui::DragValue::new(&mut sp).range(0..=9).suffix(" sp")).changed();
+            changed |= ui.add(egui::DragValue::new(&mut c).range(0..=9).suffix(" cp")).changed();
+            if changed {
+                *cp = gp * 100 + sp * 10 + c;
+            }
+            ui.weak("(the hero's coins, change in the fewest gold, silver and copper pieces; taking needs that much: check Has money first)");
+        }
         Action::CastSpell { spell, target, free } => {
             labeled(ui, "spell", |ui| suggest(ui, &format!("{id}/castsp"), spell, &refs.spells, 120.0));
             target_field(ui, id, target, refs);

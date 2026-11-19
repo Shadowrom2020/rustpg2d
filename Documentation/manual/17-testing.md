@@ -45,7 +45,7 @@ own `[game]` / `[events]` messages, and `error:` lines.
 | `craft K` | The Make button of recipe row K in the open crafting window. |
 | `mapbtn close\|zoomin\|zoomout\|center` | Buttons of the map screen. |
 | `drag X1 Y1 X2 Y2` / `wheel DY` | Mouse drag / wheel in screen pixels (the map screen). |
-| `console LINE` | A developer console line (the game runs with `--dev` in play-tests): `call FN`, `give ITEM N`, `take ITEM N`, `flag NAME on\|off`, `var NAME V`, `settime H`, `teleport MAP SPAWN`, `hp N`, `xp N`, `reload`, or any Rhai expression. |
+| `console LINE` | A developer console line (the game runs with `--dev` in play-tests): `call FN`, `give ITEM N`, `take ITEM N`, `money CP`, `pay CP` (*Give money* / *Take money* in copper pieces), `flag NAME on\|off`, `var NAME V`, `settime H`, `teleport MAP SPAWN`, `hp N`, `xp N`, `reload`, or any Rhai expression. |
 | `settime H` / `settime +H` | Sets the clock / lets H hours pass (days pass, props regrow). |
 | `seed N` / `learn ID` / `cast ID` / `call FN` | Make the SRD dice roll the same from here on (also `RUSTPG2D_SEED=N`; automated runs start with seed 1), learn / cast a spell, call a script function. |
 | `crit always\|never\|chance` | The hits of the player's side in fights: always critical, never, or by the dice again. |

@@ -886,5 +886,7 @@
         "Heavy armor": "Ciężki pancerz",
         "Untrained armor": "Pancerz bez biegłości",
         "Needs a component pouch or a focus": "Potrzebna sakiewka komponentów lub fokus",
+        "Paid {}": "Zapłacono: {}",
+        "Inventory full: {} lost": "Pełny ekwipunek: {} przepadło",
     },
 )

@@ -299,7 +299,7 @@ Play-tests started from the editor (F5 / F6, *Play as cutscene*) run the game wi
   the game keeps running the previous scripts and shows the error (toast and console) until it
   is fixed.
 - **Console** (F4): pauses the game and takes commands. `call FN` runs a script function,
-  `give ITEM [N]` / `take ITEM [N]`, `flag NAME on|off`, `var NAME V`, `settime H`,
+  `give ITEM [N]` / `take ITEM [N]`, `money CP` / `pay CP`, `flag NAME on|off`, `var NAME V`, `settime H`,
   `teleport MAP SPAWN`, `hp N`, `xp N`, `effects`, `status`, `reload`, `clear`, `help`. Any other
   line is run as Rhai with your functions available, and its value is printed:
 

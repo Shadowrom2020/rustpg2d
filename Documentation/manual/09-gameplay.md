@@ -504,8 +504,8 @@ Items](05-database.md#items)).
   shows the purse (*Money*). A shop line's price counts in its currency (a price of 3 with gold as
   the currency: 3 gp); without one an item costs its *Cost* in coins, else its *Value* in the
   currency. Shops of projects of 0.30 and older, whose currency item has no coin worth, count that
-  one item as before. Condition: *Has money*; scripts: `money()`, `give_money`, `take_money`,
-  `format_money`.
+  one item as before. Condition: *Has money*; actions: *Give money*, *Take money*; scripts:
+  `money()`, `give_money`, `take_money`, `format_money`; developer console: `money CP`, `pay CP`.
 
 ![Tilda's shop: prices in gold, silver and copper, thieves' tools selected, the purse at the bottom right](../images/game-shop-coins.webp)
 

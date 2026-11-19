@@ -295,6 +295,19 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   and lies next to the target until the thrower steps onto it again (picking up is free in a fight).
   Characters fight on with their other attacks or an unarmed strike, walk to their weapon when they
   can, and take it back after the fight; the hero's stays where it fell.
+- Fix: a fight took in every hostile character within 12 tiles, also those that hadn't noticed
+  anything (the deserter joined a slime's fight). Only those that know of the party join; the others
+  join when they notice it. *Start fight* still takes everyone near.
+- Fix: the fight AI walked into dead ends behind trees (it went by the straight distance to its foe);
+  it goes by the walking distance now.
+- Fix: a one-tile diagonal step past a foe or a wall corner turned into two steps (provoking an
+  opportunity attack): only two walls touching at a corner block a diagonal now.
+- Fix: in a fight a foe that died (or moved away) still blocked its tile for the player's moves
+  until the turn changed: the reachable tiles are worked out again when anyone's place changes.
+- The move overlay in fights shows the tiles that would leave a foe's reach (an opportunity attack)
+  in red.
+- In a fight items on the ground can be picked up: right-click them or E with the cursor there
+  (walking up first when farther), or step onto them; free.
 - Fix: a red potion given to a fallen party member healed it but left it out of the fight (the
   fight still counted it down); now it gets up and fights on. In a fight a potion can be given only
   to a party member next to you ("Too far away"; the action isn't spent).

@@ -106,7 +106,8 @@ the map (a tile is 5 feet).
 - **Move** up to your speed (30 ft = 6 tiles; the blue tiles show where you reach): move the
   **cursor** with the arrows (or point with the mouse) and press E / Enter (or click). The line
   shows the way. Walking away from an enemy next to you lets it strike at you (an **opportunity
-  attack**), unless you *Disengage* first.
+  attack**), even a single step, unless you *Disengage* first; stepping around it (staying next to
+  it) is safe. Tiles that would provoke it are tinted red, and so is the line.
 - **Attack**: E / Enter (or a click) on an enemy attacks it, walking next to it first when it isn't
   in reach. The box at the cursor shows its hit points and armor class, your **chance to hit** and
   its **cover**.
@@ -124,7 +125,9 @@ the map (a tile is 5 feet).
   find you to attack), *Ready* (strike the first enemy that steps next to you), *Search* (find hidden
   enemies), *Grapple* and *Shove* (wrestle an enemy next to you: grappled can't move; shoved is
   knocked down or pushed away). Using an item from the inventory (a potion) takes the action too;
-  you can give a potion to a companion right next to you (a fallen one gets back up).
+  you can give a potion to a companion right next to you (a fallen one gets back up). Items on
+  the ground (loot, a thrown spear): right-click them, or E with the cursor on them, to pick them up
+  (free; you walk up first when they lie farther away), or walk over them.
   One **bonus action**: *Off-hand* attacks with a weapon in your left hand after you attacked (and
   the class actions that are bonus actions). The
   line above the bar shows the movement left and whether the action, the bonus action and your

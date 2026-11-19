@@ -174,6 +174,55 @@ impl Game {
     }
 }
 
+impl Game {
+    /// The item piles lying on tile `t` (entity indices).
+    pub(super) fn piles_at(&self, t: TilePos) -> Vec<usize> {
+        (0..self.loaded.entities.len()).filter(|&i| {
+            let e = &self.loaded.entities[i];
+            e.active && e.kind == crate::entity::EntityKind::Item && e.count > 0 && self.tile_of(e.body.pos) == t
+        }).collect()
+    }
+
+    /// `who` picks up the piles on tile `t` (free in a fight): the hero into the bag (what doesn't
+    /// fit stays), a party member into its own. Returns how many stacks it took.
+    pub(super) fn pick_up_at(&mut self, who: Who, t: TilePos) -> usize {
+        let mut taken = Vec::new();
+        for i in self.piles_at(t) {
+            let (item, count) = (self.loaded.entities[i].def.clone(), self.loaded.entities[i].count);
+            let left = match who {
+                Who::Player => self.world.give_item(&item, count),
+                Who::Npc(_) => match self.who_index(who) {
+                    Some(j) => {
+                        self.loaded.entities[j].inventory.push(crate::inventory::ItemStack::new(&item, count));
+                        self.persist_npc_items(j);
+                        0
+                    }
+                    None => count,
+                },
+            };
+            if left == count {
+                continue;
+            }
+            let e = &mut self.loaded.entities[i];
+            e.count = left;
+            e.active = left > 0;
+            self.persist(i);
+            let name = self.project.db.item(&item).map_or(item.clone(), |d| crate::lang::tr(&d.name));
+            taken.push(if count - left > 1 { format!("{} × {name}", count - left) } else { name });
+        }
+        if !taken.is_empty() {
+            self.audio.play(&self.project.config.sfx.pickup);
+            let line = crate::lang::tr_ui("{} picks up {}").replacen("{}", &self.who_name(who), 1).replacen("{}", &taken.join(", "), 1);
+            if self.fight.is_some() {
+                self.fight_log(line);
+            } else {
+                self.ui.toast(line);
+            }
+        }
+        taken.len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

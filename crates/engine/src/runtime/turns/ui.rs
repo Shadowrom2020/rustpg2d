@@ -4,7 +4,7 @@
 
 use macroquad::prelude::*;
 
-use super::{Aim, Side, TurnAct};
+use super::{Aim, Side, TurnAct, Who};
 use crate::grid::TilePos;
 use crate::runtime::input::{self, Act};
 use crate::runtime::skin;
@@ -56,6 +56,16 @@ impl Game {
                 return;
             }
         }
+        // A right-click on items lying around picks them up (walking next to them first); else it
+        // cancels the aimed action.
+        if input::mouse_pressed(MouseButton::Right) {
+            let world = self.mouse_world_at(mouse);
+            let t = ((world.x / ts).floor() as i32, (world.y / ts).floor() as i32);
+            if !self.piles_at(t).is_empty() {
+                self.pick_up_or_walk(t);
+                return;
+            }
+        }
         if input::mouse_pressed(MouseButton::Right) || input::act_pressed(Act::Cancel) {
             self.fight.as_mut().unwrap().aim = Aim::Move;
         }
@@ -76,6 +86,27 @@ impl Game {
         c.mouse_last = mouse;
         if input::act_pressed(Act::Confirm) || input::mouse_pressed(MouseButton::Left) {
             self.confirm_cursor();
+        }
+    }
+
+    /// Items on tile `t` for the current fighter: taken at once from its tile or next to it, else
+    /// it walks next to them and takes them there.
+    pub(super) fn pick_up_or_walk(&mut self, t: TilePos) {
+        let me = self.fight.as_ref().unwrap().current().who;
+        let here = self.who_tile(me);
+        if here.0.abs_diff(t.0) <= 1 && here.1.abs_diff(t.1) <= 1 {
+            self.pick_up_at(me, t);
+            return;
+        }
+        let reach = self.fight.as_ref().unwrap().reach.clone();
+        let goal = reach.iter().filter(|(p, _)| p.0.abs_diff(t.0) <= 1 && p.1.abs_diff(t.1) <= 1).min_by_key(|(_, (cost, _))| *cost).map(|(p, _)| *p);
+        match goal {
+            Some(g) => {
+                let path = Self::path_to(&reach, here, g);
+                self.fight.as_mut().unwrap().then_pick_up = Some(t);
+                self.walk(path);
+            }
+            None => self.ui.toast(crate::lang::tr_ui("Too far").into_owned()),
         }
     }
 
@@ -155,6 +186,11 @@ impl Game {
         if target.is_some() {
             return;
         }
+        // Items there: picked up (from next to them, else walking up first).
+        if !self.piles_at(cursor).is_empty() {
+            self.pick_up_or_walk(cursor);
+            return;
+        }
         let reach = self.fight.as_ref().unwrap().reach.clone();
         if reach.contains_key(&cursor) {
             let here = self.who_tile(me.who);
@@ -169,7 +205,14 @@ impl Game {
     pub(super) fn refresh_reach(&mut self) {
         let Some(c) = &self.fight else { return };
         let who = c.current().who;
-        let key = (c.current, c.round, c.turn.moved, c.turn.speed, self.who_tile(who));
+        // (Where the others stand counts too: a foe that died or moved no longer blocks a tile.)
+        let others = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            self.fighter_tiles(who).iter().map(|(_, s, t)| (*s == Side::Party, *t)).collect::<Vec<_>>().hash(&mut h);
+            h.finish()
+        };
+        let key = (c.current, c.round, c.turn.moved, c.turn.speed, self.who_tile(who), others);
         if c.reach_key == Some(key) {
             return;
         }
@@ -236,17 +279,22 @@ impl Game {
         if !self.players_turn() {
             return;
         }
+        // Reachable tiles; those whose way leaves a foe's reach (an opportunity attack) in red.
+        let here = self.who_tile(me.who);
+        let threats = self.threatening_foes(me.who);
+        let provokes = |t: TilePos| !c.turn.disengaged && threats.iter().any(|f| f.0.abs_diff(t.0) > 1 || f.1.abs_diff(t.1) > 1);
         for t in c.reach.keys() {
             let r = tile_rect(*t);
-            draw_rectangle(r.x + 1.0, r.y + 1.0, r.w - 2.0, r.h - 2.0, Color::new(0.3, 0.6, 1.0, 0.16));
+            let col = if *t != here && provokes(*t) { Color::new(1.0, 0.35, 0.25, 0.2) } else { Color::new(0.3, 0.6, 1.0, 0.16) };
+            draw_rectangle(r.x + 1.0, r.y + 1.0, r.w - 2.0, r.h - 2.0, col);
         }
-        let here = self.who_tile(me.who);
         if c.aim == Aim::Move && c.reach.contains_key(&c.cursor) && self.who_at(c.cursor).is_none() {
             let path = Self::path_to(&c.reach, here, c.cursor);
+            let col = if path.iter().any(|t| provokes(*t)) { Color::new(1.0, 0.45, 0.35, 0.85) } else { Color::new(1.0, 1.0, 1.0, 0.7) };
             let mut prev = vec2((here.0 as f32 + 0.5) * ts, (here.1 as f32 + 0.5) * ts);
             for t in path {
                 let p = vec2((t.0 as f32 + 0.5) * ts, (t.1 as f32 + 0.5) * ts);
-                draw_line(prev.x, prev.y, p.x, p.y, 3.0, Color::new(1.0, 1.0, 1.0, 0.7));
+                draw_line(prev.x, prev.y, p.x, p.y, 3.0, col);
                 prev = p;
             }
         }
@@ -261,6 +309,21 @@ impl Game {
             _ => Color::new(1.0, 0.55, 0.2, 0.95),
         };
         draw_rectangle_lines(r.x, r.y, r.w, r.h, 3.0, col);
+    }
+
+    /// The tiles of the foes next to `who` that would take an opportunity attack when it leaves
+    /// their reach (standing, able to act, their reaction not spent, a melee attack).
+    pub(super) fn threatening_foes(&self, who: Who) -> Vec<TilePos> {
+        let Some(c) = &self.fight else { return Vec::new() };
+        let Some(me) = c.fighter(who) else { return Vec::new() };
+        let here = self.who_tile(who);
+        c.order
+            .iter()
+            .filter(|f| f.side != me.side && !f.out && !f.down && !f.reacted)
+            .filter(|f| crate::srd::conditions::can_act(self.who_conditions(f.who)) && self.melee_spec(f.who).is_some())
+            .map(|f| self.who_tile(f.who))
+            .filter(|t| t.0.abs_diff(here.0) <= 1 && t.1.abs_diff(here.1) <= 1)
+            .collect()
     }
 
     /// The bars, the log and the target's hit chance (screen space, after the world).

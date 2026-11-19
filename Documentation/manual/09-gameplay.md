@@ -17,17 +17,24 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
 - **A fight starts** when a hostile character notices the player or a companion (within its
   *Sight*; sneaking and darkness shorten it), when the player attacks one in sight (Attack, or a
   click on it), or with the *Start fight* action / `start_combat()`. Every character within 12
-  tiles that is hostile to the player joins, the companions and characters of factions hostile to
-  the enemies (the village guards against bandits) fight on the player's side. Hostile characters
-  that come close later join at the end of the round.
+  tiles that is hostile to the player **and knows of the party** joins: it is hunting already, or it
+  notices the hero or a companion now (within its *Sight*, behind trees and walls only when closer
+  than half of it; when the hero strikes first, also those the hero sees). The others go on with
+  what they were doing and join when they notice the party. *Start fight* / `start_combat()` takes
+  every hostile character near. The companions and characters of factions hostile to the enemies
+  (the village guards against bandits) fight on the player's side.
 - **Surprise:** when the player strikes first, enemies that hadn't noticed them lose the first
   round. Sneaking up on a camp pays.
 - **Initiative:** everyone rolls d20 + DEX; the turn order bar at the top shows it with everyone's
   hit points. Everyone steps onto the middle of their tile (a tile is 5 ft).
 - **A turn:** moving up to the speed (30 ft = 6 tiles; the race's speed; conditions slow it),
   **one action**, **one bonus action** and **one reaction** a round. Diagonal steps cost 5 ft like
-  straight ones; **difficult terrain** (materials with *Difficult terrain*, e.g. mud, deep snow)
+  straight ones, also past a wall's corner or a creature (only two walls touching at a corner can't
+  be squeezed through); **difficult terrain** (materials with *Difficult terrain*, e.g. mud, deep snow)
   costs double. Characters can pass through allies, not through foes.
+- **Items on the ground** in a fight: a right-click on them (or E with the cursor there) picks them
+  up, from next to them (it walks there first when farther); stepping onto items picks them up too.
+  It is free: no action. The hero puts them into the bag, a party member it plays into its own.
 - **Actions:** *Attack* (stat blocks with Multiattack attack several times), *Cast a Spell*,
   *Dash* (the speed again), *Disengage* (no opportunity attacks this turn), *Dodge* (attacks
   against it have disadvantage), *Help* (an ally's next attack against a foe next to you has
@@ -55,7 +62,9 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   targeted. Shots fly over low obstacles (fences, rocks, water) ([Maps › Low and high
   obstacles](03-maps.md#low-and-high-obstacles)).
 - **Opportunity attacks:** leaving a foe's reach without *Disengage* gives it a melee attack (its
-  reaction).
+  reaction), also by a single step away; a step that stays next to it doesn't. The move overlay
+  shows the reachable tiles that would leave a foe's reach in red, and the path in red when it
+  provokes.
 - **0 hit points:** characters die (their *Defeated* triggers run, they drop their loot and
   gear). The hero and companions fall **unconscious** and roll a **death saving throw** on each of
   their turns: 10 or more is a success, three successes and they are stable, three failures and
@@ -72,7 +81,8 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   and attacks. A weapon that can be thrown too (a guard's spear, a javelin, a dagger) is thrown
   only when no foe can be reached in melee this turn; otherwise it walks up and strikes. A throw
   shows the weapon flying (its icon) and leaves it on the ground: the AI fights on with its other
-  attacks (else an unarmed strike) and walks to its weapon to pick it up when it can. Fighters walk through their allies' tiles. Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
+  attacks (else an unarmed strike) and walks to its weapon to pick it up when it can. Fighters walk through their allies' tiles, and round trees and walls by the
+  walking distance to their foe (not into dead ends). Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
   fight 15 tiles away; it drinks a healing potion it carries when its health is critical.
 - **The end:** when no enemy is left fighting. Companions still down get up with 1 HP, the
   experience of the defeated is gained, the game autosaves. Saving is refused during a fight (the

@@ -896,5 +896,6 @@
         "Too far away": "Zu weit weg",
         "Self": "Selbst",
         "Touch": "Berührung",
+        "{} picks up {}": "{} hebt auf: {}",
     },
 )

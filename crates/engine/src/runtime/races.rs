@@ -52,7 +52,7 @@ impl Game {
         let race = self.player_race();
         let background = self.project.db.background(&c.background).cloned();
         let hero = crate::races::build_hero(race.as_deref(), &self.project.config.rules, c.base, &c.choices, background.as_ref());
-        self.world.abilities = hero.abilities;
+        *self.world.base_abilities_mut() = hero.abilities;
         self.world.proficiencies = hero.proficiencies;
         self.world.languages = hero.languages;
         self.world.resistances = hero.resistances;
@@ -82,7 +82,9 @@ impl Game {
 
     /// The hero's darkvision in feet (0 = none).
     pub(super) fn darkvision_ft(&self) -> u32 {
-        self.player_race().map_or(0, |r| r.darkvision_ft)
+        // (Or from an item: Goggles of Night.)
+        let items = self.hero_traits().map_or(0, |t| t.darkvision_ft);
+        self.player_race().map_or(0, |r| r.darkvision_ft).max(items)
     }
 
     /// The player's hitbox at their body's size (the player character's hitbox × the size of the

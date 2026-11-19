@@ -3769,12 +3769,6 @@
                     unlimited: false,
                     price: 0,
                 ),
-                (
-                    item: "mana_potion",
-                    count: 2,
-                    unlimited: false,
-                    price: 0,
-                ),
             ],
             sell_rate: 50,
             open_on_talk: true,

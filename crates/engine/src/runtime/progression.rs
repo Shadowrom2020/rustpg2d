@@ -142,8 +142,9 @@ impl Game {
             for f in c.levels.get(level as usize - 1).map(|l| l.features.clone()).unwrap_or_default() {
                 for e in c.feature(&f).map(|x| x.effects.clone()).unwrap_or_default() {
                     if let crate::classes::FeatureEffect::AbilityBonus { ability, amount, max } = e {
-                        let v = self.world.abilities.score(ability);
-                        self.world.abilities.set(ability, (v + amount).min(max));
+                        let base = self.world.base_abilities_mut();
+                        let v = base.score(ability);
+                        base.set(ability, (v + amount).min(max));
                     }
                 }
             }

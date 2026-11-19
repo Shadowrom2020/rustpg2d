@@ -70,6 +70,7 @@ impl Game {
     /// Once per frame: the light spell's timer, concentration outside fights.
     pub(super) fn update_skills(&mut self, dt: f32) {
         self.refresh_armor_training();
+        self.update_magic_items();
         if let Some(l) = &mut self.skills.light {
             l.1 -= dt;
             if l.1 <= 0.0 {
@@ -586,6 +587,15 @@ impl Game {
         v.extend(self.player_race().map_or(Vec::new(), |r| r.traits.iter().map(|t| (t.name.clone(), t.description.clone())).collect::<Vec<_>>()));
         if let Some(b) = self.project.db.background(&self.world.player_background).filter(|b| !b.feature.is_empty()) {
             v.push((b.feature.clone(), b.feature_text.clone()));
+        }
+        // The magic items at work (attuned ones marked n/3), then those attuned but not worn.
+        let n = self.world.attuned.len();
+        let mark = |g: &Self, id: &str| if g.is_attuned(id) { format!("  ({} {n}/{})", crate::lang::tr_ui("attuned"), crate::srd::magic_items::MAX_ATTUNED) } else { String::new() };
+        let working: Vec<String> = self.magic_in_effect(super::turns::Who::Player).iter().map(|d| d.id.clone()).collect();
+        for id in working.iter().chain(self.world.attuned.iter().filter(|a| !working.contains(a))) {
+            if let Some(d) = self.project.db.item(id) {
+                v.push((format!("{}{}", crate::lang::tr(&d.name), mark(self, id)), crate::lang::tr(&d.description)));
+            }
         }
         v
     }

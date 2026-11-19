@@ -247,6 +247,44 @@ pub enum FeatureEffect {
     ReactionAttack,
     /// Turn Undead destroys undead of this challenge rating or lower (Destroy Undead).
     DestroyUndead { cr: f32 },
+    /// A flat bonus (magic items: a Ring of Protection's +1 to AC and saving throws).
+    Bonus { to: BonusTo, amount: i32 },
+    /// An ability score becomes at least `score` (a Belt of Giant Strength's 21).
+    AbilityScore { ability: Ability, score: i32 },
+    /// Advantage on checks of a skill (`stealth`; Boots of Elvenkind).
+    CheckAdvantage { skill: String },
+    /// Darkvision this far (feet; Goggles of Night 60).
+    Darkvision { feet: u32 },
+}
+
+/// What a flat bonus (`FeatureEffect::Bonus`) adds to.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BonusTo {
+    #[default]
+    Ac,
+    /// Every saving throw.
+    Saves,
+    /// Weapon attack rolls.
+    Attack,
+    /// Weapon damage rolls.
+    Damage,
+    SpellAttack,
+    SpellDc,
+}
+
+impl BonusTo {
+    pub const ALL: [BonusTo; 6] = [BonusTo::Ac, BonusTo::Saves, BonusTo::Attack, BonusTo::Damage, BonusTo::SpellAttack, BonusTo::SpellDc];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            BonusTo::Ac => "Armor class",
+            BonusTo::Saves => "Saving throws",
+            BonusTo::Attack => "Attack rolls",
+            BonusTo::Damage => "Damage rolls",
+            BonusTo::SpellAttack => "Spell attacks",
+            BonusTo::SpellDc => "Spell save DC",
+        }
+    }
 }
 
 /// When a class resource's uses come back.
@@ -511,6 +549,14 @@ pub struct ClassTraits {
     pub acts: Vec<ClassAct>,
     /// The acting effects that aren't resources or actions (riders, reactions), in level order.
     pub riders: Vec<FeatureEffect>,
+    /// Flat bonuses by what they add to (magic items).
+    pub bonuses: Vec<(BonusTo, i32)>,
+    /// Ability scores of at least (ability, score).
+    pub ability_scores: Vec<(Ability, i32)>,
+    /// Skills checked with advantage.
+    pub check_advantage: Vec<String>,
+    /// Darkvision in feet (0 = none).
+    pub darkvision_ft: u32,
 }
 
 impl ClassTraits {
@@ -540,58 +586,80 @@ impl ClassTraits {
         self.riders.iter().find_map(f)
     }
 
+    /// Traits of a character without class features (only crits on a 20, one attack).
+    pub fn plain() -> ClassTraits {
+        ClassTraits { crit_from: 20, attacks: 1, ..Default::default() }
+    }
+
+    /// The sum of bonuses to `to`.
+    pub fn bonus(&self, to: BonusTo) -> i32 {
+        self.bonuses.iter().filter(|b| b.0 == to).map(|b| b.1).sum()
+    }
+
+    /// Adds effects (a feature's, a magic item's): `c` = the class (numbers by level), `feature`
+    /// = where class actions come from.
+    pub fn add_effects(&mut self, effects: &[FeatureEffect], c: Option<&ClassDef>, feature: &str) {
+        let t = self;
+        let level = t.level;
+        for e in effects {
+            match e {
+                FeatureEffect::ArmorClass { base, abilities, shield } => t.armor.push((*base, abilities.clone(), *shield)),
+                FeatureEffect::Speed { feet, unarmored: false } => t.speed_ft += feet,
+                FeatureEffect::Speed { feet, unarmored: true } => {
+                    // (0 = the class's `unarmored_movement` number at the level: the monk's.)
+                    let ft = if *feet == 0 { c.map_or(0, |c| c.number(level, "unarmored_movement") as u32) } else { *feet };
+                    t.speed_unarmored_ft = t.speed_unarmored_ft.max(ft);
+                }
+                FeatureEffect::Proficient { what } => t.proficiencies.push(what.clone()),
+                FeatureEffect::HalfProficiency { abilities } if abilities.is_empty() => t.all_half = true,
+                FeatureEffect::HalfProficiency { abilities } => t.half_prof.extend(abilities.iter().copied()),
+                FeatureEffect::ReliableTalent => t.reliable = true,
+                FeatureEffect::CritRange { from } => t.crit_from = t.crit_from.min(*from),
+                FeatureEffect::ExtraAttacks { attacks } => t.attacks = t.attacks.max(*attacks),
+                FeatureEffect::BrutalCritical { dice } => t.brutal_dice = t.brutal_dice.max(*dice),
+                FeatureEffect::FightingStyle { style } => t.styles.push(*style),
+                FeatureEffect::Evasion => t.evasion = true,
+                FeatureEffect::SaveAdvantage { ability } => t.save_advantage.push(*ability),
+                FeatureEffect::InitiativeAdvantage => t.initiative_advantage = true,
+                FeatureEffect::Resistance { types } => t.resistances.extend(types.iter().cloned()),
+                FeatureEffect::ConditionImmunity { conditions } => t.condition_immunities.extend(conditions.iter().cloned()),
+                FeatureEffect::Aura { feet, save_bonus, immunity } => {
+                    let (f0, s0, i0) = t.aura.clone().unwrap_or((0, false, String::new()));
+                    t.aura = Some((f0.max(*feet), s0 || *save_bonus, if immunity.is_empty() { i0 } else { immunity.clone() }));
+                }
+                FeatureEffect::AbilityBonus { ability, amount, max } => t.ability_bonus.push((*ability, *amount, *max)),
+                FeatureEffect::HpPerLevel { hp } => t.hp_per_level += hp,
+                FeatureEffect::MartialArts => t.martial_arts = true,
+                FeatureEffect::Immunity { types } => t.immunities.extend(types.iter().cloned()),
+                FeatureEffect::Resource { id: rid, .. } => {
+                    t.resources.retain(|r| !matches!(r, FeatureEffect::Resource { id: x, .. } if x == rid));
+                    t.resources.push(e.clone());
+                }
+                FeatureEffect::Act { id: aid, name, cost, resource, effect } => {
+                    t.acts.retain(|a| a.id != *aid);
+                    t.acts.push(ClassAct { id: aid.clone(), name: name.clone(), cost: *cost, resource: resource.clone(), effect: effect.clone(), feature: feature.to_string() });
+                }
+                FeatureEffect::Bonus { to, amount } => t.bonuses.push((*to, *amount)),
+                FeatureEffect::AbilityScore { ability, score } => t.ability_scores.push((*ability, *score)),
+                FeatureEffect::CheckAdvantage { skill } => t.check_advantage.push(skill.clone()),
+                FeatureEffect::Darkvision { feet } => t.darkvision_ft = t.darkvision_ft.max(*feet),
+                other => t.riders.push(other.clone()),
+            }
+        }
+    }
+
     /// The passive effects of a character of `level` in class `c`.
     pub fn of(c: &ClassDef, level: u32, hc: &HeroClass) -> ClassTraits {
-        let mut t = ClassTraits { crit_from: 20, attacks: 1, level, ..Default::default() };
+        let mut t = ClassTraits { level, ..ClassTraits::plain() };
         t.features = c.feature_ids(level, &hc.subclass, &hc.picks);
-        for id in &t.features {
+        for id in &t.features.clone() {
             let Some(f) = c.feature(id) else { continue };
             match f.choice {
                 Some(FeatureChoice::Expertise { .. }) => t.expertise.extend(hc.picks.get(id).cloned().unwrap_or_default()),
                 Some(FeatureChoice::Skills { .. }) => t.proficiencies.extend(hc.picks.get(id).cloned().unwrap_or_default()),
                 _ => {}
             }
-            for e in &f.effects {
-                match e {
-                    FeatureEffect::ArmorClass { base, abilities, shield } => t.armor.push((*base, abilities.clone(), *shield)),
-                    FeatureEffect::Speed { feet, unarmored: false } => t.speed_ft += feet,
-                    FeatureEffect::Speed { feet, unarmored: true } => {
-                        // (0 = the class's `unarmored_movement` number at the level: the monk's.)
-                        let ft = if *feet == 0 { c.number(level, "unarmored_movement") as u32 } else { *feet };
-                        t.speed_unarmored_ft = t.speed_unarmored_ft.max(ft);
-                    }
-                    FeatureEffect::Proficient { what } => t.proficiencies.push(what.clone()),
-                    FeatureEffect::HalfProficiency { abilities } if abilities.is_empty() => t.all_half = true,
-                    FeatureEffect::HalfProficiency { abilities } => t.half_prof.extend(abilities.iter().copied()),
-                    FeatureEffect::ReliableTalent => t.reliable = true,
-                    FeatureEffect::CritRange { from } => t.crit_from = t.crit_from.min(*from),
-                    FeatureEffect::ExtraAttacks { attacks } => t.attacks = t.attacks.max(*attacks),
-                    FeatureEffect::BrutalCritical { dice } => t.brutal_dice = t.brutal_dice.max(*dice),
-                    FeatureEffect::FightingStyle { style } => t.styles.push(*style),
-                    FeatureEffect::Evasion => t.evasion = true,
-                    FeatureEffect::SaveAdvantage { ability } => t.save_advantage.push(*ability),
-                    FeatureEffect::InitiativeAdvantage => t.initiative_advantage = true,
-                    FeatureEffect::Resistance { types } => t.resistances.extend(types.iter().cloned()),
-                    FeatureEffect::ConditionImmunity { conditions } => t.condition_immunities.extend(conditions.iter().cloned()),
-                    FeatureEffect::Aura { feet, save_bonus, immunity } => {
-                        let (f0, s0, i0) = t.aura.clone().unwrap_or((0, false, String::new()));
-                        t.aura = Some((f0.max(*feet), s0 || *save_bonus, if immunity.is_empty() { i0 } else { immunity.clone() }));
-                    }
-                    FeatureEffect::AbilityBonus { ability, amount, max } => t.ability_bonus.push((*ability, *amount, *max)),
-                    FeatureEffect::HpPerLevel { hp } => t.hp_per_level += hp,
-                    FeatureEffect::MartialArts => t.martial_arts = true,
-                    FeatureEffect::Immunity { types } => t.immunities.extend(types.iter().cloned()),
-                    FeatureEffect::Resource { id: rid, .. } => {
-                        t.resources.retain(|r| !matches!(r, FeatureEffect::Resource { id: x, .. } if x == rid));
-                        t.resources.push(e.clone());
-                    }
-                    FeatureEffect::Act { id: aid, name, cost, resource, effect } => {
-                        t.acts.retain(|a| a.id != *aid);
-                        t.acts.push(ClassAct { id: aid.clone(), name: name.clone(), cost: *cost, resource: resource.clone(), effect: effect.clone(), feature: id.clone() });
-                    }
-                    other => t.riders.push(other.clone()),
-                }
-            }
+            t.add_effects(&f.effects, Some(c), id);
         }
         t
     }
@@ -600,6 +668,27 @@ impl ClassTraits {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn item_effects_add_to_the_traits() {
+        let mut t = ClassTraits::plain();
+        t.add_effects(
+            &[
+                FeatureEffect::Bonus { to: BonusTo::Ac, amount: 1 },
+                FeatureEffect::Bonus { to: BonusTo::Saves, amount: 1 },
+                FeatureEffect::Bonus { to: BonusTo::Ac, amount: 2 },
+                FeatureEffect::AbilityScore { ability: Ability::Str, score: 21 },
+                FeatureEffect::CheckAdvantage { skill: "stealth".into() },
+                FeatureEffect::Darkvision { feet: 60 },
+                FeatureEffect::Resistance { types: vec!["fire".into()] },
+            ],
+            None,
+            "",
+        );
+        assert_eq!((t.bonus(BonusTo::Ac), t.bonus(BonusTo::Saves), t.bonus(BonusTo::Attack)), (3, 1, 0));
+        assert_eq!((t.ability_scores.clone(), t.check_advantage.clone(), t.darkvision_ft), (vec![(Ability::Str, 21)], vec!["stealth".to_string()], 60));
+        assert_eq!((t.resistances.clone(), t.crit_from, t.attacks), (vec!["fire".to_string()], 20, 1));
+    }
 
     fn fighter() -> ClassDef {
         let mut c = ClassDef::fresh("fighter");

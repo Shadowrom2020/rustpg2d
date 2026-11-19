@@ -37,7 +37,12 @@ fn quick_rects() -> Vec<Rect> {
     (0..QUICK_SLOTS).map(|k| Rect::new(x0 + k as f32 * (QUICK_SLOT + GAP), sh - QUICK_SLOT - 12.0, QUICK_SLOT, QUICK_SLOT)).collect()
 }
 
-const EQUIP_SLOTS: [EquipSlot; 7] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool, EquipSlot::Back];
+const EQUIP_SLOTS: [EquipSlot; 14] = EquipSlot::ALL;
+/// The worn magic items' slots: a row of smaller slots under the figure.
+const WORN_SLOT: f32 = 38.0;
+const WORN_GAP: f32 = 4.0;
+/// The worn row's row number in [`equip_cell`].
+const WORN_ROW: usize = 4;
 const SHEET_W: f32 = 324.0;
 
 /// Where an equipment slot sits around the figure (it faces the viewer: its right hand is on
@@ -51,6 +56,8 @@ fn equip_cell(slot: EquipSlot) -> (usize, usize) {
         EquipSlot::Back => (1, 0),
         EquipSlot::Clothing => (1, 1),
         EquipSlot::Offhand => (1, 2),
+        // (The worn row: columns 2 to 8.)
+        s => (2 + EquipSlot::WORN.iter().position(|w| *w == s).unwrap_or(0), WORN_ROW),
     }
 }
 
@@ -63,8 +70,14 @@ fn equip_at(col: usize, row: usize) -> Option<usize> {
 fn equip_caption(slot: EquipSlot) -> &'static str {
     match slot {
         EquipSlot::Weapon => "Right hand",
+        EquipSlot::Ring2 => "Ring",
         s => s.label(),
     }
+}
+
+/// Whether an item for `item_slot` goes into `slot` (a ring into either ring slot).
+fn slot_takes(slot: EquipSlot, item_slot: EquipSlot) -> bool {
+    slot == item_slot || (slot == EquipSlot::Ring2 && item_slot == EquipSlot::Ring)
 }
 
 #[derive(Default)]
@@ -130,7 +143,7 @@ enum HudButton {
 }
 
 /// Help line of the inventory (Character tab).
-const INVENTORY_HINT: &str = "Double-click / {key:confirm}: use or equip · Drag to slots or quick bar (1-8) · {key:drop} / drag out: drop ({key:run}+{key:drop}: one) · {key:next_tab}: next tab · {key:cancel}: close";
+const INVENTORY_HINT: &str = "Double-click / {key:confirm}: use · Drag to slots or quick bar (1-8) · {key:drop}: drop ({key:run}+{key:drop}: one) · {key:take_all}: attune · {key:next_tab}: next tab · {key:cancel}: close";
 
 impl Game {
     /// The HUD buttons with their screen rects, right to left.
@@ -203,12 +216,14 @@ fn grid_size(n: usize, cols: usize) -> Vec2 {
 }
 
 /// Vertical distance of the equipment slots (a slot and its caption).
-const EQUIP_STEP: f32 = 76.0;
+const EQUIP_STEP: f32 = 70.0;
 /// The slots' first row below the panel's top (under its title).
 const EQUIP_TOP: f32 = 50.0;
+/// The worn row's top below the panel's top (under the tool's caption).
+const WORN_TOP: f32 = EQUIP_TOP + 4.0 * EQUIP_STEP - 6.0;
 
 /// Height of the character sheet panel.
-const SHEET_H: f32 = 540.0;
+const SHEET_H: f32 = 560.0;
 
 /// Container panels are at least this wide (title + "Take all" button).
 const MIN_CONTAINER_W: f32 = 300.0;
@@ -316,6 +331,10 @@ impl Game {
                     .iter()
                     .map(|s| {
                         let (col, row) = equip_cell(*s);
+                        if row == WORN_ROW {
+                            let x = x0 + PAD + (col - 2) as f32 * (WORN_SLOT + WORN_GAP);
+                            return Rect::new(x, top + WORN_TOP, WORN_SLOT, WORN_SLOT);
+                        }
                         let x = if col == 0 { x0 + PAD } else { x0 + SHEET_W - PAD - SLOT };
                         Rect::new(x, top + EQUIP_TOP + row as f32 * EQUIP_STEP, SLOT, SLOT)
                     })
@@ -532,9 +551,10 @@ impl Game {
             }
             (Side::Container, Side::Quick) => return,
             (Side::Player, Side::Equip) => {
-                let fits = self.slot_item(Side::Player, from.1).and_then(|id| self.project.db.item(&id)?.equip_slot()) == EQUIP_SLOTS.get(to.1).copied();
+                let target = EQUIP_SLOTS[to.1];
+                let fits = self.slot_item(Side::Player, from.1).and_then(|id| self.project.db.item(&id)?.equip_slot()).is_some_and(|s| slot_takes(target, s));
                 if fits {
-                    self.equip_from_slot(from.1);
+                    self.equip_from_slot_to(from.1, Some(target));
                 } else {
                     self.ui.toast(format!("That doesn't go in the {} slot", EQUIP_SLOTS[to.1].label().to_lowercase()));
                 }
@@ -567,8 +587,9 @@ impl Game {
 
     fn use_slot(&mut self, i: usize) {
         let Some(item) = self.slot_item(Side::Player, i) else { return };
-        // Equipment goes into its slot (using the clicked stack).
-        if self.project.db.item(&item).is_some_and(|d| d.equip_slot().is_some()) {
+        // Equipment goes into its slot (using the clicked stack); an item with spells (a staff)
+        // casts instead: it is wielded by dragging it into the hand.
+        if self.project.db.item(&item).is_some_and(|d| d.equip_slot().is_some() && d.magic.as_ref().is_none_or(|m| m.spells.is_empty())) {
             self.equip_from_slot(i);
             return;
         }
@@ -691,7 +712,25 @@ impl Game {
                 if side == Side::Equip {
                     // Around the figure: by position; right of the right column is the inventory.
                     let (col, row) = equip_cell(EQUIP_SLOTS[i]);
-                    let to = if right && col == 1 {
+                    let last_worn = 1 + EquipSlot::WORN.len();
+                    let to = if row == WORN_ROW {
+                        // The worn row: left / right along it, up to the tool, right of its end
+                        // the inventory.
+                        if right && col == last_worn {
+                            let cols = cols_of(&layout, Side::Player);
+                            let cap = self.world.inventory.capacity().max(1);
+                            self.inv.sel = Some((Side::Player, (3 * cols).min(cap - 1)));
+                            return (true, true);
+                        } else if right {
+                            equip_at(col + 1, row)
+                        } else if left && col > 2 {
+                            equip_at(col - 1, row)
+                        } else if up {
+                            equip_at(0, 3)
+                        } else {
+                            None
+                        }
+                    } else if right && col == 1 {
                         let cols = cols_of(&layout, Side::Player);
                         let cap = self.world.inventory.capacity().max(1);
                         self.inv.sel = Some((Side::Player, (row * cols).min(cap - 1)));
@@ -703,7 +742,7 @@ impl Game {
                     } else if up {
                         row.checked_sub(1).and_then(|r| equip_at(col, r))
                     } else if down {
-                        equip_at(col, row + 1)
+                        equip_at(col, row + 1).or_else(|| equip_at(2, WORN_ROW))
                     } else {
                         None
                     };
@@ -734,6 +773,11 @@ impl Game {
                     }
                 } else if input::act_pressed(Act::Use) && side == Side::Player {
                     self.use_slot(i);
+                } else if input::act_pressed(Act::TakeAll) && self.inv.loot.is_none() && matches!(side, Side::Player | Side::Equip) {
+                    // T in the hero's own window: attune to the item / end it.
+                    if let Some(item) = self.slot_stack(side, i).map(|s| s.item) {
+                        self.toggle_attunement(&item);
+                    }
                 } else if input::act_pressed(Act::Drop) && side == Side::Player {
                     // G drops the stack, Shift+G a single item.
                     let one = input::act_down(Act::Run);
@@ -874,7 +918,7 @@ impl Game {
         // Details of the hovered or selected stack, and the help line.
         let focus = hover.or(self.inv.sel);
         let stack = focus.and_then(|(side, i)| self.slot_stack(side, i));
-        super::ui::draw_item_detail(&self.project.db, layout.detail, PAD, stack.as_ref(), self.hint());
+        super::ui::draw_item_detail(&self.project.db, layout.detail, PAD, stack.as_ref(), self.hint(), &self.world.attuned);
 
         // The stack being dragged follows the cursor.
         if let Some((side, i)) = dragging {
@@ -912,7 +956,12 @@ impl Game {
             let item = self.world.equipment.get(slot).and_then(|s| self.project.db.item(&s.item));
             if let Some(d) = item {
                 let tint = if dragging == Some(key) { Color::new(1.0, 1.0, 1.0, 0.3) } else { WHITE };
-                self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 32.0, 32.0), tint);
+                let icon = Rect::new(r.x + (r.w - 32.0) / 2.0, r.y + (r.h - 32.0) / 2.0, 32.0, 32.0);
+                self.assets.draw_frame_in(&d.icon.sheet, d.icon.frame, icon, tint);
+                // An attuned item: a small mark in the corner.
+                if self.is_attuned(&d.id) {
+                    draw_circle(r.x + r.w - 6.0, r.y + 6.0, 3.5, skin::highlight());
+                }
             } else if slot == EquipSlot::Offhand && self.two_handed_equipped() {
                 // A two-handed weapon fills the left hand too: shown faded there.
                 if let Some(d) = self.world.equipment.item(EquipSlot::Weapon).and_then(|id| self.project.db.item(id)) {
@@ -921,9 +970,10 @@ impl Game {
             }
             // The caption under it (the item's name and numbers are in the details line).
             let caption = equip_caption(slot);
-            let w = measure_text(caption, None, 15, 1.0).width;
+            let size = if slot.worn() { 13 } else { 15 };
+            let w = measure_text(caption, None, size, 1.0).width;
             let colour = if item.is_some() { skin::dim() } else { skin::disabled() };
-            draw_text(caption, (r.x + r.w / 2.0 - w / 2.0).round(), r.y + r.h + 14.0, 15.0, colour);
+            draw_text(caption, (r.x + r.w / 2.0 - w / 2.0).round(), r.y + r.h + size as f32 - 1.0, size as f32, colour);
         }
         let st = self.stats();
         let hp = self.hp();
@@ -944,7 +994,7 @@ impl Game {
             let (have, need) = self.xp_progress();
             lines.insert(0, format!("Level       {}  (XP {have} / {need})", self.world.player_level()));
         }
-        let y0 = p.y + EQUIP_TOP + 4.0 * EQUIP_STEP + 8.0;
+        let y0 = p.y + WORN_TOP + WORN_SLOT + 28.0;
         draw_line(p.x + PAD, y0 - 12.0, p.x + p.w - PAD, y0 - 12.0, 1.0, skin::line(0.4));
         // (Taller fallback glyphs, e.g. Japanese labels, get the room they need.)
         let mut y = y0 + 8.0;
@@ -1034,8 +1084,13 @@ impl Game {
     /// Puts items on the ground at `pos` on the current map (joining a pile of the same item
     /// close by). They are saved with the game until picked up. Returns the pile's uid.
     pub(super) fn place_drop(&mut self, item: &str, n: u32, pos: Vec2) -> u32 {
+        self.place_drop_spent(item, n, 0, pos)
+    }
+
+    /// [`Self::place_drop`] for a stack with used charges (`spent`; a pile of its own).
+    pub(super) fn place_drop_spent(&mut self, item: &str, n: u32, spent: u32, pos: Vec2) -> u32 {
         let map = self.loaded.map.name.clone();
-        let (uid, new) = self.world.add_dropped(&map, item, n, pos.x, pos.y, self.ts() * 0.5);
+        let (uid, new) = self.world.add_dropped_spent(&map, item, n, spent, pos.x, pos.y, self.ts() * 0.5);
         if new {
             let mut rt = self.new_rt_entity(crate::entity::EntityKind::Item, item, uid, "", pos, crate::entity::Facing::Down, true, 0);
             rt.count = n;
@@ -1062,7 +1117,9 @@ impl Game {
             }
         }
         let pos = self.drop_position();
-        self.place_drop(&stack.item, n, pos);
+        // (A whole stack keeps its used charges.)
+        let spent = if n == stack.count { stack.spent } else { 0 };
+        self.place_drop_spent(&stack.item, n, spent, pos);
         let name = self.item_name(&stack.item);
         self.ui.toast(if n > 1 { format!("Dropped {n} {name}") } else { format!("Dropped {name}") });
         self.audio.play(&self.project.config.sfx.pickup);

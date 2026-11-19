@@ -168,5 +168,7 @@ impl Game {
             self.world.player_hp = Some(self.player_max_hp());
         }
         self.rest_slots(true);
+        // (A night's rest lasts past dawn: the items' charges come back.)
+        self.recharge_items();
     }
 }

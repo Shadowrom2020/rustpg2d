@@ -31,8 +31,8 @@
     ),
     (
         id: "potion",
-        name: "Red Potion",
-        description: "Restores 6 HP.",
+        name: "Potion of Healing",
+        description: "A red draught that heals 2d4 + 2 HP.",
         icon: (
             sheet: "items",
             frame: 1,
@@ -45,9 +45,6 @@
                 ),
                 conditions: [],
                 actions: [
-                    Heal(
-                        amount: 6,
-                    ),
                     SetVar(
                         name: "potions_drunk",
                         op: Add,
@@ -62,6 +59,17 @@
         max_stack: 10,
         value: 15,
         use_on: Choose,
+        srd: "potion-of-healing-common",
+        magic: Some((
+            rarity: Common,
+            use_parts: [
+                Heal(
+                    by_level: [
+                        (0, "2d4 + 2"),
+                    ],
+                ),
+            ],
+        )),
     ),
     (
         id: "coin",
@@ -787,34 +795,6 @@
         teaches: "burning-hands",
     ),
     (
-        id: "mana_potion",
-        name: "Blue Potion",
-        description: "Restores 20 mana.",
-        icon: (
-            sheet: "items",
-            frame: 24,
-        ),
-        consumable: true,
-        on_use: [
-            (
-                on: UseItem(
-                    item: "",
-                ),
-                conditions: [],
-                actions: [
-                    AddMana(
-                        amount: 20,
-                    ),
-                ],
-                once: false,
-            ),
-        ],
-        weapon: None,
-        armor: None,
-        max_stack: 10,
-        value: 12,
-    ),
-    (
         id: "antidote",
         name: "Antidote",
         description: "Cures poison.",
@@ -845,31 +825,31 @@
     ),
     (
         id: "elixir_strength",
-        name: "Elixir of Strength",
-        description: "Your Strength becomes 21 for ten minutes, like a hill giant\'s.",
+        name: "Potion of Hill Giant Strength",
+        description: "Your Strength becomes 21 for an hour, like a hill giant\'s.",
         icon: (
             sheet: "items",
             frame: 33,
         ),
         consumable: true,
-        on_use: [
-            (
-                on: UseItem(
-                    item: "",
-                ),
-                conditions: [],
-                actions: [
-                    RunScript(
-                        function: "giant_strength",
-                    ),
-                ],
-                once: false,
-            ),
-        ],
+        on_use: [],
         weapon: None,
         armor: None,
         max_stack: 10,
         value: 25,
+        srd: "potion-of-giant-strength-hill",
+        magic: Some((
+            rarity: Uncommon,
+            use_parts: [
+                Buff(
+                    buff: AbilityScore(
+                        ability: Str,
+                        score: 21,
+                    ),
+                ),
+            ],
+            use_seconds: 3600.0,
+        )),
     ),
     (
         id: "swiftness",
@@ -4438,5 +4418,120 @@
         value: 1,
         srd: "sprig-of-mistletoe",
         cost_cp: 100,
+    ),
+    (
+        id: "ring-of-protection",
+        name: "Ring of Protection",
+        description: "You gain a +1 bonus to AC and saving throws while wearing this ring.",
+        icon: (
+            sheet: "srd_magic",
+            frame: 1,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: Some((
+            slot: Ring,
+            defense: 0,
+            speed: 0.0,
+            category: Some(Clothing),
+            base_ac: 0,
+            str_min: 0,
+            stealth_disadvantage: false,
+        )),
+        max_stack: 1,
+        value: 4000,
+        srd: "ring-of-protection",
+        cost_cp: 400000,
+        magic: Some((
+            rarity: Rare,
+            attunement: true,
+            effects: [
+                Bonus(
+                    to: Ac,
+                    amount: 1,
+                ),
+                Bonus(
+                    to: Saves,
+                    amount: 1,
+                ),
+            ],
+        )),
+    ),
+    (
+        id: "wand-of-magic-missiles",
+        name: "Wand of Magic Missiles",
+        description: "This wand has 7 charges. While holding it, you can use an action to expend 1 or more of its charges to cast the magic missile spell from it. For 1 charge, you cast the 1st-level version of the spell. You can increase the spell slot level by one for each additional charge you expend. The wand regains 1d6 + 1 expended charges daily at dawn. If you expend the wand\'s last charge, roll a d20. On a 1, the wand crumbles into ashes and is destroyed.",
+        icon: (
+            sheet: "srd_magic",
+            frame: 2,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 1,
+        value: 400,
+        srd: "wand-of-magic-missiles",
+        cost_cp: 40000,
+        magic: Some((
+            rarity: Uncommon,
+            charges: 7,
+            recharge: "1d6+1",
+            destroy_on_last: true,
+            spells: [
+                (
+                    spell: "magic-missile",
+                    charges: 1,
+                    slot: 1,
+                    upcast_to: 7,
+                ),
+            ],
+        )),
+    ),
+    (
+        id: "longsword-plus-1",
+        name: "+1 Longsword",
+        description: "A long iron blade from the anvil. A magic one: +1 to attack and damage rolls.",
+        icon: (
+            sheet: "icons_3d",
+            frame: 4,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: Some((
+            damage: 3,
+            dice: "1d8",
+            cooldown: 0.35,
+            ranged: None,
+            reach: 1.2,
+            arc: 65.0,
+            knockback: 1.0,
+            two_handed: false,
+            crit: 0.0,
+            damage_type: Some(Slashing),
+            category: Some(Martial),
+            properties: [
+                Versatile,
+            ],
+            versatile: "1d10",
+        )),
+        armor: None,
+        max_stack: 1,
+        value: 400,
+        model: Some((
+            file: "models/iron_sword.glb",
+            grip: (0.0020440524, -0.73701316, 3.8251095e-5),
+            axis: (0.0, 1.0, 0.0),
+            size: 26.0,
+            front: (1.0, 0.0, 0.0),
+        )),
+        srd: "longsword",
+        cost_cp: 40000,
+        weight: 3.0,
+        magic: Some((
+            rarity: Uncommon,
+            bonus: 1,
+        )),
     ),
 ]

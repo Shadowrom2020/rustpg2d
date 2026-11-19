@@ -197,6 +197,7 @@ impl Game {
                     "settime H          set the time of day (hours)",
                     "give ITEM [N]      give items / take ITEM [N]",
                     "money CP  pay CP   give / take money in copper pieces",
+                    "charges ITEM N     set a magic item's charges left",
                     "flag NAME on|off   set a flag      var NAME V   set a variable",
                     "teleport MAP SPAWN go to a spawn point of a map",
                     "hp N  xp N         set HP / gain experience",
@@ -247,6 +248,11 @@ impl Game {
             "money" | "pay" if num(1).is_some() => {
                 let cp = num(1).unwrap_or(0).max(0) as u32;
                 queued.push(if arg(0) == "money" { Action::GiveMoney { cp } } else { Action::TakeMoney { cp } });
+            }
+            "charges" if num(2).is_some() => {
+                let n = num(2).unwrap_or(0).max(0) as u32;
+                let done = self.set_charges(arg(1), n);
+                self.dev.print(if done { format!("{} charges {n}", arg(1)) } else { format!("no charged {} carried", arg(1)) });
             }
             "flag" if !arg(1).is_empty() => {
                 let on = !matches!(arg(2), "off" | "false" | "0");

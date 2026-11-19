@@ -59,6 +59,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Player sex** | Male or female |
 | **Player race** | The player's race (*Database › Races*), e.g. goblin; a race holds for its subraces too (*dwarf* for a hill dwarf) |
 | **Has money** | The hero's money (every coin carried, in copper pieces: 1 gp = 100) compared with an amount (*≥ 500* = at least 5 gp). Pair it with *Take money*: the example's Greta and the stone house do |
+| **Is attuned** | The hero is attuned to a magic item ([Gameplay › Magic items](09-gameplay.md#magic-items)) |
 | **Has class** | The hero's class or subclass (*Database › Classes*: *fighter*, *champion*; empty = any class) at a level compared with a number (*≥ 3*); false without a class |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
@@ -115,7 +116,7 @@ across map changes and in save games.
 - **Open shop**, **Shop stock** (add to or set a merchant's stock), **Open crafting**,
   **Pick a lock (DEX check)** (a DEX (Thieves' Tools) check against a DC; 1 or 0 into a variable),
   **Sleep** (hours).
-- **Set time of day**, **Set weather**, **Spawners on / off**, **Defeat all enemies**.
+- **Set time of day**, **Set weather**, **Spawners on / off**, **Defeat all enemies**. (*Defeat all enemies* during a fight takes the defeated foes out of it; the fight ends when none is left.)
 
 **Cut-scenes and effects**
 - **Play cutscene**, **Walk to tile**, **Walk up to character**, **Place at tile**, **Dim the

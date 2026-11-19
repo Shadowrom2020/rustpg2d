@@ -230,6 +230,21 @@ struct Renamer<'a> {
 
 impl Renamer<'_> {
     /// A placed entity (on a map or inside a structure).
+    /// A magic item: the spells cast from it, who may attune
+    /// (renamed with the class or race; not a dependency).
+    fn magic(&mut self, m: &mut Option<crate::srd::magic_items::MagicItem>) {
+        let Some(m) = m else { return };
+        for sp in &mut m.spells {
+            self.fix(RefKind::Spell, &mut sp.spell);
+        }
+        if self.found.is_none() {
+            for w in &mut m.attune_by {
+                self.fix(RefKind::Class, w);
+                self.fix(RefKind::Race, w);
+            }
+        }
+    }
+
     fn crop(&mut self, c: &mut Option<crate::defs::Crop>) {
         if let Some(c) = c {
             for s in &mut c.stages {
@@ -460,7 +475,7 @@ impl Renamer<'_> {
                         }
                     }
                 }
-                Cond::HasItem { item, .. } => self.fix(RefKind::Item, item),
+                Cond::HasItem { item, .. } | Cond::Attuned { item } => self.fix(RefKind::Item, item),
                 Cond::Defeated { character, .. } => self.fix(RefKind::Character, character),
                 Cond::PlayerRace { race } => self.fix(RefKind::Race, race),
                 Cond::Class { class, .. } => self.fix(RefKind::Class, class),
@@ -545,6 +560,7 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         r.triggers(&mut d.on_use);
         r.weapon(&mut d.weapon);
         r.crop(&mut d.crop);
+        r.magic(&mut d.magic);
     }
     for d in &mut db.props {
         r.fix(RefKind::Sheet, &mut d.sprite.sheet);
@@ -758,6 +774,7 @@ pub fn refs_of_item(d: &crate::defs::ItemDef) -> Vec<(RefKind, String)> {
     r.fix(RefKind::Spell, &mut d.teaches);
     r.fix(RefKind::Prop, &mut d.furniture);
     r.crop(&mut d.crop);
+    r.magic(&mut d.magic);
     r.found.unwrap_or_default()
 }
 

@@ -28,6 +28,8 @@ pub(in crate::runtime) enum MenuPick {
     Class(String),
     /// Attack with the weapon: strike in melee or throw it.
     Attack { thrown: bool },
+    /// A spell from an item (a wand) at a slot level, spending its charges.
+    ItemCast { item: String, spell: String, slot: u32 },
 }
 
 #[derive(Clone, Debug)]
@@ -100,7 +102,28 @@ impl Game {
                 pick: MenuPick::Cast(id.clone(), d.level),
             });
         }
+        rows.extend(self.item_cast_rows(who, None));
         rows
+    }
+
+    /// The Cast window's rows of spells from items (`only`: of that item): "Magic Missile
+    /// (Wand of Magic Missiles)  slot 2  2 charges".
+    pub(in crate::runtime) fn item_cast_rows(&self, who: Who, only: Option<&str>) -> Vec<MenuRow> {
+        self.item_casts(who)
+            .into_iter()
+            .filter(|(c, _)| only.is_none_or(|o| o == c.item))
+            .map(|(c, why)| {
+                let spell = self.project.db.spell(&c.spell.spell).map_or(c.spell.spell.clone(), |d| crate::lang::tr(&d.name));
+                let item = self.project.db.item(&c.item).map_or(c.item.clone(), |d| crate::lang::tr(&d.name));
+                let charges = match c.charges {
+                    0 => String::new(),
+                    1 => format!("  1 {}", crate::lang::tr_ui("charge")),
+                    n => format!("  {n} {}", crate::lang::tr_ui("charges")),
+                };
+                let slot = if c.slot == 0 { crate::lang::tr_ui("cantrip").into_owned() } else { format!("{} {}", crate::lang::tr_ui("slot"), c.slot) };
+                MenuRow { label: format!("{spell} ({item})"), detail: format!("{slot}{charges}"), why, pick: MenuPick::ItemCast { item: c.item.clone(), spell: c.spell.spell.clone(), slot: c.slot } }
+            })
+            .collect()
     }
 
     /// A spell's range and what it rolls, short ("120 ft  2d10").
@@ -147,7 +170,7 @@ impl Game {
 
     /// Opens the choice window (the first row that can be picked is selected). False when it
     /// has no rows.
-    pub(super) fn open_fight_menu(&mut self, kind: MenuKind, rows: Vec<MenuRow>) -> bool {
+    pub(in crate::runtime) fn open_fight_menu(&mut self, kind: MenuKind, rows: Vec<MenuRow>) -> bool {
         if rows.is_empty() {
             return false;
         }
@@ -179,6 +202,14 @@ impl Game {
                 if let Some(c) = &mut self.fight {
                     c.attack_mode = Some(thrown);
                 }
+            }
+            MenuPick::ItemCast { item, spell, slot } => {
+                let who = self.fight.as_ref().map_or(Who::Player, |c| c.current().who);
+                let cast = self.item_casts(who).into_iter().map(|c| c.0).find(|c| c.item == item && c.spell.spell == spell && c.slot == slot).ok_or("No charges left")?;
+                if let Some(c) = &mut self.fight {
+                    c.item_cast = Some(cast);
+                }
+                self.aim_spell(&spell, slot);
             }
         }
         Ok(())

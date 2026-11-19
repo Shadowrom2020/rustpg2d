@@ -304,6 +304,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   opportunity attack): only two walls touching at a corner block a diagonal now.
 - Fix: sparing the deserter (or any foe that stops being hostile: *Set faction*, a script) didn't
   end the fight; it leaves the fight ("stops fighting"), and the fight ends when no foe is left.
+- Fix: *Defeat all enemies* / `defeat_enemies()` during a fight left the fight stuck (the defeated foes
+  stayed in the turn order at 0 HP); foes defeated outside the fight's rules (a script, an event) or
+  removed now leave it ("dies"), and the fight ends when none is left.
 - Fix: in a fight a foe that died (or moved away) still blocked its tile for the player's moves
   until the turn changed: the reachable tiles are worked out again when anyone's place changes.
 - The move overlay in fights shows the tiles that would leave a foe's reach (an opportunity attack)
@@ -319,6 +322,37 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   stood still behind the hero).
 - The **quarterstaff** has a 3D model (Meshy): carried in both hands like a spear, its icon
   rendered from it; Tilda sells it.
+- **Magic items**: the SRD 5.1's magic items in the starter library (327 items: rarity, attunement,
+  charges and their recharge from the SRD's text; about half work by the rules, the others are story
+  items for scripts; generic icons by kind on the new `srd_magic` sheet; magic weapons and armor look
+  like their base item). The item form gets a *Magic item* section: rarity, attunement (by classes,
+  races or spellcasters), a **+1 to +3 bonus** (attack and damage, or AC; six ready-made +1 items:
+  Longsword, Dagger, Shortbow, Arrows, Chain Mail, Shield), **charges** that come back at dawn,
+  **spells cast from it**, **effects while worn or held** (the class features' vocabulary, with the
+  new effects *Bonus* to AC / saves / attacks / damage / spell attacks / spell DC, *Ability score*,
+  *Check advantage* and *Darkvision*) and **what using it does** (spell parts: a Potion of Healing's
+  2d4 + 2, a potion of resistance's boon for an hour; the new boon *Ability score* for potions of
+  giant strength).
+  - **Seven new equipment slots** for worn items: neck, cloak, belt, feet, hands and two rings, a row
+    under the figure in the character window (not drawn on the model) and a column in a companion's
+    window. A *Worn item* kind in the item form.
+  - **Attunement**: T in the character window (an hour, outside fights, at most three; T in a
+    companion's window for the companion). Attuned items get a gold dot; the Sheet tab lists the
+    magic items at work.
+  - **Charges** are kept per item (also in chests and on the ground); dawn (the clock passing 6:00,
+    and a long rest) gives them back by the item's dice. In a fight the *Cast* window lists the
+    spells of wands and staffs (a row per slot level the charges allow); outside fights *Use*
+    casts. An item's own DC replaces the caster's.
+  - Event condition *Is attuned*; scripts (API 0.31) `attuned`, `attune`, `end_attunement`,
+    `item_charges`, `set_item_charges`; autoplay `attune`, `unattune`, `use`, `equip`; `status`
+    prints `attuned=` and `charges=`; developer console `charges ITEM N`.
+  - The example and the library: the Red Potion is now the **Potion of Healing** (2d4 + 2 instead
+    of 6) and the Elixir of Strength the **Potion of Hill Giant Strength** (STR 21 for an hour
+    instead of ten minutes; same ids, look and prices). The **Blue Potion** is gone: it restored
+    mana, which 0.30 removed, and did nothing since (out of Tilda's and the herbalist's stock, the
+    mine chest and the alchemy recipes; saved games holding one keep an item without a definition).
+    The locked chest on the farm holds a Ring of Protection, the mine's hidden hoard a +1 Longsword
+    and a Wand of Magic Missiles.
 - **Breaking:** helmets give no armor class (they are clothing), and armor's flat *Defense* is gone:
   weapons and armor of 0.30 and older are upgraded when read (martial from a d8 up, two-handed and
   heavy, ammunition; body armor becomes light armor of the AC it gave, an off-hand piece a shield of

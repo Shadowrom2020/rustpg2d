@@ -299,8 +299,9 @@ says (an assassin resists poison).
 piercing), the Spark spell is force and the Fire Burst and Fireball fire. The slime's touch poisons
 (CON DC 10, 1 poison damage a round: nothing for a dwarf), Grumbold the cave troll's blows knock the
 hero prone (STR DC 13), skeletons restrain, the antidote and the remedy end poison, and food heals
-on for a few rounds. The Elixir of Strength makes Strength 21 for ten minutes (a script with a
-timer), the Swiftness Potion takes off a level of exhaustion and frees you from a grapple.
+on for a few rounds. The Potion of Hill Giant Strength makes Strength 21 for an hour (an SRD magic
+item: [Magic items](#magic-items)), the Swiftness Potion takes off a level of exhaustion and frees you
+from a grapple.
 
 ## Rests
 
@@ -531,6 +532,55 @@ gold), and the copper, silver, electrum and platinum pieces are new; everyday go
 and copper (bread 6 sp, an apple 3 sp), weapons and armor the SRD's prices (an iron sword, a
 longsword, 15 gp). **Tilda** sells thieves' tools, daggers, quarterstaffs (carried like a spear) and a component pouch; Greta rents a
 room for 5 sp and the stone house costs 100 gp, paid from any coins.
+
+## Magic items
+
+The SRD 5.1's **magic items** (since 0.31) are items with a *Magic item* section ([Database ›
+Items](05-database.md#items)). The starter library has all of them
+([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data)); about half work by the
+rules, the others (a flying carpet, the Deck of Many Things) are **story items** whose effect is
+up to triggers and scripts.
+
+- **Worn items** go into seven slots of their own in the character window, a row under the figure:
+  **Neck** (amulets, brooches), **Cloak**, **Belt**, **Feet** (boots), **Hands** (gloves,
+  gauntlets, bracers) and two **Rings**. They aren't drawn on the character. Magic helmets,
+  headbands and goggles go on the head, magic weapons and armor where any weapon and armor go, and
+  party members have the same slots in their window.
+- **Attunement**: an item that requires it works only while its wearer is attuned to it. Select it
+  in the character window and press **T** (*Take all*'s key; a gamepad's West button): attuning
+  takes an hour (the SRD's short rest with the item), only outside fights, at most **three** items
+  at a time, and only for those the item names (*by a wizard*, *by a spellcaster*). T again ends
+  it at once. Attuned items have a gold dot; the Sheet tab lists the magic items at work.
+- **What they do**, while worn or held (and attuned when they need it):
+  - a **+1 to +3** on attack and damage rolls (weapons, ammunition when shot) or on armor class
+    (armor, shields);
+  - bonuses to AC, saving throws, spell attacks or the spell save DC (a Ring of Protection: +1 AC
+    and saves);
+  - an ability score of at least a value (Belt of Giant Strength STR 21, Amulet of Health CON 19);
+  - resistances, darkvision, advantage on a skill (Boots of Elvenkind: Stealth), an armor class
+    without armor (Bracers of Defense), extra damage on hits (Flame Tongue 2d6 fire), and whatever
+    else class features can do.
+- **Using** a potion drinks it: its effect works like a spell's parts on the hero, or on whom the
+  "heal whom?" choice picks (Potion of Healing 2d4 + 2, Greater 4d4 + 4; Giant Strength, Heroism,
+  Speed, Invisibility and the potions of resistance last their time). In a fight it is the action.
+- **Charges**: a wand or staff has charges (*5/7 charges* in its details) that it spends on the
+  spells it casts. **Outside fights** *Use* casts its first spell that works there (Cure Wounds
+  from a Staff of Healing); **in a fight** the **Cast** window lists the items' spells next to the
+  hero's own, one row per slot level the charges allow (a Wand of Magic Missiles: slot 1 for one
+  charge, slot 2 for two…). Casting from an item is the action and needs no spell slot; a wand
+  with its own DC (Wand of Fireballs: 15) uses it. Charges come back **at dawn** (when the clock
+  passes 6:00, and after a long rest) by the item's dice (1d6 + 1); spending a wand's last charge
+  may make it crumble (a d20 roll of 1). An item keeps its charges in the bag, in chests and on
+  the ground.
+- A staff is also a weapon: drag it into the right hand to fight with it (*Use* casts).
+
+Condition: *Is attuned*; scripts: `attuned`, `attune`, `end_attunement`, `item_charges`,
+`set_item_charges`; developer console: `charges ITEM N`.
+
+In the example the red **Potion of Healing** (2d4 + 2) and the **Potion of Hill Giant Strength**
+(STR 21 for an hour) are the SRD's, the locked chest on
+the farm holds a **Ring of Protection**, and the hidden hoard in the mine a **+1 Longsword** and a
+**Wand of Magic Missiles**.
 
 ## Inventory, quick bar and containers
 

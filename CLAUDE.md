@@ -75,7 +75,11 @@ crates/engine/src/      library: everything shared by game and editor
   srd/                  the SRD 5.1 rules: equipment.rs (armor_class, weapon / armor proficiency, coins: change,
                         format_cp, FOCUS; ItemDef srd / cost_cp / weight / coin_cp, Weapon category + properties,
                         Armor category / base_ac / dex_max / str_min, ItemDef::upgrade, RULES_VERSION 4;
-                        runtime/equipment.rs, runtime/money.rs = the purse, shops in coins), dice.rs (expressions `2d6+STR`, seedable thread-local Rng: `seed`,
+                        runtime/equipment.rs, runtime/money.rs = the purse, shops in coins), magic_items.rs (MagicItem =
+                        ItemDef.magic: rarity, attunement (MAX_ATTUNED 3), bonus, effects = FeatureEffect, charges +
+                        recharge at dawn (ItemStack.spent), ItemSpell, use_parts; SRD text parsers; runtime/magic_items.rs:
+                        items in effect folded into hero_traits / who_traits, WorldState.attuned / ability_base, dawn,
+                        spells from items in the Cast window; EquipSlot::WORN = neck, cloak, belt, feet, hands, two rings), dice.rs (expressions `2d6+STR`, seedable thread-local Rng: `seed`,
                         RUSTPG2D_SEED, autoplay starts at 1; advantage / disadvantage), abilities.rs (six abilities,
                         modifier, proficiency bonus, the 18 SKILLS and the TOOLS by SRD index id, proficiency_id),
                         check.rs (Spec = what a check rolls: skill / ability / ability:tool / save; RollRecord = the

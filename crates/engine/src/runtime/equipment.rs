@@ -54,8 +54,13 @@ impl Game {
     pub(super) fn armor_class(&self) -> i32 {
         let dex = self.world.abilities.modifier(crate::srd::Ability::Dex);
         let (ac, body, shield) = crate::srd::equipment::armor_class(self.worn_armor(EquipSlot::Body), self.worn_armor(EquipSlot::Offhand), dex);
+        // Magic armor and shields: their +N (on what they give); items: a Ring of Protection.
+        let me = super::turns::Who::Player;
+        let plus = |s: EquipSlot| self.world.equipment.item(s).filter(|_| self.worn_armor(s).is_some()).map_or(0, |id| self.item_bonus(me, id));
+        let (ac, shield) = (ac + if body { plus(EquipSlot::Body) } else { 0 }, if shield > 0 { shield + plus(EquipSlot::Offhand) } else { 0 });
+        let items = self.bonus_of(me, crate::classes::BonusTo::Ac);
         // (And spells: Mage Armor, Shield of Faith, Haste.)
-        self.buff_ac(super::turns::Who::Player, self.class_armor_class(ac + shield, body, shield))
+        self.buff_ac(me, self.class_armor_class(ac + shield, body, shield) + items)
     }
 
     /// Whether the hero is proficient with all the armor and the shield worn.
@@ -235,12 +240,27 @@ impl Game {
     /// Equips one item from inventory slot `i`; the previously worn item goes back to the
     /// inventory (into the freed slot if possible). Returns false if impossible.
     pub(super) fn equip_from_slot(&mut self, i: usize) -> bool {
-        self.keeping_room(|g| g.equip_from_slot_now(i))
+        self.equip_from_slot_to(i, None)
     }
 
-    fn equip_from_slot_now(&mut self, i: usize) -> bool {
+    /// Like [`Self::equip_from_slot`], into `target` when given (a ring into the second ring
+    /// slot).
+    pub(super) fn equip_from_slot_to(&mut self, i: usize, target: Option<EquipSlot>) -> bool {
+        self.keeping_room(|g| g.equip_from_slot_now(i, target))
+    }
+
+    fn equip_from_slot_now(&mut self, i: usize, target: Option<EquipSlot>) -> bool {
         let Some(stack) = self.world.inventory.slots.get(i).cloned().flatten() else { return false };
-        let Some(slot) = self.project.db.item(&stack.item).and_then(|d| d.equip_slot()) else { return false };
+        let Some(mut slot) = self.project.db.item(&stack.item).and_then(|d| d.equip_slot()) else { return false };
+        // A ring: the slot asked for, else the first free ring slot.
+        if slot == EquipSlot::Ring {
+            slot = match target {
+                Some(EquipSlot::Ring2) => EquipSlot::Ring2,
+                Some(_) => EquipSlot::Ring,
+                None if self.world.equipment.ring.is_some() && self.world.equipment.ring2.is_none() => EquipSlot::Ring2,
+                None => EquipSlot::Ring,
+            };
+        }
         // A two-handed weapon and something in the left hand don't go together: the other one
         // goes back into the inventory first.
         if let Some(other) = self.hand_conflict(&stack.item, slot) {
@@ -259,10 +279,10 @@ impl Game {
             let inv = &mut self.world.inventory;
             if inv.slots[i].is_none() {
                 inv.slots[i] = Some(old);
-            } else if inv.add(&old.item, old.count) > 0 {
+            } else if inv.add_stack(old.clone()) > 0 {
                 // No room for the old item: undo.
                 let new = self.world.equipment.slot_mut(slot).replace(old).unwrap();
-                self.world.inventory.add(&new.item, new.count);
+                self.world.inventory.add_stack(new);
                 self.ui.toast("Inventory full".into());
                 return false;
             }
@@ -309,7 +329,7 @@ impl Game {
                 inv.slots[j] = Some(stack.clone());
                 true
             }
-            _ => inv.space_for(&stack.item) >= stack.count && inv.add(&stack.item, stack.count) == 0,
+            _ => inv.space_for(&stack.item) >= stack.count && inv.add_stack(stack.clone()) == 0,
         };
         if !placed {
             self.ui.toast("Inventory full".into());

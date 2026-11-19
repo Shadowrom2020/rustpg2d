@@ -38,27 +38,6 @@
         ],
     ),
     (
-        id: "brew_mana",
-        result: "mana_potion",
-        count: 1,
-        ingredients: [
-            (
-                item: "mushroom",
-                count: 2,
-            ),
-            (
-                item: "apple",
-                count: 1,
-            ),
-        ],
-        station: "alchemy",
-        skill: "",
-        level: 0,
-        tools: [
-            "mortar",
-        ],
-    ),
-    (
         id: "brew_swiftness",
         result: "swiftness",
         count: 1,

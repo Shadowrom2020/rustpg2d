@@ -17,9 +17,10 @@ impl Game {
     }
 
     /// The hero's class features at their level (passive effects added up).
+    /// With the worn magic items' effects (also for a hero without a class).
     pub(super) fn hero_traits(&self) -> Option<ClassTraits> {
-        let hc = self.world.class.as_ref()?;
-        Some(ClassTraits::of(self.project.db.class(&hc.class)?, self.world.player_level(), hc))
+        let class = self.world.class.as_ref().and_then(|hc| Some(ClassTraits::of(self.project.db.class(&hc.class)?, self.world.player_level(), hc)));
+        self.with_items(Who::Player, class, self.world.player_level())
     }
 
     /// The hero's class feature ids at their level (chosen options included).
@@ -49,8 +50,11 @@ impl Game {
         match who {
             Who::Player => self.hero_traits(),
             Who::Npc(uid) => {
-                let (hc, level) = self.member_class(uid)?;
-                Some(ClassTraits::of(self.project.db.class(&hc.class)?, level, &hc))
+                let member = self.member_class(uid);
+                let level = member.as_ref().map_or(1, |m| m.1);
+                let class = member.and_then(|(hc, level)| Some(ClassTraits::of(self.project.db.class(&hc.class)?, level, &hc)));
+                // (Items only for party members.)
+                if self.loaded.entities.iter().any(|e| e.uid == uid && e.companion.is_some()) { self.with_items(who, class, level) } else { class }
             }
         }
     }
@@ -162,7 +166,16 @@ impl Game {
         for p in &t.proficiencies {
             self.world.set_proficient(p, true);
         }
-        self.world.training = crate::srd::check::Training { expertise: t.expertise.iter().map(|e| crate::srd::abilities::proficiency_id(e)).collect(), half: t.half_prof.clone(), half_all: t.all_half, reliable: t.reliable, save_advantage: t.save_advantage.clone(), ..Default::default() };
+        self.world.training = crate::srd::check::Training {
+            expertise: t.expertise.iter().map(|e| crate::srd::abilities::proficiency_id(e)).collect(),
+            half: t.half_prof.clone(),
+            half_all: t.all_half,
+            reliable: t.reliable,
+            save_advantage: t.save_advantage.clone(),
+            check_advantage: t.check_advantage.iter().map(|e| crate::srd::abilities::proficiency_id(e)).collect(),
+            save_bonus: t.bonus(crate::classes::BonusTo::Saves),
+            ..Default::default()
+        };
     }
 
     /// The hero's armor class with the class: an unarmored formula when no body armor is worn
@@ -258,10 +271,16 @@ impl Game {
                 Self::apply_ability_pick(&mut b.abilities, x);
             }
         }
-        let t = ClassTraits::of(c, level, &hc);
+        // (With its magic items' effects.)
+        let t = self.who_traits(Who::Npc(uid)).unwrap_or_else(|| ClassTraits::of(c, level, &hc));
         for (a, amount, max) in &t.ability_bonus {
             let v = b.abilities.score(*a);
             b.abilities.set(*a, (v + amount).min(*max));
+        }
+        for (a, score) in &t.ability_scores {
+            if b.abilities.score(*a) < *score {
+                b.abilities.set(*a, *score);
+            }
         }
         let m = |a: Ability| b.abilities.modifier(a);
         // Proficiencies: the class's saves and its own, its features'.
@@ -289,6 +308,9 @@ impl Game {
         } else if t.styles.contains(&FightingStyle::Defense) {
             ac += 1;
         }
+        // Magic armor's and shield's +N, items' bonuses (a Ring of Protection).
+        let plus = |s: crate::defs::EquipSlot| e.equipment.item(s).filter(|_| worn_armor(s).is_some()).map_or(0, |id| self.item_bonus(Who::Npc(uid), id));
+        ac += if body { plus(crate::defs::EquipSlot::Body) } else { 0 } + if shield > 0 { plus(crate::defs::EquipSlot::Offhand) } else { 0 } + t.bonus(crate::classes::BonusTo::Ac);
         b.ac = ac;
         b.speed_ft = b.speed_ft.max(5) + t.speed_ft + if body || shield > 0 { 0 } else { t.speed_unarmored_ft };
         // (Its proficiency bonus follows its level: `proficiency_level` reads `cr`.)
@@ -309,11 +331,13 @@ impl Game {
         // The proficiency bonus only with proficiency in the weapon.
         let srd = e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|id| self.project.db.item(id)).map_or(String::new(), |d| d.srd.clone());
         let proficient = unarmed || w.as_ref().is_none_or(|w| crate::srd::equipment::weapon_proficient(|p| b.proficiencies.iter().any(|x| crate::srd::abilities::proficiency_id(x) == p), w, &srd));
-        let mut bonus = if proficient { prof } else { 0 } + ability;
+        // (A magic weapon's +N on attack and damage, and the items' bonuses.)
+        let magic = e.equipment.item(crate::defs::EquipSlot::Weapon).map_or(0, |id| self.item_bonus(Who::Npc(uid), id));
+        let mut bonus = if proficient { prof } else { 0 } + ability + magic + t.bonus(crate::classes::BonusTo::Attack);
         if ranged && t.styles.contains(&FightingStyle::Archery) {
             bonus += 2;
         }
-        let dmg = ability + if !ranged && !unarmed && t.styles.contains(&FightingStyle::Dueling) { 2 } else { 0 };
+        let dmg = ability + magic + t.bonus(crate::classes::BonusTo::Damage) + if !ranged && !unarmed && t.styles.contains(&FightingStyle::Dueling) { 2 } else { 0 };
         let dice = if dmg == 0 { dice } else { format!("{dice}{dmg:+}") };
         let (range_ft, long_ft) = w.as_ref().and_then(|w| w.ranged.as_ref()).map_or((0, 0), |r| ((r.range.round() as u32) * 5, (if r.long_range > 0.0 { r.long_range } else { r.range * 2.0 }).round() as u32 * 5));
         let reach_ft = if ranged { 0 } else { w.as_ref().map_or(5, |w| w.reach_tiles().max(1) as u32 * 5) };

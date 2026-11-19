@@ -10,7 +10,7 @@ mod actions;
 mod ai;
 mod casting;
 mod features;
-mod menu;
+pub(in crate::runtime) mod menu;
 mod throwing;
 mod ui;
 
@@ -210,6 +210,8 @@ pub(super) struct Combat {
     pub once: Vec<(Who, &'static str)>,
     /// A scroll being read: its spell is aimed (used up when cast).
     pub scroll: Option<String>,
+    /// A spell cast from an item being aimed (its charges are spent when cast).
+    pub item_cast: Option<crate::runtime::magic_items::ItemCast>,
 }
 
 /// What a fight log keeps.
@@ -433,7 +435,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -533,32 +535,40 @@ impl Game {
     }
 
     /// Fighters of the enemy side that are no longer hostile to the player (*Set faction* after
-    /// "Spare him", a script) leave the fight; the fight ends when no enemy is left.
+    /// "Spare him", a script) or are gone (defeated by *Defeat all enemies* / `defeat_enemies()`, an
+    /// event, removed) leave the fight; the fight ends when no enemy is left.
     fn drop_peaceful(&mut self) {
         let Some(c) = &self.fight else { return };
-        let calm: Vec<Who> = c
+        // (Gone: defeated outside the fight's rules, by `defeat_enemies` or an event, or removed.)
+        let gone = |g: &Self, who: Who| g.who_index(who).is_none_or(|i| !g.loaded.entities[i].active);
+        let left: Vec<(Who, bool)> = c
             .order
             .iter()
             .filter(|f| f.side == Side::Enemy && !f.out)
-            .filter(|f| self.who_index(f.who).is_some_and(|i| !self.loaded.entities[i].hostile))
-            .map(|f| f.who)
+            .filter_map(|f| {
+                if gone(self, f.who) {
+                    Some((f.who, true))
+                } else {
+                    self.who_index(f.who).filter(|&i| !self.loaded.entities[i].hostile).map(|_| (f.who, false))
+                }
+            })
             .collect();
-        if calm.is_empty() {
+        if left.is_empty() {
             return;
         }
         let current = c.current().who;
-        for who in &calm {
+        for (who, dead) in &left {
             let name = self.who_name(*who);
             if let Some(c) = &mut self.fight {
                 if let Some(f) = c.fighter_mut(*who) {
                     (f.out, f.down) = (true, false);
                 }
-                c.log(format!("{name} {}", crate::lang::tr_ui("stops fighting")));
+                c.log(format!("{name} {}", crate::lang::tr_ui(if *dead { "dies" } else { "stops fighting" })));
             }
         }
         self.check_over();
         // (Its own turn: over.)
-        if calm.contains(&current) && self.fight.as_ref().is_some_and(|c| !c.over) {
+        if left.iter().any(|(w, _)| *w == current) && self.fight.as_ref().is_some_and(|c| !c.over) {
             self.next_turn();
         }
     }
@@ -700,7 +710,7 @@ impl Game {
     }
 
     /// Whether the current turn is the player's to play (the hero, a party member without AI).
-    pub(super) fn players_turn(&self) -> bool {
+    pub(in crate::runtime) fn players_turn(&self) -> bool {
         self.fight.as_ref().is_some_and(|c| !c.current().ai && c.walking.is_empty() && !c.over)
     }
 
@@ -712,7 +722,8 @@ impl Game {
         if self.update_walk(dt) {
             return;
         }
-        // Foes that made peace (spared, a new faction, charmed out of it) leave the fight.
+        // Foes that made peace (spared, a new faction, charmed out of it) or are gone (defeated by
+        // a script or event, removed) leave the fight.
         self.drop_peaceful();
         // A click on a foe out of reach: the attack once the walk there is over.
         if let Some(t) = self.fight.as_mut().and_then(|c| c.then_attack.take()) {
@@ -966,7 +977,7 @@ impl Game {
                 // (A party member's Improved Critical.)
                 let crit_on = self.who_traits(who).map_or(20, |t| t.crit_from);
                 // (A party member's weapon: STR in melee, DEX at range; two-handed or not.)
-                let classed = self.who_traits(who).is_some();
+                let classed = matches!(who, Who::Npc(uid) if self.member_class(uid).is_some());
                 let finesse = self.who_index(who).is_some_and(|i| self.loaded.entities[i].weapon.as_ref().is_some_and(|w| w.has(crate::defs::WeaponProperty::Finesse)));
                 // (A thrown weapon flies as the icon of the weapon in its hand.)
                 let weapon_icon = self.who_index(who).and_then(|i| self.loaded.entities[i].equipment.item(crate::defs::EquipSlot::Weapon)).and_then(|id| self.project.db.item(id)).map(|d| d.icon.clone());
@@ -1040,7 +1051,12 @@ impl Game {
         let dmg_mod = if offhand && m > 0 && !t.styles.contains(&F::TwoWeaponFighting) { 0 } else { m };
         // Dueling: +2 with a one-handed melee weapon and no weapon in the other hand.
         let dueling = !ranged && !w.has(P::TwoHanded) && !unarmed && t.styles.contains(&F::Dueling) && self.offhand_weapon(Who::Player).is_none();
-        let dmg_mod = dmg_mod + if dueling { 2 } else { 0 };
+        // Magic: the weapon's +N (its ammunition's when shooting), the items' bonuses.
+        let mut magic = if unarmed { 0 } else { self.world.equipment.item(slot).map_or(0, |id| self.item_bonus(Who::Player, id)) };
+        if let Some(r) = w.ranged.as_ref().filter(|r| !r.ammo.is_empty() && !thrown) {
+            magic += self.item_bonus(Who::Player, &r.ammo);
+        }
+        let dmg_mod = dmg_mod + if dueling { 2 } else { 0 } + magic + t.bonus(crate::classes::BonusTo::Damage);
         let dice = if dmg_mod == 0 { base_dice } else { format!("{base_dice}{dmg_mod:+}") };
         let (range, long) = match (&w.ranged, thrown) {
             (_, true) => w.thrown_ft.map_or((4, 12), |(n, l)| ((n / 5).max(1) as i32, (l / 5).max(1) as i32)),
@@ -1052,7 +1068,7 @@ impl Game {
         AttackSpec {
             name: String::new(),
             // (Archery: +2 to ranged attacks.)
-            bonus: m + prof + if w.ranged.is_some() && t.styles.contains(&F::Archery) { 2 } else { 0 },
+            bonus: m + prof + magic + t.bonus(crate::classes::BonusTo::Attack) + if w.ranged.is_some() && t.styles.contains(&F::Archery) { 2 } else { 0 },
             dice,
             damage_type: w.damage_type,
             ranged,
@@ -1700,7 +1716,8 @@ impl Game {
                     },
                     _ => return "cast SPELL [NAME | X Y] [slot N]".into(),
                 };
-                let r = self.cast_spell_in_fight(id, slot, at, false);
+                // (A wand's spell picked in the Cast window: from the wand.)
+                let r = self.cast_item_spell(id, at).unwrap_or_else(|| self.cast_spell_in_fight(id, slot, at, false));
                 if let Some(c) = &mut self.fight {
                     c.aim = Aim::Move;
                 }

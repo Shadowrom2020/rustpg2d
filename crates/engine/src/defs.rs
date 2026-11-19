@@ -52,6 +52,21 @@ impl LightSpec {
 /// A tile of a tileset that gives light.
 impl ItemDef {
     /// The equipment slot this item goes into, if it can be equipped.
+    /// The +N bonus of a magic weapon, ammunition, armor or shield (0 = none).
+    pub fn magic_bonus(&self) -> i32 {
+        self.magic.as_ref().map_or(0, |m| m.bonus)
+    }
+
+    /// Whether it needs attunement to work.
+    pub fn needs_attunement(&self) -> bool {
+        self.magic.as_ref().is_some_and(|m| m.attunement)
+    }
+
+    /// Its charges (0 = none).
+    pub fn max_charges(&self) -> u32 {
+        self.magic.as_ref().map_or(0, |m| m.charges)
+    }
+
     pub fn equip_slot(&self) -> Option<EquipSlot> {
         if !self.tool.is_empty() {
             Some(EquipSlot::Tool)
@@ -677,6 +692,20 @@ pub enum EquipSlot {
     Tool,
     /// On the back: a backpack (its `ItemDef::bag_slots` enlarge the player's inventory).
     Back,
+    /// Worn magic items (not drawn on the model): an amulet or necklace.
+    Neck,
+    /// A cloak or cape.
+    Cloak,
+    /// A belt.
+    Belt,
+    /// Boots.
+    Feet,
+    /// Gloves, gauntlets or bracers.
+    Hands,
+    /// A ring (the first of two).
+    Ring,
+    /// The second ring.
+    Ring2,
 }
 
 impl EquipSlot {
@@ -691,10 +720,38 @@ impl EquipSlot {
             "offhand" | "left" | "left hand" | "shield" => EquipSlot::Offhand,
             "tool" => EquipSlot::Tool,
             "back" | "backpack" | "bag" => EquipSlot::Back,
+            "neck" | "amulet" | "necklace" => EquipSlot::Neck,
+            "cloak" | "cape" => EquipSlot::Cloak,
+            "belt" | "waist" => EquipSlot::Belt,
+            "feet" | "boots" => EquipSlot::Feet,
+            "hands" | "gloves" | "bracers" | "gauntlets" => EquipSlot::Hands,
+            "ring" | "ring1" => EquipSlot::Ring,
+            "ring2" => EquipSlot::Ring2,
             _ => return None,
         })
     }
-    pub const ALL: [EquipSlot; 7] = [EquipSlot::Clothing, EquipSlot::Head, EquipSlot::Body, EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Tool, EquipSlot::Back];
+    pub const ALL: [EquipSlot; 14] = [
+        EquipSlot::Clothing,
+        EquipSlot::Head,
+        EquipSlot::Body,
+        EquipSlot::Weapon,
+        EquipSlot::Offhand,
+        EquipSlot::Tool,
+        EquipSlot::Back,
+        EquipSlot::Neck,
+        EquipSlot::Cloak,
+        EquipSlot::Belt,
+        EquipSlot::Feet,
+        EquipSlot::Hands,
+        EquipSlot::Ring,
+        EquipSlot::Ring2,
+    ];
+    /// The slots of worn magic items (rings, amulets, cloaks…): not drawn on the model.
+    pub const WORN: [EquipSlot; 7] = [EquipSlot::Neck, EquipSlot::Cloak, EquipSlot::Belt, EquipSlot::Feet, EquipSlot::Hands, EquipSlot::Ring, EquipSlot::Ring2];
+    /// A slot of worn magic items.
+    pub fn worn(self) -> bool {
+        Self::WORN.contains(&self)
+    }
     pub fn label(self) -> &'static str {
         match self {
             EquipSlot::Clothing => "Clothing",
@@ -704,6 +761,13 @@ impl EquipSlot {
             EquipSlot::Offhand => "Left hand",
             EquipSlot::Tool => "Tool",
             EquipSlot::Back => "Backpack",
+            EquipSlot::Neck => "Neck",
+            EquipSlot::Cloak => "Cloak",
+            EquipSlot::Belt => "Belt",
+            EquipSlot::Feet => "Feet",
+            EquipSlot::Hands => "Hands",
+            EquipSlot::Ring => "Ring",
+            EquipSlot::Ring2 => "Second ring",
         }
     }
 }
@@ -900,6 +964,9 @@ pub struct ItemDef {
     /// Money: what one is worth in copper pieces (cp 1, sp 10, ep 50, gp 100, pp 1000); 0 = not money.
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub coin_cp: u32,
+    /// A magic item: rarity, attunement, its +N bonus, effects, charges, spells.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub magic: Option<crate::srd::magic_items::MagicItem>,
 }
 
 /// Animation names of an item (`ItemDef::anims`); "" = by its kind ([`ItemAnims::estimate`]),
@@ -1000,6 +1067,7 @@ impl Default for ItemDef {
             cost_cp: 0,
             weight: 0.0,
             coin_cp: 0,
+            magic: None,
         }
     }
 }

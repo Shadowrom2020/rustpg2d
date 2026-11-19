@@ -250,7 +250,7 @@ impl Game {
             }
         };
         if who == "player" {
-            let mut abilities = self.world.abilities;
+            let mut abilities = *self.world.base_abilities_mut();
             if let Some(hc) = self.world.class.as_mut() {
                 apply(hc, Some(&mut abilities));
             }

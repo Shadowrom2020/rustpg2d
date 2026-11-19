@@ -384,6 +384,23 @@ pub enum Buff {
     Haste,
     /// Resistance to damage types (`fire`; "all" = every type).
     Resistance { types: Vec<String> },
+    /// An ability score becomes at least `score` (a Potion of Giant Strength).
+    AbilityScore { ability: crate::srd::Ability, score: i32 },
+}
+
+impl Buff {
+    /// A short badge of what it does (an item's boon: `STR`, `FIR`, `HST`).
+    pub fn badge(&self) -> String {
+        match self {
+            Buff::AttackDie { minus, .. } => if *minus { "-ATK" } else { "ATK" }.into(),
+            Buff::SaveDie { minus, .. } => if *minus { "-SAV" } else { "SAV" }.into(),
+            Buff::Ac { .. } | Buff::AcBase { .. } => "AC".into(),
+            Buff::Speed { .. } => "SPD".into(),
+            Buff::Haste => "HST".into(),
+            Buff::Resistance { types } => types.first().map_or("RES".into(), |t| t.chars().take(3).collect::<String>().to_ascii_uppercase()),
+            Buff::AbilityScore { ability, .. } => ability.short().to_string(),
+        }
+    }
 }
 
 /// The buffs running in `list`.
@@ -496,6 +513,8 @@ impl ActiveCondition {
     /// The badge: `PSN 5`, `EXH2`, `FIR 3`, `REG 3`.
     pub fn badge(&self) -> String {
         let label = match (self.condition, &self.ongoing) {
+            // (A magic item's boon: what it does, STR for a potion of giant strength.)
+            _ if self.source.starts_with("item:") && self.buff.is_some() => self.buff.as_ref().map_or(String::new(), |b| b.badge()),
             _ if self.buff.is_some() => self.source.split('@').next().unwrap_or("").chars().filter(|c| c.is_ascii_alphabetic()).take(3).collect::<String>().to_ascii_uppercase(),
             (Some(Condition::Exhaustion), _) => format!("EXH{}", self.level),
             (Some(c), _) if c != Condition::Any => c.badge().to_string(),
@@ -737,6 +756,16 @@ pub fn needs_sight(what: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn item_boons_are_badged_by_what_they_do() {
+        let mut list = Vec::new();
+        apply_buff(&mut list, Buff::AbilityScore { ability: crate::srd::Ability::Str, score: 21 }, 3600.0, "item:elixir_strength@player");
+        apply_buff(&mut list, Buff::Resistance { types: vec!["fire".into()] }, 60.0, "item:potion-of-resistance-fire@player");
+        apply_buff(&mut list, Buff::AttackDie { dice: "1d4".into(), minus: false }, 60.0, "bless@player");
+        let badges: Vec<String> = list.iter().map(|a| a.badge()).collect();
+        assert_eq!(badges, vec!["STR 3600", "FIR 60", "BLE 60"]);
+    }
 
     fn with(c: Condition) -> Vec<ActiveCondition> {
         let mut l = Vec::new();

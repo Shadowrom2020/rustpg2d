@@ -381,4 +381,10 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "srd_magic",
+        image: "sprites/srd_magic.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

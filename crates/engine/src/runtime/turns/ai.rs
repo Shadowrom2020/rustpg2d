@@ -223,7 +223,7 @@ impl Game {
         self.fight_log(format!("{name} {}", crate::lang::tr_ui("got away")));
     }
 
-    pub(super) fn fight_log(&mut self, line: String) {
+    pub(in crate::runtime) fn fight_log(&mut self, line: String) {
         if let Some(c) = &mut self.fight {
             c.log(line);
         }

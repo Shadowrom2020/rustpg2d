@@ -1023,6 +1023,105 @@ fn srd_item_ui(ui: &mut egui::Ui, d: &mut ItemDef) {
     });
 }
 
+/// The Magic item section: rarity, attunement, its +N bonus, charges and their recharge at dawn,
+/// spells cast from it, passive effects while worn (as RON), what using it does (spell parts).
+fn magic_item_ui(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
+    use rustpg2d_engine::srd::magic_items::{ItemSpell, MagicItem, Rarity};
+    let mut on = d.magic.is_some();
+    ui.checkbox(&mut on, "Magic item").on_hover_text("Rarity, attunement, a +1 to +3 bonus, charges, spells cast from it, effects while worn, what using it does (the SRD's magic items)");
+    if on != d.magic.is_some() {
+        d.magic = on.then(MagicItem::default);
+    }
+    let id = d.id.clone();
+    let Some(m) = d.magic.as_mut() else { return };
+    egui::Grid::new("magic_item").num_columns(2).show(ui, |ui| {
+        ui.label("Rarity");
+        egui::ComboBox::from_id_salt("magic_rarity").selected_text(m.rarity.label()).show_ui(ui, |ui| {
+            for r in Rarity::ALL {
+                ui.selectable_value(&mut m.rarity, r, r.label());
+            }
+        });
+        ui.end_row();
+        ui.label("Attunement");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut m.attunement, "required").on_hover_text("It works only while the hero is attuned to it (at most three items; attuning takes an hour, outside fights)");
+            if m.attunement {
+                ui.label("by");
+                let mut t = m.attune_by.join(", ");
+                if ui.add(egui::TextEdit::singleline(&mut t).desired_width(160.0).hint_text("anyone")).on_hover_text("Class or race ids, or spellcaster (comma separated); empty = anyone").changed() {
+                    m.attune_by = t.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
+                }
+            }
+        });
+        ui.end_row();
+        ui.label("Bonus");
+        ui.add(egui::DragValue::new(&mut m.bonus).range(-3..=3).prefix("+")).on_hover_text("A weapon's or ammunition's +N to attack and damage rolls, armor's or a shield's to armor class");
+        ui.end_row();
+        ui.label("Charges");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut m.charges).range(0..=50)).on_hover_text("0 = none");
+            if m.charges > 0 {
+                ui.label("regains at dawn");
+                ui.add(egui::TextEdit::singleline(&mut m.recharge).desired_width(70.0).hint_text("none")).on_hover_text("Dice (1d6+1), all, or empty = none");
+                ui.checkbox(&mut m.destroy_on_last, "may crumble").on_hover_text("Spending the last charge rolls a d20: on a 1 the item is destroyed");
+            }
+        });
+        ui.end_row();
+    });
+    ui.label("Spells cast from it");
+    let mut remove = None;
+    for (k, sp) in m.spells.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            if ui.small_button(crate::ui::ph::TRASH).on_hover_text("Remove this spell").clicked() {
+                remove = Some(k);
+            }
+            widgets::suggest(ui, &format!("{id}/mspell{k}"), &mut sp.spell, &cx.refs.spells, 140.0);
+            ui.add(egui::DragValue::new(&mut sp.charges).range(0..=50).suffix(" charges")).on_hover_text("0 = at will");
+            ui.add(egui::DragValue::new(&mut sp.slot).range(0..=9).prefix("slot ")).on_hover_text("The slot level it is cast at (0 = the spell's own)");
+            ui.add(egui::DragValue::new(&mut sp.upcast_to).range(0..=9).prefix("up to ")).on_hover_text("One more charge per slot level, up to this one (0 = not)");
+            ui.add(egui::DragValue::new(&mut sp.dc).range(0..=30).prefix("DC ")).on_hover_text("The item's save DC (its attack bonus = DC - 8); 0 = the user's own");
+        });
+    }
+    if let Some(k) = remove {
+        m.spells.remove(k);
+    }
+    if ui.small_button("Add spell").clicked() {
+        m.spells.push(ItemSpell { charges: 1, ..Default::default() });
+    }
+    ui.label("Effects while worn or held").on_hover_text("The class features' effects (RON): Bonus(to: Ac, amount: 1), Bonus(to: Saves, amount: 1), AbilityScore(ability: Str, score: 21), Resistance(types: [\"fire\"]), Speed(feet: 10, unarmored: false), CheckAdvantage(skill: \"stealth\"), Darkvision(feet: 60), SaveAdvantage(ability: Dex), Evasion…");
+    let key = egui::Id::new(("magic_effects", id.clone()));
+    let current = ron::ser::to_string(&m.effects).unwrap_or_default();
+    let mut text: String = ui.data_mut(|d| d.get_temp::<(String, String)>(key)).filter(|(base, _)| *base == current).map_or(current.clone(), |(_, t)| t);
+    let r = ui.add(egui::TextEdit::multiline(&mut text).desired_rows(2).desired_width(f32::INFINITY).code_editor());
+    if r.changed() {
+        match ron::from_str::<Vec<rustpg2d_engine::classes::FeatureEffect>>(&text) {
+            Ok(v) => {
+                m.effects = v;
+                let now = ron::ser::to_string(&m.effects).unwrap_or_default();
+                ui.data_mut(|d| d.insert_temp(key, (now, text.clone())));
+            }
+            Err(_) => ui.data_mut(|d| d.insert_temp(key, (current.clone(), text.clone()))),
+        }
+    }
+    if ron::from_str::<Vec<rustpg2d_engine::classes::FeatureEffect>>(&text).is_err() {
+        ui.colored_label(egui::Color32::LIGHT_RED, "Not valid: the effects keep their last valid value");
+    }
+    ui.label("Using it").on_hover_text("What using it does to its user, or whom it is used on (a potion's healing, a buff for its duration): spell parts");
+    spell_parts_ui(ui, &mut m.use_parts, cx);
+    if !m.use_parts.is_empty() {
+        ui.horizontal(|ui| {
+            ui.label("Lasts");
+            let mut min = m.use_seconds / 60.0;
+            if ui.add(egui::DragValue::new(&mut min).range(0.0..=1440.0).speed(1.0).suffix(" min")).on_hover_text("How long its boons and conditions last (0 = only the instant parts)").changed() {
+                m.use_seconds = min * 60.0;
+            }
+        });
+    }
+    if m.story_only() {
+        ui.weak("No rules effect yet: a story item (its effect is up to triggers and scripts).");
+    }
+}
+
 /// The SRD's rows of an item's weapon: category, properties, versatile dice, thrown range.
 fn weapon_srd_rows(ui: &mut egui::Ui, id: &str, w: &mut Weapon) {
     ui.label("Category");
@@ -1162,6 +1261,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
             .on_hover_text("Base trade price in the shop's currency; merchants use it when their stock has no own price and the item has no cost in coins (0 = worthless, can't be sold)");
     });
     srd_item_ui(ui, d);
+    magic_item_ui(ui, d, cx);
     ui.horizontal(|ui| {
         ui.label("Use on");
         egui::ComboBox::from_id_salt("item_use_on").selected_text(d.use_on.label()).show_ui(ui, |ui| {
@@ -1183,6 +1283,7 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         (None, Some(a)) if a.slot == EquipSlot::Offhand => 4,
         (None, Some(a)) if a.slot == EquipSlot::Clothing => 5,
         (None, Some(a)) if a.slot == EquipSlot::Back => 7,
+        (None, Some(a)) if a.slot.worn() => 8,
         (None, Some(_)) => 3,
         _ => 0,
     };
@@ -1196,17 +1297,19 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         ui.radio_value(&mut kind, 5, "Clothing").on_hover_text("An outfit (speed); the model's art shows what a character wears.");
         ui.radio_value(&mut kind, 6, "Tool").on_hover_text("Goes into the Tool slot (a fishing rod, later pickaxes, hoes...): held in the right hand while it is used. Activities ask for it, e.g. a fishing spot's 'Needs item'.");
         ui.radio_value(&mut kind, 7, "Backpack").on_hover_text("Goes into the Back slot and shows on the character's back (its 3D model, below); gives the player more inventory slots while worn.");
+        ui.radio_value(&mut kind, 8, "Worn item").on_hover_text("A ring, an amulet, a cloak, a belt, boots, gloves or bracers: worn in its own slot of the character window (not drawn on the model). Magic items work there.");
     });
     if kind != old {
         d.tool = if kind == 6 { if d.tool.is_empty() { "tool".into() } else { d.tool.clone() } } else { String::new() };
         d.weapon = (kind == 1).then(|| Weapon::melee(1, 0.4));
         d.armor = match kind {
-            2..=5 | 7 => {
+            2..=5 | 7 | 8 => {
                 let slot = match kind {
                     2 => EquipSlot::Head,
                     3 => EquipSlot::Body,
                     5 => EquipSlot::Clothing,
                     7 => EquipSlot::Back,
+                    8 => EquipSlot::Ring,
                     _ => EquipSlot::Offhand,
                 };
                 // New body armor is light armor (leather: 11 + DEX), a new left-hand piece a shield (+2).
@@ -1227,6 +1330,17 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         if let Some(m) = d.model.as_mut().filter(|_| kind == 7) {
             m.hold = rustpg2d_engine::defs::HoldStyle::Back;
         }
+    }
+    if let Some(a) = d.armor.as_mut().filter(|a| a.slot.worn()) {
+        ui.horizontal(|ui| {
+            ui.label("Worn on");
+            egui::ComboBox::from_id_salt("item_worn_slot").selected_text(a.slot.label()).show_ui(ui, |ui| {
+                for s in EquipSlot::WORN.into_iter().filter(|s| *s != EquipSlot::Ring2) {
+                    ui.selectable_value(&mut a.slot, s, s.label());
+                }
+            });
+            ui.weak("(a ring goes into either ring slot)");
+        });
     }
     if d.armor.as_ref().is_some_and(|a| a.slot == EquipSlot::Back) {
         ui.horizontal(|ui| {
@@ -5208,7 +5322,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                 }
                 P::Buff { buff } => {
                     ui.strong("Boon / bane");
-                    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance"];
+                    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score"];
                     let mut kind = match buff {
                         B::AttackDie { .. } => 0,
                         B::SaveDie { .. } => 1,
@@ -5217,6 +5331,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                         B::Speed { .. } => 4,
                         B::Haste => 5,
                         B::Resistance { .. } => 6,
+                        B::AbilityScore { .. } => 7,
                     };
                     let before = kind;
                     egui::ComboBox::from_id_salt(("sp_buff", k)).selected_text(names[kind]).show_ui(ui, |ui| {
@@ -5232,7 +5347,8 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                             3 => B::AcBase { base: 13 },
                             4 => B::Speed { feet: 10 },
                             5 => B::Haste,
-                            _ => B::Resistance { types: vec!["fire".into()] },
+                            6 => B::Resistance { types: vec!["fire".into()] },
+                            _ => B::AbilityScore { ability: Ability::Str, score: 21 },
                         };
                     }
                     match buff {
@@ -5255,6 +5371,14 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                             if ui.add(egui::TextEdit::singleline(&mut t).desired_width(160.0)).changed() {
                                 *types = t.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
                             }
+                        }
+                        B::AbilityScore { ability, score } => {
+                            egui::ComboBox::from_id_salt(("sp_buff_ab", k)).selected_text(ability.short()).show_ui(ui, |ui| {
+                                for a in Ability::ALL {
+                                    ui.selectable_value(ability, a, a.short());
+                                }
+                            });
+                            ui.add(egui::DragValue::new(score).range(1..=30)).on_hover_text("The score becomes at least this");
                         }
                     }
                 }

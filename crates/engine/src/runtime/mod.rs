@@ -28,6 +28,7 @@ mod money;
 mod skills;
 mod spells;
 mod lights;
+mod magic_items;
 mod creator;
 mod patrol;
 mod portraits;
@@ -445,6 +446,10 @@ pub struct Game {
     combat: PlayerCombat,
     /// The turn-based fight going on (`turns/`; not saved: saving waits for its end).
     fight: Option<Box<turns::Combat>>,
+    /// A spell being cast from an item (its DC; charges spent when cast).
+    casting_item: Option<magic_items::ItemCast>,
+    /// The worn magic items and attunements last seen (their training is refreshed on a change).
+    magic_key: u64,
     /// The level-up window (`levelup.rs`).
     levelup: Option<levelup::LevelUpWin>,
     /// The AI's turns without pauses (autoplay `turn fast`).
@@ -680,6 +685,8 @@ impl Game {
             effects: Vec::new(),
             projectiles: Vec::new(),
             fight: None,
+            casting_item: None,
+            magic_key: 0,
             levelup: None,
             fight_fast: false,
             fx: Vec::new(),
@@ -759,6 +766,7 @@ impl Game {
         };
         game.scripts.set_recipes(game.project.db.recipes.clone(), game.project.db.tool_kinds());
         game.scripts.set_consumables(game.project.db.items.iter().filter(|d| d.consumable).map(|d| d.id.clone()).collect());
+        game.scripts.set_item_charges(game.project.db.items.iter().filter(|d| d.max_charges() > 0).map(|d| (d.id.clone(), d.max_charges())).collect());
         game.scripts.set_factions(game.project.config.factions.clone());
         game.load_achievements();
         game.settings = crate::settings::Settings::load(&game.project.config.name);
@@ -2245,7 +2253,9 @@ impl Game {
             match self.loaded.entities[i].kind {
                 EntityKind::Item => {
                     let (def, count) = (self.loaded.entities[i].def.clone(), self.loaded.entities[i].count.max(1));
-                    let left = self.world.give_item(&def, count);
+                    // (A dropped magic item keeps its used charges.)
+                    let spent = self.world.dropped_spent(&self.loaded.map.name, uid);
+                    let left = self.world.inventory.add_stack(crate::inventory::ItemStack { spent, ..crate::inventory::ItemStack::new(&def, count) });
                     if left == count {
                         self.ui.toast("Inventory full".into());
                         return;
@@ -2403,6 +2413,15 @@ impl Game {
                 return;
             }
         }
+        // An item that casts spells (a wand, a staff): its spell, with charges.
+        if self.project.db.item(item).and_then(|d| d.magic.as_ref()).is_some_and(|m| !m.spells.is_empty()) {
+            if self.fight.is_some() {
+                self.open_item_casts(item);
+            } else if let Err(why) = self.cast_from_item_now(item) {
+                self.ui.toast(crate::lang::tr_ui(why).into_owned());
+            }
+            return;
+        }
         if self.project.db.item(item).is_some_and(|d| d.equip_slot().is_some()) {
             self.equip_item(item);
             return;
@@ -2462,7 +2481,15 @@ impl Game {
     /// Uses an item on the player / the prop in front (its *UseItem* triggers).
     fn use_item_now(&mut self, item: &str) {
         let ev = GameEvent::UseItem { item: item.to_string() };
-        let mut fired = false;
+        // A magic item's own effect (a potion's healing), then its triggers.
+        let mut fired = self.use_magic_item(item, turns::Who::Player);
+        if fired {
+            self.fire_item_use(item);
+            if self.project.db.item(item).is_some_and(|d| d.consumable) {
+                self.world.take_item(item, 1);
+            }
+            return;
+        }
         if let Some(i) = self.facing_entity() {
             fired = self.fire(ev.clone(), Source::Entity(self.loaded.entities[i].uid));
         }
@@ -2584,7 +2611,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2715,7 +2742,9 @@ impl Game {
             self.class_fx_status().join(","),
             self.money_status(),
             self.weapon_status(),
-            self.armor_status()
+            self.armor_status(),
+            self.attuned_status(),
+            self.charges_status()
         )
     }
 
@@ -2815,7 +2844,7 @@ impl Game {
         if self.world.version < 2 {
             let race = self.project.db.race_full(&self.world.player_race);
             let hero = crate::races::build_hero(race.as_ref(), &self.project.config.rules, None, &Default::default(), None);
-            self.world.abilities = hero.abilities;
+            *self.world.base_abilities_mut() = hero.abilities;
             self.world.proficiencies = hero.proficiencies;
             self.world.languages = hero.languages;
             self.world.resistances = hero.resistances;

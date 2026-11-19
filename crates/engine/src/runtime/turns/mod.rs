@@ -194,6 +194,8 @@ pub(super) struct Combat {
     pub selected: usize,
     /// An attack to make once the walk there ends (a click on a foe out of reach).
     pub then_attack: Option<Who>,
+    /// Items to pick up once the walk next to them ends (a right-click on a pile out of reach).
+    pub then_pick_up: Option<TilePos>,
     /// The current fighter's reachable tiles (the overlay, clicks), and what they were for.
     pub reach: Reach,
     /// The choice window over the action bar (Cast, Class, Attack: strike or throw).
@@ -201,7 +203,7 @@ pub(super) struct Combat {
     /// How the aimed Attack uses a weapon that can be thrown too: Some(true) = throw it,
     /// Some(false) or None = strike.
     pub attack_mode: Option<bool>,
-    pub reach_key: Option<(usize, u32, u32, u32, TilePos)>,
+    pub reach_key: Option<(usize, u32, u32, u32, TilePos, u64)>,
     /// The mouse's last screen position (the cursor follows it when it moves).
     pub mouse_last: Vec2,
     /// Once-per-turn features used in the current turn (Sneak Attack…), by whom.
@@ -346,7 +348,7 @@ impl Game {
     }
 
     /// The fighters' tiles (the living ones), but `except`.
-    fn fighter_tiles(&self, except: Who) -> Vec<(Who, Side, TilePos)> {
+    pub(super) fn fighter_tiles(&self, except: Who) -> Vec<(Who, Side, TilePos)> {
         let Some(c) = &self.fight else { return Vec::new() };
         c.order.iter().filter(|f| f.who != except && !f.out).map(|f| (f.who, f.side, self.who_tile(f.who))).collect()
     }
@@ -355,9 +357,12 @@ impl Game {
 
     /// Starts a fight: everyone hostile to the party within reach of it, the party and its allies.
     /// `surprise`: the hero struck first, so enemies that hadn't noticed them lose round 1.
-    pub(super) fn start_combat(&mut self, surprise: bool) -> bool {
+    /// `aware`: only enemies that know of the party take part (those that notice it, and with
+    /// `surprise` those the hero sees); the others join later when they notice it. Without it
+    /// (*Start fight*) every hostile character near joins.
+    pub(super) fn start_combat(&mut self, surprise: bool, aware: bool) -> bool {
         if self.fight.is_some() {
-            return self.join_fight();
+            return self.join_fight(aware);
         }
         if !self.combat_on() || self.game_over.is_some() || self.on_title() {
             return false;
@@ -378,6 +383,9 @@ impl Game {
                 let ai = e.companion.as_ref().is_some_and(|l| l.ai);
                 order.push(fighter(Who::Npc(e.uid), Side::Party, ai));
             } else if e.hostile {
+                if aware && !self.takes_part(i, surprise) {
+                    continue;
+                }
                 let mut f = fighter(Who::Npc(e.uid), Side::Enemy, true);
                 f.surprised = surprise && self.unaware(i);
                 order.push(f);
@@ -425,7 +433,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -443,13 +451,13 @@ impl Game {
 
     /// Hostile characters near the player that aren't fighting yet join the fight going on (they
     /// came running, noticed it late): their initiative puts them at the end of the round.
-    fn join_fight(&mut self) -> bool {
+    fn join_fight(&mut self, aware: bool) -> bool {
         let ts = self.ts();
         let here = self.player.pos;
         let new: Vec<usize> = (0..self.loaded.entities.len())
             .filter(|&i| {
                 let e = &self.loaded.entities[i];
-                e.active && e.kind == EntityKind::Character && e.hostile && e.companion.is_none() && e.max_hp > 0 && e.hp > 0 && e.body.pos.distance(here) <= JOIN_TILES * ts && !self.fighting(e.uid)
+                e.active && e.kind == EntityKind::Character && e.hostile && e.companion.is_none() && e.max_hp > 0 && e.hp > 0 && e.body.pos.distance(here) <= JOIN_TILES * ts && !self.fighting(e.uid) && (!aware || self.takes_part(i, false))
             })
             .collect();
         if new.is_empty() {
@@ -475,6 +483,17 @@ impl Game {
             self.fire(crate::events::GameEvent::CombatStart, super::Source::Entity(uid));
         }
         true
+    }
+
+    /// Whether hostile character `i` takes part in a fight starting now: it knows of the party,
+    /// or (`hero_struck`) the hero, striking first, sees it.
+    fn takes_part(&self, i: usize, hero_struck: bool) -> bool {
+        if self.aware_of_party(i) {
+            return true;
+        }
+        let e = &self.loaded.entities[i];
+        let eye = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
+        hero_struck && e.body.pos.distance(self.player.pos) <= super::combat::ATTACK_SIGHT * self.ts() && self.line_clear(eye, e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0))
     }
 
     /// The project has combat (the player character has HP).
@@ -642,6 +661,9 @@ impl Game {
             c.round += 1;
             let r = c.round;
             c.log(format!("{} {r}", crate::lang::tr_ui("Round")));
+            // Hostile characters near that noticed the party since join now (those without a
+            // real-time chase too: a deserter standing guard).
+            self.join_fight(true);
         }
         self.begin_turn();
     }
@@ -663,6 +685,14 @@ impl Game {
         if let Some(t) = self.fight.as_mut().and_then(|c| c.then_attack.take()) {
             if let Err(why) = self.act_on(&Aim::Attack, t) {
                 self.ui.toast(crate::lang::tr_ui(why).into_owned());
+            }
+        }
+        // A right-click on items out of reach: picked up once next to them.
+        if let Some(t) = self.fight.as_mut().and_then(|c| c.then_pick_up.take()) {
+            let me = self.fight.as_ref().unwrap().current().who;
+            let here = self.who_tile(me);
+            if here.0.abs_diff(t.0) <= 1 && here.1.abs_diff(t.1) <= 1 {
+                self.pick_up_at(me, t);
             }
         }
         let over = self.fight.as_ref().is_some_and(|c| c.over);
@@ -688,6 +718,17 @@ impl Game {
 
     /// Tiles a creature may not enter: solid tiles, props, and the tiles of its foes (allies may
     /// be passed, not stopped on: `stop`).
+    /// A tile no one walks onto, whoever stands where: off the map, blocked ground, a solid prop.
+    pub(super) fn terrain_closed(&self, t: TilePos) -> bool {
+        !self.loaded.map.in_bounds(t.0, t.1) || self.tile_blocks_npc(t.0, t.1) || self.loaded.occupancy.has(t.0, t.1, super::occupancy::OCC_PROP)
+    }
+
+    /// Walking distances (steps) to `goals` over the terrain (creatures don't block), out to
+    /// `limit` steps: the AI's way round trees and walls to a foe.
+    pub(super) fn walk_distances(&self, goals: &[TilePos], limit: i32) -> std::collections::HashMap<TilePos, i32> {
+        distance_field(goals, limit, |t| self.terrain_closed(t))
+    }
+
     fn tile_closed(&self, who: Who, side: Side, t: TilePos, stop: bool, fighters: &[(Who, Side, TilePos)]) -> bool {
         if !self.loaded.map.in_bounds(t.0, t.1) || self.tile_blocks_npc(t.0, t.1) {
             return true;
@@ -720,8 +761,8 @@ impl Game {
                 if self.tile_closed(who, me.side, n, false, &fighters) {
                     continue;
                 }
-                // Diagonals only past free corners (no clipping walls).
-                if d.0 != 0 && d.1 != 0 && (self.tile_closed(who, me.side, (t.0 + d.0, t.1), false, &fighters) || self.tile_closed(who, me.side, (t.0, t.1 + d.1), false, &fighters)) {
+                // A diagonal step, unless both corners are walls (no squeezing through).
+                if d.0 != 0 && d.1 != 0 && !diagonal_ok(self.terrain_closed((t.0 + d.0, t.1)), self.terrain_closed((t.0, t.1 + d.1))) {
                     continue;
                 }
                 let nc = cost + rules::step_cost(self.difficult_at(n));
@@ -820,6 +861,7 @@ impl Game {
             if let Some(c) = &mut self.fight {
                 c.walking.clear();
                 c.then_attack = None;
+                c.then_pick_up = None;
             }
             return true;
         }
@@ -841,8 +883,13 @@ impl Game {
         if let Some(c) = &mut self.fight {
             c.turn.moved += cost;
         }
-        // Its own thrown weapon lying there: picked up (free).
+        // Its own thrown weapon lying there: picked up (free); characters the player plays pick up
+        // everything lying there.
         self.pick_up_thrown(who, next);
+        let played = self.fight.as_ref().and_then(|c| c.fighter(who)).is_some_and(|f| !f.ai && f.side == Side::Party);
+        if played {
+            self.pick_up_at(who, next);
+        }
         // Entering a readied foe's reach: its attack.
         let readied: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| f.side != side && f.readied && !f.reacted && !f.out && !f.down).map(|f| f.who).collect());
         for foe in readied {
@@ -1469,7 +1516,7 @@ impl Game {
         let a: Vec<&str> = line.split_whitespace().collect();
         let arg = |k: usize| a.get(k).copied().unwrap_or("");
         match arg(0) {
-            "start" => return if self.start_combat(false) { "fight".into() } else { "no fight".into() },
+            "start" => return if self.start_combat(false, false) { "fight".into() } else { "no fight".into() },
             "fast" => {
                 let on = arg(1) != "off";
                 self.fight_fast = on;
@@ -1693,6 +1740,39 @@ fn roll_damage(expr: &str, reroll_low: bool) -> i32 {
     crate::srd::Expr::parse(expr).map(|e| e.roll(&crate::srd::dice::NoMods).total.max(1)).unwrap_or(1) as i32
 }
 
+/// A diagonal step is allowed unless both corner tiles beside it are walls (creatures never
+/// block a corner: the SRD has no corner rule; two walls touching at a corner can't be squeezed
+/// through).
+pub(super) fn diagonal_ok(corner_a_wall: bool, corner_b_wall: bool) -> bool {
+    !(corner_a_wall && corner_b_wall)
+}
+
+/// Steps from each tile to the nearest of `goals` (8 directions, diagonals by [`diagonal_ok`]),
+/// over tiles `closed` doesn't close, out to `limit` steps. The goals themselves may be closed
+/// (a foe's tile).
+pub(super) fn distance_field(goals: &[TilePos], limit: i32, closed: impl Fn(TilePos) -> bool) -> std::collections::HashMap<TilePos, i32> {
+    let mut dist: std::collections::HashMap<TilePos, i32> = goals.iter().map(|g| (*g, 0)).collect();
+    let mut queue: std::collections::VecDeque<TilePos> = goals.iter().copied().collect();
+    while let Some(t) = queue.pop_front() {
+        let d = dist[&t];
+        if d >= limit {
+            continue;
+        }
+        for s in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+            let n = (t.0 + s.0, t.1 + s.1);
+            if dist.contains_key(&n) || closed(n) {
+                continue;
+            }
+            if s.0 != 0 && s.1 != 0 && !diagonal_ok(closed((t.0 + s.0, t.1)), closed((t.0, t.1 + s.1))) {
+                continue;
+            }
+            dist.insert(n, d + 1);
+            queue.push_back(n);
+        }
+    }
+    dist
+}
+
 #[cfg(test)]
 mod reach_tests {
     use super::*;
@@ -1705,5 +1785,23 @@ mod reach_tests {
         let reach = Reach { tiles, passed };
         assert!(!reach.contains_key(&(1, 0)), "an ally's tile isn't a place to stop");
         assert_eq!(Game::path_to(&reach, (0, 0), (2, 0)), vec![(1, 0), (2, 0)]);
+    }
+
+    #[test]
+    fn diagonals_are_blocked_only_between_two_walls() {
+        assert!(diagonal_ok(false, false) && diagonal_ok(true, false) && diagonal_ok(false, true));
+        assert!(!diagonal_ok(true, true));
+    }
+
+    #[test]
+    fn the_distance_field_walks_round_a_wall() {
+        // A wall from (2,-3) to (2,3) between the goal (0,0) and (4,0): the way round it is longer
+        // than the straight line.
+        let wall = |t: TilePos| t.0 == 2 && (-3..=3).contains(&t.1);
+        let d = distance_field(&[(0, 0)], 40, wall);
+        assert_eq!(d.get(&(1, 0)), Some(&1));
+        assert!(!d.contains_key(&(2, 0)), "a wall tile has no distance");
+        assert_eq!(d.get(&(4, 0)), Some(&8), "round the end of the wall: 4 up, 4 down");
+        assert_eq!(distance_field(&[(0, 0)], 3, wall).get(&(4, 0)), None, "beyond the limit");
     }
 }

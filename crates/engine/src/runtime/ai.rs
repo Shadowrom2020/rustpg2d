@@ -87,6 +87,28 @@ fn chase_of(b: &Behavior) -> Option<Chase> {
 }
 
 impl Game {
+    /// Whether hostile character `i` knows of the party: it is hunting someone, or it notices
+    /// the hero or a companion now (within its sight; behind walls and trees only when closer
+    /// than half of it; the hero later while sneaking or in the dark). Only those take part when
+    /// a fight starts near them.
+    pub(super) fn aware_of_party(&self, i: usize) -> bool {
+        let e = &self.loaded.entities[i];
+        if e.ai.aggro > 0.0 {
+            return true;
+        }
+        let ts = self.ts();
+        let sight = chase_of(&e.behavior).map_or(8.0, |c| c.sight);
+        let pos = e.body.pos;
+        let eye = pos - vec2(0.0, e.body.hitbox.y / 2.0 + 2.0);
+        let notices = |feet: Vec2, mid: Vec2, range: f32| {
+            let d = feet.distance(pos);
+            d <= range && (d <= range * 0.5 || self.line_clear(eye, mid))
+        };
+        let player_mid = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
+        let near = self.player.pos.distance(pos) <= super::stealth::NEAR_NOTICE.min(sight) * ts;
+        near || notices(self.player.pos, player_mid, self.player_sight(sight)) || self.companion_targets().into_iter().any(|(c, mid)| notices(self.loaded.entities[c].body.pos, mid, sight * ts))
+    }
+
     /// Characters `i` and `j` are on the same side (the same kind or the same faction).
     fn kin(&self, i: usize, j: usize) -> bool {
         let (a, b) = (&self.loaded.entities[i], &self.loaded.entities[j]);
@@ -316,7 +338,7 @@ impl Game {
             self.auto_emote(i, "fear");
         }
         // The player or a companion noticed (and it doesn't run): a fight starts.
-        if matches!(foe, Some(Foe::Player | Foe::Companion(_))) && !hurt && self.start_combat(false) {
+        if matches!(foe, Some(Foe::Player | Foe::Companion(_))) && !hurt && self.start_combat(false, true) {
             return true;
         }
         let e = &mut self.loaded.entities[i];

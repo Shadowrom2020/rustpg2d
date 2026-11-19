@@ -896,5 +896,6 @@
         "Too far away": "Longe demais",
         "Self": "Pessoal",
         "Touch": "Toque",
+        "{} picks up {}": "{} pega: {}",
     },
 )

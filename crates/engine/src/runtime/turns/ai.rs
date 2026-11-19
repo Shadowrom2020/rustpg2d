@@ -146,6 +146,10 @@ impl Game {
             let mut best: Option<(i32, TilePos)> = None;
             // Its thrown weapon lying within this turn's walk: take it back first.
             let mine = self.thrown_tiles(me.who).into_iter().filter(|t| reach.contains_key(t)).min_by_key(|t| reach[t].0);
+            // Out of reach this turn: the walking distance to the foes (round trees and walls),
+            // not the straight line, so it doesn't walk into a dead end.
+            let field = self.walk_distances(&foe_tiles, 48);
+            let way = |t: &TilePos| field.get(t).copied().unwrap_or(200);
             for (t, (cost, _)) in reach.iter() {
                 if mine.is_some() {
                     break;
@@ -159,14 +163,14 @@ impl Game {
                     if near <= r && near > 1 && line {
                         *cost as i32
                     } else {
-                        1000 + (near - r).abs() * 10 + if line { 0 } else { 50 } + *cost as i32
+                        1000 + (way(t) - r).max(0) * 10 + if line { 0 } else { 50 } + *cost as i32
                     }
                 } else {
                     let r = specs.iter().filter(|s| !s.ranged).map(|s| s.reach).max().unwrap_or(1);
                     if near <= r {
                         *cost as i32
                     } else {
-                        1000 + near * 10 + *cost as i32 / 5
+                        1000 + way(t) * 10 + *cost as i32 / 5
                     }
                 };
                 if best.is_none_or(|b| score < b.0) {

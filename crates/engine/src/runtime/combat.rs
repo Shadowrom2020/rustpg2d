@@ -262,7 +262,7 @@ impl Game {
             self.combat.cooldown = 0.5;
             return;
         }
-        if self.hostile_in_sight(ATTACK_SIGHT) && self.start_combat(true) {
+        if self.hostile_in_sight(ATTACK_SIGHT) && self.start_combat(true, true) {
             return;
         }
         let weapon = self.attack_weapon();

@@ -3746,7 +3746,7 @@ impl ActionHost for Game {
                 Step::Continue
             }
             Action::StartCombat => {
-                self.start_combat(false);
+                self.start_combat(false, false);
                 Step::Continue
             }
             Action::SetClass { target, class, level } => {

@@ -896,5 +896,6 @@
         "Too far away": "Troppo lontano",
         "Self": "Incantatore",
         "Touch": "Contatto",
+        "{} picks up {}": "{} raccoglie: {}",
     },
 )

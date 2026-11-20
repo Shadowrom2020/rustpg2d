@@ -525,6 +525,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   what the purse could pay and take from it. Coins in the bag of an older save go into the purse when
   it loads. Monsters, chests and companions still hold coins as items.
 
+### Art
+- The male **dragonborn** has a new model (example and starter library) with its own walk, idle,
+  sword attack and spell-casting clips; hurt, sitting, sneaking and the weapon animations still come
+  from the shared clips, and the colour features (skin, clothing) are unchanged.
+
 ### Fixes
 - Leaving the tavern's guest room with its key: the key went back on its hook right outside the door,
   which locked the door on the hero standing in it. It now goes back at the stairs.

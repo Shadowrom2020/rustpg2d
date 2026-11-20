@@ -42,12 +42,14 @@ pub enum RefKind {
     Background,
     /// Class (`classes::ClassDef`).
     Class,
+    /// Disease (`diseases::DiseaseDef`).
+    Disease,
 }
 
 impl RefKind {
     /// Every kind: the definition lists in `defs/` file order ([`crate::project::DEFS`]), with
     /// `Skill` (a proficiency id, no definition) where `skills.ron` was until 0.27, then `Map`.
-    pub const ALL: [RefKind; 21] = [
+    pub const ALL: [RefKind; 22] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -68,10 +70,11 @@ impl RefKind {
         RefKind::CommonEvent,
         RefKind::Background,
         RefKind::Class,
+        RefKind::Disease,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 19] = [
+    pub const DEFS: [RefKind; 20] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -91,6 +94,7 @@ impl RefKind {
         RefKind::CommonEvent,
         RefKind::Background,
         RefKind::Class,
+        RefKind::Disease,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -117,6 +121,7 @@ impl RefKind {
             RefKind::CommonEvent => "common_event",
             RefKind::Background => "background",
             RefKind::Class => "class",
+            RefKind::Disease => "disease",
         }
     }
 
@@ -143,6 +148,7 @@ impl RefKind {
             RefKind::CommonEvent => "common_events",
             RefKind::Background => "backgrounds",
             RefKind::Class => "classes",
+            RefKind::Disease => "diseases",
             RefKind::Map => return None,
         })
     }
@@ -171,6 +177,7 @@ impl RefKind {
             RefKind::CommonEvent => "Common event",
             RefKind::Background => "Background",
             RefKind::Class => "Class",
+            RefKind::Disease => "Disease",
         }
     }
 
@@ -200,6 +207,7 @@ impl RefKind {
             "background" => RefKind::Background,
             // (Plurals lose their s: "class" and "classes" end up as "cla" and "classe".)
             "cla" | "classe" => RefKind::Class,
+            "disease" => RefKind::Disease,
             _ => return None,
         })
     }
@@ -288,6 +296,17 @@ impl Renamer<'_> {
             self.gear(&mut Default::default(), inv);
         }
         self.stat_spells(&mut e.stats);
+        self.stat_diseases(&mut e.stats);
+    }
+
+    /// The diseases a stat block's attacks give (a diseased rat's bite): renamed with the disease,
+    /// and a dependency (the library carries it with the monster).
+    fn stat_diseases(&mut self, s: &mut Option<crate::srd::StatBlock>) {
+        for a in s.iter_mut().flat_map(|s| s.attacks.iter_mut()) {
+            for r in &mut a.on_hit {
+                self.fix(RefKind::Disease, &mut r.disease);
+            }
+        }
     }
 
     /// A stat block's spells (renamed with the spell; not a dependency: a monster casts only the
@@ -490,6 +509,7 @@ impl Renamer<'_> {
                     }
                 }
                 Cond::HasItem { item, .. } | Cond::Attuned { item } => self.fix(RefKind::Item, item),
+                Cond::HasDisease { disease } => self.fix(RefKind::Disease, disease),
                 // (A definition id there follows its renames; a name stays.)
                 Cond::KnockedOut { name } => self.fix(RefKind::Character, name),
                 Cond::Defeated { character, .. } => self.fix(RefKind::Character, character),
@@ -507,6 +527,7 @@ impl Renamer<'_> {
             Action::Teleport { map, .. } | Action::SetSpawners { map, .. } | Action::SetWeather { map, .. } => self.fix(RefKind::Map, map),
             Action::PlaySound { sound, .. } | Action::PlayMusic { sound, .. } | Action::PlayMusicEffect { sound, .. } => self.fix(RefKind::Sound, sound),
             Action::CallCommon { id } => self.fix(RefKind::CommonEvent, id),
+            Action::ExposeDisease { disease, .. } | Action::CureDisease { disease } => self.fix(RefKind::Disease, disease),
             Action::SetClass { class, .. } => self.fix(RefKind::Class, class),
             Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
             Action::ShowImage { sheet, .. } | Action::ShowPicture { sheet, .. } => self.fix(RefKind::Sheet, sheet),
@@ -601,6 +622,7 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         r.gear(&mut d.equipment, &mut d.inventory);
         r.portraits(&mut d.portrait, &mut d.moods);
         r.stat_spells(&mut d.stats);
+        r.stat_diseases(&mut d.stats);
     }
     for d in &mut db.structures {
         r.structure(d);
@@ -875,6 +897,7 @@ pub fn refs_of_character(d: &crate::defs::CharacterDef) -> Vec<(RefKind, String)
     r.look(&mut d.appearance);
     r.gear(&mut d.equipment, &mut d.inventory);
     r.portraits(&mut d.portrait, &mut d.moods);
+    r.stat_diseases(&mut d.stats);
     r.found.unwrap_or_default()
 }
 

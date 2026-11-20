@@ -1010,6 +1010,7 @@
         "character:giant-rat-diseased": (
             defs: [
                 553991559780375320,
+                7823501917429210465,
             ],
         ),
         "character:giant-scorpion": (
@@ -2499,6 +2500,26 @@
         "common_event:quest_reward": (
             defs: [
                 11511290311767606320,
+            ],
+        ),
+        "disease:cackle_fever": (
+            defs: [
+                13872603337734629986,
+            ],
+        ),
+        "disease:rat_bite_fever": (
+            defs: [
+                4921218766949723528,
+            ],
+        ),
+        "disease:sewer_plague": (
+            defs: [
+                2011552130979400612,
+            ],
+        ),
+        "disease:sight_rot": (
+            defs: [
+                9458034156738043817,
             ],
         ),
         "font:fusion_pixel_ja": (
@@ -15388,6 +15409,7 @@
             defs: [
                 156688503035768723,
                 3232173325502795605,
+                6724741979172651755,
             ],
         ),
         "spell:levitate": (

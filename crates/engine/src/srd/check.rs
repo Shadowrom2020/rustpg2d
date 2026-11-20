@@ -45,6 +45,8 @@ pub struct Training {
     pub check_advantage: Vec<String>,
     /// Added to every saving throw (a Ring of Protection's +1).
     pub save_bonus: i32,
+    /// Taken off checks by sight (a disease's failing sight: Sight Rot).
+    pub sight_penalty: i32,
 }
 
 /// The light where the hero is, for checks that rely on sight (the SRD's *Vision and Light*).

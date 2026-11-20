@@ -136,6 +136,12 @@ the level). Stat blocks (`srd/statblock.rs`) are data on `CharacterDef::stats` /
 the engine (`include_str!`, parsed once) and written by `srd_import`. Fights fight with them
 (below); the script host gets them as a list per script call (`set_stat_blocks`, `npc_stat`).
 
+Diseases (`diseases.rs`, `defs/diseases.ron`, `RefKind::Disease`) are data too: `DiseaseDef`
+says what the symptoms do and how the course runs over long rests; the hero's are
+`WorldState::diseases` (`ActiveDisease`: onset, current DC, stage, hit points lost), run by
+`runtime/diseases.rs` (onsets each frame, courses in `long_rest_effects`, fits in both damage
+paths). A monster gives one through its stat block rider's `disease`.
+
 Classes (`classes.rs`, `defs/classes.ron`, `RefKind::Class`) are data: `ClassDef` with its levels
 (features, flattened numbers), subclasses and `ClassFeature`s whose `FeatureEffect`s the engine
 acts on (the importer's mapping table decides which) and whose `FeatureChoice`s the level-up window

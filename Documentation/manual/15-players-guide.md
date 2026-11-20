@@ -131,6 +131,11 @@ bar) to coat your piercing or slashing weapon, or your arrows; the next hit pois
 a fight that is your action. Antitoxin gives you advantage on saving throws against poison for an
 hour.
 
+**Diseases**: a rat's bite or foul water can make you sick: some time later "You feel sick". A
+disease can keep rests from healing you, wear you out, cloud your sight or shrink your health.
+Some pass with rest and luck; otherwise find a healer (Brother Ansel at the chapel) or a cleric's
+*Lesser Restoration*.
+
 **Weapons and armor**: the item's line in the character window tells its dice and properties
 (`1d8 (1d10) · Versatile`: more damage with the left hand free) or its armor class (`Heavy armor ·
 AC 16 · STR 13`). Armor you aren't trained in makes you clumsy (disadvantage on Strength and

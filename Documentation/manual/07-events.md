@@ -68,6 +68,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
 | **Proficient in** | The hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`, `save:dex`). Until 0.27 *Skill level* |
 | **Check passed** | The last ability check or saving throw (an *Ability check* action, a lock, crafting, `check()` in a script) succeeded, by at least a number (0 = just succeeded) |
+| **Has disease** | The hero has the disease, incubating or sick (empty = any): a healer's offer, a worried villager. *Since 0.32* |
 | **Search found** | The hero's last search (a Perception roll) reached a DC: for *Searched* triggers (`search_roll()` in scripts). *Since 0.32* |
 | **Passive check** | The hero's passive check of a skill, ability or ability:tool (10 + the bonus, +5 with advantage, −5 with disadvantage: dim light for Perception; 0 looking in darkness) is at least a DC: something noticed without rolling, e.g. on a zone's *Enter* ([Gameplay › Checks outside fights](09-gameplay.md#checks-outside-fights)). *Since 0.32* |
 | **Knows spell**, **Player level** | Character progress |
@@ -214,6 +215,11 @@ across map changes and in save games.
   of a type or healing (`1d4` fire, `2` healing), and a **boon or bane** for as long (a die on
   attacks or saves, AC, speed, a resistance, advantage against poison: the library's Antitoxin).
   *None* as the condition = only the per-round part or the boon. Until 0.27 *Apply effect*.
+- **Expose to disease** (a disease, *its saving throw* or none): the hero meets a
+  [disease](09-gameplay.md#diseases): a dirty well, a sick villager's cough; it waits for its onset.
+  `infect()` in scripts. *Since 0.32*
+- **Cure disease** (a disease, empty = every one): ends the hero's disease; its exhaustion stays for
+  rests to take away. A healer, a remedy. `cure_disease()` in scripts. *Since 0.32*
 - **Expose to poison** (a character or the player, an item with a *Poison* section): its
   Constitution save, then its damage and conditions ([Gameplay › Poisons](09-gameplay.md#poisons)):
   a drugged ale, a gas trap, a poisoned well. `poison()` in scripts. *Since 0.32*

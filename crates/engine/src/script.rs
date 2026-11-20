@@ -1188,6 +1188,9 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("trap_state", with!(ctx, |c, t: &str| c.traps.iter().find(|x| x.0 == t).map_or(String::new(), |x| x.1.clone())));
     engine.register_fn("disarm_trap", with!(ctx, |c, t: &str| c.actions.push(Action::DisarmTrap { target: t.into() })));
     engine.register_fn("poison", with!(ctx, |c, t: &str, item: &str| c.actions.push(Action::Poison { target: t.into(), item: item.into() })));
+    engine.register_fn("infect", with!(ctx, |c, d: &str| c.actions.push(Action::ExposeDisease { disease: d.into(), save: true })));
+    engine.register_fn("cure_disease", with!(ctx, |c, d: &str| c.actions.push(Action::CureDisease { disease: d.into() })));
+    engine.register_fn("has_disease", with!(ctx, |c, d: &str| c.world.diseases.iter().any(|x| d.is_empty() || x.id == d)));
     engine.register_fn("damage_prop", with!(ctx, |c, t: &str, amount: i64| c.actions.push(Action::DamageProp { target: t.into(), amount: amount as i32, damage_type: None })));
     engine.register_fn("damage_prop", with!(ctx, |c, t: &str, amount: i64, kind: &str| c.actions.push(Action::DamageProp { target: t.into(), amount: amount as i32, damage_type: crate::srd::DamageType::parse(kind) })));
     engine.register_fn("play_sound", with!(ctx, |c, id: &str| c.actions.push(Action::PlaySound { sound: id.into(), volume: 1.0, pitch: 1.0, pan: 0.0 })));

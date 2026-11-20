@@ -247,7 +247,10 @@ crates/engine/src/      library: everything shared by game and editor
                         (srd/traps.rs TrapSpec on ZoneKind::Trap / PropDef.trap, WorldState.traps by map/uid: noticing
                         once a second, Search, E disarms, springing; status traps=), poisons (srd/poisons.rs
                         PoisonDef on ItemDef.poison: coating the weapon (WorldState.coating, AttackSpec.poison),
-                        expose_to_poison (Action::Poison), poison saves' advantage, wake_poisoned; status coating=)
+                        expose_to_poison (Action::Poison), poison saves' advantage, wake_poisoned; status coating=),
+                        diseases (diseases.rs DiseaseDef in defs/diseases.ron, WorldState.diseases: catching from
+                        HitRider.disease / ExposeDisease, onset, the course in long rests, healing blocked, fits when
+                        hurt, sight penalty via Training.sight_penalty; status diseases=)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;
                         parallax.rs = Map.parallax image layers behind / over the map)

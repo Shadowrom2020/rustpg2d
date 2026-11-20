@@ -346,8 +346,13 @@ pub enum SpellPart {
     /// Stabilizes a creature at 0 hit points (Spare the Dying): no more death saves.
     Stabilize,
     /// Ends the first of these conditions the target has (Lesser Restoration: blinded, deafened,
-    /// paralyzed or poisoned; Protection from Poison: poisoned).
-    Cure { conditions: Vec<crate::srd::conditions::Condition> },
+    /// paralyzed or poisoned; Protection from Poison: poisoned); with `disease`, else one of the
+    /// hero's diseases.
+    Cure {
+        conditions: Vec<crate::srd::conditions::Condition>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        disease: bool,
+    },
 }
 
 fn yes() -> bool {

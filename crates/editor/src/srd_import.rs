@@ -1556,10 +1556,12 @@ pub fn hit_riders(text: &str) -> Vec<rustpg2d_engine::srd::HitRider> {
             let word = rest.split(')').nth(1)?.split_whitespace().next()?;
             Some((dice, DamageType::parse(word)))
         });
+        // "or contract a disease" (the diseased giant rat's bite): the library's rat-bite fever.
+        let disease = if sentence.contains("contract a disease") { RAT_DISEASE.to_string() } else { String::new() };
         if save.is_none() && condition.is_none() {
             continue;
         }
-        if save.is_some() && condition.is_none() && damage.is_none() {
+        if save.is_some() && condition.is_none() && damage.is_none() && disease.is_empty() {
             continue;
         }
         let rounds = if sentence.contains("for 1 minute") {
@@ -1581,10 +1583,14 @@ pub fn hit_riders(text: &str) -> Vec<rustpg2d_engine::srd::HitRider> {
             damage_type: damage.and_then(|d| d.1),
             half: sentence.contains("half as much"),
             escape_dc,
+            disease,
         });
     }
     out
 }
+
+/// The disease of a bite that says "contract a disease" (the starter library's `diseases.ron`).
+pub const RAT_DISEASE: &str = "rat_bite_fever";
 
 /// "The captain makes three melee attacks" -> 3.
 fn multiattack_count(text: &str) -> u32 {

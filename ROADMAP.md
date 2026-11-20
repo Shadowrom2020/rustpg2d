@@ -1275,8 +1275,8 @@ added here.
   madness left out: it stays a story tool):
   1. [x] **Objects** — `feature/srd-objects`.
   2. [x] **Traps** (zones and props) — `feature/srd-traps`.
-  3. [ ] **Poisons and diseases** — two pull requests: 3a poisons [x] `feature/srd-poisons`, 3b
-     diseases [ ] `feature/srd-diseases`.
+  3. [x] **Poisons and diseases** — two pull requests: 3a poisons [x] `feature/srd-poisons`, 3b
+     diseases [x] `feature/srd-diseases`.
 
   **Goal.** The SRD's hazards and the objects of the world by the rules.
 
@@ -1387,6 +1387,30 @@ added here.
   Goblin Poisoner's arrow (CON 4/10 failed, 4 poison); Essence of Ether on the hero (8 hours pass,
   awake without conditions); Antitoxin's advantage (d20 13/1 in the Rolls page); a Cure part
   ending poisoned; Essence of Ether on Snik and the hit that wakes him.
+
+  **Part 3b decided while building.** Only the hero catches diseases (companions and monsters
+  don't); Cackle Fever's madness and contagion and Sight Rot's Eyebright ointment are left out; the
+  diseased giant rat's unnamed disease is *Rat-Bite Fever* (the importer maps "contract a disease"
+  to it). Exhaustion from a disease stays after a cure (rests take it). Lesser Restoration's *Cure*
+  part got a `disease` flag: one disease when the target has none of its conditions.
+
+  **Part 3b as built.** `diseases.rs` (`DiseaseDef`, `Course`, `WhenHurt`, `ActiveDisease` with
+  `rest` / `sight_penalty`), `defs/diseases.ron` as a definitions file (`RefKind::Disease`, library
+  kind, renames, translations, the agent server's facts and template), `WorldState.diseases`,
+  `HitRider.disease`, `Training.sight_penalty`; `runtime/diseases.rs` (`expose_disease`,
+  `catch_disease` from `hit_riders`, `update_diseases` each frame, `rest_diseases` in
+  `long_rest_effects`, healing in rests and hit dice, `disease_fit` from both damage paths,
+  `cure_disease`, `diseases_status`); `Action::ExposeDisease` / `CureDisease`, `Cond::HasDisease`
+  (appended), `infect` / `cure_disease` / `has_disease` (`Arg::Disease`); editor *Diseases* tab,
+  the rider's disease field, action and condition forms.
+
+  **Part 3b verified.** Unit tests (each course, the sight penalty, round trips), a UI test (a
+  disease made in its tab). Autoplay on a scratch copy: Rat-Bite Fever caught on a failed save, -2
+  and -1 hit point maximum after 25 hours, no hit points from a long rest (healed without it); the
+  diseased rat's bite in the mine (CON 19/10 resisted, then 5/10 caught); Sewer Plague's course
+  (exhaustion 1 to 6 on failures, cured on a success at level 1, seeds 3 and 11); Cackle Fever's fit
+  (8 psychic, incapacitated); Sight Rot's -2 on a Perception roll (the Rolls page) and blindness after
+  four rests; a Cure part with a disease; Brother Ansel's offer and cure (30 to 5 gold).
 
 - [ ] Special abilities of monsters and classes — `feature/srd-special-abilities`
 

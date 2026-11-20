@@ -560,6 +560,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   and Antitoxin; the example's forest camp has a Goblin Poisoner, and Wren sells Antitoxin and
   basic poison. `status` prints `coating=`.
 
+### Diseases (SRD 5.1)
+- **Diseases** (*Database › Diseases*, `defs/diseases.ron`): a save against catching them, an
+  onset, then exhaustion, blocked or halved healing, a shrinking hit point maximum, failing sight
+  or fits when hurt, and a course over long rests until they are over or cured. The hero catches
+  them from monsters' attacks (a stat block rider's disease), *Expose to disease* or `infect()`;
+  *Cure disease*, `cure_disease()` and *Lesser Restoration* end them. *Has disease* and
+  `has_disease()` ask; `status` prints `diseases=`.
+- The starter library has Cackle Fever, Sewer Plague, Sight Rot and the diseased giant rat's
+  Rat-Bite Fever (its bite now gives it); in the example the mine's rat nest has a diseased rat and
+  Brother Ansel heals a sick hero for 25 gold.
+
 ### Art
 - The male **dragonborn** has a new model (example and starter library) with its own walk, idle,
   sword attack and spell-casting clips; hurt, sitting, sneaking and the weapon animations still come

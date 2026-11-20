@@ -1330,6 +1330,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "common_events" | "common" => Tab::CommonEvents,
                 "backgrounds" => Tab::Backgrounds,
                 "classes" => Tab::Classes,
+                "diseases" => Tab::Diseases,
                 "factions" => Tab::Factions,
                 _ => Tab::Items,
             };
@@ -1350,6 +1351,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Skins => db.skins.iter().position(|d| d.id == arg(2)),
                 Tab::CommonEvents => db.common_events.iter().position(|d| d.id == arg(2)),
                 Tab::Backgrounds => db.backgrounds.iter().position(|d| d.id == arg(2)),
+                Tab::Diseases => db.diseases.iter().position(|d| d.id == arg(2)),
                 _ => None,
             };
             ed.db.sel = by_id.unwrap_or(num(2) as usize);

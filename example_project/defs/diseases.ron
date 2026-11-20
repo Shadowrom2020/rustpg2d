@@ -1,0 +1,12 @@
+[
+    (
+        id: "rat_bite_fever",
+        name: "Rat-Bite Fever",
+        description: "The bite of a diseased giant rat festers. Until the disease is cured, the creature can\'t regain hit points except by magical means, and its hit point maximum decreases by 3 (1d6) every 24 hours. If its hit point maximum drops to 0 as a result of this disease, the creature dies. A healer or a spell such as lesser restoration cures it.",
+        save: Con,
+        dc: 10,
+        no_natural_healing: true,
+        max_hp_loss: "1d6",
+        course: r#None,
+    ),
+]

@@ -832,6 +832,15 @@ impl Game {
                 }
                 None => (false, String::new()),
             };
+            // A diseased bite: a failed save (or the hit, without one) infects the hero.
+            if !r.disease.is_empty() && !saved && target == Who::Player {
+                if let Some(def) = self.project.db.disease(&r.disease).cloned() {
+                    self.catch_disease(&def);
+                }
+                if r.save.is_some() && r.dice.is_empty() && r.condition.is_none() {
+                    self.fight_log(format!("{tname}: {save_text}"));
+                }
+            }
             if !r.dice.is_empty() {
                 let full = super::roll_damage(&r.dice, false);
                 let n = if !saved { full } else if r.half { full / 2 } else { 0 };

@@ -6098,6 +6098,7 @@
                     Paralyzed,
                     Poisoned,
                 ],
+                disease: true,
             ),
         ],
         story_only: false,

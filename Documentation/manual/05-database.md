@@ -199,6 +199,20 @@ The SRD's twelve classes: hit die, saving throws, proficiencies, skills to choos
 equipment, subclasses and their features by level. The creator offers them on its third page;
 characters have one as party members. See [Characters › Classes](06-characters.md#classes).
 
+## Diseases
+
+The SRD's diseases (since 0.32; *Database › Diseases*, `defs/diseases.ron`): the **save against
+catching it** (ability and DC; 0 = caught without one), **symptoms after** dice of hours or days,
+then what it does while the hero is sick: **exhaustion** levels (*rests don't lower it*),
+**healing** (*only by magic*, *none from long rests*, *half from hit dice*), a **hit point maximum**
+that drops by dice every 24 hours (at 0 the hero dies), failing **sight** (−1 to attacks and sight
+checks, one worse every long rest, blinded at −5), a **condition while sick**, **a fit when hurt**
+(a save at its current DC, else damage and a condition: Cackle Fever's laughter), and its course
+**after each long rest**: *until cured*, *saves lower the DC* (by dice; at 0 it is over),
+*saves move exhaustion* (a failure adds a level, a success takes one; below one it is over),
+*worsens each rest*. The starter library has Cackle Fever, Sewer Plague, Sight Rot and the diseased
+giant rat's Rat-Bite Fever. See [Gameplay › Diseases](09-gameplay.md#diseases).
+
 ## Factions
 
 Who fights whom: the factions (an id and a name), the **attitude table** between them, and a

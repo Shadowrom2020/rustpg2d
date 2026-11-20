@@ -66,6 +66,8 @@ impl Game {
         let left = self.hit_dice_left();
         self.world.hit_dice = Some(left - 1);
         let gain = self.world.roll_dice(&format!("1d{}+CON", self.hit_die())).map_or(0, |r| r.total.max(0) as i32);
+        // (A disease halves it, or lets only magic heal.)
+        let gain = self.disease_hit_dice_heal(gain);
         let max = self.player_max_hp();
         let hp = (self.hp() + gain).min(max);
         self.world.player_hp = Some(hp);
@@ -176,13 +178,19 @@ impl Game {
         }
         self.rest_resources(true);
         // (With food and water counting, only after eating and drinking that day.)
-        if self.rest_survival() {
+        // (A disease can keep its exhaustion: Cackle Fever's, Sewer Plague's.)
+        if self.rest_survival() && !self.disease_keeps_exhaustion() {
             crate::srd::conditions::lower_exhaustion(&mut self.world.effects, 1);
         }
         crate::srd::conditions::end_timed(&mut self.world.effects);
         if self.combat.enabled() {
-            self.world.player_hp = Some(self.player_max_hp());
+            // (A disease can keep natural healing away: only magic heals.)
+            if !self.disease_blocks_rest_healing() {
+                self.world.player_hp = Some(self.player_max_hp());
+            }
         }
+        // Diseases run their course: a save against each one's DC (or worse sight).
+        self.rest_diseases();
         self.rest_slots(true);
         // (A night's rest lasts past dawn: the items' charges come back.)
         self.recharge_items();

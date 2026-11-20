@@ -1030,6 +1030,33 @@ fn survival_rules_are_switched_on_in_the_project_form() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Database › Diseases: a new disease, failing sight ticked and its course set to worsen with
+/// each rest, saved into defs/diseases.ron.
+#[test]
+fn a_disease_is_added_in_the_diseases_tab() {
+    use rustpg2d_engine::diseases::Course;
+    let root = example_copy("diseases");
+    let mut h = harness(&root, Tab::Diseases, 0);
+    let before = h.state().project.db.diseases.len();
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.ends_with("New"))).click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.diseases.len(), before + 1);
+    let id = h.state().project.db.diseases.last().unwrap().id.clone();
+    assert!(id.starts_with("disease"), "{id}");
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.starts_with("failing")) && n.role() == Role::CheckBox).click();
+    step(&mut h);
+    beside(&h, "After each long rest", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Worsens each rest").click();
+    step(&mut h);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    let d = saved.db.disease(&id).expect("saved");
+    assert!(d.sight);
+    assert_eq!(d.course, Course::Worsens);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// Database › Backgrounds: a new background, a proficiency added, its feature typed in, saved
 /// into defs/backgrounds.ron.
 #[test]

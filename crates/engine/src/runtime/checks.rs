@@ -22,6 +22,7 @@ impl Game {
             super::turns::vision::Obscured::Heavy => Sight::Dark,
         };
         self.world.training.sight = if self.darkvision_ft() > 0 { sight.lighter() } else { sight };
+        self.world.training.sight_penalty = self.disease_sight_penalty();
         let mut help = std::collections::BTreeMap::new();
         if self.fight.is_none() {
             let ts = self.ts();

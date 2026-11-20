@@ -753,6 +753,8 @@ pub struct Refs {
     pub races: Vec<String>,
     /// Class and subclass ids (Database › Classes).
     pub classes: Vec<String>,
+    /// Disease ids (Database › Diseases).
+    pub diseases: Vec<String>,
     /// Common event ids (Database › Common events).
     pub common_events: Vec<String>,
     /// Faction ids (Database › Factions).
@@ -1165,6 +1167,13 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                 Cond::Attuned { item } => {
                     ui.label("the hero is attuned to");
                     suggest(ui, &id, item, &refs.items, 120.0);
+                }
+                Cond::HasDisease { disease } => {
+                    ui.label("the hero has the disease");
+                    let mut opts = vec![String::new()];
+                    opts.extend(refs.diseases.iter().cloned());
+                    suggest(ui, &id, disease, &opts, 140.0);
+                    ui.weak("(empty = any)");
                 }
                 Cond::SearchRoll { dc } => {
                     ui.label("the hero's last search (Perception) is at least");
@@ -2274,6 +2283,21 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             ui.indent(format!("{id}/ct"), |ui| actions_ui(ui, &format!("{id}/then"), then, refs));
             ui.label("On a failure:");
             ui.indent(format!("{id}/ce"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
+        }
+        Action::ExposeDisease { disease, save } => {
+            labeled(ui, "disease", |ui| {
+                suggest(ui, &format!("{id}/disease"), disease, &refs.diseases, 140.0);
+                ui.checkbox(save, "its saving throw").on_hover_text("Off: caught without a save");
+            });
+            ui.weak("(the hero: a dirty well, a sick villager's cough; its symptoms show after its onset)");
+        }
+        Action::CureDisease { disease } => {
+            labeled(ui, "disease", |ui| {
+                let mut opts = vec![String::new()];
+                opts.extend(refs.diseases.iter().cloned());
+                suggest(ui, &format!("{id}/cure"), disease, &opts, 140.0);
+            });
+            ui.weak("(empty = every disease; a healer, a remedy)");
         }
         Action::Poison { target, item } => {
             target_field(ui, id, target, refs);

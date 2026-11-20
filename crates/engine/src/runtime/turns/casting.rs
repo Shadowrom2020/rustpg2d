@@ -307,7 +307,7 @@ impl Game {
                         self.fight_log(format!("{tname}: {saved_text}{}", crate::lang::tr_ui(condition.name())));
                     }
                     SpellPart::Stabilize => self.stabilize(t, ""),
-                    SpellPart::Cure { conditions: list } => {
+                    SpellPart::Cure { conditions: list, disease } => {
                         let ended = self.who_conditions_mut(t).and_then(|l| {
                             let c = list.iter().copied().find(|c| conditions::has(l, *c))?;
                             conditions::remove(l, c);
@@ -315,6 +315,8 @@ impl Game {
                         });
                         if let Some(c) = ended {
                             self.fight_log(format!("{tname}: {} {}", crate::lang::tr_ui("no longer"), crate::lang::tr_ui(c.name())));
+                        } else if *disease && t == Who::Player {
+                            self.cure_one_disease();
                         }
                     }
                     SpellPart::Buff { buff } => {

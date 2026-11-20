@@ -22,7 +22,8 @@ impl Game {
         let con = self.world.abilities.modifier(crate::srd::Ability::Con);
         let per_level = race.as_ref().map_or(0, |r| r.hp_per_level) + self.hero_traits().map_or(0, |t| t.hp_per_level);
         let hp = crate::progression::max_hp_die(self.hit_die(), level, con, &self.world.hp_rolls, per_level);
-        let hp = (hp + race.as_ref().map_or(0, |r| r.max_hp)).max(1);
+        // (A disease can lower it: a diseased rat's bite; at 0 the hero dies.)
+        let hp = (hp + race.as_ref().map_or(0, |r| r.max_hp) - self.disease_hp_lost()).max(1);
         // Exhaustion 4 and up halves it.
         if crate::srd::conditions::exhaustion(&self.world.effects) >= 4 {
             (hp / 2).max(1)

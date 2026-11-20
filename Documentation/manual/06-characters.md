@@ -211,8 +211,10 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   **on a hit** section adds **Damage** of other types (a dragon's bite: plus 2d6 fire) and
   **Effects**: a saving throw (or none) with its DC against a condition for some rounds (0 = until
   it ends), and / or damage on a failed save (half on a success when ticked), and an **escape DC**
-  for a grapple or restraint (the target's *Escape* action rolls against it). The SRD monsters bring
-  theirs (a wolf's bite: DC 11 STR or prone).
+  for a grapple or restraint (the target's *Escape* action rolls against it), and a **disease** (an
+  id of *Database › Diseases*) a failed save, or the hit without a save, gives the hero. The SRD
+  monsters bring theirs (a wolf's bite: DC 11 STR or prone; a diseased giant rat's: DC 10 CON or
+  Rat-Bite Fever).
 - **Resistant to**, **Immune to**, **Vulnerable to**: damage types it takes half, no or double
   damage from (an assassin shrugs off half of the poison);
   **Can't get**: conditions it is immune to (a grimlock can't be blinded). Saving throws against

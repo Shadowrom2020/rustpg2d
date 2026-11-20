@@ -62,6 +62,7 @@ def_facts!(rustpg2d_engine::skin::SkinDef, |d| {
     format!("{}; {} colours set", if pics.is_empty() { "no pictures".to_string() } else { pics.join(", ") }, colors)
 });
 def_facts!(rustpg2d_engine::classes::ClassDef, |d| format!("\"{}\"; d{} hit die; saves [{}]; {} skills of [{}]; subclass at {} ({}); {} features", d.name, d.hit_die, d.saves.join(", "), d.skill_choices, d.skill_options.join(", "), d.subclass_level, d.subclasses.iter().map(|s| s.id.as_str()).collect::<Vec<_>>().join(", "), d.features.len()));
+def_facts!(rustpg2d_engine::diseases::DiseaseDef, |d| format!("\"{}\"; {} DC {}; onset {}{}; {}", d.name, d.save.short(), d.dc, if d.onset.is_empty() { "at once" } else { &d.onset }, if d.onset_days { " days" } else if d.onset.is_empty() { "" } else { " hours" }, d.course.label()));
 def_facts!(rustpg2d_engine::backgrounds::BackgroundDef, |d| format!("\"{}\"; proficiencies [{}]; {} language(s) to choose; {} starting item(s); feature {}", d.name, d.proficiencies.join(", "), d.language_choices, d.equipment.len(), if d.feature.is_empty() { "-" } else { d.feature.as_str() }));
 def_facts!(rustpg2d_engine::common_events::CommonEventDef, |d| {
     let runs = match &d.trigger {
@@ -294,6 +295,10 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Class => (
             val(&rustpg2d_engine::classes::ClassDef::fresh(id)),
             "A class (SRD 5.1; the twelve come from the starter library): hit_die (6-12), saves [str, con], proficiencies (armor / weapon / tool ids), skill_choices + skill_options, equipment [{item, count}], subclass_level + subclass_title, levels (20: {features: [ids], numbers: {rage_count: 2}}), subclasses [{id, name, levels: [[3, [feature ids]]]}], features [{id, name, level, text, effects: [FeatureEffect…], choice}]. Library_add the SRD's rather than writing one.",
+        ),
+        RefKind::Disease => (
+            val(&rustpg2d_engine::diseases::DiseaseDef { exhaustion: 1, course: rustpg2d_engine::diseases::Course::Exhaustion, ..rustpg2d_engine::diseases::DiseaseDef::fresh(id) }),
+            "A disease (SRD 5.1; Cackle Fever, Sewer Plague, Sight Rot and a diseased rat's come from the starter library): name, description; save (Con) + dc: the save against catching it (0 = none); onset: dice of hours (onset_days: of days) until the symptoms show (\"\" = at once); exhaustion: levels at the onset, keeps_exhaustion: rests don't lower it; no_natural_healing (only magic heals), no_rest_healing, half_hit_dice; max_hp_loss: dice every 24 hours (at 0 the hero dies); sight: failing sight (-1 per long rest to attacks and sight checks, blinded at -5); condition: one while sick; when_hurt: {damage, damage_type, condition, seconds} a fit when hurt unless a save at the current DC succeeds; course after each long rest: None | {ShrinkingDc: {dice}} | Exhaustion | Worsens. Monsters give it with a rider's disease (stat block attacks' on_hit), events with ExposeDisease, scripts with infect(id).",
         ),
         RefKind::Background => (
             val(&rustpg2d_engine::backgrounds::BackgroundDef { proficiencies: vec!["insight".into(), "religion".into()], language_choices: 1, ..rustpg2d_engine::backgrounds::BackgroundDef::fresh(id) }),
@@ -647,6 +652,7 @@ impl Editor {
             RefKind::Prop => Some(rustpg2d_engine::script_refs::IdKind::Prop),
             RefKind::CommonEvent => Some(rustpg2d_engine::script_refs::IdKind::CommonEvent),
             RefKind::Class => Some(rustpg2d_engine::script_refs::IdKind::Class),
+            RefKind::Disease => Some(rustpg2d_engine::script_refs::IdKind::Disease),
             _ => None,
         };
         if let Some(ik) = id_kind {

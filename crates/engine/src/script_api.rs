@@ -66,6 +66,8 @@ pub enum Arg {
     List,
     /// A class id (Database \u{203A} Classes).
     Class,
+    /// A disease id (Database \u{203A} Diseases).
+    Disease,
 }
 
 pub struct ApiFn {
@@ -199,6 +201,9 @@ pub const API: &[ApiFn] = api! {
     [since "0.28"] "roll"(dice: Text) "Rolls dice such as \"2d6+3\", \"1d20+DEX\" or \"8d6\" (STR to CHA = the hero's ability modifier, PROF = the proficiency bonus) and returns the total; the roll goes into the roll log (immediately)";
     [since "0.32"] "trap_state"(target: Text) "The state of the trap of the zone or prop of that name on this map: \"armed\", \"found\", \"disarmed\", \"sprung\" (\"\" = no such trap)";
     [since "0.32"] "disarm_trap"(target: Text) "Disarms the trap of the zone or prop of that name on this map (a lever, a hidden switch) (queued)";
+    [since "0.32"] "infect"(disease: Disease) "Exposes the hero to a disease (Database › Diseases): its saving throw, then its onset (queued)";
+    [since "0.32"] "cure_disease"(disease: Disease) "Ends the hero's disease (\"\" = every disease); its exhaustion stays (queued)";
+    [since "0.32"] "has_disease"(disease: Disease) "Whether the hero has the disease, incubating or sick (\"\" = any) (immediately)";
     [since "0.32"] "poison"(target: Target, item: Item) "Exposes the hero (\"player\") or a character to the poison of an item (the SRD's poisons): its Constitution save, damage and conditions (a drugged ale, a gas trap) (queued)";
     [since "0.32"] "prop_hp"(target: Target) "A prop's hit points as an object (its name or \"self\"; -1 without object statistics)";
     [since "0.32"] "damage_prop"(target: Target, amount: Num) "Damages a prop with object statistics past its threshold; at 0 hit points it breaks (queued)";
@@ -467,6 +472,7 @@ impl Arg {
             Arg::Prop => IdKind::Prop,
             Arg::Common => IdKind::CommonEvent,
             Arg::Class => IdKind::Class,
+            Arg::Disease => IdKind::Disease,
             _ => return None,
         })
     }
@@ -553,6 +559,9 @@ mod tests {
             ("item_charges", 0, IdKind::Item),
             ("set_item_charges", 0, IdKind::Item),
             ("poison", 1, IdKind::Item),
+            ("infect", 0, IdKind::Disease),
+            ("cure_disease", 0, IdKind::Disease),
+            ("has_disease", 0, IdKind::Disease),
             ("teleport", 0, IdKind::Map),
             ("set_map_weather", 0, IdKind::Map),
             ("teleport", 1, IdKind::Spawn),

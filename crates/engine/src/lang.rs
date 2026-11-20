@@ -362,6 +362,10 @@ pub fn translate_db(db: &crate::defs::Database) -> crate::defs::Database {
         t(&mut b.feature);
         t(&mut b.feature_text);
     }
+    for x in &mut d.diseases {
+        t(&mut x.name);
+        t(&mut x.description);
+    }
     for s in &mut d.sounds {
         t(&mut s.caption);
     }
@@ -500,6 +504,10 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
         add(&b.description);
         add(&b.feature);
         add(&b.feature_text);
+    }
+    for x in &db.diseases {
+        add(&x.name);
+        add(&x.description);
     }
     for s in &db.sounds {
         add(&s.caption);

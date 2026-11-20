@@ -1737,6 +1737,12 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.checkbox(&mut d.low, "Low (shots fly over it)").on_hover_text(
         "A low prop (a barrel, a chair, a fence) stops walking while it is solid, but arrows, bolts and the sight of enemies pass over it. Solid props that aren't low stop shots too (trees, statues, stalls).",
     );
+    ui.horizontal(|ui| {
+        ui.checkbox(&mut d.difficult, "Difficult terrain").on_hover_text("Undergrowth, rubble: crossing its tiles costs double movement in fights (as a decoration too).");
+        ui.checkbox(&mut d.obscures, "Obscures").on_hover_text(
+            "Bushes, tall grass, reeds: its tiles are lightly obscured in fights (a fighter there is seen dimly, and can hide there). As a decoration too.",
+        );
+    });
     ui.checkbox(&mut d.flat, "Lies flat on the ground").on_hover_text(
         "A rug, a mat, a puddle: drawn under everyone (like a Flat decoration) instead of sorted with characters by its feet; as furniture it may lie under tables and chairs.",
     );

@@ -165,12 +165,15 @@ pub struct DecorLook {
     pub solid: bool,
     pub low: bool,
     pub climb: bool,
+    /// Difficult terrain / lightly obscuring where it stands (fights).
+    pub difficult: bool,
+    pub obscures: bool,
 }
 
 impl DecorLook {
     pub fn of(db: &Database, id: &str, state: u8) -> DecorLook {
         match db.prop(id) {
-            Some(d) => DecorLook { hitbox: d.hitbox, solid: d.state_look(state as usize).1, low: d.low, climb: d.climb },
+            Some(d) => DecorLook { hitbox: d.hitbox, solid: d.state_look(state as usize).1, low: d.low, climb: d.climb, difficult: d.difficult, obscures: d.obscures },
             None => DecorLook::default(),
         }
     }

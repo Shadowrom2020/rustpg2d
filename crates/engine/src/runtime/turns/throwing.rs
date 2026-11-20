@@ -91,7 +91,10 @@ impl Game {
     /// the target's own tile.
     fn landing_spot(&self, who: Who, target: Who) -> Vec2 {
         let (from, at) = (self.who_tile(who), self.who_tile(target));
-        let mut near: Vec<TilePos> = (-1..=1).flat_map(|dx| (-1..=1).map(move |dy| (at.0 + dx, at.1 + dy))).filter(|t| *t != at).collect();
+        // (Round the target's whole space.)
+        let space = self.who_space(target);
+        let (a, n) = (self.space_anchor(target), self.space_n(target));
+        let mut near: Vec<TilePos> = (-1..=n).flat_map(|dx| (-1..=n).map(move |dy| (a.0 + dx, a.1 + dy))).filter(|t| !space.contains(t)).collect();
         near.sort_by_key(|t| (t.0 - from.0).abs().max((t.1 - from.1).abs()));
         let free = near.into_iter().find(|t| self.loaded.map.in_bounds(t.0, t.1) && !self.tile_solid(t.0, t.1) && self.who_at(*t).is_none());
         self.tile_spot(free.unwrap_or(at))

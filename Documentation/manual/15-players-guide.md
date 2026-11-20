@@ -156,6 +156,10 @@ The **fight log** at the bottom left tells every roll (`Alex > Goblin: d20 (14) 
 hit`); the journal's *Rolls* tab keeps them. A natural 20 is a **critical hit** (the damage dice
 twice).
 
+**Seeing:** enemies you can't see (in darkness without darkvision, deep in fog, invisible) are
+drawn faded with a "?" over them: your attacks at them have disadvantage, theirs at you advantage.
+*Hide* needs a bush, dim light, darkness or good cover.
+
 **Kill or knock out?** When your melee hit would drop an enemy to 0 hit points, a window asks:
 *Kill*, or *Knock out* (it lies unconscious and stays alive; you still get its experience and
 loot). ↑/↓ and E / Enter or a click choose; the window waits for your answer.

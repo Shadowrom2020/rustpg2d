@@ -421,6 +421,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   fighters; `turn` commands pick the nearest fighter of a name.
 - **Fix:** a knocked-out foe no longer got up when the fight ended.
 
+### Combat rules completed (part 3: size and sight)
+- **Creature space:** Large creatures take 2×2 tiles in fights, Huge 3×3, Gargantuan 4×4: reach,
+  ranges, areas, cover, opportunity attacks and the rings count from the whole square. A creature
+  can squeeze into a space one size smaller (double cost, disadvantage on its attacks and DEX saves,
+  advantage against it); moving through an ally's space is difficult terrain, through a foe's only
+  with two sizes between them. The example's cave troll (Grumbold) is Large.
+- **Seeing:** dim light, darkness, the weather's fog and foliage obscure lightly or heavily;
+  darkvision, blindsight, tremorsense and truesight (from the stat block's senses) see through.
+  Unseen attackers have advantage, unseen targets give disadvantage; foes the hero can't see are
+  drawn faded with a "?"; *Hide* needs an obscured spot or three-quarters cover; the AI picks targets
+  it can see first.
+- **Props:** *Difficult terrain* and *Obscures* (as decorations or placed); the library's herb and
+  feverleaf bushes have both.
+- `status` prints `sight=`; `combat=` marks `[2x2]` and `#squeezed`.
+
 ### Fixes
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.

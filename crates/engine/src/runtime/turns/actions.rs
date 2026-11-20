@@ -98,6 +98,8 @@ impl Game {
     fn who_check_once(&mut self, who: Who, what: &str, dc: i32, save: bool, aura: i32) -> Option<RollRecord> {
         // (Rage: advantage on STR checks and saves.)
         let class_mode = if save { self.class_save_mode(who, what).combine(self.buff_save_mode(who, what)) } else { self.class_save_mode(who, what) };
+        // (Squeezed into a smaller space: disadvantage on DEX saves.)
+        let class_mode = if save && what.eq_ignore_ascii_case("dex") && self.fight.is_some() && self.squeezed(who) { class_mode.combine(Mode::Disadvantage) } else { class_mode };
         if who == Who::Player {
             let mut rec = self.world.check(what, dc - aura, class_mode, save)?;
             if aura != 0 {
@@ -128,15 +130,13 @@ impl Game {
     fn aura_bonus(&self, who: Who) -> i32 {
         let Some(c) = &self.fight else { return 0 };
         let side = c.fighter(who).map(|f| f.side);
-        let at = self.who_tile(who);
         c.order
             .iter()
             .filter(|f| Some(f.side) == side && !f.out && !f.down)
             .filter_map(|f| {
                 let t = self.who_traits(f.who)?;
                 let (feet, bonus, _) = t.aura?;
-                let p = self.who_tile(f.who);
-                if !bonus || (p.0.abs_diff(at.0).max(p.1.abs_diff(at.1)) * 5) > feet {
+                if !bonus || (self.who_dist(f.who, who) as u32 * 5) > feet {
                     return None;
                 }
                 let cha = match f.who {
@@ -254,6 +254,13 @@ impl Game {
                 return Ok(());
             }
             TurnAct::Hide => {
+                // Only out of plain sight: obscured (dim light, darkness, fog, foliage) or behind
+                // three-quarters cover from every foe that could see it.
+                let side = self.fight.as_ref().unwrap().current().side;
+                let foes: Vec<Who> = self.fight.as_ref().unwrap().order.iter().filter(|f| f.side != side && !f.out && !f.down).map(|f| f.who).collect();
+                if foes.iter().any(|f| self.sees(*f, who) == super::vision::Sight::Clear && self.cover(*f, who) < super::Cover::ThreeQuarters) {
+                    return Err("Nowhere to hide here");
+                }
                 // Stealth against the best passive Perception of the foes.
                 let side = self.fight.as_ref().unwrap().current().side;
                 let dc = self.passive_perception(side);
@@ -314,14 +321,22 @@ impl Game {
         if hiders.is_empty() || (ambush && hiders.len() < c.order.iter().filter(|f| f.side == Side::Enemy).count()) {
             return;
         }
-        let lowest = hiders.iter().map(|w| self.who_check(*w, "stealth", 0, false).map_or(0, |r| r.total as i32)).min().unwrap_or(0);
+        let rolls: Vec<(Who, i32)> = hiders.iter().map(|w| (*w, self.who_check(*w, "stealth", 0, false).map_or(0, |r| r.total as i32))).collect();
+        let lowest = rolls.iter().map(|r| r.1).min().unwrap_or(0);
         // (The Stealth rolls have no DC of their own: plain rolls in the log.)
         let n = hiders.len();
         let len = self.world.rolls.len();
         for r in self.world.rolls.iter_mut().skip(len.saturating_sub(n)) {
             (r.success, r.dc) = (None, 0);
         }
-        let surprised: Vec<Who> = seekers.into_iter().filter(|w| self.passive_of(*w) < lowest).collect();
+        // (A seeker notices a hider whose Stealth its passive Perception reaches: −5 when it sees
+        // the hider only dimly; one it can't see at all it doesn't notice.)
+        let notices = |g: &Game, s: Who, h: Who, roll: i32| match g.sees(s, h) {
+            super::vision::Sight::Clear => g.passive_of(s) >= roll,
+            super::vision::Sight::Dim(_) => g.passive_of(s) - 5 >= roll,
+            super::vision::Sight::Unseen(_) => false,
+        };
+        let surprised: Vec<Who> = seekers.into_iter().filter(|s| !rolls.iter().any(|(h, r)| notices(self, *s, *h, *r))).collect();
         if let Some(c) = &mut self.fight {
             for f in c.order.iter_mut() {
                 f.surprised = surprised.contains(&f.who);
@@ -368,7 +383,7 @@ impl Game {
     /// The fighter standing on tile `t`.
     pub(super) fn who_at(&self, t: TilePos) -> Option<Who> {
         let c = self.fight.as_ref()?;
-        c.order.iter().filter(|f| !f.out).map(|f| f.who).find(|w| self.who_tile(*w) == t)
+        c.order.iter().filter(|f| !f.out).map(|f| f.who).find(|w| self.who_space(*w).contains(&t))
     }
 
     /// Does the targeted act `aim` on `target`; Ok once done (the action spent).
@@ -376,10 +391,7 @@ impl Game {
         let c = self.fight.as_ref().ok_or("No fight")?;
         let me = c.current().clone();
         let foe = c.fighter(target).is_some_and(|f| f.side != me.side);
-        let dist = {
-            let (a, b) = (self.who_tile(me.who), self.who_tile(target));
-            a.0.abs_diff(b.0).max(a.1.abs_diff(b.1)) as i32
-        };
+        let dist = self.who_dist(me.who, target);
         match aim {
             Aim::Move => Err("Choose an action"),
             Aim::Attack => {
@@ -522,10 +534,13 @@ impl Game {
     fn push_away(&mut self, from: Who, target: Who) {
         let (a, t) = (self.who_tile(from), self.who_tile(target));
         let to = (t.0 + (t.0 - a.0).signum(), t.1 + (t.1 - a.1).signum());
-        if self.tile_blocks_npc(to.0, to.1) || self.who_at(to).is_some() {
+        // (Its whole space must be free there: walls, and anyone else.)
+        let n = self.space_n(target);
+        let Some((space, false)) = self.space_at(to, n) else { return };
+        if self.fighter_tiles(target).iter().any(|(_, _, p)| space.contains(p)) {
             return;
         }
-        let p = feet_spot(to, self.ts());
+        let p = if n > 1 { self.space_feet(crate::srd::combat::space_anchor(to, n), n) } else { feet_spot(to, self.ts()) };
         match self.who_index(target) {
             None => self.player.pos = p,
             Some(i) => {

@@ -256,6 +256,39 @@ pub fn massive_damage(hp_before: i32, damage: i32, max_hp: i32) -> bool {
     max_hp > 0 && damage - hp_before.max(0) >= max_hp
 }
 
+/// How many tiles across a creature of a size takes in a fight: 1 up to Medium, Large 2, Huge 3,
+/// Gargantuan 4 (the SRD's 5-ft squares).
+pub fn space_tiles(size: super::Size) -> i32 {
+    match size {
+        super::Size::Large => 2,
+        super::Size::Huge => 3,
+        super::Size::Gargantuan => 4,
+        _ => 1,
+    }
+}
+
+/// The top-left tile of an `n`-tile space whose feet stand on tile `feet` (the feet are at the
+/// bottom middle of the space).
+pub fn space_anchor(feet: (i32, i32), n: i32) -> (i32, i32) {
+    (feet.0 - n / 2, feet.1 - (n - 1))
+}
+
+/// The feet tile of an `n`-tile space at `anchor` (the inverse of [`space_anchor`]).
+pub fn space_feet_tile(anchor: (i32, i32), n: i32) -> (i32, i32) {
+    (anchor.0 + n / 2, anchor.1 + n - 1)
+}
+
+/// The tiles of an `n`-tile space at `anchor`.
+pub fn footprint(anchor: (i32, i32), n: i32) -> Vec<(i32, i32)> {
+    (0..n).flat_map(|dy| (0..n).map(move |dx| (anchor.0 + dx, anchor.1 + dy))).collect()
+}
+
+/// The distance in tiles between two spaces (0 = overlapping, 1 = touching, also diagonally).
+pub fn space_dist(a: (i32, i32), an: i32, b: (i32, i32), bn: i32) -> i32 {
+    let gap = |a0: i32, al: i32, b0: i32, bl: i32| (a0 - (b0 + bl - 1)).max(b0 - (a0 + al - 1)).max(0);
+    gap(a.0, an, b.0, bn).max(gap(a.1, an, b.1, bn))
+}
+
 /// Whether a creature of size `by` can grapple or shove one of size `target`: at most one size
 /// larger.
 pub fn can_grapple(by: super::Size, target: super::Size) -> bool {
@@ -285,6 +318,25 @@ pub fn step_cost(difficult: bool) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn big_creatures_take_squares() {
+        use crate::srd::Size::*;
+        assert_eq!((space_tiles(Medium), space_tiles(Large), space_tiles(Huge), space_tiles(Gargantuan)), (1, 2, 3, 4));
+        // The feet at the bottom middle: anchor and feet tile round-trip.
+        for n in 1..=4 {
+            let a = space_anchor((10, 10), n);
+            assert_eq!(space_feet_tile(a, n), (10, 10), "n={n}");
+            assert_eq!(footprint(a, n).len() as i32, n * n);
+            assert!(footprint(a, n).contains(&(10, 10)));
+        }
+        assert_eq!(space_anchor((10, 10), 2), (9, 9));
+        // Distances between spaces: touching = 1, a gap of one tile = 2.
+        assert_eq!(space_dist((0, 0), 2, (2, 0), 1), 1);
+        assert_eq!(space_dist((0, 0), 2, (3, 1), 1), 2);
+        assert_eq!(space_dist((0, 0), 2, (1, 1), 1), 0);
+        assert_eq!(space_dist((5, 5), 1, (2, 2), 3), 1);
+    }
 
     #[test]
     fn grapples_by_size() {

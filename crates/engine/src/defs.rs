@@ -1414,6 +1414,14 @@ pub struct PropDef {
     /// sight. Solid props that aren't low stop both (trees, statues, stalls).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub low: bool,
+    /// Difficult terrain where it stands (undergrowth, rubble): moving there costs double in
+    /// fights (as a decoration or a placed prop's tile).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub difficult: bool,
+    /// Lightly obscures where it stands (bushes, tall grass, reeds): fighters there are seen
+    /// dimly and can hide.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub obscures: bool,
     /// Lies flat on the ground (a rug, a mat, a puddle): drawn under everyone like a *Flat*
     /// decoration instead of sorted by its feet, and placed as furniture by its picture.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -1480,6 +1488,8 @@ impl Default for PropDef {
             regrow: None,
             plot: false,
             low: false,
+            difficult: false,
+            obscures: false,
             flat: false,
             door: false,
             carry: None,

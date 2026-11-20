@@ -90,11 +90,7 @@ impl Game {
         // In a fight a potion is given to an ally within reach (the SRD: an action within 5 ft).
         let fight_far = self.fight.is_some() && matches!(source, HealSource::Item(_)) && !choices.is_empty();
         if self.fight.is_some() && matches!(source, HealSource::Item(_)) {
-            let me = self.who_tile(super::turns::Who::Player);
-            choices.retain(|c| c.is_some_and(|uid| {
-                let t = self.who_tile(super::turns::Who::Npc(uid));
-                (t.0 - me.0).abs() <= 1 && (t.1 - me.1).abs() <= 1
-            }));
+            choices.retain(|c| c.is_some_and(|uid| self.who_dist(super::turns::Who::Player, super::turns::Who::Npc(uid)) <= 1));
         }
         if use_on == UseTarget::Choose {
             choices.insert(0, None);

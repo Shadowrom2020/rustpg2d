@@ -18,6 +18,10 @@ pub(super) const OCC_HIGH: u8 = 8;
 /// A solid decoration's hitbox touches this tile or a neighbour: collision has to look at the
 /// decorations there.
 pub(super) const OCC_DECOR: u8 = 16;
+/// Foliage decorations (bushes, tall grass) on the tile: lightly obscured in fights.
+pub(in crate::runtime) const OCC_FOLIAGE: u8 = 32;
+/// Rough decorations (undergrowth, rubble) on the tile: difficult terrain in fights.
+pub(in crate::runtime) const OCC_ROUGH: u8 = 64;
 
 #[derive(Default)]
 pub(super) struct Occupancy {
@@ -120,6 +124,11 @@ impl Occupancy {
         } else {
             self.cells[(y as u32 * self.w + x as u32) as usize]
         }
+    }
+
+    /// Marks tile (x, y) with `flag` (kept as a static mark by [`Occupancy::keep_as_base`]).
+    pub fn mark(&mut self, x: i32, y: i32, flag: u8) {
+        self.or(x, y, flag);
     }
 
     pub fn has(&self, x: i32, y: i32, flag: u8) -> bool {

@@ -1088,6 +1088,16 @@ impl Game {
             if look.solid {
                 occupancy.add_decor(Rect::new(x, y, w, h), look.low, ts);
             }
+            // Undergrowth and rubble (difficult in fights), bushes and tall grass (obscuring): the
+            // tiles of its hitbox, at least the one at its feet.
+            if look.difficult || look.obscures {
+                let flags = if look.difficult { occupancy::OCC_ROUGH } else { 0 } | if look.obscures { occupancy::OCC_FOLIAGE } else { 0 };
+                let mut tiles: Vec<(i32, i32)> = if w > 0.0 && h > 0.0 { crate::grid::tiles_of_rect(Rect::new(x, y, w, h), ts).collect() } else { Vec::new() };
+                tiles.push(crate::grid::feet_tile(vec2(d.x as f32, d.y as f32), ts));
+                for (tx, ty) in tiles {
+                    occupancy.mark(tx, ty, flags);
+                }
+            }
             if look.climb {
                 for (tx, ty) in crate::grid::tiles_of_rect(Rect::new(x, y, w, h), ts) {
                     if map.in_bounds(tx, ty) {
@@ -1340,6 +1350,7 @@ impl Game {
     /// entered): planning and collision read [`Loaded::occupancy`] instead of scanning entities.
     fn rebuild_occupancy(&mut self) {
         let ts = self.ts();
+        let db = &self.project.db;
         let Loaded { entities, occupancy, .. } = &mut self.loaded;
         occupancy.clear();
         for e in entities.iter().filter(|e| e.active && e.solid) {
@@ -1347,6 +1358,12 @@ impl Game {
             if e.kind == EntityKind::Prop && !e.low {
                 occupancy.add_high(e.body.rect(), ts);
             }
+        }
+        // Placed props that are difficult terrain or obscure (a bush to gather): their tile.
+        for e in entities.iter().filter(|e| e.active && e.kind == EntityKind::Prop) {
+            let Some(d) = db.prop(&e.def).filter(|d| d.difficult || d.obscures) else { continue };
+            let (x, y) = crate::grid::feet_tile(e.body.pos, ts);
+            occupancy.mark(x, y, if d.difficult { occupancy::OCC_ROUGH } else { 0 } | if d.obscures { occupancy::OCC_FOLIAGE } else { 0 });
         }
     }
 
@@ -2620,7 +2637,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2755,7 +2772,8 @@ impl Game {
             self.attuned_status(),
             self.charges_status(),
             self.ammo_status(),
-            if self.world.knocked_out.is_empty() { "-".to_string() } else { self.world.knocked_out.iter().map(|k| format!("{}@{}", if k.name.is_empty() { &k.def } else { &k.name }, k.map)).collect::<Vec<_>>().join(",") }
+            if self.world.knocked_out.is_empty() { "-".to_string() } else { self.world.knocked_out.iter().map(|k| format!("{}@{}", if k.name.is_empty() { &k.def } else { &k.name }, k.map)).collect::<Vec<_>>().join(",") },
+            self.sight_status()
         )
     }
 
@@ -3198,6 +3216,10 @@ impl Game {
         let e = &self.loaded.entities[i];
         let mut tint = Self::effect_tint(&e.effects).unwrap_or(WHITE);
         tint.a *= Self::effect_alpha(&e.effects);
+        // A foe the hero can't see in a fight (darkness, fog): drawn faded.
+        if self.fight.is_some() && e.kind == EntityKind::Character && self.unseen_foe(e.uid) {
+            tint.a *= 0.35;
+        }
         let lying = !e.effects.is_empty() && crate::srd::conditions::rules(&e.effects).lying;
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {

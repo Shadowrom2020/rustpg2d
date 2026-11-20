@@ -618,6 +618,8 @@
             to: "default",
             hours: 12.0,
         )),
+        difficult: true,
+        obscures: true,
     ),
     (
         id: "mushroom_patch",
@@ -2948,6 +2950,8 @@
             to: "default",
             hours: 24.0,
         )),
+        difficult: true,
+        obscures: true,
     ),
     (
         id: "bitterroot",

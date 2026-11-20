@@ -238,7 +238,9 @@ crates/engine/src/      library: everything shared by game and editor
                         zones: falls, running jumps as a player route; climbable walls with PropDef.climb_dc;
                         status fall= / climbing=), survival (srd/survival.rs in play: the load (carried weight, plain
                         rule or variant encumbrance -> speed, Training.heavy_load), food and water at each day's end,
-                        the forced march, fast pace = -5 passive Perception; RulesSettings options; status survival= / load=)
+                        the forced march, fast pace = -5 passive Perception; RulesSettings options; status survival= / load=),
+                        checks (checks outside fights: Training.sight from the light at the hero + darkvision,
+                        Training.help from companions, group checks, contests via WorldState; status senses=)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;
                         parallax.rs = Map.parallax image layers behind / over the map)

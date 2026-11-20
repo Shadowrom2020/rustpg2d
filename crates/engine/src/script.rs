@@ -85,6 +85,8 @@ pub struct PlayerInfo {
     pub combat_round: u32,
     /// Pounds the hero carries (`carried_weight()`).
     pub carried: f32,
+    /// The companions on the map who can act, with their stat blocks (`group_check()`).
+    pub party: Vec<(String, crate::srd::StatBlock)>,
     /// The hero's class features at their level (`has_feature()`), chosen options included.
     pub features: Vec<String>,
     /// The hero's class resources: id -> uses left (`resource()`).
@@ -734,6 +736,25 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("hour", with!(ctx, |c| c.world.hour as f64));
     // The SRD rules: dice, abilities, checks (they roll at once, into the roll log).
     engine.register_fn("roll", with!(ctx, |c, dice: &str| c.world.roll_dice(dice).map_or(0, |r| r.total)));
+    // Checks outside fights: passive values, group checks, contests.
+    engine.register_fn("passive", with!(ctx, |c, what: &str| c.world.passive(what).unwrap_or(-1)));
+    engine.register_fn("group_check", with!(ctx, |c, what: &str, dc: i64| {
+        let party = c.player.party.clone();
+        c.world.group_check(what, dc as i32, &party)
+    }));
+    fn contest_with(c: &mut Ctx, what: &str, name: &str, against: &str) -> bool {
+        let who = match name {
+            "" | "self" => c.owner.and_then(|u| c.stat_blocks.iter().find(|s| s.0 == u)),
+            n => c.stat_blocks.iter().find(|s| s.1 == n),
+        };
+        let Some((_, n, block)) = who.cloned() else {
+            eprintln!("[script] contest: no character '{name}' with a stat block on this map");
+            return false;
+        };
+        c.world.contest(what, &n, &block, against)
+    }
+    engine.register_fn("contest", with!(ctx, |c, what: &str, name: &str| contest_with(&mut c, what, name, "")));
+    engine.register_fn("contest", with!(ctx, |c, what: &str, name: &str, against: &str| contest_with(&mut c, what, name, against)));
     engine.register_fn("check", with!(ctx, |c, what: &str, dc: i64| c.world.check(what, dc as i32, crate::srd::Mode::Normal, false).is_some_and(|r| r.success == Some(true))));
     engine.register_fn("check", with!(ctx, |c, what: &str, dc: i64, mode: &str| c.world.check(what, dc as i32, crate::srd::Mode::parse(mode), false).is_some_and(|r| r.success == Some(true))));
     engine.register_fn("save", with!(ctx, |c, ability: &str, dc: i64| c.world.check(ability, dc as i32, crate::srd::Mode::Normal, true).is_some_and(|r| r.success == Some(true))));

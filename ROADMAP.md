@@ -1084,11 +1084,11 @@ added here.
   example's cult fanatic in the mine casting Hold Person (slot 2) and then Sacred Flame (three
   seeds). Not run end to end: Help, a grapple by the AI.
 
-- [ ] Movement, senses and the environment — three parts (the user's decision, 2026-11-20):
+- [x] Movement, senses and the environment — three parts (the user's decision, 2026-11-20):
   1. [x] **Movement:** climb, jump, fall, fliers — `feature/srd-movement`.
   2. [x] **Survival and travel:** food and water (an option, off in the example), encumbrance (the
      plain rule, the variant as an option), travel pace, forced march — `feature/srd-survival`.
-  3. [ ] **Rests and checks:** rests by the rules, group checks, help, contests, passive checks for
+  3. [x] **Rests and checks:** rests by the rules, group checks, help, contests, passive checks for
      any skill, dim light and Perception — `feature/srd-checks`.
 
   **Goal.** The *Adventuring* chapter's movement and environment rules, in and out of fights.
@@ -1180,6 +1180,35 @@ added here.
   toast); the variant at 110 lb (20 ft) and 165 lb (10 ft, disadvantage on Athletics and CON saves,
   not on Persuasion); a forced march over 11 hours (saves DC 11-13, exhaustion 2, reset by sleep); the
   example with its options off (nothing). The editor's Rules form (screenshot, a UI test).
+
+  **Part 3 decided while building.** A contest is an action (*Contest*, with branches), not a
+  condition: conditions are evaluated again and again (quest markers, offers), and a roll belongs in
+  an action; *Check passed* carries the outcome. One long rest in 24 hours = at least 16 hours awake
+  since the last one ended. Rests can't be interrupted (they are time skips that can't begin with
+  enemies near); the "at least 1 HP" rule doesn't arise (0 HP out of fights is a defeat). Help is
+  automatic: a companion within 6 tiles proficient in the skill or tool. Companions' and opponents'
+  names in the roll log are the names messages use (the definition's: "Fisher"). Found: party
+  members' class skill picks don't reach their stat block yet (only the definition's proficiencies
+  help), a gap of the classes item.
+
+  **Part 3 as built.** `srd/check.rs`: `Sight` (`Training.sight`), `Training.help`, `passive_value`,
+  `wins_contest`, `group_passes`, `roll_block`; `WorldState::check_terms` (one place for the mode),
+  `passive`, `group_check`, `contest`, `last_long_rest`; `runtime/checks.rs` (`refresh_senses` once a
+  frame from `light_at_player` / `obscured_by_light` / `darkvision_ft`, `party_members`,
+  `party_blocks`, `senses_status`); `rest.rs` (`AWAKE_BETWEEN`); `Action::GroupCheck` /
+  `Action::Contest` and `Cond::Passive` (appended, in `walk`, the graph, the editor forms); scripts
+  `passive`, `group_check`, `contest`; the roll log keeps names and helpers (`rolls.rs`
+  `roll_label`). Example: the forest's `glint` zone (uid 63) and `glint_coins` (uid 62); Brom's
+  entity stat block (STR 16, CON 14) and the arm-wrestle on his sitting trigger.
+
+  **Part 3 verified.** Unit tests (passive values, contests, the half rule, dim light and darkness,
+  help). Autoplay on a scratch copy: the forest find by day (found) and at night (`light:dim`, walked
+  past, found the next day); Perception at night with two dice; an elf at night (`light:bright:darkvision`,
+  one die); the mine's darkness (Perception failing at 16 against DC 5); arm-wrestling Brom lost
+  (seed 1, 2) and won (seed 4, 500 to 600 cp); Finn (a scratch Fisher with Survival) helping a Survival
+  check and a group Stealth check (1 of 2 passing); two long rests in a row (the second gave nothing)
+  and one a day later. The editor's *Passive check* form (screenshot) and a UI test adding a *Group
+  check*.
 
 - [ ] Objects, traps, poisons, diseases and madness — `feature/srd-hazards`
 

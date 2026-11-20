@@ -19,6 +19,10 @@ pub(super) struct ShortRest {
     healed: i32,
 }
 
+/// Hours awake between two long rests that both give their benefits (the SRD: one long rest in
+/// 24 hours, eight of them asleep).
+const AWAKE_BETWEEN: f64 = 16.0;
+
 const W: f32 = 460.0;
 const H: f32 = 236.0;
 
@@ -147,15 +151,24 @@ impl Game {
 
     /// For `status()`: `closed`, or `short:LEFT/LEVEL` while the window is open.
     pub(super) fn rest_status(&self) -> String {
+        let long = self.world.last_long_rest.map_or(String::new(), |t| format!(":long:{:.1}", self.world.total_hours() - t));
         match &self.rest {
-            None => "closed".into(),
-            Some(_) => format!("short:{}/{}", self.hit_dice_left(), self.world.player_level()),
+            None => format!("closed{long}"),
+            Some(_) => format!("short:{}/{}{long}", self.hit_dice_left(), self.world.player_level()),
         }
     }
 
-    /// A long rest's effect (a night's sleep): HP and mana full, half the level's hit dice back
+    /// A long rest's effect (a night's sleep of `hours`; nothing when the last one ended less than
+    /// 16 hours before this one began): HP and mana full, half the level's hit dice back
     /// (at least one), one level of exhaustion less, the conditions with a duration over.
-    pub(super) fn long_rest_effects(&mut self) {
+    pub(super) fn long_rest_effects(&mut self, hours: f32) {
+        // One long rest in 24 hours: this one starts at least 16 hours after the last one ended.
+        let now = self.world.total_hours();
+        if self.world.last_long_rest.is_some_and(|t| now - hours as f64 - t < AWAKE_BETWEEN) {
+            self.ui.toast(crate::lang::tr_ui("You rested less than a day ago.").into_owned());
+            return;
+        }
+        self.world.last_long_rest = Some(now);
         if self.combat.enabled() {
             let level = self.world.player_level();
             let back = (level / 2).max(1);

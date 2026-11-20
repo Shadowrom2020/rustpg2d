@@ -2,7 +2,7 @@
 //! a saving throw `"dex"`), the modifier from the character's scores and proficiencies, and the
 //! record that goes into the roll log.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -35,10 +35,74 @@ pub struct Training {
     pub stealth_disadvantage: bool,
     /// A heavy load (the variant encumbrance): disadvantage on STR, DEX and CON checks and saves.
     pub heavy_load: bool,
+    /// Companions helping out of fights (working together): skill -> the helper's name; the
+    /// hero's checks of that skill have advantage.
+    pub help: BTreeMap<String, String>,
+    /// The light at the hero for checks by sight (Perception, Investigation): dim gives
+    /// disadvantage, darkness makes them fail (darkvision already counted).
+    pub sight: Sight,
     /// Skills checked with advantage (Boots of Elvenkind: `stealth`).
     pub check_advantage: Vec<String>,
     /// Added to every saving throw (a Ring of Protection's +1).
     pub save_bonus: i32,
+}
+
+/// The light where the hero is, for checks that rely on sight (the SRD's *Vision and Light*).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Sight {
+    #[default]
+    Bright,
+    Dim,
+    Dark,
+}
+
+impl Sight {
+    /// `senses=`'s word.
+    pub fn word(self) -> &'static str {
+        match self {
+            Sight::Bright => "bright",
+            Sight::Dim => "dim",
+            Sight::Dark => "dark",
+        }
+    }
+
+    /// One step lighter (darkvision: darkness is dim, dim light bright).
+    pub fn lighter(self) -> Sight {
+        match self {
+            Sight::Dark => Sight::Dim,
+            _ => Sight::Bright,
+        }
+    }
+}
+
+/// A passive check's value: 10 + the bonus, +5 with advantage, −5 with disadvantage.
+pub fn passive_value(bonus: i64, mode: Mode) -> i64 {
+    10 + bonus
+        + match mode {
+            Mode::Advantage => 5,
+            Mode::Disadvantage => -5,
+            Mode::Normal => 0,
+        }
+}
+
+/// A contest: the hero (`ours`) wins only with the higher total (a tie leaves things as they are).
+pub fn wins_contest(ours: i64, theirs: i64) -> bool {
+    ours > theirs
+}
+
+/// A group check: the group succeeds when at least half of its members do.
+pub fn group_passes(successes: usize, members: usize) -> bool {
+    members > 0 && successes * 2 >= members
+}
+
+/// A character's check from its stat block (contests, group checks): `None` = nothing known by
+/// that name. The record is labelled with `name`.
+pub fn roll_block(block: &super::StatBlock, name: &str, what: &str, dc: i32, mode: Mode) -> Option<RollRecord> {
+    let spec = Spec::parse(what, false)?;
+    let profs: BTreeSet<String> = block.proficiencies.iter().map(|p| abilities::proficiency_id(p)).collect();
+    let mut rec = spec.roll(&Roller { abilities: &block.abilities, proficiencies: &profs, level: block.proficiency_level(), training: None }, dc, mode);
+    rec.label = format!("{name}: {}", rec.label);
+    Some(rec)
 }
 
 impl Modifiers for Roller<'_> {
@@ -194,6 +258,15 @@ impl RollRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn passive_contests_and_groups() {
+        assert_eq!([Mode::Normal, Mode::Advantage, Mode::Disadvantage].map(|m| passive_value(3, m)), [13, 18, 8]);
+        assert!(wins_contest(15, 14) && !wins_contest(14, 14) && !wins_contest(10, 14));
+        assert!(group_passes(1, 2) && !group_passes(1, 3) && group_passes(2, 3) && group_passes(2, 4) && !group_passes(0, 0));
+        assert_eq!(Sight::Dark.lighter(), Sight::Dim);
+        assert_eq!(Sight::Dim.lighter(), Sight::Bright);
+    }
     use crate::srd::dice::seed;
 
     fn hero() -> (Abilities, BTreeSet<String>) {

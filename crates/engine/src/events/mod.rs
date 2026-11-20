@@ -337,6 +337,9 @@ pub enum Cond {
     Attuned { item: String },
     /// A character (by name or definition id) was knocked out in a fight instead of killed.
     KnockedOut { name: String },
+    /// The hero's passive check of `what` (10 + the bonus, ±5 for advantage / disadvantage: dim
+    /// light for Perception) is at least `dc`: noticed without rolling.
+    Passive { what: String, dc: i32 },
 }
 
 fn cmp_ge() -> CmpOp {
@@ -384,6 +387,7 @@ impl Cond {
             Cond::Money { .. } => "Has money",
             Cond::Attuned { .. } => "Is attuned",
             Cond::KnockedOut { .. } => "Was knocked out",
+            Cond::Passive { .. } => "Passive check",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -412,6 +416,7 @@ impl Cond {
             Cond::Money { op: CmpOp::Ge, cp: 100 },
             Cond::Attuned { item: String::new() },
             Cond::KnockedOut { name: String::new() },
+            Cond::Passive { what: "perception".into(), dc: 13 },
         ]
     }
 }
@@ -466,6 +471,7 @@ impl Condition {
             Cond::Money { op, cp } => op.apply(world.money_cp() as i64, *cp),
             Cond::Attuned { item } => world.attuned.iter().any(|a| a == item),
             Cond::KnockedOut { name } => world.was_knocked_out(name),
+            Cond::Passive { what, dc } => world.passive(what).is_some_and(|v| v >= *dc as i64),
         };
         v != self.negate
     }
@@ -958,6 +964,28 @@ pub enum Action {
     /// The hero eats `food` and drinks `water` days' worth (a ration = 1 day of food, a waterskin =
     /// half a day of water): what *Food and water* counts (Database › Project › Rules).
     Nourish { food: f32, water: f32 },
+    /// A group check: the hero and every companion on the map roll `what` against `dc`; when at
+    /// least half succeed, `then` runs, else `otherwise` (*Check passed* reads the outcome).
+    GroupCheck {
+        what: String,
+        dc: i32,
+        #[serde(default)]
+        then: Vec<Action>,
+        #[serde(default)]
+        otherwise: Vec<Action>,
+    },
+    /// A contest: the hero's `what` against the character `target`'s `against` (empty = the
+    /// same); the higher total wins (a tie isn't a win): `then`, else `otherwise`.
+    Contest {
+        what: String,
+        target: TargetName,
+        #[serde(default)]
+        against: String,
+        #[serde(default)]
+        then: Vec<Action>,
+        #[serde(default)]
+        otherwise: Vec<Action>,
+    },
 }
 
 fn player_target() -> TargetName {
@@ -1046,7 +1074,7 @@ impl Action {
     /// so nobody has to spell the recursion out.
     pub fn walk<'a>(&'a self, f: &mut dyn FnMut(&'a Action)) {
         f(self);
-        if let Action::If { then, otherwise, .. } | Action::Check { then, otherwise, .. } = self {
+        if let Action::If { then, otherwise, .. } | Action::Check { then, otherwise, .. } | Action::GroupCheck { then, otherwise, .. } | Action::Contest { then, otherwise, .. } = self {
             for a in then.iter().chain(otherwise) {
                 a.walk(f);
             }
@@ -1056,7 +1084,7 @@ impl Action {
     /// [`Action::walk`] with mutable access.
     pub fn walk_mut(&mut self, f: &mut dyn FnMut(&mut Action)) {
         f(self);
-        if let Action::If { then, otherwise, .. } | Action::Check { then, otherwise, .. } = self {
+        if let Action::If { then, otherwise, .. } | Action::Check { then, otherwise, .. } | Action::GroupCheck { then, otherwise, .. } | Action::Contest { then, otherwise, .. } = self {
             for a in then.iter_mut().chain(otherwise.iter_mut()) {
                 a.walk_mut(f);
             }
@@ -1169,6 +1197,8 @@ impl Action {
             Action::TakeMoney { .. } => "Take money",
             Action::Fall { .. } => "Fall",
             Action::Nourish { .. } => "Eat / drink",
+            Action::GroupCheck { .. } => "Group check",
+            Action::Contest { .. } => "Contest",
         }
     }
 
@@ -1290,6 +1320,8 @@ impl Action {
             Action::TakeMoney { cp: 100 },
             Action::Fall { feet: 20 },
             Action::Nourish { food: 1.0, water: 0.0 },
+            Action::GroupCheck { what: "stealth".into(), dc: 12, then: Vec::new(), otherwise: Vec::new() },
+            Action::Contest { what: "athletics".into(), target: String::new(), against: String::new(), then: Vec::new(), otherwise: Vec::new() },
         ]
     }
 }

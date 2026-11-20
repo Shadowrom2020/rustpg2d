@@ -246,7 +246,7 @@ impl Game {
         self.world.advance_hours(hours);
         self.water_crops(hours);
         if hours >= 1.0 {
-            self.long_rest_effects();
+            self.long_rest_effects(hours);
         }
         self.spawners_catch_up();
         for i in 0..self.loaded.entities.len() {

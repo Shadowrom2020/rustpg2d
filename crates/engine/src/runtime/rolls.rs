@@ -12,26 +12,39 @@ const PAD: f32 = 16.0;
 const ROW: f32 = 26.0;
 
 /// A roll's name in the current language: skills and abilities translated, a saving throw as
-/// "WIS save", a tool check as "DEX (Thieves' Tools)"; a plain roll as it was written.
+/// "WIS save", a tool check as "DEX (Thieves' Tools)"; a plain roll as it was written. A
+/// character's roll keeps its name in front ("Brom: Athletics"), a helped one its helper ("Athletics
+/// (Finn helps)").
 pub(super) fn roll_label(r: &RollRecord) -> String {
-    let id = r.id.as_str();
-    if r.success.is_none() {
-        return r.label.clone();
+    let (who, rest) = match r.label.split_once(": ") {
+        Some((who, rest)) => (Some(who), rest),
+        None => (None, r.label.as_str()),
+    };
+    let helper = rest.strip_suffix(" helps)").and_then(|h| h.rsplit_once(" (")).map(|(_, h)| h);
+    let Some(base) = check_name(&r.id) else { return r.label.clone() };
+    let base = match helper {
+        Some(h) => format!("{base} ({})", crate::lang::tr_ui("{} helps").replacen("{}", h, 1)),
+        None => base,
+    };
+    match who {
+        Some(w) => format!("{w}: {base}"),
+        None => base,
     }
+}
+
+/// A check's or save's name by its id, translated (`None` = not a check: a dice roll).
+fn check_name(id: &str) -> Option<String> {
     if let Some(a) = id.strip_prefix("save:").and_then(Ability::parse) {
-        return crate::lang::tr_ui(&format!("{} saving throw", a.short())).into_owned();
+        return Some(crate::lang::tr_ui(&format!("{} saving throw", a.short())).into_owned());
     }
     if let Some((a, tool)) = id.split_once(':') {
-        let a = Ability::parse(a).map_or(a.to_uppercase(), |a| a.short().to_string());
-        return format!("{a} ({})", crate::lang::tr_ui(&abilities::proficiency_name(tool)));
+        let ab = Ability::parse(a)?;
+        return Some(format!("{} ({})", ab.short(), crate::lang::tr_ui(&abilities::proficiency_name(tool))));
     }
     if let Some((_, name, _)) = abilities::skill(id) {
-        return crate::lang::tr_ui(name).into_owned();
+        return Some(crate::lang::tr_ui(name).into_owned());
     }
-    if let Some(a) = Ability::parse(id) {
-        return crate::lang::tr_ui(a.name()).into_owned();
-    }
-    r.label.clone()
+    Ability::parse(id).map(|a| crate::lang::tr_ui(a.name()).into_owned())
 }
 
 /// The line shown when a check is rolled.

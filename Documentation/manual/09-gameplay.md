@@ -399,6 +399,31 @@ from a grapple.
   HP and spell slots, half the level's hit dice back (at least one), one level of exhaustion less, and the
   conditions with a duration are over. With *Food and water* on, exhaustion goes down only when the
   hero ate and drank something that day (or the day that just ended, for a sleep past midnight).
+- **One long rest in 24 hours** (since 0.32): a long rest that starts less than 16 hours after the
+  last one ended passes the time but gives nothing ("You rested less than a day ago."). Short rests
+  have no limit. Rests are time that passes at once and can't begin with enemies near, so nothing
+  interrupts them. `status` prints `rest=closed:long:HOURS` (hours since the last long rest).
+
+## Checks outside fights
+
+The SRD's *Using Ability Scores* away from fights (since 0.32):
+
+- **Light and sight.** Checks that rely on sight (Perception, Investigation) look at the light where
+  the hero stands, the same light that hides a sneaking hero: in **dim light** (night outdoors, a
+  lamp's edge) they have disadvantage and passive values are 5 lower; in **darkness** (a cave without
+  a light) they fail. **Darkvision** (elves, dwarves…) sees darkness as dim light and dim light as
+  bright. Saving throws and other skills don't care. Carry a torch or a lantern into the mine.
+- **Help.** A companion within 6 tiles who is proficient in a skill or tool helps with the hero's
+  checks of it: advantage, and the *Rolls* page says "Survival (Fisher helps)". Party members' skills
+  are their stat block's proficiencies. In fights *Help* is an action instead.
+- **Passive checks** of any skill: 10 + the bonus, ±5 for advantage / disadvantage (`passive()`, the
+  *Passive check* condition). The sheet's passive Perception shows the light too (and −5 while running).
+- **Group checks** (*Group check*, `group_check()`): everyone in the party rolls; at least half
+  succeeding is a success.
+- **Contests** (*Contest*, `contest()`): the hero's check against a character's; the higher total
+  wins, a tie keeps things as they are (the hero doesn't win).
+
+`status` prints `senses=light:bright|dim|dark[:darkvision] help:SKILL=NAME,…`.
 
 ## Survival and travel
 

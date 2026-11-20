@@ -77,6 +77,7 @@ impl Game {
     pub(super) fn update_skills(&mut self, dt: f32) {
         self.refresh_armor_training();
         self.refresh_load();
+        self.refresh_senses();
         self.update_magic_items();
         if let Some(l) = &mut self.skills.light {
             l.1 -= dt;
@@ -684,8 +685,8 @@ impl Game {
             ("Speed", format!("{} ft", (self.hero_speed_ft() as f32 * cond.speed).round() as u32)),
             ("Hit points", if hp_max > 0 { format!("{} / {hp_max}", w.player_hp.unwrap_or(hp_max).max(0)) } else { "-".into() }),
             ("Hit dice", format!("{}/{} d{}", self.hit_dice_left(), level, self.hit_die())),
-            // (Disadvantage: -5, the SRD says.)
-            ("Passive Perception", (self.hero_passive_perception() - if cond.check_disadvantage { 5 } else { 0 }).to_string()),
+            // (Disadvantage -5, darkness 0, the fast pace -5: WorldState::passive.)
+            ("Passive Perception", self.hero_passive_perception().to_string()),
         ];
         // What the hero carries (pounds / capacity), and today's food and water when they count.
         let load = ("Carried", format!("{} / {} lb", self.moves.carried.round() as i64, crate::srd::survival::capacity(w.abilities.score(Ability::Str)) as i64));

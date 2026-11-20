@@ -377,7 +377,7 @@ impl Game {
     }
 
     /// A companion's name for messages.
-    fn display_name(&self, i: usize) -> String {
+    pub(super) fn display_name(&self, i: usize) -> String {
         let e = &self.loaded.entities[i];
         self.project.db.character(&e.def).map(|d| d.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| e.name.clone())
     }

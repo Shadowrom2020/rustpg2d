@@ -162,7 +162,10 @@ impl Game {
             self.world.hit_dice = Some((self.hit_dice_left() + back).min(level));
         }
         self.rest_resources(true);
-        crate::srd::conditions::lower_exhaustion(&mut self.world.effects, 1);
+        // (With food and water counting, only after eating and drinking that day.)
+        if self.rest_survival() {
+            crate::srd::conditions::lower_exhaustion(&mut self.world.effects, 1);
+        }
         crate::srd::conditions::end_timed(&mut self.world.effects);
         if self.combat.enabled() {
             self.world.player_hp = Some(self.player_max_hp());

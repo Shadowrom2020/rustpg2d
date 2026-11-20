@@ -80,14 +80,12 @@ impl Game {
     }
 
     /// The hero's walking speed in feet: the race's, the class's (Fast Movement, Unarmored
-    /// Movement), 10 less in armor too heavy.
+    /// Movement), 10 less in armor too heavy, then the load's.
     pub(super) fn hero_speed_ft(&self) -> u32 {
         let base = self.player_race().map_or(30, |r| r.walk_feet()) + self.class_speed_ft(self.unarmored());
-        if self.armor_too_heavy() {
-            base.saturating_sub(10)
-        } else {
-            base
-        }
+        let base = if self.armor_too_heavy() { base.saturating_sub(10) } else { base };
+        // What the hero carries (encumbrance).
+        self.hero_load().speed(base)
     }
 
     /// Whether a combatant wears armor or a shield it isn't proficient with (disadvantage on STR
@@ -181,7 +179,7 @@ impl Game {
     pub(super) fn speed_factor(&self) -> f32 {
         let race = self.player_race().map_or(1.0, |r| r.speed_factor());
         let base = ((1.0 + self.armor_pieces().map(|a| a.speed).sum::<f32>()) * race).clamp(0.3, 2.0);
-        base * crate::srd::conditions::rules(&self.world.effects).speed
+        base * crate::srd::conditions::rules(&self.world.effects).speed * self.load_factor()
     }
 
     pub(super) fn stats(&self) -> Stats {

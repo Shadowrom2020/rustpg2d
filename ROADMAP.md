@@ -1086,7 +1086,7 @@ added here.
 
 - [ ] Movement, senses and the environment — three parts (the user's decision, 2026-11-20):
   1. [x] **Movement:** climb, jump, fall, fliers — `feature/srd-movement`.
-  2. [ ] **Survival and travel:** food and water (an option, off in the example), encumbrance (the
+  2. [x] **Survival and travel:** food and water (an option, off in the example), encumbrance (the
      plain rule, the variant as an option), travel pace, forced march — `feature/srd-survival`.
   3. [ ] **Rests and checks:** rests by the rules, group checks, help, contests, passive checks for
      any skill, dim light and Perception — `feature/srd-checks`.
@@ -1153,6 +1153,33 @@ added here.
   standing (1d6, landed past it); two bats of the rats' nest flying over the crack to bite the hero.
   The editor's Drop form (screenshot) and Problems (none). Not run end to end: a flier landing
   after a fight that ended with it over a drop, a drop onto another map.
+
+  **Part 2 decided while building.** Carrying always counts (the plain rule; the variant is the
+  option *Carrying*), food and water and the forced march are two options, all off / plain in the
+  example. The purse weighs nothing (it holds a value, not coins); companions carry without limits.
+  The march counts game hours walked since the last long rest (a night ends the day's march). A long
+  rest after a midnight still counts the meals of the day that just ended. The fast pace is running
+  (−5 passive Perception, also for surprise), the slow pace is sneaking. Waterskins: a full one is
+  half a day of water and leaves an *Empty waterskin* that wells and fountains fill
+  (`drink_from_well()`, library content).
+
+  **Part 2 as built.** `srd/survival.rs` (`Encumbrance`, `Load::of` / `speed` / `disadvantage`,
+  `capacity`, `Survival` = `WorldState.survival`: `end_day`, `march_saves_due`, `fed`, `rested`);
+  `RulesSettings.food_water` / `forced_march` / `encumbrance`; `runtime/survival.rs` (the load once a
+  frame into `hero_speed_ft`, `speed_factor` and `Training.heavy_load` (checks, saves, the hero's
+  attacks), the day's end, the march, `hero_passive_perception` / `hero_fast_pace`);
+  `Action::Nourish` (appended, *Eat / drink*), `eat`, `drink`, `carried_weight`; the sheet's
+  *Carried* and *Food / water today*; status `survival=` / `load=`. Content: the foods, rations and
+  waterskins, *Empty waterskin*, the well's and fountain's *Interact* trigger.
+
+  **Part 2 verified.** Unit tests (food and water days, loads, the march). Autoplay on scratch
+  copies with the options on: days without water and food (exhaustion 1, then two levels a day, death
+  at 6), eating bread and drinking a waterskin through the inventory, the village well filling two
+  empty waterskins, a fed day (no change), half water (CON 15 passed with seed 1, failed with seed 3),
+  long rests with and without food; carrying 275 lb (a sixth of the speed) and 495 lb (no moving, the
+  toast); the variant at 110 lb (20 ft) and 165 lb (10 ft, disadvantage on Athletics and CON saves,
+  not on Persuasion); a forced march over 11 hours (saves DC 11-13, exhaustion 2, reset by sleep); the
+  example with its options off (nothing). The editor's Rules form (screenshot, a UI test).
 
 - [ ] Objects, traps, poisons, diseases and madness — `feature/srd-hazards`
 

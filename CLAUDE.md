@@ -236,7 +236,9 @@ crates/engine/src/      library: everything shared by game and editor
                         bubbles over heads), soundscape (Ambience zones, footsteps by material), stealth (sneaking:
                         Act::Sneak toggle, light at the player, enemies' player_sight, unaware = surprised), movement (Drop
                         zones: falls, running jumps as a player route; climbable walls with PropDef.climb_dc;
-                        status fall= / climbing=)
+                        status fall= / climbing=), survival (srd/survival.rs in play: the load (carried weight, plain
+                        rule or variant encumbrance -> speed, Training.heavy_load), food and water at each day's end,
+                        the forced march, fast pace = -5 passive Perception; RulesSettings options; status survival= / load=)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;
                         parallax.rs = Map.parallax image layers behind / over the map)

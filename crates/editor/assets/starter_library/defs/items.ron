@@ -107,6 +107,10 @@
                     Heal(
                         amount: 2,
                     ),
+                    Nourish(
+                        food: 0.25,
+                        water: 0.0,
+                    ),
                 ],
                 once: false,
             ),
@@ -1316,6 +1320,10 @@
                     Heal(
                         amount: 4,
                     ),
+                    Nourish(
+                        food: 0.5,
+                        water: 0.0,
+                    ),
                 ],
                 once: false,
             ),
@@ -1345,6 +1353,10 @@
                 actions: [
                     Heal(
                         amount: 3,
+                    ),
+                    Nourish(
+                        food: 0.5,
+                        water: 0.0,
                     ),
                 ],
                 once: false,
@@ -1386,6 +1398,10 @@
                             )),
                         ),
                     ),
+                    Nourish(
+                        food: 0.5,
+                        water: 0.25,
+                    ),
                 ],
                 once: false,
             ),
@@ -1426,6 +1442,10 @@
                             )),
                         ),
                     ),
+                    Nourish(
+                        food: 0.5,
+                        water: 0.25,
+                    ),
                 ],
                 once: false,
             ),
@@ -1465,6 +1485,10 @@
                                 dice: "1d4",
                             )),
                         ),
+                    ),
+                    Nourish(
+                        food: 0.5,
+                        water: 0.0,
                     ),
                 ],
                 once: false,
@@ -1917,6 +1941,10 @@
                                 dice: "1d4",
                             )),
                         ),
+                    ),
+                    Nourish(
+                        food: 0.5,
+                        water: 0.0,
                     ),
                 ],
                 once: false,
@@ -6012,8 +6040,22 @@
             sheet: "srd_gear",
             frame: 36,
         ),
-        consumable: false,
-        on_use: [],
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    Nourish(
+                        food: 1.0,
+                        water: 0.0,
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         weapon: None,
         armor: None,
         max_stack: 10,
@@ -6374,13 +6416,31 @@
     (
         id: "waterskin",
         name: "Waterskin",
-        description: "",
+        description: "Half a day\'s water. Drinking leaves it empty: fill it at a well.",
         icon: (
             sheet: "srd_gear",
             frame: 15,
         ),
-        consumable: false,
-        on_use: [],
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    Nourish(
+                        food: 0.0,
+                        water: 0.5,
+                    ),
+                    GiveItem(
+                        item: "waterskin_empty",
+                        count: 1,
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         weapon: None,
         armor: None,
         max_stack: 10,
@@ -18118,5 +18178,21 @@
         cost_cp: 1005,
         weight: 0.05,
         silvered: true,
+    ),
+    (
+        id: "waterskin_empty",
+        name: "Empty waterskin",
+        description: "Fill it at a well or a fountain.",
+        icon: (
+            sheet: "srd_gear",
+            frame: 15,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 1,
+        weight: 1.0,
     ),
 ]

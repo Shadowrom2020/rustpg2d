@@ -33,6 +33,8 @@ pub struct Training {
     pub armor_untrained: bool,
     /// Armor with Stealth disadvantage worn.
     pub stealth_disadvantage: bool,
+    /// A heavy load (the variant encumbrance): disadvantage on STR, DEX and CON checks and saves.
+    pub heavy_load: bool,
     /// Skills checked with advantage (Boots of Elvenkind: `stealth`).
     pub check_advantage: Vec<String>,
     /// Added to every saving throw (a Ring of Protection's +1).

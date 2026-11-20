@@ -368,6 +368,9 @@ coins itself.
 | `money()` | The player's money in copper pieces: every coin carried by its worth. *(since 0.31)* |
 | `give_money(cp)` | Gives money in the fewest gold, silver and copper pieces: `give_money(250)` = 2 gp 5 sp. *(since 0.31)* |
 | `take_money(cp)` | Takes money from the player's coins and gives the change back; `false` (nothing taken) when they have less. *(since 0.31)* |
+| `eat(days)` | The player eats this many days' worth of food (a ration = 1, a meal = 0.5): what *Food and water* counts when the project's rules turn it on (*Database › Project › Rules*). *(since 0.32)* |
+| `drink(days)` | The player drinks this many days' worth of water (a waterskin = 0.5, a well = 1), counted like `eat`. *(since 0.32)* |
+| `carried_weight()` | Pounds the player carries: the bag and what they wear and hold (the purse weighs nothing). Their capacity is STR × 15 (`ability("str") * 15`). *(since 0.32)* |
 | `fall(feet)` | The player falls this many feet (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft (at most 20d6) into the roll log, prone for a moment; they stay where they are. *(since 0.32)* |
 | `format_money(cp)` | A sum as it reads in the player's language: `format_money(150)` = `"1 gp 5 sp"`. Put it into a text variable (`set_text`) to show it in a dialog. *(since 0.31)* |
 

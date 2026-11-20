@@ -158,7 +158,18 @@
         default_state: "default",
         states: [],
         hitbox: (28.0, 16.0),
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "drink_from_well",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         container: None,
         lock: None,
         low: true,
@@ -1426,7 +1437,18 @@
         default_state: "default",
         states: [],
         hitbox: (56.0, 28.0),
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    RunScript(
+                        function: "drink_from_well",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         container: None,
         lock: None,
         low: true,

@@ -297,9 +297,10 @@ impl Game {
         c.order.iter().filter(|f| f.side != side && !f.out && !f.down).map(|f| self.passive_of(f.who)).max().unwrap_or(10)
     }
 
-    /// A combatant's passive Perception: 10 + its Perception modifier.
+    /// A combatant's passive Perception: 10 + its Perception modifier (the hero −5 when the fight
+    /// finds them running: the fast pace).
     pub(super) fn passive_of(&self, who: Who) -> i32 {
-        10 + self.check_bonus(who, "perception") as i32
+        10 + self.check_bonus(who, "perception") as i32 - if who == Who::Player && self.hero_fast_pace() { 5 } else { 0 }
     }
 
     /// Who is surprised when a fight starts (the SRD's rule: a creature that notices no threat).

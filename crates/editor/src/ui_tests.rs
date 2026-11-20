@@ -899,6 +899,23 @@ fn the_heros_rules_are_set_in_the_project_form() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Project › Rules: the survival options (Food and water, Forced march) clicked on, saved.
+#[test]
+fn survival_rules_are_switched_on_in_the_project_form() {
+    let root = example_copy("srd_survival");
+    let mut h = harness(&root, Tab::Project, 0);
+    assert!(!h.state().project.config.rules.food_water && !h.state().project.config.rules.forced_march, "off in the example");
+    h.get_by(|n| n.label().as_deref() == Some("Food and water") && n.role() == Role::CheckBox).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("Forced march") && n.role() == Role::CheckBox).click();
+    step(&mut h);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert!(saved.config.rules.food_water && saved.config.rules.forced_march);
+    assert_eq!(saved.config.rules.encumbrance, rustpg2d_engine::srd::survival::Encumbrance::Plain);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// Database › Backgrounds: a new background, a proficiency added, its feature typed in, saved
 /// into defs/backgrounds.ron.
 #[test]

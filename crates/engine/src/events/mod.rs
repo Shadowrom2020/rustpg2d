@@ -955,6 +955,9 @@ pub enum Action {
     /// The hero falls `feet` (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft (at most
     /// 20d6), prone for a moment; they stay where they are.
     Fall { feet: u32 },
+    /// The hero eats `food` and drinks `water` days' worth (a ration = 1 day of food, a waterskin =
+    /// half a day of water): what *Food and water* counts (Database › Project › Rules).
+    Nourish { food: f32, water: f32 },
 }
 
 fn player_target() -> TargetName {
@@ -1165,6 +1168,7 @@ impl Action {
             Action::GiveMoney { .. } => "Give money",
             Action::TakeMoney { .. } => "Take money",
             Action::Fall { .. } => "Fall",
+            Action::Nourish { .. } => "Eat / drink",
         }
     }
 
@@ -1285,6 +1289,7 @@ impl Action {
             Action::GiveMoney { cp: 100 },
             Action::TakeMoney { cp: 100 },
             Action::Fall { feet: 20 },
+            Action::Nourish { food: 1.0, water: 0.0 },
         ]
     }
 }

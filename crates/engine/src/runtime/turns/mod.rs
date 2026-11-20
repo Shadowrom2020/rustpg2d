@@ -13,6 +13,7 @@ mod features;
 pub(in crate::runtime) mod menu;
 mod throwing;
 mod ui;
+pub(in crate::runtime) mod vision;
 
 pub(super) use actions::TurnAct;
 pub(super) use casting::CastAt;
@@ -293,6 +294,42 @@ impl Game {
         feet_tile(self.who_pos(who), self.ts())
     }
 
+    /// How many tiles across `who` takes (1; Large 2, Huge 3, Gargantuan 4).
+    pub(super) fn space_n(&self, who: Who) -> i32 {
+        rules::space_tiles(self.who_size(who))
+    }
+
+    /// The top-left tile of `who`'s space.
+    pub(super) fn space_anchor(&self, who: Who) -> TilePos {
+        rules::space_anchor(self.who_tile(who), self.space_n(who))
+    }
+
+    /// Every tile of `who`'s space.
+    pub(super) fn who_space(&self, who: Who) -> Vec<TilePos> {
+        rules::footprint(self.space_anchor(who), self.space_n(who))
+    }
+
+    /// The distance in tiles between two fighters' spaces (1 = next to each other).
+    pub(super) fn who_dist(&self, a: Who, b: Who) -> i32 {
+        rules::space_dist(self.space_anchor(a), self.space_n(a), self.space_anchor(b), self.space_n(b))
+    }
+
+    /// The distance in tiles from `who`'s space to tile `t`.
+    pub(super) fn dist_to(&self, who: Who, t: TilePos) -> i32 {
+        rules::space_dist(self.space_anchor(who), self.space_n(who), t, 1)
+    }
+
+    /// Where the feet of an `n`-tile creature stand when its space's top-left tile is `anchor`.
+    pub(super) fn space_feet(&self, anchor: TilePos, n: i32) -> Vec2 {
+        let feet = feet_spot(rules::space_feet_tile(anchor, n), self.ts());
+        // (An even width: the feet on the line between the two middle columns.)
+        if n % 2 == 0 {
+            feet - vec2(self.ts() * 0.5, 0.0)
+        } else {
+            feet
+        }
+    }
+
     pub(super) fn who_name(&self, who: Who) -> String {
         match who {
             Who::Player => self.world.player_name.clone(),
@@ -391,7 +428,8 @@ impl Game {
     /// The fighters' tiles (the living ones), but `except`.
     pub(super) fn fighter_tiles(&self, except: Who) -> Vec<(Who, Side, TilePos)> {
         let Some(c) = &self.fight else { return Vec::new() };
-        c.order.iter().filter(|f| f.who != except && !f.out).map(|f| (f.who, f.side, self.who_tile(f.who))).collect()
+        // (Every tile of a big creature's space.)
+        c.order.iter().filter(|f| f.who != except && !f.out).flat_map(|f| self.who_space(f.who).into_iter().map(move |t| (f.who, f.side, t))).collect()
     }
 
     // --------------------------------------------------------------------- start and end
@@ -465,10 +503,14 @@ impl Game {
         self.player.pos = p;
         for f in &order {
             if let Some(i) = self.who_index(f.who) {
+                // (A big creature: its feet at the bottom middle of its square.)
+                let n = rules::space_tiles(self.who_block(f.who).map_or(crate::srd::Size::Medium, |b| b.size));
+                let feet = feet_tile(self.loaded.entities[i].body.pos, ts);
+                let pos = if n > 1 { self.space_feet(rules::space_anchor(feet, n), n) } else { feet_spot(feet, ts) };
                 let e = &mut self.loaded.entities[i];
                 e.body.move_target = None;
                 e.body.moving = false;
-                e.body.pos = feet_spot(feet_tile(e.body.pos, ts), ts);
+                e.body.pos = pos;
                 self.occupy(i);
             }
         }
@@ -716,7 +758,7 @@ impl Game {
         // A grapple ends when the grappler isn't next to its target any more.
         let grappled = conditions::has(self.who_conditions(me.who), Condition::Grappled);
         if grappled {
-            let held = self.fight.as_ref().is_some_and(|c| c.order.iter().any(|g| g.grappling == Some(me.who) && !g.out && !g.down && conditions::can_act(self.who_conditions(g.who)) && self.who_tile(g.who).0.abs_diff(self.who_tile(me.who).0) <= 1 && self.who_tile(g.who).1.abs_diff(self.who_tile(me.who).1) <= 1));
+            let held = self.fight.as_ref().is_some_and(|c| c.order.iter().any(|g| g.grappling == Some(me.who) && !g.out && !g.down && conditions::can_act(self.who_conditions(g.who)) && self.who_dist(g.who, me.who) <= 1));
             if !held {
                 if let Some(l) = self.who_conditions_mut(me.who) {
                     conditions::remove(l, Condition::Grappled);
@@ -842,17 +884,6 @@ impl Game {
         distance_field(goals, limit, |t| self.terrain_closed(t))
     }
 
-    fn tile_closed(&self, who: Who, side: Side, t: TilePos, stop: bool, fighters: &[(Who, Side, TilePos)]) -> bool {
-        if !self.loaded.map.in_bounds(t.0, t.1) || self.tile_blocks_npc(t.0, t.1) {
-            return true;
-        }
-        if self.loaded.occupancy.has(t.0, t.1, super::occupancy::OCC_PROP) {
-            return true;
-        }
-        let _ = who;
-        fighters.iter().any(|(_, s, p)| *p == t && (*s != side || stop))
-    }
-
     /// Where a creature can walk this turn: tile -> (feet it costs, the tile before it); the
     /// allies' tiles it passes on the way are kept apart (`Reach::passed`).
     pub(super) fn reachable(&self, who: Who) -> Reach {
@@ -861,13 +892,17 @@ impl Game {
         let Some(me) = c.fighter(who) else { return Reach::default() };
         let left = c.turn.speed.saturating_sub(c.turn.moved);
         let start = self.who_tile(who);
+        let n = self.space_n(who);
+        let my_size = self.who_size(who);
         let fighters = self.fighter_tiles(who);
         // Frightened: no step closer to the source of its fear while it sees it.
-        let cheb = |a: TilePos, b: TilePos| a.0.abs_diff(b.0).max(a.1.abs_diff(b.1));
         let fear = self.fear_in_sight(who).map(|s| {
-            let at = self.who_tile(s);
-            (at, cheb(start, at))
+            let (at, sn) = (self.space_anchor(s), self.space_n(s));
+            (at, sn, rules::space_dist(rules::space_anchor(start, n), n, at, sn))
         });
+        // Who stands on a tile: an ally's space can be passed (as difficult terrain), a foe's only
+        // when one of the two is two sizes larger or more; nobody ends on another's space.
+        let passable = |w: Who, s: Side| s == me.side || (my_size as i32 - self.who_size(w) as i32).abs() >= 2;
         out.insert(start, (0, start));
         let mut open = std::collections::BinaryHeap::new();
         open.push(std::cmp::Reverse((0u32, start)));
@@ -876,30 +911,61 @@ impl Game {
                 continue;
             }
             for d in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
-                let n = (t.0 + d.0, t.1 + d.1);
-                if self.tile_closed(who, me.side, n, false, &fighters) {
+                let f = (t.0 + d.0, t.1 + d.1);
+                let Some((space, squeezed)) = self.space_at(f, n) else { continue };
+                let mut through = false;
+                if fighters.iter().any(|(w, s, p)| space.contains(p) && {
+                    through = true;
+                    !passable(*w, *s)
+                }) {
                     continue;
                 }
-                if fear.is_some_and(|(at, d0)| cheb(n, at) < d0) {
+                if fear.is_some_and(|(at, sn, d0)| rules::space_dist(rules::space_anchor(f, n), n, at, sn) < d0) {
                     continue;
                 }
                 // A diagonal step, unless both corners are walls (no squeezing through).
-                if d.0 != 0 && d.1 != 0 && !diagonal_ok(self.terrain_closed((t.0 + d.0, t.1)), self.terrain_closed((t.0, t.1 + d.1))) {
+                if n == 1 && d.0 != 0 && d.1 != 0 && !diagonal_ok(self.terrain_closed((t.0 + d.0, t.1)), self.terrain_closed((t.0, t.1 + d.1))) {
                     continue;
                 }
-                let nc = cost + rules::step_cost(self.difficult_at(n));
+                // (Difficult ground under any of its tiles, squeezing, or another's space: double.)
+                let rough = squeezed || through || space.iter().any(|p| self.difficult_at(*p));
+                let nc = cost + rules::step_cost(rough);
                 if nc > left {
                     continue;
                 }
-                if out.get(&n).is_none_or(|(c, _)| nc < *c) {
-                    out.insert(n, (nc, t));
-                    open.push(std::cmp::Reverse((nc, n)));
+                if out.get(&f).is_none_or(|(c, _)| nc < *c) {
+                    out.insert(f, (nc, t));
+                    open.push(std::cmp::Reverse((nc, f)));
                 }
             }
         }
-        // Tiles with an ally on them can be passed, not ended on (kept for the paths through them).
-        let (tiles, passed) = out.into_iter().partition(|(t, _)| *t == start || !fighters.iter().any(|(_, _, p)| p == t));
+        // Spaces with someone on them can be passed, not ended on (kept for the paths through them).
+        let (tiles, passed) = out.into_iter().partition(|(f, _)| *f == start || self.space_at(*f, n).is_none_or(|(space, _)| !fighters.iter().any(|(_, _, p)| space.contains(p))));
         Reach { tiles, passed }
+    }
+
+    /// The tiles an `n`-tile creature takes with its feet on `feet`, if the terrain lets it stand
+    /// there: its whole square, or (squeezing, `true`) the square one size smaller.
+    pub(super) fn space_at(&self, feet: TilePos, n: i32) -> Option<(Vec<TilePos>, bool)> {
+        let open = |t: &TilePos| !self.terrain_closed(*t);
+        let full = rules::footprint(rules::space_anchor(feet, n), n);
+        if full.iter().all(open) {
+            return Some((full, false));
+        }
+        if n > 1 {
+            let small = rules::footprint(rules::space_anchor(feet, n - 1), n - 1);
+            if small.iter().all(open) {
+                return Some((small, true));
+            }
+        }
+        None
+    }
+
+    /// Whether `who` stands squeezed into a space smaller than it (a Large creature in a
+    /// corridor): disadvantage on its attacks and DEX saves, advantage against it.
+    pub(super) fn squeezed(&self, who: Who) -> bool {
+        let n = self.space_n(who);
+        n > 1 && self.space_at(self.who_tile(who), n).is_some_and(|s| s.1)
     }
 
     /// A path from the reach map (excludes the start), also through allies' tiles.
@@ -921,8 +987,12 @@ impl Game {
         path
     }
 
-    /// Difficult terrain: the painted ground's material says so.
+    /// Difficult terrain: the painted ground's material says so, or a rough decoration
+    /// (undergrowth, rubble) stands there.
     pub(super) fn difficult_at(&self, t: TilePos) -> bool {
+        if self.loaded.occupancy.has(t.0, t.1, super::occupancy::OCC_ROUGH) {
+            return true;
+        }
         let m = &self.loaded.map;
         let per = (crate::project::TILE_SIZE / crate::ground::CELL) as i32;
         let v = m.ground.get(t.0 * per + per / 2, t.1 * per + per / 2);
@@ -965,10 +1035,11 @@ impl Game {
             let dragged = self.fight.as_ref().and_then(|c| c.fighter(who)).and_then(|f| f.grappling);
             let foes: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| f.side != side && !f.out && !f.down && !f.reacted && Some(f.who) != dragged).map(|f| f.who).collect());
             for foe in foes {
-                let ft = self.who_tile(foe);
-                // (Its melee reach: a glaive's two tiles.)
+                let (fa, fnn) = (self.space_anchor(foe), self.space_n(foe));
+                // (Its melee reach: a glaive's two tiles; from its whole space to the mover's.)
                 let r = self.melee_spec(foe).map_or(1, |s| s.reach.max(1));
-                let near = |t: TilePos| t.0.abs_diff(ft.0).max(t.1.abs_diff(ft.1)) as i32 <= r;
+                let mn = self.space_n(who);
+                let near = |t: TilePos| rules::space_dist(rules::space_anchor(t, mn), mn, fa, fnn) <= r;
                 if near(from) && !near(next) && conditions::can_act(self.who_conditions(foe)) {
                     if let Some(spec) = self.melee_spec(foe) {
                         if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(foe)) {
@@ -992,7 +1063,9 @@ impl Game {
             return true;
         }
         let ts = self.ts();
-        let to = feet_spot(next, ts);
+        // (A big creature's feet: the bottom middle of its square.)
+        let n = self.space_n(who);
+        let to = if n > 1 { self.space_feet(rules::space_anchor(next, n), n) } else { feet_spot(next, ts) };
         match self.who_index(who) {
             None if fast => self.player.pos = to,
             None => self.player.move_target = Some(to),
@@ -1021,9 +1094,9 @@ impl Game {
         // Entering a readied foe's reach: its attack.
         let readied: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| f.side != side && f.readied && !f.reacted && !f.out && !f.down).map(|f| f.who).collect());
         for foe in readied {
-            let ft = self.who_tile(foe);
             let r = self.melee_spec(foe).map_or(1, |s| s.reach.max(1));
-            if next.0.abs_diff(ft.0).max(next.1.abs_diff(ft.1)) as i32 <= r {
+            let mn = self.space_n(who);
+            if rules::space_dist(rules::space_anchor(next, mn), mn, self.space_anchor(foe), self.space_n(foe)) <= r {
                 if let Some(spec) = self.melee_spec(foe) {
                     if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(foe)) {
                         f.reacted = true;
@@ -1046,8 +1119,8 @@ impl Game {
         });
         for (caster, id, slot) in ready {
             let Some(d) = self.project.db.spell(&id).cloned() else { continue };
-            let ct = self.who_tile(caster);
-            let dist = ct.0.abs_diff(at.0).max(ct.1.abs_diff(at.1)) as i32;
+            let mn = self.space_n(mover);
+            let dist = rules::space_dist(self.space_anchor(caster), self.space_n(caster), rules::space_anchor(at, mn), mn);
             if dist > d.range.tiles().max(1) || self.cover(caster, mover) == Cover::Total {
                 continue;
             }
@@ -1074,8 +1147,8 @@ impl Game {
     /// next to `who`'s new tile any more.
     fn drag_grappled(&mut self, who: Who, from: TilePos, to: TilePos) {
         let Some(g) = self.fight.as_ref().and_then(|c| c.fighter(who)).and_then(|f| f.grappling) else { return };
-        let gt = self.who_tile(g);
-        if gt.0.abs_diff(to.0) <= 1 && gt.1.abs_diff(to.1) <= 1 {
+        let n = self.space_n(who);
+        if rules::space_dist(self.space_anchor(g), self.space_n(g), rules::space_anchor(to, n), n) <= 1 {
             return;
         }
         let p = feet_spot(from, self.ts());
@@ -1274,8 +1347,7 @@ impl Game {
         if self.charmed_by(who) == Some(target) {
             return Err("Charmed");
         }
-        let (a, t) = (self.who_tile(who), self.who_tile(target));
-        let dist = a.0.abs_diff(t.0).max(a.1.abs_diff(t.1)) as i32;
+        let dist = self.who_dist(who, target);
         if spec.ranged {
             if dist > spec.long.max(spec.range) {
                 return Err("Out of range");
@@ -1292,26 +1364,30 @@ impl Game {
     /// The cover `target` has against `who`: lines from the attacker's tile centre to the
     /// target tile's corners, blocked by walls, tall props and other creatures.
     pub(super) fn cover(&self, who: Who, target: Who) -> Cover {
-        self.cover_from(self.who_tile(who), who, target)
+        // (A big attacker: from the tile of its space that sees best.)
+        self.who_space(who).into_iter().map(|a| self.cover_from(a, who, target)).min().unwrap_or_default()
     }
 
     /// The cover `target` would have against `who` standing on tile `a`.
     pub(super) fn cover_from(&self, a: TilePos, who: Who, target: Who) -> Cover {
         let ts = self.ts();
-        let t = self.who_tile(target);
-        if a.0.abs_diff(t.0) <= 1 && a.1.abs_diff(t.1) <= 1 {
+        // (The target's whole space: a big creature's square.)
+        let (t, n) = (self.space_anchor(target), self.space_n(target));
+        if rules::space_dist(a, 1, t, n) <= 1 {
             return Cover::None;
         }
+        let space = rules::footprint(t, n);
         let from = vec2((a.0 as f32 + 0.5) * ts, (a.1 as f32 + 0.5) * ts);
-        let creatures: Vec<TilePos> = self.fighter_tiles(who).into_iter().filter(|(w, _, _)| *w != target).map(|(_, _, p)| p).collect();
+        let creatures: Vec<TilePos> = self.fighter_tiles(who).into_iter().filter(|(w, _, _)| *w != target && *w != who).map(|(_, _, p)| p).collect();
         let inset = 0.15 * ts;
-        let corners = [(inset, inset), (ts - inset, inset), (inset, ts - inset), (ts - inset, ts - inset)];
+        let size = n as f32 * ts;
+        let corners = [(inset, inset), (size - inset, inset), (inset, size - inset), (size - inset, size - inset)];
         // Walls and tall props block lines; creatures in the way give half cover at most (the SRD).
         let (mut walls, mut creature) = (0, false);
         for (dx, dy) in corners {
             let to = vec2(t.0 as f32 * ts + dx, t.1 as f32 * ts + dy);
             let (mut wall, mut body) = (false, false);
-            for p in crate::grid::line_tiles(from, to, ts).filter(|p| *p != a && *p != t) {
+            for p in crate::grid::line_tiles(from, to, ts).filter(|p| *p != a && !space.contains(p)) {
                 wall |= self.blocks_shot(p.0, p.1) || self.loaded.occupancy.has(p.0, p.1, super::occupancy::OCC_HIGH);
                 body |= creatures.contains(&p);
             }
@@ -1356,28 +1432,25 @@ impl Game {
 
     /// The situation of an attack (for advantage and disadvantage).
     fn situation(&self, who: Who, target: Who, spec: &AttackSpec) -> AttackSituation {
-        let (a, t) = (self.who_tile(who), self.who_tile(target));
-        let dist = a.0.abs_diff(t.0).max(a.1.abs_diff(t.1)) as i32;
+        let dist = self.who_dist(who, target);
         let me = self.fight_rules(who);
         let them = conditions::rules(self.who_conditions(target));
         let c = self.fight.as_ref();
         let my_side = c.and_then(|c| c.fighter(who)).map(|f| f.side);
         let enemy_adjacent = c.is_some_and(|c| {
-            c.order.iter().any(|f| Some(f.side) != my_side && !f.out && !f.down && {
-                let p = self.who_tile(f.who);
-                p.0.abs_diff(a.0) <= 1 && p.1.abs_diff(a.1) <= 1 && conditions::can_act(self.who_conditions(f.who))
-            })
+            c.order.iter().any(|f| Some(f.side) != my_side && !f.out && !f.down && self.who_dist(f.who, who) <= 1 && conditions::can_act(self.who_conditions(f.who)))
         });
         AttackSituation {
             ranged: spec.ranged,
             adjacent: dist <= 1,
             enemy_adjacent,
             long_range: spec.ranged && dist > spec.range,
-            attacker_disadvantage: me.attack_disadvantage || spec.disadvantage || (!spec.spell && self.who_armor_untrained(who)) || (spec.lance && dist <= 1),
-            attacker_unseen: me.invisible || c.and_then(|c| c.fighter(who)).is_some_and(|f| f.hidden),
+            attacker_disadvantage: me.attack_disadvantage || spec.disadvantage || (!spec.spell && self.who_armor_untrained(who)) || (spec.lance && dist <= 1) || self.squeezed(who),
+            // (Unseen: invisible, hidden, or the target can't see it: darkness, fog.)
+            attacker_unseen: me.invisible || c.and_then(|c| c.fighter(who)).is_some_and(|f| f.hidden) || !self.can_see(target, who),
             target_prone: conditions::has(self.who_conditions(target), Condition::Prone),
-            target_helpless: conditions::has(self.who_conditions(target), Condition::Restrained) || them.str_dex_saves_fail || them.blinded,
-            target_unseen: them.invisible,
+            target_helpless: conditions::has(self.who_conditions(target), Condition::Restrained) || them.str_dex_saves_fail || them.blinded || self.squeezed(target),
+            target_unseen: them.invisible || !self.can_see(who, target),
             target_dodging: c.and_then(|c| c.fighter(target)).is_some_and(|f| f.dodging) && conditions::can_act(self.who_conditions(target)),
             // The Grappler feat: advantage against the creature it grapples (counted as a helping hand).
             // (And Reckless Attack: the attacker's on its STR melee attacks, the target's on all.)
@@ -1858,6 +1931,13 @@ impl Game {
                 }
                 if let Some(g) = f.grappling {
                     more.push_str(&format!(">{}", self.who_key(g)));
+                }
+                let n = self.space_n(f.who);
+                if n > 1 {
+                    more.push_str(&format!("[{n}x{n}]"));
+                }
+                if self.squeezed(f.who) {
+                    more.push_str("#squeezed");
                 }
                 format!("{side}{}{mark}{more}:{hp}/{max}", self.who_key(f.who))
             })

@@ -86,6 +86,24 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   advantage; invisible: disadvantage), Dodge, Help, a hidden attacker, and for ranged attacks a foe
   next to the shooter or a target beyond the normal range (up to the long range: *Long range* on
   the weapon). Paralyzed or unconscious targets within 5 ft take critical hits.
+- **Space:** a Large creature takes 2×2 tiles, a Huge one 3×3, a Gargantuan one 4×4 (its stat
+  block's size); reach, ranges, areas and cover count from its whole square, and its ring in the
+  fight shows it. It can **squeeze** into a space one size smaller (a Large troll in a one-tile
+  corridor): every step costs double, and while squeezed it attacks and makes DEX saves at
+  disadvantage, and attacks against it have advantage. Anyone can move through an ally's space (as
+  difficult terrain) and through a foe's only when one of the two is two sizes larger or more; nobody
+  ends a move there.
+- **Seeing:** dim light (night outdoors, a lamp's edge), the weather's fog a few tiles away and
+  foliage (bushes, tall grass: props marked *Obscures*) **lightly obscure**; darkness (caves, dark
+  rooms without lights) and dense fog farther away **heavily obscure**. Darkvision sees darkness
+  within its range as dim light and dim light as bright. A creature in a heavily obscured spot, or an
+  invisible one, can't be seen: attacks at it have disadvantage, its own attacks advantage. Blindsight,
+  tremorsense and truesight (from a stat block's senses) see within their range regardless
+  (truesight and blindsight invisible creatures too). Foes the hero can't see are drawn faded with a
+  "?" over them. *Hide* works only out of plain sight: obscured, or behind three-quarters cover from
+  every foe; and a dim view of a hider lowers the seeker's passive Perception by 5 for surprise.
+- **Difficult terrain** comes from the painted ground's materials and from props marked *Difficult
+  terrain*, as decorations or placed (undergrowth; the library's herb and feverleaf bushes).
 - **Cover:** walls, tall props, trees and other creatures between the attacker and the target give
   **half cover** (+2 AC) or **three-quarters cover** (+5 AC); behind full cover it can't be
   targeted. Cover counts for **DEX saving throws** too (+2 / +5), from where the effect comes: a

@@ -116,7 +116,7 @@ impl Game {
                 if down && !focus {
                     continue;
                 }
-                let d = dist(here, self.who_tile(*f));
+                let d = self.who_dist(me.who, *f);
                 // Melee first when next to the foe; a shot otherwise.
                 let mut best: Option<AttackSpec> = None;
                 for s in &specs {
@@ -126,7 +126,9 @@ impl Game {
                 }
                 if let Some(s) = best {
                     let hp = self.who_hp(*f).0;
-                    options.push((*f, s, if focus { hp } else { d }));
+                    // (Foes it can see first.)
+                    let unseen = if self.can_see(me.who, *f) { 0 } else { 1000 };
+                    options.push((*f, s, unseen + if focus { hp } else { d }));
                 }
             }
             // A thrown weapon only when no foe can be reached in melee this turn: walk up and strike.
@@ -149,8 +151,11 @@ impl Game {
         if !turn.ai_walked && turn.moved < turn.speed && !turn.action {
             let reach = self.reachable(me.who);
             let ranged = specs.iter().all(|s| s.ranged);
-            let foe_tiles: Vec<TilePos> = foes.iter().map(|w| self.who_tile(*w)).collect();
-            let nearest = foes.iter().copied().min_by_key(|w| dist(here, self.who_tile(*w)));
+            // (Every tile of the foes' spaces; from the square a big mover would take.)
+            let foe_tiles: Vec<TilePos> = foes.iter().flat_map(|w| self.who_space(*w)).collect();
+            let nearest = foes.iter().copied().min_by_key(|w| self.who_dist(me.who, *w));
+            let mn = self.space_n(me.who);
+            let from_space = |t: TilePos, f: TilePos| crate::srd::combat::space_dist(crate::srd::combat::space_anchor(t, mn), mn, f, 1);
             let mut best: Option<(i32, TilePos)> = None;
             // Its thrown weapon lying within this turn's walk: take it back first.
             let mine = self.thrown_tiles(me.who).into_iter().filter(|t| reach.contains_key(t)).min_by_key(|t| reach[t].0);
@@ -162,7 +167,7 @@ impl Game {
                 if mine.is_some() {
                     break;
                 }
-                let near = foe_tiles.iter().map(|f| dist(*t, *f)).min().unwrap_or(99);
+                let near = foe_tiles.iter().map(|f| from_space(*t, *f)).min().unwrap_or(99);
                 let score = if ranged {
                     // Shooters: within their range with a line to the nearest foe, not next to a
                     // foe, the shortest walk.
@@ -213,8 +218,9 @@ impl Game {
         if self.fight.as_ref().is_none_or(|c| c.turn.ai_walked) {
             return false;
         }
-        let tiles: Vec<TilePos> = foes.iter().filter(|f| focus || !self.fight.as_ref().and_then(|c| c.fighter(**f)).is_some_and(|x| x.down)).map(|f| self.who_tile(*f)).collect();
-        self.reachable(who).keys().any(|t| tiles.iter().any(|f| dist(*t, *f) <= reach))
+        let tiles: Vec<TilePos> = foes.iter().filter(|f| focus || !self.fight.as_ref().and_then(|c| c.fighter(**f)).is_some_and(|x| x.down)).flat_map(|f| self.who_space(*f)).collect();
+        let mn = self.space_n(who);
+        self.reachable(who).keys().any(|t| tiles.iter().any(|f| crate::srd::combat::space_dist(crate::srd::combat::space_anchor(*t, mn), mn, *f, 1) <= reach))
     }
 
     /// Speed (feet) for Dash: the creature's speed.

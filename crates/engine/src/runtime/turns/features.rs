@@ -264,8 +264,7 @@ impl Game {
         let me = self.fight.as_ref().ok_or("No fight")?.current().clone();
         let a = self.class_acts(me.who).into_iter().find(|a| a.id == id).ok_or("No such class action")?;
         self.class_act_ready(me.who, &a)?;
-        let (p, q) = (self.who_tile(me.who), self.who_tile(target));
-        let dist = p.0.abs_diff(q.0).max(p.1.abs_diff(q.1)) as i32;
+        let dist = self.who_dist(me.who, target);
         let ally = self.fight.as_ref().unwrap().fighter(target).is_some_and(|f| f.side == me.side);
         let target = match a.effect.target() {
             ActTarget::Myself => me.who,
@@ -489,8 +488,7 @@ impl Game {
     }
 
     fn tiles_between(&self, a: Who, b: Who) -> i32 {
-        let (p, q) = (self.who_tile(a), self.who_tile(b));
-        p.0.abs_diff(q.0).max(p.1.abs_diff(q.1)) as i32
+        self.who_dist(a, b)
     }
 
     /// The attacks the Attack action makes (Extra Attack, Multiattack).
@@ -622,12 +620,8 @@ impl Game {
         // Sneak Attack: a finesse or ranged weapon, advantage or an ally next to the target.
         if t.riders.contains(&FeatureEffect::SneakAttack) && (spec.ranged || spec.finesse) && mode != Mode::Disadvantage {
             let side = self.fight.as_ref().and_then(|c| c.fighter(who)).map(|f| f.side);
-            let tt = self.who_tile(target);
             let ally_near = self.fight.as_ref().is_some_and(|c| {
-                c.order.iter().any(|f| Some(f.side) == side && f.who != who && !f.out && !f.down && conditions::can_act(self.who_conditions(f.who)) && {
-                    let p = self.who_tile(f.who);
-                    p.0.abs_diff(tt.0) <= 1 && p.1.abs_diff(tt.1) <= 1
-                })
+                c.order.iter().any(|f| Some(f.side) == side && f.who != who && !f.out && !f.down && conditions::can_act(self.who_conditions(f.who)) && self.who_dist(f.who, target) <= 1)
             });
             if (mode == Mode::Advantage || ally_near) && self.once(who, "sneak") {
                 let n = self.who_classdef(who).map_or(1, |c| c.number(t.level, "sneak_attack.dice_count")).max(1) * mul;

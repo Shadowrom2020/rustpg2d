@@ -39,9 +39,14 @@ impl Game {
     /// ambient light by the clock plus every light source in reach (as drawn: full at its
     /// middle, nothing at its radius).
     pub(super) fn light_at_player(&self) -> f32 {
+        self.light_level(self.player.pos - vec2(0.0, self.ts() * 0.5))
+    }
+
+    /// How lit a spot is: 0 (dark) to 1 (daylight): the map's ambient light by the clock plus
+    /// every light source in reach.
+    pub(super) fn light_level(&self, at: Vec2) -> f32 {
         let ambient = crate::render::lighting::ambient(self.loaded.map.lighting, self.world.hour).map_or(1.0, |c| 0.299 * c.r + 0.587 * c.g + 0.114 * c.b);
         let ts = self.ts();
-        let at = self.player.pos - vec2(0.0, ts * 0.5);
         let lit: f32 = self
             .lights()
             .iter()

@@ -979,7 +979,7 @@ added here.
   the action, the shield refused, armor refused. Not run end to end: cover on a DEX save, an AI
   escaping a grapple, a monster's two-handed damage.
 
-- [ ] Combat rules 3: size and sight — `feature/srd-combat-space`
+- [x] Combat rules 3: size and sight — `feature/srd-combat-space`
 
   **Goal.** Big creatures and what fighters can see.
 
@@ -1000,6 +1000,37 @@ added here.
 
   **Verify.** Unit tests of multi-tile reach and cover; autoplay: a Large creature in a corridor,
   an attack from heavy obscurement; screenshots of a Large creature's tiles.
+
+  **Decided while building.** Your decisions: the SRD squares with squeezing; obscured by light,
+  fog and foliage; unseen foes drawn faded with a "?". Movement maps stay keyed by the feet tile
+  (not the square's corner), so paths and `turn move X Y` are unchanged; a step is open when the
+  whole square is (or the one-smaller square: squeezing). Light levels: below 0.08 darkness, below
+  0.5 dim (night outdoors ≈ 0.13 is dim, like moonlight). The library has no undergrowth or rubble
+  decorations yet: the herb and feverleaf bushes are difficult and obscuring. Grumbold (the cave troll)
+  got a stat block with his old numbers and size Large; there is no bridge troll in the example.
+
+  **As built.** One pull request.
+  - **Rules (`srd/combat.rs`):** `space_tiles`, `space_anchor`, `space_feet_tile`, `footprint`,
+    `space_dist`.
+  - **Runtime:** `space_n`, `space_anchor`, `who_space`, `who_dist`, `dist_to`, `space_feet`,
+    `space_at`, `squeezed`; `fighter_tiles` / `who_at` over squares; `reachable` for squares
+    (squeezing, passing through others, fear); the walk, pushes, drags, landing spots and the fight's
+    start on squares; cover from the attacker's best tile to the target's square; reach, ranges,
+    areas, auras, Sneak Attack, the AI's choices by space distance; `runtime/turns/vision.rs`
+    (`obscured_by_light`, `obscured_by_fog`, `sense_ft`, `tile_obscured`, `sees`, `can_see`,
+    `unseen_foe`, `sight_status`), `light_level` (from `light_at_player`); unseen attackers / targets
+    in `situation`, Hide's condition, surprise per hider and seeker, the AI preferring seen foes, the
+    faded drawing and the "?".
+  - **Data:** `PropDef.difficult` / `obscures` (the prop form's ticks), `DecorLook` with them,
+    `OCC_ROUGH` / `OCC_FOLIAGE` from decorations at load and placed props each frame.
+
+  **Verified.** Unit tests (squares and distances, light and fog levels, senses). Autoplay on a
+  scratch copy: Grumbold in the mine as `grumbold[2x2]#squeezed` (screenshot of his 2×2 ring); the
+  dwarf hero seeing the mine's slimes dim, a human hero two of them `unseen:dark` (screenshot: faded,
+  "?"); fog at 0.7 (clear at 3 tiles, dim at 4, unseen at 8); a herb bush placed by editor script:
+  Hide refused in the open, stepping into the bush costing 10 ft and hiding there. Not run end to
+  end: an attack roll against an unseen foe, a Large creature's opportunity attack, a creature with
+  blindsight or truesight.
 
 - [ ] Combat rules 4: the AI — `feature/srd-combat-ai`
 

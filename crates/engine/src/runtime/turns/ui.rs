@@ -172,7 +172,9 @@ impl Game {
             // Walk next to it first, then attack.
             let reach = self.fight.as_ref().unwrap().reach.clone();
             let here = self.who_tile(me.who);
-            let goal = reach.iter().filter(|(p, _)| p.0.abs_diff(cursor.0) <= 1 && p.1.abs_diff(cursor.1) <= 1).min_by_key(|(_, (cost, _))| *cost).map(|(p, _)| *p);
+            // (Spaces next to each other: big movers and targets too.)
+            let (mn, ta, tn) = (self.space_n(me.who), self.space_anchor(t), self.space_n(t));
+            let goal = reach.iter().filter(|(p, _)| crate::srd::combat::space_dist(crate::srd::combat::space_anchor(**p, mn), mn, ta, tn) <= 1).min_by_key(|(_, (cost, _))| *cost).map(|(p, _)| *p);
             match goal {
                 Some(g) => {
                     let path = Self::path_to(&reach, here, g);
@@ -268,7 +270,9 @@ impl Game {
         let tile_rect = |t: TilePos| Rect::new(t.0 as f32 * ts, t.1 as f32 * ts, ts, ts);
         // Everyone's ring: party blue, foes red, the current one gold.
         for f in c.order.iter().filter(|f| !f.out) {
-            let r = tile_rect(self.who_tile(f.who));
+            // (A big creature's ring round its whole square.)
+            let (a, n) = (self.space_anchor(f.who), self.space_n(f.who));
+            let r = Rect::new(a.0 as f32 * ts, a.1 as f32 * ts, ts * n as f32, ts * n as f32);
             let col = if f.who == me.who {
                 Color::new(1.0, 0.85, 0.3, 0.9)
             } else if f.side == Side::Party {
@@ -277,6 +281,12 @@ impl Game {
                 Color::new(1.0, 0.3, 0.25, 0.6)
             };
             draw_rectangle_lines(r.x + 2.0, r.y + 2.0, r.w - 4.0, r.h - 4.0, 2.0, col);
+            // (A foe the hero can't see: a question mark over its space.)
+            if let Who::Npc(uid) = f.who {
+                if self.unseen_foe(uid) {
+                    draw_text("?", r.x + r.w / 2.0 - 5.0, r.y - 4.0, 26.0, Color::new(1.0, 0.85, 0.4, 0.95));
+                }
+            }
         }
         if !self.players_turn() {
             return;
@@ -284,13 +294,19 @@ impl Game {
         // Reachable tiles; those whose way leaves a foe's reach (an opportunity attack) in red.
         let here = self.who_tile(me.who);
         let threats = self.threatening_foes(me.who);
-        let provokes = |t: TilePos| !c.turn.disengaged && threats.iter().any(|(f, r)| f.0.abs_diff(t.0).max(f.1.abs_diff(t.1)) as i32 > *r);
+        let mn = self.space_n(me.who);
+        let provokes = |t: TilePos| !c.turn.disengaged && threats.iter().any(|(f, fnn, r)| crate::srd::combat::space_dist(crate::srd::combat::space_anchor(t, mn), mn, *f, *fnn) > *r);
         for t in c.reach.keys() {
             let r = tile_rect(*t);
             let col = if *t != here && provokes(*t) { Color::new(1.0, 0.35, 0.25, 0.2) } else { Color::new(0.3, 0.6, 1.0, 0.16) };
             draw_rectangle(r.x + 1.0, r.y + 1.0, r.w - 2.0, r.h - 2.0, col);
         }
         if c.aim == Aim::Move && c.reach.contains_key(&c.cursor) && self.who_at(c.cursor).is_none() {
+            // (A big mover: the square it would take there.)
+            if mn > 1 {
+                let a = crate::srd::combat::space_anchor(c.cursor, mn);
+                draw_rectangle_lines(a.0 as f32 * ts + 2.0, a.1 as f32 * ts + 2.0, ts * mn as f32 - 4.0, ts * mn as f32 - 4.0, 2.0, Color::new(1.0, 1.0, 1.0, 0.7));
+            }
             let path = Self::path_to(&c.reach, here, c.cursor);
             let col = if path.iter().any(|t| provokes(*t)) { Color::new(1.0, 0.45, 0.35, 0.85) } else { Color::new(1.0, 1.0, 1.0, 0.7) };
             let mut prev = vec2((here.0 as f32 + 0.5) * ts, (here.1 as f32 + 0.5) * ts);
@@ -315,17 +331,17 @@ impl Game {
 
     /// The tiles of the foes next to `who` that would take an opportunity attack when it leaves
     /// their reach (standing, able to act, their reaction not spent, a melee attack).
-    pub(super) fn threatening_foes(&self, who: Who) -> Vec<(TilePos, i32)> {
+    pub(super) fn threatening_foes(&self, who: Who) -> Vec<(TilePos, i32, i32)> {
         let Some(c) = &self.fight else { return Vec::new() };
         let Some(me) = c.fighter(who) else { return Vec::new() };
-        let here = self.who_tile(who);
-        // (Each with its melee reach: a glaive's two tiles.)
+        // (Each with its space and its melee reach: a glaive's two tiles.)
         c.order
             .iter()
             .filter(|f| f.side != me.side && !f.out && !f.down && !f.reacted)
             .filter(|f| crate::srd::conditions::can_act(self.who_conditions(f.who)))
-            .filter_map(|f| Some((self.who_tile(f.who), self.melee_spec(f.who)?.reach.max(1))))
-            .filter(|(t, r)| t.0.abs_diff(here.0).max(t.1.abs_diff(here.1)) as i32 <= *r)
+            .filter_map(|f| Some((f.who, self.melee_spec(f.who)?.reach.max(1))))
+            .filter(|(f, r)| self.who_dist(*f, who) <= *r)
+            .map(|(f, r)| (self.space_anchor(f), self.space_n(f), r))
             .collect()
     }
 

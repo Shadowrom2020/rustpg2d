@@ -60,20 +60,24 @@ impl Game {
     /// Who a spell aimed at `at` affects in a fight.
     pub(super) fn spell_targets(&self, who: Who, d: &SpellDef, slot: u32, at: CastAt) -> Result<(Vec<Who>, TilePos), &'static str> {
         let c = self.fight.as_ref().ok_or("No fight")?;
-        let here = self.who_tile(who);
         let reach = d.range.tiles();
-        let dist = |t: TilePos| t.0.abs_diff(here.0).max(t.1.abs_diff(here.1)) as i32;
+        // (From the caster's space; to a target's nearest tile.)
+        let dist = |t: TilePos| self.dist_to(who, t);
         let point = match at {
             CastAt::On(w) => self.who_tile(w),
             CastAt::Tile(t) => t,
         };
-        if d.range != SpellRange::Caster && dist(point) > reach.max(1) {
+        let point_dist = match at {
+            CastAt::On(w) => self.who_dist(who, w),
+            CastAt::Tile(t) => dist(t),
+        };
+        if d.range != SpellRange::Caster && point_dist > reach.max(1) {
             return Err(if d.range == SpellRange::Touch { "Touch it: stand next to it" } else { "Out of range" });
         }
         if let Some(area) = d.area {
             let tiles = self.area_tiles(who, d, point);
             let self_origin = d.range == SpellRange::Caster && matches!(area.shape, Shape::Sphere | Shape::Cylinder | Shape::Cone | Shape::Line | Shape::Cube);
-            let hit: Vec<Who> = c.order.iter().filter(|f| !f.out && !(self_origin && f.who == who)).map(|f| f.who).filter(|w| tiles.contains(&self.who_tile(*w))).collect();
+            let hit: Vec<Who> = c.order.iter().filter(|f| !f.out && !(self_origin && f.who == who)).map(|f| f.who).filter(|w| self.who_space(*w).iter().any(|p| tiles.contains(p))).collect();
             return Ok((hit, point));
         }
         if d.range == SpellRange::Caster {
@@ -98,8 +102,8 @@ impl Game {
             } else {
                 // More creatures of the target's side within range, nearest first.
                 let side = c.fighter(target).map(|f| f.side);
-                let mut more: Vec<Who> = c.order.iter().filter(|f| !f.out && f.who != target && Some(f.side) == side).map(|f| f.who).filter(|w| dist(self.who_tile(*w)) <= reach.max(1)).collect();
-                more.sort_by_key(|w| dist(self.who_tile(*w)));
+                let mut more: Vec<Who> = c.order.iter().filter(|f| !f.out && f.who != target && Some(f.side) == side).map(|f| f.who).filter(|w| self.who_dist(who, *w) <= reach.max(1)).collect();
+                more.sort_by_key(|w| self.who_dist(who, *w));
                 targets.extend(more.into_iter().take(n.saturating_sub(1)));
             }
         }

@@ -98,7 +98,7 @@ bats and a chest".
 | `place_entity {map, kind, def, x, y, name, facing, state, count, patch}` | A prop, character or item pickup; returns its uid and JSON. Like the editor, a prop an even number of tiles wide stands on the tile edge between `x` and `x + 1` (covering both); its `tile_x` then reads `x + 1`. |
 | `update_entity {map, uid, patch}` | Merge patch (`tile_x` / `tile_y` move it; `uid` is fixed). |
 | `remove_entity {map, uid}` | |
-| `add_zone {map, name, kind, x, y, w, h, triggers, loot}` | `kind`: `"Spawn"`, `"Trigger"`, `{"Portal": {target_map, target_spawn}}`, `{"Spawner": {character, count, respawn}}`, `{"Transition": {target_map, target_zone}}`, `{"FishingSpot": {rod}}`. A taken name gets a suffix. |
+| `add_zone {map, name, kind, x, y, w, h, triggers, loot}` | `kind`: `"Spawn"`, `"Trigger"`, `{"Portal": {target_map, target_spawn}}`, `{"Spawner": {character, count, respawn}}`, `{"Transition": {target_map, target_zone}}`, `{"FishingSpot": {rod}}`, `{"Drop": {height_ft, target_map, target_spawn}}`. A taken name gets a suffix. |
 | `update_zone {map, uid, patch}` / `remove_zone {map, uid}` | |
 | `link_maps {map, rect, to_map, to_rect, name}` | A pair of transition zones between two maps (the other map is written to disk directly). |
 | `set_triggers {map, owner, triggers}` / `add_trigger {map, owner, trigger}` | `owner`: `{"map": true}`, `{"entity": UID}`, `{"zone": UID}` or `{"def": {"kind": "item"\|"prop"\|"character", "id": …}}`. Events must suit the owner (`events_reference`); ids in actions and conditions must exist; functions not defined yet are warnings. |

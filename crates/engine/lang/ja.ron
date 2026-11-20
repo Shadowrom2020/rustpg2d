@@ -946,6 +946,8 @@
         "massive damage": "大ダメージで即死",
         "Escape": "脱出",
         "Recovered {} {}": "{} {}を回収した",
+        "You fall {} ft.": "{}フィート落下した。",
+        "You find no hold.": "手がかりが見つからない。",
         "lets go": "は手を離した",
         "no one is surprised": "誰も不意を突かれない",
         "readied": "待機",

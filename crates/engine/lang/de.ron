@@ -945,6 +945,8 @@
         "massive damage": "massiver Schaden, sofort tot",
         "Escape": "Befreien",
         "Recovered {} {}": "{} {} wiedergefunden",
+        "You fall {} ft.": "Du stürzt {} Fuß tief.",
+        "You find no hold.": "Du findest keinen Halt.",
         "lets go": "lässt los",
         "no one is surprised": "niemand wird überrascht",
         "readied": "vorbereitet",

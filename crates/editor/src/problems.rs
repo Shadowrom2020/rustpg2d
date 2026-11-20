@@ -524,6 +524,17 @@ impl Editor {
                             out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("plays the ambience sound \"{sound}\", which doesn't exist"), target: target.clone() });
                         }
                     }
+                    ZoneKind::Drop { target_map, target_spawn, .. } => {
+                        let on = if target_map.is_empty() { name.as_str() } else { target_map.as_str() };
+                        if !target_map.is_empty() {
+                            to.insert(target_map.clone());
+                        }
+                        if !target_map.is_empty() && !self.problem_id_exists(RefKind::Map, target_map) {
+                            out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("the drop lands on map \"{target_map}\", which doesn't exist"), target: target.clone() });
+                        } else if !target_spawn.is_empty() && spawns.get(on).is_some_and(|s| !s.contains(&target_spawn.as_str())) {
+                            out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("the drop lands on spawn \"{target_spawn}\", which map {on} doesn't have"), target: target.clone() });
+                        }
+                    }
                     ZoneKind::Spawn | ZoneKind::Trigger => {}
                 }
                 let mut refs = rustpg2d_engine::refactor::refs_of_triggers(&z.triggers);

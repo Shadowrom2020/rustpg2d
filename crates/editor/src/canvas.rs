@@ -1064,6 +1064,14 @@ impl Editor {
                         let list: Vec<String> = monsters.iter().map(|m| if m.count > 1 { format!("{}x {}", m.count, m.character) } else { m.character.clone() }).collect();
                         format!("{} [{}: {}]", z.name, difficulty.label(), list.join(", "))
                     }
+                    ZoneKind::Drop { height_ft, target_map, target_spawn } => {
+                        let to = match (target_map.is_empty(), target_spawn.is_empty()) {
+                            (_, true) if target_map.is_empty() => "beyond".to_string(),
+                            (true, false) => target_spawn.clone(),
+                            _ => format!("{target_map}:{target_spawn}"),
+                        };
+                        format!("{} [drop {height_ft} ft -> {to}]", z.name)
+                    }
                     _ => z.name.clone(),
                 };
                 // Transitions whose other end is missing or leads elsewhere are flagged.
@@ -1143,6 +1151,7 @@ fn zone_color(k: &ZoneKind) -> Color {
         ZoneKind::Encounter { .. } => Color::new(0.85, 0.15, 0.55, 1.0),
         ZoneKind::FishingSpot { .. } => Color::new(0.2, 0.55, 1.0, 1.0),
         ZoneKind::Ambience { .. } => Color::new(0.45, 0.9, 0.55, 1.0),
+        ZoneKind::Drop { .. } => Color::new(0.55, 0.35, 0.2, 1.0),
     }
 }
 

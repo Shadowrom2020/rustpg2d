@@ -34,6 +34,17 @@ pub enum ZoneKind {
         difficulty: crate::srd::encounter::Difficulty,
         respawn: Respawn,
     },
+    /// A pit or a ledge's edge `height_ft` deep: the hero walking in falls (1d6 bludgeoning per
+    /// 10 ft, prone) and lands on the nearest *Spawn* zone named `target_spawn` on `target_map`
+    /// ("" = this map), or with no spawn on the first open tile past the zone; a running hero
+    /// jumps it when it is narrow enough. Characters keep off it; fliers cross it.
+    Drop {
+        height_ft: u32,
+        #[serde(default)]
+        target_map: String,
+        #[serde(default)]
+        target_spawn: String,
+    },
 }
 
 /// When defeated spawner characters come back.
@@ -68,6 +79,7 @@ impl ZoneKind {
             ZoneKind::FishingSpot { .. } => "Fishing spot",
             ZoneKind::Ambience { .. } => "Ambience",
             ZoneKind::Encounter { .. } => "Encounter",
+            ZoneKind::Drop { .. } => "Drop",
         }
     }
 }

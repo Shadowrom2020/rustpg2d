@@ -766,6 +766,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         c.world.give_cp(cp.max(0) as u32);
     }));
     engine.register_fn("take_money", with!(ctx, |c, cp: i64| c.world.pay_cp(cp.max(0) as u32)));
+    engine.register_fn("fall", with!(ctx, |c, feet: i64| c.actions.push(Action::Fall { feet: feet.clamp(0, 10_000) as u32 })));
     engine.register_fn("format_money", |cp: i64| crate::srd::equipment::format_cp(cp.max(0) as u32, [&crate::lang::tr_ui("gp"), &crate::lang::tr_ui("sp"), &crate::lang::tr_ui("cp")]));
     engine.register_fn("spell_slots", with!(ctx, |c, l: Dynamic| c.player.slots.get((num(&l) as usize).wrapping_sub(1)).map_or(0, |s| s.0 as i64)));
     engine.register_fn("slots_left", with!(ctx, |c, l: Dynamic| c.player.slots.get((num(&l) as usize).wrapping_sub(1)).map_or(0, |s| s.1 as i64)));

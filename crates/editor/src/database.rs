@@ -1749,7 +1749,13 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.checkbox(&mut d.door, "Door (E opens and closes it)").on_hover_text(
         "Needs a state named \"open\" (passable); its first state is the closed door. A lock keeps it shut until its key or a lockpick opens it; with the key, closing it locks it again. Villagers open unlocked doors on their way (locked ones when they carry the key) and close them behind them.",
     );
-    ui.checkbox(&mut d.climb, "Ladder (the player climbs it)").on_hover_text("Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it.");
+    ui.horizontal(|ui| {
+        ui.checkbox(&mut d.climb, "Ladder (the player climbs it)").on_hover_text("Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it.");
+        if d.climb {
+            ui.add(egui::DragValue::new(&mut d.climb_dc).range(0..=30).prefix("Athletics DC "))
+                .on_hover_text("A climbable wall or rope: stepping onto it takes an Athletics check against this DC (0 = none, a ladder). A failure finds no hold; the player can try again two seconds later.");
+        }
+    });
     ui.horizontal(|ui| {
         ui.label("Snap to").on_hover_text("Placed as a decoration it sits on a grid of this many pixels (walls, fences); 0 = anywhere.");
         egui::ComboBox::from_id_salt("prop_snap").selected_text(if d.snap == 0 { "anywhere".to_string() } else { format!("{} px", d.snap) }).show_ui(ui, |ui| {

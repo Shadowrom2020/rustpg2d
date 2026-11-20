@@ -946,6 +946,8 @@
         "massive damage": "巨量伤害，当场死亡",
         "Escape": "挣脱",
         "Recovered {} {}": "回收了 {} {}",
+        "You fall {} ft.": "你跌落了 {} 英尺。",
+        "You find no hold.": "你找不到抓握点。",
         "lets go": "松开了手",
         "no one is surprised": "没有人被突袭",
         "readied": "预备",

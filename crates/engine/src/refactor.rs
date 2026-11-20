@@ -717,7 +717,7 @@ fn map_pass(map: &mut Map, kind: RefKind, old: &str, new: &str, srd: bool) -> us
     }
     for z in &mut map.zones {
         match &mut z.kind {
-            ZoneKind::Portal { target_map, .. } | ZoneKind::Transition { target_map, .. } => r.fix(RefKind::Map, target_map),
+            ZoneKind::Portal { target_map, .. } | ZoneKind::Transition { target_map, .. } | ZoneKind::Drop { target_map, .. } => r.fix(RefKind::Map, target_map),
             ZoneKind::Spawner { character, .. } => r.fix(RefKind::Character, character),
             ZoneKind::Encounter { monsters, .. } => monsters.iter_mut().for_each(|m| r.fix(RefKind::Character, &mut m.character)),
             ZoneKind::FishingSpot { rod } => r.fix(RefKind::Item, rod),

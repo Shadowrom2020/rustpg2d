@@ -32,6 +32,12 @@ These are the default keys; players change them in *Options › Gameplay › Con
 Characters behind a counter (one solid tile between, in a straight line) are talked to across it,
 with E or a right-click.
 
+**Climbing, jumping and falling:** walk onto a ladder, rope or rough wall to climb it (up and
+down only, slower); a rough wall needs an Athletics check, and when you find no hold, try again a
+moment later. Walking into a pit or over a ledge is a fall (damage by its height, a moment prone).
+Run at a narrow crack (Shift, or a few steps up to it) to jump it: you clear your Strength score
+in feet, half from standing.
+
 ### In the windows
 
 - **Character window**: arrows or a click select (on the character sheet the arrows move between

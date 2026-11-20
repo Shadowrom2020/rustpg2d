@@ -271,3 +271,29 @@ aren't solid, but other characters keep off them. A ladder's top can lead onto a
 another map through a portal. The example's two watchtowers at the east gate are built this way
 (roof and front rail over everyone, the lookout deck walkable, the braces solid; the library has them as the
 structure *Lookout Tower*).
+
+## Climbing, jumping and falling
+
+Maps are flat, so height is built from three pieces (the SRD's movement rules):
+
+- **Climbable walls and ropes:** a *Ladder* prop with an **Athletics DC** (*Database › Props*) is a
+  wall the hero has to climb: stepping onto it rolls Athletics against the DC (on screen and in the
+  roll log). A success climbs it like a ladder, at the ladder's slower speed; a failure finds no hold, and
+  the hero can try again two seconds later. DC 0 is a plain ladder. The tiles under it need to be
+  walkable (paint them *Walkable* in the collision layer when the wall is solid rock). The
+  library has the **Rough rock wall** (DC 12) and the **Climbing rope** (no check).
+- **Drops:** a *Drop* zone ([Objects and zones › Zones](04-objects-and-zones.md#zones)) over a
+  pit or along a ledge's edge. Paint it dark (the *Abyss* material) and its tiles *Walkable* in the
+  collision layer, so the player can step in. Walking in is a fall of the zone's height: 1d6
+  bludgeoning per 10 ft (at most 20d6), prone for a moment, then the landing. That is a spawn on
+  this map or another (a lower chamber, the level below), or with none the tile past the zone.
+  Characters keep off drops, and the click-to-walk path goes round them.
+- **Jumps:** running (Shift) at a drop, or walking 10 ft up to it, the hero leaps it when it is no
+  wider than their Strength score in feet (half from standing): a hop over to the first free tile
+  past it, or one beside it. A wider gap is a fall.
+- **Fliers** (a stat block with a fly speed: bats, birds, dragons) cross drops, water and other low
+  obstacles in fights; walls and tall props still stop them.
+
+The example's mine has both: the shaft in Grumbold's lair drops 20 ft into a small chamber whose
+rough rock wall leads back up, and a 10-ft crack splits the corridor to the rats' nest (run to
+jump it).

@@ -952,6 +952,9 @@ pub enum Action {
     /// Takes money (`cp` copper pieces) from the hero's coins, the change given back; nothing
     /// when they have less (check *Has money* first).
     TakeMoney { cp: u32 },
+    /// The hero falls `feet` (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft (at most
+    /// 20d6), prone for a moment; they stay where they are.
+    Fall { feet: u32 },
 }
 
 fn player_target() -> TargetName {
@@ -1161,6 +1164,7 @@ impl Action {
             Action::CastSpell { .. } => "Cast spell",
             Action::GiveMoney { .. } => "Give money",
             Action::TakeMoney { .. } => "Take money",
+            Action::Fall { .. } => "Fall",
         }
     }
 
@@ -1280,6 +1284,7 @@ impl Action {
             Action::CastSpell { spell: String::new(), target: "player".into(), free: true },
             Action::GiveMoney { cp: 100 },
             Action::TakeMoney { cp: 100 },
+            Action::Fall { feet: 20 },
         ]
     }
 }

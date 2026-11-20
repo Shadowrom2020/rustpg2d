@@ -213,7 +213,7 @@ impl Game {
             let mine = self.thrown_tiles(me.who).into_iter().filter(|t| reach.contains_key(t)).min_by_key(|t| reach[t].0);
             // Out of reach this turn: the walking distance to the foes (round trees and walls),
             // not the straight line, so it doesn't walk into a dead end.
-            let field = self.walk_distances(&foe_tiles, 48);
+            let field = self.walk_distances(&foe_tiles, 48, self.who_flies(me.who));
             let way = |t: &TilePos| field.get(t).copied().unwrap_or(200);
             for (t, (cost, _)) in reach.iter() {
                 if mine.is_some() {

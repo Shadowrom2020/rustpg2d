@@ -145,7 +145,8 @@ impl Game {
         use super::occupancy::{Occupancy, OCC_CHAR, OCC_PROP};
         let occ = &self.loaded.occupancy;
         let targets: Vec<TilePos> = ignore.and_then(|u| self.uid_index(u)).map(|i| Occupancy::covered(self.loaded.entities[i].body.rect(), self.ts()).collect()).unwrap_or_default();
-        let blocked = |x: i32, y: i32| self.tile_solid(x, y) || (occ.has(x, y, OCC_PROP | OCC_CHAR) && !targets.contains(&(x, y)));
+        // (Round pits and ledges too, unless clicked into.)
+        let blocked = |x: i32, y: i32| self.tile_solid(x, y) || (occ.has(x, y, OCC_PROP | OCC_CHAR | super::occupancy::OCC_DROP) && !targets.contains(&(x, y)));
         let near = |a: TilePos, b: TilePos| (a.0 - b.0).abs() <= 1 && (a.1 - b.1).abs() <= 1;
         let start = self.player_tile();
         let path = match goal {

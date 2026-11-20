@@ -1,5 +1,5 @@
 //! Inventory (the character window's Character tab: sheet + grid) and the container loot
-//! window (grid of slots, mouse + keyboard), the quick bar and the HUD buttons.
+//! window (grid of slots, mouse + keyboard) and the HUD buttons; the action bar draws from here.
 //!
 //! Inventory: click selects, double-click / right-click / Enter uses or equips, drag rearranges.
 //! Loot: click a container stack to take it, right-click takes one, click your own stack to
@@ -8,7 +8,7 @@
 use macroquad::prelude::*;
 
 use super::input::{self, Act};
-use super::ui::{panel, slot_grid, slot_grid_size, DragState, SlotEvent, GAP, PAD, SLOT};
+use super::ui::{panel, slot_grid, slot_grid_size, DragState, SlotEvent, PAD, SLOT};
 use super::{skin, Game};
 use crate::defs::EquipSlot;
 use crate::inventory::{Inventory, ItemStack};
@@ -21,24 +21,6 @@ pub(super) enum Side {
     Container,
     /// Character sheet equipment slots (0 = head, 1 = body, 2 = weapon).
     Equip,
-    /// Quick action bar (shortcuts to item types, not the items themselves).
-    Quick,
-}
-
-/// Number of favorite slots (keys 1-8: the action bar's favorites, the quick bar until 0.31).
-pub const QUICK_SLOTS: usize = 8;
-const QUICK_SLOT: f32 = 44.0;
-
-impl Game {
-    /// Screen rects of the favorite slots: centred above the action bar (in a fight above the
-    /// turn's economy line too).
-    pub(super) fn fav_rects(&self) -> Vec<Rect> {
-        let sw = screen_width();
-        let w = QUICK_SLOTS as f32 * (QUICK_SLOT + GAP) - GAP;
-        let x0 = ((sw - w) / 2.0).round();
-        let y = self.bar_top() - if self.fight.is_some() { 34.0 } else { 8.0 } - QUICK_SLOT;
-        (0..QUICK_SLOTS).map(|k| Rect::new(x0 + k as f32 * (QUICK_SLOT + GAP), y, QUICK_SLOT, QUICK_SLOT)).collect()
-    }
 }
 
 const EQUIP_SLOTS: [EquipSlot; 15] = EquipSlot::ALL;
@@ -96,8 +78,6 @@ pub(super) struct InvUi {
     pub pending_loot: Option<u32>,
     sel: Option<(Side, usize)>,
     drag: DragState<Side>,
-    /// Quick bar slot that was just used (for a short highlight).
-    pub(super) quick_flash: Option<(usize, f64)>,
 }
 
 impl InvUi {
@@ -149,7 +129,7 @@ enum HudButton {
 }
 
 /// Help line of the inventory (Character tab).
-const INVENTORY_HINT: &str = "Double-click / {key:confirm}: use · Drag to slots or favorites (1-8) · {key:drop}: drop ({key:run}+{key:drop}: one) · {key:take_all}: attune · {key:next_tab}: next tab · {key:cancel}: close";
+const INVENTORY_HINT: &str = "Double-click / {key:confirm}: use · Drag to slots · {key:drop}: drop ({key:run}+{key:drop}: one) · {key:take_all}: attune · {key:next_tab}: next tab · {key:cancel}: close";
 
 impl Game {
     /// The HUD buttons with their screen rects, right to left.
@@ -368,9 +348,6 @@ impl Game {
         let right = grids.iter().map(|g| g.panel.x + g.panel.w).fold(0.0, f32::max);
         let bottom = grids.iter().map(|g| g.panel.y + g.panel.h).fold(0.0, f32::max);
         let last = grids.last().unwrap().panel;
-        let slots = self.fav_rects();
-        let bar = Rect::new(slots[0].x - 6.0, slots[0].y - 6.0, slots[QUICK_SLOTS - 1].right() - slots[0].x + 12.0, QUICK_SLOT + 12.0);
-        grids.push(Grid { side: Side::Quick, title: String::new(), panel: bar, slots, cols: QUICK_SLOTS });
         let close = if self.inv.loot.is_some() { Rect::new(last.x + last.w - 30.0, last.y + 8.0, 22.0, 22.0) } else { self.window_close() };
         Layout {
             window: self.inv.loot.is_none().then(|| self.window_rect()),
@@ -400,7 +377,6 @@ impl Game {
         let side = match side {
             "chest" => Side::Container,
             "equip" => Side::Equip,
-            "quick" => Side::Quick,
             _ => Side::Player,
         };
         let l = self.layout();
@@ -414,7 +390,7 @@ impl Game {
                 let uid = self.inv.loot?;
                 self.container_inv(uid)
             }
-            Side::Equip | Side::Quick => None,
+            Side::Equip => None,
         }
     }
 
@@ -428,30 +404,6 @@ impl Game {
             Side::Player => self.world.inventory.slots.get(i).cloned().flatten(),
             Side::Container => self.inv.loot.and_then(|u| self.world.containers.get(&self.loaded.map.name)?.get(&u)?.slots.get(i).cloned().flatten()),
             Side::Equip => EQUIP_SLOTS.get(i).and_then(|s| self.world.equipment.get(*s).cloned()),
-            Side::Quick => self.quick_item(i).filter(|id| Self::quick_spell(id).is_none()).map(|id| ItemStack::new(&id, self.world.item_count(&id))),
-        }
-    }
-
-    fn quick_item(&self, k: usize) -> Option<String> {
-        self.world.favorites.get(k).filter(|id| !id.is_empty()).cloned()
-    }
-
-    /// Puts an item type (or `spell:<id>`) on quick bar slot `k` (moving it if it was on
-    /// another slot).
-    pub(super) fn assign_quick(&mut self, k: usize, item: &str) {
-        let bar = &mut self.world.favorites;
-        bar.resize(QUICK_SLOTS, String::new());
-        for s in bar.iter_mut() {
-            if s == item {
-                s.clear();
-            }
-        }
-        bar[k] = item.to_string();
-    }
-
-    fn clear_quick(&mut self, k: usize) {
-        if let Some(s) = self.world.favorites.get_mut(k) {
-            s.clear();
         }
     }
 
@@ -465,7 +417,7 @@ impl Game {
         let (src, dst) = match from {
             Side::Container => (chest, &mut w.inventory),
             Side::Player => (&mut w.inventory, chest),
-            Side::Equip | Side::Quick => return 0,
+            Side::Equip => return 0,
         };
         let had = src.slots.get(i).cloned().flatten();
         let moved = Inventory::transfer(src, i, dst, count);
@@ -512,24 +464,6 @@ impl Game {
             return;
         }
         match (from.0, to.0) {
-            // Shortcuts: items (from the inventory or the character sheet) onto the quick bar.
-            (Side::Player | Side::Equip, Side::Quick) => {
-                if let Some(id) = self.slot_item(from.0, from.1) {
-                    self.assign_quick(to.1, &id);
-                }
-                return;
-            }
-            (Side::Quick, Side::Quick) => {
-                self.world.favorites.resize(QUICK_SLOTS, String::new());
-                self.world.favorites.swap(from.1, to.1);
-                return;
-            }
-            // Dragging a shortcut anywhere off the bar removes it.
-            (Side::Quick, _) => {
-                self.clear_quick(from.1);
-                return;
-            }
-            (Side::Container, Side::Quick) => return,
             (Side::Player, Side::Equip) => {
                 let target = EQUIP_SLOTS[to.1];
                 let fits = self.slot_item(Side::Player, from.1).and_then(|id| self.project.db.slot_of(&id)).is_some_and(|s| slot_takes(target, s));
@@ -561,7 +495,7 @@ impl Game {
         match from.0 {
             Side::Container => Inventory::transfer_to_slot(chest, from.1, &mut w.inventory, to.1),
             Side::Player => Inventory::transfer_to_slot(&mut w.inventory, from.1, chest, to.1),
-            Side::Equip | Side::Quick => false,
+            Side::Equip => false,
         };
     }
 
@@ -582,12 +516,6 @@ impl Game {
 
     /// Primary action on a slot (click / Enter).
     fn activate(&mut self, side: Side, i: usize, double: bool) {
-        if side == Side::Quick {
-            if double {
-                self.use_favorite(i);
-            }
-            return;
-        }
         if side == Side::Equip {
             if double {
                 self.unequip(EQUIP_SLOTS[i], None);
@@ -622,7 +550,7 @@ impl Game {
         let m = input::mouse_pos();
         let (click, rclick) = (input::mouse_pressed(MouseButton::Left), input::mouse_pressed(MouseButton::Right));
         if !self.inv.is_open() {
-            // A hidden HUD: its buttons and the quick bar can't be clicked (keys still work).
+            // A hidden HUD: its buttons and the action bar can't be clicked (keys still work).
             if click && !self.ui_hidden {
                 if let Some((b, _)) = self.hud_buttons().into_iter().find(|(_, r)| r.contains(m)) {
                     match b {
@@ -635,8 +563,8 @@ impl Game {
                     return (false, true);
                 }
             }
-            // The action bar: favorites (keys 1-8, clicks; in a fight only clicks), its entries.
-            return self.action_bar_input(key_consumed, click, rclick);
+            // The action bar's entries (outside fights).
+            return self.action_bar_input(key_consumed, click);
         }
 
         // ---- keyboard
@@ -648,20 +576,12 @@ impl Game {
         if self.inv.loot.is_some() && input::act_pressed(Act::TakeAll) {
             self.take_all();
         }
-        // 1-8 puts the selected item on the quick bar.
-        if let Some(k) = Act::QUICK.iter().position(|a| input::act_pressed(*a)) {
-            if let Some((side @ (Side::Player | Side::Equip), i)) = self.inv.sel {
-                if let Some(id) = self.slot_item(side, i) {
-                    self.assign_quick(k, &id);
-                }
-            }
-        }
         if self.inv.loot.is_some() && input::any_act_pressed(&[Act::NextTab, Act::PrevTab]) {
             if let Some((s, _)) = self.inv.sel {
                 self.inv.sel = Some((if s == Side::Player { Side::Container } else { Side::Player }, 0));
             }
         }
-        if let Some((side, i)) = self.inv.sel.filter(|s| s.0 != Side::Quick) {
+        if let Some((side, i)) = self.inv.sel {
             if let Some(g) = layout.grid(side) {
                 let n = g.slots.len() as i32;
                 let c = g.cols as i32;
@@ -774,12 +694,8 @@ impl Game {
         match self.inv.drag.update(m, hit) {
             SlotEvent::Dropped { from, to: Some(to) } => {
                 self.drop_on(from, to);
-                if to.0 != Side::Quick {
-                    self.inv.sel = Some(to);
-                }
+                self.inv.sel = Some(to);
             }
-            // Dragging a shortcut off the bar removes it.
-            SlotEvent::Dropped { from: (Side::Quick, i), to: None } => self.clear_quick(i),
             // Dragging a stack out of the window drops it on the ground.
             SlotEvent::Dropped { from: (Side::Player, i), to: None } if !layout.contains(m) => {
                 self.drop_slot(i, None);
@@ -795,7 +711,6 @@ impl Game {
             if let Some((side, i)) = hit {
                 self.inv.sel = Some((side, i));
                 match (self.inv.loot.is_some(), side) {
-                    (_, Side::Quick) => self.clear_quick(i),
                     (_, Side::Equip) => {
                         self.unequip(EQUIP_SLOTS[i], None);
                     }
@@ -827,21 +742,16 @@ impl Game {
         let dragging = self.inv.drag.dragging();
         for g in &layout.grids {
             let p = g.panel;
-            if g.side != Side::Quick {
-                panel(p.x, p.y, p.w, p.h);
-                draw_text(&g.title, p.x + PAD, p.y + 28.0, 26.0, skin::title());
-            }
+            panel(p.x, p.y, p.w, p.h);
+            draw_text(&g.title, p.x + PAD, p.y + 28.0, 26.0, skin::title());
             if g.side == Side::Equip {
                 self.draw_sheet(g, hover, dragging);
-                continue;
-            }
-            if g.side == Side::Quick {
                 continue;
             }
             let inv = match g.side {
                 Side::Player => Some(&self.world.inventory),
                 Side::Container => self.inv.loot.and_then(|u| self.world.containers.get(&self.loaded.map.name)?.get(&u)),
-                Side::Equip | Side::Quick => None,
+                Side::Equip => None,
             };
             let Some(inv) = inv else { continue };
             for (i, r) in g.slots.iter().enumerate() {
@@ -977,72 +887,6 @@ impl Game {
 }
 
 impl Game {
-    /// The quick action bar (bottom center): icon, owned count, key number.
-    pub(super) fn draw_quickbar(&self) {
-        let _font = super::text::role(super::text::Role::Hud);
-        let m = input::mouse_pos();
-        let rects = self.fav_rects();
-        let first = rects[0];
-        let last = rects[QUICK_SLOTS - 1];
-        let backing = if super::ui::contrast() { BLACK } else { Color::new(0.04, 0.04, 0.08, 0.55) };
-        draw_rectangle(first.x - 6.0, first.y - 6.0, last.right() - first.x + 12.0, QUICK_SLOT + 12.0, backing);
-        let open = self.inv.is_open();
-        let dragging = self.inv.drag.dragging();
-        let flash = self.inv.quick_flash.filter(|(_, t)| get_time() - t < 0.25).map(|(k, _)| k);
-        for (k, r) in rects.iter().enumerate() {
-            let hover = r.contains(m) && (open || !self.ui.dialog_open());
-            let bg = if flash == Some(k) {
-                Color::new(1.0, 0.9, 0.5, 0.45)
-            } else if hover {
-                Color::new(1.0, 1.0, 1.0, 0.18)
-            } else {
-                Color::new(0.0, 0.0, 0.0, 0.45)
-            };
-            draw_rectangle(r.x, r.y, r.w, r.h, bg);
-            // While dragging something droppable, highlight the bar.
-            let drop_target = dragging.is_some_and(|(s, _)| matches!(s, Side::Player | Side::Equip | Side::Quick));
-            let border = if drop_target { skin::highlight() } else { skin::line(0.5) };
-            draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, border);
-            // (The keys 1-8 are the turn bar's in a fight: favorites are clicked there.)
-            if self.fight.is_none() {
-                draw_text((k + 1).to_string(), r.x + 3.0, r.y + 13.0, 15.0, Color::new(1.0, 1.0, 1.0, 0.7));
-            }
-            let Some(id) = self.quick_item(k) else { continue };
-            if let Some(spell) = Self::quick_spell(&id).and_then(|s| self.project.db.spell(s)) {
-                let ready = self.can_cast(super::turns::Who::Player, &spell.id);
-                let alpha = if ready { 1.0 } else { 0.4 };
-                if !spell.icon.sheet.is_empty() {
-                    self.assets.draw_frame_in(&spell.icon.sheet, spell.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 28.0, 28.0), Color::new(1.0, 1.0, 1.0, alpha));
-                }
-                // (The spell's level; C = a cantrip.)
-                let t = if spell.level == 0 { "C".to_string() } else { spell.level.to_string() };
-                let w = measure_text(&t, None, 14, 1.0).width;
-                draw_text(&t, r.x + r.w - w - 3.0, r.y + r.h - 4.0, 14.0, Color::new(0.6, 0.7, 1.0, 1.0));
-                continue;
-            }
-            // (A class action, a rest, a custom entry: its name.)
-            let Some(def) = self.project.db.item(&id) else {
-                self.draw_favorite_text(&id, *r);
-                continue;
-            };
-            let owned = self.world.inventory.count(&id);
-            let equipped = self.world.equipment.count(&id) > 0;
-            let alpha = if dragging == Some((Side::Quick, k)) { 0.3 } else if owned == 0 && !equipped { 0.35 } else { 1.0 };
-            self.assets.draw_frame_in(&def.icon.sheet, def.icon.frame, Rect::new(r.x + 8.0, r.y + 8.0, 28.0, 28.0), Color::new(1.0, 1.0, 1.0, alpha));
-            if equipped {
-                draw_text("E", r.x + r.w - 11.0, r.y + 13.0, 15.0, skin::highlight());
-            }
-            if !(equipped && owned == 0) && (owned != 1 || def.max_stack > 1) {
-                let t = owned.to_string();
-                let w = measure_text(&t, None, 16, 1.0).width;
-                let c = if owned == 0 { skin::text(skin::Text::Negative, Color::new(1.0, 0.45, 0.45, 1.0)) } else { skin::normal() };
-                draw_text(&t, r.x + r.w - w - 3.0, r.y + r.h - 4.0, 16.0, c);
-            }
-        }
-    }
-}
-
-impl Game {
     /// Help line at the bottom of the inventory / loot window.
     /// Where dropped items land: the tile in front of the player if it is free, else at
     /// the player's feet.
@@ -1111,11 +955,6 @@ impl Game {
             INVENTORY_HINT
         }
     }
-}
-
-/// The quick bar key (1-8) pressed this frame, if any.
-pub(super) fn quick_key_pressed() -> Option<usize> {
-    Act::QUICK.iter().position(|a| input::act_pressed(*a))
 }
 
 #[cfg(test)]

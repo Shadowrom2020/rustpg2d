@@ -570,19 +570,6 @@ impl Game {
         Ok(())
     }
 
-    /// A class action favorite in a fight: aimed like the Class window's pick (on the hero's turn).
-    pub(in crate::runtime) fn aim_class_favorite(&mut self, id: &str) {
-        if !self.players_turn() {
-            return;
-        }
-        let who = self.fight.as_ref().unwrap().current().who;
-        let Some(a) = self.class_acts(who).into_iter().find(|a| a.id == id) else { return };
-        match self.class_act_ready(who, &a) {
-            Ok(()) => self.set_aim(super::Aim::Feature(id.to_string())),
-            Err(why) => self.ui.toast(crate::lang::tr_ui(why).into_owned()),
-        }
-    }
-
     /// Who class action `id` goes to without a named target: itself, the nearest foe or the
     /// most hurt ally in range.
     pub(super) fn class_act_default_target(&self, id: &str) -> Option<Who> {

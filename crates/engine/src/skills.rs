@@ -499,9 +499,6 @@ impl SpellDef {
     }
 }
 
-/// Quick bar entries that cast a spell: `"spell:<id>"`.
-pub const SPELL_PREFIX: &str = "spell:";
-
 #[cfg(test)]
 mod tests {
     use super::*;

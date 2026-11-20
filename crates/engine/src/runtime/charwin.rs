@@ -13,8 +13,8 @@ const TAB_H: f32 = 34.0;
 const TAB_W: f32 = 170.0;
 /// Inner margin of the content panel.
 pub(super) const MARGIN: f32 = 10.0;
-/// Space kept free at the bottom for the quick bar.
-const QUICKBAR_SPACE: f32 = 64.0;
+/// Space kept free at the bottom for the action bar.
+const BAR_SPACE: f32 = 64.0;
 /// The skills / spells tabs need at least this much room.
 const MIN_W: f32 = 820.0;
 const MIN_H: f32 = 520.0;
@@ -99,13 +99,13 @@ impl Game {
     }
 
     /// The window's content area (below the tabs): big enough for every tab, centered in the
-    /// space above the quick bar.
+    /// space above the action bar.
     pub(super) fn window_content(&self) -> Rect {
         let (sw, sh) = (screen_width(), screen_height());
         let inv = self.character_content_size();
         let w = (inv.x + 2.0 * MARGIN).max(MIN_W);
         let h = (inv.y + 2.0 * MARGIN).max(MIN_H);
-        let top = ((sh - QUICKBAR_SPACE - TAB_H - h) / 2.0).max(4.0) + TAB_H;
+        let top = ((sh - BAR_SPACE - TAB_H - h) / 2.0).max(4.0) + TAB_H;
         Rect::new(((sw - w) / 2.0).max(4.0).round(), top.round(), w, h)
     }
 

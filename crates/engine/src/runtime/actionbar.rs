@@ -1,9 +1,8 @@
 //! The action bar (0.32): one bar at the bottom of the screen in two modes. In a fight it is the
 //! turn's bar (`turns/ui.rs`); outside fights it shows the project's entries (`BarEntry`: Use,
 //! Cast, Class, Rest, Sneak, Party, custom script entries), each opening a list of what can be
-//! done now or acting at once. Above it, eight favorites (keys 1-8, the quick bar of 0.31 and
-//! older): items, spells, class actions, rests, custom entries. F / RB focuses the bar for keys and
-//! gamepads; a list pauses the world like the inventory.
+//! done now or acting at once. It replaced the quick bar of 0.31 and older. F / RB focuses the bar
+//! for keys and gamepads; a list pauses the world like the inventory.
 
 use macroquad::prelude::*;
 
@@ -14,25 +13,17 @@ use super::turns::Who;
 use super::Game;
 use crate::menus::BarEntry;
 
-/// Favorites are stored with these prefixes (items by their plain id).
-pub(super) const CLASS_PREFIX: &str = "class:";
-pub(super) const ACT_PREFIX: &str = "act:";
-pub(super) const CUSTOM_PREFIX: &str = "custom:";
-
 const BAR_H: f32 = 28.0;
 const GAP: f32 = 4.0;
 const FONT: f32 = 18.0;
 const ROW_H: f32 = 24.0;
 /// The key help under a list.
-const LIST_HINT: &str = "{key:confirm}: use   1-8: favorite   {key:cancel}: close";
+const LIST_HINT: &str = "{key:confirm}: use   {key:cancel}: close";
 
-/// Where the keyboard / gamepad focus is.
+/// Where the keyboard / gamepad focus is: an entry of the bar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Focus {
-    /// An entry of the bar.
     Bar(usize),
-    /// A favorite slot.
-    Fav(usize),
 }
 
 /// What a list row does.
@@ -43,18 +34,6 @@ pub(super) enum BarPick {
     Class(String),
     /// `short_rest`, `camp`.
     Act(String),
-}
-
-impl BarPick {
-    /// How the row is kept as a favorite.
-    fn favorite(&self) -> String {
-        match self {
-            BarPick::Item(id) => id.clone(),
-            BarPick::Spell(id) => format!("{}{id}", crate::skills::SPELL_PREFIX),
-            BarPick::Class(id) => format!("{CLASS_PREFIX}{id}"),
-            BarPick::Act(id) => format!("{ACT_PREFIX}{id}"),
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -124,7 +103,7 @@ impl Game {
             .collect()
     }
 
-    /// The top of the bar below the favorites: the fight's turn bar, else the exploration bar.
+    /// The top of the bar: the fight's turn bar, else the exploration bar.
     pub(super) fn bar_top(&self) -> f32 {
         let rects = if self.fight.is_some() { self.bar_layout() } else { self.explore_bar_rects() };
         rects.iter().map(|r| r.y).fold(screen_height() - 12.0, f32::min)
@@ -132,35 +111,16 @@ impl Game {
 
     // ------------------------------------------------------------------ input
 
-    /// The bar's keys and clicks while nothing else is open (outside fights; in a fight only the
-    /// favorites' clicks). Returns (key consumed, mouse consumed).
-    pub(super) fn action_bar_input(&mut self, key_consumed: bool, click: bool, rclick: bool) -> (bool, bool) {
+    /// The bar's keys and clicks while nothing else is open (outside fights). Returns (key
+    /// consumed, mouse consumed).
+    pub(super) fn action_bar_input(&mut self, key_consumed: bool, click: bool) -> (bool, bool) {
         let m = input::mouse_pos();
-        let favs = self.fav_rects();
-        if !self.ui_hidden {
-            if let Some(k) = favs.iter().position(|r| r.contains(m)) {
-                if rclick {
-                    self.clear_favorite(k);
-                    return (true, true);
-                }
-                if click {
-                    self.use_favorite(k);
-                    return (true, true);
-                }
-            }
-        }
         if self.fight.is_some() {
             return (false, false);
         }
-        if !key_consumed {
-            if let Some(k) = Act::QUICK.iter().position(|a| input::act_pressed(*a)) {
-                self.use_favorite(k);
-                return (true, false);
-            }
-            if input::act_pressed(Act::Actions) {
-                self.bar.focus = Some(Focus::Bar(0));
-                return (true, false);
-            }
+        if !key_consumed && input::act_pressed(Act::Actions) {
+            self.bar.focus = Some(Focus::Bar(0));
+            return (true, false);
         }
         if click && !self.ui_hidden {
             if let Some(k) = self.explore_bar_rects().iter().position(|r| r.contains(m)) {
@@ -184,64 +144,21 @@ impl Game {
             return false;
         }
         let n = self.bar_entries().len().max(1);
-        let favs = crate::runtime::inventory_ui::QUICK_SLOTS;
-        let focus = match focus {
-            Focus::Bar(k) => Focus::Bar(k.min(n - 1)),
-            f => f,
-        };
-        let mut next = focus;
-        let step = |k: usize, d: i32, n: usize| ((k as i32 + d).rem_euclid(n as i32)) as usize;
+        let Focus::Bar(k) = focus;
+        let k = k.min(n - 1);
+        let step = |d: i32| ((k as i32 + d).rem_euclid(n as i32)) as usize;
+        let mut next = k;
         if input::act_pressed(Act::Left) {
-            next = match focus {
-                Focus::Bar(k) => Focus::Bar(step(k, -1, n)),
-                Focus::Fav(k) => Focus::Fav(step(k, -1, favs)),
-            };
+            next = step(-1);
         }
         if input::act_pressed(Act::Right) {
-            next = match focus {
-                Focus::Bar(k) => Focus::Bar(step(k, 1, n)),
-                Focus::Fav(k) => Focus::Fav(step(k, 1, favs)),
-            };
+            next = step(1);
         }
-        if input::act_pressed(Act::Up) {
-            next = Focus::Fav(0);
-        }
-        if input::act_pressed(Act::Down) {
-            next = Focus::Bar(0);
-        }
-        self.bar.focus = Some(next);
+        self.bar.focus = Some(Focus::Bar(next));
         if input::act_pressed(Act::Confirm) {
-            match next {
-                Focus::Bar(k) => self.activate_entry(k),
-                Focus::Fav(k) => {
-                    self.bar.focus = None;
-                    self.use_favorite(k);
-                }
-            }
+            self.activate_entry(next);
         } else if input::act_pressed(Act::Cancel) || input::act_pressed(Act::Actions) || input::mouse_pressed(MouseButton::Right) {
             self.bar.focus = None;
-        } else if let Some(k) = Act::QUICK.iter().position(|a| input::act_pressed(*a)) {
-            // On an entry that acts at once (Sneak, a custom entry), 1-8 pins it; else it uses
-            // the favorite.
-            let pinnable = match next {
-                Focus::Bar(e) => self.bar_entries().get(e).and_then(|e| match e {
-                    BarEntry::Sneak => Some((format!("{ACT_PREFIX}sneak"), self.entry_text(e))),
-                    BarEntry::Search => Some((format!("{ACT_PREFIX}search"), self.entry_text(e))),
-                    BarEntry::Custom { function, .. } => Some((format!("{CUSTOM_PREFIX}{function}"), self.entry_text(e))),
-                    _ => None,
-                }),
-                Focus::Fav(_) => None,
-            };
-            match pinnable {
-                Some((fav, name)) => {
-                    self.assign_quick(k, &fav);
-                    self.ui.toast(format!("{name} {} {}", crate::lang::tr_ui("on favorite"), k + 1));
-                }
-                None => {
-                    self.bar.focus = None;
-                    self.use_favorite(k);
-                }
-            }
         }
         true
     }
@@ -355,7 +272,7 @@ impl Game {
         let width = list.rows.iter().map(|r| measure_plain(&format!("{}    {}", r.label, row_tail(r)), FONT).width).fold(measure_plain(&title, FONT).width, f32::max).max(measure_text(&hint, None, 14, 1.0).width) + 40.0;
         let w = width.min(screen_width() - 32.0);
         let h = 34.0 + list.rows.len() as f32 * ROW_H + 30.0;
-        let bottom = self.fav_rects().first().map_or(screen_height() - 80.0, |r| r.y) - 10.0;
+        let bottom = self.bar_top() - 10.0;
         let panel = Rect::new((screen_width() - w) / 2.0, (bottom - h).max(40.0), w, h);
         let rows = (0..list.rows.len()).map(|k| Rect::new(panel.x + 8.0, panel.y + 34.0 + k as f32 * ROW_H, panel.w - 16.0, ROW_H)).collect();
         (panel, rows)
@@ -380,11 +297,6 @@ impl Game {
         if let Some(l) = &mut self.bar.list {
             l.sel = sel;
             l.mouse = mouse;
-        }
-        // 1-8 pins the row to that favorite slot.
-        if let Some(k) = Act::QUICK.iter().position(|a| input::act_pressed(*a)) {
-            self.pin_row(k);
-            return;
         }
         if input::act_pressed(Act::Confirm) || (input::mouse_pressed(MouseButton::Left) && hovered.is_some()) {
             self.pick_bar_row(sel);
@@ -427,7 +339,7 @@ impl Game {
         }
     }
 
-    /// A rest or sneaking (a list row or a favorite).
+    /// A rest (a list row).
     fn bar_act(&mut self, a: &str) {
         match a {
             "short_rest" => self.open_short_rest(),
@@ -440,90 +352,6 @@ impl Game {
             }
             other => eprintln!("[game] action bar: unknown action '{other}'"),
         }
-    }
-
-    /// Pins the selected row of the open list to favorite slot `k`.
-    pub(super) fn pin_row(&mut self, k: usize) {
-        let Some(row) = self.bar.list.as_ref().and_then(|l| l.rows.get(l.sel)).cloned() else { return };
-        self.assign_quick(k, &row.pick.favorite());
-        self.ui.toast(format!("{} {} {}", row.label, crate::lang::tr_ui("on favorite"), k + 1));
-    }
-
-    // ------------------------------------------------------------------ favorites
-
-    /// Uses favorite `k`: an item (as from the inventory), a spell (cast, in a fight aimed), a
-    /// class action (used, in a fight aimed), a rest, sneaking, a custom entry's script.
-    pub(super) fn use_favorite(&mut self, k: usize) {
-        let Some(id) = self.world.favorites.get(k).filter(|s| !s.is_empty()).cloned() else { return };
-        self.inv.quick_flash = Some((k, get_time()));
-        if let Some(spell) = Self::quick_spell(&id).map(str::to_string) {
-            if self.fight.is_some() {
-                self.aim_quick_spell(&spell);
-            } else {
-                self.cast_spell(&spell);
-            }
-            return;
-        }
-        if let Some(act) = id.strip_prefix(CLASS_PREFIX) {
-            let act = act.to_string();
-            if self.fight.is_some() {
-                self.aim_class_favorite(&act);
-            } else if let Err(why) = self.use_class_act_outside(&act) {
-                self.ui.toast(crate::lang::tr_ui(why).into_owned());
-            }
-            return;
-        }
-        if let Some(a) = id.strip_prefix(ACT_PREFIX) {
-            if self.fight.is_some() {
-                self.ui.toast(crate::lang::tr_ui("Not in a fight").into_owned());
-            } else {
-                let a = a.to_string();
-                self.bar_act(&a);
-            }
-            return;
-        }
-        if let Some(f) = id.strip_prefix(CUSTOM_PREFIX) {
-            let f = f.to_string();
-            self.run_script(&f);
-            return;
-        }
-        let name = self.item_name(&id);
-        if self.world.inventory.count(&id) == 0 {
-            if self.world.equipment.count(&id) > 0 {
-                self.ui.toast(format!("{name} is already equipped"));
-            } else {
-                self.ui.toast(format!("No {name} left"));
-            }
-            return;
-        }
-        self.use_item(&id);
-    }
-
-    fn clear_favorite(&mut self, k: usize) {
-        if let Some(s) = self.world.favorites.get_mut(k) {
-            s.clear();
-        }
-    }
-
-    /// A favorite's short name (for the slot when it has no icon, and for status).
-    fn favorite_name(&self, id: &str) -> String {
-        if let Some(a) = id.strip_prefix(CLASS_PREFIX) {
-            return self.class_acts(Who::Player).into_iter().find(|c| c.id == a).map_or(a.to_string(), |c| crate::lang::tr(&c.name).to_string());
-        }
-        if let Some(a) = id.strip_prefix(ACT_PREFIX) {
-            return crate::lang::tr_ui(match a {
-                "short_rest" => "Short rest",
-                "camp" => "Make camp",
-                "sneak" => "Sneak",
-                "search" => "Search",
-                other => other,
-            })
-            .into_owned();
-        }
-        if let Some(f) = id.strip_prefix(CUSTOM_PREFIX) {
-            return self.project.config.action_bar.iter().find_map(|e| if let BarEntry::Custom { label, function, .. } = e { (function == f).then(|| crate::lang::tr(label).to_string()) } else { None }).unwrap_or_else(|| f.to_string());
-        }
-        id.to_string()
     }
 
     // ------------------------------------------------------------------ camping
@@ -557,7 +385,7 @@ impl Game {
 
     // ------------------------------------------------------------------ drawing
 
-    /// The bar outside fights, the favorites (also in fights) and an open list.
+    /// The bar outside fights and an open list.
     pub(super) fn draw_action_bar(&self) {
         let _font = text::role(Role::Hud);
         if self.fight.is_none() {
@@ -586,20 +414,14 @@ impl Game {
                 draw_text(&t, first.x - w - 6.0, first.y + 19.0, 15.0, skin::dim());
             }
         }
-        self.draw_quickbar();
-        // A focused custom entry's line: what it does, above the favorites.
+        // A focused custom entry's line: what it does, above the bar.
         if let Some(Focus::Bar(k)) = self.bar.focus {
-            if let (Some(BarEntry::Custom { detail, .. }), Some(top)) = (self.bar_entries().get(k), self.fav_rects().first()) {
+            if let Some(BarEntry::Custom { detail, .. }) = self.bar_entries().get(k) {
                 if !detail.is_empty() {
                     let t = crate::lang::tr(detail);
                     let w = measure_plain(&t, 16.0).width;
-                    draw_plain(&t, (screen_width() - w) / 2.0, top.y - 8.0, 16.0, skin::dim());
+                    draw_plain(&t, (screen_width() - w) / 2.0, self.bar_top() - 10.0, 16.0, skin::dim());
                 }
-            }
-        }
-        if let Some(Focus::Fav(k)) = self.bar.focus {
-            if let Some(r) = self.fav_rects().get(k) {
-                skin::cursor(*r, Color::new(1.0, 0.86, 0.45, 1.0));
             }
         }
         if let Some(list) = &self.bar.list {
@@ -621,19 +443,9 @@ impl Game {
         }
     }
 
-    /// A favorite with no icon (a class action, a rest): its name, small, in the slot.
-    pub(super) fn draw_favorite_text(&self, id: &str, r: Rect) {
-        let name = self.favorite_name(id);
-        let mut lines = crate::render::wrap_text(&name, 12, r.w - 6.0);
-        lines.truncate(3);
-        for (i, l) in lines.iter().enumerate() {
-            draw_plain(l, r.x + 3.0, r.y + 22.0 + i as f32 * 11.0, 12.0, skin::normal());
-        }
-    }
-
     // ------------------------------------------------------------------ status, autoplay
 
-    /// `bar=` for status: `fight`, or `explore[use,cast,…]` with `:focus=ENTRY|fav:K` and
+    /// `bar=` for status: `fight`, or `explore[use,cast,…]` with `:focus=ENTRY` and
     /// `:open=ENTRY[>0:Potion|1:Bread!why]`.
     pub(super) fn bar_status(&self) -> String {
         if self.fight.is_some() {
@@ -643,7 +455,6 @@ impl Game {
         let mut s = format!("explore[{}]", entries.iter().map(|e| e.id().to_string()).collect::<Vec<_>>().join(","));
         match self.bar.focus {
             Some(Focus::Bar(k)) => s += &format!(":focus={}", entries.get(k).map_or("-", |e| e.id())),
-            Some(Focus::Fav(k)) => s += &format!(":focus=fav:{}", k + 1),
             None => {}
         }
         if let Some(l) = &self.bar.list {
@@ -677,21 +488,6 @@ impl Game {
         true
     }
 
-    /// Autoplay `pin K`: the open list's selected row onto favorite K (1-8).
-    pub fn bar_pin(&mut self, k: usize) -> bool {
-        if self.bar.list.is_none() || !(1..=crate::runtime::inventory_ui::QUICK_SLOTS).contains(&k) {
-            return false;
-        }
-        self.pin_row(k - 1);
-        true
-    }
-
-    /// Autoplay `fav K`: uses favorite K (1-8).
-    pub fn bar_use_favorite(&mut self, k: usize) {
-        if (1..=crate::runtime::inventory_ui::QUICK_SLOTS).contains(&k) {
-            self.use_favorite(k - 1);
-        }
-    }
 }
 
 /// A row's right-hand text: its detail, or why it can't be picked.

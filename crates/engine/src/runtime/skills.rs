@@ -13,7 +13,6 @@ use super::turns::Who;
 use super::{skin, Game};
 use crate::defs::LightSpec;
 use crate::render::wrap_text;
-use crate::skills::SPELL_PREFIX;
 use crate::srd::abilities::{self, Ability, SKILLS};
 use super::text::{draw_text};
 
@@ -122,7 +121,7 @@ impl Game {
         true
     }
 
-    /// Casts a spell outside a fight (the Spells tab, the quick bar, `cast_spell`); a heal with
+    /// Casts a spell outside a fight (the Spells tab, the action bar's Cast, `cast_spell`); a heal with
     /// companions around asks whom first. Returns true when it was cast (or the choice opened).
     pub fn cast_spell(&mut self, id: &str) -> bool {
         self.cast_spell_at(id, None)
@@ -296,11 +295,6 @@ impl Game {
         self.skills.light = Some((LightSpec { intensity: 0.9, ..LightSpec::new(radius, color, flicker) }, seconds.max(0.1)));
     }
 
-    /// Whether a quick bar entry is a spell (and its id).
-    pub(super) fn quick_spell(entry: &str) -> Option<&str> {
-        entry.strip_prefix(SPELL_PREFIX)
-    }
-
     // ---------------------------------------------------------------- screen
 
     pub(super) fn skills_open(&self) -> bool {
@@ -419,13 +413,6 @@ impl Game {
                     self.ui.toast(crate::lang::tr_ui(why).into_owned());
                 }
             }
-            // 1-8 puts the spell on a favorite.
-            if let Some(k) = super::inventory_ui::quick_key_pressed() {
-                if self.known_or_prepared(Who::Player, &id) {
-                    self.assign_quick(k, &format!("{SPELL_PREFIX}{id}"));
-                    self.ui.toast(format!("{} {} {}", self.project.db.spell(&id).map_or(id.clone(), |d| crate::lang::tr(&d.name)), crate::lang::tr_ui("on favorite"), k + 1));
-                }
-            }
         }
         (true, true)
     }
@@ -465,7 +452,7 @@ impl Game {
             }
         }
         super::text::draw_plain(&head, r.x + PAD, r.y + 32.0, 19.0, skin::dim());
-        let help = "{key:up}/{key:down}: select   {key:left}/{key:right}: slot   {key:confirm}: cast   P: prepare   1-8: favorite   {key:spells} / {key:cancel}: close";
+        let help = "{key:up}/{key:down}: select   {key:left}/{key:right}: slot   {key:confirm}: cast   P: prepare   {key:spells} / {key:cancel}: close";
         super::glyphs::draw_hint_in(help, r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
         draw_line(r.x + LIST_W + 8.0, r.y + LIST_TOP, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
 
@@ -509,9 +496,6 @@ impl Game {
             }
             if d.concentration {
                 sub += "  -  C";
-            }
-            if let Some(k) = self.world.favorites.iter().position(|q| q == &format!("{SPELL_PREFIX}{id}")) {
-                sub += &format!("  -  [{}]", k + 1);
             }
             draw_text(&sub, rr.x + 38.0, rr.y + 32.0, 14.0, skin::disabled());
         }

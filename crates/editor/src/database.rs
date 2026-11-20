@@ -3583,7 +3583,7 @@ fn fonts_form(ed: &mut Editor, ui: &mut egui::Ui) {
         for (role, label, help) in [
             (Role::Ui, "Windows and menus", "Menus, windows, tooltips: every text without a font of its own below. Empty: the built-in font."),
             (Role::Dialog, "Dialogs", "Dialog and choice boxes, speech bubbles, captions. Empty: the windows' font."),
-            (Role::Hud, "HUD", "Bars, the quickbar, toasts, the clock, damage numbers. Empty: the windows' font."),
+            (Role::Hud, "HUD", "Bars, the action bar, toasts, the clock, damage numbers. Empty: the windows' font."),
             (Role::Title, "Title", "The game's name on the title screen. Empty: the windows' font."),
         ] {
             ui.label(label).on_hover_text(help);

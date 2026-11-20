@@ -241,8 +241,8 @@ crates/engine/src/      library: everything shared by game and editor
                         the forced march, fast pace = -5 passive Perception; RulesSettings options; status survival= / load=),
                         checks (checks outside fights: Training.sight from the light at the hero + darkvision,
                         Training.help from companions, group checks, contests via WorldState; status senses=),
-                        actionbar (the action bar outside fights: BarEntry lists, favorites = WorldState.favorites,
-                        Make camp; status bar= / favorites=), objects (props as SRD objects: PropDef.object,
+                        actionbar (the action bar outside fights: BarEntry lists, Make camp;
+                        the quick bar is gone; status bar=), objects (props as SRD objects: PropDef.object,
                         breaking by the swing, forcing in locks.rs, RtEntity.obj_hp; status objects=)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;

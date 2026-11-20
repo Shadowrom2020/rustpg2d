@@ -2,7 +2,7 @@
 //! ([`crate::classes::Spellcasting`]), spell slots by class level (pact magic: the warlock's come
 //! back after a short rest), the spells they know (cantrips, a wizard's spellbook) and prepare,
 //! the spell save DC and attack bonus, concentration, scrolls, and casting outside fights (the
-//! Spells tab, the quick bar, `cast_spell`). Casting in a fight and the parts' effects are
+//! Spells tab, the action bar's Cast, `cast_spell`). Casting in a fight and the parts' effects are
 //! `turns/casting.rs`.
 
 use super::turns::Who;
@@ -502,7 +502,7 @@ impl Game {
 
     // --------------------------------------------------------------- outside fights
 
-    /// Casts a spell outside a fight (the Spells tab, the quick bar, `cast_spell`): healing and
+    /// Casts a spell outside a fight (the Spells tab, the action bar's Cast, `cast_spell`): healing and
     /// buffs on the hero (or whom a heal picks), light, Knock on the lock ahead, a ritual
     /// without a slot (10 minutes pass); attacks and saves wait for a fight. `slot`: the slot
     /// level (None = the lowest left); `free`: no slot spent (a scroll, an event).

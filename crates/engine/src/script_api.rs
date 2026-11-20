@@ -336,7 +336,7 @@ pub const API: &[ApiFn] = api! {
     "window_close"() "Closes the window a script opened (after the function)";
     "show_image"(sheet: Sheet, options: Opts) "Like show_image(); options #{ wait: false (stays under the following dialogs until the event ends or hide_image()), scroll: true (a tall picture pans down and back up), speed: pixels per second, scale: 2 (pixel art bigger) } (queued)";
     "hide_image"() "Takes away a picture shown with show_image() (queued)";
-    "hide_ui"() "Hides the HUD (status frame, clock, quick bar, buttons), e.g. for a cut-scene; dialogs still show. The player shows it again with H (queued)";
+    "hide_ui"() "Hides the HUD (status frame, clock, action bar, buttons), e.g. for a cut-scene; dialogs still show. The player shows it again with H (queued)";
     "show_ui"() "Shows the HUD again after hide_ui() or H (queued)";
     "player_x"() "The player's x position in tiles (fractional; the feet)";
     "player_y"() "The player's y position in tiles (fractional; the feet)";

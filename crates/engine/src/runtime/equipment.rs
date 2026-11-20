@@ -251,7 +251,10 @@ impl Game {
 
     fn equip_from_slot_now(&mut self, i: usize, target: Option<EquipSlot>) -> bool {
         let Some(stack) = self.world.inventory.slots.get(i).cloned().flatten() else { return false };
-        let Some(mut slot) = self.project.db.item(&stack.item).and_then(|d| d.equip_slot()) else { return false };
+        let Some(mut slot) = self.project.db.slot_of(&stack.item) else { return false };
+        if slot == EquipSlot::Ammo {
+            return self.equip_ammo_from(i);
+        }
         // A ring: the slot asked for, else the first free ring slot.
         if slot == EquipSlot::Ring {
             slot = match target {
@@ -289,6 +292,81 @@ impl Game {
         }
         let name = self.project.db.item(&stack.item).map_or(stack.item.clone(), |d| d.name.clone());
         self.ui.toast(format!("Equipped {name}"));
+        true
+    }
+
+    /// Puts the whole ammunition stack of inventory slot `i` into the ammunition slot: onto the
+    /// stack there when it is the same item (as much as fits), else in its place (the old stack
+    /// goes into slot `i`).
+    fn equip_ammo_from(&mut self, i: usize) -> bool {
+        let Some(stack) = self.world.inventory.slots.get(i).cloned().flatten() else { return false };
+        let name = self.project.db.item(&stack.item).map_or(stack.item.clone(), |d| d.name.clone());
+        match self.world.equipment.ammo.as_mut() {
+            Some(q) if q.item == stack.item && q.spent == stack.spent => {
+                let max = self.project.db.item(&stack.item).map_or(1, |d| d.max_stack.max(1));
+                let n = stack.count.min(max.saturating_sub(q.count));
+                if n == 0 {
+                    self.ui.toast(format!("The {name} stack is full"));
+                    return false;
+                }
+                q.count += n;
+                self.world.inventory.take_from_slot(i, Some(n));
+            }
+            _ => {
+                let new = self.world.inventory.take_from_slot(i, None).unwrap();
+                if let Some(old) = self.world.equipment.ammo.replace(new) {
+                    self.world.inventory.slots[i] = Some(old);
+                }
+            }
+        }
+        self.ui.toast(format!("Equipped {name}"));
+        true
+    }
+
+    /// The ammunition the hero's next shot takes for a weapon that shoots `weapon_ammo`
+    /// (`Ranged::ammo`): (item, how many are left there, whether it is the ammunition slot's).
+    /// The slot's stack when it fits the weapon, else the bag's: the weapon's own ammunition
+    /// first, then other of its kind, plain before magic. None = none left (or `weapon_ammo` "").
+    pub(super) fn next_ammo(&self, weapon_ammo: &str) -> Option<(String, u32, bool)> {
+        let db = &self.project.db;
+        if let Some(q) = self.world.equipment.ammo.as_ref().filter(|q| q.count > 0 && db.ammo_fits(&q.item, weapon_ammo)) {
+            return Some((q.item.clone(), q.count, true));
+        }
+        let mut ids: Vec<String> = self.world.inventory.item_ids().into_iter().filter(|id| db.ammo_fits(id, weapon_ammo)).collect();
+        ids.sort_by_key(|id| (id != weapon_ammo, db.item(id).is_some_and(|d| d.magic.is_some()), db.item(id).map_or(0, |d| d.magic_bonus())));
+        let id = ids.into_iter().next()?;
+        let n = self.world.inventory.count(&id);
+        Some((id, n, false))
+    }
+
+    /// `ammo=` for status: the ammunition slot's stack (item:count, `-` = empty), and what the
+    /// equipped weapon's next shot takes: `>item:left(slot|bag)`, `>none` when it has none left.
+    pub(super) fn ammo_status(&self) -> String {
+        let slot = self.world.equipment.ammo.as_ref().map_or("-".to_string(), |s| format!("{}:{}", s.item, s.count));
+        let weapon = self.world.equipment.item(EquipSlot::Weapon).and_then(|id| self.project.db.item(id));
+        match weapon.and_then(|d| d.weapon.as_ref()?.ranged.as_ref()).map(|r| r.ammo.clone()).filter(|a| !a.is_empty()) {
+            Some(a) => match self.next_ammo(&a) {
+                Some((id, n, from_slot)) => format!("{slot}>{id}:{n}({})", if from_slot { "slot" } else { "bag" }),
+                None => format!("{slot}>none"),
+            },
+            None => slot,
+        }
+    }
+
+    /// Spends one piece of the ammunition [`Self::next_ammo`] picks (false = none left).
+    pub(super) fn spend_ammo(&mut self, weapon_ammo: &str) -> bool {
+        let Some((id, _, from_slot)) = self.next_ammo(weapon_ammo) else { return false };
+        if from_slot {
+            let q = &mut self.world.equipment.ammo;
+            if let Some(s) = q.as_mut() {
+                s.count -= 1;
+                if s.count == 0 {
+                    *q = None;
+                }
+            }
+        } else {
+            self.world.inventory.remove(&id, 1);
+        }
         true
     }
 

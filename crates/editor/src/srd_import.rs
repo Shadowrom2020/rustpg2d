@@ -1798,6 +1798,7 @@ fn magic_base(index: &str, line: &str) -> &'static str {
         ("trident", "trident"),
         ("mace", "mace"),
         ("longbow", "longbow"),
+        ("arrow", "arrow"),
         ("axe", "battleaxe"),
         ("sword", "longsword"),
         ("scale mail", "scale-mail"),

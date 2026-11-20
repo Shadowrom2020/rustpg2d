@@ -565,7 +565,7 @@ Changes are saved with the game.
 | Function | Description |
 |---|---|
 | `equip(target, item)` | Puts an item into its slot (clothing, armor, weapon, left hand, backpack); what was worn there goes to the character's carried items. For `"player"` the item comes from the inventory (or is given). *(queued)* |
-| `unequip(target, slot)` | Takes off what is worn in `"clothing"`, `"head"`, `"body"`, `"weapon"`, `"offhand"`, `"tool"` or `"back"` (into the carried items; the player: the inventory; a backpack whose slots hold items that don't fit elsewhere stays on). *(queued)* |
+| `unequip(target, slot)` | Takes off what is worn in `"clothing"`, `"head"`, `"body"`, `"weapon"`, `"offhand"`, `"tool"`, `"back"`, `"neck"`, `"cloak"`, `"belt"`, `"feet"`, `"hands"`, `"ring"`, `"ring2"` or `"ammo"` (the whole ammunition stack) (into the carried items; the player: the inventory; a backpack whose slots hold items that don't fit elsewhere stays on). *(queued)* |
 | `give_item_to(target, item, count)` | Adds items to what a character carries (the player: the inventory). *(queued)* |
 | `take_item_from(target, item, count)` | Takes items from what a character carries. *(queued)* |
 

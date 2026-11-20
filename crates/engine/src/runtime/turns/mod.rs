@@ -1054,7 +1054,9 @@ impl Game {
         // Magic: the weapon's +N (its ammunition's when shooting), the items' bonuses.
         let mut magic = if unarmed { 0 } else { self.world.equipment.item(slot).map_or(0, |id| self.item_bonus(Who::Player, id)) };
         if let Some(r) = w.ranged.as_ref().filter(|r| !r.ammo.is_empty() && !thrown) {
-            magic += self.item_bonus(Who::Player, &r.ammo);
+            if let Some((ammo, ..)) = self.next_ammo(&r.ammo) {
+                magic += self.item_bonus(Who::Player, &ammo);
+            }
         }
         let dmg_mod = dmg_mod + if dueling { 2 } else { 0 } + magic + t.bonus(crate::classes::BonusTo::Damage);
         let dice = if dmg_mod == 0 { base_dice } else { format!("{base_dice}{dmg_mod:+}") };

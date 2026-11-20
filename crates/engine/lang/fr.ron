@@ -929,5 +929,7 @@
         "Hands": "Mains",
         "Ring": "Anneau",
         "Second ring": "Second anneau",
+        "Ammo": "Munitions",
+        "The {} stack is full": "La pile de {} est pleine",
     },
 )

@@ -941,7 +941,9 @@ impl Game {
         if ammo.is_empty() {
             return None;
         }
-        Some((db.item(&ammo).map(|a| a.icon.clone()), self.world.item_count(&ammo)))
+        // (The ammunition the next shot takes, else the weapon's own at 0.)
+        let (id, n) = self.next_ammo(&ammo).map_or((ammo, 0), |(id, n, _)| (id, n));
+        Some((db.item(&id).map(|a| a.icon.clone()), n))
     }
 
     pub(super) fn draw_game_over(&self) {

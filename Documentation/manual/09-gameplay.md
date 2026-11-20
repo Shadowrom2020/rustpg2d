@@ -938,6 +938,39 @@ Trap zones (*Map › Zones › Trap*) and trapped props (*Database › Props ›
 
 `status` prints `traps=` (`name:armed|found|disarmed|sprung@x,y`, the traps on the map).
 
+## Poisons
+
+Items with a *Poison* section (*Database › Items*, since 0.32) are the SRD's poisons; the starter
+library has all of them (the basic vial, Assassin's Blood, Burnt Othur Fumes, Crawler Mucus, Drow
+Poison, Essence of Ether, Malice, Midnight Tears, Oil of Taggit, Pale Tincture, Purple Worm Poison,
+Serpent Venom, Torpor, Truth Serum, Wyvern Poison) and the Potion of Poison:
+
+- **Coating**: using an injury or contact poison (from the inventory or the action bar's *Use*)
+  coats the weapon in hand if it deals piercing or slashing damage, or the ammunition a bow or
+  crossbow shoots next ("You coat your Short Sword."). In a fight it is the turn's action. The
+  next hit with it delivers the dose; the basic vial dries after a minute ("The poison on your
+  weapon has dried."), the others last until delivered.
+- **Exposure**: the creature makes a Constitution saving throw against the poison's DC: on a
+  failure it takes the damage and the conditions (poisoned for an hour, paralyzed, blinded,
+  unconscious…), on a success half the damage or none. Ingested and inhaled poisons are given by
+  *Expose to poison* (an action or `poison()`): a drugged ale, a gas trap. The Potion of Poison
+  poisons whoever drinks it.
+- **Asleep**: a creature a poison made unconscious wakes when it takes damage. The hero who passes
+  out outside a fight sleeps it off: the hours go by at once ("You pass out and wake 8 hours
+  later.").
+- **Advantage against poison**: Antitoxin (an hour), *Protection from Poison* and a race that
+  resists poison (a dwarf's, a stout halfling's resilience) give advantage on saving throws against
+  poison: coatings, *Expose to poison*, monsters' poisonous bites and arrows, poisoned traps.
+- **Curing**: *Lesser Restoration* ends poisoned (or blinded, deafened, paralyzed), *Protection
+  from Poison* ends it too; the example's antidote and remedies cure it as before.
+- Monsters' poisonous attacks are their stat blocks' riders (a giant spider's bite). In the example
+  a Goblin Poisoner in the forest camp shoots arrows dipped in the basic poison (CON 10 or 1d4
+  poison) and may drop a vial; Wren the herbalist sells Antitoxin and basic poison.
+- The SRD's repeated saves are durations here: Crawler Mucus paralyzes for 2 rounds, Burnt Othur
+  Fumes burns for 3 rounds, Pale Tincture is one dose; Midnight Tears acts at once.
+
+`status` prints `coating=` (`POISON>ITEM[:SECONDSs]`, the poison on the hero's weapon, `-` without).
+
 ## Lockpicking
 
 A lock with a **Pick DC** (*Database › Props › Lockable*, or a placed prop's lock) can be picked:

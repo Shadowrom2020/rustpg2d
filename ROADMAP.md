@@ -1275,7 +1275,8 @@ added here.
   madness left out: it stays a story tool):
   1. [x] **Objects** — `feature/srd-objects`.
   2. [x] **Traps** (zones and props) — `feature/srd-traps`.
-  3. [ ] **Poisons and diseases** — `feature/srd-poisons`.
+  3. [ ] **Poisons and diseases** — two pull requests: 3a poisons [x] `feature/srd-poisons`, 3b
+     diseases [ ] `feature/srd-diseases`.
 
   **Goal.** The SRD's hazards and the objects of the world by the rules.
 
@@ -1356,6 +1357,36 @@ added here.
   opening, found by a Search and disarmed, the second E opening it unharmed; *Trap sprung* /
   *Trap disarmed* triggers setting flags; `trap_state` / `disarm_trap` from the console; the editor's
   zone form with the darts (screenshot).
+
+  **Part 3a decided while building.** Poison durations are real seconds like every condition (a
+  game hour is a minute of play); a coating's minutes too (frames outside fights, rounds on the
+  hero's turns). Ingested and inhaled poisons have no use of their own (*Expose to poison*
+  gives them). The SRD's repeated saves became durations (no repeat saves exist). Unconscious
+  from a poison ends on damage; the hero passing out outside a fight sleeps the hours away instead
+  of lying there for real hours. Two generic additions on the way: `ConditionSpec.buff` (*Apply
+  effect* can give a boon: Antitoxin) and `SpellPart::Cure` (Lesser Restoration, Protection from
+  Poison); the example's goblins stay the SRD's, a new *Goblin Poisoner* carries the poisoned
+  arrows.
+
+  **Part 3a as built.** `srd/poisons.rs` (`PoisonKind`, `PoisonDef` + `PRESETS` / `preset` /
+  `outcome` / `summary`, `Coating`); `ItemDef.poison`, `WorldState.coating`, `Buff::PoisonSaves`,
+  `ConditionSpec.buff` / `boon`, `SpellPart::Cure`, `Action::Poison` (appended), `poison()`;
+  `runtime/poisons.rs` (`coat_with` from `use_item`, `coated_attack` in `weapon_spec`,
+  `deliver_coating` after a hit, `tick_coating`, `poison_save_mode` via `Game.poison_save` in
+  `buff_save_mode`, traps' and conditions' poison saves, `expose_to_poison`, `wake_poisoned` in both
+  damage paths, `coating_status`); the action bar's Use offers coating poisons; editor
+  `widgets::poison_ui` (item form), `buff_ui` (spell parts and effects), the Cure part, the action
+  form. Library: 14 poison items on the new `srd_poisons` sheet, Potion of Poison (*on use*: Expose),
+  Antitoxin (*on use*: a boon), the two spells. Example: Antitoxin and the basic vial, the
+  herbalist's stock, `goblin_poisoner` in the forest camp.
+
+  **Part 3a verified.** Unit tests (the presets, outcomes, coating ticks, a boon's round trip), a
+  UI test (the basic vial switched to Serpent Venom, then off). Autoplay on a scratch copy: coating
+  the sword from the action bar ("You coat your Short Sword."), drying after 60 s; in a fight
+  coating as the action, a hit on the deserter (CON 3/10 failed, 3 poison, the coating used up); a
+  Goblin Poisoner's arrow (CON 4/10 failed, 4 poison); Essence of Ether on the hero (8 hours pass,
+  awake without conditions); Antitoxin's advantage (d20 13/1 in the Rolls page); a Cure part
+  ending poisoned; Essence of Ether on Snik and the hit that wakes him.
 
 - [ ] Special abilities of monsters and classes — `feature/srd-special-abilities`
 

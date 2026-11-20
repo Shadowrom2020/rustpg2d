@@ -307,6 +307,16 @@ impl Game {
                         self.fight_log(format!("{tname}: {saved_text}{}", crate::lang::tr_ui(condition.name())));
                     }
                     SpellPart::Stabilize => self.stabilize(t, ""),
+                    SpellPart::Cure { conditions: list } => {
+                        let ended = self.who_conditions_mut(t).and_then(|l| {
+                            let c = list.iter().copied().find(|c| conditions::has(l, *c))?;
+                            conditions::remove(l, c);
+                            Some(c)
+                        });
+                        if let Some(c) = ended {
+                            self.fight_log(format!("{tname}: {} {}", crate::lang::tr_ui("no longer"), crate::lang::tr_ui(c.name())));
+                        }
+                    }
                     SpellPart::Buff { buff } => {
                         if (save.is_some() || attack.is_some()) && !landed {
                             continue;
@@ -567,10 +577,12 @@ impl Game {
     /// Haste: advantage on DEX).
     pub(super) fn buff_save_mode(&self, who: Who, what: &str) -> Mode {
         let haste = conditions::buffs(self.who_conditions(who)).any(|b| matches!(b, conditions::Buff::Haste));
+        // (A save against poison: Antitoxin, Protection from Poison, a dwarf's resilience.)
+        let poison = if self.poison_save { self.poison_save_mode(who) } else { Mode::Normal };
         if haste && (what.eq_ignore_ascii_case("dex") || what.eq_ignore_ascii_case("save:dex")) {
             Mode::Advantage
         } else {
-            Mode::Normal
+            poison
         }
     }
 }

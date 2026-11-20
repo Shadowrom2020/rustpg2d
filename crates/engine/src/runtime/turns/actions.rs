@@ -77,7 +77,7 @@ impl TurnAct {
 impl Game {
     /// A check (or `save`) of a combatant: the hero's own, a character's from its stat block;
     /// into the roll log ("Grumbold: Athletics").
-    pub(super) fn who_check(&mut self, who: Who, what: &str, dc: i32, save: bool) -> Option<RollRecord> {
+    pub(in crate::runtime) fn who_check(&mut self, who: Who, what: &str, dc: i32, save: bool) -> Option<RollRecord> {
         // (Aura of Protection: a paladin's CHA on the saves of allies near it.)
         // (Bless / Bane on saves: a die, counted like the aura.)
         // (A party member's magic items on saves: the hero's are in its training.)

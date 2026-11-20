@@ -6090,7 +6090,17 @@
             "paladin",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Cure(
+                conditions: [
+                    Blinded,
+                    Deafened,
+                    Paralyzed,
+                    Poisoned,
+                ],
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "levitate",
@@ -7957,12 +7967,20 @@
             "ranger",
         ],
         parts: [
+            Cure(
+                conditions: [
+                    Poisoned,
+                ],
+            ),
             Buff(
                 buff: Resistance(
                     types: [
                         "poison",
                     ],
                 ),
+            ),
+            Buff(
+                buff: PoisonSaves,
             ),
         ],
         story_only: false,

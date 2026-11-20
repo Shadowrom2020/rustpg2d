@@ -248,7 +248,9 @@ impl Game {
         // The second part after a hit (the poison of darts and needles).
         if hit && self.game_over.is_none() {
             if let Some(save) = spec.then_save {
-                let saved = self.world.check(save.ability.id(), save.dc, Mode::Normal, true).is_some_and(|r| r.success == Some(true));
+                // (A poison's save: Antitoxin and a dwarf's resilience give advantage.)
+                let mode = if spec.then_type == Some(crate::srd::DamageType::Poison) { self.poison_save_mode(super::turns::Who::Player) } else { Mode::Normal };
+                let saved = self.world.check(save.ability.id(), save.dc, mode, true).is_some_and(|r| r.success == Some(true));
                 let rolled = if spec.then_damage.is_empty() { 0 } else { self.world.roll_dice(&spec.then_damage).map_or(0, |r| r.total.max(0) as i32) };
                 let n = TrapSpec::after_save(rolled, saved, save.half);
                 if n > 0 {

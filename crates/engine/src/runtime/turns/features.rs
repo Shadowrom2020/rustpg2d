@@ -823,7 +823,10 @@ impl Game {
             let tname = self.who_name(target);
             let (saved, save_text) = match r.save {
                 Some(a) => {
+                    // (A poisonous bite or sting: advantages against poison count.)
+                    self.poison_save = r.damage_type == Some(DamageType::Poison) || r.condition == Some(conditions::Condition::Poisoned);
                     let rec = self.who_check(target, a.id(), r.dc, true);
+                    self.poison_save = false;
                     let ok = rec.as_ref().is_some_and(|x| x.success == Some(true));
                     (ok, format!("{} {}/{} {}", a.short(), rec.as_ref().map_or(0, |x| x.total), r.dc, crate::lang::tr_ui(if ok { "saved" } else { "failed" })))
                 }

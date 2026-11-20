@@ -388,6 +388,9 @@ pub struct WorldState {
     /// The traps' states (found, disarmed, sprung) by `map/uid` of their zone or prop.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub traps: BTreeMap<String, crate::srd::traps::TrapState>,
+    /// The poison on the hero's weapon or ammunition (one dose).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coating: Option<crate::srd::poisons::Coating>,
     /// Food, water and the march of the day (the survival rules; untouched while they are off).
     #[serde(default, skip_serializing_if = "is_default_survival")]
     pub survival: crate::srd::survival::Survival,

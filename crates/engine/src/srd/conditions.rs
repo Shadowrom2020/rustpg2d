@@ -220,6 +220,9 @@ pub struct ConditionSpec {
     /// Damage or healing per round while it lasts.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ongoing: Option<Ongoing>,
+    /// A boon or bane while it lasts (Antitoxin's advantage against poison, a shrine's blessing).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub buff: Option<Buff>,
 }
 
 fn is_zero(n: &u8) -> bool {
@@ -228,7 +231,12 @@ fn is_zero(n: &u8) -> bool {
 
 impl ConditionSpec {
     pub fn new(condition: Condition, seconds: f32) -> ConditionSpec {
-        ConditionSpec { condition: Some(condition), seconds, level: 0, save: None, ongoing: None }
+        ConditionSpec { condition: Some(condition), seconds, level: 0, save: None, ongoing: None, buff: None }
+    }
+
+    /// A boon or bane for `seconds` (0 = until removed).
+    pub fn boon(buff: Buff, seconds: f32) -> ConditionSpec {
+        ConditionSpec { condition: None, seconds, level: 0, save: None, ongoing: None, buff: Some(buff) }
     }
 
     /// A new one for the editor.
@@ -238,7 +246,7 @@ impl ConditionSpec {
 
     /// Nothing happens when it is applied (an old haste or strength effect).
     pub fn is_nothing(&self) -> bool {
-        self.condition.is_none_or(|c| c == Condition::Any) && self.ongoing.is_none()
+        self.condition.is_none_or(|c| c == Condition::Any) && self.ongoing.is_none() && self.buff.is_none()
     }
 
     /// "Poisoned 12 s (CON DC 10) + 1 poison per round" (editor lists, hints).
@@ -251,6 +259,9 @@ impl ConditionSpec {
         if let Some(o) = &self.ongoing {
             let what = o.damage_type.map_or("healing".to_string(), |t| t.id().to_string());
             s = if s.is_empty() { format!("{} {what} per round", o.dice) } else { format!("{s} + {} {what} per round", o.dice) };
+        }
+        if let Some(b) = &self.buff {
+            s = if s.is_empty() { format!("boon {}", b.badge()) } else { format!("{s} + boon {}", b.badge()) };
         }
         if s.is_empty() {
             return "nothing".into();
@@ -295,7 +306,7 @@ fn from_old(kind: OldKind, strength: f32, seconds: f32) -> ConditionSpec {
         OldKind::Slow => (Some(Condition::Restrained), None),
         OldKind::Haste | OldKind::Strength | OldKind::Weakness | OldKind::Shield | OldKind::None => (None, None),
     };
-    ConditionSpec { condition, seconds: seconds.max(0.0), level: 0, save: None, ongoing }
+    ConditionSpec { condition, seconds: seconds.max(0.0), level: 0, save: None, ongoing, buff: None }
 }
 
 /// What a script's `apply_effect(target, name, strength, seconds)` (deprecated since 0.28) gives:
@@ -324,6 +335,7 @@ struct SpecRepr {
     level: u8,
     save: Option<SaveDc>,
     ongoing: Option<Ongoing>,
+    buff: Option<Buff>,
     /// 0.27 and older.
     kind: OldKind,
     strength: f32,
@@ -331,14 +343,14 @@ struct SpecRepr {
 
 impl Default for SpecRepr {
     fn default() -> Self {
-        SpecRepr { condition: None, seconds: 0.0, level: 0, save: None, ongoing: None, kind: OldKind::None, strength: 0.0 }
+        SpecRepr { condition: None, seconds: 0.0, level: 0, save: None, ongoing: None, buff: None, kind: OldKind::None, strength: 0.0 }
     }
 }
 
 impl From<SpecRepr> for ConditionSpec {
     fn from(r: SpecRepr) -> Self {
         match r.kind {
-            OldKind::None => ConditionSpec { condition: r.condition, seconds: r.seconds.max(0.0), level: r.level, save: r.save, ongoing: r.ongoing },
+            OldKind::None => ConditionSpec { condition: r.condition, seconds: r.seconds.max(0.0), level: r.level, save: r.save, ongoing: r.ongoing, buff: r.buff },
             k => from_old(k, r.strength, r.seconds),
         }
     }
@@ -397,6 +409,8 @@ pub enum Buff {
     Resistance { types: Vec<String> },
     /// An ability score becomes at least `score` (a Potion of Giant Strength).
     AbilityScore { ability: crate::srd::Ability, score: i32 },
+    /// Advantage on saving throws against poison (Antitoxin, Protection from Poison).
+    PoisonSaves,
 }
 
 impl Buff {
@@ -410,9 +424,13 @@ impl Buff {
             Buff::Haste => "HST".into(),
             Buff::Resistance { types } => types.first().map_or("RES".into(), |t| t.chars().take(3).collect::<String>().to_ascii_uppercase()),
             Buff::AbilityScore { ability, .. } => ability.short().to_string(),
+            Buff::PoisonSaves => "PSN".into(),
         }
     }
 }
+
+/// The source of a boon an effect gave (*Apply effect*: Antitoxin); its badge tells what it does.
+pub const BOON: &str = "boon";
 
 /// The buffs running in `list`.
 pub fn buffs(list: &[ActiveCondition]) -> impl Iterator<Item = &Buff> {
@@ -527,7 +545,8 @@ impl ActiveCondition {
     pub fn badge(&self) -> String {
         let label = match (self.condition, &self.ongoing) {
             // (A magic item's boon: what it does, STR for a potion of giant strength.)
-            _ if self.source.starts_with("item:") && self.buff.is_some() => self.buff.as_ref().map_or(String::new(), |b| b.badge()),
+            // (… and a boon of an effect, Antitoxin's PSN.)
+            _ if (self.source.starts_with("item:") || self.source == BOON) && self.buff.is_some() => self.buff.as_ref().map_or(String::new(), |b| b.badge()),
             _ if self.buff.is_some() => self.source.split('@').next().unwrap_or("").chars().filter(|c| c.is_ascii_alphabetic()).take(3).collect::<String>().to_ascii_uppercase(),
             (Some(Condition::Exhaustion), _) => format!("EXH{}", self.level),
             (Some(c), _) if c != Condition::Any => c.badge().to_string(),
@@ -565,6 +584,13 @@ pub fn apply(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec) {
 pub fn apply_from(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec, source: &str) {
     if spec.is_nothing() {
         return;
+    }
+    // A boon or bane runs on its own (the same one from the same source is renewed).
+    if let Some(b) = &spec.buff {
+        apply_buff(list, b.clone(), spec.seconds, if source.is_empty() { BOON } else { source });
+        if spec.condition.is_none_or(|c| c == Condition::Any) && spec.ongoing.is_none() {
+            return;
+        }
     }
     let remaining = (spec.seconds > 0.0).then_some(spec.seconds);
     let condition = spec.condition.filter(|c| *c != Condition::Any);
@@ -870,7 +896,7 @@ mod tests {
         // At once, after 6 s; then it is over (12 s).
         assert_eq!(hits, vec![(2, Some(DamageType::Poison)), (2, Some(DamageType::Poison))]);
         assert!(l.is_empty());
-        apply(&mut l, &ConditionSpec { condition: None, seconds: 0.0, level: 0, save: None, ongoing: Some(Ongoing { dice: "1".into(), damage_type: None }) });
+        apply(&mut l, &ConditionSpec { condition: None, seconds: 0.0, level: 0, save: None, ongoing: Some(Ongoing { dice: "1".into(), damage_type: None }), buff: None });
         assert_eq!(tick(&mut l, 0.1), vec![(1, None)], "healing");
         assert_eq!(remove(&mut l, Condition::Any), 1);
     }
@@ -887,6 +913,19 @@ mod tests {
         assert_eq!(remove(&mut l, Condition::Poisoned), 0);
         assert_eq!(remove(&mut l, Condition::Prone), 1);
         assert!(!has(&l, Condition::Any));
+    }
+
+    #[test]
+    fn a_boon_rides_on_an_effect() {
+        let spec = ConditionSpec::boon(Buff::PoisonSaves, 3600.0);
+        let text = ron::to_string(&spec).unwrap();
+        assert_eq!(ron::from_str::<ConditionSpec>(&text).unwrap(), spec);
+        assert!(!spec.is_nothing() && spec.summary().contains("PSN"));
+        let mut l = Vec::new();
+        apply(&mut l, &spec);
+        assert_eq!((l.len(), l[0].buff.clone(), l[0].badge()), (1, Some(Buff::PoisonSaves), "PSN 3600".to_string()));
+        // (Old files without a boon read as before.)
+        assert_eq!(ron::from_str::<ConditionSpec>("(condition: Some(Poisoned), seconds: 6.0)").unwrap().buff, None);
     }
 
     #[test]

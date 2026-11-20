@@ -650,6 +650,32 @@ fn a_prop_gets_a_trap() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Database › Items: the basic poison (the SRD's vial) switched to Serpent Venom by its preset,
+/// saved.
+#[test]
+fn an_item_becomes_a_poison() {
+    let root = example_copy("poisons");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "poison-basic-vial").expect("the example's basic poison");
+    assert_eq!(db.items[k].poison.as_ref().map(|p| p.dc), Some(10));
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    // (The preset's combo box is the one beside "Preset".)
+    beside(&h, "Preset", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Serpent Venom").click();
+    step(&mut h);
+    let p = h.state().project.db.items[k].poison.clone().expect("still a poison");
+    assert_eq!((p.preset.as_str(), p.dc, p.damage.as_str(), p.half), ("serpent-venom", 11, "3d6", true));
+    // Switched off, it is a plain vial again.
+    h.get_by(|n| n.label().as_deref() == Some("Poison") && n.role() == Role::CheckBox).click();
+    step(&mut h);
+    assert!(h.state().project.db.items[k].poison.is_none());
+    h.state_mut().save_all();
+    assert!(Project::load(&root).unwrap().db.items[k].poison.is_none());
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// Project › Menus › Action bar: the built-in entries to start from, a custom one added, saved.
 #[test]
 fn the_action_bar_gets_a_custom_entry() {

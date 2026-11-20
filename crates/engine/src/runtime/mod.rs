@@ -77,6 +77,7 @@ mod survival;
 mod actionbar;
 mod objects;
 mod traps;
+mod poisons;
 mod checks;
 mod spawner;
 mod rolls;
@@ -544,6 +545,8 @@ pub struct Game {
     bar: actionbar::ActionBar,
     /// Seconds to the next passive look for traps (`traps.rs`).
     trap_look: f32,
+    /// A saving throw against poison is being rolled (`poisons.rs`: its advantages count).
+    poison_save: bool,
     /// The open companion window (its gear and bag).
     comp_win: Option<companion_ui::CompanionWin>,
     /// Bottom of the player's HUD panel as last drawn (the companions' rows go below it).
@@ -741,6 +744,7 @@ impl Game {
             order_menu: None,
             bar: Default::default(),
             trap_look: 0.0,
+            poison_save: false,
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),
             sleeping: None,
@@ -2023,6 +2027,7 @@ impl Game {
             // (In a fight conditions run by rounds, on each fighter's turn: `turns/`.)
             if self.fight.is_none() {
                 self.tick_effects(dt);
+                self.tick_coating(dt);
             }
         }
         if self.fight.is_some() && !frozen {
@@ -2536,6 +2541,10 @@ impl Game {
             }
             return;
         }
+        // An injury or contact poison coats the weapon in hand.
+        if self.coat_with(item) {
+            return;
+        }
         // In a fight using an item is the action of the hero's turn (Use an Object).
         if let Err(why) = self.fight_item_use() {
             self.ui.toast(crate::lang::tr_ui(why).into_owned());
@@ -2712,7 +2721,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?} traps={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?} traps={:?} coating={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2855,7 +2864,8 @@ impl Game {
             self.bar_status(),
             self.search_status(),
             self.objects_status(),
-            self.traps_status()
+            self.traps_status(),
+            self.coating_status()
         )
     }
 
@@ -3920,6 +3930,10 @@ impl ActionHost for Game {
             }
             Action::DisarmTrap { target } => {
                 self.disarm_named_trap(target);
+                Step::Continue
+            }
+            Action::Poison { target, item } => {
+                self.poison_named(target, ctx.owner, item);
                 Step::Continue
             }
             Action::DamageProp { target, amount, damage_type } => {

@@ -497,6 +497,8 @@ impl Game {
                 return;
             }
         }
+        // (Asleep from a poison: the hit wakes it.)
+        self.wake_poisoned(super::turns::Who::Npc(uid));
         let e = &mut self.loaded.entities[i];
         let before = e.hp;
         e.hp -= hit;

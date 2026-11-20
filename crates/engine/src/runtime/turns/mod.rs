@@ -1480,7 +1480,7 @@ impl Game {
             adjacent: dist <= 1,
             enemy_adjacent,
             long_range: spec.ranged && dist > spec.range,
-            attacker_disadvantage: me.attack_disadvantage || spec.disadvantage || (!spec.spell && self.who_armor_untrained(who)) || (spec.lance && dist <= 1) || self.squeezed(who),
+            attacker_disadvantage: me.attack_disadvantage || spec.disadvantage || (!spec.spell && self.who_armor_untrained(who)) || (who == Who::Player && self.world.training.heavy_load) || (spec.lance && dist <= 1) || self.squeezed(who),
             // (Unseen: invisible, hidden, or the target can't see it: darkness, fog.)
             attacker_unseen: me.invisible || c.and_then(|c| c.fighter(who)).is_some_and(|f| f.hidden) || !self.can_see(target, who),
             target_prone: conditions::has(self.who_conditions(target), Condition::Prone),

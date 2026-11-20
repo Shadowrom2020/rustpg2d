@@ -183,6 +183,9 @@
             "thieves-tools",
         ],
         show_checks: true,
+        food_water: false,
+        forced_march: false,
+        encumbrance: Plain,
     ),
     rules_version: 4,
     progression: (

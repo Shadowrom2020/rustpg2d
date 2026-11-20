@@ -4918,6 +4918,25 @@ pub(crate) fn rules_form(ui: &mut egui::Ui, r: &mut rustpg2d_engine::srd::RulesS
         r.proficiencies.push(String::new());
     }
     ui.checkbox(&mut r.show_checks, "Show check results on screen (\"Perception: 14 vs DC 12 - success\")").on_hover_text("Every roll is kept in the journal's Rolls page either way.");
+    ui.separator();
+    ui.label("Survival and travel");
+    ui.checkbox(&mut r.food_water, "Food and water").on_hover_text("Each day needs a day's food and water (the Eat / drink action, eat() and drink()): more days without food than 3 + CON, or less than a day's water, give exhaustion, and a long rest lowers exhaustion only after eating and drinking. Off: food only does what its actions say.");
+    ui.checkbox(&mut r.forced_march, "Forced march").on_hover_text("Walking more than 8 hours of game time between long rests calls for a CON save each hour after (DC 10 + 1 per hour past 8); a failure gives a level of exhaustion.");
+    ui.horizontal(|ui| {
+        use rustpg2d_engine::srd::survival::Encumbrance;
+        ui.label("Carrying");
+        egui::ComboBox::from_id_salt("rules_encumbrance")
+            .selected_text(match r.encumbrance {
+                Encumbrance::Plain => "Carrying capacity",
+                Encumbrance::Variant => "Variant encumbrance",
+            })
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut r.encumbrance, Encumbrance::Plain, "Carrying capacity").on_hover_text("STR x 15 lb. More (up to twice that) slows the hero to 5 ft; more than twice, they can't move.");
+                ui.selectable_value(&mut r.encumbrance, Encumbrance::Variant, "Variant encumbrance").on_hover_text("Over STR x 5 lb: 10 ft slower. Over STR x 10 lb: 20 ft slower and disadvantage on STR, DEX and CON checks, saves and attacks. Then the capacity's limits.");
+            });
+    })
+    .response
+    .on_hover_text("Items' weights count: the bag and what the hero wears and holds.");
 }
 
 fn achievement_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::achievements::AchievementDef, cx: &mut Cx) {

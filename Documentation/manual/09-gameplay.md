@@ -397,7 +397,47 @@ from a grapple.
   log); *Done* lets an hour pass. Not with enemies nearby or in a fight.
 - A **long rest** is a night's sleep (a bed, the *Sleep* or *Long rest* action, `long_rest()`): full
   HP and spell slots, half the level's hit dice back (at least one), one level of exhaustion less, and the
-  conditions with a duration are over.
+  conditions with a duration are over. With *Food and water* on, exhaustion goes down only when the
+  hero ate and drank something that day (or the day that just ended, for a sleep past midnight).
+
+## Survival and travel
+
+The SRD's *Adventuring* rules for the road (since 0.32). Carrying always counts; food and water and the
+forced march are options of *Database › Project › Rules* (*Survival and travel*), off in the example.
+
+- **Carrying.** Everything in the bag and everything worn or held weighs what its item form says
+  (*Weight*, in pounds; the SRD's items have theirs). The purse weighs nothing: it holds a value, not
+  coins. The sheet shows *Carried* `42 / 240 lb`, where 240 is the hero's **capacity**, STR × 15.
+  - **Carrying capacity** (the plain rule): over the capacity, up to twice it, the hero drags the load
+    at 5 ft; over twice it they can't move ("You carry too much to move.").
+  - **Variant encumbrance** (the option): over STR × 5 lb the hero is *encumbered* (10 ft slower), over
+    STR × 10 lb *heavily encumbered* (20 ft slower, and disadvantage on STR, DEX and CON checks and
+    saving throws and on attack rolls); past the capacity the plain rule's limits follow.
+  - The speed counts in fights (the sheet's *Speed*) and outside them (walking slows down the same).
+    Companions and other characters carry without limits.
+- **Food and water** (option). Each day the hero needs a day's food and a day's water: the *Eat /
+  drink* action ([Events](07-events.md)) and `eat(days)` / `drink(days)` count them. In the starter
+  library a ration is a day of food, bread, meals and pies half a day, an apple a quarter (soups and
+  stews add a quarter day of water); a full *Waterskin* is half a day of water and leaves an *Empty
+  waterskin*; using a *Well* or a *Fountain* gives a day's water and fills every empty waterskin
+  (`drink_from_well()`, library content). At midnight:
+  - **food**: a full day resets the count of days without food, half a day counts as half a day
+    without; after 3 + the CON modifier days (at least 1) each further day adds a level of exhaustion
+    ("You go hungry.");
+  - **water**: less than a day's water calls for a CON saving throw DC 15 with half a day (with
+    disadvantage when already exhausted), a failure adds a level of exhaustion; with less than half a
+    day the level comes for sure, two when already exhausted ("You are parched.").
+  - The sheet shows *Food / water today*; a sleep over several days counts each.
+- **Travel pace.** Running is the *fast* pace: −5 to the hero's passive Perception (the sheet, and
+  when monsters jump the hero: [surprise](#health-and-combat)). Sneaking is the *slow* pace, the one that
+  allows Stealth (*Sneaking* under [Health and combat](#health-and-combat)).
+- **Forced march** (option). Game hours spent walking (out of fights) since the last long rest count
+  as the day's march; past 8 hours each further hour calls for a CON saving throw, DC 10 + 1 per hour
+  past 8, and a failure adds a level of exhaustion ("The march wears you out."). A long rest starts
+  the count again. With a day of 24 minutes (*Day length*) an hour is a minute of walking.
+
+`status` prints `survival=` (`food:1.00 water:0.50 unfed:0 march:3.2h`, the parts whose option is on;
+`-` with both off) and `load=` (`42/240`, `:encumbered`, `:heavy`, `:dragging`, `:over`).
 
 ## Rules (SRD 5.1)
 

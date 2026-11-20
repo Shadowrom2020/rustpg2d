@@ -378,6 +378,9 @@ pub struct WorldState {
     /// What the class adds to checks (computed from the class; not saved).
     #[serde(skip)]
     pub training: crate::srd::check::Training,
+    /// Food, water and the march of the day (the survival rules; untouched while they are off).
+    #[serde(default, skip_serializing_if = "is_default_survival")]
+    pub survival: crate::srd::survival::Survival,
     /// The project's coins: (item id, worth in cp), the most valuable first (set by the game from
     /// the definitions; not saved). Money is what these add up to.
     #[serde(skip)]
@@ -482,6 +485,10 @@ pub struct Companion {
 
 fn slots_unspent(s: &[u32; 9]) -> bool {
     s.iter().all(|n| *n == 0)
+}
+
+fn is_default_survival(s: &crate::srd::survival::Survival) -> bool {
+    *s == crate::srd::survival::Survival::default()
 }
 
 fn is_zero_u64(n: &u64) -> bool {
@@ -790,6 +797,8 @@ impl WorldState {
         // Armor: untrained gives disadvantage on STR and DEX; some armor on Stealth.
         let str_dex = dex || spec.ability == crate::srd::Ability::Str;
         disadvantage |= (self.training.armor_untrained && str_dex) || (!save && self.training.stealth_disadvantage && spec.proficiency == "stealth");
+        // A heavy load (the variant encumbrance): disadvantage on STR, DEX and CON.
+        disadvantage |= self.training.heavy_load && (str_dex || spec.ability == crate::srd::Ability::Con);
         let mode = if disadvantage { mode.combine(crate::srd::Mode::Disadvantage) } else { mode };
         let fails = if save { rules.str_dex_saves_fail && (dex || spec.ability == crate::srd::Ability::Str) } else { rules.sight_checks_fail && crate::srd::conditions::needs_sight(&spec.proficiency) };
         let mut rec = spec.roll(&self.roller(), dc, mode);

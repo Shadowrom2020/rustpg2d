@@ -76,6 +76,7 @@ impl Game {
     /// Once per frame: the light spell's timer, concentration outside fights.
     pub(super) fn update_skills(&mut self, dt: f32) {
         self.refresh_armor_training();
+        self.refresh_load();
         self.update_magic_items();
         if let Some(l) = &mut self.skills.light {
             l.1 -= dt;
@@ -684,12 +685,17 @@ impl Game {
             ("Hit points", if hp_max > 0 { format!("{} / {hp_max}", w.player_hp.unwrap_or(hp_max).max(0)) } else { "-".into() }),
             ("Hit dice", format!("{}/{} d{}", self.hit_dice_left(), level, self.hit_die())),
             // (Disadvantage: -5, the SRD says.)
-            ("Passive Perception", (10 + w.check_bonus("perception", false).unwrap_or(0) - if cond.check_disadvantage { 5 } else { 0 }).to_string()),
+            ("Passive Perception", (self.hero_passive_perception() - if cond.check_disadvantage { 5 } else { 0 }).to_string()),
         ];
-        for (label, value) in facts.into_iter().chain(money) {
+        // What the hero carries (pounds / capacity), and today's food and water when they count.
+        let load = ("Carried", format!("{} / {} lb", self.moves.carried.round() as i64, crate::srd::survival::capacity(w.abilities.score(Ability::Str)) as i64));
+        let fed = self.project.config.rules.food_water.then(|| ("Food / water today", format!("{:.1} / {:.1}", w.survival.food, w.survival.water)));
+        let loaded = self.moves.load != crate::srd::survival::Load::Light;
+        for (label, value) in facts.into_iter().chain(money).chain(Some(load)).chain(fed) {
             draw_text(label, lx, y, 17.0, skin::dim());
             let vw = super::text::measure_text(&value, None, 19, 1.0).width;
-            draw_text(&value, mx - 24.0 - vw, y, 19.0, skin::normal());
+            let warn = (label == "Carried" && loaded) || (label == "Food / water today" && w.survival.unfed > 0.0);
+            draw_text(&value, mx - 24.0 - vw, y, 19.0, if warn { skin::highlight() } else { skin::normal() });
             y += 23.0;
         }
         // The conditions (exhaustion with its level) and what goes on every round.

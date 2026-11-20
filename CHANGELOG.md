@@ -469,6 +469,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Example:** the shaft in Grumbold's lair drops into a chamber with a rough wall back up; a crack
   in the corridor to the rats' nest is jumped at a run.
 
+### Survival and travel (SRD 5.1, part 2)
+- **Carrying:** items' weights count (the bag and what the hero wears and holds; the purse weighs
+  nothing). Over the capacity (STR × 15 lb) the hero drags the load at 5 ft, over twice it they
+  can't move. *Database › Project › Rules › Carrying* can switch to the **variant encumbrance**
+  (−10 ft over STR × 5 lb, −20 ft and disadvantage on STR, DEX and CON rolls and attacks over
+  STR × 10 lb). The sheet shows *Carried*.
+- **Food and water** (an option, off in the example): each day needs a day's food and water, or the
+  hero grows exhausted by the SRD's rules; a long rest lowers exhaustion only after eating and
+  drinking. The *Eat / drink* action, `eat(days)` and `drink(days)`; the starter library's foods,
+  rations and waterskins eat and drink by their worth, a waterskin leaves an *Empty waterskin*, and a
+  well or fountain gives a day's water and fills the empty ones.
+- **Travel pace:** running gives −5 to the hero's passive Perception (also when monsters jump them).
+- **Forced march** (an option): walking more than 8 game hours between long rests calls for CON saves.
+- `carried_weight()`; `status` prints `survival=` and `load=`.
+
 ### Money is a purse
 - The hero keeps no coins in the bag: money is a value in copper pieces on the character sheet
   (*Money* on the Character tab and now the Sheet tab). Coins that reach the hero (picked up from a

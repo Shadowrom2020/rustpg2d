@@ -13,6 +13,7 @@ pub mod damage;
 pub mod dice;
 pub mod rules;
 pub mod statblock;
+pub mod survival;
 
 pub use abilities::{Abilities, Ability};
 pub use check::{RollRecord, Spec};
@@ -52,11 +53,19 @@ pub struct RulesSettings {
     pub proficiencies: Vec<String>,
     /// A short line on screen for every check and saving throw ("Perception 14 vs DC 12: success").
     pub show_checks: bool,
+    /// Food and water count: days without food beyond 3 + CON, or less than a day's water, give
+    /// exhaustion (the SRD's *Food and Water*).
+    pub food_water: bool,
+    /// Walking more than eight hours between long rests calls for CON saves (the SRD's *Forced
+    /// March*).
+    pub forced_march: bool,
+    /// How carrying is limited: the plain rule (STR × 15 lb) or the variant encumbrance.
+    pub encumbrance: survival::Encumbrance,
 }
 
 impl Default for RulesSettings {
     fn default() -> Self {
-        RulesSettings { abilities: Abilities::STANDARD, proficiencies: Vec::new(), show_checks: true }
+        RulesSettings { abilities: Abilities::STANDARD, proficiencies: Vec::new(), show_checks: true, food_water: false, forced_march: false, encumbrance: survival::Encumbrance::Plain }
     }
 }
 

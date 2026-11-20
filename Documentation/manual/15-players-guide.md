@@ -94,6 +94,14 @@ you still, blindness narrows what you see; a saving throw can keep one off when 
 dice (each heals d10 + CON) and an hour passes. Sleeping in a bed is a **long rest**: full hit
 points, half your hit dice back and one level of exhaustion less.
 
+**What you carry** weighs: the sheet shows *Carried* (`42 / 240 lb`; your capacity is STR × 15).
+Above the capacity you drag the load at a crawl, above twice it you can't move at all: drop
+something. Some games are stricter (a heavy load slows you down sooner and makes you clumsy) and
+some need **food and water**: eat a day's food and drink a day's water every day (*Food / water today*
+on the sheet), or you grow exhausted. A full waterskin is half a day of water; a well fills the empty
+ones. Running fast makes you less watchful (passive Perception −5), and walking more than eight
+hours between nights' sleep can tire you out.
+
 A **padlock** over a chest or door means it is locked. Without its key, press E to try to pick it
 (a Dexterity check with Thieves' Tools): you need **thieves' tools** in your bag. If it holds, give
 it ten minutes before you try again.

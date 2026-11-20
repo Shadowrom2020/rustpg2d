@@ -30,6 +30,11 @@ pub(super) struct Moves {
     climb_wait: f32,
     /// The climb the hero has a hold on (its check passed) until they leave it.
     holding: bool,
+    /// Pounds carried and the load they make (once a frame: `survival.rs`).
+    pub carried: f32,
+    pub load: crate::srd::survival::Load,
+    /// Seconds before "You carry too much to move." shows again.
+    pub over_wait: f32,
 }
 
 /// The dice of a fall from `feet` (1d6 per 10 ft, at most 20d6; "" = too low to hurt).
@@ -75,6 +80,11 @@ impl Game {
     /// Called every frame: the run-up of a jump (pixels walked without stopping or turning).
     pub(super) fn walk_step(&mut self, dir: Vec2, moved: f32, dt: f32) {
         self.moves.climb_wait = (self.moves.climb_wait - dt).max(0.0);
+        self.moves.over_wait = (self.moves.over_wait - dt).max(0.0);
+        if dir != Vec2::ZERO && self.moves.load == crate::srd::survival::Load::Over && self.moves.over_wait <= 0.0 {
+            self.ui.toast(crate::lang::tr_ui("You carry too much to move.").into_owned());
+            self.moves.over_wait = 3.0;
+        }
         if dir == Vec2::ZERO || moved <= 0.0 {
             self.moves.run_up = 0.0;
             return;
@@ -84,6 +94,7 @@ impl Game {
         }
         self.moves.dir = dir;
         self.moves.run_up += moved;
+        self.march_step(dt);
     }
 
     /// Whether the hero, about to step from `before` onto a climbable wall with a DC, gets a hold:

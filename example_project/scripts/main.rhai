@@ -783,3 +783,16 @@ fn party_orders() {
         stop_following(who);
     }
 }
+
+// A well or fountain: a day's water (Food and water), and empty waterskins filled again.
+fn drink_from_well() {
+    drink(1);
+    let empty = item_count("waterskin_empty");
+    if empty > 0 {
+        take_item("waterskin_empty", empty);
+        give_item("waterskin", empty);
+        say("You drink your fill and fill your waterskins.");
+    } else {
+        say("You drink your fill of cool water.");
+    }
+}

@@ -99,6 +99,10 @@ across map changes and in save games.
 - **Fall** (feet): the hero falls (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft, at
   most 20d6, into the roll log, and prone for a moment; they stay where they are (move them with
   *Teleport*, or use a *Drop* zone).
+- **Eat / drink** (food days, water days): what the hero ate and drank today for *Food and water*
+  (*Database › Project › Rules*): a ration is 1 day of food, a meal half a day, a waterskin half a
+  day of water, a well a whole day. Put it on a food item's *Use* trigger (beside its *Heal*) or a
+  well's. With the rule off it does nothing.
 - **Change standing**: raises or lowers the player's standing with a faction (*Database ›
   Factions*); at -20 or below its characters attack the player, above it they calm
   down at once.

@@ -83,6 +83,8 @@ pub struct PlayerInfo {
     pub hit_dice: u32,
     /// The round of the fight going on (`combat_round()`; 0 = none).
     pub combat_round: u32,
+    /// Pounds the hero carries (`carried_weight()`).
+    pub carried: f32,
     /// The hero's class features at their level (`has_feature()`), chosen options included.
     pub features: Vec<String>,
     /// The hero's class resources: id -> uses left (`resource()`).
@@ -761,11 +763,14 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("knows_spell", with!(ctx, |c, id: &str| c.world.spells.contains(id) || c.player.prepared.iter().any(|s| s == id)));
     engine.register_fn("mana", with!(ctx, |_c| 0.0f64));
     // Money in copper pieces (every coin item counts by its worth; change comes back).
+    engine.register_fn("carried_weight", with!(ctx, |c| c.player.carried as f64));
     engine.register_fn("money", with!(ctx, |c| c.world.money_cp() as i64));
     engine.register_fn("give_money", with!(ctx, |c, cp: i64| {
         c.world.give_cp(cp.max(0) as u32);
     }));
     engine.register_fn("take_money", with!(ctx, |c, cp: i64| c.world.pay_cp(cp.max(0) as u32)));
+    engine.register_fn("eat", with!(ctx, |c, days: Dynamic| c.actions.push(Action::Nourish { food: num(&days).clamp(0.0, 100.0), water: 0.0 })));
+    engine.register_fn("drink", with!(ctx, |c, days: Dynamic| c.actions.push(Action::Nourish { food: 0.0, water: num(&days).clamp(0.0, 100.0) })));
     engine.register_fn("fall", with!(ctx, |c, feet: i64| c.actions.push(Action::Fall { feet: feet.clamp(0, 10_000) as u32 })));
     engine.register_fn("format_money", |cp: i64| crate::srd::equipment::format_cp(cp.max(0) as u32, [&crate::lang::tr_ui("gp"), &crate::lang::tr_ui("sp"), &crate::lang::tr_ui("cp")]));
     engine.register_fn("spell_slots", with!(ctx, |c, l: Dynamic| c.player.slots.get((num(&l) as usize).wrapping_sub(1)).map_or(0, |s| s.0 as i64)));

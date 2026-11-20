@@ -351,10 +351,10 @@ fn name_the_horse() {
 
 | Function | Description |
 |---|---|
-| `item_count(item)` | How many of an item the player carries. |
+| `item_count(item)` | How many of an item the player carries; for a coin, how many of it the purse could pay (the hero keeps money as a value, not coins). |
 | `has_item(item)` | Whether the player carries at least one. |
-| `give_item(item, count)` | Gives items to the player. Returns how many did **not** fit into the inventory (`0` = all fit). |
-| `take_item(item, count)` | Takes up to `count` items from the player (also from the equipment slots). Returns how many were taken, which can be fewer: check `item_count` first when the player must pay. |
+| `give_item(item, count)` | Gives items to the player (coins go into the purse). Returns how many did **not** fit into the inventory (`0` = all fit). |
+| `take_item(item, count)` | Takes up to `count` items from the player (also from the equipment slots; coins from the purse, by their worth). Returns how many were taken, which can be fewer: check `item_count` first when the player must pay. |
 
 ### Money
 

@@ -48,10 +48,10 @@ with E or a right-click.
   **Furniture** (in a home of yours) is placed in front of you when used; E at it later asks
   whether to use it or pick it up again.
 - **Shop**: click *Buy* or *Sell* (or double-click a row, or Enter / E) to trade one, Shift for ten;
-  Tab switches between the merchant's goods and your items. Prices read in coins (`1 gp 5 sp`):
-  every coin you carry counts, the merchant takes your smallest coins first and gives change in
-  gold, silver and copper. The bottom right shows your purse; the character window's *Money* line
-  too.
+  Tab switches between the merchant's goods and your items. Prices read in coins (`1 gp 5 sp`) and
+  are paid from your purse. **Money** isn't carried as coins in your bag: it is a value on the
+  character sheet (*Money* on the Character and the Sheet tab), and coins you pick up or are given
+  go straight into it. The shop's bottom right shows it too.
 - **Loot window**: click a stack to take it (right-click: one), click your own to store it; T takes
   everything; Tab switches side.
 - **Crafting window**: *Make* (or Enter / E) makes one, Shift up to ten.

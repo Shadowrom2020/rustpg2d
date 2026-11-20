@@ -1762,6 +1762,8 @@ impl Game {
 
     pub fn update(&mut self, dt: f32) {
         self.rebuild_occupancy();
+        // Coins that reached the bag (picked up, from a chest, a script's) go into the purse.
+        self.world.bank_coins();
         self.player.track_heading();
         for e in &mut self.loaded.entities {
             e.body.track_heading();
@@ -2370,6 +2372,8 @@ impl Game {
     fn prepare_world(&mut self) {
         self.migrate_equipment();
         self.world.coins = self.coin_kinds();
+        // (Coins in an older save's bag go into the purse.)
+        self.world.bank_coins();
         // (The race's parent may have changed since the save: a race became a subrace.)
         self.world.player_race_parent = self.project.db.race(&self.world.player_race).map(|r| r.parent.clone()).unwrap_or_default();
         self.world.renumber_old_drops();

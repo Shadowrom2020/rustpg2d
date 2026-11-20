@@ -387,4 +387,10 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "climbing",
+        image: "sprites/climbing.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

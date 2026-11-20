@@ -72,6 +72,7 @@ mod soundscape;
 mod stealth;
 mod emotions;
 mod mouse;
+mod movement;
 mod spawner;
 mod rolls;
 mod thumbs;
@@ -346,6 +347,8 @@ struct Loaded {
     solid: Vec<bool>,
     /// Cells with a ladder tile (the player climbs them, characters keep off).
     ladder: Vec<bool>,
+    /// Ladder cells of climbable walls and ropes with an Athletics DC (`PropDef::climb_dc`).
+    climb_dc: std::collections::HashMap<(i32, i32), u32>,
     /// Cells whose tiles stop shots and sight (solid tiles that aren't low; props are in
     /// `occupancy`, see [`Game::blocks_shot`]).
     shot: Vec<bool>,
@@ -505,6 +508,8 @@ pub struct Game {
     portrait: Option<portraits::Speaker>,
     /// The furniture the player uses, the sleep sequence, and the bed a Sleep action lies in.
     seat: Option<furniture::Seat>,
+    /// The hero's run-up, climbing hold and last fall (`movement.rs`).
+    moves: movement::Moves,
     /// A map change waiting for the answer to "Leave … behind?" (knocked-down companions).
     leaving: Option<(String, Arrival)>,
     /// Seconds before leaving the map may ask again (after "Stay").
@@ -679,7 +684,7 @@ impl Game {
             thumb_request: None,
             after_thumb: None,
             fullscreen: None,
-            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], shot: vec![], entities: vec![], tile_lights: vec![], occupancy: Default::default(), materials: Default::default(), walls: vec![], decor_index: Default::default(), decor_looks: vec![] },
+            loaded: Loaded { map: Map::new("", 1, 1), solid: vec![], ladder: vec![], climb_dc: Default::default(), shot: vec![], entities: vec![], tile_lights: vec![], occupancy: Default::default(), materials: Default::default(), walls: vec![], decor_index: Default::default(), decor_looks: vec![] },
             project,
             assets,
             audio,
@@ -711,6 +716,7 @@ impl Game {
             last_barks: Default::default(),
             portrait: None,
             seat: None,
+            moves: Default::default(),
             leaving: None,
             leave_hold: 0.0,
             pending_companion: None,
@@ -1073,6 +1079,7 @@ impl Game {
         // their cells blocked (for planning), decorations what they cover (occupancy).
         let mut solid = map.compute_solid();
         let mut ladder = vec![false; solid.len()];
+        let mut climb_dc = std::collections::HashMap::new();
         let mut shot = solid.clone();
         let materials = crate::ground::MaterialTable::new(&map.materials, &self.project.db);
         let walls = solid.clone();
@@ -1102,6 +1109,9 @@ impl Game {
                 for (tx, ty) in crate::grid::tiles_of_rect(Rect::new(x, y, w, h), ts) {
                     if map.in_bounds(tx, ty) {
                         ladder[(ty as u32 * map.width + tx as u32) as usize] = true;
+                        if look.climb_dc > 0 {
+                            climb_dc.insert((tx, ty), look.climb_dc);
+                        }
                     }
                 }
             }
@@ -1116,9 +1126,17 @@ impl Game {
         for (i, _) in map.collision.iter().enumerate().filter(|(_, &c)| c == crate::map::CollisionOverride::Walkable as u8) {
             occupancy.unmark((i as u32 % map.width) as i32, (i as u32 / map.width) as i32, occupancy::OCC_PROP | occupancy::OCC_HIGH);
         }
+        // Drop zones: pits and ledges characters keep off.
+        for z in map.zones.iter().filter(|z| matches!(z.kind, ZoneKind::Drop { .. })) {
+            for ty in z.y..z.y + z.h {
+                for tx in z.x..z.x + z.w {
+                    occupancy.mark(tx as i32, ty as i32, occupancy::OCC_DROP);
+                }
+            }
+        }
         occupancy.keep_as_base();
         let decor_index = crate::decor::DecorIndex::build(&map.decor, map.width, map.height);
-        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, shot, entities, tile_lights, occupancy, materials, walls, decor_index, decor_looks });
+        let old = std::mem::replace(&mut self.loaded, Loaded { map, solid, ladder, climb_dc, shot, entities, tile_lights, occupancy, materials, walls, decor_index, decor_looks });
         self.rebuild_occupancy();
         self.restore_unlocked();
         // Quest objects show only once their quest is under way; offers and the markers' routes
@@ -1335,9 +1353,9 @@ impl Game {
         m.in_bounds(tx, ty) && self.loaded.ladder.get((ty as u32 * m.width + tx as u32) as usize).copied().unwrap_or(false)
     }
 
-    /// Tiles characters don't walk onto: solid ones and ladders (only the player climbs).
+    /// Tiles characters don't walk onto: solid ones, ladders (only the player climbs) and drops.
     fn tile_blocks_npc(&self, tx: i32, ty: i32) -> bool {
-        self.tile_solid(tx, ty) || self.tile_ladder(tx, ty)
+        self.tile_solid(tx, ty) || self.tile_ladder(tx, ty) || self.loaded.occupancy.has(tx, ty, occupancy::OCC_DROP)
     }
 
     /// The player stands on a ladder (feet on a ladder tile).
@@ -1398,10 +1416,10 @@ impl Game {
         let y0 = (r.y / ts).floor() as i32;
         let x1 = ((r.x + r.w - 0.001) / ts).floor() as i32;
         let y1 = ((r.y + r.h - 0.001) / ts).floor() as i32;
-        // Characters keep off ladders; the player climbs them.
+        // Characters keep off ladders and drops; the player climbs and falls.
         for ty in y0..=y1 {
             for tx in x0..=x1 {
-                if self.tile_solid_cells(tx, ty, r) || (npc && self.tile_ladder(tx, ty)) {
+                if self.tile_solid_cells(tx, ty, r) || (npc && (self.tile_ladder(tx, ty) || self.loaded.occupancy.has(tx, ty, occupancy::OCC_DROP))) {
                     return true;
                 }
             }
@@ -2024,6 +2042,10 @@ impl Game {
                 return;
             }
         }
+        // In the air (a jump over a pit): the hop's route moves the hero.
+        if self.hero_jumping() {
+            return;
+        }
         if let Some(target) = self.player.move_target {
             let speed = if self.fight.is_some() { self.player.speed.max(FIGHT_WALK * ts) } else { self.player.speed };
             let (pos, done) = step_towards(self.player.pos, target, speed * dt);
@@ -2099,12 +2121,17 @@ impl Game {
             }
             let delta = dir * self.player.speed * self.speed_factor() * run * dt;
             let before = self.player.pos;
-            self.player.pos = self.try_move(&self.player, delta, Mover::Player, false);
+            let after = self.try_move(&self.player, delta, Mover::Player, false);
+            // (A climbable wall with a DC: no hold, no step onto it.)
+            self.player.pos = if self.climb_hold(before, after) { after } else { before };
             self.push_past(dir, before, delta.length(), dt);
             self.player.moving = true;
             self.player.animate(dt * run);
+            let moved = self.player.pos.distance(before);
+            self.walk_step(dir, moved, dt);
         } else {
             self.player.moving = false;
+            self.walk_step(Vec2::ZERO, 0.0, dt);
         }
 
         // Map edges.
@@ -2124,8 +2151,13 @@ impl Game {
         for uid in left {
             self.fire(GameEvent::Leave, Source::Zone(uid));
         }
+        let running = run > 1.0;
         for uid in entered {
             self.fire(GameEvent::Enter, Source::Zone(uid));
+            // A pit or a ledge: a jump over it, or a fall.
+            if self.loaded.map.zones.iter().any(|z| z.uid == uid && matches!(z.kind, ZoneKind::Drop { .. })) && self.enter_drop(uid, running) {
+                return;
+            }
             let portal = self.loaded.map.zones.iter().find(|z| z.uid == uid).and_then(|z| match &z.kind {
                 ZoneKind::Portal { target_map, target_spawn } => Some((target_map.clone(), Arrival::Spawn(target_spawn.clone()))),
                 ZoneKind::Transition { target_map, target_zone } if !target_map.is_empty() => Some((target_map.clone(), Arrival::Beside(target_zone.clone()))),
@@ -2641,7 +2673,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2684,7 +2716,7 @@ impl Game {
             self.minigame_status(),
             self.image_status(),
             self.pose_status(),
-            self.climbing(),
+            self.climbing_status(),
             self.gather_status(),
             self.prop_states_status(),
             self.crops_status(),
@@ -2777,7 +2809,8 @@ impl Game {
             self.charges_status(),
             self.ammo_status(),
             if self.world.knocked_out.is_empty() { "-".to_string() } else { self.world.knocked_out.iter().map(|k| format!("{}@{}", if k.name.is_empty() { &k.def } else { &k.name }, k.map)).collect::<Vec<_>>().join(",") },
-            self.sight_status()
+            self.sight_status(),
+            self.fall_status()
         )
     }
 
@@ -3829,6 +3862,10 @@ impl ActionHost for Game {
             }
             Action::TakeMoney { cp } => {
                 self.take_money_action(*cp);
+                Step::Continue
+            }
+            Action::Fall { feet } => {
+                self.fall(*feet, "", "", None);
                 Step::Continue
             }
             Action::Lockpick { difficulty, var } => {

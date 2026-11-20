@@ -81,6 +81,7 @@ choose its kind in the inspector:
 | **Encounter** | Spawns a group of monsters, listed or picked for the party's level ([below](#encounters)). |
 | **Map transition** | One end of a two-way link between maps (below). |
 | **Fishing spot** | Water where the player can fish ([Gameplay › Fishing](09-gameplay.md#fishing)). |
+| **Drop** | A pit or a ledge's edge, its **height** in feet: the player walking in falls (1d6 bludgeoning per 10 ft, at most 20d6, and prone for a moment) and **lands on** the nearest spawn of that name, on this map or another (*Lands on map* empty = this one), or with no spawn on the first open tile past the zone. Running at it, or walking 10 ft up to it, jumps it when it is no wider than the hero's Strength score in feet (half without a run-up). Characters keep off it; fliers cross it in fights ([Maps › Climbing, jumping and falling](03-maps.md#climbing-jumping-and-falling)). |
 | **Ambience** | A looping sound heard here: full **volume** inside the zone, fading to nothing **fades over** that many tiles around it (0 = only inside). Birds over a meadow (a zone over the whole map), a river along its banks, a tavern's murmur over the room. Zones with the same sound play it once, at the loudest; different sounds mix, and they fade in and out as the player walks. Players set their loudness with *Options › Sound › Ambience volume* ([Art and sound › Soundscapes](10-art-and-sound.md#soundscapes-and-footsteps)). |
 
 The *Zones* button in the ribbon's View group shows or hides zones on the map. A selected portal has

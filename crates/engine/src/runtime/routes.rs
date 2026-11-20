@@ -322,6 +322,11 @@ impl Game {
         self.routes.iter().find(|r| r.who == who).and_then(|r| r.anim).map(|(clip, _)| Anim::Extra(clip, 0))
     }
 
+    /// Whether a walker is in the air (a route's jump).
+    pub(super) fn route_jumping(&self, who: Walker) -> bool {
+        self.routes.iter().any(|r| r.who == who && r.jump.is_some())
+    }
+
     /// How high a jumping walker is drawn above its feet (pixels; 0 = on the ground).
     pub(super) fn route_hop(&self, who: Walker) -> f32 {
         let Some((from, to, t)) = self.routes.iter().find(|r| r.who == who).and_then(|r| r.jump) else { return 0.0 };

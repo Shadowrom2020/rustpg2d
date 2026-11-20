@@ -1439,6 +1439,10 @@ pub struct PropDef {
     /// A ladder: the player climbs it (characters keep off), placed as a decoration.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub climb: bool,
+    /// A climbable wall or rope rather than a ladder: the Athletics DC to get onto it (0 = no
+    /// check). A failed check finds no hold; a hero with a climb speed needs none.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub climb_dc: u32,
     /// Placed on a grid of this many pixels (16 or 32: wall pieces); 0 = anywhere.
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub snap: u16,
@@ -1494,6 +1498,7 @@ impl Default for PropDef {
             door: false,
             carry: None,
             climb: false,
+            climb_dc: 0,
             snap: 0,
             pieces: vec![],
             anim: None,

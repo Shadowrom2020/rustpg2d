@@ -721,6 +721,9 @@ impl Editor {
                     return Err(format!("portal target_spawn \"{target_spawn}\" is not a spawn zone of {target_map}.{}", suggestions(target_spawn, spawns.iter().map(String::as_str))));
                 }
             }
+            ZoneKind::Drop { target_map, .. } if !target_map.is_empty() && !self.maps.contains(target_map) => {
+                return Err(format!("drop target_map \"{target_map}\" is not a map (\"\" = this map).{}", suggestions(target_map, self.maps.iter().map(String::as_str))));
+            }
             ZoneKind::Transition { target_map, .. } => {
                 if !self.maps.contains(target_map) {
                     return Err(format!("transition target_map \"{target_map}\" is not a map (link_maps makes matching pairs).{}", suggestions(target_map, self.maps.iter().map(String::as_str))));
@@ -746,7 +749,7 @@ impl Editor {
                     return Err(format!("ambience sound \"{sound}\" doesn't exist.{}", suggestions(sound, self.project.db.sounds.iter().map(|s| s.id.as_str()))));
                 }
             }
-            ZoneKind::Spawn | ZoneKind::Trigger => {}
+            ZoneKind::Spawn | ZoneKind::Trigger | ZoneKind::Drop { .. } => {}
         }
         let triggers: Vec<Trigger> = match triggers {
             Some(v) => serde_json::from_value(v.clone()).map_err(|e| format!("triggers: {e} (see events_reference)"))?,

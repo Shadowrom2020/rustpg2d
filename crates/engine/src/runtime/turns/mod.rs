@@ -411,7 +411,7 @@ impl Game {
         let base = match who {
             // (The class: Fast Movement, Unarmored Movement without armor and shield.)
             Who::Player => self.hero_speed_ft(),
-            // (Flyers fly over the grid: their best speed until 0.32's movement modes.)
+            // (Fliers fly at their best speed, over water, pits and low obstacles.)
             _ => self.who_block(who).map_or(30, |b| b.speed_ft.max(b.speeds.fly)),
         };
         let r = conditions::rules(self.who_conditions(who));
@@ -613,6 +613,16 @@ impl Game {
             }
             if let Some(list) = self.who_conditions_mut(f.who) {
                 conditions::remove(list, Condition::Unconscious);
+            }
+        }
+        // Fliers hovering over water, a pit or a low obstacle land on walkable ground (they walk
+        // outside fights).
+        for f in c.order.iter().filter(|f| !f.out) {
+            let Some(i) = self.who_index(f.who) else { continue };
+            if self.who_flies(f.who) && self.terrain_closed(self.who_tile(f.who)) {
+                let (body, pos) = (self.loaded.entities[i].body.clone(), self.loaded.entities[i].body.pos);
+                self.loaded.entities[i].body.pos = self.free_spot(&body, pos, super::Mover::Npc(self.loaded.entities[i].uid));
+                self.occupy(i);
             }
         }
         // Half the ammunition shot is found again (the SRD: a minute's search after the fight).
@@ -877,14 +887,30 @@ impl Game {
     /// Tiles a creature may not enter: solid tiles, props, and the tiles of its foes (allies may
     /// be passed, not stopped on: `stop`).
     /// A tile no one walks onto, whoever stands where: off the map, blocked ground, a solid prop.
+    /// Whether a creature can't step onto `t`: a walker [`Game::terrain_closed`], a flier only
+    /// what stops shots too (walls, solid ground, props that aren't low).
+    pub(super) fn closed_for(&self, t: TilePos, fly: bool) -> bool {
+        if fly {
+            self.blocks_shot(t.0, t.1)
+        } else {
+            self.terrain_closed(t)
+        }
+    }
+
+    /// Whether `who` flies (a fly speed in its stat block): it crosses water, pits and low
+    /// obstacles in fights.
+    pub(super) fn who_flies(&self, who: Who) -> bool {
+        who != Who::Player && self.who_block(who).is_some_and(|b| b.speeds.fly > 0)
+    }
+
     pub(super) fn terrain_closed(&self, t: TilePos) -> bool {
         !self.loaded.map.in_bounds(t.0, t.1) || self.tile_blocks_npc(t.0, t.1) || self.loaded.occupancy.has(t.0, t.1, super::occupancy::OCC_PROP)
     }
 
     /// Walking distances (steps) to `goals` over the terrain (creatures don't block), out to
     /// `limit` steps: the AI's way round trees and walls to a foe.
-    pub(super) fn walk_distances(&self, goals: &[TilePos], limit: i32) -> std::collections::HashMap<TilePos, i32> {
-        distance_field(goals, limit, |t| self.terrain_closed(t))
+    pub(super) fn walk_distances(&self, goals: &[TilePos], limit: i32, fly: bool) -> std::collections::HashMap<TilePos, i32> {
+        distance_field(goals, limit, |t| self.closed_for(t, fly))
     }
 
     /// Where a creature can walk this turn: tile -> (feet it costs, the tile before it); the
@@ -898,6 +924,7 @@ impl Game {
         let n = self.space_n(who);
         let my_size = self.who_size(who);
         let fighters = self.fighter_tiles(who);
+        let fly = self.who_flies(who);
         // Frightened: no step closer to the source of its fear while it sees it.
         let fear = self.fear_in_sight(who).map(|s| {
             let (at, sn) = (self.space_anchor(s), self.space_n(s));
@@ -915,7 +942,7 @@ impl Game {
             }
             for d in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
                 let f = (t.0 + d.0, t.1 + d.1);
-                let Some((space, squeezed)) = self.space_at(f, n) else { continue };
+                let Some((space, squeezed)) = self.space_for(f, n, fly) else { continue };
                 let mut through = false;
                 if fighters.iter().any(|(w, s, p)| space.contains(p) && {
                     through = true;
@@ -927,7 +954,7 @@ impl Game {
                     continue;
                 }
                 // A diagonal step, unless both corners are walls (no squeezing through).
-                if n == 1 && d.0 != 0 && d.1 != 0 && !diagonal_ok(self.terrain_closed((t.0 + d.0, t.1)), self.terrain_closed((t.0, t.1 + d.1))) {
+                if n == 1 && d.0 != 0 && d.1 != 0 && !diagonal_ok(self.closed_for((t.0 + d.0, t.1), fly), self.closed_for((t.0, t.1 + d.1), fly)) {
                     continue;
                 }
                 // (Difficult ground under any of its tiles, squeezing, or another's space: double.)
@@ -943,14 +970,19 @@ impl Game {
             }
         }
         // Spaces with someone on them can be passed, not ended on (kept for the paths through them).
-        let (tiles, passed) = out.into_iter().partition(|(f, _)| *f == start || self.space_at(*f, n).is_none_or(|(space, _)| !fighters.iter().any(|(_, _, p)| space.contains(p))));
+        let (tiles, passed) = out.into_iter().partition(|(f, _)| *f == start || self.space_for(*f, n, fly).is_none_or(|(space, _)| !fighters.iter().any(|(_, _, p)| space.contains(p))));
         Reach { tiles, passed }
     }
 
     /// The tiles an `n`-tile creature takes with its feet on `feet`, if the terrain lets it stand
     /// there: its whole square, or (squeezing, `true`) the square one size smaller.
     pub(super) fn space_at(&self, feet: TilePos, n: i32) -> Option<(Vec<TilePos>, bool)> {
-        let open = |t: &TilePos| !self.terrain_closed(*t);
+        self.space_for(feet, n, false)
+    }
+
+    /// [`Game::space_at`] for a flier too (`fly`: over water, pits and low obstacles).
+    pub(super) fn space_for(&self, feet: TilePos, n: i32, fly: bool) -> Option<(Vec<TilePos>, bool)> {
+        let open = |t: &TilePos| !self.closed_for(*t, fly);
         let full = rules::footprint(rules::space_anchor(feet, n), n);
         if full.iter().all(open) {
             return Some((full, false));

@@ -1084,7 +1084,12 @@ added here.
   example's cult fanatic in the mine casting Hold Person (slot 2) and then Sacred Flame (three
   seeds). Not run end to end: Help, a grapple by the AI.
 
-- [ ] Movement, senses and the environment — `feature/srd-environment`
+- [ ] Movement, senses and the environment — three parts (the user's decision, 2026-11-20):
+  1. [x] **Movement:** climb, jump, fall, fliers — `feature/srd-movement`.
+  2. [ ] **Survival and travel:** food and water (an option, off in the example), encumbrance (the
+     plain rule, the variant as an option), travel pace, forced march — `feature/srd-survival`.
+  3. [ ] **Rests and checks:** rests by the rules, group checks, help, contests, passive checks for
+     any skill, dim light and Perception — `feature/srd-checks`.
 
   **Goal.** The *Adventuring* chapter's movement and environment rules, in and out of fights.
 
@@ -1122,6 +1127,32 @@ added here.
   **Verify.** Unit tests of jump distances, fall damage and carrying capacity; autoplay: climb the
   ledge, fall into the pit (`status` HP and prone), a Perception check in dim
   light with disadvantage.
+
+  **Part 1 decided while building.** Height is built from *Drop* zones (your choice) with a height
+  and a landing (a spawn on this or another map, else the tile past the zone), jumps happen by
+  running (no key), and climbable walls are *Ladder* props with an Athletics DC. High jumps are left
+  out (nothing to jump onto on a flat map); the hero has no climb speed (no race gives one). Fliers
+  cross obstacles only in fights: out of fights everyone walks (a flier's walk would touch every
+  collision check, and monsters start their fight on reaching the hero). A jump or a fall lands on
+  the tile past the gap, else one beside it (a prop's hitbox can reach the landing). The mine's coal
+  vein moved one tile left so the rough wall's top is free.
+
+  **Part 1 as built.** `ZoneKind::Drop { height_ft, target_map, target_spawn }` (appended);
+  `PropDef.climb_dc` / `DecorLook.climb_dc`; `OCC_DROP` in the occupancy base (characters, the
+  click path and fights keep off); `runtime/movement.rs` (`Moves`, `fall_dice`, `long_jump_ft`,
+  `gap_along`, `walk_step`, `climb_hold`, `enter_drop`, `fall`, `land_at`, `fall_status`,
+  `climbing_status`); the hop is a player route (*Through* + *Jump*, `route_jumping`); fliers:
+  `who_flies`, `closed_for`, `space_for`, `walk_distances(…, fly)`, landing at the fight's end;
+  `Action::Fall` (appended) and `fall(feet)`; editor: the zone form, canvas label and colour,
+  Problems, the agent server's zone checks, renames of the landing map; the prop form's DC.
+
+  **Part 1 verified.** Unit tests (fall dice, jump distances, gaps). Autoplay on a scratch copy:
+  walking into the shaft (`fall=20ft:4`, HP 12 to 8, prone, landed in the chamber); climbing the
+  rough wall (seeds 1-3 at once, seed 4 failing 8/12 then holding after two seconds, out into the
+  lair); running down over the crack (`:jump`, no damage) and up again; walking into it from
+  standing (1d6, landed past it); two bats of the rats' nest flying over the crack to bite the hero.
+  The editor's Drop form (screenshot) and Problems (none). Not run end to end: a flier landing
+  after a fight that ended with it over a drop, a drop onto another map.
 
 - [ ] Objects, traps, poisons, diseases and madness — `feature/srd-hazards`
 

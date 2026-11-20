@@ -217,6 +217,7 @@ pub const API: &[ApiFn] = api! {
     [since "0.31"] "money"() "The hero's money in copper pieces: every coin carried by its worth (gp 100, sp 10, cp 1, ep 50, pp 1000)";
     [since "0.31"] "give_money"(cp: Num) "Gives the hero money in the fewest gold, silver and copper pieces, e.g. give_money(250) = 2 gp 5 sp";
     [since "0.31"] "take_money"(cp: Num) "Takes money from the hero's coins, the change given back; false (nothing taken) when they have less";
+    [since "0.32"] "fall"(feet: Num) "The hero falls this many feet (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft (at most 20d6) into the roll log, prone for a moment; they stay where they are (queued)";
     [since "0.31"] "format_money"(cp: Num) "A sum in copper pieces as it reads in the player's language: format_money(150) = \"1 gp 5 sp\"";
     [since "0.30"] "spell_slots"(level: Num) "How many spell slots of a level (1-9) the hero has at their class level";
     [since "0.30"] "slots_left"(level: Num) "Spell slots of a level (1-9) the hero has left until a rest";

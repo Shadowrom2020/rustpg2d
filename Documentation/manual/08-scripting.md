@@ -368,6 +368,7 @@ coins itself.
 | `money()` | The player's money in copper pieces: every coin carried by its worth. *(since 0.31)* |
 | `give_money(cp)` | Gives money in the fewest gold, silver and copper pieces: `give_money(250)` = 2 gp 5 sp. *(since 0.31)* |
 | `take_money(cp)` | Takes money from the player's coins and gives the change back; `false` (nothing taken) when they have less. *(since 0.31)* |
+| `fall(feet)` | The player falls this many feet (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft (at most 20d6) into the roll log, prone for a moment; they stay where they are. *(since 0.32)* |
 | `format_money(cp)` | A sum as it reads in the player's language: `format_money(150)` = `"1 gp 5 sp"`. Put it into a text variable (`set_text`) to show it in a dialog. *(since 0.31)* |
 
 ```rust

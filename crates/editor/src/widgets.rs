@@ -1938,6 +1938,10 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             });
             ui.weak("(\"player\" or a party member on this map: the class's saving throws and proficiencies; its choices open the level-up window; Database › Classes)");
         }
+        Action::Fall { feet } => {
+            ui.add(egui::DragValue::new(feet).range(0..=500).suffix(" ft").speed(5.0));
+            ui.weak("(1d6 bludgeoning per 10 ft, at most 20d6, and prone for a moment; the hero stays where they are: a Drop zone moves them)");
+        }
         Action::GiveMoney { cp } | Action::TakeMoney { cp } => {
             let (mut gp, mut sp, mut c) = (*cp / 100, *cp % 100 / 10, *cp % 10);
             let mut changed = ui.add(egui::DragValue::new(&mut gp).range(0..=999_999).suffix(" gp")).changed();

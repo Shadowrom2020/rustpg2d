@@ -22,6 +22,9 @@ pub(super) const OCC_DECOR: u8 = 16;
 pub(in crate::runtime) const OCC_FOLIAGE: u8 = 32;
 /// Rough decorations (undergrowth, rubble) on the tile: difficult terrain in fights.
 pub(in crate::runtime) const OCC_ROUGH: u8 = 64;
+/// A *Drop* zone (a pit, a ledge's edge): characters keep off it, the hero falls or jumps, fliers
+/// cross it in fights.
+pub(in crate::runtime) const OCC_DROP: u8 = 128;
 
 #[derive(Default)]
 pub(super) struct Occupancy {

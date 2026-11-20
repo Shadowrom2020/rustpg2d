@@ -497,6 +497,20 @@ mod tests {
         }
     }
 
+    /// A Drop zone (0.32) saves and loads with its height and landing; one without a landing
+    /// reads with empty fields.
+    #[test]
+    fn drop_zones_round_trip() {
+        use crate::map::{Zone, ZoneKind};
+        let mut m = Map::new("m", 8, 8);
+        let kind = ZoneKind::Drop { height_ft: 20, target_map: "cellar".into(), target_spawn: "bottom".into() };
+        let uid = m.alloc_uid();
+        m.zones.push(Zone { uid, name: "shaft".into(), x: 2, y: 3, w: 2, h: 2, kind: kind.clone(), triggers: vec![], loot: None });
+        assert_eq!(decode(&encode(&m).unwrap()).unwrap().zones[0].kind, kind);
+        let bare: ZoneKind = ron::from_str("Drop(height_ft: 10)").unwrap();
+        assert_eq!(bare, ZoneKind::Drop { height_ft: 10, target_map: String::new(), target_spawn: String::new() });
+    }
+
     /// One map object that can't be read (a newer version's variant, a hand edit) is left out
     /// with a warning; the rest of the map loads.
     #[test]

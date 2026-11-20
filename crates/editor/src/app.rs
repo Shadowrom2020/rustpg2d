@@ -3209,6 +3209,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
             ZoneKind::FishingSpot { .. } => 5,
             ZoneKind::Ambience { .. } => 6,
             ZoneKind::Encounter { .. } => 7,
+            ZoneKind::Drop { .. } => 8,
         };
         let old = k;
         ui.vertical(|ui| {
@@ -3223,6 +3224,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
                 ui.radio_value(&mut k, 5, "Fishing spot");
                 ui.radio_value(&mut k, 6, "Ambience");
                 ui.radio_value(&mut k, 7, "Encounter");
+                ui.radio_value(&mut k, 8, "Drop");
             });
         });
         if k != old {
@@ -3234,6 +3236,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
                 5 => ZoneKind::FishingSpot { rod: String::new() },
                 6 => ZoneKind::Ambience { sound: String::new(), volume: 0.6, fade: 4.0 },
                 7 => default_encounter(refs),
+                8 => ZoneKind::Drop { height_ft: 20, target_map: String::new(), target_spawn: String::new() },
                 _ => default_spawner(refs),
             };
         }
@@ -3327,6 +3330,29 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
             }
             ui.end_row();
         }
+        if let ZoneKind::Drop { height_ft, target_map, target_spawn } = &mut z.kind {
+            ui.label("Height");
+            ui.add(egui::DragValue::new(height_ft).range(0..=500).speed(5.0).suffix(" ft")).on_hover_text("How deep the fall is: 1d6 bludgeoning per 10 ft (at most 20d6)");
+            ui.end_row();
+            ui.label("Lands on map");
+            ui.horizontal(|ui| {
+                widgets::suggest(ui, "drop_map", target_map, &refs.maps, 120.0);
+                if target_map.is_empty() {
+                    ui.weak("(this map)");
+                }
+            });
+            ui.end_row();
+            ui.label("Lands on spawn");
+            let on = if target_map.is_empty() { refs.current_map.clone() } else { target_map.clone() };
+            let spawns = refs.spawns.get(on.as_str()).cloned().unwrap_or_default();
+            ui.horizontal(|ui| {
+                widgets::suggest(ui, "drop_spawn", target_spawn, &spawns, 120.0);
+                if target_spawn.is_empty() {
+                    ui.weak("(beyond: the tile past the zone)");
+                }
+            });
+            ui.end_row();
+        }
         if let ZoneKind::Ambience { sound, volume, fade } = &mut z.kind {
             ui.label("Sound");
             widgets::suggest(ui, "amb_sound", sound, &refs.sounds, 130.0);
@@ -3418,6 +3444,9 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
         }
         ZoneKind::Ambience { .. } => {
             ui.weak("Invisible in the game: a looping sound heard here, full inside the zone and fading out around it (birds over a meadow, a river along its banks, a tavern's murmur over the whole room). Zones with the same sound play it once, at the loudest. The player's Ambience volume option applies.");
+        }
+        ZoneKind::Drop { .. } => {
+            ui.weak("A pit or a ledge's edge. The player walking in falls: 1d6 bludgeoning per 10 ft of height (at most 20d6) and prone for a moment, landing on the nearest spawn of that name (on this map or another), or without a spawn on the first tile past the zone in the direction they walked. Running at it (or walking 10 ft up to it) jumps it when it is no wider than the hero's Strength score in feet (half without a run-up). Characters keep off it; fliers cross it in fights.");
         }
         ZoneKind::FishingSpot { .. } => {
             ui.weak("Draw it over the water where the fish are. Facing it from the shore (up to 3 tiles away), the player presses E to cast: the bobber lands on the zone, then wait for the bite, strike, and hold E to reel in without breaking the line. Fish shadows glide through the zone now and then to show players where to fish. The catch comes from the table below (chances are weights: every fish landed gives one entry).");

@@ -96,6 +96,9 @@ across map changes and in save games.
   silver and copper pieces and a toast ("Got 2 gp 5 sp", "Paid 5 sp"). *Take money* takes nothing
   when the hero has less: check *Has money* first. The project needs coins (items with a *Coin
   worth*).
+- **Fall** (feet): the hero falls (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft, at
+  most 20d6, into the roll log, and prone for a moment; they stay where they are (move them with
+  *Teleport*, or use a *Drop* zone).
 - **Change standing**: raises or lowers the player's standing with a faction (*Database ›
   Factions*); at -20 or below its characters attack the player, above it they calm
   down at once.

@@ -454,6 +454,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   (the example gains those spells, *Inflict Wounds* and *Command*).
 - `combat=` shows a casting monster's slots left (`$1:4,2:3`); a heal in a fight is logged.
 
+### Movement (SRD 5.1, part 1: climb, jump, fall, fly)
+- **Drop zones:** a pit or a ledge's edge with a height: walking in falls (1d6 bludgeoning per
+  10 ft, at most 20d6, prone for a moment) and lands on a spawn (this map or another) or past the
+  zone. Characters keep off them; the click-to-walk path goes round them.
+- **Jumping:** running at a drop (or walking 10 ft up to it) leaps it when it is no wider than the
+  hero's Strength score in feet (half from standing).
+- **Climbing:** a *Ladder* prop with an Athletics DC is a climbable wall or rope: a check to get a
+  hold, another try two seconds after a failure. The library has the *Rough rock wall* (DC 12) and
+  the *Climbing rope*.
+- **Fliers** cross drops, water and low obstacles in fights and land on walkable ground after.
+- **Fall** action and `fall(feet)` for trapdoors and collapsing floors; `status` prints `fall=` and
+  `climbing=true:dcN`.
+- **Example:** the shaft in Grumbold's lair drops into a chamber with a rough wall back up; a crack
+  in the corridor to the rats' nest is jumped at a run.
+
 ### Money is a purse
 - The hero keeps no coins in the bag: money is a value in copper pieces on the character sheet
   (*Money* on the Character tab and now the Sheet tab). Coins that reach the hero (picked up from a

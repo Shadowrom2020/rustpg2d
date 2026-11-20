@@ -146,6 +146,10 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   attacks (else an unarmed strike) and walks to its weapon to pick it up when it can. Fighters walk through their allies' tiles, and round trees and walls by the
   walking distance to their foe (not into dead ends). Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
   fight 15 tiles away; it drinks a healing potion it carries when its health is critical.
+- **Fliers** (a fly speed in the stat block) cross pits, water and low obstacles in fights; walls
+  and tall props still stop them. Those that end a fight over one land on the nearest walkable tile.
+  The hero falls, jumps and climbs outside fights ([Maps › Climbing, jumping and
+  falling](03-maps.md#climbing-jumping-and-falling)); in a fight drops are closed to walkers.
 - **The AI's spells:** a party member with a casting class handed to the AI and a monster with
   *Spellcasting* in its stat block choose a spell before attacking: **healing** first when an ally
   in range (itself too) is down or below a third of its hit points (the strongest heal, at its

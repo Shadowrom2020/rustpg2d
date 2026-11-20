@@ -75,7 +75,8 @@ dialog is open), `cutscene`, `quests` (quest id → stage), `inv`, `flags`, `var
 `enemies`, `menu` (`defeated` after a death), `autosave`, `schedule` (scheduled characters:
 name:stop-time[>map](walking|inside|elsewhere)[:sit|:lie]@x,y), `sounds` (the last six sound
 effects started, also when the game is muted: a bell or an animal's call), `climbing` (the
-player is on a ladder), `foes` (the hostile characters on the map with their HP and tile:
+player is on a ladder: `true`, `true:dc12` on a climbable wall with a check, `false`), `fall` (the last fall's
+height and damage, `20ft:7`, `-` without one; `:jump` while the hero is in the air), `foes` (the hostile characters on the map with their HP and tile:
 whether a shot hit), `device` (the device used last: hints show keys or pad buttons; `pad a`
 switches to the pad, `press` or a click back), `pad_style` (how buttons are drawn), `combat` (the fight going on: whose turn, the movement and
 action left, the turn order with hit points) and `death_saves` (who is down at 0 HP and how their

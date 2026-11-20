@@ -1821,6 +1821,15 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.separator();
     object_ui(ui, d);
     ui.separator();
+    ui.heading("Trap");
+    let mut trapped = d.trap.is_some();
+    if ui.checkbox(&mut trapped, "Trapped (a needle in the lock, darts from a statue)").on_hover_text("Springs when the prop is used (E, opening, unlocking) unless the hero found and disarmed it first: found by passive Perception or Investigation within 2 tiles or a Search, disarmed with E (DEX, Thieves' Tools).").changed() {
+        d.trap = trapped.then(|| rustpg2d_engine::srd::traps::TrapSpec::preset("poison_needle").unwrap_or_default());
+    }
+    if let Some(t) = &mut d.trap {
+        widgets::trap_ui(ui, "prop_trap", t);
+    }
+    ui.separator();
     use_spot_ui(ui, d, cx);
     ui.separator();
     ui.heading("Default triggers");

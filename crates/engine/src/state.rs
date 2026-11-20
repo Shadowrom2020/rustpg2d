@@ -385,6 +385,9 @@ pub struct WorldState {
     /// What the class adds to checks (computed from the class; not saved).
     #[serde(skip)]
     pub training: crate::srd::check::Training,
+    /// The traps' states (found, disarmed, sprung) by `map/uid` of their zone or prop.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub traps: BTreeMap<String, crate::srd::traps::TrapState>,
     /// Food, water and the march of the day (the survival rules; untouched while they are off).
     #[serde(default, skip_serializing_if = "is_default_survival")]
     pub survival: crate::srd::survival::Survival,

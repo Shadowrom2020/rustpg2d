@@ -51,6 +51,8 @@ struct Ctx {
     locks: Vec<(u32, String, bool)>,
     /// Props with object statistics on the current map: (uid, name, hit points) (`prop_hp`).
     objects: Vec<(u32, String, i32)>,
+    /// The traps on the current map: (name, state) (`trap_state`).
+    traps: Vec<(String, String)>,
     /// Consumable item ids (`is_consumable`).
     consumables: std::collections::BTreeSet<String>,
     /// Magic items' charges by item id (`item_charges`).
@@ -180,6 +182,11 @@ impl ScriptHost {
     /// The props with a lock on the current map: (uid, name, locked).
     pub fn set_locks(&mut self, locks: Vec<(u32, String, bool)>) {
         self.ctx.borrow_mut().locks = locks;
+    }
+
+    /// The traps on the current map: (zone or prop name, "armed" | "found" | "disarmed" | "sprung").
+    pub fn set_traps(&mut self, traps: Vec<(String, String)>) {
+        self.ctx.borrow_mut().traps = traps;
     }
 
     /// The props with object statistics on the current map: (uid, name, hit points).
@@ -1178,6 +1185,8 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         let owner = c.owner;
         c.objects.iter().find(|o| if t.is_empty() || t == "self" { Some(o.0) == owner } else { o.1 == t }).map_or(-1, |o| o.2 as i64)
     }));
+    engine.register_fn("trap_state", with!(ctx, |c, t: &str| c.traps.iter().find(|x| x.0 == t).map_or(String::new(), |x| x.1.clone())));
+    engine.register_fn("disarm_trap", with!(ctx, |c, t: &str| c.actions.push(Action::DisarmTrap { target: t.into() })));
     engine.register_fn("damage_prop", with!(ctx, |c, t: &str, amount: i64| c.actions.push(Action::DamageProp { target: t.into(), amount: amount as i32, damage_type: None })));
     engine.register_fn("damage_prop", with!(ctx, |c, t: &str, amount: i64, kind: &str| c.actions.push(Action::DamageProp { target: t.into(), amount: amount as i32, damage_type: crate::srd::DamageType::parse(kind) })));
     engine.register_fn("play_sound", with!(ctx, |c, id: &str| c.actions.push(Action::PlaySound { sound: id.into(), volume: 1.0, pitch: 1.0, pan: 0.0 })));

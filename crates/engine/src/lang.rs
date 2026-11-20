@@ -512,7 +512,18 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     // placed entities.
     project.for_each_trigger(&mut |site, ts| {
         match site {
-            crate::events::TriggerSite::Prop(p) => lock_texts(p.lock.as_ref(), p.container.as_ref(), &mut add),
+            crate::events::TriggerSite::Prop(p) => {
+                lock_texts(p.lock.as_ref(), p.container.as_ref(), &mut add);
+                // (A trap's line when it springs.)
+                if let Some(t) = &p.trap {
+                    add(&t.text);
+                }
+            }
+            crate::events::TriggerSite::Zone { zone, .. } => {
+                if let crate::map::ZoneKind::Trap { trap } = &zone.kind {
+                    add(&trap.text);
+                }
+            }
             crate::events::TriggerSite::Entity { entity, .. } => lock_texts(entity.lock.as_ref(), entity.container.as_ref(), &mut add),
             _ => {}
         }

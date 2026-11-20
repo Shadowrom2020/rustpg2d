@@ -119,6 +119,13 @@ Crates, chests and doors can be **smashed**: Attack (X) next to one (a sturdy do
 (a Dexterity check with Thieves' Tools): you need **thieves' tools** in your bag. If it holds, give
 it ten minutes before you try again.
 
+**Traps**: dungeons hide pits, pressure plates and needles in locks. Coming within two tiles of
+one, a sharp eye (Perception) or a clever mind (Investigation) may notice it: "You spot a trap."
+and a red outline on the floor, or a red mark over a chest. Light helps; in the dark you see
+nothing. *Search* looks around on purpose. Walk around a found trap, or stand next to it and press
+E to disarm it with your **thieves' tools** (a Dexterity check: fail badly and it springs). A found
+trapped chest is disarmed first; press E again to open it.
+
 **Weapons and armor**: the item's line in the character window tells its dice and properties
 (`1d8 (1d10) · Versatile`: more damage with the left hand free) or its armor class (`Heavy armor ·
 AC 16 · STR 13`). Armor you aren't trained in makes you clumsy (disadvantage on Strength and

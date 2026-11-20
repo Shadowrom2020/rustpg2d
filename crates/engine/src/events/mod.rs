@@ -44,6 +44,9 @@ pub enum GameEvent {
     CombatEnd,
     /// The hero searched (the action bar's Search): zones they stand in, things within 2 tiles.
     Search,
+    /// A trap sprang on the hero / was disarmed (its zone's or prop's triggers).
+    TrapSprung,
+    TrapDisarmed,
 }
 
 /// Which events a trigger reacts to.
@@ -76,6 +79,10 @@ pub enum TriggerOn {
     /// The hero searched here (the action bar's Search): a zone they stand in, a prop or a
     /// character within 2 tiles. *Search found* compares the roll.
     Search,
+    /// The zone's or prop's trap sprang on the hero.
+    TrapSprung,
+    /// The zone's or prop's trap was disarmed.
+    TrapDisarmed,
 }
 
 /// Where a trigger lives. The game only sends some events to each kind of owner (see
@@ -104,9 +111,9 @@ impl TriggerOwner {
             // emit() / "Emit event" reach the map, its zones and its entities.
             (O::Map | O::Zone | O::Character | O::Prop | O::Pickup, T::Custom { .. }) => true,
             (O::Map, T::MapEnter | T::Sleep | T::Hour { .. } | T::CombatStart | T::CombatEnd) => true,
-            (O::Zone, T::Enter | T::Leave | T::Interact | T::Search) => true,
+            (O::Zone, T::Enter | T::Leave | T::Interact | T::Search | T::TrapSprung | T::TrapDisarmed) => true,
             (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. } | T::CombatStart | T::CombatEnd | T::Search) => true,
-            (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep | T::Search | T::Defeat) => true,
+            (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep | T::Search | T::Defeat | T::TrapSprung | T::TrapDisarmed) => true,
             (O::Pickup, T::Interact | T::UseItem { .. }) => true,
             (O::ItemUse, T::UseItem { .. }) => true,
             _ => false,
@@ -164,7 +171,9 @@ impl TriggerOn {
             | (TriggerOn::Sleep, GameEvent::Sleep)
             | (TriggerOn::CombatStart, GameEvent::CombatStart)
             | (TriggerOn::CombatEnd, GameEvent::CombatEnd)
-            | (TriggerOn::Search, GameEvent::Search) => true,
+            | (TriggerOn::Search, GameEvent::Search)
+            | (TriggerOn::TrapSprung, GameEvent::TrapSprung)
+            | (TriggerOn::TrapDisarmed, GameEvent::TrapDisarmed) => true,
             (TriggerOn::UseItem { item: want }, GameEvent::UseItem { item }) => {
                 want.is_empty() || want == item
             }
@@ -204,6 +213,8 @@ impl TriggerOn {
             TriggerOn::CombatStart => "Fight starts",
             TriggerOn::CombatEnd => "Fight ends",
             TriggerOn::Search => "Searched",
+            TriggerOn::TrapSprung => "Trap sprung",
+            TriggerOn::TrapDisarmed => "Trap disarmed",
         }
     }
 
@@ -224,6 +235,8 @@ impl TriggerOn {
             TriggerOn::CombatStart,
             TriggerOn::CombatEnd,
             TriggerOn::Search,
+            TriggerOn::TrapSprung,
+            TriggerOn::TrapDisarmed,
         ]
     }
 }
@@ -1007,6 +1020,9 @@ pub enum Action {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         damage_type: Option<crate::srd::DamageType>,
     },
+    /// Disarms the trap of the zone or prop named `target` on this map (a lever, a hidden
+    /// switch): it no longer springs.
+    DisarmTrap { target: TargetName },
 }
 
 fn player_target() -> TargetName {
@@ -1221,6 +1237,7 @@ impl Action {
             Action::GroupCheck { .. } => "Group check",
             Action::Contest { .. } => "Contest",
             Action::DamageProp { .. } => "Damage prop",
+            Action::DisarmTrap { .. } => "Disarm trap",
         }
     }
 
@@ -1345,6 +1362,7 @@ impl Action {
             Action::GroupCheck { what: "stealth".into(), dc: 12, then: Vec::new(), otherwise: Vec::new() },
             Action::Contest { what: "athletics".into(), target: String::new(), against: String::new(), then: Vec::new(), otherwise: Vec::new() },
             Action::DamageProp { target: "self".into(), amount: 5, damage_type: Some(crate::srd::DamageType::Bludgeoning) },
+            Action::DisarmTrap { target: String::new() },
         ]
     }
 }

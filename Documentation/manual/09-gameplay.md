@@ -902,6 +902,42 @@ chests and crates) are the SRD's objects:
 
 `status` prints `objects=` (`name:hp/max@x,y` for damaged or broken props).
 
+## Traps
+
+Trap zones (*Map › Zones › Trap*) and trapped props (*Database › Props › Trap*) are the SRD's traps
+(since 0.32):
+
+- **Noticing**: within 2 tiles the hero notices a trap when their passive Perception (10 + the
+  bonus), or passive Investigation for one found by studying it (a pressure plate, a needle in a
+  lock), reaches its DC: "You spot a trap.", a red outline on the zone or a red mark over the prop.
+  Both count as sight: dim light gives −5, darkness hides the trap. A **Search** on the action bar
+  rolls Perception, and Investigation when such a trap is near, against the traps within 2 tiles.
+- **Disarming**: E standing in or beside a found trap zone, or on a found trapped prop, rolls DEX
+  with Thieves' Tools against its disarm DC (the proficiency adds the bonus; without the tools:
+  "You need thieves' tools to disarm it."). A success disarms it for good; a failure by 5 or more
+  springs it; a smaller one waits ten minutes of game time. A pit can't be disarmed (DC 0): go
+  around it.
+- **Springing**: walking into an armed trap zone, found or not, or using an armed trapped prop
+  that wasn't found. An attack roll against the hero's armor class or a saving throw, the damage
+  (half or none on a successful save), a second save after a hit (the darts' and the needle's
+  poison), a condition (a net's *restrained*, a needle's *poisoned* for an hour), a fall (1d6 per
+  10 ft and prone). The rolls go into the journal's *Rolls* page. A trap set to be armed again
+  after some hours springs again then; the others are spent. Companions and other characters
+  don't spring traps, and nothing springs in a fight.
+- The SRD's sample traps are the presets: collapsing roof (DEX 15, 4d10 bludgeoning), falling net
+  (restrained), fire-breathing statue (DEX 13, 4d10 fire), hidden pit (10 ft), poison darts (+8,
+  1d4 piercing, CON 15 or 2d10 poison), poison needle (1 piercing, CON 15 or 2d10 poison and
+  poisoned), rolling sphere (DEX 15, 10d10 bludgeoning).
+- Found, disarmed and sprung traps are kept in save games. *Trap sprung* and *Trap disarmed*
+  triggers react to them; `trap_state("name")` and `disarm_trap("name")` in scripts, *Disarm trap*
+  as an action.
+- In the example the mine has three: a hidden pit in the corridor to the rats' nest (Perception
+  15), a pressure plate that fires poison darts from the walls (Investigation 15, armed again after
+  a day) and an old chest with a poison needle (Investigation 20). Its darts and needle deal 1d6 and
+  1d10 poison, the SRD's *setback* damage for levels 1 to 4, not the samples' 2d10.
+
+`status` prints `traps=` (`name:armed|found|disarmed|sprung@x,y`, the traps on the map).
+
 ## Lockpicking
 
 A lock with a **Pick DC** (*Database › Props › Lockable*, or a placed prop's lock) can be picked:

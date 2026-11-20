@@ -511,6 +511,22 @@ mod tests {
         assert_eq!(bare, ZoneKind::Drop { height_ft: 10, target_map: String::new(), target_spawn: String::new() });
     }
 
+    /// A Trap zone (0.32) saves and loads with its trap; one written with only some fields reads
+    /// the rest as the defaults.
+    #[test]
+    fn trap_zones_round_trip() {
+        use crate::map::{Zone, ZoneKind};
+        use crate::srd::traps::{Reset, TrapSpec};
+        let mut m = Map::new("m", 8, 8);
+        let trap = TrapSpec { reset: Reset::After { hours: 24.0 }, ..TrapSpec::preset("poison_darts").unwrap() };
+        let kind = ZoneKind::Trap { trap: trap.clone() };
+        let uid = m.alloc_uid();
+        m.zones.push(Zone { uid, name: "plate".into(), x: 2, y: 3, w: 1, h: 3, kind: kind.clone(), triggers: vec![], loot: None });
+        assert_eq!(decode(&encode(&m).unwrap()).unwrap().zones[0].kind, kind);
+        let bare: ZoneKind = ron::from_str("Trap(trap: (fall_ft: 10))").unwrap();
+        assert_eq!(bare, ZoneKind::Trap { trap: TrapSpec { fall_ft: 10, ..TrapSpec::default() } });
+    }
+
     /// One map object that can't be read (a newer version's variant, a hand edit) is left out
     /// with a warning; the rest of the map loads.
     #[test]

@@ -15,9 +15,9 @@ Triggers belong to an **owner**, and each owner receives only some events:
 | Triggers of | Events they can react to |
 |---|---|
 | a **map** (map settings, nothing selected) | *Map enter*, *Woke up*, *Time reached*, *Fight starts*, *Fight ends*, *Custom event* |
-| a **zone** (trigger area) | *Enter*, *Leave*, *Interact*, *Searched*, *Custom event* |
+| a **zone** (trigger area) | *Enter*, *Leave*, *Interact*, *Searched*, *Trap sprung*, *Trap disarmed* (trap zones), *Custom event* |
 | a **character** (placed, or its definition) | *Interact*, *Use item*, *Defeat*, *HP below %*, *Fight starts*, *Fight ends*, *Searched*, *Custom event* |
-| a **prop** (placed, or its definition) | *Interact*, *Use item*, *Unlocked*, *Locked*, *Woke up* (beds), *Searched*, *Defeated* (broken), *Custom event* |
+| a **prop** (placed, or its definition) | *Interact*, *Use item*, *Unlocked*, *Locked*, *Woke up* (beds), *Searched*, *Defeated* (broken), *Trap sprung*, *Trap disarmed* (trapped props), *Custom event* |
 | an **item lying on a map** | *Interact*, *Use item*, *Custom event* |
 | an **item definition's** *On use* | *Use item* |
 
@@ -39,6 +39,7 @@ map) or in the Database (definitions).
 | **Unlocked** / **Locked** | The prop's lock was opened with its key, or locked again. |
 | **Woke up** | The player woke up after sleeping: the map's triggers (anywhere on it) and the bed's own. |
 | **Searched** | The player used *Search* on the [action bar](09-gameplay.md#the-action-bar): a Perception roll, then the *Searched* triggers of the zones they stand in and of the props and characters within 2 tiles. Pair it with *Search found* (the roll against a DC); "You find nothing." when none runs. *Since 0.32* |
+| **Trap sprung** / **Trap disarmed** | The [trap](09-gameplay.md#traps) of the zone or prop sprang on the hero (walked in, used, a disarming failed by 5 or more) / was disarmed (by the hero, or by *Disarm trap*). An alarm bell, guards coming, a hidden door opening once the plate is safe. *Since 0.32* |
 | **Time reached** | The clock reached that hour (12.0 = noon, 5.5 = 5:30) while the player is on the map, every day; also when time jumps past it by sleeping or *Set time*. |
 | **Fight starts** / **Fight ends** | A [turn-based fight](09-gameplay.md#health-and-combat) started on the map / is over (won or fled; not when lost: the *defeated* menu comes). The map's triggers, and a character's own when it takes part (a boss's words when its fight starts; one that joins later fires *Fight starts* as it joins). |
 
@@ -193,6 +194,9 @@ across map changes and in save games.
   threshold (poison and psychic do nothing); at 0 hit points it breaks: its lock is gone, it
   disappears or takes its broken state, its *Defeated* triggers fire (a collapsing barricade, a
   trap smashing a crate). `damage_prop()` in scripts.
+- **Disarm trap** (a trap zone or trapped prop on this map, by name): disarms it for good, as the
+  hero would (a lever beside the plate, a key that locks the mechanism); its *Trap disarmed*
+  triggers fire. `disarm_trap()` in scripts. *Since 0.32*
 - **Group check** (what, DC): the hero and every companion on the map roll; when at least half
   succeed, the **On a success** actions run, else **On a failure** (sneaking past a camp together).
   Companions roll with their stat blocks, under their names in the *Rolls* page.

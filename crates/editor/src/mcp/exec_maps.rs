@@ -749,7 +749,7 @@ impl Editor {
                     return Err(format!("ambience sound \"{sound}\" doesn't exist.{}", suggestions(sound, self.project.db.sounds.iter().map(|s| s.id.as_str()))));
                 }
             }
-            ZoneKind::Spawn | ZoneKind::Trigger | ZoneKind::Drop { .. } => {}
+            ZoneKind::Spawn | ZoneKind::Trigger | ZoneKind::Drop { .. } | ZoneKind::Trap { .. } => {}
         }
         let triggers: Vec<Trigger> = match triggers {
             Some(v) => serde_json::from_value(v.clone()).map_err(|e| format!("triggers: {e} (see events_reference)"))?,

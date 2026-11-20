@@ -535,6 +535,14 @@ impl Editor {
                             out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("the drop lands on spawn \"{target_spawn}\", which map {on} doesn't have"), target: target.clone() });
                         }
                     }
+                    ZoneKind::Trap { trap } => {
+                        if trap.detect_dc <= 0 {
+                            out.push(Problem { severity: Severity::Warning, area: Area::Maps, place: place.clone(), text: "the trap can't be found (find DC 0): players never see it coming".into(), target: target.clone() });
+                        }
+                        if !trap.damage.is_empty() && rustpg2d_engine::srd::Expr::parse(&trap.damage).is_err() {
+                            out.push(Problem { severity: Severity::Error, area: Area::Maps, place: place.clone(), text: format!("the trap's damage \"{}\" isn't dice", trap.damage), target: target.clone() });
+                        }
+                    }
                     ZoneKind::Spawn | ZoneKind::Trigger => {}
                 }
                 let mut refs = rustpg2d_engine::refactor::refs_of_triggers(&z.triggers);

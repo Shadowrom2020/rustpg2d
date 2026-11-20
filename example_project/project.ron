@@ -186,6 +186,7 @@
         food_water: false,
         forced_march: false,
         encumbrance: Plain,
+        camp_item: "bedroll",
     ),
     rules_version: 4,
     progression: (

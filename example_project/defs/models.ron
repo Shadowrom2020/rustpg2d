@@ -4342,7 +4342,7 @@
             ),
             (
                 anim: "walk",
-                clip: "walking_2",
+                clip: "Walking",
                 fps: 12.0,
             ),
             (
@@ -4413,7 +4413,7 @@
             ),
             (
                 anim: "attack_cast",
-                clip: "Armature|mage_soell_cast|baselayer",
+                clip: "mage_soell_cast_7",
                 fps: 12.0,
                 hit: Some(0.55),
             ),

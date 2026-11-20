@@ -375,6 +375,10 @@ pub struct WorldState {
     /// The last dawn the charged items regained charges at (days since the start, from 6:00).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_dawn: Option<i64>,
+    /// When the hero's last long rest ended (game hours since the start): one long rest in 24
+    /// hours gives its benefits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_long_rest: Option<f64>,
     /// What the class adds to checks (computed from the class; not saved).
     #[serde(skip)]
     pub training: crate::srd::check::Training,
@@ -789,19 +793,11 @@ impl WorldState {
             eprintln!("[rules] '{what}' is no {} (an ability like dex, a skill like stealth, or ability:tool like dex:thieves-tools)", if save { "saving throw" } else { "ability check" });
             return None;
         };
-        // The hero's conditions: disadvantage (poisoned, frightened, exhaustion…), or a check or
-        // save that fails on its own (blinded and looking, stunned and dodging).
-        let rules = crate::srd::conditions::rules(&self.effects);
-        let dex = spec.ability == crate::srd::Ability::Dex;
-        let mut disadvantage = if save { rules.save_disadvantage || (dex && rules.dex_save_disadvantage) } else { rules.check_disadvantage };
-        // Armor: untrained gives disadvantage on STR and DEX; some armor on Stealth.
-        let str_dex = dex || spec.ability == crate::srd::Ability::Str;
-        disadvantage |= (self.training.armor_untrained && str_dex) || (!save && self.training.stealth_disadvantage && spec.proficiency == "stealth");
-        // A heavy load (the variant encumbrance): disadvantage on STR, DEX and CON.
-        disadvantage |= self.training.heavy_load && (str_dex || spec.ability == crate::srd::Ability::Con);
-        let mode = if disadvantage { mode.combine(crate::srd::Mode::Disadvantage) } else { mode };
-        let fails = if save { rules.str_dex_saves_fail && (dex || spec.ability == crate::srd::Ability::Str) } else { rules.sight_checks_fail && crate::srd::conditions::needs_sight(&spec.proficiency) };
+        let (mode, fails, helper) = self.check_terms(&spec, mode);
         let mut rec = spec.roll(&self.roller(), dc, mode);
+        if let Some(h) = helper {
+            rec.label = format!("{} ({h} helps)", rec.label);
+        }
         if fails {
             rec.success = Some(false);
             rec.dice = "fails (condition)".into();
@@ -810,6 +806,86 @@ impl WorldState {
         self.last_check = Some(rec.clone());
         self.log_roll(rec.clone());
         Some(rec)
+    }
+
+    /// What changes the hero's roll of `spec`: the mode with the conditions' disadvantage (poisoned,
+    /// frightened, exhaustion…), armor, a heavy load, dim light for sight and a helper's advantage;
+    /// whether it fails on its own (blinded or in darkness and looking, stunned and dodging); who
+    /// helps.
+    fn check_terms(&self, spec: &crate::srd::Spec, mode: crate::srd::Mode) -> (crate::srd::Mode, bool, Option<String>) {
+        use crate::srd::check::Sight;
+        let save = spec.save;
+        let rules = crate::srd::conditions::rules(&self.effects);
+        let dex = spec.ability == crate::srd::Ability::Dex;
+        let mut disadvantage = if save { rules.save_disadvantage || (dex && rules.dex_save_disadvantage) } else { rules.check_disadvantage };
+        // Armor: untrained gives disadvantage on STR and DEX; some armor on Stealth.
+        let str_dex = dex || spec.ability == crate::srd::Ability::Str;
+        disadvantage |= (self.training.armor_untrained && str_dex) || (!save && self.training.stealth_disadvantage && spec.proficiency == "stealth");
+        // A heavy load (the variant encumbrance): disadvantage on STR, DEX and CON.
+        disadvantage |= self.training.heavy_load && (str_dex || spec.ability == crate::srd::Ability::Con);
+        // Looking in dim light (lightly obscured): disadvantage; in darkness the check fails.
+        let sight = !save && crate::srd::conditions::needs_sight(&spec.proficiency);
+        disadvantage |= sight && self.training.sight == Sight::Dim;
+        let mut mode = if disadvantage { mode.combine(crate::srd::Mode::Disadvantage) } else { mode };
+        // A companion who knows the skill helps (working together): advantage.
+        let helper = if save || spec.proficiency.is_empty() { None } else { self.training.help.get(&spec.proficiency).cloned() };
+        if helper.is_some() {
+            mode = mode.combine(crate::srd::Mode::Advantage);
+        }
+        let fails = if save { rules.str_dex_saves_fail && str_dex } else { sight && (rules.sight_checks_fail || self.training.sight == Sight::Dark) };
+        (mode, fails, helper)
+    }
+
+    /// A group check: the hero and `others` (companions' names and stat blocks) roll `what`
+    /// against `dc` into the roll log (nobody helps: everyone rolls for themselves); true when at
+    /// least half succeed, which *Check passed* then reads.
+    pub fn group_check(&mut self, what: &str, dc: i32, others: &[(String, crate::srd::StatBlock)]) -> bool {
+        let help = std::mem::take(&mut self.training.help);
+        let hero = self.check(what, dc, crate::srd::Mode::Normal, false);
+        self.training.help = help;
+        let Some(hero) = hero else { return false };
+        let mut passed = usize::from(hero.success == Some(true));
+        let mut members = 1;
+        for (name, block) in others {
+            let Some(rec) = crate::srd::check::roll_block(block, name, what, dc, crate::srd::Mode::Normal) else { continue };
+            members += 1;
+            passed += usize::from(rec.success == Some(true));
+            self.log_roll(rec);
+        }
+        let ok = crate::srd::check::group_passes(passed, members);
+        if let Some(last) = &mut self.last_check {
+            last.success = Some(ok);
+        }
+        ok
+    }
+
+    /// A contest: the hero's `what` against `name`'s (`block`) `against` (empty = the same); the
+    /// higher total wins, a tie isn't a win. Both rolls go into the roll log, the hero's as a
+    /// check against the other total + 1 (*Check passed*). False when either name is unknown.
+    pub fn contest(&mut self, what: &str, name: &str, block: &crate::srd::StatBlock, against: &str) -> bool {
+        let theirs = if against.trim().is_empty() { what } else { against };
+        let Some(mut them) = crate::srd::check::roll_block(block, name, theirs, 0, crate::srd::Mode::Normal) else {
+            eprintln!("[rules] contest: '{theirs}' is no check");
+            return false;
+        };
+        let Some(ours) = self.check(what, them.total as i32 + 1, crate::srd::Mode::Normal, false) else { return false };
+        them.dc = 0;
+        them.success = None;
+        self.log_roll(them);
+        // (`success` is false too when the check fails on its own: looking in darkness.)
+        ours.success == Some(true)
+    }
+
+    /// The hero's passive check of `what` (a skill, an ability, ability:tool): 10 + the bonus, +5
+    /// with advantage, −5 with disadvantage (dim light for Perception, poison…); 0 when it would
+    /// fail anyway (looking in darkness). `None` = nothing known by that name.
+    pub fn passive(&self, what: &str) -> Option<i64> {
+        let spec = crate::srd::Spec::parse(what, false)?;
+        let (mode, fails, _) = self.check_terms(&spec, crate::srd::Mode::Normal);
+        if fails {
+            return Some(0);
+        }
+        Some(crate::srd::check::passive_value(spec.modifier(&self.roller()), mode))
     }
 
     /// Rolls a dice expression (`2d6+STR`) with the hero's modifiers into the roll log; `None`
@@ -1085,6 +1161,49 @@ mod tests {
         let old: WorldState = ron::from_str(r#"(flags: [], vars: {}, inventory: {}, entities: {}, fired: [], current_map: "m", player_pos: (0.0, 0.0), player_facing: Down, effects: [(kind: Poison, strength: 0.5, remaining: 4.0, accum: 0.2), (kind: Haste, strength: 30.0, remaining: 9.0)])"#).unwrap();
         assert!(conditions::has(&old.effects, Condition::Poisoned));
         assert_eq!(old.effects[0].remaining, Some(4.0));
+    }
+
+    /// Checks outside fights: light for sight, a helper, passive values, group checks, contests.
+    #[test]
+    fn checks_outside_fights() {
+        use crate::srd::check::Sight;
+        use crate::srd::{Abilities, Mode, StatBlock};
+        crate::srd::dice::seed(3);
+        let mut w = WorldState::default();
+        // WIS 10, no proficiency: passive Perception 10; dim light -5 and disadvantage; darkness fails.
+        assert_eq!(w.passive("perception"), Some(10));
+        w.training.sight = Sight::Dim;
+        assert_eq!(w.passive("perception"), Some(5));
+        assert_eq!(w.check("perception", 1, Mode::Normal, false).unwrap().mode, Mode::Disadvantage);
+        assert_eq!(w.check("athletics", 1, Mode::Normal, false).unwrap().mode, Mode::Normal, "only sight");
+        w.training.sight = Sight::Dark;
+        assert_eq!(w.passive("perception"), Some(0));
+        assert_eq!(w.check("perception", 1, Mode::Normal, false).unwrap().success, Some(false));
+        assert_eq!(w.check("wis", 1, Mode::Normal, true).unwrap().success, Some(true), "saves look at nothing");
+        w.training.sight = Sight::Bright;
+        assert_eq!(w.passive("nonsense"), None);
+        // A companion who knows Athletics helps: advantage, named in the label.
+        w.training.help.insert("athletics".into(), "Finn".into());
+        let helped = w.check("athletics", 10, Mode::Normal, false).unwrap();
+        assert_eq!((helped.mode, helped.label.as_str()), (Mode::Advantage, "Athletics (Finn helps)"));
+        assert_eq!(w.passive("athletics"), Some(15), "advantage +5");
+        w.training.help.clear();
+        // Group checks: the hero (STR 30) and two who never make it (STR 1) at DC 15: 1 of 3 fails,
+        // the hero with one of them (1 of 2) succeeds.
+        w.abilities = Abilities([30, 10, 10, 10, 10, 10]);
+        let weak = StatBlock { abilities: Abilities([1, 10, 10, 10, 10, 10]), ..Default::default() };
+        let two = [("A".to_string(), weak.clone()), ("B".to_string(), weak.clone())];
+        assert!(!w.group_check("athletics", 15, &two));
+        assert_eq!(w.last_check.as_ref().unwrap().success, Some(false));
+        assert!(w.group_check("athletics", 15, &two[..1]));
+        assert!(w.rolls.iter().any(|r| r.label == "A: Athletics"), "companions' rolls in the log");
+        // Contests: STR 30 against STR 1 always wins; the other way round never.
+        assert!(w.contest("athletics", "Brom", &weak, ""));
+        w.abilities = Abilities([1, 10, 10, 10, 10, 10]);
+        let strong = StatBlock { abilities: Abilities([30, 10, 10, 10, 10, 10]), ..Default::default() };
+        assert!(!w.contest("athletics", "Brom", &strong, ""));
+        assert!(w.rolls.last().is_some_and(|r| r.label == "Brom: Athletics" && r.success.is_none()));
+        assert!(!w.contest("athletics", "Brom", &strong, "nonsense"));
     }
 
     #[test]

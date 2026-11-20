@@ -102,6 +102,11 @@ on the sheet), or you grow exhausted. A full waterskin is half a day of water; a
 ones. Running fast makes you less watchful (passive Perception −5), and walking more than eight
 hours between nights' sleep can tire you out.
 
+**Seeing**: at night you notice less (Perception at disadvantage), and in a dark cave without a light
+you see nothing at all: carry a torch. Elves and dwarves see in the dark. A companion who knows a
+skill helps with your checks of it. One night's sleep a day refreshes you; a second right after
+doesn't.
+
 A **padlock** over a chest or door means it is locked. Without its key, press E to try to pick it
 (a Dexterity check with Thieves' Tools): you need **thieves' tools** in your bag. If it holds, give
 it ten minutes before you try again.

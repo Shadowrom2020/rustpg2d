@@ -197,6 +197,10 @@ pub const API: &[ApiFn] = api! {
     [deprecated "is_proficient(skill)"] "skill"(skill: Skill) "1 when the hero is proficient in a skill or tool, else 0 (until 0.27 a skill tree's level). Deprecated: use is_proficient";
     [deprecated "set_proficient(skill, on)"] "set_skill"(skill: Skill, level: Num) "Makes the hero proficient in a skill or tool (level above 0) or not (0). Deprecated: use set_proficient (queued)";
     [since "0.28"] "roll"(dice: Text) "Rolls dice such as \"2d6+3\", \"1d20+DEX\" or \"8d6\" (STR to CHA = the hero's ability modifier, PROF = the proficiency bonus) and returns the total; the roll goes into the roll log (immediately)";
+    [since "0.32"] "passive"(what: Skill) "The hero's passive check: 10 + the bonus, +5 with advantage, -5 with disadvantage (dim light for Perception), 0 when looking in darkness; -1 for an unknown name (immediately)";
+    [since "0.32"] "group_check"(what: Skill, dc: Num) "A group check: the hero and every companion on the map roll against the DC; true when at least half succeed (immediately)";
+    [since "0.32"] "contest"(what: Skill, name: Text) "A contest: the hero's check against the same check of a character on the map (by name; \"self\" = the script's owner) with a stat block; true when the hero's total is higher (immediately)";
+    [since "0.32"] "contest"(what: Skill, name: Text, against: Skill) "Like contest(), the character rolling another check: contest(\"stealth\", \"Guard\", \"perception\") (immediately)";
     [since "0.28"] "check"(what: Skill, dc: Num) "An ability check of the hero against a DC: a skill (\"persuasion\"), an ability (\"str\") or ability:tool (\"dex:thieves-tools\"); true on a success. Rolled at once, shown on screen and in the roll log; Check passed conditions see it (immediately)";
     [since "0.28"] "check"(what: Skill, dc: Num, mode: Text) "Like check(); mode \"advantage\" or \"disadvantage\" rolls two d20s and keeps the higher or lower (immediately)";
     [since "0.28"] "save"(ability: Text, dc: Num) "A saving throw of the hero (\"dex\", \"wis\", ...) against a DC; true on a success (immediately)";
@@ -561,6 +565,10 @@ mod tests {
             ("skill", 0, IdKind::Skill),
             ("set_skill", 0, IdKind::Skill),
             ("check", 0, IdKind::Skill),
+            ("passive", 0, IdKind::Skill),
+            ("group_check", 0, IdKind::Skill),
+            ("contest", 0, IdKind::Skill),
+            ("contest", 2, IdKind::Skill),
             ("modifier", 0, IdKind::Skill),
             ("is_proficient", 0, IdKind::Skill),
             ("set_proficient", 0, IdKind::Skill),

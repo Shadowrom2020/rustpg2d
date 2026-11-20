@@ -1,0 +1,83 @@
+//! Checks outside fights (the SRD's *Using Ability Scores*): the light at the hero for checks by
+//! sight (dim light: disadvantage, darkness: a failure; darkvision sees one step lighter),
+//! companions helping (working together: advantage), group checks (half the party succeeds) and
+//! contests against a character's stat block. The rolls themselves are `WorldState::check`'s.
+
+use super::turns::Who;
+use super::Game;
+use crate::srd::check::Sight;
+
+/// Tiles within which a companion helps the hero's checks.
+const HELP_TILES: f32 = 6.0;
+
+impl Game {
+    /// Once a frame: the light at the hero for checks by sight, and who of the party helps with
+    /// which skill (out of fights; in fights *Help* is an action).
+    pub(super) fn refresh_senses(&mut self) {
+        let sight = match super::turns::vision::obscured_by_light(self.light_at_player()) {
+            super::turns::vision::Obscured::None => Sight::Bright,
+            super::turns::vision::Obscured::Light => Sight::Dim,
+            super::turns::vision::Obscured::Heavy => Sight::Dark,
+        };
+        self.world.training.sight = if self.darkvision_ft() > 0 { sight.lighter() } else { sight };
+        let mut help = std::collections::BTreeMap::new();
+        if self.fight.is_none() {
+            let ts = self.ts();
+            for (uid, name, pos) in self.party_members() {
+                if pos.distance(self.player.pos) > HELP_TILES * ts {
+                    continue;
+                }
+                // (Skills and tools: what a check can be made with; not armor, weapons or saves.)
+                for p in self.who_block(Who::Npc(uid)).map(|b| b.proficiencies).unwrap_or_default() {
+                    let id = crate::srd::abilities::proficiency_id(&p);
+                    if crate::srd::abilities::skill(&id).is_some() || crate::srd::abilities::tool(&id).is_some() {
+                        help.entry(id).or_insert_with(|| name.clone());
+                    }
+                }
+            }
+        }
+        self.world.training.help = help;
+    }
+
+    /// The companions on this map who can act (not down): uid, the name messages use, position.
+    fn party_members(&self) -> Vec<(u32, String, macroquad::prelude::Vec2)> {
+        (0..self.loaded.entities.len())
+            .filter(|&i| {
+                let e = &self.loaded.entities[i];
+                e.active && e.companion.as_ref().is_some_and(|c| c.down.is_none())
+            })
+            .map(|i| (self.loaded.entities[i].uid, self.display_name(i), self.loaded.entities[i].body.pos))
+            .collect()
+    }
+
+    /// The companions on the map who can act, with their stat blocks (group checks).
+    pub(super) fn party_blocks(&self) -> Vec<(String, crate::srd::StatBlock)> {
+        self.party_members().into_iter().filter_map(|(uid, name, _)| Some((name, self.who_block(Who::Npc(uid))?))).collect()
+    }
+
+    /// A group check (*Group check*): the hero and every companion on the map who can act.
+    pub(super) fn group_check(&mut self, what: &str, dc: i32) -> bool {
+        let others = self.party_blocks();
+        self.world.group_check(what, dc, &others)
+    }
+
+    /// A contest (*Contest*) against the character `target` on this map (false without it).
+    pub(super) fn contest(&mut self, what: &str, target: &str, against: &str, owner: Option<u32>) -> bool {
+        let Some(i) = self.entity_index(target, owner) else {
+            eprintln!("[events] Contest: no character '{target}' on this map");
+            return false;
+        };
+        let (uid, name) = (self.loaded.entities[i].uid, self.display_name(i));
+        let Some(block) = self.who_block(Who::Npc(uid)) else { return false };
+        self.world.contest(what, &name, &block, against)
+    }
+
+    /// `senses=` for status: the light at the hero for sight checks (`light:dim`, `:darkvision`)
+    /// and who helps with what (`help:athletics=Finn,…`).
+    pub(super) fn senses_status(&self) -> String {
+        let t = &self.world.training;
+        let dv = if self.darkvision_ft() > 0 { ":darkvision" } else { "" };
+        let help: Vec<String> = t.help.iter().map(|(k, v)| format!("{k}={v}")).collect();
+        format!("light:{}{dv} help:{}", t.sight.word(), if help.is_empty() { "-".into() } else { help.join(",") })
+    }
+}

@@ -46,9 +46,10 @@ impl Game {
         !self.sneaking() && self.player.moving && super::input::act_down(super::input::Act::Run)
     }
 
-    /// The hero's passive Perception: 10 + Perception, −5 at the fast pace.
+    /// The hero's passive Perception: 10 + Perception (±5 for advantage / disadvantage: dim
+    /// light, a helper; 0 in darkness), −5 at the fast pace.
     pub(super) fn hero_passive_perception(&self) -> i32 {
-        10 + self.world.check_bonus("perception", false).unwrap_or(0) as i32 - if self.hero_fast_pace() { 5 } else { 0 }
+        self.world.passive("perception").unwrap_or(10) as i32 - if self.hero_fast_pace() { 5 } else { 0 }
     }
 
     /// Eats `food` and drinks `water` days' worth (*Eat / drink*, `eat()`, `drink()`).

@@ -216,6 +216,8 @@ pub fn action_summary(a: &Action) -> String {
         Action::Bark { target, lines, .. } => format!("{target}: \"{}\"", lines.first().map_or("", |l| l.as_str())),
         Action::If { conditions, then, otherwise } => format!("if {} ({} then, {} else)", conds_summary(conditions), then.len(), otherwise.len()),
         Action::Check { what, save, dc, then, otherwise, .. } => format!("{} {what} DC {dc} ({} success, {} failure)", if *save { "save" } else { "check" }, then.len(), otherwise.len()),
+        Action::GroupCheck { what, dc, then, otherwise } => format!("group {what} DC {dc} ({} success, {} failure)", then.len(), otherwise.len()),
+        Action::Contest { what, target, then, otherwise, .. } => format!("contest {what} vs {target} ({} won, {} lost)", then.len(), otherwise.len()),
         Action::Roll { dice, var } => format!("roll {dice} {} {var}", ph::ARROW_RIGHT),
         other => other.label().to_string(),
     }
@@ -302,7 +304,7 @@ impl Facts {
                     self.action(key, row, a);
                 }
             }
-            Action::Check { then, otherwise, .. } => {
+            Action::Check { then, otherwise, .. } | Action::GroupCheck { then, otherwise, .. } | Action::Contest { then, otherwise, .. } => {
                 for a in then.iter().chain(otherwise) {
                     self.action(key, row, a);
                 }

@@ -66,6 +66,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
 | **Proficient in** | The hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`, `save:dex`). Until 0.27 *Skill level* |
 | **Check passed** | The last ability check or saving throw (an *Ability check* action, a lock, crafting, `check()` in a script) succeeded, by at least a number (0 = just succeeded) |
+| **Passive check** | The hero's passive check of a skill, ability or ability:tool (10 + the bonus, +5 with advantage, −5 with disadvantage: dim light for Perception; 0 looking in darkness) is at least a DC: something noticed without rolling, e.g. on a zone's *Enter* ([Gameplay › Checks outside fights](09-gameplay.md#checks-outside-fights)). *Since 0.32* |
 | **Knows spell**, **Player level** | Character progress |
 | **Player has condition** | Poisoned, prone, exhausted… (or any condition); until 0.27 *Player has effect* |
 | **Defeated count** | How many of a character kind the player has defeated (the bestiary's count) |
@@ -186,6 +187,13 @@ across map changes and in save games.
   with advantage / disadvantage, and runs its **On a success** or **On a failure** actions. The
   result shows on screen, goes into the journal's *Rolls* page, and *Check passed* sees it later.
 - **Saving throw**: the same with an ability's saving throw (`dex`, `wis`…).
+- **Group check** (what, DC): the hero and every companion on the map roll; when at least half
+  succeed, the **On a success** actions run, else **On a failure** (sneaking past a camp together).
+  Companions roll with their stat blocks, under their names in the *Rolls* page.
+- **Contest** (the hero's check, a character, its check): the hero's roll against a character's
+  (by name, *self* = the trigger's owner; it needs a stat block) of the same check or another one
+  (Athletics against Athletics; Stealth against Perception); the higher total wins, a tie isn't a
+  win: **If the hero wins** or **Otherwise**. Both rolls go into the *Rolls* page.
 - **Roll dice**: rolls an expression (`2d6+STR`, `1d20`, `8d6`; `STR` to `CHA` = the hero's
   modifier, `PROF` = the proficiency bonus) into a variable.
 - **Set proficiency**: makes the hero proficient in a skill, tool or saving throw, or takes it
@@ -209,7 +217,10 @@ across map changes and in save games.
   higher one with its experience and hit points to match.
 
 In the example, Tilda's quest reward offers "Ask for a bit more": an *Ability check* (Persuasion,
-DC 13) whose success gives ten more coins.
+DC 13) whose success gives ten more coins. Brom the smith, on his stool at the tavern in the evening,
+offers an arm-wrestle for a gold piece: a *Contest* of Athletics against his (his entity's stat block
+has STR 16). A zone by the forest clearing's plaza has a *Passive check* (Perception 13): by day the
+hero notices some lost gold pieces in the grass, at night (dim light) they walk past.
 
 **Magic**
 - **Learn spell** (only when the hero's class lists the spell), **Teach spell** (a party member

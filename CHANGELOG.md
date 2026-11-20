@@ -484,6 +484,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Forced march** (an option): walking more than 8 game hours between long rests calls for CON saves.
 - `carried_weight()`; `status` prints `survival=` and `load=`.
 
+### Rests and checks (SRD 5.1, part 3)
+- **One long rest in 24 hours:** a long rest less than 16 hours after the last one passes the time
+  but gives nothing.
+- **Light and sight:** Perception and Investigation look at the light where the hero is: disadvantage
+  (and −5 passive) in dim light, a failure in darkness; darkvision sees one step lighter.
+- **Help out of fights:** a companion nearby who is proficient in a skill gives the hero's checks of
+  it advantage ("Survival (Fisher helps)").
+- **Group checks** (the party rolls, half succeeding is a success), **contests** (the hero's check
+  against a character's, the higher total wins) and **passive checks** of any skill: the actions
+  *Group check* and *Contest*, the condition *Passive check*, `group_check()`, `contest()`,
+  `passive()`. Companions' and opponents' rolls appear by name in the journal's *Rolls* page.
+- **Example:** lost gold pieces by the forest clearing's plaza that the hero notices by day (passive
+  Perception 13) but not at night; Brom arm-wrestles for a gold piece at the tavern in the evening.
+- `status` prints `senses=` and `rest=…:long:HOURS`.
+
 ### Money is a purse
 - The hero keeps no coins in the bag: money is a value in copper pieces on the character sheet
   (*Money* on the Character tab and now the Sheet tab). Coins that reach the hero (picked up from a

@@ -889,6 +889,10 @@ tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 | `roll(dice)` | Rolls dice such as `"2d6+3"`, `"1d20+DEX"` or `"8d6"` (`STR` to `CHA` = the hero's ability modifier, `PROF` = the proficiency bonus) and returns the total; the roll goes into the roll log. *(immediately, since 0.28)* |
 | `check(what, dc)` | An ability check of the hero against a DC: d20 + the ability modifier, + the proficiency bonus when proficient in the skill or tool; `true` on a success, e.g. `if check("persuasion", 13) { … }`. *(immediately, since 0.28)* |
 | `check(what, dc, mode)` | Like `check`; mode `"advantage"` or `"disadvantage"` rolls two d20s and keeps the higher or the lower. *(immediately, since 0.28)* |
+| `passive(what)` | The hero's passive check: 10 + the bonus, +5 with advantage, −5 with disadvantage (dim light for Perception, poison…), 0 when looking in darkness; `-1` for an unknown name. The *Passive check* condition compares it. *(immediately, since 0.32)* |
+| `group_check(what, dc)` | A group check: the hero and every companion on the map roll against the DC (into the roll log); `true` when at least half succeed. *(immediately, since 0.32)* |
+| `contest(what, name)` | A contest: the hero's check against the same check of a character on the map with a stat block (`"self"` = the script's owner); `true` when the hero's total is higher (a tie isn't a win). *(immediately, since 0.32)* |
+| `contest(what, name, against)` | Like `contest`, the character rolling another check: `contest("stealth", "Guard", "perception")`. *(immediately, since 0.32)* |
 | `save(ability, dc)` | A saving throw of the hero (`"dex"`, `"wis"`, …) against a DC; `true` on a success. *(immediately, since 0.28)* |
 | `save(ability, dc, mode)` | Like `save`, with advantage or disadvantage. *(immediately, since 0.28)* |
 | `modifier(what)` | The hero's bonus: an ability's modifier (`"str"`), a skill's or ability:tool's check bonus with proficiency, or a saving throw's (`"save:dex"`). *(since 0.28)* |

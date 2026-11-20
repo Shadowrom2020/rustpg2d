@@ -899,6 +899,27 @@ fn the_heros_rules_are_set_in_the_project_form() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// An item's *Use* trigger gets a *Group check* from the + Action menu, saved.
+#[test]
+fn a_group_check_is_added_to_a_trigger() {
+    use rustpg2d_engine::events::Action;
+    let root = example_copy("group_check");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "bread").expect("the example's bread");
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("+ Action")).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("Group check") && n.role() == Role::Button).click();
+    step(&mut h);
+    let last = h.state().project.db.items[k].on_use[0].actions.last().cloned();
+    assert!(matches!(last, Some(Action::GroupCheck { ref what, dc: 12, .. }) if what == "stealth"), "{last:?}");
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert!(matches!(saved.db.items[k].on_use[0].actions.last(), Some(Action::GroupCheck { .. })));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// Project › Rules: the survival options (Food and water, Forced march) clicked on, saved.
 #[test]
 fn survival_rules_are_switched_on_in_the_project_form() {

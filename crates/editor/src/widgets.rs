@@ -1166,6 +1166,12 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     ui.label("the hero is attuned to");
                     suggest(ui, &id, item, &refs.items, 120.0);
                 }
+                Cond::Passive { what, dc } => {
+                    ui.label("the hero's passive");
+                    suggest(ui, &id, what, &check_choices(), 120.0);
+                    ui.label("is at least");
+                    ui.add(egui::DragValue::new(dc).range(1..=40)).on_hover_text("10 + the bonus, +5 with advantage, -5 with disadvantage (dim light for Perception), 0 looking in darkness");
+                }
                 Cond::KnockedOut { name } => {
                     ui.label("a fight knocked out");
                     ui.add(egui::TextEdit::singleline(name).desired_width(120.0).hint_text("name or id"))
@@ -2264,6 +2270,42 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             ui.indent(format!("{id}/ct"), |ui| actions_ui(ui, &format!("{id}/then"), then, refs));
             ui.label("On a failure:");
             ui.indent(format!("{id}/ce"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
+        }
+        Action::GroupCheck { what, dc, then, otherwise } => {
+            ui.horizontal(|ui| {
+                ui.label("group check");
+                suggest(ui, &format!("{id}/what"), what, &check_choices(), 150.0);
+                ui.label("DC");
+                ui.add(egui::DragValue::new(dc).range(1..=30)).on_hover_text("5 very easy, 10 easy, 15 medium, 20 hard, 25 very hard, 30 nearly impossible");
+            });
+            if rustpg2d_engine::srd::Spec::parse(what, false).is_none() {
+                ui.colored_label(egui::Color32::from_rgb(230, 120, 90), "a skill (stealth), an ability (str) or ability:tool (dex:thieves-tools)");
+            }
+            ui.weak("(the hero and every companion on the map roll; at least half succeeding is a success)");
+            ui.label("On a success:");
+            ui.indent(format!("{id}/gt"), |ui| actions_ui(ui, &format!("{id}/then"), then, refs));
+            ui.label("On a failure:");
+            ui.indent(format!("{id}/ge"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
+        }
+        Action::Contest { what, target, against, then, otherwise } => {
+            ui.horizontal(|ui| {
+                ui.label("the hero's");
+                suggest(ui, &format!("{id}/what"), what, &check_choices(), 130.0);
+                ui.label("against");
+                suggest(ui, &format!("{id}/target"), target, &refs.targets, 110.0);
+                ui.label("rolling");
+                suggest(ui, &format!("{id}/against"), against, &check_choices(), 130.0);
+            });
+            for (w, empty_ok) in [(&*what, false), (&*against, true)] {
+                if !(empty_ok && w.trim().is_empty()) && rustpg2d_engine::srd::Spec::parse(w, false).is_none() {
+                    ui.colored_label(egui::Color32::from_rgb(230, 120, 90), format!("'{w}' is no skill, ability or ability:tool"));
+                }
+            }
+            ui.weak("(a character on this map with a stat block, \"self\" = the owner; an empty second check = the same one; the higher total wins, a tie is lost)");
+            ui.label("If the hero wins:");
+            ui.indent(format!("{id}/kt"), |ui| actions_ui(ui, &format!("{id}/then"), then, refs));
+            ui.label("Otherwise:");
+            ui.indent(format!("{id}/ke"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
         }
         Action::Roll { dice, var } => {
             labeled(ui, "dice", |ui| {

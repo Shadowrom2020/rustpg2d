@@ -75,6 +75,7 @@ mod mouse;
 mod movement;
 mod survival;
 mod actionbar;
+mod objects;
 mod checks;
 mod spawner;
 mod rolls;
@@ -319,6 +320,8 @@ struct RtEntity {
     defense: i32,
     /// Its key lock has been opened.
     unlocked: bool,
+    /// A prop with object statistics: its hit points when damaged (None = whole; `objects.rs`).
+    obj_hp: Option<i32>,
     /// Patrol route and progress (characters with a route).
     patrol: Option<patrol::Patrol>,
     /// Daily routine (placed characters with a schedule).
@@ -917,6 +920,7 @@ impl Game {
             count: 1,
             defense,
             unlocked: false,
+            obj_hp: None,
             state: 0,
             patrol: None,
             schedule: None,
@@ -1044,6 +1048,7 @@ impl Game {
             }
         }
         rt.unlocked = st.is_some_and(|s| s.unlocked);
+        rt.obj_hp = st.and_then(|s| s.hp);
         if let Some(d) = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def)).flatten() {
             // Saved state; saves from before named states store a frame offset.
             let name = match st {
@@ -1753,6 +1758,7 @@ impl Game {
             changed_at: e.changed_at,
             planted: e.planted.clone(),
             faction: e.faction_set.clone(),
+            hp: e.obj_hp,
         };
         let map = self.loaded.map.name.clone();
         let uid = e.uid;
@@ -2684,7 +2690,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} favorites={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} favorites={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2826,7 +2832,8 @@ impl Game {
             self.load_status(),
             self.senses_status(),
             self.bar_status(),
-            self.search_status()
+            self.search_status(),
+            self.objects_status()
         )
     }
 
@@ -3886,6 +3893,16 @@ impl ActionHost for Game {
             }
             Action::Nourish { food, water } => {
                 self.nourish(*food, *water);
+                Step::Continue
+            }
+            Action::DamageProp { target, amount, damage_type } => {
+                match self.entity_index(target, ctx.owner).filter(|&i| self.object_of(i).is_some()) {
+                    Some(i) => {
+                        let n = self.object_of(i).map_or(0, |o| o.damage_taken(*amount, *damage_type));
+                        self.damage_object(i, n);
+                    }
+                    None => eprintln!("[events] Damage prop: no prop '{target}' with object statistics here"),
+                }
                 Step::Continue
             }
             Action::GroupCheck { what, dc, then, otherwise } => {

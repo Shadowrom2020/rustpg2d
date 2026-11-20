@@ -290,10 +290,17 @@ impl Game {
             let e = &self.loaded.entities[i];
             let to = (e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0)) - center;
             let radius = e.body.hitbox.x.max(e.body.hitbox.y) / 2.0 + 2.0;
-            self.project.db.prop(&e.def).is_some_and(|d| d.gather.is_some()) && (to.length() < ts * 0.5 || (to.length() - radius <= reach && to.angle_between(dir).abs() <= arc))
+            let object = self.project.db.prop(&e.def).is_some_and(|d| d.object.is_some()) && e.obj_hp != Some(0);
+            // (An object next to the hero is in reach of any swing, bare hands too: a fist's narrow
+            // arc would miss one a few pixels off the line.)
+            let (reach, arc) = if object { (reach.max(ts), arc.max(60f32.to_radians())) } else { (reach, arc) };
+            (object || self.project.db.prop(&e.def).is_some_and(|d| d.gather.is_some())) && (to.length() < ts * 0.5 || (to.length() - radius <= reach && to.angle_between(dir).abs() <= arc))
         });
+        // (A gathering prop takes a gathering hit; an object an attack: crates, doors.)
         if let Some(i) = prop {
-            self.gather_hit(i);
+            if !self.gather_hit(i) {
+                self.strike_object(i);
+            }
         }
     }
 

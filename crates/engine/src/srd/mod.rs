@@ -14,6 +14,7 @@ pub mod dice;
 pub mod rules;
 pub mod statblock;
 pub mod survival;
+pub mod objects;
 
 pub use abilities::{Abilities, Ability};
 pub use check::{RollRecord, Spec};

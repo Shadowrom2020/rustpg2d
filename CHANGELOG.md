@@ -525,6 +525,16 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   what the purse could pay and take from it. Coins in the bag of an older save go into the purse when
   it loads. Monsters, chests and companions still hold coins as items.
 
+### Objects (SRD 5.1)
+- Props can be the SRD's **objects** (*Database › Props › Object*): armor class by material, hit
+  points by size, a damage threshold, immunity to poison and psychic damage. Attack (X) breaks
+  them outside fights (the hero's attack roll against the armor class); broken ones lose their lock
+  and disappear or take a broken state, and their *Defeated* triggers fire. A locked one with a
+  *Force DC* is forced open with Strength (Athletics) when neither key nor lockpick opens it.
+- The starter library's doors (`room_door`, `front_door`), chests and crates are objects; the
+  example's stone house door can be broken or forced.
+- The *Damage prop* action, `damage_prop()`, `prop_hp()`; `status` prints `objects=`.
+
 ### Art
 - The male **dragonborn** has a new model (example and starter library) with its own walk, idle,
   sword attack and spell-casting clips; hurt, sitting, sneaking and the weapon animations still come

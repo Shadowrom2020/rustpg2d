@@ -152,6 +152,9 @@ pub struct EntityState {
     /// The faction a *Set faction* action gave the character (None = its own).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub faction: Option<String>,
+    /// A prop with object statistics: its hit points when damaged (None = whole).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hp: Option<i32>,
 }
 
 /// A seed planted on a farm plot (`EntityState::planted`).
@@ -1262,7 +1265,7 @@ mod tests {
         let b = w.add_furniture("home", "chair", "chair_item", 80.0, 80.0);
         assert!(a >= FURNITURE_UID_BASE && b == a + 1 && b < DROPPED_UID_BASE);
         // Its saved state and contents go with it when it is picked up.
-        w.entities.entry("home".into()).or_default().insert(a, EntityState { active: true, frame: 0, x: 48.0, y: 80.0, facing: Facing::Down, count: None, unlocked: false, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: None, planted: None, faction: None });
+        w.entities.entry("home".into()).or_default().insert(a, EntityState { active: true, frame: 0, x: 48.0, y: 80.0, facing: Facing::Down, count: None, unlocked: false, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: None, planted: None, faction: None, hp: None });
         w.containers.entry("home".into()).or_default().insert(a, Inventory::new(4));
         assert_eq!(w.remove_furniture("home", a).map(|f| f.prop), Some("chest".to_string()));
         assert!(!w.entities["home"].contains_key(&a) && !w.containers["home"].contains_key(&a));
@@ -1374,7 +1377,7 @@ mod tests {
         w.set_entity_state(
             "village",
             7,
-            EntityState { active: false, frame: 1, x: 1.0, y: 2.0, facing: Facing::Up, count: None, unlocked: true, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: Some(30.0), planted: None, faction: None },
+            EntityState { active: false, frame: 1, x: 1.0, y: 2.0, facing: Facing::Up, count: None, unlocked: true, state: Some("open".into()), patrol: None, schedule_off: false, changed_at: Some(30.0), planted: None, faction: None, hp: Some(7) },
         );
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert!(back.flag("a"));

@@ -132,6 +132,8 @@ impl Game {
         self.scripts.set_stat_blocks(blocks);
         let locks = self.lock_list();
         self.scripts.set_locks(locks);
+        let objects = (0..self.loaded.entities.len()).filter_map(|i| self.object_hp(i).map(|(hp, _)| (self.loaded.entities[i].uid, self.loaded.entities[i].name.clone(), hp))).collect();
+        self.scripts.set_objects(objects);
         let merchants = self.merchant_stock();
         self.scripts.set_merchants(merchants);
         let casters = (0..self.loaded.entities.len())

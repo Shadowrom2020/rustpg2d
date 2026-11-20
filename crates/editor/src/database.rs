@@ -1819,11 +1819,76 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
         widgets::lock_ui(ui, "prop_lock", lock, cx.refs, cx.tex, cx.assets, cx.db, Some(&prop));
     }
     ui.separator();
+    object_ui(ui, d);
+    ui.separator();
     use_spot_ui(ui, d, cx);
     ui.separator();
     ui.heading("Default triggers");
     ui.weak("Run for every placed instance, in addition to the instance's own triggers.");
     widgets::triggers_ui(ui, &format!("prop/{}", d.id), &mut d.triggers, cx.refs, rustpg2d_engine::events::TriggerOwner::Prop);
+}
+
+/// The prop as an SRD object: armor class by material, hit points by size, a damage threshold,
+/// forcing it open, what breaking does.
+fn object_ui(ui: &mut egui::Ui, d: &mut PropDef) {
+    use rustpg2d_engine::srd::objects::{Broken, Material, ObjectSize, ObjectStats};
+    ui.heading("Object");
+    let mut on = d.object.is_some();
+    if ui.checkbox(&mut on, "Can be broken (an object: crate, door, chest)").on_hover_text("The SRD's object rules: the hero breaks it with attacks outside fights (X); a locked one with a force DC can be forced open with Strength (Athletics) when neither key nor lockpick opens it. Objects ignore poison and psychic damage.").changed() {
+        d.object = on.then(|| ObjectStats { resilient: true, ..Default::default() });
+    }
+    let states = d.state_names();
+    let Some(o) = &mut d.object else { return };
+    egui::Grid::new("prop_object").num_columns(2).show(ui, |ui| {
+        ui.label("Material");
+        egui::ComboBox::from_id_salt("obj_material").selected_text(o.material.label()).show_ui(ui, |ui| {
+            for m in Material::ALL {
+                ui.selectable_value(&mut o.material, m, format!("{} (AC {})", m.label(), m.ac()));
+            }
+        });
+        ui.end_row();
+        ui.label("Size");
+        ui.horizontal(|ui| {
+            egui::ComboBox::from_id_salt("obj_size").selected_text(o.size.label()).show_ui(ui, |ui| {
+                for s in ObjectSize::ALL {
+                    ui.selectable_value(&mut o.size, s, s.label());
+                }
+            });
+            ui.checkbox(&mut o.resilient, "Resilient").on_hover_text("A door, a chest: more hit points than a fragile vase");
+        });
+        ui.end_row();
+        ui.label("Armor class");
+        ui.add(egui::DragValue::new(&mut o.ac).range(0..=30)).on_hover_text(format!("0 = the material's ({})", o.material.ac()));
+        ui.end_row();
+        ui.label("Hit points");
+        ui.add(egui::DragValue::new(&mut o.hp).range(0..=500)).on_hover_text(format!("0 = by size ({})", o.size.hp(o.resilient)));
+        ui.end_row();
+        ui.label("Damage threshold");
+        ui.add(egui::DragValue::new(&mut o.threshold).range(0..=50)).on_hover_text("A hit doing less damage than this does nothing (a sturdy door: 5, an iron gate: 10)");
+        ui.end_row();
+        ui.label("Force DC");
+        ui.add(egui::DragValue::new(&mut o.force_dc).range(0..=30)).on_hover_text("Locked: a Strength (Athletics) check against this DC forces it open (0 = it can't be forced)");
+        ui.end_row();
+        ui.label("When broken");
+        let mut to_state = matches!(o.broken, Broken::ToState { .. });
+        ui.horizontal(|ui| {
+            if ui.radio_value(&mut to_state, false, "Disappears").clicked() {
+                o.broken = Broken::Disappear;
+            }
+            if ui.radio_value(&mut to_state, true, "Takes a state").clicked() && !matches!(o.broken, Broken::ToState { .. }) {
+                o.broken = Broken::ToState { state: states.get(1).cloned().unwrap_or_default() };
+            }
+            if let Broken::ToState { state } = &mut o.broken {
+                egui::ComboBox::from_id_salt("obj_broken").selected_text(state.as_str()).show_ui(ui, |ui| {
+                    for s in &states {
+                        ui.selectable_value(state, s.clone(), s);
+                    }
+                });
+            }
+        });
+        ui.end_row();
+    });
+    ui.weak(format!("AC {}, {} hit points. Breaking it removes its lock (a container stays lootable) and fires its Defeated triggers.", o.armor_class(), o.max_hp()));
 }
 
 /// A wall set: the prop for each combination of neighbours (Decorations tool, Line).

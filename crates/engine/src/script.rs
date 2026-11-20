@@ -49,6 +49,8 @@ struct Ctx {
     plugin_params: std::collections::BTreeMap<String, std::collections::BTreeMap<String, crate::plugins::ParamValue>>,
     /// Props with a lock on the current map: (uid, name, locked) (`is_locked`).
     locks: Vec<(u32, String, bool)>,
+    /// Props with object statistics on the current map: (uid, name, hit points) (`prop_hp`).
+    objects: Vec<(u32, String, i32)>,
     /// Consumable item ids (`is_consumable`).
     consumables: std::collections::BTreeSet<String>,
     /// Magic items' charges by item id (`item_charges`).
@@ -178,6 +180,11 @@ impl ScriptHost {
     /// The props with a lock on the current map: (uid, name, locked).
     pub fn set_locks(&mut self, locks: Vec<(u32, String, bool)>) {
         self.ctx.borrow_mut().locks = locks;
+    }
+
+    /// The props with object statistics on the current map: (uid, name, hit points).
+    pub fn set_objects(&mut self, objects: Vec<(u32, String, i32)>) {
+        self.ctx.borrow_mut().objects = objects;
     }
 
     pub fn set_characters(&mut self, characters: Vec<(u32, String, i32)>) {
@@ -1166,6 +1173,13 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         c.locks.iter().any(|l| l.2 && if t.is_empty() || t == "self" { Some(l.0) == owner } else { l.1 == t })
     }));
     engine.register_fn("is_locked", with!(ctx, |c, uid: i64| c.locks.iter().any(|l| l.2 && l.0 as i64 == uid)));
+    // Objects: a prop's hit points (-1 without object statistics), damage to one (queued).
+    engine.register_fn("prop_hp", with!(ctx, |c, t: &str| {
+        let owner = c.owner;
+        c.objects.iter().find(|o| if t.is_empty() || t == "self" { Some(o.0) == owner } else { o.1 == t }).map_or(-1, |o| o.2 as i64)
+    }));
+    engine.register_fn("damage_prop", with!(ctx, |c, t: &str, amount: i64| c.actions.push(Action::DamageProp { target: t.into(), amount: amount as i32, damage_type: None })));
+    engine.register_fn("damage_prop", with!(ctx, |c, t: &str, amount: i64, kind: &str| c.actions.push(Action::DamageProp { target: t.into(), amount: amount as i32, damage_type: crate::srd::DamageType::parse(kind) })));
     engine.register_fn("play_sound", with!(ctx, |c, id: &str| c.actions.push(Action::PlaySound { sound: id.into(), volume: 1.0, pitch: 1.0, pan: 0.0 })));
     engine.register_fn("play_sound", with!(ctx, |c, id: &str, o: rhai::Map| {
         let f = |k: &str, d: f32| o.get(k).map_or(d, num);

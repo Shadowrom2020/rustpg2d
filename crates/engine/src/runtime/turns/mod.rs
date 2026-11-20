@@ -1372,7 +1372,7 @@ impl Game {
     }
 
     /// A combatant's melee attack (opportunity attacks, readied ones).
-    pub(super) fn melee_spec(&self, who: Who) -> Option<AttackSpec> {
+    pub(in crate::runtime) fn melee_spec(&self, who: Who) -> Option<AttackSpec> {
         self.attack_specs(who).into_iter().find(|s| !s.ranged)
     }
 

@@ -1443,6 +1443,10 @@ pub struct PropDef {
     /// check). A failed check finds no hold; a hero with a climb speed needs none.
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub climb_dc: u32,
+    /// The SRD's object statistics: armor class, hit points, a damage threshold, forcing it open,
+    /// what breaking does (`None` = it can't be broken or forced).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub object: Option<crate::srd::objects::ObjectStats>,
     /// Placed on a grid of this many pixels (16 or 32: wall pieces); 0 = anywhere.
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub snap: u16,
@@ -1499,6 +1503,7 @@ impl Default for PropDef {
             carry: None,
             climb: false,
             climb_dc: 0,
+            object: None,
             snap: 0,
             pieces: vec![],
             anim: None,

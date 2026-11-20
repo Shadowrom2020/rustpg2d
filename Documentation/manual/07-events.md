@@ -17,7 +17,7 @@ Triggers belong to an **owner**, and each owner receives only some events:
 | a **map** (map settings, nothing selected) | *Map enter*, *Woke up*, *Time reached*, *Fight starts*, *Fight ends*, *Custom event* |
 | a **zone** (trigger area) | *Enter*, *Leave*, *Interact*, *Searched*, *Custom event* |
 | a **character** (placed, or its definition) | *Interact*, *Use item*, *Defeat*, *HP below %*, *Fight starts*, *Fight ends*, *Searched*, *Custom event* |
-| a **prop** (placed, or its definition) | *Interact*, *Use item*, *Unlocked*, *Locked*, *Woke up* (beds), *Searched*, *Custom event* |
+| a **prop** (placed, or its definition) | *Interact*, *Use item*, *Unlocked*, *Locked*, *Woke up* (beds), *Searched*, *Defeated* (broken), *Custom event* |
 | an **item lying on a map** | *Interact*, *Use item*, *Custom event* |
 | an **item definition's** *On use* | *Use item* |
 
@@ -34,7 +34,7 @@ map) or in the Database (definitions).
 | **Use item** | The player uses an item (or a particular one) on the entity in front of them. If nothing reacts, the item's own *On use* triggers run. |
 | **Map enter** | The player arrives on the map. Not when a save game is loaded: loading resumes the game. |
 | **Custom event** | An *Emit event* action or `emit("name")` with that name. It reaches the map, all zones and all active entities on the map. |
-| **Defeat** | The character's HP reached 0. |
+| **Defeat** | The character's HP reached 0, or the prop (with object statistics) broke. |
 | **HP below %** | The character fell below that share of its HP and survived the hit. |
 | **Unlocked** / **Locked** | The prop's lock was opened with its key, or locked again. |
 | **Woke up** | The player woke up after sleeping: the map's triggers (anywhere on it) and the bed's own. |
@@ -189,6 +189,10 @@ across map changes and in save games.
   with advantage / disadvantage, and runs its **On a success** or **On a failure** actions. The
   result shows on screen, goes into the journal's *Rolls* page, and *Check passed* sees it later.
 - **Saving throw**: the same with an ability's saving throw (`dex`, `wis`…).
+- **Damage prop** (a prop, damage, type): damages a prop with object statistics past its damage
+  threshold (poison and psychic do nothing); at 0 hit points it breaks: its lock is gone, it
+  disappears or takes its broken state, its *Defeated* triggers fire (a collapsing barricade, a
+  trap smashing a crate). `damage_prop()` in scripts.
 - **Group check** (what, DC): the hero and every companion on the map roll; when at least half
   succeed, the **On a success** actions run, else **On a failure** (sneaking past a camp together).
   Companions roll with their stat blocks, under their names in the *Rolls* page.

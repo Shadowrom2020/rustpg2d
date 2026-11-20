@@ -551,7 +551,7 @@ impl Game {
     }
 
     /// A check's modifier for `who` (`athletics`: its STR and proficiency), without rolling.
-    fn check_bonus(&self, who: Who, what: &str) -> i64 {
+    pub(super) fn check_bonus(&self, who: Who, what: &str) -> i64 {
         let Some(spec) = crate::srd::Spec::parse(what, false) else { return 0 };
         if who == Who::Player {
             return spec.modifier(&self.world.roller());

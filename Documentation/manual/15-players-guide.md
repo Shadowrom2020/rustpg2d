@@ -156,6 +156,10 @@ The **fight log** at the bottom left tells every roll (`Alex > Goblin: d20 (14) 
 hit`); the journal's *Rolls* tab keeps them. A natural 20 is a **critical hit** (the damage dice
 twice).
 
+**Companions handed to the AI** (orders menu, G: *AI fights*) fight on their own: they heal a
+badly hurt friend, cast their spells, step away from enemies to shoot and attack. Enemies do the
+same: casters cast, archers step back, goblins hide, and a bandit may shove you down for its friends.
+
 **Seeing:** enemies you can't see (in darkness without darkvision, deep in fog, invisible) are
 drawn faded with a "?" over them: your attacks at them have disadvantage, theirs at you advantage.
 *Hide* needs a bush, dim light, darkness or good cover.

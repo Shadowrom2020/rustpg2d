@@ -39,6 +39,41 @@
                 text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 2 (1d4) bludgeoning damage.",
             ),
         ],
+        spellcasting: Some((
+            level: 1,
+            ability: Wis,
+            dc: 12,
+            attack: 4,
+            slots: [
+                3,
+            ],
+            spells: [
+                (
+                    spell: "light",
+                    level: 0,
+                ),
+                (
+                    spell: "sacred-flame",
+                    level: 0,
+                ),
+                (
+                    spell: "thaumaturgy",
+                    level: 0,
+                ),
+                (
+                    spell: "bless",
+                    level: 1,
+                ),
+                (
+                    spell: "cure-wounds",
+                    level: 1,
+                ),
+                (
+                    spell: "sanctuary",
+                    level: 1,
+                ),
+            ],
+        )),
     ),
     (
         template: "archmage",
@@ -93,6 +128,133 @@
                 text: "Melee or Ranged Weapon Attack: +6 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
             ),
         ],
+        spellcasting: Some((
+            level: 18,
+            ability: Int,
+            dc: 17,
+            attack: 9,
+            slots: [
+                4,
+                3,
+                3,
+                3,
+                3,
+                1,
+                1,
+                1,
+                1,
+            ],
+            spells: [
+                (
+                    spell: "disguise-self",
+                    level: 1,
+                ),
+                (
+                    spell: "invisibility",
+                    level: 2,
+                ),
+                (
+                    spell: "fire-bolt",
+                    level: 0,
+                ),
+                (
+                    spell: "light",
+                    level: 0,
+                ),
+                (
+                    spell: "mage-hand",
+                    level: 0,
+                ),
+                (
+                    spell: "prestidigitation",
+                    level: 0,
+                ),
+                (
+                    spell: "shocking-grasp",
+                    level: 0,
+                ),
+                (
+                    spell: "detect-magic",
+                    level: 1,
+                ),
+                (
+                    spell: "identify",
+                    level: 1,
+                ),
+                (
+                    spell: "mage-armor",
+                    level: 1,
+                ),
+                (
+                    spell: "magic-missile",
+                    level: 1,
+                ),
+                (
+                    spell: "detect-thoughts",
+                    level: 2,
+                ),
+                (
+                    spell: "mirror-image",
+                    level: 2,
+                ),
+                (
+                    spell: "misty-step",
+                    level: 2,
+                ),
+                (
+                    spell: "counterspell",
+                    level: 3,
+                ),
+                (
+                    spell: "fly",
+                    level: 3,
+                ),
+                (
+                    spell: "lightning-bolt",
+                    level: 3,
+                ),
+                (
+                    spell: "banishment",
+                    level: 4,
+                ),
+                (
+                    spell: "fire-shield",
+                    level: 4,
+                ),
+                (
+                    spell: "stoneskin",
+                    level: 4,
+                ),
+                (
+                    spell: "cone-of-cold",
+                    level: 5,
+                ),
+                (
+                    spell: "scrying",
+                    level: 5,
+                ),
+                (
+                    spell: "wall-of-force",
+                    level: 5,
+                ),
+                (
+                    spell: "globe-of-invulnerability",
+                    level: 6,
+                ),
+                (
+                    spell: "teleport",
+                    level: 7,
+                ),
+                (
+                    spell: "mind-blank",
+                    level: 8,
+                ),
+                (
+                    spell: "time-stop",
+                    level: 9,
+                ),
+            ],
+        )),
     ),
     (
         template: "assassin",
@@ -496,6 +658,50 @@
                 text: "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 20/60 ft., one creature. Hit: 4 (1d4 + 2) piercing damage.",
             ),
         ],
+        spellcasting: Some((
+            level: 4,
+            ability: Wis,
+            dc: 11,
+            attack: 3,
+            slots: [
+                4,
+                3,
+            ],
+            spells: [
+                (
+                    spell: "light",
+                    level: 0,
+                ),
+                (
+                    spell: "sacred-flame",
+                    level: 0,
+                ),
+                (
+                    spell: "thaumaturgy",
+                    level: 0,
+                ),
+                (
+                    spell: "command",
+                    level: 1,
+                ),
+                (
+                    spell: "inflict-wounds",
+                    level: 1,
+                ),
+                (
+                    spell: "shield-of-faith",
+                    level: 1,
+                ),
+                (
+                    spell: "hold-person",
+                    level: 2,
+                ),
+                (
+                    spell: "spiritual-weapon",
+                    level: 2,
+                ),
+            ],
+        )),
     ),
     (
         template: "cultist",
@@ -611,6 +817,36 @@
                 text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one creature. Hit: 4 (1d4 + 2) piercing damage, and the target must succeed on a DC 12 Constitution saving throw or be poisoned for 1 minute. The target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success",
             ),
         ],
+        spellcasting: Some((
+            ability: Int,
+            dc: 11,
+            attack: 3,
+            spells: [
+                (
+                    spell: "nondetection",
+                    level: 3,
+                    innate: true,
+                ),
+                (
+                    spell: "blindness-deafness",
+                    level: 2,
+                    innate: true,
+                    per_day: 1,
+                ),
+                (
+                    spell: "blur",
+                    level: 2,
+                    innate: true,
+                    per_day: 1,
+                ),
+                (
+                    spell: "disguise-self",
+                    level: 1,
+                    innate: true,
+                    per_day: 1,
+                ),
+            ],
+        )),
     ),
     (
         template: "drow",
@@ -683,6 +919,30 @@
                 text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one target. Hit: 5 (1d6 + 2) piercing damage, and the target must succeed on a DC 13 Constitution saving throw or be poisoned for 1 hour. If the saving throw fails by 5 or more, the target is also unconscious while poisoned in this way. The target wakes up if it takes damage or if another creature takes an action to shake it awake.",
             ),
         ],
+        spellcasting: Some((
+            ability: Cha,
+            dc: 11,
+            attack: 3,
+            spells: [
+                (
+                    spell: "dancing-lights",
+                    level: 0,
+                    innate: true,
+                ),
+                (
+                    spell: "darkness",
+                    level: 2,
+                    innate: true,
+                    per_day: 1,
+                ),
+                (
+                    spell: "faerie-fire",
+                    level: 1,
+                    innate: true,
+                    per_day: 1,
+                ),
+            ],
+        )),
     ),
     (
         template: "druid",
@@ -725,6 +985,54 @@
                 text: " Melee Weapon Attack: +2 to hit (+4 to hit with shillelagh), reach 5 ft., one target. Hit: 3 (1d6) bludgeoning damage, 4 (1d8) bludgeoning damage if wielded with two hands, or 6 (1d8 + 2) bludgeoning damage with shillelagh.",
             ),
         ],
+        spellcasting: Some((
+            level: 4,
+            ability: Wis,
+            dc: 12,
+            attack: 4,
+            slots: [
+                4,
+                3,
+            ],
+            spells: [
+                (
+                    spell: "druidcraft",
+                    level: 0,
+                ),
+                (
+                    spell: "produce-flame",
+                    level: 0,
+                ),
+                (
+                    spell: "shillelagh",
+                    level: 0,
+                ),
+                (
+                    spell: "entangle",
+                    level: 1,
+                ),
+                (
+                    spell: "longstrider",
+                    level: 1,
+                ),
+                (
+                    spell: "speak-with-animals",
+                    level: 1,
+                ),
+                (
+                    spell: "thunderwave",
+                    level: 1,
+                ),
+                (
+                    spell: "animal-messenger",
+                    level: 2,
+                ),
+                (
+                    spell: "barkskin",
+                    level: 2,
+                ),
+            ],
+        )),
     ),
     (
         template: "duergar",
@@ -1482,6 +1790,85 @@
                 text: "Melee or Ranged Weapon Attack: +5 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
             ),
         ],
+        spellcasting: Some((
+            level: 9,
+            ability: Int,
+            dc: 14,
+            attack: 6,
+            slots: [
+                4,
+                3,
+                3,
+                3,
+                1,
+            ],
+            spells: [
+                (
+                    spell: "fire-bolt",
+                    level: 0,
+                ),
+                (
+                    spell: "light",
+                    level: 0,
+                ),
+                (
+                    spell: "mage-hand",
+                    level: 0,
+                ),
+                (
+                    spell: "prestidigitation",
+                    level: 0,
+                ),
+                (
+                    spell: "detect-magic",
+                    level: 1,
+                ),
+                (
+                    spell: "mage-armor",
+                    level: 1,
+                ),
+                (
+                    spell: "magic-missile",
+                    level: 1,
+                ),
+                (
+                    spell: "shield",
+                    level: 1,
+                ),
+                (
+                    spell: "misty-step",
+                    level: 2,
+                ),
+                (
+                    spell: "suggestion",
+                    level: 2,
+                ),
+                (
+                    spell: "counterspell",
+                    level: 3,
+                ),
+                (
+                    spell: "fireball",
+                    level: 3,
+                ),
+                (
+                    spell: "fly",
+                    level: 3,
+                ),
+                (
+                    spell: "greater-invisibility",
+                    level: 4,
+                ),
+                (
+                    spell: "ice-storm",
+                    level: 4,
+                ),
+                (
+                    spell: "cone-of-cold",
+                    level: 5,
+                ),
+            ],
+        )),
     ),
     (
         template: "merfolk",
@@ -1671,6 +2058,59 @@
                 text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 3 (1d6) bludgeoning damage.",
             ),
         ],
+        spellcasting: Some((
+            level: 5,
+            ability: Wis,
+            dc: 13,
+            attack: 5,
+            slots: [
+                4,
+                3,
+                2,
+            ],
+            spells: [
+                (
+                    spell: "light",
+                    level: 0,
+                ),
+                (
+                    spell: "sacred-flame",
+                    level: 0,
+                ),
+                (
+                    spell: "thaumaturgy",
+                    level: 0,
+                ),
+                (
+                    spell: "cure-wounds",
+                    level: 1,
+                ),
+                (
+                    spell: "guiding-bolt",
+                    level: 1,
+                ),
+                (
+                    spell: "sanctuary",
+                    level: 1,
+                ),
+                (
+                    spell: "lesser-restoration",
+                    level: 2,
+                ),
+                (
+                    spell: "spiritual-weapon",
+                    level: 2,
+                ),
+                (
+                    spell: "dispel-magic",
+                    level: 3,
+                ),
+                (
+                    spell: "spirit-guardians",
+                    level: 3,
+                ),
+            ],
+        )),
     ),
     (
         template: "sahuagin",

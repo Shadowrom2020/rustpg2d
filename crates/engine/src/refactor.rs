@@ -287,6 +287,20 @@ impl Renamer<'_> {
         if let Some(inv) = &mut e.inventory {
             self.gear(&mut Default::default(), inv);
         }
+        self.stat_spells(&mut e.stats);
+    }
+
+    /// A stat block's spells (renamed with the spell; not a dependency: a monster casts only the
+    /// spells the project has).
+    fn stat_spells(&mut self, s: &mut Option<crate::srd::StatBlock>) {
+        if self.found.is_some() {
+            return;
+        }
+        if let Some(c) = s.as_mut().and_then(|s| s.spellcasting.as_mut()) {
+            for sp in &mut c.spells {
+                self.fix(RefKind::Spell, &mut sp.spell);
+            }
+        }
     }
 
     /// The model of a look (and a look of an older version: the model named like its figure).
@@ -586,6 +600,7 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         r.look(&mut d.appearance);
         r.gear(&mut d.equipment, &mut d.inventory);
         r.portraits(&mut d.portrait, &mut d.moods);
+        r.stat_spells(&mut d.stats);
     }
     for d in &mut db.structures {
         r.structure(d);
@@ -881,6 +896,20 @@ mod tests {
         let mut config = ProjectConfig::new("t");
         assert_eq!(rename_in_db(&mut db, &mut config, RefKind::Model, "rig_quadruped", "rig_four_legs"), 1);
         assert_eq!(db.models[1].rig.as_ref().unwrap().template, "rig_four_legs");
+    }
+
+    /// A stat block's spells follow a spell's rename, but don't travel with the character.
+    #[test]
+    fn stat_block_spells_follow_renames() {
+        use crate::srd::{StatBlock, StatSpell, StatSpellcasting};
+        let mut db = Database::default();
+        let cast = StatSpellcasting { spells: vec![StatSpell { spell: "sacred-flame".into(), ..Default::default() }], ..Default::default() };
+        db.characters.push(crate::defs::CharacterDef { stats: Some(StatBlock { spellcasting: Some(cast), ..Default::default() }), ..crate::defs::CharacterDef::fresh("cultist") });
+        db.reindex();
+        assert!(db.refs_of(RefKind::Character, "cultist").iter().all(|(k, _)| *k != RefKind::Spell));
+        let mut config = ProjectConfig::new("t");
+        assert_eq!(rename_in_db(&mut db, &mut config, RefKind::Spell, "sacred-flame", "holy-flame"), 1);
+        assert_eq!(db.characters[0].stats.as_ref().unwrap().spellcasting.as_ref().unwrap().spells[0].spell, "holy-flame");
     }
 
     /// The kinds' files are the defs files in order (`parse_defs` / `save_defs` rely on it).

@@ -8,6 +8,7 @@
 
 mod actions;
 mod ai;
+mod ai_cast;
 mod casting;
 mod features;
 pub(in crate::runtime) mod menu;
@@ -248,6 +249,8 @@ pub(super) struct Combat {
     pub knocking: bool,
     /// The hero's ammunition shot in this fight (item, count): half is found again after it.
     pub shot: Vec<(String, u32)>,
+    /// The AI shoved or grappled these (target, round): once per target and round.
+    pub ai_wrestled: Vec<(Who, u32)>,
 }
 
 /// What a fight log keeps.
@@ -515,7 +518,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, knocking: false, shot: Vec::new() };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, knocking: false, shot: Vec::new(), ai_wrestled: Vec::new() };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -1938,6 +1941,10 @@ impl Game {
                 }
                 if self.squeezed(f.who) {
                     more.push_str("#squeezed");
+                }
+                // (A casting monster's slots left: `$1:2,2:1`.)
+                if let Some(left) = self.monster_slots_left(f.who) {
+                    more.push_str(&format!("${left}"));
                 }
                 format!("{side}{}{mark}{more}:{hp}/{max}", self.who_key(f.who))
             })

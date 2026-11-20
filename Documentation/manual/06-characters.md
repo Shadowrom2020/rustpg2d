@@ -171,9 +171,10 @@ noble and priest models for those NPCs), else the **mannequin**, drawn at the cr
 from library* (filter *Characters*, search the name) brings one into a project; place it or name it
 in an [encounter](04-objects-and-zones.md#encounters).
 
-What acts in fights is the stat block's attacks; the traits and special actions (Pack Tactics,
-breath weapons, Regeneration, legendary actions) are texts for now and act in 0.32. Large and bigger
-creatures still take one tile in fights; flying monsters move at their flying speed.
+What acts in fights is the stat block's attacks and its **spellcasting** (the 36 casters: the
+acolyte, priest, mage, cult fanatic, lich…); the other traits and special actions (Pack Tactics,
+breath weapons, Regeneration, legendary actions) are texts for now. Large and bigger creatures take
+their space in fights (Large 2×2 tiles); flying monsters move at their flying speed.
 
 ### Stat blocks
 
@@ -198,6 +199,14 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   if used with two hands"): used when the placed character holds a weapon and nothing in the left
   hand. The block's **size** sets its space in fights (Large 2×2, Huge 3×3, Gargantuan 4×4), and its
   **senses** text (blindsight, tremorsense, truesight, darkvision with their ranges) what it sees.
+- **Spellcasting** (*Casts spells*): its caster **level** (a cantrip's damage grows with it), the
+  **ability**, the spell save **DC**, the spell **attack** bonus, the **slots** per level as text
+  (`4 3` = four 1st-level and three 2nd-level slots) and its **spells** by id with their level;
+  **innate** ones need no slot and are cast at will or a number of times a day (*Per day*). The AI
+  casts them in fights ([Gameplay › Health and combat](09-gameplay.md#health-and-combat)): its slots and daily uses
+  come back at dawn. A spell the project doesn't have (or a story-only one) stays in the list and
+  is never cast: add the spells from the library with the monster. Templates and the library's
+  monsters bring the SRD's.
   Each attack's
   **on a hit** section adds **Damage** of other types (a dragon's bite: plus 2d6 fire) and
   **Effects**: a saving throw (or none) with its DC against a condition for some rounds (0 = until

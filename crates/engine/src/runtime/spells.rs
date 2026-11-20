@@ -25,6 +25,70 @@ impl Game {
         }
     }
 
+    /// A monster's own spellcasting (its stat block's), when it has no class to cast with.
+    pub(super) fn monster_casting(&self, who: Who) -> Option<crate::srd::StatSpellcasting> {
+        if who == Who::Player || self.spellcasting(who).is_some() {
+            return None;
+        }
+        self.who_block(who)?.spellcasting
+    }
+
+    fn monster_key(&self, who: Who) -> Option<(String, u32)> {
+        match who {
+            Who::Npc(uid) => Some((self.loaded.map.name.clone(), uid)),
+            Who::Player => None,
+        }
+    }
+
+    /// A monster's spells it can cast now: (spell, slot level; an innate one at its level).
+    fn monster_cast_options(&self, who: Who, sc: &crate::srd::StatSpellcasting) -> Vec<(String, u32)> {
+        let spent = self.monster_key(who).and_then(|k| self.skills.monster_spent.get(&k)).cloned().unwrap_or_default();
+        let mut out = Vec::new();
+        for s in &sc.spells {
+            if self.project.db.spell(&s.spell).is_none_or(|d| d.story_only) {
+                continue;
+            }
+            if s.innate {
+                if s.per_day == 0 || spent.1.get(&s.spell).copied().unwrap_or(0) < s.per_day {
+                    out.push((s.spell.clone(), s.level));
+                }
+            } else if s.level == 0 {
+                out.push((s.spell.clone(), 0));
+            } else {
+                for l in s.level..=sc.slots.len() as u32 {
+                    if sc.slots[l as usize - 1] > spent.0[l as usize - 1] {
+                        out.push((s.spell.clone(), l));
+                    }
+                }
+            }
+        }
+        out.dedup();
+        out
+    }
+
+    /// A casting monster's slots left as `1:2,2:1` (None = no slots).
+    pub(super) fn monster_slots_left(&self, who: Who) -> Option<String> {
+        let sc = self.monster_casting(who)?;
+        if sc.slots.is_empty() {
+            return None;
+        }
+        let spent = self.monster_key(who).and_then(|k| self.skills.monster_spent.get(&k)).map(|s| s.0).unwrap_or_default();
+        Some(sc.slots.iter().enumerate().map(|(k, n)| format!("{}:{}", k + 1, n.saturating_sub(spent[k]))).collect::<Vec<_>>().join(","))
+    }
+
+    /// A monster pays for a cast: an innate spell's use, else a slot of `slot`'s level.
+    pub(super) fn monster_pay(&mut self, who: Who, spell: &str, slot: u32) {
+        let Some(sc) = self.monster_casting(who) else { return };
+        let Some(key) = self.monster_key(who) else { return };
+        let innate = sc.spells.iter().any(|s| s.spell == spell && s.innate) && !sc.spells.iter().any(|s| s.spell == spell && !s.innate);
+        let e = self.skills.monster_spent.entry(key).or_default();
+        if innate {
+            *e.1.entry(spell.to_string()).or_insert(0) += 1;
+        } else if (1..=9).contains(&slot) {
+            e.0[slot as usize - 1] += 1;
+        }
+    }
+
     /// The class a combatant casts with, its spellcasting and its level.
     pub(super) fn spellcasting(&self, who: Who) -> Option<(&ClassDef, &Spellcasting, u32)> {
         let c = match who {
@@ -44,6 +108,9 @@ impl Game {
 
     /// The spellcasting ability's modifier (0 without spellcasting).
     pub(super) fn spell_mod(&self, who: Who) -> i32 {
+        if let Some(sc) = self.monster_casting(who) {
+            return self.who_block(who).map_or(0, |b| b.abilities.modifier(sc.ability));
+        }
         self.spellcasting(who).map_or(0, |(_, sc, _)| self.caster_abilities(who).modifier(sc.ability))
     }
 
@@ -57,6 +124,9 @@ impl Game {
         if let Some(dc) = self.item_dc() {
             return dc as i32;
         }
+        if let Some(sc) = self.monster_casting(who) {
+            return sc.dc;
+        }
         8 + self.spell_prof(who) + self.spell_mod(who) + self.bonus_of(who, crate::classes::BonusTo::SpellDc)
     }
 
@@ -64,6 +134,9 @@ impl Game {
     pub(super) fn spell_attack_bonus(&self, who: Who) -> i32 {
         if let Some(dc) = self.item_dc() {
             return dc as i32 - 8;
+        }
+        if let Some(sc) = self.monster_casting(who) {
+            return sc.attack;
         }
         self.spell_prof(who) + self.spell_mod(who) + self.bonus_of(who, crate::classes::BonusTo::SpellAttack)
     }
@@ -279,6 +352,10 @@ impl Game {
     }
 
     pub(super) fn cast_options(&self, who: Who) -> Vec<(String, u32)> {
+        // (A monster's stat block spells: its slots and innate spells, no focus needed.)
+        if let Some(sc) = self.monster_casting(who) {
+            return self.monster_cast_options(who, &sc);
+        }
         let Some((_, sc, _)) = self.spellcasting(who) else { return Vec::new() };
         // (Armor without proficiency: no spells at all.)
         if self.who_armor_untrained(who) {
@@ -332,7 +409,8 @@ impl Game {
     /// The level a spell's dice scale with: a cantrip's the caster's level, else the slot's.
     pub(super) fn scale_level(&self, who: Who, d: &SpellDef, slot: u32) -> u32 {
         if d.level == 0 {
-            self.who_class_level(who)
+            // (A monster's cantrips grow with its spellcaster level.)
+            self.monster_casting(who).map_or_else(|| self.who_class_level(who), |sc| sc.level.max(1))
         } else {
             slot.max(d.level)
         }

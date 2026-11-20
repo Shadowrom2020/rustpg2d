@@ -21,6 +21,9 @@ const LIST_W: f32 = 300.0;
 const PAD: f32 = 16.0;
 const ROW: f32 = 40.0;
 
+/// A monster's spellcasting used today: slots spent by level, innate spells' uses by spell.
+pub(super) type MonsterSpent = ([u32; 9], HashMap<String, u32>);
+
 /// Runtime state of the systems (not saved except through `WorldState`).
 #[derive(Default)]
 pub(super) struct Skills {
@@ -34,6 +37,9 @@ pub(super) struct Skills {
     aiming: Option<Aim>,
     /// Party members concentrating on a spell: uid -> (its effects' source, seconds left).
     pub(super) npc_concentration: HashMap<u32, (String, f32)>,
+    /// Monsters' spellcasting used today (by map and uid): slots spent by level, innate spells'
+    /// uses. Not saved; dawn gives them back.
+    pub(super) monster_spent: HashMap<(String, u32), MonsterSpent>,
     /// The spellbook's slot level for the selected spell (0 = the lowest).
     slot: u32,
 }
@@ -87,6 +93,7 @@ impl Game {
     pub(super) fn init_skills(&mut self, _new_game: bool) {
         self.skills.light = None;
         self.skills.npc_concentration.clear();
+        self.skills.monster_spent.clear();
         self.cancel_aim();
     }
 

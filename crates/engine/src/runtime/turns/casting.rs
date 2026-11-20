@@ -135,7 +135,9 @@ impl Game {
         if targets.is_empty() && !d.parts.iter().any(|p| matches!(p, SpellPart::Script { .. })) {
             return Err("No one there");
         }
-        if !scroll && slot >= 1 {
+        if self.monster_casting(who).is_some() {
+            self.monster_pay(who, id, slot);
+        } else if !scroll && slot >= 1 {
             self.spend_slot(who, slot);
         }
         if let Some(c) = &mut self.fight {
@@ -275,6 +277,9 @@ impl Game {
                     }
                     SpellPart::Heal { by_level } => {
                         let n = dice_of(self, by_level).map_or(0, |x| roll(&x));
+                        if n > 0 && self.fight.is_some() {
+                            self.fight_log(format!("{tname}: +{n} HP"));
+                        }
                         if n > 0 {
                             match (self.fight.is_none(), t) {
                                 (true, Who::Player) => self.heal(n),

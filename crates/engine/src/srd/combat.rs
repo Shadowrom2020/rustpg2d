@@ -256,6 +256,24 @@ pub fn massive_damage(hp_before: i32, damage: i32, max_hp: i32) -> bool {
     max_hp > 0 && damage - hp_before.max(0) >= max_hp
 }
 
+/// Whether a creature of size `by` can grapple or shove one of size `target`: at most one size
+/// larger.
+pub fn can_grapple(by: super::Size, target: super::Size) -> bool {
+    target as u8 <= by as u8 + 1
+}
+
+/// Whether dragging a grappled creature of size `held` halves the speed of one of size `by`:
+/// unless it is two or more sizes smaller.
+pub fn dragging_halves(by: super::Size, held: super::Size) -> bool {
+    held as u8 + 2 > by as u8
+}
+
+/// The ammunition found again after a fight: half of what was shot, rounded down (the SRD's
+/// *Ammunition* property).
+pub fn recovered_ammo(shot: u32) -> u32 {
+    shot / 2
+}
+
 pub fn step_cost(difficult: bool) -> u32 {
     if difficult {
         2 * FEET_PER_TILE
@@ -267,6 +285,18 @@ pub fn step_cost(difficult: bool) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn grapples_by_size() {
+        use crate::srd::Size::*;
+        assert!(can_grapple(Medium, Large) && !can_grapple(Medium, Huge) && can_grapple(Small, Medium) && !can_grapple(Small, Large));
+        assert!(dragging_halves(Medium, Medium) && dragging_halves(Medium, Small) && !dragging_halves(Medium, Tiny));
+    }
+
+    #[test]
+    fn half_the_ammunition_comes_back() {
+        assert_eq!((recovered_ammo(0), recovered_ammo(1), recovered_ammo(5), recovered_ammo(20)), (0, 0, 2, 10));
+    }
 
     #[test]
     fn massive_damage_kills_outright() {

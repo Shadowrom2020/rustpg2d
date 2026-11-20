@@ -246,7 +246,41 @@ impl Game {
     /// Like [`Self::equip_from_slot`], into `target` when given (a ring into the second ring
     /// slot).
     pub(super) fn equip_from_slot_to(&mut self, i: usize, target: Option<EquipSlot>) -> bool {
+        let Some(item) = self.world.inventory.slots.get(i).cloned().flatten().map(|s| s.item) else { return false };
+        let slot = self.project.db.slot_of(&item);
+        if let Err(why) = slot.map_or(Ok(()), |s| self.fight_object_use(s, &item)) {
+            self.ui.toast(crate::lang::tr_ui(why).into_owned());
+            return false;
+        }
         self.keeping_room(|g| g.equip_from_slot_now(i, target))
+    }
+
+    /// Changing the hero's equipment in a fight, on the hero's turn (the SRD's object
+    /// interaction): drawing or stowing a weapon is free once a turn, the next takes the action;
+    /// a shield takes the action; armor, clothing and helmets take minutes. Free outside fights
+    /// and for events and scripts.
+    pub(super) fn fight_object_use(&mut self, slot: EquipSlot, item: &str) -> Result<(), &'static str> {
+        if self.runner.busy() {
+            return Ok(());
+        }
+        let Some(c) = self.fight.as_ref() else { return Ok(()) };
+        if c.current().who != super::turns::Who::Player || c.current().ai {
+            return Err("Not your turn");
+        }
+        if matches!(slot, EquipSlot::Body | EquipSlot::Clothing | EquipSlot::Head | EquipSlot::Back) {
+            return Err("Takes minutes");
+        }
+        let shield = self.project.db.item(item).and_then(|d| d.armor.as_ref()).is_some_and(|a| a.category == Some(crate::defs::ArmorCategory::Shield));
+        let c = self.fight.as_mut().unwrap();
+        if shield || c.turn.interacted {
+            if c.turn.action {
+                return Err("Action used");
+            }
+            c.turn.action = true;
+        } else {
+            c.turn.interacted = true;
+        }
+        Ok(())
     }
 
     fn equip_from_slot_now(&mut self, i: usize, target: Option<EquipSlot>) -> bool {
@@ -356,6 +390,13 @@ impl Game {
     /// Spends one piece of the ammunition [`Self::next_ammo`] picks (false = none left).
     pub(super) fn spend_ammo(&mut self, weapon_ammo: &str) -> bool {
         let Some((id, _, from_slot)) = self.next_ammo(weapon_ammo) else { return false };
+        // (Counted for the search after the fight.)
+        if let Some(c) = self.fight.as_mut() {
+            match c.shot.iter_mut().find(|s| s.0 == id) {
+                Some(s) => s.1 += 1,
+                None => c.shot.push((id.clone(), 1)),
+            }
+        }
         if from_slot {
             let q = &mut self.world.equipment.ammo;
             if let Some(s) = q.as_mut() {
@@ -396,6 +437,11 @@ impl Game {
 
     /// Takes off an equipped item; `to` = preferred inventory slot.
     pub(super) fn unequip(&mut self, slot: EquipSlot, to: Option<usize>) -> bool {
+        let Some(item) = self.world.equipment.item(slot).map(str::to_string) else { return false };
+        if let Err(why) = self.fight_object_use(slot, &item) {
+            self.ui.toast(crate::lang::tr_ui(why).into_owned());
+            return false;
+        }
         self.keeping_room(|g| g.unequip_now(slot, to))
     }
 

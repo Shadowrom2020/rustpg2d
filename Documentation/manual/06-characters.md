@@ -193,7 +193,10 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   with the modifier (`1d6+2`) and type, a melee **reach** and / or a **range** (normal / long, in
   feet; a tile is 5 ft), and **per turn** (Multiattack: how many attacks its Attack action makes).
   Templates bring the SRD's (the guard's spear, the bandit captain's three attacks); *Add attack*
-  adds one by hand. Without attacks it fights with its weapon or *Damage* (+2 to hit). Each attack's
+  adds one by hand. Without attacks it fights with its weapon or *Damage* (+2 to hit). An attack
+  with a versatile weapon keeps its two-handed damage (`versatile` in the file, from the SRD's "or …
+  if used with two hands"): used when the placed character holds a weapon and nothing in the left
+  hand. Each attack's
   **on a hit** section adds **Damage** of other types (a dragon's bite: plus 2d6 fire) and
   **Effects**: a saving throw (or none) with its DC against a condition for some rounds (0 = until
   it ends), and / or damage on a failed save (half on a success when ticked), and an **escape DC**

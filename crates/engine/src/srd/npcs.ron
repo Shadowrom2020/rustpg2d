@@ -825,6 +825,7 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+                versatile: "2d8+4",
             ),
             (
                 name: "Shield Bash",
@@ -907,6 +908,7 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+                versatile: "1d8+2",
             ),
             (
                 name: "Longbow",
@@ -1082,6 +1084,7 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+                versatile: "1d8+1",
             ),
         ],
         creature_type: "humanoid (any race)",
@@ -1118,6 +1121,7 @@
                 dice: "1d8+3",
                 damage_type: Some(Slashing),
                 reach_ft: 5,
+                versatile: "1d10+3",
             ),
             (
                 name: "Shortsword",
@@ -1187,6 +1191,7 @@
                 dice: "1d8+1",
                 damage_type: Some(Slashing),
                 reach_ft: 5,
+                versatile: "1d10+1",
             ),
             (
                 name: "Longbow",
@@ -1503,6 +1508,7 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+                versatile: "1d8",
             ),
         ],
         creature_type: "humanoid (merfolk)",
@@ -1705,6 +1711,7 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+                versatile: "1d8+1",
             ),
         ],
         multiattack: 2,
@@ -1964,6 +1971,7 @@
                 reach_ft: 5,
                 range_ft: 20,
                 long_ft: 60,
+                versatile: "1d8+1",
             ),
         ],
         creature_type: "humanoid (any race)",
@@ -2005,6 +2013,7 @@
                 dice: "1d8+3",
                 damage_type: Some(Slashing),
                 reach_ft: 5,
+                versatile: "1d10+3",
             ),
             (
                 name: "Shortsword",

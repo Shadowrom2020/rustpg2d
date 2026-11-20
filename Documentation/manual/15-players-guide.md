@@ -126,7 +126,8 @@ the map (a tile is 5 feet).
 - **The action bar** at the bottom: 1–8 or a click picks an action, Tab / Shift+Tab select one and
   X uses the selected one. One **action** a turn: *Attack* (with a spear, dagger or javelin it asks
   **Strike** or **Throw**; a thrown weapon lands next to the target and you fight bare-handed until
-  you walk onto it again or draw another one: C opens the character window in a fight, equipping is free), *Cast* (a window lists the spells you can cast now,
+  you walk onto it again or draw another one: C opens the character window in a fight; one weapon
+  change a turn is free, the next takes your action, a shield takes the action, armor can't be changed), *Cast* (a window lists the spells you can cast now,
   each slot level a row; ↑/↓ or the mouse choose, E / Enter takes it, Esc closes; the line above
   the bar then tells the slot, the area and the save; an area spell is drawn on the tiles under the
   cursor), *Class* (a window with your class's actions: *Rage*, *Second Wind*, *Action Surge*,
@@ -135,9 +136,11 @@ the map (a tile is 5 feet).
   *Dodge* (attacks against you get disadvantage until your next turn), *Help* (a companion's next
   attack against an enemy next to you gets advantage; on a fallen companion next to you it is first
   aid: your healer's kit or a Medicine check makes them stable), *Hide* (a Stealth check: hidden enemies can't
-  find you to attack), *Ready* (strike the first enemy that steps next to you), *Search* (find hidden
-  enemies), *Grapple* and *Shove* (wrestle an enemy next to you: grappled can't move; shoved is
-  knocked down or pushed away). When a monster's bite or tentacle holds you, *Grapple* turns into
+  find you to attack), *Ready* (a window: strike the first enemy that comes within reach, or hold a
+  spell for the first enemy that comes within its range; the spell's slot is spent now), *Search* (find hidden
+  enemies), *Grapple* and *Shove* (wrestle an enemy next to you, at most one size larger: grappled
+  can't move and is dragged along when you walk, at half speed; *Grapple* on it again lets go;
+  shoved is knocked down or pushed away). When a monster's bite or tentacle holds you, *Grapple* turns into
   **Escape** (Athletics or Acrobatics against its escape DC). Using an item from the inventory (a potion) takes the action too;
   you can give a potion to a companion right next to you (a fallen one gets back up). Items on
   the ground (loot, a thrown spear): right-click them, or E with the cursor on them, to pick them up
@@ -169,8 +172,9 @@ You can't save during a fight; the game autosaves when it is over.
 **Sneak**: Left Ctrl or V (gamepad: left stick click) switches sneaking on and off; *Sneaking*
 shows under your HP bar. You walk at half speed and quietly, and enemies notice you only within half
 their sight, less still in the dark (at night, in dark places, away from torches and lamps; your own
-lantern or light spell gives you away). One you bump into notices you anyway. Attack enemies who
-haven't noticed you and they are **surprised**: they lose the first round of the fight.
+lantern or light spell gives you away). One you bump into notices you anyway. Attack while
+sneaking and your party rolls Stealth: enemies whose passive Perception is below every roll are
+**surprised** and lose the first round of the fight. Monsters you can't see can surprise you too.
 
 ## Gamepad
 

@@ -397,6 +397,30 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   it, an incapacitated caster loses its concentration.
 - Tilda sells healer's kits. Autoplay `waitturn`; `status` prints `knocked_out=`.
 
+### Combat rules completed (part 2: grapple, cover, surprise and weapons)
+- **Grappling in full:** only creatures at most one size larger can be grappled or shoved; a
+  grappler drags the creature it holds when it walks (half speed unless it is two sizes smaller, no
+  opportunity attack from it), *Grapple* on it again lets go, and any grapple can be escaped
+  (Athletics or Acrobatics against the escape DC or the grappler's Athletics; held characters the AI
+  plays try it when no foe is in reach).
+- **Surprise by the rules:** only sneaking surprises: the party's Stealth against each foe's passive
+  Perception. Monsters that start a fight out of the hero's sight can surprise the party the same
+  way. The fight log shows the roll and who is surprised.
+- **Ready an attack or a spell:** a window; a readied spell spends its slot at once, is held with
+  concentration and goes off at the first foe that comes within its range.
+- **Reach:** opportunity attacks and readied attacks at the foe's full melee reach (a glaive's two
+  tiles); monsters with versatile weapons use their two-handed damage with a free left hand (the
+  import reads it).
+- **Cover on DEX saving throws** (+2 / +5 from the effect's origin; full cover keeps a creature out
+  of an area).
+- **Weapons:** half the ammunition shot is found again after the fight; the net restrains (no
+  damage, escape DC 10, one attack per action), the lance has disadvantage within 5 ft and needs both
+  hands; drawing or stowing a weapon is free once a turn, a second change takes the action, a shield
+  takes the action and armor can't be changed in a fight. Tilda sells nets.
+- Autoplay: `turn action ready`, `turn release`; `combat=` marks surprised, readied and grappling
+  fighters; `turn` commands pick the nearest fighter of a name.
+- **Fix:** a knocked-out foe no longer got up when the fight ended.
+
 ### Fixes
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.

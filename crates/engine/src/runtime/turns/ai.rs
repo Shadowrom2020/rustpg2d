@@ -97,6 +97,14 @@ impl Game {
             self.next_turn();
             return;
         }
+        // Held (grappled, a net, a web) with no foe to attack from here: it tries to get free.
+        if !turn.action && self.escape_dc(me.who).is_some() && !foes.iter().any(|f| specs.iter().any(|s| self.can_attack(me.who, *f, s).is_ok())) {
+            if let Some(c) = &mut self.fight {
+                c.turn.action = true;
+            }
+            self.escape(me.who);
+            return;
+        }
         // Attack now if a foe is in reach (the one most hurt for multiattackers, else the nearest).
         if !turn.action && turn.attacks_left > 0 {
             // (Foes down at 0 HP are left alone, except by those with Multiattack: they focus.)
